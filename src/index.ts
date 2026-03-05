@@ -15,6 +15,7 @@ export { B3dWater, b3dWater } from './b3d-water'
 export { B3dLight, b3dLight } from './b3d-light'
 export { B3dSphere, b3dSphere, B3dGround, b3dGround } from './b3d-primitives'
 export { B3dButton, b3dButton } from './b3d-button'
+export { B3dCollisions, b3dCollisions } from './b3d-collisions'
 
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped'

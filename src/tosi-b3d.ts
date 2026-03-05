@@ -184,6 +184,8 @@ export class B3d extends Component {
       stencil: true,
     })
     this.scene = new BABYLON.Scene(this.engine)
+    this.scene.collisionsEnabled = true
+    this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0)
 
     const init = async () => {
       if (this.sceneCreated !== noop) {

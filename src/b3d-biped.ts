@@ -219,6 +219,23 @@ export class B3dBiped extends AbstractMesh {
         rotation * timeElapsed * attrs.turnSpeed * DEG_TO_RAD
       )
 
+      // Gravity: only apply if not grounded (raycast down from feet)
+      const feetY = node.position.y + 0.05
+      const rayOrigin = new BABYLON.Vector3(
+        node.position.x,
+        feetY,
+        node.position.z
+      )
+      const ray = new BABYLON.Ray(rayOrigin, BABYLON.Vector3.Down(), 0.15)
+      const hit = this.owner!.scene.pickWithRay(
+        ray,
+        (m) => m !== node && m.checkCollisions
+      )
+      if (!hit?.hit) {
+        const gravity = Math.min(0.1, 9.81 * timeElapsed)
+        node.moveWithCollisions(new BABYLON.Vector3(0, -gravity, 0))
+      }
+
       if (speed > 0.1) {
         if (sprintSpeed > 0.25) {
           this.setAnimationState('run', sprintSpeed + 0.25)
@@ -412,6 +429,9 @@ export class B3dBiped extends AbstractMesh {
             .map((node) => node.getChildMeshes())
             .flat()
           this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
+          this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
+          this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
+          this.mesh.checkCollisions = true
           this.owner!.register({ meshes })
           this.setAnimationState(attrs.initialState)
 

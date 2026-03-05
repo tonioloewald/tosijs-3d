@@ -47,112 +47,38 @@
         height: 100%;
       }
     </style>
-    <script type="module">
-      const { protocol, host } = window.location
-
-      const libSrc =
-        host === 'tonioloewald.github.io'
-          ? `https://tonioloewald.github.io/xinjs-3d/dist/index.js`
-          : `${protocol}//${host}/dist/index.js`
-
-      const {
-        b3d,
-        b3dSun,
-        b3dSkybox,
-        b3dSphere,
-        b3dLoader,
-        b3dBiped,
-        b3dButton,
-        b3dLight,
-        b3dWater,
-        b3dReflections,
-        gameController,
-      } = await import(libSrc)
-
-      // Fetch package info for header
-      const response = await fetch('./package.json')
-      const data = await response.json()
-      document.title = data.name
-      const header = document.querySelector('header')
-      const h1 = document.createElement('h1')
-      h1.textContent = data.name
-      const links = document.createElement('div')
-      links.innerHTML = `<a href="${data.repository.url}">repo</a> | <a href="https://www.npmjs.com/package/${data.name}">npm</a>`
-      header.append(h1, links)
-
-      const scene = './static/b-frame-test.glb'
-      const omnidude = './static/omnidude.glb'
-
-      const preview = document.querySelector('.preview')
-      preview.append(
-        b3d(
-          { glowLayerIntensity: 1 },
-          b3dSun({
-            shadowCascading: true,
-            shadowTextureSize: 2048,
-            activeDistance: 20,
-          }),
-          b3dSkybox({
-            timeOfDay: 19,
-            realtimeScale: 100,
-            latitude: 30,
-            moonIntensity: 1.5,
-          }),
-          b3dSphere({
-            meshName: 'ref-sphere',
-            diameter: 1,
-            y: 1,
-            x: -3,
-            z: -3,
-            color: '#aaaaaa',
-          }),
-          b3dSphere({
-            meshName: 'tiny-sphere',
-            diameter: 0.25,
-            y: 0.125,
-            x: 2,
-          }),
-          b3dSphere({
-            meshName: 'chrome-sphere',
-            mirror: true,
-            diameter: 0.5,
-            y: 0.25,
-            x: 1.5,
-            color: '#ffffff',
-          }),
-          b3dLoader({ url: scene }),
-          gameController(
-            b3dBiped({
-              url: omnidude,
-              x: 5,
-              ry: 135,
-              player: true,
-              cameraType: 'follow',
-              initialState: 'look',
-            })
-          ),
-          b3dBiped({ url: omnidude, x: 3, initialState: 'dance' }),
-          b3dButton({
-            caption: 'Toggle XR',
-            x: -2,
-            y: 1.5,
-            action: () => {
-              const biped = document.querySelector('tosi-b3d-biped[player]')
-              if (biped) {
-                if (biped.cameraType !== 'xr') {
-                  biped.cameraType = 'xr'
-                } else {
-                  window.location.reload()
-                }
-              }
-            },
-          }),
-          b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
-          b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 }),
-          b3dReflections()
-        )
-      )
-    </script>
+    <script type="module" src="./dist/demo.js"></script>
+    <style>
+      #debug-overlay {
+        position: fixed;
+        top: 8px;
+        right: 8px;
+        background: rgba(0, 0, 0, 0.5);
+        color: #eee;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        z-index: 100;
+        user-select: none;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      #debug-overlay label {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      #debug-overlay input[type='range'] {
+        width: 100px;
+      }
+      #debug-overlay span {
+        font-family: monospace;
+        min-width: 3.5em;
+        display: inline-block;
+      }
+    </style>
   </head>
   <body>
     <header></header>

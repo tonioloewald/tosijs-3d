@@ -32,9 +32,23 @@ async function build() {
     }
     return
   }
+  let demoResult = await Bun.build({
+    entrypoints: ['./demo/index.ts'],
+    outdir: './dist',
+    naming: 'demo.js',
+    sourcemap: 'linked',
+    minify: true,
+  })
+  if (!demoResult.success) {
+    console.error('Demo build failed')
+    for (const message of demoResult.logs) {
+      console.error(message)
+    }
+  }
   console.timeEnd('build')
 }
 watch('./src').on('change', build)
+watch('./demo').on('change', build)
 
 await killStrayServer()
 await build()

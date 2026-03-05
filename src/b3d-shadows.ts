@@ -48,6 +48,8 @@ export class B3dSun extends Component {
     }
   }
 
+  private baseIntensity = 1
+
   private update() {
     if (this.light == null || this.owner?.scene == null) return
     // Get the actual world-space position of the active camera
@@ -58,6 +60,19 @@ export class B3dSun extends Component {
     this.light.position.x = target.x
     this.light.position.y = target.y + 10
     this.light.position.z = target.z
+
+    // Dim sun when camera is underwater
+    const waterMesh = this.owner.scene.getMeshByName('water_nocast')
+    if (waterMesh) {
+      const waterY = waterMesh.absolutePosition.y
+      if (target.y < waterY) {
+        const depth = waterY - target.y
+        const dimFactor = Math.max(0.05, 1 - depth * 0.5)
+        this.light.intensity = this.baseIntensity * dimFactor
+      } else {
+        this.light.intensity = this.baseIntensity
+      }
+    }
 
     const activeDistance = (this as any).activeDistance as number
     for (const mesh of this.shadowCasters) {
@@ -91,6 +106,7 @@ export class B3dSun extends Component {
         this.owner.scene
       )
       light.intensity = attrs.intensity
+      this.baseIntensity = attrs.intensity
       this.light = light
 
       if (attrs.shadowCascading) {
@@ -136,7 +152,7 @@ export class B3dSun extends Component {
       this.light.direction.x = attrs.x
       this.light.direction.y = attrs.y
       this.light.direction.z = attrs.z
-      this.light.intensity = attrs.intensity
+      this.baseIntensity = attrs.intensity
 
       // Soften shadows when light is dim (moonlight)
       const darkness =

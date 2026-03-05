@@ -24,6 +24,11 @@ export class B3dWater extends AbstractMesh {
 
   waterMaterial?: WaterMaterial
   private _callback?: SceneAdditionHandler
+  private _underwaterUpdate?: () => void
+  private _savedFogMode = BABYLON.Scene.FOGMODE_NONE
+  private _savedFogColor = new BABYLON.Color3()
+  private _savedFogDensity = 0
+  private _wasUnderwater = false
 
   private waterCallback(additions: SceneAdditions) {
     const { meshes } = additions
@@ -80,6 +85,7 @@ export class B3dWater extends AbstractMesh {
           scene
         )
       }
+      this.mesh.checkCollisions = false
 
       this.waterMaterial = new WaterMaterial(
         'water',
@@ -95,12 +101,46 @@ export class B3dWater extends AbstractMesh {
 
       this._callback = this.waterCallback.bind(this)
       this.owner.onSceneAddition(this._callback)
+
+      // Underwater fog effect
+      this._savedFogMode = scene.fogMode
+      this._savedFogColor = scene.fogColor.clone()
+      this._savedFogDensity = scene.fogDensity
+      this._underwaterUpdate = () => {
+        const cam = scene.activeCamera
+        if (!cam || !this.mesh) return
+        const camY = cam.globalPosition.y
+        const waterY = this.mesh.absolutePosition.y
+        const underwater = camY < waterY
+        if (underwater && !this._wasUnderwater) {
+          this._wasUnderwater = true
+          scene.fogMode = BABYLON.Scene.FOGMODE_EXP2
+          scene.fogColor = new BABYLON.Color3(0, 0.15, 0.3)
+          scene.fogDensity = 0.12
+        } else if (!underwater && this._wasUnderwater) {
+          this._wasUnderwater = false
+          scene.fogMode = this._savedFogMode
+          scene.fogColor = this._savedFogColor
+          scene.fogDensity = this._savedFogDensity
+        }
+      }
+      scene.registerBeforeRender(this._underwaterUpdate)
     }
   }
 
   disconnectedCallback(): void {
     if (this.owner && this._callback) {
       this.owner.offSceneAddition(this._callback)
+    }
+    if (this._underwaterUpdate && this.owner?.scene) {
+      this.owner.scene.unregisterBeforeRender(this._underwaterUpdate)
+      // Restore fog state
+      if (this._wasUnderwater) {
+        this.owner.scene.fogMode = this._savedFogMode
+        this.owner.scene.fogColor = this._savedFogColor
+        this.owner.scene.fogDensity = this._savedFogDensity
+      }
+      this._underwaterUpdate = undefined
     }
     this.waterMaterial = undefined
     super.disconnectedCallback()
