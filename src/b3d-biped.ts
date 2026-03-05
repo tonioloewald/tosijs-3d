@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, enterXR, XRStuff } from './b3d-utils'
+import { AbstractMesh, XRStuff } from './b3d-utils'
+import { xrControllers, TosiXRControllerMap } from './gamepad'
 import type { GameController } from './game-controller'
 
 const DEG_TO_RAD = Math.PI / 180
@@ -55,10 +56,13 @@ export class B3dBiped extends AbstractMesh {
   entries?: BABYLON.InstantiatedEntries
   camera?: BABYLON.Camera
   xrStuff?: XRStuff
+  xrControllerMap?: TosiXRControllerMap
   animationState?: AnimState
   animationGroup?: BABYLON.AnimationGroup
   gameController?: GameController
   private lastUpdate = 0
+  // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
+  private xrCamZoom = 0.25 // 0 = closest, 1 = furthest
 
   animationStates = AnimState.buildList(
     { animation: 'idle', loop: true },
@@ -137,24 +141,31 @@ export class B3dBiped extends AbstractMesh {
     }
   }
 
-  private getXRStickInput(): { forward: number; strafe: number; turn: number } {
-    if (this.xrStuff == null) return { forward: 0, strafe: 0, turn: 0 }
-    const gamepads = navigator.getGamepads()
+  private setupXRInput(xr: BABYLON.WebXRDefaultExperience) {
+    this.xrControllerMap = xrControllers(xr)
+  }
+
+  private getXRStickInput(): {
+    forward: number
+    turn: number
+    zoom: number
+  } {
+    if (this.xrControllerMap == null) return { forward: 0, turn: 0, zoom: 0 }
     let forward = 0
-    let strafe = 0
     let turn = 0
-    for (const gp of gamepads) {
-      if (gp == null || gp.axes.length < 4) continue
-      // Left stick: movement (axes 0=strafe, 1=forward)
-      const lx = Math.abs(gp.axes[0]) > 0.1 ? gp.axes[0] : 0
-      const ly = Math.abs(gp.axes[1]) > 0.1 ? gp.axes[1] : 0
-      // Right stick: turning (axis 2)
-      const rx = Math.abs(gp.axes[2]) > 0.1 ? gp.axes[2] : 0
-      forward = -ly // stick up = negative y = forward, down = positive y = backward
-      strafe = lx
-      turn = rx
+    let zoom = 0
+    const left = this.xrControllerMap['left']
+    if (left?.['xr-standard-thumbstick']) {
+      const axes = left['xr-standard-thumbstick'].axes
+      if (Math.abs(axes.y) > 0.1) forward = -axes.y
+      if (Math.abs(axes.x) > 0.1) turn = axes.x
     }
-    return { forward, strafe, turn }
+    const right = this.xrControllerMap['right']
+    if (right?.['xr-standard-thumbstick']) {
+      const axes = right['xr-standard-thumbstick'].axes
+      if (Math.abs(axes.y) > 0.1) zoom = axes.y
+    }
+    return { forward, turn, zoom }
   }
 
   private _update = () => {
@@ -169,6 +180,13 @@ export class B3dBiped extends AbstractMesh {
     const gc = this.gameController
     const gcState = gc?.state
     const xrInput = this.getXRStickInput()
+
+    // Right stick Y: adjust camera zoom (0=close, 1=far), push forward = closer
+    if (xrInput.zoom !== 0) {
+      this.xrCamZoom += xrInput.zoom * 0.5 * timeElapsed
+      this.xrCamZoom = Math.max(0, Math.min(1, this.xrCamZoom))
+    }
+
     const rotation = (gcState ? gcState.right - gcState.left : 0) + xrInput.turn
     const speed =
       (gcState ? gcState.forward - gcState.backward : 0) + xrInput.forward
@@ -219,28 +237,130 @@ export class B3dBiped extends AbstractMesh {
 
   async setupXRCamera() {
     if (this.owner == null) return
-    this.xrStuff = await enterXR(this.owner.scene, {
-      cameraName: (this as any).cameraType,
+    const scene = this.owner.scene
+    const mode = 'immersive-vr'
+
+    if (navigator.xr == null) throw new Error('xr is not available')
+    if (!(await navigator.xr.isSessionSupported(mode))) {
+      throw new Error(`navigator.xr does not support requested mode "${mode}"`)
+    }
+
+    // Create XR experience first
+    const xr = await scene.createDefaultXRExperienceAsync({
+      uiOptions: { sessionMode: mode },
     })
-    const { camera, xr } = this.xrStuff
+
+    // Register controller observables BEFORE entering XR so we catch controller connect events
+    this.setupXRInput(xr)
+
+    // Now enter XR
+    const { baseExperience } = xr
+    const { camera } = baseExperience
+    camera.name = (this as any).cameraType
+    await baseExperience.enterXRAsync(mode, 'local-floor')
+
+    this.xrStuff = {
+      camera,
+      xr,
+      async exitXR() {
+        await baseExperience.exitXRAsync()
+      },
+    }
     this.camera = camera
     this.owner.xrActive = true
 
-    // Disable default XR movement (teleportation/snap rotation) so we control movement
+    // Disable all default XR movement so we control it
     if (xr.teleportation) {
       xr.teleportation.dispose()
     }
+    try {
+      baseExperience.featuresManager.disableFeature(
+        BABYLON.WebXRFeatureName.MOVEMENT
+      )
+    } catch (_) {
+      // Feature may not be enabled
+    }
 
-    // Over-the-shoulder camera: 2 units behind, 0.5 above
-    xr.baseExperience.sessionManager.onXRFrameObservable.add(() => {
-      if (this.entries) {
-        const node = this.entries.rootNodes[0] as BABYLON.Mesh
-        const pos = node.position
-        const behind = node.forward.scale(-2)
-        camera.position.x = pos.x + behind.x
-        camera.position.y = pos.y + 0.5
-        camera.position.z = pos.z + behind.z
+    // Parent the XR camera to a container so we can move/rotate the rig
+    // without fighting head tracking (head tracking applies as local transform on top)
+    const camRig = new BABYLON.TransformNode('xr-rig', this.owner.scene)
+    baseExperience.camera.parent = camRig
+
+    let lastTime = Date.now()
+    let yawOffset = 0 // correction between XR reference space and Babylon world
+    let currentYaw = 0
+    const currentPos = new BABYLON.Vector3()
+    let firstFrame = true
+
+    baseExperience.sessionManager.onXRFrameObservable.add(() => {
+      if (!this.entries) return
+      const now = Date.now()
+      const dt = Math.min((now - lastTime) * 0.001, 0.1)
+      lastTime = now
+
+      const node = this.entries.rootNodes[0] as BABYLON.Mesh
+
+      // Zoom: 0 = (1 back, 1 up), 1 = (5 back, 2 up), default 0.25 = (2 back, 1.25 up)
+      const backDist = lerp(1, 5, this.xrCamZoom)
+      const upDist = lerp(1, 2, this.xrCamZoom)
+
+      // Target position: behind and above the character
+      const behind = node.forward.scale(-backDist)
+      const targetX = node.position.x + behind.x
+      const targetY = node.position.y + upDist
+      const targetZ = node.position.z + behind.z
+
+      // Target yaw: face same direction as character
+      const fwd = node.forward
+      const targetYaw = Math.atan2(fwd.x, fwd.z)
+
+      // On first frame, compute offset between where headset faces and where
+      // it should face (character direction). This corrects for XR reference
+      // space not being aligned with Babylon's world axes.
+      if (firstFrame) {
+        firstFrame = false
+        let headWorldYaw = 0
+        if (baseExperience.camera.rotationQuaternion) {
+          headWorldYaw =
+            baseExperience.camera.rotationQuaternion.toEulerAngles().y
+        }
+        // We want: rigYaw + headYaw = targetYaw
+        // So: yawOffset = targetYaw - headWorldYaw
+        // And rigYaw = targetYaw - yawOffset ... wait, rigYaw IS what we converge on
+        // Actually: on first frame, headWorldYaw is where user physically faces
+        // We want that to equal targetYaw, so rigYaw = targetYaw - headWorldYaw
+        yawOffset = headWorldYaw
+        currentYaw = targetYaw - yawOffset
       }
+
+      const adjustedTargetYaw = targetYaw - yawOffset
+      const t = Math.min(1, 2 * dt)
+
+      currentPos.x = lerp(currentPos.x, targetX, t)
+      currentPos.y = lerp(currentPos.y, targetY, t)
+      currentPos.z = lerp(currentPos.z, targetZ, t)
+
+      let yawDiff = adjustedTargetYaw - currentYaw
+      while (yawDiff > Math.PI) yawDiff -= Math.PI * 2
+      while (yawDiff < -Math.PI) yawDiff += Math.PI * 2
+      currentYaw += yawDiff * t
+
+      // Set rig transform, compensating for camera's local offset from head tracking
+      const camLocal = baseExperience.camera.position
+      const yawQuat = BABYLON.Quaternion.RotationYawPitchRoll(currentYaw, 0, 0)
+      // Rotate the camera's local offset by the rig yaw to get world-space offset
+      const rotatedLocal = new BABYLON.Vector3()
+      BABYLON.Vector3.TransformCoordinatesToRef(
+        camLocal,
+        BABYLON.Matrix.FromQuaternionToRef(yawQuat, BABYLON.Matrix.Identity()),
+        rotatedLocal
+      )
+      camRig.position.set(
+        currentPos.x - rotatedLocal.x,
+        currentPos.y - rotatedLocal.y,
+        currentPos.z - rotatedLocal.z
+      )
+      camRig.rotationQuaternion = yawQuat
     })
   }
 
@@ -250,6 +370,7 @@ export class B3dBiped extends AbstractMesh {
       await this.xrStuff.exitXR()
       this.owner.xrActive = false
       this.xrStuff = undefined
+      this.xrControllerMap = undefined
     }
     const attrs = this as any
     const followCamera = new BABYLON.FollowCamera(
@@ -317,6 +438,7 @@ export class B3dBiped extends AbstractMesh {
       this.entries = undefined
     }
     this.gameController = undefined
+    this.xrControllerMap = undefined
     super.disconnectedCallback()
   }
 

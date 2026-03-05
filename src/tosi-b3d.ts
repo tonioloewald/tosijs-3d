@@ -3,7 +3,7 @@ import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
 import '@babylonjs/loaders'
 
-const { canvas, slot } = elements
+const { canvas, div, slot } = elements
 
 export type SceneAdditionHandler = (additions: SceneAdditions) => void
 
@@ -30,6 +30,28 @@ export class B3d extends Component {
       display: 'block',
       position: 'relative',
       overflow: 'hidden',
+      background: '#000',
+    },
+    ':host .spinner': {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      width: '48px',
+      height: '48px',
+      marginTop: '-24px',
+      marginLeft: '-24px',
+      border: '4px solid rgba(255,255,255,0.15)',
+      borderTopColor: '#fff',
+      borderRadius: '50%',
+      animation: 'tosi-spin 0.8s linear infinite',
+      transition: 'opacity 0.3s ease-out',
+    },
+    ':host .spinner.hidden': {
+      opacity: '0',
+      pointerEvents: 'none',
+    },
+    '@keyframes tosi-spin': {
+      to: { transform: 'rotate(360deg)' },
     },
     ':host canvas': {
       position: 'absolute',
@@ -61,7 +83,11 @@ export class B3d extends Component {
     },
   }
 
-  content = [canvas({ part: 'canvas' }), slot()]
+  content = [
+    div({ class: 'spinner', part: 'spinner' }),
+    canvas({ part: 'canvas' }),
+    slot(),
+  ]
 
   engine!: BABYLON.Engine
   scene!: BABYLON.Scene
@@ -177,10 +203,12 @@ export class B3d extends Component {
       this.engine.runRenderLoop(this._update)
 
       // Fade in canvas once all assets are loaded
+      const spinner = this.parts.spinner as HTMLElement
       const checkReady = () => {
         if (this.scene.getWaitingItemsCount() === 0) {
           this.scene.executeWhenReady(() => {
             cnv.classList.add('ready')
+            spinner.classList.add('hidden')
           })
         } else {
           setTimeout(checkReady, 100)
