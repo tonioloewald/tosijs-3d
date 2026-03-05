@@ -34,8 +34,7 @@ export type XRParams = {
 
 export type XRStuff = {
   camera: BABYLON.FreeCamera
-  xrHelper: BABYLON.WebXRExperienceHelper
-  sessionManager: BABYLON.WebXRSessionManager
+  xr: BABYLON.WebXRDefaultExperience
   exitXR: AsyncVoidFunction
 }
 
@@ -50,32 +49,18 @@ export async function enterXR(
   if (!(await navigator.xr.isSessionSupported(mode))) {
     throw new Error(`navigator.xr does not support requested mode "${mode}"`)
   }
-  const xrHelper = await BABYLON.WebXRExperienceHelper.CreateAsync(scene)
-  const { camera } = xrHelper
-  camera.name = cameraName
-  xrHelper.onStateChangedObservable.add((state) => {
-    switch (state) {
-      case BABYLON.WebXRState.ENTERING_XR:
-        console.log(`entering XR ${mode}`)
-        break
-      case BABYLON.WebXRState.IN_XR:
-        console.log(`XR ${mode} active`)
-        break
-      case BABYLON.WebXRState.EXITING_XR:
-        console.log(`leaving XR ${mode}`)
-        break
-      case BABYLON.WebXRState.NOT_IN_XR:
-      default:
-        console.log(`XR ${mode} inactive`)
-    }
+  const xr = await scene.createDefaultXRExperienceAsync({
+    uiOptions: { sessionMode: mode },
   })
-  const sessionManager = await xrHelper.enterXRAsync(mode, 'local-floor')
+  const { baseExperience } = xr
+  const { camera } = baseExperience
+  camera.name = cameraName
+  await baseExperience.enterXRAsync(mode, 'local-floor')
   return {
     camera,
-    xrHelper,
-    sessionManager,
+    xr,
     async exitXR() {
-      await xrHelper.exitXRAsync()
+      await baseExperience.exitXRAsync()
     },
   }
 }

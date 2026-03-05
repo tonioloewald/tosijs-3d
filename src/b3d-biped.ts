@@ -137,58 +137,82 @@ export class B3dBiped extends AbstractMesh {
     }
   }
 
+  private getXRStickInput(): { forward: number; strafe: number; turn: number } {
+    if (this.xrStuff == null) return { forward: 0, strafe: 0, turn: 0 }
+    const gamepads = navigator.getGamepads()
+    let forward = 0
+    let strafe = 0
+    let turn = 0
+    for (const gp of gamepads) {
+      if (gp == null || gp.axes.length < 4) continue
+      // Left stick: movement (axes 0=strafe, 1=forward)
+      const lx = Math.abs(gp.axes[0]) > 0.1 ? gp.axes[0] : 0
+      const ly = Math.abs(gp.axes[1]) > 0.1 ? gp.axes[1] : 0
+      // Right stick: turning (axis 2)
+      const rx = Math.abs(gp.axes[2]) > 0.1 ? gp.axes[2] : 0
+      forward = -ly // stick up = negative y = forward, down = positive y = backward
+      strafe = lx
+      turn = rx
+    }
+    return { forward, strafe, turn }
+  }
+
   private _update = () => {
     const attrs = this as any
-    if (attrs.player && this.gameController != null) {
-      const now = Date.now()
-      const timeElapsed = (now - this.lastUpdate) * 0.001
-      this.lastUpdate = now
+    if (!attrs.player || this.entries == null) return
 
-      const { state } = this.gameController
-      const rotation = state.right - state.left
-      const speed = state.forward - state.backward
-      const sprint = state.sprint
-      const sprintSpeed = speed * sprint
-      const totalSpeed =
-        speed * attrs.forwardSpeed +
-        sprintSpeed * (attrs.runSpeed - attrs.forwardSpeed)
+    const now = Date.now()
+    const timeElapsed = (now - this.lastUpdate) * 0.001
+    this.lastUpdate = now
 
-      if (this.camera instanceof BABYLON.FollowCamera) {
-        this.camera.radius = lerp(
-          attrs.cameraMinFollowDistance,
-          attrs.cameraMaxFollowDistance,
-          (this.gameController as any).wheel
+    // Combine keyboard/gameController input with XR stick input
+    const gc = this.gameController
+    const gcState = gc?.state
+    const xrInput = this.getXRStickInput()
+    const rotation = (gcState ? gcState.right - gcState.left : 0) + xrInput.turn
+    const speed =
+      (gcState ? gcState.forward - gcState.backward : 0) + xrInput.forward
+    const sprint = gcState?.sprint ?? 0
+    const sprintSpeed = speed * sprint
+    const totalSpeed =
+      speed * attrs.forwardSpeed +
+      sprintSpeed * (attrs.runSpeed - attrs.forwardSpeed)
+
+    if (this.camera instanceof BABYLON.FollowCamera && gc) {
+      this.camera.radius = lerp(
+        attrs.cameraMinFollowDistance,
+        attrs.cameraMaxFollowDistance,
+        (gc as any).wheel
+      )
+    }
+
+    for (const node of this.entries.rootNodes as BABYLON.Mesh[]) {
+      if (speed > 0) {
+        node.moveWithCollisions(
+          node.forward.scaleInPlace(totalSpeed * timeElapsed)
+        )
+      } else if (speed < 0) {
+        node.moveWithCollisions(
+          node.forward.scaleInPlace(speed * timeElapsed * attrs.backwardSpeed)
         )
       }
+      node.rotate(
+        BABYLON.Vector3.Up(),
+        rotation * timeElapsed * attrs.turnSpeed * DEG_TO_RAD
+      )
 
-      for (const node of this.entries!.rootNodes as BABYLON.Mesh[]) {
-        if (speed > 0) {
-          node.moveWithCollisions(
-            node.forward.scaleInPlace(totalSpeed * timeElapsed)
-          )
+      if (speed > 0.1) {
+        if (sprintSpeed > 0.25) {
+          this.setAnimationState('run', sprintSpeed + 0.25)
         } else {
-          node.moveWithCollisions(
-            node.forward.scaleInPlace(speed * timeElapsed * attrs.backwardSpeed)
-          )
+          this.setAnimationState('walk', speed + 0.25)
         }
-        node.rotate(
-          BABYLON.Vector3.Up(),
-          rotation * timeElapsed * attrs.turnSpeed * DEG_TO_RAD
-        )
-
-        if (speed > 0.1) {
-          if (sprintSpeed > 0.25) {
-            this.setAnimationState('run', sprintSpeed + 0.25)
-          } else {
-            this.setAnimationState('walk', speed + 0.25)
-          }
-        } else if (speed < -0.1) {
-          this.setAnimationState('walkBackwards', speed + 0.25)
-        } else if (Math.abs(rotation) > 0.1) {
-          this.setAnimationState('walk', Math.abs(rotation * 0.5) + 0.25)
-        } else {
-          this.setAnimationState('idle')
-        }
+      } else if (speed < -0.1) {
+        this.setAnimationState('walkBackwards', Math.abs(speed) + 0.25)
+      } else if (Math.abs(rotation) > 0.1) {
+        this.setAnimationState('walk', Math.abs(rotation * 0.5) + 0.25)
+      } else {
+        this.setAnimationState('idle')
       }
     }
   }
@@ -198,15 +222,24 @@ export class B3dBiped extends AbstractMesh {
     this.xrStuff = await enterXR(this.owner.scene, {
       cameraName: (this as any).cameraType,
     })
-    const { camera, sessionManager } = this.xrStuff
+    const { camera, xr } = this.xrStuff
     this.camera = camera
     this.owner.xrActive = true
-    sessionManager.onXRFrameObservable.add(() => {
+
+    // Disable default XR movement (teleportation/snap rotation) so we control movement
+    if (xr.teleportation) {
+      xr.teleportation.dispose()
+    }
+
+    // Over-the-shoulder camera: 2 units behind, 0.5 above
+    xr.baseExperience.sessionManager.onXRFrameObservable.add(() => {
       if (this.entries) {
-        const { x, y, z } = this.entries.rootNodes[0].position
-        camera.position.x = x
-        camera.position.y = y + 0.7
-        camera.position.z = z
+        const node = this.entries.rootNodes[0] as BABYLON.Mesh
+        const pos = node.position
+        const behind = node.forward.scale(-2)
+        camera.position.x = pos.x + behind.x
+        camera.position.y = pos.y + 0.5
+        camera.position.z = pos.z + behind.z
       }
     })
   }

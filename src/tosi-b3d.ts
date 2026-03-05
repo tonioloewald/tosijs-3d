@@ -37,6 +37,11 @@ export class B3d extends Component {
       left: '0',
       width: '100%',
       height: '100%',
+      opacity: '0',
+      transition: 'opacity 0.5s ease-in',
+    },
+    ':host canvas.ready': {
+      opacity: '1',
     },
     ':host .babylonVRicon': {
       height: 50,
@@ -170,6 +175,19 @@ export class B3d extends Component {
       }
       this.gui = new GUI.GUI3DManager(this.scene)
       this.engine.runRenderLoop(this._update)
+
+      // Fade in canvas once all assets are loaded
+      const checkReady = () => {
+        if (this.scene.getWaitingItemsCount() === 0) {
+          this.scene.executeWhenReady(() => {
+            cnv.classList.add('ready')
+          })
+        } else {
+          setTimeout(checkReady, 100)
+        }
+      }
+      // Start checking after a brief delay to let child components begin loading
+      setTimeout(checkReady, 100)
     }
 
     init()
