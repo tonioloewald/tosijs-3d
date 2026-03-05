@@ -23,7 +23,6 @@ export function initializeDynamicShadows(scene: Scene): void {
         shadowGenerator.usePercentageCloserFiltering = true
         shadowGenerator.frustumEdgeFalloff = 1
         shadowGenerators.set(newLight, shadowGenerator)
-        console.log(`Shadow generator created for light: ${newLight.name}`)
 
         // Add existing eligible meshes as shadow casters for this new light
         scene.meshes.forEach((mesh) => {
@@ -50,7 +49,6 @@ export function initializeDynamicShadows(scene: Scene): void {
       const shadowGeneratorToRemove = shadowGenerators.get(removedLight)
       shadowGeneratorToRemove?.dispose()
       shadowGenerators.delete(removedLight)
-      console.log(`Shadow generator removed for light: ${removedLight.name}`)
     }
   })
 
@@ -67,9 +65,6 @@ export function initializeDynamicShadows(scene: Scene): void {
         shadowGenerator.usePercentageCloserFiltering = true
         shadowGenerator.frustumEdgeFalloff = 1
         shadowGenerators.set(existingLight, shadowGenerator)
-        console.log(
-          `Shadow generator created for existing light: ${existingLight.name}`
-        )
 
         // Add existing eligible meshes as shadow casters for this light
         scene.meshes.forEach((mesh) => {
@@ -106,13 +101,11 @@ export function initializeDynamicShadows(scene: Scene): void {
       shadowGenerators.forEach((shadowGenerator) => {
         shadowGenerator.addShadowCaster(newMesh)
       })
-      console.log(`Mesh added as shadow caster: ${newMesh.name}`)
     }
 
     // Set to receive shadows if name criteria are met
     if (!newMesh.name.includes('_noshadow')) {
       newMesh.receiveShadows = true
-      console.log(`Mesh set to receive shadows: ${newMesh.name}`)
     }
   })
 
@@ -121,7 +114,6 @@ export function initializeDynamicShadows(scene: Scene): void {
     shadowGenerators.forEach((shadowGenerator) => {
       shadowGenerator.removeShadowCaster(removedMesh)
     })
-    console.log(`Mesh removed as shadow caster: ${removedMesh.name}`)
     removedMesh.receiveShadows = false // Clean up receiveShadows flag
   })
 
@@ -129,7 +121,6 @@ export function initializeDynamicShadows(scene: Scene): void {
   scene.meshes.forEach((existingMesh) => {
     if (!existingMesh.name.includes('_noshadow')) {
       existingMesh.receiveShadows = true
-      console.log(`Existing mesh set to receive shadows: ${existingMesh.name}`)
     }
     if (
       !existingMesh.name.includes('_nocast') &&
@@ -138,7 +129,6 @@ export function initializeDynamicShadows(scene: Scene): void {
       shadowGenerators.forEach((shadowGenerator) => {
         shadowGenerator.addShadowCaster(existingMesh)
       })
-      console.log(`Existing mesh added as shadow caster: ${existingMesh.name}`)
     }
   })
 }

@@ -167,3 +167,7 @@ web_modules/
 # bun
 
 bun.lockb
+
+# TLS dev certs
+tls/*.pem
+tls/*.csr

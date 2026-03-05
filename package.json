@@ -14,7 +14,7 @@
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.57.1",
     "prettier": "^2.8.8",
-    "xinjs": "^0.8.9",
+    "tosijs": "^1.4.1",
     "typescript": "^5.6.2"
   },
   "scripts": {
@@ -25,6 +25,13 @@
   "peerDependencies": {
     "@babylonjs/core": "^8.0.1",
     "@babylonjs/gui": "^8.0.1",
-    "@babylonjs/loaders": "^8.0.1"
+    "@babylonjs/loaders": "^8.0.1",
+    "@babylonjs/materials": "^8.0.1"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^8.53.1",
+    "@babylonjs/gui": "^8.53.1",
+    "@babylonjs/loaders": "^8.53.1",
+    "@babylonjs/materials": "^8.53.1"
   }
 }

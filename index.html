@@ -9,130 +9,140 @@
       type="image/svg+xml"
       href="./static/favicon.svg"
     />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: #111;
+        color: #eee;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 8px 16px;
+        background: #222;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      header h1 {
+        font-size: 18px;
+        font-weight: 600;
+      }
+      header a {
+        color: #8cf;
+        font-size: 14px;
+      }
+      .preview {
+        flex: 1;
+        position: relative;
+      }
+      xin-b3d {
+        width: 100%;
+        height: 100%;
+      }
+    </style>
     <script type="module">
-      import {
-        blueprint,
-        blueprintLoader,
-        elements,
-      } from 'https://cdn.jsdelivr.net/npm/xinjs@0.8.9/dist/module.js'
       const { protocol, host } = window.location
-      const { h1, div, a, xinTest } = elements
 
-      ;(async () => {
-        const response = await fetch('./package.json')
-        const data = await response.json()
-
-        document.title = data.name
-        const header = document.querySelector('header')
-        header.append(
-          h1(data.name),
-          div(
-            a({ href: data.repository.url }, 'repo'),
-            ' | ',
-            a({ href: `https://www.npmjs.com/package/${data.name}` }, 'npm')
-          )
-        )
-      })()
-
-      const xinjs3dsrc =
+      const libSrc =
         host === 'tonioloewald.github.io'
-          ? // live demo
-            `https://tonioloewald.github.io/xinjs-3d/dist/index.js`
-          : // local test
-            `${protocol}//${host}/dist/index.js`
+          ? `https://tonioloewald.github.io/xinjs-3d/dist/index.js`
+          : `${protocol}//${host}/dist/index.js`
 
-      // blueprintLoader
-      document.body.append(
-        blueprintLoader(
-          {
-            onload() {
-              const preview = document.querySelector('.preview')
-              preview.append(
-                elements['xin-b3d']({
-                  async sceneCreated(element, BABYLON) {
-                    const { scene } = element
-                    const camera = new BABYLON.FreeCamera(
-                      'camera',
-                      new BABYLON.Vector3(0, 1, -4),
-                      scene
-                    )
-                    camera.attachControl(element.parts.canvas, true)
+      const {
+        b3d,
+        b3dSun,
+        b3dSkybox,
+        b3dSphere,
+        b3dLoader,
+        b3dBiped,
+        b3dButton,
+        b3dLight,
+        b3dWater,
+        b3dReflections,
+        gameController,
+      } = await import(libSrc)
 
-                    const { initializeDynamicShadows, initializeReflections } =
-                      await import(xinjs3dsrc)
+      // Fetch package info for header
+      const response = await fetch('./package.json')
+      const data = await response.json()
+      document.title = data.name
+      const header = document.querySelector('header')
+      const h1 = document.createElement('h1')
+      h1.textContent = data.name
+      const links = document.createElement('div')
+      links.innerHTML = `<a href="${data.repository.url}">repo</a> | <a href="https://www.npmjs.com/package/${data.name}">npm</a>`
+      header.append(h1, links)
 
-                    initializeDynamicShadows(scene)
-                    initializeReflections(scene)
+      const scene = './static/b-frame-test.glb'
+      const omnidude = './static/omnidude.glb'
 
-                    this.loadScene(
-                      './static/',
-                      'xin3d.glb',
-                      async (imported) => {
-                        // for some reason this doesn't play automatically
-                        const cubeSpin =
-                          imported.getAnimationGroupByName('cube_spin')
-                        cubeSpin.play(true)
-
-                        for (const light of imported.lights) {
-                          if (light instanceof BABYLON.DirectionalLight) {
-                            light.intensity *= 0.002
-                          } else {
-                            light.intensity *= 0.005
-                          }
-                        }
-                      }
-                    )
-                  },
-                })
-              )
-              const tests = document.querySelector('.tests')
-              tests.append(
-                xinTest({
-                  description: 'xin-b3d registered',
-                  test() {
-                    return (
-                      document.querySelector('xin-b3d').constructor !==
-                      HTMLElement
-                    )
-                  },
-                })
-              )
-            },
-          },
-          blueprint({
-            tag: 'xin-b3d',
-            property: 'b3d',
-            src: xinjs3dsrc,
+      const preview = document.querySelector('.preview')
+      preview.append(
+        b3d(
+          { glowLayerIntensity: 1 },
+          b3dSun({
+            shadowCascading: true,
+            shadowTextureSize: 2048,
+            activeDistance: 20,
           }),
-          blueprint({
-            tag: 'xin-test',
-            src: 'https://tonioloewald.github.io/xin-test/dist/blueprint.js',
-          })
+          b3dSkybox({ timeOfDay: 12, realtimeScale: 100, latitude: 30 }),
+          b3dSphere({
+            meshName: 'tiny-sphere',
+            diameter: 0.25,
+            y: 0.125,
+            x: 2,
+          }),
+          b3dSphere({
+            meshName: 'chrome-sphere',
+            mirror: true,
+            diameter: 0.5,
+            y: 0.25,
+            x: 1.5,
+            color: '#ffffff',
+          }),
+          b3dLoader({ url: scene }),
+          gameController(
+            b3dBiped({
+              url: omnidude,
+              x: 5,
+              ry: 135,
+              player: true,
+              cameraType: 'follow',
+              initialState: 'look',
+            })
+          ),
+          b3dBiped({ url: omnidude, x: 3, initialState: 'dance' }),
+          b3dButton({
+            caption: 'Toggle XR',
+            x: -2,
+            y: 1.5,
+            action: () => {
+              const biped = document.querySelector('xin-b3d-biped[player]')
+              if (biped) {
+                if (biped.cameraType !== 'xr') {
+                  biped.cameraType = 'xr'
+                } else {
+                  window.location.reload()
+                }
+              }
+            },
+          }),
+          b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
+          b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 }),
+          b3dReflections()
         )
       )
     </script>
-    <link href="style.css" rel="stylesheet" />
-    <style>
-      .custom {
-        --toggle-track-height: 24px;
-        --toggle-track-radius: 12px;
-        --toggle-track-inset: -2px;
-        --toggle-knob-size: 20px;
-        --toggle-track-width: 48px;
-        --toggle-track-on-color: limegreen;
-        --toggle-on-color: gray;
-        --toggle-knob-shadow: none;
-      }
-    </style>
   </head>
   <body>
     <header></header>
-    <section
-      class="preview"
-      style="display: flex; flex-direction: column"
-    ></section>
-    <section class="tests">
-      <h2>Tests</h2>
-    </section>
+    <section class="preview"></section>
   </body>
 </html>

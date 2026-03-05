@@ -3,9 +3,18 @@ import { statSync } from 'fs'
 import { watch } from 'chokidar'
 import { $ } from 'bun'
 
+const PORT = 8030
 const PROJECT_ROOT = import.meta.dir
 const DIST_DIR = path.resolve(PROJECT_ROOT, 'dist')
 const isSPA = true
+
+async function killStrayServer() {
+  try {
+    await $`lsof -ti:${PORT} | xargs kill -9 2>/dev/null`.quiet()
+  } catch {
+    // No process on port, that's fine
+  }
+}
 
 async function build() {
   console.time('build')
@@ -27,7 +36,8 @@ async function build() {
 }
 watch('./src').on('change', build)
 
-build()
+await killStrayServer()
+await build()
 
 function serveFromDir(config: {
   directory: string
@@ -50,7 +60,11 @@ function serveFromDir(config: {
 }
 
 const server = Bun.serve({
-  port: 8021,
+  port: PORT,
+  tls: {
+    key: Bun.file('./tls/key.pem'),
+    cert: Bun.file('./tls/certificate.pem'),
+  },
   fetch(request) {
     let reqPath = new URL(request.url).pathname
     console.log(request.method, reqPath)

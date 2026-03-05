@@ -3,10 +3,10 @@ import {
   AbstractMesh,
   Nullable,
   Observer,
-  RenderTargetTexture,
+  // RenderTargetTexture,
   ReflectionProbe,
-  CubeTexture,
-  Color3,
+  // CubeTexture,
+  // Color3,
   StandardMaterial,
   PBRMaterial,
 } from '@babylonjs/core'
