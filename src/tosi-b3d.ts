@@ -190,4 +190,4 @@ export class B3d extends Component {
   }
 }
 
-export const b3d = B3d.elementCreator({ tag: 'xin-b3d' })
+export const b3d = B3d.elementCreator({ tag: 'tosi-b3d' })

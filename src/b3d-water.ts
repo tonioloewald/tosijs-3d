@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core'
 import { WaterMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils'
-import type { SceneAdditions, SceneAdditionHandler } from './xin-b3d'
+import type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dWater extends AbstractMesh {
   static initAttributes = {
@@ -112,4 +112,4 @@ export class B3dWater extends AbstractMesh {
   }
 }
 
-export const b3dWater = B3dWater.elementCreator({ tag: 'xin-b3d-water' })
+export const b3dWater = B3dWater.elementCreator({ tag: 'tosi-b3d-water' })

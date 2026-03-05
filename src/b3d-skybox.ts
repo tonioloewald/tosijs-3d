@@ -76,7 +76,7 @@ export class B3dSkybox extends AbstractMesh {
     if (this.owner != null) {
       if (this.sunEl == null) {
         this.sunEl = this.owner.querySelector(
-          'xin-b3d-sun'
+          'tosi-b3d-sun'
         ) as unknown as B3dSun | null
       }
       const sunEl = this.sunEl
@@ -154,4 +154,4 @@ export class B3dSkybox extends AbstractMesh {
   }
 }
 
-export const b3dSkybox = B3dSkybox.elementCreator({ tag: 'xin-b3d-skybox' })
+export const b3dSkybox = B3dSkybox.elementCreator({ tag: 'tosi-b3d-skybox' })

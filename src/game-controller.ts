@@ -157,5 +157,5 @@ export class GameController extends Component {
 }
 
 export const gameController = GameController.elementCreator({
-  tag: 'xin-game-controller',
+  tag: 'tosi-game-controller',
 })

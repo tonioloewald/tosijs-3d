@@ -1,7 +1,7 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { findB3dOwner } from './b3d-utils'
-import type { B3d } from './xin-b3d'
+import type { B3d } from './tosi-b3d'
 
 export class B3dLight extends Component {
   static initAttributes = {
@@ -51,4 +51,4 @@ export class B3dLight extends Component {
   }
 }
 
-export const b3dLight = B3dLight.elementCreator({ tag: 'xin-b3d-light' })
+export const b3dLight = B3dLight.elementCreator({ tag: 'tosi-b3d-light' })

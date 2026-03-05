@@ -237,7 +237,7 @@ export class B3dBiped extends AbstractMesh {
     const attrs = this as any
     if (attrs.player) {
       // Find parent GameController
-      const gcEl = this.closest('xin-game-controller')
+      const gcEl = this.closest('tosi-game-controller')
       this.gameController = gcEl as unknown as GameController | undefined
     }
     if (this.owner != null && attrs.url !== '') {
@@ -251,7 +251,7 @@ export class B3dBiped extends AbstractMesh {
           })
           if (this.entries.rootNodes.length !== 1) {
             throw new Error(
-              '<xin-b3d-biped> expects a container with exactly one root node'
+              '<tosi-b3d-biped> expects a container with exactly one root node'
             )
           }
           const meshes = this.entries.rootNodes
@@ -312,4 +312,4 @@ export class B3dBiped extends AbstractMesh {
   }
 }
 
-export const b3dBiped = B3dBiped.elementCreator({ tag: 'xin-b3d-biped' })
+export const b3dBiped = B3dBiped.elementCreator({ tag: 'tosi-b3d-biped' })

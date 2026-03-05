@@ -1,6 +1,6 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './xin-b3d'
+import type { B3d } from './tosi-b3d'
 
 const DEG_TO_RAD = Math.PI / 180
 

@@ -48,7 +48,7 @@ export class B3dSphere extends AbstractMesh {
   }
 }
 
-export const b3dSphere = B3dSphere.elementCreator({ tag: 'xin-b3d-sphere' })
+export const b3dSphere = B3dSphere.elementCreator({ tag: 'tosi-b3d-sphere' })
 
 export class B3dGround extends AbstractMesh {
   static initAttributes = {
@@ -74,4 +74,4 @@ export class B3dGround extends AbstractMesh {
   }
 }
 
-export const b3dGround = B3dGround.elementCreator({ tag: 'xin-b3d-ground' })
+export const b3dGround = B3dGround.elementCreator({ tag: 'tosi-b3d-ground' })

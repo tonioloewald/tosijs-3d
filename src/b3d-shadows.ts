@@ -1,7 +1,7 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { findB3dOwner, actualMeshes } from './b3d-utils'
-import type { B3d, SceneAdditions, SceneAdditionHandler } from './xin-b3d'
+import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dSun extends Component {
   static initAttributes = {
@@ -161,4 +161,4 @@ export class B3dSun extends Component {
   }
 }
 
-export const b3dSun = B3dSun.elementCreator({ tag: 'xin-b3d-sun' })
+export const b3dSun = B3dSun.elementCreator({ tag: 'tosi-b3d-sun' })

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-xinjs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs web component framework. It provides composable custom elements for building 3D scenes — a parent `<xin-b3d>` element manages the engine/scene, and child components (sun, skybox, water, reflections, character controllers, etc.) compose inside it to build scenes declaratively.
+tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs web component framework. It provides composable custom elements for building 3D scenes — a parent `<tosi-b3d>` element manages the engine/scene, and child components (sun, skybox, water, reflections, character controllers, etc.) compose inside it to build scenes declaratively.
 
 ## Build & Development Commands
 
@@ -20,7 +20,7 @@ The dev server (`dev.ts`) watches `./src` and rebuilds `dist/index.js` (minified
 
 ### Declarative Scene Composition
 
-Scenes are built by nesting child components inside `<xin-b3d>`:
+Scenes are built by nesting child components inside `<tosi-b3d>`:
 
 ```js
 b3d(
@@ -51,7 +51,7 @@ Child components find their parent `B3d` via `findB3dOwner(el)` which walks up t
 
 | File                     | Purpose                                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------------------- |
-| `src/xin-b3d.ts`         | Core `B3d` Component — engine, scene, render loop, scene registration, camera management |
+| `src/tosi-b3d.ts`        | Core `B3d` Component — engine, scene, render loop, scene registration, camera management |
 | `src/b3d-utils.ts`       | `AbstractMesh` base class, `findB3dOwner()`, `enterXR()`, shared types                   |
 | `src/b3d-shadows.ts`     | `B3dSun` — directional light with cascaded/standard shadow generation                    |
 | `src/b3d-skybox.ts`      | `B3dSkybox` — procedural sky with day/night cycle, sun positioning                       |

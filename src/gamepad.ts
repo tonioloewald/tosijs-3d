@@ -1,16 +1,16 @@
-export interface XinButton {
+export interface TosiButton {
   index: number
   pressed: boolean
   value: number
 }
 
-export interface XinGamepad {
+export interface TosiGamepad {
   id: string
   axes: number[]
   buttons: { [key: number]: number }
 }
 
-export function gamepadState(): XinGamepad[] {
+export function gamepadState(): TosiGamepad[] {
   const gamepads: Gamepad[] = navigator
     .getGamepads()
     .filter((p) => p !== null) as Gamepad[]
@@ -50,26 +50,26 @@ export function gamepadText(): string {
         .join('\n')
 }
 
-export interface XinXRControllerComponentState {
+export interface TosiXRControllerComponentState {
   pressed: boolean
   touched: boolean
   value: number
   axes: { x: number; y: number }
 }
 
-export interface XinXRControllerState {
-  [key: string]: XinXRControllerComponentState
+export interface TosiXRControllerState {
+  [key: string]: TosiXRControllerComponentState
 }
 
-export interface XinXRControllerMap {
-  [key: string]: XinXRControllerState
+export interface TosiXRControllerMap {
+  [key: string]: TosiXRControllerState
 }
 
-export function xrControllers(xrHelper: any): XinXRControllerMap {
-  const controllers: XinXRControllerMap = {}
+export function xrControllers(xrHelper: any): TosiXRControllerMap {
+  const controllers: TosiXRControllerMap = {}
   xrHelper.input.onControllerAddedObservable.add((controller: any) => {
     controller.onMotionControllerInitObservable.add((mc: any) => {
-      const state: XinXRControllerState = {}
+      const state: TosiXRControllerState = {}
       const componentIds = mc.getComponentIds() as string[]
       componentIds.forEach((componentId: string) => {
         const component = mc.getComponent(componentId)
@@ -100,7 +100,7 @@ export function xrControllers(xrHelper: any): XinXRControllerMap {
   return controllers
 }
 
-export function xrControllersText(controllers?: XinXRControllerMap): string {
+export function xrControllersText(controllers?: TosiXRControllerMap): string {
   if (controllers === undefined || Object.keys(controllers).length === 0) {
     return 'no xr inputs'
   }

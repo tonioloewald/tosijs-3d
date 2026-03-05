@@ -1,6 +1,6 @@
 // Core
-export { B3d, b3d } from './xin-b3d'
-export type { SceneAdditions, SceneAdditionHandler } from './xin-b3d'
+export { B3d, b3d } from './tosi-b3d'
+export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 // Utilities
 export { findB3dOwner, AbstractMesh, actualMeshes, enterXR } from './b3d-utils'

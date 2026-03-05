@@ -1,7 +1,7 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { findB3dOwner } from './b3d-utils'
-import type { B3d, SceneAdditions, SceneAdditionHandler } from './xin-b3d'
+import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dReflections extends Component {
   static initAttributes = {
@@ -97,5 +97,5 @@ export class B3dReflections extends Component {
 }
 
 export const b3dReflections = B3dReflections.elementCreator({
-  tag: 'xin-b3d-reflections',
+  tag: 'tosi-b3d-reflections',
 })

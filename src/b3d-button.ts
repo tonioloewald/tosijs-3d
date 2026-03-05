@@ -2,7 +2,7 @@ import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
 import { findB3dOwner } from './b3d-utils'
-import type { B3d } from './xin-b3d'
+import type { B3d } from './tosi-b3d'
 
 export class B3dButton extends Component {
   static initAttributes = {
@@ -17,7 +17,7 @@ export class B3dButton extends Component {
   owner: B3d | null = null
   button?: GUI.Button3D
   action: (data: any, state: BABYLON.EventState) => void = () => {
-    console.warn('<xin-b3d-button> clicked but has no assigned action')
+    console.warn('<tosi-b3d-button> clicked but has no assigned action')
   }
 
   connectedCallback(): void {
@@ -62,4 +62,4 @@ export class B3dButton extends Component {
   }
 }
 
-export const b3dButton = B3dButton.elementCreator({ tag: 'xin-b3d-button' })
+export const b3dButton = B3dButton.elementCreator({ tag: 'tosi-b3d-button' })
