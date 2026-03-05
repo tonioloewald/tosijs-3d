@@ -12,7 +12,7 @@ export class B3dSun extends Component {
     shadowDarkness: 0.1,
     shadowTextureSize: 1024,
     shadowCascading: false,
-    activeDistance: 10,
+    activeDistance: 30,
     frustumEdgeFalloff: 0,
     forceBackFacesOnly: true,
     x: 0,
@@ -49,10 +49,12 @@ export class B3dSun extends Component {
   }
 
   private update() {
-    if (this.light == null || this.owner?.camera == null) return
-    const camera = this.owner.camera as BABYLON.UniversalCamera
-    const target: BABYLON.Vector3 =
-      (camera as any).target != null ? (camera as any).target : camera.position
+    if (this.light == null || this.owner?.scene == null) return
+    // Get the actual world-space position of the active camera
+    const activeCamera = this.owner.scene.activeCamera
+    if (activeCamera == null) return
+    const target = activeCamera.globalPosition
+
     this.light.position.x = target.x
     this.light.position.y = target.y + 10
     this.light.position.z = target.z
