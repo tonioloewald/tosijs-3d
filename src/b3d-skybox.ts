@@ -32,7 +32,7 @@ export class B3dSkybox extends AbstractMesh {
     azimuth: 0,
     latitude: 40,
     realtimeScale: 10,
-    updateFrequencyMs: 250,
+    updateFrequencyMs: 100,
     sunColor: '#eeeeff',
     duskColor: '#ffaa22',
     moonColor: '#6688cc',
@@ -101,9 +101,9 @@ export class B3dSkybox extends AbstractMesh {
           material.turbidity = attrs.turbidity
         } else {
           light.diffuse = hexToColor3(attrs.moonColor)
-          light.intensity = intensity * attrs.moonIntensity
-          material.rayleigh = attrs.rayleigh * attrs.moonIntensity
-          material.turbidity = attrs.turbidity * attrs.moonIntensity
+          light.intensity = attrs.moonIntensity
+          material.rayleigh = attrs.rayleigh * 0.05
+          material.turbidity = attrs.turbidity * 0.05
         }
       }
     }

@@ -92,7 +92,20 @@
             shadowTextureSize: 2048,
             activeDistance: 20,
           }),
-          b3dSkybox({ timeOfDay: 12, realtimeScale: 100, latitude: 30 }),
+          b3dSkybox({
+            timeOfDay: 19,
+            realtimeScale: 100,
+            latitude: 30,
+            moonIntensity: 1.5,
+          }),
+          b3dSphere({
+            meshName: 'ref-sphere',
+            diameter: 1,
+            y: 1,
+            x: -3,
+            z: -3,
+            color: '#aaaaaa',
+          }),
           b3dSphere({
             meshName: 'tiny-sphere',
             diameter: 0.25,

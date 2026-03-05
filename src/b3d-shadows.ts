@@ -136,6 +136,13 @@ export class B3dSun extends Component {
       this.light.direction.z = attrs.z
       this.light.intensity = attrs.intensity
 
+      // Soften shadows when light is dim (moonlight)
+      const darkness =
+        attrs.intensity < 0.5
+          ? attrs.shadowDarkness + (1 - attrs.shadowDarkness) * 0.6
+          : attrs.shadowDarkness
+      this.shadowGenerator.setDarkness(darkness)
+
       if (attrs.shadowCascading) {
         ;(this.shadowGenerator as BABYLON.CascadedShadowGenerator).shadowMaxZ =
           attrs.shadowMaxZ
