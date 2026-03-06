@@ -1,3 +1,29 @@
+/*#
+# b3d-loader
+
+Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
+Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `url` | `''` | URL of the GLB/glTF file |
+| `lightIntensityScale` | `0.05` | Scale factor for imported lights |
+
+## Usage
+
+```javascript
+const { b3d, b3dLoader } = tosijs3d
+
+document.body.append(
+  b3d({},
+    b3dLoader({ url: './scene.glb' })
+  )
+)
+```
+*/
+
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { findB3dOwner } from './b3d-utils'

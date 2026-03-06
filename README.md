@@ -2,9 +2,10 @@
 
 [github](https://github.com/tonioloewald/xinjs-3d/) | [live demo](https://tonioloewald.github.io/xinjs-3d/) | [npm](https://www.npmjs.com/package/tosijs-3d)
 
-Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components:
+Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
+See the [b3d](?tosi-b3d.ts) page for a live interactive demo.
 
-```js
+```javascript
 import {
   b3d,
   b3dSun,
@@ -36,3 +37,5 @@ bun start
 ```
 
 Dev server runs on https://localhost:8030 with auto-rebuild on file changes.
+
+<!--{ "pin": "top" }-->

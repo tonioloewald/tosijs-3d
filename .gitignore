@@ -168,6 +168,9 @@ web_modules/
 
 bun.lockb
 
+# Generated docs data
+demo/docs.json
+
 # TLS dev certs
 tls/*.pem
 tls/*.csr

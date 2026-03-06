@@ -17,16 +17,26 @@ export { B3dSphere, b3dSphere, B3dGround, b3dGround } from './b3d-primitives'
 export { B3dButton, b3dButton } from './b3d-button'
 export { B3dCollisions, b3dCollisions } from './b3d-collisions'
 
+// Input abstraction
+export type { ControlInput, InputProvider } from './control-input'
+export { emptyInput, CompositeInputProvider } from './control-input'
+export { XRInputProvider } from './xr-input-provider'
+export { B3dControllable } from './b3d-controllable'
+
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped'
 export type { AnimStateSpec } from './b3d-biped'
 export { GameController, gameController } from './game-controller'
+export { B3dInputFocus, inputFocus } from './b3d-input-focus'
 export {
   gamepadState,
   gamepadText,
   xrControllers,
   xrControllersText,
 } from './gamepad'
+
+// Vehicles
+export { B3dCar, b3dCar } from './b3d-car'
 
 // Procedural
 export { PerlinNoise } from './perlin-noise'

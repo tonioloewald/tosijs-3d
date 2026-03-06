@@ -1,7 +1,61 @@
+/*#
+# b3d-biped
+
+Animated humanoid character controller. Loads a GLB model with skeletal animations
+and drives it via `ControlInput`.
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `url` | `''` | GLB model URL |
+| `player` | `false` | Whether this biped receives input |
+| `cameraType` | `'none'` | `'follow'`, `'xr'`, or `'none'` |
+| `turnSpeed` | `180` | Degrees per second |
+| `forwardSpeed` | `2` | Walk speed |
+| `runSpeed` | `5` | Sprint speed |
+| `backwardSpeed` | `1` | Backward speed |
+| `cameraHeightOffset` | `1` | Camera height above target |
+| `cameraTargetHeight` | `0.75` | Height of the point the camera looks at |
+| `cameraMinFollowDistance` | `2` | Closest follow distance |
+| `cameraMaxFollowDistance` | `5` | Furthest follow distance |
+
+## Animations
+
+The biped automatically transitions between animation states based on input:
+`idle`, `walk`, `run`, `walkBackwards`, `sneak`, `jump`, `swim`, `dance`, `pilot`, etc.
+
+Animation names in the GLB must match these names.
+
+## Usage
+
+```javascript
+const { b3d, b3dBiped, gameController, inputFocus } = tosijs3d
+
+document.body.append(
+  b3d({},
+    inputFocus(
+      gameController(),
+      b3dBiped({
+        url: './character.glb',
+        player: true,
+        cameraType: 'follow',
+        initialState: 'idle',
+      })
+    )
+  )
+)
+```
+*/
+
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, XRStuff } from './b3d-utils'
-import { xrControllers, TosiXRControllerMap } from './gamepad'
+import { XRStuff } from './b3d-utils'
+import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
+import { B3dControllable } from './b3d-controllable'
+import type { ControlInput } from './control-input'
+import { CompositeInputProvider } from './control-input'
+import { XRInputProvider } from './xr-input-provider'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -37,9 +91,9 @@ export class AnimState {
   }
 }
 
-export class B3dBiped extends AbstractMesh {
+export class B3dBiped extends B3dControllable {
   static initAttributes = {
-    ...AbstractMesh.initAttributes,
+    ...B3dControllable.initAttributes,
     url: '',
     player: false,
     cameraType: 'none',
@@ -48,7 +102,8 @@ export class B3dBiped extends AbstractMesh {
     forwardSpeed: 2,
     runSpeed: 5,
     backwardSpeed: 1,
-    cameraHeightOffset: 1.5,
+    cameraHeightOffset: 1,
+    cameraTargetHeight: 0.75,
     cameraMinFollowDistance: 2,
     cameraMaxFollowDistance: 5,
   }
@@ -56,11 +111,10 @@ export class B3dBiped extends AbstractMesh {
   entries?: BABYLON.InstantiatedEntries
   camera?: BABYLON.Camera
   xrStuff?: XRStuff
-  xrControllerMap?: TosiXRControllerMap
+  private xrInputProvider?: XRInputProvider
   animationState?: AnimState
   animationGroup?: BABYLON.AnimationGroup
   gameController?: GameController
-  private lastUpdate = 0
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
   private xrCamZoom = 0.25 // 0 = closest, 1 = furthest
 
@@ -141,82 +195,48 @@ export class B3dBiped extends AbstractMesh {
     }
   }
 
-  private setupXRInput(xr: BABYLON.WebXRDefaultExperience) {
-    this.xrControllerMap = xrControllers(xr)
+  getCameraTarget(): BABYLON.Node | null {
+    return this.entries?.rootNodes[0] ?? null
   }
 
-  private getXRStickInput(): {
-    forward: number
-    turn: number
-    zoom: number
-  } {
-    if (this.xrControllerMap == null) return { forward: 0, turn: 0, zoom: 0 }
-    let forward = 0
-    let turn = 0
-    let zoom = 0
-    const left = this.xrControllerMap['left']
-    if (left?.['xr-standard-thumbstick']) {
-      const axes = left['xr-standard-thumbstick'].axes
-      if (Math.abs(axes.y) > 0.1) forward = -axes.y
-      if (Math.abs(axes.x) > 0.1) turn = axes.x
-    }
-    const right = this.xrControllerMap['right']
-    if (right?.['xr-standard-thumbstick']) {
-      const axes = right['xr-standard-thumbstick'].axes
-      if (Math.abs(axes.y) > 0.1) zoom = axes.y
-    }
-    return { forward, turn, zoom }
-  }
-
-  private _update = () => {
+  applyInput(input: ControlInput, dt: number) {
+    if (this.entries == null) return
     const attrs = this as any
-    if (!attrs.player || this.entries == null) return
 
-    const now = Date.now()
-    const timeElapsed = (now - this.lastUpdate) * 0.001
-    this.lastUpdate = now
-
-    // Combine keyboard/gameController input with XR stick input
-    const gc = this.gameController
-    const gcState = gc?.state
-    const xrInput = this.getXRStickInput()
-
-    // Right stick Y: adjust camera zoom (0=close, 1=far), push forward = closer
-    if (xrInput.zoom !== 0) {
-      this.xrCamZoom += xrInput.zoom * 0.5 * timeElapsed
-      this.xrCamZoom = Math.max(0, Math.min(1, this.xrCamZoom))
-    }
-
-    const rotation = (gcState ? gcState.right - gcState.left : 0) + xrInput.turn
-    const speed =
-      (gcState ? gcState.forward - gcState.backward : 0) + xrInput.forward
-    const sprint = gcState?.sprint ?? 0
+    const speed = input.forward
+    const rotation = input.turn
+    const sprint = input.sprint
     const sprintSpeed = speed * sprint
     const totalSpeed =
       speed * attrs.forwardSpeed +
       sprintSpeed * (attrs.runSpeed - attrs.forwardSpeed)
 
-    if (this.camera instanceof BABYLON.FollowCamera && gc) {
+    // Camera zoom from input
+    if (this.camera instanceof BABYLON.FollowCamera) {
       this.camera.radius = lerp(
         attrs.cameraMinFollowDistance,
         attrs.cameraMaxFollowDistance,
-        (gc as any).wheel
+        Math.max(0, Math.min(1, input.cameraZoom))
       )
+    }
+
+    // XR camera zoom from right stick
+    if (input.cameraZoom !== 0 && this.xrStuff) {
+      this.xrCamZoom += input.cameraZoom * 0.5 * dt
+      this.xrCamZoom = Math.max(0, Math.min(1, this.xrCamZoom))
     }
 
     for (const node of this.entries.rootNodes as BABYLON.Mesh[]) {
       if (speed > 0) {
-        node.moveWithCollisions(
-          node.forward.scaleInPlace(totalSpeed * timeElapsed)
-        )
+        node.moveWithCollisions(node.forward.scaleInPlace(totalSpeed * dt))
       } else if (speed < 0) {
         node.moveWithCollisions(
-          node.forward.scaleInPlace(speed * timeElapsed * attrs.backwardSpeed)
+          node.forward.scaleInPlace(speed * dt * attrs.backwardSpeed)
         )
       }
       node.rotate(
         BABYLON.Vector3.Up(),
-        rotation * timeElapsed * attrs.turnSpeed * DEG_TO_RAD
+        rotation * dt * attrs.turnSpeed * DEG_TO_RAD
       )
 
       // Gravity: only apply if not grounded (raycast down from feet)
@@ -232,7 +252,7 @@ export class B3dBiped extends AbstractMesh {
         (m) => m !== node && m.checkCollisions
       )
       if (!hit?.hit) {
-        const gravity = Math.min(0.1, 9.81 * timeElapsed)
+        const gravity = Math.min(0.1, 9.81 * dt)
         node.moveWithCollisions(new BABYLON.Vector3(0, -gravity, 0))
       }
 
@@ -249,6 +269,15 @@ export class B3dBiped extends AbstractMesh {
       } else {
         this.setAnimationState('idle')
       }
+    }
+  }
+
+  private setupXRInput(xr: BABYLON.WebXRDefaultExperience) {
+    const controllerMap = xrControllers(xr)
+    this.xrInputProvider = new XRInputProvider(controllerMap)
+    // Add XR input to the composite provider
+    if (this.inputProvider instanceof CompositeInputProvider) {
+      this.inputProvider.add(this.xrInputProvider)
     }
   }
 
@@ -332,8 +361,7 @@ export class B3dBiped extends AbstractMesh {
       const targetYaw = Math.atan2(fwd.x, fwd.z)
 
       // On first frame, compute offset between where headset faces and where
-      // it should face (character direction). This corrects for XR reference
-      // space not being aligned with Babylon's world axes.
+      // it should face (character direction).
       if (firstFrame) {
         firstFrame = false
         let headWorldYaw = 0
@@ -341,11 +369,6 @@ export class B3dBiped extends AbstractMesh {
           headWorldYaw =
             baseExperience.camera.rotationQuaternion.toEulerAngles().y
         }
-        // We want: rigYaw + headYaw = targetYaw
-        // So: yawOffset = targetYaw - headWorldYaw
-        // And rigYaw = targetYaw - yawOffset ... wait, rigYaw IS what we converge on
-        // Actually: on first frame, headWorldYaw is where user physically faces
-        // We want that to equal targetYaw, so rigYaw = targetYaw - headWorldYaw
         yawOffset = headWorldYaw
         currentYaw = targetYaw - yawOffset
       }
@@ -365,7 +388,6 @@ export class B3dBiped extends AbstractMesh {
       // Set rig transform, compensating for camera's local offset from head tracking
       const camLocal = baseExperience.camera.position
       const yawQuat = BABYLON.Quaternion.RotationYawPitchRoll(currentYaw, 0, 0)
-      // Rotate the camera's local offset by the rig yaw to get world-space offset
       const rotatedLocal = new BABYLON.Vector3()
       BABYLON.Vector3.TransformCoordinatesToRef(
         camLocal,
@@ -387,9 +409,27 @@ export class B3dBiped extends AbstractMesh {
       await this.xrStuff.exitXR()
       this.owner.xrActive = false
       this.xrStuff = undefined
-      this.xrControllerMap = undefined
+      this.xrInputProvider = undefined
+      // Remove XR provider from composite
+      if (this.inputProvider instanceof CompositeInputProvider) {
+        for (const p of this.inputProvider.providers) {
+          if (p instanceof XRInputProvider) {
+            this.inputProvider.remove(p)
+            break
+          }
+        }
+      }
     }
     const attrs = this as any
+    // Target a point at chest height so the character is centered in frame
+    const root = this.entries.rootNodes[0] as BABYLON.Mesh
+    const cameraTarget = new BABYLON.TransformNode(
+      'camera-target',
+      this.owner.scene
+    )
+    cameraTarget.parent = root
+    cameraTarget.position.y = attrs.cameraTargetHeight
+
     const followCamera = new BABYLON.FollowCamera(
       'FollowCam',
       BABYLON.Vector3.Zero(),
@@ -398,7 +438,7 @@ export class B3dBiped extends AbstractMesh {
     followCamera.radius = 5
     followCamera.heightOffset = attrs.cameraHeightOffset
     followCamera.rotationOffset = 180
-    followCamera.lockedTarget = this.entries.rootNodes[0] as BABYLON.Mesh
+    followCamera.lockedTarget = cameraTarget as any
     this.camera = followCamera
     this.owner.setActiveCamera(followCamera, { attach: false })
   }
@@ -407,9 +447,19 @@ export class B3dBiped extends AbstractMesh {
     super.connectedCallback()
     const attrs = this as any
     if (attrs.player) {
-      // Find parent GameController
-      const gcEl = this.closest('tosi-game-controller')
-      this.gameController = gcEl as unknown as GameController | undefined
+      // Check if we're inside an inputFocus manager (it will wire input for us)
+      const focusManager = this.closest('tosi-b3d-input-focus')
+      if (!focusManager) {
+        // Legacy: direct child of gameController
+        const gcEl = this.closest('tosi-game-controller')
+        this.gameController = gcEl as unknown as GameController | undefined
+        if (this.gameController) {
+          const composite = new CompositeInputProvider(
+            this.gameController.getInputProvider()
+          )
+          this.inputProvider = composite
+        }
+      }
     }
     if (this.owner != null && attrs.url !== '') {
       BABYLON.SceneLoader.LoadAssetContainer(
@@ -458,7 +508,8 @@ export class B3dBiped extends AbstractMesh {
       this.entries = undefined
     }
     this.gameController = undefined
-    this.xrControllerMap = undefined
+    this.inputProvider = null
+    this.xrInputProvider = undefined
     super.disconnectedCallback()
   }
 

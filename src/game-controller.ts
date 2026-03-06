@@ -1,4 +1,49 @@
+/*#
+# game-controller
+
+Keyboard and mouse input component. Wraps key/mouse state into smoothed control values
+with configurable attack/decay rates.
+
+## Default Controls
+
+| Control | Keys | Type |
+|---------|------|------|
+| forward | W, ArrowUp | axis |
+| backward | S, ArrowDown | axis |
+| left | A, ArrowLeft | axis |
+| right | D, ArrowRight | axis |
+| jump | Space | axis |
+| shoot | F | axis |
+| sneak | G | toggle |
+| sprint | ShiftLeft | axis |
+| interact | E | axis |
+
+Mouse wheel controls `cameraZoom` (0..1).
+
+## Usage
+
+```javascript
+const { gameController, b3dBiped, inputFocus, b3d } = tosijs3d
+
+document.body.append(
+  b3d({},
+    inputFocus(
+      gameController(),
+      b3dBiped({ url: './model.glb', player: true, cameraType: 'follow' })
+    )
+  )
+)
+```
+
+## InputProvider
+
+Call `getInputProvider()` to get an `InputProvider` that maps the controller's
+smoothed state to a `ControlInput` object.
+*/
+
 import { Component } from 'tosijs'
+import type { ControlInput, InputProvider } from './control-input'
+import { emptyInput } from './control-input'
 
 function clamp(min: number, x: number, max: number): number {
   return x < min ? min : x > max ? max : x
@@ -54,7 +99,8 @@ export class GameController extends Component {
     { name: 'jump', keys: ['Space'] },
     { name: 'shoot', keys: ['F'] },
     { name: 'sneak', keys: ['G'], type: 'toggle' },
-    { name: 'sprint', keys: ['ShiftLeft'] }
+    { name: 'sprint', keys: ['ShiftLeft'] },
+    { name: 'interact', keys: ['E'] }
   )
 
   state: { [key: string]: number } = {}
@@ -121,6 +167,24 @@ export class GameController extends Component {
       }
     }
     this.lastUpdate = now
+  }
+
+  getInputProvider(): InputProvider {
+    return {
+      poll: (): ControlInput => {
+        const s = this.state
+        const input = emptyInput()
+        input.forward = (s.forward ?? 0) - (s.backward ?? 0)
+        input.turn = (s.right ?? 0) - (s.left ?? 0)
+        input.jump = s.jump ?? 0
+        input.shoot = s.shoot ?? 0
+        input.sprint = s.sprint ?? 0
+        input.sneak = s.sneak ?? 0
+        input.interact = s.interact ?? 0
+        input.cameraZoom = (this as any).wheel
+        return input
+      },
+    }
   }
 
   connectedCallback() {

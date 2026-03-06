@@ -1,12 +1,13 @@
 import * as path from 'path'
-import { statSync } from 'fs'
+import { statSync, cpSync, mkdirSync } from 'fs'
 import { watch } from 'chokidar'
 import { $ } from 'bun'
+import { extractDocs } from './bin/docs'
 
 const PORT = 8030
 const PROJECT_ROOT = import.meta.dir
 const DIST_DIR = path.resolve(PROJECT_ROOT, 'dist')
-const isSPA = true
+const DOCS_DIR = path.resolve(PROJECT_ROOT, 'docs')
 
 async function killStrayServer() {
   try {
@@ -16,39 +17,57 @@ async function killStrayServer() {
   }
 }
 
+function buildDocs() {
+  extractDocs({
+    paths: ['src', 'README.md'],
+    output: 'demo/docs.json',
+  })
+}
+
 async function build() {
   console.time('build')
-  let output = await $`rm -rf ${DIST_DIR}`.text()
-  let result = await Bun.build({
+
+  // Extract docs from source comments
+  buildDocs()
+
+  // Build library
+  await $`rm -rf ${DIST_DIR}`.quiet()
+  const result = await Bun.build({
     entrypoints: ['./src/index.ts'],
     outdir: './dist',
     sourcemap: 'linked',
     minify: true,
   })
   if (!result.success) {
-    console.error('Build to /build failed')
+    console.error('Library build failed')
     for (const message of result.logs) {
       console.error(message)
     }
     return
   }
-  let demoResult = await Bun.build({
-    entrypoints: ['./demo/index.ts'],
-    outdir: './dist',
-    naming: 'demo.js',
+
+  // Build doc browser into docs/
+  mkdirSync(DOCS_DIR, { recursive: true })
+  cpSync('./demo/static', DOCS_DIR, { recursive: true })
+  cpSync('./static', DOCS_DIR, { recursive: true })
+  const demoResult = await Bun.build({
+    entrypoints: ['./demo/src/index.ts'],
+    outdir: DOCS_DIR,
     sourcemap: 'linked',
     minify: true,
   })
   if (!demoResult.success) {
-    console.error('Demo build failed')
+    console.error('Doc browser build failed')
     for (const message of demoResult.logs) {
       console.error(message)
     }
   }
+
   console.timeEnd('build')
 }
+
 watch('./src').on('change', build)
-watch('./demo').on('change', build)
+watch('./demo/src').on('change', build)
 
 await killStrayServer()
 await build()
@@ -57,7 +76,7 @@ function serveFromDir(config: {
   directory: string
   path: string
 }): Response | null {
-  let basePath = path.join(config.directory, config.path)
+  const basePath = path.join(config.directory, config.path)
   const suffixes = ['', '.html', 'index.html']
 
   for (const suffix of suffixes) {
@@ -84,21 +103,22 @@ const server = Bun.serve({
     console.log(request.method, reqPath)
     if (reqPath === '/') reqPath = '/index.html'
 
-    // check public
-    const publicResponse = serveFromDir({
-      directory: PROJECT_ROOT,
+    // Serve from docs/ (the built site)
+    const response = serveFromDir({
+      directory: DOCS_DIR,
       path: reqPath,
     })
-    if (publicResponse) return publicResponse
+    if (response) return response
 
-    if (isSPA && reqPath !== '/favicon.ico') {
+    // SPA fallback
+    if (reqPath !== '/favicon.ico') {
       const spaResponse = serveFromDir({
-        directory: PROJECT_ROOT,
+        directory: DOCS_DIR,
         path: '/index.html',
       })
-      console.log(spaResponse)
       if (spaResponse) return spaResponse
     }
+
     console.log(reqPath, 'not found')
     return new Response('File not found', {
       status: 404,
