@@ -44,6 +44,7 @@ export { PerlinNoise } from './perlin-noise'
 export { B3dTerrain, b3dTerrain } from './b3d-terrain'
 export { B3dPlanet, b3dPlanet } from './b3d-planet'
 export { B3dStar, b3dStar } from './b3d-star'
+export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole'
 export type { GradientFilter, ControlPoint } from './gradient-filter'
 export {
   PiecewiseLinearFilter,
