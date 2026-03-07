@@ -17,6 +17,7 @@ a `b3dSun` sibling's direction, intensity, and color.
 | `duskColor` | `'#ffaa22'` | Dawn/dusk sun color |
 | `moonColor` | `'#6688cc'` | Night light color |
 | `moonIntensity` | `0.15` | Night light intensity |
+| `applyFog` | `false` | Whether scene fog affects the skybox |
 
 ## Usage
 
@@ -76,10 +77,17 @@ export class B3dSkybox extends AbstractMesh {
     mieDirectionalG: 0.8,
     mieCoefficient: 0.005,
     skyboxSize: 1000,
+    applyFog: false,
   }
 
   private interval = 0
   private sunEl: B3dSun | null = null
+  private _horizonColor = new BABYLON.Color3(0.75, 0.85, 0.95)
+
+  /** Approximate horizon color based on current time of day / atmosphere. */
+  get horizonColor(): BABYLON.Color3 {
+    return this._horizonColor
+  }
 
   private updateSky() {
     if (this.mesh?.material == null) return
@@ -133,11 +141,21 @@ export class B3dSkybox extends AbstractMesh {
           light.intensity = intensity
           material.rayleigh = attrs.rayleigh
           material.turbidity = attrs.turbidity
+
+          // Horizon: blend light color with sky blue, desaturate toward white
+          const skyBlue = new BABYLON.Color3(0.55, 0.7, 0.9)
+          const horizonBase = blendColor3(light.diffuse, skyBlue, 0.6)
+          // Brighten toward white at high sun, dim at dusk
+          const white = new BABYLON.Color3(0.95, 0.95, 0.97)
+          this._horizonColor = blendColor3(horizonBase, white, intensity * 0.4)
         } else {
           light.diffuse = hexToColor3(attrs.moonColor)
           light.intensity = attrs.moonIntensity
           material.rayleigh = attrs.rayleigh * 0.05
           material.turbidity = attrs.turbidity * 0.05
+
+          // Night horizon: dark desaturated blue
+          this._horizonColor = new BABYLON.Color3(0.08, 0.1, 0.18)
         }
       }
     }
@@ -169,6 +187,7 @@ export class B3dSkybox extends AbstractMesh {
         this.owner.scene
       )
       this.mesh.material = material
+      this.mesh.applyFog = (this as any).applyFog
       this.updateSky()
       this.owner.register({ meshes: [this.mesh] })
     }
