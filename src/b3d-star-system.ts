@@ -19,7 +19,7 @@ const galaxy = generateGalaxy(1234, 1000)
 
 const { demo } = tosi({
   demo: {
-    starIndex: 0,
+    starIndex: 130,
     scale: 5,
     orbitScale: 3,
     animate: true,
@@ -62,6 +62,8 @@ const scene = b3d(
   starSystem,
 )
 
+const infoEl = pre({ style: 'margin:0; font-size:10px; max-height:120px; overflow-y:auto' })
+
 preview.append(
   scene,
   div(
@@ -87,12 +89,26 @@ preview.append(
       'show orbits ',
       input({ type: 'checkbox', bindValue: demo.showOrbits }),
     ),
+    infoEl,
   )
 )
+function updateInfo() {
+  const sys = starSystem.getSystemData()
+  if (!sys) { infoEl.textContent = ''; return }
+  const lines = [sys.star.name + ' (' + sys.star.spectralType + ') HI:' + sys.star.bestHI]
+  sys.planets.forEach(p => {
+    let info = p.name + ' ' + p.classification + ' HI:' + p.HI
+    if (p.rings > 0) info += ' rings:' + p.rings.toFixed(2)
+    if (p.HI <= 2) info += ' ' + p.atmosphere
+    lines.push('  ' + info)
+  })
+  infoEl.textContent = lines.join('\n')
+}
 
 for (const key of ['starIndex', 'scale', 'orbitScale']) {
   demo[key].observe(() => {
     starSystem.regenerate()
+    updateInfo()
   })
 }
 for (const key of ['animate', 'showOrbits']) {
@@ -100,6 +116,7 @@ for (const key of ['animate', 'showOrbits']) {
     starSystem.updateOptions()
   })
 }
+updateInfo()
 ```
 ```css
 tosi-b3d {
@@ -185,6 +202,7 @@ export class B3dStarSystem extends Component {
   private coronaMesh: BABYLON.Mesh | null = null
   private starLight: BABYLON.PointLight | null = null
   private planetMeshes: BABYLON.Mesh[] = []
+  private planetPhases: number[] = []
   private orbitLines: BABYLON.Mesh[] = []
   private systemData: StarSystemData | null = null
   private registered = false
@@ -227,6 +245,7 @@ export class B3dStarSystem extends Component {
     this.starLight = null
     for (const m of this.planetMeshes) m.dispose()
     this.planetMeshes = []
+    this.planetPhases = []
     for (const m of this.orbitLines) m.dispose()
     this.orbitLines = []
   }
@@ -478,10 +497,19 @@ export class B3dStarSystem extends Component {
       planetMesh.material = planetMat
       planetMesh.parent = this.rootNode
 
+      // Rings for gas giants
+      if (planet.rings > 0) {
+        this.buildPlanetRing(planetMesh, planetVisualRadius, planet.rings, planet.seed, scene)
+      }
+
+      // Seeded initial orbital phase
+      const phase = ((planet.seed % 1000) / 1000) * Math.PI * 2
+      this.planetPhases.push(phase)
+
       // Initial position
-      planetMesh.position.x = orbitalDist
+      planetMesh.position.x = Math.cos(phase) * orbitalDist
       planetMesh.position.y = 0
-      planetMesh.position.z = 0
+      planetMesh.position.z = Math.sin(phase) * orbitalDist
 
       this.planetMeshes.push(planetMesh)
 
@@ -497,6 +525,93 @@ export class B3dStarSystem extends Component {
       meshes.push(...this.planetMeshes)
       this.owner.register({ meshes, lights: [light] })
     }
+  }
+
+  private buildPlanetRing(
+    parentMesh: BABYLON.Mesh,
+    planetRadius: number,
+    ringValue: number,
+    seed: number,
+    scene: BABYLON.Scene
+  ) {
+    // Register ring shader once (shared with b3d-planet)
+    if (!BABYLON.Effect.ShadersStore['planetRingVertexShader']) {
+      BABYLON.Effect.ShadersStore['planetRingVertexShader'] = `
+        precision highp float;
+        attribute vec3 position;
+        attribute vec2 uv;
+        uniform mat4 worldViewProjection;
+        varying vec2 vUV;
+        void main() {
+          gl_Position = worldViewProjection * vec4(position, 1.0);
+          vUV = uv;
+        }
+      `
+      BABYLON.Effect.ShadersStore['planetRingFragmentShader'] = `
+        precision highp float;
+        varying vec2 vUV;
+        uniform vec3 ringColor;
+        uniform float ringOpacity;
+        uniform float seed;
+
+        float hash(float p) {
+          return fract(sin(p * 127.1) * 43758.5453);
+        }
+
+        void main() {
+          vec2 uv = vUV * 2.0 - 1.0;
+          float r = length(uv);
+          if (r < 0.45 || r > 1.0) discard;
+
+          float t = (r - 0.45) / 0.55;
+
+          float bands = 0.0;
+          for (float i = 1.0; i < 6.0; i++) {
+            float freq = i * 7.0 + seed * 3.0;
+            float amp = hash(i * seed + 0.5) * 0.3;
+            bands += sin(t * freq) * amp;
+          }
+          bands = 0.5 + bands;
+
+          float gap1 = smoothstep(0.0, 0.02, abs(t - hash(seed) * 0.6 - 0.2));
+          float gap2 = smoothstep(0.0, 0.015, abs(t - hash(seed + 1.0) * 0.4 - 0.5));
+          bands *= gap1 * gap2;
+
+          float edgeFade = smoothstep(0.0, 0.1, t) * smoothstep(1.0, 0.85, t);
+          float alpha = bands * edgeFade * ringOpacity;
+
+          gl_FragColor = vec4(ringColor * bands, alpha);
+        }
+      `
+    }
+
+    const outerRadius = planetRadius * (1.5 + ringValue * 1.5)
+    const mesh = BABYLON.MeshBuilder.CreateDisc(
+      'planet-ring',
+      { radius: outerRadius, tessellation: 64 },
+      scene
+    )
+    mesh.rotation.x = Math.PI / 2
+    mesh.rotation.z = 0.15 + (seed % 10) * 0.02
+
+    const mat = new BABYLON.ShaderMaterial(
+      'planet-ring-mat',
+      scene,
+      { vertex: 'planetRing', fragment: 'planetRing' },
+      {
+        attributes: ['position', 'uv'],
+        uniforms: ['worldViewProjection', 'ringColor', 'ringOpacity', 'seed'],
+        needAlphaBlending: true,
+      }
+    )
+    mat.setVector3('ringColor', new BABYLON.Vector3(0.8, 0.7, 0.5))
+    mat.setFloat('ringOpacity', Math.min(1, ringValue * 1.2))
+    mat.setFloat('seed', seed % 100)
+    mat.backFaceCulling = false
+    mat.alphaMode = BABYLON.Constants.ALPHA_COMBINE
+
+    mesh.material = mat
+    mesh.parent = parentMesh // Child of planet so it orbits with it
   }
 
   private buildOrbitLine(radius: number, index: number) {
@@ -545,7 +660,7 @@ export class B3dStarSystem extends Component {
 
         // Kepler's 3rd law approximation: period ∝ r^1.5
         const period = Math.pow(planet.orbitalRadius, 1.5) * 200
-        const angle = (this.time / period) * Math.PI * 2
+        const angle = (this.time / period) * Math.PI * 2 + (this.planetPhases[i] || 0)
 
         this.planetMeshes[i].position.x = Math.cos(angle) * orbitalDist
         this.planetMeshes[i].position.z = Math.sin(angle) * orbitalDist

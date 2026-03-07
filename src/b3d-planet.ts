@@ -157,7 +157,7 @@ tosi-b3d {
 
 */
 
-import { Component } from 'tosijs'
+import { Component, Color } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
@@ -199,7 +199,10 @@ export class B3dPlanet extends Component {
     grossAmplitude: 5,
     detailAmplitude: 1,
     atmosphere: 0.08,
+    atmosphereColor: 'rgba(77,128,230,0.15)',
+    atmosphereTurbulence: 0.5,
     ocean: 0.6,
+    rings: 0,
     wireframe: false,
     rotationSpeed: 0,
   }
@@ -212,6 +215,7 @@ export class B3dPlanet extends Component {
   private planetMesh: BABYLON.Mesh | null = null
   private atmosphereMesh: BABYLON.Mesh | null = null
   private oceanMesh: BABYLON.Mesh | null = null
+  private ringMesh: BABYLON.Mesh | null = null
   private rootNode: BABYLON.TransformNode | null = null
   private registered = false
   private _beforeRender: (() => void) | null = null
@@ -232,6 +236,7 @@ export class B3dPlanet extends Component {
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
+    this.buildRings()
 
     this._beforeRender = () => this.update()
     owner.scene.registerBeforeRender(this._beforeRender)
@@ -246,6 +251,7 @@ export class B3dPlanet extends Component {
     this.planetMesh = null
     this.atmosphereMesh = null
     this.oceanMesh = null
+    this.ringMesh = null
     super.disconnectedCallback()
   }
 
@@ -369,6 +375,84 @@ export class B3dPlanet extends Component {
     const atmoFrac: number = attrs.atmosphere
     if (atmoFrac <= 0) return
 
+    const scene = this.owner.scene
+
+    // Register atmosphere shader once
+    if (!BABYLON.Effect.ShadersStore['planetAtmoVertexShader']) {
+      BABYLON.Effect.ShadersStore['planetAtmoVertexShader'] = `
+        precision highp float;
+        attribute vec3 position;
+        attribute vec3 normal;
+        uniform mat4 worldViewProjection;
+        uniform mat4 world;
+        varying vec3 vWorldPos;
+        varying vec3 vWorldNormal;
+        void main() {
+          gl_Position = worldViewProjection * vec4(position, 1.0);
+          vWorldPos = (world * vec4(position, 1.0)).xyz;
+          vWorldNormal = normalize((world * vec4(normal, 0.0)).xyz);
+        }
+      `
+      BABYLON.Effect.ShadersStore['planetAtmoFragmentShader'] = `
+        precision highp float;
+        varying vec3 vWorldPos;
+        varying vec3 vWorldNormal;
+        uniform vec3 cameraPosition;
+        uniform vec3 atmoColor;
+        uniform float atmoOpacity;
+        uniform float time;
+        uniform float turbulence;
+
+        float hash(vec2 p) {
+          vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+          p3 += dot(p3, p3.yzx + 33.33);
+          return fract((p3.x + p3.y) * p3.z);
+        }
+
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          float a = hash(i);
+          float b = hash(i + vec2(1.0, 0.0));
+          float c = hash(i + vec2(0.0, 1.0));
+          float d = hash(i + vec2(1.0, 1.0));
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+
+        float fbm(vec2 p) {
+          float v = 0.0;
+          float amp = 0.5;
+          for (int i = 0; i < 4; i++) {
+            v += amp * noise(p);
+            p *= 2.0;
+            amp *= 0.5;
+          }
+          return v;
+        }
+
+        void main() {
+          vec3 viewDir = normalize(cameraPosition - vWorldPos);
+          float facing = abs(dot(viewDir, vWorldNormal));
+          // Transparent at edges (dot→0), visible when facing camera
+          float glow = pow(facing, 0.5);
+
+          // Turbulent cloud patterns
+          vec3 n = normalize(vWorldNormal);
+          float lat = asin(n.y) * 3.0;
+          float lon = atan(n.z, n.x) * 3.0;
+          float turb = fbm(vec2(lon + time * 0.02, lat) * 3.0) * turbulence;
+          turb += fbm(vec2(lon - time * 0.01, lat * 1.5 + time * 0.005) * 5.0) * turbulence * 0.5;
+
+          float alpha = glow * atmoOpacity + turb * 0.3;
+          alpha = clamp(alpha, 0.0, 1.0);
+
+          vec3 col = atmoColor * (glow + turb * 0.5);
+          gl_FragColor = vec4(col, alpha);
+        }
+      `
+    }
+
     // Atmosphere shell outside the highest point
     const maxH = this.vertexHeights
       ? Math.max(...this.vertexHeights)
@@ -377,18 +461,43 @@ export class B3dPlanet extends Component {
     const mesh = BABYLON.MeshBuilder.CreateSphere(
       'atmosphere',
       { diameter: atmoRadius * 2, segments: 32 },
-      this.owner.scene
+      scene
     )
 
-    const mat = new BABYLON.StandardMaterial('atmo-mat', this.owner.scene)
-    mat.diffuseColor = new BABYLON.Color3(0.4, 0.6, 1.0)
-    mat.alpha = 0.15
+    const mat = new BABYLON.ShaderMaterial(
+      'atmo-shader-mat',
+      scene,
+      { vertex: 'planetAtmo', fragment: 'planetAtmo' },
+      {
+        attributes: ['position', 'normal'],
+        uniforms: [
+          'worldViewProjection',
+          'world',
+          'cameraPosition',
+          'atmoColor',
+          'atmoOpacity',
+          'time',
+          'turbulence',
+        ],
+        needAlphaBlending: true,
+      }
+    )
+    const atmoColor = Color.fromCss(attrs.atmosphereColor || 'rgba(77,128,230,0.15)')
+    mat.setVector3('atmoColor', new BABYLON.Vector3(atmoColor.r / 255, atmoColor.g / 255, atmoColor.b / 255))
+    mat.setFloat('atmoOpacity', atmoColor.a)
+    mat.setFloat('time', 0)
+    mat.setFloat('turbulence', attrs.atmosphereTurbulence ?? 0.5)
     mat.backFaceCulling = false
-    mat.disableLighting = true
-    mat.emissiveColor = new BABYLON.Color3(0.3, 0.5, 0.9)
+    mat.alphaMode = BABYLON.Constants.ALPHA_ADD
+    mat.disableDepthWrite = true
+    mat.onBind = () => {
+      const cam = this.owner!.scene.activeCamera
+      if (cam) mat.setVector3('cameraPosition', cam.globalPosition)
+      mat.setFloat('time', performance.now() / 1000)
+    }
+
     mesh.material = mat
     mesh.parent = this.rootNode
-
     this.atmosphereMesh = mesh
   }
 
@@ -416,6 +525,103 @@ export class B3dPlanet extends Component {
     mesh.parent = this.rootNode
 
     this.oceanMesh = mesh
+  }
+
+  private buildRings() {
+    if (this.owner == null || this.rootNode == null) return
+    const attrs = this as any
+    const ringValue: number = attrs.rings
+    if (ringValue <= 0) return
+
+    const scene = this.owner.scene
+    const radius: number = attrs.radius
+
+    // Register ring shader once
+    if (!BABYLON.Effect.ShadersStore['planetRingVertexShader']) {
+      BABYLON.Effect.ShadersStore['planetRingVertexShader'] = `
+        precision highp float;
+        attribute vec3 position;
+        attribute vec2 uv;
+        uniform mat4 worldViewProjection;
+        varying vec2 vUV;
+        void main() {
+          gl_Position = worldViewProjection * vec4(position, 1.0);
+          vUV = uv;
+        }
+      `
+      BABYLON.Effect.ShadersStore['planetRingFragmentShader'] = `
+        precision highp float;
+        varying vec2 vUV;
+        uniform vec3 ringColor;
+        uniform float ringOpacity;
+        uniform float seed;
+
+        float hash(float p) {
+          return fract(sin(p * 127.1) * 43758.5453);
+        }
+
+        void main() {
+          // Radial distance from center of disc (0=inner, 1=outer)
+          vec2 uv = vUV * 2.0 - 1.0;
+          float r = length(uv);
+          if (r < 0.45 || r > 1.0) discard;
+
+          // Normalize to ring band
+          float t = (r - 0.45) / 0.55;
+
+          // Procedural ring bands from seed
+          float bands = 0.0;
+          for (float i = 1.0; i < 6.0; i++) {
+            float freq = i * 7.0 + seed * 3.0;
+            float amp = hash(i * seed + 0.5) * 0.3;
+            bands += sin(t * freq) * amp;
+          }
+          bands = 0.5 + bands;
+
+          // Gaps
+          float gap1 = smoothstep(0.0, 0.02, abs(t - hash(seed) * 0.6 - 0.2));
+          float gap2 = smoothstep(0.0, 0.015, abs(t - hash(seed + 1.0) * 0.4 - 0.5));
+          bands *= gap1 * gap2;
+
+          // Fade at edges
+          float edgeFade = smoothstep(0.0, 0.1, t) * smoothstep(1.0, 0.85, t);
+          float alpha = bands * edgeFade * ringOpacity;
+
+          gl_FragColor = vec4(ringColor * bands, alpha);
+        }
+      `
+    }
+
+    // Ring disc: inner radius ~1.3x planet, outer ~2.5x, scaled by ringValue
+    const innerRadius = radius * 1.3
+    const outerRadius = radius * (1.5 + ringValue * 1.5)
+    const mesh = BABYLON.MeshBuilder.CreateDisc(
+      'planet-ring',
+      { radius: outerRadius, tessellation: 64 },
+      scene
+    )
+    mesh.rotation.x = Math.PI / 2 // Flat in XZ plane
+    mesh.rotation.z = 0.15 + (attrs.seed % 10) * 0.02 // Slight tilt
+
+    const mat = new BABYLON.ShaderMaterial(
+      'planet-ring-mat',
+      scene,
+      { vertex: 'planetRing', fragment: 'planetRing' },
+      {
+        attributes: ['position', 'uv'],
+        uniforms: ['worldViewProjection', 'ringColor', 'ringOpacity', 'seed'],
+        needAlphaBlending: true,
+      }
+    )
+    mat.setVector3('ringColor', new BABYLON.Vector3(0.8, 0.7, 0.5))
+    mat.setFloat('ringOpacity', Math.min(1, ringValue * 1.2))
+    mat.setFloat('seed', attrs.seed % 100)
+    mat.backFaceCulling = false
+    mat.alphaMode = BABYLON.Constants.ALPHA_COMBINE
+
+    mesh.material = mat
+    mesh.parent = this.rootNode
+    this.ringMesh = mesh
   }
 
   private heightAt(nx: number, ny: number, nz: number): number {
@@ -453,10 +659,15 @@ export class B3dPlanet extends Component {
       this.oceanMesh.dispose()
       this.oceanMesh = null
     }
+    if (this.ringMesh) {
+      this.ringMesh.dispose()
+      this.ringMesh = null
+    }
     this.registered = false
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
+    this.buildRings()
   }
 
   /** Update atmosphere/ocean/wireframe/rotation */

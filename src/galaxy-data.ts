@@ -751,6 +751,7 @@ export interface PlanetData {
   albedo: number
   tempC: string
   temp: string
+  rings: number
 }
 
 function generatePlanetDetail(
@@ -779,6 +780,18 @@ function generatePlanetDetail(
   )
   const hi = computeHI(insolation, radius, density, hydrographics, atmosphere)
 
+  // Gas giants can have rings — larger ones more likely
+  let rings = 0
+  if (template.classification === 'gas giant') {
+    // Normalize radius: small gas giant ~15000km, large ~75000km
+    const sizeFactor = Math.min(1, (radius - 15000) / 60000)
+    // Chance of no rings: 0.5 for small, 0.1 for large
+    const noRingChance = 0.5 - sizeFactor * 0.4
+    if (!prng.probability(noRingChance)) {
+      rings = prng.realRange(0.1, 1)
+    }
+  }
+
   return {
     name,
     seed,
@@ -789,6 +802,7 @@ function generatePlanetDetail(
     density,
     hydrographics,
     atmosphere,
+    rings,
     ...hi,
   }
 }
