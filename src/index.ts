@@ -42,6 +42,7 @@ export { B3dCar, b3dCar } from './b3d-car'
 // Procedural
 export { PerlinNoise } from './perlin-noise'
 export { B3dTerrain, b3dTerrain } from './b3d-terrain'
+export { B3dPlanet, b3dPlanet } from './b3d-planet'
 export type { GradientFilter, ControlPoint } from './gradient-filter'
 export {
   PiecewiseLinearFilter,
