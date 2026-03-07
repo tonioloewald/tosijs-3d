@@ -30,7 +30,7 @@ const { demo } = tosi({
     starCount: 5000,
     radius: 100,
     spiralArms: 4,
-    particleSize: 1.0,
+    particleSize: 2.5,
     habitability: 5,
     nameSearch: '',
     selectedStar: '',
@@ -784,7 +784,7 @@ export class B3dGalaxy extends Component {
   setVisibility(v: number) {
     if (this.spsMesh) this.spsMesh.visibility = v
     if (this.blackHoleEl) {
-      (this.blackHoleEl as any).setVisibility?.(v)
+      ;(this.blackHoleEl as any).setVisibility?.(v)
     }
   }
 
