@@ -282,6 +282,17 @@ export class B3dBlackHole extends Component {
     if (this.rootNode == null || this.owner == null) return
     const dt = this.owner.scene.getEngine().getDeltaTime() / 1000
     this._time += dt
+
+    // Lensed disk: vertical ring that rotates on Y to face camera
+    if (this.lensedDiskMesh && this.owner.scene.activeCamera) {
+      const cam = this.owner.scene.activeCamera
+      const camPos = cam.globalPosition
+      const meshPos = this.rootNode.getAbsolutePosition()
+      const dx = camPos.x - meshPos.x
+      const dz = camPos.z - meshPos.z
+      this.lensedDiskMesh.rotation.x = Math.PI / 2
+      this.lensedDiskMesh.rotation.y = Math.atan2(dx, dz)
+    }
   }
 
   private registerShaders() {
@@ -457,10 +468,7 @@ export class B3dBlackHole extends Component {
       this.owner.scene
     )
 
-    const mat = new BABYLON.StandardMaterial(
-      'horizon-mat',
-      this.owner.scene
-    )
+    const mat = new BABYLON.StandardMaterial('horizon-mat', this.owner.scene)
     mat.disableLighting = true
     mat.emissiveColor = BABYLON.Color3.Black()
     mat.diffuseColor = BABYLON.Color3.Black()
@@ -670,8 +678,7 @@ export class B3dBlackHole extends Component {
     mesh.parent = this.rootNode
     mesh.hasVertexAlpha = true
 
-    // Rotate 90° around X to create the lensing "hat" effect
-    mesh.rotation.x = Math.PI / 2
+    // Billboarded in update() to always face camera
 
     if (attrs.wireframe) {
       ;(mesh.material as BABYLON.ShaderMaterial).wireframe = true

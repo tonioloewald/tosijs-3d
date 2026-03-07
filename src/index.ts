@@ -41,10 +41,30 @@ export { B3dCar, b3dCar } from './b3d-car'
 
 // Procedural
 export { PerlinNoise } from './perlin-noise'
+export { MersenneTwister, PRNG } from './mersenne-twister'
 export { B3dTerrain, b3dTerrain } from './b3d-terrain'
 export { B3dPlanet, b3dPlanet } from './b3d-planet'
 export { B3dStar, b3dStar } from './b3d-star'
 export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole'
+export { B3dGalaxy, b3dGalaxy } from './b3d-galaxy'
+export { B3dStarSystem, b3dStarSystem } from './b3d-star-system'
+export {
+  generateGalaxy,
+  generateStarSystem,
+  starTypeData,
+  randomName,
+  capitalize,
+  romanNumeral,
+} from './galaxy-data'
+export type {
+  StarData,
+  PlanetData,
+  StarSystemData,
+  GalaxyData,
+  GalaxyOptions,
+  StarTypeInfo,
+  NebulaData,
+} from './galaxy-data'
 export type { GradientFilter, ControlPoint } from './gradient-filter'
 export {
   PiecewiseLinearFilter,
