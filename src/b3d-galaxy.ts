@@ -140,35 +140,17 @@ const scene = b3d(
         const dy = evt.offsetY - downY
         if (dx * dx + dy * dy > 25) return // dragged — not a click
 
-        const data = galaxy.getGalaxyData()
-        if (!data) return
-        const clickX = evt.offsetX
-        const clickY = evt.offsetY
-        const engine = el.scene.getEngine()
-        const vp = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
-        const viewMatrix = camera.getViewMatrix()
-        const projMatrix = camera.getProjectionMatrix()
-        const transform = viewMatrix.multiply(projMatrix)
+        const sps = galaxy.getStarSPS()
+        const starMesh = galaxy.getStarMesh()
+        if (!sps || !starMesh) return
 
-        let bestIdx = -1
-        let bestDist = 20 * 20
-
-        for (let i = 0; i < data.stars.length; i++) {
-          const pos = galaxy.getStarPosition(i)
-          if (!pos) continue
-          const screen = BABYLON.Vector3.Project(pos, BABYLON.Matrix.Identity(), transform, vp)
-          if (screen.z < 0 || screen.z > 1) continue
-          const sx = screen.x - clickX
-          const sy = screen.y - clickY
-          const sd = sx * sx + sy * sy
-          if (sd < bestDist) {
-            bestDist = sd
-            bestIdx = i
+        // Use Babylon's built-in scene pick + SPS pickedParticle
+        const pickResult = el.scene.pick(evt.offsetX, evt.offsetY)
+        if (pickResult.hit && pickResult.pickedMesh === starMesh) {
+          const picked = sps.pickedParticle(pickResult)
+          if (picked) {
+            zoomToStar(picked.idx, camera, el)
           }
-        }
-
-        if (bestIdx >= 0) {
-          zoomToStar(bestIdx, camera, el)
         }
       }
     },
@@ -389,8 +371,10 @@ export class B3dGalaxy extends Component {
   owner: B3d | null = null
 
   private rootNode: BABYLON.TransformNode | null = null
-  private sps: BABYLON.SolidParticleSystem | null = null
-  private spsMesh: BABYLON.Mesh | null = null
+  private starSps: BABYLON.SolidParticleSystem | null = null
+  private starMesh: BABYLON.Mesh | null = null
+  private nebulaSps: BABYLON.SolidParticleSystem | null = null
+  private nebulaMesh: BABYLON.Mesh | null = null
   private blackHoleEl: HTMLElement | null = null
   private galaxyData: GalaxyData | null = null
   private originalColors: BABYLON.Color4[] | null = null
@@ -430,16 +414,20 @@ export class B3dGalaxy extends Component {
 
   private update() {
     // Update particles every frame for billboard facing
-    if (this.sps) {
-      this.sps.setParticles()
-    }
+    if (this.starSps) this.starSps.setParticles()
+    if (this.nebulaSps) this.nebulaSps.setParticles()
   }
 
   private disposeMeshes() {
-    if (this.sps) {
-      this.sps.dispose()
-      this.sps = null
-      this.spsMesh = null
+    if (this.starSps) {
+      this.starSps.dispose()
+      this.starSps = null
+      this.starMesh = null
+    }
+    if (this.nebulaSps) {
+      this.nebulaSps.dispose()
+      this.nebulaSps = null
+      this.nebulaMesh = null
     }
   }
 
@@ -551,6 +539,22 @@ export class B3dGalaxy extends Component {
     `
   }
 
+  private createShaderMaterial(name: string, scene: BABYLON.Scene) {
+    const mat = new BABYLON.ShaderMaterial(
+      name,
+      scene,
+      { vertex: 'galaxyStar', fragment: 'galaxyStar' },
+      {
+        attributes: ['position', 'uv', 'color'],
+        uniforms: ['worldViewProjection'],
+        needAlphaBlending: true,
+      }
+    )
+    mat.backFaceCulling = false
+    mat.alphaMode = BABYLON.Constants.ALPHA_PREMULTIPLIED
+    return mat
+  }
+
   private buildGalaxy() {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
@@ -566,33 +570,27 @@ export class B3dGalaxy extends Component {
     const { stars, nebulae } = this.galaxyData
     const radius: number = attrs.radius
     const particleSize: number = attrs.particleSize
-    const totalParticles = stars.length + nebulae.length
+    const scaleFactor = radius / 0.9
 
-    // Build SPS with billboard plane template
-    const sps = new BABYLON.SolidParticleSystem('galaxy-stars', scene, {
+    // --- Star SPS (pickable) ---
+    const starSps = new BABYLON.SolidParticleSystem('galaxy-stars', scene, {
       isPickable: true,
     })
-    const plane = BABYLON.MeshBuilder.CreatePlane(
+    const starPlane = BABYLON.MeshBuilder.CreatePlane(
       'star-template',
       { size: particleSize },
       scene
     )
-    sps.addShape(plane, totalParticles)
-    plane.dispose()
+    starSps.addShape(starPlane, stars.length)
+    starPlane.dispose()
+    starSps.billboard = true
 
-    // Enable billboarding — particles always face camera
-    sps.billboard = true
+    const starMesh = starSps.buildMesh()
+    starMesh.parent = this.rootNode
 
-    const mesh = sps.buildMesh()
-    mesh.parent = this.rootNode
-
-    // Position and color particles
-    sps.initParticles = () => {
-      const scaleFactor = radius / 0.9
-
-      // Stars (indices 0..stars.length-1), alpha=1.0
+    starSps.initParticles = () => {
       for (let p = 0; p < stars.length; p++) {
-        const particle = sps.particles[p]
+        const particle = starSps.particles[p]
         const star = stars[p]
         particle.position.x = star.position.x * scaleFactor
         particle.position.y = star.position.z * scaleFactor
@@ -605,59 +603,77 @@ export class B3dGalaxy extends Component {
           1
         )
       }
-
-      // Nebulae (indices stars.length..totalParticles-1)
-      for (let n = 0; n < nebulae.length; n++) {
-        const particle = sps.particles[stars.length + n]
-        const neb = nebulae[n]
-        particle.position.x = neb.position.x * scaleFactor
-        particle.position.y = neb.position.z * scaleFactor
-        particle.position.z = neb.position.y * scaleFactor
-        particle.scale.x = particle.scale.y = particle.scale.z = neb.scale
-        // Encode type in alpha: emission=0.5+opacity*0.4, dark=opacity*0.45
-        const alpha =
-          neb.type === 'emission' ? 0.5 + neb.opacity * 0.4 : neb.opacity * 0.45
-        particle.color = new BABYLON.Color4(
-          neb.rgb[0] / 255,
-          neb.rgb[1] / 255,
-          neb.rgb[2] / 255,
-          alpha
-        )
-      }
     }
 
-    // Shader with alpha blending for nebulae transparency
-    const starMat = new BABYLON.ShaderMaterial(
-      'galaxy-star-mat',
-      scene,
-      { vertex: 'galaxyStar', fragment: 'galaxyStar' },
-      {
-        attributes: ['position', 'uv', 'color'],
-        uniforms: ['worldViewProjection'],
-        needAlphaBlending: true,
-      }
+    starMesh.material = this.createShaderMaterial('galaxy-star-mat', scene)
+    starMesh.alwaysSelectAsActiveMesh = true
+
+    starSps.initParticles()
+    this.originalColors = stars.map(
+      (_s, i) => starSps.particles[i].color!.clone()
     )
-    starMat.backFaceCulling = false
-    starMat.alphaMode = BABYLON.Constants.ALPHA_PREMULTIPLIED
-    mesh.material = starMat
+    starSps.setParticles()
+    starSps.refreshVisibleSize()
 
-    // Prevent frustum culling (galaxy is bigger than any bounding box guess)
-    mesh.alwaysSelectAsActiveMesh = true
+    this.starSps = starSps
+    this.starMesh = starMesh
 
-    sps.initParticles()
+    // --- Nebula SPS (not pickable) ---
+    if (nebulae.length > 0) {
+      const nebulaSps = new BABYLON.SolidParticleSystem(
+        'galaxy-nebulae',
+        scene,
+        { isPickable: false }
+      )
+      const nebPlane = BABYLON.MeshBuilder.CreatePlane(
+        'nebula-template',
+        { size: particleSize },
+        scene
+      )
+      nebulaSps.addShape(nebPlane, nebulae.length)
+      nebPlane.dispose()
+      nebulaSps.billboard = true
 
-    // Store original star colors for filtering
-    this.originalColors = stars.map((_s, i) => sps.particles[i].color!.clone())
+      const nebMesh = nebulaSps.buildMesh()
+      nebMesh.parent = this.rootNode
 
-    sps.setParticles()
-    sps.refreshVisibleSize()
+      nebulaSps.initParticles = () => {
+        for (let n = 0; n < nebulae.length; n++) {
+          const particle = nebulaSps.particles[n]
+          const neb = nebulae[n]
+          particle.position.x = neb.position.x * scaleFactor
+          particle.position.y = neb.position.z * scaleFactor
+          particle.position.z = neb.position.y * scaleFactor
+          particle.scale.x = particle.scale.y = particle.scale.z = neb.scale
+          const alpha =
+            neb.type === 'emission'
+              ? 0.5 + neb.opacity * 0.4
+              : neb.opacity * 0.45
+          particle.color = new BABYLON.Color4(
+            neb.rgb[0] / 255,
+            neb.rgb[1] / 255,
+            neb.rgb[2] / 255,
+            alpha
+          )
+        }
+      }
 
-    this.sps = sps
-    this.spsMesh = mesh
+      nebMesh.material = this.createShaderMaterial('galaxy-nebula-mat', scene)
+      nebMesh.alwaysSelectAsActiveMesh = true
+
+      nebulaSps.initParticles()
+      nebulaSps.setParticles()
+      nebulaSps.refreshVisibleSize()
+
+      this.nebulaSps = nebulaSps
+      this.nebulaMesh = nebMesh
+    }
 
     if (!this.registered) {
       this.registered = true
-      this.owner.register({ meshes: [mesh] })
+      const meshes = [starMesh]
+      if (this.nebulaMesh) meshes.push(this.nebulaMesh)
+      this.owner.register({ meshes })
     }
   }
 
@@ -701,52 +717,51 @@ export class B3dGalaxy extends Component {
     return this.galaxyData
   }
 
-  /** Get the SPS for external picking */
-  getSPS(): BABYLON.SolidParticleSystem | null {
-    return this.sps
+  /** Get the star SPS for external picking */
+  getStarSPS(): BABYLON.SolidParticleSystem | null {
+    return this.starSps
   }
 
-  /** Get the SPS mesh for pick comparison */
-  getSPSMesh(): BABYLON.Mesh | null {
-    return this.spsMesh
+  /** Get the star SPS mesh for pick comparison */
+  getStarMesh(): BABYLON.Mesh | null {
+    return this.starMesh
   }
 
   /** Hide a star particle (e.g. to replace it with a star system) */
   hideStarAt(index: number) {
     if (
       !this.galaxyData ||
-      !this.sps ||
+      !this.starSps ||
       index < 0 ||
       index >= this.galaxyData.stars.length
     )
       return
-    this.sps.particles[index].isVisible = false
+    this.starSps.particles[index].isVisible = false
   }
 
   /** Show a previously hidden star particle */
   showStarAt(index: number) {
     if (
       !this.galaxyData ||
-      !this.sps ||
+      !this.starSps ||
       index < 0 ||
       index >= this.galaxyData.stars.length
     )
       return
-    this.sps.particles[index].isVisible = true
+    this.starSps.particles[index].isVisible = true
   }
 
   /** Get the world position of a star particle */
   getStarPosition(index: number): BABYLON.Vector3 | null {
     if (
-      !this.sps ||
+      !this.starSps ||
       !this.galaxyData ||
       index < 0 ||
       index >= this.galaxyData.stars.length
     )
       return null
-    const particle = this.sps.particles[index]
+    const particle = this.starSps.particles[index]
     const pos = particle.position.clone()
-    // Transform to world space if rootNode has a transform
     if (this.rootNode) {
       return BABYLON.Vector3.TransformCoordinates(
         pos,
@@ -758,13 +773,13 @@ export class B3dGalaxy extends Component {
 
   /** Filter stars: dim those that don't match criteria */
   filterStars(options: { maxHI?: number; nameSearch?: string } = {}) {
-    if (!this.sps || !this.galaxyData || !this.originalColors) return
+    if (!this.starSps || !this.galaxyData || !this.originalColors) return
     const { maxHI = 5, nameSearch = '' } = options
     const needle = nameSearch.toLowerCase()
     const { stars } = this.galaxyData
     for (let i = 0; i < stars.length; i++) {
       const orig = this.originalColors[i]
-      const particle = this.sps.particles[i]
+      const particle = this.starSps.particles[i]
       const hiPass = maxHI >= 5 || stars[i].bestHI <= maxHI
       const namePass = !needle || stars[i].name.toLowerCase().includes(needle)
       if (hiPass && namePass) {
@@ -780,9 +795,10 @@ export class B3dGalaxy extends Component {
     }
   }
 
-  /** Set visibility of the entire galaxy (0–1) */
+  /** Set visibility of the entire galaxy (0-1) */
   setVisibility(v: number) {
-    if (this.spsMesh) this.spsMesh.visibility = v
+    if (this.starMesh) this.starMesh.visibility = v
+    if (this.nebulaMesh) this.nebulaMesh.visibility = v
     if (this.blackHoleEl) {
       ;(this.blackHoleEl as any).setVisibility?.(v)
     }
