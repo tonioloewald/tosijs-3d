@@ -1,3 +1,7 @@
 # artifacts
 dist
 docs
+node_modules
+.claude
+.haltija
+*.json

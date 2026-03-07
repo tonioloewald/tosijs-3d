@@ -43,6 +43,7 @@ export { B3dCar, b3dCar } from './b3d-car'
 export { PerlinNoise } from './perlin-noise'
 export { B3dTerrain, b3dTerrain } from './b3d-terrain'
 export { B3dPlanet, b3dPlanet } from './b3d-planet'
+export { B3dStar, b3dStar } from './b3d-star'
 export type { GradientFilter, ControlPoint } from './gradient-filter'
 export {
   PiecewiseLinearFilter,

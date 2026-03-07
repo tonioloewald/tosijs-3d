@@ -283,9 +283,9 @@ export class B3dPlanet extends Component {
           const v = iy / subs
 
           // Position on cube face
-          let cx = f.origin[0] + f.right[0] * u + f.up[0] * v
-          let cy = f.origin[1] + f.right[1] * u + f.up[1] * v
-          let cz = f.origin[2] + f.right[2] * u + f.up[2] * v
+          const cx = f.origin[0] + f.right[0] * u + f.up[0] * v
+          const cy = f.origin[1] + f.right[1] * u + f.up[1] * v
+          const cz = f.origin[2] + f.right[2] * u + f.up[2] * v
 
           // Normalize to sphere
           const len = Math.sqrt(cx * cx + cy * cy + cz * cz)
@@ -359,10 +359,7 @@ export class B3dPlanet extends Component {
   private heightPercentile(p: number): number {
     if (this.vertexHeights == null) return 0
     const sorted = Float32Array.from(this.vertexHeights).sort()
-    const idx = Math.min(
-      Math.floor(p * sorted.length),
-      sorted.length - 1
-    )
+    const idx = Math.min(Math.floor(p * sorted.length), sorted.length - 1)
     return sorted[idx]
   }
 

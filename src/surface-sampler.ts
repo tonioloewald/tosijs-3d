@@ -55,10 +55,7 @@ export class TorusSampler implements SurfaceSampler {
  * to hide the mirror seam at poles.
  */
 export class CylinderSampler implements SurfaceSampler {
-  constructor(
-    public radius: number = 100,
-    public height: number = 200
-  ) {}
+  constructor(public radius: number = 100, public height: number = 200) {}
 
   sample(u: number, v: number): Vec3 {
     // Reflect v into [0, 0.5] — creates symmetric hemispheres

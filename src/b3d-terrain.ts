@@ -522,8 +522,7 @@ export class B3dTerrain extends Component {
     const radialT = this.skirtRadialT
     const totalVerts = localXZ.length / 2
     const attrs = this as any
-    const dropoffAmount =
-      attrs.grossAmplitude + attrs.detailAmplitude + 10
+    const dropoffAmount = attrs.grossAmplitude + attrs.detailAmplitude + 10
 
     for (let i = 0; i < totalVerts; i++) {
       const t = radialT[i]
@@ -649,11 +648,7 @@ export class B3dTerrain extends Component {
       }
     }
 
-    this.reassignPool(
-      this.hiTiles,
-      hiNeeded,
-      (this as any).hiResSubdivisions
-    )
+    this.reassignPool(this.hiTiles, hiNeeded, (this as any).hiResSubdivisions)
   }
 
   private reassignPool(
