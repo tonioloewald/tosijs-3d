@@ -461,7 +461,7 @@ export class B3dBiped extends B3dControllable {
         }
       }
     }
-    if (this.owner != null && attrs.url !== '') {
+    if (this.owner != null && attrs.url !== '' && !this.entries) {
       BABYLON.SceneLoader.LoadAssetContainer(
         attrs.url,
         undefined,

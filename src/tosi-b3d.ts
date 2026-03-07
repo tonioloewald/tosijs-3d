@@ -49,7 +49,8 @@ preview.append(
       gameController(),
       b3dBiped({ url: omnidude, x: 5, ry: 135, player: true, cameraType: 'follow', initialState: 'look' }),
     ),
-    b3dBiped({ url: omnidude, x: 3, initialState: 'dance' }),
+    b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: 'idle' }),
+    b3dBiped({ url: omnidude, x: 3, z: -2, initialState: 'dance' }),
     b3dButton({
       caption: 'Toggle XR',
       x: -2,
