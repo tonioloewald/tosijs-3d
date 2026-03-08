@@ -176,6 +176,8 @@ export class B3d extends Component {
       position: 'relative',
       overflow: 'hidden',
       background: '#000',
+      height: '100%',
+      maxHeight: '100vh',
     },
     ':host .spinner': {
       position: 'absolute',

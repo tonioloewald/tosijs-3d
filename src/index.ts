@@ -17,6 +17,7 @@ export { B3dFog, b3dFog } from './b3d-fog'
 export { B3dSphere, b3dSphere, B3dGround, b3dGround } from './b3d-primitives'
 export { B3dButton, b3dButton } from './b3d-button'
 export { B3dCollisions, b3dCollisions } from './b3d-collisions'
+export { B3dPhysics, b3dPhysics } from './b3d-physics'
 
 // Input abstraction
 export type { ControlInput, InputProvider } from './control-input'
@@ -38,6 +39,13 @@ export {
 
 // Vehicles
 export { B3dCar, b3dCar } from './b3d-car'
+
+// Effects & interaction
+export { B3dParticles, b3dParticles } from './b3d-particles'
+export { B3dSound, b3dSound } from './b3d-sound'
+export { B3dTrigger, b3dTrigger } from './b3d-trigger'
+export { explodeMesh } from './b3d-exploder'
+export type { ExplodeOptions } from './b3d-exploder'
 
 // Procedural
 export { PerlinNoise } from './perlin-noise'
