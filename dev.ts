@@ -37,6 +37,7 @@ async function build() {
     outdir: './dist',
     sourcemap: 'linked',
     minify: true,
+    external: ['jolt-physics', 'jolt-physics/wasm'],
   })
   if (!result.success) {
     console.error('Library build failed')
@@ -55,6 +56,7 @@ async function build() {
     outdir: DOCS_DIR,
     sourcemap: 'linked',
     minify: true,
+    external: ['jolt-physics', 'jolt-physics/wasm'],
   })
   if (!demoResult.success) {
     console.error('Doc browser build failed')

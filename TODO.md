@@ -38,6 +38,7 @@
 [ ] Cloud Layers
 [ ] God Rays (through clouds and from water)
 [ ] Ambient (weather, bubbles, wind, snow, lightning)
+[ ] Lava
 [ ] Improved water
 [ ] Under Surface of Water
 [ ] Particle Effect
@@ -53,6 +54,7 @@
 [ ] Support for the materials examples
 [ ] Terrain material (per Gemini biome discussion)
 [ ] SVG Materials
+[ ] Spacebox -- like skybox but with one or more stars and outer space look.
 
 ## UI Stuff
 
@@ -91,6 +93,11 @@
 [ ] Buy / Trade
 [ ] Money
 
+## Documentation, Examples & Tests
+[ ] As much test coverage as possible
+[ ] At least one live example for each component
+[ ] Documentation for each component
+
 ## Ariosto
 
 [ ] Dynamic mission / quest system
@@ -98,3 +105,14 @@
 [ ] World Graph Support
 [ ] Story Atoms
 [ ] Narrative State
+
+## Jolt Phyics
+
+[ ] Minimal V2 compatible layer for Manta
+[ ] Complete V2 compatibility and publish as separate library
+[ ] Prestep and CCD support
+[ ] Add ability to offload work to rust for tauri apps.
+
+## Bugs
+
+[ ] Planet material seems pinched at one pole

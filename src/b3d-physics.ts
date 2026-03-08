@@ -1,11 +1,11 @@
 /*#
 # b3d-physics
 
-Enables Havok physics on the scene. Add as a child of `<tosi-b3d>` to
+Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
 opt in to rigid-body simulation. Other components (like the mesh exploder)
 auto-detect the physics engine and use it when available.
 
-Havok loads asynchronously (WASM). The component exposes a `ready` promise
+Jolt loads asynchronously (WASM). The component exposes a `ready` promise
 and dispatches a `'physics-ready'` event when initialization completes.
 
 ## Demo
@@ -16,8 +16,10 @@ const { elements } = tosijs
 const { div, button, p, label, input } = elements
 
 let sphere = null
+let dropSphere = null
+let dropAggregate = null
 let B = null
-const physics = b3dPhysics({ wasmUrl: '/HavokPhysics.wasm' })
+const physics = b3dPhysics({ wasmUrl: '/jolt-physics.wasm', gravityY: -40 })
 
 function createSphere() {
   sphere = B.MeshBuilder.CreateSphere(
@@ -29,18 +31,63 @@ function createSphere() {
   sphere.material = mat
 }
 
+function createDropSphere() {
+  dropSphere = B.MeshBuilder.CreateSphere(
+    'dropTarget', { diameter: 1.5, segments: 12 }, scene.scene
+  )
+  dropSphere.position.set(4, 12, 0)
+  const mat = new B.StandardMaterial('dropMat', scene.scene)
+  mat.diffuseColor = new B.Color3(0.2, 0.5, 0.9)
+  dropSphere.material = mat
+  // Dynamic physics body — it will fall under gravity
+  dropAggregate = new B.PhysicsAggregate(
+    dropSphere, B.PhysicsShapeType.SPHERE,
+    { mass: 2, restitution: 0.1 }, scene.scene
+  )
+  // Watch for impact
+  let prevVelY = 0
+  const checkImpact = () => {
+    if (!dropSphere) { scene.scene.unregisterBeforeRender(checkImpact); return }
+    const vel = new B.Vector3()
+    dropAggregate.body.getLinearVelocityToRef(vel)
+    // Detect sudden deceleration (hit something)
+    if (prevVelY < -2 && Math.abs(vel.y) < Math.abs(prevVelY) * 0.5) {
+      scene.scene.unregisterBeforeRender(checkImpact)
+      explodeMesh(dropSphere, scene.scene, {
+        fragments: 18,
+        force: 8,
+        tumble: 4,
+        fadeStart: 0.8,
+        duration: 10,
+        restitution: 0.6,
+      })
+      dropAggregate.dispose()
+      dropSphere = null
+      dropAggregate = null
+    }
+    prevVelY = vel.y
+  }
+  scene.scene.registerBeforeRender(checkImpact)
+}
+
 function createObstacles(BABYLON, s) {
   const boxMat = new BABYLON.StandardMaterial('boxMat', s)
   boxMat.diffuseColor = new BABYLON.Color3(0.4, 0.5, 0.7)
 
-  // Columns around the sphere
+  // Scattered obstacles — asymmetric layout for more interesting bounces
   const positions = [
-    [-3, 0.75, 0], [3, 0.75, 0], [0, 0.75, -3], [0, 0.75, 3],
-    [-2, 0.5, -2], [2, 0.5, 2],
+    [-5, 1, 1], [4.5, 0.75, -2],
+    [1, 1, -5], [-2, 1.25, 5],
+    [-3.5, 0.5, -4], [5, 0.5, 4],
+    [3, 0.75, 2], [-4, 0.4, 3],
+    [0, 0.5, 6], [-6, 0.75, -1],
   ]
   const sizes = [
-    [0.6, 1.5, 0.6], [0.6, 1.5, 0.6], [0.6, 1.5, 0.6], [0.6, 1.5, 0.6],
-    [1.2, 1, 1.2], [1.2, 1, 1.2],
+    [0.5, 2, 3], [1, 1.5, 1],
+    [3, 2, 0.5], [0.8, 2.5, 2],
+    [1.5, 1, 1.5], [1, 1, 2],
+    [1.2, 1.5, 1.2], [2, 0.8, 0.8],
+    [3, 1, 0.4], [0.5, 1.5, 3],
   ]
   for (let i = 0; i < positions.length; i++) {
     const [w, h, d] = sizes[i]
@@ -52,9 +99,9 @@ function createObstacles(BABYLON, s) {
   }
 
   // Ramp
-  const ramp = BABYLON.MeshBuilder.CreateBox('ramp', { width: 3, height: 0.15, depth: 2 }, s)
-  ramp.position.set(0, 0.4, 2)
-  ramp.rotation.x = -0.3
+  const ramp = BABYLON.MeshBuilder.CreateBox('ramp', { width: 4, height: 0.15, depth: 3 }, s)
+  ramp.position.set(0, 0.3, 5)
+  ramp.rotation.x = -0.25
   ramp.material = boxMat
   new BABYLON.PhysicsAggregate(ramp, BABYLON.PhysicsShapeType.BOX, { mass: 0, restitution: 0.5 }, s)
 }
@@ -75,7 +122,7 @@ const scene = b3d(
   physics,
   b3dLight({ y: 1, intensity: 0.8 }),
   b3dSkybox({ timeOfDay: 12 }),
-  b3dGround({ diameter: 20, color: '#556644' }),
+  b3dGround({ width: 20, height: 20, color: '#556644' }),
 )
 
 // Create obstacles once physics is ready
@@ -94,20 +141,21 @@ function doExplode() {
     fragments: 24,
     force: 14,
     tumble: 6,
-    fadeStart: 0.7,
-    duration: 6,
+    fadeStart: 0.8,
+    duration: 10,
     restitution: 0.5,
   })
   sphere = null
-  setTimeout(createSphere, 3500)
+  setTimeout(createSphere, 6000)
 }
 
 preview.append(
   scene,
   div(
     { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
-    p('Fragments use Havok physics'),
+    p('Fragments use Jolt physics'),
     button({ textContent: 'Explode!', onclick: doExplode }),
+    button({ textContent: 'Drop!', onclick() { if (!dropSphere) createDropSphere() } }),
     label(
       input({ type: 'checkbox', onchange(e) { physics.debug = e.target.checked } }),
       ' show colliders',
@@ -129,7 +177,8 @@ preview.append(
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer'
-import HavokPhysics from '@babylonjs/havok'
+import initJolt from 'jolt-physics/wasm'
+import { JoltPlugin } from './jolt-plugin'
 import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
@@ -155,7 +204,7 @@ export class B3dPhysics extends Component {
   declare wasmUrl: string
 
   owner: B3d | null = null
-  plugin: BABYLON.HavokPlugin | null = null
+  plugin: JoltPlugin | null = null
   ready: Promise<void>
   private _resolveReady!: () => void
   private _viewer: PhysicsViewer | null = null
@@ -181,7 +230,7 @@ export class B3dPhysics extends Component {
       if (attrs.wasmUrl) {
         initOptions.locateFile = () => attrs.wasmUrl
       }
-      const havokInstance = await HavokPhysics(initOptions)
+      const joltModule = await initJolt(initOptions)
 
       if (this.owner == null) return // disconnected during async load
 
@@ -191,8 +240,8 @@ export class B3dPhysics extends Component {
         attrs.gravityZ
       )
 
-      this.plugin = new BABYLON.HavokPlugin(true, havokInstance)
-      this.owner.scene.enablePhysics(gravity, this.plugin)
+      this.plugin = new JoltPlugin(joltModule)
+      this.owner.scene.enablePhysics(gravity, this.plugin as any)
 
       if (attrs.debug) {
         this.enableDebug()
@@ -203,7 +252,7 @@ export class B3dPhysics extends Component {
         new CustomEvent('physics-ready', { bubbles: true })
       )
     } catch (e) {
-      console.error('Failed to initialize Havok physics:', e)
+      console.error('Failed to initialize Jolt physics:', e)
     }
   }
 

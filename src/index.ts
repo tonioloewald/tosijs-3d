@@ -18,6 +18,7 @@ export { B3dSphere, b3dSphere, B3dGround, b3dGround } from './b3d-primitives'
 export { B3dButton, b3dButton } from './b3d-button'
 export { B3dCollisions, b3dCollisions } from './b3d-collisions'
 export { B3dPhysics, b3dPhysics } from './b3d-physics'
+export { JoltPlugin } from './jolt-plugin'
 
 // Input abstraction
 export type { ControlInput, InputProvider } from './control-input'
