@@ -19,7 +19,7 @@ let sphere = null
 let dropSphere = null
 let dropAggregate = null
 let B = null
-const physics = b3dPhysics({ wasmUrl: '/jolt-physics.wasm', gravityY: -40 })
+const physics = b3dPhysics({ wasmUrl: '/jolt-physics.wasm' })
 
 function createSphere() {
   sphere = B.MeshBuilder.CreateSphere(

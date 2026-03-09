@@ -164,6 +164,7 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     const g = new this._jolt.Vec3(gravity.x, gravity.y, gravity.z)
     this.world.SetGravity(g)
     this._jolt.destroy(g)
+
     // Wake all dynamic bodies so they respond to the new gravity
     for (const [, { body }] of this._bodies) {
       const pd = this._getPluginData(body)
@@ -603,9 +604,23 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
 
   // ── Simulation step ─────────────────────────────────────────────────────
 
+  private _lastStepTime = 0
   executeStep(delta: number, physicsBodies: Array<PhysicsBody>): void {
-    // Sanity check delta time to prevent WASM issues
-    if (delta <= 0 || !isFinite(delta)) return
+    // Babylon's getDeltaTime() measures the engine's rAF tick interval, not
+    // the time between scene.render() calls. When the scene is frame-rate
+    // throttled (e.g. 30fps on a 120Hz display), the delta passed here is
+    // ~4x too small. We measure wall-clock time ourselves to get the correct dt.
+    const now = performance.now()
+    let dt: number
+    if (this._lastStepTime > 0) {
+      dt = (now - this._lastStepTime) / 1000 // ms → seconds
+      // Cap at 100ms to prevent spiral-of-death after tab switch
+      if (dt > 0.1) dt = 0.1
+      if (dt <= 0) dt = this._fixedTimeStep
+    } else {
+      dt = this._fixedTimeStep
+    }
+    this._lastStepTime = now
 
     // Pre-step: push Babylon transforms to Jolt for kinematic bodies
     for (const body of physicsBodies) {
@@ -615,9 +630,6 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
       this._preStep(body)
     }
 
-    // Step — cap dt to prevent spiral of death
-    const rawDt = this._useDeltaForWorldStep ? delta : this._fixedTimeStep
-    const dt = Math.min(rawDt, 1 / 30)
     const numSteps = dt > 1 / 55 ? 2 : 1
     this._joltInterface.Step(dt, numSteps)
 
