@@ -99,13 +99,12 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     bpInterface.MapObjectToBroadPhaseLayer(0, bpLayerNonMoving)
     bpInterface.MapObjectToBroadPhaseLayer(1, bpLayerMoving)
 
-    const bpFilter =
-      new joltModule.ObjectVsBroadPhaseLayerFilterTable(
-        bpInterface,
-        2,
-        objectFilter,
-        2
-      )
+    const bpFilter = new joltModule.ObjectVsBroadPhaseLayerFilterTable(
+      bpInterface,
+      2,
+      objectFilter,
+      2
+    )
 
     settings.mObjectLayerPairFilter = objectFilter
     settings.mBroadPhaseLayerInterface = bpInterface
@@ -261,10 +260,7 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     // Stub — thin instances not yet supported
   }
 
-  updateBodyInstances(
-    _body: PhysicsBody,
-    _mesh: Mesh
-  ): void {
+  updateBodyInstances(_body: PhysicsBody, _mesh: Mesh): void {
     // Stub
   }
 
@@ -605,7 +601,7 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
   // ── Simulation step ─────────────────────────────────────────────────────
 
   private _lastStepTime = 0
-  executeStep(delta: number, physicsBodies: Array<PhysicsBody>): void {
+  executeStep(_delta: number, physicsBodies: Array<PhysicsBody>): void {
     // Babylon's getDeltaTime() measures the engine's rAF tick interval, not
     // the time between scene.render() calls. When the scene is frame-rate
     // throttled (e.g. 30fps on a 120Hz display), the delta passed here is
@@ -756,14 +752,14 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
   }
 
   getMassProperties(
-    body: PhysicsBody,
+    _body: PhysicsBody,
     _instanceIndex?: number
   ): PhysicsMassProperties {
     return { mass: 1 }
   }
 
   computeMassProperties(
-    body: PhysicsBody,
+    _body: PhysicsBody,
     _instanceIndex?: number
   ): PhysicsMassProperties {
     return { mass: 1 }
@@ -777,7 +773,8 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     spd.material = {
       friction: (material as any).friction ?? 0.5,
       restitution: (material as any).restitution ?? 0,
-      staticFriction: (material as any).staticFriction ?? (material as any).friction ?? 0.5,
+      staticFriction:
+        (material as any).staticFriction ?? (material as any).friction ?? 0.5,
     }
 
     // Apply to all bodies using this shape
@@ -1104,8 +1101,7 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
 
   getBoundingBox(shape: PhysicsShape): BoundingBox {
     const spd = (shape as any)._pluginData as JoltShapePluginData
-    if (!spd?.joltShape)
-      return new BoundingBox(Vector3.Zero(), Vector3.Zero())
+    if (!spd?.joltShape) return new BoundingBox(Vector3.Zero(), Vector3.Zero())
     try {
       const bounds = spd.joltShape.GetLocalBounds()
       const min = bounds.mMin ?? bounds.GetMin?.()
@@ -1128,7 +1124,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _body: PhysicsBody,
     _eventMask: number,
     _instanceIndex?: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getEventMask(_body: PhysicsBody, _instanceIndex?: number): number {
     return 0
@@ -1140,13 +1138,17 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _body: PhysicsBody,
     _enabled: boolean,
     _instanceIndex?: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   setCollisionEndedCallbackEnabled(
     _body: PhysicsBody,
     _enabled: boolean,
     _instanceIndex?: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getCollisionObservable(
     _body: PhysicsBody,
@@ -1164,7 +1166,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
 
   // ── Trigger (stub) ──────────────────────────────────────────────────────
 
-  setTrigger(_shape: PhysicsShape, _isTrigger: boolean): void {}
+  setTrigger(_shape: PhysicsShape, _isTrigger: boolean): void {
+    // stub
+  }
 
   // ── Constraints (stubs) ─────────────────────────────────────────────────
 
@@ -1172,7 +1176,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _body: PhysicsBody,
     _childBody: PhysicsBody
-  ): void {}
+  ): void {
+    // stub
+  }
 
   addConstraint(
     _body: PhysicsBody,
@@ -1180,11 +1186,17 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _instanceIndex?: number,
     _childInstanceIndex?: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
-  disposeConstraint(_constraint: PhysicsConstraint): void {}
+  disposeConstraint(_constraint: PhysicsConstraint): void {
+    // stub
+  }
 
-  setEnabled(_constraint: PhysicsConstraint, _isEnabled: boolean): void {}
+  setEnabled(_constraint: PhysicsConstraint, _isEnabled: boolean): void {
+    // stub
+  }
 
   getEnabled(_constraint: PhysicsConstraint): boolean {
     return false
@@ -1193,7 +1205,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
   setCollisionsEnabled(
     _constraint: PhysicsConstraint,
     _isEnabled: boolean
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getCollisionsEnabled(_constraint: PhysicsConstraint): boolean {
     return false
@@ -1203,7 +1217,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _friction: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisFriction(
     _constraint: PhysicsConstraint,
@@ -1216,7 +1232,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _limitMode: PhysicsConstraintAxisLimitMode
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisMode(
     _constraint: PhysicsConstraint,
@@ -1229,7 +1247,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _minLimit: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisMinLimit(
     _constraint: PhysicsConstraint,
@@ -1242,7 +1262,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _limit: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisMaxLimit(
     _constraint: PhysicsConstraint,
@@ -1255,7 +1277,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _motorType: PhysicsConstraintMotorType
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisMotorType(
     _constraint: PhysicsConstraint,
@@ -1268,7 +1292,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _target: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisMotorTarget(
     _constraint: PhysicsConstraint,
@@ -1281,7 +1307,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _constraint: PhysicsConstraint,
     _axis: PhysicsConstraintAxis,
     _maxForce: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getAxisMotorMaxForce(
     _constraint: PhysicsConstraint,
@@ -1301,16 +1329,17 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
   setShapeFilterMembershipMask(
     _shape: PhysicsShape,
     _membershipMask: number
-  ): void {}
+  ): void {
+    // stub
+  }
 
   getShapeFilterMembershipMask(_shape: PhysicsShape): number {
     return 0xffffffff
   }
 
-  setShapeFilterCollideMask(
-    _shape: PhysicsShape,
-    _collideMask: number
-  ): void {}
+  setShapeFilterCollideMask(_shape: PhysicsShape, _collideMask: number): void {
+    // stub
+  }
 
   getShapeFilterCollideMask(_shape: PhysicsShape): number {
     return 0xffffffff
@@ -1324,9 +1353,13 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _translation?: Vector3,
     _rotation?: Quaternion,
     _scale?: Vector3
-  ): void {}
+  ): void {
+    // stub
+  }
 
-  removeChild(_shape: PhysicsShape, _childIndex: number): void {}
+  removeChild(_shape: PhysicsShape, _childIndex: number): void {
+    // stub
+  }
 
   getNumChildren(_shape: PhysicsShape): number {
     return 0
@@ -1339,7 +1372,9 @@ export class JoltPlugin implements IPhysicsEnginePluginV2 {
     _to: Vector3,
     _result: PhysicsRaycastResult | Array<PhysicsRaycastResult>,
     _query?: any
-  ): void {}
+  ): void {
+    // stub
+  }
 
   // ── Dispose ─────────────────────────────────────────────────────────────
 

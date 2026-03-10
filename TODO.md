@@ -94,6 +94,7 @@
 [ ] Money
 
 ## Documentation, Examples & Tests
+
 [ ] As much test coverage as possible
 [ ] At least one live example for each component
 [ ] Documentation for each component
@@ -115,4 +116,9 @@
 
 ## Bugs
 
+[ ] Particle demo does not load
+[ ] Can't hear anything in sound demo, missing wav file?
+[ ] In the trigger demo the pov character just falls through the world and you can see a clone left behind
+[ ] In VR the b3d (main) demo often leaves a frozen clone behind when you start walking
 [ ] Planet material seems pinched at one pole
+[ ] Possible leaks in jolt plugin

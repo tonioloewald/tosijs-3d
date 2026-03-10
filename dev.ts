@@ -104,6 +104,8 @@ const server = Bun.serve({
     let reqPath = new URL(request.url).pathname
     console.log(request.method, reqPath)
     if (reqPath === '/') reqPath = '/index.html'
+    // Strip /docs prefix since DOCS_DIR already points to docs/
+    if (reqPath.startsWith('/docs/')) reqPath = reqPath.slice(5)
 
     // Serve from docs/ (the built site)
     const response = serveFromDir({
