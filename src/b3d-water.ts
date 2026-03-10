@@ -23,7 +23,7 @@ When the camera goes below the water surface, a blue fog is automatically applie
 The sun (if present via `b3dSun`) is also dimmed based on depth.
 
 ```javascript
-const { b3d, b3dWater, b3dSun, b3dSkybox } = tosijs3d
+import { b3d, b3dWater, b3dSun, b3dSkybox } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -38,7 +38,7 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core'
 import { WaterMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils'
-import type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
+import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dWater extends AbstractMesh {
   static initAttributes = {
@@ -101,77 +101,74 @@ export class B3dWater extends AbstractMesh {
 
   connectedCallback(): void {
     super.connectedCallback()
-    if (this.owner != null) {
-      const attrs = this as any
-      const { scene } = this.owner
-
-      if (attrs.spherical) {
-        this.mesh = BABYLON.MeshBuilder.CreateSphere(
-          'water_nocast',
-          { segments: attrs.subdivisions, diameter: attrs.waterSize },
-          scene
-        )
-      } else {
-        this.mesh = BABYLON.MeshBuilder.CreateGround(
-          'water_nocast',
-          {
-            width: attrs.waterSize,
-            height: attrs.waterSize,
-            subdivisions: attrs.subdivisions,
-          },
-          scene
-        )
-      }
-      this.mesh.checkCollisions = false
-
-      this.waterMaterial = new WaterMaterial(
-        'water',
-        scene,
-        new BABYLON.Vector2(attrs.textureSize, attrs.textureSize)
-      )
-      this.waterMaterial.bumpTexture = new BABYLON.Texture(
-        attrs.normalMap,
-        scene
-      )
-      this.updateWater()
-      this.mesh.material = this.waterMaterial
-
-      this._callback = this.waterCallback.bind(this)
-      this.owner.onSceneAddition(this._callback)
-
-      // Underwater fog effect
-      this._savedFogMode = scene.fogMode
-      this._savedFogColor = scene.fogColor.clone()
-      this._savedFogDensity = scene.fogDensity
-      this._underwaterUpdate = () => {
-        const cam = scene.activeCamera
-        if (!cam || !this.mesh) return
-        const camY = cam.globalPosition.y
-        const waterY = this.mesh.absolutePosition.y
-        const underwater = camY < waterY
-        if (underwater && !this._wasUnderwater) {
-          this._wasUnderwater = true
-          scene.fogMode = BABYLON.Scene.FOGMODE_EXP2
-          scene.fogColor = new BABYLON.Color3(0, 0.15, 0.3)
-          scene.fogDensity = 0.12
-        } else if (!underwater && this._wasUnderwater) {
-          this._wasUnderwater = false
-          scene.fogMode = this._savedFogMode
-          scene.fogColor = this._savedFogColor
-          scene.fogDensity = this._savedFogDensity
-        }
-      }
-      scene.registerBeforeRender(this._underwaterUpdate)
-    }
   }
 
-  disconnectedCallback(): void {
+  sceneReady(owner: B3d, scene: BABYLON.Scene): void {
+    super.sceneReady(owner, scene)
+    const attrs = this as any
+
+    if (attrs.spherical) {
+      this.mesh = BABYLON.MeshBuilder.CreateSphere(
+        'water_nocast',
+        { segments: attrs.subdivisions, diameter: attrs.waterSize },
+        scene
+      )
+    } else {
+      this.mesh = BABYLON.MeshBuilder.CreateGround(
+        'water_nocast',
+        {
+          width: attrs.waterSize,
+          height: attrs.waterSize,
+          subdivisions: attrs.subdivisions,
+        },
+        scene
+      )
+    }
+    this.mesh.checkCollisions = false
+
+    this.waterMaterial = new WaterMaterial(
+      'water',
+      scene,
+      new BABYLON.Vector2(attrs.textureSize, attrs.textureSize)
+    )
+    this.waterMaterial.bumpTexture = new BABYLON.Texture(attrs.normalMap, scene)
+    this.updateWater()
+    this.mesh.material = this.waterMaterial
+
+    this._callback = this.waterCallback.bind(this)
+    owner.onSceneAddition(this._callback)
+
+    // Underwater fog effect
+    this._savedFogMode = scene.fogMode
+    this._savedFogColor = scene.fogColor.clone()
+    this._savedFogDensity = scene.fogDensity
+    this._underwaterUpdate = () => {
+      const cam = scene.activeCamera
+      if (!cam || !this.mesh) return
+      const camY = cam.globalPosition.y
+      const waterY = this.mesh.absolutePosition.y
+      const underwater = camY < waterY
+      if (underwater && !this._wasUnderwater) {
+        this._wasUnderwater = true
+        scene.fogMode = BABYLON.Scene.FOGMODE_EXP2
+        scene.fogColor = new BABYLON.Color3(0, 0.15, 0.3)
+        scene.fogDensity = 0.12
+      } else if (!underwater && this._wasUnderwater) {
+        this._wasUnderwater = false
+        scene.fogMode = this._savedFogMode
+        scene.fogColor = this._savedFogColor
+        scene.fogDensity = this._savedFogDensity
+      }
+    }
+    scene.registerBeforeRender(this._underwaterUpdate)
+  }
+
+  sceneDispose(): void {
     if (this.owner && this._callback) {
       this.owner.offSceneAddition(this._callback)
     }
     if (this._underwaterUpdate && this.owner?.scene) {
       this.owner.scene.unregisterBeforeRender(this._underwaterUpdate)
-      // Restore fog state
       if (this._wasUnderwater) {
         this.owner.scene.fogMode = this._savedFogMode
         this.owner.scene.fogColor = this._savedFogColor
@@ -180,6 +177,11 @@ export class B3dWater extends AbstractMesh {
       this._underwaterUpdate = undefined
     }
     this.waterMaterial = undefined
+    super.sceneDispose()
+  }
+
+  disconnectedCallback(): void {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

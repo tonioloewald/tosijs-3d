@@ -14,7 +14,7 @@ Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 ## Usage
 
 ```javascript
-const { b3d, b3dLoader } = tosijs3d
+import { b3d, b3dLoader } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -26,7 +26,6 @@ document.body.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export class B3dLoader extends Component {
@@ -41,44 +40,44 @@ export class B3dLoader extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner != null) {
-      const { scene } = this.owner
-      const url = (this as any).url as string
-      if (!url) return
-      BABYLON.SceneLoader.ImportMeshAsync('', url, undefined, scene).then(
-        (result) => {
-          const { meshes, lights, transformNodes } = result
-          this.meshes = meshes
-          this.lights = lights
-
-          for (const mesh of meshes) {
-            if (mesh.name.includes('-ignore')) {
-              mesh.dispose()
-            }
-          }
-          for (const node of transformNodes) {
-            if (node.name.includes('-ignore')) {
-              node.dispose()
-            }
-          }
-          for (const light of lights) {
-            if (light.name.includes('-ignore')) {
-              light.dispose()
-            } else if (
-              light instanceof BABYLON.PointLight ||
-              light instanceof BABYLON.SpotLight
-            ) {
-              light.intensity *= (this as any).lightIntensityScale
-            }
-          }
-          this.owner!.register({ lights, meshes })
-        }
-      )
-    }
   }
 
-  disconnectedCallback() {
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    this.owner = owner
+    const url = (this as any).url as string
+    if (!url) return
+    BABYLON.SceneLoader.ImportMeshAsync('', url, undefined, scene).then(
+      (result) => {
+        const { meshes, lights, transformNodes } = result
+        this.meshes = meshes
+        this.lights = lights
+
+        for (const mesh of meshes) {
+          if (mesh.name.includes('-ignore')) {
+            mesh.dispose()
+          }
+        }
+        for (const node of transformNodes) {
+          if (node.name.includes('-ignore')) {
+            node.dispose()
+          }
+        }
+        for (const light of lights) {
+          if (light.name.includes('-ignore')) {
+            light.dispose()
+          } else if (
+            light instanceof BABYLON.PointLight ||
+            light instanceof BABYLON.SpotLight
+          ) {
+            light.intensity *= (this as any).lightIntensityScale
+          }
+        }
+        this.owner!.register({ lights, meshes })
+      }
+    )
+  }
+
+  sceneDispose() {
     if (this.meshes != null) {
       for (const mesh of this.meshes) {
         mesh.dispose()
@@ -92,6 +91,10 @@ export class B3dLoader extends Component {
       this.lights = undefined
     }
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 }

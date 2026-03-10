@@ -12,8 +12,8 @@ weighted selection, and probability checks.
 ## Demo
 
 ```js
-const { PRNG } = tosijs3d
-const { elements } = tosijs
+import { PRNG } from 'tosijs-3d'
+import { elements } from 'tosijs'
 const { div, p, button, pre } = elements
 
 let output = ''

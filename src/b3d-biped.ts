@@ -4,11 +4,97 @@
 Animated humanoid character controller. Loads a GLB model with skeletal animations
 and drives it via `ControlInput`.
 
+## Demo
+
+```js
+import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { elements, tosi } from 'tosijs'
+const { div, label, select, option, input } = elements
+
+const animations = [
+  'idle', 'walk', 'run', 'sneak', 'climb', 'walkBackwards',
+  'jump', 'running-jump', 'salute', 'wave',
+  'tread-water', 'swim', 'talk', 'look', 'dance', 'pickup', 'pilot',
+]
+
+const { bipedDemo } = tosi({
+  bipedDemo: {
+    animation: 'idle',
+    speed: 1,
+  }
+})
+
+const biped = b3dBiped({
+  url: './omnidude.glb',
+  animation: bipedDemo.animation,
+  animationSpeed: bipedDemo.speed,
+})
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          'cam', -Math.PI / 2, Math.PI / 3.5, 2,
+          new BABYLON.Vector3(0, 0.5, 0), el.scene
+        )
+        camera.lowerRadiusLimit = 1.5
+        camera.upperRadiusLimit = 10
+        camera.attachControl(el.querySelector('canvas'), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dLight({ y: 1, intensity: 0.7 }),
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dGround({ width: 10, height: 10 }),
+    biped,
+  ),
+  div(
+    { class: 'controls' },
+    label(
+      'Animation ',
+      select(
+        { bindValue: bipedDemo.animation },
+        ...animations.map(a => option({ value: a }, a)),
+      ),
+    ),
+    label(
+      'Speed ',
+      input({ type: 'range', min: 0, max: 2, step: 0.1, bindValue: bipedDemo.speed }),
+    ),
+  ),
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 10;
+}
+.controls select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+}
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
+| `animation` | `''` | Current animation state name |
+| `animationSpeed` | `1` | Playback speed multiplier (0–2) |
 | `player` | `false` | Whether this biped receives input |
 | `cameraType` | `'none'` | `'follow'`, `'xr'`, or `'none'` |
 | `turnSpeed` | `180` | Degrees per second |
@@ -30,7 +116,7 @@ Animation names in the GLB must match these names.
 ## Usage
 
 ```javascript
-const { b3d, b3dBiped, gameController, inputFocus } = tosijs3d
+import { b3d, b3dBiped, gameController, inputFocus } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -50,6 +136,7 @@ document.body.append(
 
 import * as BABYLON from '@babylonjs/core'
 import { XRStuff } from './b3d-utils'
+import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
 import { B3dControllable } from './b3d-controllable'
@@ -97,6 +184,8 @@ export class B3dBiped extends B3dControllable {
     url: '',
     player: false,
     cameraType: 'none',
+    animation: '',
+    animationSpeed: 1,
     initialState: 'idle',
     turnSpeed: 180,
     forwardSpeed: 2,
@@ -151,48 +240,49 @@ export class B3dBiped extends B3dControllable {
     }
     if (this.entries == null) return
 
-    this.animationState = this.animationStates.find(
+    const newState = this.animationStates.find(
       (state) => state.name === name || state.animation === name
     )
-    if (this.animationState != null) {
-      const idx = this.entries.animationGroups.findIndex((g) =>
-        g.name.endsWith(this.animationState!.animation)
-      )
-      if (idx > -1) {
-        const loop = this.animationState.loop
-        const additive = this.animationState.additive
-        if (loop) {
-          for (const ag of this.entries.animationGroups) {
-            ag.stop()
-          }
-        }
-        const animationGroup = this.entries.animationGroups[idx]
-        if (this.animationState.backwards) {
-          animationGroup.start(
-            loop,
-            speed,
-            animationGroup.from,
-            animationGroup.to,
-            additive
-          )
-        } else {
-          animationGroup.start(
-            loop,
-            speed,
-            animationGroup.to,
-            animationGroup.from,
-            additive
-          )
-        }
-        this.animationGroup = animationGroup
-      } else {
-        console.error(
-          `setAnimationState: could not find animation "${this.animationState.animation}"`
-        )
-      }
-    } else {
+    if (newState == null) {
       console.error(`setAnimationState: no state named "${name}"`)
+      return
     }
+    const idx = this.entries.animationGroups.findIndex((g) =>
+      g.name.endsWith(newState.animation)
+    )
+    if (idx === -1) {
+      console.error(
+        `setAnimationState: could not find animation "${newState.animation}"`
+      )
+      return
+    }
+    this.animationState = newState
+    const loop = newState.loop
+    const additive = newState.additive
+    if (loop) {
+      for (const ag of this.entries.animationGroups) {
+        ag.stop()
+      }
+    }
+    const animationGroup = this.entries.animationGroups[idx]
+    if (newState.backwards) {
+      animationGroup.start(
+        loop,
+        speed,
+        animationGroup.to,
+        animationGroup.from,
+        additive
+      )
+    } else {
+      animationGroup.start(
+        loop,
+        speed,
+        animationGroup.from,
+        animationGroup.to,
+        additive
+      )
+    }
+    this.animationGroup = animationGroup
   }
 
   getCameraTarget(): BABYLON.Node | null {
@@ -461,11 +551,16 @@ export class B3dBiped extends B3dControllable {
         }
       }
     }
-    if (this.owner != null && attrs.url !== '' && !this.entries) {
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    super.sceneReady(owner, scene)
+    const attrs = this as any
+    if (attrs.url !== '' && !this.entries) {
       BABYLON.SceneLoader.LoadAssetContainer(
         attrs.url,
         undefined,
-        this.owner.scene,
+        scene,
         (container) => {
           this.entries = container.instantiateModelsToScene(undefined, false, {
             doNotInstantiate: true,
@@ -482,18 +577,29 @@ export class B3dBiped extends B3dControllable {
           this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
           this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
           this.mesh.checkCollisions = true
-          this.owner!.register({ meshes })
+          owner.register({ meshes })
           this.setAnimationState(attrs.initialState)
 
+          // If inputFocus wired input before GLB loaded, it may have been
+          // cleared by a dispose/re-init cycle. Re-wire directly.
+          if (attrs.player && this.inputProvider == null) {
+            const focusManager = this.closest('tosi-b3d-input-focus') as any
+            if (focusManager?.gcInputProvider) {
+              this.inputProvider = new CompositeInputProvider(
+                focusManager.gcInputProvider
+              )
+            }
+          }
+
           this.lastUpdate = Date.now()
-          this.owner!.scene.registerBeforeRender(this._update)
+          scene.registerBeforeRender(this._update)
           this.queueRender()
         }
       )
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner != null && this.entries) {
       this.owner.scene.unregisterBeforeRender(this._update)
       for (const node of this.entries.rootNodes) {
@@ -510,13 +616,24 @@ export class B3dBiped extends B3dControllable {
     this.gameController = undefined
     this.inputProvider = null
     this.xrInputProvider = undefined
+    super.sceneDispose()
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
+    if (!this.owner) return
     super.render()
     if (this.entries == null) return
     const attrs = this as any
+    if (attrs.animation !== '') {
+      this.setAnimationState(attrs.animation, attrs.animationSpeed)
+    } else if (this.animationGroup && attrs.animationSpeed !== undefined) {
+      this.animationGroup.speedRatio = attrs.animationSpeed
+    }
     if (this.camera == null || this.camera.name !== attrs.cameraType) {
       switch (attrs.cameraType) {
         case 'xr':

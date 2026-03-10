@@ -20,7 +20,7 @@ enter/exit vehicle mechanics.
 ## Usage
 
 ```javascript
-const { b3d, b3dBiped, b3dCar, gameController, inputFocus } = tosijs3d
+import { b3d, b3dBiped, b3dCar, gameController, inputFocus } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -36,7 +36,6 @@ document.body.append(
 
 import * as BABYLON from '@babylonjs/core'
 import { Component } from 'tosijs'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { GameController } from './game-controller'
@@ -57,7 +56,10 @@ export class B3dInputFocus extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
+  }
+
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
 
     // Find the GameController child
     const gcEl = this.querySelector('tosi-game-controller')
@@ -66,8 +68,8 @@ export class B3dInputFocus extends Component {
       this.gcInputProvider = this.gameController.getInputProvider()
     }
 
-    // Wait a tick for child elements to connect, then discover entities
-    requestAnimationFrame(() => this.discoverEntities())
+    // Scene is running and children have been notified — discover entities directly
+    this.discoverEntities()
   }
 
   private discoverEntities() {
@@ -234,7 +236,7 @@ export class B3dInputFocus extends Component {
     this.focusEntity(this.playerEntity)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner) {
       this.owner.scene.unregisterBeforeRender(this._checkInteract)
     }
@@ -243,6 +245,10 @@ export class B3dInputFocus extends Component {
     this.gameController = null
     this.gcInputProvider = null
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 }

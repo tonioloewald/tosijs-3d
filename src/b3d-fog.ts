@@ -19,7 +19,7 @@ When `syncSkybox` is true, the fog color automatically tracks the sibling
 ## Usage
 
 ```javascript
-const { b3d, b3dFog, b3dSkybox, b3dSun } = tosijs3d
+import { b3d, b3dFog, b3dSkybox, b3dSun } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -33,7 +33,6 @@ document.body.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import type { B3dSkybox } from './b3d-skybox'
 
@@ -59,19 +58,20 @@ export class B3dFog extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner != null) {
-      this.applyFog()
+  }
 
-      // When syncing skybox, update fog color each frame
-      if ((this as any).syncSkybox) {
-        this._beforeRender = () => this.syncFromSkybox()
-        this.owner.scene.registerBeforeRender(this._beforeRender)
-      }
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
+    this.applyFog()
+
+    // When syncing skybox, update fog color each frame
+    if ((this as any).syncSkybox) {
+      this._beforeRender = () => this.syncFromSkybox()
+      this.owner.scene.registerBeforeRender(this._beforeRender)
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner != null) {
       if (this._beforeRender) {
         this.owner.scene.unregisterBeforeRender(this._beforeRender)
@@ -81,11 +81,16 @@ export class B3dFog extends Component {
     }
     this.skyboxEl = null
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
     super.render()
+    if (!this.owner) return
     this.applyFog()
   }
 

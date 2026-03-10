@@ -14,12 +14,12 @@ must be children of a `b3d` element.
 ## Demo
 
 ```js
-const {
+import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
   b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   gameController, inputFocus,
-} = tosijs3d
-const { tosi, elements } = tosijs
+} from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, span } = elements
 
 const { demo } = tosi({
@@ -129,7 +129,7 @@ tosi-b3d {
 ## Usage
 
 ```javascript
-const { b3d, b3dSun, b3dSkybox, b3dLoader, b3dWater } = tosijs3d
+import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dWater } from 'tosijs-3d'
 
 document.body.append(
   b3d(
@@ -250,6 +250,9 @@ export class B3d extends Component {
   private lastRender = 0
   private sceneListeners: SceneAdditionHandler[] = []
   private pastAdditions: SceneAdditions[] = []
+  private _sceneReady = false
+  private _childObserver?: MutationObserver
+  private _notifiedNodes = new WeakSet<HTMLElement>()
 
   onSceneAddition(callback: SceneAdditionHandler): void {
     this.sceneListeners.push(callback)
@@ -323,6 +326,56 @@ export class B3d extends Component {
     BABYLON.SceneLoader.Append(path, file, this.scene, processCallback)
   }
 
+  private _notifyNode(node: Node) {
+    if (
+      node instanceof HTMLElement &&
+      typeof (node as any).sceneReady === 'function' &&
+      !this._notifiedNodes.has(node)
+    ) {
+      this._notifiedNodes.add(node)
+      ;(node as any).sceneReady(this, this.scene)
+    }
+  }
+
+  private _disposeNode(node: Node) {
+    if (
+      node instanceof HTMLElement &&
+      this._notifiedNodes.has(node) &&
+      typeof (node as any).sceneDispose === 'function'
+    ) {
+      this._notifiedNodes.delete(node)
+      ;(node as any).sceneDispose()
+    }
+  }
+
+  // Notify parent before children (document order = depth-first pre-order)
+  private _notifySubtree(node: Node) {
+    this._notifyNode(node)
+    if (node instanceof HTMLElement) {
+      for (const el of Array.from(node.querySelectorAll('*'))) {
+        this._notifyNode(el)
+      }
+    }
+  }
+
+  // Dispose children before parent (reverse document order)
+  private _disposeSubtree(node: Node) {
+    if (node instanceof HTMLElement) {
+      const els = Array.from(node.querySelectorAll('*'))
+      for (let i = els.length - 1; i >= 0; i--) {
+        this._disposeNode(els[i])
+      }
+    }
+    this._disposeNode(node)
+  }
+
+  // Notify all descendants in document order (parents before children)
+  private _notifyAllDescendants() {
+    for (const el of Array.from(this.querySelectorAll('*'))) {
+      this._notifyNode(el)
+    }
+  }
+
   connectedCallback(): void {
     super.connectedCallback()
     const cnv = this.parts.canvas as HTMLCanvasElement
@@ -333,6 +386,20 @@ export class B3d extends Component {
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.collisionsEnabled = true
     this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0)
+
+    this._childObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of Array.from(mutation.addedNodes)) {
+          if (this._sceneReady) {
+            this._notifySubtree(node)
+          }
+        }
+        for (const node of Array.from(mutation.removedNodes)) {
+          this._disposeSubtree(node)
+        }
+      }
+    })
+    this._childObserver.observe(this, { childList: true, subtree: true })
 
     const init = async () => {
       if (this.sceneCreated !== noop) {
@@ -351,14 +418,27 @@ export class B3d extends Component {
       this.gui = new GUI.GUI3DManager(this.scene)
       this.engine.runRenderLoop(this._update)
 
-      // Fade in canvas once all assets are loaded
+      // Scene is now ready — notify all existing descendants
+      this._sceneReady = true
+      this._notifyAllDescendants()
+
+      // Fade in canvas once all pending file loads complete and shaders compile.
+      // Falls back to revealing after assets load even if shaders are still
+      // compiling, to avoid an indefinitely hidden canvas.
       const spinner = this.parts.spinner as HTMLElement
+      let revealed = false
+      const reveal = () => {
+        if (revealed) return
+        revealed = true
+        cnv.classList.add('ready')
+        spinner.classList.add('hidden')
+      }
       const checkReady = () => {
         if (this.scene.getWaitingItemsCount() === 0) {
-          this.scene.executeWhenReady(() => {
-            cnv.classList.add('ready')
-            spinner.classList.add('hidden')
-          })
+          this.scene.executeWhenReady(reveal)
+          // Fallback: reveal once assets are loaded even if some shaders
+          // haven't compiled (e.g. SkyMaterial can take extra frames)
+          setTimeout(reveal, 500)
         } else {
           setTimeout(checkReady, 100)
         }
@@ -368,6 +448,19 @@ export class B3d extends Component {
     }
 
     init()
+  }
+
+  disconnectedCallback(): void {
+    if (this._childObserver) {
+      this._childObserver.disconnect()
+      this._childObserver = undefined
+    }
+    const els = Array.from(this.querySelectorAll('*'))
+    for (let i = els.length - 1; i >= 0; i--) {
+      this._disposeNode(els[i])
+    }
+    this._sceneReady = false
+    super.disconnectedCallback()
   }
 
   render(): void {

@@ -10,8 +10,8 @@ Optional corona (glow shell) surrounds the star.
 ## Demo
 
 ```js
-const { b3d, b3dSun, b3dSkybox, b3dLight, b3dStar, b3dSphere } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dStar, b3dSphere } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, select, option, span, p } = elements
 
 const { demo } = tosi({
@@ -174,7 +174,6 @@ tosi-b3d {
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
 
@@ -251,23 +250,24 @@ export class B3dStar extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    const owner = findB3dOwner(this)
-    if (owner == null) return
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
     const attrs = this as any
     this.noise = new PerlinNoise(attrs.seed)
 
-    this.rootNode = new BABYLON.TransformNode('star-root', owner.scene)
+    this.rootNode = new BABYLON.TransformNode('star-root', scene)
     this.buildStar()
     this.buildCorona()
     this.buildLight()
 
     this._beforeRender = () => this.update()
-    owner.scene.registerBeforeRender(this._beforeRender)
+    scene.registerBeforeRender(this._beforeRender)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
@@ -277,6 +277,11 @@ export class B3dStar extends Component {
     this.rootNode = null
     this.starMesh = null
     this.coronaMesh = null
+    this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

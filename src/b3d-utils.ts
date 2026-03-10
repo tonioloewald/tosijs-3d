@@ -99,16 +99,23 @@ export class AbstractMesh extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
   }
 
-  disconnectedCallback(): void {
-    super.disconnectedCallback()
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
+  }
+
+  sceneDispose() {
     if (this.mesh != null) {
       this.mesh.dispose()
       this.mesh = undefined
     }
     this.owner = null
+  }
+
+  disconnectedCallback(): void {
+    this.sceneDispose()
+    super.disconnectedCallback()
   }
 
   render() {

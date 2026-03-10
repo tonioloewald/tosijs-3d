@@ -1,6 +1,5 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export class B3dLight extends Component {
@@ -18,24 +17,29 @@ export class B3dLight extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner != null) {
-      const attrs = this as any
-      this.light = new BABYLON.HemisphericLight(
-        'light',
-        new BABYLON.Vector3(attrs.x, attrs.y, attrs.z),
-        this.owner.scene
-      )
-      this.owner.register({ lights: [this.light] })
-    }
   }
 
-  disconnectedCallback() {
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    this.owner = owner
+    const attrs = this as any
+    this.light = new BABYLON.HemisphericLight(
+      'light',
+      new BABYLON.Vector3(attrs.x, attrs.y, attrs.z),
+      scene
+    )
+    owner.register({ lights: [this.light] })
+  }
+
+  sceneDispose() {
     if (this.light != null) {
       this.light.dispose()
       this.light = undefined
     }
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

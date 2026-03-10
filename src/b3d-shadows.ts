@@ -1,6 +1,6 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner, actualMeshes } from './b3d-utils'
+import { actualMeshes } from './b3d-utils'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dSun extends Component {
@@ -94,39 +94,40 @@ export class B3dSun extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner != null) {
-      const attrs = this as any
-      this._update = this.update.bind(this)
-      this.interval = window.setInterval(this._update!, attrs.updateIntervalMs)
-
-      const light = new BABYLON.DirectionalLight(
-        'sun',
-        new BABYLON.Vector3(attrs.x, attrs.y, attrs.z),
-        this.owner.scene
-      )
-      light.intensity = attrs.intensity
-      this.baseIntensity = attrs.intensity
-      this.light = light
-
-      if (attrs.shadowCascading) {
-        this.shadowGenerator = new BABYLON.CascadedShadowGenerator(
-          attrs.shadowTextureSize,
-          light
-        )
-      } else {
-        this.shadowGenerator = new BABYLON.ShadowGenerator(
-          attrs.shadowTextureSize,
-          light
-        )
-      }
-
-      this._callback = this.shadowCallback.bind(this)
-      this.owner.onSceneAddition(this._callback)
-    }
   }
 
-  disconnectedCallback() {
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    this.owner = owner
+    const attrs = this as any
+    this._update = this.update.bind(this)
+    this.interval = window.setInterval(this._update!, attrs.updateIntervalMs)
+
+    const light = new BABYLON.DirectionalLight(
+      'sun',
+      new BABYLON.Vector3(attrs.x, attrs.y, attrs.z),
+      scene
+    )
+    light.intensity = attrs.intensity
+    this.baseIntensity = attrs.intensity
+    this.light = light
+
+    if (attrs.shadowCascading) {
+      this.shadowGenerator = new BABYLON.CascadedShadowGenerator(
+        attrs.shadowTextureSize,
+        light
+      )
+    } else {
+      this.shadowGenerator = new BABYLON.ShadowGenerator(
+        attrs.shadowTextureSize,
+        light
+      )
+    }
+
+    this._callback = this.shadowCallback.bind(this)
+    owner.onSceneAddition(this._callback)
+  }
+
+  sceneDispose() {
     if (this.interval) {
       clearInterval(this.interval)
       this.interval = 0
@@ -142,6 +143,10 @@ export class B3dSun extends Component {
     this.shadowCasters = []
     this.activeShadowCasters = []
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

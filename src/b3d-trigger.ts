@@ -12,8 +12,8 @@ for `'enter'` / `'exit'` CustomEvents on the element.
 ## Demo
 
 ```js
-const { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, gameController, inputFocus } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
 const { demo } = tosi({ demo: { status: 'outside' } })
@@ -71,7 +71,6 @@ preview.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export class B3dTrigger extends Component {
@@ -113,8 +112,10 @@ export class B3dTrigger extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner == null) return
+  }
+
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
 
     this._beforeRender = () => this.checkProximity()
     this.owner.scene.registerBeforeRender(this._beforeRender)
@@ -122,18 +123,23 @@ export class B3dTrigger extends Component {
     this.updateDebugMesh()
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
       this._beforeRender = null
     }
     this.disposeDebugMesh()
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
     super.render()
+    if (!this.owner) return
     this.updateDebugMesh()
   }
 

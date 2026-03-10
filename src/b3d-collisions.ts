@@ -22,7 +22,7 @@ Underscore variants also work: `_collide_sphere`, `_collide_box`, etc.
 Set `debug: true` to show green wireframe colliders:
 
 ```javascript
-const { b3d, b3dCollisions, b3dLoader } = tosijs3d
+import { b3d, b3dCollisions, b3dLoader } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -35,7 +35,6 @@ document.body.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dCollisions extends Component {
@@ -237,26 +236,15 @@ export class B3dCollisions extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner != null) {
-      this._callback = this.processAdditions.bind(this)
-      this.owner.onSceneAddition(this._callback)
-    }
   }
 
-  render() {
-    super.render()
-    for (const collider of this.colliders) {
-      if (this.debug) {
-        collider.isVisible = true
-        collider.material = this.getDebugMaterial()
-      } else {
-        collider.isVisible = false
-      }
-    }
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
+    this._callback = this.processAdditions.bind(this)
+    owner.onSceneAddition(this._callback)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._callback) {
       this.owner.offSceneAddition(this._callback)
     }
@@ -269,6 +257,23 @@ export class B3dCollisions extends Component {
       this.debugMaterial = undefined
     }
     this.owner = null
+  }
+
+  render() {
+    super.render()
+    if (!this.owner) return
+    for (const collider of this.colliders) {
+      if (this.debug) {
+        collider.isVisible = true
+        collider.material = this.getDebugMaterial()
+      } else {
+        collider.isVisible = false
+      }
+    }
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 }

@@ -8,8 +8,8 @@ accurate but visually striking.
 ## Demo
 
 ```js
-const { b3d, b3dLight, b3dBlackHole, b3dSphere } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dLight, b3dBlackHole, b3dSphere } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, span, p } = elements
 
 const { demo } = tosi({
@@ -159,7 +159,6 @@ tosi-b3d {
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 // 2D noise for disk turbulence (simple hash-based)
@@ -248,11 +247,12 @@ export class B3dBlackHole extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    const owner = findB3dOwner(this)
-    if (owner == null) return
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
-    this.rootNode = new BABYLON.TransformNode('blackhole-root', owner.scene)
+    this.rootNode = new BABYLON.TransformNode('blackhole-root', scene)
     this.registerShaders()
     this.buildHorizon()
     this.buildSurfaceGlow()
@@ -261,10 +261,10 @@ export class B3dBlackHole extends Component {
     this.buildPhotonRing()
 
     this._beforeRender = () => this.update()
-    owner.scene.registerBeforeRender(this._beforeRender)
+    scene.registerBeforeRender(this._beforeRender)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
@@ -275,6 +275,11 @@ export class B3dBlackHole extends Component {
     this.diskMesh = null
     this.lensedDiskMesh = null
     this.photonRingMesh = null
+    this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

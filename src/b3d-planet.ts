@@ -11,8 +11,8 @@ Optional atmosphere (glow shell) and ocean (water sphere at sea level).
 ## Demo
 
 ```js
-const { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, span, p } = elements
 
 const { demo } = tosi({
@@ -159,7 +159,6 @@ tosi-b3d {
 
 import { Component, Color } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
 import { PiecewiseLinearFilter } from './gradient-filter'
@@ -225,24 +224,25 @@ export class B3dPlanet extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    const owner = findB3dOwner(this)
-    if (owner == null) return
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
     const attrs = this as any
     this.noise = new PerlinNoise(attrs.seed)
 
-    this.rootNode = new BABYLON.TransformNode('planet-root', owner.scene)
+    this.rootNode = new BABYLON.TransformNode('planet-root', scene)
     this.buildPlanet()
     this.buildAtmosphere()
     this.buildOcean()
     this.buildRings()
 
     this._beforeRender = () => this.update()
-    owner.scene.registerBeforeRender(this._beforeRender)
+    scene.registerBeforeRender(this._beforeRender)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
@@ -252,6 +252,11 @@ export class B3dPlanet extends Component {
     this.atmosphereMesh = null
     this.oceanMesh = null
     this.ringMesh = null
+    this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
@@ -482,8 +487,17 @@ export class B3dPlanet extends Component {
         needAlphaBlending: true,
       }
     )
-    const atmoColor = Color.fromCss(attrs.atmosphereColor || 'rgba(77,128,230,0.15)')
-    mat.setVector3('atmoColor', new BABYLON.Vector3(atmoColor.r / 255, atmoColor.g / 255, atmoColor.b / 255))
+    const atmoColor = Color.fromCss(
+      attrs.atmosphereColor || 'rgba(77,128,230,0.15)'
+    )
+    mat.setVector3(
+      'atmoColor',
+      new BABYLON.Vector3(
+        atmoColor.r / 255,
+        atmoColor.g / 255,
+        atmoColor.b / 255
+      )
+    )
     mat.setFloat('atmoOpacity', atmoColor.a)
     mat.setFloat('time', 0)
     mat.setFloat('turbulence', attrs.atmosphereTurbulence ?? 0.5)

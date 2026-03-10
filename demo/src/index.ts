@@ -1,6 +1,7 @@
 import { StyleSheet, XinStyleSheet, vars, Color, invertLuminance } from 'tosijs'
 import * as tosijs from 'tosijs'
 import * as tosijs3d from '../../src/index'
+import * as tosijsui from 'tosijs-ui'
 import { createDocBrowser, applyTheme, createThemeWithLegacy } from 'tosijs-ui'
 import docs from '../docs.json'
 
@@ -261,7 +262,7 @@ StyleSheet('demo-style', styleSpec)
 
 const browser = createDocBrowser({
   docs,
-  context: { tosijs, 'tosijs-3d': tosijs3d },
+  context: { tosijs, 'tosijs-3d': tosijs3d, 'tosijs-ui': tosijsui },
   projectName: 'tosijs-3d',
   projectLinks: {
     github: 'https://github.com/tonioloewald/xinjs-3d',

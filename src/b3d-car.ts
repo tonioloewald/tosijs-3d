@@ -26,7 +26,7 @@ When `enterable: true` and wrapped in an `inputFocus`, a nearby biped can press 
 to enter the vehicle. Press E again to exit.
 
 ```javascript
-const { b3d, b3dCar, b3dBiped, gameController, inputFocus } = tosijs3d
+import { b3d, b3dCar, b3dBiped, gameController, inputFocus } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
@@ -41,6 +41,7 @@ document.body.append(
 */
 
 import * as BABYLON from '@babylonjs/core'
+import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
 
@@ -134,12 +135,16 @@ export class B3dCar extends B3dControllable {
 
   connectedCallback() {
     super.connectedCallback()
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    super.sceneReady(owner, scene)
     const attrs = this as any
-    if (this.owner != null && attrs.url !== '') {
+    if (attrs.url !== '') {
       BABYLON.SceneLoader.LoadAssetContainer(
         attrs.url,
         undefined,
-        this.owner.scene,
+        scene,
         (container) => {
           this.entries = container.instantiateModelsToScene(undefined, false, {
             doNotInstantiate: true,
@@ -155,7 +160,7 @@ export class B3dCar extends B3dControllable {
           root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2)
           root.ellipsoidOffset = new BABYLON.Vector3(0, 0.5, 0)
           root.checkCollisions = true
-          this.owner!.register({ meshes })
+          owner.register({ meshes })
 
           // Find wheel meshes by naming convention
           this.wheels = meshes.filter((m) => {
@@ -164,13 +169,13 @@ export class B3dCar extends B3dControllable {
           })
 
           this.lastUpdate = Date.now()
-          this.owner!.scene.registerBeforeRender(this._update)
+          scene.registerBeforeRender(this._update)
         }
       )
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner != null && this.entries) {
       this.owner.scene.unregisterBeforeRender(this._update)
       for (const node of this.entries.rootNodes) {
@@ -186,6 +191,11 @@ export class B3dCar extends B3dControllable {
     }
     this.wheels = []
     this.inputProvider = null
+    super.sceneDispose()
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 }

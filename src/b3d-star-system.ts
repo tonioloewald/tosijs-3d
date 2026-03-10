@@ -11,8 +11,8 @@ Planets orbit at scaled distances and can optionally animate.
 ## Demo
 
 ```js
-const { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, p, pre } = elements
 
 const galaxy = generateGalaxy(1234, 1000)
@@ -154,7 +154,6 @@ tosi-b3d {
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import {
   generateGalaxy,
@@ -213,26 +212,32 @@ export class B3dStarSystem extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    const owner = findB3dOwner(this)
-    if (owner == null) return
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
-    this.rootNode = new BABYLON.TransformNode('star-system-root', owner.scene)
+    this.rootNode = new BABYLON.TransformNode('star-system-root', scene)
     this.rootNode.position.set(this.x, this.y, this.z)
     this.registerShaders()
     this.buildSystem()
 
     this._beforeRender = () => this.update()
-    owner.scene.registerBeforeRender(this._beforeRender)
+    scene.registerBeforeRender(this._beforeRender)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
     this.disposeMeshes()
     this.rootNode?.dispose()
     this.rootNode = null
+    this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
@@ -454,7 +459,10 @@ export class B3dStarSystem extends Component {
     for (let i = 0; i < planets.length; i++) {
       const planet = planets[i]
       const minOrbit = starRadius * 1.5 + (i + 1) * starRadius * 0.4
-      const orbitalDist = Math.max(minOrbit, planet.orbitalRadius * orbitScale * scale)
+      const orbitalDist = Math.max(
+        minOrbit,
+        planet.orbitalRadius * orbitScale * scale
+      )
 
       // Planet visual radius — scale for visibility
       // Real planet radius in km, Earth = 6357km
@@ -499,7 +507,13 @@ export class B3dStarSystem extends Component {
 
       // Rings for gas giants
       if (planet.rings > 0) {
-        this.buildPlanetRing(planetMesh, planetVisualRadius, planet.rings, planet.seed, scene)
+        this.buildPlanetRing(
+          planetMesh,
+          planetVisualRadius,
+          planet.rings,
+          planet.seed,
+          scene
+        )
       }
 
       // Seeded initial orbital phase
@@ -656,11 +670,15 @@ export class B3dStarSystem extends Component {
       for (let i = 0; i < this.planetMeshes.length; i++) {
         const planet = this.systemData.planets[i]
         const minOrbit = this.starRadius * 1.5 + (i + 1) * this.starRadius * 0.4
-        const orbitalDist = Math.max(minOrbit, planet.orbitalRadius * orbitScale * scale)
+        const orbitalDist = Math.max(
+          minOrbit,
+          planet.orbitalRadius * orbitScale * scale
+        )
 
         // Kepler's 3rd law approximation: period ∝ r^1.5
         const period = Math.pow(planet.orbitalRadius, 1.5) * 200
-        const angle = (this.time / period) * Math.PI * 2 + (this.planetPhases[i] || 0)
+        const angle =
+          (this.time / period) * Math.PI * 2 + (this.planetPhases[i] || 0)
 
         this.planetMeshes[i].position.x = Math.cos(angle) * orbitalDist
         this.planetMeshes[i].position.z = Math.sin(angle) * orbitalDist
@@ -687,7 +705,9 @@ export class B3dStarSystem extends Component {
     if (this.coronaMesh) this.coronaMesh.visibility = v
     for (const mesh of this.planetMeshes) mesh.visibility = v
     for (const line of this.orbitLines) line.visibility = v
-    if (this.starLight) this.starLight.intensity = v * Math.min((this.systemData?.star.luminosity ?? 1) * 0.5, 5)
+    if (this.starLight)
+      this.starLight.intensity =
+        v * Math.min((this.systemData?.star.luminosity ?? 1) * 0.5, 5)
   }
 
   /** Update non-geometry options (animation, orbit visibility) */

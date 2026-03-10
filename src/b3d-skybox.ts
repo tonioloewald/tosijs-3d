@@ -4,6 +4,39 @@
 Procedural sky with sun/moon cycle driven by time of day. Automatically controls
 a `b3dSun` sibling's direction, intensity, and color.
 
+## Demo
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
+const { div, label, input } = elements
+
+const { sky } = tosi({ sky: { timeOfDay: 17 } })
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const camera = new BABYLON.ArcRotateCamera(
+        'cam', -Math.PI / 2, Math.PI / 3, 15,
+        new BABYLON.Vector3(0, 0, 0), el.scene
+      )
+      camera.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(camera)
+    },
+  },
+  b3dSun({ shadowCascading: true }),
+  b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
+  b3dGround({ width: 20, height: 20 }),
+)
+preview.append(
+  scene,
+  div(
+    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
+    label('time of day ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: sky.timeOfDay })),
+  ),
+)
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -18,24 +51,12 @@ a `b3dSun` sibling's direction, intensity, and color.
 | `moonColor` | `'#6688cc'` | Night light color |
 | `moonIntensity` | `0.15` | Night light intensity |
 | `applyFog` | `false` | Whether scene fog affects the skybox |
-
-## Usage
-
-```javascript
-const { b3d, b3dSun, b3dSkybox } = tosijs3d
-
-document.body.append(
-  b3d({},
-    b3dSun({ shadowCascading: true }),
-    b3dSkybox({ timeOfDay: 17, realtimeScale: 100, latitude: 30 })
-  )
-)
-```
 */
 
 import * as BABYLON from '@babylonjs/core'
 import { SkyMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils'
+import type { B3d } from './tosi-b3d'
 import type { B3dSun } from './b3d-shadows'
 
 const DEG_TO_RAD = Math.PI / 180
@@ -163,41 +184,49 @@ export class B3dSkybox extends AbstractMesh {
 
   connectedCallback() {
     super.connectedCallback()
-    if (this.owner != null) {
-      const attrs = this as any
-      this.interval = window.setInterval(() => {
-        attrs.timeOfDay =
-          (((attrs.timeOfDay +
-            attrs.realtimeScale * attrs.updateFrequencyMs * 1e-6) /
-            24) %
-            1) *
-          24
-      }, attrs.updateFrequencyMs)
-
-      const material = new SkyMaterial('skybox', this.owner.scene)
-      material.backFaceCulling = false
-      material.useSunPosition = true
-
-      this.mesh = BABYLON.MeshBuilder.CreateBox(
-        'skybox_nocast',
-        {
-          size: attrs.skyboxSize,
-          sideOrientation: BABYLON.Mesh.BACKSIDE,
-        },
-        this.owner.scene
-      )
-      this.mesh.material = material
-      this.mesh.applyFog = (this as any).applyFog
-      this.updateSky()
-      this.owner.register({ meshes: [this.mesh] })
-    }
   }
 
-  disconnectedCallback() {
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    super.sceneReady(owner, scene)
+    const attrs = this as any
+    this.interval = window.setInterval(() => {
+      attrs.timeOfDay =
+        (((attrs.timeOfDay +
+          attrs.realtimeScale * attrs.updateFrequencyMs * 1e-6) /
+          24) %
+          1) *
+        24
+    }, attrs.updateFrequencyMs)
+
+    const material = new SkyMaterial('skybox', scene)
+    material.backFaceCulling = false
+    material.useSunPosition = true
+
+    this.mesh = BABYLON.MeshBuilder.CreateBox(
+      'skybox_nocast',
+      {
+        size: attrs.skyboxSize,
+        sideOrientation: BABYLON.Mesh.BACKSIDE,
+      },
+      scene
+    )
+    this.mesh.material = material
+    this.mesh.applyFog = (this as any).applyFog
+    this.updateSky()
+    owner.register({ meshes: [this.mesh] })
+  }
+
+  sceneDispose() {
     if (this.interval) {
       clearInterval(this.interval)
       this.interval = 0
     }
+    this.sunEl = null
+    super.sceneDispose()
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

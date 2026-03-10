@@ -23,7 +23,7 @@ Mouse wheel controls `cameraZoom` (0..1).
 ## Usage
 
 ```javascript
-const { gameController, b3dBiped, inputFocus, b3d } = tosijs3d
+import { gameController, b3dBiped, inputFocus, b3d } from 'tosijs-3d'
 
 document.body.append(
   b3d({},

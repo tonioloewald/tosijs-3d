@@ -13,8 +13,8 @@ All generation is seeded — same seed always produces the same galaxy.
 ## Demo
 
 ```js
-const { PRNG, generateGalaxy, generateStarSystem } = tosijs3d
-const { elements } = tosijs
+import { PRNG, generateGalaxy, generateStarSystem } from 'tosijs-3d'
+import { elements } from 'tosijs'
 const { div, p, pre, table, tr, td, th, thead, tbody } = elements
 
 const galaxy = generateGalaxy(1234, 100)

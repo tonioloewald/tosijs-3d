@@ -11,8 +11,8 @@ and dispatches a `'physics-ready'` event when initialization completes.
 ## Demo
 
 ```js
-const { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh } = tosijs3d
-const { elements } = tosijs
+import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh } from 'tosijs-3d'
+import { elements } from 'tosijs'
 const { div, button, p, label, input } = elements
 
 let sphere = null
@@ -179,7 +179,6 @@ import * as BABYLON from '@babylonjs/core'
 import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer'
 import initJolt from 'jolt-physics/wasm'
 import { JoltPlugin } from './jolt-plugin'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export class B3dPhysics extends Component {
@@ -219,10 +218,12 @@ export class B3dPhysics extends Component {
     })
   }
 
-  async connectedCallback() {
+  connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner == null) return
+  }
+
+  async sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    this.owner = owner
 
     try {
       const attrs = this as any
@@ -241,34 +242,37 @@ export class B3dPhysics extends Component {
       )
 
       this.plugin = new JoltPlugin(joltModule)
-      this.owner.scene.enablePhysics(gravity, this.plugin as any)
+      scene.enablePhysics(gravity, this.plugin as any)
 
       if (attrs.debug) {
         this.enableDebug()
       }
 
       this._resolveReady()
-      this.dispatchEvent(
-        new CustomEvent('physics-ready', { bubbles: true })
-      )
+      this.dispatchEvent(new CustomEvent('physics-ready', { bubbles: true }))
     } catch (e) {
       console.error('Failed to initialize Jolt physics:', e)
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     this.disableDebug()
     if (this.owner?.scene) {
       this.owner.scene.disablePhysicsEngine()
     }
     this.plugin = null
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
     super.render()
-    if (!this.plugin || !this.owner) return
+    if (!this.owner) return
+    if (!this.plugin) return
     const attrs = this as any
     this.owner.scene
       .getPhysicsEngine()

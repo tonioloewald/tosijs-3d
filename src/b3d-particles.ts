@@ -10,8 +10,8 @@ as CSS hex strings. Call `burst(count)` for one-shot effects like explosions.
 ## Demo
 
 ```js
-const { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, button, label, input, p } = elements
 
 const { demo } = tosi({ demo: { emitRate: 80 } })
@@ -27,7 +27,7 @@ const explosion = b3dParticles({
   maxSize: 0.6,
   minEmitPower: 4,
   maxEmitPower: 10,
-  gravityY: -2,
+  useSceneGravity: true,
   color1: '#ffffff',
   color2: '#ff8800',
   colorDead: '#330000',
@@ -49,10 +49,11 @@ const scene = b3d(
   },
   b3dLight({ y: 1, intensity: 0.5 }),
   b3dSkybox({ timeOfDay: 12 }),
-  b3dGround({ diameter: 20, color: '#443322' }),
+  b3dGround({ width: 20, height: 20 }),
   // Continuous fire
   b3dParticles({
     x: -3, y: 0.2, z: 0,
+    autoStart: true,
     emitRate: demo.emitRate,
     minLifeTime: 0.2,
     maxLifeTime: 0.8,
@@ -71,6 +72,7 @@ const scene = b3d(
   // Smoke
   b3dParticles({
     x: -3, y: 1.2, z: 0,
+    autoStart: true,
     emitRate: 20,
     minLifeTime: 1,
     maxLifeTime: 3,
@@ -124,7 +126,8 @@ preview.append(
 | `texture` | `''` | Particle texture URL (empty = default flare) |
 | `emitterShape` | `'point'` | `'point'`, `'box'`, `'sphere'`, `'cone'` |
 | `emitterRadius` | `0.5` | Radius for sphere/cone emitters |
-| `autoStart` | `true` | Start emitting on connect |
+| `useSceneGravity` | `false` | Use scene physics gravity instead of gravityX/Y/Z |
+| `autoStart` | `false` | Start emitting when scene is ready |
 | `targetStopDuration` | `0` | Auto-stop after N seconds (0 = forever) |
 | `disposeOnStop` | `false` | Dispose when stopped |
 | `attachTo` | `''` | Mesh name to attach emitter to |
@@ -132,13 +135,12 @@ preview.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 // Default flare texture: 32x32 radial gradient white-to-transparent
 let defaultFlareTexture: BABYLON.Texture | null = null
 function getDefaultFlare(scene: BABYLON.Scene): BABYLON.Texture {
-  if (defaultFlareTexture && !defaultFlareTexture.isDisposed()) {
+  if (defaultFlareTexture && !defaultFlareTexture.isDisposed) {
     return defaultFlareTexture
   }
   const size = 32
@@ -158,6 +160,7 @@ function getDefaultFlare(scene: BABYLON.Scene): BABYLON.Texture {
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, size, size)
   dt.update()
+  dt.hasAlpha = true
   defaultFlareTexture = dt
   return dt
 }
@@ -168,7 +171,11 @@ function hexToColor4(hex: string): BABYLON.Color4 {
   )
   // Parse alpha from 9-char hex (#rrggbbaa)
   const a =
-    hex.length === 9 ? parseInt(hex.slice(7, 9), 16) / 255 : hex.length === 5 ? parseInt(hex.slice(4, 5), 16) / 15 : 1
+    hex.length === 9
+      ? parseInt(hex.slice(7, 9), 16) / 255
+      : hex.length === 5
+      ? parseInt(hex.slice(4, 5), 16) / 15
+      : 1
   return new BABYLON.Color4(c.r, c.g, c.b, a)
 }
 
@@ -201,7 +208,8 @@ export class B3dParticles extends Component {
     texture: '',
     emitterShape: 'point',
     emitterRadius: 0.5,
-    autoStart: true,
+    useSceneGravity: false,
+    autoStart: false,
     targetStopDuration: 0,
     disposeOnStop: false,
     attachTo: '',
@@ -228,6 +236,7 @@ export class B3dParticles extends Component {
   declare texture: string
   declare emitterShape: string
   declare emitterRadius: number
+  declare useSceneGravity: boolean
   declare autoStart: boolean
   declare targetStopDuration: number
   declare disposeOnStop: boolean
@@ -235,52 +244,61 @@ export class B3dParticles extends Component {
 
   owner: B3d | null = null
   particleSystem: BABYLON.ParticleSystem | null = null
+  private _currentShape = ''
+  private _currentRadius = 0
 
   content = () => ''
 
+  private _started = false
+
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner == null) return
+  }
 
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    this.owner = owner
     const attrs = this as any
-    const scene = this.owner.scene
 
-    const ps = new BABYLON.ParticleSystem(
-      'particles',
-      attrs.capacity,
-      scene
-    )
-
+    const ps = new BABYLON.ParticleSystem('particles', attrs.capacity, scene)
     this.particleSystem = ps
+
     this.applySettings()
 
     if (attrs.autoStart) {
+      this._started = true
       ps.start()
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.particleSystem) {
       this.particleSystem.dispose()
       this.particleSystem = null
     }
+    this._started = false
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
     super.render()
+    if (!this.particleSystem) return
     this.applySettings()
   }
 
   /** Start emitting particles */
   start() {
+    this._started = true
     this.particleSystem?.start()
   }
 
   /** Stop emitting (existing particles fade out) */
   stop() {
+    this._started = false
     this.particleSystem?.stop()
   }
 
@@ -314,12 +332,18 @@ export class B3dParticles extends Component {
     ps.maxEmitPower = attrs.maxEmitPower
     ps.emitRate = attrs.emitRate
 
-    // Gravity
-    ps.gravity = new BABYLON.Vector3(
-      attrs.gravityX,
-      attrs.gravityY,
-      attrs.gravityZ
-    )
+    // Gravity — use scene/physics gravity when useSceneGravity is set
+    if (attrs.useSceneGravity) {
+      const engine = scene.getPhysicsEngine()
+      const g = engine ? engine.gravity : scene.gravity
+      ps.gravity = new BABYLON.Vector3(g.x, g.y, g.z)
+    } else {
+      ps.gravity = new BABYLON.Vector3(
+        attrs.gravityX,
+        attrs.gravityY,
+        attrs.gravityZ
+      )
+    }
 
     // Colors
     ps.color1 = hexToColor4(attrs.color1)
@@ -334,7 +358,10 @@ export class B3dParticles extends Component {
 
     // Texture
     if (attrs.texture) {
-      if (!ps.particleTexture || (ps.particleTexture as any).url !== attrs.texture) {
+      if (
+        !ps.particleTexture ||
+        (ps.particleTexture as any).url !== attrs.texture
+      ) {
         ps.particleTexture = new BABYLON.Texture(attrs.texture, scene)
       }
     } else {
@@ -357,14 +384,18 @@ export class B3dParticles extends Component {
       ps.emitter = new BABYLON.Vector3(attrs.x, attrs.y, attrs.z)
     }
 
-    // Emitter shape
-    this.applyEmitterShape(ps, attrs)
+    // Emitter shape — only recreate when shape type or radius changes
+    if (
+      attrs.emitterShape !== this._currentShape ||
+      attrs.emitterRadius !== this._currentRadius
+    ) {
+      this._currentShape = attrs.emitterShape
+      this._currentRadius = attrs.emitterRadius
+      this.applyEmitterShape(ps, attrs)
+    }
   }
 
-  private applyEmitterShape(
-    ps: BABYLON.ParticleSystem,
-    attrs: any
-  ) {
+  private applyEmitterShape(ps: BABYLON.ParticleSystem, attrs: any) {
     switch (attrs.emitterShape) {
       case 'sphere':
         ps.createSphereEmitter(attrs.emitterRadius)

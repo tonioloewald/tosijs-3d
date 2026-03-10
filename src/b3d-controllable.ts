@@ -16,12 +16,21 @@ The base class handles the update loop: poll input → apply input.
 
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh } from './b3d-utils'
+import type { B3d } from './tosi-b3d'
 import type { ControlInput, InputProvider } from './control-input'
-import { emptyInput } from './control-input'
 
 export class B3dControllable extends AbstractMesh {
   inputProvider: InputProvider | null = null
   protected lastUpdate = 0
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    super.sceneReady(owner, scene)
+  }
+
+  sceneDispose() {
+    this.inputProvider = null
+    super.sceneDispose()
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   applyInput(input: ControlInput, dt: number) {

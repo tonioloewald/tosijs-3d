@@ -12,8 +12,8 @@ until the user interacts with the page.
 ## Demo
 
 ```js
-const { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround } = tosijs3d
-const { elements } = tosijs
+import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround } from 'tosijs-3d'
+import { elements } from 'tosijs'
 const { div, button, p } = elements
 
 const spatialSound = b3dSound({
@@ -75,7 +75,6 @@ preview.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export class B3dSound extends Component {
@@ -124,8 +123,10 @@ export class B3dSound extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner == null) return
+  }
+
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
 
     const attrs = this as any
     if (!attrs.url) return
@@ -135,9 +136,7 @@ export class B3dSound extends Component {
       attrs.url,
       this.owner.scene,
       () => {
-        this.dispatchEvent(
-          new CustomEvent('loaded', { bubbles: true })
-        )
+        this.dispatchEvent(new CustomEvent('loaded', { bubbles: true }))
         // Attach to mesh after loading if specified
         if (attrs.attachTo && attrs.spatialSound && this.sound) {
           const mesh = this.owner?.scene.getMeshByName(attrs.attachTo)
@@ -164,17 +163,22 @@ export class B3dSound extends Component {
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.sound) {
       this.sound.dispose()
       this.sound = null
     }
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
     super.render()
+    if (!this.owner) return
     if (!this.sound) return
     const attrs = this as any
     this.sound.setVolume(attrs.volume)

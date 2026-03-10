@@ -16,8 +16,8 @@ a visual transition before calling `recenter()`.
 ## Demo
 
 ```js
-const { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, span, p } = elements
 
 const { demo } = tosi({
@@ -183,7 +183,7 @@ tosi-b3d {
 ## Usage
 
 ```javascript
-const { b3d, b3dTerrain, plateauFilter } = tosijs3d
+import { b3d, b3dTerrain, plateauFilter } from 'tosijs-3d'
 
 const terrain = b3dTerrain({
   seed: 42,
@@ -202,7 +202,6 @@ document.body.append(b3d({}, terrain))
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
 import { PiecewiseLinearFilter } from './gradient-filter'
@@ -276,8 +275,10 @@ export class B3dTerrain extends Component {
 
   connectedCallback(): void {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner == null) return
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    this.owner = owner
 
     const attrs = this as any
     this.noise = new PerlinNoise(attrs.seed)
@@ -294,10 +295,10 @@ export class B3dTerrain extends Component {
     this.createSkirtMesh()
 
     this._beforeRender = () => this.update()
-    this.owner.scene.registerBeforeRender(this._beforeRender)
+    scene.registerBeforeRender(this._beforeRender)
   }
 
-  disconnectedCallback(): void {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
@@ -311,6 +312,10 @@ export class B3dTerrain extends Component {
     }
     if (this.material) this.material.dispose()
     this.owner = null
+  }
+
+  disconnectedCallback(): void {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 

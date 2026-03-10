@@ -19,8 +19,8 @@ until they all leave the camera view.
 ## Demo
 
 ```js
-const { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh } = tosijs3d
-const { elements } = tosijs
+import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh } from 'tosijs-3d'
+import { elements } from 'tosijs'
 const { div, button, p } = elements
 
 let sphere = null
@@ -205,8 +205,7 @@ export function explodeMesh(
 
   // Explosion center
   const explosionCenter =
-    center ??
-    mesh.getBoundingInfo().boundingBox.centerWorld.clone()
+    center ?? mesh.getBoundingInfo().boundingBox.centerWorld.clone()
 
   // Build fragment meshes
   const fragments: Fragment[] = []

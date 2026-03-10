@@ -1,6 +1,5 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dReflections extends Component {
@@ -75,14 +74,15 @@ export class B3dReflections extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner != null) {
-      this._callback = this.makeReflectiveCallback.bind(this)
-      this.owner.onSceneAddition(this._callback)
-    }
   }
 
-  disconnectedCallback() {
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
+    this._callback = this.makeReflectiveCallback.bind(this)
+    owner.onSceneAddition(this._callback)
+  }
+
+  sceneDispose() {
     if (this.owner != null && this._callback) {
       this.owner.offSceneAddition(this._callback)
     }
@@ -92,6 +92,10 @@ export class B3dReflections extends Component {
     this.probes = []
     this.nonMirrorMeshes = []
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 }

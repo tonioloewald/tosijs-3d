@@ -20,8 +20,8 @@ non-matching stars are dimmed.
 ## Demo
 
 ```js
-const { b3d, b3dLight, b3dGalaxy, b3dStarSystem } = tosijs3d
-const { tosi, elements } = tosijs
+import { b3d, b3dLight, b3dGalaxy, b3dStarSystem } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
 const { div, label, input, select, option, p, button, span } = elements
 
 const { demo } = tosi({
@@ -330,7 +330,6 @@ tosi-b3d {
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import {
   generateGalaxy,
@@ -385,20 +384,21 @@ export class B3dGalaxy extends Component {
 
   connectedCallback() {
     super.connectedCallback()
-    const owner = findB3dOwner(this)
-    if (owner == null) return
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
     this.registerShaders()
-    this.rootNode = new BABYLON.TransformNode('galaxy-root', owner.scene)
+    this.rootNode = new BABYLON.TransformNode('galaxy-root', scene)
     this.buildGalaxy()
     this.buildBlackHole()
 
     this._beforeRender = () => this.update()
-    owner.scene.registerBeforeRender(this._beforeRender)
+    scene.registerBeforeRender(this._beforeRender)
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
@@ -409,6 +409,11 @@ export class B3dGalaxy extends Component {
     }
     this.rootNode?.dispose()
     this.rootNode = null
+    this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
@@ -609,8 +614,8 @@ export class B3dGalaxy extends Component {
     starMesh.alwaysSelectAsActiveMesh = true
 
     starSps.initParticles()
-    this.originalColors = stars.map(
-      (_s, i) => starSps.particles[i].color!.clone()
+    this.originalColors = stars.map((_s, i) =>
+      starSps.particles[i].color!.clone()
     )
     starSps.setParticles()
     starSps.refreshVisibleSize()

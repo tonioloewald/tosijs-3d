@@ -1,7 +1,6 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
-import { findB3dOwner } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export class B3dButton extends Component {
@@ -22,8 +21,11 @@ export class B3dButton extends Component {
 
   connectedCallback(): void {
     super.connectedCallback()
-    this.owner = findB3dOwner(this)
-    if (this.owner?.gui != null) {
+  }
+
+  sceneReady(owner: B3d, _scene: BABYLON.Scene) {
+    this.owner = owner
+    if (owner.gui != null) {
       const attrs = this as any
       const button = new GUI.Button3D('button')
 
@@ -33,7 +35,7 @@ export class B3dButton extends Component {
       caption.fontSize = attrs.fontSize
       button.content = caption
 
-      this.owner.gui.addControl(button)
+      owner.gui.addControl(button)
       this.button = button
 
       button.onPointerUpObservable.add((eventData, eventState) => {
@@ -42,17 +44,22 @@ export class B3dButton extends Component {
     }
   }
 
-  disconnectedCallback() {
+  sceneDispose() {
     if (this.button != null && this.owner?.gui != null) {
       this.owner.gui.removeControl(this.button)
       this.button = undefined
     }
     this.owner = null
+  }
+
+  disconnectedCallback() {
+    this.sceneDispose()
     super.disconnectedCallback()
   }
 
   render() {
     super.render()
+    if (!this.owner) return
     if (this.button?.position) {
       const attrs = this as any
       this.button.position.x = attrs.x
