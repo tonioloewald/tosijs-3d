@@ -8,6 +8,7 @@ export type { XRStuff, XRParams } from './b3d-utils'
 
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader'
+export { B3dLibrary, b3dLibrary } from './b3d-library'
 export { B3dSun, b3dSun } from './b3d-shadows'
 export { B3dReflections, b3dReflections } from './b3d-reflections'
 export { B3dSkybox, b3dSkybox } from './b3d-skybox'

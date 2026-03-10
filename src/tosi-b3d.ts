@@ -253,6 +253,7 @@ export class B3d extends Component {
   private _sceneReady = false
   private _childObserver?: MutationObserver
   private _notifiedNodes = new WeakSet<HTMLElement>()
+  private _libraries = new Map<string, Set<any>>()
 
   onSceneAddition(callback: SceneAdditionHandler): void {
     this.sceneListeners.push(callback)
@@ -273,6 +274,38 @@ export class B3d extends Component {
     for (const callback of this.sceneListeners) {
       callback(additions)
     }
+  }
+
+  registerLibrary(type: string, library: any): void {
+    if (!this._libraries.has(type)) {
+      this._libraries.set(type, new Set())
+    }
+    this._libraries.get(type)!.add(library)
+    this.dispatchEvent(
+      new CustomEvent('library-changed', { detail: { type, library } })
+    )
+  }
+
+  unregisterLibrary(type: string, library: any): void {
+    const set = this._libraries.get(type)
+    if (set) {
+      set.delete(library)
+      if (set.size === 0) this._libraries.delete(type)
+    }
+    this.dispatchEvent(
+      new CustomEvent('library-changed', { detail: { type, library } })
+    )
+  }
+
+  getLibrary(type: string): any | null {
+    const set = this._libraries.get(type)
+    if (!set || set.size === 0) return null
+    return set.values().next().value
+  }
+
+  getLibraries(type: string): any[] {
+    const set = this._libraries.get(type)
+    return set ? [...set] : []
   }
 
   setActiveCamera(
