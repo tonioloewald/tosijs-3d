@@ -1,11 +1,8 @@
 /*#
-# game-controller
+# keyboard-gamepad
 
-Input component that maps keyboard/mouse to a virtual gamepad and optionally
-merges with a hardware gamepad. Produces `ControlInput` via an `InputMapping`.
-
-Keyboard/mouse listening is built-in. For standalone keyboard-only or
-hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
+Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
+for responsive analog-feel from digital keys.
 
 ## Default Key Map
 
@@ -13,6 +10,7 @@ hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
 |----------------|------|
 | leftStick Y | W (+) / S (-) |
 | leftStick X | D (+) / A (-) |
+| rightStick Y | (unused) |
 | rightStick X | ArrowRight (+) / ArrowLeft (-) |
 | buttonA | Space |
 | buttonB | F |
@@ -23,39 +21,11 @@ hardware-only sources, see `KeyboardGamepadSource` and `HardwareGamepadSource`.
 | dpadDown | G (toggle) |
 
 Mouse wheel adjusts rightStick Y (for camera zoom).
-
-## Usage
-
-```javascript
-import { gameController, b3dBiped, inputFocus, b3d } from 'tosijs-3d'
-
-document.body.append(
-  b3d({},
-    inputFocus(
-      gameController(),
-      b3dBiped({ url: './model.glb', player: true, cameraType: 'follow' })
-    )
-  )
-)
-```
-
-## InputProvider
-
-Call `getInputProvider(mapping?)` to get a `MappedInputProvider`. Default mapping is `bipedMapping`.
 */
 
 import { Component } from 'tosijs'
-import type {
-  VirtualGamepad,
-  GamepadSource,
-  InputMapping,
-} from './virtual-gamepad'
-import {
-  emptyGamepad,
-  MappedInputProvider,
-  bipedMapping,
-} from './virtual-gamepad'
-import { HardwareGamepadSource } from './hardware-gamepad'
+import type { VirtualGamepad, GamepadSource } from './virtual-gamepad'
+import { emptyGamepad } from './virtual-gamepad'
 
 function keycode(evt: KeyboardEvent): string {
   return evt.code.replace(/Key|Digit/, '')
@@ -115,14 +85,11 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
   { field: 'dpadDown', keys: ['G'], attack: 5, decay: 10, type: 'toggle' },
 ]
 
-export class GameController extends Component implements GamepadSource {
+export class KeyboardGamepadSource extends Component implements GamepadSource {
   static initAttributes = {
     wheelSensitivity: 1,
     updateIntervalMs: 33,
   }
-
-  hardwareSource = new HardwareGamepadSource()
-  private provider: MappedInputProvider | null = null
 
   private axes = DEFAULT_AXES
   private buttons = DEFAULT_BUTTONS
@@ -133,36 +100,27 @@ export class GameController extends Component implements GamepadSource {
   private interval = 0
   private lastUpdate = 0
 
-  /** Poll keyboard/mouse state as a VirtualGamepad. */
   poll(): VirtualGamepad {
     const pad = emptyGamepad()
+
     for (const axis of this.axes) {
       pad[axis.field] = this.axisState[axis.field] ?? 0
     }
     for (const btn of this.buttons) {
       ;(pad as any)[btn.field] = this.buttonState[btn.field] ?? 0
     }
-    pad.rightStickY = clamp(-1, this.wheelAccum, 1)
-    this.wheelAccum *= 0.8
-    return pad
-  }
 
-  /** Returns a MappedInputProvider that merges keyboard + hardware gamepad. */
-  getInputProvider(mapping?: InputMapping): MappedInputProvider {
-    if (!this.provider) {
-      this.provider = new MappedInputProvider(
-        mapping ?? bipedMapping,
-        this,
-        this.hardwareSource
-      )
-    } else if (mapping) {
-      this.provider.setMapping(mapping)
-    }
-    return this.provider
+    // Mouse wheel → rightStickY (consumed each poll)
+    pad.rightStickY = clamp(-1, this.wheelAccum, 1)
+    this.wheelAccum *= 0.8 // decay wheel toward 0
+
+    return pad
   }
 
   private _handleKeyDown = (event: KeyboardEvent) => {
     this.pressedKeys.add(keycode(event))
+
+    // Handle toggles on press
     for (const btn of this.buttons) {
       if (btn.type !== 'toggle') continue
       if (btn.keys.some((k) => k === keycode(event))) {
@@ -188,6 +146,7 @@ export class GameController extends Component implements GamepadSource {
     const dt = (now - this.lastUpdate) * 0.001
     this.lastUpdate = now
 
+    // Axes: positive/negative keys produce -1..1
     for (const axis of this.axes) {
       const posPressed = axis.positiveKeys.some((k) => this.pressedKeys.has(k))
       const negPressed = axis.negativeKeys.some((k) => this.pressedKeys.has(k))
@@ -201,6 +160,7 @@ export class GameController extends Component implements GamepadSource {
         Math.abs(target) > Math.abs(current) ||
         Math.sign(target) !== Math.sign(current)
       ) {
+        // Moving toward target: use attack rate
         const step = axis.attack * dt
         if (Math.abs(target - current) < step) {
           this.axisState[axis.field] = target
@@ -209,6 +169,7 @@ export class GameController extends Component implements GamepadSource {
             current + Math.sign(target - current) * step
         }
       } else {
+        // Decaying toward target: use decay rate
         const step = axis.decay * dt
         if (Math.abs(target - current) < step) {
           this.axisState[axis.field] = target
@@ -219,6 +180,7 @@ export class GameController extends Component implements GamepadSource {
       }
     }
 
+    // Buttons (non-toggle): 0..1 with attack/decay
     for (const btn of this.buttons) {
       if (btn.type === 'toggle') continue
       const pressed = btn.keys.some((k) => this.pressedKeys.has(k))
@@ -243,7 +205,9 @@ export class GameController extends Component implements GamepadSource {
     )
     window.addEventListener('keydown', this._handleKeyDown)
     window.addEventListener('keyup', this._handleKeyUp)
-    window.addEventListener('wheel', this._handleWheel, { passive: false })
+    window.addEventListener('wheel', this._handleWheel, {
+      passive: false,
+    })
   }
 
   disconnectedCallback() {
@@ -256,6 +220,6 @@ export class GameController extends Component implements GamepadSource {
   }
 }
 
-export const gameController = GameController.elementCreator({
-  tag: 'tosi-game-controller',
+export const keyboardGamepad = KeyboardGamepadSource.elementCreator({
+  tag: 'tosi-keyboard-gamepad',
 })

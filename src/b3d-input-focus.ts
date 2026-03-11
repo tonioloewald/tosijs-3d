@@ -11,6 +11,9 @@ enter/exit vehicle mechanics.
 3. On E press near an `enterable` vehicle, switches focus (hides biped, drives vehicle)
 4. On E press while in a vehicle, exits back to biped
 
+When switching entities, the input mapping is swapped to match the entity type
+(e.g. bipedMapping for characters, aircraftMapping for aircraft).
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -39,8 +42,7 @@ import { Component } from 'tosijs'
 import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { GameController } from './game-controller'
-import type { InputProvider } from './control-input'
-import { CompositeInputProvider } from './control-input'
+import { MappedInputProvider, bipedMapping } from './virtual-gamepad'
 
 export class B3dInputFocus extends Component {
   static initAttributes = {
@@ -51,7 +53,7 @@ export class B3dInputFocus extends Component {
   private focusedEntity: B3dControllable | null = null
   private playerEntity: B3dControllable | null = null
   private gameController: GameController | null = null
-  private gcInputProvider: InputProvider | null = null
+  private provider: MappedInputProvider | null = null
   private interactWasPressed = false
 
   connectedCallback() {
@@ -65,11 +67,12 @@ export class B3dInputFocus extends Component {
     const gcEl = this.querySelector('tosi-game-controller')
     if (gcEl) {
       this.gameController = gcEl as unknown as GameController
-      this.gcInputProvider = this.gameController.getInputProvider()
+      this.provider = this.gameController.getInputProvider(bipedMapping)
     }
 
-    // Scene is running and children have been notified — discover entities directly
-    this.discoverEntities()
+    // Defer discovery to ensure all children have completed sceneReady
+    // (inputFocus is notified before its children in document order)
+    requestAnimationFrame(() => this.discoverEntities())
   }
 
   private discoverEntities() {
@@ -85,7 +88,7 @@ export class B3dInputFocus extends Component {
       }
     }
 
-    if (this.playerEntity && this.gcInputProvider) {
+    if (this.playerEntity && this.provider) {
       this.focusEntity(this.playerEntity)
     }
 
@@ -106,14 +109,11 @@ export class B3dInputFocus extends Component {
 
     this.focusedEntity = entity
 
-    // Set up input on the new entity
-    if (this.gcInputProvider) {
-      if (entity.inputProvider instanceof CompositeInputProvider) {
-        // Entity already has a composite (e.g. biped with XR support) — add gc input
-        entity.inputProvider.add(this.gcInputProvider)
-      } else {
-        entity.inputProvider = new CompositeInputProvider(this.gcInputProvider)
-      }
+    // Swap input mapping for the new entity
+    if (this.provider) {
+      const mapping = entity.inputMapping ?? bipedMapping
+      this.provider.setMapping(mapping)
+      entity.inputProvider = this.provider
     }
     entity.onGainFocus()
 
@@ -145,10 +145,10 @@ export class B3dInputFocus extends Component {
   }
 
   private _checkInteract = () => {
-    if (!this.gcInputProvider || !this.playerEntity || !this.owner) return
+    if (!this.provider || !this.playerEntity || !this.owner) return
 
-    const state = this.gameController?.state
-    const interactPressed = (state?.interact ?? 0) > 0.5
+    const input = this.provider.poll(0)
+    const interactPressed = input.interact > 0.5
     const justPressed = interactPressed && !this.interactWasPressed
     this.interactWasPressed = interactPressed
 
@@ -243,7 +243,7 @@ export class B3dInputFocus extends Component {
     this.focusedEntity = null
     this.playerEntity = null
     this.gameController = null
-    this.gcInputProvider = null
+    this.provider = null
     this.owner = null
   }
 

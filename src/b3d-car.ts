@@ -44,8 +44,10 @@ import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
+import { carMapping } from './virtual-gamepad'
 
 export class B3dCar extends B3dControllable {
+  inputMapping = carMapping
   static initAttributes = {
     ...B3dControllable.initAttributes,
     url: '',

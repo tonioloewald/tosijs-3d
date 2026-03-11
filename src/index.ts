@@ -27,6 +27,24 @@ export { emptyInput, CompositeInputProvider } from './control-input'
 export { XRInputProvider } from './xr-input-provider'
 export { B3dControllable } from './b3d-controllable'
 
+// Virtual gamepad system
+export type {
+  VirtualGamepad,
+  GamepadSource,
+  InputMapping,
+  ThrottleDetentConfig,
+} from './virtual-gamepad'
+export {
+  emptyGamepad,
+  mergeGamepads,
+  bipedMapping,
+  carMapping,
+  aircraftMapping,
+  MappedInputProvider,
+} from './virtual-gamepad'
+export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad'
+export { HardwareGamepadSource } from './hardware-gamepad'
+
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped'
 export type { AnimStateSpec } from './b3d-biped'
@@ -41,6 +59,7 @@ export {
 
 // Vehicles
 export { B3dCar, b3dCar } from './b3d-car'
+export { B3dAircraft, b3dAircraft } from './b3d-aircraft'
 
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'

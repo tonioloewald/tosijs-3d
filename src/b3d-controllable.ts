@@ -18,9 +18,11 @@ import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import type { ControlInput, InputProvider } from './control-input'
+import type { InputMapping } from './virtual-gamepad'
 
 export class B3dControllable extends AbstractMesh {
   inputProvider: InputProvider | null = null
+  inputMapping?: InputMapping
   protected lastUpdate = 0
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
