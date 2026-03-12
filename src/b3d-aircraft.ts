@@ -295,12 +295,9 @@ export class B3dAircraft extends B3dControllable {
       const alignFactor = Math.min(1, alignRate)
       // Current sideways = vel - forward*fwdDot - up*upDot
       // Blend toward aligned: vel = lerp(vel, forward*fwdDot + up*upDot, alignFactor)
-      const alignedX =
-        localForward.x * fwdDot + localUp.x * upDot
-      const alignedY =
-        localForward.y * fwdDot + localUp.y * upDot
-      const alignedZ =
-        localForward.z * fwdDot + localUp.z * upDot
+      const alignedX = localForward.x * fwdDot + localUp.x * upDot
+      const alignedY = localForward.y * fwdDot + localUp.y * upDot
+      const alignedZ = localForward.z * fwdDot + localUp.z * upDot
       vel.x += (alignedX - vel.x) * alignFactor
       vel.y += (alignedY - vel.y) * alignFactor
       vel.z += (alignedZ - vel.z) * alignFactor
@@ -327,9 +324,7 @@ export class B3dAircraft extends B3dControllable {
     this.throttleLevel = throttle
     this.vtolActive = isVtol
     this.updatePullUp(node, dt)
-    this.stalling =
-      !isVtol && attrs.stallSpeed > 0 && speed < attrs.stallSpeed
-
+    this.stalling = !isVtol && attrs.stallSpeed > 0 && speed < attrs.stallSpeed
   }
 
   private updateAltitude(node: BABYLON.TransformNode) {
@@ -353,9 +348,7 @@ export class B3dAircraft extends B3dControllable {
       return
     }
     // Project position forward by PULL_UP_SECONDS
-    const futurePos = node.position.add(
-      this.velocity.scale(PULL_UP_SECONDS)
-    )
+    const futurePos = node.position.add(this.velocity.scale(PULL_UP_SECONDS))
     const ray = new BABYLON.Ray(futurePos, BABYLON.Vector3.Down(), 500)
     const hit = this.owner.scene.pickWithRay(
       ray,

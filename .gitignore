@@ -174,3 +174,4 @@ demo/docs.json
 # TLS dev certs
 tls/*.pem
 tls/*.csr
+.haltija/
