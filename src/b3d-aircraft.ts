@@ -285,7 +285,28 @@ export class B3dAircraft extends B3dControllable {
       )
     }
 
-    // 5. Stall: nose drops when too slow (non-VTOL only)
+    // 5. Aerodynamic alignment: sideways drag is much higher than forward drag.
+    // Decompose velocity into forward and sideways components, decay sideways.
+    if (speed > 0.1) {
+      const fwdDot = BABYLON.Vector3.Dot(vel, localForward)
+      const upDot = BABYLON.Vector3.Dot(vel, localUp)
+      // Reconstruct velocity as forward + up components (kill sideways)
+      const alignRate = 5 * dt // how fast sideways velocity decays
+      const alignFactor = Math.min(1, alignRate)
+      // Current sideways = vel - forward*fwdDot - up*upDot
+      // Blend toward aligned: vel = lerp(vel, forward*fwdDot + up*upDot, alignFactor)
+      const alignedX =
+        localForward.x * fwdDot + localUp.x * upDot
+      const alignedY =
+        localForward.y * fwdDot + localUp.y * upDot
+      const alignedZ =
+        localForward.z * fwdDot + localUp.z * upDot
+      vel.x += (alignedX - vel.x) * alignFactor
+      vel.y += (alignedY - vel.y) * alignFactor
+      vel.z += (alignedZ - vel.z) * alignFactor
+    }
+
+    // 6. Stall: nose drops when too slow (non-VTOL only)
     if (!isVtol && attrs.stallSpeed > 0 && speed < attrs.stallSpeed) {
       node.rotate(BABYLON.Axis.X, 0.5 * dt, BABYLON.Space.LOCAL)
     }
@@ -455,10 +476,6 @@ export class B3dAircraft extends B3dControllable {
   }
 
   private chaseCamera: BABYLON.FreeCamera | null = null
-  private chaseCamPos = new BABYLON.Vector3()
-  // Reusable scratch vectors to avoid allocation per frame
-  private static _tmpOffset = new BABYLON.Vector3(0, 4, -12)
-  private static _tmpDesired = new BABYLON.Vector3()
 
   setupFollowCamera() {
     if (!this.owner) return
@@ -472,44 +489,21 @@ export class B3dAircraft extends B3dControllable {
       target.getAbsolutePosition().clone(),
       this.owner.scene
     )
+    // Parent camera to aircraft — Babylon handles the transform in the scene
+    // graph, no manual updates, no timing issues.
+    cam.parent = target
+    cam.position = new BABYLON.Vector3(0, 1.6, -4.8)
+    cam.setTarget(BABYLON.Vector3.Zero())
     this.chaseCamera = cam
-    this.chaseCamPos.copyFrom(target.getAbsolutePosition())
     this.owner.setActiveCamera(cam, { attach: false })
-    this._chaseCamObserver =
-      this.owner.scene.onBeforeCameraRenderObservable.add(
-        this._updateChaseCamera
-      )
-  }
-
-  private _chaseCamObserver: BABYLON.Nullable<
-    BABYLON.Observer<BABYLON.Camera>
-  > = null
-
-  private _updateChaseCamera = () => {
-    if (!this.chaseCamera || !this.meshNode) return
-    const node = this.meshNode
-
-    const offset = B3dAircraft._tmpOffset
-    offset.x = 0
-    offset.y = 1.6
-    offset.z = -4.8
-    BABYLON.Vector3.TransformCoordinatesToRef(
-      offset,
-      node.getWorldMatrix(),
-      this.chaseCamera.position
-    )
-    this.chaseCamera.setTarget(node.getAbsolutePosition())
   }
 
   sceneDispose() {
     if (this.owner?.scene) {
       this.owner.scene.unregisterBeforeRender(this._update)
     }
-    if (this._chaseCamObserver) {
-      this.owner?.scene?.onBeforeCameraRenderObservable.remove(
-        this._chaseCamObserver
-      )
-      this._chaseCamObserver = null
+    if (this.chaseCamera) {
+      this.chaseCamera.parent = null
     }
     this.chaseCamera = null
     for (const node of this.meshesToDispose) {
