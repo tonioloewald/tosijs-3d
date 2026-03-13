@@ -4,10 +4,7 @@
 Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 
-PBR material properties from Blender's Principled BSDF are preserved via glTF.
-Material conventions are applied automatically based on properties (not names):
-- Near-opaque alpha (> 0.95) snapped to 1.0 to avoid blend cost
-- Translucent materials get depth pre-pass, double-sided rendering, and shadow exclusion
+[Material conventions](?b3d-utils.ts) are applied automatically to all loaded meshes.
 
 ## Attributes
 
