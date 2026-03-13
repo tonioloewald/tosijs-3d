@@ -219,22 +219,22 @@ export class B3dAircraft extends B3dControllable {
     const localForward = node.forward // thrust direction
 
     const throttle = input.throttle
+    // Airspeed = velocity component along aircraft's forward axis (not vel.length!)
+    const airspeed = Math.max(0, BABYLON.Vector3.Dot(vel, localForward))
     const speed = vel.length()
-    const isVtol = attrs.vtolSpeed > 0 && speed < attrs.vtolSpeed
+    const isVtol = attrs.vtolSpeed > 0 && airspeed < attrs.vtolSpeed
 
     // === FORCES → velocity ===
 
-    // 1. Gravity (always)
+    // 1. Gravity (always, world-space)
     vel.y -= GRAVITY * dt
 
     // 2. Thrust
     if (isVtol) {
       // VTOL: thrust along local UP (hover/climb)
-      // At 0% throttle, thrust = gravity (hover). Above = climb. Below = sink.
-      // We want hover at ~50% throttle, so thrust = throttle * 2 * gravity
-      // but capped so 50% = hover, 100% = strong climb, 0% = fall
-      const hoverThrust = GRAVITY // force needed to hover
-      const thrustMag = throttle * 2 * hoverThrust // 50% → hovers, 100% → 2g up
+      // 50% throttle → hover, 100% → strong climb, 0% → fall
+      const hoverThrust = GRAVITY
+      const thrustMag = throttle * 2 * hoverThrust
       vel.addInPlaceFromFloats(
         localUp.x * thrustMag * dt,
         localUp.y * thrustMag * dt,
@@ -260,11 +260,13 @@ export class B3dAircraft extends B3dControllable {
         localForward.z * thrustMag * dt
       )
 
-      // 3. Lift along local UP, proportional to airspeed
-      // Tuned so at cruise speed (~50% max), lift = gravity
+      // 3. Lift along local UP, proportional to AIRSPEED (not total speed)
+      // Only forward motion over the wings generates lift.
+      // Ramps linearly from 0 to GRAVITY at cruise speed.
+      // Above cruise speed, lift exceeds gravity (correct — F-15s climb vertically).
       const cruiseSpeed = attrs.maxSpeed * 0.5
       const liftCoeff = GRAVITY / Math.max(cruiseSpeed, 1)
-      const liftMag = Math.min(speed, attrs.maxSpeed) * liftCoeff
+      const liftMag = airspeed * liftCoeff
       vel.addInPlaceFromFloats(
         localUp.x * liftMag * dt,
         localUp.y * liftMag * dt,
@@ -272,9 +274,8 @@ export class B3dAircraft extends B3dControllable {
       )
     }
 
-    // 4. Drag (opposing velocity, proportional to speed)
+    // 4. Drag (opposing velocity, proportional to total speed)
     if (speed > 0.01) {
-      // Drag coefficient tuned so terminal velocity ~ maxSpeed at full throttle
       const dragCoeff = attrs.acceleration / attrs.maxSpeed
       const dragMag = speed * dragCoeff
       const dragScale = -(dragMag * dt) / speed
@@ -285,78 +286,71 @@ export class B3dAircraft extends B3dControllable {
       )
     }
 
-    // 5. Aerodynamic alignment: sideways drag is much higher than forward drag.
-    // Decompose velocity into forward and sideways components, decay sideways.
-    if (speed > 0.1) {
-      const fwdDot = BABYLON.Vector3.Dot(vel, localForward)
-      const upDot = BABYLON.Vector3.Dot(vel, localUp)
-      // Reconstruct velocity as forward + up components (kill sideways)
-      const alignRate = 5 * dt // how fast sideways velocity decays
-      const alignFactor = Math.min(1, alignRate)
-      // Current sideways = vel - forward*fwdDot - up*upDot
-      // Blend toward aligned: vel = lerp(vel, forward*fwdDot + up*upDot, alignFactor)
-      const alignedX = localForward.x * fwdDot + localUp.x * upDot
-      const alignedY = localForward.y * fwdDot + localUp.y * upDot
-      const alignedZ = localForward.z * fwdDot + localUp.z * upDot
-      vel.x += (alignedX - vel.x) * alignFactor
-      vel.y += (alignedY - vel.y) * alignFactor
-      vel.z += (alignedZ - vel.z) * alignFactor
+    // 5. Lateral drag: aircraft presents more area sideways than head-on.
+    // Proportional to lateral speed AND airspeed (no airflow = no aero force).
+    if (airspeed > 0.1) {
+      const localRight = BABYLON.Vector3.Cross(localForward, localUp)
+      const lateralSpeed = BABYLON.Vector3.Dot(vel, localRight)
+      const cruiseSpeed = attrs.maxSpeed * 0.5
+      const pressureFactor = airspeed / Math.max(cruiseSpeed, 1)
+      const baseDragCoeff = attrs.acceleration / attrs.maxSpeed
+      const lateralDragMag = lateralSpeed * baseDragCoeff * 3 * pressureFactor * dt
+      vel.x -= localRight.x * lateralDragMag
+      vel.y -= localRight.y * lateralDragMag
+      vel.z -= localRight.z * lateralDragMag
     }
 
     // 6. Stall: nose drops when too slow (non-VTOL only)
-    if (!isVtol && attrs.stallSpeed > 0 && speed < attrs.stallSpeed) {
+    if (!isVtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed) {
       node.rotate(BABYLON.Axis.X, 0.5 * dt, BABYLON.Space.LOCAL)
     }
 
     // === Apply velocity to position ===
     node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt)
 
-    // Ground collision (update altitude AFTER moving, then correct)
-    this.updateAltitude(node)
+    // Ground avoidance: don't clip through terrain
+    const groundDist = this.raycastGround(node)
     const groundClearance = 0.5
-    if (this.altitude < groundClearance) {
-      node.position.y += groundClearance - this.altitude
-      if (vel.y < 0) vel.y = 0
+    if (groundDist < groundClearance) {
+      node.position.y += groundClearance - groundDist
     }
 
     // --- Update read-only state ---
-    this.airspeed = speed
+    this.altitude = node.position.y
+    this.airspeed = airspeed
     this.throttleLevel = throttle
     this.vtolActive = isVtol
     this.updatePullUp(node, dt)
-    this.stalling = !isVtol && attrs.stallSpeed > 0 && speed < attrs.stallSpeed
+    this.stalling =
+      !isVtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed
   }
 
-  private updateAltitude(node: BABYLON.TransformNode) {
-    if (!this.owner) return
+  /** Raycast downward to find distance to ground. Returns Infinity if no hit. */
+  private raycastGround(node: BABYLON.TransformNode): number {
+    if (!this.owner) return Infinity
     const ray = new BABYLON.Ray(
       node.position.clone(),
       BABYLON.Vector3.Down(),
       500
     )
+    const ownMeshes = new Set<BABYLON.AbstractMesh>()
+    if (node instanceof BABYLON.AbstractMesh) ownMeshes.add(node)
+    for (const child of node.getChildMeshes()) ownMeshes.add(child)
     const hit = this.owner.scene.pickWithRay(
       ray,
-      (m) => m !== (node as any) && !m.name.includes('__root__')
+      (m) => !ownMeshes.has(m) && !m.name.includes('__root__')
     )
-    this.altitude = hit?.hit ? hit.distance : node.position.y
+    return hit?.hit ? hit.distance : Infinity
   }
 
   private updatePullUp(node: BABYLON.TransformNode, _dt: number) {
-    const speed = this.velocity.length()
-    if (!this.owner || speed < 1) {
-      this.pullUp = false
-      return
-    }
-    // Project position forward by PULL_UP_SECONDS
-    const futurePos = node.position.add(this.velocity.scale(PULL_UP_SECONDS))
-    const ray = new BABYLON.Ray(futurePos, BABYLON.Vector3.Down(), 500)
-    const hit = this.owner.scene.pickWithRay(
-      ray,
-      (m) => m !== (node as any) && !m.name.includes('__root__')
-    )
-    const futureAlt = hit?.hit ? futurePos.y - hit.pickedPoint!.y : futurePos.y
-    // Warn if we'll be below 10m in PULL_UP_SECONDS
-    this.pullUp = futureAlt < 10 && node.forward.y < -0.05
+    // Warn if projected altitude in PULL_UP_SECONDS is below 10m
+    const groundDist = this.raycastGround(node)
+    const futureY =
+      groundDist < Infinity
+        ? groundDist + this.velocity.y * PULL_UP_SECONDS
+        : node.position.y + this.velocity.y * PULL_UP_SECONDS
+    this.pullUp = futureY < 10 && node.forward.y < -0.05
   }
 
   connectedCallback() {
