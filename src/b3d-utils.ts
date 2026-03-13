@@ -102,9 +102,7 @@ const ALPHA_OPAQUE_THRESHOLD = 0.95
  * to avoid unnecessary blend cost. Translucent materials get depth
  * pre-pass and shadow exclusion automatically.
  */
-export function applyMaterialConventions(
-  meshes: BABYLON.AbstractMesh[]
-): void {
+export function applyMaterialConventions(meshes: BABYLON.AbstractMesh[]): void {
   for (const mesh of meshes) {
     const mat = mesh.material
     if (mat == null) continue

@@ -6,12 +6,26 @@ export class B3dReflections extends Component {
   static initAttributes = {
     refreshRate: 5,
     probeSize: 512,
+    /** Distance beyond which probes stop updating entirely */
+    maxDistance: 100,
+    /** Distance at which probes switch from near to far refresh rate */
+    farDistance: 30,
+    /** Refresh rate for distant probes (higher = less frequent) */
+    farRefreshRate: 30,
+    /** How often (in frames) to re-check distances */
+    distanceCheckInterval: 13,
   }
 
   owner: B3d | null = null
-  probes: { probe: BABYLON.ReflectionProbe; mesh: BABYLON.AbstractMesh }[] = []
+  probes: {
+    probe: BABYLON.ReflectionProbe
+    mesh: BABYLON.AbstractMesh
+    frameOffset: number
+  }[] = []
   nonMirrorMeshes: BABYLON.AbstractMesh[] = []
   private _callback?: SceneAdditionHandler
+  private _observer?: BABYLON.Observer<BABYLON.Scene>
+  private _frameCount = 0
 
   private addMeshesToProbes() {
     for (const { probe, mesh } of this.probes) {
@@ -41,6 +55,18 @@ export class B3dReflections extends Component {
 
       if (material instanceof BABYLON.PBRMaterial) {
         material.reflectionTexture = probe.cubeTexture
+        // If the material is transmissive (glass, etc.), replace the glTF
+        // screen-space refraction with the probe cubemap. The glTF loader's
+        // configureTransmission() sets volumeIndexOfRefraction=1 and
+        // thickness=0 (thin-surface mode), which kills visible refraction.
+        // We restore proper IOR so the refraction ray actually bends.
+        if (material.subSurface.isRefractionEnabled) {
+          material.subSurface.refractionTexture = probe.cubeTexture
+          // Undo thin-surface overrides from glTF's configureTransmission()
+          material.subSurface.volumeIndexOfRefraction =
+            material.indexOfRefraction
+          material.subSurface.useAlbedoToTintRefraction = true
+        }
       } else if (material instanceof BABYLON.StandardMaterial) {
         material.backFaceCulling = true
         material.reflectionTexture = probe.cubeTexture
@@ -48,7 +74,10 @@ export class B3dReflections extends Component {
         material.reflectionFresnelParameters.bias = 0.02
       }
 
-      this.probes.push({ probe, mesh })
+      const frameOffset = Math.floor(
+        Math.random() * attrs.distanceCheckInterval
+      )
+      this.probes.push({ probe, mesh, frameOffset })
       this.addMeshesToProbes()
     } catch (e) {
       console.error(`Failed to make "${mesh.name}" reflective:`, e)
@@ -76,15 +105,56 @@ export class B3dReflections extends Component {
     super.connectedCallback()
   }
 
+  private updateProbeRate(
+    probe: BABYLON.ReflectionProbe,
+    mesh: BABYLON.AbstractMesh,
+    camPos: BABYLON.Vector3
+  ) {
+    const attrs = this as any
+    const dist = BABYLON.Vector3.Distance(camPos, mesh.absolutePosition)
+
+    if (dist > attrs.maxDistance) {
+      probe.refreshRate = BABYLON.RenderTargetTexture.REFRESHRATE_RENDER_ONCE
+    } else if (dist <= attrs.farDistance) {
+      probe.refreshRate = attrs.refreshRate
+    } else {
+      const t =
+        (dist - attrs.farDistance) / (attrs.maxDistance - attrs.farDistance)
+      probe.refreshRate = Math.round(
+        attrs.refreshRate + t * (attrs.farRefreshRate - attrs.refreshRate)
+      )
+    }
+  }
+
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
     this.owner = owner
     this._callback = this.makeReflectiveCallback.bind(this)
     owner.onSceneAddition(this._callback)
+
+    const attrs = this as any
+    this._observer = owner.scene.onBeforeRenderObservable.add(() => {
+      const frame = this._frameCount++
+      const interval = attrs.distanceCheckInterval
+      const camera = owner.scene.activeCamera
+      if (camera == null) return
+      const camPos = camera.globalPosition
+      for (const { probe, mesh, frameOffset } of this.probes) {
+        if ((frame + frameOffset) % interval === 0) {
+          this.updateProbeRate(probe, mesh, camPos)
+        }
+      }
+    })
   }
 
   sceneDispose() {
-    if (this.owner != null && this._callback) {
-      this.owner.offSceneAddition(this._callback)
+    if (this.owner != null) {
+      if (this._callback) {
+        this.owner.offSceneAddition(this._callback)
+      }
+      if (this._observer) {
+        this.owner.scene.onBeforeRenderObservable.remove(this._observer)
+        this._observer = undefined
+      }
     }
     for (const { probe } of this.probes) {
       probe.dispose()

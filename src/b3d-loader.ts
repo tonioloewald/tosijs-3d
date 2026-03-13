@@ -16,6 +16,35 @@ Material conventions are applied automatically based on properties (not names):
 | `url` | `''` | URL of the GLB/glTF file |
 | `lightIntensityScale` | `0.05` | Scale factor for imported lights |
 
+## Demo
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections } from 'tosijs-3d'
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const camera = new BABYLON.ArcRotateCamera(
+        'cam', -Math.PI / 2, Math.PI / 4, 20,
+        new BABYLON.Vector3(0, 1, 0), el.scene
+      )
+      camera.lowerRadiusLimit = 3
+      camera.upperRadiusLimit = 40
+      camera.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(camera)
+    },
+  },
+  b3dSun({ shadowCascading: true }),
+  b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
+  b3dLoader({ url: './materials.glb' }),
+  b3dReflections(),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Usage
 
 ```javascript

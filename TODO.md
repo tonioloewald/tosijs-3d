@@ -47,11 +47,11 @@
 [x] Can be bound normally (live DOM SVG via selector, tosijs bindings update automatically)
 [x] Has a specified update frequency, defaults to 30ms
 [ ] Small library of svgUiComponents (not Component subclass, but in that spirit).
-  [ ] button
-  [ ] textInput
-  [ ] toggle
-  [ ] slider
-  [ ] meter
+[ ] button
+[ ] textInput
+[ ] toggle
+[ ] slider
+[ ] meter
 
 ## Terrain
 
@@ -87,7 +87,7 @@
 
 [x] Bound SVGs that are rendered to texture and then have events routed to them (b3d-svg-plane with pointer event pass-through)
 [ ] SVG Radar (lemma of above)
-  [ ] Concept of lockon
+[ ] Concept of lockon
 [ ] Video texture / Mosaic player
 
 ## Audio Stuff
@@ -160,8 +160,9 @@
 [ ] Offer standard way of displaying game controls and mappings, and editing mappings
 
 ## Workflow
+
 [ ] Blender addon that allows convenient editing of custom properties that we consume
-[ ] This would automatically convert _xxx into the corresponding custom properties when selected
+[ ] This would automatically convert \_xxx into the corresponding custom properties when selected
 [ ] We would need to make corresponding changes to our import code
 
 ## Bugs
