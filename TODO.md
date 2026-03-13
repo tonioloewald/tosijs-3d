@@ -3,28 +3,36 @@
 ## Game Engine Stuff
 
 [ ] Tie down physics approach
-[ ] Aircraft Flight Model
+[x] Aircraft Flight Model (pure force model with tests, VTOL, lateral drag, lift)
 [ ] Submarine Model
 [ ] Spacecraft
-[ ] VTOL / Helicopter
+[x] VTOL / Helicopter (integrated into aircraft flight model)
 [ ] Car (code exists, needs car mesh asset and working demo)
 [ ] Biped can aim, shoot, pick up things, gesture, talk
 [x] Animation Blending / State Machine (animation attribute, animationSpeed, setAnimationState)
-[ ] AI Biped
-[ ] AI vehicle controllers
 [x] Triggers (b3d-trigger, proximity-based)
 [ ] Death Persona (floating view of dead body, wrecked aircraft, etc.)
 
 ## Combat
 
-[ ] shooting
 [ ] melee
-[ ] ballistic shots
-[ ] guided shots
+[ ] launcher -- fires ballistic or guided weapons
+[ ] ballistic shots (including bombs)
+[ ] guided shots -- has vision range and cone, may have a thrust budget beyond which it goes ballistic, may rely on launcher's sensors ... pit bull mode?
 [ ] flame throwers
-[ ] AI turret
+[ ] turret -- rotates and elevates to aim at target with / without computing leading
 [ ] "Destroyables" -- damage capacity, regeneration, damage resistance, things that prevent it taking damage, things that take damage if it is destroyed, what happens when it is destroyed (corpse, wreck, explosion)
-[ ] Damage
+[ ] "Warhead" -- has a collision sphere, inflicts damage (may do AOE damage attenuated by distance).
+[ ] "Shield" -- has health, regeneration, possibly has a chain reaction side-effect on failure.
+
+## AI
+
+[ ] Detectable (radar profile, visible profile, audio profile, smell profile)
+[ ] Sensorium (generalized concept of senses and radar, has radar, vision, audio, and scent sense that have sensitivities, ranges, and these can vary by dot product with local direction vector)
+[ ] AI Biped (pathfinding, awareness states, combat behavior)
+[ ] AI vehicle controllers (aircraft, car, boat — follow waypoints, pursue/evade)
+[ ] AI turret (acquires targets via Sensorium, leads shots)
+[ ] Behavior trees or state machines for AI decision-making
 
 ## Asset Management
 
@@ -34,10 +42,16 @@
 
 ## UI
 
-[ ] Based on SVG texture
-[ ] Converts pointer actions on surface to SVG (supports hover, active states, enter, exit, and click events, uses rect hull for collision)
-[ ] Can be bound normally
-[ ] Has a specified update frequency, defaults to 30ms
+[x] Based on SVG texture (b3d-svg-plane + SvgTexture)
+[x] Converts pointer actions on surface to SVG (supports hover, active states, enter, exit, and click events, uses rect hull for collision)
+[x] Can be bound normally (live DOM SVG via selector, tosijs bindings update automatically)
+[x] Has a specified update frequency, defaults to 30ms
+[ ] Small library of svgUiComponents (not Component subclass, but in that spirit).
+  [ ] button
+  [ ] textInput
+  [ ] toggle
+  [ ] slider
+  [ ] meter
 
 ## Terrain
 
@@ -66,13 +80,14 @@
 
 [ ] Support for the materials examples
 [ ] Terrain material (per Gemini biome discussion)
-[ ] SVG Materials
+[x] SVG Materials (SvgTexture + b3d-svg-plane component)
 [ ] Spacebox -- like skybox but with one or more stars and outer space look.
 
 ## UI Stuff
 
-[ ] Bound SVGs that are rendered to texture and then have events routed to them (we'd probably stick to rectangular hulls to keep things simple)
+[x] Bound SVGs that are rendered to texture and then have events routed to them (b3d-svg-plane with pointer event pass-through)
 [ ] SVG Radar (lemma of above)
+  [ ] Concept of lockon
 [ ] Video texture / Mosaic player
 
 ## Audio Stuff
@@ -117,7 +132,7 @@
 
 ## Documentation, Examples & Tests
 
-[ ] As much test coverage as possible
+[ ] As much test coverage as possible (aircraft-physics: 35 tests, perlin-noise, gradient-filter, surface-sampler; auto-run on build)
 [x] At least one live example for each component (most components have demos)
 [ ] Documentation for each component
 
@@ -138,9 +153,9 @@
 
 ## Controllers
 
-[ ] Gamepad support for all controllers
-[ ] Gamepad control should work the same way in XR / mouse+keyboard / Gamepad / Touch
-[ ] Map keyboard / mouse to standard gamepad
+[x] Gamepad support for all controllers (VirtualGamepad abstraction)
+[x] Gamepad control should work the same way in XR / mouse+keyboard / Gamepad / Touch (MappedInputProvider + GamepadSource)
+[x] Map keyboard / mouse to standard gamepad (KeyboardGamepad)
 [ ] Implement on screen "glass" gamerpad for touch contexts
 [ ] Offer standard way of displaying game controls and mappings, and editing mappings
 
