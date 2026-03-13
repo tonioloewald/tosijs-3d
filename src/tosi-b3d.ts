@@ -412,6 +412,7 @@ export class B3d extends Component {
   connectedCallback(): void {
     super.connectedCallback()
     const cnv = this.parts.canvas as HTMLCanvasElement
+    cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
     this.engine = new BABYLON.Engine(cnv, true, {
       preserveDrawingBuffer: true,
       stencil: true,
