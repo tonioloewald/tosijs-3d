@@ -207,12 +207,11 @@ btn.addEventListener('pointerup', () => {
 
 const uiSvg = svg(
   { width: 200, height: 200, viewBox: '0 0 200 200',
-    style: 'position:absolute;left:-9999px' },
+    style: 'position:absolute;top:8px;right:8px;z-index:1;pointer-events:auto;cursor:pointer' },
   rect({ width: 200, height: 200, rx: 12, fill: '#222' }),
   label,
   btn,
 )
-preview.append(uiSvg)
 
 // Button hit rect in SVG coordinates
 const BTN = { x: 25, y: 110, w: 150, h: 50 }
@@ -279,9 +278,18 @@ const scene = b3d(
   },
   b3dLight({ intensity: 1 }),
 )
+scene.style.position = 'relative'
+scene.append(uiSvg)
 
 preview.append(scene)
 ```
+
+The SVG overlay is interactive in 2D (click it directly) and the same
+events fire when you click the 3D plane — both update the same counter
+because they share the same DOM element. The SVG doesn't need to be
+visible — it can be hidden offscreen (`left:-9999px`) or even
+`display:none` and the texture still renders, since `SvgTexture` clones
+the element and serializes its markup independently.
 
 ## How it works
 
@@ -333,8 +341,9 @@ the SVG DOM:
    `pointerup`) are dispatched on the target element — the same events that
    work in a regular 2D SVG UI.
 
-This means SVG UIs built with standard DOM event listeners work identically
-whether rendered flat in the page or projected onto a 3D surface.
+This means you can build and test SVG UIs with standard DOM event listeners
+in a conventional web page, then project them onto 3D surfaces or into
+XR/AR scenes — the same code works across all contexts.
 
 The demo uses simple rect-hull hit testing for the button, which is
 sufficient for rectangular controls. For finer-grained hit testing
