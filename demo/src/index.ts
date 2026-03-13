@@ -92,7 +92,8 @@ const styleSpec: XinStyleSheet = {
     _textColor: vars.brandTextColor,
     display: 'flex',
     alignItems: 'center',
-    padding: '0 var(--spacing)',
+    padding: `0 ${vars.spacing200} 0 ${vars.spacing}`,
+    gap: vars.spacing,
     lineHeight: 'calc(var(--line-height) * var(--h1-scale))',
     height: vars.headerHeight,
     whiteSpace: 'nowrap',
@@ -265,7 +266,7 @@ const browser = createDocBrowser({
   context: { tosijs, 'tosijs-3d': tosijs3d, 'tosijs-ui': tosijsui },
   projectName: 'tosijs-3d',
   projectLinks: {
-    github: 'https://github.com/tonioloewald/xinjs-3d',
+    github: 'https://github.com/tonioloewald/tosijs-3d',
     npm: 'https://www.npmjs.com/package/tosijs-3d',
   },
 })

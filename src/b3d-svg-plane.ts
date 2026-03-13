@@ -170,23 +170,7 @@ const scene = b3d(
 preview.append(scene)
 ```
 
-## Attributes
-
-| Attribute | Default | Description |
-|-----------|---------|-------------|
-| `width` | `1` | Plane width in scene units |
-| `height` | `1` | Plane height |
-| `resolution` | `512` | Texture resolution (square, px) |
-| `url` | `''` | SVG URL — fetched and rendered once |
-| `updateInterval` | `30` | Re-render interval in ms (dynamic mode) |
-| `materialChannel` | `'emissive'` | `'emissive'` (unlit) or `'diffuse'` (lit) |
-| `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
-| `pointerEvents` | `true` | Map 3D pick hits → SVG pointer events |
-| `doubleSided` | `true` | Render both faces |
-
-Set the `svgElement` property to a live SVG element for dynamic mode.
-
-## Example — interactive SVG with pointer events
+## Example — dynamic interactive SVG with pointer events
 
 ```js
 import { b3d, b3dLight, SvgTexture } from 'tosijs-3d'
@@ -258,6 +242,7 @@ const scene = b3d(
       )
       const mat = new BABYLON.StandardMaterial('ui-mat', el.scene)
       mat.emissiveTexture = tex.texture
+      mat.opacityTexture = tex.texture
       mat.diffuseColor = BABYLON.Color3.Black()
       mat.disableLighting = true
       plane.material = mat
@@ -297,6 +282,82 @@ const scene = b3d(
 
 preview.append(scene)
 ```
+
+## How it works
+
+### SVG → Texture pipeline
+
+`SvgTexture` renders SVG content onto a Babylon.js `DynamicTexture` via
+an offscreen canvas:
+
+1. **Serialize** — `XMLSerializer.serializeToString()` captures the live
+   SVG DOM (including any tosijs binding changes) as an XML string.
+2. **Blob URL** — the XML is wrapped in a `Blob` with type `image/svg+xml`
+   and turned into an object URL.
+3. **Image decode** — a reusable `Image` element loads the blob URL. On
+   load, the image is drawn onto the DynamicTexture's canvas with a Y-flip
+   (`ctx.translate(0, h); ctx.scale(1, -1)`) because Babylon UV origin is
+   bottom-left while SVG origin is top-left.
+4. **GPU upload** — `dt.update(false)` pushes the canvas pixels to the GPU.
+
+A `_rendering` guard prevents overlapping async renders. The `Image` and
+canvas are reused across frames — only the Blob is recreated each cycle
+(and immediately revoked after decode).
+
+In **static mode** (`url`), a plain `BABYLON.Texture` is used instead and
+no polling occurs.
+
+### Emissive material for self-lit displays
+
+For HUDs and panels you typically want the texture at full brightness
+regardless of scene lighting. The pattern is:
+
+- `emissiveTexture = tex.texture` — texture drives emission
+- `diffuseColor = Color3.Black()` — no diffuse contribution
+- `disableLighting = true` — ignore scene lights entirely
+- `opacityTexture = tex.texture` — SVG alpha channel controls transparency
+  (so rounded corners, circles, etc. composite correctly over the scene)
+
+### Pointer event pass-through
+
+The demo above maps 3D pointer picks back to synthetic `PointerEvent`s on
+the SVG DOM:
+
+1. `scene.constantlyUpdateMeshUnderPointer = true` enables hover tracking.
+2. `scene.onPointerObservable` fires on move/down/up.
+3. `pickInfo.getTextureCoordinates()` gives UV (0–1) at the hit point.
+4. UV is mapped to SVG coordinates: `svgX = uv.x * svgWidth`,
+   `svgY = (1 - uv.y) * svgHeight` (Y flip for SVG's top-left origin).
+5. A rect-hull hit test determines which SVG element is under the pointer.
+6. Synthetic `PointerEvent`s (`pointerenter`, `pointerleave`, `pointerdown`,
+   `pointerup`) are dispatched on the target element — the same events that
+   work in a regular 2D SVG UI.
+
+This means SVG UIs built with standard DOM event listeners work identically
+whether rendered flat in the page or projected onto a 3D surface.
+
+The demo uses simple rect-hull hit testing for the button, which is
+sufficient for rectangular controls. For finer-grained hit testing
+(irregular shapes, overlapping elements), the mapped SVG coordinates
+(`svgX`, `svgY`) are available — you can use them with
+`document.elementFromPoint()` if the SVG is positioned in the viewport,
+or implement your own shape-specific point-in-polygon tests.
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `width` | `1` | Plane width in scene units |
+| `height` | `1` | Plane height |
+| `resolution` | `512` | Texture resolution (square, px) |
+| `url` | `''` | SVG URL — fetched and rendered once |
+| `updateInterval` | `30` | Re-render interval in ms (dynamic mode) |
+| `materialChannel` | `'emissive'` | `'emissive'` (unlit) or `'diffuse'` (lit) |
+| `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
+| `pointerEvents` | `true` | Map 3D pick hits → SVG pointer events |
+| `doubleSided` | `true` | Render both faces |
+
+Set the `svgElement` property to a live SVG element for dynamic mode.
 */
 
 import * as BABYLON from '@babylonjs/core'

@@ -1,12 +1,12 @@
 {
   "name": "tosijs-3d",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "main": "./dist/index.js",
   "exports": "./dist/index.js",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tonioloewald/xinjs-3d.git"
+    "url": "https://github.com/tonioloewald/tosijs-3d.git"
   },
   "devDependencies": {
     "@types/bun": "latest",
