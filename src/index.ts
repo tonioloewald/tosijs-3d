@@ -3,7 +3,13 @@ export { B3d, b3d } from './tosi-b3d'
 export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 // Utilities
-export { findB3dOwner, AbstractMesh, actualMeshes, enterXR } from './b3d-utils'
+export {
+  findB3dOwner,
+  AbstractMesh,
+  actualMeshes,
+  enterXR,
+  applyMaterialConventions,
+} from './b3d-utils'
 export type { XRStuff, XRParams } from './b3d-utils'
 
 // Scene components

@@ -461,13 +461,7 @@ describe('aircraft physics — VTOL', () => {
   })
 
   test('VTOL inverted at hover: falls over multiple seconds', () => {
-    const v = simulate(
-      { x: 0, y: 0, z: 0 },
-      INVERTED,
-      0.5,
-      vtolConfig,
-      3
-    )
+    const v = simulate({ x: 0, y: 0, z: 0 }, INVERTED, 0.5, vtolConfig, 3)
     // Inverted: thrust pushes DOWN + gravity. Should fall fast.
     expect(v.y).toBeLessThan(-20)
   })

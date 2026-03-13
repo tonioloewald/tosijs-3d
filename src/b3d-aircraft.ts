@@ -294,7 +294,8 @@ export class B3dAircraft extends B3dControllable {
       const cruiseSpeed = attrs.maxSpeed * 0.5
       const pressureFactor = airspeed / Math.max(cruiseSpeed, 1)
       const baseDragCoeff = attrs.acceleration / attrs.maxSpeed
-      const lateralDragMag = lateralSpeed * baseDragCoeff * 3 * pressureFactor * dt
+      const lateralDragMag =
+        lateralSpeed * baseDragCoeff * 3 * pressureFactor * dt
       vel.x -= localRight.x * lateralDragMag
       vel.y -= localRight.y * lateralDragMag
       vel.z -= localRight.z * lateralDragMag

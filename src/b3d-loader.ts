@@ -4,6 +4,11 @@
 Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
 Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 
+PBR material properties from Blender's Principled BSDF are preserved via glTF.
+Material conventions are applied automatically based on properties (not names):
+- Near-opaque alpha (> 0.95) snapped to 1.0 to avoid blend cost
+- Translucent materials get depth pre-pass, double-sided rendering, and shadow exclusion
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -27,6 +32,7 @@ document.body.append(
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
+import { applyMaterialConventions } from './b3d-utils'
 
 export class B3dLoader extends Component {
   static initAttributes = {
@@ -72,6 +78,7 @@ export class B3dLoader extends Component {
             light.intensity *= (this as any).lightIntensityScale
           }
         }
+        applyMaterialConventions(meshes)
         this.owner!.register({ lights, meshes })
       }
     )

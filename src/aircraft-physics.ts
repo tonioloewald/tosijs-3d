@@ -127,7 +127,8 @@ export function computeForces(
     // Below cruise, weaker. Never a clamp — just a force.
     const pressureFactor = airspeed / Math.max(cruiseSpeed, 1)
     const baseDragCoeff = config.acceleration / config.maxSpeed
-    const lateralDragMag = lateralSpeed * baseDragCoeff * 3 * pressureFactor * dt
+    const lateralDragMag =
+      lateralSpeed * baseDragCoeff * 3 * pressureFactor * dt
     dv.x -= right.x * lateralDragMag
     dv.y -= right.y * lateralDragMag
     dv.z -= right.z * lateralDragMag

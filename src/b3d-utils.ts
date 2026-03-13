@@ -65,6 +65,68 @@ export async function enterXR(
   }
 }
 
+/*#
+# Material Conventions
+
+Loaded meshes are automatically optimized based on their PBR material properties
+(from Blender's Principled BSDF via glTF). Name suffixes override behavior when
+the material data alone isn't enough.
+
+## Property-Based (automatic from Blender materials)
+
+| Property | Threshold | Effect |
+|----------|-----------|--------|
+| `alpha` > 0.95 | snapped to 1.0 | Treated as fully opaque (avoids blend cost) |
+| `alpha` ≤ 0.95 | — | Alpha blend, depth pre-pass, double-sided, excluded from shadow casting |
+| `unlit` (glTF KHR_materials_unlit) | — | Respected as-is |
+
+## Name Suffixes (behavioral overrides, not material appearance)
+
+| Suffix | Effect |
+|--------|--------|
+| `_noshadow` / `-noshadow` | Mesh doesn't receive shadows |
+| `_nocast` / `-nocast` | Mesh doesn't cast shadows |
+| `_mirror` / `-mirror` | Mesh gets a dynamic reflection probe |
+| `-ignore` | Node is disposed on load |
+| `_collide*` | Physics collider (sphere/box/cylinder/mesh) |
+*/
+
+// Thresholds for property-based material inference
+const ALPHA_OPAQUE_THRESHOLD = 0.95
+
+/**
+ * Apply material conventions based on PBR material properties.
+ *
+ * Reads actual material data (alpha, metallic, etc.) rather than relying
+ * on name suffixes for appearance. Near-opaque alpha is snapped to 1.0
+ * to avoid unnecessary blend cost. Translucent materials get depth
+ * pre-pass and shadow exclusion automatically.
+ */
+export function applyMaterialConventions(
+  meshes: BABYLON.AbstractMesh[]
+): void {
+  for (const mesh of meshes) {
+    const mat = mesh.material
+    if (mat == null) continue
+
+    // Snap near-opaque alpha to 1.0 — avoids blend pipeline for no visual benefit
+    if (mat.alpha > ALPHA_OPAQUE_THRESHOLD && mat.alpha < 1) {
+      mat.alpha = 1
+    }
+
+    // Translucent materials: correct sorting + perf optimizations
+    if (mat.alpha <= ALPHA_OPAQUE_THRESHOLD) {
+      mat.backFaceCulling = false
+      mat.needDepthPrePass = true
+      mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+      // Tag for shadow exclusion (read by b3d-shadows / dynamic-shadows)
+      if (!mesh.name.includes('_transparent')) {
+        mesh.name += '_transparent'
+      }
+    }
+  }
+}
+
 export class AbstractMesh extends Component {
   static initAttributes = {
     x: 0,

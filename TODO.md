@@ -159,6 +159,11 @@
 [ ] Implement on screen "glass" gamerpad for touch contexts
 [ ] Offer standard way of displaying game controls and mappings, and editing mappings
 
+## Workflow
+[ ] Blender addon that allows convenient editing of custom properties that we consume
+[ ] This would automatically convert _xxx into the corresponding custom properties when selected
+[ ] We would need to make corresponding changes to our import code
+
 ## Bugs
 
 [x] Particle demo does not load
