@@ -24,8 +24,19 @@ function buildDocs() {
   })
 }
 
+async function runTests() {
+  try {
+    await $`bun test`
+  } catch {
+    console.error('Tests failed!')
+  }
+}
+
 async function build() {
   console.time('build')
+
+  // Run tests
+  await runTests()
 
   // Extract docs from source comments
   buildDocs()
