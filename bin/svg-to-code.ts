@@ -1,13 +1,63 @@
 #!/usr/bin/env bun
-/*
-SVG-to-code converter. Parses an SVG file and outputs TypeScript code using
-tosijs `svgElements` creators. Inline styles are decomposed into presentation
-attributes with colors extracted as named parameters.
+/*#
+# svg-to-code
 
-Usage:
-  bun bin/svg-to-code.ts input.svg > output.ts
-  bun bin/svg-to-code.ts input.svg --data-part   # convert id → data-part
-  bun bin/svg-to-code.ts input.svg --fn myFunc    # custom function name
+Converts an SVG file into a TypeScript function that builds the same SVG
+programmatically using tosijs `svgElements`. This lets you design assets in
+a vector editor, then generate code that can be parameterized (colors, labels,
+visibility) at runtime — useful for HUD elements, touch controls, gauges,
+and other dynamic UI that you want to render as a texture via
+[b3d-svg-plane](/?b3d-svg-plane.ts) or use directly in the DOM as a
+[touch-gamepad](/?touch-gamepad.ts) overlay.
+
+Inline styles are decomposed into presentation attributes and color values
+are extracted as named parameters with defaults.
+
+## Usage
+
+    bun bin/svg-to-code.ts input.svg > output.ts
+    bun bin/svg-to-code.ts input.svg --data-part   # convert id → data-part
+    bun bin/svg-to-code.ts input.svg --fn myFunc    # custom function name
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `--data-part` | Convert `id` attributes to `data-part` (for DOM usage) |
+| `--fn <name>` | Set the exported function name (default: `generatedSvg`) |
+
+## What it does
+
+1. Parses SVG XML (regex-based, no DOM dependency)
+2. Decomposes inline `style` attributes into SVG presentation attributes
+3. Extracts color values as named parameters with defaults
+4. Unwraps bare `<g>` wrapper elements (e.g. `Layer_1`)
+5. Outputs a TypeScript function that builds the SVG using tosijs `svgElements`
+
+## Example output
+
+Given an SVG with colored paths, the converter produces:
+
+```typescript
+import { svgElements } from 'tosijs'
+
+const { svg, path } = svgElements
+
+const DEFAULTS = {
+  fillA: '#ff0000',
+  strokeA: '#000000',
+}
+
+export type GeneratedSvgColors = Partial<typeof DEFAULTS>
+
+export default function generatedSvg(colors: GeneratedSvgColors = {}) {
+  colors = { ...DEFAULTS, ...colors }
+  return svg(
+    { viewBox: '0 0 100 100' },
+    path({ 'data-part': 'A', d: 'M0,0 L10,10', fill: colors.fillA })
+  )
+}
+```
 */
 
 import { parseArgs } from 'util'
@@ -326,7 +376,9 @@ function genElement(
     Object.keys(el.styles).length === 0 &&
     Object.keys(el.attrs).length === 0
   ) {
-    return el.children.map((c) => genElement(c, colors, opts, depth)).join(',\n')
+    return el.children
+      .map((c) => genElement(c, colors, opts, depth))
+      .join(',\n')
   }
 
   const propsEntries: string[] = []
@@ -360,9 +412,7 @@ function genElement(
   }
 
   const propsStr =
-    propsEntries.length > 0
-      ? `{ ${propsEntries.join(', ')} }`
-      : ''
+    propsEntries.length > 0 ? `{ ${propsEntries.join(', ')} }` : ''
 
   if (el.children.length === 0) {
     return `${ind}${el.tag}(${propsStr})`
@@ -372,7 +422,9 @@ function genElement(
     .map((c) => genElement(c, colors, opts, depth + 1))
     .join(',\n')
 
-  return `${ind}${el.tag}(\n${ind1}${propsStr}${propsStr ? ',\n' : ''}${childrenStr}\n${ind})`
+  return `${ind}${el.tag}(\n${ind1}${propsStr}${
+    propsStr ? ',\n' : ''
+  }${childrenStr}\n${ind})`
 }
 
 /** Generate complete TypeScript source from parsed SVG data */
@@ -386,7 +438,9 @@ export function generateCode(
   // Build the colors interface
   const colorEntries = Array.from(colors.entries())
   const defaultsLines = colorEntries
-    .map(([_, { paramName, defaultValue }]) => `  ${paramName}: '${defaultValue}',`)
+    .map(
+      ([_, { paramName, defaultValue }]) => `  ${paramName}: '${defaultValue}',`
+    )
     .join('\n')
 
   // Determine which svgElements tags are used
@@ -422,7 +476,9 @@ ${defaultsLines}
 
 export type ${capitalize(functionName)}Colors = Partial<typeof DEFAULTS>
 
-export function ${functionName}(colors: ${capitalize(functionName)}Colors = {}) {
+export default function ${functionName}(colors: ${capitalize(
+    functionName
+  )}Colors = {}) {
   colors = { ...DEFAULTS, ...colors }
   return svg(
     ${rootAttrsStr}${rootAttrsStr && childrenCode ? ',\n' : ''}

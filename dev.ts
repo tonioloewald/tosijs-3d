@@ -19,7 +19,7 @@ async function killStrayServer() {
 
 function buildDocs() {
   extractDocs({
-    paths: ['src', 'README.md'],
+    paths: ['src', 'bin', 'README.md'],
     output: 'demo/docs.json',
   })
 }

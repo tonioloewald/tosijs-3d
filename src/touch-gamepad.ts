@@ -109,6 +109,7 @@ provider.addSource(source)
 import type { GamepadSource, VirtualGamepad } from './virtual-gamepad'
 import { emptyGamepad } from './virtual-gamepad'
 
+
 // data-part value → VirtualGamepad button field
 const BUTTON_MAP: Record<string, keyof VirtualGamepad> = {
   A: 'buttonA',

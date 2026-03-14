@@ -181,24 +181,20 @@ describe('generateCode', () => {
     const code = generateCode(data, { functionName: 'testSvg' })
     expect(code).toContain("import { svgElements } from 'tosijs'")
     expect(code).toContain('const { svg, path } = svgElements')
-    expect(code).toContain('export function testSvg')
+    expect(code).toContain('export default function testSvg')
     expect(code).toContain("fillA: '#ff0000'")
     expect(code).toContain('colors.fillA')
   })
 
   test('uses data-part when option is set', () => {
-    const data = extractSvgFromString(
-      '<svg><path id="myBtn" d="M0,0"/></svg>'
-    )
+    const data = extractSvgFromString('<svg><path id="myBtn" d="M0,0"/></svg>')
     const code = generateCode(data, { dataPart: true })
     expect(code).toContain("'data-part': 'myBtn'")
     expect(code).not.toContain("id: 'myBtn'")
   })
 
   test('uses id when data-part is not set', () => {
-    const data = extractSvgFromString(
-      '<svg><path id="myBtn" d="M0,0"/></svg>'
-    )
+    const data = extractSvgFromString('<svg><path id="myBtn" d="M0,0"/></svg>')
     const code = generateCode(data)
     expect(code).toContain("id: 'myBtn'")
     expect(code).not.toContain('data-part')
@@ -262,7 +258,7 @@ describe('gamepad.svg integration', () => {
     })
 
     expect(code).toContain("import { svgElements } from 'tosijs'")
-    expect(code).toContain('export function gamepadSvg')
+    expect(code).toContain('export default function gamepadSvg')
     expect(code).toContain("'data-part': 'A'")
     expect(code).toContain("'data-part': 'left_stick'")
     // Face button colors should be parameterized
