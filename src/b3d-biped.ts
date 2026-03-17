@@ -584,9 +584,9 @@ export class B3dBiped extends B3dControllable {
           // cleared by a dispose/re-init cycle. Re-wire directly.
           if (attrs.player && this.inputProvider == null) {
             const focusManager = this.closest('tosi-b3d-input-focus') as any
-            if (focusManager?.gcInputProvider) {
+            if (focusManager?.inputMappedProvider) {
               this.inputProvider = new CompositeInputProvider(
-                focusManager.gcInputProvider
+                focusManager.inputMappedProvider
               )
             }
           }

@@ -43,6 +43,7 @@ import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { GameController } from './game-controller'
 import { MappedInputProvider, bipedMapping } from './virtual-gamepad'
+import { CompositeInputProvider } from './control-input'
 
 export class B3dInputFocus extends Component {
   static initAttributes = {
@@ -53,7 +54,8 @@ export class B3dInputFocus extends Component {
   private focusedEntity: B3dControllable | null = null
   private playerEntity: B3dControllable | null = null
   private gameController: GameController | null = null
-  private provider: MappedInputProvider | null = null
+  /** The current MappedInputProvider (exposed for late-binding by controllables) */
+  inputMappedProvider: MappedInputProvider | null = null
   private interactWasPressed = false
 
   connectedCallback() {
@@ -67,7 +69,8 @@ export class B3dInputFocus extends Component {
     const gcEl = this.querySelector('tosi-game-controller')
     if (gcEl) {
       this.gameController = gcEl as unknown as GameController
-      this.provider = this.gameController.getInputProvider(bipedMapping)
+      this.inputMappedProvider =
+        this.gameController.getInputProvider(bipedMapping)
     }
 
     // Defer discovery to ensure all children have completed sceneReady
@@ -88,7 +91,7 @@ export class B3dInputFocus extends Component {
       }
     }
 
-    if (this.playerEntity && this.provider) {
+    if (this.playerEntity && this.inputMappedProvider) {
       this.focusEntity(this.playerEntity)
     }
 
@@ -109,11 +112,11 @@ export class B3dInputFocus extends Component {
 
     this.focusedEntity = entity
 
-    // Swap input mapping for the new entity
-    if (this.provider) {
+    // Swap input mapping and wrap in CompositeInputProvider so XR etc. can add sources
+    if (this.inputMappedProvider) {
       const mapping = entity.inputMapping ?? bipedMapping
-      this.provider.setMapping(mapping)
-      entity.inputProvider = this.provider
+      this.inputMappedProvider.setMapping(mapping)
+      entity.inputProvider = new CompositeInputProvider(this.inputMappedProvider)
     }
     entity.onGainFocus()
 
@@ -145,9 +148,9 @@ export class B3dInputFocus extends Component {
   }
 
   private _checkInteract = () => {
-    if (!this.provider || !this.playerEntity || !this.owner) return
+    if (!this.inputMappedProvider || !this.playerEntity || !this.owner) return
 
-    const input = this.provider.poll(0)
+    const input = this.inputMappedProvider.poll(0)
     const interactPressed = input.interact > 0.5
     const justPressed = interactPressed && !this.interactWasPressed
     this.interactWasPressed = interactPressed
@@ -243,7 +246,7 @@ export class B3dInputFocus extends Component {
     this.focusedEntity = null
     this.playerEntity = null
     this.gameController = null
-    this.provider = null
+    this.inputMappedProvider = null
     this.owner = null
   }
 
