@@ -10,7 +10,7 @@ for responsive analog-feel from digital keys.
 |----------------|------|
 | leftStick Y | W (+) / S (-) |
 | leftStick X | D (+) / A (-) |
-| rightStick Y | (unused) |
+| rightStick Y | ArrowUp (+) / ArrowDown (-) |
 | rightStick X | ArrowRight (+) / ArrowLeft (-) |
 | buttonA | Space |
 | buttonB | F |
@@ -18,7 +18,9 @@ for responsive analog-feel from digital keys.
 | leftBumper | ShiftLeft |
 | leftTrigger | Q |
 | rightTrigger | R |
-| dpadDown | G (toggle) |
+| buttonY | Y |
+| rightBumper | ShiftRight |
+| dpadUp/Down/Left/Right | I / M / J / K |
 
 Mouse wheel adjusts rightStick Y (for camera zoom).
 */
@@ -73,6 +75,13 @@ const DEFAULT_AXES: AxisDef[] = [
     attack: 2,
     decay: 5,
   },
+  {
+    field: 'rightStickY',
+    positiveKeys: ['ArrowUp'],
+    negativeKeys: ['ArrowDown'],
+    attack: 2,
+    decay: 5,
+  },
 ]
 
 const DEFAULT_BUTTONS: ButtonDef[] = [
@@ -82,7 +91,12 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
   { field: 'leftBumper', keys: ['ShiftLeft'], attack: 5, decay: 10 },
   { field: 'leftTrigger', keys: ['Q'], attack: 5, decay: 10 },
   { field: 'rightTrigger', keys: ['R'], attack: 5, decay: 10 },
-  { field: 'dpadDown', keys: ['G'], attack: 5, decay: 10, type: 'toggle' },
+  { field: 'buttonY', keys: ['Y'], attack: 5, decay: 10 },
+  { field: 'rightBumper', keys: ['ShiftRight'], attack: 5, decay: 10 },
+  { field: 'dpadUp', keys: ['I'], attack: 5, decay: 10 },
+  { field: 'dpadDown', keys: ['M'], attack: 5, decay: 10 },
+  { field: 'dpadLeft', keys: ['J'], attack: 5, decay: 10 },
+  { field: 'dpadRight', keys: ['K'], attack: 5, decay: 10 },
 ]
 
 export class KeyboardGamepadSource extends Component implements GamepadSource {
@@ -110,15 +124,31 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
       ;(pad as any)[btn.field] = this.buttonState[btn.field] ?? 0
     }
 
-    // Mouse wheel → rightStickY (consumed each poll)
-    pad.rightStickY = clamp(-1, this.wheelAccum, 1)
+    // Mouse wheel → rightStickY (merged with arrow keys via max-abs)
+    const wheel = clamp(-1, this.wheelAccum, 1)
+    if (Math.abs(wheel) > Math.abs(pad.rightStickY)) {
+      pad.rightStickY = wheel
+    }
     this.wheelAccum *= 0.8 // decay wheel toward 0
 
     return pad
   }
 
+  private _isMappedKey(code: string): boolean {
+    for (const axis of this.axes) {
+      if (axis.positiveKeys.includes(code) || axis.negativeKeys.includes(code))
+        return true
+    }
+    for (const btn of this.buttons) {
+      if (btn.keys.includes(code)) return true
+    }
+    return false
+  }
+
   private _handleKeyDown = (event: KeyboardEvent) => {
-    this.pressedKeys.add(keycode(event))
+    const code = keycode(event)
+    if (this._isMappedKey(code)) event.preventDefault()
+    this.pressedKeys.add(code)
 
     // Handle toggles on press
     for (const btn of this.buttons) {

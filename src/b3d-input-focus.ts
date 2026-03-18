@@ -116,7 +116,9 @@ export class B3dInputFocus extends Component {
     if (this.inputMappedProvider) {
       const mapping = entity.inputMapping ?? bipedMapping
       this.inputMappedProvider.setMapping(mapping)
-      entity.inputProvider = new CompositeInputProvider(this.inputMappedProvider)
+      entity.inputProvider = new CompositeInputProvider(
+        this.inputMappedProvider
+      )
     }
     entity.onGainFocus()
 

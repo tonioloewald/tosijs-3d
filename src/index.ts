@@ -38,14 +38,19 @@ export type {
   VirtualGamepad,
   GamepadSource,
   InputMapping,
+  MappingLabels,
+  InputMappingDescriptor,
   ThrottleDetentConfig,
 } from './virtual-gamepad'
 export {
   emptyGamepad,
   mergeGamepads,
   bipedMapping,
+  bipedMappingDescriptor,
   carMapping,
+  carMappingDescriptor,
   aircraftMapping,
+  aircraftMappingDescriptor,
   MappedInputProvider,
 } from './virtual-gamepad'
 export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad'

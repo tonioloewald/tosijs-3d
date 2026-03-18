@@ -106,7 +106,11 @@ provider.addSource(source)
 ```
 */
 
-import type { GamepadSource, VirtualGamepad } from './virtual-gamepad'
+import type {
+  GamepadSource,
+  VirtualGamepad,
+  MappingLabels,
+} from './virtual-gamepad'
 import { emptyGamepad } from './virtual-gamepad'
 
 // data-part value → VirtualGamepad button field
@@ -124,6 +128,17 @@ const BUTTON_MAP: Record<string, keyof VirtualGamepad> = {
   dpad_left: 'dpadLeft',
   dpad_right: 'dpadRight',
 }
+
+// VirtualGamepad field → data-part name (reverse of BUTTON_MAP + sticks)
+const FIELD_TO_PART: Record<string, string> = {}
+for (const [part, field] of Object.entries(BUTTON_MAP)) {
+  FIELD_TO_PART[field] = part
+}
+// Stick fields map to their knob elements
+FIELD_TO_PART['leftStickX'] = 'left_stick'
+FIELD_TO_PART['leftStickY'] = 'left_stick'
+FIELD_TO_PART['rightStickX'] = 'right_stick'
+FIELD_TO_PART['rightStickY'] = 'right_stick'
 
 interface StickState {
   travel: SVGGraphicsElement
@@ -223,7 +238,6 @@ export class TouchGamepadSource implements GamepadSource {
 
   private ensureSticks() {
     if (this.sticksInitialized) return
-    this.sticksInitialized = true
 
     for (const prefix of ['left_stick', 'right_stick']) {
       const travel = this.part(`${prefix}_travel`)
@@ -248,6 +262,12 @@ export class TouchGamepadSource implements GamepadSource {
         offsetX: 0,
         offsetY: 0,
       })
+    }
+
+    // Only mark initialized if we actually found sticks (getBBox returns
+    // zeros before the SVG is in the DOM, so we need to retry later)
+    if (this.sticks.length > 0) {
+      this.sticksInitialized = true
     }
   }
 
@@ -422,6 +442,95 @@ export class TouchGamepadSource implements GamepadSource {
       this.state.rightStickY = this.sticks[1].y
     }
     return { ...this.state }
+  }
+
+  /**
+   * Update SVG visuals to reflect external VirtualGamepad state.
+   * Sticks and buttons not currently being touched will mirror the
+   * provided values — useful for showing hardware gamepad or keyboard input.
+   */
+  reflectState(pad: VirtualGamepad) {
+    this.ensureSticks()
+
+    // Reflect left stick (only if not being touched)
+    if (this.sticks.length > 0 && this.sticks[0].pointerId === -1) {
+      const s = this.sticks[0]
+      const dx = pad.leftStickX * s.radius
+      const dy = -pad.leftStickY * s.radius
+      const knobTranslate = `translate(${dx}, ${dy})`
+      s.knob.setAttribute(
+        'transform',
+        s.knobOriginalTransform
+          ? `${s.knobOriginalTransform} ${knobTranslate}`
+          : knobTranslate
+      )
+      s.travel.setAttribute('transform', '')
+    }
+
+    // Reflect right stick
+    if (this.sticks.length > 1 && this.sticks[1].pointerId === -1) {
+      const s = this.sticks[1]
+      const dx = pad.rightStickX * s.radius
+      const dy = -pad.rightStickY * s.radius
+      const knobTranslate = `translate(${dx}, ${dy})`
+      s.knob.setAttribute(
+        'transform',
+        s.knobOriginalTransform
+          ? `${s.knobOriginalTransform} ${knobTranslate}`
+          : knobTranslate
+      )
+      s.travel.setAttribute('transform', '')
+    }
+
+    // Reflect buttons (skip if being touched)
+    for (const [partName, field] of Object.entries(BUTTON_MAP)) {
+      if (this.buttonPointers.has(partName)) continue
+      const el = this.part(partName)
+      if (el == null) continue
+      if ((pad as any)[field] > 0) {
+        el.classList.add('active')
+      } else {
+        el.classList.remove('active')
+      }
+    }
+  }
+
+  /**
+   * Overlay text labels on gamepad elements showing mapped action names.
+   * Call with new labels when the mapping changes.
+   */
+  showLabels(labels: MappingLabels) {
+    // Remove previous labels
+    for (const old of this.svg.querySelectorAll('.mapping-label')) {
+      old.remove()
+    }
+
+    for (const [field, label] of Object.entries(labels)) {
+      const partName = FIELD_TO_PART[field]
+      if (!partName) continue
+      const el = this.part(partName)
+      if (el == null) continue
+
+      const bbox = el.getBBox()
+      const cx = bbox.x + bbox.width / 2
+      const cy = bbox.y + bbox.height / 2
+
+      const text = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'text'
+      )
+      text.setAttribute('x', String(cx))
+      text.setAttribute('y', String(cy))
+      text.setAttribute('text-anchor', 'middle')
+      text.setAttribute('dominant-baseline', 'central')
+      text.setAttribute('font-size', '18')
+      text.setAttribute('font-family', 'sans-serif')
+      text.setAttribute('fill', '#000')
+      text.setAttribute('pointer-events', 'none')
+      text.classList.add('mapping-label')
+      text.textContent = label
+      this.svg.appendChild(text)
+    }
   }
 
   dispose() {
