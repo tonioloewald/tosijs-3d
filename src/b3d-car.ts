@@ -143,37 +143,32 @@ export class B3dCar extends B3dControllable {
     super.sceneReady(owner, scene)
     const attrs = this as any
     if (attrs.url !== '') {
-      BABYLON.SceneLoader.LoadAssetContainer(
-        attrs.url,
-        undefined,
-        scene,
-        (container) => {
-          this.entries = container.instantiateModelsToScene(undefined, false, {
-            doNotInstantiate: true,
-          })
-          if (this.entries.rootNodes.length !== 1) {
-            throw new Error(
-              '<tosi-b3d-car> expects a container with exactly one root node'
-            )
-          }
-          const root = this.entries.rootNodes[0] as BABYLON.Mesh
-          const meshes = root.getChildMeshes()
-          this.mesh = root
-          root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2)
-          root.ellipsoidOffset = new BABYLON.Vector3(0, 0.5, 0)
-          root.checkCollisions = true
-          owner.register({ meshes })
-
-          // Find wheel meshes by naming convention
-          this.wheels = meshes.filter((m) => {
-            const lower = m.name.toLowerCase()
-            return lower.includes('_wheel') || lower.includes('wheel')
-          })
-
-          this.lastUpdate = Date.now()
-          scene.registerBeforeRender(this._update)
+      this.loadAssetContainer(scene, attrs.url, (container) => {
+        this.entries = container.instantiateModelsToScene(undefined, false, {
+          doNotInstantiate: true,
+        })
+        if (this.entries.rootNodes.length !== 1) {
+          throw new Error(
+            '<tosi-b3d-car> expects a container with exactly one root node'
+          )
         }
-      )
+        const root = this.entries.rootNodes[0] as BABYLON.Mesh
+        const meshes = root.getChildMeshes()
+        this.mesh = root
+        root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2)
+        root.ellipsoidOffset = new BABYLON.Vector3(0, 0.5, 0)
+        root.checkCollisions = true
+        owner.register({ meshes })
+
+        // Find wheel meshes by naming convention
+        this.wheels = meshes.filter((m) => {
+          const lower = m.name.toLowerCase()
+          return lower.includes('_wheel') || lower.includes('wheel')
+        })
+
+        this.lastUpdate = Date.now()
+        scene.registerBeforeRender(this._update)
+      })
     }
   }
 

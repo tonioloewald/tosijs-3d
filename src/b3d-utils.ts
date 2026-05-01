@@ -138,6 +138,12 @@ export class AbstractMesh extends Component {
 
   owner: B3d | null = null
   mesh?: BABYLON.Mesh
+  // Generation counter for async asset loads. Bumped on every sceneReady and
+  // sceneDispose; loadAssetContainer captures it and discards a callback whose
+  // gen no longer matches. Prevents the "frozen clone" bug where a stale load
+  // instantiates meshes into the scene after the component has been re-init'd
+  // or disposed.
+  protected loadGeneration = 0
 
   get roll() {
     return (this as any).rz
@@ -167,11 +173,36 @@ export class AbstractMesh extends Component {
   }
 
   sceneDispose() {
+    // Invalidate any in-flight loadAssetContainer callbacks.
+    this.loadGeneration++
     if (this.mesh != null) {
       this.mesh.dispose()
       this.mesh = undefined
     }
     this.owner = null
+  }
+
+  /**
+   * Load a glTF/glb into an AssetContainer, with race-safe gen tracking.
+   * The onLoaded callback is only invoked if the component hasn't been
+   * disposed or had a newer load supersede it. Subclasses use this from
+   * their sceneReady to safely resolve async asset loads.
+   */
+  protected loadAssetContainer(
+    scene: BABYLON.Scene,
+    url: string,
+    onLoaded: (container: BABYLON.AssetContainer) => void
+  ): void {
+    const gen = ++this.loadGeneration
+    BABYLON.SceneLoader.LoadAssetContainer(
+      url,
+      undefined,
+      scene,
+      (container) => {
+        if (gen !== this.loadGeneration) return
+        onLoaded(container)
+      }
+    )
   }
 
   disconnectedCallback(): void {

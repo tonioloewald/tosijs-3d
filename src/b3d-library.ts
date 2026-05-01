@@ -145,6 +145,9 @@ export class B3dLibrary extends Component {
   private instances: BABYLON.Node[] = []
   private _readyResolve!: () => void
   ready: Promise<void>
+  // See AbstractMesh.loadGeneration — same race-safe pattern, applied here
+  // because B3dLibrary extends Component directly.
+  private loadGeneration = 0
 
   constructor() {
     super()
@@ -169,11 +172,13 @@ export class B3dLibrary extends Component {
 
     if (!url) return
 
+    const gen = ++this.loadGeneration
     BABYLON.SceneLoader.LoadAssetContainer(
       url,
       undefined,
       scene,
       (container) => {
+        if (gen !== this.loadGeneration) return // stale — discard
         this.container = container
         this._readyResolve()
         this.dispatchEvent(new CustomEvent('library-ready'))
@@ -282,6 +287,7 @@ export class B3dLibrary extends Component {
   }
 
   sceneDispose() {
+    this.loadGeneration++ // invalidate any in-flight load
     const attrs = this as any
     if (this.owner && attrs.type) {
       this.owner.unregisterLibrary(attrs.type, this)

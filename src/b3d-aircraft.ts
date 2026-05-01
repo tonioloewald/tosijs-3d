@@ -182,7 +182,6 @@ export class B3dAircraft extends B3dControllable {
   private meshNode: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
   private libraryNode: BABYLON.Node | null = null
-  private loadGeneration = 0
 
   getCameraTarget(): BABYLON.Node | null {
     return this.meshNode ?? null
@@ -297,48 +296,34 @@ export class B3dAircraft extends B3dControllable {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
-    const gen = ++this.loadGeneration
 
     if (attrs.url !== '') {
-      this.loadFromUrl(attrs.url, owner, scene, gen)
+      this.loadFromUrl(attrs.url, owner, scene)
     } else if (attrs.library !== '' && attrs.meshName !== '') {
-      this.loadFromLibrary(attrs.library, attrs.meshName, owner, gen)
+      this.loadFromLibrary(attrs.library, attrs.meshName, owner)
     }
   }
 
-  private loadFromUrl(
-    url: string,
-    owner: B3d,
-    scene: BABYLON.Scene,
-    gen: number
-  ) {
-    BABYLON.SceneLoader.LoadAssetContainer(
-      url,
-      undefined,
-      scene,
-      (container) => {
-        if (gen !== this.loadGeneration) return
-        const entries = container.instantiateModelsToScene(undefined, false, {
-          doNotInstantiate: true,
-        })
-        if (entries.rootNodes.length !== 1) {
-          throw new Error(
-            '<tosi-b3d-aircraft> expects a container with exactly one root node'
-          )
-        }
-        const root = entries.rootNodes[0] as BABYLON.Mesh
-        this.setupMesh(root, owner)
-        this.meshesToDispose = entries.rootNodes
+  private loadFromUrl(url: string, owner: B3d, scene: BABYLON.Scene) {
+    this.loadAssetContainer(scene, url, (container) => {
+      const entries = container.instantiateModelsToScene(undefined, false, {
+        doNotInstantiate: true,
+      })
+      if (entries.rootNodes.length !== 1) {
+        throw new Error(
+          '<tosi-b3d-aircraft> expects a container with exactly one root node'
+        )
       }
-    )
+      const root = entries.rootNodes[0] as BABYLON.Mesh
+      this.setupMesh(root, owner)
+      this.meshesToDispose = entries.rootNodes
+    })
   }
 
-  private loadFromLibrary(
-    libraryType: string,
-    meshName: string,
-    owner: B3d,
-    gen: number
-  ) {
+  private loadFromLibrary(libraryType: string, meshName: string, owner: B3d) {
+    // Library load doesn't go through loadAssetContainer, so capture the gen
+    // ourselves and use the same invalidation mechanism.
+    const gen = ++this.loadGeneration
     const tryLoad = () => {
       if (gen !== this.loadGeneration) return true // stale — stop trying
       const lib = owner.getLibrary(libraryType)

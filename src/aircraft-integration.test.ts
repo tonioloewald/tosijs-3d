@@ -74,7 +74,10 @@ function babylonNode(): BABYLON.TransformNode {
   return new BABYLON.TransformNode('t', scene)
 }
 
-function axesOf(node: { forward: BABYLON.Vector3; up: BABYLON.Vector3 }): AircraftAxes {
+function axesOf(node: {
+  forward: BABYLON.Vector3
+  up: BABYLON.Vector3
+}): AircraftAxes {
   return {
     forward: { x: node.forward.x, y: node.forward.y, z: node.forward.z },
     up: { x: node.up.x, y: node.up.y, z: node.up.z },
@@ -192,7 +195,13 @@ describe('Fly-backwards bug investigation', () => {
     // up vector tilts backward → aircraft moves backward.
     const n = babylonNode()
     n.rotate(BABYLON.Axis.X, -30 * DEG, BABYLON.Space.LOCAL) // negative = nose UP
-    const { vel, vtolFrames } = simulate(n, { x: 0, y: 0, z: 0 }, 0.5, VTOL_CONFIG, 2)
+    const { vel, vtolFrames } = simulate(
+      n,
+      { x: 0, y: 0, z: 0 },
+      0.5,
+      VTOL_CONFIG,
+      2
+    )
     expect(vtolFrames).toBeGreaterThan(0) // should be in VTOL the whole time
     expect(vel.z).toBeLessThan(-1) // moved backward several m/s
   })
@@ -203,7 +212,13 @@ describe('Fly-backwards bug investigation', () => {
     // Post-fix: VTOL gates on total speed, so backward motion above vtolSpeed
     // exits VTOL — drag and gravity then dominate and the aircraft slows.
     const n = babylonNode()
-    const { vtolFrames } = simulate(n, { x: 0, y: 0, z: -25 }, 0.5, VTOL_CONFIG, 1)
+    const { vtolFrames } = simulate(
+      n,
+      { x: 0, y: 0, z: -25 },
+      0.5,
+      VTOL_CONFIG,
+      1
+    )
     expect(vtolFrames).toBe(0) // never in VTOL: |vel| > vtolSpeed throughout
   })
 
@@ -211,7 +226,13 @@ describe('Fly-backwards bug investigation', () => {
     // Sanity check: starting from rest at hover throttle should still hover
     // (more or less). vel never approaches vtolSpeed (15), so we stay in VTOL.
     const n = babylonNode()
-    const { vel, vtolFrames } = simulate(n, { x: 0, y: 0, z: 0 }, 0.5, VTOL_CONFIG, 1)
+    const { vel, vtolFrames } = simulate(
+      n,
+      { x: 0, y: 0, z: 0 },
+      0.5,
+      VTOL_CONFIG,
+      1
+    )
     expect(vtolFrames).toBe(60) // VTOL the whole time
     expect(Math.abs(vel.y)).toBeLessThan(0.5) // hovering, not falling/climbing
   })

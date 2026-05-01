@@ -206,11 +206,6 @@ export class B3dBiped extends B3dControllable {
   gameController?: GameController
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
   private xrCamZoom = 0.25 // 0 = closest, 1 = furthest
-  // Bumped on every sceneReady and sceneDispose. The async LoadAssetContainer
-  // callback checks this against the gen captured when it started — if they
-  // don't match, the load is stale (superseded or disposed) and we discard it
-  // to avoid orphaning meshes in the scene as a frozen clone.
-  private loadGeneration = 0
 
   animationStates = AnimState.buildList(
     { animation: 'idle', loop: true },
@@ -561,58 +556,45 @@ export class B3dBiped extends B3dControllable {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
-    const gen = ++this.loadGeneration
     if (attrs.url !== '' && !this.entries) {
-      BABYLON.SceneLoader.LoadAssetContainer(
-        attrs.url,
-        undefined,
-        scene,
-        (container) => {
-          // Stale load: another sceneReady has fired since, or we've been
-          // disposed. Drop the container; nothing was added to the scene yet
-          // (instantiateModelsToScene hasn't been called).
-          if (gen !== this.loadGeneration) return
-          this.entries = container.instantiateModelsToScene(undefined, false, {
-            doNotInstantiate: true,
-          })
-          if (this.entries.rootNodes.length !== 1) {
-            throw new Error(
-              '<tosi-b3d-biped> expects a container with exactly one root node'
+      this.loadAssetContainer(scene, attrs.url, (container) => {
+        this.entries = container.instantiateModelsToScene(undefined, false, {
+          doNotInstantiate: true,
+        })
+        if (this.entries.rootNodes.length !== 1) {
+          throw new Error(
+            '<tosi-b3d-biped> expects a container with exactly one root node'
+          )
+        }
+        const meshes = this.entries.rootNodes
+          .map((node) => node.getChildMeshes())
+          .flat()
+        this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
+        this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
+        this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
+        this.mesh.checkCollisions = true
+        owner.register({ meshes })
+        this.setAnimationState(attrs.initialState)
+
+        // If inputFocus wired input before GLB loaded, it may have been
+        // cleared by a dispose/re-init cycle. Re-wire directly.
+        if (attrs.player && this.inputProvider == null) {
+          const focusManager = this.closest('tosi-b3d-input-focus') as any
+          if (focusManager?.inputMappedProvider) {
+            this.inputProvider = new CompositeInputProvider(
+              focusManager.inputMappedProvider
             )
           }
-          const meshes = this.entries.rootNodes
-            .map((node) => node.getChildMeshes())
-            .flat()
-          this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
-          this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
-          this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
-          this.mesh.checkCollisions = true
-          owner.register({ meshes })
-          this.setAnimationState(attrs.initialState)
-
-          // If inputFocus wired input before GLB loaded, it may have been
-          // cleared by a dispose/re-init cycle. Re-wire directly.
-          if (attrs.player && this.inputProvider == null) {
-            const focusManager = this.closest('tosi-b3d-input-focus') as any
-            if (focusManager?.inputMappedProvider) {
-              this.inputProvider = new CompositeInputProvider(
-                focusManager.inputMappedProvider
-              )
-            }
-          }
-
-          this.lastUpdate = Date.now()
-          scene.registerBeforeRender(this._update)
-          this.queueRender()
         }
-      )
+
+        this.lastUpdate = Date.now()
+        scene.registerBeforeRender(this._update)
+        this.queueRender()
+      })
     }
   }
 
   sceneDispose() {
-    // Invalidate any in-flight LoadAssetContainer callback so it doesn't
-    // instantiate meshes into a scene we're no longer attached to.
-    this.loadGeneration++
     if (this.owner != null && this.entries) {
       this.owner.scene.unregisterBeforeRender(this._update)
       for (const node of this.entries.rootNodes) {
