@@ -1,0 +1,1 @@
+{"version":3,"file":"xr-input-provider.d.ts","sourceRoot":"","sources":["../src/xr-input-provider.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,aAAa,EAAE,MAAM,iBAAiB,CAAA;AAElE,OAAO,KAAK,EAAE,mBAAmB,EAAE,MAAM,WAAW,CAAA;AAEpD,qBAAa,eAAgB,YAAW,aAAa;IACnD,aAAa,EAAE,mBAAmB,GAAG,SAAS,CAAA;gBAElC,aAAa,CAAC,EAAE,mBAAmB;IAI/C,IAAI,IAAI,YAAY;CAmBrB"}

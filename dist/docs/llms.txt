@@ -1,0 +1,41 @@
+# tosijs-3d
+
+> Declarative 3D/XR framework built on Babylon.js and tosijs web components.
+
+## API
+
+- [b3d](./tosi-b3d.md): The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
+- [b3d-aircraft](./b3d-aircraft.md): Arcade flight controller with optional VTOL. Uses the virtual gamepad input system:
+- [b3d-biped](./b3d-biped.md): Animated humanoid character controller. Loads a GLB model with skeletal animations
+- [b3d-black-hole](./b3d-black-hole.md): Procedural black hole with accretion disk, gravitational lensing effect,
+- [b3d-car](./b3d-car.md): Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+- [b3d-collisions](./b3d-collisions.md): Opt-in collision detection via mesh naming conventions authored in Blender.
+- [b3d-controllable](./b3d-controllable.md): Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
+- [b3d-exploder](./b3d-exploder.md): Shatters a mesh into fragments and animates them flying apart. Works by
+- [b3d-fog](./b3d-fog.md): Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
+- [b3d-galaxy](./b3d-galaxy.md): Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
+- [b3d-input-focus](./b3d-input-focus.md): Focus manager that wires input to the active controllable entity and handles
+- [b3d-library](./b3d-library.md): Asset library component. Loads a GLB file via `LoadAssetContainer` and holds
+- [b3d-loader](./b3d-loader.md): Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
+- [b3d-particles](./b3d-particles.md): Declarative particle effect component wrapping Babylon.js `ParticleSystem`.
+- [b3d-physics](./b3d-physics.md): Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
+- [b3d-planet](./b3d-planet.md): Procedural planet mesh using a subdivided cube projected onto a sphere.
+- [b3d-skybox](./b3d-skybox.md): Procedural sky with sun/moon cycle driven by time of day. Automatically controls
+- [b3d-sound](./b3d-sound.md): Declarative audio component wrapping Babylon.js `Sound`. Supports both
+- [b3d-star](./b3d-star.md): Procedural star mesh using a subdivided cube projected onto a sphere.
+- [b3d-star-system](./b3d-star-system.md): Renders an individual star system with a procedural star and its planets.
+- [b3d-svg-plane](./b3d-svg-plane.md): A plane mesh textured with SVG content. Supports static SVG from a URL or
+- [b3d-terrain](./b3d-terrain.md): Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
+- [b3d-trigger](./b3d-trigger.md): Invisible proximity zone that fires callbacks and dispatches events when
+- [b3d-water](./b3d-water.md): Water plane with reflections, waves, and underwater fog effect.
+- [control-input](./control-input.md): Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
+- [galaxy-data](./galaxy-data.md): Procedural galaxy generation data and functions. Pure logic — no Babylon.js
+- [game-controller](./game-controller.md): Input component that maps keyboard/mouse to a virtual gamepad and optionally
+- [gamepad-svg](./gamepad-svg.md): Generates a gamepad SVG using tosijs element creators. All colors and stroke
+- [hardware-gamepad](./hardware-gamepad.md): Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
+- [keyboard-gamepad](./keyboard-gamepad.md): Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
+- [Material Conventions](./b3d-utils.md): These conventions apply to all meshes entering the scene — via
+- [mersenne-twister](./mersenne-twister.md): Seeded pseudo-random number generator based on the Mersenne Twister
+- [svg-texture](./svg-texture.md): Renders SVG content to a Babylon.js texture via an offscreen canvas.
+- [touch-gamepad](./touch-gamepad.md): Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
+- [virtual-gamepad](./virtual-gamepad.md): Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,

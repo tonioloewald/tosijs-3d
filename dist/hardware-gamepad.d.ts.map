@@ -1,0 +1,1 @@
+{"version":3,"file":"hardware-gamepad.d.ts","sourceRoot":"","sources":["../src/hardware-gamepad.ts"],"names":[],"mappings":"AASA,OAAO,KAAK,EAAE,cAAc,EAAE,aAAa,EAAE,MAAM,mBAAmB,CAAA;AAStE,qBAAa,qBAAsB,YAAW,aAAa;IACzD,QAAQ,EAAE,MAAM,CAAA;IAChB,YAAY,EAAE,MAAM,CAAA;gBAER,OAAO,GAAE;QAAE,QAAQ,CAAC,EAAE,MAAM,CAAC;QAAC,YAAY,CAAC,EAAE,MAAM,CAAA;KAAO;IAKtE,IAAI,IAAI,cAAc;CAmDvB"}

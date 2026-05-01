@@ -1,0 +1,74 @@
+import { Component } from 'tosijs';
+import * as BABYLON from '@babylonjs/core';
+import type { B3d } from './tosi-b3d';
+import type { GradientFilter } from './gradient-filter';
+export declare class B3dTerrain extends Component {
+    static styleSpec: {
+        ':host': {
+            display: string;
+        };
+    };
+    static initAttributes: {
+        seed: number;
+        surfaceType: string;
+        majorRadius: number;
+        minorRadius: number;
+        radius: number;
+        cylinderHeight: number;
+        tileSize: number;
+        hiResGrid: number;
+        hiResSubdivisions: number;
+        horizonDistance: number;
+        skirtRings: number;
+        grossScale: number;
+        detailScale: number;
+        grossAmplitude: number;
+        detailAmplitude: number;
+        originResetThreshold: number;
+        maxTravelDistance: number;
+        wireframe: boolean;
+    };
+    owner: B3d | null;
+    grossFilter: GradientFilter;
+    detailFilter: GradientFilter;
+    private noise;
+    private sampler;
+    private hiTiles;
+    private material;
+    private registered;
+    private skirtMesh;
+    private skirtLocalXZ;
+    private skirtRadialT;
+    private worldU;
+    private worldV;
+    private originOffsetX;
+    private originOffsetZ;
+    private lastCamGridX;
+    private lastCamGridZ;
+    private _beforeRender;
+    connectedCallback(): void;
+    sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    sceneDispose(): void;
+    disconnectedCallback(): void;
+    private createSampler;
+    private createMaterial;
+    private hiTileCount;
+    private createTilePool;
+    private createSkirtMesh;
+    private updateSkirtHeights;
+    private update;
+    private assignTiles;
+    private reassignPool;
+    private static ensureNormalsUp;
+    private heightAt;
+    private generateTileMesh;
+    private renderToU;
+    private renderToV;
+    private getCircumferenceU;
+    private getCircumferenceV;
+    private resetOrigin;
+    recenter(): void;
+    regenerate(): void;
+}
+export declare const b3dTerrain: import("tosijs").ElementCreator<B3dTerrain>;
+//# sourceMappingURL=b3d-terrain.d.ts.map

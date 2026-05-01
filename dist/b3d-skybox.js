@@ -1,0 +1,199 @@
+/*#
+# b3d-skybox
+
+Procedural sky with sun/moon cycle driven by time of day. Automatically controls
+a `b3dSun` sibling's direction, intensity, and color.
+
+## Demo
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
+const { div, label, input } = elements
+
+const { sky } = tosi({ sky: { timeOfDay: 17 } })
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const camera = new BABYLON.ArcRotateCamera(
+        'cam', -Math.PI / 2, Math.PI / 3, 15,
+        new BABYLON.Vector3(0, 0, 0), el.scene
+      )
+      camera.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(camera)
+    },
+  },
+  b3dSun({ shadowCascading: true }),
+  b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
+  b3dGround({ width: 20, height: 20 }),
+)
+preview.append(
+  scene,
+  div(
+    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
+    label('time of day ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: sky.timeOfDay })),
+  ),
+)
+```
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `timeOfDay` | `6.5` | 0-24 hours |
+| `realtimeScale` | `10` | Realtime speed multiplier |
+| `latitude` | `40` | Geographic latitude (affects sun arc) |
+| `turbidity` | `10` | Atmospheric haze |
+| `rayleigh` | `2` | Rayleigh scattering |
+| `sunColor` | `'#eeeeff'` | Midday sun color |
+| `duskColor` | `'#ffaa22'` | Dawn/dusk sun color |
+| `moonColor` | `'#6688cc'` | Night light color |
+| `moonIntensity` | `0.15` | Night light intensity |
+| `applyFog` | `false` | Whether scene fog affects the skybox |
+*/
+import * as BABYLON from '@babylonjs/core';
+import { SkyMaterial } from '@babylonjs/materials';
+import { AbstractMesh } from './b3d-utils';
+const DEG_TO_RAD = Math.PI / 180;
+function hexToColor3(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    return new BABYLON.Color3(r, g, b);
+}
+function blendColor3(a, b, t) {
+    return new BABYLON.Color3(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+}
+export class B3dSkybox extends AbstractMesh {
+    static initAttributes = {
+        ...AbstractMesh.initAttributes,
+        turbidity: 10,
+        luminance: 1,
+        azimuth: 0,
+        latitude: 40,
+        realtimeScale: 10,
+        updateFrequencyMs: 100,
+        sunColor: '#eeeeff',
+        duskColor: '#ffaa22',
+        moonColor: '#6688cc',
+        moonIntensity: 0.15,
+        timeOfDay: 6.5,
+        rayleigh: 2,
+        mieDirectionalG: 0.8,
+        mieCoefficient: 0.005,
+        skyboxSize: 1000,
+        applyFog: false,
+    };
+    interval = 0;
+    sunEl = null;
+    _horizonColor = new BABYLON.Color3(0.75, 0.85, 0.95);
+    /** Approximate horizon color based on current time of day / atmosphere. */
+    get horizonColor() {
+        return this._horizonColor;
+    }
+    updateSky() {
+        if (this.mesh?.material == null)
+            return;
+        const attrs = this;
+        const material = this.mesh.material;
+        const latitude = attrs.latitude * DEG_TO_RAD;
+        const sunVector = new BABYLON.Vector3(0, 100, 0);
+        // East-west rotation axis, tilted by latitude
+        const axis = new BABYLON.Vector3(0, 0, 1);
+        // Time rotation: noon=0, wraps through day
+        const t = (((attrs.timeOfDay + 30) % 12) / 12) * 1.04 - 0.52;
+        const timeAngle = t * Math.PI;
+        // Latitude tilts the sun's arc away from vertical
+        const latTilt = BABYLON.Quaternion.RotationAxis(new BABYLON.Vector3(1, 0, 0), latitude);
+        const rotTime = BABYLON.Quaternion.RotationAxis(axis, timeAngle);
+        const totalRot = latTilt.multiply(rotTime);
+        const isDay = attrs.timeOfDay > 6 && attrs.timeOfDay < 18;
+        sunVector.rotateByQuaternionToRef(totalRot, sunVector);
+        material.luminance = attrs.luminance;
+        material.azimuth = attrs.azimuth;
+        material.mieDirectionalG = attrs.mieDirectionalG;
+        material.mieCoefficient = attrs.mieCoefficient;
+        if (this.owner != null) {
+            if (this.sunEl == null) {
+                this.sunEl = this.owner.querySelector('tosi-b3d-sun');
+            }
+            const sunEl = this.sunEl;
+            if (sunEl?.light != null) {
+                const { light } = sunEl;
+                material.sunPosition = sunVector;
+                const dir = sunVector.normalizeToNew();
+                light.direction.x = -dir.x;
+                light.direction.y = -dir.y;
+                light.direction.z = -dir.z;
+                const intensity = Math.min(Math.abs((t + 0.52) * 10), Math.abs((t - 0.52) * 10), 1);
+                if (isDay) {
+                    const duskC = hexToColor3(attrs.duskColor);
+                    const sunC = hexToColor3(attrs.sunColor);
+                    light.diffuse = blendColor3(duskC, sunC, intensity);
+                    light.intensity = intensity;
+                    material.rayleigh = attrs.rayleigh;
+                    material.turbidity = attrs.turbidity;
+                    // Horizon: blend light color with sky blue, desaturate toward white
+                    const skyBlue = new BABYLON.Color3(0.55, 0.7, 0.9);
+                    const horizonBase = blendColor3(light.diffuse, skyBlue, 0.6);
+                    // Brighten toward white at high sun, dim at dusk
+                    const white = new BABYLON.Color3(0.95, 0.95, 0.97);
+                    this._horizonColor = blendColor3(horizonBase, white, intensity * 0.4);
+                }
+                else {
+                    light.diffuse = hexToColor3(attrs.moonColor);
+                    light.intensity = attrs.moonIntensity;
+                    material.rayleigh = attrs.rayleigh * 0.05;
+                    material.turbidity = attrs.turbidity * 0.05;
+                    // Night horizon: dark desaturated blue
+                    this._horizonColor = new BABYLON.Color3(0.08, 0.1, 0.18);
+                }
+            }
+        }
+    }
+    connectedCallback() {
+        super.connectedCallback();
+    }
+    sceneReady(owner, scene) {
+        super.sceneReady(owner, scene);
+        const attrs = this;
+        this.interval = window.setInterval(() => {
+            attrs.timeOfDay =
+                (((attrs.timeOfDay +
+                    attrs.realtimeScale * attrs.updateFrequencyMs * 1e-6) /
+                    24) %
+                    1) *
+                    24;
+        }, attrs.updateFrequencyMs);
+        const material = new SkyMaterial('skybox', scene);
+        material.backFaceCulling = false;
+        material.useSunPosition = true;
+        this.mesh = BABYLON.MeshBuilder.CreateBox('skybox_nocast', {
+            size: attrs.skyboxSize,
+            sideOrientation: BABYLON.Mesh.BACKSIDE,
+        }, scene);
+        this.mesh.material = material;
+        this.mesh.applyFog = this.applyFog;
+        this.updateSky();
+        owner.register({ meshes: [this.mesh] });
+    }
+    sceneDispose() {
+        if (this.interval) {
+            clearInterval(this.interval);
+            this.interval = 0;
+        }
+        this.sunEl = null;
+        super.sceneDispose();
+    }
+    disconnectedCallback() {
+        this.sceneDispose();
+        super.disconnectedCallback();
+    }
+    render() {
+        super.render();
+        this.updateSky();
+    }
+}
+export const b3dSkybox = B3dSkybox.elementCreator({ tag: 'tosi-b3d-skybox' });
+//# sourceMappingURL=b3d-skybox.js.map
