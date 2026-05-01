@@ -414,7 +414,7 @@ export class TouchGamepadSource {
      */
     showLabels(labels) {
         // Remove previous labels
-        for (const old of this.svg.querySelectorAll('.mapping-label')) {
+        for (const old of Array.from(this.svg.querySelectorAll('.mapping-label'))) {
             old.remove();
         }
         for (const [field, label] of Object.entries(labels)) {

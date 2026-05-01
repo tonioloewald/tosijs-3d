@@ -137,7 +137,10 @@ import * as BABYLON from '@babylonjs/core';
 // Default flare texture: 32x32 radial gradient white-to-transparent
 let defaultFlareTexture = null;
 function getDefaultFlare(scene) {
-    if (defaultFlareTexture && !defaultFlareTexture.isDisposed) {
+    // BaseTexture exposes `_isDisposed` only as a private; the cached texture
+    // is invalid once its owning scene goes away. Treat scene mismatch as
+    // "stale" and rebuild.
+    if (defaultFlareTexture && defaultFlareTexture.getScene() === scene) {
         return defaultFlareTexture;
     }
     const size = 32;
