@@ -1,6 +1,6 @@
 {
   "name": "tosijs-3d",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "main": "./dist/index.js",
   "exports": "./dist/index.js",
   "type": "module",
@@ -28,7 +28,8 @@
     "@babylonjs/gui": "^8.0.1",
     "@babylonjs/loaders": "^8.0.1",
     "@babylonjs/materials": "^8.0.1",
-    "jolt-physics": "^1.0.0"
+    "jolt-physics": "^1.0.0",
+    "tosijs": "^1.5.0"
   },
   "peerDependenciesMeta": {
     "jolt-physics": {

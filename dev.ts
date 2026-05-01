@@ -48,7 +48,14 @@ async function build() {
     outdir: './dist',
     sourcemap: 'linked',
     minify: true,
-    external: ['jolt-physics'],
+    external: [
+      'jolt-physics',
+      'tosijs',
+      '@babylonjs/core',
+      '@babylonjs/gui',
+      '@babylonjs/loaders',
+      '@babylonjs/materials',
+    ],
   })
   if (!result.success) {
     console.error('Library build failed')
