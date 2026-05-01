@@ -48,7 +48,7 @@ async function build() {
     outdir: './dist',
     sourcemap: 'linked',
     minify: true,
-    external: ['jolt-physics', 'jolt-physics/wasm'],
+    external: ['jolt-physics'],
   })
   if (!result.success) {
     console.error('Library build failed')
@@ -62,12 +62,16 @@ async function build() {
   mkdirSync(DOCS_DIR, { recursive: true })
   cpSync('./demo/static', DOCS_DIR, { recursive: true })
   cpSync('./static', DOCS_DIR, { recursive: true })
+  cpSync(
+    './node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js',
+    `${DOCS_DIR}/jolt-physics.wasm-compat.js`
+  )
   const demoResult = await Bun.build({
     entrypoints: ['./demo/src/index.ts'],
     outdir: DOCS_DIR,
     sourcemap: 'linked',
     minify: true,
-    external: ['jolt-physics', 'jolt-physics/wasm'],
+    external: ['jolt-physics'],
   })
   if (!demoResult.success) {
     console.error('Doc browser build failed')

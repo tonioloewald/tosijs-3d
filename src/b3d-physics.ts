@@ -19,7 +19,7 @@ let sphere = null
 let dropSphere = null
 let dropAggregate = null
 let B = null
-const physics = b3dPhysics({ wasmUrl: '/jolt-physics.wasm' })
+const physics = b3dPhysics()
 
 function createSphere() {
   sphere = B.MeshBuilder.CreateSphere(
@@ -177,7 +177,7 @@ preview.append(
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer'
-import initJolt from 'jolt-physics/wasm'
+import initJolt from 'jolt-physics'
 import { JoltPlugin } from './jolt-plugin'
 import type { B3d } from './tosi-b3d'
 
