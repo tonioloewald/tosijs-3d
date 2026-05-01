@@ -61,7 +61,10 @@ export function computeForces(
   const { forward, up } = axes
   const airspeed = Math.max(0, dot(vel, forward))
   const speed = length(vel)
-  const isVtol = config.vtolSpeed > 0 && airspeed < config.vtolSpeed
+  // VTOL gates on total speed, not forward airspeed: otherwise an aircraft
+  // moving backward fast reads airspeed=0 (clamped) and stays locked in VTOL,
+  // unable to recover without manually pushing throttle past the top detent.
+  const isVtol = config.vtolSpeed > 0 && speed < config.vtolSpeed
 
   const dv: Vec3 = { x: 0, y: 0, z: 0 }
 

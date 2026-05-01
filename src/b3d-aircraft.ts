@@ -145,9 +145,9 @@ import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
 import { aircraftMapping } from './virtual-gamepad'
+import { computeForces, type AircraftConfig } from './aircraft-physics'
 
 const DEG2RAD = Math.PI / 180
-const GRAVITY = 9.81
 const PULL_UP_SECONDS = 5
 
 export class B3dAircraft extends B3dControllable {
@@ -214,95 +214,32 @@ export class B3dAircraft extends B3dControllable {
       node.rotate(BABYLON.Axis.Z, yawRollDelta, BABYLON.Space.LOCAL)
     }
 
-    // --- Get aircraft axes in world space ---
-    const localUp = node.up // lift direction
-    const localForward = node.forward // thrust direction
-
-    const throttle = input.throttle
-    // Airspeed = velocity component along aircraft's forward axis (not vel.length!)
-    const airspeed = Math.max(0, BABYLON.Vector3.Dot(vel, localForward))
-    const speed = vel.length()
-    const isVtol = attrs.vtolSpeed > 0 && airspeed < attrs.vtolSpeed
-
-    // === FORCES → velocity ===
-
-    // 1. Gravity (always, world-space)
-    vel.y -= GRAVITY * dt
-
-    // 2. Thrust
-    if (isVtol) {
-      // VTOL: thrust along local UP (hover/climb)
-      // 50% throttle → hover, 100% → strong climb, 0% → fall
-      const hoverThrust = GRAVITY
-      const thrustMag = throttle * 2 * hoverThrust
-      vel.addInPlaceFromFloats(
-        localUp.x * thrustMag * dt,
-        localUp.y * thrustMag * dt,
-        localUp.z * thrustMag * dt
-      )
-      // Beyond top detent: add forward thrust for flight transition
-      const topDetent = 0.7
-      if (throttle > topDetent) {
-        const fwdMag =
-          ((throttle - topDetent) / (1 - topDetent)) * attrs.acceleration
-        vel.addInPlaceFromFloats(
-          localForward.x * fwdMag * dt,
-          localForward.y * fwdMag * dt,
-          localForward.z * fwdMag * dt
-        )
-      }
-    } else {
-      // Level flight: thrust along local FORWARD
-      const thrustMag = throttle * attrs.acceleration
-      vel.addInPlaceFromFloats(
-        localForward.x * thrustMag * dt,
-        localForward.y * thrustMag * dt,
-        localForward.z * thrustMag * dt
-      )
-
-      // 3. Lift along local UP, proportional to AIRSPEED (not total speed)
-      // Only forward motion over the wings generates lift.
-      // Ramps linearly from 0 to GRAVITY at cruise speed.
-      // Above cruise speed, lift exceeds gravity (correct — F-15s climb vertically).
-      const cruiseSpeed = attrs.maxSpeed * 0.5
-      const liftCoeff = GRAVITY / Math.max(cruiseSpeed, 1)
-      const liftMag = airspeed * liftCoeff
-      vel.addInPlaceFromFloats(
-        localUp.x * liftMag * dt,
-        localUp.y * liftMag * dt,
-        localUp.z * liftMag * dt
-      )
+    // --- Forces (delegated to pure aircraft-physics module) ---
+    const localUp = node.up
+    const localForward = node.forward
+    const config: AircraftConfig = {
+      maxSpeed: attrs.maxSpeed,
+      acceleration: attrs.acceleration,
+      vtolSpeed: attrs.vtolSpeed,
+      stallSpeed: attrs.stallSpeed,
     }
+    const { dv, vtol, airspeed } = computeForces(
+      { x: vel.x, y: vel.y, z: vel.z },
+      {
+        forward: { x: localForward.x, y: localForward.y, z: localForward.z },
+        up: { x: localUp.x, y: localUp.y, z: localUp.z },
+      },
+      input.throttle,
+      config,
+      dt
+    )
+    vel.x += dv.x
+    vel.y += dv.y
+    vel.z += dv.z
 
-    // 4. Drag (opposing velocity, proportional to total speed)
-    if (speed > 0.01) {
-      const dragCoeff = attrs.acceleration / attrs.maxSpeed
-      const dragMag = speed * dragCoeff
-      const dragScale = -(dragMag * dt) / speed
-      vel.addInPlaceFromFloats(
-        vel.x * dragScale,
-        vel.y * dragScale,
-        vel.z * dragScale
-      )
-    }
-
-    // 5. Lateral drag: aircraft presents more area sideways than head-on.
-    // Proportional to lateral speed AND airspeed (no airflow = no aero force).
-    if (airspeed > 0.1) {
-      const localRight = BABYLON.Vector3.Cross(localForward, localUp)
-      const lateralSpeed = BABYLON.Vector3.Dot(vel, localRight)
-      const cruiseSpeed = attrs.maxSpeed * 0.5
-      const pressureFactor = airspeed / Math.max(cruiseSpeed, 1)
-      const baseDragCoeff = attrs.acceleration / attrs.maxSpeed
-      const lateralDragMag =
-        lateralSpeed * baseDragCoeff * 3 * pressureFactor * dt
-      vel.x -= localRight.x * lateralDragMag
-      vel.y -= localRight.y * lateralDragMag
-      vel.z -= localRight.z * lateralDragMag
-    }
-
-    // 6. Stall: nose drops when too slow (non-VTOL only)
-    if (!isVtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed) {
+    // Stall: nose drops when too slow (non-VTOL only).
+    // (Kept here because it mutates orientation, not velocity.)
+    if (!vtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed) {
       node.rotate(BABYLON.Axis.X, 0.5 * dt, BABYLON.Space.LOCAL)
     }
 
@@ -319,11 +256,10 @@ export class B3dAircraft extends B3dControllable {
     // --- Update read-only state ---
     this.altitude = node.position.y
     this.airspeed = airspeed
-    this.throttleLevel = throttle
-    this.vtolActive = isVtol
+    this.throttleLevel = input.throttle
+    this.vtolActive = vtol
     this.updatePullUp(node, dt)
-    this.stalling =
-      !isVtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed
+    this.stalling = !vtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed
   }
 
   /** Raycast downward to find distance to ground. Returns Infinity if no hit. */
