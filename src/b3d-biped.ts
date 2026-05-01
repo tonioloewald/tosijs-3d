@@ -206,6 +206,11 @@ export class B3dBiped extends B3dControllable {
   gameController?: GameController
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
   private xrCamZoom = 0.25 // 0 = closest, 1 = furthest
+  // Bumped on every sceneReady and sceneDispose. The async LoadAssetContainer
+  // callback checks this against the gen captured when it started — if they
+  // don't match, the load is stale (superseded or disposed) and we discard it
+  // to avoid orphaning meshes in the scene as a frozen clone.
+  private loadGeneration = 0
 
   animationStates = AnimState.buildList(
     { animation: 'idle', loop: true },
@@ -556,12 +561,17 @@ export class B3dBiped extends B3dControllable {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
+    const gen = ++this.loadGeneration
     if (attrs.url !== '' && !this.entries) {
       BABYLON.SceneLoader.LoadAssetContainer(
         attrs.url,
         undefined,
         scene,
         (container) => {
+          // Stale load: another sceneReady has fired since, or we've been
+          // disposed. Drop the container; nothing was added to the scene yet
+          // (instantiateModelsToScene hasn't been called).
+          if (gen !== this.loadGeneration) return
           this.entries = container.instantiateModelsToScene(undefined, false, {
             doNotInstantiate: true,
           })
@@ -600,6 +610,9 @@ export class B3dBiped extends B3dControllable {
   }
 
   sceneDispose() {
+    // Invalidate any in-flight LoadAssetContainer callback so it doesn't
+    // instantiate meshes into a scene we're no longer attached to.
+    this.loadGeneration++
     if (this.owner != null && this.entries) {
       this.owner.scene.unregisterBeforeRender(this._update)
       for (const node of this.entries.rootNodes) {
