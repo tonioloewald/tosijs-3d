@@ -2,7 +2,7 @@ import * as path from 'path'
 import { statSync, cpSync, mkdirSync } from 'fs'
 import { watch } from 'chokidar'
 import { $ } from 'bun'
-import { extractDocs } from './bin/docs'
+import { extractDocs, saveLlmsTxt } from './bin/docs'
 
 const PORT = 8030
 const PROJECT_ROOT = import.meta.dir
@@ -18,9 +18,20 @@ async function killStrayServer() {
 }
 
 function buildDocs() {
-  extractDocs({
+  const docs = extractDocs({
     paths: ['src', 'bin', 'README.md'],
     output: 'demo/docs.json',
+  })
+  // Filter to library API only (src/), drop tests + bin tooling, and emit
+  // llms.txt + per-doc markdown into dist/ so the published package is
+  // self-describing for AI agents that consume it.
+  const apiDocs = docs.filter(
+    (d) => d.path.startsWith('src/') && !d.path.endsWith('.test.ts')
+  )
+  saveLlmsTxt(apiDocs, path.join(DIST_DIR, 'docs'), {
+    title: 'tosijs-3d',
+    summary:
+      'Declarative 3D/XR framework built on Babylon.js and tosijs web components.',
   })
 }
 
@@ -38,32 +49,18 @@ async function build() {
   // Run tests
   await runTests()
 
-  // Extract docs from source comments
-  buildDocs()
-
-  // Build library
+  // Build library: tsc emits per-file JS + .d.ts (preserving doc comments)
+  // so the published package is browseable source + types, not a black box.
   await $`rm -rf ${DIST_DIR}`.quiet()
-  const result = await Bun.build({
-    entrypoints: ['./src/index.ts'],
-    outdir: './dist',
-    sourcemap: 'linked',
-    minify: true,
-    external: [
-      'jolt-physics',
-      'tosijs',
-      '@babylonjs/core',
-      '@babylonjs/gui',
-      '@babylonjs/loaders',
-      '@babylonjs/materials',
-    ],
-  })
-  if (!result.success) {
-    console.error('Library build failed')
-    for (const message of result.logs) {
-      console.error(message)
-    }
+  try {
+    await $`bun --bun tsc -p tsconfig.build.json --noCheck`.quiet()
+  } catch (err) {
+    console.error('Library build (tsc) failed', err)
     return
   }
+
+  // Extract docs from source comments → demo/docs.json + dist/docs/llms.txt
+  buildDocs()
 
   // Build doc browser into docs/
   mkdirSync(DOCS_DIR, { recursive: true })

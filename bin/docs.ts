@@ -231,3 +231,37 @@ export function saveDocsJSON(docs: Doc[], outputPath: string): void {
   fs.writeFileSync(outputPath, jsonData, 'utf8')
   console.log(`Documentation saved to ${outputPath}`)
 }
+
+/**
+ * Emit an llms.txt-format index plus one .md file per Doc. Designed to
+ * land in the published npm package so an LLM/agent consuming the library
+ * can discover its API surface from a single root file.
+ *
+ * @param docs - the extracted Doc array (from extractDocs)
+ * @param dir - directory to write llms.txt and the per-doc .md files into
+ * @param header - markdown header for the llms.txt (project name, summary)
+ */
+export function saveLlmsTxt(
+  docs: Doc[],
+  dir: string,
+  header: { title: string; summary: string }
+): void {
+  fs.mkdirSync(dir, { recursive: true })
+  const lines: string[] = [`# ${header.title}`, '', `> ${header.summary}`, '']
+  lines.push('## API')
+  lines.push('')
+  for (const doc of docs) {
+    const slug = doc.filename.replace(/\.[^.]+$/, '')
+    const mdPath = path.join(dir, `${slug}.md`)
+    fs.writeFileSync(mdPath, doc.text, 'utf8')
+    const firstLine = doc.text
+      .split('\n')
+      .find((l) => l.trim() && !l.startsWith('#'))
+      ?.trim()
+    const desc = firstLine ? `: ${firstLine}` : ''
+    lines.push(`- [${doc.title}](./${slug}.md)${desc}`)
+  }
+  lines.push('')
+  fs.writeFileSync(path.join(dir, 'llms.txt'), lines.join('\n'), 'utf8')
+  console.log(`llms.txt + ${docs.length} .md files written to ${dir}`)
+}

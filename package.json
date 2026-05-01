@@ -1,9 +1,13 @@
 {
   "name": "tosijs-3d",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "main": "./dist/index.js",
   "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/tonioloewald/tosijs-3d.git"
