@@ -12,6 +12,7 @@ tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs we
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
 - **Run single test**: `bun test src/perlin-noise.test.ts`
+- **Build blueprint**: `bun make` (builds `src/blueprint.ts` → `dist/blueprint.js`, minified)
 - **TLS setup**: `cd tls && ./create-dev-certs.sh` (required once for HTTPS dev server)
 
 The dev server (`dev.ts`) watches `./src` and `./demo/src`, and on every change:
@@ -21,7 +22,7 @@ The dev server (`dev.ts`) watches `./src` and `./demo/src`, and on every change:
 3. Builds **library**: `src/index.ts` → `dist/index.js` (minified, with source maps)
 4. Builds **doc browser**: `demo/src/index.ts` → `docs/index.js`
 
-TypeScript is set to `noEmit` — Bun handles all compilation and bundling.
+TypeScript is set to `noEmit` — Bun handles all compilation and bundling. `jolt-physics` is marked as an external in the build (not bundled into `dist/`) — consumers must install it separately.
 
 ## Architecture
 
@@ -184,9 +185,14 @@ All components are regular tosijs `Component` subclasses (not blueprints). They 
 - ESLint: `@typescript-eslint/no-explicit-any` and `no-non-null-assertion` are allowed
 - ESM throughout (`"type": "module"` in package.json)
 
+## Testing Patterns
+
+Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `aircraft-physics.ts` (plain `{x, y, z}` objects, no Babylon) and `perlin-noise.ts` as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly.
+
 ## Demo & Docs
 
 - `index.html` redirects to the doc browser at `docs/index.html`
 - The doc browser is built from `demo/src/` using tosijs-ui's `createDocBrowser`
 - Source files use `/*# */` comments for extractable documentation
-- Assets are in `./static/`
+- Assets are in `./static/` and `./demo/static/` (copied to `docs/` during build)
+- Deployed to GitHub Pages from `docs/` directory (CNAME file in repo root)
