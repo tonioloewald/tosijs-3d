@@ -148,7 +148,10 @@ export class SvgTexture {
     this._rendering = true
     const el = this._element.cloneNode(true) as SVGSVGElement
     el.removeAttribute('style')
-    const ctx = dt.getContext()
+    // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
+    // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
+    // needs the full surface API (drawImage, save, restore).
+    const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
     rasterizeSvg(el, ctx, res, res, this._img, () => {
       this._rendering = false
@@ -163,7 +166,10 @@ export class SvgTexture {
     const parser = new DOMParser()
     const doc = parser.parseFromString(svgString, 'image/svg+xml')
     const svg = doc.documentElement as unknown as SVGSVGElement
-    const ctx = dt.getContext()
+    // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
+    // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
+    // needs the full surface API (drawImage, save, restore).
+    const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
     rasterizeSvg(svg, ctx, res, res, this._img, () => {
       dt.update(false)

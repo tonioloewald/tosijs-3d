@@ -24,7 +24,9 @@ const { div, span } = elements
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 20,
-  vtolSpeed: 15, stallSpeed: 0, maxSpeed: 50,
+  // vtolSpeed should match the speed at which lift can sustain altitude
+  // — in this model that's maxSpeed * 0.5 (the cruise speed).
+  vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,
 })
 
 const hud = div({ class: 'hud' },
@@ -128,7 +130,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `friction` | `2` | Drag when coasting |
 | `pitchRate` | `60` | Degrees/sec pitch |
 | `turnRate` | `45` | Degrees/sec yaw |
-| `vtolSpeed` | `0` | Speed threshold for VTOL mode (0 = no VTOL) |
+| `vtolSpeed` | `0` | Forward-airspeed threshold for VTOL (0 = no VTOL). Recommended: `maxSpeed * 0.5` — the speed at which lift sustains altitude in this model. |
 | `stallSpeed` | `40` | Speed below which stall occurs (0 = no stall) |
 
 ## API (read-only properties for HUD binding)
@@ -388,7 +390,7 @@ export class B3dAircraft extends B3dControllable {
 
   setupFollowCamera() {
     if (!this.owner) return
-    const target = this.getCameraTarget()
+    const target = this.getCameraTarget() as BABYLON.TransformNode | null
     if (!target) return
     const existing = this.owner.scene.getCameraByName('aircraft-follow-cam')
     if (existing) return

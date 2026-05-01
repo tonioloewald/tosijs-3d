@@ -187,6 +187,10 @@ export class B3dStarSystem extends Component {
   declare starIndex: number
   declare scale: number
   declare orbitScale: number
+  // Shadows HTMLElement.animate (a method on the prototype). tosijs installs
+  // this as a string-typed reactive attribute; renaming would be a breaking
+  // public API change so we just override the inherited type.
+  // @ts-expect-error -- intentional override of HTMLElement.animate
   declare animate: boolean
   declare showOrbits: boolean
   declare x: number

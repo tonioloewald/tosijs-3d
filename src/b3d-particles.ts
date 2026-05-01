@@ -140,7 +140,10 @@ import type { B3d } from './tosi-b3d'
 // Default flare texture: 32x32 radial gradient white-to-transparent
 let defaultFlareTexture: BABYLON.Texture | null = null
 function getDefaultFlare(scene: BABYLON.Scene): BABYLON.Texture {
-  if (defaultFlareTexture && !defaultFlareTexture.isDisposed) {
+  // BaseTexture exposes `_isDisposed` only as a private; the cached texture
+  // is invalid once its owning scene goes away. Treat scene mismatch as
+  // "stale" and rebuild.
+  if (defaultFlareTexture && defaultFlareTexture.getScene() === scene) {
     return defaultFlareTexture
   }
   const size = 32

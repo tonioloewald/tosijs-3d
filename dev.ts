@@ -53,7 +53,7 @@ async function build() {
   // so the published package is browseable source + types, not a black box.
   await $`rm -rf ${DIST_DIR}`.quiet()
   try {
-    await $`bun --bun tsc -p tsconfig.build.json --noCheck`.quiet()
+    await $`bun --bun tsc -p tsconfig.build.json`.quiet()
   } catch (err) {
     console.error('Library build (tsc) failed', err)
     return

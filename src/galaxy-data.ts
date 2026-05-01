@@ -698,7 +698,9 @@ export interface StarData {
   bestHI: number
 }
 
-function generateStarDetail(seed: number): Omit<StarData, 'name' | 'position'> {
+function generateStarDetail(
+  seed: number
+): Omit<StarData, 'name' | 'position' | 'bestHI'> {
   const prng = new PRNG(seed)
   const spectralClass = prng.pick(
     ['O', 'B', 'A', 'F', 'G', 'K', 'M'],

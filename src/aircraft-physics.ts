@@ -59,12 +59,15 @@ export function computeForces(
   dt: number
 ): ForceResult {
   const { forward, up } = axes
-  const airspeed = Math.max(0, dot(vel, forward))
+  const forwardAirspeed = dot(vel, forward) // signed
+  const airspeed = Math.max(0, forwardAirspeed) // wings only lift on forward airflow
   const speed = length(vel)
-  // VTOL gates on total speed, not forward airspeed: otherwise an aircraft
-  // moving backward fast reads airspeed=0 (clamped) and stays locked in VTOL,
-  // unable to recover without manually pushing throttle past the top detent.
-  const isVtol = config.vtolSpeed > 0 && speed < config.vtolSpeed
+  // Flight mode requires real forward airflow over the wings. Backward,
+  // sideways, and purely vertical motion all stay in VTOL — there's no lift
+  // available in any of those, so handing control to VTOL thrust is what lets
+  // the player recover. Escape from VTOL-with-nose-up (which accelerates
+  // backward, by design) is to pitch down so the up vector tilts forward.
+  const isVtol = config.vtolSpeed > 0 && forwardAirspeed < config.vtolSpeed
 
   const dv: Vec3 = { x: 0, y: 0, z: 0 }
 

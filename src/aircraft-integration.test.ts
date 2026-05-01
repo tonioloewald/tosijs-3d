@@ -206,20 +206,48 @@ describe('Fly-backwards bug investigation', () => {
     expect(vel.z).toBeLessThan(-1) // moved backward several m/s
   })
 
-  test('Backward motion above vtolSpeed exits VTOL (regression: was locked in)', () => {
-    // Pre-fix: airspeed = max(0, dot(vel, forward)) clamped to 0 for backward
-    // motion, so isVtol stayed true forever and the player couldn't recover.
-    // Post-fix: VTOL gates on total speed, so backward motion above vtolSpeed
-    // exits VTOL — drag and gravity then dominate and the aircraft slows.
+  test('Backward motion stays in VTOL (no forward airflow over wings)', () => {
+    // VTOL gates on signed forward airspeed (dot(vel, forward)). Backward
+    // motion has negative forward airspeed → stays in VTOL, where thrust is
+    // along local up. Escape is by pitching the nose down so up tilts forward.
     const n = babylonNode()
     const { vtolFrames } = simulate(
       n,
       { x: 0, y: 0, z: -25 },
       0.5,
       VTOL_CONFIG,
-      1
+      0.5
     )
-    expect(vtolFrames).toBe(0) // never in VTOL: |vel| > vtolSpeed throughout
+    expect(vtolFrames).toBe(30) // VTOL every frame for 0.5s
+  })
+
+  test('Sideways-only motion stays in VTOL', () => {
+    // Pure lateral velocity has zero forward component → no lift available
+    // → VTOL (thrust-along-up gives the player recovery throttle).
+    const n = babylonNode()
+    const { vtolFrames } = simulate(
+      n,
+      { x: 25, y: 0, z: 0 },
+      0.5,
+      VTOL_CONFIG,
+      0.1
+    )
+    expect(vtolFrames).toBe(6) // VTOL every frame
+  })
+
+  test('Falling fast with low forward speed enters VTOL (regression: was stuck in flight)', () => {
+    // Was: total speed > vtolSpeed → flight mode → tiny lift (forward speed 5)
+    // → kept falling. Now: forward airspeed < vtolSpeed → VTOL → throttle
+    // becomes vertical thrust the player can use to recover.
+    const n = babylonNode()
+    const { vtolFrames } = simulate(
+      n,
+      { x: 0, y: -30, z: 5 }, // falling fast, mild forward speed
+      0.5,
+      VTOL_CONFIG,
+      0.1
+    )
+    expect(vtolFrames).toBeGreaterThan(0)
   })
 
   test('VTOL hover at low speed still works after the gate change', () => {
