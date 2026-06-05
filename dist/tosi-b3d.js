@@ -364,6 +364,10 @@ export class B3d extends Component {
         this.engine = new BABYLON.Engine(cnv, true, {
             preserveDrawingBuffer: true,
             stencil: true,
+            // Babylon 8 makes the legacy audio engine opt-in (older versions
+            // defaulted it on). Without this, `new BABYLON.Sound()` silently
+            // no-ops — it never even fetches the file. b3d-sound depends on it.
+            audioEngine: true,
         });
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.collisionsEnabled = true;
