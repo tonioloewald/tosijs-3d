@@ -48,7 +48,7 @@ export class B3dWater extends AbstractMesh {
     subdivisions: 32,
     textureSize: 1024,
     twoSided: false,
-    normalMap: './static/waterbump.png',
+    normalMap: './waterbump.png',
     windForce: -5,
     waveHeight: 0,
     bumpHeight: 0.1,

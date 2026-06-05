@@ -176,3 +176,7 @@ demo/docs.json
 tls/*.pem
 tls/*.csr
 .haltija/
+
+# static/ is copied verbatim into the build — keep heavy uncompressed audio
+# out of it; commit the compressed (mp3) demo asset instead.
+static/*.wav
