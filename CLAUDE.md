@@ -12,17 +12,18 @@ tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs we
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
 - **Run single test**: `bun test src/perlin-noise.test.ts`
-- **Build blueprint**: `bun make` (builds `src/blueprint.ts` → `dist/blueprint.js`, minified)
 - **TLS setup**: `cd tls && ./create-dev-certs.sh` (required once for HTTPS dev server)
 
-The dev server (`dev.ts`) watches `./src` and `./demo/src`, and on every change:
+(Note: the `bun make` script in `package.json` is stale — it references a `src/blueprint.ts` that no longer exists.)
+
+The dev server (`dev.ts`) watches `./src` and `./demo/src`, and on every change runs `build()`, which:
 
 1. **Runs tests** via `bun test` (failures are logged but don't block the build)
-2. Extracts `/*# */` doc comments → `demo/docs.json`
-3. Builds **library**: `src/index.ts` → `dist/index.js` (minified, with source maps)
-4. Builds **doc browser**: `demo/src/index.ts` → `docs/index.js`
+2. Builds the **library** with `bun --bun tsc -p tsconfig.build.json` after `rm -rf dist/` — tsc emits **per-file, unminified JS + `.d.ts` + sourcemaps** into `dist/` (one output file per `src/*.ts`), so the published package is browseable source plus types, not a bundled black box. Entry point is `dist/index.js` with `dist/index.d.ts`.
+3. Extracts `/*# */` doc comments → `demo/docs.json`, and writes `dist/docs/llms.txt` + per-doc markdown (filtered to `src/`, excluding `*.test.ts`) so the published package is self-describing for AI agents.
+4. Builds the **doc browser**: bundles `demo/src/index.ts` → `docs/` (minified, source maps), copying `static/` and `demo/static/` assets.
 
-TypeScript is set to `noEmit` — Bun handles all compilation and bundling. `jolt-physics` is marked as an external in the build (not bundled into `dist/`) — consumers must install it separately.
+The library build (`tsconfig.build.json`) emits real `.d.ts` files; the root `tsconfig.json` is `noEmit` (used for editor/typecheck only). `jolt-physics` is marked external (not bundled) — consumers install it separately.
 
 ## Architecture
 

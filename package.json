@@ -16,6 +16,7 @@
     "@types/bun": "latest",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "chokidar": "^5.0.0",
     "eslint": "^8.57.1",
     "prettier": "^2.8.8",
     "tosijs-ui": "1.3.7",
@@ -23,8 +24,8 @@
   },
   "scripts": {
     "start": "bun format && bun dev.ts",
-    "format": "bun eslint src --fix && bun prettier --write .",
-    "make": "bun build ./src/blueprint.ts --outfile=dist/blueprint.js --minify"
+    "tls": "bash tls/create-dev-certs.sh",
+    "format": "bun eslint src --fix && bun prettier --write ."
   },
   "peerDependencies": {
     "@babylonjs/core": "^8.0.1",
