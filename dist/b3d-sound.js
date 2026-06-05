@@ -17,7 +17,7 @@ import { elements } from 'tosijs'
 const { div, button, p } = elements
 
 const spatialSound = b3dSound({
-  url: './static/hum.wav',
+  url: './hum.mp3',
   spatialSound: true,
   x: 4, y: 1, z: 0,
   loop: true,
