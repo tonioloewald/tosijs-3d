@@ -167,6 +167,7 @@ web_modules/
 # bun
 
 bun.lockb
+bun.lock
 
 # Generated docs data
 demo/docs.json
