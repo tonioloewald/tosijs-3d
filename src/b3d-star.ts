@@ -471,7 +471,7 @@ export class B3dStar extends Component {
     mat.disableDepthWrite = true
 
     // Feed camera position each frame
-    mat.onBind = (mesh) => {
+    mat.onBind = (_mesh) => {
       const cam = this.owner!.scene.activeCamera
       if (cam) {
         mat.setVector3('cameraPosition', cam.globalPosition)

@@ -32,7 +32,6 @@ import type {
   IBasePhysicsCollisionEvent,
   PhysicsShapeParameters,
   PhysicsMassProperties,
-  PhysicsConstraintParameters,
   PhysicsConstraintAxis,
   PhysicsConstraintAxisLimitMode,
   PhysicsConstraintMotorType,

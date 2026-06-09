@@ -70,7 +70,7 @@ export class CylinderSampler implements SurfaceSampler {
     }
   }
 
-  normal(u: number, v: number): Vec3 {
+  normal(u: number, _v: number): Vec3 {
     const theta = u * TWO_PI
     return {
       x: Math.cos(theta),

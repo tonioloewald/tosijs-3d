@@ -84,7 +84,7 @@ function axesOf(node: {
   }
 }
 
-function expectVecClose(a: Vec3, b: Vec3, eps = 1e-4) {
+function expectVecClose(a: Vec3, b: Vec3, _eps = 1e-4) {
   expect(a.x).toBeCloseTo(b.x, 4)
   expect(a.y).toBeCloseTo(b.y, 4)
   expect(a.z).toBeCloseTo(b.z, 4)

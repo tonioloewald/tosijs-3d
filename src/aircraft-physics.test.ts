@@ -72,11 +72,11 @@ function add(a: Vec3, b: Vec3): Vec3 {
   return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }
 }
 
-function len(v: Vec3): number {
+function _len(v: Vec3): number {
   return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
 }
 
-function dotn(a: Vec3, b: Vec3): number {
+function _dotn(a: Vec3, b: Vec3): number {
   return a.x * b.x + a.y * b.y + a.z * b.z
 }
 

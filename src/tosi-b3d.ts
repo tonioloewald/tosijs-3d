@@ -161,7 +161,6 @@ type B3dCallback =
   | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => void)
   | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => Promise<void>)
 
-// eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = () => {}
 
 export class B3d extends Component {

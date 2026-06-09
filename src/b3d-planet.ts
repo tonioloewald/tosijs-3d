@@ -607,7 +607,7 @@ export class B3dPlanet extends Component {
     }
 
     // Ring disc: inner radius ~1.3x planet, outer ~2.5x, scaled by ringValue
-    const innerRadius = radius * 1.3
+    const _innerRadius = radius * 1.3
     const outerRadius = radius * (1.5 + ringValue * 1.5)
     const mesh = BABYLON.MeshBuilder.CreateDisc(
       'planet-ring',

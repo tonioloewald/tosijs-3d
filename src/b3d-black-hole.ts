@@ -186,7 +186,7 @@ function smoothNoise(x: number, y: number): number {
   return nx0 + sy * (nx1 - nx0)
 }
 
-function fbmNoise(x: number, y: number, octaves: number): number {
+function _fbmNoise(x: number, y: number, octaves: number): number {
   let val = 0
   let amp = 0.5
   let freq = 1
