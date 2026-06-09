@@ -147,7 +147,6 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 const { canvas, div, slot } = elements;
-// eslint-disable-next-line @typescript-eslint/no-empty-function
 const noop = () => { };
 export class B3d extends Component {
     static initAttributes = {

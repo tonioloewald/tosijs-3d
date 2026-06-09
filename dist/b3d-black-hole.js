@@ -179,7 +179,7 @@ function smoothNoise(x, y) {
     const nx1 = n01 + sx * (n11 - n01);
     return nx0 + sy * (nx1 - nx0);
 }
-function fbmNoise(x, y, octaves) {
+function _fbmNoise(x, y, octaves) {
     let val = 0;
     let amp = 0.5;
     let freq = 1;

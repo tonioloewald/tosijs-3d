@@ -60,7 +60,7 @@ export class CylinderSampler {
             z: this.radius * Math.sin(theta),
         };
     }
-    normal(u, v) {
+    normal(u, _v) {
         const theta = u * TWO_PI;
         return {
             x: Math.cos(theta),

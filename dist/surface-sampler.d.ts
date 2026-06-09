@@ -27,7 +27,7 @@ export declare class CylinderSampler implements SurfaceSampler {
     height: number;
     constructor(radius?: number, height?: number);
     sample(u: number, v: number): Vec3;
-    normal(u: number, v: number): Vec3;
+    normal(u: number, _v: number): Vec3;
     /** Circumference in u direction */
     get circumferenceU(): number;
     /** Full height in v direction (only half is unique due to reflection) */
