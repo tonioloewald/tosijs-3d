@@ -3,6 +3,19 @@ import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 export declare function findB3dOwner(el: HTMLElement): B3d | null;
 export declare function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[];
+/**
+ * Vertical gap, in world units, between a node's origin and the bottom of its
+ * geometry. Handy as a ground clearance so a model rests on a surface instead
+ * of its origin sinking into it (origins are rarely at the model's feet).
+ */
+export declare function boundingBottomOffset(node: BABYLON.TransformNode): number;
+/**
+ * Place `node` so the bottom of its geometry rests on a surface, leaving a
+ * small `separation` gap. `surface` is either a world Y height (default 0, the
+ * ground plane) or a mesh to sit on top of (uses the top of its bounding box).
+ * Works regardless of where the model's origin sits within its mesh.
+ */
+export declare function placeOnSurface(node: BABYLON.TransformNode, surface?: number | BABYLON.AbstractMesh, separation?: number): void;
 export type AsyncVoidFunction = () => Promise<void>;
 export type XRParams = {
     cameraName?: string;

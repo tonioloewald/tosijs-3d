@@ -1,6 +1,6 @@
 export { B3d, b3d } from './tosi-b3d';
 export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d';
-export { findB3dOwner, AbstractMesh, actualMeshes, enterXR, applyMaterialConventions, } from './b3d-utils';
+export { findB3dOwner, AbstractMesh, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
 export type { XRStuff, XRParams } from './b3d-utils';
 export { B3dLoader, b3dLoader } from './b3d-loader';
 export { B3dLibrary, b3dLibrary } from './b3d-library';

@@ -22,9 +22,9 @@ const { div, span } = elements
 
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  // Start parked on the ground. Ground-avoidance holds the body groundClearance
-  // (0.5) above the surface, so y: 0.5 = resting, not floating in mid-air.
-  player: true, y: 0.5,
+  // Start parked on the ground. The model is rested on the surface via its
+  // computed bounding box, so y is the height of its belly — y: 0 = grounded.
+  player: true, y: 0,
   // vtolSpeed should match the speed at which lift can sustain altitude
   // — in this model that's maxSpeed * 0.5 (the cruise speed).
   vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,

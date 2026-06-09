@@ -34,6 +34,7 @@ export declare class B3dAircraft extends B3dControllable {
     private rollAngle;
     private meshNode;
     private meshesToDispose;
+    private groundClearance;
     private libraryNode;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;

@@ -16,6 +16,53 @@ export function findB3dOwner(el) {
 export function actualMeshes(meshes) {
     return meshes.filter((mesh) => mesh.geometry != null);
 }
+/**
+ * World-space Y of the bottom of a node's combined geometry (the node itself
+ * plus every descendant mesh). Returns null if there's no renderable geometry.
+ */
+function hierarchyMinWorldY(node) {
+    node.computeWorldMatrix(true);
+    const meshes = [
+        ...(node instanceof BABYLON.AbstractMesh ? [node] : []),
+        ...node.getChildMeshes(false),
+    ].filter((m) => m.getTotalVertices() > 0);
+    if (meshes.length === 0)
+        return null;
+    let minY = Infinity;
+    for (const mesh of meshes) {
+        mesh.computeWorldMatrix(true);
+        const y = mesh.getBoundingInfo().boundingBox.minimumWorld.y;
+        if (y < minY)
+            minY = y;
+    }
+    return minY;
+}
+/**
+ * Vertical gap, in world units, between a node's origin and the bottom of its
+ * geometry. Handy as a ground clearance so a model rests on a surface instead
+ * of its origin sinking into it (origins are rarely at the model's feet).
+ */
+export function boundingBottomOffset(node) {
+    const minY = hierarchyMinWorldY(node);
+    if (minY == null)
+        return 0;
+    return node.getAbsolutePosition().y - minY;
+}
+/**
+ * Place `node` so the bottom of its geometry rests on a surface, leaving a
+ * small `separation` gap. `surface` is either a world Y height (default 0, the
+ * ground plane) or a mesh to sit on top of (uses the top of its bounding box).
+ * Works regardless of where the model's origin sits within its mesh.
+ */
+export function placeOnSurface(node, surface = 0, separation = 0.02) {
+    const surfaceY = typeof surface === 'number'
+        ? surface
+        : surface.getBoundingInfo().boundingBox.maximumWorld.y;
+    const minY = hierarchyMinWorldY(node);
+    if (minY == null)
+        return;
+    node.position.y += surfaceY + separation - minY;
+}
 export async function enterXR(scene, options = {}) {
     const { cameraName = 'xr-camera', mode = 'immersive-vr' } = options;
     if (navigator.xr == null) {
