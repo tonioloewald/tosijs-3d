@@ -116,7 +116,7 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 **Environment & Effects:**
 | File | Purpose |
 | --- | --- |
-| `src/b3d-shadows.ts` | `B3dSun` — directional light with cascaded/standard shadows |
+| `src/b3d-shadows.ts` | `B3dSun` — directional light with cascaded shadow maps (CSM) |
 | `src/b3d-skybox.ts` | Procedural sky with day/night cycle, sun positioning |
 | `src/b3d-water.ts` | Water surface using WaterMaterial with waves/wind |
 | `src/b3d-reflections.ts` | Automatic reflection probes for `_mirror` meshes |

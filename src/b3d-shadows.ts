@@ -5,16 +5,21 @@ import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dSun extends Component {
   static initAttributes = {
-    bias: 0.001,
-    normalBias: 0.01,
     shadowMaxZ: 100,
-    shadowMinZ: 0.01,
     shadowDarkness: 0.1,
     shadowTextureSize: 1024,
-    shadowCascading: false,
     activeDistance: 30,
-    frustumEdgeFalloff: 0,
-    forceBackFacesOnly: true,
+    // Cascaded shadow map (CSM) tuning. CSM covers the camera's view frustum
+    // out to shadowMaxZ, which is why it works for both close scenes and fast,
+    // far-ranging ones (e.g. aircraft) — see the aircraft demo.
+    numCascades: 4,
+    // stabilize reduces shadow-edge "swimming" as the camera moves quickly.
+    stabilizeCascades: true,
+    // lambda: 0 = uniform cascade splits, 1 = logarithmic (more resolution
+    // near the camera). 0.8 is a good default; raise toward 1 for big depth.
+    lambda: 0.8,
+    // soft blend across cascade boundaries to hide the seams
+    cascadeBlendPercentage: 0.1,
     x: 0,
     y: -1,
     z: -0.5,
@@ -24,7 +29,7 @@ export class B3dSun extends Component {
 
   owner: B3d | null = null
   light?: BABYLON.DirectionalLight
-  shadowGenerator?: BABYLON.ShadowGenerator
+  shadowGenerator?: BABYLON.CascadedShadowGenerator
   shadowCasters: BABYLON.Mesh[] = []
   activeShadowCasters: BABYLON.Mesh[] = []
 
@@ -111,20 +116,44 @@ export class B3dSun extends Component {
     this.baseIntensity = attrs.intensity
     this.light = light
 
-    if (attrs.shadowCascading) {
-      this.shadowGenerator = new BABYLON.CascadedShadowGenerator(
-        attrs.shadowTextureSize,
-        light
-      )
-    } else {
-      this.shadowGenerator = new BABYLON.ShadowGenerator(
-        attrs.shadowTextureSize,
-        light
-      )
-    }
+    this.shadowGenerator = new BABYLON.CascadedShadowGenerator(
+      attrs.shadowTextureSize,
+      light
+    )
+    this.shadowGenerator.numCascades = attrs.numCascades
 
     this._callback = this.shadowCallback.bind(this)
     owner.onSceneAddition(this._callback)
+
+    // Apply shadow settings now. render() also calls this, but render() may
+    // never fire again after the generator exists (e.g. a static sun with no
+    // day/night cycle), so the generator would otherwise keep Babylon's
+    // defaults — wrong filter, no shadowMaxZ — and cast no visible shadow.
+    this.configureShadows()
+  }
+
+  private configureShadows() {
+    const attrs = this as any
+    if (this.light == null || this.shadowGenerator == null) return
+
+    this.light.direction.x = attrs.x
+    this.light.direction.y = attrs.y
+    this.light.direction.z = attrs.z
+    this.baseIntensity = attrs.intensity
+
+    // Soften shadows when light is dim (moonlight)
+    const darkness =
+      attrs.intensity < 0.5
+        ? attrs.shadowDarkness + (1 - attrs.shadowDarkness) * 0.6
+        : attrs.shadowDarkness
+    this.shadowGenerator.setDarkness(darkness)
+
+    // Leave bias/normalBias at Babylon's CSM-tuned defaults — overriding them
+    // tends to cause peter-panning (shadows detaching from their caster).
+    this.shadowGenerator.shadowMaxZ = attrs.shadowMaxZ
+    this.shadowGenerator.stabilizeCascades = attrs.stabilizeCascades
+    this.shadowGenerator.lambda = attrs.lambda
+    this.shadowGenerator.cascadeBlendPercentage = attrs.cascadeBlendPercentage
   }
 
   sceneDispose() {
@@ -152,35 +181,7 @@ export class B3dSun extends Component {
 
   render() {
     super.render()
-    const attrs = this as any
-    if (this.light != null && this.shadowGenerator != null) {
-      this.light.direction.x = attrs.x
-      this.light.direction.y = attrs.y
-      this.light.direction.z = attrs.z
-      this.baseIntensity = attrs.intensity
-
-      // Soften shadows when light is dim (moonlight)
-      const darkness =
-        attrs.intensity < 0.5
-          ? attrs.shadowDarkness + (1 - attrs.shadowDarkness) * 0.6
-          : attrs.shadowDarkness
-      this.shadowGenerator.setDarkness(darkness)
-
-      if (attrs.shadowCascading) {
-        ;(this.shadowGenerator as BABYLON.CascadedShadowGenerator).shadowMaxZ =
-          attrs.shadowMaxZ
-      } else {
-        this.shadowGenerator.bias = attrs.bias
-        this.shadowGenerator.normalBias = attrs.normalBias
-        this.light.shadowMaxZ = attrs.shadowMaxZ
-        this.light.shadowMinZ = attrs.shadowMinZ
-        this.shadowGenerator.useContactHardeningShadow = true
-        this.shadowGenerator.contactHardeningLightSizeUVRatio = 0.05
-        this.shadowGenerator.frustumEdgeFalloff = attrs.frustumEdgeFalloff
-        this.shadowGenerator.forceBackFacesOnly = attrs.forceBackFacesOnly
-        this.shadowGenerator.setDarkness(attrs.shadowDarkness)
-      }
-    }
+    this.configureShadows()
   }
 }
 

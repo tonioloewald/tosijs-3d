@@ -62,7 +62,7 @@ const scene = b3d(
       el.setActiveCamera(camera)
     },
   },
-  b3dSun({ shadowCascading: false }),
+  b3dSun(),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.3 }),
   planet,
