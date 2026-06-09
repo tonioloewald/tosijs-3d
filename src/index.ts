@@ -9,6 +9,8 @@ export {
   actualMeshes,
   enterXR,
   applyMaterialConventions,
+  placeOnSurface,
+  boundingBottomOffset,
 } from './b3d-utils'
 export type { XRStuff, XRParams } from './b3d-utils'
 

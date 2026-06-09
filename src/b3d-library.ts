@@ -12,7 +12,7 @@ direct references.
 ## Demo
 
 ```js
-import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface } from 'tosijs-3d'
 import { popMenu } from 'tosijs-ui'
 import { elements } from 'tosijs'
 const { div, button } = elements
@@ -44,7 +44,15 @@ function buildMenuItems(nodes) {
   const items = []
   for (const node of nodes) {
     if (isInsertable(node)) {
-      items.push({ caption: node.name, action: () => lib.instantiate(node.name) })
+      items.push({
+        caption: node.name,
+        action: () => {
+          const placed = lib.instantiate(node.name)
+          // Rest the spawned mesh on the ground instead of dropping it at the
+          // origin (where it may float or clip depending on the GLB).
+          if (placed) placeOnSurface(placed)
+        },
+      })
     }
     if (node.children.length > 0) {
       const childItems = buildMenuItems(node.children)

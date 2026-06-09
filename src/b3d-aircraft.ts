@@ -23,9 +23,9 @@ const { div, span } = elements
 
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  // Start parked on the ground. Ground-avoidance holds the body groundClearance
-  // (0.5) above the surface, so y: 0.5 = resting, not floating in mid-air.
-  player: true, y: 0.5,
+  // Start parked on the ground. The model is rested on the surface via its
+  // computed bounding box, so y is the height of its belly — y: 0 = grounded.
+  player: true, y: 0,
   // vtolSpeed should match the speed at which lift can sustain altitude
   // — in this model that's maxSpeed * 0.5 (the cruise speed).
   vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,
@@ -172,6 +172,10 @@ import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
 import { aircraftMapping } from './virtual-gamepad'
 import { computeForces, type AircraftConfig } from './aircraft-physics'
+import { placeOnSurface, boundingBottomOffset } from './b3d-utils'
+
+// Small gap kept between the model's belly and the ground.
+const GROUND_SEPARATION = 0.05
 
 const DEG2RAD = Math.PI / 180
 const PULL_UP_SECONDS = 5
@@ -207,6 +211,9 @@ export class B3dAircraft extends B3dControllable {
   private rollAngle = 0
   private meshNode: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
+  // Derived from the model's geometry in setupMesh so the body rests on the
+  // ground rather than the origin sinking into it (origins aren't at the feet).
+  private groundClearance = 0.5
   private libraryNode: BABYLON.Node | null = null
 
   getCameraTarget(): BABYLON.Node | null {
@@ -273,9 +280,8 @@ export class B3dAircraft extends B3dControllable {
 
     // Ground avoidance: don't clip through terrain
     const groundDist = this.raycastGround(node)
-    const groundClearance = 0.5
-    if (groundDist < groundClearance) {
-      node.position.y += groundClearance - groundDist
+    if (groundDist < this.groundClearance) {
+      node.position.y += this.groundClearance - groundDist
     }
 
     // --- Update read-only state ---
@@ -399,6 +405,12 @@ export class B3dAircraft extends B3dControllable {
         : root.getChildMeshes()
 
     owner.register({ meshes })
+
+    // Rest the model on the ground at its spawn height, and derive the ground
+    // clearance from geometry so flight keeps the body (not the origin) above
+    // the surface.
+    this.groundClearance = boundingBottomOffset(root) + GROUND_SEPARATION
+    placeOnSurface(root, (this as any).y ?? 0, GROUND_SEPARATION)
 
     // Set up follow camera now that we have a mesh (may have been deferred if
     // inputFocus called setupCameraForEntity before mesh was loaded)
