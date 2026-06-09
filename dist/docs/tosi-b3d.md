@@ -40,7 +40,7 @@ const formatTime = (v) => {
 preview.append(
   b3d(
     { glowLayerIntensity: 1 },
-    b3dSun({ shadowCascading: true, shadowTextureSize: 2048, activeDistance: 20 }),
+    b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: 'ref-sphere', diameter: 1, y: 1, x: -3, z: -3, color: '#aaaaaa' }),
     b3dLoader({ url: scene }),
@@ -133,7 +133,7 @@ import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dWater } from 'tosijs-3d'
 document.body.append(
   b3d(
     { glowLayerIntensity: 1 },
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: 12 }),
     b3dLoader({ url: './scene.glb' }),
     b3dWater({ y: -0.2 })

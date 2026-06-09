@@ -41,7 +41,7 @@ preview.append(
         el.setActiveCamera(camera)
       },
     },
-    b3dSun({ shadowCascading: true }),
+    b3dSun(),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 0 }),
     b3dLoader({ url: './materials.glb' }),
     b3dReflections(),

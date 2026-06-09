@@ -16,13 +16,15 @@ Mesh can come from a `url` (own GLB) or from a `b3d-library` via `library` + `me
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div, span } = elements
 
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 20,
+  // Start parked on the ground. Ground-avoidance holds the body groundClearance
+  // (0.5) above the surface, so y: 0.5 = resting, not floating in mid-air.
+  player: true, y: 0.5,
   // vtolSpeed should match the speed at which lift can sustain altitude
   // — in this model that's maxSpeed * 0.5 (the cruise speed).
   vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,
@@ -40,26 +42,48 @@ const controls = div({ class: 'controls' },
   'W/S: pitch | A/D: yaw | \u2190/\u2192: roll | R: throttle+ | Q: throttle\u2212 | Release: snap to detent'
 )
 
-// Scatter reference markers on the ground
+// Scatter reference markers on the ground. Registering them makes them shadow
+// casters, so there are always crisp ground shadows for depth/scale cues — the
+// aircraft's own shadow is small and far-offset when it's high up.
 function addMarkers(scene) {
   scene.sceneCreated = (owner, BABYLON) => {
     const mat = new BABYLON.StandardMaterial('marker-mat', owner.scene)
     mat.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.8)
+    const boxes = []
     for (let i = 0; i < 40; i++) {
-      const x = (Math.random() - 0.5) * 400
-      const z = (Math.random() - 0.5) * 400
+      const x = (Math.random() - 0.5) * 200
+      const z = (Math.random() - 0.5) * 200
       const box = BABYLON.MeshBuilder.CreateBox('marker' + i, { size: 2, height: 1 + Math.random() * 4 }, owner.scene)
       box.position.set(x, 0, z)
       box.material = mat
+      box.receiveShadows = true
+      boxes.push(box)
     }
+    owner.register({ meshes: boxes })
   }
   return scene
 }
 
 const scene = addMarkers(b3d(
-  b3dLight({ y: 1, intensity: 0.7 }),
+  // Ambient fill kept low so the directional sun's shadows actually read.
+  b3dLight({ y: 1, intensity: 0.4 }),
+  // Cascaded shadows cover the whole camera view with a sensible depth range,
+  // which suits an aerial scene (aircraft high above a large ground plane).
+  // shadowMaxZ spans altitude→ground; activeDistance keeps the aircraft a
+  // caster; the low updateIntervalMs keeps caster gating responsive in flight.
+  b3dSun({
+    x: -0.6, y: -1, z: -0.4,
+    intensity: 0.9,
+    shadowTextureSize: 2048,
+    shadowMaxZ: 300,
+    activeDistance: 150,
+    updateIntervalMs: 50,
+  }),
   b3dSkybox({ timeOfDay: 10 }),
-  b3dGround({ width: 500, height: 500 }),
+  // `_nocast` so the huge ground only RECEIVES shadows. If it also cast,
+  // the sun's auto-fit shadow frustum would stretch to 500 units and the
+  // aircraft's shadow would shrink to sub-pixel (i.e. invisible).
+  b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
   b3dLibrary({ url: './test-2.glb', type: 'vehicles' }),
   inputFocus(
     gameController(),

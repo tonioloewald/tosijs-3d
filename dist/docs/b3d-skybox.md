@@ -23,7 +23,7 @@ const scene = b3d(
       el.setActiveCamera(camera)
     },
   },
-  b3dSun({ shadowCascading: true }),
+  b3dSun(),
   b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
   b3dGround({ width: 20, height: 20 }),
 )

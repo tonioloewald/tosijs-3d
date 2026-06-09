@@ -3,16 +3,14 @@ import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 export declare class B3dSun extends Component {
     static initAttributes: {
-        bias: number;
-        normalBias: number;
         shadowMaxZ: number;
-        shadowMinZ: number;
         shadowDarkness: number;
         shadowTextureSize: number;
-        shadowCascading: boolean;
         activeDistance: number;
-        frustumEdgeFalloff: number;
-        forceBackFacesOnly: boolean;
+        numCascades: number;
+        stabilizeCascades: boolean;
+        lambda: number;
+        cascadeBlendPercentage: number;
         x: number;
         y: number;
         z: number;
@@ -21,7 +19,7 @@ export declare class B3dSun extends Component {
     };
     owner: B3d | null;
     light?: BABYLON.DirectionalLight;
-    shadowGenerator?: BABYLON.ShadowGenerator;
+    shadowGenerator?: BABYLON.CascadedShadowGenerator;
     shadowCasters: BABYLON.Mesh[];
     activeShadowCasters: BABYLON.Mesh[];
     private interval;
@@ -32,6 +30,7 @@ export declare class B3dSun extends Component {
     private update;
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    private configureShadows;
     sceneDispose(): void;
     disconnectedCallback(): void;
     render(): void;

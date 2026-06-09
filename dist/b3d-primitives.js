@@ -39,8 +39,10 @@ export const b3dSphere = B3dSphere.elementCreator({ tag: 'tosi-b3d-sphere' });
 export class B3dGround extends AbstractMesh {
     static initAttributes = {
         ...AbstractMesh.initAttributes,
+        meshName: 'ground',
         width: 4,
         height: 4,
+        color: '#888888',
     };
     connectedCallback() {
         super.connectedCallback();
@@ -48,10 +50,14 @@ export class B3dGround extends AbstractMesh {
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
-        this.mesh = BABYLON.MeshBuilder.CreateGround(attrs.name || 'ground', {
+        const meshName = attrs.meshName || 'ground';
+        this.mesh = BABYLON.MeshBuilder.CreateGround(meshName, {
             width: attrs.width,
             height: attrs.height,
         }, scene);
+        const material = new BABYLON.StandardMaterial(meshName + '-mat', scene);
+        material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
+        this.mesh.material = material;
         owner.register({ meshes: [this.mesh] });
     }
 }

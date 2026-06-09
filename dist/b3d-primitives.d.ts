@@ -21,8 +21,10 @@ export declare class B3dSphere extends AbstractMesh {
 export declare const b3dSphere: import("tosijs").ElementCreator<B3dSphere>;
 export declare class B3dGround extends AbstractMesh {
     static initAttributes: {
+        meshName: string;
         width: number;
         height: number;
+        color: string;
         x: number;
         y: number;
         z: number;

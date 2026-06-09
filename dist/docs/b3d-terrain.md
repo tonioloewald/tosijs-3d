@@ -78,7 +78,7 @@ const scene = b3d(
       }
     },
   },
-  b3dSun({ shadowCascading: true, activeDistance: 80 }),
+  b3dSun({ activeDistance: 80 }),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 60, end: 110 }),
