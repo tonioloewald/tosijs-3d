@@ -40,6 +40,15 @@
       "optional": true
     }
   },
+  "overrides": {
+    "flatted": "3.4.2",
+    "minimatch": "3.1.4",
+    "picomatch": "2.3.2",
+    "js-yaml": "4.1.1",
+    "ajv": "6.14.0",
+    "brace-expansion": "1.1.13",
+    "cross-spawn": "7.0.5"
+  },
   "dependencies": {
     "@babylonjs/core": "^8.55.1",
     "@babylonjs/gui": "^8.55.1",
