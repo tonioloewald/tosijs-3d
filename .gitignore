@@ -164,10 +164,10 @@ web_modules/
 # Finder (MacOS) folder config
 .DS_Store
 
-# bun
-
+# bun is the canonical package manager: bun.lock is the tracked source of
+# truth. The old binary format and npm's lockfile are ignored.
 bun.lockb
-bun.lock
+package-lock.json
 
 # Generated docs data
 demo/docs.json
