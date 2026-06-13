@@ -120,7 +120,6 @@ export class B3dSun extends Component {
       attrs.shadowTextureSize,
       light
     )
-    this.shadowGenerator.numCascades = attrs.numCascades
 
     this._callback = this.shadowCallback.bind(this)
     owner.onSceneAddition(this._callback)
@@ -136,9 +135,11 @@ export class B3dSun extends Component {
     const attrs = this as any
     if (this.light == null || this.shadowGenerator == null) return
 
-    this.light.direction.x = attrs.x
-    this.light.direction.y = attrs.y
-    this.light.direction.z = attrs.z
+    // Direction is intentionally NOT re-applied here. The DirectionalLight
+    // constructor sets initial direction from attrs.x/y/z; thereafter b3dSkybox
+    // (when present) owns light.direction via its day/night cycle. Re-writing
+    // direction on every render() would stomp the skybox's writes whenever any
+    // other sun attr changed.
     this.baseIntensity = attrs.intensity
 
     // Soften shadows when light is dim (moonlight)
@@ -150,6 +151,7 @@ export class B3dSun extends Component {
 
     // Leave bias/normalBias at Babylon's CSM-tuned defaults — overriding them
     // tends to cause peter-panning (shadows detaching from their caster).
+    this.shadowGenerator.numCascades = attrs.numCascades
     this.shadowGenerator.shadowMaxZ = attrs.shadowMaxZ
     this.shadowGenerator.stabilizeCascades = attrs.stabilizeCascades
     this.shadowGenerator.lambda = attrs.lambda
