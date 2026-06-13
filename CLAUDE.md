@@ -8,13 +8,13 @@ tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs we
 
 ## Build & Development Commands
 
+Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
+
 - **Dev server**: `bun start` (formats code, then runs HTTPS dev server on port 8030 with file watching)
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
 - **Run single test**: `bun test src/perlin-noise.test.ts`
-- **TLS setup**: `cd tls && ./create-dev-certs.sh` (required once for HTTPS dev server)
-
-(Note: the `bun make` script in `package.json` is stale — it references a `src/blueprint.ts` that no longer exists.)
+- **TLS setup**: `bun tls` (required once for HTTPS dev server; uses mkcert for warning-free local certs)
 
 The dev server (`dev.ts`) watches `./src` and `./demo/src`, and on every change runs `build()`, which:
 
@@ -87,7 +87,7 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 | File | Purpose |
 | --- | --- |
 | `src/tosi-b3d.ts` | Core `B3d` Component — engine, scene, render loop, scene registration, camera management |
-| `src/b3d-utils.ts` | `AbstractMesh` base class, `findB3dOwner()`, `enterXR()`, shared types |
+| `src/b3d-utils.ts` | `AbstractMesh` base class, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, shared types |
 | `src/b3d-loader.ts` | Loads GLB/GLTF files, registers meshes/lights, applies naming conventions |
 | `src/b3d-library.ts` | Parts catalog — preloaded mesh library for spawning instances |
 | `src/b3d-collisions.ts` | Collision detection with convention-based collider shapes |
@@ -128,6 +128,7 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 | `src/b3d-planet.ts` | Procedural planet rendering |
 | `src/b3d-star.ts` / `b3d-star-system.ts` | Star and star system rendering |
 | `src/b3d-galaxy.ts` / `galaxy-data.ts` | Galaxy visualization |
+| `src/b3d-black-hole.ts` | Procedural black hole with accretion disk, lensing, photon ring |
 
 **UI & Textures:**
 | File | Purpose |
