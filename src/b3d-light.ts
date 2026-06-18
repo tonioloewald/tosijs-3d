@@ -3,8 +3,9 @@
 
 Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
 and never casts shadows — pair it with `b3dSun` for directional light that
-does. Drop intensity (~0.3) when you want the sun's shadows to actually read;
-keep it higher (~0.7) when you don't have a sun and want everything visible.
+does. Drop intensity around 0.3 when you want the sun's shadows to actually
+read; keep it higher (around 0.7) when you don't have a sun and want
+everything visible.
 
 ## Demo
 
