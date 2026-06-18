@@ -177,9 +177,15 @@ preview.append(
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer'
-import initJolt from 'jolt-physics'
 import { JoltPlugin } from './jolt-plugin'
 import type { B3d } from './tosi-b3d'
+
+// jolt-physics is loaded lazily inside sceneReady() (see comment there) so that
+// bundlers can leave it as an external resolved at runtime via an importmap
+// (`<script type="importmap">` in the host page). A top-level static import
+// would force consumers — including the doc-site IIFE bundle — to ship the
+// whole ~3MB loader even when no scene uses physics, and would also fight with
+// Bun's IIFE external shim, which can't resolve a synchronous require.
 
 export class B3dPhysics extends Component {
   static styleSpec = {
@@ -231,6 +237,7 @@ export class B3dPhysics extends Component {
       if (attrs.wasmUrl) {
         initOptions.locateFile = () => attrs.wasmUrl
       }
+      const { default: initJolt } = await import('jolt-physics')
       const joltModule = await initJolt(initOptions)
 
       if (this.owner == null) return // disconnected during async load

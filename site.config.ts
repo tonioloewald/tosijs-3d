@@ -38,8 +38,14 @@ export default defineSiteConfig({
   },
 
   bundleEntry: './demo/site.ts',
-  // jolt-physics is loaded at runtime via the importmap (headExtra below) so
-  // its ~MB-sized loader doesn't bloat the hydration bundle.
+  // jolt-physics is loaded at runtime via the importmap (headExtra below). Why
+  // not bundle it? Two reasons. Statically, jolt-physics has a Node-only
+  // branch (`await import('module')`) Bun's browser target refuses to parse;
+  // dynamically, the wasm-compat loader uses `import.meta.url`, which is
+  // illegal in a classic `<script>` (the only form tosijs-ui's site emits).
+  // External + dynamic `import()` in b3d-physics.ts side-steps both: the
+  // `import('jolt-physics')` expression survives the bundle and the browser
+  // resolves it via the page's importmap, fetching the standalone ESM module.
   bundleExternals: ['jolt-physics'],
 
   docPaths: ['src', 'README.md'],
@@ -56,9 +62,10 @@ export default defineSiteConfig({
   // source anyway.
   llmsTxt: false,
 
-  // Every page needs the importmap so live examples (and the hydration bundle)
-  // can `import 'jolt-physics'`. The WASM compat loader is copied into static/
-  // by prebuild and ends up served from the site root.
+  // Importmap so the IIFE's runtime `import('jolt-physics')` resolves to the
+  // ESM loader copied into static/ by prebuild. Dynamic `import()` in a
+  // classic `<script>` consults the page's importmap, so this works without
+  // having to load iife.js as a module.
   headExtra: `<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>`,
 
   prebuild: async () => {
