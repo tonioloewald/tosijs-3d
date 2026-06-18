@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-star — tosijs-3d</title>
+  <meta name="description" content="Procedural star mesh using a subdivided cube projected onto a sphere. Surface detail from 3D Perlin noise creates sunspot/granulation patterns via vertex…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-star/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-star — tosijs-3d" />
+  <meta property="og:description" content="Procedural star mesh using a subdivided cube projected onto a sphere. Surface detail from 3D Perlin noise creates sunspot/granulation patterns via vertex…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-star/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-star","description":"Procedural star mesh using a subdivided cube projected onto a sphere. Surface detail from 3D Perlin noise creates sunspot/granulation patterns via vertex…","url":"https://3d.tosijs.net/b3d-star/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-star</h1>
+<p>Procedural star mesh using a subdivided cube projected onto a sphere.
+Surface detail from 3D Perlin noise creates sunspot/granulation patterns
+via vertex colors. Spectral class controls the star&#39;s color temperature.</p>
+<p>Optional corona (glow shell) surrounds the star.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dStar, b3dSphere } from &#39;tosijs-3d&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+const { div, label, input, select, option, span, p } = elements
+
+const { demo } = tosi({
+  demo: {
+    spectralClass: &#39;G&#39;,
+    radius: 20,
+    surfaceDetail: 0.5,
+    coronaSize: 0.3,
+    glowIntensity: 1.1,
+    rotationSpeed: 0.02,
+    wireframe: false,
+    pointLight: true,
+    lightIntensity: 1.0,
+  },
+})
+
+const star = b3dStar({
+  seed: 42,
+  radius: demo.radius,
+  subdivisions: 32,
+  spectralClass: demo.spectralClass,
+  surfaceDetail: demo.surfaceDetail,
+  coronaSize: demo.coronaSize,
+  glowIntensity: demo.glowIntensity,
+  rotationSpeed: demo.rotationSpeed,
+  wireframe: demo.wireframe,
+  pointLight: demo.pointLight,
+  lightIntensity: demo.lightIntensity,
+})
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    clearColor: &#39;#000000&#39;,
+    sceneCreated(el, BABYLON) {
+      const camera = new BABYLON.ArcRotateCamera(
+        &#39;orbit-cam&#39;,
+        -Math.PI / 2,
+        Math.PI / 3,
+        80,
+        BABYLON.Vector3.Zero(),
+        el.scene
+      )
+      camera.lowerRadiusLimit = 30
+      camera.upperRadiusLimit = 300
+      camera.minZ = 0.5
+      camera.maxZ = 2000
+      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+      el.setActiveCamera(camera)
+    },
+  },
+  b3dLight({ intensity: 0.1 }),
+  star,
+  b3dSphere({ radius: 5, x: 40, y: 0, z: 0, color: &#39;#888888&#39; }),
+  b3dSphere({ radius: 5, x: -40, y: 0, z: 0, color: &#39;#888888&#39; }),
+)
+
+preview.append(
+  scene,
+  div(
+    { class: &#39;debug-panel&#39; },
+    p(&#39;Scroll to zoom, drag to orbit&#39;),
+    label(
+      &#39;spectral class &#39;,
+      select(
+        { bindValue: demo.spectralClass },
+        option({ value: &#39;O&#39; }, &#39;O — Blue&#39;),
+        option({ value: &#39;B&#39; }, &#39;B — Blue-white&#39;),
+        option({ value: &#39;A&#39; }, &#39;A — White&#39;),
+        option({ value: &#39;F&#39; }, &#39;F — Yellow-white&#39;),
+        option({ value: &#39;G&#39; }, &#39;G — Yellow (Sun)&#39;),
+        option({ value: &#39;K&#39; }, &#39;K — Orange&#39;),
+        option({ value: &#39;M&#39; }, &#39;M — Red&#39;),
+      ),
+    ),
+    label(
+      &#39;radius &#39;,
+      input({ type: &#39;range&#39;, min: 5, max: 50, step: 1, bindValue: demo.radius }),
+    ),
+    label(
+      &#39;surface detail &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 1, step: 0.05, bindValue: demo.surfaceDetail }),
+    ),
+    label(
+      &#39;corona size &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 0.5, step: 0.01, bindValue: demo.coronaSize }),
+    ),
+    label(
+      &#39;glow intensity &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 3, step: 0.1, bindValue: demo.glowIntensity }),
+    ),
+    label(
+      &#39;rotation &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 0.2, step: 0.005, bindValue: demo.rotationSpeed }),
+    ),
+    label(
+      &#39;wireframe &#39;,
+      input({ type: &#39;checkbox&#39;, bindValue: demo.wireframe }),
+    ),
+    label(
+      &#39;point light &#39;,
+      input({ type: &#39;checkbox&#39;, bindValue: demo.pointLight }),
+    ),
+    label(
+      &#39;light intensity &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 5, step: 0.1, bindValue: demo.lightIntensity }),
+    ),
+  )
+)
+
+for (const key of [&#39;radius&#39;, &#39;surfaceDetail&#39;]) {
+  demo[key].observe(() =&gt; {
+    star.regenerate()
+  })
+}
+for (const key of [&#39;spectralClass&#39;, &#39;coronaSize&#39;, &#39;glowIntensity&#39;, &#39;wireframe&#39;, &#39;rotationSpeed&#39;, &#39;pointLight&#39;, &#39;lightIntensity&#39;]) {
+  demo[key].observe(() =&gt; {
+    star.updateOptions()
+  })
+}
+</code></pre>
+<pre><code class="language-css">tosi-b3d {
+  width: 100%;
+  height: 100%;
+}
+.debug-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font: 12px monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>seed</code></td>
+<td><code>12345</code></td>
+<td>Noise seed for surface features</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td><code>20</code></td>
+<td>Star radius</td>
+</tr>
+<tr>
+<td><code>subdivisions</code></td>
+<td><code>32</code></td>
+<td>Grid subdivisions per cube face</td>
+</tr>
+<tr>
+<td><code>spectralClass</code></td>
+<td><code>&#39;G&#39;</code></td>
+<td>Spectral class: O, B, A, F, G, K, M</td>
+</tr>
+<tr>
+<td><code>surfaceDetail</code></td>
+<td><code>0.5</code></td>
+<td>Surface noise intensity (0=uniform, 1=strong spots)</td>
+</tr>
+<tr>
+<td><code>coronaSize</code></td>
+<td><code>0.15</code></td>
+<td>Corona thickness as fraction of radius (0=none)</td>
+</tr>
+<tr>
+<td><code>rotationSpeed</code></td>
+<td><code>0.02</code></td>
+<td>Auto-rotation (radians/sec)</td>
+</tr>
+<tr>
+<td><code>wireframe</code></td>
+<td><code>false</code></td>
+<td>Debug wireframe</td>
+</tr>
+<tr>
+<td><code>glowIntensity</code></td>
+<td><code>2.0</code></td>
+<td>Emissive brightness multiplier</td>
+</tr>
+<tr>
+<td><code>pointLight</code></td>
+<td><code>false</code></td>
+<td>Create a point light at star center</td>
+</tr>
+<tr>
+<td><code>lightIntensity</code></td>
+<td><code>1.0</code></td>
+<td>Point light intensity</td>
+</tr>
+<tr>
+<td><code>lightRange</code></td>
+<td><code>500</code></td>
+<td>Point light range</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/" aria-current="page" class="current">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

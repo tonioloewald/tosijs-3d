@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>mersenne-twister — tosijs-3d</title>
+  <meta name="description" content="Seeded pseudo-random number generator based on the Mersenne Twister (MT19937) algorithm. Provides deterministic random sequences from a numeric seed — same…" />
+  <link rel="canonical" href="https://3d.tosijs.net/mersenne-twister/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="mersenne-twister — tosijs-3d" />
+  <meta property="og:description" content="Seeded pseudo-random number generator based on the Mersenne Twister (MT19937) algorithm. Provides deterministic random sequences from a numeric seed — same…" />
+  <meta property="og:url" content="https://3d.tosijs.net/mersenne-twister/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"mersenne-twister","description":"Seeded pseudo-random number generator based on the Mersenne Twister (MT19937) algorithm. Provides deterministic random sequences from a numeric seed — same…","url":"https://3d.tosijs.net/mersenne-twister/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>mersenne-twister</h1>
+<p>Seeded pseudo-random number generator based on the Mersenne Twister
+(MT19937) algorithm. Provides deterministic random sequences from a
+numeric seed — same seed always produces the same sequence.</p>
+<p>The <code>PRNG</code> class wraps <code>MersenneTwister</code> with convenience methods for
+common random operations: integer/float ranges, gaussian distribution,
+weighted selection, and probability checks.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { PRNG } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, p, button, pre } = elements
+
+let output = &#39;&#39;
+const prng = new PRNG(42)
+
+output += &#39;Seed: 42\n\n&#39;
+output += &#39;value():        &#39; + prng.value().toFixed(6) + &#39;\n&#39;
+output += &#39;range(1, 100):  &#39; + prng.range(1, 100) + &#39;\n&#39;
+output += &#39;realRange(0,1): &#39; + prng.realRange(0, 1).toFixed(6) + &#39;\n&#39;
+output += &#39;gaussrandom():  &#39; + prng.gaussrandom().toFixed(6) + &#39;\n&#39;
+output += &#39;probability(0.5): &#39; + prng.probability(0.5) + &#39;\n&#39;
+output += &#39;pick([a,b,c]):  &#39; + prng.pick([&#39;a&#39;, &#39;b&#39;, &#39;c&#39;]) + &#39;\n&#39;
+output += &#39;pick weighted:  &#39; + prng.pick([&#39;rare&#39;, &#39;common&#39;], [1, 99]) + &#39;\n\n&#39;
+
+output += &#39;Deterministic check (new PRNG(42)):\n&#39;
+const prng2 = new PRNG(42)
+output += &#39;value():        &#39; + prng2.value().toFixed(6) + &#39; (same as above)\n&#39;
+
+preview.append(pre(output))
+</code></pre>
+<h2>API</h2>
+<h3><code>MersenneTwister</code></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>constructor(seed?)</code></td>
+<td></td>
+<td>Create with optional seed (defaults to Date.now())</td>
+</tr>
+<tr>
+<td><code>random()</code></td>
+<td><code>number</code></td>
+<td>Random float in [0, 1)</td>
+</tr>
+<tr>
+<td><code>int32()</code></td>
+<td><code>number</code></td>
+<td>Random 32-bit unsigned integer</td>
+</tr>
+</tbody></table>
+<h3><code>PRNG</code></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Returns</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>constructor(seed)</code></td>
+<td></td>
+<td>Create with numeric seed</td>
+</tr>
+<tr>
+<td><code>value()</code></td>
+<td><code>number</code></td>
+<td>Random float in [0, 1)</td>
+</tr>
+<tr>
+<td><code>range(min, max)</code></td>
+<td><code>number</code></td>
+<td>Random integer in [min, max]</td>
+</tr>
+<tr>
+<td><code>realRange(min, max, skew?)</code></td>
+<td><code>number</code></td>
+<td>Random float in [min, max) with optional skew function</td>
+</tr>
+<tr>
+<td><code>gaussrandom(dev?)</code></td>
+<td><code>number</code></td>
+<td>Gaussian random with given standard deviation (default 1)</td>
+</tr>
+<tr>
+<td><code>probability(p)</code></td>
+<td><code>boolean</code></td>
+<td>Returns true with probability p</td>
+</tr>
+<tr>
+<td><code>pick(array, weights?)</code></td>
+<td><code>T</code></td>
+<td>Weighted random selection from array</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/" aria-current="page" class="current">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

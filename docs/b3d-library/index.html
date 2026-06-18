@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-library — tosijs-3d</title>
+  <meta name="description" content="Asset library component. Loads a GLB file via LoadAssetContainer and holds it as a reusable parts catalog — nothing is added to the scene until you call…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-library/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-library — tosijs-3d" />
+  <meta property="og:description" content="Asset library component. Loads a GLB file via LoadAssetContainer and holds it as a reusable parts catalog — nothing is added to the scene until you call…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-library/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-library","description":"Asset library component. Loads a GLB file via LoadAssetContainer and holds it as a reusable parts catalog — nothing is added to the scene until you call…","url":"https://3d.tosijs.net/b3d-library/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-library</h1>
+<p>Asset library component. Loads a GLB file via <code>LoadAssetContainer</code> and holds
+it as a reusable parts catalog — nothing is added to the scene until you call
+<code>instantiate(name)</code>.</p>
+<p>Libraries register with the parent <code>B3d</code> by <code>type</code>, so consumers (like a
+tile map) can discover them via <code>owner.getLibrary(&#39;tiles&#39;)</code> without holding
+direct references.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface } from &#39;tosijs-3d&#39;
+import { popMenu } from &#39;tosijs-ui&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, button } = elements
+
+const lib = b3dLibrary({ url: &#39;./test-2.glb&#39;, type: &#39;scene&#39; })
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const camera = new BABYLON.ArcRotateCamera(
+        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 10,
+        BABYLON.Vector3.Zero(), el.scene
+      )
+      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+      el.setActiveCamera(camera)
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.7 }),
+  b3dSkybox({ timeOfDay: 12 }),
+  b3dGround({ width: 20, height: 20 }),
+  lib,
+)
+
+function isInsertable(node) {
+  return node.isMesh || node.children.some(c =&gt; c.isMesh)
+}
+
+function buildMenuItems(nodes) {
+  const items = []
+  for (const node of nodes) {
+    if (isInsertable(node)) {
+      items.push({
+        caption: node.name,
+        action: () =&gt; {
+          const placed = lib.instantiate(node.name)
+          // Rest the spawned mesh on the ground instead of dropping it at the
+          // origin (where it may float or clip depending on the GLB).
+          if (placed) placeOnSurface(placed)
+        },
+      })
+    }
+    if (node.children.length &gt; 0) {
+      const childItems = buildMenuItems(node.children)
+      if (childItems.length) {
+        items.push({ caption: node.name + &#39; parts&#39;, menuItems: childItems })
+      }
+    }
+  }
+  return items
+}
+
+const pickBtn = button({ textContent: &#39;Pick mesh…&#39; })
+pickBtn.addEventListener(&#39;click&#39;, () =&gt; {
+  const hierarchy = lib.getHierarchy()
+  popMenu({
+    target: pickBtn,
+    menuItems: buildMenuItems(hierarchy),
+  })
+})
+
+const clearBtn = button({ textContent: &#39;Clear all&#39;, onclick() { lib.clearInstances() } })
+
+preview.append(
+  scene,
+  div(
+    { class: &#39;debug-panel&#39; },
+    pickBtn,
+    clearBtn,
+  ),
+)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+.debug-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 10;
+}
+.debug-panel select, .debug-panel button {
+  color: white;
+  background: #444;
+  border: 1px solid #888;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>GLB/glTF file URL</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Library type for scene registry lookup</td>
+</tr>
+</tbody></table>
+<h2>API</h2>
+<ul>
+<li><code>ready: Promise&lt;void&gt;</code> — resolves when the GLB has loaded</li>
+<li><code>getNames(): string[]</code> — list all mesh names (excluding <code>__root__</code> and <code>-ignore</code>)</li>
+<li><code>getRootNames(): string[]</code> — list only top-level mesh names (direct children of root)</li>
+<li><code>getHierarchy(): {name, children, isMesh}[]</code> — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure</li>
+<li><code>instantiate(name, options?): Node | null</code> — clone a named node (mesh or transform, with children) into the scene</li>
+<li><code>clearInstances(): void</code> — dispose all previously instantiated clones</li>
+<li>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent? }</code></li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/" aria-current="page" class="current">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

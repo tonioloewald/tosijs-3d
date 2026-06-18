@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-exploder — tosijs-3d</title>
+  <meta name="description" content="Shatters a mesh into fragments and animates them flying apart. Works by extracting vertex data, partitioning triangles into spatial clusters (Voronoi-style)…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-exploder/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-exploder — tosijs-3d" />
+  <meta property="og:description" content="Shatters a mesh into fragments and animates them flying apart. Works by extracting vertex data, partitioning triangles into spatial clusters (Voronoi-style)…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-exploder/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-exploder","description":"Shatters a mesh into fragments and animates them flying apart. Works by extracting vertex data, partitioning triangles into spatial clusters (Voronoi-style)…","url":"https://3d.tosijs.net/b3d-exploder/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-exploder</h1>
+<p>Shatters a mesh into fragments and animates them flying apart. Works by
+extracting vertex data, partitioning triangles into spatial clusters
+(Voronoi-style), creating a new mesh per cluster, then animating each
+piece with outward velocity, gravity, and tumble rotation.</p>
+<p>Call <code>explodeMesh(mesh, scene, options)</code> to shatter any mesh. The original
+mesh is hidden; fragments are created, animated, then disposed.</p>
+<p>When a physics engine is active on the scene (via <code>b3dPhysics()</code>), fragments
+automatically get rigid bodies and bounce realistically. Without physics,
+a kinematic fallback handles the animation.</p>
+<p>Set <code>duration</code> to a number (seconds) or <code>&#39;frustum&#39;</code> to keep fragments alive
+until they all leave the camera view.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, button, p } = elements
+
+let sphere = null
+let B = null
+
+function createSphere() {
+  sphere = B.MeshBuilder.CreateSphere(
+    &#39;target&#39;, { diameter: 2, segments: 12 }, scene.scene
+  )
+  sphere.position.y = 2
+  const mat = new B.StandardMaterial(&#39;mat&#39;, scene.scene)
+  mat.diffuseColor = new B.Color3(0.8, 0.2, 0.1)
+  sphere.material = mat
+}
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      B = BABYLON
+      const camera = new BABYLON.ArcRotateCamera(
+        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 12,
+        new BABYLON.Vector3(0, 1, 0), el.scene
+      )
+      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+      el.setActiveCamera(camera)
+      createSphere()
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.8 }),
+  b3dSkybox({ timeOfDay: 12 }),
+  b3dGround({ diameter: 20, color: &#39;#556644&#39; }),
+)
+
+function doExplode() {
+  if (!sphere) return
+  explodeMesh(sphere, scene.scene, {
+    fragments: 24,
+    force: 8,
+    gravity: -15,
+    tumble: 5,
+    fadeStart: 0.6,
+    duration: 2.5,
+  })
+  sphere = null
+  setTimeout(createSphere, 3000)
+}
+
+preview.append(
+  scene,
+  div(
+    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px&#39; },
+    p(&#39;Click to shatter the sphere&#39;),
+    button({ textContent: &#39;Explode!&#39;, onclick: doExplode }),
+  ),
+)
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/" aria-current="page" class="current">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-trigger — tosijs-3d</title>
+  <meta name="description" content="Invisible proximity zone that fires callbacks and dispatches events when a target (the active camera or a named mesh) enters or exits a spherical region." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-trigger/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-trigger — tosijs-3d" />
+  <meta property="og:description" content="Invisible proximity zone that fires callbacks and dispatches events when a target (the active camera or a named mesh) enters or exits a spherical region." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-trigger/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-trigger","description":"Invisible proximity zone that fires callbacks and dispatches events when a target (the active camera or a named mesh) enters or exits a spherical region.","url":"https://3d.tosijs.net/b3d-trigger/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-trigger</h1>
+<p>Invisible proximity zone that fires callbacks and dispatches events when
+a target (the active camera or a named mesh) enters or exits a spherical
+region. Useful for mission waypoints, area-of-effect zones, and cutscene
+triggers.</p>
+<p>Set <code>onEnter</code> and <code>onExit</code> callback properties from JavaScript, or listen
+for <code>&#39;enter&#39;</code> / <code>&#39;exit&#39;</code> CustomEvents on the element.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+const { div, span, p } = elements
+
+const { demo } = tosi({ demo: { status: &#39;outside&#39; } })
+
+const trigger = b3dTrigger({
+  x: 0, y: 0, z: 5,
+  radius: 3,
+  debug: true,
+})
+trigger.onEnter = () =&gt; { demo.status.value = &#39;INSIDE zone!&#39; }
+trigger.onExit = () =&gt; { demo.status.value = &#39;outside&#39; }
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 15,
+          BABYLON.Vector3.Zero(), el.scene
+        )
+        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(camera)
+      }
+    },
+    b3dLight({ y: 1, intensity: 0.8 }),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dGround({ diameter: 20, color: &#39;#556644&#39; }),
+    inputFocus(
+      gameController(),
+      b3dBiped({ url: &#39;./omnidude.glb&#39;, player: true, cameraType: &#39;follow&#39; }),
+    ),
+    trigger,
+  ),
+  div(
+    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace&#39; },
+    p(&#39;Walk into the green sphere&#39;),
+    span({ bindText: demo.status }),
+  )
+)
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>x</code></td>
+<td><code>0</code></td>
+<td>Center X</td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td><code>0</code></td>
+<td>Center Y</td>
+</tr>
+<tr>
+<td><code>z</code></td>
+<td><code>0</code></td>
+<td>Center Z</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td><code>5</code></td>
+<td>Trigger sphere radius</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td><code>true</code></td>
+<td>Enable/disable the trigger</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td><code>&#39;camera&#39;</code></td>
+<td><code>&#39;camera&#39;</code> or a mesh name to watch</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td><code>false</code></td>
+<td>Show wireframe sphere</td>
+</tr>
+<tr>
+<td><code>once</code></td>
+<td><code>false</code></td>
+<td>Fire onEnter once then deactivate</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/" aria-current="page" class="current">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

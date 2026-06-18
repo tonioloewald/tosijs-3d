@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-biped — tosijs-3d</title>
+  <meta name="description" content="Animated humanoid character controller. Loads a GLB model with skeletal animations and drives it via ControlInput." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-biped/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-biped — tosijs-3d" />
+  <meta property="og:description" content="Animated humanoid character controller. Loads a GLB model with skeletal animations and drives it via ControlInput." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-biped/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-biped","description":"Animated humanoid character controller. Loads a GLB model with skeletal animations and drives it via ControlInput.","url":"https://3d.tosijs.net/b3d-biped/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-biped</h1>
+<p>Animated humanoid character controller. Loads a GLB model with skeletal animations
+and drives it via <code>ControlInput</code>.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+import { elements, tosi } from &#39;tosijs&#39;
+const { div, label, select, option, input } = elements
+
+const animations = [
+  &#39;idle&#39;, &#39;walk&#39;, &#39;run&#39;, &#39;sneak&#39;, &#39;climb&#39;, &#39;walkBackwards&#39;,
+  &#39;jump&#39;, &#39;running-jump&#39;, &#39;salute&#39;, &#39;wave&#39;,
+  &#39;tread-water&#39;, &#39;swim&#39;, &#39;talk&#39;, &#39;look&#39;, &#39;dance&#39;, &#39;pickup&#39;, &#39;pilot&#39;,
+]
+
+const { bipedDemo } = tosi({
+  bipedDemo: {
+    animation: &#39;idle&#39;,
+    speed: 1,
+  }
+})
+
+const biped = b3dBiped({
+  url: &#39;./omnidude.glb&#39;,
+  animation: bipedDemo.animation,
+  animationSpeed: bipedDemo.speed,
+})
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          &#39;cam&#39;, -Math.PI / 2, Math.PI / 3.5, 2,
+          new BABYLON.Vector3(0, 0.5, 0), el.scene
+        )
+        camera.lowerRadiusLimit = 1.5
+        camera.upperRadiusLimit = 10
+        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dLight({ y: 1, intensity: 0.7 }),
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dGround({ width: 10, height: 10 }),
+    biped,
+  ),
+  div(
+    { class: &#39;controls&#39; },
+    label(
+      &#39;Animation &#39;,
+      select(
+        { bindValue: bipedDemo.animation },
+        ...animations.map(a =&gt; option({ value: a }, a)),
+      ),
+    ),
+    label(
+      &#39;Speed &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 2, step: 0.1, bindValue: bipedDemo.speed }),
+    ),
+  ),
+)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 10;
+}
+.controls select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: none;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>GLB model URL</td>
+</tr>
+<tr>
+<td><code>animation</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Current animation state name</td>
+</tr>
+<tr>
+<td><code>animationSpeed</code></td>
+<td><code>1</code></td>
+<td>Playback speed multiplier (0–2)</td>
+</tr>
+<tr>
+<td><code>player</code></td>
+<td><code>false</code></td>
+<td>Whether this biped receives input</td>
+</tr>
+<tr>
+<td><code>cameraType</code></td>
+<td><code>&#39;none&#39;</code></td>
+<td><code>&#39;follow&#39;</code>, <code>&#39;xr&#39;</code>, or <code>&#39;none&#39;</code></td>
+</tr>
+<tr>
+<td><code>turnSpeed</code></td>
+<td><code>180</code></td>
+<td>Degrees per second</td>
+</tr>
+<tr>
+<td><code>forwardSpeed</code></td>
+<td><code>2</code></td>
+<td>Walk speed</td>
+</tr>
+<tr>
+<td><code>runSpeed</code></td>
+<td><code>5</code></td>
+<td>Sprint speed</td>
+</tr>
+<tr>
+<td><code>backwardSpeed</code></td>
+<td><code>1</code></td>
+<td>Backward speed</td>
+</tr>
+<tr>
+<td><code>cameraHeightOffset</code></td>
+<td><code>1</code></td>
+<td>Camera height above target</td>
+</tr>
+<tr>
+<td><code>cameraTargetHeight</code></td>
+<td><code>0.75</code></td>
+<td>Height of the point the camera looks at</td>
+</tr>
+<tr>
+<td><code>cameraMinFollowDistance</code></td>
+<td><code>2</code></td>
+<td>Closest follow distance</td>
+</tr>
+<tr>
+<td><code>cameraMaxFollowDistance</code></td>
+<td><code>5</code></td>
+<td>Furthest follow distance</td>
+</tr>
+</tbody></table>
+<h2>Animations</h2>
+<p>The biped automatically transitions between animation states based on input:
+<code>idle</code>, <code>walk</code>, <code>run</code>, <code>walkBackwards</code>, <code>sneak</code>, <code>jump</code>, <code>swim</code>, <code>dance</code>, <code>pilot</code>, etc.</p>
+<p>Animation names in the GLB must match these names.</p>
+<h2>Usage</h2>
+<pre><code class="language-javascript">import { b3d, b3dBiped, gameController, inputFocus } from &#39;tosijs-3d&#39;
+
+document.body.append(
+  b3d({},
+    inputFocus(
+      gameController(),
+      b3dBiped({
+        url: &#39;./character.glb&#39;,
+        player: true,
+        cameraType: &#39;follow&#39;,
+        initialState: &#39;idle&#39;,
+      })
+    )
+  )
+)
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/" aria-current="page" class="current">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

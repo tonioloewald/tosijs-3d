@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-aircraft — tosijs-3d</title>
+  <meta name="description" content="Arcade flight controller with optional VTOL. Uses the virtual gamepad input system: left stick for pitch/yaw, right stick X for roll, triggers for throttle…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-aircraft/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-aircraft — tosijs-3d" />
+  <meta property="og:description" content="Arcade flight controller with optional VTOL. Uses the virtual gamepad input system: left stick for pitch/yaw, right stick X for roll, triggers for throttle…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-aircraft/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-aircraft","description":"Arcade flight controller with optional VTOL. Uses the virtual gamepad input system: left stick for pitch/yaw, right stick X for roll, triggers for throttle…","url":"https://3d.tosijs.net/b3d-aircraft/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-aircraft</h1>
+<p>Arcade flight controller with optional VTOL. Uses the virtual gamepad input system:
+left stick for pitch/yaw, right stick X for roll, triggers for throttle up/down.
+Solid flight mechanics: rolling costs lift, climbing costs speed.</p>
+<p>Throttle has &quot;detents&quot; that make it easy to fly:</p>
+<ul>
+<li><strong>Level flight</strong>: no throttle → glide at safe speed with gentle descent; mid → cruise; full → accelerate</li>
+<li><strong>VTOL mode</strong>: no throttle → hover; throttle → climb; pitch down to descend</li>
+</ul>
+<p>Set <code>vtolSpeed</code> &gt; 0 to enable VTOL. Below that airspeed, thrust goes vertical.
+Set <code>stallSpeed</code> &gt; 0 for stall behavior (nose drops when too slow).</p>
+<p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, span } = elements
+
+const aircraft = b3dAircraft({
+  library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
+  // Start parked on the ground. The model is rested on the surface via its
+  // computed bounding box, so y is the height of its belly — y: 0 = grounded.
+  player: true, y: 0,
+  // vtolSpeed should match the speed at which lift can sustain altitude
+  // — in this model that&#39;s maxSpeed * 0.5 (the cruise speed).
+  vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,
+})
+
+const hud = div({ class: &#39;hud&#39; },
+  span({ class: &#39;hud-speed&#39; }),
+  span({ class: &#39;hud-alt&#39; }),
+  span({ class: &#39;hud-throttle&#39; }),
+  span({ class: &#39;hud-mode&#39; }),
+  span({ class: &#39;hud-warn&#39; }),
+)
+
+const controls = div({ class: &#39;controls&#39; },
+  &#39;W/S: pitch | A/D: yaw | \u2190/\u2192: roll | R: throttle+ | Q: throttle\u2212 | Release: snap to detent&#39;
+)
+
+// Scatter reference markers on the ground. Registering them makes them shadow
+// casters, so there are always crisp ground shadows for depth/scale cues — the
+// aircraft&#39;s own shadow is small and far-offset when it&#39;s high up.
+function addMarkers(scene) {
+  scene.sceneCreated = (owner, BABYLON) =&gt; {
+    const mat = new BABYLON.StandardMaterial(&#39;marker-mat&#39;, owner.scene)
+    mat.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.8)
+    const boxes = []
+    for (let i = 0; i &lt; 40; i++) {
+      const x = (Math.random() - 0.5) * 200
+      const z = (Math.random() - 0.5) * 200
+      const box = BABYLON.MeshBuilder.CreateBox(&#39;marker&#39; + i, { size: 2, height: 1 + Math.random() * 4 }, owner.scene)
+      box.position.set(x, 0, z)
+      box.material = mat
+      box.receiveShadows = true
+      boxes.push(box)
+    }
+    owner.register({ meshes: boxes })
+  }
+  return scene
+}
+
+const scene = addMarkers(b3d(
+  // Ambient fill kept low so the directional sun&#39;s shadows actually read.
+  b3dLight({ y: 1, intensity: 0.4 }),
+  // Cascaded shadows cover the whole camera view with a sensible depth range,
+  // which suits an aerial scene (aircraft high above a large ground plane).
+  // shadowMaxZ spans altitude→ground; activeDistance keeps the aircraft a
+  // caster; the low updateIntervalMs keeps caster gating responsive in flight.
+  b3dSun({
+    x: -0.6, y: -1, z: -0.4,
+    intensity: 0.9,
+    shadowTextureSize: 2048,
+    shadowMaxZ: 300,
+    activeDistance: 150,
+    updateIntervalMs: 50,
+  }),
+  b3dSkybox({ timeOfDay: 10 }),
+  // `_nocast` so the huge ground only RECEIVES shadows. If it also cast,
+  // the sun&#39;s auto-fit shadow frustum would stretch to 500 units and the
+  // aircraft&#39;s shadow would shrink to sub-pixel (i.e. invisible).
+  b3dGround({ meshName: &#39;ground_nocast&#39;, width: 500, height: 500, color: &#39;#7d9b6e&#39; }),
+  b3dLibrary({ url: &#39;./test-2.glb&#39;, type: &#39;vehicles&#39; }),
+  inputFocus(
+    gameController(),
+    aircraft,
+  ),
+))
+
+function updateHud() {
+  const speedEl = hud.querySelector(&#39;.hud-speed&#39;)
+  const altEl = hud.querySelector(&#39;.hud-alt&#39;)
+  const modeEl = hud.querySelector(&#39;.hud-mode&#39;)
+  const warnEl = hud.querySelector(&#39;.hud-warn&#39;)
+  const throttleEl = hud.querySelector(&#39;.hud-throttle&#39;)
+  speedEl.textContent = `Speed: ${aircraft.airspeed.toFixed(0)} m/s`
+  altEl.textContent = `Alt: ${aircraft.altitude.toFixed(0)} m`
+  throttleEl.textContent = `Throttle: ${(aircraft.throttleLevel * 100).toFixed(0)}%`
+  modeEl.textContent = aircraft.vtolActive ? &#39;VTOL&#39; : &#39;FLIGHT&#39;
+  const warnings = []
+  if (aircraft.stalling) warnings.push(&#39;STALL&#39;)
+  if (aircraft.pullUp) warnings.push(&#39;PULL UP&#39;)
+  warnEl.textContent = warnings.join(&#39; | &#39;)
+  warnEl.style.color = warnings.length ? &#39;#ff4444&#39; : &#39;white&#39;
+  requestAnimationFrame(updateHud)
+}
+
+preview.append(scene, hud, controls)
+requestAnimationFrame(updateHud)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+.hud {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 6px;
+  font: 14px monospace;
+  z-index: 10;
+}
+.controls {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ccc;
+  border-radius: 4px;
+  font: 12px monospace;
+  z-index: 10;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>GLB model URL (direct load)</td>
+</tr>
+<tr>
+<td><code>library</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Library type to source mesh from</td>
+</tr>
+<tr>
+<td><code>meshName</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Node name to instantiate from library</td>
+</tr>
+<tr>
+<td><code>enterable</code></td>
+<td><code>false</code></td>
+<td>Whether a biped can enter</td>
+</tr>
+<tr>
+<td><code>maxSpeed</code></td>
+<td><code>50</code></td>
+<td>Max forward speed (m/s)</td>
+</tr>
+<tr>
+<td><code>acceleration</code></td>
+<td><code>12</code></td>
+<td>Thrust acceleration</td>
+</tr>
+<tr>
+<td><code>friction</code></td>
+<td><code>2</code></td>
+<td>Drag when coasting</td>
+</tr>
+<tr>
+<td><code>pitchRate</code></td>
+<td><code>60</code></td>
+<td>Degrees/sec pitch</td>
+</tr>
+<tr>
+<td><code>turnRate</code></td>
+<td><code>45</code></td>
+<td>Degrees/sec yaw</td>
+</tr>
+<tr>
+<td><code>vtolSpeed</code></td>
+<td><code>0</code></td>
+<td>Forward-airspeed threshold for VTOL (0 = no VTOL). Recommended: <code>maxSpeed * 0.5</code> — the speed at which lift sustains altitude in this model.</td>
+</tr>
+<tr>
+<td><code>stallSpeed</code></td>
+<td><code>40</code></td>
+<td>Speed below which stall occurs (0 = no stall)</td>
+</tr>
+</tbody></table>
+<h2>API (read-only properties for HUD binding)</h2>
+<ul>
+<li><code>airspeed: number</code> — current forward speed (m/s)</li>
+<li><code>altitude: number</code> — height above ground</li>
+<li><code>vtolActive: boolean</code> — true when in VTOL mode</li>
+<li><code>stalling: boolean</code> — true when airspeed &lt; stallSpeed (not in VTOL)</li>
+<li><code>pullUp: boolean</code> — true when ground collision predicted within ~5s</li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/" aria-current="page" class="current">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

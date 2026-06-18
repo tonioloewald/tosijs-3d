@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-star-system — tosijs-3d</title>
+  <meta name="description" content="Renders an individual star system with a procedural star and its planets. Given a StarData object (from generateGalaxy) or a galaxy seed + star index, it…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-star-system/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-star-system — tosijs-3d" />
+  <meta property="og:description" content="Renders an individual star system with a procedural star and its planets. Given a StarData object (from generateGalaxy) or a galaxy seed + star index, it…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-star-system/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-star-system","description":"Renders an individual star system with a procedural star and its planets. Given a StarData object (from generateGalaxy) or a galaxy seed + star index, it…","url":"https://3d.tosijs.net/b3d-star-system/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-star-system</h1>
+<p>Renders an individual star system with a procedural star and its planets.
+Given a <code>StarData</code> object (from <code>generateGalaxy</code>) or a galaxy seed + star
+index, it creates <code>b3d-star</code> and <code>b3d-planet</code> child components with
+deterministic seeds.</p>
+<p>Planets orbit at scaled distances and can optionally animate.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy } from &#39;tosijs-3d&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+const { div, label, input, p, pre } = elements
+
+const galaxy = generateGalaxy(1234, 1000)
+
+const { demo } = tosi({
+  demo: {
+    starIndex: 130,
+    scale: 5,
+    orbitScale: 3,
+    animate: true,
+    showOrbits: true,
+  },
+})
+
+const starSystem = b3dStarSystem({
+  galaxySeed: 1234,
+  starCount: 1000,
+  starIndex: demo.starIndex,
+  scale: demo.scale,
+  orbitScale: demo.orbitScale,
+  animate: demo.animate,
+  showOrbits: demo.showOrbits,
+})
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    clearColor: &#39;#000011&#39;,
+    sceneCreated(el, BABYLON) {
+      const camera = new BABYLON.ArcRotateCamera(
+        &#39;orbit-cam&#39;,
+        -Math.PI / 2,
+        Math.PI / 3,
+        100,
+        BABYLON.Vector3.Zero(),
+        el.scene
+      )
+      camera.lowerRadiusLimit = 10
+      camera.upperRadiusLimit = 500
+      camera.minZ = 0.1
+      camera.maxZ = 2000
+      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+      el.setActiveCamera(camera)
+    },
+  },
+  b3dLight({ intensity: 0.2 }),
+  starSystem,
+)
+
+const infoEl = pre({ style: &#39;margin:0; font-size:10px; max-height:120px; overflow-y:auto&#39; })
+
+preview.append(
+  scene,
+  div(
+    { class: &#39;debug-panel&#39; },
+    p(&#39;Scroll to zoom, drag to orbit&#39;),
+    label(
+      &#39;star index &#39;,
+      input({ type: &#39;range&#39;, min: 0, max: 999, step: 1, bindValue: demo.starIndex }),
+    ),
+    label(
+      &#39;scale &#39;,
+      input({ type: &#39;range&#39;, min: 1, max: 20, step: 0.5, bindValue: demo.scale }),
+    ),
+    label(
+      &#39;orbit scale &#39;,
+      input({ type: &#39;range&#39;, min: 1, max: 10, step: 0.5, bindValue: demo.orbitScale }),
+    ),
+    label(
+      &#39;animate &#39;,
+      input({ type: &#39;checkbox&#39;, bindValue: demo.animate }),
+    ),
+    label(
+      &#39;show orbits &#39;,
+      input({ type: &#39;checkbox&#39;, bindValue: demo.showOrbits }),
+    ),
+    infoEl,
+  )
+)
+function updateInfo() {
+  const sys = starSystem.getSystemData()
+  if (!sys) { infoEl.textContent = &#39;&#39;; return }
+  const lines = [sys.star.name + &#39; (&#39; + sys.star.spectralType + &#39;) HI:&#39; + sys.star.bestHI]
+  sys.planets.forEach(p =&gt; {
+    let info = p.name + &#39; &#39; + p.classification + &#39; HI:&#39; + p.HI
+    if (p.rings &gt; 0) info += &#39; rings:&#39; + p.rings.toFixed(2)
+    if (p.HI &lt;= 2) info += &#39; &#39; + p.atmosphere
+    lines.push(&#39;  &#39; + info)
+  })
+  infoEl.textContent = lines.join(&#39;\n&#39;)
+}
+
+for (const key of [&#39;starIndex&#39;, &#39;scale&#39;, &#39;orbitScale&#39;]) {
+  demo[key].observe(() =&gt; {
+    starSystem.regenerate()
+    updateInfo()
+  })
+}
+for (const key of [&#39;animate&#39;, &#39;showOrbits&#39;]) {
+  demo[key].observe(() =&gt; {
+    starSystem.updateOptions()
+  })
+}
+updateInfo()
+</code></pre>
+<pre><code class="language-css">tosi-b3d {
+  width: 100%;
+  height: 100%;
+}
+.debug-panel {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font: 12px monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>galaxySeed</code></td>
+<td><code>1234</code></td>
+<td>Galaxy seed for deterministic generation</td>
+</tr>
+<tr>
+<td><code>starCount</code></td>
+<td><code>10000</code></td>
+<td>Number of stars in galaxy (needed to regenerate same galaxy)</td>
+</tr>
+<tr>
+<td><code>starIndex</code></td>
+<td><code>0</code></td>
+<td>Which star in the galaxy to render</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td><code>5</code></td>
+<td>Visual scale factor for star/planet sizes</td>
+</tr>
+<tr>
+<td><code>orbitScale</code></td>
+<td><code>3</code></td>
+<td>Multiplier for orbital distances</td>
+</tr>
+<tr>
+<td><code>animate</code></td>
+<td><code>true</code></td>
+<td>Animate planet orbital motion</td>
+</tr>
+<tr>
+<td><code>showOrbits</code></td>
+<td><code>true</code></td>
+<td>Show orbital path lines</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/" aria-current="page" class="current">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

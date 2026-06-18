@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>game-controller — tosijs-3d</title>
+  <meta name="description" content="Input component that maps keyboard/mouse to a virtual gamepad and optionally merges with a hardware gamepad. Produces ControlInput via an InputMapping." />
+  <link rel="canonical" href="https://3d.tosijs.net/game-controller/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="game-controller — tosijs-3d" />
+  <meta property="og:description" content="Input component that maps keyboard/mouse to a virtual gamepad and optionally merges with a hardware gamepad. Produces ControlInput via an InputMapping." />
+  <meta property="og:url" content="https://3d.tosijs.net/game-controller/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"game-controller","description":"Input component that maps keyboard/mouse to a virtual gamepad and optionally merges with a hardware gamepad. Produces ControlInput via an InputMapping.","url":"https://3d.tosijs.net/game-controller/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>game-controller</h1>
+<p>Input component that maps keyboard/mouse to a virtual gamepad and optionally
+merges with a hardware gamepad. Produces <code>ControlInput</code> via an <code>InputMapping</code>.</p>
+<p>Keyboard/mouse listening is built-in. For standalone keyboard-only or
+hardware-only sources, see <code>KeyboardGamepadSource</code> and <code>HardwareGamepadSource</code>.</p>
+<h2>Default Key Map</h2>
+<table>
+<thead>
+<tr>
+<th>VirtualGamepad</th>
+<th>Keys</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>leftStick Y</td>
+<td>W (+) / S (-)</td>
+</tr>
+<tr>
+<td>leftStick X</td>
+<td>D (+) / A (-)</td>
+</tr>
+<tr>
+<td>rightStick X</td>
+<td>ArrowRight (+) / ArrowLeft (-)</td>
+</tr>
+<tr>
+<td>buttonA</td>
+<td>Space</td>
+</tr>
+<tr>
+<td>buttonB</td>
+<td>F</td>
+</tr>
+<tr>
+<td>buttonX</td>
+<td>E</td>
+</tr>
+<tr>
+<td>leftBumper</td>
+<td>ShiftLeft</td>
+</tr>
+<tr>
+<td>leftTrigger</td>
+<td>Q</td>
+</tr>
+<tr>
+<td>rightTrigger</td>
+<td>R</td>
+</tr>
+<tr>
+<td>dpadDown</td>
+<td>G (toggle)</td>
+</tr>
+</tbody></table>
+<p>Mouse wheel adjusts rightStick Y (for camera zoom).</p>
+<h2>Usage</h2>
+<pre><code class="language-javascript">import { gameController, b3dBiped, inputFocus, b3d } from &#39;tosijs-3d&#39;
+
+document.body.append(
+  b3d({},
+    inputFocus(
+      gameController(),
+      b3dBiped({ url: &#39;./model.glb&#39;, player: true, cameraType: &#39;follow&#39; })
+    )
+  )
+)
+</code></pre>
+<h2>InputProvider</h2>
+<p>Call <code>getInputProvider(mapping?)</code> to get a <code>MappedInputProvider</code>. Default mapping is <code>bipedMapping</code>.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><a href="/tosi-b3d/">b3d</a></li>
+    <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+    <li><a href="/b3d-biped/">b3d-biped</a></li>
+    <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+    <li><a href="/b3d-car/">b3d-car</a></li>
+    <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+    <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+    <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+    <li><a href="/b3d-fog/">b3d-fog</a></li>
+    <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+    <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+    <li><a href="/b3d-library/">b3d-library</a></li>
+    <li><a href="/b3d-loader/">b3d-loader</a></li>
+    <li><a href="/b3d-particles/">b3d-particles</a></li>
+    <li><a href="/b3d-physics/">b3d-physics</a></li>
+    <li><a href="/b3d-planet/">b3d-planet</a></li>
+    <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+    <li><a href="/b3d-sound/">b3d-sound</a></li>
+    <li><a href="/b3d-star/">b3d-star</a></li>
+    <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+    <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+    <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+    <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+    <li><a href="/b3d-water/">b3d-water</a></li>
+    <li><a href="/control-input/">control-input</a></li>
+    <li><a href="/galaxy-data/">galaxy-data</a></li>
+    <li><a href="/game-controller/" aria-current="page" class="current">game-controller</a></li>
+    <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+    <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+    <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+    <li><a href="/b3d-utils/">Material Conventions</a></li>
+    <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    <li><a href="/svg-texture/">svg-texture</a></li>
+    <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+    <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>
