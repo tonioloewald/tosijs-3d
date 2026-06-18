@@ -1,0 +1,92 @@
+# tosijs-3d v0.2.5
+
+Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
+
+- Docs: https://3d.tosijs.net
+- Source: https://github.com/tonioloewald/tosijs-3d
+- npm: https://www.npmjs.com/package/tosijs-3d
+
+## Documentation
+
+Each component's full documentation (with live code examples) is
+embedded in its distributed JS file as inline comments. Read the
+relevant dist/*.js file for complete docs, usage examples, and API.
+
+## Components and Utilities
+
+- dist/tosi-b3d.js — b3d
+  The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
+- dist/b3d-aircraft.js — b3d-aircraft
+  Arcade flight controller with optional VTOL. Uses the virtual gamepad input system:
+- dist/b3d-biped.js — b3d-biped
+  Animated humanoid character controller. Loads a GLB model with skeletal animations
+- dist/b3d-black-hole.js — b3d-black-hole
+  Procedural black hole with accretion disk, gravitational lensing effect,
+- dist/b3d-car.js — b3d-car
+  Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+- dist/b3d-collisions.js — b3d-collisions
+  Opt-in collision detection via mesh naming conventions authored in Blender.
+- dist/b3d-controllable.js — b3d-controllable
+  Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
+- dist/b3d-exploder.js — b3d-exploder
+  Shatters a mesh into fragments and animates them flying apart. Works by
+- dist/b3d-fog.js — b3d-fog
+  Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
+- dist/b3d-galaxy.js — b3d-galaxy
+  Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
+- dist/b3d-input-focus.js — b3d-input-focus
+  Focus manager that wires input to the active controllable entity and handles
+- dist/b3d-library.js — b3d-library
+  Asset library component. Loads a GLB file via `LoadAssetContainer` and holds
+- dist/b3d-light.js — b3d-light
+  Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
+- dist/b3d-loader.js — b3d-loader
+  Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
+- dist/b3d-particles.js — b3d-particles
+  Declarative particle effect component wrapping Babylon.js `ParticleSystem`.
+- dist/b3d-physics.js — b3d-physics
+  Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
+- dist/b3d-planet.js — b3d-planet
+  Procedural planet mesh using a subdivided cube projected onto a sphere.
+- dist/b3d-reflections.js — b3d-reflections
+  Auto-attaches a reflection probe to every mesh whose name contains `_mirror`
+- dist/b3d-shadows.js — b3d-shadows
+  `B3dSun` — directional light + cascaded shadow generator. Add a `<tosi-b3d-sun>`
+- dist/b3d-skybox.js — b3d-skybox
+  Procedural sky with sun/moon cycle driven by time of day. Automatically controls
+- dist/b3d-sound.js — b3d-sound
+  Declarative audio component wrapping Babylon.js `Sound`. Supports both
+- dist/b3d-star.js — b3d-star
+  Procedural star mesh using a subdivided cube projected onto a sphere.
+- dist/b3d-star-system.js — b3d-star-system
+  Renders an individual star system with a procedural star and its planets.
+- dist/b3d-svg-plane.js — b3d-svg-plane
+  A plane mesh textured with SVG content. Supports static SVG from a URL or
+- dist/b3d-terrain.js — b3d-terrain
+  Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
+- dist/b3d-trigger.js — b3d-trigger
+  Invisible proximity zone that fires callbacks and dispatches events when
+- dist/b3d-water.js — b3d-water
+  Water plane with reflections, waves, and underwater fog effect.
+- dist/control-input.js — control-input
+  Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
+- dist/galaxy-data.js — galaxy-data
+  Procedural galaxy generation data and functions. Pure logic — no Babylon.js
+- dist/game-controller.js — game-controller
+  Input component that maps keyboard/mouse to a virtual gamepad and optionally
+- dist/gamepad-svg.js — gamepad-svg
+  Generates a gamepad SVG using tosijs element creators. All colors and stroke
+- dist/hardware-gamepad.js — hardware-gamepad
+  Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
+- dist/keyboard-gamepad.js — keyboard-gamepad
+  Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
+- dist/b3d-utils.js — Material Conventions
+  These conventions apply to all meshes entering the scene — via
+- dist/mersenne-twister.js — mersenne-twister
+  Seeded pseudo-random number generator based on the Mersenne Twister
+- dist/svg-texture.js — svg-texture
+  Renders SVG content to a Babylon.js texture via an offscreen canvas.
+- dist/touch-gamepad.js — touch-gamepad
+  Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
+- dist/virtual-gamepad.js — virtual-gamepad
+  Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
