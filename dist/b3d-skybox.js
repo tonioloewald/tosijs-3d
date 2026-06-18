@@ -52,6 +52,7 @@ preview.append(
 | `moonIntensity` | `0.15` | Night light intensity |
 | `applyFog` | `false` | Whether scene fog affects the skybox |
 */
+/*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
 import { SkyMaterial } from '@babylonjs/materials';
 import { AbstractMesh } from './b3d-utils';

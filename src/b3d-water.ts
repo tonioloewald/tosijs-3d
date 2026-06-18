@@ -34,6 +34,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { WaterMaterial } from '@babylonjs/materials'

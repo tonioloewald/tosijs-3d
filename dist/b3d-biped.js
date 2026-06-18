@@ -133,6 +133,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
 import { xrControllers } from './gamepad';
 import { B3dControllable } from './b3d-controllable';

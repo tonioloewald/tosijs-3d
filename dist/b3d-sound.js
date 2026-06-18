@@ -72,6 +72,7 @@ preview.append(
 | `attachTo` | `''` | Mesh name to follow |
 | `playbackRate` | `1` | Playback speed |
 */
+/*{ "parent": "Environment" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 export class B3dSound extends Component {

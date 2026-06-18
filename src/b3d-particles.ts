@@ -132,6 +132,7 @@ preview.append(
 | `disposeOnStop` | `false` | Dispose when stopped |
 | `attachTo` | `''` | Mesh name to attach emitter to |
 */
+/*{ "parent": "Environment" }*/
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'

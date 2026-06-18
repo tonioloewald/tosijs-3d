@@ -81,6 +81,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Core" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import { applyMaterialConventions } from './b3d-utils';

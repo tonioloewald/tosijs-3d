@@ -171,6 +171,7 @@ tosi-b3d {
 | `lightRange` | `500` | Point light range |
 
 */
+/*{ "parent": "Space" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';

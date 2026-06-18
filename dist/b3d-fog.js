@@ -30,6 +30,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Environment" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 const FOG_MODES = {

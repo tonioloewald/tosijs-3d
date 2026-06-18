@@ -133,6 +133,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { XRStuff } from './b3d-utils'

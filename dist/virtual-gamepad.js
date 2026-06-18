@@ -203,6 +203,7 @@ preview.append(div(
 }
 ```
 */
+/*{ "parent": "Input" }*/
 import { emptyInput } from './control-input';
 export function emptyGamepad() {
     return {

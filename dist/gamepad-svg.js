@@ -31,6 +31,7 @@ const pad = gamepadSvg()
 const dark = gamepadSvg({ controllerColor: '#333', widgetColor: '#888' })
 ```
 */
+/*{ "parent": "Input" }*/
 import { svgElements } from 'tosijs';
 const { svg, path } = svgElements;
 const DEFAULTS = {

@@ -127,6 +127,7 @@ tosi-b3d { width: 100%; height: 100%; }
 - `clearInstances(): void` — dispose all previously instantiated clones
 - Options: `{ x?, y?, z?, rx?, ry?, rz?, parent? }`
 */
+/*{ "parent": "Core" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 export class B3dLibrary extends Component {

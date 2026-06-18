@@ -165,6 +165,7 @@ tosi-b3d { width: 100%; height: 100%; }
 - `stalling: boolean` — true when airspeed < stallSpeed (not in VTOL)
 - `pullUp: boolean` — true when ground collision predicted within ~5s
 */
+/*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'

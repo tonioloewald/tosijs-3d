@@ -26,14 +26,21 @@
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-water/</loc></url>
   <url><loc>https://3d.tosijs.net/control-input/</loc></url>
+  <url><loc>https://3d.tosijs.net/core/</loc></url>
+  <url><loc>https://3d.tosijs.net/environment/</loc></url>
   <url><loc>https://3d.tosijs.net/galaxy-data/</loc></url>
   <url><loc>https://3d.tosijs.net/game-controller/</loc></url>
   <url><loc>https://3d.tosijs.net/gamepad-svg/</loc></url>
   <url><loc>https://3d.tosijs.net/hardware-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/input/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
+  <url><loc>https://3d.tosijs.net/space/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/ui/</loc></url>
+  <url><loc>https://3d.tosijs.net/utilities/</loc></url>
+  <url><loc>https://3d.tosijs.net/vehicles/</loc></url>
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc></url>
 </urlset>

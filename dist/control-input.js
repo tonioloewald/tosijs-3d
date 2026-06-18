@@ -36,6 +36,7 @@ Any input source implements `InputProvider`:
 Merges multiple providers (e.g. keyboard + XR sticks). Axes use max-abs (preserves sign),
 buttons use max.
 */
+/*{ "parent": "Input" }*/
 export function emptyInput() {
     return {
         forward: 0,

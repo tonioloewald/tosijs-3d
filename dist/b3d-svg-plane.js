@@ -368,6 +368,7 @@ or implement your own shape-specific point-in-polygon tests.
 
 Set the `svgElement` property to a live SVG element for dynamic mode.
 */
+/*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils';
 import { SvgTexture } from './svg-texture';

@@ -79,6 +79,7 @@ preview.append(
 ```
 
 */
+/*{ "parent": "UI" }*/
 
 import * as BABYLON from '@babylonjs/core'
 

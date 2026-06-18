@@ -173,6 +173,7 @@ preview.append(
 | `gravityZ` | `0` | Gravity Z component |
 | `debug` | `false` | Show wireframe physics collider shapes |
 */
+/*{ "parent": "Utilities" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer';

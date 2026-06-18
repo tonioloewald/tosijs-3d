@@ -156,6 +156,7 @@ tosi-b3d {
 | `rotationSpeed` | `0` | Auto-rotation speed (radians/sec) |
 
 */
+/*{ "parent": "Space" }*/
 import { Component, Color } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';

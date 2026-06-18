@@ -142,6 +142,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Core" }*/
 import { Component, elements } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';

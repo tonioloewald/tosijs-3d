@@ -54,6 +54,7 @@ preview.append(scene)
 
 Call `tex.dispose()` when done to stop the interval and release GPU memory.
 */
+/*{ "parent": "UI" }*/
 
 import * as BABYLON from '@babylonjs/core'
 

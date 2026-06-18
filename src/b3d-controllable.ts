@@ -13,6 +13,7 @@ The base class handles the update loop: poll input → apply input.
 - `getCameraTarget()` — returns the node cameras should follow
 - `onGainFocus()` / `onLoseFocus()` — lifecycle hooks for input switching
 */
+/*{ "parent": "Input" }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh } from './b3d-utils'

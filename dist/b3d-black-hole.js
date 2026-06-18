@@ -156,6 +156,7 @@ tosi-b3d {
 | `subdivisions` | `64` | Mesh detail level (lower = faster) |
 
 */
+/*{ "parent": "Space" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 // 2D noise for disk turbulence (simple hash-based)

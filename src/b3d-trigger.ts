@@ -68,6 +68,7 @@ preview.append(
 | `debug` | `false` | Show wireframe sphere |
 | `once` | `false` | Fire onEnter once then deactivate |
 */
+/*{ "parent": "Core" }*/
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'

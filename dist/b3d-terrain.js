@@ -199,6 +199,7 @@ terrain.regenerate()
 document.body.append(b3d({}, terrain))
 ```
 */
+/*{ "parent": "Environment" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';

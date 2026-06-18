@@ -151,6 +151,7 @@ tosi-b3d {
 | `showOrbits` | `true` | Show orbital path lines |
 
 */
+/*{ "parent": "Space" }*/
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'

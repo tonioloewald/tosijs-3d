@@ -43,6 +43,7 @@ document.body.append(
 
 Call `getInputProvider(mapping?)` to get a `MappedInputProvider`. Default mapping is `bipedMapping`.
 */
+/*{ "parent": "Input" }*/
 import { Component } from 'tosijs';
 import { emptyGamepad, MappedInputProvider, bipedMapping, } from './virtual-gamepad';
 import { HardwareGamepadSource } from './hardware-gamepad';

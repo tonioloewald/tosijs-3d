@@ -39,6 +39,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'

@@ -36,6 +36,7 @@ document.body.append(
 )
 ```
 */
+/*{ "parent": "Input" }*/
 import * as BABYLON from '@babylonjs/core';
 import { Component } from 'tosijs';
 import { B3dControllable } from './b3d-controllable';

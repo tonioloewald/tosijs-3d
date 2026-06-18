@@ -327,6 +327,7 @@ tosi-b3d {
 | `coreSize` | `2.0` | Central black hole radius |
 
 */
+/*{ "parent": "Space" }*/
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'

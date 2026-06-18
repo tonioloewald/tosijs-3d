@@ -6,6 +6,7 @@ Uses the Standard Gamepad layout (axes 0-3, buttons 0-16).
 
 Configurable deadzone filters stick drift.
 */
+/*{ "parent": "Input" }*/
 
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad'
 import { emptyGamepad } from './virtual-gamepad'

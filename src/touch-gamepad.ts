@@ -105,6 +105,7 @@ const source = new TouchGamepadSource(svg)
 provider.addSource(source)
 ```
 */
+/*{ "parent": "Input" }*/
 
 import type {
   GamepadSource,

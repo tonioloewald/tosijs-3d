@@ -60,6 +60,7 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 | `GalaxyOptions` | spiralArms, spiralAngleDegrees, minRadius, maxRadius, thickness |
 
 */
+/*{ "parent": "Space" }*/
 import { PRNG } from './mersenne-twister';
 // --- Utilities ---
 export function capitalize(s) {

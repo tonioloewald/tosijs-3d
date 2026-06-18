@@ -112,6 +112,7 @@ component that calls `register()`.
 | `-ignore` | Node is disposed on load |
 | `_collide*` | Physics collider (sphere/box/cylinder/mesh) |
 */
+/*{ "parent": "Core" }*/
 // Thresholds for property-based material inference
 const ALPHA_OPAQUE_THRESHOLD = 0.95;
 /**

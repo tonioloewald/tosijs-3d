@@ -24,6 +24,7 @@ for responsive analog-feel from digital keys.
 
 Mouse wheel adjusts rightStick Y (for camera zoom).
 */
+/*{ "parent": "Input" }*/
 import { Component } from 'tosijs';
 import { emptyGamepad } from './virtual-gamepad';
 function keycode(evt) {
