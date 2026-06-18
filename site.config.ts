@@ -55,12 +55,13 @@ export default defineSiteConfig({
   // Hosted on GitHub Pages at the 3d.tosijs.net apex subdomain (CNAME).
   host: 'github-pages',
 
-  // tosijs-ui's llms.txt template is project-agnostic to a fault — it stamps
-  // tosijs-ui's URLs and "web component library" framing into the output. Off
-  // until upstream supports per-project content; the doc comments embedded in
-  // dist/*.js (preserved via removeComments:false) are the canonical agent
-  // source anyway.
-  llmsTxt: false,
+  // Library build: tsc -p tsconfig.build.json (per-file unminified `.js` +
+  // `.d.ts` with `removeComments: false`, so the published npm package ships
+  // browseable source + types with the /*# */ blocks still embedded for AI
+  // readers). buildSite runs this after the doc-site build; no separate tsc
+  // step needed in bin/site.ts.
+  emitLibrary: true,
+  libraryTsconfig: 'tsconfig.build.json',
 
   // Importmap so the IIFE's runtime `import('jolt-physics')` resolves to the
   // ESM loader copied into static/ by prebuild. Dynamic `import()` in a
