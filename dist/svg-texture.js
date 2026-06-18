@@ -33,7 +33,7 @@ const scene = b3d(
 
       const tex = new SvgTexture({
         scene: el.scene,
-        url: './tosi-test-pattern.svg',
+        url: '/tosi-test-pattern.svg',
         resolution: 512,
       })
 

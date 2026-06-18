@@ -44,7 +44,7 @@ preview.append(
     },
     b3dSun(),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 0 }),
-    b3dLoader({ url: './materials.glb' }),
+    b3dLoader({ url: '/materials.glb' }),
     b3dReflections(),
   ),
   div(
@@ -76,7 +76,7 @@ import { b3d, b3dLoader } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
-    b3dLoader({ url: './scene.glb' })
+    b3dLoader({ url: '/scene.glb' })
   )
 )
 ```

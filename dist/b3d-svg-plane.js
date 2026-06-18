@@ -26,7 +26,7 @@ const scene = b3d(
   },
   b3dLight({ intensity: 1 }),
   b3dSvgPlane({
-    url: './tosi-test-pattern.svg',
+    url: '/tosi-test-pattern.svg',
     width: 2,
     height: 2,
     materialChannel: 'diffuse',

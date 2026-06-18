@@ -29,7 +29,7 @@ document.body.append(
   b3d({},
     b3dSun({}),
     b3dSkybox({ timeOfDay: 12 }),
-    b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 })
+    b3dWater({ y: -0.2, twoSided: true, waterSize: 1024, normalMap: '/waterbump.png' })
   )
 )
 ```

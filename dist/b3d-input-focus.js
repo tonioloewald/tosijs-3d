@@ -29,8 +29,8 @@ document.body.append(
   b3d({},
     inputFocus(
       gameController(),
-      b3dBiped({ url: './character.glb', player: true, cameraType: 'follow' }),
-      b3dCar({ url: './car.glb', enterable: true, x: 5 })
+      b3dBiped({ url: '/character.glb', player: true, cameraType: 'follow' }),
+      b3dCar({ url: '/car.glb', enterable: true, x: 5 })
     )
   )
 )

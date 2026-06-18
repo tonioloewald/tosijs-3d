@@ -33,7 +33,7 @@ document.body.append(
   b3d({},
     inputFocus(
       gameController(),
-      b3dBiped({ url: './model.glb', player: true, cameraType: 'follow' })
+      b3dBiped({ url: '/model.glb', player: true, cameraType: 'follow' })
     )
   )
 )

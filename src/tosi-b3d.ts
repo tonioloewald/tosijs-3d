@@ -29,8 +29,8 @@ const { demo } = tosi({
   },
 })
 
-const scene = './test-2.glb'
-const omnidude = './omnidude.glb'
+const scene = '/test-2.glb'
+const omnidude = '/omnidude.glb'
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -136,7 +136,7 @@ document.body.append(
     { glowLayerIntensity: 1 },
     b3dSun(),
     b3dSkybox({ timeOfDay: 12 }),
-    b3dLoader({ url: './scene.glb' }),
+    b3dLoader({ url: '/scene.glb' }),
     b3dWater({ y: -0.2 })
   )
 )

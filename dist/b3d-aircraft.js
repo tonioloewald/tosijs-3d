@@ -85,7 +85,7 @@ const scene = addMarkers(b3d(
   // the sun's auto-fit shadow frustum would stretch to 500 units and the
   // aircraft's shadow would shrink to sub-pixel (i.e. invisible).
   b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
-  b3dLibrary({ url: './test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   inputFocus(
     gameController(),
     aircraft,

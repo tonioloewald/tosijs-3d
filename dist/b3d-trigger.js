@@ -43,7 +43,7 @@ preview.append(
     b3dGround({ diameter: 20, color: '#556644' }),
     inputFocus(
       gameController(),
-      b3dBiped({ url: './omnidude.glb', player: true, cameraType: 'follow' }),
+      b3dBiped({ url: '/omnidude.glb', player: true, cameraType: 'follow' }),
     ),
     trigger,
   ),

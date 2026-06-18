@@ -25,7 +25,7 @@ const { bipedDemo } = tosi({
 })
 
 const biped = b3dBiped({
-  url: './omnidude.glb',
+  url: '/omnidude.glb',
   animation: bipedDemo.animation,
   animationSpeed: bipedDemo.speed,
 })
@@ -123,7 +123,7 @@ document.body.append(
     inputFocus(
       gameController(),
       b3dBiped({
-        url: './character.glb',
+        url: '/character.glb',
         player: true,
         cameraType: 'follow',
         initialState: 'idle',

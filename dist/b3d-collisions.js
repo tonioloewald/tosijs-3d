@@ -26,7 +26,7 @@ import { b3d, b3dCollisions, b3dLoader } from 'tosijs-3d'
 
 document.body.append(
   b3d({},
-    b3dLoader({ url: './scene.glb' }),
+    b3dLoader({ url: '/scene.glb' }),
     b3dCollisions({ debug: true })
   )
 )

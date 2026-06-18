@@ -17,7 +17,7 @@ import { popMenu } from 'tosijs-ui'
 import { elements } from 'tosijs'
 const { div, button } = elements
 
-const lib = b3dLibrary({ url: './test-2.glb', type: 'scene' })
+const lib = b3dLibrary({ url: '/test-2.glb', type: 'scene' })
 
 const scene = b3d(
   {
