@@ -180,3 +180,6 @@ tls/*.csr
 # static/ is copied verbatim into the build — keep heavy uncompressed audio
 # out of it; commit the compressed (mp3) demo asset instead.
 static/*.wav
+# jolt-physics's WASM loader is copied from node_modules by the build prebuild;
+# tracking it would just go stale every time the dep updates.
+static/jolt-physics.wasm-compat.js

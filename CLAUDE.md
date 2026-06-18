@@ -11,19 +11,23 @@ tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs we
 Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 
 - **Dev server**: `bun start` (formats code, then runs HTTPS dev server on port 8030 with file watching)
+- **Build**: `bun build` (runs doc-site build + library `tsc -p tsconfig.build.json`, exits)
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
 - **Run single test**: `bun test src/perlin-noise.test.ts`
 - **TLS setup**: `bun tls` (required once for HTTPS dev server; uses mkcert for warning-free local certs)
 
-The dev server (`dev.ts`) watches `./src` and `./demo/src`, and on every change runs `build()`, which:
+`bin/site.ts` is a thin wrapper over `tosijs-ui/site`'s reusable doc-site pipeline (`buildSite()` + `devServer()`); declarative config lives in `site.config.ts`. On every change the dev server reruns `buildSite()`, which:
 
-1. **Runs tests** via `bun test` (failures are logged but don't block the build)
-2. Builds the **library** with `bun --bun tsc -p tsconfig.build.json` after `rm -rf dist/` — tsc emits **per-file, unminified JS + `.d.ts` + sourcemaps** into `dist/` (one output file per `src/*.ts`), so the published package is browseable source plus types, not a bundled black box. Entry point is `dist/index.js` with `dist/index.d.ts`.
-3. Extracts `/*# */` doc comments → `demo/docs.json`, and writes `dist/docs/llms.txt` + per-doc markdown (filtered to `src/`, excluding `*.test.ts`) so the published package is self-describing for AI agents.
-4. Builds the **doc browser**: bundles `demo/src/index.ts` → `docs/` (minified, source maps), copying `static/` and `demo/static/` assets.
+1. Runs `prebuild()` (copies `jolt-physics.wasm-compat.js` from `node_modules` into `static/`).
+2. Wipes `docs/`, copies `static/` into it (favicon, GLBs, audio, the WASM loader).
+3. Wipes `dist/`, bundles `demo/site.ts` → `docs/iife.js` (IIFE, `jolt-physics` external — loaded at runtime via a per-page importmap baked into `headExtra`).
+4. Extracts `/*# */` doc comments → `demo/docs.json`.
+5. Pre-renders **one `/{slug}/index.html` per doc** with full SEO `<head>` (title, description, canonical, OG, Twitter card, `schema.org` JSON-LD) and the rendered markdown — so crawlers/AI agents see complete content with zero JS. `<tosi-doc-system>` hydrates the page into the live doc browser once `iife.js` loads; `demo/site.ts` seeds its `context` with `{tosijs, 'tosijs-3d', 'tosijs-ui'}` so live examples resolve.
+6. Burns the theme (`{accent, background, text}` from `site.config.ts`) into a static `docs/doc-system.css` (no FOUC).
+7. Emits `sitemap.xml`, `robots.txt`, and `.nojekyll` + the existing `CNAME` (`3d.tosijs.net`) for GitHub Pages.
 
-The library build (`tsconfig.build.json`) emits real `.d.ts` files; the root `tsconfig.json` is `noEmit` (used for editor/typecheck only). `jolt-physics` is marked external (not bundled) — consumers install it separately.
+`bun build` additionally runs `bun --bun tsc -p tsconfig.build.json` — the published `dist/` ships **per-file, unminified JS + `.d.ts` + sourcemaps with doc comments preserved** (`removeComments: false`), so consumers and AI agents have browseable source plus types. The root `tsconfig.json` is `noEmit`; `tsconfig.build.json` overrides it.
 
 ## Architecture
 

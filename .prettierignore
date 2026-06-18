@@ -5,3 +5,5 @@ node_modules
 .claude
 .haltija
 *.json
+# copied verbatim from node_modules by site.config.ts prebuild
+static/jolt-physics.wasm-compat.js

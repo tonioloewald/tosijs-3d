@@ -15,16 +15,17 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/bun": "latest",
-    "chokidar": "^5.0.0",
     "eslint": "^10.4.1",
     "globals": "^17.6.0",
+    "happy-dom": "^20.10.6",
     "prettier": "^2.8.8",
-    "tosijs-ui": "1.3.7",
+    "tosijs-ui": "^1.6.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.61.0"
   },
   "scripts": {
-    "start": "bun format && bun dev.ts",
+    "start": "bun format && bun bin/site.ts",
+    "build": "bun bin/site.ts --build",
     "tls": "bash tls/create-dev-certs.sh",
     "format": "bun eslint src --fix && bun prettier --write ."
   },
