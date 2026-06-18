@@ -79,7 +79,7 @@ preview.append(
 ```
 
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "Effects" }*/
 import * as BABYLON from '@babylonjs/core';
 /**
  * Shatter a mesh into fragments and animate them flying apart.

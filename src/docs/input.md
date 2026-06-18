@@ -1,5 +1,7 @@
 # Input
 
+Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal is to build your controller code once and have it work as broadly as possible.
+
 <!-- toc -->
 - [b3d-controllable](/b3d-controllable/)
 - [b3d-input-focus](/b3d-input-focus/)

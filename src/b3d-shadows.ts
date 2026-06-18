@@ -1,3 +1,101 @@
+/*#
+# b3d-shadows
+
+`B3dSun` — directional light + cascaded shadow generator. Add a `<tosi-b3d-sun>`
+inside `<tosi-b3d>` and every registered mesh starts casting shadows onto every
+registered surface. When `b3dSkybox` is present, the sun's direction, color, and
+intensity are driven by the skybox's time-of-day; otherwise the static
+`x`/`y`/`z`/`intensity` attributes apply.
+
+Cascaded shadow maps (CSM) cover the camera's view frustum out to `shadowMaxZ`,
+giving high-resolution shadows near the camera and graceful falloff at distance
+— the right model for both close scenes and fast, far-ranging ones (see the
+aircraft demo). `activeDistance` gates which meshes participate; out-of-range
+meshes are skipped to keep the shadow map tight.
+
+> **Tip.** A huge ground that *casts* shadows expands the shadow frustum to fit
+> it, shrinking everything else to sub-pixel. Suffix big ground meshes with
+> `_nocast` so they only receive.
+
+## Demo
+
+```js
+import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dSphere } from 'tosijs-3d'
+import { elements, tosi } from 'tosijs'
+const { div, label, input } = elements
+
+const { sun } = tosi({ sun: { timeOfDay: 10 } })
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          'cam', -Math.PI / 2.5, Math.PI / 3, 8,
+          new BABYLON.Vector3(0, 1, 0), el.scene
+        )
+        camera.attachControl(el.querySelector('canvas'), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dLight({ intensity: 0.3 }),
+    b3dSkybox({ timeOfDay: sun.timeOfDay, realtimeScale: 0 }),
+    b3dSun({ shadowCascading: true, shadowTextureSize: 2048 }),
+    b3dGround({ meshName: 'ground_nocast', width: 20, height: 20, color: '#7d9b6e' }),
+    b3dSphere({ y: 1.2, diameter: 1.5, color: '#cc4422' }),
+    b3dSphere({ y: 0.8, diameter: 1, x: 2, z: -1, color: '#4488cc' }),
+  ),
+  div(
+    { class: 'controls' },
+    label(
+      'Time of day ',
+      input({ type: 'range', min: 5, max: 19, step: 0.25, bindValue: sun.timeOfDay }),
+    ),
+  ),
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font: 12px monospace;
+  z-index: 10;
+}
+```
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `x` | `0` | Sun direction X (overridden by skybox when present) |
+| `y` | `-1` | Sun direction Y |
+| `z` | `-0.5` | Sun direction Z |
+| `intensity` | `1` | Sun intensity (overridden by skybox when present) |
+| `shadowTextureSize` | `1024` | Shadow map resolution (per cascade) |
+| `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
+| `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
+| `numCascades` | `4` | Number of cascade splits (1–4) |
+| `stabilizeCascades` | `true` | Reduce shadow-edge "swimming" under motion |
+| `lambda` | `0.8` | Cascade split blend (0 = uniform, 1 = logarithmic) |
+| `cascadeBlendPercentage` | `0.1` | Soft blend across cascade seams |
+| `activeDistance` | `30` | Max camera-to-mesh distance a caster participates from |
+| `updateIntervalMs` | `1000` | How often to re-evaluate active casters |
+
+## Mesh suffix conventions
+
+| Suffix | Effect |
+|--------|--------|
+| `_nocast` (or `-nocast`) | Mesh doesn't cast shadows (e.g. huge ground planes) |
+| `_noshadow` (or `-noshadow`) | Mesh doesn't receive shadows |
+*/
+/*{ "parent": "Environment" }*/
+
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { actualMeshes } from './b3d-utils'

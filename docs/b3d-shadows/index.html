@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-shadows — tosijs-3d</title>
+  <meta name="description" content="B3dSun — directional light + cascaded shadow generator. Add a &lt;tosi-b3d-sun&gt; inside &lt;tosi-b3d&gt; and every registered mesh starts casting shadows onto every" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-shadows/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-shadows — tosijs-3d" />
+  <meta property="og:description" content="B3dSun — directional light + cascaded shadow generator. Add a &lt;tosi-b3d-sun&gt; inside &lt;tosi-b3d&gt; and every registered mesh starts casting shadows onto every" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-shadows/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-shadows","description":"B3dSun — directional light + cascaded shadow generator. Add a \u003ctosi-b3d-sun> inside \u003ctosi-b3d> and every registered mesh starts casting shadows onto every","url":"https://3d.tosijs.net/b3d-shadows/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-shadows</h1>
+<p><code>B3dSun</code> — directional light + cascaded shadow generator. Add a <code>&lt;tosi-b3d-sun&gt;</code>
+inside <code>&lt;tosi-b3d&gt;</code> and every registered mesh starts casting shadows onto every
+registered surface. When <code>b3dSkybox</code> is present, the sun&#39;s direction, color, and
+intensity are driven by the skybox&#39;s time-of-day; otherwise the static
+<code>x</code>/<code>y</code>/<code>z</code>/<code>intensity</code> attributes apply.</p>
+<p>Cascaded shadow maps (CSM) cover the camera&#39;s view frustum out to <code>shadowMaxZ</code>,
+giving high-resolution shadows near the camera and graceful falloff at distance
+— the right model for both close scenes and fast, far-ranging ones (see the
+aircraft demo). <code>activeDistance</code> gates which meshes participate; out-of-range
+meshes are skipped to keep the shadow map tight.</p>
+<blockquote>
+<p><strong>Tip.</strong> A huge ground that <em>casts</em> shadows expands the shadow frustum to fit
+it, shrinking everything else to sub-pixel. Suffix big ground meshes with
+<code>_nocast</code> so they only receive.</p>
+</blockquote>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dSphere } from &#39;tosijs-3d&#39;
+import { elements, tosi } from &#39;tosijs&#39;
+const { div, label, input } = elements
+
+const { sun } = tosi({ sun: { timeOfDay: 10 } })
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          &#39;cam&#39;, -Math.PI / 2.5, Math.PI / 3, 8,
+          new BABYLON.Vector3(0, 1, 0), el.scene
+        )
+        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dLight({ intensity: 0.3 }),
+    b3dSkybox({ timeOfDay: sun.timeOfDay, realtimeScale: 0 }),
+    b3dSun({ shadowCascading: true, shadowTextureSize: 2048 }),
+    b3dGround({ meshName: &#39;ground_nocast&#39;, width: 20, height: 20, color: &#39;#7d9b6e&#39; }),
+    b3dSphere({ y: 1.2, diameter: 1.5, color: &#39;#cc4422&#39; }),
+    b3dSphere({ y: 0.8, diameter: 1, x: 2, z: -1, color: &#39;#4488cc&#39; }),
+  ),
+  div(
+    { class: &#39;controls&#39; },
+    label(
+      &#39;Time of day &#39;,
+      input({ type: &#39;range&#39;, min: 5, max: 19, step: 0.25, bindValue: sun.timeOfDay }),
+    ),
+  ),
+)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+.controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font: 12px monospace;
+  z-index: 10;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>x</code></td>
+<td><code>0</code></td>
+<td>Sun direction X (overridden by skybox when present)</td>
+</tr>
+<tr>
+<td><code>y</code></td>
+<td><code>-1</code></td>
+<td>Sun direction Y</td>
+</tr>
+<tr>
+<td><code>z</code></td>
+<td><code>-0.5</code></td>
+<td>Sun direction Z</td>
+</tr>
+<tr>
+<td><code>intensity</code></td>
+<td><code>1</code></td>
+<td>Sun intensity (overridden by skybox when present)</td>
+</tr>
+<tr>
+<td><code>shadowTextureSize</code></td>
+<td><code>1024</code></td>
+<td>Shadow map resolution (per cascade)</td>
+</tr>
+<tr>
+<td><code>shadowMaxZ</code></td>
+<td><code>100</code></td>
+<td>Far plane of the cascaded shadow frustum</td>
+</tr>
+<tr>
+<td><code>shadowDarkness</code></td>
+<td><code>0.1</code></td>
+<td>0 = fully dark shadow, 1 = no shadow</td>
+</tr>
+<tr>
+<td><code>numCascades</code></td>
+<td><code>4</code></td>
+<td>Number of cascade splits (1–4)</td>
+</tr>
+<tr>
+<td><code>stabilizeCascades</code></td>
+<td><code>true</code></td>
+<td>Reduce shadow-edge &quot;swimming&quot; under motion</td>
+</tr>
+<tr>
+<td><code>lambda</code></td>
+<td><code>0.8</code></td>
+<td>Cascade split blend (0 = uniform, 1 = logarithmic)</td>
+</tr>
+<tr>
+<td><code>cascadeBlendPercentage</code></td>
+<td><code>0.1</code></td>
+<td>Soft blend across cascade seams</td>
+</tr>
+<tr>
+<td><code>activeDistance</code></td>
+<td><code>30</code></td>
+<td>Max camera-to-mesh distance a caster participates from</td>
+</tr>
+<tr>
+<td><code>updateIntervalMs</code></td>
+<td><code>1000</code></td>
+<td>How often to re-evaluate active casters</td>
+</tr>
+</tbody></table>
+<h2>Mesh suffix conventions</h2>
+<table>
+<thead>
+<tr>
+<th>Suffix</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>_nocast</code> (or <code>-nocast</code>)</td>
+<td>Mesh doesn&#39;t cast shadows (e.g. huge ground planes)</td>
+</tr>
+<tr>
+<td><code>_noshadow</code> (or <code>-noshadow</code>)</td>
+<td>Mesh doesn&#39;t receive shadows</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/" aria-current="page" class="current">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-reflections — tosijs-3d</title>
+  <meta name="description" content="Auto-attaches a reflection probe to every mesh whose name contains _mirror (or -mirror). PBR materials get the cube texture as their reflection, and…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-reflections/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-reflections — tosijs-3d" />
+  <meta property="og:description" content="Auto-attaches a reflection probe to every mesh whose name contains _mirror (or -mirror). PBR materials get the cube texture as their reflection, and…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-reflections/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-reflections","description":"Auto-attaches a reflection probe to every mesh whose name contains _mirror (or -mirror). PBR materials get the cube texture as their reflection, and…","url":"https://3d.tosijs.net/b3d-reflections/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-reflections</h1>
+<p>Auto-attaches a reflection probe to every mesh whose name contains <code>_mirror</code>
+(or <code>-mirror</code>). PBR materials get the cube texture as their reflection, and
+StandardMaterials get it plus a sensible Fresnel curve so they actually look
+metallic instead of flat-white. Refraction-enabled PBR materials (glass) also
+get the probe wired in as their refraction texture, with the glTF loader&#39;s
+thin-surface overrides undone so the refraction ray actually bends.</p>
+<p>Probe refresh is camera-aware: probes within <code>farDistance</code> refresh at
+<code>refreshRate</code>; between <code>farDistance</code> and <code>maxDistance</code> the rate ramps linearly
+to <code>farRefreshRate</code>; beyond <code>maxDistance</code> they freeze at render-once. Distance
+re-checks run every <code>distanceCheckInterval</code> frames, staggered per-probe so the
+work doesn&#39;t all pile onto one frame.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, b3dSphere, b3dReflections } from &#39;tosijs-3d&#39;
+
+preview.append(
+  b3d(
+    {
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          &#39;cam&#39;, -Math.PI / 2, Math.PI / 2.8, 6,
+          new BABYLON.Vector3(0, 1, 0), el.scene
+        )
+        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dSkybox({ timeOfDay: 11, realtimeScale: 0 }),
+    b3dSun({ shadowCascading: true }),
+    b3dGround({ meshName: &#39;ground_nocast&#39;, width: 20, height: 20, color: &#39;#7d9b6e&#39; }),
+    // The `mirror: true` flag adds the `_mirror` suffix to the mesh name,
+    // which b3dReflections picks up and probes automatically. The non-mirror
+    // sphere is what the mirror reflects.
+    b3dSphere({ y: 1.2, diameter: 1.5, mirror: true, color: &#39;#ffffff&#39; }),
+    b3dSphere({ y: 0.8, diameter: 1, x: 2.2, z: -0.5, color: &#39;#cc4422&#39; }),
+    b3dReflections(),
+  ),
+)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>probeSize</code></td>
+<td><code>512</code></td>
+<td>Cubemap resolution per face</td>
+</tr>
+<tr>
+<td><code>refreshRate</code></td>
+<td><code>5</code></td>
+<td>Frames between probe refreshes inside <code>farDistance</code></td>
+</tr>
+<tr>
+<td><code>farDistance</code></td>
+<td><code>30</code></td>
+<td>Distance at which the rate starts ramping toward <code>farRefreshRate</code></td>
+</tr>
+<tr>
+<td><code>maxDistance</code></td>
+<td><code>100</code></td>
+<td>Distance beyond which probes freeze entirely</td>
+</tr>
+<tr>
+<td><code>farRefreshRate</code></td>
+<td><code>30</code></td>
+<td>Probe refresh rate at <code>maxDistance</code></td>
+</tr>
+<tr>
+<td><code>distanceCheckInterval</code></td>
+<td><code>13</code></td>
+<td>Frames between camera-distance re-checks</td>
+</tr>
+</tbody></table>
+<h2>Mesh suffix conventions</h2>
+<table>
+<thead>
+<tr>
+<th>Suffix</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>_mirror</code> (or <code>-mirror</code>)</td>
+<td>Mesh gets a reflection probe attached</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/" aria-current="page" class="current">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>
