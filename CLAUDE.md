@@ -197,8 +197,7 @@ Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors 
 
 ## Demo & Docs
 
-- `index.html` redirects to the doc browser at `docs/index.html`
 - The doc browser is built from `demo/src/` using tosijs-ui's `createDocBrowser`
 - Source files use `/*# */` comments for extractable documentation
 - Assets are in `./static/` and `./demo/static/` (copied to `docs/` during build)
-- Deployed to GitHub Pages from `docs/` directory (CNAME file in repo root)
+- Deployed to GitHub Pages with the **publishing source set to `main` branch, `/docs` folder** — `docs/` is the web root. The build emits root-absolute asset paths (`/iife.js`, etc.) and writes `CNAME` + `.nojekyll` into `docs/`, so the Pages source must be `/docs`, not `/` (serving from root 404s every asset).
