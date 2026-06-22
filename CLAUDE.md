@@ -11,11 +11,11 @@ tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs we
 Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 
 - **Dev server**: `bun start` (formats code, then runs HTTPS dev server on port 8030 with file watching)
-- **Build**: `bun build` (runs doc-site build + library `tsc -p tsconfig.build.json`, exits)
+- **Build**: `bun build` (runs `bun bin/site.ts --build`: doc-site build + library `tsc -p tsconfig.build.json`, exits)
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
 - **Run single test**: `bun test src/perlin-noise.test.ts`
-- **TLS setup**: `bun tls` (required once for HTTPS dev server; uses mkcert for warning-free local certs)
+- **TLS setup**: `bun tls` (required once for HTTPS dev server; runs `tosijs-dev-certs` from tosijs-ui to generate warning-free local certs)
 
 `bin/site.ts` is a thin wrapper over `tosijs-ui/site`'s reusable doc-site pipeline (`buildSite()` + `devServer()`); declarative config lives in `site.config.ts`. On every change the dev server reruns `buildSite()`, which:
 
@@ -27,7 +27,7 @@ Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 6. Burns the theme (`{accent, background, text}` from `site.config.ts`) into a static `docs/doc-system.css` (no FOUC).
 7. Emits `sitemap.xml`, `robots.txt`, and `.nojekyll` + the existing `CNAME` (`3d.tosijs.net`) for GitHub Pages.
 
-`bun build` additionally runs `bun --bun tsc -p tsconfig.build.json` — the published `dist/` ships **per-file, unminified JS + `.d.ts` + sourcemaps with doc comments preserved** (`removeComments: false`), so consumers and AI agents have browseable source plus types. The root `tsconfig.json` is `noEmit`; `tsconfig.build.json` overrides it.
+`bun build` also emits the library: `site.config.ts` sets `emitLibrary: true` + `libraryTsconfig: 'tsconfig.build.json'`, so `buildSite()` runs the library `tsc` step itself after the doc-site build (there is no separate `tsc` invocation in `bin/site.ts`). The published `dist/` ships **per-file, unminified JS + `.d.ts` + sourcemaps with doc comments preserved** (`removeComments: false`), so consumers and AI agents have browseable source plus types. The root `tsconfig.json` is `noEmit`; `tsconfig.build.json` overrides it.
 
 ## Architecture
 
