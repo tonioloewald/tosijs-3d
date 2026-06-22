@@ -13,6 +13,10 @@ export default defineSiteConfig({
     'Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.',
   baseUrl: 'https://3d.tosijs.net',
 
+  // Brand mark (teal cube). Without this, generate-site defaults to the generic
+  // /favicon.svg shipped in static/.
+  favicon: '/tosijs-3d.svg',
+
   projectLinks: {
     tosijs: 'https://tosijs.net',
     github: `https://github.com/tonioloewald/${PROJECT}`,

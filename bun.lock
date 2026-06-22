@@ -18,7 +18,7 @@
         "globals": "^17.6.0",
         "happy-dom": "^20.10.6",
         "prettier": "^2.8.8",
-        "tosijs-ui": "^1.6.6",
+        "tosijs-ui": "1.6.7",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.61.0",
       },
@@ -228,7 +228,7 @@
 
     "tosijs": ["tosijs@1.6.1", "", {}, ""],
 
-    "tosijs-ui": ["tosijs-ui@1.6.6", "", { "peerDependencies": { "happy-dom": "^20.7.0", "marked": "^16.4.2", "sucrase": "^3.35.0", "tosijs": "^1.6.0" }, "optionalPeers": ["happy-dom", "sucrase"], "bin": { "tosijs-make-icons": "bin/make-icon-data.js", "tosijs-dev-certs": "tls/create-dev-certs.sh" } }, "sha512-MoqwZ+WWD4d65kH/cF1CI22K3IaaK9QaNU8gUvsjBrPNDYfviCzewq4zSYmO/MF1vaMVBw5Mr5uZtBVtmUW5wQ=="],
+    "tosijs-ui": ["tosijs-ui@1.6.7", "", { "peerDependencies": { "happy-dom": "^20.7.0", "marked": "^16.4.2", "sucrase": "^3.35.0", "tosijs": "^1.6.0" }, "optionalPeers": ["happy-dom", "sucrase"], "bin": { "tosijs-make-icons": "bin/make-icon-data.js", "tosijs-dev-certs": "tls/create-dev-certs.sh" } }, "sha512-aKlFJ112m18IrKzAlQD5LnEWtXaivPMcfPIi+w+5+Xbi1DJflzSJza9IBqnCt2566x1I1vLwQjC3XiaKVRN7Ng=="],
 
     "ts-api-utils": ["ts-api-utils@2.5.0", "", { "peerDependencies": { "typescript": ">=4.8.4" } }, ""],
 
