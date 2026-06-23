@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>world-contract — tosijs-3d</title>
+  <meta name="description" content="The boundary between the simulation (tosijs-3d) and an external driver (an AI narrative engine, a scripted demo, anything)." />
+  <link rel="canonical" href="https://3d.tosijs.net/world-contract/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="world-contract — tosijs-3d" />
+  <meta property="og:description" content="The boundary between the simulation (tosijs-3d) and an external driver (an AI narrative engine, a scripted demo, anything)." />
+  <meta property="og:url" content="https://3d.tosijs.net/world-contract/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"world-contract","description":"The boundary between the simulation (tosijs-3d) and an external driver (an AI narrative engine, a scripted demo, anything).","url":"https://3d.tosijs.net/world-contract/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>world-contract</h1>
+<p>The boundary between the <strong>simulation</strong> (tosijs-3d) and an <strong>external driver</strong>
+(an AI narrative engine, a scripted demo, anything). The simulation is the
+authority on physical and systemic reality; the driver decides what any of it
+<em>means</em>. These two halves never call each other&#39;s functions — they share a
+serializable <code>WorldState</code>, a stream of best-effort <code>SimulationEvent</code>s, and the
+<code>WorldApi</code> surface below.</p>
+<h2>Hard rules baked into these types</h2>
+<ul>
+<li><strong>The simulation is narrative-blind.</strong> There is no <code>plot</code>, <code>quest</code>,
+<code>objective</code>, or <code>mission</code> vocabulary here, by design. The simulation reports
+<em>what physically happened</em>; it never judges what it completed.</li>
+<li><strong>The driver is never load-bearing.</strong> A simulation built on this contract
+runs as a complete sandbox with no driver attached. Intents are <em>advisory</em>.</li>
+<li><strong>Events are commitments, not considerations.</strong> The stream carries
+intentional acts (interacted, picked up, chose, died) — never proximity or
+&quot;the player walked near X&quot;. Walking past a witness is no story beat; talking
+to them is. Withholding proximity forces the driver to read engagement, not
+loitering.</li>
+<li><strong>Events are best-effort.</strong> Delivery is not guaranteed; the stream may drop
+under load. A <em>dropped</em> event is silent (no harm). A <em>delivered</em> event the
+driver can&#39;t place is the only signal worth worrying about.</li>
+<li><strong>Query is truth; events are hints.</strong> <code>subscribe</code> is a cheap, lossy push
+(&quot;maybe look&quot;). Before a consequential decision, the driver <code>getState</code>/
+<code>getEntity</code> to verify (&quot;actually check&quot;). That makes lossy events safe.</li>
+<li><strong>Stable identity round-trips.</strong> The <code>EntityId</code> the driver gets from <code>spawn</code>
+is the exact id that comes back in events — so the driver recognizes its own
+fingerprints. An optional opaque <code>ref</code> rides along untouched by the sim.</li>
+<li><strong>Time crosses the boundary; the sim owns the clock.</strong> <code>WorldState.now</code> is
+the one continuous quantity the driver needs — all inference-from-absence
+(&quot;it&#39;s been a while and nothing happened&quot;) is built on it.</li>
+</ul>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><a href="/world-contract/" aria-current="page" class="current">world-contract</a></li>
+    <li><a href="/world-store/">world-store</a></li>
+    <li><a href="/world-view/">world-view</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

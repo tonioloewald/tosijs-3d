@@ -2,6 +2,31 @@
 export { B3d, b3d } from './tosi-b3d'
 export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
+// World simulation (narrative-driver boundary)
+export { WorldStore } from './world-store'
+export { WorldView, defaultMeshFactory } from './world-view'
+export type { MeshFactory } from './world-view'
+export type {
+  WorldState,
+  WorldEntity,
+  EntityComponents,
+  HealthComponent,
+  InventoryEntry,
+  FactionComponent,
+  InteractableComponent,
+  EntityId,
+  EntityKind,
+  EntityIntent,
+  Behavior,
+  Zone,
+  ZoneId,
+  SpawnSpec,
+  SimulationEvent,
+  EventHandler,
+  Unsubscribe,
+  WorldApi,
+} from './world-contract'
+
 // Utilities
 export {
   findB3dOwner,

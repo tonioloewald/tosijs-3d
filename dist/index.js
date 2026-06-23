@@ -1,5 +1,8 @@
 // Core
 export { B3d, b3d } from './tosi-b3d';
+// World simulation (narrative-driver boundary)
+export { WorldStore } from './world-store';
+export { WorldView, defaultMeshFactory } from './world-view';
 // Utilities
 export { findB3dOwner, AbstractMesh, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
 // Scene components
