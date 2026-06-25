@@ -122,6 +122,12 @@ export class B3dSkybox extends AbstractMesh {
             const sunEl = this.sunEl;
             if (sunEl?.light != null) {
                 const { light } = sunEl;
+                // The skybox owns the day/night intensity cycle; tell the sun to stop
+                // writing light.intensity itself (it would stomp this on its slower 1s
+                // tick and cause a periodic flicker). We multiply by the sun's
+                // underwater dimFactor so the two stay in agreement.
+                sunEl.externallyLit = true;
+                const dim = sunEl.dimFactor ?? 1;
                 material.sunPosition = sunVector;
                 const dir = sunVector.normalizeToNew();
                 light.direction.x = -dir.x;
@@ -132,7 +138,7 @@ export class B3dSkybox extends AbstractMesh {
                     const duskC = hexToColor3(attrs.duskColor);
                     const sunC = hexToColor3(attrs.sunColor);
                     light.diffuse = blendColor3(duskC, sunC, intensity);
-                    light.intensity = intensity;
+                    light.intensity = intensity * dim;
                     material.rayleigh = attrs.rayleigh;
                     material.turbidity = attrs.turbidity;
                     // Horizon: blend light color with sky blue, desaturate toward white
@@ -144,7 +150,7 @@ export class B3dSkybox extends AbstractMesh {
                 }
                 else {
                     light.diffuse = hexToColor3(attrs.moonColor);
-                    light.intensity = attrs.moonIntensity;
+                    light.intensity = attrs.moonIntensity * dim;
                     material.rayleigh = attrs.rayleigh * 0.05;
                     material.turbidity = attrs.turbidity * 0.05;
                     // Night horizon: dark desaturated blue
@@ -184,6 +190,9 @@ export class B3dSkybox extends AbstractMesh {
             clearInterval(this.interval);
             this.interval = 0;
         }
+        // Hand intensity ownership back to the sun before we let go of it.
+        if (this.sunEl != null)
+            this.sunEl.externallyLit = false;
         this.sunEl = null;
         super.sceneDispose();
     }

@@ -153,6 +153,20 @@ export class B3dSun extends Component {
 
   private baseIntensity = 1
 
+  /**
+   * Underwater dimming multiplier (1 above water). Owned by the sun, applied by
+   * whoever writes the final intensity. A `b3dSkybox` reads this and multiplies
+   * its day/night intensity by it, so the two never fight over `light.intensity`.
+   */
+  dimFactor = 1
+
+  /**
+   * Set true by a `b3dSkybox` that owns the day/night intensity cycle. While
+   * set, the sun stops writing `light.intensity` itself (it only maintains
+   * `dimFactor`), so the skybox's 100ms cycle isn't stomped by this 1s update.
+   */
+  externallyLit = false
+
   private update() {
     if (this.light == null || this.owner?.scene == null) return
     // Get the actual world-space position of the active camera
@@ -164,17 +178,20 @@ export class B3dSun extends Component {
     this.light.position.y = target.y + 10
     this.light.position.z = target.z
 
-    // Dim sun when camera is underwater
+    // Dim sun when camera is underwater. We only compute the factor here; the
+    // final write happens below (or in b3dSkybox when it owns the cycle), so a
+    // day/night skybox and this 1s update never stomp each other's intensity.
     const waterMesh = this.owner.scene.getMeshByName('water_nocast')
-    if (waterMesh) {
-      const waterY = waterMesh.absolutePosition.y
-      if (target.y < waterY) {
-        const depth = waterY - target.y
-        const dimFactor = Math.max(0.05, 1 - depth * 0.5)
-        this.light.intensity = this.baseIntensity * dimFactor
-      } else {
-        this.light.intensity = this.baseIntensity
-      }
+    let dimFactor = 1
+    if (waterMesh && target.y < waterMesh.absolutePosition.y) {
+      const depth = waterMesh.absolutePosition.y - target.y
+      dimFactor = Math.max(0.05, 1 - depth * 0.5)
+    }
+    this.dimFactor = dimFactor
+    // When a skybox owns the day/night cycle it writes the final intensity
+    // (base * dimFactor) on its own faster cadence; don't double-write here.
+    if (!this.externallyLit) {
+      this.light.intensity = this.baseIntensity * dimFactor
     }
 
     const activeDistance = (this as any).activeDistance as number

@@ -27,6 +27,18 @@ export declare class B3dSun extends Component {
     private _update?;
     private shadowCallback;
     private baseIntensity;
+    /**
+     * Underwater dimming multiplier (1 above water). Owned by the sun, applied by
+     * whoever writes the final intensity. A `b3dSkybox` reads this and multiplies
+     * its day/night intensity by it, so the two never fight over `light.intensity`.
+     */
+    dimFactor: number;
+    /**
+     * Set true by a `b3dSkybox` that owns the day/night intensity cycle. While
+     * set, the sun stops writing `light.intensity` itself (it only maintains
+     * `dimFactor`), so the skybox's 100ms cycle isn't stomped by this 1s update.
+     */
+    externallyLit: boolean;
     private update;
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
