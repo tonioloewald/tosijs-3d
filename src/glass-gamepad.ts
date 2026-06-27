@@ -64,7 +64,11 @@ preview.append(div({ class: 'glass-stage' }, pad.element, readout))
   color: #cfe;
   white-space: pre;
 }
+.glass-stage [data-part] {
+  transition: stroke-width 0.08s, filter 0.08s;
+}
 .glass-stage [data-part].active {
+  stroke-width: 32;
   filter: brightness(1.4);
 }
 ```
@@ -153,11 +157,31 @@ async function loadCluster(url: string): Promise<SVGSVGElement> {
   const text = await res.text()
   const doc = new DOMParser().parseFromString(text, 'image/svg+xml')
   const svg = doc.documentElement as unknown as SVGSVGElement
-  for (const el of Array.from(svg.querySelectorAll('[id]'))) {
+  for (const el of Array.from(svg.querySelectorAll('*'))) {
+    // id → data-part (known parts only): so the source binds, and so global ids
+    // don't collide if two gamepads are mounted.
     const id = el.getAttribute('id')
     if (id != null && PART_IDS.has(id)) {
       el.setAttribute('data-part', id)
-      el.removeAttribute('id') // avoid global id collisions across instances
+      el.removeAttribute('id')
+    }
+    // Inline style → presentation attributes. The exported art bakes
+    // fill/stroke/stroke-width into `style`, and inline style outranks every
+    // stylesheet — so the `.active` highlight (and any themed/dynamic stroke)
+    // could never override it. As attributes they're overridable, matching how
+    // gamepad-svg.ts builds its themeable paths.
+    const style = el.getAttribute('style')
+    if (style != null) {
+      for (const decl of style.split(';')) {
+        const i = decl.indexOf(':')
+        if (i < 0) continue
+        const prop = decl.slice(0, i).trim()
+        const val = decl.slice(i + 1).trim()
+        if (prop !== '' && val !== '' && !el.hasAttribute(prop)) {
+          el.setAttribute(prop, val)
+        }
+      }
+      el.removeAttribute('style')
     }
   }
   return svg
