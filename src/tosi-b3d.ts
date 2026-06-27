@@ -372,8 +372,9 @@ export class B3d extends Component {
   // flat screens) AND an in-scene panel floating above the viewer in XR. In XR
   // an "Exit VR" button is prepended automatically (you can't click a DOM
   // button inside a headset). Both surfaces bind to the same reactive values,
-  // so they stay in sync.
-  scenePanel?: (host: B3d) => Widget3d[]
+  // so they stay in sync. Defaults to a function (not undefined) so the element
+  // creator recognises it as a settable callback prop, like sceneCreated/update.
+  scenePanel: (host: B3d) => Widget3d[] = () => []
 
   private lastRender = 0
   private sceneListeners: SceneAdditionHandler[] = []
@@ -812,35 +813,23 @@ export class B3d extends Component {
     }
   }
 
-  // Build the panel SVG shared by both surfaces. `includeExit` prepends an
-  // Exit-VR button (used for the in-scene XR copy only). Calling this more than
-  // once yields independent widget sets bound to the same reactive values, so
-  // the overlay and in-scene panels stay in sync.
-  private _makePanel(includeExit: boolean): SVGSVGElement {
-    const rows: Widget3d[] = []
-    if (includeExit) {
-      rows.push(
-        button3d({
-          label: 'Exit VR',
-          onClick: () => {
-            void this.xrHelper?.baseExperience?.exitXRAsync()
-          },
-        })
-      )
-    }
-    if (this.scenePanel != null) rows.push(...this.scenePanel(this))
+  // Build a panel SVG from a row list. Each surface (overlay, in-scene) builds
+  // its own with independent widget instances bound to the same reactive
+  // values, so they stay in sync.
+  private _makePanel(rows: Widget3d[]): SVGSVGElement {
     const n = Math.max(1, rows.length)
     const height = Math.min(520, 28 + n * 48)
     return panel3d({ width: 320, height }, ...rows)
   }
 
   // Flat-screen surface: a top-right gear icon toggles the settings panel as a
-  // DOM overlay. Only mounted when a `scenePanel` is supplied.
+  // DOM overlay. Only revealed when the scenePanel hook returns widgets.
   private _setupScenePanel(): void {
-    if (this.scenePanel == null) return
+    const widgets = this.scenePanel(this)
+    if (widgets.length === 0) return // nothing to surface on the flat overlay
     const gear = this.parts.scenePanelGear as HTMLButtonElement
     const host = this.parts.scenePanelHost as HTMLElement
-    host.appendChild(this._makePanel(false))
+    host.appendChild(this._makePanel(widgets))
     gear.addEventListener('click', () => {
       if (host.hasAttribute('hidden')) host.removeAttribute('hidden')
       else host.setAttribute('hidden', '')
@@ -859,7 +848,18 @@ export class B3d extends Component {
   } {
     const scene = this.scene
     const cam = base.camera
-    const panelEl = this._makePanel(true) as SVGSVGElement & {
+    // In-scene panel always carries an Exit-VR button (you can't reach a DOM
+    // button inside a headset), plus any scenePanel widgets.
+    const rows: Widget3d[] = [
+      button3d({
+        label: 'Exit VR',
+        onClick: () => {
+          void this.xrHelper?.baseExperience?.exitXRAsync()
+        },
+      }),
+      ...this.scenePanel(this),
+    ]
+    const panelEl = this._makePanel(rows) as SVGSVGElement & {
       handlePointer?: (kind: string, x: number, y: number) => void
     }
     const vb = panelEl.viewBox.baseVal

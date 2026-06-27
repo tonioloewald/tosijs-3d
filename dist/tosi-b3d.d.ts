@@ -156,7 +156,7 @@ export declare class B3d extends Component {
     sceneCreated: B3dCallback;
     update: B3dCallback;
     setupXr: B3dCallback;
-    scenePanel?: (host: B3d) => Widget3d[];
+    scenePanel: (host: B3d) => Widget3d[];
     private lastRender;
     private sceneListeners;
     private pastAdditions;

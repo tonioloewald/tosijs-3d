@@ -205,7 +205,7 @@ immersive VR the identical panel floats above the viewer with an **Exit VR**
 button prepended (you can't click a DOM button inside a headset). Both surfaces
 bind to the same reactive values, so they stay in sync.
 
-Click the gear to raise/lower and spin the sphere — then try it in VR.
+Click the gear to raise/lower and spin the cube — then try it in VR.
 
 ```js
 import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from 'tosijs-3d'
