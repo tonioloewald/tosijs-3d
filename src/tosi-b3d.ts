@@ -836,7 +836,14 @@ export class B3d extends Component {
     }
     const vb = panelEl.viewBox.baseVal
 
-    const PLANE_W = 0.5 // metres
+    // Anchored to the rig (play space), so it stays put as you look around —
+    // glance UP to use it. Tunables: physical size + how high/close it floats.
+    // Placed on a sight-line ~50° above horizontal (out of the way when looking
+    // ahead) and made large enough to read and target comfortably.
+    const PLANE_W = 1.1 // metres wide (height follows the panel's aspect)
+    const EYE_HEIGHT = 1.5 // nominal standing eye height (m)
+    const DISTANCE = 0.6 // eye → panel distance (m)
+    const ELEVATION = (50 * Math.PI) / 180 // above the forward sight-line
     const plane = BABYLON.MeshBuilder.CreatePlane(
       'xr-panel',
       {
@@ -847,8 +854,12 @@ export class B3d extends Component {
       scene
     )
     plane.parent = rig
-    plane.position.set(0, 1.95, 0.65)
-    plane.rotation.x = 0.6 // tilt the face down toward the standing viewer
+    plane.position.set(
+      0,
+      EYE_HEIGHT + DISTANCE * Math.sin(ELEVATION),
+      DISTANCE * Math.cos(ELEVATION)
+    )
+    plane.rotation.x = ELEVATION // face square to the upward sight-line
 
     const tex = new SvgTexture({ scene, element: panelEl, resolution: 1024 })
     const mat = new BABYLON.StandardMaterial('xr-panel-mat', scene)
