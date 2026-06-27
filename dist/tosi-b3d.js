@@ -566,10 +566,18 @@ export class B3d extends Component {
         }
         if (!supported || this.xrHelper != null)
             return;
+        // Creating the default experience can steal scene.activeCamera (switching
+        // to the XR camera on creation), which blanks the flat view before you ever
+        // enter VR. Capture the flat camera and restore it; enterXRAsync swaps
+        // cameras properly when you actually enter, and restores on exit.
+        const flatCamera = this.scene.activeCamera;
         const xr = await this.scene.createDefaultXRExperienceAsync({
             disableDefaultUI: true,
         });
         this.xrHelper = xr;
+        if (flatCamera != null && this.scene.activeCamera !== flatCamera) {
+            this.scene.activeCamera = flatCamera;
+        }
         const base = xr.baseExperience;
         if (base == null)
             return;
