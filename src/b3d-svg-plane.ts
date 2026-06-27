@@ -126,6 +126,9 @@ function tick(arr) {
   }
   return kept
 }
+// Deliberately rate-limited to ~15fps. Each tick mutates tosi bindings →
+// re-renders the SVG → re-rasterizes the texture, so a fast tick is a real cost
+// (especially on a textured plane in XR). 15fps is plenty for a radar.
 setInterval(() => {
   const f = tick(xin.friendlies)
   if (Math.random() < 0.06) f.push(spawnFriendly())
@@ -134,7 +137,7 @@ setInterval(() => {
   const h = tick(xin.hostiles)
   if (Math.random() < 0.04) h.push(spawnHostile())
   xin.hostiles = h
-}, 50)
+}, 66)
 
 const scene = b3d(
   {
@@ -150,7 +153,7 @@ const scene = b3d(
         scene: el.scene,
         element: radarSvg,
         resolution: 512,
-        updateInterval: 100,
+        updateInterval: 66, // ~15fps — matches the sim tick; no point rendering faster
       })
 
       const plane = BABYLON.MeshBuilder.CreatePlane(
