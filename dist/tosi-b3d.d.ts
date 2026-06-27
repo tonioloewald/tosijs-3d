@@ -149,6 +149,7 @@ export declare class B3d extends Component {
     private _notifyAllDescendants;
     connectedCallback(): void;
     private _setupXR;
+    private _startDefaultXrExperience;
     disconnectedCallback(): void;
     render(): void;
 }

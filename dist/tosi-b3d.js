@@ -152,7 +152,9 @@ document.body.append(
 import { Component, elements } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
+import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
+import { xrControllers } from './gamepad';
 const { canvas, div, slot, button } = elements;
 const noop = () => { };
 export class B3d extends Component {
@@ -538,33 +540,100 @@ export class B3d extends Component {
                 console.warn('XR session change failed', err);
             }
         });
+        // A live map of XR controller component states (thumbsticks/buttons), built
+        // once so we don't double-register listeners across sessions.
+        const controllers = xrControllers(xr);
+        // The default experience enables teleportation; we drive locomotion
+        // ourselves, so remove it to stop the thumbstick fighting our movement.
+        try {
+            xr.teleportation?.dispose();
+        }
+        catch {
+            /* teleportation may not have been enabled */
+        }
         // In a session the WebXR headset camera takes over (Babylon switches
-        // scene.activeCamera to it); the flat-screen orbit camera is only restored
-        // on exit. Anchor the play space at floor level near the scene — the orbit
-        // camera's elevated pose makes no sense in VR. A rig TransformNode holds the
-        // anchor so live head tracking applies as a local transform on top of it
-        // (the same pattern b3d-biped uses).
-        let xrRig;
+        // scene.activeCamera to it); the flat-screen orbit camera is restored on
+        // exit. On entry we stand the viewer on a walkable floor and wire stick
+        // locomotion; on exit we tear it down.
+        let xrSession;
         base.onStateChangedObservable.add((state) => {
             this.xrActive = state === BABYLON.WebXRState.IN_XR;
             vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR';
-            if (state === BABYLON.WebXRState.IN_XR && xrRig == null) {
-                xrRig = new BABYLON.TransformNode('xr-rig', this.scene);
-                // Keep the flat camera's horizontal viewpoint but stand on the floor
-                // (local-floor reference space adds the viewer's real head height).
-                const p = this.camera?.position;
-                if (p != null) {
-                    xrRig.position.set(p.x, 0, p.z);
-                }
-                else {
-                    xrRig.position.set(0, 0, -this.minDistance * 2);
-                }
-                base.camera.parent = xrRig;
+            if (state === BABYLON.WebXRState.IN_XR) {
+                xrSession ??= this._startDefaultXrExperience(base, controllers);
+            }
+            else if (state === BABYLON.WebXRState.NOT_IN_XR) {
+                xrSession?.dispose();
+                xrSession = undefined;
             }
         });
         // The button is part of the template (hidden) — reveal it now that an XR
         // session is actually available.
         vrButton.hidden = false;
+    }
+    // The built-in XR experience used when no `setupXr` hook is supplied: stand
+    // the viewer on a grid floor near the scene, walk with the left stick
+    // (relative to head facing), and fly up/down with the right stick. A rig
+    // TransformNode is the movable anchor — live head tracking applies as a local
+    // transform on top. Returns a disposer that tears everything down on exit.
+    _startDefaultXrExperience(base, controllers) {
+        const scene = this.scene;
+        const cam = base.camera;
+        const rig = new BABYLON.TransformNode('xr-rig', scene);
+        // Keep the flat camera's horizontal viewpoint but stand on the floor
+        // (local-floor reference space adds the viewer's real head height).
+        const p = this.camera?.position;
+        rig.position.set(p?.x ?? 0, 0, p?.z ?? -this.minDistance * 2);
+        cam.parent = rig;
+        // A subtle grid floor — something to stand on and judge motion against.
+        const ground = BABYLON.MeshBuilder.CreateGround('xr-ground', { width: 200, height: 200 }, scene);
+        ground.isPickable = false;
+        const grid = new GridMaterial('xr-ground-grid', scene);
+        grid.majorUnitFrequency = 5;
+        grid.minorUnitVisibility = 0.4;
+        grid.gridRatio = 1;
+        grid.mainColor = new BABYLON.Color3(0.09, 0.11, 0.15);
+        grid.lineColor = new BABYLON.Color3(0.25, 0.45, 0.7);
+        grid.opacity = 0.7;
+        ground.material = grid;
+        const HORIZ_SPEED = 2.5; // metres/sec
+        const VERT_SPEED = 2.0;
+        const DEAD = 0.15;
+        let last = Date.now();
+        const fwd = new BABYLON.Vector3();
+        const side = new BABYLON.Vector3();
+        const frame = base.sessionManager.onXRFrameObservable.add(() => {
+            const now = Date.now();
+            const dt = Math.min((now - last) * 0.001, 0.1);
+            last = now;
+            const left = controllers['left']?.['xr-standard-thumbstick']?.axes;
+            const right = controllers['right']?.['xr-standard-thumbstick']?.axes;
+            if (left != null &&
+                (Math.abs(left.x) > DEAD || Math.abs(left.y) > DEAD)) {
+                // Walk relative to where the head currently faces (flattened to floor).
+                cam.getDirectionToRef(BABYLON.Vector3.Forward(), fwd);
+                fwd.y = 0;
+                fwd.normalize();
+                cam.getDirectionToRef(BABYLON.Vector3.Right(), side);
+                side.y = 0;
+                side.normalize();
+                const step = HORIZ_SPEED * dt;
+                rig.position.addInPlace(fwd.scale(-left.y * step));
+                rig.position.addInPlace(side.scale(left.x * step));
+            }
+            if (right != null && Math.abs(right.y) > DEAD) {
+                rig.position.y += -right.y * VERT_SPEED * dt; // push up to ascend
+            }
+        });
+        return {
+            dispose() {
+                base.sessionManager.onXRFrameObservable.remove(frame);
+                cam.parent = null;
+                ground.dispose();
+                grid.dispose();
+                rig.dispose();
+            },
+        };
     }
     disconnectedCallback() {
         if (this.xrHelper) {
