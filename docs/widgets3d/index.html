@@ -232,7 +232,12 @@ const sceneEl = b3d(
     update() {
       if (!cube.mesh) return
       cube.mesh.position.y = cfg.height.value
-      if (cfg.spin.value) cube.mesh.rotation.y += 0.02
+      // Tumble on two axes — a single-colour cube spinning around just the
+      // vertical axis under flat lighting barely reads as motion.
+      if (cfg.spin.value) {
+        cube.mesh.rotation.y += 0.02
+        cube.mesh.rotation.x += 0.013
+      }
     },
   },
   b3dLight(),
