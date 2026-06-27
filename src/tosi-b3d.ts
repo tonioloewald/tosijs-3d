@@ -703,9 +703,9 @@ export class B3d extends Component {
     rig.position.set(p?.x ?? 0, 0, p?.z ?? -this.minDistance * 2)
     cam.parent = rig
 
-    // The in-scene settings panel (with an Exit-VR button), floating above the
-    // viewer and anchored to the rig so you tilt your head up to use it.
-    const panel = this._attachXrPanel(rig)
+    // The in-scene settings panel (with an Exit-VR button), floating overhead
+    // relative to the head and fading in as you tilt up to use it.
+    const panel = this._attachXrPanel(base)
 
     // A subtle grid floor — something to stand on and judge motion against.
     const ground = BABYLON.MeshBuilder.CreateGround(
@@ -825,25 +825,32 @@ export class B3d extends Component {
     ;(this.shadowRoot ?? this).append(gear, panel)
   }
 
-  // In-scene surface: render the panel onto a plane parented to the XR rig,
-  // floating above and a bit forward (look up to use it). Picks are routed via
-  // the scene pointer observable — fed by mouse and XR controllers alike — into
-  // the panel's own viewBox coordinate space. Returns a disposer.
-  private _attachXrPanel(rig: BABYLON.TransformNode): { dispose: () => void } {
+  // In-scene surface: render the panel onto a plane positioned each frame in
+  // WORLD space relative to the HEAD (not the rig / flat camera), floating
+  // overhead in the direction you face and fading in only as you tilt your head
+  // up — so it never obstructs the forward view. Picks route via the scene
+  // pointer observable (mouse and XR controllers alike) into the panel's own
+  // viewBox coords. Returns a disposer.
+  private _attachXrPanel(base: BABYLON.WebXRExperienceHelper): {
+    dispose: () => void
+  } {
     const scene = this.scene
+    const cam = base.camera
     const panelEl = this._makePanel(true) as SVGSVGElement & {
       handlePointer?: (kind: string, x: number, y: number) => void
     }
     const vb = panelEl.viewBox.baseVal
 
-    // Anchored to the rig (play space), so it stays put as you look around —
-    // glance UP to use it. Tunables: physical size + how high/close it floats.
-    // Placed on a sight-line ~50° above horizontal (out of the way when looking
-    // ahead) and made large enough to read and target comfortably.
-    const PLANE_W = 1.1 // metres wide (height follows the panel's aspect)
-    const EYE_HEIGHT = 1.5 // nominal standing eye height (m)
-    const DISTANCE = 0.6 // eye → panel distance (m)
-    const ELEVATION = (50 * Math.PI) / 180 // above the forward sight-line
+    // Tunables. The panel floats ABOVE+FORWARD relative to the head, so it sits
+    // ~50° up the sight-line, and is large enough to read and target.
+    const PLANE_W = 1.0 // metres wide (height follows the panel's aspect)
+    const FORWARD = 0.35 // metres ahead of the head (horizontal)
+    const ABOVE = 0.45 // metres above the eye → ~50° up at that forward offset
+    // Fade window (head-forward Y = sin(pitch)): hidden at/below FADE_IN, full
+    // at FADE_FULL. ~9°→~30° of upward tilt.
+    const FADE_IN = 0.15
+    const FADE_FULL = 0.5
+
     const plane = BABYLON.MeshBuilder.CreatePlane(
       'xr-panel',
       {
@@ -853,13 +860,6 @@ export class B3d extends Component {
       },
       scene
     )
-    plane.parent = rig
-    plane.position.set(
-      0,
-      EYE_HEIGHT + DISTANCE * Math.sin(ELEVATION),
-      DISTANCE * Math.cos(ELEVATION)
-    )
-    plane.rotation.x = ELEVATION // face square to the upward sight-line
 
     const tex = new SvgTexture({ scene, element: panelEl, resolution: 1024 })
     const mat = new BABYLON.StandardMaterial('xr-panel-mat', scene)
@@ -869,6 +869,31 @@ export class B3d extends Component {
     mat.diffuseColor = BABYLON.Color3.Black()
     mat.disableLighting = true
     plane.material = mat
+    plane.visibility = 0
+
+    const fwd = new BABYLON.Vector3()
+    const target = new BABYLON.Vector3()
+    const frame = base.sessionManager.onXRFrameObservable.add(() => {
+      const head = cam.globalPosition
+      cam.getDirectionToRef(BABYLON.Vector3.Forward(), fwd)
+      const lookUp = fwd.y // world-space forward Y = sin(pitch); >0 looking up
+      fwd.y = 0
+      if (fwd.lengthSquared() < 1e-4) fwd.set(0, 0, 1) // looking straight up/down
+      fwd.normalize()
+      target.set(
+        head.x + fwd.x * FORWARD,
+        head.y + ABOVE,
+        head.z + fwd.z * FORWARD
+      )
+      // Smoothly leash to the target so it follows your facing without feeling
+      // glued to your face, then tilt to face the head.
+      BABYLON.Vector3.LerpToRef(plane.position, target, 0.25, plane.position)
+      plane.lookAt(head)
+      plane.visibility = Math.max(
+        0,
+        Math.min(1, (lookUp - FADE_IN) / (FADE_FULL - FADE_IN))
+      )
+    })
 
     scene.constantlyUpdateMeshUnderPointer = true
     const T = BABYLON.PointerEventTypes
@@ -883,7 +908,13 @@ export class B3d extends Component {
           : pi.type === T.POINTERMOVE
           ? 'move'
           : ''
-      if (!kind || typeof panelEl.handlePointer !== 'function') return
+      // Only interactive while it's actually visible (you're looking at it).
+      if (
+        !kind ||
+        plane.visibility < 0.5 ||
+        typeof panelEl.handlePointer !== 'function'
+      )
+        return
       const pick = pi.pickInfo
       const uv =
         pick?.hit && pick.pickedMesh === plane
@@ -901,6 +932,7 @@ export class B3d extends Component {
 
     return {
       dispose() {
+        base.sessionManager.onXRFrameObservable.remove(frame)
         scene.onPointerObservable.remove(obs)
         tex.dispose()
         mat.dispose()
