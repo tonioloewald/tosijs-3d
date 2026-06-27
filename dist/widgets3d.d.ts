@@ -16,6 +16,14 @@ export interface Widget3d {
      * observable, not the canvas). Omit for non-interactive widgets.
      */
     handle?(kind: PointerKind, x: number, y: number): void;
+    /**
+     * Whether widget-local (x,y) falls on the *interactive control* (vs dead row
+     * space). The panel only captures/highlights inside it; everywhere else the
+     * row is treated as scroll-drag surface. Omit to treat the whole row as the
+     * control (button, list row). Lets you grab "between" a switch/slider to
+     * scroll — important in VR where pointing precisely is hard.
+     */
+    hitTest?(x: number, y: number): boolean;
 }
 /** A static caption row. */
 export declare function label3d(config: {

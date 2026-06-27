@@ -73,12 +73,14 @@ test('slider reflects an external bound change', async () => {
 // Widgets are coordinate-routed (no DOM events), so drive panel.handlePointer
 // with viewBox coords — the same entry point the overlay and the in-scene/VR
 // host both call. A down+up at a point = a click there.
-test('toggle flips its bound value when clicked', async () => {
+test('toggle flips its bound value when the switch is clicked', async () => {
   s.on = false
   const panel = panel3d({ width: 300, height: 100 }, toggle3d({ label: 'sound', value: s.on }))
   preview.append(panel)
-  panel.handlePointer('down', 150, 30)
-  panel.handlePointer('up', 150, 30)
+  // The switch is right-aligned (only it is interactive — the label area is
+  // scroll surface), so click near the right edge, not the row centre.
+  panel.handlePointer('down', 255, 30)
+  panel.handlePointer('up', 255, 30)
   await updates()
   expect(s.on.value).toBe(true)
 })
@@ -287,6 +289,14 @@ export interface Widget3d {
    * observable, not the canvas). Omit for non-interactive widgets.
    */
   handle?(kind: PointerKind, x: number, y: number): void
+  /**
+   * Whether widget-local (x,y) falls on the *interactive control* (vs dead row
+   * space). The panel only captures/highlights inside it; everywhere else the
+   * row is treated as scroll-drag surface. Omit to treat the whole row as the
+   * control (button, list row). Lets you grab "between" a switch/slider to
+   * scroll — important in VR where pointing precisely is hard.
+   */
+  hitTest?(x: number, y: number): boolean
 }
 
 /**
@@ -482,7 +492,10 @@ export function toggle3d(config: {
       reflect()
       return ROW
     },
-    // Anywhere on the row toggles (label, track, or knob).
+    // Only the switch is interactive; the label area is scroll surface.
+    hitTest(x) {
+      return x >= trackX - 8 && x <= trackX + trackW + 8
+    },
     handle(kind) {
       if (kind === 'leave') rowBg.setAttribute('fill', 'transparent')
       else {
@@ -564,6 +577,10 @@ export function slider3d(config: {
       trackEl.setAttribute('width', String(trackW))
       reflect()
       return ROW
+    },
+    // Only the track is interactive; the label area is scroll surface.
+    hitTest(x) {
+      return x >= trackX - 10 && x <= trackX + trackW + 10
     },
     handle(kind, x) {
       if (kind === 'leave') rowBg.setAttribute('fill', 'transparent')
@@ -708,13 +725,16 @@ export function panel3d(
   let hovered: { w: Widget3d; top: number } | null = null
   let scrollFrom = 0
   let scrolling = false
+  // A row counts as "hit" only where its widget's control is — outside that
+  // (a switch/slider's dead row space) the press falls through to scroll-drag.
   const rowAt = (localX: number, contentY: number) =>
     localX >= 0 && localX <= innerW
       ? rows.find(
           (r) =>
             r.w.handle != null &&
             contentY >= r.top &&
-            contentY < r.top + r.height
+            contentY < r.top + r.height &&
+            (r.w.hitTest == null || r.w.hitTest(localX, contentY - r.top))
         )
       : undefined
   const setHover = (next?: { w: Widget3d; top: number }) => {

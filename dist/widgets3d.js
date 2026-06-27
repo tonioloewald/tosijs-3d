@@ -73,12 +73,14 @@ test('slider reflects an external bound change', async () => {
 // Widgets are coordinate-routed (no DOM events), so drive panel.handlePointer
 // with viewBox coords — the same entry point the overlay and the in-scene/VR
 // host both call. A down+up at a point = a click there.
-test('toggle flips its bound value when clicked', async () => {
+test('toggle flips its bound value when the switch is clicked', async () => {
   s.on = false
   const panel = panel3d({ width: 300, height: 100 }, toggle3d({ label: 'sound', value: s.on }))
   preview.append(panel)
-  panel.handlePointer('down', 150, 30)
-  panel.handlePointer('up', 150, 30)
+  // The switch is right-aligned (only it is interactive — the label area is
+  // scroll surface), so click near the right edge, not the row centre.
+  panel.handlePointer('down', 255, 30)
+  panel.handlePointer('up', 255, 30)
   await updates()
   expect(s.on.value).toBe(true)
 })
@@ -417,7 +419,10 @@ export function toggle3d(config) {
             reflect();
             return ROW;
         },
-        // Anywhere on the row toggles (label, track, or knob).
+        // Only the switch is interactive; the label area is scroll surface.
+        hitTest(x) {
+            return x >= trackX - 8 && x <= trackX + trackW + 8;
+        },
         handle(kind) {
             if (kind === 'leave')
                 rowBg.setAttribute('fill', 'transparent');
@@ -483,6 +488,10 @@ export function slider3d(config) {
             trackEl.setAttribute('width', String(trackW));
             reflect();
             return ROW;
+        },
+        // Only the track is interactive; the label area is scroll surface.
+        hitTest(x) {
+            return x >= trackX - 10 && x <= trackX + trackW + 10;
         },
         handle(kind, x) {
             if (kind === 'leave')
@@ -605,10 +614,13 @@ export function panel3d(config, ...widgets) {
     let hovered = null;
     let scrollFrom = 0;
     let scrolling = false;
+    // A row counts as "hit" only where its widget's control is — outside that
+    // (a switch/slider's dead row space) the press falls through to scroll-drag.
     const rowAt = (localX, contentY) => localX >= 0 && localX <= innerW
         ? rows.find((r) => r.w.handle != null &&
             contentY >= r.top &&
-            contentY < r.top + r.height)
+            contentY < r.top + r.height &&
+            (r.w.hitTest == null || r.w.hitTest(localX, contentY - r.top)))
         : undefined;
     const setHover = (next) => {
         if ((next && next.w) !== (hovered && hovered.w)) {

@@ -87,12 +87,14 @@ test(&#39;slider reflects an external bound change&#39;, async () =&gt; {
 // Widgets are coordinate-routed (no DOM events), so drive panel.handlePointer
 // with viewBox coords — the same entry point the overlay and the in-scene/VR
 // host both call. A down+up at a point = a click there.
-test(&#39;toggle flips its bound value when clicked&#39;, async () =&gt; {
+test(&#39;toggle flips its bound value when the switch is clicked&#39;, async () =&gt; {
   s.on = false
   const panel = panel3d({ width: 300, height: 100 }, toggle3d({ label: &#39;sound&#39;, value: s.on }))
   preview.append(panel)
-  panel.handlePointer(&#39;down&#39;, 150, 30)
-  panel.handlePointer(&#39;up&#39;, 150, 30)
+  // The switch is right-aligned (only it is interactive — the label area is
+  // scroll surface), so click near the right edge, not the row centre.
+  panel.handlePointer(&#39;down&#39;, 255, 30)
+  panel.handlePointer(&#39;up&#39;, 255, 30)
   await updates()
   expect(s.on.value).toBe(true)
 })
