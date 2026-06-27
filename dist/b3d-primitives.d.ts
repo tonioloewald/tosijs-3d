@@ -19,6 +19,26 @@ export declare class B3dSphere extends AbstractMesh {
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
 export declare const b3dSphere: import("tosijs").ElementCreator<B3dSphere>;
+export declare class B3dBox extends AbstractMesh {
+    static initAttributes: {
+        meshName: string;
+        size: number;
+        width: number;
+        height: number;
+        depth: number;
+        color: string;
+        mirror: boolean;
+        x: number;
+        y: number;
+        z: number;
+        rx: number;
+        ry: number;
+        rz: number;
+    };
+    connectedCallback(): void;
+    sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+}
+export declare const b3dBox: import("tosijs").ElementCreator<B3dBox>;
 export declare class B3dGround extends AbstractMesh {
     static initAttributes: {
         meshName: string;

@@ -308,6 +308,17 @@ export class B3d extends Component {
             type: 'button',
             hidden: true,
         }, 'Enter VR'),
+        // Scene-panel surface: gear toggle + overlay host. Both live in the template
+        // (dynamically appending to the shadow root doesn't reliably persist); the
+        // host is populated by _setupScenePanel only when a scenePanel is supplied.
+        button({
+            class: 'scene-panel-gear',
+            part: 'scenePanelGear',
+            type: 'button',
+            title: 'Scene settings',
+            hidden: true,
+        }, '⚙'),
+        div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
         slot(),
     ];
     engine;
@@ -741,22 +752,16 @@ export class B3d extends Component {
     _setupScenePanel() {
         if (this.scenePanel == null)
             return;
-        const panel = this._makePanel(false);
-        panel.setAttribute('class', 'scene-panel-overlay');
-        panel.setAttribute('hidden', '');
-        const gear = button({
-            class: 'scene-panel-gear',
-            part: 'scenePanelGear',
-            type: 'button',
-            title: 'Scene settings',
-        }, '⚙');
+        const gear = this.parts.scenePanelGear;
+        const host = this.parts.scenePanelHost;
+        host.appendChild(this._makePanel(false));
         gear.addEventListener('click', () => {
-            if (panel.hasAttribute('hidden'))
-                panel.removeAttribute('hidden');
+            if (host.hasAttribute('hidden'))
+                host.removeAttribute('hidden');
             else
-                panel.setAttribute('hidden', '');
+                host.setAttribute('hidden', '');
         });
-        (this.shadowRoot ?? this).append(gear, panel);
+        gear.hidden = false;
     }
     // In-scene surface: render the panel onto a plane positioned each frame in
     // WORLD space relative to the HEAD (not the rig / flat camera), floating

@@ -20,6 +20,10 @@ A widget's `value` may be a plain value *or* a tosijs reactive proxy (e.g.
 `sky.timeOfDay`). When it's a proxy the widget reads/writes it and re-renders on
 external change, so a `slider3d` and a native bound `<input>` stay in sync.
 
+The example below has a **Test** tab: those assertions run in the doc system's
+in-browser harness (real DOM + real pointer events) — coverage `bun test` can't
+reach, since tosijs needs a DOM.
+
 ```js
 import { tosi, elements } from 'tosijs'
 import {
@@ -50,10 +54,6 @@ preview.append(
   )
 )
 ```
-
-These run in the doc system's in-browser harness (real DOM + real pointer
-events) — the coverage `bun test` can't reach, since tosijs needs a DOM.
-
 ```test
 import { tosi, updates } from 'tosijs'
 import { panel3d, slider3d, toggle3d, button3d, list3d } from 'tosijs-3d'
@@ -208,12 +208,12 @@ bind to the same reactive values, so they stay in sync.
 Click the gear to raise/lower and spin the sphere — then try it in VR.
 
 ```js
-import { b3d, b3dLight, b3dSphere, label3d, toggle3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { cfg } = tosi({ cfg: { spin: true, height: 1 } })
 
-const ball = b3dSphere({ meshName: 'ball', diameter: 1, y: 1, color: '#39c5ff' })
+const cube = b3dBox({ meshName: 'cube', size: 1, y: 1, color: '#39c5ff' })
 
 const sceneEl = b3d(
   {
@@ -223,13 +223,13 @@ const sceneEl = b3d(
       slider3d({ label: 'height', value: cfg.height, min: 0, max: 3, step: 0.1 }),
     ],
     update() {
-      if (!ball.mesh) return
-      ball.mesh.position.y = cfg.height.value
-      if (cfg.spin.value) ball.mesh.rotation.y += 0.02
+      if (!cube.mesh) return
+      cube.mesh.position.y = cfg.height.value
+      if (cfg.spin.value) cube.mesh.rotation.y += 0.02
     },
   },
   b3dLight(),
-  ball
+  cube
 )
 preview.append(sceneEl)
 ```

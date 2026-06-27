@@ -48,7 +48,14 @@ export { B3dSkybox, b3dSkybox } from './b3d-skybox'
 export { B3dWater, b3dWater } from './b3d-water'
 export { B3dLight, b3dLight } from './b3d-light'
 export { B3dFog, b3dFog } from './b3d-fog'
-export { B3dSphere, b3dSphere, B3dGround, b3dGround } from './b3d-primitives'
+export {
+  B3dSphere,
+  b3dSphere,
+  B3dBox,
+  b3dBox,
+  B3dGround,
+  b3dGround,
+} from './b3d-primitives'
 export { B3dButton, b3dButton } from './b3d-button'
 export { B3dCollisions, b3dCollisions } from './b3d-collisions'
 export { B3dPhysics, b3dPhysics } from './b3d-physics'

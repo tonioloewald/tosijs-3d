@@ -37,6 +37,9 @@ becomes scrollable (wheel + drag). Every widget defaults to ~40px tall.</p>
 <p>A widget&#39;s <code>value</code> may be a plain value <em>or</em> a tosijs reactive proxy (e.g.
 <code>sky.timeOfDay</code>). When it&#39;s a proxy the widget reads/writes it and re-renders on
 external change, so a <code>slider3d</code> and a native bound <code>&lt;input&gt;</code> stay in sync.</p>
+<p>The example below has a <strong>Test</strong> tab: those assertions run in the doc system&#39;s
+in-browser harness (real DOM + real pointer events) — coverage <code>bun test</code> can&#39;t
+reach, since tosijs needs a DOM.</p>
 <pre><code class="language-js">import { tosi, elements } from &#39;tosijs&#39;
 import {
   panel3d, label3d, slider3d, toggle3d, button3d, text3d, list3d,
@@ -66,8 +69,6 @@ preview.append(
   )
 )
 </code></pre>
-<p>These run in the doc system&#39;s in-browser harness (real DOM + real pointer
-events) — the coverage <code>bun test</code> can&#39;t reach, since tosijs needs a DOM.</p>
 <pre><code class="language-test">import { tosi, updates } from &#39;tosijs&#39;
 import { panel3d, slider3d, toggle3d, button3d, list3d } from &#39;tosijs-3d&#39;
 const { s } = tosi({ s: { v: 0, on: false } })
@@ -212,12 +213,12 @@ immersive VR the identical panel floats above the viewer with an <strong>Exit VR
 button prepended (you can&#39;t click a DOM button inside a headset). Both surfaces
 bind to the same reactive values, so they stay in sync.</p>
 <p>Click the gear to raise/lower and spin the sphere — then try it in VR.</p>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSphere, label3d, toggle3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { cfg } = tosi({ cfg: { spin: true, height: 1 } })
 
-const ball = b3dSphere({ meshName: &#39;ball&#39;, diameter: 1, y: 1, color: &#39;#39c5ff&#39; })
+const cube = b3dBox({ meshName: &#39;cube&#39;, size: 1, y: 1, color: &#39;#39c5ff&#39; })
 
 const sceneEl = b3d(
   {
@@ -227,13 +228,13 @@ const sceneEl = b3d(
       slider3d({ label: &#39;height&#39;, value: cfg.height, min: 0, max: 3, step: 0.1 }),
     ],
     update() {
-      if (!ball.mesh) return
-      ball.mesh.position.y = cfg.height.value
-      if (cfg.spin.value) ball.mesh.rotation.y += 0.02
+      if (!cube.mesh) return
+      cube.mesh.position.y = cfg.height.value
+      if (cfg.spin.value) cube.mesh.rotation.y += 0.02
     },
   },
   b3dLight(),
-  ball
+  cube
 )
 preview.append(sceneEl)
 </code></pre>

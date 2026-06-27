@@ -45,6 +45,53 @@ export class B3dSphere extends AbstractMesh {
 
 export const b3dSphere = B3dSphere.elementCreator({ tag: 'tosi-b3d-sphere' })
 
+export class B3dBox extends AbstractMesh {
+  static initAttributes = {
+    ...AbstractMesh.initAttributes,
+    meshName: 'box',
+    size: 1,
+    width: 0, // 0 = use size
+    height: 0,
+    depth: 0,
+    color: '#ff0000',
+    mirror: false,
+  }
+
+  connectedCallback(): void {
+    super.connectedCallback()
+  }
+
+  sceneReady(owner: B3d, scene: BABYLON.Scene): void {
+    super.sceneReady(owner, scene)
+    const attrs = this as any
+    const meshName = attrs.mirror ? attrs.meshName + '_mirror' : attrs.meshName
+    this.mesh = BABYLON.MeshBuilder.CreateBox(
+      meshName,
+      {
+        size: attrs.size,
+        width: attrs.width || attrs.size,
+        height: attrs.height || attrs.size,
+        depth: attrs.depth || attrs.size,
+      },
+      scene
+    )
+    if (attrs.mirror) {
+      const material = new BABYLON.PBRMaterial(meshName + '-mat', scene)
+      material.albedoColor = BABYLON.Color3.FromHexString(attrs.color)
+      material.metallic = 1
+      material.roughness = 0.05
+      this.mesh.material = material
+    } else {
+      const material = new BABYLON.StandardMaterial(meshName + '-mat', scene)
+      material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color)
+      this.mesh.material = material
+    }
+    owner.register({ meshes: [this.mesh] })
+  }
+}
+
+export const b3dBox = B3dBox.elementCreator({ tag: 'tosi-b3d-box' })
+
 export class B3dGround extends AbstractMesh {
   static initAttributes = {
     ...AbstractMesh.initAttributes,
