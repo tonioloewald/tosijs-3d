@@ -1,4 +1,6 @@
 import type { GamepadSource, VirtualGamepad, MappingLabels } from './virtual-gamepad';
+/** Pointer phase for the coordinate-based (in-scene/VR) input path. */
+export type GamepadPointerKind = 'down' | 'move' | 'up';
 export type TouchGamepadOptions = {
     deadzone?: number;
     maxZone?: number;
@@ -12,6 +14,8 @@ export declare class TouchGamepadSource implements GamepadSource {
     private sticksInitialized;
     private buttonPointers;
     private customPointers;
+    private buttonBounds;
+    private boundsReady;
     private deadzone;
     private maxZone;
     private onButton?;
@@ -24,9 +28,17 @@ export declare class TouchGamepadSource implements GamepadSource {
     private initButtons;
     private findStickForElement;
     private findAnyPart;
+    private grabStick;
+    private moveStick;
+    private pressPart;
+    /** Release whatever (stick or button) a pointer id currently holds. */
+    private releasePointer;
     private onPointerDown;
     private onPointerMove;
     private onPointerUp;
+    handlePointer(kind: GamepadPointerKind, x: number, y: number, pointerId?: number): void;
+    /** Cache button rects (viewBox space) for coordinate hit-testing. */
+    private ensureBounds;
     private updateStickVisual;
     poll(): VirtualGamepad;
     /**

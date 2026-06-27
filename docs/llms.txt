@@ -76,6 +76,8 @@ relevant dist/*.js file for complete docs, usage examples, and API.
   Input component that maps keyboard/mouse to a virtual gamepad and optionally
 - dist/gamepad-svg.js — gamepad-svg
   Generates a gamepad SVG using tosijs element creators. All colors and stroke
+- dist/glass-gamepad.js — glass-gamepad
+  A **split** on-screen ("glass") gamepad for touch contexts. Instead of one
 - dist/hardware-gamepad.js — hardware-gamepad
   Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
 - dist/keyboard-gamepad.js — keyboard-gamepad

@@ -142,6 +142,9 @@ FIELD_TO_PART['rightStickX'] = 'right_stick'
 FIELD_TO_PART['rightStickY'] = 'right_stick'
 
 interface StickState {
+  /** Which gamepad stick this is — set from its data-part, NOT array order, so
+   * a cluster containing only the right stick still reports it correctly. */
+  side: 'left' | 'right'
   travel: SVGGraphicsElement
   knob: SVGGraphicsElement
   /** Center of travel area in SVG coords */
@@ -259,6 +262,7 @@ export class TouchGamepadSource implements GamepadSource {
       if (bbox.width === 0 || bbox.height === 0) continue
 
       this.sticks.push({
+        side: prefix === 'left_stick' ? 'left' : 'right',
         travel,
         knob,
         cx: bbox.x + bbox.width / 2,
@@ -517,14 +521,15 @@ export class TouchGamepadSource implements GamepadSource {
   }
 
   poll(): VirtualGamepad {
-    // Copy stick values into state
-    if (this.sticks.length > 0) {
-      this.state.leftStickX = this.sticks[0].x
-      this.state.leftStickY = this.sticks[0].y
-    }
-    if (this.sticks.length > 1) {
-      this.state.rightStickX = this.sticks[1].x
-      this.state.rightStickY = this.sticks[1].y
+    // Copy stick values into state, keyed by side (a cluster may have only one).
+    for (const stick of this.sticks) {
+      if (stick.side === 'left') {
+        this.state.leftStickX = stick.x
+        this.state.leftStickY = stick.y
+      } else {
+        this.state.rightStickX = stick.x
+        this.state.rightStickY = stick.y
+      }
     }
     return { ...this.state }
   }
@@ -537,26 +542,13 @@ export class TouchGamepadSource implements GamepadSource {
   reflectState(pad: VirtualGamepad) {
     this.ensureSticks()
 
-    // Reflect left stick (only if not being touched)
-    if (this.sticks.length > 0 && this.sticks[0].pointerId === -1) {
-      const s = this.sticks[0]
-      const dx = pad.leftStickX * s.radius
-      const dy = -pad.leftStickY * s.radius
-      const knobTranslate = `translate(${dx}, ${dy})`
-      s.knob.setAttribute(
-        'transform',
-        s.knobOriginalTransform
-          ? `${s.knobOriginalTransform} ${knobTranslate}`
-          : knobTranslate
-      )
-      s.travel.setAttribute('transform', '')
-    }
-
-    // Reflect right stick
-    if (this.sticks.length > 1 && this.sticks[1].pointerId === -1) {
-      const s = this.sticks[1]
-      const dx = pad.rightStickX * s.radius
-      const dy = -pad.rightStickY * s.radius
+    // Reflect each stick (keyed by side; skip if currently being touched)
+    for (const s of this.sticks) {
+      if (s.pointerId !== -1) continue
+      const dx =
+        (s.side === 'left' ? pad.leftStickX : pad.rightStickX) * s.radius
+      const dy =
+        -(s.side === 'left' ? pad.leftStickY : pad.rightStickY) * s.radius
       const knobTranslate = `translate(${dx}, ${dy})`
       s.knob.setAttribute(
         'transform',

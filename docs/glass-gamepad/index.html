@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>glass-gamepad — tosijs-3d</title>
+  <meta name="description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts. Instead of one controller body, the controls are grouped into independently-anchored clusters, each a…" />
+  <link rel="canonical" href="https://3d.tosijs.net/glass-gamepad/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="glass-gamepad — tosijs-3d" />
+  <meta property="og:description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts. Instead of one controller body, the controls are grouped into independently-anchored clusters, each a…" />
+  <meta property="og:url" content="https://3d.tosijs.net/glass-gamepad/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"glass-gamepad","description":"A split on-screen (\"glass\") gamepad for touch contexts. Instead of one controller body, the controls are grouped into independently-anchored clusters, each a…","url":"https://3d.tosijs.net/glass-gamepad/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>glass-gamepad</h1>
+<p>A <strong>split</strong> on-screen (&quot;glass&quot;) gamepad for touch contexts. Instead of one
+controller body, the controls are grouped into independently-anchored clusters,
+each a small SVG pinned to a corner of the view:</p>
+<table>
+<thead>
+<tr>
+<th>Cluster</th>
+<th>Default anchor</th>
+<th>Controls</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>left</code></td>
+<td>bottom-left</td>
+<td>left stick, d-pad, left bumper/trigger</td>
+</tr>
+<tr>
+<td><code>right</code></td>
+<td>bottom-right</td>
+<td>A/B/X/Y, right stick, right bumper/trigger</td>
+</tr>
+<tr>
+<td><code>top</code></td>
+<td>top-center</td>
+<td>view, menu</td>
+</tr>
+</tbody></table>
+<p>Each cluster is loaded from a self-contained SVG (default <code>/gamepad-left.svg</code>,
+<code>/gamepad-right.svg</code>, <code>/gamepad-top.svg</code>) whose paths are labelled by <code>id</code>
+(copied to <code>data-part</code> on load). There&#39;s no outer shell — just the clusters.</p>
+<p>A <code>GlassGamepad</code> is a [[virtual-gamepad]] <code>GamepadSource</code>: drop its <code>.element</code>
+over the scene and add it to a <code>MappedInputProvider</code> alongside keyboard / XR.
+Each cluster runs its own <code>TouchGamepadSource</code>; their disjoint outputs are
+merged, so the left cluster reports the left stick and the right the right.</p>
+<pre><code class="language-js">import { glassGamepad } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, pre } = elements
+
+const pad = glassGamepad()
+const readout = pre({ class: &#39;readout&#39; })
+
+function update() {
+  const s = pad.poll()
+  const lines = []
+  if (s.leftStickX || s.leftStickY)
+    lines.push(`L: ${s.leftStickX.toFixed(2)}, ${s.leftStickY.toFixed(2)}`)
+  if (s.rightStickX || s.rightStickY)
+    lines.push(`R: ${s.rightStickX.toFixed(2)}, ${s.rightStickY.toFixed(2)}`)
+  const btns = [&#39;buttonA&#39;,&#39;buttonB&#39;,&#39;buttonX&#39;,&#39;buttonY&#39;,&#39;leftBumper&#39;,&#39;rightBumper&#39;,
+    &#39;leftTrigger&#39;,&#39;rightTrigger&#39;,&#39;dpadUp&#39;,&#39;dpadDown&#39;,&#39;dpadLeft&#39;,&#39;dpadRight&#39;]
+    .filter((k) =&gt; s[k] &gt; 0)
+  if (btns.length) lines.push(btns.join(&#39;, &#39;))
+  readout.textContent = lines.join(&#39;\n&#39;) || &#39;Touch or drag the controls&#39;
+  requestAnimationFrame(update)
+}
+update()
+
+preview.append(div({ class: &#39;glass-stage&#39; }, pad.element, readout))
+</code></pre>
+<pre><code class="language-css">.glass-stage {
+  position: relative;
+  height: 70vh;
+  background: radial-gradient(circle at 50% 30%, #20303a, #0b0f14);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.glass-stage .readout {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: #cfe;
+  white-space: pre;
+}
+.glass-stage [data-part].active {
+  filter: brightness(1.4);
+}
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/glass-gamepad/" aria-current="page" class="current">glass-gamepad</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
+    <li><a href="/world-contract/">world-contract</a></li>
+    <li><a href="/world-store/">world-store</a></li>
+    <li><a href="/world-view/">world-view</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>
