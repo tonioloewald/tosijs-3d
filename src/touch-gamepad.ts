@@ -189,6 +189,9 @@ function svgPoint(
   return { x: transformed.x, y: transformed.y }
 }
 
+/** Pointer phase for the coordinate-based (in-scene/VR) input path. */
+export type GamepadPointerKind = 'down' | 'move' | 'up'
+
 export type TouchGamepadOptions = {
   deadzone?: number
   maxZone?: number
@@ -203,6 +206,13 @@ export class TouchGamepadSource implements GamepadSource {
   private sticksInitialized = false
   private buttonPointers = new Map<string, number>() // data-part → pointerId
   private customPointers = new Map<string, number>() // unmapped data-part → pointerId
+  // Cached viewBox-space rects for coordinate hit-testing (the in-scene/VR path,
+  // which has no DOM target to walk). Computed once the SVG has laid out.
+  private buttonBounds = new Map<
+    string,
+    { x: number; y: number; w: number; h: number }
+  >()
+  private boundsReady = false
   private deadzone: number
   private maxZone: number
   private onButton?: (part: string, pressed: boolean) => void
@@ -306,112 +316,186 @@ export class TouchGamepadSource implements GamepadSource {
     return undefined
   }
 
+  // --- Shared grab/press/move/release logic --------------------------------
+  // Used by BOTH the DOM pointer path (flat overlay) and the coordinate-based
+  // handlePointer path (in-scene/VR), so behaviour is identical on both.
+
+  private grabStick(
+    stick: StickState,
+    x: number,
+    y: number,
+    pointerId: number
+  ) {
+    stick.pointerId = pointerId
+    stick.originX = x
+    stick.originY = y
+    // Recenter the travel+knob group to the grab point
+    stick.offsetX = x - stick.cx
+    stick.offsetY = y - stick.cy
+    this.updateStickVisual(stick, 0, 0)
+    stick.x = 0
+    stick.y = 0
+  }
+
+  private moveStick(stick: StickState, x: number, y: number) {
+    let dx = x - stick.originX
+    let dy = y - stick.originY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (dist > stick.radius) {
+      dx = (dx / dist) * stick.radius
+      dy = (dy / dist) * stick.radius
+    }
+    const nx = dx / stick.radius
+    const ny = dy / stick.radius
+    stick.x = applyDeadzone(nx, this.deadzone, this.maxZone)
+    stick.y = applyDeadzone(-ny, this.deadzone, this.maxZone) // up = positive
+    this.updateStickVisual(stick, dx, dy)
+  }
+
+  private pressPart(part: string, pointerId: number) {
+    const field = BUTTON_MAP[part]
+    if (field) {
+      this.buttonPointers.set(part, pointerId)
+      ;(this.state as any)[field] = 1
+    } else {
+      this.customPointers.set(part, pointerId)
+      this.onButton?.(part, true)
+    }
+    this.part(part)?.classList.add('active')
+  }
+
+  /** Release whatever (stick or button) a pointer id currently holds. */
+  private releasePointer(pointerId: number): boolean {
+    for (const stick of this.sticks) {
+      if (stick.pointerId !== pointerId) continue
+      stick.pointerId = -1
+      stick.x = 0
+      stick.y = 0
+      stick.offsetX = 0
+      stick.offsetY = 0
+      stick.knob.setAttribute('transform', stick.knobOriginalTransform)
+      stick.travel.setAttribute('transform', '')
+      return true
+    }
+    for (const [part, pid] of this.buttonPointers) {
+      if (pid !== pointerId) continue
+      this.buttonPointers.delete(part)
+      ;(this.state as any)[BUTTON_MAP[part]] = 0
+      this.part(part)?.classList.remove('active')
+      return true
+    }
+    for (const [part, pid] of this.customPointers) {
+      if (pid !== pointerId) continue
+      this.customPointers.delete(part)
+      this.onButton?.(part, false)
+      this.part(part)?.classList.remove('active')
+      return true
+    }
+    return false
+  }
+
+  // --- DOM pointer path (flat-screen overlay) ------------------------------
+  // Hit-tests by event target (accurate for irregular shapes), converts
+  // clientX/Y → viewBox via the CTM (valid on-screen), then drives the shared
+  // helpers above.
+
   private onPointerDown(e: PointerEvent) {
     const target = e.target as Element
     if (target == null) return
+    this.ensureSticks() // getBBox needs the SVG in the DOM
+    const pt = svgPoint(this.svg, e.clientX, e.clientY)
 
-    // Lazy-init sticks (getBBox needs SVG in DOM)
-    this.ensureSticks()
-
-    // Check sticks first
     const stick = this.findStickForElement(target)
     if (stick != null && stick.pointerId === -1) {
       e.preventDefault()
-      ;(e.target as Element).setPointerCapture(e.pointerId)
-      stick.pointerId = e.pointerId
-
-      const pt = svgPoint(this.svg, e.clientX, e.clientY)
-      stick.originX = pt.x
-      stick.originY = pt.y
-
-      // Recenter the travel+knob group to the touch point
-      stick.offsetX = pt.x - stick.cx
-      stick.offsetY = pt.y - stick.cy
-      this.updateStickVisual(stick, 0, 0)
-
-      stick.x = 0
-      stick.y = 0
+      this.svg.setPointerCapture(e.pointerId)
+      this.grabStick(stick, pt.x, pt.y, e.pointerId)
       return
     }
-
-    // Check buttons (mapped and unmapped)
     const buttonPart = this.findAnyPart(target)
     if (buttonPart != null) {
       e.preventDefault()
-      ;(e.target as Element).setPointerCapture(e.pointerId)
-      const field = BUTTON_MAP[buttonPart]
-      if (field) {
-        this.buttonPointers.set(buttonPart, e.pointerId)
-        ;(this.state as any)[field] = 1
-      } else {
-        this.customPointers.set(buttonPart, e.pointerId)
-        this.onButton?.(buttonPart, true)
-      }
-      this.part(buttonPart)?.classList.add('active')
+      this.svg.setPointerCapture(e.pointerId)
+      this.pressPart(buttonPart, e.pointerId)
     }
   }
 
   private onPointerMove(e: PointerEvent) {
     for (const stick of this.sticks) {
       if (stick.pointerId !== e.pointerId) continue
-
       const pt = svgPoint(this.svg, e.clientX, e.clientY)
-      let dx = pt.x - stick.originX
-      let dy = pt.y - stick.originY
-
-      // Constrain to travel radius
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist > stick.radius) {
-        dx = (dx / dist) * stick.radius
-        dy = (dy / dist) * stick.radius
-      }
-
-      // Normalize to -1..1 with deadzone
-      const nx = dx / stick.radius
-      const ny = dy / stick.radius
-      stick.x = applyDeadzone(nx, this.deadzone, this.maxZone)
-      stick.y = applyDeadzone(-ny, this.deadzone, this.maxZone) // Y inverted: up = positive
-
-      this.updateStickVisual(stick, dx, dy)
+      this.moveStick(stick, pt.x, pt.y)
       return
     }
   }
 
   private onPointerUp(e: PointerEvent) {
-    // Release sticks
+    this.releasePointer(e.pointerId)
+  }
+
+  // --- Coordinate path (in-scene / VR) -------------------------------------
+  // Same input via viewBox coords + a pointer id — no DOM events, no CTM. Fed by
+  // a textured plane's pick (UV → viewBox), exactly like panel3d.handlePointer.
+  // Hit-tests by cached geometry since there's no DOM target to walk.
+
+  handlePointer(
+    kind: GamepadPointerKind,
+    x: number,
+    y: number,
+    pointerId = 0
+  ): void {
+    if (kind === 'move') {
+      for (const stick of this.sticks) {
+        if (stick.pointerId === pointerId) this.moveStick(stick, x, y)
+      }
+      return
+    }
+    if (kind === 'up') {
+      this.releasePointer(pointerId)
+      return
+    }
+    // down — sticks first (point in travel circle), then buttons (point in rect)
+    this.ensureSticks()
+    this.ensureBounds()
     for (const stick of this.sticks) {
-      if (stick.pointerId !== e.pointerId) continue
-
-      stick.pointerId = -1
-      stick.x = 0
-      stick.y = 0
-      stick.offsetX = 0
-      stick.offsetY = 0
-
-      // Snap back visuals
-      stick.knob.setAttribute('transform', stick.knobOriginalTransform)
-      stick.travel.setAttribute('transform', '')
-      return
+      if (stick.pointerId !== -1) continue
+      const dx = x - stick.cx
+      const dy = y - stick.cy
+      if (dx * dx + dy * dy <= stick.radius * stick.radius) {
+        this.grabStick(stick, x, y, pointerId)
+        return
+      }
     }
-
-    // Release mapped buttons
-    for (const [buttonPart, pid] of this.buttonPointers) {
-      if (pid !== e.pointerId) continue
-      this.buttonPointers.delete(buttonPart)
-      const field = BUTTON_MAP[buttonPart]
-      ;(this.state as any)[field] = 0
-      this.part(buttonPart)?.classList.remove('active')
-      return
+    for (const [part, r] of this.buttonBounds) {
+      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+        this.pressPart(part, pointerId)
+        return
+      }
     }
+  }
 
-    // Release unmapped buttons
-    for (const [buttonPart, pid] of this.customPointers) {
-      if (pid !== e.pointerId) continue
-      this.customPointers.delete(buttonPart)
-      this.onButton?.(buttonPart, false)
-      this.part(buttonPart)?.classList.remove('active')
-      return
+  /** Cache button rects (viewBox space) for coordinate hit-testing. */
+  private ensureBounds() {
+    if (this.boundsReady) return
+    const skip = new Set([
+      'controller',
+      'left_stick',
+      'right_stick',
+      'left_stick_travel',
+      'right_stick_travel',
+    ])
+    let any = false
+    for (const el of Array.from(
+      this.svg.querySelectorAll<SVGGraphicsElement>('[data-part]')
+    )) {
+      const part = el.dataset.part
+      if (part == null || skip.has(part)) continue
+      const b = el.getBBox()
+      if (b.width === 0 && b.height === 0) continue
+      this.buttonBounds.set(part, { x: b.x, y: b.y, w: b.width, h: b.height })
+      any = true
     }
+    if (any) this.boundsReady = true
   }
 
   private updateStickVisual(stick: StickState, knobDx: number, knobDy: number) {
