@@ -49,12 +49,17 @@
 [x] Converts pointer actions on surface to SVG (supports hover, active states, enter, exit, and click events, uses rect hull for collision)
 [x] Can be bound normally (live DOM SVG via selector, tosijs bindings update automatically)
 [x] Has a specified update frequency, defaults to 30ms
-[ ] Small library of svgUiComponents (not Component subclass, but in that spirit).
-[ ] button
-[ ] textInput
-[ ] toggle
-[ ] slider
-[ ] meter
+[x] Small library of svgUiComponents — `widgets3d` (panel3d container + label/text/button/toggle/slider/list3d), coordinate-routed (panel.handlePointer, no DOM events), works as DOM overlay + in-scene/VR plane
+[x] button (button3d)
+[ ] textInput (textInput3d) — deferred
+[x] toggle (toggle3d)
+[x] slider (slider3d)
+[ ] meter (meter3d) — deferred
+[x] Hover/leave feedback + per-control hitTest (scroll-drag the dead space of switch/slider rows; important in VR)
+[ ] list3d select modes: (a) buttons [done], (b) single-select / radio (binds `value`), (c) multi-select / checks (binds an array). Reuse the rowBg highlight; multi adds a check glyph (icon)
+[ ] select3d — composite dropdown built on (b): a collapsed row showing the current value + chevron; tap discloses a single-select list3d, collapses on pick. MUST grow the panel's layout (stackLayout re-flows) rather than a DOM-style absolute popover — a popover won't rasterize into the VR texture
+[ ] Icons: consume tosijs-ui's `./icons` subpath (a clean leaf — only `tosijs` peer + pure icon-data) behind a thin local `icon(name, {fill,size})` wrapper = the single seam to later swap for a standalone icon lib with zero call-site churn. Replace the gear `⚙` glyph; chevron for select3d, check for multi-select, leading icons on buttons
+[ ] SVG-native icon principle (minimise double-implementation): attributes-first (`fill`/`stroke`/`stroke-*`/`width`/`height`/`transform`) as the rasterizable baseline, CSS as a DOM-only override layer, `fill="currentColor"` for theming BUT resolved to an explicit fill before serialize (else icons render black in a texture), stacking via SVG `<g>`/`transform`/`<mask>`. Only animation + `:hover` are irreducibly DOM-vs-VR (handled by the texture re-render / pointer-routing layer, not the icon lib)
 
 ## Terrain
 
@@ -131,7 +136,9 @@
 [x] Collision detection system with convention-based collider shapes
 [x] XR controller input via observable pattern
 [x] Import-style demo code (rewritten at runtime by tosijs-ui)
-[ ] Componentized XR camera that can be dropped into a scene and given a mode (default, pinned to named transform, etc.) which provides an enter XR button as an option, and has a simple API.
+[x] WebXR built into b3d: on by default when supported (templated Enter/Exit-VR button), `no-xr` opt-out, `setupXr` full-override hook, default orbit camera with elevation/zoom limits, default locomotion (left-stick walk, right-stick fly + head-pivot smooth turn), floor-anchored rig
+[x] Dual-presence scene panel (`scenePanel` hook): gear-toggled DOM overlay on flat screen, head-anchored fade-in widgets3d panel (with Exit-VR button) in immersive VR — same widget definitions, same reactive bindings, both surfaces
+[ ] XR camera additional modes: pin to a named transform / follow a controllable (beyond the default free-locomotion rig)
 
 ## Documentation, Examples & Tests
 
