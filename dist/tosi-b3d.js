@@ -755,8 +755,8 @@ export class B3d extends Component {
         // Tunables. The panel floats ABOVE+FORWARD relative to the head, so it sits
         // ~50° up the sight-line, and is large enough to read and target.
         const PLANE_W = 1.0; // metres wide (height follows the panel's aspect)
-        const FORWARD = 0.35; // metres ahead of the head (horizontal)
-        const ABOVE = 0.45; // metres above the eye → ~50° up at that forward offset
+        const FORWARD = 0.85; // metres ahead of the head (horizontal)
+        const ABOVE = 1.2; // metres above the eye → ~55° up, well clear of the view
         // Fade window (head-forward Y = sin(pitch)): hidden at/below FADE_IN, full
         // at FADE_FULL. ~9°→~30° of upward tilt.
         const FADE_IN = 0.15;
@@ -775,8 +775,11 @@ export class B3d extends Component {
         mat.disableLighting = true;
         plane.material = mat;
         plane.visibility = 0;
+        // Tilt to meet the upward sight-line (face the head squarely from above).
+        const facePitch = Math.atan2(ABOVE, FORWARD);
         const fwd = new BABYLON.Vector3();
         const target = new BABYLON.Vector3();
+        let firstFrame = true;
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
             const head = cam.globalPosition;
             cam.getDirectionToRef(BABYLON.Vector3.Forward(), fwd);
@@ -786,10 +789,19 @@ export class B3d extends Component {
                 fwd.set(0, 0, 1); // looking straight up/down
             fwd.normalize();
             target.set(head.x + fwd.x * FORWARD, head.y + ABOVE, head.z + fwd.z * FORWARD);
-            // Smoothly leash to the target so it follows your facing without feeling
-            // glued to your face, then tilt to face the head.
-            BABYLON.Vector3.LerpToRef(plane.position, target, 0.25, plane.position);
-            plane.lookAt(head);
+            // Snap into place on the first frame (no fly-in), then leash so it
+            // follows your facing without feeling glued to your face.
+            if (firstFrame) {
+                plane.position.copyFrom(target);
+                firstFrame = false;
+            }
+            else {
+                BABYLON.Vector3.LerpToRef(plane.position, target, 0.2, plane.position);
+            }
+            // Orient from Euler (yaw to the head's heading, pitch down to the
+            // sight-line) — NOT lookAt, which faces the opposite plane side and
+            // mirrors the text horizontally.
+            plane.rotation.set(facePitch, Math.atan2(fwd.x, fwd.z), 0);
             plane.visibility = Math.max(0, Math.min(1, (lookUp - FADE_IN) / (FADE_FULL - FADE_IN)));
         });
         scene.constantlyUpdateMeshUnderPointer = true;
