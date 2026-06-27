@@ -217,6 +217,11 @@ const { cfg } = tosi({ cfg: { spin: true, height: 1 } })
 
 const cube = b3dBox({ meshName: 'cube', size: 1, y: 1, color: '#39c5ff' })
 
+// b3dBox is an AbstractMesh: it drives mesh.rotationQuaternion from its rx/ry/rz,
+// and a mesh WITH a rotationQuaternion ignores its euler `rotation`. So nudging
+// cube.mesh.rotation does nothing — set the quaternion directly. Tumble on two
+// axes so a single-colour cube under flat lighting clearly reads as spinning.
+let spin = 0
 const sceneEl = b3d(
   {
     scenePanel: () => [
@@ -224,14 +229,12 @@ const sceneEl = b3d(
       toggle3d({ label: 'spin', value: cfg.spin }),
       slider3d({ label: 'height', value: cfg.height, min: 0, max: 3, step: 0.1 }),
     ],
-    update() {
+    update(el, BABYLON) {
       if (!cube.mesh) return
       cube.mesh.position.y = cfg.height.value
-      // Tumble on two axes — a single-colour cube spinning around just the
-      // vertical axis under flat lighting barely reads as motion.
       if (cfg.spin.value) {
-        cube.mesh.rotation.y += 0.02
-        cube.mesh.rotation.x += 0.013
+        spin += 0.02
+        cube.mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(spin, spin * 0.6, 0)
       }
     },
   },
