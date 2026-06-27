@@ -174,6 +174,11 @@ type B3dCallback =
 
 const noop = () => {}
 
+// Read-only local axes reused by the per-frame XR loops (getDirectionToRef
+// reads but never mutates them), so we never allocate a Vector3 per frame.
+const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
+const XR_RIGHT = new BABYLON.Vector3(1, 0, 0)
+
 export class B3d extends Component {
   static initAttributes = {
     glowLayerIntensity: 0,
@@ -736,9 +741,12 @@ export class B3d extends Component {
     const TURN_SPEED = 2.0 // radians/sec at full deflection
     const DEAD = 0.15
     let last = Date.now()
+    // Reused scratch vectors — never allocate inside the per-frame loop (in XR
+    // that runs at 72-120fps, and the garbage was driving the perf creep).
     const fwd = new BABYLON.Vector3()
     const side = new BABYLON.Vector3()
     const head = new BABYLON.Vector3()
+    const tmp = new BABYLON.Vector3()
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       const now = Date.now()
       const dt = Math.min((now - last) * 0.001, 0.1)
@@ -750,15 +758,17 @@ export class B3d extends Component {
         (Math.abs(left.x) > DEAD || Math.abs(left.y) > DEAD)
       ) {
         // Walk relative to where the head currently faces (flattened to floor).
-        cam.getDirectionToRef(BABYLON.Vector3.Forward(), fwd)
+        cam.getDirectionToRef(XR_FORWARD, fwd)
         fwd.y = 0
         fwd.normalize()
-        cam.getDirectionToRef(BABYLON.Vector3.Right(), side)
+        cam.getDirectionToRef(XR_RIGHT, side)
         side.y = 0
         side.normalize()
         const step = HORIZ_SPEED * dt
-        rig.position.addInPlace(fwd.scale(-left.y * step))
-        rig.position.addInPlace(side.scale(left.x * step))
+        fwd.scaleToRef(-left.y * step, tmp)
+        rig.position.addInPlace(tmp)
+        side.scaleToRef(left.x * step, tmp)
+        rig.position.addInPlace(tmp)
       }
       if (right != null && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend
@@ -895,7 +905,7 @@ export class B3d extends Component {
     let firstFrame = true
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       const head = cam.globalPosition
-      cam.getDirectionToRef(BABYLON.Vector3.Forward(), fwd)
+      cam.getDirectionToRef(XR_FORWARD, fwd)
       const lookUp = fwd.y // world-space forward Y = sin(pitch); >0 looking up
       fwd.y = 0
       if (fwd.lengthSquared() < 1e-4) fwd.set(0, 0, 1) // looking straight up/down

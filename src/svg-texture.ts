@@ -76,14 +76,13 @@ export type SvgTextureOptions = {
  * Reuses the provided Image instance to avoid per-frame allocation.
  */
 function rasterizeSvg(
-  svgElement: SVGSVGElement,
+  xml: string,
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   img: HTMLImageElement,
   callback: () => void
 ): void {
-  const xml = new XMLSerializer().serializeToString(svgElement)
   const blob = new Blob([xml], { type: 'image/svg+xml' })
   const url = URL.createObjectURL(blob)
   img.onload = () => {
@@ -110,6 +109,7 @@ export class SvgTexture {
   private _scene: BABYLON.Scene
   private _rendering = false
   private _img = new Image()
+  private _lastXml = ''
 
   constructor(options: SvgTextureOptions) {
     const {
@@ -146,15 +146,23 @@ export class SvgTexture {
     if (!this._element || this._rendering) return
     const dt = this.texture as BABYLON.DynamicTexture
     if (!dt?.getContext) return
-    this._rendering = true
     const el = this._element.cloneNode(true) as SVGSVGElement
     el.removeAttribute('style')
+    const xml = new XMLSerializer().serializeToString(el)
+    // Skip the expensive rasterize + GPU upload when the SVG is unchanged. A
+    // mostly-static panel settles after one render and then costs nothing;
+    // genuinely animated SVGs (e.g. a radar) still update every cycle. This is
+    // the main fix for the in-XR perf creep, where a static panel was paying
+    // for a full re-rasterize + texImage2D upload on every interval.
+    if (xml === this._lastXml) return
+    this._lastXml = xml
+    this._rendering = true
     // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
     // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
     // needs the full surface API (drawImage, save, restore).
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
-    rasterizeSvg(el, ctx, res, res, this._img, () => {
+    rasterizeSvg(xml, ctx, res, res, this._img, () => {
       this._rendering = false
       dt.update(false)
     })
@@ -164,15 +172,12 @@ export class SvgTexture {
   renderString(svgString: string): void {
     const dt = this.texture as BABYLON.DynamicTexture
     if (!dt?.getContext) return
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(svgString, 'image/svg+xml')
-    const svg = doc.documentElement as unknown as SVGSVGElement
     // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
     // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
     // needs the full surface API (drawImage, save, restore).
     const ctx = dt.getContext() as unknown as CanvasRenderingContext2D
     const res = this._resolution
-    rasterizeSvg(svg, ctx, res, res, this._img, () => {
+    rasterizeSvg(svgString, ctx, res, res, this._img, () => {
       dt.update(false)
     })
   }

@@ -19,6 +19,7 @@ export declare class SvgTexture {
     private _scene;
     private _rendering;
     private _img;
+    private _lastXml;
     constructor(options: SvgTextureOptions);
     /** Manually trigger a re-render from the live SVG element. */
     render(): void;
