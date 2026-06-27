@@ -93,7 +93,11 @@ export { TouchGamepadSource } from './touch-gamepad'
 export type { TouchGamepadOptions, GamepadPointerKind } from './touch-gamepad'
 export { gamepadSvg } from './gamepad-svg'
 export type { GamepadSvgColors } from './gamepad-svg'
-export { GlassGamepad, glassGamepad } from './glass-gamepad'
+export {
+  GlassGamepad,
+  glassGamepad,
+  parseGamepadControls,
+} from './glass-gamepad'
 export type {
   GlassGamepadConfig,
   ClusterConfig,

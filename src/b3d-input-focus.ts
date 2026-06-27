@@ -96,6 +96,12 @@ export class B3dInputFocus extends Component {
       this.focusEntity(this.playerEntity)
     }
 
+    // Feed the scene's glass gamepad (if any) into the merged input — it sits
+    // alongside keyboard/hardware and reports a VirtualGamepad.
+    if (this.owner?.glassGamepad && this.inputMappedProvider) {
+      this.inputMappedProvider.addSource(this.owner.glassGamepad)
+    }
+
     // Register update loop for interact proximity check
     if (this.owner) {
       this.owner.scene.registerBeforeRender(this._checkInteract)

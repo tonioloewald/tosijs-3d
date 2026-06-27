@@ -158,6 +158,7 @@ import '@babylonjs/loaders'
 import { xrControllers, type TosiXRControllerMap } from './gamepad'
 import { panel3d, button3d, type Widget3d } from './widgets3d'
 import { SvgTexture } from './svg-texture'
+import { GlassGamepad, parseGamepadControls } from './glass-gamepad'
 
 const { canvas, div, slot, button } = elements
 
@@ -196,6 +197,11 @@ export class B3d extends Component {
     // scene. Set the `no-xr` attribute to suppress it (e.g. demos that drive
     // XR themselves through a controllable's `cameraType: 'xr'`).
     noXr: false,
+    // When present, mount the split on-screen "glass" gamepad and feed it into
+    // the active input system (the unified touch control surface). The value
+    // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
+    // an empty value shows the full default layout. Absent → no gamepad.
+    gamepad: false as boolean | string,
   }
 
   static styleSpec = {
@@ -353,6 +359,9 @@ export class B3d extends Component {
   glowLayer?: BABYLON.GlowLayer
   xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
+  // The split touch control surface, when the `gamepad` attribute is present.
+  // b3dInputFocus feeds its poll() into the active input provider.
+  glassGamepad?: GlassGamepad
   BABYLON = BABYLON
 
   declare minElevation: number
@@ -596,6 +605,10 @@ export class B3d extends Component {
       this.gui = new GUI.GUI3DManager(this.scene)
       this.engine.runRenderLoop(this._update)
 
+      // Mount the glass gamepad (if requested) before notifying descendants, so
+      // b3dInputFocus sees its source when it wires up input.
+      this._setupGamepad()
+
       // Scene is now ready — notify all existing descendants
       this._sceneReady = true
       this._notifyAllDescendants()
@@ -837,6 +850,20 @@ export class B3d extends Component {
     gear.hidden = false
   }
 
+  // Mount the split touch "glass" gamepad when the `gamepad` attribute is
+  // present. The value selects/positions controls (parsed by
+  // parseGamepadControls); b3dInputFocus feeds glassGamepad.poll() into the
+  // active input provider so it drives the focused controllable.
+  private _setupGamepad(): void {
+    const attr = this.getAttribute('gamepad')
+    const prop = (this as any).gamepad
+    if (attr == null && (prop === false || prop == null)) return
+    const spec = typeof prop === 'string' && prop !== '' ? prop : attr ?? ''
+    const { controls } = parseGamepadControls(spec)
+    this.glassGamepad = new GlassGamepad({ controls })
+    ;(this.shadowRoot ?? this).appendChild(this.glassGamepad.element)
+  }
+
   // In-scene surface: render the panel onto a plane positioned each frame in
   // WORLD space relative to the HEAD (not the rig / flat camera), floating
   // overhead in the direction you face and fading in only as you tilt your head
@@ -980,6 +1007,10 @@ export class B3d extends Component {
   }
 
   disconnectedCallback(): void {
+    if (this.glassGamepad) {
+      this.glassGamepad.dispose()
+      this.glassGamepad = undefined
+    }
     if (this.xrHelper) {
       this.xrHelper.dispose()
       this.xrHelper = undefined

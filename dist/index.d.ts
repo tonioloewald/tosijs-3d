@@ -31,7 +31,7 @@ export { TouchGamepadSource } from './touch-gamepad';
 export type { TouchGamepadOptions, GamepadPointerKind } from './touch-gamepad';
 export { gamepadSvg } from './gamepad-svg';
 export type { GamepadSvgColors } from './gamepad-svg';
-export { GlassGamepad, glassGamepad } from './glass-gamepad';
+export { GlassGamepad, glassGamepad, parseGamepadControls, } from './glass-gamepad';
 export type { GlassGamepadConfig, ClusterConfig, ClusterAnchor, } from './glass-gamepad';
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped';
 export type { AnimStateSpec } from './b3d-biped';

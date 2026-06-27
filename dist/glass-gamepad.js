@@ -110,10 +110,68 @@ const PART_IDS = new Set([
     'right_stick_travel',
 ]);
 const DEFAULTS = {
-    left: { url: '/gamepad-left.svg', anchor: 'bottom-left', width: '32vmin' },
-    right: { url: '/gamepad-right.svg', anchor: 'bottom-right', width: '32vmin' },
-    top: { url: '/gamepad-top.svg', anchor: 'top-center', width: '22vmin' },
+    left: { url: '/gamepad-left.svg', anchor: 'bottom-left', vmin: 30 },
+    right: { url: '/gamepad-right.svg', anchor: 'bottom-right', vmin: 30 },
+    top: { url: '/gamepad-top.svg', anchor: 'top-center', vmin: 20 },
 };
+// Which controls each cluster owns — used to skip empty clusters and to hide
+// controls that weren't requested. Sticks list both knob and travel.
+const CLUSTER_PARTS = {
+    left: [
+        'left_stick',
+        'left_stick_travel',
+        'dpad_up',
+        'dpad_down',
+        'dpad_left',
+        'dpad_right',
+        'left_bumper',
+        'left_trigger',
+    ],
+    right: [
+        'A',
+        'B',
+        'X',
+        'Y',
+        'right_stick',
+        'right_stick_travel',
+        'right_bumper',
+        'right_trigger',
+    ],
+    top: ['menu', 'view'],
+};
+const NAME_ALIASES = {
+    a: ['A'],
+    b: ['B'],
+    x: ['X'],
+    y: ['Y'],
+    dpad: ['dpad_up', 'dpad_down', 'dpad_left', 'dpad_right'],
+};
+/**
+ * Parse a gamepad spec — e.g. `"a,b,right_stick(40,0),menu"` — into the controls
+ * to show and any per-piece offsets. `''` / `'true'` → all controls. `a/b/x/y`
+ * map to `A/B/X/Y`; `dpad` expands to the four directions.
+ */
+export function parseGamepadControls(spec) {
+    const offsets = {};
+    const s = spec.trim();
+    if (s === '' || s === 'true')
+        return { offsets }; // all controls
+    const controls = [];
+    for (const token of s.split(',')) {
+        const m = token
+            .trim()
+            .match(/^([A-Za-z_]+)(?:\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\))?$/);
+        if (m == null)
+            continue;
+        const names = NAME_ALIASES[m[1].toLowerCase()] ?? [m[1].toLowerCase()];
+        for (const n of names) {
+            controls.push(n);
+            if (m[2] != null)
+                offsets[n] = { x: Number(m[2]), y: Number(m[3]) };
+        }
+    }
+    return { controls, offsets };
+}
 async function loadCluster(url) {
     const res = await fetch(url);
     const text = await res.text();
@@ -166,14 +224,28 @@ export class GlassGamepad {
             maxZone: config.maxZone,
             onButton: config.onButton,
         };
+        const scale = config.scale ?? 1;
+        // The set of controls to show (undefined = show all). Showing a stick
+        // implies its travel ring too.
+        let want;
+        if (config.controls != null) {
+            want = new Set(config.controls);
+            if (want.has('left_stick'))
+                want.add('left_stick_travel');
+            if (want.has('right_stick'))
+                want.add('right_stick_travel');
+        }
         for (const key of ['left', 'right', 'top']) {
             const c = config[key];
             if (c === false)
                 continue;
-            void this.mountCluster({ ...DEFAULTS[key], ...c }, opts);
+            // Skip a cluster entirely if none of its controls were requested.
+            if (want != null && !CLUSTER_PARTS[key].some((p) => want.has(p)))
+                continue;
+            void this.mountCluster({ ...DEFAULTS[key], ...c }, opts, scale, want);
         }
     }
-    async mountCluster(cfg, opts) {
+    async mountCluster(cfg, opts, scale, want) {
         let svg;
         try {
             svg = await loadCluster(cfg.url);
@@ -184,7 +256,14 @@ export class GlassGamepad {
         }
         if (this.disposed)
             return;
-        svg.setAttribute('style', `position:absolute;${ANCHOR_CSS[cfg.anchor]};width:${cfg.width};` +
+        if (want != null) {
+            for (const el of Array.from(svg.querySelectorAll('[data-part]'))) {
+                const p = el.getAttribute('data-part');
+                if (p != null && !want.has(p))
+                    el.setAttribute('display', 'none');
+            }
+        }
+        svg.setAttribute('style', `position:absolute;${ANCHOR_CSS[cfg.anchor]};width:${cfg.vmin * scale}vmin;` +
             `height:auto;pointer-events:auto;touch-action:none;` +
             `user-select:none;-webkit-user-select:none`);
         this.element.appendChild(svg);

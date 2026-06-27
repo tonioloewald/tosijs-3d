@@ -3,6 +3,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
+import { GlassGamepad } from './glass-gamepad';
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -18,6 +19,7 @@ export declare class B3d extends Component {
         minDistance: number;
         maxDistance: number;
         noXr: boolean;
+        gamepad: boolean | string;
     };
     static styleSpec: {
         ':host': {
@@ -139,7 +141,7 @@ export declare class B3d extends Component {
             display: string;
         };
     };
-    content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement | HTMLButtonElement)[];
+    content: (HTMLCanvasElement | HTMLButtonElement | HTMLDivElement | HTMLSlotElement)[];
     engine: BABYLON.Engine;
     scene: BABYLON.Scene;
     camera?: BABYLON.Camera;
@@ -147,6 +149,7 @@ export declare class B3d extends Component {
     glowLayer?: BABYLON.GlowLayer;
     xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
+    glassGamepad?: GlassGamepad;
     BABYLON: typeof BABYLON;
     minElevation: number;
     maxElevation: number;
@@ -189,6 +192,7 @@ export declare class B3d extends Component {
     private _startDefaultXrExperience;
     private _makePanel;
     private _setupScenePanel;
+    private _setupGamepad;
     private _attachXrPanel;
     disconnectedCallback(): void;
     render(): void;
