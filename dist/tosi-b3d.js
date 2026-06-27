@@ -157,7 +157,7 @@ import '@babylonjs/loaders';
 import { xrControllers } from './gamepad';
 import { panel3d, button3d } from './widgets3d';
 import { SvgTexture } from './svg-texture';
-import { GlassGamepad, parseGamepadControls } from './glass-gamepad';
+import { b3dGamepad } from './glass-gamepad';
 const { canvas, div, slot, button } = elements;
 const noop = () => { };
 // Read-only local axes reused by the per-frame XR loops (getDirectionToRef
@@ -334,9 +334,6 @@ export class B3d extends Component {
     glowLayer;
     xrHelper;
     xrActive = false;
-    // The split touch control surface, when the `gamepad` attribute is present.
-    // b3dInputFocus feeds its poll() into the active input provider.
-    glassGamepad;
     BABYLON = BABYLON;
     sceneCreated = noop;
     update = noop;
@@ -766,18 +763,16 @@ export class B3d extends Component {
         gear.hidden = false;
     }
     // Mount the split touch "glass" gamepad when the `gamepad` attribute is
-    // present. The value selects/positions controls (parsed by
-    // parseGamepadControls); b3dInputFocus feeds glassGamepad.poll() into the
-    // active input provider so it drives the focused controllable.
+    // present, as a light-DOM child (projected over the canvas via the slot, and
+    // findable by b3dInputFocus, which adds its poll() to the input provider).
+    // The attribute value selects/positions controls.
     _setupGamepad() {
         const attr = this.getAttribute('gamepad');
         const prop = this.gamepad;
         if (attr == null && (prop === false || prop == null))
             return;
         const spec = typeof prop === 'string' && prop !== '' ? prop : attr ?? '';
-        const { controls } = parseGamepadControls(spec);
-        this.glassGamepad = new GlassGamepad({ controls });
-        (this.shadowRoot ?? this).appendChild(this.glassGamepad.element);
+        this.appendChild(b3dGamepad({ controls: spec }));
     }
     // In-scene surface: render the panel onto a plane positioned each frame in
     // WORLD space relative to the HEAD (not the rig / flat camera), floating
@@ -901,10 +896,6 @@ export class B3d extends Component {
         };
     }
     disconnectedCallback() {
-        if (this.glassGamepad) {
-            this.glassGamepad.dispose();
-            this.glassGamepad = undefined;
-        }
         if (this.xrHelper) {
             this.xrHelper.dispose();
             this.xrHelper = undefined;

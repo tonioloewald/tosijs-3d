@@ -40,7 +40,7 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core';
 import { Component } from 'tosijs';
 import { B3dControllable } from './b3d-controllable';
-import { bipedMapping } from './virtual-gamepad';
+import { bipedMapping, } from './virtual-gamepad';
 import { CompositeInputProvider } from './control-input';
 export class B3dInputFocus extends Component {
     static initAttributes = {
@@ -81,10 +81,12 @@ export class B3dInputFocus extends Component {
         if (this.playerEntity && this.inputMappedProvider) {
             this.focusEntity(this.playerEntity);
         }
-        // Feed the scene's glass gamepad (if any) into the merged input — it sits
-        // alongside keyboard/hardware and reports a VirtualGamepad.
-        if (this.owner?.glassGamepad && this.inputMappedProvider) {
-            this.inputMappedProvider.addSource(this.owner.glassGamepad);
+        // Feed the scene's glass gamepad (if any) into the merged input — it's a
+        // GamepadSource sitting alongside keyboard/hardware. Found by tag so it
+        // works whether mounted by b3d's `gamepad` attribute or placed directly.
+        const gamepad = this.owner?.querySelector('tosi-b3d-gamepad');
+        if (gamepad != null && this.inputMappedProvider) {
+            this.inputMappedProvider.addSource(gamepad);
         }
         // Register update loop for interact proximity check
         if (this.owner) {

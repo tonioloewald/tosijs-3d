@@ -1,9 +1,11 @@
 /*#
-# glass-gamepad
+# glass-gamepad (b3dGamepad)
 
-A **split** on-screen ("glass") gamepad for touch contexts. Instead of one
-controller body, the controls are grouped into independently-anchored clusters,
-each a small SVG pinned to a corner of the view:
+A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
+it's both the overlay element *and* a [[virtual-gamepad]] `GamepadSource`, like
+`gameController`/`keyboardGamepad`). Instead of one controller body, the controls
+are grouped into independently-anchored clusters, each a small SVG pinned to a
+corner of the view:
 
 | Cluster | Default anchor | Controls |
 | --- | --- | --- |
@@ -15,17 +17,16 @@ Each cluster is loaded from a self-contained SVG (default `/gamepad-left.svg`,
 `/gamepad-right.svg`, `/gamepad-top.svg`) whose paths are labelled by `id`
 (copied to `data-part` on load). There's no outer shell — just the clusters.
 
-A `GlassGamepad` is a [[virtual-gamepad]] `GamepadSource`: drop its `.element`
-over the scene and add it to a `MappedInputProvider` alongside keyboard / XR.
-Each cluster runs its own `TouchGamepadSource`; their disjoint outputs are
-merged, so the left cluster reports the left stick and the right the right.
+Usually you don't place this yourself: set the `gamepad` attribute on
+[[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
+directly, it's a `GamepadSource` whose `poll()` merges all clusters.
 
 ```js
-import { glassGamepad } from 'tosijs-3d'
+import { b3dGamepad } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div, pre } = elements
 
-const pad = glassGamepad()
+const pad = b3dGamepad()
 const readout = pre({ class: 'readout' })
 
 function update() {
@@ -44,12 +45,14 @@ function update() {
 }
 update()
 
-preview.append(div({ class: 'glass-stage' }, pad.element, readout))
+// height:100% so the vmin-scaled clusters are exercised at the card's real size.
+preview.append(div({ class: 'glass-stage' }, pad, readout))
 ```
 ```css
 .glass-stage {
   position: relative;
-  height: 70vh;
+  height: 100%;
+  min-height: 240px;
   background: radial-gradient(circle at 50% 30%, #20303a, #0b0f14);
   border-radius: 8px;
   overflow: hidden;
@@ -63,6 +66,7 @@ preview.append(div({ class: 'glass-stage' }, pad.element, readout))
   font-size: 13px;
   color: #cfe;
   white-space: pre;
+  pointer-events: none;
 }
 .glass-stage [data-part] {
   transition: stroke-width 0.08s, filter 0.08s;
@@ -75,7 +79,7 @@ preview.append(div({ class: 'glass-stage' }, pad.element, readout))
 */
 /*{ "parent": "Input" }*/
 
-import { elements } from 'tosijs'
+import { Component, elements } from 'tosijs'
 import { TouchGamepadSource, type TouchGamepadOptions } from './touch-gamepad'
 import {
   type GamepadSource,
@@ -134,21 +138,6 @@ export type ClusterConfig = {
   anchor?: ClusterAnchor
   /** Base width of the cluster overlay in vmin (multiplied by `scale`). */
   vmin?: number
-}
-
-export type GlassGamepadConfig = {
-  /** Set a cluster to `false` to omit it, or override its url/anchor/vmin. */
-  left?: ClusterConfig | false
-  right?: ClusterConfig | false
-  top?: ClusterConfig | false
-  /** Show only these controls (data-part names). Omit → show everything. A
-   * cluster with none of the requested controls isn't mounted. */
-  controls?: string[]
-  /** Scale all clusters down/up while keeping them anchored. Default 1. */
-  scale?: number
-  deadzone?: number
-  maxZone?: number
-  onButton?: (part: string, pressed: boolean) => void
 }
 
 const DEFAULTS: Record<'left' | 'right' | 'top', Required<ClusterConfig>> = {
@@ -256,75 +245,106 @@ async function loadCluster(url: string): Promise<SVGSVGElement> {
 }
 
 /**
- * A split touch gamepad. `element` is a full-bleed overlay (`pointer-events`
- * pass through except on the clusters themselves); `poll()` merges all loaded
- * clusters into one `VirtualGamepad`.
+ * The split touch gamepad as a Component: the element is a full-bleed overlay
+ * (pointer-events pass through except on the clusters), and the element *is* the
+ * `GamepadSource` — `poll()` merges every loaded cluster. b3dInputFocus finds it
+ * and adds it to the active input provider.
  */
-export class GlassGamepad implements GamepadSource {
-  readonly element: HTMLDivElement
-  private sources: TouchGamepadSource[] = []
-  private disposed = false
+export class B3dGamepad extends Component implements GamepadSource {
+  static initAttributes = {
+    /** Spec string: `''`/`true` = full layout, else e.g. `"a,b,left_stick"`. */
+    controls: '',
+    /** Scale all clusters while keeping them anchored. */
+    scale: 1,
+    deadzone: 0.15,
+    maxZone: 0.85,
+  }
 
-  constructor(config: GlassGamepadConfig = {}) {
-    this.element = div({ class: 'glass-gamepad' }) as HTMLDivElement
-    this.element.setAttribute(
-      'style',
-      'position:absolute;inset:0;pointer-events:none;z-index:15'
-    )
-    const opts: TouchGamepadOptions = {
-      deadzone: config.deadzone,
-      maxZone: config.maxZone,
-      onButton: config.onButton,
+  static styleSpec = {
+    ':host': {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+      zIndex: '15',
+    },
+    ':host .pad-clusters': {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+    },
+  }
+
+  content = [div({ class: 'pad-clusters', part: 'clusters' })]
+
+  declare controls: string
+  declare scale: number
+  declare deadzone: number
+  declare maxZone: number
+
+  /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one. */
+  clusters?: {
+    left?: ClusterConfig | false
+    right?: ClusterConfig | false
+    top?: ClusterConfig | false
+  }
+  onButton?: (part: string, pressed: boolean) => void
+
+  private sources: TouchGamepadSource[] = []
+  private built = false
+
+  connectedCallback(): void {
+    super.connectedCallback()
+    if (!this.built) {
+      this.built = true
+      void this._build()
     }
-    const scale = config.scale ?? 1
-    // The set of controls to show (undefined = show all). Showing a stick
-    // implies its travel ring too.
+  }
+
+  private async _build(): Promise<void> {
+    const host = this.parts.clusters as HTMLElement
+    const { controls } = parseGamepadControls(String(this.controls ?? ''))
+    const scale = this.scale ?? 1
+    const opts: TouchGamepadOptions = {
+      deadzone: this.deadzone,
+      maxZone: this.maxZone,
+      onButton: this.onButton,
+    }
+    // The set of controls to show (undefined = all). A stick implies its travel.
     let want: Set<string> | undefined
-    if (config.controls != null) {
-      want = new Set(config.controls)
+    if (controls != null) {
+      want = new Set(controls)
       if (want.has('left_stick')) want.add('left_stick_travel')
       if (want.has('right_stick')) want.add('right_stick_travel')
     }
     for (const key of ['left', 'right', 'top'] as const) {
-      const c = config[key]
+      const c = this.clusters?.[key]
       if (c === false) continue
-      // Skip a cluster entirely if none of its controls were requested.
       if (want != null && !CLUSTER_PARTS[key].some((p) => want!.has(p)))
         continue
-      void this.mountCluster({ ...DEFAULTS[key], ...c }, opts, scale, want)
-    }
-  }
-
-  private async mountCluster(
-    cfg: Required<ClusterConfig>,
-    opts: TouchGamepadOptions,
-    scale: number,
-    want?: Set<string>
-  ): Promise<void> {
-    let svg: SVGSVGElement
-    try {
-      svg = await loadCluster(cfg.url)
-    } catch (err) {
-      console.warn('glassGamepad: failed to load', cfg.url, err)
-      return
-    }
-    if (this.disposed) return
-    if (want != null) {
-      for (const el of Array.from(svg.querySelectorAll('[data-part]'))) {
-        const p = el.getAttribute('data-part')
-        if (p != null && !want.has(p)) el.setAttribute('display', 'none')
+      const cfg = { ...DEFAULTS[key], ...c }
+      let svg: SVGSVGElement
+      try {
+        svg = await loadCluster(cfg.url)
+      } catch (err) {
+        console.warn('b3dGamepad: failed to load', cfg.url, err)
+        continue
       }
+      if (!this.isConnected) return
+      if (want != null) {
+        for (const el of Array.from(svg.querySelectorAll('[data-part]'))) {
+          const p = el.getAttribute('data-part')
+          if (p != null && !want.has(p)) el.setAttribute('display', 'none')
+        }
+      }
+      svg.setAttribute(
+        'style',
+        `position:absolute;${ANCHOR_CSS[cfg.anchor]};` +
+          `width:${cfg.vmin * scale}vmin;height:auto;pointer-events:auto;` +
+          `touch-action:none;user-select:none;-webkit-user-select:none`
+      )
+      host.appendChild(svg)
+      this.sources.push(new TouchGamepadSource(svg, opts))
     }
-    svg.setAttribute(
-      'style',
-      `position:absolute;${ANCHOR_CSS[cfg.anchor]};width:${
-        cfg.vmin * scale
-      }vmin;` +
-        `height:auto;pointer-events:auto;touch-action:none;` +
-        `user-select:none;-webkit-user-select:none`
-    )
-    this.element.appendChild(svg)
-    this.sources.push(new TouchGamepadSource(svg, opts))
   }
 
   poll(): VirtualGamepad {
@@ -338,14 +358,13 @@ export class GlassGamepad implements GamepadSource {
     for (const s of this.sources) s.reflectState(pad)
   }
 
-  dispose(): void {
-    this.disposed = true
+  disconnectedCallback(): void {
     for (const s of this.sources) s.dispose()
     this.sources = []
-    this.element.remove()
+    super.disconnectedCallback()
   }
 }
 
-export function glassGamepad(config?: GlassGamepadConfig): GlassGamepad {
-  return new GlassGamepad(config)
-}
+export const b3dGamepad = B3dGamepad.elementCreator({
+  tag: 'tosi-b3d-gamepad',
+})

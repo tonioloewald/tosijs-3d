@@ -6,26 +6,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
-  <title>glass-gamepad — tosijs-3d</title>
-  <meta name="description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts. Instead of one controller body, the controls are grouped into independently-anchored clusters, each a…" />
+  <title>glass-gamepad (b3dGamepad) — tosijs-3d</title>
+  <meta name="description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so it&#39;s both the overlay element and a [[virtual-gamepad]] GamepadSource, like…" />
   <link rel="canonical" href="https://3d.tosijs.net/glass-gamepad/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="glass-gamepad — tosijs-3d" />
-  <meta property="og:description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts. Instead of one controller body, the controls are grouped into independently-anchored clusters, each a…" />
+  <meta property="og:title" content="glass-gamepad (b3dGamepad) — tosijs-3d" />
+  <meta property="og:description" content="A split on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so it&#39;s both the overlay element and a [[virtual-gamepad]] GamepadSource, like…" />
   <meta property="og:url" content="https://3d.tosijs.net/glass-gamepad/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"glass-gamepad","description":"A split on-screen (\"glass\") gamepad for touch contexts. Instead of one controller body, the controls are grouped into independently-anchored clusters, each a…","url":"https://3d.tosijs.net/glass-gamepad/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"glass-gamepad (b3dGamepad)","description":"A split on-screen (\"glass\") gamepad for touch contexts, as a Component (so it's both the overlay element and a [[virtual-gamepad]] GamepadSource, like…","url":"https://3d.tosijs.net/glass-gamepad/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="/tosijs-3d.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
 </head>
 <body>
   <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
   <article class="doc-content">
-<h1>glass-gamepad</h1>
-<p>A <strong>split</strong> on-screen (&quot;glass&quot;) gamepad for touch contexts. Instead of one
-controller body, the controls are grouped into independently-anchored clusters,
-each a small SVG pinned to a corner of the view:</p>
+<h1>glass-gamepad (b3dGamepad)</h1>
+<p>A <strong>split</strong> on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so
+it&#39;s both the overlay element <em>and</em> a [[virtual-gamepad]] <code>GamepadSource</code>, like
+<code>gameController</code>/<code>keyboardGamepad</code>). Instead of one controller body, the controls
+are grouped into independently-anchored clusters, each a small SVG pinned to a
+corner of the view:</p>
 <table>
 <thead>
 <tr>
@@ -53,15 +55,14 @@ each a small SVG pinned to a corner of the view:</p>
 <p>Each cluster is loaded from a self-contained SVG (default <code>/gamepad-left.svg</code>,
 <code>/gamepad-right.svg</code>, <code>/gamepad-top.svg</code>) whose paths are labelled by <code>id</code>
 (copied to <code>data-part</code> on load). There&#39;s no outer shell — just the clusters.</p>
-<p>A <code>GlassGamepad</code> is a [[virtual-gamepad]] <code>GamepadSource</code>: drop its <code>.element</code>
-over the scene and add it to a <code>MappedInputProvider</code> alongside keyboard / XR.
-Each cluster runs its own <code>TouchGamepadSource</code>; their disjoint outputs are
-merged, so the left cluster reports the left stick and the right the right.</p>
-<pre><code class="language-js">import { glassGamepad } from &#39;tosijs-3d&#39;
+<p>Usually you don&#39;t place this yourself: set the <code>gamepad</code> attribute on
+[[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
+directly, it&#39;s a <code>GamepadSource</code> whose <code>poll()</code> merges all clusters.</p>
+<pre><code class="language-js">import { b3dGamepad } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, pre } = elements
 
-const pad = glassGamepad()
+const pad = b3dGamepad()
 const readout = pre({ class: &#39;readout&#39; })
 
 function update() {
@@ -80,11 +81,13 @@ function update() {
 }
 update()
 
-preview.append(div({ class: &#39;glass-stage&#39; }, pad.element, readout))
+// height:100% so the vmin-scaled clusters are exercised at the card&#39;s real size.
+preview.append(div({ class: &#39;glass-stage&#39; }, pad, readout))
 </code></pre>
 <pre><code class="language-css">.glass-stage {
   position: relative;
-  height: 70vh;
+  height: 100%;
+  min-height: 240px;
   background: radial-gradient(circle at 50% 30%, #20303a, #0b0f14);
   border-radius: 8px;
   overflow: hidden;
@@ -98,6 +101,7 @@ preview.append(div({ class: &#39;glass-stage&#39; }, pad.element, readout))
   font-size: 13px;
   color: #cfe;
   white-space: pre;
+  pointer-events: none;
 }
 .glass-stage [data-part] {
   transition: stroke-width 0.08s, filter 0.08s;
@@ -147,7 +151,7 @@ preview.append(div({ class: &#39;glass-stage&#39; }, pad.element, readout))
       <li><a href="/control-input/">control-input</a></li>
       <li><a href="/game-controller/">game-controller</a></li>
       <li><a href="/gamepad-svg/">gamepad-svg</a></li>
-      <li><a href="/glass-gamepad/" aria-current="page" class="current">glass-gamepad</a></li>
+      <li><a href="/glass-gamepad/" aria-current="page" class="current">glass-gamepad (b3dGamepad)</a></li>
       <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
       <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
       <li><a href="/touch-gamepad/">touch-gamepad</a></li>

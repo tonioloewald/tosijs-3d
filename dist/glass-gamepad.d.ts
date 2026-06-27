@@ -1,3 +1,4 @@
+import { Component } from 'tosijs';
 import { type GamepadSource, type VirtualGamepad } from './virtual-gamepad';
 export type ClusterAnchor = 'bottom-left' | 'bottom-right' | 'bottom-center' | 'top-left' | 'top-right' | 'top-center';
 export type ClusterConfig = {
@@ -7,20 +8,6 @@ export type ClusterConfig = {
     anchor?: ClusterAnchor;
     /** Base width of the cluster overlay in vmin (multiplied by `scale`). */
     vmin?: number;
-};
-export type GlassGamepadConfig = {
-    /** Set a cluster to `false` to omit it, or override its url/anchor/vmin. */
-    left?: ClusterConfig | false;
-    right?: ClusterConfig | false;
-    top?: ClusterConfig | false;
-    /** Show only these controls (data-part names). Omit → show everything. A
-     * cluster with none of the requested controls isn't mounted. */
-    controls?: string[];
-    /** Scale all clusters down/up while keeping them anchored. Default 1. */
-    scale?: number;
-    deadzone?: number;
-    maxZone?: number;
-    onButton?: (part: string, pressed: boolean) => void;
 };
 /**
  * Parse a gamepad spec — e.g. `"a,b,right_stick(40,0),menu"` — into the controls
@@ -35,20 +22,53 @@ export declare function parseGamepadControls(spec: string): {
     }>;
 };
 /**
- * A split touch gamepad. `element` is a full-bleed overlay (`pointer-events`
- * pass through except on the clusters themselves); `poll()` merges all loaded
- * clusters into one `VirtualGamepad`.
+ * The split touch gamepad as a Component: the element is a full-bleed overlay
+ * (pointer-events pass through except on the clusters), and the element *is* the
+ * `GamepadSource` — `poll()` merges every loaded cluster. b3dInputFocus finds it
+ * and adds it to the active input provider.
  */
-export declare class GlassGamepad implements GamepadSource {
-    readonly element: HTMLDivElement;
+export declare class B3dGamepad extends Component implements GamepadSource {
+    static initAttributes: {
+        /** Spec string: `''`/`true` = full layout, else e.g. `"a,b,left_stick"`. */
+        controls: string;
+        /** Scale all clusters while keeping them anchored. */
+        scale: number;
+        deadzone: number;
+        maxZone: number;
+    };
+    static styleSpec: {
+        ':host': {
+            position: string;
+            inset: string;
+            pointerEvents: string;
+            zIndex: string;
+        };
+        ':host .pad-clusters': {
+            position: string;
+            inset: string;
+            pointerEvents: string;
+        };
+    };
+    content: HTMLDivElement[];
+    controls: string;
+    scale: number;
+    deadzone: number;
+    maxZone: number;
+    /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one. */
+    clusters?: {
+        left?: ClusterConfig | false;
+        right?: ClusterConfig | false;
+        top?: ClusterConfig | false;
+    };
+    onButton?: (part: string, pressed: boolean) => void;
     private sources;
-    private disposed;
-    constructor(config?: GlassGamepadConfig);
-    private mountCluster;
+    private built;
+    connectedCallback(): void;
+    private _build;
     poll(): VirtualGamepad;
     /** Mirror external gamepad state (hardware/keyboard) onto untouched controls. */
     reflectState(pad: VirtualGamepad): void;
-    dispose(): void;
+    disconnectedCallback(): void;
 }
-export declare function glassGamepad(config?: GlassGamepadConfig): GlassGamepad;
+export declare const b3dGamepad: import("tosijs").ElementCreator<B3dGamepad>;
 //# sourceMappingURL=glass-gamepad.d.ts.map

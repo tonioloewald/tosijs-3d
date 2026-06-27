@@ -43,7 +43,11 @@ import { Component } from 'tosijs'
 import type { B3d } from './tosi-b3d'
 import { B3dControllable } from './b3d-controllable'
 import type { GameController } from './game-controller'
-import { MappedInputProvider, bipedMapping } from './virtual-gamepad'
+import {
+  MappedInputProvider,
+  bipedMapping,
+  type GamepadSource,
+} from './virtual-gamepad'
 import { CompositeInputProvider } from './control-input'
 
 export class B3dInputFocus extends Component {
@@ -96,10 +100,14 @@ export class B3dInputFocus extends Component {
       this.focusEntity(this.playerEntity)
     }
 
-    // Feed the scene's glass gamepad (if any) into the merged input — it sits
-    // alongside keyboard/hardware and reports a VirtualGamepad.
-    if (this.owner?.glassGamepad && this.inputMappedProvider) {
-      this.inputMappedProvider.addSource(this.owner.glassGamepad)
+    // Feed the scene's glass gamepad (if any) into the merged input — it's a
+    // GamepadSource sitting alongside keyboard/hardware. Found by tag so it
+    // works whether mounted by b3d's `gamepad` attribute or placed directly.
+    const gamepad = this.owner?.querySelector(
+      'tosi-b3d-gamepad'
+    ) as unknown as GamepadSource | null
+    if (gamepad != null && this.inputMappedProvider) {
+      this.inputMappedProvider.addSource(gamepad)
     }
 
     // Register update loop for interact proximity check
