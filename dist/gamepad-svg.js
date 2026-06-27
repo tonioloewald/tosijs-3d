@@ -68,7 +68,7 @@ function filled(fill) {
 export function gamepadSvg(colors = {}) {
     const c = { ...DEFAULTS, ...colors };
     const s = stroked(c);
-    return svg({ viewBox: '0 185 1024 670' }, 
+    const pad = svg({ viewBox: '0 185 1024 670' }, 
     // Controller body
     path({
         'data-part': 'controller',
@@ -178,5 +178,10 @@ export function gamepadSvg(colors = {}) {
         ...filled(c.widgetColor),
         ...s,
     }));
+    // pointer-events:auto defends against a host's global `svg { pointer-events:
+    // none }` (inherited). user-select/tap-highlight off kills the blue selection
+    // flash on press+drag. Set via setAttribute — svgElements types style as an object.
+    pad.setAttribute('style', 'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
+    return pad;
 }
 //# sourceMappingURL=gamepad-svg.js.map

@@ -12,6 +12,11 @@ export declare class B3d extends Component {
     static initAttributes: {
         glowLayerIntensity: number;
         frameRate: number;
+        minElevation: number;
+        maxElevation: number;
+        minDistance: number;
+        maxDistance: number;
+        noXr: boolean;
     };
     static styleSpec: {
         ':host': {
@@ -73,17 +78,48 @@ export declare class B3d extends Component {
         ':host .babylonVRicon:hover': {
             transform: string;
         };
+        ':host .enter-vr-button': {
+            position: string;
+            bottom: string;
+            right: string;
+            zIndex: string;
+            display: string;
+            alignItems: string;
+            gap: string;
+            padding: string;
+            background: string;
+            color: string;
+            border: string;
+            borderRadius: string;
+            font: string;
+            cursor: string;
+            transition: string;
+        };
+        ':host .enter-vr-button[hidden]': {
+            display: string;
+        };
+        ':host .enter-vr-button:hover': {
+            background: string;
+            transform: string;
+        };
     };
-    content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement)[];
+    content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement | HTMLButtonElement)[];
     engine: BABYLON.Engine;
     scene: BABYLON.Scene;
     camera?: BABYLON.Camera;
     gui?: GUI.GUI3DManager;
     glowLayer?: BABYLON.GlowLayer;
+    xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
     BABYLON: typeof BABYLON;
+    minElevation: number;
+    maxElevation: number;
+    minDistance: number;
+    maxDistance: number;
+    noXr: boolean;
     sceneCreated: B3dCallback;
     update: B3dCallback;
+    setupXr: B3dCallback;
     private lastRender;
     private sceneListeners;
     private pastAdditions;
@@ -112,6 +148,7 @@ export declare class B3d extends Component {
     private _disposeSubtree;
     private _notifyAllDescendants;
     connectedCallback(): void;
+    private _setupXR;
     disconnectedCallback(): void;
     render(): void;
 }

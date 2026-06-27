@@ -90,3 +90,13 @@ relevant dist/*.js file for complete docs, usage examples, and API.
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - dist/virtual-gamepad.js — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
+- dist/widgets3d.js — widgets3d
+  A small collection of **SVG-native** UI widgets with element-creator ergonomics
+- dist/widgets3d-layout.js — widgets3d-layout
+  Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
+- dist/world-contract.js — world-contract
+  The boundary between the **simulation** (tosijs-3d) and an **external driver**
+- dist/world-store.js — world-store
+  A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
+- dist/world-view.js — world-view
+  The Babylon **view** of a [[world-store]]. The store is the authoritative,

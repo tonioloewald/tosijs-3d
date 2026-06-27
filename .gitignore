@@ -183,3 +183,6 @@ static/*.wav
 # jolt-physics's WASM loader is copied from node_modules by the build prebuild;
 # tracking it would just go stale every time the dep updates.
 static/jolt-physics.wasm-compat.js
+
+# in-browser test results (generated)
+.browser-tests.json

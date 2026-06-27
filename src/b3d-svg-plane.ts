@@ -282,6 +282,8 @@ scene.style.position = 'relative'
 scene.append(uiSvg)
 
 preview.append(scene)
+// b3d shows an Enter-VR button automatically when an immersive-vr session is
+// supported — try this same button with a controller in VR.
 ```
 
 The SVG overlay is interactive in 2D (click it directly) and the same
@@ -409,6 +411,10 @@ export class B3dSvgPlane extends AbstractMesh {
   private _pointerObserver: BABYLON.Nullable<
     BABYLON.Observer<BABYLON.PointerInfo>
   > = null
+  // Press state for the coordinate-based (panel3d) routing path.
+  private _pressing = false
+  private _lastSvgX = 0
+  private _lastSvgY = 0
 
   content = () => ''
 
@@ -507,21 +513,59 @@ export class B3dSvgPlane extends AbstractMesh {
   }
 
   private _attachPointerObserver(scene: BABYLON.Scene) {
+    // Keep pickInfo populated for move (and reliably for down/up).
+    scene.constantlyUpdateMeshUnderPointer = true
+    const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes
     this._pointerObserver = scene.onPointerObservable.add((pointerInfo) => {
-      const { POINTERDOWN, POINTERUP, POINTERMOVE } = BABYLON.PointerEventTypes
-      if (
-        pointerInfo.type !== POINTERDOWN &&
-        pointerInfo.type !== POINTERUP &&
-        pointerInfo.type !== POINTERMOVE
-      )
+      const kind =
+        pointerInfo.type === POINTERDOWN
+          ? 'down'
+          : pointerInfo.type === POINTERUP
+          ? 'up'
+          : pointerInfo.type === POINTERMOVE
+          ? 'move'
+          : ''
+      if (!kind) return
+
+      const svgEl = this.svgElement as unknown as {
+        handlePointer?: (k: string, x: number, y: number) => void
+        viewBox?: { baseVal?: { width: number; height: number } }
+      } | null
+      const handle =
+        svgEl && typeof svgEl.handlePointer === 'function'
+          ? svgEl.handlePointer
+          : null
+
+      const pick = pointerInfo.pickInfo
+      const onPlane = !!pick?.hit && pick.pickedMesh === this.mesh
+      const uvs = onPlane && pick ? pick.getTextureCoordinates() : null
+
+      // Coordinate-based path (a panel3d exposes `handlePointer`): map the pick's
+      // UV to the SVG's viewBox coords and let the panel hit-test/capture itself.
+      // This is fed by mouse/touch AND XR controllers via the scene observable,
+      // so the same panel is interactive as a DOM overlay, on a flat canvas, and
+      // in immersive VR — no DOM events, no elementFromPoint.
+      if (handle) {
+        if (uvs && svgEl) {
+          const vb = svgEl.viewBox?.baseVal
+          this._lastSvgX = uvs.x * (vb?.width || this.resolution)
+          this._lastSvgY = (1 - uvs.y) * (vb?.height || this.resolution)
+        }
+        if (kind === 'down') {
+          if (!uvs) return
+          this._pressing = true
+          handle('down', this._lastSvgX, this._lastSvgY)
+        } else if (kind === 'move') {
+          if (this._pressing) handle('move', this._lastSvgX, this._lastSvgY)
+        } else {
+          if (this._pressing) handle('up', this._lastSvgX, this._lastSvgY)
+          this._pressing = false
+        }
         return
+      }
 
-      const pickResult = pointerInfo.pickInfo
-      if (!pickResult?.hit || pickResult.pickedMesh !== this.mesh) return
-
-      const uvs = pickResult.getTextureCoordinates()
+      // Fallback: legacy elementFromPoint synthetic dispatch (non-panel SVG).
       if (!uvs) return
-
       this._dispatchSyntheticEvent(pointerInfo, uvs)
     })
   }

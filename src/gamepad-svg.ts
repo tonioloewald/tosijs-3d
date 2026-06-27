@@ -77,7 +77,7 @@ export function gamepadSvg(colors: GamepadSvgColors = {}): SVGSVGElement {
   const c = { ...DEFAULTS, ...colors } as Required<typeof DEFAULTS>
   const s = stroked(c)
 
-  return svg(
+  const pad = svg(
     { viewBox: '0 185 1024 670' },
     // Controller body
     path({
@@ -201,4 +201,12 @@ export function gamepadSvg(colors: GamepadSvgColors = {}): SVGSVGElement {
       ...s,
     })
   ) as SVGSVGElement
+  // pointer-events:auto defends against a host's global `svg { pointer-events:
+  // none }` (inherited). user-select/tap-highlight off kills the blue selection
+  // flash on press+drag. Set via setAttribute — svgElements types style as an object.
+  pad.setAttribute(
+    'style',
+    'pointer-events:auto;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
+  )
+  return pad
 }

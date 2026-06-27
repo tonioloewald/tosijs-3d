@@ -39,6 +39,9 @@ export declare class B3dSvgPlane extends AbstractMesh {
     private _svgTexture;
     private _material;
     private _pointerObserver;
+    private _pressing;
+    private _lastSvgX;
+    private _lastSvgY;
     content: () => string;
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;

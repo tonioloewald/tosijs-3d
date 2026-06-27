@@ -44,6 +44,21 @@ must be children of a <code>b3d</code> element.</p>
 <td><code>30</code></td>
 <td>Target frame rate</td>
 </tr>
+<tr>
+<td><code>no-xr</code></td>
+<td><code>false</code></td>
+<td>Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)</td>
+</tr>
+<tr>
+<td><code>minElevation</code> / <code>maxElevation</code></td>
+<td><code>5</code> / <code>70</code></td>
+<td>Default orbit-camera elevation limits (degrees above the horizon)</td>
+</tr>
+<tr>
+<td><code>minDistance</code> / <code>maxDistance</code></td>
+<td><code>2</code> / <code>50</code></td>
+<td>Default orbit-camera zoom limits</td>
+</tr>
 </tbody></table>
 <h2>Demo</h2>
 <pre><code class="language-js">import {
@@ -72,7 +87,10 @@ const formatTime = (v) =&gt; {
 
 preview.append(
   b3d(
-    { glowLayerIntensity: 1 },
+    // no-xr: this demo drives XR itself via the biped&#39;s &quot;Toggle XR&quot; button
+    // (cameraType: &#39;xr&#39;), so the built-in Enter-VR button is suppressed to
+    // avoid creating a second XR experience on the same scene.
+    { glowLayerIntensity: 1, noXr: true },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: &#39;ref-sphere&#39;, diameter: 1, y: 1, x: -3, z: -3, color: &#39;#aaaaaa&#39; }),
@@ -229,6 +247,7 @@ document.body.append(
     <ul>
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/utilities/">Utilities</a></summary>
@@ -244,6 +263,7 @@ document.body.append(
       <li><a href="/b3d-car/">b3d-car</a></li>
     </ul>
     </details></li>
+    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
     <li><a href="/world-contract/">world-contract</a></li>
     <li><a href="/world-store/">world-store</a></li>
     <li><a href="/world-view/">world-view</a></li>

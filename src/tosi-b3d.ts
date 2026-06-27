@@ -10,6 +10,9 @@ must be children of a `b3d` element.
 |-----------|---------|-------------|
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `frameRate` | `30` | Target frame rate |
+| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
+| `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 
 ## Demo
 
@@ -40,7 +43,10 @@ const formatTime = (v) => {
 
 preview.append(
   b3d(
-    { glowLayerIntensity: 1 },
+    // no-xr: this demo drives XR itself via the biped's "Toggle XR" button
+    // (cameraType: 'xr'), so the built-in Enter-VR button is suppressed to
+    // avoid creating a second XR experience on the same scene.
+    { glowLayerIntensity: 1, noXr: true },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: 'ref-sphere', diameter: 1, y: 1, x: -3, z: -3, color: '#aaaaaa' }),
@@ -149,7 +155,7 @@ import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
 import '@babylonjs/loaders'
 
-const { canvas, div, slot } = elements
+const { canvas, div, slot, button } = elements
 
 export type SceneAdditionHandler = (additions: SceneAdditions) => void
 
@@ -168,6 +174,19 @@ export class B3d extends Component {
   static initAttributes = {
     glowLayerIntensity: 0,
     frameRate: 30,
+    // Default orbit-camera limits (only used when no camera is supplied). They
+    // stop the two constant annoyances: zooming out into orbit / in through the
+    // scene, and dropping the camera under the ground. Override by providing your
+    // own camera in `sceneCreated`, or tune these attributes.
+    minElevation: 5, // degrees above the horizon (keeps the camera above ground)
+    maxElevation: 70, // degrees (keeps it from going straight overhead)
+    minDistance: 2, // closest zoom
+    maxDistance: 50, // farthest zoom
+    // WebXR is offered by default whenever the device/browser supports an
+    // immersive-vr session: a floating "Enter VR" button appears over the
+    // scene. Set the `no-xr` attribute to suppress it (e.g. demos that drive
+    // XR themselves through a controllable's `cameraType: 'xr'`).
+    noXr: false,
   }
 
   static styleSpec = {
@@ -228,11 +247,44 @@ export class B3d extends Component {
     ':host .babylonVRicon:hover': {
       transform: 'scale(1.1)',
     },
+    ':host .enter-vr-button': {
+      position: 'absolute',
+      bottom: '16px',
+      right: '16px',
+      zIndex: '20',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '10px 16px',
+      background: 'rgba(0,0,0,0.55)',
+      color: '#fff',
+      border: '1px solid rgba(255,255,255,0.3)',
+      borderRadius: '8px',
+      font: '600 14px system-ui, sans-serif',
+      cursor: 'pointer',
+      transition: 'background 0.15s, transform 0.125s',
+    },
+    ':host .enter-vr-button[hidden]': {
+      display: 'none',
+    },
+    ':host .enter-vr-button:hover': {
+      background: 'rgba(0,0,0,0.8)',
+      transform: 'scale(1.05)',
+    },
   }
 
   content = [
     div({ class: 'spinner', part: 'spinner' }),
     canvas({ part: 'canvas' }),
+    button(
+      {
+        class: 'enter-vr-button',
+        part: 'enterVrButton',
+        type: 'button',
+        hidden: true,
+      },
+      'Enter VR'
+    ),
     slot(),
   ]
 
@@ -241,11 +293,22 @@ export class B3d extends Component {
   camera?: BABYLON.Camera
   gui?: GUI.GUI3DManager
   glowLayer?: BABYLON.GlowLayer
+  xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
   BABYLON = BABYLON
 
+  declare minElevation: number
+  declare maxElevation: number
+  declare minDistance: number
+  declare maxDistance: number
+  declare noXr: boolean
+
   sceneCreated: B3dCallback = noop
   update: B3dCallback = noop
+  // Override the default WebXR setup entirely. When set (not noop) it runs
+  // instead of the built-in Enter-VR button — call it to wire your own XR
+  // experience (e.g. custom features, teleportation, controller models).
+  setupXr: B3dCallback = noop
 
   private lastRender = 0
   private sceneListeners: SceneAdditionHandler[] = []
@@ -444,12 +507,23 @@ export class B3d extends Component {
         await this.sceneCreated(this, BABYLON)
       }
       if (this.scene.activeCamera === undefined) {
-        const camera = new BABYLON.UniversalCamera(
+        const DEG = Math.PI / 180
+        const camera = new BABYLON.ArcRotateCamera(
           'default-camera',
-          new BABYLON.Vector3(5, 1.5, 5),
+          -Math.PI / 2, // alpha (facing -Z)
+          60 * DEG, // beta (~30° elevation to start)
+          8, // radius
+          BABYLON.Vector3.Zero(),
           this.scene
         )
-        camera.setTarget(BABYLON.Vector3.Zero())
+        // beta is measured from straight-up: elevation = 90° - beta. Clamp it so
+        // the camera stays between min/maxElevation above the horizon (never
+        // under the ground), and clamp radius so you can't zoom out to orbit or
+        // in through the scene.
+        camera.upperBetaLimit = (90 - this.minElevation) * DEG
+        camera.lowerBetaLimit = (90 - this.maxElevation) * DEG
+        camera.lowerRadiusLimit = this.minDistance
+        camera.upperRadiusLimit = this.maxDistance
         camera.attachControl(cnv, false)
         this.setActiveCamera(camera)
       }
@@ -459,6 +533,9 @@ export class B3d extends Component {
       // Scene is now ready — notify all existing descendants
       this._sceneReady = true
       this._notifyAllDescendants()
+
+      // Offer WebXR (non-blocking — it must not delay the canvas reveal).
+      void this._setupXR()
 
       // Fade in canvas once all pending file loads complete and shaders compile.
       // Falls back to revealing after assets load even if shaders are still
@@ -488,7 +565,77 @@ export class B3d extends Component {
     init()
   }
 
+  // WebXR is on by default. The `no-xr` attribute opts out; a `setupXr` hook
+  // overrides the whole flow. Otherwise, when an immersive-vr session is
+  // supported, mount a floating Enter/Exit-VR button wired to a default XR
+  // experience (its own UI suppressed so the button matches the host theme).
+  private async _setupXR(): Promise<void> {
+    if (this.noXr) return
+    if (this.setupXr !== noop) {
+      await this.setupXr(this, BABYLON)
+      return
+    }
+    if (navigator.xr == null) return
+    let supported: boolean
+    try {
+      supported = await navigator.xr.isSessionSupported('immersive-vr')
+    } catch {
+      supported = false
+    }
+    if (!supported || this.xrHelper != null) return
+
+    const xr = await this.scene.createDefaultXRExperienceAsync({
+      disableDefaultUI: true,
+    })
+    this.xrHelper = xr
+    const base = xr.baseExperience
+    if (base == null) return
+
+    const vrButton = this.parts.enterVrButton as HTMLButtonElement
+    vrButton.addEventListener('click', async () => {
+      try {
+        if (this.xrActive) {
+          await base.exitXRAsync()
+        } else {
+          await base.enterXRAsync('immersive-vr', 'local-floor')
+        }
+      } catch (err) {
+        console.warn('XR session change failed', err)
+      }
+    })
+    // In a session the WebXR headset camera takes over (Babylon switches
+    // scene.activeCamera to it); the flat-screen orbit camera is only restored
+    // on exit. Anchor the play space at floor level near the scene — the orbit
+    // camera's elevated pose makes no sense in VR. A rig TransformNode holds the
+    // anchor so live head tracking applies as a local transform on top of it
+    // (the same pattern b3d-biped uses).
+    let xrRig: BABYLON.TransformNode | undefined
+    base.onStateChangedObservable.add((state) => {
+      this.xrActive = state === BABYLON.WebXRState.IN_XR
+      vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR'
+      if (state === BABYLON.WebXRState.IN_XR && xrRig == null) {
+        xrRig = new BABYLON.TransformNode('xr-rig', this.scene)
+        // Keep the flat camera's horizontal viewpoint but stand on the floor
+        // (local-floor reference space adds the viewer's real head height).
+        const p = this.camera?.position
+        if (p != null) {
+          xrRig.position.set(p.x, 0, p.z)
+        } else {
+          xrRig.position.set(0, 0, -this.minDistance * 2)
+        }
+        base.camera.parent = xrRig
+      }
+    })
+    // The button is part of the template (hidden) — reveal it now that an XR
+    // session is actually available.
+    vrButton.hidden = false
+  }
+
   disconnectedCallback(): void {
+    if (this.xrHelper) {
+      this.xrHelper.dispose()
+      this.xrHelper = undefined
+    }
     if (this._childObserver) {
       this._childObserver.disconnect()
       this._childObserver = undefined
