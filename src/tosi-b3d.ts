@@ -861,7 +861,15 @@ export class B3d extends Component {
       scene
     )
 
-    const tex = new SvgTexture({ scene, element: panelEl, resolution: 1024 })
+    // The panel is near-static, so re-rasterising the SVG at high res every
+    // 30ms (the SvgTexture default) was the main XR perf regression — throttle
+    // hard and drop the resolution. A settings panel doesn't need 33fps.
+    const tex = new SvgTexture({
+      scene,
+      element: panelEl,
+      resolution: 512,
+      updateInterval: 200,
+    })
     const mat = new BABYLON.StandardMaterial('xr-panel-mat', scene)
     mat.backFaceCulling = false
     mat.emissiveTexture = tex.texture
@@ -870,9 +878,10 @@ export class B3d extends Component {
     mat.disableLighting = true
     plane.material = mat
     plane.visibility = 0
+    // Billboard so it always faces the head, upright and un-mirrored, whatever
+    // its height/position — no manual orientation math, no lookAt flip.
+    plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
 
-    // Tilt to meet the upward sight-line (face the head squarely from above).
-    const facePitch = Math.atan2(ABOVE, FORWARD)
     const fwd = new BABYLON.Vector3()
     const target = new BABYLON.Vector3()
     let firstFrame = true
@@ -896,17 +905,12 @@ export class B3d extends Component {
       } else {
         BABYLON.Vector3.LerpToRef(plane.position, target, 0.2, plane.position)
       }
-      // Orient from Euler (yaw to the head's heading, pitch down to the
-      // sight-line) — NOT lookAt, which faces the opposite plane side and
-      // mirrors the text horizontally.
-      plane.rotation.set(facePitch, Math.atan2(fwd.x, fwd.z), 0)
       plane.visibility = Math.max(
         0,
         Math.min(1, (lookUp - FADE_IN) / (FADE_FULL - FADE_IN))
       )
     })
 
-    scene.constantlyUpdateMeshUnderPointer = true
     const T = BABYLON.PointerEventTypes
     let vx = 0
     let vy = 0
