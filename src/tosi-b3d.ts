@@ -725,10 +725,12 @@ export class B3d extends Component {
 
     const HORIZ_SPEED = 2.5 // metres/sec
     const VERT_SPEED = 2.0
+    const TURN_SPEED = 2.0 // radians/sec at full deflection
     const DEAD = 0.15
     let last = Date.now()
     const fwd = new BABYLON.Vector3()
     const side = new BABYLON.Vector3()
+    const head = new BABYLON.Vector3()
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       const now = Date.now()
       const dt = Math.min((now - last) * 0.001, 0.1)
@@ -752,6 +754,17 @@ export class B3d extends Component {
       }
       if (right != null && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend
+      }
+      if (right != null && Math.abs(right.x) > DEAD) {
+        // Smooth-turn around the head (not the rig origin) so you spin in place
+        // rather than orbiting when you've stepped off-centre. Rotate, then nudge
+        // the rig so the head's world XZ is unchanged.
+        head.copyFrom(cam.globalPosition)
+        rig.rotation.y += right.x * TURN_SPEED * dt // push right → turn right
+        rig.computeWorldMatrix(true)
+        cam.computeWorldMatrix()
+        rig.position.x += head.x - cam.globalPosition.x
+        rig.position.z += head.z - cam.globalPosition.z
       }
     })
 
