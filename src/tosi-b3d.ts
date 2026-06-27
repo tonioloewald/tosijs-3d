@@ -156,6 +156,8 @@ import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
 import { xrControllers, type TosiXRControllerMap } from './gamepad'
+import { panel3d, button3d, type Widget3d } from './widgets3d'
+import { SvgTexture } from './svg-texture'
 
 const { canvas, div, slot, button } = elements
 
@@ -273,6 +275,41 @@ export class B3d extends Component {
       background: 'rgba(0,0,0,0.8)',
       transform: 'scale(1.05)',
     },
+    ':host .scene-panel-gear': {
+      position: 'absolute',
+      top: '12px',
+      right: '12px',
+      zIndex: '20',
+      width: '40px',
+      height: '40px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.55)',
+      color: '#fff',
+      border: '1px solid rgba(255,255,255,0.3)',
+      borderRadius: '8px',
+      font: '20px system-ui, sans-serif',
+      cursor: 'pointer',
+      transition: 'background 0.15s, transform 0.125s',
+    },
+    ':host .scene-panel-gear[hidden]': {
+      display: 'none',
+    },
+    ':host .scene-panel-gear:hover': {
+      background: 'rgba(0,0,0,0.8)',
+      transform: 'scale(1.05)',
+    },
+    ':host .scene-panel-overlay': {
+      position: 'absolute',
+      top: '60px',
+      right: '12px',
+      zIndex: '20',
+      filter: 'drop-shadow(0 6px 16px rgba(0,0,0,0.5))',
+    },
+    ':host .scene-panel-overlay[hidden]': {
+      display: 'none',
+    },
   }
 
   content = [
@@ -311,6 +348,13 @@ export class B3d extends Component {
   // instead of the built-in Enter-VR button — call it to wire your own XR
   // experience (e.g. custom features, teleportation, controller models).
   setupXr: B3dCallback = noop
+  // A dual-presence settings panel. Return the widgets to show; the SAME
+  // definitions drive a DOM-overlay panel (toggled by a top-right gear icon on
+  // flat screens) AND an in-scene panel floating above the viewer in XR. In XR
+  // an "Exit VR" button is prepended automatically (you can't click a DOM
+  // button inside a headset). Both surfaces bind to the same reactive values,
+  // so they stay in sync.
+  scenePanel?: (host: B3d) => Widget3d[]
 
   private lastRender = 0
   private sceneListeners: SceneAdditionHandler[] = []
@@ -539,6 +583,10 @@ export class B3d extends Component {
       // Offer WebXR (non-blocking — it must not delay the canvas reveal).
       void this._setupXR()
 
+      // Mount the gear-toggled DOM-overlay settings panel (flat screens). The
+      // in-scene XR copy is built on session entry.
+      this._setupScenePanel()
+
       // Fade in canvas once all pending file loads complete and shaders compile.
       // Falls back to revealing after assets load even if shaders are still
       // compiling, to avoid an indefinitely hidden canvas.
@@ -655,6 +703,10 @@ export class B3d extends Component {
     rig.position.set(p?.x ?? 0, 0, p?.z ?? -this.minDistance * 2)
     cam.parent = rig
 
+    // The in-scene settings panel (with an Exit-VR button), floating above the
+    // viewer and anchored to the rig so you tilt your head up to use it.
+    const panel = this._attachXrPanel(rig)
+
     // A subtle grid floor — something to stand on and judge motion against.
     const ground = BABYLON.MeshBuilder.CreateGround(
       'xr-ground',
@@ -706,10 +758,129 @@ export class B3d extends Component {
     return {
       dispose() {
         base.sessionManager.onXRFrameObservable.remove(frame)
+        panel.dispose()
         cam.parent = null
         ground.dispose()
         grid.dispose()
         rig.dispose()
+      },
+    }
+  }
+
+  // Build the panel SVG shared by both surfaces. `includeExit` prepends an
+  // Exit-VR button (used for the in-scene XR copy only). Calling this more than
+  // once yields independent widget sets bound to the same reactive values, so
+  // the overlay and in-scene panels stay in sync.
+  private _makePanel(includeExit: boolean): SVGSVGElement {
+    const rows: Widget3d[] = []
+    if (includeExit) {
+      rows.push(
+        button3d({
+          label: 'Exit VR',
+          onClick: () => {
+            void this.xrHelper?.baseExperience?.exitXRAsync()
+          },
+        })
+      )
+    }
+    if (this.scenePanel != null) rows.push(...this.scenePanel(this))
+    const n = Math.max(1, rows.length)
+    const height = Math.min(520, 28 + n * 48)
+    return panel3d({ width: 320, height }, ...rows)
+  }
+
+  // Flat-screen surface: a top-right gear icon toggles the settings panel as a
+  // DOM overlay. Only mounted when a `scenePanel` is supplied.
+  private _setupScenePanel(): void {
+    if (this.scenePanel == null) return
+    const panel = this._makePanel(false)
+    panel.setAttribute('class', 'scene-panel-overlay')
+    panel.setAttribute('hidden', '')
+    const gear = button(
+      {
+        class: 'scene-panel-gear',
+        part: 'scenePanelGear',
+        type: 'button',
+        title: 'Scene settings',
+      },
+      '⚙'
+    )
+    gear.addEventListener('click', () => {
+      if (panel.hasAttribute('hidden')) panel.removeAttribute('hidden')
+      else panel.setAttribute('hidden', '')
+    })
+    ;(this.shadowRoot ?? this).append(gear, panel)
+  }
+
+  // In-scene surface: render the panel onto a plane parented to the XR rig,
+  // floating above and a bit forward (look up to use it). Picks are routed via
+  // the scene pointer observable — fed by mouse and XR controllers alike — into
+  // the panel's own viewBox coordinate space. Returns a disposer.
+  private _attachXrPanel(rig: BABYLON.TransformNode): { dispose: () => void } {
+    const scene = this.scene
+    const panelEl = this._makePanel(true) as SVGSVGElement & {
+      handlePointer?: (kind: string, x: number, y: number) => void
+    }
+    const vb = panelEl.viewBox.baseVal
+
+    const PLANE_W = 0.5 // metres
+    const plane = BABYLON.MeshBuilder.CreatePlane(
+      'xr-panel',
+      {
+        width: PLANE_W,
+        height: PLANE_W * (vb.height / vb.width),
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+      },
+      scene
+    )
+    plane.parent = rig
+    plane.position.set(0, 1.95, 0.65)
+    plane.rotation.x = 0.6 // tilt the face down toward the standing viewer
+
+    const tex = new SvgTexture({ scene, element: panelEl, resolution: 1024 })
+    const mat = new BABYLON.StandardMaterial('xr-panel-mat', scene)
+    mat.backFaceCulling = false
+    mat.emissiveTexture = tex.texture
+    mat.opacityTexture = tex.texture
+    mat.diffuseColor = BABYLON.Color3.Black()
+    mat.disableLighting = true
+    plane.material = mat
+
+    scene.constantlyUpdateMeshUnderPointer = true
+    const T = BABYLON.PointerEventTypes
+    let vx = 0
+    let vy = 0
+    const obs = scene.onPointerObservable.add((pi) => {
+      const kind =
+        pi.type === T.POINTERDOWN
+          ? 'down'
+          : pi.type === T.POINTERUP
+          ? 'up'
+          : pi.type === T.POINTERMOVE
+          ? 'move'
+          : ''
+      if (!kind || typeof panelEl.handlePointer !== 'function') return
+      const pick = pi.pickInfo
+      const uv =
+        pick?.hit && pick.pickedMesh === plane
+          ? pick.getTextureCoordinates()
+          : null
+      if (uv) {
+        vx = uv.x * vb.width
+        vy = (1 - uv.y) * vb.height
+      }
+      // Route every event; the panel manages press-capture and hover itself.
+      if (kind === 'move' && !uv) panelEl.handlePointer('leave', 0, 0)
+      else if (kind === 'down' && !uv) return
+      else panelEl.handlePointer(kind, vx, vy)
+    })
+
+    return {
+      dispose() {
+        scene.onPointerObservable.remove(obs)
+        tex.dispose()
+        mat.dispose()
+        plane.dispose()
       },
     }
   }

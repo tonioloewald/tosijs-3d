@@ -204,6 +204,39 @@ preview.append(sceneEl)
 // No manual Enter-VR button needed — b3d offers one automatically whenever an
 // immersive-vr session is supported (suppress it with the `no-xr` attribute).
 </code></pre>
+<h2>Dual-presence scene panel</h2>
+<p>The same widgets, authored once, drive a panel that has a presence <strong>both in the
+DOM and in the scene</strong>. Pass <code>b3d</code> a <code>scenePanel</code> hook returning the widgets:
+on a flat screen a <strong>gear icon</strong> (top-right) toggles them as a DOM overlay; in
+immersive VR the identical panel floats above the viewer with an <strong>Exit VR</strong>
+button prepended (you can&#39;t click a DOM button inside a headset). Both surfaces
+bind to the same reactive values, so they stay in sync.</p>
+<p>Click the gear to raise/lower and spin the sphere — then try it in VR.</p>
+<pre><code class="language-js">import { b3d, b3dLight, b3dSphere, label3d, toggle3d, slider3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { cfg } = tosi({ cfg: { spin: true, height: 1 } })
+
+const ball = b3dSphere({ meshName: &#39;ball&#39;, diameter: 1, y: 1, color: &#39;#39c5ff&#39; })
+
+const sceneEl = b3d(
+  {
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Scene settings&#39; }),
+      toggle3d({ label: &#39;spin&#39;, value: cfg.spin }),
+      slider3d({ label: &#39;height&#39;, value: cfg.height, min: 0, max: 3, step: 0.1 }),
+    ],
+    update() {
+      if (!ball.mesh) return
+      ball.mesh.position.y = cfg.height.value
+      if (cfg.spin.value) ball.mesh.rotation.y += 0.02
+    },
+  },
+  b3dLight(),
+  ball
+)
+preview.append(sceneEl)
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

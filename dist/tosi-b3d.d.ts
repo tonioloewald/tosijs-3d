@@ -2,6 +2,7 @@ import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
+import { type Widget3d } from './widgets3d';
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -102,6 +103,41 @@ export declare class B3d extends Component {
             background: string;
             transform: string;
         };
+        ':host .scene-panel-gear': {
+            position: string;
+            top: string;
+            right: string;
+            zIndex: string;
+            width: string;
+            height: string;
+            display: string;
+            alignItems: string;
+            justifyContent: string;
+            background: string;
+            color: string;
+            border: string;
+            borderRadius: string;
+            font: string;
+            cursor: string;
+            transition: string;
+        };
+        ':host .scene-panel-gear[hidden]': {
+            display: string;
+        };
+        ':host .scene-panel-gear:hover': {
+            background: string;
+            transform: string;
+        };
+        ':host .scene-panel-overlay': {
+            position: string;
+            top: string;
+            right: string;
+            zIndex: string;
+            filter: string;
+        };
+        ':host .scene-panel-overlay[hidden]': {
+            display: string;
+        };
     };
     content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement | HTMLButtonElement)[];
     engine: BABYLON.Engine;
@@ -120,6 +156,7 @@ export declare class B3d extends Component {
     sceneCreated: B3dCallback;
     update: B3dCallback;
     setupXr: B3dCallback;
+    scenePanel?: (host: B3d) => Widget3d[];
     private lastRender;
     private sceneListeners;
     private pastAdditions;
@@ -150,6 +187,9 @@ export declare class B3d extends Component {
     connectedCallback(): void;
     private _setupXR;
     private _startDefaultXrExperience;
+    private _makePanel;
+    private _setupScenePanel;
+    private _attachXrPanel;
     disconnectedCallback(): void;
     render(): void;
 }
