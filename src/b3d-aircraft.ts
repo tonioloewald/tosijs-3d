@@ -66,6 +66,9 @@ function addMarkers(scene) {
 }
 
 const scene = addMarkers(b3d(
+  // On-screen glass gamepad (touch) wired into the input system: left stick
+  // pitch/roll, right trigger throttle, etc. via aircraftMapping.
+  { gamepad: true },
   // Ambient fill kept low so the directional sun's shadows actually read.
   b3dLight({ y: 1, intensity: 0.4 }),
   // Cascaded shadows cover the whole camera view with a sensible depth range,

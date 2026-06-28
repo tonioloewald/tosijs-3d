@@ -87,10 +87,10 @@ const formatTime = (v) =&gt; {
 
 preview.append(
   b3d(
-    // no-xr: this demo drives XR itself via the biped&#39;s &quot;Toggle XR&quot; button
-    // (cameraType: &#39;xr&#39;), so the built-in Enter-VR button is suppressed to
-    // avoid creating a second XR experience on the same scene.
-    { glowLayerIntensity: 1, noXr: true },
+    // no-xr: this demo drives XR itself via the biped&#39;s &quot;Toggle XR&quot; button.
+    // gamepad: the on-screen glass gamepad, wired into the input system (drives
+    // the player biped on touch, alongside keyboard/hardware).
+    { glowLayerIntensity: 1, noXr: true, gamepad: true },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: &#39;ref-sphere&#39;, diameter: 1, y: 1, x: -3, z: -3, color: &#39;#aaaaaa&#39; }),

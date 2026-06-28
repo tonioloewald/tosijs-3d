@@ -68,13 +68,6 @@ preview.append(div({ class: 'glass-stage' }, pad, readout))
   white-space: pre;
   pointer-events: none;
 }
-.glass-stage [data-part] {
-  transition: stroke-width 0.08s, filter 0.08s;
-}
-.glass-stage [data-part].active {
-  stroke-width: 32;
-  filter: brightness(1.4);
-}
 ```
 */
 /*{ "parent": "Input" }*/
@@ -98,13 +91,34 @@ export type ClusterAnchor =
   | 'top-right'
   | 'top-center'
 
+// Offsets in cqmin so they scale with the host container (see `container-type`).
 const ANCHOR_CSS: Record<ClusterAnchor, string> = {
-  'bottom-left': 'left:2vmin;bottom:2vmin',
-  'bottom-right': 'right:2vmin;bottom:2vmin',
-  'bottom-center': 'left:50%;bottom:2vmin;transform:translateX(-50%)',
-  'top-left': 'left:2vmin;top:2vmin',
-  'top-right': 'right:2vmin;top:2vmin',
-  'top-center': 'left:50%;top:2vmin;transform:translateX(-50%)',
+  'bottom-left': 'left:2cqmin;bottom:2cqmin',
+  'bottom-right': 'right:2cqmin;bottom:2cqmin',
+  'bottom-center': 'left:50%;bottom:2cqmin;transform:translateX(-50%)',
+  'top-left': 'left:2cqmin;top:2cqmin',
+  'top-right': 'right:2cqmin;top:2cqmin',
+  'top-center': 'left:50%;top:2cqmin;transform:translateX(-50%)',
+}
+
+// Light-DOM component, so the host page (or b3d) can style the clusters and the
+// `.active` press highlight reaches them. Inject the layout + default highlight
+// once, scoped to the tag. `container-type: size` makes the cluster cqmin units
+// scale to the host's own size (the demo card / the b3d view), not the viewport.
+let stylesInjected = false
+function ensureGamepadStyles(): void {
+  if (stylesInjected || typeof document === 'undefined') return
+  stylesInjected = true
+  const style = document.createElement('style')
+  style.id = 'tosi-b3d-gamepad-styles'
+  style.textContent = [
+    `tosi-b3d-gamepad { position:absolute; inset:0; display:block;`,
+    `  pointer-events:none; z-index:15; container-type:size }`,
+    `tosi-b3d-gamepad .pad-clusters { position:absolute; inset:0; pointer-events:none }`,
+    `tosi-b3d-gamepad [data-part] { transition:stroke-width .08s, filter .08s }`,
+    `tosi-b3d-gamepad [data-part].active { stroke-width:32; filter:brightness(1.35) }`,
+  ].join('\n')
+  document.head.appendChild(style)
 }
 
 // The static cluster SVGs label paths by `id`; copy these (only) to `data-part`
@@ -136,7 +150,8 @@ export type ClusterConfig = {
   url?: string
   /** Which corner to pin it to. */
   anchor?: ClusterAnchor
-  /** Base width of the cluster overlay in vmin (multiplied by `scale`). */
+  /** Base width of the cluster overlay in cqmin — relative to the host's own
+   * size, so it scales with the view/card (multiplied by `scale`). */
   vmin?: number
 }
 
@@ -260,20 +275,9 @@ export class B3dGamepad extends Component implements GamepadSource {
     maxZone: 0.85,
   }
 
-  static styleSpec = {
-    ':host': {
-      position: 'absolute',
-      inset: '0',
-      pointerEvents: 'none',
-      zIndex: '15',
-    },
-    ':host .pad-clusters': {
-      position: 'absolute',
-      inset: '0',
-      pointerEvents: 'none',
-    },
-  }
-
+  // No styleSpec → light DOM, so page/b3d CSS reaches the clusters and the
+  // `.active` press highlight applies. Styling is injected globally (scoped to
+  // the tag) by ensureGamepadStyles().
   content = [div({ class: 'pad-clusters', part: 'clusters' })]
 
   declare controls: string
@@ -294,6 +298,7 @@ export class B3dGamepad extends Component implements GamepadSource {
 
   connectedCallback(): void {
     super.connectedCallback()
+    ensureGamepadStyles()
     if (!this.built) {
       this.built = true
       void this._build()
@@ -339,7 +344,7 @@ export class B3dGamepad extends Component implements GamepadSource {
       svg.setAttribute(
         'style',
         `position:absolute;${ANCHOR_CSS[cfg.anchor]};` +
-          `width:${cfg.vmin * scale}vmin;height:auto;pointer-events:auto;` +
+          `width:${cfg.vmin * scale}cqmin;height:auto;pointer-events:auto;` +
           `touch-action:none;user-select:none;-webkit-user-select:none`
       )
       host.appendChild(svg)

@@ -6,7 +6,8 @@ export type ClusterConfig = {
     url?: string;
     /** Which corner to pin it to. */
     anchor?: ClusterAnchor;
-    /** Base width of the cluster overlay in vmin (multiplied by `scale`). */
+    /** Base width of the cluster overlay in cqmin — relative to the host's own
+     * size, so it scales with the view/card (multiplied by `scale`). */
     vmin?: number;
 };
 /**
@@ -35,19 +36,6 @@ export declare class B3dGamepad extends Component implements GamepadSource {
         scale: number;
         deadzone: number;
         maxZone: number;
-    };
-    static styleSpec: {
-        ':host': {
-            position: string;
-            inset: string;
-            pointerEvents: string;
-            zIndex: string;
-        };
-        ':host .pad-clusters': {
-            position: string;
-            inset: string;
-            pointerEvents: string;
-        };
     };
     content: HTMLDivElement[];
     controls: string;
