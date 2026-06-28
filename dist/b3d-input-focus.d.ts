@@ -9,6 +9,8 @@ export declare class B3dInputFocus extends Component {
     };
     owner: B3d | null;
     private focusedEntity;
+    /** The currently controlled entity (biped/vehicle), or null. */
+    get focused(): B3dControllable | null;
     private playerEntity;
     private gameController;
     /** The current MappedInputProvider (exposed for late-binding by controllables) */

@@ -102,3 +102,5 @@ relevant dist/*.js file for complete docs, usage examples, and API.
   A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
 - dist/world-view.js — world-view
   The Babylon **view** of a [[world-store]]. The store is the authoritative,
+- dist/xr-gamepad.js — xr-gamepad
+  `XrGamepadSource` adapts the live XR controllers (from [[gamepad]]'s

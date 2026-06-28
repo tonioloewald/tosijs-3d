@@ -28,6 +28,7 @@ export { HardwareGamepadSource } from './hardware-gamepad';
 export { TouchGamepadSource } from './touch-gamepad';
 export { gamepadSvg } from './gamepad-svg';
 export { B3dGamepad, b3dGamepad, parseGamepadControls } from './glass-gamepad';
+export { XrGamepadSource } from './xr-gamepad';
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped';
 export { GameController, gameController } from './game-controller';

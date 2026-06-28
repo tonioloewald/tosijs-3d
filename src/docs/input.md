@@ -13,4 +13,5 @@ Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game
 - [keyboard-gamepad](/keyboard-gamepad/)
 - [touch-gamepad](/touch-gamepad/)
 - [virtual-gamepad](/virtual-gamepad/)
+- [xr-gamepad](/xr-gamepad/)
 <!-- /toc -->

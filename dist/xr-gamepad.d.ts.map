@@ -1,0 +1,1 @@
+{"version":3,"file":"xr-gamepad.d.ts","sourceRoot":"","sources":["../src/xr-gamepad.ts"],"names":[],"mappings":"AAqBA,OAAO,KAAK,EAAE,mBAAmB,EAAE,MAAM,WAAW,CAAA;AACpD,OAAO,EACL,KAAK,aAAa,EAClB,KAAK,cAAc,EAEpB,MAAM,mBAAmB,CAAA;AAE1B,qBAAa,eAAgB,YAAW,aAAa;IACvC,OAAO,CAAC,WAAW;gBAAX,WAAW,EAAE,mBAAmB;IAEpD,IAAI,IAAI,cAAc;CA+BvB"}

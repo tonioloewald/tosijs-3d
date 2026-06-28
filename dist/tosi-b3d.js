@@ -160,6 +160,7 @@ import { xrControllers } from './gamepad';
 import { panel3d, button3d } from './widgets3d';
 import { SvgTexture } from './svg-texture';
 import { b3dGamepad } from './glass-gamepad';
+import { XrGamepadSource } from './xr-gamepad';
 const { canvas, div, slot, button } = elements;
 const noop = () => { };
 // Read-only local axes reused by the per-frame XR loops (getDirectionToRef
@@ -628,6 +629,12 @@ export class B3d extends Component {
         // A live map of XR controller component states (thumbsticks/buttons), built
         // once so we don't double-register listeners across sessions.
         const controllers = xrControllers(xr);
+        // Feed the XR controllers through the same VirtualGamepad spine as the
+        // keyboard/glass gamepad: add an XrGamepadSource to the scene's input focus,
+        // so the focused controllable (biped/aircraft/car) is driven by the
+        // controllers in VR through its existing mapping. No per-entity XR code.
+        const focus = this.querySelector('tosi-b3d-input-focus');
+        focus?.inputMappedProvider?.addSource(new XrGamepadSource(controllers));
         // The default experience enables teleportation; we drive locomotion
         // ourselves, so remove it to stop the thumbstick fighting our movement.
         try {
@@ -688,6 +695,13 @@ export class B3d extends Component {
         const VERT_SPEED = 2.0;
         const TURN_SPEED = 2.0; // radians/sec at full deflection
         const DEAD = 0.15;
+        const CHASE_DIST = 8; // chase-cam distance behind a piloted entity
+        const CHASE_HEIGHT = 3;
+        const CHASE_LERP = 3;
+        // The scene's input focus (if any): when it has a focused controllable, the
+        // XR controllers drive THAT (via XrGamepadSource → its mapping) and the rig
+        // chase-follows it instead of free walk/fly. Looked up once; .focused is live.
+        const focusEl = this.querySelector('tosi-b3d-input-focus');
         let last = Date.now();
         // Reused scratch vectors — never allocate inside the per-frame loop (in XR
         // that runs at 72-120fps, and the garbage was driving the perf creep).
@@ -699,6 +713,18 @@ export class B3d extends Component {
             const now = Date.now();
             const dt = Math.min((now - last) * 0.001, 0.1);
             last = now;
+            // Piloting a controllable → chase-follow it (the controllers fly it via
+            // its mapping); skip the free walk/fly locomotion entirely.
+            const piloted = focusEl?.focused?.mesh;
+            if (piloted != null) {
+                piloted.getDirectionToRef(XR_FORWARD, fwd); // entity's world forward
+                tmp.copyFrom(piloted.position);
+                fwd.scaleToRef(-CHASE_DIST, side);
+                tmp.addInPlace(side);
+                tmp.y += CHASE_HEIGHT;
+                BABYLON.Vector3.LerpToRef(rig.position, tmp, Math.min(1, CHASE_LERP * dt), rig.position);
+                return;
+            }
             const left = controllers['left']?.['xr-standard-thumbstick']?.axes;
             const right = controllers['right']?.['xr-standard-thumbstick']?.axes;
             if (left != null &&
