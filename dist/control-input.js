@@ -51,6 +51,7 @@ export function emptyInput() {
         aim: 0,
         cameraZoom: 0,
         sneak: 0,
+        view: 0,
     };
 }
 export class CompositeInputProvider {
@@ -92,6 +93,7 @@ export class CompositeInputProvider {
             result.interact = Math.max(result.interact, input.interact);
             result.aim = Math.max(result.aim, input.aim);
             result.sneak = Math.max(result.sneak, input.sneak);
+            result.view = Math.max(result.view, input.view);
         }
         return result;
     }

@@ -210,6 +210,10 @@ export class B3dAircraft extends B3dControllable {
   vtolActive = false
   stalling = false
   pullUp = false
+  /** Active camera mode — toggled by the `view` button. Also read by the XR
+   * chase rig to sit in the cockpit vs. behind the aircraft. */
+  cameraView: 'chase' | 'cockpit' = 'chase'
+  private viewWasPressed = false
 
   private velocity = new BABYLON.Vector3(0, 0, 0)
   private rollAngle = 0
@@ -229,6 +233,13 @@ export class B3dAircraft extends B3dControllable {
     const attrs = this as any
     const node = this.meshNode
     const vel = this.velocity
+
+    // Camera toggle on the view button (edge-detected so a held press fires once)
+    const viewPressed = input.view > 0.5
+    if (viewPressed && !this.viewWasPressed) {
+      this.setCameraView(this.cameraView === 'chase' ? 'cockpit' : 'chase')
+    }
+    this.viewWasPressed = viewPressed
 
     // --- Orientation: pitch, yaw, roll ---
     const pitchAmount = input.forward * attrs.pitchRate * DEG2RAD * dt
@@ -427,6 +438,7 @@ export class B3dAircraft extends B3dControllable {
   }
 
   private chaseCamera: BABYLON.FreeCamera | null = null
+  private cockpitCamera: BABYLON.FreeCamera | null = null
 
   setupFollowCamera() {
     if (!this.owner) return
@@ -435,18 +447,40 @@ export class B3dAircraft extends B3dControllable {
     const existing = this.owner.scene.getCameraByName('aircraft-follow-cam')
     if (existing) return
 
-    const cam = new BABYLON.FreeCamera(
+    // Chase: behind and above, looking at the aircraft. Both cameras are
+    // parented to the aircraft so Babylon transforms them for free.
+    const chase = new BABYLON.FreeCamera(
       'aircraft-follow-cam',
       target.getAbsolutePosition().clone(),
       this.owner.scene
     )
-    // Parent camera to aircraft — Babylon handles the transform in the scene
-    // graph, no manual updates, no timing issues.
-    cam.parent = target
-    cam.position = new BABYLON.Vector3(0, 1.6, -4.8)
-    cam.setTarget(BABYLON.Vector3.Zero())
-    this.chaseCamera = cam
-    this.owner.setActiveCamera(cam, { attach: false })
+    chase.parent = target
+    chase.position = new BABYLON.Vector3(0, 1.6, -4.8)
+    chase.setTarget(BABYLON.Vector3.Zero())
+    this.chaseCamera = chase
+
+    // Cockpit: near the nose, looking straight ahead (local +Z = forward).
+    const cockpit = new BABYLON.FreeCamera(
+      'aircraft-cockpit-cam',
+      target.getAbsolutePosition().clone(),
+      this.owner.scene
+    )
+    cockpit.parent = target
+    cockpit.position = new BABYLON.Vector3(0, 0.9, 1.0)
+    cockpit.rotation = new BABYLON.Vector3(0, 0, 0)
+    cockpit.minZ = 0.05
+    this.cockpitCamera = cockpit
+
+    this.setCameraView(this.cameraView)
+  }
+
+  /** Switch the active camera between chase and cockpit. */
+  setCameraView(view: 'chase' | 'cockpit') {
+    this.cameraView = view
+    const cam = view === 'cockpit' ? this.cockpitCamera : this.chaseCamera
+    if (cam != null && this.owner != null) {
+      this.owner.setActiveCamera(cam, { attach: false })
+    }
   }
 
   sceneDispose() {
@@ -457,6 +491,10 @@ export class B3dAircraft extends B3dControllable {
       this.chaseCamera.parent = null
     }
     this.chaseCamera = null
+    if (this.cockpitCamera) {
+      this.cockpitCamera.parent = null
+    }
+    this.cockpitCamera = null
     for (const node of this.meshesToDispose) {
       node.dispose()
     }

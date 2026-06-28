@@ -44,6 +44,8 @@ export class XrGamepadSource implements GamepadSource {
       pad.leftBumper = left['xr-standard-squeeze']?.value ?? 0
       pad.buttonX = left['x-button']?.pressed ? 1 : 0
       pad.buttonY = left['y-button']?.pressed ? 1 : 0
+      // Thumbstick clicks stand in for the menu/view buttons in XR.
+      pad.menu = left['xr-standard-thumbstick']?.pressed ? 1 : 0
     }
 
     if (right != null) {
@@ -56,6 +58,7 @@ export class XrGamepadSource implements GamepadSource {
       pad.rightBumper = right['xr-standard-squeeze']?.value ?? 0
       pad.buttonA = right['a-button']?.pressed ? 1 : 0
       pad.buttonB = right['b-button']?.pressed ? 1 : 0
+      pad.view = right['xr-standard-thumbstick']?.pressed ? 1 : 0
     }
 
     return pad

@@ -128,6 +128,8 @@ const BUTTON_MAP: Record<string, keyof VirtualGamepad> = {
   dpad_down: 'dpadDown',
   dpad_left: 'dpadLeft',
   dpad_right: 'dpadRight',
+  menu: 'menu',
+  view: 'view',
 }
 
 // VirtualGamepad field → data-part name (reverse of BUTTON_MAP + sticks)

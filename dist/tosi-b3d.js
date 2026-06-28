@@ -713,15 +713,18 @@ export class B3d extends Component {
             const now = Date.now();
             const dt = Math.min((now - last) * 0.001, 0.1);
             last = now;
-            // Piloting a controllable → chase-follow it (the controllers fly it via
-            // its mapping); skip the free walk/fly locomotion entirely.
-            const piloted = focusEl?.focused?.mesh;
+            // Piloting a controllable → follow it (the controllers fly it via its
+            // mapping); skip the free walk/fly locomotion entirely. Cockpit view sits
+            // on the entity; chase sits behind+above it.
+            const entity = focusEl?.focused;
+            const piloted = entity?.mesh;
             if (piloted != null) {
+                const cockpit = entity?.cameraView === 'cockpit';
                 piloted.getDirectionToRef(XR_FORWARD, fwd); // entity's world forward
                 tmp.copyFrom(piloted.position);
-                fwd.scaleToRef(-CHASE_DIST, side);
+                fwd.scaleToRef(cockpit ? 0 : -CHASE_DIST, side);
                 tmp.addInPlace(side);
-                tmp.y += CHASE_HEIGHT;
+                tmp.y += cockpit ? 1 : CHASE_HEIGHT;
                 BABYLON.Vector3.LerpToRef(rig.position, tmp, Math.min(1, CHASE_LERP * dt), rig.position);
                 return;
             }

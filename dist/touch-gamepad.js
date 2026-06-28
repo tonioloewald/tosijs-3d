@@ -121,6 +121,8 @@ const BUTTON_MAP = {
     dpad_down: 'dpadDown',
     dpad_left: 'dpadLeft',
     dpad_right: 'dpadRight',
+    menu: 'menu',
+    view: 'view',
 };
 // VirtualGamepad field → data-part name (reverse of BUTTON_MAP + sticks)
 const FIELD_TO_PART = {};

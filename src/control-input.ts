@@ -51,6 +51,7 @@ export interface ControlInput {
   aim: number // 0..1
   cameraZoom: number // -1..1 (negative = zoom in, positive = zoom out)
   sneak: number // 0|1
+  view: number // 0..1 (cycle camera/view — edge-detected by consumers)
 }
 
 export interface InputProvider {
@@ -73,6 +74,7 @@ export function emptyInput(): ControlInput {
     aim: 0,
     cameraZoom: 0,
     sneak: 0,
+    view: 0,
   }
 }
 
@@ -118,6 +120,7 @@ export class CompositeInputProvider implements InputProvider {
       result.interact = Math.max(result.interact, input.interact)
       result.aim = Math.max(result.aim, input.aim)
       result.sneak = Math.max(result.sneak, input.sneak)
+      result.view = Math.max(result.view, input.view)
     }
     return result
   }

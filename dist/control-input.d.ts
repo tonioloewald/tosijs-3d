@@ -11,6 +11,7 @@ export interface ControlInput {
     aim: number;
     cameraZoom: number;
     sneak: number;
+    view: number;
 }
 export interface InputProvider {
     poll(deltaTime: number): ControlInput;

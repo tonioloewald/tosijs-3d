@@ -223,6 +223,8 @@ export function emptyGamepad() {
         dpadDown: 0,
         dpadLeft: 0,
         dpadRight: 0,
+        menu: 0,
+        view: 0,
     };
 }
 function maxAbs(a, b) {
@@ -246,6 +248,8 @@ export function mergeGamepads(a, b) {
         dpadDown: Math.max(a.dpadDown, b.dpadDown),
         dpadLeft: Math.max(a.dpadLeft, b.dpadLeft),
         dpadRight: Math.max(a.dpadRight, b.dpadRight),
+        menu: Math.max(a.menu, b.menu),
+        view: Math.max(a.view, b.view),
     };
 }
 // --- Built-in mapping presets ---
@@ -259,6 +263,7 @@ export function bipedMapping(pad, _dt) {
     input.shoot = pad.buttonB;
     input.cameraZoom = pad.rightStickY;
     input.sneak = pad.dpadDown;
+    input.view = pad.view;
     return input;
 }
 export const bipedMappingDescriptor = {
@@ -335,6 +340,7 @@ export function aircraftMapping(config) {
             wasActive = false;
         }
         input.throttle = throttleLevel;
+        input.view = pad.view;
         input.interact = pad.buttonX;
         input.cameraZoom = pad.rightStickY;
         return input;

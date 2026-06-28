@@ -16,6 +16,10 @@ export interface VirtualGamepad {
     dpadDown: number;
     dpadLeft: number;
     dpadRight: number;
+    /** Start/options ("≡") button — typically opens a menu. */
+    menu: number;
+    /** Select/view ("⧉") button — typically cycles camera/view. */
+    view: number;
 }
 export declare function emptyGamepad(): VirtualGamepad;
 export declare function mergeGamepads(a: VirtualGamepad, b: VirtualGamepad): VirtualGamepad;

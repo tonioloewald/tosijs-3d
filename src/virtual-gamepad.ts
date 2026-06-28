@@ -225,6 +225,10 @@ export interface VirtualGamepad {
   dpadDown: number
   dpadLeft: number
   dpadRight: number
+  /** Start/options ("≡") button — typically opens a menu. */
+  menu: number
+  /** Select/view ("⧉") button — typically cycles camera/view. */
+  view: number
 }
 
 export function emptyGamepad(): VirtualGamepad {
@@ -245,6 +249,8 @@ export function emptyGamepad(): VirtualGamepad {
     dpadDown: 0,
     dpadLeft: 0,
     dpadRight: 0,
+    menu: 0,
+    view: 0,
   }
 }
 
@@ -273,6 +279,8 @@ export function mergeGamepads(
     dpadDown: Math.max(a.dpadDown, b.dpadDown),
     dpadLeft: Math.max(a.dpadLeft, b.dpadLeft),
     dpadRight: Math.max(a.dpadRight, b.dpadRight),
+    menu: Math.max(a.menu, b.menu),
+    view: Math.max(a.view, b.view),
   }
 }
 
@@ -302,6 +310,7 @@ export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   input.shoot = pad.buttonB
   input.cameraZoom = pad.rightStickY
   input.sneak = pad.dpadDown
+  input.view = pad.view
   return input
 }
 
@@ -396,6 +405,7 @@ export function aircraftMapping(
     }
 
     input.throttle = throttleLevel
+    input.view = pad.view
 
     input.interact = pad.buttonX
     input.cameraZoom = pad.rightStickY

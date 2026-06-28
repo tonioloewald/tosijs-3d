@@ -30,6 +30,10 @@ export declare class B3dAircraft extends B3dControllable {
     vtolActive: boolean;
     stalling: boolean;
     pullUp: boolean;
+    /** Active camera mode — toggled by the `view` button. Also read by the XR
+     * chase rig to sit in the cockpit vs. behind the aircraft. */
+    cameraView: 'chase' | 'cockpit';
+    private viewWasPressed;
     private velocity;
     private rollAngle;
     private meshNode;
@@ -47,7 +51,10 @@ export declare class B3dAircraft extends B3dControllable {
     private loadFromLibrary;
     private setupMesh;
     private chaseCamera;
+    private cockpitCamera;
     setupFollowCamera(): void;
+    /** Switch the active camera between chase and cockpit. */
+    setCameraView(view: 'chase' | 'cockpit'): void;
     sceneDispose(): void;
     disconnectedCallback(): void;
 }
