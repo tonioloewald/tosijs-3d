@@ -167,6 +167,7 @@ tosi-b3d { width: 100%; height: 100%; }
 - `vtolActive: boolean` — true when in VTOL mode
 - `stalling: boolean` — true when airspeed < stallSpeed (not in VTOL)
 - `pullUp: boolean` — true when ground collision predicted within ~5s
+- `grounded: boolean` — true when settled on the ground (wheels/rolling resistance)
 */
 /*{ "parent": "Vehicles" }*/
 
@@ -183,6 +184,10 @@ const GROUND_SEPARATION = 0.05
 
 const DEG2RAD = Math.PI / 180
 const PULL_UP_SECONDS = 5
+// Landing: distance above clearance still counted as "on the ground", and the
+// per-second rolling-resistance decay applied to horizontal velocity once down.
+const GROUND_TOUCH = 0.15
+const GROUND_FRICTION = 1.2
 
 export class B3dAircraft extends B3dControllable {
   inputMapping = aircraftMapping()
@@ -210,6 +215,7 @@ export class B3dAircraft extends B3dControllable {
   vtolActive = false
   stalling = false
   pullUp = false
+  grounded = false
   /** Active camera mode — toggled by the `view` button. Also read by the XR
    * chase rig to sit in the cockpit vs. behind the aircraft. */
   cameraView: 'chase' | 'cockpit' = 'chase'
@@ -293,10 +299,20 @@ export class B3dAircraft extends B3dControllable {
     // === Apply velocity to position ===
     node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt)
 
-    // Ground avoidance: don't clip through terrain
+    // Ground contact. Clamp out of the terrain; once settled, behave like
+    // wheels — kill the downward bounce and apply rolling resistance so you can
+    // land, roll to a stop, and accelerate to take off again. (First cut — tune
+    // GROUND_FRICTION / GROUND_TOUCH; the model's own ground tweaks are separate.)
     const groundDist = this.raycastGround(node)
     if (groundDist < this.groundClearance) {
       node.position.y += this.groundClearance - groundDist
+    }
+    this.grounded = groundDist <= this.groundClearance + GROUND_TOUCH
+    if (this.grounded) {
+      if (vel.y < 0) vel.y = 0 // don't sink or bounce off the surface
+      const roll = Math.exp(-GROUND_FRICTION * dt)
+      vel.x *= roll
+      vel.z *= roll
     }
 
     // --- Update read-only state ---
