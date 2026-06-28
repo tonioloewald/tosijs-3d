@@ -19,6 +19,7 @@ export declare class B3d extends Component {
         maxDistance: number;
         noXr: boolean;
         gamepad: boolean | string;
+        gamepadScale: number;
     };
     static styleSpec: {
         ':host': {

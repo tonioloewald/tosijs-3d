@@ -11,6 +11,8 @@ must be children of a `b3d` element.
 | `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
 | `frameRate` | `30` | Target frame rate |
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
+| `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 
@@ -202,6 +204,9 @@ export class B3d extends Component {
     // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
     // an empty value shows the full default layout. Absent → no gamepad.
     gamepad: false as boolean | string,
+    // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
+    // wildly across devices, so this is exposed for tuning per scene/device.
+    gamepadScale: 1,
   }
 
   static styleSpec = {
@@ -856,7 +861,9 @@ export class B3d extends Component {
     const prop = (this as any).gamepad
     if (attr == null && (prop === false || prop == null)) return
     const spec = typeof prop === 'string' && prop !== '' ? prop : attr ?? ''
-    this.appendChild(b3dGamepad({ controls: spec }))
+    this.appendChild(
+      b3dGamepad({ controls: spec, scale: (this as any).gamepadScale ?? 1 })
+    )
   }
 
   // In-scene surface: render the panel onto a plane positioned each frame in

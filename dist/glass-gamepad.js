@@ -128,9 +128,9 @@ const PART_IDS = new Set([
     'right_stick_travel',
 ]);
 const DEFAULTS = {
-    left: { url: '/gamepad-left.svg', anchor: 'bottom-left', vmin: 30 },
-    right: { url: '/gamepad-right.svg', anchor: 'bottom-right', vmin: 30 },
-    top: { url: '/gamepad-top.svg', anchor: 'top-center', vmin: 20 },
+    left: { url: '/gamepad-left.svg', anchor: 'bottom-left', vmin: 42 },
+    right: { url: '/gamepad-right.svg', anchor: 'bottom-right', vmin: 42 },
+    top: { url: '/gamepad-top.svg', anchor: 'top-center', vmin: 28 },
 };
 // Which controls each cluster owns — used to skip empty clusters and to hide
 // controls that weren't requested. Sticks list both knob and travel.
