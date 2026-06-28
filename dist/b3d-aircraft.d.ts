@@ -17,6 +17,8 @@ export declare class B3dAircraft extends B3dControllable {
         turnRate: number;
         vtolSpeed: number;
         stallSpeed: number;
+        groundY: number;
+        crashSpeed: number;
         x: number;
         y: number;
         z: number;
@@ -31,6 +33,7 @@ export declare class B3dAircraft extends B3dControllable {
     stalling: boolean;
     pullUp: boolean;
     grounded: boolean;
+    crashed: boolean;
     /** Active camera mode — toggled by the `view` button. Also read by the XR
      * chase rig to sit in the cockpit vs. behind the aircraft. */
     cameraView: 'chase' | 'cockpit';
@@ -43,6 +46,11 @@ export declare class B3dAircraft extends B3dControllable {
     private libraryNode;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;
+    /** Distance from the aircraft origin down to the nearest ground: the lower of
+     * any terrain collider the raycast hits and the configured ground plane. */
+    private groundDistance;
+    /** Transition to the crashed/wrecked state: stop, lock out control, notify. */
+    private crash;
     /** Raycast downward to find distance to ground. Returns Infinity if no hit. */
     private raycastGround;
     private updatePullUp;

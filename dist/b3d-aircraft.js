@@ -159,6 +159,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | `turnRate` | `45` | Degrees/sec yaw |
 | `vtolSpeed` | `0` | Forward-airspeed threshold for VTOL (0 = no VTOL). Recommended: `maxSpeed * 0.5` — the speed at which lift sustains altitude in this model. |
 | `stallSpeed` | `40` | Speed below which stall occurs (0 = no stall) |
+| `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
+| `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 
 ## API (read-only properties for HUD binding)
 
@@ -168,6 +170,10 @@ tosi-b3d { width: 100%; height: 100%; }
 - `stalling: boolean` — true when airspeed < stallSpeed (not in VTOL)
 - `pullUp: boolean` — true when ground collision predicted within ~5s
 - `grounded: boolean` — true when settled on the ground (wheels/rolling resistance)
+- `crashed: boolean` — true after a hard/inverted ground impact; fires a `crash` event
+
+Flight controls are disabled on the ground (only yaw steers + throttle taxis);
+a contact faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
@@ -199,6 +205,12 @@ export class B3dAircraft extends B3dControllable {
         turnRate: 45,
         vtolSpeed: 0,
         stallSpeed: 40,
+        // Assumed ground-plane height (used as a floor in addition to any terrain
+        // colliders the downward raycast hits).
+        groundY: 0,
+        // Vertical impact speed (m/s) above which a ground contact is a crash, not
+        // a landing.
+        crashSpeed: 8,
     };
     // Read-only flight state
     airspeed = 0;
@@ -208,6 +220,7 @@ export class B3dAircraft extends B3dControllable {
     stalling = false;
     pullUp = false;
     grounded = false;
+    crashed = false;
     /** Active camera mode — toggled by the `view` button. Also read by the XR
      * chase rig to sit in the cockpit vs. behind the aircraft. */
     cameraView = 'chase';
@@ -235,23 +248,41 @@ export class B3dAircraft extends B3dControllable {
             this.setCameraView(this.cameraView === 'chase' ? 'cockpit' : 'chase');
         }
         this.viewWasPressed = viewPressed;
-        // --- Orientation: pitch, yaw, roll ---
-        const pitchAmount = input.forward * attrs.pitchRate * DEG2RAD * dt;
-        const yawAmount = input.turn * attrs.turnRate * DEG2RAD * dt;
-        node.rotate(BABYLON.Axis.X, pitchAmount, BABYLON.Space.LOCAL);
-        node.rotate(BABYLON.Axis.Y, yawAmount, BABYLON.Space.WORLD);
-        // Manual roll from strafe
-        const manualRoll = input.strafe * 60 * DEG2RAD * dt;
-        if (Math.abs(manualRoll) > 0.001) {
-            node.rotate(BABYLON.Axis.Z, -manualRoll, BABYLON.Space.LOCAL);
+        // Crashed: a wreck — no control or motion (the camera toggle above still
+        // works). Stays put until something resets it.
+        if (this.crashed) {
+            vel.setAll(0);
+            return;
         }
-        // Yaw-coupled roll: rudder banks the aircraft (max 30° at full rudder)
-        const yawCoupledTarget = -input.turn * 30 * DEG2RAD;
-        const prevRoll = this.rollAngle;
-        this.rollAngle += (yawCoupledTarget - this.rollAngle) * Math.min(1, 3 * dt);
-        const yawRollDelta = this.rollAngle - prevRoll;
-        if (Math.abs(yawRollDelta) > 0.0001) {
-            node.rotate(BABYLON.Axis.Z, yawRollDelta, BABYLON.Space.LOCAL);
+        // --- Orientation: pitch, yaw, roll ---
+        // Yaw works on the ground (steering) and in the air. Pitch and roll are
+        // flight controls — disabled while grounded, so the aircraft sits level
+        // instead of rolling/pitching from stick input on the runway.
+        node.rotate(BABYLON.Axis.Y, input.turn * attrs.turnRate * DEG2RAD * dt, BABYLON.Space.WORLD);
+        if (!this.grounded) {
+            node.rotate(BABYLON.Axis.X, input.forward * attrs.pitchRate * DEG2RAD * dt, BABYLON.Space.LOCAL);
+            const manualRoll = input.strafe * 60 * DEG2RAD * dt;
+            if (Math.abs(manualRoll) > 0.001) {
+                node.rotate(BABYLON.Axis.Z, -manualRoll, BABYLON.Space.LOCAL);
+            }
+            // Yaw-coupled roll: rudder banks the aircraft (max 30° at full rudder).
+            const yawCoupledTarget = -input.turn * 30 * DEG2RAD;
+            const prevRoll = this.rollAngle;
+            this.rollAngle +=
+                (yawCoupledTarget - this.rollAngle) * Math.min(1, 3 * dt);
+            const yawRollDelta = this.rollAngle - prevRoll;
+            if (Math.abs(yawRollDelta) > 0.0001) {
+                node.rotate(BABYLON.Axis.Z, yawRollDelta, BABYLON.Space.LOCAL);
+            }
+        }
+        else {
+            // Grounded: ease any rudder bank back to level so it rests flat.
+            const prevRoll = this.rollAngle;
+            this.rollAngle += (0 - this.rollAngle) * Math.min(1, 3 * dt);
+            const delta = this.rollAngle - prevRoll;
+            if (Math.abs(delta) > 0.0001) {
+                node.rotate(BABYLON.Axis.Z, delta, BABYLON.Space.LOCAL);
+            }
         }
         // --- Forces (delegated to pure aircraft-physics module) ---
         const localUp = node.up;
@@ -280,12 +311,18 @@ export class B3dAircraft extends B3dControllable {
         // wheels — kill the downward bounce and apply rolling resistance so you can
         // land, roll to a stop, and accelerate to take off again. (First cut — tune
         // GROUND_FRICTION / GROUND_TOUCH; the model's own ground tweaks are separate.)
-        const groundDist = this.raycastGround(node);
+        const groundDist = this.groundDistance(node);
+        const wasGrounded = this.grounded;
         if (groundDist < this.groundClearance) {
+            // First contact this approach: a fast or inverted/banked impact is a
+            // crash; a gentle, roughly-level touchdown is a landing.
+            if (!wasGrounded && (vel.y < -attrs.crashSpeed || node.up.y < 0.5)) {
+                this.crash();
+            }
             node.position.y += this.groundClearance - groundDist;
         }
         this.grounded = groundDist <= this.groundClearance + GROUND_TOUCH;
-        if (this.grounded) {
+        if (this.grounded && !this.crashed) {
             if (vel.y < 0)
                 vel.y = 0; // don't sink or bounce off the surface
             const roll = Math.exp(-GROUND_FRICTION * dt);
@@ -299,6 +336,21 @@ export class B3dAircraft extends B3dControllable {
         this.vtolActive = vtol;
         this.updatePullUp(node, dt);
         this.stalling = !vtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed;
+    }
+    /** Distance from the aircraft origin down to the nearest ground: the lower of
+     * any terrain collider the raycast hits and the configured ground plane. */
+    groundDistance(node) {
+        const terrain = this.raycastGround(node);
+        const plane = node.position.y - (this.groundY ?? 0);
+        return Math.min(terrain, plane);
+    }
+    /** Transition to the crashed/wrecked state: stop, lock out control, notify. */
+    crash() {
+        if (this.crashed)
+            return;
+        this.crashed = true;
+        this.velocity.setAll(0);
+        this.dispatchEvent(new CustomEvent('crash', { bubbles: true }));
     }
     /** Raycast downward to find distance to ground. Returns Infinity if no hit. */
     raycastGround(node) {
@@ -315,7 +367,7 @@ export class B3dAircraft extends B3dControllable {
     }
     updatePullUp(node, _dt) {
         // Warn if projected altitude in PULL_UP_SECONDS is below 10m
-        const groundDist = this.raycastGround(node);
+        const groundDist = this.groundDistance(node);
         const futureY = groundDist < Infinity
             ? groundDist + this.velocity.y * PULL_UP_SECONDS
             : node.position.y + this.velocity.y * PULL_UP_SECONDS;

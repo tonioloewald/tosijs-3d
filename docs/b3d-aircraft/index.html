@@ -224,6 +224,16 @@ requestAnimationFrame(updateHud)
 <td><code>40</code></td>
 <td>Speed below which stall occurs (0 = no stall)</td>
 </tr>
+<tr>
+<td><code>groundY</code></td>
+<td><code>0</code></td>
+<td>Assumed ground-plane height (a floor in addition to any terrain colliders)</td>
+</tr>
+<tr>
+<td><code>crashSpeed</code></td>
+<td><code>8</code></td>
+<td>Vertical impact speed (m/s) above which a ground contact is a crash</td>
+</tr>
 </tbody></table>
 <h2>API (read-only properties for HUD binding)</h2>
 <ul>
@@ -233,7 +243,10 @@ requestAnimationFrame(updateHud)
 <li><code>stalling: boolean</code> — true when airspeed &lt; stallSpeed (not in VTOL)</li>
 <li><code>pullUp: boolean</code> — true when ground collision predicted within ~5s</li>
 <li><code>grounded: boolean</code> — true when settled on the ground (wheels/rolling resistance)</li>
+<li><code>crashed: boolean</code> — true after a hard/inverted ground impact; fires a <code>crash</code> event</li>
 </ul>
+<p>Flight controls are disabled on the ground (only yaw steers + throttle taxis);
+a contact faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of lands.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
