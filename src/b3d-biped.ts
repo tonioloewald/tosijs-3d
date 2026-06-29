@@ -627,6 +627,10 @@ export class B3dBiped extends B3dControllable {
           .map((node) => node.getChildMeshes())
           .flat()
         this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
+        // Derive eye height from the model so first-person sits at the head, not
+        // the origin (the feet). ~0.93 of total height ≈ eye level.
+        const bounds = this.mesh.getHierarchyBoundingVectors()
+        ;(this as any).eyeHeight = (bounds.max.y - bounds.min.y) * 0.93
         this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
         this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
         this.mesh.checkCollisions = true

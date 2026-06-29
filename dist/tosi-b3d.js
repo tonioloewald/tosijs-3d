@@ -712,13 +712,23 @@ export class B3d extends Component {
             // same way, so turning the entity turns your view (head tracking on top).
             // A crashed entity yields back to free walk/fly so you can leave the wreck.
             const entity = focusEl?.focused;
-            const piloted = entity?.crashed ? undefined : entity?.mesh;
+            // getCameraTarget() (not .mesh) — the aircraft's node is `meshNode`, so
+            // .mesh is undefined and it would never be chased.
+            const piloted = entity?.crashed
+                ? null
+                : (entity?.getCameraTarget?.() ??
+                    null);
             if (piloted != null) {
                 const view = entity?.cameraView;
                 // chase: behind+above. cockpit (aircraft): a touch forward+up. fpv
-                // (biped): exactly on it, so head tracking puts your eyes at the head.
+                // (biped): the head lands at eye height (computed from the model), so it
+                // sits at the head, not the feet (the origin).
                 const back = view === 'fpv' ? 0 : view === 'cockpit' ? -1.2 : CHASE_DIST;
-                const up = view === 'fpv' ? 0 : view === 'cockpit' ? 0.8 : CHASE_HEIGHT;
+                const up = view === 'fpv'
+                    ? entity?.eyeHeight ?? 1.6
+                    : view === 'cockpit'
+                        ? 0.8
+                        : CHASE_HEIGHT;
                 piloted.getDirectionToRef(XR_FORWARD, fwd); // world forward
                 const targetX = piloted.position.x - fwd.x * back;
                 const targetY = piloted.position.y + up;
