@@ -51,8 +51,12 @@ export declare class B3dBiped extends B3dControllable {
      * hidden). Read by the XR rig too. */
     cameraView: 'chase' | 'fpv';
     private fpvCamera;
+    private headNode;
     private viewWasPressed;
     private hiddenHead;
+    /** World position of the head node, or null if the model has none. The XR rig
+     * uses this to put first-person at the head. */
+    getHeadPosition(): BABYLON.Vector3 | null;
     xrStuff?: XRStuff;
     private xrInputProvider?;
     animationState?: AnimState;

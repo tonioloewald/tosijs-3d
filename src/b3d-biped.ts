@@ -208,8 +208,15 @@ export class B3dBiped extends B3dControllable {
    * hidden). Read by the XR rig too. */
   cameraView: 'chase' | 'fpv' = 'chase'
   private fpvCamera: BABYLON.FreeCamera | null = null
+  private headNode: BABYLON.TransformNode | null = null
   private viewWasPressed = false
   private hiddenHead: BABYLON.AbstractMesh[] = []
+
+  /** World position of the head node, or null if the model has none. The XR rig
+   * uses this to put first-person at the head. */
+  getHeadPosition(): BABYLON.Vector3 | null {
+    return this.headNode?.getAbsolutePosition() ?? null
+  }
   xrStuff?: XRStuff
   private xrInputProvider?: XRInputProvider
   animationState?: AnimState
@@ -310,6 +317,24 @@ export class B3dBiped extends B3dControllable {
       this.setCameraView(this.cameraView === 'chase' ? 'fpv' : 'chase')
     }
     this.viewWasPressed = viewPressed
+
+    // First-person camera tracks the head node — so it doesn't fall behind the
+    // head when walking, or float above it when crouching. Orientation stays
+    // root-aligned (yaw only) to avoid the head's animation bob/rotation. Flat
+    // only; in VR the rig anchors to getHeadPosition().
+    if (
+      this.cameraView === 'fpv' &&
+      this.fpvCamera != null &&
+      this.headNode != null &&
+      this.mesh != null &&
+      !this.owner?.xrActive
+    ) {
+      const hp = this.headNode.getAbsolutePosition()
+      this.fpvCamera.parent = null
+      this.fpvCamera.position.set(hp.x, hp.y + 0.05, hp.z)
+      const f = this.mesh.forward
+      this.fpvCamera.rotation.set(0, Math.atan2(f.x, f.z), 0)
+    }
 
     const speed = input.forward
     const rotation = input.turn
@@ -561,7 +586,10 @@ export class B3dBiped extends B3dControllable {
     fpv.parent = root
     fpv.position = new BABYLON.Vector3(0, attrs.eyeHeight, 0.15)
     fpv.rotation = BABYLON.Vector3.Zero()
-    fpv.minZ = 0.05
+    // Near-clip past the head: the camera sits at the head, so geometry within
+    // ~18cm (the head/face around it) is clipped while the body stays visible.
+    // Robust even when the head isn't a separable mesh to hide.
+    fpv.minZ = 0.18
     this.fpvCamera = fpv
 
     this.setCameraView(this.cameraView)
@@ -628,9 +656,17 @@ export class B3dBiped extends B3dControllable {
           .flat()
         this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
         // Derive eye height from the model so first-person sits at the head, not
-        // the origin (the feet). ~0.93 of total height ≈ eye level.
+        // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
+        // fallback when there's no head node to anchor to.
         const bounds = this.mesh.getHierarchyBoundingVectors()
         ;(this as any).eyeHeight = (bounds.max.y - bounds.min.y) * 0.93
+        // Find the head node (e.g. `mixamorig:Head`) so first-person can anchor
+        // to the actual head — which moves forward when walking and down when
+        // crouching — instead of a fixed offset above the feet.
+        this.headNode =
+          this.mesh
+            .getChildTransformNodes(false)
+            .find((n) => /head/i.test(n.name)) ?? null
         this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
         this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
         this.mesh.checkCollisions = true
