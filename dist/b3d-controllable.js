@@ -18,6 +18,8 @@ import { AbstractMesh } from './b3d-utils';
 export class B3dControllable extends AbstractMesh {
     inputProvider = null;
     inputMapping;
+    /** Last polled input — read by the XR rig for camera zoom/peek intent. */
+    lastInput = null;
     lastUpdate = 0;
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
@@ -46,6 +48,7 @@ export class B3dControllable extends AbstractMesh {
         if (this.inputProvider == null)
             return;
         const input = this.inputProvider.poll(dt);
+        this.lastInput = input;
         this.applyInput(input, dt);
     };
 }

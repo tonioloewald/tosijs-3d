@@ -262,6 +262,7 @@ export function bipedMapping(pad, _dt) {
     input.interact = pad.buttonX;
     input.shoot = pad.buttonB;
     input.cameraZoom = pad.rightStickY;
+    input.cameraPeek = pad.rightStickX; // temporary look left/right (snaps to centre)
     input.sneak = pad.dpadDown;
     // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
     input.view = Math.max(pad.view, pad.buttonY);

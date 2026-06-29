@@ -24,6 +24,8 @@ import type { InputMapping } from './virtual-gamepad'
 export class B3dControllable extends AbstractMesh {
   inputProvider: InputProvider | null = null
   inputMapping?: InputMapping
+  /** Last polled input — read by the XR rig for camera zoom/peek intent. */
+  lastInput: ControlInput | null = null
   protected lastUpdate = 0
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -59,6 +61,7 @@ export class B3dControllable extends AbstractMesh {
 
     if (this.inputProvider == null) return
     const input = this.inputProvider.poll(dt)
+    this.lastInput = input
     this.applyInput(input, dt)
   }
 }
