@@ -310,7 +310,8 @@ export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   input.shoot = pad.buttonB
   input.cameraZoom = pad.rightStickY
   input.sneak = pad.dpadDown
-  input.view = pad.view
+  // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
+  input.view = Math.max(pad.view, pad.buttonY)
   return input
 }
 

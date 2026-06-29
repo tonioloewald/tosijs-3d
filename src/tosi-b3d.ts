@@ -798,12 +798,15 @@ export class B3d extends Component {
       const entity = focusEl?.focused
       const piloted = entity?.crashed ? undefined : entity?.mesh
       if (piloted != null) {
-        const cockpit = entity?.cameraView === 'cockpit'
+        // cockpit (aircraft): sit on it, slightly up. fpv (biped): sit AT it so
+        // head-tracking puts your eyes at the head. chase: behind + above.
+        const view = entity?.cameraView
+        const onboard = view === 'cockpit' || view === 'fpv'
         piloted.getDirectionToRef(XR_FORWARD, fwd) // entity's world forward
         tmp.copyFrom(piloted.position)
-        fwd.scaleToRef(cockpit ? 0 : -CHASE_DIST, side)
+        fwd.scaleToRef(onboard ? 0 : -CHASE_DIST, side)
         tmp.addInPlace(side)
-        tmp.y += cockpit ? 1 : CHASE_HEIGHT
+        tmp.y += view === 'fpv' ? 0 : view === 'cockpit' ? 1 : CHASE_HEIGHT
         BABYLON.Vector3.LerpToRef(
           rig.position,
           tmp,

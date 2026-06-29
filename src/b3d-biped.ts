@@ -196,10 +196,20 @@ export class B3dBiped extends B3dControllable {
     cameraTargetHeight: 0.75,
     cameraMinFollowDistance: 2,
     cameraMaxFollowDistance: 5,
+    // Eye height for the first-person camera (the view button toggles between
+    // third-person over-the-shoulder and this).
+    eyeHeight: 1.6,
   }
 
   entries?: BABYLON.InstantiatedEntries
   camera?: BABYLON.Camera
+  /** Camera mode, toggled by the view button: third-person over-the-shoulder
+   * ('chase') or first-person ('fpv', positioned at the head with the head mesh
+   * hidden). Read by the XR rig too. */
+  cameraView: 'chase' | 'fpv' = 'chase'
+  private fpvCamera: BABYLON.FreeCamera | null = null
+  private viewWasPressed = false
+  private hiddenHead: BABYLON.AbstractMesh[] = []
   xrStuff?: XRStuff
   private xrInputProvider?: XRInputProvider
   animationState?: AnimState
@@ -293,6 +303,13 @@ export class B3dBiped extends B3dControllable {
   applyInput(input: ControlInput, dt: number) {
     if (this.entries == null) return
     const attrs = this as any
+
+    // Camera toggle on the view button (edge-detected).
+    const viewPressed = input.view > 0.5
+    if (viewPressed && !this.viewWasPressed) {
+      this.setCameraView(this.cameraView === 'chase' ? 'fpv' : 'chase')
+    }
+    this.viewWasPressed = viewPressed
 
     const speed = input.forward
     const rotation = input.turn
@@ -521,8 +538,10 @@ export class B3dBiped extends B3dControllable {
     cameraTarget.parent = root
     cameraTarget.position.y = attrs.cameraTargetHeight
 
+    // Named to match cameraType so the render() camera-check is stable (it
+    // recreates when this.camera.name !== cameraType).
     const followCamera = new BABYLON.FollowCamera(
-      'FollowCam',
+      attrs.cameraType,
       BABYLON.Vector3.Zero(),
       this.owner.scene
     )
@@ -531,7 +550,44 @@ export class B3dBiped extends B3dControllable {
     followCamera.rotationOffset = 180
     followCamera.lockedTarget = cameraTarget as any
     this.camera = followCamera
-    this.owner.setActiveCamera(followCamera, { attach: false })
+
+    // First-person camera — parented to the ROOT (not the head bone, which would
+    // inherit animation bob and be nauseating), at eye height, looking forward.
+    const fpv = new BABYLON.FreeCamera(
+      'biped-fpv',
+      BABYLON.Vector3.Zero(),
+      this.owner.scene
+    )
+    fpv.parent = root
+    fpv.position = new BABYLON.Vector3(0, attrs.eyeHeight, 0.15)
+    fpv.rotation = BABYLON.Vector3.Zero()
+    fpv.minZ = 0.05
+    this.fpvCamera = fpv
+
+    this.setCameraView(this.cameraView)
+  }
+
+  /** Toggle third-person ('chase') vs first-person ('fpv'). In VR the rig reads
+   * cameraView; on flat we switch the active camera. Either way the head mesh is
+   * hidden in first-person so the camera isn't looking through your own skull. */
+  setCameraView(view: 'chase' | 'fpv') {
+    this.cameraView = view
+    this.setHeadHidden(view === 'fpv')
+    if (this.owner?.xrActive) return // the XR rig handles the viewpoint in VR
+    const cam = view === 'fpv' ? this.fpvCamera : this.camera
+    if (cam != null && this.owner != null) {
+      this.owner.setActiveCamera(cam, { attach: false })
+    }
+  }
+
+  private setHeadHidden(hidden: boolean) {
+    if (hidden && this.hiddenHead.length === 0 && this.entries != null) {
+      const root = this.entries.rootNodes[0] as BABYLON.Mesh
+      this.hiddenHead = root
+        .getChildMeshes()
+        .filter((m) => /head/i.test(m.name))
+    }
+    for (const m of this.hiddenHead) m.isVisible = !hidden
   }
 
   connectedCallback() {
@@ -596,6 +652,12 @@ export class B3dBiped extends B3dControllable {
   }
 
   sceneDispose() {
+    if (this.fpvCamera) {
+      this.fpvCamera.parent = null
+      this.fpvCamera.dispose()
+      this.fpvCamera = null
+    }
+    this.hiddenHead = []
     if (this.owner != null && this.entries) {
       this.owner.scene.unregisterBeforeRender(this._update)
       for (const node of this.entries.rootNodes) {

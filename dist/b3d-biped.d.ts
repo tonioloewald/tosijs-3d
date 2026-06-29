@@ -36,6 +36,7 @@ export declare class B3dBiped extends B3dControllable {
         cameraTargetHeight: number;
         cameraMinFollowDistance: number;
         cameraMaxFollowDistance: number;
+        eyeHeight: number;
         x: number;
         y: number;
         z: number;
@@ -45,6 +46,13 @@ export declare class B3dBiped extends B3dControllable {
     };
     entries?: BABYLON.InstantiatedEntries;
     camera?: BABYLON.Camera;
+    /** Camera mode, toggled by the view button: third-person over-the-shoulder
+     * ('chase') or first-person ('fpv', positioned at the head with the head mesh
+     * hidden). Read by the XR rig too. */
+    cameraView: 'chase' | 'fpv';
+    private fpvCamera;
+    private viewWasPressed;
+    private hiddenHead;
     xrStuff?: XRStuff;
     private xrInputProvider?;
     animationState?: AnimState;
@@ -58,6 +66,11 @@ export declare class B3dBiped extends B3dControllable {
     private setupXRInput;
     setupXRCamera(): Promise<void>;
     setupFollowCamera(): Promise<void>;
+    /** Toggle third-person ('chase') vs first-person ('fpv'). In VR the rig reads
+     * cameraView; on flat we switch the active camera. Either way the head mesh is
+     * hidden in first-person so the camera isn't looking through your own skull. */
+    setCameraView(view: 'chase' | 'fpv'): void;
+    private setHeadHidden;
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
