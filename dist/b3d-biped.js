@@ -466,10 +466,7 @@ export class B3dBiped extends B3dControllable {
         fpv.parent = root;
         fpv.position = new BABYLON.Vector3(0, attrs.eyeHeight, 0.15);
         fpv.rotation = BABYLON.Vector3.Zero();
-        // Near-clip past the head: the camera sits at the head, so geometry within
-        // ~18cm (the head/face around it) is clipped while the body stays visible.
-        // Robust even when the head isn't a separable mesh to hide.
-        fpv.minZ = 0.18;
+        fpv.minZ = 0.06; // the head mesh is hidden in fpv, so only a small near plane
         this.fpvCamera = fpv;
         this.setCameraView(this.cameraView);
     }
@@ -533,13 +530,14 @@ export class B3dBiped extends B3dControllable {
                 // fallback when there's no head node to anchor to.
                 const bounds = this.mesh.getHierarchyBoundingVectors();
                 this.eyeHeight = (bounds.max.y - bounds.min.y) * 0.93;
-                // Find the head node (e.g. `mixamorig:Head`) so first-person can anchor
-                // to the actual head — which moves forward when walking and down when
-                // crouching — instead of a fixed offset above the feet.
+                // Find the head BONE node (e.g. `mixamorig:Head`) so first-person anchors
+                // to the actual animated head — which moves forward when walking and down
+                // when crouching. Exclude meshes so we get the animated joint, not the
+                // (static) `head` mesh node.
                 this.headNode =
                     this.mesh
                         .getChildTransformNodes(false)
-                        .find((n) => /head/i.test(n.name)) ?? null;
+                        .find((n) => /head/i.test(n.name) && !(n instanceof BABYLON.AbstractMesh)) ?? null;
                 this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3);
                 this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0);
                 this.mesh.checkCollisions = true;

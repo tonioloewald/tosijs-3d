@@ -734,7 +734,6 @@ export class B3d extends Component {
   ): { dispose: () => void } {
     const scene = this.scene
     const cam = base.camera
-    const defaultMinZ = cam.minZ // restored when not in a head-anchored view
 
     const rig = new BABYLON.TransformNode('xr-rig', scene)
     // Keep the flat camera's horizontal viewpoint but stand on the floor
@@ -819,8 +818,6 @@ export class B3d extends Component {
       if (piloted != null) {
         const view = entity?.cameraView
         const isChase = view !== 'fpv' && view !== 'cockpit'
-        // fpv sits at the head — clip the head/face geometry around the camera.
-        cam.minZ = view === 'fpv' ? 0.18 : defaultMinZ
         // Right stick (while piloting) zooms the chase and peeks left/right.
         const zoomIn = entity?.lastInput?.cameraZoom ?? 0
         const peekIn = entity?.lastInput?.cameraPeek ?? 0
@@ -896,7 +893,6 @@ export class B3d extends Component {
       // (a set rotationQuaternion overrides the euler the stick-turn below uses).
       chaseFirstFrame = true
       lastPiloted = null
-      cam.minZ = defaultMinZ
       if (rig.rotationQuaternion != null) {
         rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y
         rig.rotationQuaternion = null
