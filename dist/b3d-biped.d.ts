@@ -54,8 +54,17 @@ export declare class B3dBiped extends B3dControllable {
     private headNode;
     private viewWasPressed;
     private hiddenHead;
-    /** World position of the head node, or null if the model has none. The XR rig
-     * uses this to put first-person at the head. */
+    /** XR/chase camera params, computed from the model bounds in render(). The
+     * chase rig interpolates height (eyeHeight→chaseHeight) and distance with the
+     * zoom intent, so zooming in drops to head height and out pulls back/up. */
+    chaseHeight: number;
+    chaseDistance: number;
+    private _eyePos;
+    /** Eye position for first-person: the head bone (or eyeHeight fallback) nudged
+     * up + forward to roughly the eyes, so the camera sits at the eyes rather than
+     * the neck / head-bone base — which would leave the head & neck in front of the
+     * view. Forward is body-facing (root-aligned), since the camera ignores the
+     * head's own animation. Returns a cached vector — read it now, don't retain. */
     getHeadPosition(): BABYLON.Vector3 | null;
     xrStuff?: XRStuff;
     private xrInputProvider?;

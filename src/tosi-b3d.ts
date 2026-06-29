@@ -776,6 +776,8 @@ export class B3d extends Component {
         cameraView?: string
         crashed?: boolean
         eyeHeight?: number
+        chaseHeight?: number
+        chaseDistance?: number
         getHeadPosition?: () => BABYLON.Vector3 | null
         lastInput?: { cameraZoom: number; cameraPeek: number }
       }
@@ -830,14 +832,25 @@ export class B3d extends Component {
         // chase: behind+above (zoomable). cockpit (aircraft): just ahead of the
         // origin. fpv (biped): at the model's HEAD (tracks walk/crouch) so you
         // aren't looking up at a neck.
+        // Heights/distance come from the entity (biped: head/over-shoulder;
+        // aircraft: cockpit/airframe-clearing) so the rig fits the thing it's
+        // following. Chase interpolates with zoom: close+low when zoomed in
+        // (≈head/cockpit height), far+high when zoomed out (overview).
+        const eyeH = entity?.eyeHeight ?? 1.6
+        const chaseH = entity?.chaseHeight ?? CHASE_HEIGHT
+        const chaseD = entity?.chaseDistance ?? 5
         const back =
-          view === 'fpv' ? 0 : view === 'cockpit' ? -0.4 : 2.5 + chaseZoom * 6.5
+          view === 'fpv'
+            ? 0
+            : view === 'cockpit'
+            ? -0.4
+            : chaseD * (0.7 + chaseZoom * 1.8)
         const up =
           view === 'fpv'
-            ? entity?.eyeHeight ?? 1.6
+            ? eyeH
             : view === 'cockpit'
-            ? 0.7
-            : CHASE_HEIGHT
+            ? eyeH
+            : eyeH + (chaseH - eyeH) * chaseZoom
         piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
         const targetYaw = Math.atan2(fwd.x, fwd.z)
         // fpv: anchor to the actual head bone if the entity exposes it.
