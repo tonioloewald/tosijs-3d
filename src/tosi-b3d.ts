@@ -776,6 +776,8 @@ export class B3d extends Component {
         cameraView?: string
         crashed?: boolean
         eyeHeight?: number
+        cockpitForward?: number
+        chaseMinHeight?: number
         chaseHeight?: number
         chaseDistance?: number
         getHeadPosition?: () => BABYLON.Vector3 | null
@@ -793,6 +795,8 @@ export class B3d extends Component {
     // the piloted entity's position AND facing, with head-tracking compensation.
     const chasePos = new BABYLON.Vector3()
     const yawQuat = new BABYLON.Quaternion()
+    const followQuat = new BABYLON.Quaternion() // cockpit: aircraft's full orient
+    const cockpitLocal = new BABYLON.Vector3() // cockpit offset in the model frame
     const mtx = new BABYLON.Matrix()
     let chaseYaw = 0
     let chaseYawOffset = 0
@@ -819,7 +823,32 @@ export class B3d extends Component {
             null) as BABYLON.TransformNode | null)
       if (piloted != null) {
         const view = entity?.cameraView
-        const isChase = view !== 'fpv' && view !== 'cockpit'
+        const eyeH = entity?.eyeHeight ?? 1.6
+
+        // COCKPIT: ride INSIDE the aircraft, inheriting its FULL orientation so
+        // you bank/pitch with it (head tracking layers on top → look around the
+        // cockpit). Computed (not literally parented) to dodge model scale: take
+        // the airframe's rotation, place the head at the cockpit point, and
+        // back the rig out by the head's tracked local offset so the head lands
+        // exactly there. (#2)
+        if (view === 'cockpit') {
+          const aq = piloted.rotationQuaternion ?? BABYLON.Quaternion.Identity()
+          BABYLON.Matrix.FromQuaternionToRef(aq, mtx)
+          cockpitLocal.set(0, eyeH, entity?.cockpitForward ?? 0.5)
+          BABYLON.Vector3.TransformCoordinatesToRef(cockpitLocal, mtx, tmp)
+          const cx = piloted.position.x + tmp.x
+          const cy = piloted.position.y + tmp.y
+          const cz = piloted.position.z + tmp.z
+          BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
+          followQuat.copyFrom(aq)
+          rig.rotationQuaternion = followQuat
+          rig.position.set(cx - tmp.x, cy - tmp.y, cz - tmp.z)
+          chaseFirstFrame = true // re-seat the chase smoothing on toggle-out
+          lastPiloted = piloted
+          return
+        }
+
+        const isChase = view !== 'fpv'
         // Right stick (while piloting) zooms the chase and peeks left/right.
         const zoomIn = entity?.lastInput?.cameraZoom ?? 0
         const peekIn = entity?.lastInput?.cameraPeek ?? 0
@@ -829,28 +858,16 @@ export class B3d extends Component {
             Math.min(1, chaseZoom - zoomIn * dt * ZOOM_RATE)
           )
         }
-        // chase: behind+above (zoomable). cockpit (aircraft): just ahead of the
-        // origin. fpv (biped): at the model's HEAD (tracks walk/crouch) so you
-        // aren't looking up at a neck.
-        // Heights/distance come from the entity (biped: head/over-shoulder;
-        // aircraft: cockpit/airframe-clearing) so the rig fits the thing it's
-        // following. Chase interpolates with zoom: close+low when zoomed in
-        // (≈head/cockpit height), far+high when zoomed out (overview).
-        const eyeH = entity?.eyeHeight ?? 1.6
+        // chase: behind+above (zoomable), staying ABOVE the entity so it sits low
+        // in frame (not dead-on the tail). fpv (biped): at the model's HEAD
+        // (tracks walk/crouch). Heights/distance come from the entity. Chase
+        // height interpolates with zoom: low (≈head; biped #2) when zoomed in,
+        // high (overview) when out — clamped above the model for the aircraft.
+        const loH = entity?.chaseMinHeight ?? eyeH
         const chaseH = entity?.chaseHeight ?? CHASE_HEIGHT
         const chaseD = entity?.chaseDistance ?? 5
-        const back =
-          view === 'fpv'
-            ? 0
-            : view === 'cockpit'
-            ? -0.4
-            : chaseD * (0.7 + chaseZoom * 1.8)
-        const up =
-          view === 'fpv'
-            ? eyeH
-            : view === 'cockpit'
-            ? eyeH
-            : eyeH + (chaseH - eyeH) * chaseZoom
+        const back = view === 'fpv' ? 0 : chaseD * (0.8 + chaseZoom * 1.1)
+        const up = view === 'fpv' ? eyeH : loH + (chaseH - loH) * chaseZoom
         piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
         const targetYaw = Math.atan2(fwd.x, fwd.z)
         // fpv: anchor to the actual head bone if the entity exposes it.
@@ -869,12 +886,13 @@ export class B3d extends Component {
           chaseYaw = targetYaw - chaseYawOffset
           chasePos.set(targetX, targetY, targetZ)
         }
-        // Position tracks tightly (no altitude lag — near-rigid when onboard);
-        // yaw eases so turning doesn't snap.
+        // Spring to the offset: horizontal eases (turning doesn't snap), but the
+        // VERTICAL tracks tightly so the chase doesn't sink below on a climb. (#3)
         const posT = Math.min(1, (isChase ? 9 : 16) * dt)
+        const posTy = Math.min(1, 16 * dt)
         const yawT = Math.min(1, 6 * dt)
         chasePos.x += (targetX - chasePos.x) * posT
-        chasePos.y += (targetY - chasePos.y) * posT
+        chasePos.y += (targetY - chasePos.y) * posTy
         chasePos.z += (targetZ - chasePos.z) * posT
         let yawDiff = targetYaw - chaseYawOffset - chaseYaw
         while (yawDiff > Math.PI) yawDiff -= Math.PI * 2
@@ -1063,30 +1081,23 @@ export class B3d extends Component {
     // Billboard so it always faces the head, upright and un-mirrored, whatever
     // its height/position — no manual orientation math, no lookAt flip.
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
+    // Parent to the XR rig (the camera's parent) so the panel is rock-steady
+    // relative to the player and merely revealed by tilting the head up —
+    // instead of chasing the head through WORLD space, which lagged (and felt
+    // "behind where you'd expect") whenever the rig flew fast while piloting. (#1)
+    plane.parent = cam.parent
 
     const fwd = new BABYLON.Vector3()
-    const target = new BABYLON.Vector3()
-    let firstFrame = true
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
-      const head = cam.globalPosition
       cam.getDirectionToRef(XR_FORWARD, fwd)
       const lookUp = fwd.y // world-space forward Y = sin(pitch); >0 looking up
-      fwd.y = 0
-      if (fwd.lengthSquared() < 1e-4) fwd.set(0, 0, 1) // looking straight up/down
-      fwd.normalize()
-      target.set(
-        head.x + fwd.x * FORWARD,
-        head.y + ABOVE,
-        head.z + fwd.z * FORWARD
+      // Fixed offset above + ahead of the head in the RIG frame (cam.position is
+      // the head's rig-local pose). Rig motion carries it rigidly — no leash.
+      plane.position.set(
+        cam.position.x,
+        cam.position.y + ABOVE,
+        cam.position.z + FORWARD
       )
-      // Snap into place on the first frame (no fly-in), then leash so it
-      // follows your facing without feeling glued to your face.
-      if (firstFrame) {
-        plane.position.copyFrom(target)
-        firstFrame = false
-      } else {
-        BABYLON.Vector3.LerpToRef(plane.position, target, 0.2, plane.position)
-      }
       plane.visibility = Math.max(
         0,
         Math.min(1, (lookUp - FADE_IN) / (FADE_FULL - FADE_IN))

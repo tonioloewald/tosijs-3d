@@ -226,11 +226,14 @@ export class B3dAircraft extends B3dControllable {
      * chase rig to sit in the cockpit vs. behind the aircraft. */
     cameraView = 'chase';
     viewWasPressed = false;
-    /** Camera offsets (read by the XR rig too). The cockpit stays parented to the
-     * airframe so you bank with the plane; the chase is yaw-only level-follow, so
-     * it doesn't get swung below/around when the aircraft pitches or rolls. */
+    /** Camera offsets (read by the XR rig too). The cockpit rides inside the
+     * airframe banking with it; the chase springs to a yaw-frame offset behind +
+     * above, so it stays level and looks down at the plane (not dead-on its tail)
+     * rather than being swung below when the aircraft pitches/rolls. */
     eyeHeight = 0.9; // cockpit height above the origin
-    chaseHeight = 1.6; // chase height above the aircraft
+    cockpitForward = 0.5; // cockpit offset toward the nose (local +Z)
+    chaseMinHeight = 2.0; // chase height zoomed all the way in
+    chaseHeight = 3.2; // chase height zoomed out (overview)
     chaseDistance = 4.8; // chase distance behind
     _chaseFwd = new BABYLON.Vector3();
     velocity = new BABYLON.Vector3(0, 0, 0);
@@ -357,7 +360,7 @@ export class B3dAircraft extends B3dControllable {
             return;
         node.getDirectionToRef(LOCAL_Z, this._chaseFwd);
         const yaw = Math.atan2(this._chaseFwd.x, this._chaseFwd.z);
-        cam.position.set(node.position.x - Math.sin(yaw) * this.chaseDistance, node.position.y + this.chaseHeight, node.position.z - Math.cos(yaw) * this.chaseDistance);
+        cam.position.set(node.position.x - Math.sin(yaw) * this.chaseDistance, node.position.y + this.chaseMinHeight, node.position.z - Math.cos(yaw) * this.chaseDistance);
         cam.setTarget(node.position);
     }
     /** Distance from the aircraft origin down to the nearest ground: the lower of
@@ -506,7 +509,7 @@ export class B3dAircraft extends B3dControllable {
         // Parented so it banks/pitches with the airframe.
         const cockpit = new BABYLON.FreeCamera('aircraft-cockpit-cam', target.getAbsolutePosition().clone(), this.owner.scene);
         cockpit.parent = target;
-        cockpit.position = new BABYLON.Vector3(0, this.eyeHeight, 1.0);
+        cockpit.position = new BABYLON.Vector3(0, this.eyeHeight, this.cockpitForward);
         cockpit.rotation = new BABYLON.Vector3(0, 0, 0);
         cockpit.minZ = 0.05;
         this.cockpitCamera = cockpit;

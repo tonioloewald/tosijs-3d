@@ -38,10 +38,13 @@ export declare class B3dAircraft extends B3dControllable {
      * chase rig to sit in the cockpit vs. behind the aircraft. */
     cameraView: 'chase' | 'cockpit';
     private viewWasPressed;
-    /** Camera offsets (read by the XR rig too). The cockpit stays parented to the
-     * airframe so you bank with the plane; the chase is yaw-only level-follow, so
-     * it doesn't get swung below/around when the aircraft pitches or rolls. */
+    /** Camera offsets (read by the XR rig too). The cockpit rides inside the
+     * airframe banking with it; the chase springs to a yaw-frame offset behind +
+     * above, so it stays level and looks down at the plane (not dead-on its tail)
+     * rather than being swung below when the aircraft pitches/rolls. */
     eyeHeight: number;
+    cockpitForward: number;
+    chaseMinHeight: number;
     chaseHeight: number;
     chaseDistance: number;
     private _chaseFwd;
