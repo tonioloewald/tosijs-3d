@@ -34,7 +34,7 @@ const { demo } = tosi({
   },
 })
 
-const scene = '/test-2.glb'
+const scene = '/test-3.glb'
 const omnidude = '/omnidude.glb'
 
 const formatTime = (v) => {
