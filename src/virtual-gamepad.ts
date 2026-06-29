@@ -405,7 +405,9 @@ export function aircraftMapping(
     }
 
     input.throttle = throttleLevel
-    input.view = pad.view
+    // Camera toggle: the glass-gamepad "view" button, or the Y face button (so
+    // it's reachable on an XR controller / hardware pad without a view button).
+    input.view = Math.max(pad.view, pad.buttonY)
 
     input.interact = pad.buttonX
     input.cameraZoom = pad.rightStickY

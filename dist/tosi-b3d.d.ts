@@ -83,8 +83,8 @@ export declare class B3d extends Component {
         };
         ':host .enter-vr-button': {
             position: string;
-            bottom: string;
-            right: string;
+            top: string;
+            left: string;
             zIndex: string;
             display: string;
             alignItems: string;

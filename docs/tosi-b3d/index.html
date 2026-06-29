@@ -97,10 +97,10 @@ const formatTime = (v) =&gt; {
 
 preview.append(
   b3d(
-    // no-xr: this demo drives XR itself via the biped&#39;s &quot;Toggle XR&quot; button.
-    // gamepad: the on-screen glass gamepad, wired into the input system (drives
-    // the player biped on touch, alongside keyboard/hardware).
-    { glowLayerIntensity: 1, noXr: true, gamepad: true },
+    // gamepad: on-screen glass gamepad wired into the input system. XR is on by
+    // default — Enter VR drives the same player biped through the unified input
+    // spine (XR controllers → bipedMapping), chase-followed by the XR rig.
+    { glowLayerIntensity: 1, gamepad: true },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: &#39;ref-sphere&#39;, diameter: 1, y: 1, x: -3, z: -3, color: &#39;#aaaaaa&#39; }),
@@ -111,21 +111,6 @@ preview.append(
     ),
     b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: &#39;idle&#39; }),
     b3dBiped({ url: omnidude, x: 3, z: -2, initialState: &#39;dance&#39; }),
-    b3dButton({
-      caption: &#39;Toggle XR&#39;,
-      x: -2,
-      y: 1.5,
-      action: () =&gt; {
-        const biped = document.querySelector(&#39;tosi-b3d-biped[player]&#39;)
-        if (biped) {
-          if (biped.cameraType !== &#39;xr&#39;) {
-            biped.cameraType = &#39;xr&#39;
-          } else {
-            window.location.reload()
-          }
-        }
-      },
-    }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: &#39;#8080ff&#39; }),
     b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 }),
     b3dReflections(),

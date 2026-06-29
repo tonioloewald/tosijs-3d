@@ -45,10 +45,10 @@ const formatTime = (v) => {
 
 preview.append(
   b3d(
-    // no-xr: this demo drives XR itself via the biped's "Toggle XR" button.
-    // gamepad: the on-screen glass gamepad, wired into the input system (drives
-    // the player biped on touch, alongside keyboard/hardware).
-    { glowLayerIntensity: 1, noXr: true, gamepad: true },
+    // gamepad: on-screen glass gamepad wired into the input system. XR is on by
+    // default — Enter VR drives the same player biped through the unified input
+    // spine (XR controllers → bipedMapping), chase-followed by the XR rig.
+    { glowLayerIntensity: 1, gamepad: true },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: 'ref-sphere', diameter: 1, y: 1, x: -3, z: -3, color: '#aaaaaa' }),
@@ -59,21 +59,6 @@ preview.append(
     ),
     b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: 'idle' }),
     b3dBiped({ url: omnidude, x: 3, z: -2, initialState: 'dance' }),
-    b3dButton({
-      caption: 'Toggle XR',
-      x: -2,
-      y: 1.5,
-      action: () => {
-        const biped = document.querySelector('tosi-b3d-biped[player]')
-        if (biped) {
-          if (biped.cameraType !== 'xr') {
-            biped.cameraType = 'xr'
-          } else {
-            window.location.reload()
-          }
-        }
-      },
-    }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
     b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 }),
     b3dReflections(),
@@ -253,8 +238,8 @@ export class B3d extends Component {
         },
         ':host .enter-vr-button': {
             position: 'absolute',
-            bottom: '16px',
-            right: '16px',
+            top: '16px',
+            left: '16px',
             zIndex: '20',
             display: 'flex',
             alignItems: 'center',
@@ -695,9 +680,9 @@ export class B3d extends Component {
         const VERT_SPEED = 2.0;
         const TURN_SPEED = 2.0; // radians/sec at full deflection
         const DEAD = 0.15;
-        const CHASE_DIST = 8; // chase-cam distance behind a piloted entity
-        const CHASE_HEIGHT = 3;
-        const CHASE_LERP = 3;
+        const CHASE_DIST = 5; // chase-cam distance behind a piloted entity
+        const CHASE_HEIGHT = 2.5;
+        const CHASE_LERP = 5; // higher = tighter follow (less "model on a string")
         // The scene's input focus (if any): when it has a focused controllable, the
         // XR controllers drive THAT (via XrGamepadSource → its mapping) and the rig
         // chase-follows it instead of free walk/fly. Looked up once; .focused is live.
@@ -713,11 +698,12 @@ export class B3d extends Component {
             const now = Date.now();
             const dt = Math.min((now - last) * 0.001, 0.1);
             last = now;
-            // Piloting a controllable → follow it (the controllers fly it via its
-            // mapping); skip the free walk/fly locomotion entirely. Cockpit view sits
-            // on the entity; chase sits behind+above it.
+            // Piloting a live controllable → follow it (the controllers fly it via
+            // its mapping); skip the free walk/fly locomotion entirely. Cockpit view
+            // sits on the entity; chase sits behind+above it. A CRASHED entity yields
+            // back to free walk/fly so you can move around the wreck.
             const entity = focusEl?.focused;
-            const piloted = entity?.mesh;
+            const piloted = entity?.crashed ? undefined : entity?.mesh;
             if (piloted != null) {
                 const cockpit = entity?.cameraView === 'cockpit';
                 piloted.getDirectionToRef(XR_FORWARD, fwd); // entity's world forward
