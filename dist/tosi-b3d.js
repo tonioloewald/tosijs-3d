@@ -694,28 +694,72 @@ export class B3d extends Component {
         const side = new BABYLON.Vector3();
         const head = new BABYLON.Vector3();
         const tmp = new BABYLON.Vector3();
+        // Chase-cam follow state (ported from the biped's XR camera): smoothly track
+        // the piloted entity's position AND facing, with head-tracking compensation.
+        const chasePos = new BABYLON.Vector3();
+        const yawQuat = new BABYLON.Quaternion();
+        const mtx = new BABYLON.Matrix();
+        let chaseYaw = 0;
+        let chaseYawOffset = 0;
+        let chaseFirstFrame = true;
+        let lastPiloted = null;
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
             const now = Date.now();
             const dt = Math.min((now - last) * 0.001, 0.1);
             last = now;
-            // Piloting a live controllable → follow it (the controllers fly it via
-            // its mapping); skip the free walk/fly locomotion entirely. Cockpit view
-            // sits on the entity; chase sits behind+above it. A CRASHED entity yields
-            // back to free walk/fly so you can move around the wreck.
+            // Piloting a live controllable → the controllers fly it (via its mapping)
+            // and the rig FOLLOWS it: positioned behind/at it AND rotated to face the
+            // same way, so turning the entity turns your view (head tracking on top).
+            // A crashed entity yields back to free walk/fly so you can leave the wreck.
             const entity = focusEl?.focused;
             const piloted = entity?.crashed ? undefined : entity?.mesh;
             if (piloted != null) {
-                // cockpit (aircraft): sit on it, slightly up. fpv (biped): sit AT it so
-                // head-tracking puts your eyes at the head. chase: behind + above.
                 const view = entity?.cameraView;
-                const onboard = view === 'cockpit' || view === 'fpv';
-                piloted.getDirectionToRef(XR_FORWARD, fwd); // entity's world forward
-                tmp.copyFrom(piloted.position);
-                fwd.scaleToRef(onboard ? 0 : -CHASE_DIST, side);
-                tmp.addInPlace(side);
-                tmp.y += view === 'fpv' ? 0 : view === 'cockpit' ? 1 : CHASE_HEIGHT;
-                BABYLON.Vector3.LerpToRef(rig.position, tmp, Math.min(1, CHASE_LERP * dt), rig.position);
+                // chase: behind+above. cockpit (aircraft): a touch forward+up. fpv
+                // (biped): exactly on it, so head tracking puts your eyes at the head.
+                const back = view === 'fpv' ? 0 : view === 'cockpit' ? -1.2 : CHASE_DIST;
+                const up = view === 'fpv' ? 0 : view === 'cockpit' ? 0.8 : CHASE_HEIGHT;
+                piloted.getDirectionToRef(XR_FORWARD, fwd); // world forward
+                const targetX = piloted.position.x - fwd.x * back;
+                const targetY = piloted.position.y + up;
+                const targetZ = piloted.position.z - fwd.z * back;
+                const targetYaw = Math.atan2(fwd.x, fwd.z);
+                if (chaseFirstFrame || lastPiloted !== piloted) {
+                    // Align to where the headset is currently looking so it doesn't snap.
+                    chaseFirstFrame = false;
+                    lastPiloted = piloted;
+                    chaseYawOffset = cam.rotationQuaternion
+                        ? cam.rotationQuaternion.toEulerAngles().y
+                        : 0;
+                    chaseYaw = targetYaw - chaseYawOffset;
+                    chasePos.set(targetX, targetY, targetZ);
+                }
+                const t = Math.min(1, CHASE_LERP * dt);
+                chasePos.x += (targetX - chasePos.x) * t;
+                chasePos.y += (targetY - chasePos.y) * t;
+                chasePos.z += (targetZ - chasePos.z) * t;
+                let yawDiff = targetYaw - chaseYawOffset - chaseYaw;
+                while (yawDiff > Math.PI)
+                    yawDiff -= Math.PI * 2;
+                while (yawDiff < -Math.PI)
+                    yawDiff += Math.PI * 2;
+                chaseYaw += yawDiff * t;
+                // Compensate for the head's local (tracked) offset so the HEAD lands at
+                // chasePos: rig = chasePos − (headLocal rotated into the rig's yaw).
+                BABYLON.Quaternion.RotationYawPitchRollToRef(chaseYaw, 0, 0, yawQuat);
+                BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx);
+                BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp);
+                rig.position.set(chasePos.x - tmp.x, chasePos.y - tmp.y, chasePos.z - tmp.z);
+                rig.rotationQuaternion = yawQuat;
                 return;
+            }
+            // Free walk/fly. If we were just piloting, hand the rig's yaw back to euler
+            // (a set rotationQuaternion overrides the euler the stick-turn below uses).
+            chaseFirstFrame = true;
+            lastPiloted = null;
+            if (rig.rotationQuaternion != null) {
+                rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y;
+                rig.rotationQuaternion = null;
             }
             const left = controllers['left']?.['xr-standard-thumbstick']?.axes;
             const right = controllers['right']?.['xr-standard-thumbstick']?.axes;

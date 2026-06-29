@@ -488,9 +488,13 @@ export class B3dAircraft extends B3dControllable {
         this.cockpitCamera = cockpit;
         this.setCameraView(this.cameraView);
     }
-    /** Switch the active camera between chase and cockpit. */
+    /** Switch the camera between chase and cockpit. In VR the XR rig reads
+     * cameraView and owns the viewpoint, so we must NOT swap the active scene
+     * camera (that would steal it from the WebXR camera and break the headset). */
     setCameraView(view) {
         this.cameraView = view;
+        if (this.owner?.xrActive)
+            return;
         const cam = view === 'cockpit' ? this.cockpitCamera : this.chaseCamera;
         if (cam != null && this.owner != null) {
             this.owner.setActiveCamera(cam, { attach: false });
