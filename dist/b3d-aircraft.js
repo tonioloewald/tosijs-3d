@@ -185,7 +185,6 @@ import { placeOnSurface, boundingBottomOffset } from './b3d-utils';
 const GROUND_SEPARATION = 0.05;
 const DEG2RAD = Math.PI / 180;
 const PULL_UP_SECONDS = 5;
-const LOCAL_Z = new BABYLON.Vector3(0, 0, 1);
 // Landing: distance above clearance still counted as "on the ground", and the
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15;
@@ -235,7 +234,6 @@ export class B3dAircraft extends B3dControllable {
     chaseMinHeight = 2.0; // chase height zoomed all the way in
     chaseHeight = 3.2; // chase height zoomed out (overview)
     chaseDistance = 4.8; // chase distance behind
-    _chaseFwd = new BABYLON.Vector3();
     velocity = new BABYLON.Vector3(0, 0, 0);
     rollAngle = 0;
     meshNode = null;
@@ -347,21 +345,6 @@ export class B3dAircraft extends B3dControllable {
         this.vtolActive = vtol;
         this.updatePullUp(node, dt);
         this.stalling = !vtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed;
-        this.updateFlatChase(node);
-    }
-    /** Flat chase camera: follow the aircraft's position + yaw only, staying level
-     * behind it. Parenting the chase to the airframe (as Babylon would for free)
-     * drags it through the plane's pitch/roll — so once airborne it swings below
-     * and around. Here it's unparented and positioned each frame. The cockpit cam
-     * stays parented (you bank with the plane); in VR the rig owns the viewpoint. */
-    updateFlatChase(node) {
-        const cam = this.chaseCamera;
-        if (cam == null || this.cameraView !== 'chase' || this.owner?.xrActive)
-            return;
-        node.getDirectionToRef(LOCAL_Z, this._chaseFwd);
-        const yaw = Math.atan2(this._chaseFwd.x, this._chaseFwd.z);
-        cam.position.set(node.position.x - Math.sin(yaw) * this.chaseDistance, node.position.y + this.chaseMinHeight, node.position.z - Math.cos(yaw) * this.chaseDistance);
-        cam.setTarget(node.position);
     }
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */
@@ -498,13 +481,15 @@ export class B3dAircraft extends B3dControllable {
         const existing = this.owner.scene.getCameraByName('aircraft-follow-cam');
         if (existing)
             return;
-        // Chase: behind and above, looking at the aircraft. NOT parented — it's
-        // positioned each frame in updateFlatChase() using yaw only, so it stays
-        // level when the plane pitches/banks instead of being swung below it.
+        // Chase: behind and above, parented to the airframe (the known-good "starts
+        // ok" framing). It inherits the plane's pitch/roll, so it swings somewhat on
+        // hard manoeuvres — that belongs to the flight-model pass. An unparented
+        // yaw-only follow mis-framed the view on load, so it's reverted.
         const chase = new BABYLON.FreeCamera('aircraft-follow-cam', target.getAbsolutePosition().clone(), this.owner.scene);
-        chase.setTarget(target.getAbsolutePosition());
+        chase.parent = target;
+        chase.position = new BABYLON.Vector3(0, this.chaseMinHeight, -this.chaseDistance);
+        chase.setTarget(BABYLON.Vector3.Zero());
         this.chaseCamera = chase;
-        this.updateFlatChase(target);
         // Cockpit: near the nose, looking straight ahead (local +Z = forward).
         // Parented so it banks/pitches with the airframe.
         const cockpit = new BABYLON.FreeCamera('aircraft-cockpit-cam', target.getAbsolutePosition().clone(), this.owner.scene);

@@ -47,7 +47,6 @@ export declare class B3dAircraft extends B3dControllable {
     chaseMinHeight: number;
     chaseHeight: number;
     chaseDistance: number;
-    private _chaseFwd;
     private velocity;
     private rollAngle;
     private meshNode;
@@ -56,12 +55,6 @@ export declare class B3dAircraft extends B3dControllable {
     private libraryNode;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;
-    /** Flat chase camera: follow the aircraft's position + yaw only, staying level
-     * behind it. Parenting the chase to the airframe (as Babylon would for free)
-     * drags it through the plane's pitch/roll — so once airborne it swings below
-     * and around. Here it's unparented and positioned each frame. The cockpit cam
-     * stays parented (you bank with the plane); in VR the rig owns the viewpoint. */
-    private updateFlatChase;
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */
     private groundDistance;
