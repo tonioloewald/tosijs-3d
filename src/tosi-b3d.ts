@@ -169,6 +169,7 @@ const noop = () => {}
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0)
+const XR_UP = new BABYLON.Vector3(0, 1, 0)
 
 export class B3d extends Component {
   static initAttributes = {
@@ -903,19 +904,35 @@ export class B3d extends Component {
         // back the rig out by the head's tracked local offset so the head lands
         // exactly there. (#2)
         if (view === 'cockpit') {
-          const aq = piloted.rotationQuaternion ?? BABYLON.Quaternion.Identity()
-          BABYLON.Matrix.FromQuaternionToRef(aq, mtx)
+          // Orientation from the airframe's WORLD basis (forward + up), not its
+          // local rotationQuaternion — robust to the glTF loader's __root__
+          // handedness flip / scale, which made the cockpit sit in the wrong
+          // frame. absolutePosition for the same reason.
+          piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
+          piloted.getDirectionToRef(XR_UP, side) // world up (reuse scratch)
+          const aimQ = BABYLON.Quaternion.FromLookDirectionLH(fwd, side)
+          if (lastPiloted !== piloted) {
+            followQuat.copyFrom(aimQ) // seat on entry — no slerp from identity
+            lastPiloted = piloted
+          }
+          // Light low-pass so flight-model jitter doesn't shake the rigid cockpit.
+          BABYLON.Quaternion.SlerpToRef(
+            followQuat,
+            aimQ,
+            Math.min(1, 20 * dt),
+            followQuat
+          )
+          BABYLON.Matrix.FromQuaternionToRef(followQuat, mtx)
           cockpitLocal.set(0, eyeH, entity?.cockpitForward ?? 0.5)
           BABYLON.Vector3.TransformCoordinatesToRef(cockpitLocal, mtx, tmp)
-          const cx = piloted.position.x + tmp.x
-          const cy = piloted.position.y + tmp.y
-          const cz = piloted.position.z + tmp.z
+          const ap = piloted.absolutePosition
+          const cx = ap.x + tmp.x
+          const cy = ap.y + tmp.y
+          const cz = ap.z + tmp.z
           BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
-          followQuat.copyFrom(aq)
           rig.rotationQuaternion = followQuat
           rig.position.set(cx - tmp.x, cy - tmp.y, cz - tmp.z)
           chaseFirstFrame = true // re-seat the chase smoothing on toggle-out
-          lastPiloted = piloted
           return
         }
 
