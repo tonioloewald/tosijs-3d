@@ -19,8 +19,15 @@
  * quaternion, reads world forward back out, and eases velocity toward `targetVel`.
  */
 export interface FlyByWireConfig {
-    /** Top forward speed. */
+    /** Normal top speed — the resting cap a held throttle settles at and the level
+     * afterburner bleeds back down to. */
     maxSpeed: number;
+    /** Hard speed ceiling while the throttle is held past the normal max (the
+     * afterburner range, maxSpeed → afterburnerSpeed). ≤ maxSpeed disables it. */
+    afterburnerSpeed: number;
+    /** Rate (1/s) afterburner speed bleeds back to maxSpeed once the throttle is
+     * released. Speed at or below the normal max just holds — it never tapers down. */
+    afterburnerTaper: number;
     /** Forward ground speed at/above which the craft flies like a plane; below it
      * hovers like a drone. 0 (or less) = pure plane, no hover regime. */
     vtolSpeed: number;

@@ -11,6 +11,7 @@ export declare class B3dAircraft extends B3dControllable {
         player: boolean;
         enterable: boolean;
         maxSpeed: number;
+        afterburnerSpeed: number;
         acceleration: number;
         vtolSpeed: number;
         groundY: number;

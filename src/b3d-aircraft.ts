@@ -11,7 +11,9 @@ Two regimes split by forward ground speed (`vtolSpeed`):
 - **Hover / drone** (slow): right trigger climbs, left trigger descends. Let go
   while slow and it bleeds back to a stationary hover; lean forward (pitch) to
   build speed and transition.
-- **Plane** (fast): right trigger speeds up, left trigger slows down. Pitch is
+- **Plane** (fast): right trigger speeds up, left trigger slows down; speed holds
+  steady when you let go. Holding throttle past `maxSpeed` enters **afterburner**
+  (up to `afterburnerSpeed`); release and it bleeds back to `maxSpeed`. Pitch is
   climb/dive, the turn stick banks to turn. Slow back below `vtolSpeed` and the
   triggers return to up/down. Banking off level costs a little altitude.
 
@@ -160,7 +162,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | `library` | `''` | Library type to source mesh from |
 | `meshName` | `''` | Node name to instantiate from library |
 | `enterable` | `false` | Whether a biped can enter |
-| `maxSpeed` | `50` | Top forward speed (m/s) |
+| `maxSpeed` | `50` | Normal top speed (m/s) — the cruise cap a released throttle settles at |
+| `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `12` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
@@ -213,6 +216,9 @@ const BANK_TURN_RATE = 70 * DEG2RAD
 // how fast drone-mode forward speed bleeds back to a stationary hover.
 const VEL_CHASE = 2.5
 const HOVER_DAMP = 1.5
+// Afterburner: per-second rate the speed bleeds from the afterburner range back
+// down to the normal max once the throttle is released.
+const AFTERBURNER_TAPER = 0.6
 // Pull-back for the parented FLAT chase, since the canonical hull is unit-scale
 // (the offset used to inherit the model's ~2.4x scale). Flat camera only.
 const FLAT_CHASE_SCALE = 1.8
@@ -232,6 +238,9 @@ export class B3dAircraft extends B3dControllable {
     player: false,
     enterable: false,
     maxSpeed: 50,
+    // Hard speed ceiling while the throttle is held past maxSpeed (afterburner).
+    // Release and it bleeds back to maxSpeed. ≤ maxSpeed disables afterburner.
+    afterburnerSpeed: 75,
     acceleration: 12,
     // Forward ground speed below which the craft hovers like a drone (triggers =
     // up/down) and above which it flies like a plane (triggers = throttle). Set
@@ -328,6 +337,8 @@ export class B3dAircraft extends B3dControllable {
     }
     const cfg: FlyByWireConfig = {
       maxSpeed: attrs.maxSpeed,
+      afterburnerSpeed: attrs.afterburnerSpeed,
+      afterburnerTaper: AFTERBURNER_TAPER,
       vtolSpeed: attrs.vtolSpeed,
       maxBank: MAX_BANK,
       maxPitch: MAX_PITCH,

@@ -17,6 +17,8 @@ import {
 const DEG = Math.PI / 180
 const CFG: FlyByWireConfig = {
   maxSpeed: 50,
+  afterburnerSpeed: 75,
+  afterburnerTaper: 0.6,
   vtolSpeed: 12,
   maxBank: 55 * DEG,
   maxPitch: 35 * DEG,
@@ -114,6 +116,33 @@ describe('regime split (drone ↔ plane)', () => {
     const s = state({ speed: 30 })
     run(s, { pitch: 0, roll: 0, lift: -1 }, 30, 30)
     expect(s.speed).toBeLessThan(30)
+  })
+})
+
+describe('afterburner & cruise', () => {
+  test('holding throttle pushes past the normal max into afterburner', () => {
+    const s = state({ speed: 48 })
+    run(s, { pitch: 0, roll: 0, lift: 1 }, 48, 120)
+    expect(s.speed).toBeGreaterThan(CFG.maxSpeed)
+    expect(s.speed).toBeLessThanOrEqual(CFG.afterburnerSpeed + 1e-6)
+  })
+
+  test('speed never exceeds the afterburner ceiling', () => {
+    const s = state({ speed: 70 })
+    run(s, { pitch: 0, roll: 0, lift: 1 }, 70, 600)
+    expect(s.speed).toBeLessThanOrEqual(CFG.afterburnerSpeed + 1e-6)
+  })
+
+  test('releasing in afterburner bleeds back down to the normal max', () => {
+    const s = state({ speed: CFG.afterburnerSpeed })
+    run(s, NO_INPUT, CFG.afterburnerSpeed, 600)
+    expect(s.speed).toBeCloseTo(CFG.maxSpeed, 0)
+  })
+
+  test('releasing at/below the normal max holds steady (no taper down)', () => {
+    const s = state({ speed: 35 })
+    run(s, NO_INPUT, 35, 300)
+    expect(s.speed).toBeCloseTo(35, 5)
   })
 })
 

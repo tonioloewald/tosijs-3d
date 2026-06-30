@@ -20,8 +20,15 @@
  */
 
 export interface FlyByWireConfig {
-  /** Top forward speed. */
+  /** Normal top speed — the resting cap a held throttle settles at and the level
+   * afterburner bleeds back down to. */
   maxSpeed: number
+  /** Hard speed ceiling while the throttle is held past the normal max (the
+   * afterburner range, maxSpeed → afterburnerSpeed). ≤ maxSpeed disables it. */
+  afterburnerSpeed: number
+  /** Rate (1/s) afterburner speed bleeds back to maxSpeed once the throttle is
+   * released. Speed at or below the normal max just holds — it never tapers down. */
+  afterburnerTaper: number
   /** Forward ground speed at/above which the craft flies like a plane; below it
    * hovers like a drone. 0 (or less) = pure plane, no hover regime. */
   vtolSpeed: number
@@ -119,14 +126,21 @@ export function flyByWireStep(
     : Math.sin(state.bank) * cfg.bankTurnRate * dt
 
   // --- Forward speed ---
-  // Plane: trigger is throttle. Drone: lean on forward-pitch, and bleed to a stop
-  // when you let go (so slow + hands-off returns to hover). diveBoost both ways.
   const t = regime(forwardSpeed, cfg)
+  // Plane: the trigger is throttle — hold it to accelerate toward the afterburner
+  // ceiling, left trigger brakes. Release ABOVE the normal max and afterburner
+  // bleeds back down to it; at or below the normal max, speed just holds steady
+  // (no taper to a stop). Drone: lean on forward-pitch, and bleed to a hover when
+  // you let go. diveBoost (nose-down → faster) applies in both regimes.
   state.speed += t * lift * cfg.accel * dt
+  if (Math.abs(lift) < 1e-3 && state.speed > cfg.maxSpeed) {
+    state.speed +=
+      t * (cfg.maxSpeed - state.speed) * Math.min(1, cfg.afterburnerTaper * dt)
+  }
   state.speed += (1 - t) * Math.max(0, -pitch) * cfg.leanAccel * dt
   state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt
-  state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt) // nose-down → faster
-  state.speed = clamp(state.speed, 0, cfg.maxSpeed)
+  state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt)
+  state.speed = clamp(state.speed, 0, Math.max(cfg.maxSpeed, cfg.afterburnerSpeed))
 }
 
 /**

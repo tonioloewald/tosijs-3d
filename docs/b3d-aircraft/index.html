@@ -40,7 +40,9 @@ model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
 <li><strong>Hover / drone</strong> (slow): right trigger climbs, left trigger descends. Let go
 while slow and it bleeds back to a stationary hover; lean forward (pitch) to
 build speed and transition.</li>
-<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down. Pitch is
+<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down; speed holds
+steady when you let go. Holding throttle past <code>maxSpeed</code> enters <strong>afterburner</strong>
+(up to <code>afterburnerSpeed</code>); release and it bleeds back to <code>maxSpeed</code>. Pitch is
 climb/dive, the turn stick banks to turn. Slow back below <code>vtolSpeed</code> and the
 triggers return to up/down. Banking off level costs a little altitude.</li>
 </ul>
@@ -206,7 +208,12 @@ requestAnimationFrame(updateHud)
 <tr>
 <td><code>maxSpeed</code></td>
 <td><code>50</code></td>
-<td>Top forward speed (m/s)</td>
+<td>Normal top speed (m/s) — the cruise cap a released throttle settles at</td>
+</tr>
+<tr>
+<td><code>afterburnerSpeed</code></td>
+<td><code>75</code></td>
+<td>Speed ceiling while the throttle is held past <code>maxSpeed</code>; releasing bleeds back to <code>maxSpeed</code>. ≤ <code>maxSpeed</code> disables afterburner.</td>
 </tr>
 <tr>
 <td><code>acceleration</code></td>
