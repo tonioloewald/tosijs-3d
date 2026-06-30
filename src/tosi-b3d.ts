@@ -1041,15 +1041,12 @@ export class B3d extends Component {
     }
     const vb = panelEl.viewBox.baseVal
 
-    // Tunables. The panel floats ABOVE+FORWARD relative to the head, so it sits
-    // ~50° up the sight-line, and is large enough to read and target.
+    // Fixed offset from the head's neutral pose: ahead + a little up, so it sits
+    // ~23° above the sight-line — out of the forward view but an easy glance away
+    // and always there to point at.
     const PLANE_W = 1.0 // metres wide (height follows the panel's aspect)
-    const FORWARD = 0.85 // metres ahead of the head (horizontal)
-    const ABOVE = 1.2 // metres above the eye → ~55° up, well clear of the view
-    // Fade window (head-forward Y = sin(pitch)): hidden at/below FADE_IN, full
-    // at FADE_FULL. ~9°→~30° of upward tilt.
-    const FADE_IN = 0.15
-    const FADE_FULL = 0.5
+    const FORWARD = 1.3 // metres ahead of the head
+    const ABOVE = 0.55 // metres above the eye
 
     const plane = BABYLON.MeshBuilder.CreatePlane(
       'xr-panel',
@@ -1078,30 +1075,28 @@ export class B3d extends Component {
     mat.disableLighting = true
     plane.material = mat
     plane.visibility = 0
-    // Billboard so it always faces the head, upright and un-mirrored, whatever
-    // its height/position — no manual orientation math, no lookAt flip.
-    plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
-    // Parent to the XR rig (the camera's parent) so the panel is rock-steady
-    // relative to the player and merely revealed by tilting the head up —
-    // instead of chasing the head through WORLD space, which lagged (and felt
-    // "behind where you'd expect") whenever the rig flew fast while piloting. (#1)
+    // The XR rig is the camera's parent. Make the panel a SECOND child of that
+    // rig — the SAME coordinate space as the camera — at a FIXED local pose: the
+    // head (camera) rotates within the rig to look at it, while the panel itself
+    // never moves or rotates. So it's rock-steady relative to you and stays put
+    // to be pointed at. No billboard (that would re-rotate it every frame). (#1)
     plane.parent = cam.parent
+    plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE
 
-    const fwd = new BABYLON.Vector3()
+    let placed = false
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
-      cam.getDirectionToRef(XR_FORWARD, fwd)
-      const lookUp = fwd.y // world-space forward Y = sin(pitch); >0 looking up
-      // Fixed offset above + ahead of the head in the RIG frame (cam.position is
-      // the head's rig-local pose). Rig motion carries it rigidly — no leash.
-      plane.position.set(
-        cam.position.x,
-        cam.position.y + ABOVE,
-        cam.position.z + FORWARD
+      if (placed) return
+      placed = true
+      // Seat it once, ahead + above the head's neutral pose and tilted to face
+      // back down at it. Sampled from the live head height so it fits the player.
+      const hy = cam.position.y
+      plane.position.set(0, hy + ABOVE, FORWARD)
+      plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+        Math.PI,
+        Math.atan2(ABOVE, FORWARD),
+        0
       )
-      plane.visibility = Math.max(
-        0,
-        Math.min(1, (lookUp - FADE_IN) / (FADE_FULL - FADE_IN))
-      )
+      plane.visibility = 1
     })
 
     const T = BABYLON.PointerEventTypes
