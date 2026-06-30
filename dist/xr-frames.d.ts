@@ -51,6 +51,8 @@ export declare class XrFrames {
     private _fwd;
     private _v;
     constructor(scene: BABYLON.Scene, rig: BABYLON.TransformNode, camera: BABYLON.TargetCamera, opts?: XrFramesOptions);
+    /** Resolve a frame node by name (for config that names a frame as a string). */
+    get(name: 'world' | 'rig' | 'body' | 'neck' | 'face'): BABYLON.TransformNode;
     /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
     private headLocalYaw;
     /** Call once per XR frame. */

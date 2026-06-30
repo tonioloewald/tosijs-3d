@@ -115,6 +115,10 @@ export class XrFrames {
         this.face = new BABYLON.TransformNode('xr-frame-face', scene);
         this.face.parent = camera;
     }
+    /** Resolve a frame node by name (for config that names a frame as a string). */
+    get(name) {
+        return this[name];
+    }
     /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
     headLocalYaw() {
         const q = this.cam.rotationQuaternion ?? BABYLON.Quaternion.Identity();

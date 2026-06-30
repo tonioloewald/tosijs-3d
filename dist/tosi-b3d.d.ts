@@ -4,6 +4,7 @@ import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
 import { XrFrames } from './xr-frames';
+import { type FramePanelSpec } from './frame-panel';
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -163,6 +164,7 @@ export declare class B3d extends Component {
     update: B3dCallback;
     setupXr: B3dCallback;
     scenePanel: (host: B3d) => Widget3d[];
+    bodyPanels: (host: B3d) => FramePanelSpec[];
     private lastRender;
     private sceneListeners;
     private pastAdditions;

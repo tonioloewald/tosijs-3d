@@ -148,6 +148,7 @@ import { SvgTexture } from './svg-texture'
 import { b3dGamepad } from './glass-gamepad'
 import { XrGamepadSource } from './xr-gamepad'
 import { XrFrames } from './xr-frames'
+import { attachFramePanel, type FramePanelSpec } from './frame-panel'
 
 const { canvas, div, slot, button } = elements
 
@@ -376,6 +377,17 @@ export class B3d extends Component {
   // so they stay in sync. Defaults to a function (not undefined) so the element
   // creator recognises it as a settable callback prop, like sceneCreated/update.
   scenePanel: (host: B3d) => Widget3d[] = () => []
+
+  // Body-anchored XR panels for the embodied player: pinned to a reference frame
+  // (default `body`) and revealed by looking toward them. Defaults to placeholder
+  // inventory panels over each shoulder and a quick-access/holster panel at the
+  // waist; override to supply your own (positions, presets, custom SVG). Like
+  // scenePanel, defaults to a function so the element creator treats it as a prop.
+  bodyPanels: (host: B3d) => FramePanelSpec[] = () => [
+    { anchor: 'left-shoulder', title: 'Inventory' },
+    { anchor: 'right-shoulder', title: 'Inventory' },
+    { anchor: 'waist', title: 'Quick Access' },
+  ]
 
   private lastRender = 0
   private sceneListeners: SceneAdditionHandler[] = []
@@ -751,6 +763,12 @@ export class B3d extends Component {
     const frames = new XrFrames(scene, rig, cam)
     this.xrFrames = frames
 
+    // Body-anchored panels (inventory over the shoulders, quick-access at the
+    // waist), pinned to their frame and revealed by looking toward them.
+    const bodyPanels = this.bodyPanels(this).map((spec) =>
+      attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), spec)
+    )
+
     // The in-scene settings panel (with an Exit-VR button), floating overhead
     // relative to the head and fading in as you tilt up to use it.
     const panel = this._attachXrPanel(base)
@@ -821,6 +839,7 @@ export class B3d extends Component {
       // Keep the body/neck/face frames tracking the head (after locomotion has
       // moved the rig last frame; before any UI reads them this frame).
       frames.update(dt)
+      for (const p of bodyPanels) p.update()
 
       // Piloting a live controllable → the controllers fly it (via its mapping)
       // and the rig FOLLOWS it: positioned behind/at it AND rotated to face the
@@ -981,6 +1000,7 @@ export class B3d extends Component {
       dispose() {
         base.sessionManager.onXRFrameObservable.remove(frame)
         panel.dispose()
+        for (const p of bodyPanels) p.dispose()
         frames.dispose()
         host.xrFrames = null
         cam.parent = null
