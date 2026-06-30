@@ -383,24 +383,32 @@ export class B3d extends Component {
   // inventory panels over each shoulder and a quick-access/holster panel at the
   // waist; override to supply your own (positions, presets, custom SVG). Like
   // scenePanel, defaults to a function so the element creator treats it as a prop.
-  bodyPanels: (host: B3d) => FramePanelSpec[] = () => [
+  bodyPanels: (host: B3d) => FramePanelSpec[] = (host) => {
+    // Declarative <tosi-b3d-panel> children, if any, take over entirely — so a
+    // scene tunes its own panels. Otherwise fall back to the default set.
+    const declared = Array.from(host.querySelectorAll('tosi-b3d-panel'))
+      .map((el) => (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.())
+      .filter((s): s is FramePanelSpec => s != null)
+    if (declared.length) return declared
     // Anchored in the EYE frame (your head position, rig yaw) at angular offsets,
     // so they ride your real eye through chase head-compensation and stay put as
     // you stand/sit or glance — only swinging when you actually turn.
-    { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
-    { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
-    { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
-    {
-      frame: 'face',
-      anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
-      reveal: 'always',
-      blend: 'add',
-      view: 'first', // crosshair only when looking through your own eyes
-      url: '/reticle.svg',
-      width: 0.24,
-    },
-    { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
-  ]
+    return [
+      { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
+      { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
+      { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
+      {
+        frame: 'face',
+        anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
+        reveal: 'always',
+        blend: 'add',
+        view: 'first', // crosshair only when looking through your own eyes
+        url: '/reticle.svg',
+        width: 0.24,
+      },
+      { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
+    ]
+  }
 
   private lastRender = 0
   private sceneListeners: SceneAdditionHandler[] = []
