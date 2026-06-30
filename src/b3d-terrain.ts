@@ -6,17 +6,20 @@ Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
 symmetric hemispheres with no singularities. Two noise layers (gross contour
 + fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
 
-The inner area uses a grid of high-resolution flat tiles that stream around the camera.
-A single skirt ring mesh surrounds the inner grid, expanding outward with inverse-square
-radial spacing and blending from square (at the inner edge) to circular at the horizon.
-Includes floating-origin rebasing and a recenter mechanism — when travel exceeds
-`maxTravelDistance`, a `recenter-needed` event fires so the game layer can orchestrate
-a visual transition before calling `recenter()`.
+The terrain is built from a single kind of tile (a heightfield ground patch) in
+concentric LOD levels that stream around the camera. Level 0 is full detail at
+`tileSize`; each level out doubles the tile size (`tileSize × 2^level`) so distant
+ground is covered cheaply by stretched tiles. Levels overlap rather than abut —
+coarser levels sit a hair lower so a finer tile always wins where they overlap,
+and coarse tiles fully covered by a finer level are culled — so there are no gaps
+to skirt over. Includes floating-origin rebasing and a recenter mechanism — when
+travel exceeds `maxTravelDistance`, a `recenter-needed` event fires so the game
+layer can orchestrate a visual transition before calling `recenter()`.
 
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, label, input, span, p } = elements
 
@@ -36,9 +39,9 @@ const terrain = b3dTerrain({
   radius: 200,
   cylinderHeight: 200,
   tileSize: 10,
-  hiResGrid: 7,
-  hiResSubdivisions: 32,
-  horizonDistance: 300,
+  hiResGrid: 5,
+  hiResSubdivisions: 24,
+  lodLevels: 5,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   grossAmplitude: demo.grossAmplitude,
@@ -48,28 +51,18 @@ const terrain = b3dTerrain({
 
 const posDisplay = span({ class: 'pos-display' })
 
+// Fly the terrain in the VTOL aircraft, starting parked in a hover at a safe
+// height above the ground. Triggers climb/descend (or throttle once you're
+// moving); pull back to pitch up, turn stick banks.
+const aircraft = b3dAircraft({
+  library: 'vehicles', meshName: 'scout',
+  player: true, y: 30, vtolSpeed: 12, maxSpeed: 50,
+})
+
 const scene = b3d(
   {
     frameRate: 60,
-    sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.UniversalCamera(
-        'fly-cam',
-        new BABYLON.Vector3(0, 15, 0),
-        el.scene
-      )
-      camera.setTarget(new BABYLON.Vector3(10, 10, 10))
-      camera.speed = 4
-      camera.keysUp = [87]       // W
-      camera.keysDown = [83]     // S
-      camera.keysLeft = [65]     // A
-      camera.keysRight = [68]    // D
-      camera.keysUpward = [69]   // E
-      camera.keysDownward = [81] // Q
-      camera.minZ = 0.5
-      camera.maxZ = 10000
-      el.setActiveCamera(camera)
-
-    },
+    gamepad: true,
     update(el) {
       const cam = el.scene.activeCamera
       if (cam) {
@@ -82,15 +75,20 @@ const scene = b3d(
   b3dSun({ activeDistance: 80 }),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
-  b3dFog({ syncSkybox: true, start: 60, end: 110 }),
+  b3dFog({ syncSkybox: true, start: 120, end: 320 }),
+  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   terrain,
+  inputFocus(
+    gameController(),
+    aircraft,
+  ),
 )
 
 preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('WASD to fly, QE up/down, mouse to look'),
+    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank'),
     posDisplay,
     label(
       'gross scale ',
@@ -167,11 +165,10 @@ tosi-b3d {
 | `minorRadius` | `40` | Torus minor radius |
 | `radius` | `200` | Sphere/cylinder radius |
 | `cylinderHeight` | `200` | Cylinder height (v range before reflection) |
-| `tileSize` | `10` | World-space tile size |
-| `hiResGrid` | `3` | NxN grid of high-detail tiles around camera |
-| `hiResSubdivisions` | `32` | Vertices per edge (hi-res) |
-| `horizonDistance` | `300` | How far the skirt extends from the inner grid edge |
-| `skirtRings` | `16` | Radial depth subdivisions for skirt |
+| `tileSize` | `10` | World-space size of a level-0 tile |
+| `hiResGrid` | `5` | NxN grid of tiles per LOD level (around the camera) |
+| `hiResSubdivisions` | `24` | Vertices per tile edge (same at every level) |
+| `lodLevels` | `5` | Number of LOD levels; level k uses `tileSize × 2^k` tiles |
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
 | `grossAmplitude` | `8` | Gross height multiplier |
@@ -215,7 +212,23 @@ type TileInfo = {
   gridX: number
   gridZ: number
   assigned: boolean
+  seam: boolean // overlaps a finer level → carries the down-bias
 }
+
+// One concentric LOD level: a pool of equal-size tiles streamed around the
+// camera. Level k tiles are tileSize·2^k across; the level snaps to its own grid.
+type LodLevel = {
+  level: number
+  tileSize: number
+  yOffset: number // coarser levels sit slightly lower so finer wins on overlap
+  tiles: TileInfo[]
+  lastCamGridX: number
+  lastCamGridZ: number
+}
+
+// Vertical separation between adjacent LOD levels (metres). Tiny — just enough to
+// keep a finer tile in front of the coarse one it overlaps (no z-fighting).
+const LOD_Y_STEP = 0.03
 
 export class B3dTerrain extends Component {
   static styleSpec = {
@@ -232,10 +245,9 @@ export class B3dTerrain extends Component {
     radius: 200,
     cylinderHeight: 200,
     tileSize: 10,
-    hiResGrid: 3,
-    hiResSubdivisions: 32,
-    horizonDistance: 300,
-    skirtRings: 16,
+    hiResGrid: 5,
+    hiResSubdivisions: 24,
+    lodLevels: 5,
     grossScale: 0.1,
     detailScale: 0.5,
     grossAmplitude: 8,
@@ -251,14 +263,9 @@ export class B3dTerrain extends Component {
 
   private noise!: PerlinNoise
   private sampler!: SurfaceSampler
-  private hiTiles: TileInfo[] = []
+  private lods: LodLevel[] = []
   private material!: BABYLON.StandardMaterial
   private registered = false
-
-  // Skirt ring mesh
-  private skirtMesh: BABYLON.Mesh | null = null
-  private skirtLocalXZ: Float32Array | null = null // precomputed local X/Z
-  private skirtRadialT: Float32Array | null = null // t value per vertex for dropoff
 
   // Conceptual position on the surface (u,v in [0,1))
   private worldU = 0
@@ -267,10 +274,6 @@ export class B3dTerrain extends Component {
   // Accumulated render-space offset from origin resets
   private originOffsetX = 0
   private originOffsetZ = 0
-
-  // Last camera grid cell — used to detect when tiles need reassignment
-  private lastCamGridX = Infinity
-  private lastCamGridZ = Infinity
 
   private _beforeRender: (() => void) | null = null
 
@@ -286,14 +289,7 @@ export class B3dTerrain extends Component {
     this.sampler = this.createSampler()
     this.material = this.createMaterial()
 
-    this.createTilePool(
-      this.hiTiles,
-      this.hiTileCount(),
-      attrs.hiResSubdivisions,
-      'hi'
-    )
-
-    this.createSkirtMesh()
+    this.createLods()
 
     this._beforeRender = () => this.update()
     scene.registerBeforeRender(this._beforeRender)
@@ -303,14 +299,10 @@ export class B3dTerrain extends Component {
     if (this.owner && this._beforeRender) {
       this.owner.scene.unregisterBeforeRender(this._beforeRender)
     }
-    for (const tile of this.hiTiles) {
-      tile.mesh.dispose()
+    for (const lod of this.lods) {
+      for (const tile of lod.tiles) tile.mesh.dispose()
     }
-    this.hiTiles = []
-    if (this.skirtMesh) {
-      this.skirtMesh.dispose()
-      this.skirtMesh = null
-    }
+    this.lods = []
     if (this.material) this.material.dispose()
     this.owner = null
   }
@@ -340,29 +332,49 @@ export class B3dTerrain extends Component {
     return mat
   }
 
-  private hiTileCount(): number {
-    const g = (this as any).hiResGrid
-    return g * g
+  private createLods() {
+    const attrs = this as any
+    const levels: number = Math.max(1, attrs.lodLevels)
+    const grid: number = attrs.hiResGrid
+    const subs: number = attrs.hiResSubdivisions
+
+    for (let L = 0; L < levels; L++) {
+      const tileSize = attrs.tileSize * Math.pow(2, L)
+      const tiles: TileInfo[] = []
+      this.createTilesInto(tiles, grid * grid, subs, tileSize, `lod${L}`)
+      this.lods.push({
+        level: L,
+        tileSize,
+        yOffset: -L * LOD_Y_STEP,
+        tiles,
+        lastCamGridX: Infinity,
+        lastCamGridZ: Infinity,
+      })
+    }
+
+    // Register every tile once (invisible until assigned) so they receive
+    // shadows / join reflection lists; the sun's activeDistance gates which
+    // actually cast, so the far coarse tiles don't blow up the shadow frustum.
+    if (this.owner && !this.registered) {
+      const meshes: BABYLON.Mesh[] = []
+      for (const lod of this.lods) for (const t of lod.tiles) meshes.push(t.mesh)
+      this.owner.register({ meshes })
+      this.registered = true
+    }
   }
 
-  private createTilePool(
+  private createTilesInto(
     pool: TileInfo[],
     count: number,
     subdivisions: number,
+    tileSize: number,
     prefix: string
   ) {
     const scene = this.owner!.scene
-    const attrs = this as any
-
     for (let i = 0; i < count; i++) {
       const mesh = BABYLON.MeshBuilder.CreateGround(
         `terrain-${prefix}-${i}`,
-        {
-          width: attrs.tileSize,
-          height: attrs.tileSize,
-          subdivisions,
-          updatable: true,
-        },
+        { width: tileSize, height: tileSize, subdivisions, updatable: true },
         scene
       )
       mesh.material = this.material
@@ -374,206 +386,20 @@ export class B3dTerrain extends Component {
         gridX: Infinity,
         gridZ: Infinity,
         assigned: false,
+        seam: false,
       })
     }
   }
 
-  // --- Skirt ring mesh ---
-
-  private createSkirtMesh() {
-    const attrs = this as any
-    const tileSize: number = attrs.tileSize
-    const hiHalf = Math.floor(attrs.hiResGrid / 2)
-    const halfGrid = (hiHalf + 0.5) * tileSize
-    const subs: number = attrs.hiResSubdivisions
-    const segsPerSide = attrs.hiResGrid * subs
-    const rings: number = attrs.skirtRings
-    const horizonDist: number = attrs.horizonDistance
-
-    // Ring layout (cross-section through any perimeter column):
-    //   .--.--.--.--.--.  <-- terrain rings: lerp from square to horizon circle
-    //   |              |
-    //   .              .  <-- skirt rings (y=0): hide gaps between meshes
-    //
-    // Ring 0: inner skirt (same x,z as ring 1, y=0)
-    // Rings 1..rings: terrain (radial lerp, t² spacing for near-detail)
-    // Ring rings+1: outer skirt (same x,z as ring rings, y=0)
-    const perimCount = segsPerSide * 4
-    const totalRings = rings + 2
-    const totalVerts = perimCount * totalRings
-
-    // Inner perimeter positions on the square edge
-    const innerX = new Float32Array(perimCount)
-    const innerZ = new Float32Array(perimCount)
-
-    let idx = 0
-    for (let i = 0; i < segsPerSide; i++) {
-      innerX[idx] = -halfGrid + (i / segsPerSide) * 2 * halfGrid
-      innerZ[idx] = halfGrid
-      idx++
+  // World coverage square of a level's tile grid given the camera position: the
+  // snapped centre and the half-extent (centre ± half on each axis).
+  private levelCoverage(tileSize: number, camX: number, camZ: number) {
+    const hiHalf = Math.floor((this as any).hiResGrid / 2)
+    return {
+      cx: Math.round(camX / tileSize) * tileSize,
+      cz: Math.round(camZ / tileSize) * tileSize,
+      half: (hiHalf + 0.5) * tileSize,
     }
-    for (let i = 0; i < segsPerSide; i++) {
-      innerX[idx] = halfGrid
-      innerZ[idx] = halfGrid - (i / segsPerSide) * 2 * halfGrid
-      idx++
-    }
-    for (let i = 0; i < segsPerSide; i++) {
-      innerX[idx] = halfGrid - (i / segsPerSide) * 2 * halfGrid
-      innerZ[idx] = -halfGrid
-      idx++
-    }
-    for (let i = 0; i < segsPerSide; i++) {
-      innerX[idx] = -halfGrid
-      innerZ[idx] = -halfGrid + (i / segsPerSide) * 2 * halfGrid
-      idx++
-    }
-
-    // Outer positions on the horizon circle
-    const horizonRadius = halfGrid * Math.SQRT2 + horizonDist
-    const outerX = new Float32Array(perimCount)
-    const outerZ = new Float32Array(perimCount)
-    for (let p = 0; p < perimCount; p++) {
-      const angle = Math.atan2(innerZ[p], innerX[p])
-      outerX[p] = horizonRadius * Math.cos(angle)
-      outerZ[p] = horizonRadius * Math.sin(angle)
-    }
-
-    const positions = new Float32Array(totalVerts * 3)
-    const localXZ = new Float32Array(totalVerts * 2)
-    const radialT = new Float32Array(totalVerts)
-
-    for (let r = 0; r < totalRings; r++) {
-      for (let p = 0; p < perimCount; p++) {
-        const vi = r * perimCount + p
-        let lx: number, lz: number, t: number
-
-        if (r === 0) {
-          // Inner skirt: same x,z as ring 1, y will be forced to 0
-          lx = innerX[p]
-          lz = innerZ[p]
-          t = -1 // sentinel for skirt
-        } else if (r <= rings) {
-          // Terrain rings: lerp from square to horizon circle
-          // t² gives more detail in closer rings
-          const rawT = (r - 1) / Math.max(rings - 1, 1)
-          const curvedT = rawT * rawT
-          lx = innerX[p] + (outerX[p] - innerX[p]) * curvedT
-          lz = innerZ[p] + (outerZ[p] - innerZ[p]) * curvedT
-          t = curvedT
-        } else {
-          // Outer skirt: same x,z as last terrain ring, y will be forced to 0
-          lx = outerX[p]
-          lz = outerZ[p]
-          t = -1 // sentinel for skirt
-        }
-
-        localXZ[vi * 2] = lx
-        localXZ[vi * 2 + 1] = lz
-        radialT[vi] = t
-
-        positions[vi * 3] = lx
-        positions[vi * 3 + 1] = 0
-        positions[vi * 3 + 2] = lz
-      }
-    }
-
-    // Build indices: quads between adjacent rings
-    const indices: number[] = []
-    for (let r = 0; r < totalRings - 1; r++) {
-      for (let p = 0; p < perimCount; p++) {
-        const pNext = (p + 1) % perimCount
-        const a = r * perimCount + p
-        const b = r * perimCount + pNext
-        const c = (r + 1) * perimCount + p
-        const d = (r + 1) * perimCount + pNext
-
-        indices.push(a, c, b)
-        indices.push(b, c, d)
-      }
-    }
-
-    // Create mesh
-    const mesh = new BABYLON.Mesh('terrain-skirt', this.owner!.scene)
-    const vertexData = new BABYLON.VertexData()
-    vertexData.positions = positions
-    vertexData.indices = indices
-    const normals = new Float32Array(totalVerts * 3)
-    BABYLON.VertexData.ComputeNormals(
-      positions,
-      indices,
-      normals as unknown as number[]
-    )
-    vertexData.normals = normals
-    vertexData.applyToMesh(mesh, true) // updatable
-
-    mesh.material = this.material
-    mesh.receiveShadows = true
-    mesh.isVisible = false
-
-    this.skirtMesh = mesh
-    this.skirtLocalXZ = localXZ
-    this.skirtRadialT = radialT
-  }
-
-  private updateSkirtHeights(centerX: number, centerZ: number) {
-    if (this.skirtMesh == null || this.skirtLocalXZ == null) return
-    if (this.skirtRadialT == null) return
-
-    const positions = this.skirtMesh.getVerticesData(
-      BABYLON.VertexBuffer.PositionKind
-    )
-    if (positions == null) return
-
-    const localXZ = this.skirtLocalXZ
-    const radialT = this.skirtRadialT
-    const totalVerts = localXZ.length / 2
-    const attrs = this as any
-    const dropoffAmount = attrs.grossAmplitude + attrs.detailAmplitude + 10
-
-    for (let i = 0; i < totalVerts; i++) {
-      const t = radialT[i]
-
-      if (t < 0) {
-        // Skirt ring: y = 0
-        positions[i * 3 + 1] = 0
-      } else {
-        const lx = localXZ[i * 2]
-        const lz = localXZ[i * 2 + 1]
-        const wx = centerX + lx
-        const wz = centerZ + lz
-
-        let height = this.heightAt(wx, wz)
-
-        // Cosmetic drop-off at the very edge so terrain dips below horizon
-        if (t > 0.85) {
-          const dropT = (t - 0.85) / 0.15
-          height -= dropT * dropT * dropoffAmount
-        }
-
-        positions[i * 3 + 1] = height
-      }
-    }
-
-    this.skirtMesh.updateVerticesData(
-      BABYLON.VertexBuffer.PositionKind,
-      positions
-    )
-
-    // Recompute normals
-    const indices = this.skirtMesh.getIndices()
-    const normals = this.skirtMesh.getVerticesData(
-      BABYLON.VertexBuffer.NormalKind
-    )
-    if (normals && indices) {
-      BABYLON.VertexData.ComputeNormals(positions, indices, normals)
-      B3dTerrain.ensureNormalsUp(normals)
-      this.skirtMesh.updateVerticesData(
-        BABYLON.VertexBuffer.NormalKind,
-        normals
-      )
-    }
-
-    this.skirtMesh.refreshBoundingInfo()
   }
 
   // --- Update loop ---
@@ -584,24 +410,18 @@ export class B3dTerrain extends Component {
     if (camera == null) return
 
     const attrs = this as any
-    const tileSize: number = attrs.tileSize
+    const camX = camera.position.x
+    const camZ = camera.position.z
 
-    const camPos = camera.position
-    const camX = camPos.x
-    const camZ = camPos.z
-
-    // Check floating origin reset
+    // Floating origin reset — rebase on the COARSEST tile so every level's grid
+    // stays integer-aligned after the shift.
     const distSq = camX * camX + camZ * camZ
     if (distSq > attrs.originResetThreshold * attrs.originResetThreshold) {
       this.resetOrigin(camX, camZ, camera)
       return
     }
 
-    // Which grid cell is the camera in?
-    const camGridX = Math.round(camX / tileSize)
-    const camGridZ = Math.round(camZ / tileSize)
-
-    // Check recenter threshold
+    // Recenter threshold (sample-space drift, for the game layer to handle).
     const totalTravel = Math.sqrt(
       (this.originOffsetX + camX) * (this.originOffsetX + camX) +
         (this.originOffsetZ + camZ) * (this.originOffsetZ + camZ)
@@ -615,89 +435,112 @@ export class B3dTerrain extends Component {
       )
     }
 
-    if (camGridX !== this.lastCamGridX || camGridZ !== this.lastCamGridZ) {
-      this.lastCamGridX = camGridX
-      this.lastCamGridZ = camGridZ
-      this.assignTiles(camGridX, camGridZ)
-
-      // Update skirt
-      const centerX = camGridX * tileSize
-      const centerZ = camGridZ * tileSize
-      if (this.skirtMesh) {
-        this.skirtMesh.position.set(centerX, 0, centerZ)
-      }
-      this.updateSkirtHeights(centerX, centerZ)
-      if (this.skirtMesh) {
-        this.skirtMesh.isVisible = true
-      }
-
-      if (!this.registered && this.owner) {
-        this.registered = true
-        const visibleMeshes = this.hiTiles
-          .filter((t) => t.assigned)
-          .map((t) => t.mesh)
-        if (this.skirtMesh) visibleMeshes.push(this.skirtMesh)
-        this.owner.register({ meshes: visibleMeshes })
+    // Stream each LOD level around the camera. Each level snaps to its own tile
+    // grid, so coarser levels only restream a quarter as often.
+    for (const lod of this.lods) {
+      const gx = Math.round(camX / lod.tileSize)
+      const gz = Math.round(camZ / lod.tileSize)
+      if (gx !== lod.lastCamGridX || gz !== lod.lastCamGridZ) {
+        lod.lastCamGridX = gx
+        lod.lastCamGridZ = gz
+        this.assignLod(lod, gx, gz, camX, camZ)
       }
     }
   }
 
-  private assignTiles(camGridX: number, camGridZ: number) {
-    const attrs = this as any
-    const hiGrid: number = attrs.hiResGrid
-    const hiHalf = Math.floor(hiGrid / 2)
+  private assignLod(
+    lod: LodLevel,
+    camGridX: number,
+    camGridZ: number,
+    camX: number,
+    camZ: number
+  ) {
+    const hiHalf = Math.floor((this as any).hiResGrid / 2)
 
-    const hiNeeded: { gx: number; gz: number }[] = []
+    // The finer level (k−1) that this level overlaps — its world coverage square
+    // decides which of this level's tiles are hidden (fully inside it → culled)
+    // and which straddle the seam (need the down-bias so they stay underneath).
+    const finer =
+      lod.level > 0
+        ? this.levelCoverage(lod.tileSize / 2, camX, camZ)
+        : null
+
+    const half = lod.tileSize / 2
+    const needed: { gx: number; gz: number; seam: boolean }[] = []
     for (let dx = -hiHalf; dx <= hiHalf; dx++) {
       for (let dz = -hiHalf; dz <= hiHalf; dz++) {
-        hiNeeded.push({ gx: camGridX + dx, gz: camGridZ + dz })
+        const gx = camGridX + dx
+        const gz = camGridZ + dz
+        if (finer) {
+          const cx = gx * lod.tileSize
+          const cz = gz * lod.tileSize
+          const minX = cx - half
+          const maxX = cx + half
+          const minZ = cz - half
+          const maxZ = cz + half
+          const fMinX = finer.cx - finer.half
+          const fMaxX = finer.cx + finer.half
+          const fMinZ = finer.cz - finer.half
+          const fMaxZ = finer.cz + finer.half
+          // Fully inside the finer coverage → the finer level draws it; skip.
+          if (minX >= fMinX && maxX <= fMaxX && minZ >= fMinZ && maxZ <= fMaxZ) {
+            continue
+          }
+          // Overlaps the finer coverage at all → seam tile (gets the down-bias).
+          const overlaps =
+            maxX > fMinX && minX < fMaxX && maxZ > fMinZ && minZ < fMaxZ
+          needed.push({ gx, gz, seam: overlaps })
+        } else {
+          needed.push({ gx, gz, seam: false })
+        }
       }
     }
 
-    this.reassignPool(this.hiTiles, hiNeeded, (this as any).hiResSubdivisions)
+    this.reassignPool(lod, needed)
   }
 
   private reassignPool(
-    pool: TileInfo[],
-    needed: { gx: number; gz: number }[],
-    subdivisions: number
+    lod: LodLevel,
+    needed: { gx: number; gz: number; seam: boolean }[]
   ) {
-    const stillNeeded: { gx: number; gz: number }[] = []
+    const subdivisions = (this as any).hiResSubdivisions
+    const pool = lod.tiles
+    // A tile is satisfied only if some needed cell matches its grid AND seam
+    // status — a seam flip (finer coverage shifted) forces a regenerate.
+    const satisfies = (
+      n: { gx: number; gz: number; seam: boolean },
+      tile: TileInfo
+    ) => n.gx === tile.gridX && n.gz === tile.gridZ && n.seam === tile.seam
+
     const occupied = new Set<string>()
-
     for (const tile of pool) {
-      const key = `${tile.gridX},${tile.gridZ}`
-      const isNeeded = needed.some(
-        (n) => n.gx === tile.gridX && n.gz === tile.gridZ
-      )
-      if (isNeeded && tile.assigned) {
-        occupied.add(key)
+      if (tile.assigned && needed.some((n) => satisfies(n, tile))) {
+        occupied.add(`${tile.gridX},${tile.gridZ},${tile.seam}`)
       }
     }
 
-    for (const n of needed) {
-      if (!occupied.has(`${n.gx},${n.gz}`)) {
-        stillNeeded.push(n)
-      }
-    }
+    const stillNeeded = needed.filter(
+      (n) => !occupied.has(`${n.gx},${n.gz},${n.seam}`)
+    )
 
-    const freeTiles: TileInfo[] = []
-    for (const tile of pool) {
-      const isNeeded = needed.some(
-        (n) => n.gx === tile.gridX && n.gz === tile.gridZ
-      )
-      if (!isNeeded || !tile.assigned) {
-        freeTiles.push(tile)
-      }
+    const freeTiles = pool.filter(
+      (tile) => !tile.assigned || !needed.some((n) => satisfies(n, tile))
+    )
+
+    // Park any free tile that's no longer needed (so culled tiles disappear).
+    for (const tile of freeTiles) {
+      tile.assigned = false
+      tile.mesh.isVisible = false
     }
 
     for (let i = 0; i < stillNeeded.length && i < freeTiles.length; i++) {
       const tile = freeTiles[i]
-      const { gx, gz } = stillNeeded[i]
+      const { gx, gz, seam } = stillNeeded[i]
       tile.gridX = gx
       tile.gridZ = gz
       tile.assigned = true
-      this.generateTileMesh(tile, subdivisions)
+      tile.seam = seam
+      this.generateTileMesh(tile, subdivisions, lod.tileSize, lod.yOffset, seam)
     }
   }
 
@@ -742,11 +585,14 @@ export class B3dTerrain extends Component {
     )
   }
 
-  private generateTileMesh(tile: TileInfo, subdivisions: number) {
-    const attrs = this as any
-    const tileSize: number = attrs.tileSize
+  private generateTileMesh(
+    tile: TileInfo,
+    subdivisions: number,
+    tileSize: number,
+    yOffset: number,
+    seam: boolean
+  ) {
     const mesh = tile.mesh
-
     const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
     if (positions == null) return
 
@@ -758,16 +604,22 @@ export class B3dTerrain extends Component {
       for (let ix = 0; ix < vertsPerSide; ix++) {
         const localX = (ix / subdivisions - 0.5) * tileSize
         const localZ = (0.5 - iz / subdivisions) * tileSize
-        const wx = worldTileX + localX
-        const wz = worldTileZ + localZ
-
-        const height = this.heightAt(wx, wz)
+        const height = this.heightAt(worldTileX + localX, worldTileZ + localZ)
 
         const idx = (iz * vertsPerSide + ix) * 3
         positions[idx] = localX
         positions[idx + 1] = height
         positions[idx + 2] = localZ
       }
+    }
+
+    // Seam tile: this coarse tile overlaps a finer level. Its sparse chords can
+    // fly OVER concavities in the field, poking above the finer surface that's
+    // drawn on top. Sample the field at the points the finer level subdivides to
+    // (cell centre + edge midpoints) and pull the four corners down by the worst
+    // overshoot, so the coarse surface stays a conservative under-estimate.
+    if (seam) {
+      this.biasSeamTileDown(positions, subdivisions, tileSize, worldTileX, worldTileZ)
     }
 
     mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions)
@@ -781,9 +633,71 @@ export class B3dTerrain extends Component {
       mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals)
     }
 
-    mesh.position.set(tile.gridX * tileSize, 0, tile.gridZ * tileSize)
+    // yOffset (a few cm per level, coarser = lower) keeps a finer tile in front
+    // of the coarse one at their coincident vertices — no z-fighting.
+    mesh.position.set(worldTileX, yOffset, worldTileZ)
     mesh.rotationQuaternion = null
     mesh.isVisible = true
+  }
+
+  // Lower each vertex by the largest amount its incident chords rise above the
+  // true field at the finer level's in-between sample points (+ a small epsilon).
+  private biasSeamTileDown(
+    positions: Float32Array | number[],
+    subdivisions: number,
+    tileSize: number,
+    worldTileX: number,
+    worldTileZ: number
+  ) {
+    const vertsPerSide = subdivisions + 1
+    const yOf = (ix: number, iz: number) => positions[(iz * vertsPerSide + ix) * 3 + 1]
+    const drop = new Float32Array(vertsPerSide * vertsPerSide)
+
+    // The points the next-finer level adds inside each coarse cell, as fractional
+    // offsets from the cell's low corner: edge mids and the centre.
+    const samples = [
+      [0.5, 0],
+      [0, 0.5],
+      [0.5, 0.5],
+      [1, 0.5],
+      [0.5, 1],
+    ]
+
+    for (let iz = 0; iz < subdivisions; iz++) {
+      for (let ix = 0; ix < subdivisions; ix++) {
+        const h00 = yOf(ix, iz)
+        const h10 = yOf(ix + 1, iz)
+        const h01 = yOf(ix, iz + 1)
+        const h11 = yOf(ix + 1, iz + 1)
+        for (const [fx, fz] of samples) {
+          // Bilinear chord value vs the true field at the sample point.
+          const chord =
+            h00 * (1 - fx) * (1 - fz) +
+            h10 * fx * (1 - fz) +
+            h01 * (1 - fx) * fz +
+            h11 * fx * fz
+          const wx = worldTileX + (ix + fx) / subdivisions * tileSize - tileSize / 2
+          const wz = worldTileZ + (0.5 - (iz + fz) / subdivisions) * tileSize
+          const over = chord - this.heightAt(wx, wz)
+          if (over > 0) {
+            const cornerXY = [
+              [ix, iz],
+              [ix + 1, iz],
+              [ix, iz + 1],
+              [ix + 1, iz + 1],
+            ]
+            for (const [cx, cz] of cornerXY) {
+              const ci = cz * vertsPerSide + cx
+              if (over > drop[ci]) drop[ci] = over
+            }
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < drop.length; i++) {
+      if (drop[i] > 0) positions[i * 3 + 1] -= drop[i] + LOD_Y_STEP
+    }
   }
 
   // --- Coordinate mapping ---
@@ -825,27 +739,27 @@ export class B3dTerrain extends Component {
   // --- Floating origin ---
 
   private resetOrigin(camX: number, camZ: number, camera: BABYLON.Camera) {
-    const attrs = this as any
-    const tileSize: number = attrs.tileSize
+    // Rebase on the COARSEST tile size so the shift is a whole number of tiles at
+    // every level — keeps all the LOD grids aligned through the reset.
+    const coarsest = this.lods.length
+      ? this.lods[this.lods.length - 1].tileSize
+      : (this as any).tileSize
+    const shiftX = Math.round(camX / coarsest) * coarsest
+    const shiftZ = Math.round(camZ / coarsest) * coarsest
 
-    const shiftX = Math.round(camX / tileSize) * tileSize
-    const shiftZ = Math.round(camZ / tileSize) * tileSize
-
-    const gridShiftX = shiftX / tileSize
-    const gridShiftZ = shiftZ / tileSize
-    for (const tile of this.hiTiles) {
-      tile.mesh.position.x -= shiftX
-      tile.mesh.position.z -= shiftZ
-      if (tile.assigned) {
-        tile.gridX -= gridShiftX
-        tile.gridZ -= gridShiftZ
+    for (const lod of this.lods) {
+      const gridShiftX = shiftX / lod.tileSize
+      const gridShiftZ = shiftZ / lod.tileSize
+      for (const tile of lod.tiles) {
+        tile.mesh.position.x -= shiftX
+        tile.mesh.position.z -= shiftZ
+        if (tile.assigned) {
+          tile.gridX -= gridShiftX
+          tile.gridZ -= gridShiftZ
+        }
       }
-    }
-
-    // Shift skirt mesh
-    if (this.skirtMesh) {
-      this.skirtMesh.position.x -= shiftX
-      this.skirtMesh.position.z -= shiftZ
+      lod.lastCamGridX = Infinity
+      lod.lastCamGridZ = Infinity
     }
 
     camera.position.x -= shiftX
@@ -853,9 +767,6 @@ export class B3dTerrain extends Component {
 
     this.originOffsetX += shiftX
     this.originOffsetZ += shiftZ
-
-    this.lastCamGridX = Infinity
-    this.lastCamGridZ = Infinity
   }
 
   // Reset sample origin — call after a visual discontinuity
@@ -864,27 +775,22 @@ export class B3dTerrain extends Component {
     this.worldV = 0
     this.originOffsetX = 0
     this.originOffsetZ = 0
-    this.lastCamGridX = Infinity
-    this.lastCamGridZ = Infinity
+    for (const lod of this.lods) {
+      lod.lastCamGridX = Infinity
+      lod.lastCamGridZ = Infinity
+    }
   }
 
-  // Force regeneration of all visible tiles and skirt
+  // Force a full restream (e.g. after a noise-parameter change). Invalidates each
+  // level's cached cell so the next update() regenerates every tile.
   regenerate() {
     const attrs = this as any
-    if (this.material) {
-      this.material.wireframe = attrs.wireframe
+    if (this.material) this.material.wireframe = attrs.wireframe
+    for (const lod of this.lods) {
+      lod.lastCamGridX = Infinity
+      lod.lastCamGridZ = Infinity
     }
-    for (const tile of this.hiTiles) {
-      if (tile.assigned) {
-        this.generateTileMesh(tile, attrs.hiResSubdivisions)
-      }
-    }
-    if (this.skirtMesh) {
-      this.updateSkirtHeights(
-        this.skirtMesh.position.x,
-        this.skirtMesh.position.z
-      )
-    }
+    this.update()
   }
 }
 

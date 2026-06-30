@@ -36,14 +36,17 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <ul>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
-<p>The inner area uses a grid of high-resolution flat tiles that stream around the camera.
-A single skirt ring mesh surrounds the inner grid, expanding outward with inverse-square
-radial spacing and blending from square (at the inner edge) to circular at the horizon.
-Includes floating-origin rebasing and a recenter mechanism — when travel exceeds
-<code>maxTravelDistance</code>, a <code>recenter-needed</code> event fires so the game layer can orchestrate
-a visual transition before calling <code>recenter()</code>.</p>
+<p>The terrain is built from a single kind of tile (a heightfield ground patch) in
+concentric LOD levels that stream around the camera. Level 0 is full detail at
+<code>tileSize</code>; each level out doubles the tile size (<code>tileSize × 2^level</code>) so distant
+ground is covered cheaply by stretched tiles. Levels overlap rather than abut —
+coarser levels sit a hair lower so a finer tile always wins where they overlap,
+and coarse tiles fully covered by a finer level are culled — so there are no gaps
+to skirt over. Includes floating-origin rebasing and a recenter mechanism — when
+travel exceeds <code>maxTravelDistance</code>, a <code>recenter-needed</code> event fires so the game
+layer can orchestrate a visual transition before calling <code>recenter()</code>.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, label, input, span, p } = elements
 
@@ -63,9 +66,9 @@ const terrain = b3dTerrain({
   radius: 200,
   cylinderHeight: 200,
   tileSize: 10,
-  hiResGrid: 7,
-  hiResSubdivisions: 32,
-  horizonDistance: 300,
+  hiResGrid: 5,
+  hiResSubdivisions: 24,
+  lodLevels: 5,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   grossAmplitude: demo.grossAmplitude,
@@ -75,28 +78,18 @@ const terrain = b3dTerrain({
 
 const posDisplay = span({ class: &#39;pos-display&#39; })
 
+// Fly the terrain in the VTOL aircraft, starting parked in a hover at a safe
+// height above the ground. Triggers climb/descend (or throttle once you&#39;re
+// moving); pull back to pitch up, turn stick banks.
+const aircraft = b3dAircraft({
+  library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
+  player: true, y: 30, vtolSpeed: 12, maxSpeed: 50,
+})
+
 const scene = b3d(
   {
     frameRate: 60,
-    sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.UniversalCamera(
-        &#39;fly-cam&#39;,
-        new BABYLON.Vector3(0, 15, 0),
-        el.scene
-      )
-      camera.setTarget(new BABYLON.Vector3(10, 10, 10))
-      camera.speed = 4
-      camera.keysUp = [87]       // W
-      camera.keysDown = [83]     // S
-      camera.keysLeft = [65]     // A
-      camera.keysRight = [68]    // D
-      camera.keysUpward = [69]   // E
-      camera.keysDownward = [81] // Q
-      camera.minZ = 0.5
-      camera.maxZ = 10000
-      el.setActiveCamera(camera)
-
-    },
+    gamepad: true,
     update(el) {
       const cam = el.scene.activeCamera
       if (cam) {
@@ -109,15 +102,20 @@ const scene = b3d(
   b3dSun({ activeDistance: 80 }),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
-  b3dFog({ syncSkybox: true, start: 60, end: 110 }),
+  b3dFog({ syncSkybox: true, start: 120, end: 320 }),
+  b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
   terrain,
+  inputFocus(
+    gameController(),
+    aircraft,
+  ),
 )
 
 preview.append(
   scene,
   div(
     { class: &#39;debug-panel&#39; },
-    p(&#39;WASD to fly, QE up/down, mouse to look&#39;),
+    p(&#39;Pull back to climb, triggers up/down (throttle when fast), turn to bank&#39;),
     posDisplay,
     label(
       &#39;gross scale &#39;,
@@ -224,27 +222,22 @@ for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;grossAmplit
 <tr>
 <td><code>tileSize</code></td>
 <td><code>10</code></td>
-<td>World-space tile size</td>
+<td>World-space size of a level-0 tile</td>
 </tr>
 <tr>
 <td><code>hiResGrid</code></td>
-<td><code>3</code></td>
-<td>NxN grid of high-detail tiles around camera</td>
+<td><code>5</code></td>
+<td>NxN grid of tiles per LOD level (around the camera)</td>
 </tr>
 <tr>
 <td><code>hiResSubdivisions</code></td>
-<td><code>32</code></td>
-<td>Vertices per edge (hi-res)</td>
+<td><code>24</code></td>
+<td>Vertices per tile edge (same at every level)</td>
 </tr>
 <tr>
-<td><code>horizonDistance</code></td>
-<td><code>300</code></td>
-<td>How far the skirt extends from the inner grid edge</td>
-</tr>
-<tr>
-<td><code>skirtRings</code></td>
-<td><code>16</code></td>
-<td>Radial depth subdivisions for skirt</td>
+<td><code>lodLevels</code></td>
+<td><code>5</code></td>
+<td>Number of LOD levels; level k uses <code>tileSize × 2^k</code> tiles</td>
 </tr>
 <tr>
 <td><code>grossScale</code></td>
