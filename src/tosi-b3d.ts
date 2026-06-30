@@ -387,7 +387,9 @@ export class B3d extends Component {
     // Declarative <tosi-b3d-panel> children, if any, take over entirely — so a
     // scene tunes its own panels. Otherwise fall back to the default set.
     const declared = Array.from(host.querySelectorAll('tosi-b3d-panel'))
-      .map((el) => (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.())
+      .map((el) =>
+        (el as unknown as { toSpec?: () => FramePanelSpec }).toSpec?.()
+      )
       .filter((s): s is FramePanelSpec => s != null)
     if (declared.length) return declared
     // Anchored in the EYE frame (your head position, rig yaw) at angular offsets,
@@ -933,6 +935,8 @@ export class B3d extends Component {
         // tracking and the seat offset stay 1:1. The seat offset is head-comp'd
         // so your eye lands at (0, eyeH, cockpitForward) in the hull frame.
         if (isCockpit) {
+          // The hull is canonical (unit scale), so the rig rides it 1:1 — no
+          // scale neutralization needed.
           if (rig.parent !== piloted) {
             rig.parent = piloted
             // Capture the head's entry yaw so we can recenter the CAMERA to look
@@ -941,8 +945,6 @@ export class B3d extends Component {
               ? cam.rotationQuaternion.toEulerAngles().y
               : 0
           }
-          const s = piloted.scaling.x || 1
-          rig.scaling.set(1 / s, 1 / s, 1 / s)
           // Rig local rotation = RotationY(−entryYaw): swings the head to forward.
           BABYLON.Quaternion.RotationYawPitchRollToRef(
             -cockpitYawOffset,
@@ -955,9 +957,9 @@ export class B3d extends Component {
           BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
           BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
           rig.position.set(
-            -tmp.x / s,
-            (eyeH - tmp.y) / s,
-            ((entity?.cockpitForward ?? 0.5) - tmp.z) / s
+            -tmp.x,
+            eyeH - tmp.y,
+            (entity?.cockpitForward ?? 0.5) - tmp.z
           )
           // Counter-rotate the eye frame by +entryYaw so the panels DON'T move
           // (they were already correct) while the camera recenters.
@@ -969,7 +971,6 @@ export class B3d extends Component {
         // Non-cockpit: ensure the rig is back in world space.
         if (rig.parent != null) {
           rig.parent = null
-          rig.scaling.set(1, 1, 1)
           chaseFirstFrame = true
         }
 
@@ -1044,7 +1045,6 @@ export class B3d extends Component {
       frames.eyeYawOffset = 0 // no recenter in free locomotion
       if (rig.parent != null) {
         rig.parent = null // came from the cockpit — back to world space
-        rig.scaling.set(1, 1, 1)
       }
       if (rig.rotationQuaternion != null) {
         rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y
