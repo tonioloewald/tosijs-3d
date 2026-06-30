@@ -44,6 +44,15 @@ const PRESETS = {
         revealStartDeg: 48,
         revealFullDeg: 24,
     },
+    // Watch-style, on a hand frame: just back of the grip toward the forearm,
+    // facing up out of the back of the wrist (you turn your wrist to read it).
+    // Starting offsets — expect to tune to the grip convention in-visor.
+    wrist: {
+        position: [0, 0.035, 0.06],
+        focus: [0, 0.5, 0.06],
+        revealStartDeg: 55,
+        revealFullDeg: 30,
+    },
 };
 const DEFAULT_FOCUS = [0, 1.6, 0];
 /** A simple titled placeholder panel SVG (rounded card + centred label). */

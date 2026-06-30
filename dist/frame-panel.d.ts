@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-export type FrameName = 'world' | 'rig' | 'body' | 'neck' | 'face';
-export type AnchorPreset = 'waist' | 'left-shoulder' | 'right-shoulder';
+import { type FrameName } from './xr-frames';
+export type { FrameName };
+export type AnchorPreset = 'waist' | 'left-shoulder' | 'right-shoulder' | 'wrist';
 export interface AnchorSpec {
     /** Explicit local position in the frame (metres). */
     position?: [number, number, number];

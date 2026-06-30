@@ -361,6 +361,7 @@ export class B3d extends Component {
             url: '/reticle.svg',
             width: 0.12,
         },
+        { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
     ];
     lastRender = 0;
     sceneListeners = [];
@@ -687,6 +688,7 @@ export class B3d extends Component {
         // Reference frames for spatial UI (body/neck/face follow the head; rig/world
         // are locomotion/play-space). Updated each XR frame below; UI parents to one.
         const frames = new XrFrames(scene, rig, cam);
+        frames.attachInput(this.xrHelper?.input); // hand/wrist frames follow the grips
         this.xrFrames = frames;
         // Body-anchored panels (inventory over the shoulders, quick-access at the
         // waist), pinned to their frame and revealed by looking toward them.

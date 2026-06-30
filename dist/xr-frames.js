@@ -84,6 +84,14 @@ export class XrFrames {
     body;
     neck;
     face;
+    /** Hand/wrist frames — follow the controller grip (sensed), disabled while no
+     * controller is connected for that hand. Wire with `attachInput`. */
+    leftHand;
+    rightHand;
+    leftGrip = null;
+    rightGrip = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    inputObs = [];
     cam;
     bodyYaw = 0;
     seeded = false;
@@ -114,10 +122,65 @@ export class XrFrames {
         // face: head-locked.
         this.face = new BABYLON.TransformNode('xr-frame-face', scene);
         this.face.parent = camera;
+        // hands: world-space, posed each frame from the controller grips.
+        this.leftHand = new BABYLON.TransformNode('xr-frame-left-hand', scene);
+        this.rightHand = new BABYLON.TransformNode('xr-frame-right-hand', scene);
+        this.leftHand.rotationQuaternion = new BABYLON.Quaternion();
+        this.rightHand.rotationQuaternion = new BABYLON.Quaternion();
+        this.leftHand.setEnabled(false);
+        this.rightHand.setEnabled(false);
+    }
+    /** Wire hand/wrist frames to the WebXR input so they track the controller grip
+     * for each hand. Pass `xrHelper.input`. Safe to call once. */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    attachInput(input) {
+        if (input == null)
+            return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const added = (controller) => {
+            const hand = controller?.inputSource?.handedness;
+            const set = () => {
+                if (hand === 'left')
+                    this.leftGrip = controller.grip ?? controller.pointer;
+                else if (hand === 'right')
+                    this.rightGrip = controller.grip ?? controller.pointer;
+            };
+            // grip may arrive with the motion controller; bind now and on init.
+            set();
+            controller?.onMotionControllerInitObservable?.add(set);
+        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const removed = (controller) => {
+            const hand = controller?.inputSource?.handedness;
+            if (hand === 'left')
+                this.leftGrip = null;
+            else if (hand === 'right')
+                this.rightGrip = null;
+        };
+        input.onControllerAddedObservable.add(added);
+        input.onControllerRemovedObservable.add(removed);
+        input.controllers?.forEach(added); // any already-connected
+        this.inputObs.push({ obs: input.onControllerAddedObservable, cb: added }, { obs: input.onControllerRemovedObservable, cb: removed });
     }
     /** Resolve a frame node by name (for config that names a frame as a string). */
     get(name) {
+        if (name === 'left-hand')
+            return this.leftHand;
+        if (name === 'right-hand')
+            return this.rightHand;
         return this[name];
+    }
+    /** Pose a hand frame from its grip, or disable it if the controller is gone. */
+    poseHand(frame, grip) {
+        if (grip == null || grip.isDisposed()) {
+            frame.setEnabled(false);
+            return;
+        }
+        frame.setEnabled(true);
+        frame.position.copyFrom(grip.absolutePosition);
+        const arq = grip.absoluteRotationQuaternion;
+        if (arq)
+            frame.rotationQuaternion.copyFrom(arq);
     }
     /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
     headLocalYaw() {
@@ -145,12 +208,20 @@ export class XrFrames {
         BABYLON.Vector3.TransformCoordinatesToRef(this.neckOffset, this._m, this._v);
         this.neck.position.set(cam.position.x + this._v.x, cam.position.y + this._v.y, cam.position.z + this._v.z);
         BABYLON.Quaternion.RotationYawPitchRollToRef(headYaw, 0, 0, this.neck.rotationQuaternion);
+        // Hands: follow the controller grips (world space), or disable when absent.
+        this.poseHand(this.leftHand, this.leftGrip);
+        this.poseHand(this.rightHand, this.rightGrip);
     }
     dispose() {
+        for (const { obs, cb } of this.inputObs)
+            obs?.removeCallback?.(cb);
+        this.inputObs = [];
         this.world.dispose();
         this.body.dispose();
         this.neck.dispose();
         this.face.dispose();
+        this.leftHand.dispose();
+        this.rightHand.dispose();
     }
 }
 //# sourceMappingURL=xr-frames.js.map

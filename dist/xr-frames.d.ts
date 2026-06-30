@@ -4,6 +4,7 @@ export interface Vec3 {
     y: number;
     z: number;
 }
+export type FrameName = 'world' | 'rig' | 'body' | 'neck' | 'face' | 'left-hand' | 'right-hand';
 /** Shortest signed angle to rotate from `a` to `b`, in (-π, π]. */
 export declare function angleDelta(a: number, b: number): number;
 /** Yaw (about +Y) so a frame's local +Z points horizontally from `from` toward
@@ -40,6 +41,13 @@ export declare class XrFrames {
     readonly body: BABYLON.TransformNode;
     readonly neck: BABYLON.TransformNode;
     readonly face: BABYLON.TransformNode;
+    /** Hand/wrist frames — follow the controller grip (sensed), disabled while no
+     * controller is connected for that hand. Wire with `attachInput`. */
+    readonly leftHand: BABYLON.TransformNode;
+    readonly rightHand: BABYLON.TransformNode;
+    private leftGrip;
+    private rightGrip;
+    private inputObs;
     private cam;
     private bodyYaw;
     private seeded;
@@ -51,8 +59,13 @@ export declare class XrFrames {
     private _fwd;
     private _v;
     constructor(scene: BABYLON.Scene, rig: BABYLON.TransformNode, camera: BABYLON.TargetCamera, opts?: XrFramesOptions);
+    /** Wire hand/wrist frames to the WebXR input so they track the controller grip
+     * for each hand. Pass `xrHelper.input`. Safe to call once. */
+    attachInput(input: any): void;
     /** Resolve a frame node by name (for config that names a frame as a string). */
-    get(name: 'world' | 'rig' | 'body' | 'neck' | 'face'): BABYLON.TransformNode;
+    get(name: FrameName): BABYLON.TransformNode;
+    /** Pose a hand frame from its grip, or disable it if the controller is gone. */
+    private poseHand;
     /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
     private headLocalYaw;
     /** Call once per XR frame. */
