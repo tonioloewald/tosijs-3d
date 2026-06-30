@@ -184,13 +184,13 @@ export class B3dBiped extends B3dControllable {
     entries;
     camera;
     /** Camera mode, toggled by the view button: third-person over-the-shoulder
-     * ('chase') or first-person ('fpv', positioned at the head with the head mesh
-     * hidden). Read by the XR rig too. */
+     * ('chase') or first-person ('fpv', at the head with the body hidden — keep
+     * first-person parts via a `_fpv` mesh name). Read by the XR rig too. */
     cameraView = 'chase';
     fpvCamera = null;
     headNode = null;
     viewWasPressed = false;
-    hiddenHead = [];
+    hiddenBody = [];
     /** XR/chase camera params, computed from the model bounds in render(). The
      * chase rig interpolates height (eyeHeight→chaseHeight) and distance with the
      * zoom intent, so zooming in drops to head height and out pulls back/up. */
@@ -493,11 +493,12 @@ export class B3dBiped extends B3dControllable {
         this.setCameraView(this.cameraView);
     }
     /** Toggle third-person ('chase') vs first-person ('fpv'). In VR the rig reads
-     * cameraView; on flat we switch the active camera. Either way the head mesh is
-     * hidden in first-person so the camera isn't looking through your own skull. */
+     * cameraView; on flat we switch the active camera. Either way the body is
+     * hidden in first-person so it isn't in your face (and can't run ahead of the
+     * camera) — while still casting its shadow. */
     setCameraView(view) {
         this.cameraView = view;
-        this.setHeadHidden(view === 'fpv');
+        this.setBodyHidden(view === 'fpv');
         if (this.owner?.xrActive)
             return; // the XR rig handles the viewpoint in VR
         const cam = view === 'fpv' ? this.fpvCamera : this.camera;
@@ -505,18 +506,19 @@ export class B3dBiped extends B3dControllable {
             this.owner.setActiveCamera(cam, { attach: false });
         }
     }
-    setHeadHidden(hidden) {
-        if (hidden && this.hiddenHead.length === 0 && this.entries != null) {
+    /** Hide the WHOLE biped in first-person (robust regardless of head-mesh names,
+     * and it kills the body-running-ahead artefact), EXCEPT meshes whose name
+     * contains `_fpv` — mark first-person hands/arms/tools that way to keep them.
+     * Shadow casting is unaffected: Babylon's shadow generator renders its caster
+     * list regardless of `isVisible`, so you still cast a full-body shadow. */
+    setBodyHidden(hidden) {
+        if (hidden && this.hiddenBody.length === 0 && this.entries != null) {
             const root = this.entries.rootNodes[0];
-            const meshes = root.getChildMeshes();
-            this.hiddenHead = meshes.filter((m) => /head/i.test(m.name));
-            if (this.hiddenHead.length === 0) {
-                // The head mesh isn't named *head*, so first-person can't hide it.
-                // List the names so the right mesh can be identified/renamed.
-                console.warn('[b3d-biped] first-person: no mesh matched /head/i to hide. Meshes:', meshes.map((m) => m.name));
-            }
+            this.hiddenBody = root
+                .getChildMeshes()
+                .filter((m) => !/_fpv/i.test(m.name));
         }
-        for (const m of this.hiddenHead)
+        for (const m of this.hiddenBody)
             m.isVisible = !hidden;
     }
     connectedCallback() {
@@ -592,7 +594,7 @@ export class B3dBiped extends B3dControllable {
             this.fpvCamera.dispose();
             this.fpvCamera = null;
         }
-        this.hiddenHead = [];
+        this.hiddenBody = [];
         if (this.owner != null && this.entries) {
             this.owner.scene.unregisterBeforeRender(this._update);
             for (const node of this.entries.rootNodes) {

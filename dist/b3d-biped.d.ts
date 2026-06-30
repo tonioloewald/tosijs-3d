@@ -47,13 +47,13 @@ export declare class B3dBiped extends B3dControllable {
     entries?: BABYLON.InstantiatedEntries;
     camera?: BABYLON.Camera;
     /** Camera mode, toggled by the view button: third-person over-the-shoulder
-     * ('chase') or first-person ('fpv', positioned at the head with the head mesh
-     * hidden). Read by the XR rig too. */
+     * ('chase') or first-person ('fpv', at the head with the body hidden — keep
+     * first-person parts via a `_fpv` mesh name). Read by the XR rig too. */
     cameraView: 'chase' | 'fpv';
     private fpvCamera;
     private headNode;
     private viewWasPressed;
-    private hiddenHead;
+    private hiddenBody;
     /** XR/chase camera params, computed from the model bounds in render(). The
      * chase rig interpolates height (eyeHeight→chaseHeight) and distance with the
      * zoom intent, so zooming in drops to head height and out pulls back/up. */
@@ -80,10 +80,16 @@ export declare class B3dBiped extends B3dControllable {
     setupXRCamera(): Promise<void>;
     setupFollowCamera(): Promise<void>;
     /** Toggle third-person ('chase') vs first-person ('fpv'). In VR the rig reads
-     * cameraView; on flat we switch the active camera. Either way the head mesh is
-     * hidden in first-person so the camera isn't looking through your own skull. */
+     * cameraView; on flat we switch the active camera. Either way the body is
+     * hidden in first-person so it isn't in your face (and can't run ahead of the
+     * camera) — while still casting its shadow. */
     setCameraView(view: 'chase' | 'fpv'): void;
-    private setHeadHidden;
+    /** Hide the WHOLE biped in first-person (robust regardless of head-mesh names,
+     * and it kills the body-running-ahead artefact), EXCEPT meshes whose name
+     * contains `_fpv` — mark first-person hands/arms/tools that way to keep them.
+     * Shadow casting is unaffected: Babylon's shadow generator renders its caster
+     * list regardless of `isVisible`, so you still cast a full-body shadow. */
+    private setBodyHidden;
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
