@@ -369,11 +369,14 @@ export class B3dAircraft extends B3dControllable {
     }
 
     // --- Forces (delegated to pure aircraft-physics module) ---
-    // Clean orthonormal world axes. The hull is canonical (unit scale via the
-    // library's `canonical` instantiate), so getDirectionToRef yields unit
-    // forward/up directly — no per-frame normalization/scale-fix needed.
+    // Normalize the world axes: until the hull is reliably canonical (the
+    // `canonical` bake only covers leaf meshes; a hierarchical model keeps its
+    // scale), the raw forward/up can be non-unit/skewed, which mis-scales every
+    // aero force. getDirectionToRef + normalize gives clean unit axes regardless.
     node.getDirectionToRef(LOCAL_Z, this._fwd)
+    this._fwd.normalize()
     node.getDirectionToRef(LOCAL_Y, this._up)
+    this._up.normalize()
     const localUp = this._up
     const localForward = this._fwd
     const config: AircraftConfig = {
