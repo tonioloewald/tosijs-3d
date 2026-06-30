@@ -61,3 +61,43 @@ describe('normalizeScale', () => {
     expect(close(before, after)).toBe(true)
   })
 })
+
+import { canonicalize } from './model-transform'
+
+describe('canonicalize (wrapper)', () => {
+  test('hierarchy w/ scale + odd orientation → unit-scale wrapper, nose +Z', () => {
+    // Mock a scout-like node: a scaled parent with a child mesh, oddly oriented.
+    const root = new BABYLON.TransformNode('scout', scene)
+    root.scaling.setAll(2.38)
+    root.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0.9, 0.2, -0.5)
+    const child = BABYLON.MeshBuilder.CreateBox('cockpit', { size: 1 }, scene)
+    child.parent = root
+    child.position.set(0, 0, 1)
+
+    const noseBefore = (() => {
+      root.computeWorldMatrix(true)
+      const f = new BABYLON.Vector3()
+      root.getDirectionToRef(BABYLON.Axis.Z, f)
+      return f.normalize().clone()
+    })()
+
+    const wrap = canonicalize(root, scene, 'scout_instance')
+
+    // wrapper is clean
+    expect(wrap.scaling.x).toBeCloseTo(1)
+    expect(wrap.rotationQuaternion).toBeNull()
+    // the model now faces +Z (its nose lands on the wrapper's forward)
+    root.computeWorldMatrix(true)
+    const noseAfter = new BABYLON.Vector3()
+    root.getDirectionToRef(BABYLON.Axis.Z, noseAfter)
+    noseAfter.normalize()
+    expect(noseAfter.x).toBeCloseTo(0)
+    expect(noseAfter.y).toBeCloseTo(0)
+    expect(noseAfter.z).toBeCloseTo(1)
+    // the model is parented to the wrapper, still carries its own scale
+    expect(root.parent).toBe(wrap)
+    expect(root.scaling.x).toBeCloseTo(2.38)
+    // and the spawned model isn't degenerate (had a real forward before)
+    expect(noseBefore.length()).toBeCloseTo(1)
+  })
+})

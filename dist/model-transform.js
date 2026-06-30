@@ -12,6 +12,29 @@ import * as BABYLON from '@babylonjs/core';
  * non-orthogonal) and forces per-use `1/scale` neutralization; collapsing it here
  * means downstream frames stay clean.
  */
+/**
+ * Wrap a spawned model in a CLEAN control node: an identity, unit-scale
+ * TransformNode whose +Z is the model's nose and +Y its up. The model (any
+ * hierarchy, skinned or not — nothing is baked) hangs underneath, re-oriented so
+ * its current forward/up land on the wrapper's +Z/+Y, keeping its own scale. So
+ * the returned node — what the flight system and camera control — has a collapsed,
+ * canonical frame: forward/up come out unit, no `__root__` flip or scale to fight.
+ * The model's current world forward/up (measured before wrapping) define the nose.
+ */
+export function canonicalize(clone, scene, name) {
+    // The model's nose sits on the node's LOCAL +Z and its top on LOCAL +Y (that's
+    // why the clone's world `forward` already reads as the nose). So all we do is
+    // drop the model's junk rotation (the glTF source's leftover orientation) and
+    // re-parent it under a clean wrapper at identity — its nose lands on the
+    // wrapper's +Z, up on +Y. The model keeps its own scale; the wrapper (the
+    // control node) is unit-scale and clean.
+    const wrapper = new BABYLON.TransformNode(name, scene);
+    clone.parent = wrapper;
+    clone.rotationQuaternion = BABYLON.Quaternion.Identity();
+    clone.rotation.set(0, 0, 0);
+    clone.position.set(0, 0, 0);
+    return wrapper;
+}
 export function normalizeScale(mesh) {
     const hadQ = mesh.rotationQuaternion != null;
     const r = mesh.rotationQuaternion

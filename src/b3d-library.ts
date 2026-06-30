@@ -132,7 +132,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
-import { normalizeScale } from './model-transform'
+import { canonicalize } from './model-transform'
 
 export interface InstantiateOptions {
   x?: number
@@ -273,45 +273,39 @@ export class B3dLibrary extends Component {
       return null
     }
 
-    const clone = source.clone(
-      `${name}_instance_${this.instances.length}`,
-      options.parent ?? null
-    )
+    const i = this.instances.length
+    const clone = source.clone(`${name}_instance_${i}`, options.parent ?? null)
     if (!clone) {
       console.error(`b3d-library: failed to clone "${name}"`)
       return null
     }
 
-    // Collapse the model's scale into its geometry so the control node is unit
-    // scale (its orientation/nose is preserved). Single-mesh models only for now;
-    // a scaled parent of a sub-mesh hierarchy would need a recursive bake.
-    if (options.canonical) {
-      if (clone instanceof BABYLON.Mesh && clone.getChildMeshes().length === 0) {
-        normalizeScale(clone)
-      } else {
-        console.warn(
-          `b3d-library: canonical instantiate of "${name}" — scale bake skipped (not a leaf mesh); forward/up will still need normalizing.`
-        )
-      }
+    // Canonical: wrap the model in a clean unit-scale control node (nose → +Z),
+    // model hanging underneath (any hierarchy, nothing baked). The returned node
+    // is what the consumer controls. Otherwise the clone is the node directly.
+    let result: BABYLON.Node = clone
+    if (options.canonical && clone instanceof BABYLON.TransformNode) {
+      clone.name = `${name}_mesh`
+      result = canonicalize(clone, this.owner.scene, `${name}_instance_${i}`)
     }
 
-    if (clone instanceof BABYLON.TransformNode) {
-      clone.position.x = options.x ?? 0
-      clone.position.y = options.y ?? 0
-      clone.position.z = options.z ?? 0
-      if (options.rx !== undefined) clone.rotation.x = options.rx
-      if (options.ry !== undefined) clone.rotation.y = options.ry
-      if (options.rz !== undefined) clone.rotation.z = options.rz
+    if (result instanceof BABYLON.TransformNode) {
+      result.position.x = options.x ?? 0
+      result.position.y = options.y ?? 0
+      result.position.z = options.z ?? 0
+      if (options.rx !== undefined) result.rotation.x = options.rx
+      if (options.ry !== undefined) result.rotation.y = options.ry
+      if (options.rz !== undefined) result.rotation.z = options.rz
     }
 
     const meshes =
       clone instanceof BABYLON.AbstractMesh
         ? [clone, ...clone.getChildMeshes()]
         : clone.getChildMeshes()
-    this.instances.push(clone)
+    this.instances.push(result) // disposing the wrapper disposes the model child
     this.owner.register({ meshes })
 
-    return clone
+    return result
   }
 
   sceneDispose() {
