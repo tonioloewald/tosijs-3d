@@ -20,36 +20,48 @@ import { SvgTexture } from './svg-texture';
 import { gazeReveal } from './xr-frames';
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const DEG = Math.PI / 180;
-// Angular presets measured off the head: "not too far" → 0.5 m out.
+// Angular presets measured from the mean-eye point, all at the same comfortable
+// distance (≈ the overhead menu's). Placed in the RIG frame so they're stable
+// regardless of standing/sitting and don't chase the live head pose.
+const PANEL_DISTANCE = 1.4;
 const PRESETS = {
-    // Low and deliberate — you have to look well down to your belt to show it.
+    // Quick access: 45° down (faces up at you — the opposite tilt of the overhead).
     waist: {
         azimuthDeg: 0,
-        elevationDeg: -74,
-        distance: 0.92,
-        revealStartDeg: 34,
-        revealFullDeg: 14,
+        elevationDeg: -45,
+        distance: PANEL_DISTANCE,
+        revealStartDeg: 38,
+        revealFullDeg: 16,
     },
+    // Inventory: 45° up, 60° to the side.
     'left-shoulder': {
-        azimuthDeg: -70,
-        elevationDeg: 20,
-        distance: 0.5,
-        revealStartDeg: 48,
-        revealFullDeg: 24,
+        azimuthDeg: -60,
+        elevationDeg: 45,
+        distance: PANEL_DISTANCE,
+        revealStartDeg: 44,
+        revealFullDeg: 22,
     },
     'right-shoulder': {
-        azimuthDeg: 70,
-        elevationDeg: 20,
-        distance: 0.5,
-        revealStartDeg: 48,
-        revealFullDeg: 24,
+        azimuthDeg: 60,
+        elevationDeg: 45,
+        distance: PANEL_DISTANCE,
+        revealStartDeg: 44,
+        revealFullDeg: 22,
     },
-    // Watch-style, on a hand frame: just back of the grip toward the forearm,
-    // facing up out of the back of the wrist (you turn your wrist to read it).
-    // Starting offsets — expect to tune to the grip convention in-visor.
+    // Overhead/global menu: 60° up.
+    overhead: {
+        azimuthDeg: 0,
+        elevationDeg: 60,
+        distance: PANEL_DISTANCE,
+        revealStartDeg: 90,
+        revealFullDeg: 90,
+    },
+    // Watch-style, on a hand frame: sat on the back of the wrist (grip space: +Z
+    // points up the forearm toward the wrist, +Y out the back of the hand), facing
+    // up so you turn your wrist to read it. Starting offsets — tune in-visor.
     wrist: {
-        position: [0, 0.035, 0.06],
-        focus: [0, 0.5, 0.06],
+        position: [0, 0.04, -0.06],
+        focus: [0, 0.5, -0.06],
         rollDeg: 180, // grip space lands it upside down without this
         revealStartDeg: 55,
         revealFullDeg: 30,
@@ -156,14 +168,27 @@ export function attachFramePanel(scene, cam, frame, spec) {
     const head = new BABYLON.Vector3();
     const fwd = new BABYLON.Vector3();
     const toAnchor = new BABYLON.Vector3();
+    const viewMode = spec.view ?? 'both';
+    const maxDist = spec.maxDistance ?? Infinity;
     return {
-        update() {
-            if (alwaysOn)
+        // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
+        // panel can be limited to one. Defaults to visible if no context is given.
+        update(ctx) {
+            const fp = ctx?.firstPerson ?? true;
+            if ((viewMode === 'first' && !fp) ||
+                (viewMode === 'third' && fp)) {
+                plane.visibility = 0;
                 return;
+            }
+            if (alwaysOn) {
+                plane.visibility = 1;
+                return;
+            }
             head.copyFrom(cam.globalPosition);
             cam.getDirectionToRef(XR_FORWARD, fwd);
             plane.getAbsolutePosition().subtractToRef(head, toAnchor);
-            plane.visibility = gazeReveal(fwd, toAnchor, cosStart, cosFull);
+            const v = gazeReveal(fwd, toAnchor, cosStart, cosFull);
+            plane.visibility = toAnchor.length() > maxDist ? 0 : v;
         },
         dispose() {
             tex.dispose();

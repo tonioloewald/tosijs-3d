@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { type FrameName } from './xr-frames';
 export type { FrameName };
-export type AnchorPreset = 'waist' | 'left-shoulder' | 'right-shoulder' | 'wrist';
+export type AnchorPreset = 'waist' | 'left-shoulder' | 'right-shoulder' | 'overhead' | 'wrist';
 export interface AnchorSpec {
     /** Explicit local position in the frame (metres). */
     position?: [number, number, number];
@@ -28,6 +28,12 @@ export interface FramePanelSpec {
     /** `gaze` (default): show as you look toward it. `always`: always visible
      * (reticles, persistent HUD). */
     reveal?: 'gaze' | 'always';
+    /** Restrict to a camera view: `first` (fpv/cockpit), `third` (chase), or
+     * `both` (default). Hidden when the active view doesn't match. */
+    view?: 'first' | 'third' | 'both';
+    /** Hide beyond this distance (metres) from the head — e.g. NPC nameplates that
+     * shouldn't clutter the view at range. */
+    maxDistance?: number;
     /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
      * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
     blend?: 'composite' | 'add';
@@ -49,7 +55,9 @@ export declare function placeholderPanelSvg(title: string, w?: number, h?: numbe
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.
  */
 export declare function attachFramePanel(scene: BABYLON.Scene, cam: BABYLON.TargetCamera, frame: BABYLON.TransformNode, spec: FramePanelSpec): {
-    update: () => void;
+    update: (ctx?: {
+        firstPerson?: boolean;
+    }) => void;
     dispose: () => void;
 };
 //# sourceMappingURL=frame-panel.d.ts.map

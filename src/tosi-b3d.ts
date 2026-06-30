@@ -384,14 +384,17 @@ export class B3d extends Component {
   // waist; override to supply your own (positions, presets, custom SVG). Like
   // scenePanel, defaults to a function so the element creator treats it as a prop.
   bodyPanels: (host: B3d) => FramePanelSpec[] = () => [
-    { anchor: 'left-shoulder', title: 'Inventory' },
-    { anchor: 'right-shoulder', title: 'Inventory' },
-    { anchor: 'waist', title: 'Quick Access' },
+    // Anchored in the RIG frame at mean-eye-relative angles (stable across
+    // standing/sitting), not the live head pose.
+    { frame: 'rig', anchor: 'left-shoulder', title: 'Inventory' },
+    { frame: 'rig', anchor: 'right-shoulder', title: 'Inventory' },
+    { frame: 'rig', anchor: 'waist', title: 'Quick Access' },
     {
       frame: 'face',
       anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
       reveal: 'always',
       blend: 'add',
+      view: 'first', // crosshair only when looking through your own eyes
       url: '/reticle.svg',
       width: 0.24,
     },
@@ -799,6 +802,7 @@ export class B3d extends Component {
           },
           title: (b.id as string) || 'NPC',
           width: 0.3,
+          maxDistance: 8, // don't clutter the view with distant nameplates
         })
         return { ef, panel }
       })
@@ -873,20 +877,26 @@ export class B3d extends Component {
       const now = Date.now()
       const dt = Math.min((now - last) * 0.001, 0.1)
       last = now
-      // Keep the body/neck/face frames tracking the head (after locomotion has
-      // moved the rig last frame; before any UI reads them this frame).
-      frames.update(dt)
-      for (const p of bodyPanels) p.update()
-      for (const n of nameplates) {
-        n.ef.update(cam)
-        n.panel.update()
-      }
-
       // Piloting a live controllable → the controllers fly it (via its mapping)
       // and the rig FOLLOWS it: positioned behind/at it AND rotated to face the
       // same way, so turning the entity turns your view (head tracking on top).
       // A crashed entity yields back to free walk/fly so you can leave the wreck.
       const entity = focusEl?.focused
+      // First-person = fpv/cockpit; chase = third. Gates view-restricted panels.
+      const viewCtx = {
+        firstPerson: entity
+          ? entity.cameraView === 'fpv' || entity.cameraView === 'cockpit'
+          : true,
+      }
+      // Keep the body/neck/face frames tracking the head (after locomotion has
+      // moved the rig last frame; before any UI reads them this frame).
+      frames.update(dt)
+      for (const p of bodyPanels) p.update(viewCtx)
+      for (const n of nameplates) {
+        n.ef.update(cam)
+        n.panel.update(viewCtx)
+      }
+
       // getCameraTarget() (not .mesh) — the aircraft's node is `meshNode`, so
       // .mesh is undefined and it would never be chased.
       const piloted = entity?.crashed
@@ -1134,12 +1144,14 @@ export class B3d extends Component {
     }
     const vb = panelEl.viewBox.baseVal
 
-    // Fixed offset from the head's neutral pose: ahead + a little up, so it sits
-    // ~23° above the sight-line — out of the forward view but an easy glance away
-    // and always there to point at.
+    // Seated in the RIG frame at a fixed mean-eye estimate (not the live head
+    // pose, which dragged it around with standing/sitting), 60° up the sight-line.
     const PLANE_W = 1.0 // metres wide (height follows the panel's aspect)
-    const FORWARD = 1.3 // metres ahead of the head
-    const ABOVE = 0.55 // metres above the eye
+    const MEAN_EYE_Y = 1.6 // stable mean-eye height in the rig frame
+    const D = 1.4 // distance (matches the other rig-frame panels)
+    const ELEV = (60 * Math.PI) / 180
+    const ABOVE = D * Math.sin(ELEV) // ≈1.21 up
+    const AHEAD = D * Math.cos(ELEV) // ≈0.70 ahead
 
     const plane = BABYLON.MeshBuilder.CreatePlane(
       'xr-panel',
@@ -1180,31 +1192,15 @@ export class B3d extends Component {
     plane.parent = cam.parent
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE
 
-    const fwd = new BABYLON.Vector3()
-    const mtx2 = new BABYLON.Matrix()
     let placed = false
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       if (placed) return
       placed = true
-      // Seat it ONCE, in the rig frame. Centre on the head's ACTUAL pose (not the
-      // rig origin — the player isn't standing at it, which threw the panel off
-      // to the side), ahead of the head's flattened facing and a little above,
-      // tilted to face back at the head.
-      const hp = cam.position // head pose, local to the rig
-      const q = cam.rotationQuaternion ?? BABYLON.Quaternion.Identity()
-      BABYLON.Matrix.FromQuaternionToRef(q, mtx2)
-      BABYLON.Vector3.TransformCoordinatesToRef(XR_FORWARD, mtx2, fwd) // local fwd
-      fwd.y = 0
-      if (fwd.lengthSquared() < 1e-4) fwd.set(0, 0, 1)
-      fwd.normalize()
-      plane.position.set(
-        hp.x + fwd.x * FORWARD,
-        hp.y + ABOVE,
-        hp.z + fwd.z * FORWARD
-      )
+      // Seat ONCE at the fixed mean-eye estimate, 60° up, facing back down at it.
+      plane.position.set(0, MEAN_EYE_Y + ABOVE, AHEAD)
       plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-        Math.atan2(-fwd.x, -fwd.z),
-        Math.atan2(ABOVE, FORWARD),
+        Math.PI,
+        Math.atan2(ABOVE, AHEAD),
         0
       )
       plane.visibility = 1

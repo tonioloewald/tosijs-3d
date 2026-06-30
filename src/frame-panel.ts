@@ -28,6 +28,7 @@ export type AnchorPreset =
   | 'waist'
   | 'left-shoulder'
   | 'right-shoulder'
+  | 'overhead'
   | 'wrist'
 
 export interface AnchorSpec {
@@ -57,6 +58,12 @@ export interface FramePanelSpec {
   /** `gaze` (default): show as you look toward it. `always`: always visible
    * (reticles, persistent HUD). */
   reveal?: 'gaze' | 'always'
+  /** Restrict to a camera view: `first` (fpv/cockpit), `third` (chase), or
+   * `both` (default). Hidden when the active view doesn't match. */
+  view?: 'first' | 'third' | 'both'
+  /** Hide beyond this distance (metres) from the head — e.g. NPC nameplates that
+   * shouldn't clutter the view at range. */
+  maxDistance?: number
   /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
    * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
   blend?: 'composite' | 'add'
@@ -72,36 +79,49 @@ export interface FramePanelSpec {
   width?: number
 }
 
-// Angular presets measured off the head: "not too far" → 0.5 m out.
+// Angular presets measured from the mean-eye point, all at the same comfortable
+// distance (≈ the overhead menu's). Placed in the RIG frame so they're stable
+// regardless of standing/sitting and don't chase the live head pose.
+const PANEL_DISTANCE = 1.4
+
 const PRESETS: Record<AnchorPreset, AnchorSpec> = {
-  // Low and deliberate — you have to look well down to your belt to show it.
+  // Quick access: 45° down (faces up at you — the opposite tilt of the overhead).
   waist: {
     azimuthDeg: 0,
-    elevationDeg: -74,
-    distance: 0.92,
-    revealStartDeg: 34,
-    revealFullDeg: 14,
+    elevationDeg: -45,
+    distance: PANEL_DISTANCE,
+    revealStartDeg: 38,
+    revealFullDeg: 16,
   },
+  // Inventory: 45° up, 60° to the side.
   'left-shoulder': {
-    azimuthDeg: -70,
-    elevationDeg: 20,
-    distance: 0.5,
-    revealStartDeg: 48,
-    revealFullDeg: 24,
+    azimuthDeg: -60,
+    elevationDeg: 45,
+    distance: PANEL_DISTANCE,
+    revealStartDeg: 44,
+    revealFullDeg: 22,
   },
   'right-shoulder': {
-    azimuthDeg: 70,
-    elevationDeg: 20,
-    distance: 0.5,
-    revealStartDeg: 48,
-    revealFullDeg: 24,
+    azimuthDeg: 60,
+    elevationDeg: 45,
+    distance: PANEL_DISTANCE,
+    revealStartDeg: 44,
+    revealFullDeg: 22,
   },
-  // Watch-style, on a hand frame: just back of the grip toward the forearm,
-  // facing up out of the back of the wrist (you turn your wrist to read it).
-  // Starting offsets — expect to tune to the grip convention in-visor.
+  // Overhead/global menu: 60° up.
+  overhead: {
+    azimuthDeg: 0,
+    elevationDeg: 60,
+    distance: PANEL_DISTANCE,
+    revealStartDeg: 90,
+    revealFullDeg: 90,
+  },
+  // Watch-style, on a hand frame: sat on the back of the wrist (grip space: +Z
+  // points up the forearm toward the wrist, +Y out the back of the hand), facing
+  // up so you turn your wrist to read it. Starting offsets — tune in-visor.
   wrist: {
-    position: [0, 0.035, 0.06],
-    focus: [0, 0.5, 0.06],
+    position: [0, 0.04, -0.06],
+    focus: [0, 0.5, -0.06],
     rollDeg: 180, // grip space lands it upside down without this
     revealStartDeg: 55,
     revealFullDeg: 30,
@@ -152,7 +172,10 @@ export function attachFramePanel(
   cam: BABYLON.TargetCamera,
   frame: BABYLON.TransformNode,
   spec: FramePanelSpec
-): { update: () => void; dispose: () => void } {
+): {
+  update: (ctx?: { firstPerson?: boolean }) => void
+  dispose: () => void
+} {
   const anchor: AnchorSpec =
     typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor
   const focus = anchor.focus ?? DEFAULT_FOCUS
@@ -176,8 +199,11 @@ export function attachFramePanel(
     ]
   }
 
-  const el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''))
-  const aspect = el ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1 : spec.aspect ?? 1
+  const el =
+    spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''))
+  const aspect = el
+    ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
+    : spec.aspect ?? 1
   const width = spec.width ?? 0.26
 
   const plane = BABYLON.MeshBuilder.CreatePlane(
@@ -203,7 +229,12 @@ export function attachFramePanel(
   )
 
   const tex = el
-    ? new SvgTexture({ scene, element: el, resolution: 384, updateInterval: 400 })
+    ? new SvgTexture({
+        scene,
+        element: el,
+        resolution: 384,
+        updateInterval: 400,
+      })
     : new SvgTexture({ scene, url: spec.url, resolution: 384 })
   const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene)
   mat.backFaceCulling = false
@@ -227,14 +258,30 @@ export function attachFramePanel(
   const head = new BABYLON.Vector3()
   const fwd = new BABYLON.Vector3()
   const toAnchor = new BABYLON.Vector3()
+  const viewMode = spec.view ?? 'both'
+  const maxDist = spec.maxDistance ?? Infinity
 
   return {
-    update() {
-      if (alwaysOn) return
+    // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
+    // panel can be limited to one. Defaults to visible if no context is given.
+    update(ctx?: { firstPerson?: boolean }) {
+      const fp = ctx?.firstPerson ?? true
+      if (
+        (viewMode === 'first' && !fp) ||
+        (viewMode === 'third' && fp)
+      ) {
+        plane.visibility = 0
+        return
+      }
+      if (alwaysOn) {
+        plane.visibility = 1
+        return
+      }
       head.copyFrom(cam.globalPosition)
       cam.getDirectionToRef(XR_FORWARD, fwd)
       plane.getAbsolutePosition().subtractToRef(head, toAnchor)
-      plane.visibility = gazeReveal(fwd, toAnchor, cosStart, cosFull)
+      const v = gazeReveal(fwd, toAnchor, cosStart, cosFull)
+      plane.visibility = toAnchor.length() > maxDist ? 0 : v
     },
     dispose() {
       tex.dispose()
