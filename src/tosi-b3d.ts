@@ -1083,16 +1083,30 @@ export class B3d extends Component {
     plane.parent = cam.parent
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE
 
+    const fwd = new BABYLON.Vector3()
+    const mtx2 = new BABYLON.Matrix()
     let placed = false
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       if (placed) return
       placed = true
-      // Seat it once, ahead + above the head's neutral pose and tilted to face
-      // back down at it. Sampled from the live head height so it fits the player.
-      const hy = cam.position.y
-      plane.position.set(0, hy + ABOVE, FORWARD)
+      // Seat it ONCE, in the rig frame. Centre on the head's ACTUAL pose (not the
+      // rig origin — the player isn't standing at it, which threw the panel off
+      // to the side), ahead of the head's flattened facing and a little above,
+      // tilted to face back at the head.
+      const hp = cam.position // head pose, local to the rig
+      const q = cam.rotationQuaternion ?? BABYLON.Quaternion.Identity()
+      BABYLON.Matrix.FromQuaternionToRef(q, mtx2)
+      BABYLON.Vector3.TransformCoordinatesToRef(XR_FORWARD, mtx2, fwd) // local fwd
+      fwd.y = 0
+      if (fwd.lengthSquared() < 1e-4) fwd.set(0, 0, 1)
+      fwd.normalize()
+      plane.position.set(
+        hp.x + fwd.x * FORWARD,
+        hp.y + ABOVE,
+        hp.z + fwd.z * FORWARD
+      )
       plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-        Math.PI,
+        Math.atan2(-fwd.x, -fwd.z),
         Math.atan2(ABOVE, FORWARD),
         0
       )
