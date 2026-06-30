@@ -190,6 +190,13 @@ const GROUND_SEPARATION = 0.05
 
 const DEG2RAD = Math.PI / 180
 const PULL_UP_SECONDS = 5
+const LOCAL_Y = new BABYLON.Vector3(0, 1, 0)
+const LOCAL_Z = new BABYLON.Vector3(0, 0, 1)
+// Auto-level: per-second rate the wings relax toward level when the player isn't
+// actively rolling. Small vs the deliberate 60°/s manual roll, so it only tidies
+// up — it doesn't fight you.
+const AUTO_LEVEL_RATE = 0.7
+const AUTO_LEVEL_DEADZONE = 0.15 // |roll input| above this suspends auto-level
 // Landing: distance above clearance still counted as "on the ground", and the
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15
@@ -245,6 +252,8 @@ export class B3dAircraft extends B3dControllable {
   chaseDistance = 4.8 // chase distance behind
 
   private velocity = new BABYLON.Vector3(0, 0, 0)
+  private _fwd = new BABYLON.Vector3() // scratch: world nose direction (unit)
+  private _up = new BABYLON.Vector3() // scratch: world up direction (unit)
   private rollAngle = 0
   private meshNode: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
@@ -305,6 +314,20 @@ export class B3dAircraft extends B3dControllable {
       if (Math.abs(yawRollDelta) > 0.0001) {
         node.rotate(BABYLON.Axis.Z, yawRollDelta, BABYLON.Space.LOCAL)
       }
+      // Auto-level: when the player isn't actively rolling, gently relax the
+      // wings toward level so you don't get stuck banked. Bank angle = the
+      // aircraft's roll about its nose; counter-roll a small fraction of it.
+      if (Math.abs(input.strafe) < AUTO_LEVEL_DEADZONE) {
+        node.getDirectionToRef(LOCAL_Z, this._fwd)
+        node.getDirectionToRef(LOCAL_Y, this._up)
+        const right = BABYLON.Vector3.Cross(this._fwd, this._up)
+        const bank = Math.atan2(-right.y, this._up.y)
+        node.rotate(
+          BABYLON.Axis.Z,
+          bank * AUTO_LEVEL_RATE * dt,
+          BABYLON.Space.LOCAL
+        )
+      }
     } else {
       // Grounded: ease any rudder bank back to level so it rests flat.
       const prevRoll = this.rollAngle
@@ -316,8 +339,15 @@ export class B3dAircraft extends B3dControllable {
     }
 
     // --- Forces (delegated to pure aircraft-physics module) ---
-    const localUp = node.up
-    const localForward = node.forward
+    // NORMALIZED world axes. If the model carries scale, the raw forward/up are
+    // non-unit/skewed, which mis-scales every aero force (thrust, lift, drag,
+    // alignment) — exactly the "forces aren't transformed right" smell.
+    node.getDirectionToRef(LOCAL_Z, this._fwd)
+    this._fwd.normalize()
+    node.getDirectionToRef(LOCAL_Y, this._up)
+    this._up.normalize()
+    const localUp = this._up
+    const localForward = this._fwd
     const config: AircraftConfig = {
       maxSpeed: attrs.maxSpeed,
       acceleration: attrs.acceleration,

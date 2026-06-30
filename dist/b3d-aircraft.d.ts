@@ -48,6 +48,8 @@ export declare class B3dAircraft extends B3dControllable {
     chaseHeight: number;
     chaseDistance: number;
     private velocity;
+    private _fwd;
+    private _up;
     private rollAngle;
     private meshNode;
     private meshesToDispose;
