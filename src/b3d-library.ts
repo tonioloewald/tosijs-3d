@@ -132,6 +132,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
+import { normalizeScale } from './model-transform'
 
 export interface InstantiateOptions {
   x?: number
@@ -141,6 +142,11 @@ export interface InstantiateOptions {
   ry?: number
   rz?: number
   parent?: BABYLON.Node
+  /** Collapse the model's frame: bake its SCALE into the geometry so the returned
+   * node has unit scale (its orientation — the nose direction — is preserved).
+   * Vehicles want this: a clean unit-scale control node means forward/up come out
+   * unit and the camera can parent to the hull without per-use scale fixes. */
+  canonical?: boolean
 }
 
 export class B3dLibrary extends Component {
@@ -274,6 +280,19 @@ export class B3dLibrary extends Component {
     if (!clone) {
       console.error(`b3d-library: failed to clone "${name}"`)
       return null
+    }
+
+    // Collapse the model's scale into its geometry so the control node is unit
+    // scale (its orientation/nose is preserved). Single-mesh models only for now;
+    // a scaled parent of a sub-mesh hierarchy would need a recursive bake.
+    if (options.canonical) {
+      if (clone instanceof BABYLON.Mesh && clone.getChildMeshes().length === 0) {
+        normalizeScale(clone)
+      } else {
+        console.warn(
+          `b3d-library: canonical instantiate of "${name}" — scale bake skipped (not a leaf mesh); forward/up will still need normalizing.`
+        )
+      }
     }
 
     if (clone instanceof BABYLON.TransformNode) {

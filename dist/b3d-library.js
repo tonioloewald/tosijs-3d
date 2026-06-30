@@ -130,6 +130,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Core" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
+import { normalizeScale } from './model-transform';
 export class B3dLibrary extends Component {
     static initAttributes = {
         url: '',
@@ -231,6 +232,17 @@ export class B3dLibrary extends Component {
         if (!clone) {
             console.error(`b3d-library: failed to clone "${name}"`);
             return null;
+        }
+        // Collapse the model's scale into its geometry so the control node is unit
+        // scale (its orientation/nose is preserved). Single-mesh models only for now;
+        // a scaled parent of a sub-mesh hierarchy would need a recursive bake.
+        if (options.canonical) {
+            if (clone instanceof BABYLON.Mesh && clone.getChildMeshes().length === 0) {
+                normalizeScale(clone);
+            }
+            else {
+                console.warn(`b3d-library: canonical instantiate of "${name}" — scale bake skipped (not a leaf mesh); forward/up will still need normalizing.`);
+            }
         }
         if (clone instanceof BABYLON.TransformNode) {
             clone.position.x = options.x ?? 0;

@@ -478,6 +478,7 @@ export class B3dAircraft extends B3dControllable {
                     x: this.x ?? 0,
                     y: this.y ?? 0,
                     z: this.z ?? 0,
+                    canonical: true, // unit-scale control node (collapse the model frame)
                 });
                 if (!node) {
                     console.error(`b3d-aircraft: could not instantiate "${meshName}" from library "${libraryType}"`);

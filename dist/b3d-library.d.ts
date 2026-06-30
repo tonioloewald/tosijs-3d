@@ -9,6 +9,11 @@ export interface InstantiateOptions {
     ry?: number;
     rz?: number;
     parent?: BABYLON.Node;
+    /** Collapse the model's frame: bake its SCALE into the geometry so the returned
+     * node has unit scale (its orientation — the nose direction — is preserved).
+     * Vehicles want this: a clean unit-scale control node means forward/up come out
+     * unit and the camera can parent to the hull without per-use scale fixes. */
+    canonical?: boolean;
 }
 export declare class B3dLibrary extends Component {
     static initAttributes: {

@@ -527,6 +527,7 @@ export class B3dAircraft extends B3dControllable {
           x: (this as any).x ?? 0,
           y: (this as any).y ?? 0,
           z: (this as any).z ?? 0,
+          canonical: true, // unit-scale control node (collapse the model frame)
         })
         if (!node) {
           console.error(
