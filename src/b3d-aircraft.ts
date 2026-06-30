@@ -329,9 +329,11 @@ export class B3dAircraft extends B3dControllable {
         node.getDirectionToRef(LOCAL_Y, this._up)
         const right = BABYLON.Vector3.Cross(this._fwd, this._up)
         const bank = Math.atan2(-right.y, this._up.y)
+        // −bank: counter-roll REDUCES the bank (verified in aircraft-rig.test).
+        // +bank amplified it — that was the "self-leveling goes the wrong way".
         node.rotate(
           BABYLON.Axis.Z,
-          bank * AUTO_LEVEL_RATE * dt,
+          -bank * AUTO_LEVEL_RATE * dt,
           BABYLON.Space.LOCAL
         )
       }

@@ -258,7 +258,9 @@ export function bipedMapping(pad, _dt) {
     input.forward = pad.leftStickY;
     input.turn = pad.leftStickX;
     input.jump = pad.buttonA;
-    input.sprint = pad.leftBumper;
+    // Right trigger, not left bumper: movement is the LEFT stick, so a left-hand
+    // sprint modifier fights the left thumb. Right trigger frees that up.
+    input.sprint = pad.rightTrigger;
     input.interact = pad.buttonX;
     input.shoot = pad.buttonB;
     input.cameraZoom = pad.rightStickY;
@@ -274,7 +276,7 @@ export const bipedMappingDescriptor = {
         leftStickY: 'move',
         leftStickX: 'turn',
         buttonA: 'jump',
-        leftBumper: 'sprint',
+        rightTrigger: 'sprint',
         buttonX: 'interact',
         buttonB: 'shoot',
         rightStickY: 'camera',

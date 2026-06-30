@@ -196,6 +196,22 @@ describe('weathervane rotation direction', () => {
     expect(noseDotVel(n, velDir)).toBeGreaterThan(before)
   })
 
+  test('auto-level counter-roll (−bank·Z) REDUCES the bank', () => {
+    const n = makePlane()
+    n.rotate(BABYLON.Axis.Z, 0.4, BABYLON.Space.LOCAL) // bank it
+    const bankOf = () => {
+      const a = axes(n)
+      const r = BABYLON.Vector3.Cross(
+        new BABYLON.Vector3(a.forward.x, a.forward.y, a.forward.z),
+        new BABYLON.Vector3(a.up.x, a.up.y, a.up.z)
+      )
+      return Math.atan2(-r.y, a.up.y)
+    }
+    const before = bankOf()
+    n.rotate(BABYLON.Axis.Z, -before * 0.5, BABYLON.Space.LOCAL) // the fix's sign
+    expect(Math.abs(bankOf())).toBeLessThan(Math.abs(before))
+  })
+
   test('repeated convergence does NOT induce roll on a banked plane', () => {
     const n = makePlane()
     n.rotate(BABYLON.Axis.Z, Math.PI / 6, BABYLON.Space.LOCAL) // banked 30°
