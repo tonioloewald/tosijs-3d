@@ -955,11 +955,12 @@ export class B3d extends Component {
           chaseYaw = targetYaw - chaseYawOffset
           chasePos.set(targetX, targetY, targetZ)
         }
-        // Spring to the offset: horizontal eases (turning doesn't snap), but the
-        // VERTICAL tracks tightly so the chase doesn't sink below on a climb. (#3)
-        const posT = Math.min(1, (isChase ? 9 : 16) * dt)
-        const posTy = Math.min(1, 16 * dt)
-        const yawT = Math.min(1, 6 * dt)
+        // Cockpit is RIGID (you're bolted in — no lerp, or the hull drifts in
+        // your view as it accelerates). Chase eases horizontally; vertical always
+        // tracks tightly so it doesn't sink below on a climb.
+        const posT = isCockpit ? 1 : Math.min(1, (isChase ? 9 : 16) * dt)
+        const posTy = isCockpit ? 1 : Math.min(1, 16 * dt)
+        const yawT = isCockpit ? 1 : Math.min(1, 6 * dt)
         chasePos.x += (targetX - chasePos.x) * posT
         chasePos.y += (targetY - chasePos.y) * posTy
         chasePos.z += (targetZ - chasePos.z) * posT
@@ -986,6 +987,9 @@ export class B3d extends Component {
           chasePos.z - tmp.z
         )
         rig.rotationQuaternion = yawQuat
+        // Eye-frame panels align with the LOGICAL forward (entity facing), not
+        // the rig's recentered yaw: cancel the recenter (and the live peek).
+        frames.eyeYawOffset = chaseYawOffset - peekYaw
         return
       }
 
@@ -993,6 +997,7 @@ export class B3d extends Component {
       // (a set rotationQuaternion overrides the euler the stick-turn below uses).
       chaseFirstFrame = true
       lastPiloted = null
+      frames.eyeYawOffset = 0 // no recenter in free locomotion
       if (rig.rotationQuaternion != null) {
         rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y
         rig.rotationQuaternion = null

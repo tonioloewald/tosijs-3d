@@ -50,6 +50,11 @@ export declare class XrFrames {
     readonly leftHand: BABYLON.TransformNode;
     readonly rightHand: BABYLON.TransformNode;
     private inputObs;
+    /** Local yaw (radians) applied to the `eye` frame on top of the rig yaw. The
+     * piloting rig is yaw-RECENTERED so your head points along the entity; set this
+     * to that recenter so eye-anchored panels align with where you actually look,
+     * not the rig's raw yaw. */
+    eyeYawOffset: number;
     private cam;
     private bodyYaw;
     private seeded;

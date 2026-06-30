@@ -93,6 +93,11 @@ export class XrFrames {
     leftHand;
     rightHand;
     inputObs = [];
+    /** Local yaw (radians) applied to the `eye` frame on top of the rig yaw. The
+     * piloting rig is yaw-RECENTERED so your head points along the entity; set this
+     * to that recenter so eye-anchored panels align with where you actually look,
+     * not the rig's raw yaw. */
+    eyeYawOffset = 0;
     cam;
     bodyYaw = 0;
     seeded = false;
@@ -119,9 +124,10 @@ export class XrFrames {
         this.eye = new BABYLON.TransformNode('xr-frame-eye', scene);
         this.body.parent = rig;
         this.neck.parent = rig;
-        this.eye.parent = rig; // identity rotation → inherits rig yaw
+        this.eye.parent = rig; // local yaw = eyeYawOffset (rig-recenter correction)
         this.body.rotationQuaternion = new BABYLON.Quaternion();
         this.neck.rotationQuaternion = new BABYLON.Quaternion();
+        this.eye.rotationQuaternion = new BABYLON.Quaternion();
         // face: head-locked.
         this.face = new BABYLON.TransformNode('xr-frame-face', scene);
         this.face.parent = camera;
@@ -200,9 +206,11 @@ export class XrFrames {
         // glance to look at them and only swing when you actually turn (locomote),
         // matching the rig/overhead panels (the damped head-yaw chased them away).
         this.body.position.set(cam.position.x, 0, cam.position.z);
-        // Eye: at the head POSITION (rig yaw), so HUD panels anchored here ride the
-        // real eye through any chase head-compensation and across standing/sitting.
+        // Eye: at the head POSITION, with rig yaw + the recenter correction, so HUD
+        // panels anchored here ride the real eye (through chase head-compensation and
+        // standing/sitting) AND align with where you actually look.
         this.eye.position.copyFrom(cam.position);
+        BABYLON.Quaternion.RotationYawPitchRollToRef(this.eyeYawOffset, 0, 0, this.eye.rotationQuaternion);
         // Neck: head pose pushed down + back to the pivot; yaw-only so UI pinned here
         // turns with you but you can tip your head to look past it.
         const q = cam.rotationQuaternion ?? BABYLON.Quaternion.Identity();
