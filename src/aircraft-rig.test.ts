@@ -236,3 +236,59 @@ describe('weathervane rotation direction', () => {
     expect(Math.abs(bankAfter)).toBeLessThanOrEqual(Math.abs(bankBefore) + 0.05)
   })
 })
+
+// ───────────────────────────────────────────────────────────────────────────
+// 4. Bank-to-turn: the banked lift must CURVE THE VELOCITY (turn the flight
+//    path), not just point the nose. This is the whole "aircraft doesn't turn
+//    its velocity like a real plane" fix — turning banks, the bank curves the
+//    velocity, the nose follows. Integrate the pure force model over time.
+// ───────────────────────────────────────────────────────────────────────────
+describe('bank curves the velocity (the turn)', () => {
+  const dt = 0.1
+  const velAlong = (f: { x: number; y: number; z: number }, spd: number) => ({
+    x: f.x * spd,
+    y: f.y * spd,
+    z: f.z * spd,
+  })
+  const heading = (v: { x: number; z: number }) => Math.atan2(v.x, v.z)
+
+  // +Z roll tilts `up` toward −X (probe-verified — the 90° axis test only pins
+  // |up.x|, not its sign), so lift gains −X → velocity curves toward −X → heading
+  // atan2(x,z) DECREASES. −Z bank is the mirror. Either way the PATH turns.
+  const turnsToward = (rollSign: number) => {
+    const n = makePlane()
+    n.rotate(BABYLON.Axis.Z, rollSign * (35 * Math.PI) / 180, BABYLON.Space.LOCAL)
+    const a = axes(n)
+    const vel = velAlong(a.forward, CRUISE)
+    const h0 = heading(vel)
+    for (let i = 0; i < 25; i++) {
+      const { dv } = computeForces(vel, a, 0, CONFIG, dt)
+      vel.x += dv.x
+      vel.y += dv.y
+      vel.z += dv.z
+    }
+    return heading(vel) - h0
+  }
+
+  test('banked +Z at cruise: velocity heading swings − (path turns)', () => {
+    expect(turnsToward(+1)).toBeLessThan(-0.08) // the path turned, not just the nose
+  })
+
+  test('banked −Z at cruise: velocity heading swings + (mirror)', () => {
+    expect(turnsToward(-1)).toBeGreaterThan(0.08)
+  })
+
+  test('wings level: velocity heading holds (no spurious turn)', () => {
+    const n = makePlane()
+    const a = axes(n)
+    const vel = velAlong(a.forward, CRUISE)
+    const h0 = heading(vel)
+    for (let i = 0; i < 25; i++) {
+      const { dv } = computeForces(vel, a, 0, CONFIG, dt)
+      vel.x += dv.x
+      vel.y += dv.y
+      vel.z += dv.z
+    }
+    expect(Math.abs(heading(vel) - h0)).toBeLessThan(0.01)
+  })
+})

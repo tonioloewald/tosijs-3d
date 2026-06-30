@@ -193,10 +193,15 @@ const PULL_UP_SECONDS = 5
 const LOCAL_Y = new BABYLON.Vector3(0, 1, 0)
 const LOCAL_Z = new BABYLON.Vector3(0, 0, 1)
 // Auto-level: per-second rate the wings relax toward level when the player isn't
-// actively rolling. Small vs the deliberate 60°/s manual roll, so it only tidies
-// up — it doesn't fight you.
-const AUTO_LEVEL_RATE = 0.7
+// actively rolling OR turning. Small vs the deliberate 60°/s manual roll, so it
+// only tidies up — it doesn't fight you.
+const AUTO_LEVEL_RATE = 0.35
 const AUTO_LEVEL_DEADZONE = 0.15 // |roll input| above this suspends auto-level
+// Bank-to-turn: full turn stick banks the wings this far. The BANK is the turn —
+// banked lift has a horizontal component that curves the velocity (a real
+// coordinated turn), and the weathervane swings the nose to follow. Steeper =
+// tighter/faster turn (and more altitude lost, since vertical lift = L·cos bank).
+const MAX_BANK = 45 * DEG2RAD
 // Weathervane: per-second rate the NOSE converges toward the direction of travel
 // (reduces sideslip/angle-of-attack), scaled by airspeed — so at speed the plane
 // flies pointed where it's going, but slow flight stays loose and forgiving.
@@ -293,15 +298,13 @@ export class B3dAircraft extends B3dControllable {
       return
     }
 
-    // --- Orientation: pitch, yaw, roll ---
-    // Yaw works on the ground (steering) and in the air. Pitch and roll are
-    // flight controls — disabled while grounded, so the aircraft sits level
-    // instead of rolling/pitching from stick input on the runway.
-    node.rotate(
-      BABYLON.Axis.Y,
-      input.turn * attrs.turnRate * DEG2RAD * dt,
-      BABYLON.Space.WORLD
-    )
+    // --- Orientation: pitch, roll/bank ---
+    // Airborne, the plane turns by BANKING — there is NO direct nose-yaw. A real
+    // aircraft doesn't swing its nose around a fixed velocity; it banks, the
+    // banked lift curves the velocity, and the nose weathervanes to follow. The
+    // old direct world-Y yaw (turnRate °/s) swung the nose ~4× faster than the
+    // lift could curve the path → a permanent skid the weathervane fought. So
+    // turn → bank here, and direct yaw survives only as ground taxi steering.
     if (!this.grounded) {
       node.rotate(
         BABYLON.Axis.X,
@@ -312,19 +315,24 @@ export class B3dAircraft extends B3dControllable {
       if (Math.abs(manualRoll) > 0.001) {
         node.rotate(BABYLON.Axis.Z, -manualRoll, BABYLON.Space.LOCAL)
       }
-      // Yaw-coupled roll: rudder banks the aircraft (max 30° at full rudder).
-      const yawCoupledTarget = -input.turn * 30 * DEG2RAD
+      // Turn-to-bank: the turn stick eases the wings to a bank proportional to
+      // deflection (up to MAX_BANK). This bank IS the turn — its lift curves the
+      // velocity; the weathervane below swings the nose onto the new heading.
+      const bankTarget = -input.turn * MAX_BANK
       const prevRoll = this.rollAngle
-      this.rollAngle +=
-        (yawCoupledTarget - this.rollAngle) * Math.min(1, 3 * dt)
+      this.rollAngle += (bankTarget - this.rollAngle) * Math.min(1, 3 * dt)
       const yawRollDelta = this.rollAngle - prevRoll
       if (Math.abs(yawRollDelta) > 0.0001) {
         node.rotate(BABYLON.Axis.Z, yawRollDelta, BABYLON.Space.LOCAL)
       }
-      // Auto-level: when the player isn't actively rolling, gently relax the
-      // wings toward level so you don't get stuck banked. Bank angle = the
+      // Auto-level: when the player is neither rolling NOR turning, gently relax
+      // the wings toward level so you don't get stuck banked. (Suspended during a
+      // turn — else it would fight the commanded bank.) Bank angle = the
       // aircraft's roll about its nose; counter-roll a small fraction of it.
-      if (Math.abs(input.strafe) < AUTO_LEVEL_DEADZONE) {
+      if (
+        Math.abs(input.strafe) < AUTO_LEVEL_DEADZONE &&
+        Math.abs(input.turn) < AUTO_LEVEL_DEADZONE
+      ) {
         node.getDirectionToRef(LOCAL_Z, this._fwd)
         node.getDirectionToRef(LOCAL_Y, this._up)
         const right = BABYLON.Vector3.Cross(this._fwd, this._up)
@@ -359,7 +367,14 @@ export class B3dAircraft extends B3dControllable {
         node.rotate(BABYLON.Axis.Y, dHeading * frac, BABYLON.Space.WORLD)
       }
     } else {
-      // Grounded: ease any rudder bank back to level so it rests flat.
+      // Grounded: direct nose-yaw steers the taxiing aircraft (the airborne path
+      // has no direct yaw — it banks to turn).
+      node.rotate(
+        BABYLON.Axis.Y,
+        input.turn * attrs.turnRate * DEG2RAD * dt,
+        BABYLON.Space.WORLD
+      )
+      // Ease any bank back to level so it rests flat.
       const prevRoll = this.rollAngle
       this.rollAngle += (0 - this.rollAngle) * Math.min(1, 3 * dt)
       const delta = this.rollAngle - prevRoll
