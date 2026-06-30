@@ -154,7 +154,6 @@ const noop = () => { };
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0);
-const XR_UP = new BABYLON.Vector3(0, 1, 0);
 export class B3d extends Component {
     static initAttributes = {
         glowLayerIntensity: 0,
@@ -765,8 +764,6 @@ export class B3d extends Component {
         // the piloted entity's position AND facing, with head-tracking compensation.
         const chasePos = new BABYLON.Vector3();
         const yawQuat = new BABYLON.Quaternion();
-        const recenterQuat = new BABYLON.Quaternion(); // cockpit: yaw-recenter
-        const cockpitLocal = new BABYLON.Vector3(); // cockpit seat offset in hull frame
         const mtx = new BABYLON.Matrix();
         let chaseYaw = 0;
         let chaseYawOffset = 0;
@@ -822,42 +819,32 @@ export class B3d extends Component {
                 const zoomIn = entity?.lastInput?.cameraZoom ?? 0;
                 const peekIn = entity?.lastInput?.cameraPeek ?? 0;
                 const peekYaw = peekIn * MAX_PEEK;
-                // COCKPIT: ride the hull rigidly with its FULL orientation — you bank,
-                // pitch and roll with the plane, head tracking on top. The airframe
-                // orientation is a scale-robust NORMALIZED basis (forward+up); the view
-                // is yaw-RECENTERED (chaseYawOffset) so a neutral head looks out the nose
-                // regardless of how you were facing. rig = Y(peek−recenter) ∘ airframe.
+                // COCKPIT: LITERALLY parent the rig to the hull — Babylon composes the
+                // transform, so the camera inherits the airframe's full orientation with
+                // zero hand-rolled quaternions. Identity local rotation = ride the hull's
+                // orientation exactly. Scale is neutralized (rig world scale → 1) so head
+                // tracking and the seat offset stay 1:1. The seat offset is head-comp'd
+                // so your eye lands at (0, eyeH, cockpitForward) in the hull frame.
                 if (isCockpit) {
-                    piloted.getDirectionToRef(XR_FORWARD, fwd);
-                    fwd.normalize();
-                    piloted.getDirectionToRef(XR_UP, side);
-                    side.normalize();
-                    const airframeQ = BABYLON.Quaternion.FromLookDirectionLH(fwd, side);
-                    if (chaseFirstFrame || lastPiloted !== piloted) {
-                        chaseFirstFrame = false;
-                        lastPiloted = piloted;
-                        chaseYawOffset = cam.rotationQuaternion
-                            ? cam.rotationQuaternion.toEulerAngles().y
-                            : 0;
+                    if (rig.parent !== piloted) {
+                        rig.parent = piloted;
+                        rig.rotationQuaternion = BABYLON.Quaternion.Identity();
                     }
-                    // Seat point: fixed in the hull frame (banks with it). Rigid — no lerp.
-                    BABYLON.Matrix.FromQuaternionToRef(airframeQ, mtx);
-                    cockpitLocal.set(0, eyeH, entity?.cockpitForward ?? 0.5);
-                    BABYLON.Vector3.TransformCoordinatesToRef(cockpitLocal, mtx, tmp);
-                    const ap = piloted.absolutePosition;
-                    const sx = ap.x + tmp.x;
-                    const sy = ap.y + tmp.y;
-                    const sz = ap.z + tmp.z;
-                    // Rig orientation = world-Y(peek − recenter) ∘ airframe.
-                    BABYLON.Quaternion.RotationYawPitchRollToRef(peekYaw - chaseYawOffset, 0, 0, recenterQuat);
-                    recenterQuat.multiplyToRef(airframeQ, yawQuat);
-                    BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx);
-                    BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp);
-                    rig.rotationQuaternion = yawQuat;
-                    rig.position.set(sx - tmp.x, sy - tmp.y, sz - tmp.z);
-                    // Panels: align with the recentered forward (cancel recenter + peek).
-                    frames.eyeYawOffset = chaseYawOffset - peekYaw;
+                    const sc = piloted.scaling;
+                    const sx = sc.x || 1;
+                    const sy = sc.y || 1;
+                    const sz = sc.z || 1;
+                    rig.scaling.set(1 / sx, 1 / sy, 1 / sz);
+                    rig.position.set(-cam.position.x / sx, (eyeH - cam.position.y) / sy, ((entity?.cockpitForward ?? 0.5) - cam.position.z) / sz);
+                    frames.eyeYawOffset = 0;
+                    chaseFirstFrame = true; // re-seat the chase on toggle-out
                     return;
+                }
+                // Non-cockpit: ensure the rig is back in world space.
+                if (rig.parent != null) {
+                    rig.parent = null;
+                    rig.scaling.set(1, 1, 1);
+                    chaseFirstFrame = true;
                 }
                 if (isChase) {
                     chaseZoom = Math.max(0, Math.min(1, chaseZoom - zoomIn * dt * ZOOM_RATE));
@@ -915,7 +902,12 @@ export class B3d extends Component {
             // (a set rotationQuaternion overrides the euler the stick-turn below uses).
             chaseFirstFrame = true;
             lastPiloted = null;
+            lastView = '';
             frames.eyeYawOffset = 0; // no recenter in free locomotion
+            if (rig.parent != null) {
+                rig.parent = null; // came from the cockpit — back to world space
+                rig.scaling.set(1, 1, 1);
+            }
             if (rig.rotationQuaternion != null) {
                 rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y;
                 rig.rotationQuaternion = null;
