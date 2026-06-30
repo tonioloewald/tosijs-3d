@@ -230,7 +230,11 @@ export class B3dBiped extends B3dControllable {
     const EYE_UP = 0.06
     if (this.headNode != null) {
       const hp = this.headNode.getAbsolutePosition()
-      this._eyePos.set(hp.x + f.x * EYE_FWD, hp.y + EYE_UP, hp.z + f.z * EYE_FWD)
+      this._eyePos.set(
+        hp.x + f.x * EYE_FWD,
+        hp.y + EYE_UP,
+        hp.z + f.z * EYE_FWD
+      )
     } else {
       const o = this.mesh.getAbsolutePosition()
       this._eyePos.set(
@@ -631,9 +635,16 @@ export class B3dBiped extends B3dControllable {
   private setHeadHidden(hidden: boolean) {
     if (hidden && this.hiddenHead.length === 0 && this.entries != null) {
       const root = this.entries.rootNodes[0] as BABYLON.Mesh
-      this.hiddenHead = root
-        .getChildMeshes()
-        .filter((m) => /head/i.test(m.name))
+      const meshes = root.getChildMeshes()
+      this.hiddenHead = meshes.filter((m) => /head/i.test(m.name))
+      if (this.hiddenHead.length === 0) {
+        // The head mesh isn't named *head*, so first-person can't hide it.
+        // List the names so the right mesh can be identified/renamed.
+        console.warn(
+          '[b3d-biped] first-person: no mesh matched /head/i to hide. Meshes:',
+          meshes.map((m) => m.name)
+        )
+      }
     }
     for (const m of this.hiddenHead) m.isVisible = !hidden
   }

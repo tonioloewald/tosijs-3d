@@ -169,7 +169,6 @@ const noop = () => {}
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0)
-const XR_UP = new BABYLON.Vector3(0, 1, 0)
 
 export class B3d extends Component {
   static initAttributes = {
@@ -783,10 +782,8 @@ export class B3d extends Component {
     // Entity-pinned nameplates: a label over each non-player biped, on a frame
     // that turns to face you, revealed only when you look at them. The basis for
     // dialogue balloons and lock-on brackets.
-    const nameplates = Array.from(
-      this.querySelectorAll('tosi-b3d-biped')
-    )
-       
+    const nameplates = Array.from(this.querySelectorAll('tosi-b3d-biped'))
+
       .map((el) => el as any)
       .filter((b) => !b.player && b.mesh != null)
       .map((b) => {
@@ -860,7 +857,10 @@ export class B3d extends Component {
     const chasePos = new BABYLON.Vector3()
     const yawQuat = new BABYLON.Quaternion()
     const followQuat = new BABYLON.Quaternion() // cockpit: aircraft's full orient
+    const aimQuat = new BABYLON.Quaternion() // cockpit: target orient (pre-slerp)
     const cockpitLocal = new BABYLON.Vector3() // cockpit offset in the model frame
+    const decScale = new BABYLON.Vector3() // scratch for world-matrix decompose
+    const decPos = new BABYLON.Vector3()
     const mtx = new BABYLON.Matrix()
     let chaseYaw = 0
     let chaseYawOffset = 0
@@ -904,31 +904,29 @@ export class B3d extends Component {
         // back the rig out by the head's tracked local offset so the head lands
         // exactly there. (#2)
         if (view === 'cockpit') {
-          // Orientation from the airframe's WORLD basis (forward + up), not its
-          // local rotationQuaternion — robust to the glTF loader's __root__
-          // handedness flip / scale, which made the cockpit sit in the wrong
-          // frame. absolutePosition for the same reason.
-          piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
-          piloted.getDirectionToRef(XR_UP, side) // world up (reuse scratch)
-          const aimQ = BABYLON.Quaternion.FromLookDirectionLH(fwd, side)
+          // Rigidly ride the hull. Pull a CLEAN rotation + position out of the
+          // airframe's world matrix — decompose strips the model's scale, which
+          // was skewing the getDirectionToRef basis into a distorted "scaled"
+          // frame. The cockpit then sits in the hull exactly, head tracking on
+          // top, immune to whatever scale/__root__ the model carries.
+          piloted.getWorldMatrix().decompose(decScale, aimQuat, decPos)
           if (lastPiloted !== piloted) {
-            followQuat.copyFrom(aimQ) // seat on entry — no slerp from identity
+            followQuat.copyFrom(aimQuat) // seat on entry — no slerp from identity
             lastPiloted = piloted
           }
           // Light low-pass so flight-model jitter doesn't shake the rigid cockpit.
           BABYLON.Quaternion.SlerpToRef(
             followQuat,
-            aimQ,
+            aimQuat,
             Math.min(1, 20 * dt),
             followQuat
           )
           BABYLON.Matrix.FromQuaternionToRef(followQuat, mtx)
           cockpitLocal.set(0, eyeH, entity?.cockpitForward ?? 0.5)
           BABYLON.Vector3.TransformCoordinatesToRef(cockpitLocal, mtx, tmp)
-          const ap = piloted.absolutePosition
-          const cx = ap.x + tmp.x
-          const cy = ap.y + tmp.y
-          const cz = ap.z + tmp.z
+          const cx = decPos.x + tmp.x
+          const cy = decPos.y + tmp.y
+          const cz = decPos.z + tmp.z
           BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
           rig.rotationQuaternion = followQuat
           rig.position.set(cx - tmp.x, cy - tmp.y, cz - tmp.z)

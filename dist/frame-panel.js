@@ -110,7 +110,9 @@ export function attachFramePanel(scene, cam, frame, spec) {
         ];
     }
     const el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''));
-    const aspect = el ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1 : spec.aspect ?? 1;
+    const aspect = el
+        ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1
+        : spec.aspect ?? 1;
     const width = spec.width ?? 0.26;
     const plane = BABYLON.MeshBuilder.CreatePlane('frame-panel', { width, height: width * aspect, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
     plane.parent = frame;
@@ -126,7 +128,12 @@ export function attachFramePanel(scene, cam, frame, spec) {
     const roll = (anchor.rollDeg ?? 0) * DEG;
     plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, roll);
     const tex = el
-        ? new SvgTexture({ scene, element: el, resolution: 384, updateInterval: 400 })
+        ? new SvgTexture({
+            scene,
+            element: el,
+            resolution: 384,
+            updateInterval: 400,
+        })
         : new SvgTexture({ scene, url: spec.url, resolution: 384 });
     const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene);
     mat.backFaceCulling = false;

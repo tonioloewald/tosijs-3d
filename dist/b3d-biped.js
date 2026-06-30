@@ -508,9 +508,13 @@ export class B3dBiped extends B3dControllable {
     setHeadHidden(hidden) {
         if (hidden && this.hiddenHead.length === 0 && this.entries != null) {
             const root = this.entries.rootNodes[0];
-            this.hiddenHead = root
-                .getChildMeshes()
-                .filter((m) => /head/i.test(m.name));
+            const meshes = root.getChildMeshes();
+            this.hiddenHead = meshes.filter((m) => /head/i.test(m.name));
+            if (this.hiddenHead.length === 0) {
+                // The head mesh isn't named *head*, so first-person can't hide it.
+                // List the names so the right mesh can be identified/renamed.
+                console.warn('[b3d-biped] first-person: no mesh matched /head/i to hide. Meshes:', meshes.map((m) => m.name));
+            }
         }
         for (const m of this.hiddenHead)
             m.isVisible = !hidden;
