@@ -872,6 +872,7 @@ export class B3d extends Component {
     const mtx = new BABYLON.Matrix()
     let chaseYaw = 0
     let chaseYawOffset = 0
+    let cockpitYawOffset = 0 // head yaw captured when you take the seat
     let lastView = '' // re-seat when the camera view toggles
     let chaseZoom = 0.5 // 0..1 chase distance (right stick Y while piloting)
     let chaseFirstFrame = true
@@ -934,19 +935,33 @@ export class B3d extends Component {
         if (isCockpit) {
           if (rig.parent !== piloted) {
             rig.parent = piloted
-            rig.rotationQuaternion = BABYLON.Quaternion.Identity()
+            // Capture the head's entry yaw so we can recenter the CAMERA to look
+            // out the nose without moving the (correctly-placed) panels.
+            cockpitYawOffset = cam.rotationQuaternion
+              ? cam.rotationQuaternion.toEulerAngles().y
+              : 0
           }
-          const sc = piloted.scaling
-          const sx = sc.x || 1
-          const sy = sc.y || 1
-          const sz = sc.z || 1
-          rig.scaling.set(1 / sx, 1 / sy, 1 / sz)
-          rig.position.set(
-            -cam.position.x / sx,
-            (eyeH - cam.position.y) / sy,
-            ((entity?.cockpitForward ?? 0.5) - cam.position.z) / sz
+          const s = piloted.scaling.x || 1
+          rig.scaling.set(1 / s, 1 / s, 1 / s)
+          // Rig local rotation = RotationY(−entryYaw): swings the head to forward.
+          BABYLON.Quaternion.RotationYawPitchRollToRef(
+            -cockpitYawOffset,
+            0,
+            0,
+            yawQuat
           )
-          frames.eyeYawOffset = 0
+          rig.rotationQuaternion = yawQuat
+          // Head-comp THROUGH that rotation so the eye still lands at the seat.
+          BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
+          BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
+          rig.position.set(
+            -tmp.x / s,
+            (eyeH - tmp.y) / s,
+            ((entity?.cockpitForward ?? 0.5) - tmp.z) / s
+          )
+          // Counter-rotate the eye frame by +entryYaw so the panels DON'T move
+          // (they were already correct) while the camera recenters.
+          frames.eyeYawOffset = cockpitYawOffset
           chaseFirstFrame = true // re-seat the chase on toggle-out
           return
         }
