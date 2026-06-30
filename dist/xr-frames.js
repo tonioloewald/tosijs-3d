@@ -88,7 +88,6 @@ export class XrFrames {
      * controller is connected for that hand. Wire with `attachInput`. */
     leftHand;
     rightHand;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     inputObs = [];
     cam;
     bodyYaw = 0;
@@ -130,11 +129,9 @@ export class XrFrames {
     }
     /** Wire hand/wrist frames to the WebXR input so they track the controller grip
      * for each hand. Pass `xrHelper.input`. Safe to call once. */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     attachInput(input) {
         if (input == null)
             return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const added = (controller) => {
             const hand = controller?.inputSource?.handedness;
             const bind = () => {
@@ -154,7 +151,6 @@ export class XrFrames {
             bind();
             controller?.onMotionControllerInitObservable?.add(bind);
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const removed = (controller) => {
             const hand = controller?.inputSource?.handedness;
             // Detach BEFORE Babylon disposes the grip (it would recurse to our child).

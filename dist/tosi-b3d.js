@@ -699,7 +699,6 @@ export class B3d extends Component {
         // that turns to face you, revealed only when you look at them. The basis for
         // dialogue balloons and lock-on brackets.
         const nameplates = Array.from(this.querySelectorAll('tosi-b3d-biped'))
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map((el) => el)
             .filter((b) => !b.player && b.mesh != null)
             .map((b) => {
@@ -922,9 +921,8 @@ export class B3d extends Component {
                 rig.position.z += head.z - cam.globalPosition.z;
             }
         });
-        const host = this;
         return {
-            dispose() {
+            dispose: () => {
                 base.sessionManager.onXRFrameObservable.remove(frame);
                 panel.dispose();
                 for (const p of bodyPanels)
@@ -934,7 +932,7 @@ export class B3d extends Component {
                     n.ef.dispose();
                 }
                 frames.dispose();
-                host.xrFrames = null;
+                this.xrFrames = null;
                 cam.parent = null;
                 ground.dispose();
                 grid.dispose();

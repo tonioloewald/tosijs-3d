@@ -786,7 +786,7 @@ export class B3d extends Component {
     const nameplates = Array.from(
       this.querySelectorAll('tosi-b3d-biped')
     )
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       .map((el) => el as any)
       .filter((b) => !b.player && b.mesh != null)
       .map((b) => {
@@ -1052,9 +1052,8 @@ export class B3d extends Component {
       }
     })
 
-    const host = this
     return {
-      dispose() {
+      dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
         panel.dispose()
         for (const p of bodyPanels) p.dispose()
@@ -1063,7 +1062,7 @@ export class B3d extends Component {
           n.ef.dispose()
         }
         frames.dispose()
-        host.xrFrames = null
+        this.xrFrames = null
         cam.parent = null
         ground.dispose()
         grid.dispose()
