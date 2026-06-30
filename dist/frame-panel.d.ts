@@ -14,6 +14,8 @@ export interface AnchorSpec {
     /** Point the panel turns to face (default the head ≈ (0, 1.6, 0)). Also the
      * origin angular placement is measured from. */
     focus?: [number, number, number];
+    /** Roll about the panel's normal (deg) — e.g. 180 to flip an upside-down pin. */
+    rollDeg?: number;
     /** Gaze half-angle (deg) where the reveal begins / completes. */
     revealStartDeg?: number;
     revealFullDeg?: number;
@@ -26,6 +28,9 @@ export interface FramePanelSpec {
     /** `gaze` (default): show as you look toward it. `always`: always visible
      * (reticles, persistent HUD). */
     reveal?: 'gaze' | 'always';
+    /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
+     * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
+    blend?: 'composite' | 'add';
     /** Placeholder title (ignored if `svg`/`url` is supplied). */
     title?: string;
     /** Custom panel SVG element (live/dynamic content). */

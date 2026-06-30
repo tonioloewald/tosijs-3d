@@ -45,8 +45,6 @@ export declare class XrFrames {
      * controller is connected for that hand. Wire with `attachInput`. */
     readonly leftHand: BABYLON.TransformNode;
     readonly rightHand: BABYLON.TransformNode;
-    private leftGrip;
-    private rightGrip;
     private inputObs;
     private cam;
     private bodyYaw;
@@ -64,11 +62,9 @@ export declare class XrFrames {
     attachInput(input: any): void;
     /** Resolve a frame node by name (for config that names a frame as a string). */
     get(name: FrameName): BABYLON.TransformNode;
-    /** Pose a hand frame from its grip, or disable it if the controller is gone. */
-    private poseHand;
     /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
     private headLocalYaw;
-    /** Call once per XR frame. */
+    /** Call once per XR frame. (Hands ride their grips by parenting, not here.) */
     update(dt: number): void;
     dispose(): void;
 }

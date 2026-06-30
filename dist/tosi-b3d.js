@@ -358,8 +358,9 @@ export class B3d extends Component {
             frame: 'face',
             anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
             reveal: 'always',
+            blend: 'add',
             url: '/reticle.svg',
-            width: 0.12,
+            width: 0.24,
         },
         { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
     ];

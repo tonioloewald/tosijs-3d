@@ -42,6 +42,8 @@ export interface AnchorSpec {
   /** Point the panel turns to face (default the head ≈ (0, 1.6, 0)). Also the
    * origin angular placement is measured from. */
   focus?: [number, number, number]
+  /** Roll about the panel's normal (deg) — e.g. 180 to flip an upside-down pin. */
+  rollDeg?: number
   /** Gaze half-angle (deg) where the reveal begins / completes. */
   revealStartDeg?: number
   revealFullDeg?: number
@@ -55,6 +57,9 @@ export interface FramePanelSpec {
   /** `gaze` (default): show as you look toward it. `always`: always visible
    * (reticles, persistent HUD). */
   reveal?: 'gaze' | 'always'
+  /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
+   * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
+  blend?: 'composite' | 'add'
   /** Placeholder title (ignored if `svg`/`url` is supplied). */
   title?: string
   /** Custom panel SVG element (live/dynamic content). */
@@ -72,8 +77,8 @@ const PRESETS: Record<AnchorPreset, AnchorSpec> = {
   // Low and deliberate — you have to look well down to your belt to show it.
   waist: {
     azimuthDeg: 0,
-    elevationDeg: -68,
-    distance: 0.85,
+    elevationDeg: -74,
+    distance: 0.92,
     revealStartDeg: 34,
     revealFullDeg: 14,
   },
@@ -97,6 +102,7 @@ const PRESETS: Record<AnchorPreset, AnchorSpec> = {
   wrist: {
     position: [0, 0.035, 0.06],
     focus: [0, 0.5, 0.06],
+    rollDeg: 180, // grip space lands it upside down without this
     revealStartDeg: 55,
     revealFullDeg: 30,
   },
@@ -122,8 +128,7 @@ export function placeholderPanelSvg(
   rect.setAttribute('height', String(h - 8))
   rect.setAttribute('rx', '18')
   rect.setAttribute('fill', 'rgba(18,22,31,0.82)')
-  rect.setAttribute('stroke', 'rgba(120,170,255,0.9)')
-  rect.setAttribute('stroke-width', '3')
+  // No border — thin strokes alias badly at distance in the headset.
   svg.appendChild(rect)
   const text = document.createElementNS(NS, 'text')
   text.setAttribute('x', String(w / 2))
@@ -190,7 +195,12 @@ export function attachFramePanel(
   const dz = focus[2] - pos[2]
   const yaw = Math.atan2(dx, dz)
   const pitch = -Math.atan2(dy, Math.hypot(dx, dz))
-  plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, 0)
+  const roll = (anchor.rollDeg ?? 0) * DEG
+  plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+    yaw,
+    pitch,
+    roll
+  )
 
   const tex = el
     ? new SvgTexture({ scene, element: el, resolution: 384, updateInterval: 400 })
@@ -205,6 +215,12 @@ export function attachFramePanel(
   tex.texture.uOffset = 1
   mat.diffuseColor = BABYLON.Color3.Black()
   mat.disableLighting = true
+  // Additive for glowing HUD glyphs (reticle): dark pixels add nothing, bright
+  // ones glow over the scene; don't occlude. Default composite (alpha-over).
+  if (spec.blend === 'add') {
+    mat.alphaMode = BABYLON.Constants.ALPHA_ADD
+    mat.disableDepthWrite = true
+  }
   plane.material = mat
   plane.visibility = alwaysOn ? 1 : 0
 

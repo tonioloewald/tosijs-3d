@@ -25,8 +25,8 @@ const PRESETS = {
     // Low and deliberate — you have to look well down to your belt to show it.
     waist: {
         azimuthDeg: 0,
-        elevationDeg: -68,
-        distance: 0.85,
+        elevationDeg: -74,
+        distance: 0.92,
         revealStartDeg: 34,
         revealFullDeg: 14,
     },
@@ -50,6 +50,7 @@ const PRESETS = {
     wrist: {
         position: [0, 0.035, 0.06],
         focus: [0, 0.5, 0.06],
+        rollDeg: 180, // grip space lands it upside down without this
         revealStartDeg: 55,
         revealFullDeg: 30,
     },
@@ -69,8 +70,7 @@ export function placeholderPanelSvg(title, w = 320, h = 200) {
     rect.setAttribute('height', String(h - 8));
     rect.setAttribute('rx', '18');
     rect.setAttribute('fill', 'rgba(18,22,31,0.82)');
-    rect.setAttribute('stroke', 'rgba(120,170,255,0.9)');
-    rect.setAttribute('stroke-width', '3');
+    // No border — thin strokes alias badly at distance in the headset.
     svg.appendChild(rect);
     const text = document.createElementNS(NS, 'text');
     text.setAttribute('x', String(w / 2));
@@ -123,7 +123,8 @@ export function attachFramePanel(scene, cam, frame, spec) {
     const dz = focus[2] - pos[2];
     const yaw = Math.atan2(dx, dz);
     const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
-    plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, 0);
+    const roll = (anchor.rollDeg ?? 0) * DEG;
+    plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, roll);
     const tex = el
         ? new SvgTexture({ scene, element: el, resolution: 384, updateInterval: 400 })
         : new SvgTexture({ scene, url: spec.url, resolution: 384 });
@@ -137,6 +138,12 @@ export function attachFramePanel(scene, cam, frame, spec) {
     tex.texture.uOffset = 1;
     mat.diffuseColor = BABYLON.Color3.Black();
     mat.disableLighting = true;
+    // Additive for glowing HUD glyphs (reticle): dark pixels add nothing, bright
+    // ones glow over the scene; don't occlude. Default composite (alpha-over).
+    if (spec.blend === 'add') {
+        mat.alphaMode = BABYLON.Constants.ALPHA_ADD;
+        mat.disableDepthWrite = true;
+    }
     plane.material = mat;
     plane.visibility = alwaysOn ? 1 : 0;
     const head = new BABYLON.Vector3();

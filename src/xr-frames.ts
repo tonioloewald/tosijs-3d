@@ -136,8 +136,6 @@ export class XrFrames {
   readonly leftHand: BABYLON.TransformNode
   readonly rightHand: BABYLON.TransformNode
 
-  private leftGrip: BABYLON.TransformNode | null = null
-  private rightGrip: BABYLON.TransformNode | null = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private inputObs: { obs: any; cb: any }[] = []
   private cam: BABYLON.TargetCamera
@@ -195,20 +193,35 @@ export class XrFrames {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const added = (controller: any) => {
       const hand = controller?.inputSource?.handedness
-      const set = () => {
-        if (hand === 'left') this.leftGrip = controller.grip ?? controller.pointer
-        else if (hand === 'right')
-          this.rightGrip = controller.grip ?? controller.pointer
+      const bind = () => {
+        const grip = controller.grip ?? controller.pointer
+        if (grip == null) return
+        // PARENT the hand frame to the grip — rigid, so the panel doesn't jiggle
+        // against the rendered controller (copying the pose each frame lagged it).
+        const frame = hand === 'left' ? this.leftHand : this.rightHand
+        if (hand !== 'left' && hand !== 'right') return
+        frame.parent = grip
+        frame.position.set(0, 0, 0)
+        ;(frame.rotationQuaternion as BABYLON.Quaternion).set(0, 0, 0, 1)
+        frame.setEnabled(true)
       }
-      // grip may arrive with the motion controller; bind now and on init.
-      set()
-      controller?.onMotionControllerInitObservable?.add(set)
+      bind()
+      controller?.onMotionControllerInitObservable?.add(bind)
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const removed = (controller: any) => {
       const hand = controller?.inputSource?.handedness
-      if (hand === 'left') this.leftGrip = null
-      else if (hand === 'right') this.rightGrip = null
+      // Detach BEFORE Babylon disposes the grip (it would recurse to our child).
+      const frame =
+        hand === 'left'
+          ? this.leftHand
+          : hand === 'right'
+          ? this.rightHand
+          : null
+      if (frame) {
+        frame.parent = null
+        frame.setEnabled(false)
+      }
     }
     input.onControllerAddedObservable.add(added)
     input.onControllerRemovedObservable.add(removed)
@@ -226,21 +239,6 @@ export class XrFrames {
     return this[name]
   }
 
-  /** Pose a hand frame from its grip, or disable it if the controller is gone. */
-  private poseHand(
-    frame: BABYLON.TransformNode,
-    grip: BABYLON.TransformNode | null
-  ): void {
-    if (grip == null || grip.isDisposed()) {
-      frame.setEnabled(false)
-      return
-    }
-    frame.setEnabled(true)
-    frame.position.copyFrom(grip.absolutePosition)
-    const arq = grip.absoluteRotationQuaternion
-    if (arq) (frame.rotationQuaternion as BABYLON.Quaternion).copyFrom(arq)
-  }
-
   /** Head yaw in the rig's local frame (camera rotation is local to the rig). */
   private headLocalYaw(): number {
     const q = this.cam.rotationQuaternion ?? BABYLON.Quaternion.Identity()
@@ -249,30 +247,17 @@ export class XrFrames {
     return Math.atan2(this._fwd.x, this._fwd.z)
   }
 
-  /** Call once per XR frame. */
+  /** Call once per XR frame. (Hands ride their grips by parenting, not here.) */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   update(dt: number): void {
     const cam = this.cam
     const headYaw = this.headLocalYaw()
-    if (!this.seeded) {
-      this.bodyYaw = headYaw
-      this.seeded = true
-    }
-    this.bodyYaw = dampYaw(
-      this.bodyYaw,
-      headYaw,
-      dt,
-      this.bodyYawRate,
-      this.bodyYawDeadband
-    )
 
-    // Body: floor under the head (rig-local), damped torso yaw.
+    // Body: floor under the head, but RIG yaw — identity local rotation inherits
+    // the rig's facing via parenting. So body-pinned panels stay put when you
+    // glance to look at them and only swing when you actually turn (locomote),
+    // matching the rig/overhead panels (the damped head-yaw chased them away).
     this.body.position.set(cam.position.x, 0, cam.position.z)
-    BABYLON.Quaternion.RotationYawPitchRollToRef(
-      this.bodyYaw,
-      0,
-      0,
-      this.body.rotationQuaternion as BABYLON.Quaternion
-    )
 
     // Neck: head pose pushed down + back to the pivot; yaw-only so UI pinned here
     // turns with you but you can tip your head to look past it.
@@ -290,10 +275,6 @@ export class XrFrames {
       0,
       this.neck.rotationQuaternion as BABYLON.Quaternion
     )
-
-    // Hands: follow the controller grips (world space), or disable when absent.
-    this.poseHand(this.leftHand, this.leftGrip)
-    this.poseHand(this.rightHand, this.rightGrip)
   }
 
   dispose(): void {
