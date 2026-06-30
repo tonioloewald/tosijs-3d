@@ -366,7 +366,9 @@ export function aircraftMapping(
   return (pad: VirtualGamepad): ControlInput => {
     const input = emptyInput()
 
-    input.pitch = pad.leftStickY // nose up/down
+    // Inverted on purpose — pull back (stick toward you) = nose UP, classic flight
+    // stick convention. Without this, pulling back drops the nose.
+    input.pitch = -pad.leftStickY
     input.turn = pad.leftStickX // bank → turn
     input.strafe = pad.rightStickX // aux roll
     // Trigger axis is the VTOL controller's dual-purpose lift: + (right trigger) =
