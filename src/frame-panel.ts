@@ -128,7 +128,8 @@ const PRESETS: Record<AnchorPreset, AnchorSpec> = {
   },
 }
 
-const DEFAULT_FOCUS: [number, number, number] = [0, 1.6, 0]
+// Eye frame origin (the head). Presets place by angle from here and face it.
+const DEFAULT_FOCUS: [number, number, number] = [0, 0, 0]
 
 /** A simple titled placeholder panel SVG (rounded card + centred label). */
 export function placeholderPanelSvg(

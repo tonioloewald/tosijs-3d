@@ -81,6 +81,10 @@ const FORWARD = new BABYLON.Vector3(0, 0, 1);
 export class XrFrames {
     world;
     rig;
+    /** At your actual head POSITION but with RIG yaw (not head rotation). The
+     * stable anchor for around-you HUD panels: they ride your eye through any
+     * rig head-compensation and don't spin when you glance, only when you turn. */
+    eye;
     body;
     neck;
     face;
@@ -112,8 +116,10 @@ export class XrFrames {
         // each frame from the head pose in the rig's local space.
         this.body = new BABYLON.TransformNode('xr-frame-body', scene);
         this.neck = new BABYLON.TransformNode('xr-frame-neck', scene);
+        this.eye = new BABYLON.TransformNode('xr-frame-eye', scene);
         this.body.parent = rig;
         this.neck.parent = rig;
+        this.eye.parent = rig; // identity rotation → inherits rig yaw
         this.body.rotationQuaternion = new BABYLON.Quaternion();
         this.neck.rotationQuaternion = new BABYLON.Quaternion();
         // face: head-locked.
@@ -194,6 +200,9 @@ export class XrFrames {
         // glance to look at them and only swing when you actually turn (locomote),
         // matching the rig/overhead panels (the damped head-yaw chased them away).
         this.body.position.set(cam.position.x, 0, cam.position.z);
+        // Eye: at the head POSITION (rig yaw), so HUD panels anchored here ride the
+        // real eye through any chase head-compensation and across standing/sitting.
+        this.eye.position.copyFrom(cam.position);
         // Neck: head pose pushed down + back to the pivot; yaw-only so UI pinned here
         // turns with you but you can tip your head to look past it.
         const q = cam.rotationQuaternion ?? BABYLON.Quaternion.Identity();
@@ -207,6 +216,7 @@ export class XrFrames {
             obs?.removeCallback?.(cb);
         this.inputObs = [];
         this.world.dispose();
+        this.eye.dispose();
         this.body.dispose();
         this.neck.dispose();
         this.face.dispose();

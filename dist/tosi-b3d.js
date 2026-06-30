@@ -154,7 +154,6 @@ const noop = () => { };
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0);
-const XR_UP = new BABYLON.Vector3(0, 1, 0);
 export class B3d extends Component {
     static initAttributes = {
         glowLayerIntensity: 0,
@@ -352,11 +351,12 @@ export class B3d extends Component {
     // waist; override to supply your own (positions, presets, custom SVG). Like
     // scenePanel, defaults to a function so the element creator treats it as a prop.
     bodyPanels = () => [
-        // Anchored in the RIG frame at mean-eye-relative angles (stable across
-        // standing/sitting), not the live head pose.
-        { frame: 'rig', anchor: 'left-shoulder', title: 'Inventory' },
-        { frame: 'rig', anchor: 'right-shoulder', title: 'Inventory' },
-        { frame: 'rig', anchor: 'waist', title: 'Quick Access' },
+        // Anchored in the EYE frame (your head position, rig yaw) at angular offsets,
+        // so they ride your real eye through chase head-compensation and stay put as
+        // you stand/sit or glance — only swinging when you actually turn.
+        { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
+        { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
+        { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
         {
             frame: 'face',
             anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
@@ -721,9 +721,9 @@ export class B3d extends Component {
             });
             return { ef, panel };
         });
-        // The in-scene settings panel (with an Exit-VR button), floating overhead
-        // relative to the head and fading in as you tilt up to use it.
-        const panel = this._attachXrPanel(base);
+        // The in-scene settings panel (with an Exit-VR button), anchored to the eye
+        // frame 60° up so it sits consistently above your sight-line.
+        const panel = this._attachXrPanel(base, frames.eye);
         // A subtle grid floor — something to stand on and judge motion against.
         const ground = BABYLON.MeshBuilder.CreateGround('xr-ground', { width: 200, height: 200 }, scene);
         ground.isPickable = false;
@@ -755,15 +755,9 @@ export class B3d extends Component {
         // the piloted entity's position AND facing, with head-tracking compensation.
         const chasePos = new BABYLON.Vector3();
         const yawQuat = new BABYLON.Quaternion();
-        const followQuat = new BABYLON.Quaternion(); // cockpit: aircraft's full orient
-        const aimQuat = new BABYLON.Quaternion(); // cockpit: target orient (pre-slerp)
-        const recenterQuat = new BABYLON.Quaternion(); // cockpit: entry-yaw recenter
-        const cockpitLocal = new BABYLON.Vector3(); // cockpit offset in the model frame
         const mtx = new BABYLON.Matrix();
-        const mtxR = new BABYLON.Matrix(); // cockpit: rig (recentered) orientation
         let chaseYaw = 0;
         let chaseYawOffset = 0;
-        let cockpitYawOffset = 0; // head yaw captured when you take the seat
         let chaseZoom = 0.5; // 0..1 chase distance (right stick Y while piloting)
         let chaseFirstFrame = true;
         let lastPiloted = null;
@@ -802,69 +796,34 @@ export class B3d extends Component {
             if (piloted != null) {
                 const view = entity?.cameraView;
                 const eyeH = entity?.eyeHeight ?? 1.6;
-                // COCKPIT: ride INSIDE the aircraft, banking with it, head tracking on
-                // top. The airframe ORIENTATION comes from its NORMALIZED world basis
-                // (forward + up) — normalizing is what makes it immune to the model's
-                // scale (a raw basis from a scaled node is non-unit and skews the quat
-                // into the "distorted/scaled" frame). The view is yaw-RECENTERED on entry
-                // so you start looking out the nose regardless of how you were facing.
-                if (view === 'cockpit') {
-                    piloted.getDirectionToRef(XR_FORWARD, fwd); // world forward
-                    fwd.normalize();
-                    piloted.getDirectionToRef(XR_UP, side); // world up (reuse scratch)
-                    side.normalize();
-                    const airframeQ = BABYLON.Quaternion.FromLookDirectionLH(fwd, side);
-                    BABYLON.Matrix.FromQuaternionToRef(airframeQ, mtx); // seat frame (raw)
-                    if (lastPiloted !== piloted) {
-                        cockpitYawOffset = cam.rotationQuaternion
-                            ? cam.rotationQuaternion.toEulerAngles().y
-                            : 0;
-                        lastPiloted = piloted;
-                        BABYLON.Quaternion.RotationYawPitchRollToRef(-cockpitYawOffset, 0, 0, recenterQuat);
-                        airframeQ.multiplyToRef(recenterQuat, followQuat); // seat, no slerp-in
-                    }
-                    // Rig orientation = airframe ∘ (−entry-yaw): banks with the plane but
-                    // your neutral head looks out the nose.
-                    BABYLON.Quaternion.RotationYawPitchRollToRef(-cockpitYawOffset, 0, 0, recenterQuat);
-                    airframeQ.multiplyToRef(recenterQuat, aimQuat);
-                    // Light low-pass so flight-model jitter doesn't shake the rigid cockpit.
-                    BABYLON.Quaternion.SlerpToRef(followQuat, aimQuat, Math.min(1, 20 * dt), followQuat);
-                    BABYLON.Matrix.FromQuaternionToRef(followQuat, mtxR); // rig frame
-                    // Seat is fixed in the hull (raw airframe frame); head-comp uses the
-                    // recentered rig frame so the head lands at the seat.
-                    cockpitLocal.set(0, eyeH, entity?.cockpitForward ?? 0.5);
-                    BABYLON.Vector3.TransformCoordinatesToRef(cockpitLocal, mtx, tmp);
-                    const ap = piloted.absolutePosition;
-                    const cx = ap.x + tmp.x;
-                    const cy = ap.y + tmp.y;
-                    const cz = ap.z + tmp.z;
-                    BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtxR, tmp);
-                    rig.rotationQuaternion = followQuat;
-                    rig.position.set(cx - tmp.x, cy - tmp.y, cz - tmp.z);
-                    chaseFirstFrame = true; // re-seat the chase smoothing on toggle-out
-                    return;
-                }
-                const isChase = view !== 'fpv';
+                // All piloted views share the SAME proven path (yaw-recentered follow +
+                // head compensation), differing only in the seat offset:
+                //   fpv     — at the entity's head (biped).
+                //   cockpit — seated forward inside the hull, level horizon (comfort).
+                //   chase   — behind + above, zoomable.
+                const isFpv = view === 'fpv';
+                const isCockpit = view === 'cockpit';
+                const isChase = !isFpv && !isCockpit;
                 // Right stick (while piloting) zooms the chase and peeks left/right.
                 const zoomIn = entity?.lastInput?.cameraZoom ?? 0;
                 const peekIn = entity?.lastInput?.cameraPeek ?? 0;
                 if (isChase) {
                     chaseZoom = Math.max(0, Math.min(1, chaseZoom - zoomIn * dt * ZOOM_RATE));
                 }
-                // chase: behind+above (zoomable), staying ABOVE the entity so it sits low
-                // in frame (not dead-on the tail). fpv (biped): at the model's HEAD
-                // (tracks walk/crouch). Heights/distance come from the entity. Chase
-                // height interpolates with zoom: low (≈head; biped #2) when zoomed in,
-                // high (overview) when out — clamped above the model for the aircraft.
                 const loH = entity?.chaseMinHeight ?? eyeH;
                 const chaseH = entity?.chaseHeight ?? CHASE_HEIGHT;
                 const chaseD = entity?.chaseDistance ?? 5;
-                const back = view === 'fpv' ? 0 : chaseD * (0.8 + chaseZoom * 1.1);
-                const up = view === 'fpv' ? eyeH : loH + (chaseH - loH) * chaseZoom;
+                const cockpitFwd = entity?.cockpitForward ?? 0.5;
+                const back = isFpv
+                    ? 0
+                    : isCockpit
+                        ? -cockpitFwd // negative = ahead, into the seat
+                        : chaseD * (0.8 + chaseZoom * 1.1);
+                const up = isChase ? loH + (chaseH - loH) * chaseZoom : eyeH;
                 piloted.getDirectionToRef(XR_FORWARD, fwd); // world forward
                 const targetYaw = Math.atan2(fwd.x, fwd.z);
                 // fpv: anchor to the actual head bone if the entity exposes it.
-                const headPos = view === 'fpv' ? entity?.getHeadPosition?.() ?? null : null;
+                const headPos = isFpv ? entity?.getHeadPosition?.() ?? null : null;
                 const targetX = headPos ? headPos.x : piloted.position.x - fwd.x * back;
                 const targetY = headPos ? headPos.y : piloted.position.y + up;
                 const targetZ = headPos ? headPos.z : piloted.position.z - fwd.z * back;
@@ -1006,9 +965,8 @@ export class B3d extends Component {
     // up — so it never obstructs the forward view. Picks route via the scene
     // pointer observable (mouse and XR controllers alike) into the panel's own
     // viewBox coords. Returns a disposer.
-    _attachXrPanel(base) {
+    _attachXrPanel(base, anchorFrame) {
         const scene = this.scene;
-        const cam = base.camera;
         // In-scene panel always carries an Exit-VR button (you can't reach a DOM
         // button inside a headset), plus any scenePanel widgets.
         const rows = [
@@ -1022,11 +980,9 @@ export class B3d extends Component {
         ];
         const panelEl = this._makePanel(rows);
         const vb = panelEl.viewBox.baseVal;
-        // Seated in the RIG frame at a fixed mean-eye estimate (not the live head
-        // pose, which dragged it around with standing/sitting), 60° up the sight-line.
+        // Anchored to the eye frame (origin = your head), 60° up the sight-line.
         const PLANE_W = 1.0; // metres wide (height follows the panel's aspect)
-        const MEAN_EYE_Y = 1.6; // stable mean-eye height in the rig frame
-        const D = 1.4; // distance (matches the other rig-frame panels)
+        const D = 1.4; // distance (matches the other eye-frame panels)
         const ELEV = (60 * Math.PI) / 180;
         const ABOVE = D * Math.sin(ELEV); // ≈1.21 up
         const AHEAD = D * Math.cos(ELEV); // ≈0.70 ahead
@@ -1061,15 +1017,15 @@ export class B3d extends Component {
         // head (camera) rotates within the rig to look at it, while the panel itself
         // never moves or rotates. So it's rock-steady relative to you and stays put
         // to be pointed at. No billboard (that would re-rotate it every frame). (#1)
-        plane.parent = cam.parent;
+        plane.parent = anchorFrame;
         plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
         let placed = false;
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
             if (placed)
                 return;
             placed = true;
-            // Seat ONCE at the fixed mean-eye estimate, 60° up, facing back down at it.
-            plane.position.set(0, MEAN_EYE_Y + ABOVE, AHEAD);
+            // Seat ONCE 60° up in the eye frame (origin = head), facing back down at it.
+            plane.position.set(0, ABOVE, AHEAD);
             plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(Math.PI, Math.atan2(ABOVE, AHEAD), 0);
             plane.visibility = 1;
         });

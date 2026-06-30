@@ -4,7 +4,7 @@ export interface Vec3 {
     y: number;
     z: number;
 }
-export type FrameName = 'world' | 'rig' | 'body' | 'neck' | 'face' | 'left-hand' | 'right-hand';
+export type FrameName = 'world' | 'rig' | 'eye' | 'body' | 'neck' | 'face' | 'left-hand' | 'right-hand';
 /** Shortest signed angle to rotate from `a` to `b`, in (-π, π]. */
 export declare function angleDelta(a: number, b: number): number;
 /** Yaw (about +Y) so a frame's local +Z points horizontally from `from` toward
@@ -38,6 +38,10 @@ export interface XrFramesOptions {
 export declare class XrFrames {
     readonly world: BABYLON.TransformNode;
     readonly rig: BABYLON.TransformNode;
+    /** At your actual head POSITION but with RIG yaw (not head rotation). The
+     * stable anchor for around-you HUD panels: they ride your eye through any
+     * rig head-compensation and don't spin when you glance, only when you turn. */
+    readonly eye: BABYLON.TransformNode;
     readonly body: BABYLON.TransformNode;
     readonly neck: BABYLON.TransformNode;
     readonly face: BABYLON.TransformNode;

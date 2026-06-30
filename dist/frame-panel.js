@@ -67,7 +67,8 @@ const PRESETS = {
         revealFullDeg: 30,
     },
 };
-const DEFAULT_FOCUS = [0, 1.6, 0];
+// Eye frame origin (the head). Presets place by angle from here and face it.
+const DEFAULT_FOCUS = [0, 0, 0];
 /** A simple titled placeholder panel SVG (rounded card + centred label). */
 export function placeholderPanelSvg(title, w = 320, h = 200) {
     const NS = 'http://www.w3.org/2000/svg';

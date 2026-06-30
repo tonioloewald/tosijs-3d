@@ -41,6 +41,7 @@ export interface Vec3 {
 export type FrameName =
   | 'world'
   | 'rig'
+  | 'eye'
   | 'body'
   | 'neck'
   | 'face'
@@ -92,8 +93,7 @@ export function gazeReveal(
   cosStart: number,
   cosFull: number
 ): number {
-  const fl =
-    Math.hypot(headForward.x, headForward.y, headForward.z) || 1
+  const fl = Math.hypot(headForward.x, headForward.y, headForward.z) || 1
   const al = Math.hypot(toAnchor.x, toAnchor.y, toAnchor.z) || 1
   const c =
     (headForward.x * toAnchor.x +
@@ -128,6 +128,10 @@ const FORWARD = new BABYLON.Vector3(0, 0, 1)
 export class XrFrames {
   readonly world: BABYLON.TransformNode
   readonly rig: BABYLON.TransformNode
+  /** At your actual head POSITION but with RIG yaw (not head rotation). The
+   * stable anchor for around-you HUD panels: they ride your eye through any
+   * rig head-compensation and don't spin when you glance, only when you turn. */
+  readonly eye: BABYLON.TransformNode
   readonly body: BABYLON.TransformNode
   readonly neck: BABYLON.TransformNode
   readonly face: BABYLON.TransformNode
@@ -136,7 +140,6 @@ export class XrFrames {
   readonly leftHand: BABYLON.TransformNode
   readonly rightHand: BABYLON.TransformNode
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private inputObs: { obs: any; cb: any }[] = []
   private cam: BABYLON.TargetCamera
   private bodyYaw = 0
@@ -169,8 +172,10 @@ export class XrFrames {
     // each frame from the head pose in the rig's local space.
     this.body = new BABYLON.TransformNode('xr-frame-body', scene)
     this.neck = new BABYLON.TransformNode('xr-frame-neck', scene)
+    this.eye = new BABYLON.TransformNode('xr-frame-eye', scene)
     this.body.parent = rig
     this.neck.parent = rig
+    this.eye.parent = rig // identity rotation → inherits rig yaw
     this.body.rotationQuaternion = new BABYLON.Quaternion()
     this.neck.rotationQuaternion = new BABYLON.Quaternion()
     // face: head-locked.
@@ -187,10 +192,10 @@ export class XrFrames {
 
   /** Wire hand/wrist frames to the WebXR input so they track the controller grip
    * for each hand. Pass `xrHelper.input`. Safe to call once. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   attachInput(input: any): void {
     if (input == null) return
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const added = (controller: any) => {
       const hand = controller?.inputSource?.handedness
       const bind = () => {
@@ -208,7 +213,7 @@ export class XrFrames {
       bind()
       controller?.onMotionControllerInitObservable?.add(bind)
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const removed = (controller: any) => {
       const hand = controller?.inputSource?.handedness
       // Detach BEFORE Babylon disposes the grip (it would recurse to our child).
@@ -258,6 +263,9 @@ export class XrFrames {
     // glance to look at them and only swing when you actually turn (locomote),
     // matching the rig/overhead panels (the damped head-yaw chased them away).
     this.body.position.set(cam.position.x, 0, cam.position.z)
+    // Eye: at the head POSITION (rig yaw), so HUD panels anchored here ride the
+    // real eye through any chase head-compensation and across standing/sitting.
+    this.eye.position.copyFrom(cam.position)
 
     // Neck: head pose pushed down + back to the pivot; yaw-only so UI pinned here
     // turns with you but you can tip your head to look past it.
@@ -281,6 +289,7 @@ export class XrFrames {
     for (const { obs, cb } of this.inputObs) obs?.removeCallback?.(cb)
     this.inputObs = []
     this.world.dispose()
+    this.eye.dispose()
     this.body.dispose()
     this.neck.dispose()
     this.face.dispose()
