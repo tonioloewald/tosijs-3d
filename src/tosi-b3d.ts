@@ -147,7 +147,7 @@ import { panel3d, button3d, type Widget3d } from './widgets3d'
 import { SvgTexture } from './svg-texture'
 import { b3dGamepad } from './glass-gamepad'
 import { XrGamepadSource } from './xr-gamepad'
-import { XrFrames } from './xr-frames'
+import { XrFrames, EntityFrame } from './xr-frames'
 import { attachFramePanel, type FramePanelSpec } from './frame-panel'
 
 const { canvas, div, slot, button } = elements
@@ -778,6 +778,32 @@ export class B3d extends Component {
       attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), spec)
     )
 
+    // Entity-pinned nameplates: a label over each non-player biped, on a frame
+    // that turns to face you, revealed only when you look at them. The basis for
+    // dialogue balloons and lock-on brackets.
+    const nameplates = Array.from(
+      this.querySelectorAll('tosi-b3d-biped')
+    )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((el) => el as any)
+      .filter((b) => !b.player && b.mesh != null)
+      .map((b) => {
+        const ef = new EntityFrame(scene, b.mesh, {
+          offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
+        })
+        const panel = attachFramePanel(scene, cam, ef.node, {
+          anchor: {
+            position: [0, 0, 0],
+            focus: [0, 0, 1], // faces +Z = toward you (the frame turns to you)
+            revealStartDeg: 26,
+            revealFullDeg: 10,
+          },
+          title: (b.id as string) || 'NPC',
+          width: 0.3,
+        })
+        return { ef, panel }
+      })
+
     // The in-scene settings panel (with an Exit-VR button), floating overhead
     // relative to the head and fading in as you tilt up to use it.
     const panel = this._attachXrPanel(base)
@@ -849,6 +875,10 @@ export class B3d extends Component {
       // moved the rig last frame; before any UI reads them this frame).
       frames.update(dt)
       for (const p of bodyPanels) p.update()
+      for (const n of nameplates) {
+        n.ef.update(cam)
+        n.panel.update()
+      }
 
       // Piloting a live controllable → the controllers fly it (via its mapping)
       // and the rig FOLLOWS it: positioned behind/at it AND rotated to face the
@@ -1010,6 +1040,10 @@ export class B3d extends Component {
         base.sessionManager.onXRFrameObservable.remove(frame)
         panel.dispose()
         for (const p of bodyPanels) p.dispose()
+        for (const n of nameplates) {
+          n.panel.dispose()
+          n.ef.dispose()
+        }
         frames.dispose()
         host.xrFrames = null
         cam.parent = null

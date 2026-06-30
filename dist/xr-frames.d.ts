@@ -72,4 +72,22 @@ export declare class XrFrames {
     update(dt: number): void;
     dispose(): void;
 }
+/**
+ * An **entity / interlocutor** frame: pinned to a target node (an NPC, a vehicle,
+ * a pickup) and turned to face the player, so its local −X is your screen-right
+ * and +X your screen-left. The home of dialogue balloons, nameplates, lock-on
+ * brackets — anything anchored to a *thing in the world you're attending to*.
+ * Dynamic (one per target), so it's standalone rather than part of `XrFrames`.
+ * Call `update(camera)` each frame; `dispose()` to release.
+ */
+export declare class EntityFrame {
+    readonly node: BABYLON.TransformNode;
+    private target;
+    private offset;
+    constructor(scene: BABYLON.Scene, target: BABYLON.TransformNode, opts?: {
+        offset?: [number, number, number];
+    });
+    update(cam: BABYLON.TargetCamera): void;
+    dispose(): void;
+}
 //# sourceMappingURL=xr-frames.d.ts.map

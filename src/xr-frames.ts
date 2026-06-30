@@ -307,3 +307,50 @@ export class XrFrames {
     this.rightHand.dispose()
   }
 }
+
+/**
+ * An **entity / interlocutor** frame: pinned to a target node (an NPC, a vehicle,
+ * a pickup) and turned to face the player, so its local −X is your screen-right
+ * and +X your screen-left. The home of dialogue balloons, nameplates, lock-on
+ * brackets — anything anchored to a *thing in the world you're attending to*.
+ * Dynamic (one per target), so it's standalone rather than part of `XrFrames`.
+ * Call `update(camera)` each frame; `dispose()` to release.
+ */
+export class EntityFrame {
+  readonly node: BABYLON.TransformNode
+  private target: BABYLON.TransformNode
+  private offset: BABYLON.Vector3
+
+  constructor(
+    scene: BABYLON.Scene,
+    target: BABYLON.TransformNode,
+    opts: { offset?: [number, number, number] } = {}
+  ) {
+    this.target = target
+    const o = opts.offset ?? [0, 0, 0]
+    this.offset = new BABYLON.Vector3(o[0], o[1], o[2])
+    this.node = new BABYLON.TransformNode('xr-entity-frame', scene)
+    this.node.rotationQuaternion = new BABYLON.Quaternion()
+  }
+
+  update(cam: BABYLON.TargetCamera): void {
+    const p = this.target.getAbsolutePosition()
+    this.node.position.set(
+      p.x + this.offset.x,
+      p.y + this.offset.y,
+      p.z + this.offset.z
+    )
+    const head = cam.globalPosition
+    const yaw = facingYaw(this.node.position, head)
+    BABYLON.Quaternion.RotationYawPitchRollToRef(
+      yaw,
+      0,
+      0,
+      this.node.rotationQuaternion as BABYLON.Quaternion
+    )
+  }
+
+  dispose(): void {
+    this.node.dispose()
+  }
+}

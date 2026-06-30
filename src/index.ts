@@ -97,6 +97,19 @@ export { B3dGamepad, b3dGamepad, parseGamepadControls } from './glass-gamepad'
 export { XrGamepadSource } from './xr-gamepad'
 export type { ClusterConfig, ClusterAnchor } from './glass-gamepad'
 
+// XR reference frames & spatial UI
+export {
+  XrFrames,
+  EntityFrame,
+  angleDelta,
+  dampYaw,
+  facingYaw,
+  gazeReveal,
+} from './xr-frames'
+export type { FrameName, XrFramesOptions } from './xr-frames'
+export { attachFramePanel, placeholderPanelSvg } from './frame-panel'
+export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel'
+
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped'
 export type { AnimStateSpec } from './b3d-biped'
