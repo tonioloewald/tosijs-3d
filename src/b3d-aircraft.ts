@@ -197,6 +197,10 @@ const LOCAL_Z = new BABYLON.Vector3(0, 0, 1)
 // up — it doesn't fight you.
 const AUTO_LEVEL_RATE = 0.7
 const AUTO_LEVEL_DEADZONE = 0.15 // |roll input| above this suspends auto-level
+// Weathervane: per-second rate the NOSE converges toward the direction of travel
+// (reduces sideslip/angle-of-attack), scaled by airspeed — so at speed the plane
+// flies pointed where it's going, but slow flight stays loose and forgiving.
+const WEATHERVANE_RATE = 1.6
 // Landing: distance above clearance still counted as "on the ground", and the
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15
@@ -254,6 +258,8 @@ export class B3dAircraft extends B3dControllable {
   private velocity = new BABYLON.Vector3(0, 0, 0)
   private _fwd = new BABYLON.Vector3() // scratch: world nose direction (unit)
   private _up = new BABYLON.Vector3() // scratch: world up direction (unit)
+  private _velDir = new BABYLON.Vector3() // scratch: travel direction (unit)
+  private _axis = new BABYLON.Vector3() // scratch: weathervane rotation axis
   private rollAngle = 0
   private meshNode: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
@@ -327,6 +333,30 @@ export class B3dAircraft extends B3dControllable {
           bank * AUTO_LEVEL_RATE * dt,
           BABYLON.Space.LOCAL
         )
+      }
+      // Weathervane: converge the NOSE toward the direction of travel, so the
+      // plane points where it's actually going (kills the fly-sideways/backward
+      // drift and makes a dive read). Airspeed-scaled: no bite when slow, so the
+      // forgiving low-speed envelope is preserved.
+      const spd = vel.length()
+      if (spd > 1) {
+        node.getDirectionToRef(LOCAL_Z, this._fwd)
+        this._fwd.normalize()
+        this._velDir.copyFrom(vel).scaleInPlace(1 / spd)
+        const d = BABYLON.Vector3.Dot(this._fwd, this._velDir)
+        BABYLON.Vector3.CrossToRef(this._fwd, this._velDir, this._axis)
+        const axisLen = this._axis.length()
+        if (d < 0.99995 && axisLen > 1e-5) {
+          this._axis.scaleInPlace(1 / axisLen)
+          const angle = Math.acos(Math.max(-1, Math.min(1, d)))
+          const airspeed = Math.max(0, BABYLON.Vector3.Dot(vel, this._fwd))
+          const cruise = Math.max(attrs.maxSpeed * 0.5, 1)
+          const frac = Math.min(
+            1,
+            WEATHERVANE_RATE * Math.min(1, airspeed / cruise) * dt
+          )
+          node.rotate(this._axis, angle * frac, BABYLON.Space.WORLD)
+        }
       }
     } else {
       // Grounded: ease any rudder bank back to level so it rests flat.
