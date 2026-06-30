@@ -15,6 +15,7 @@
   <url><loc>https://3d.tosijs.net/b3d-library/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-light/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-loader/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-particles/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-physics/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-planet/</loc></url>
@@ -32,6 +33,7 @@
   <url><loc>https://3d.tosijs.net/core/</loc></url>
   <url><loc>https://3d.tosijs.net/effects/</loc></url>
   <url><loc>https://3d.tosijs.net/environment/</loc></url>
+  <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/galaxy-data/</loc></url>
   <url><loc>https://3d.tosijs.net/game-controller/</loc></url>
   <url><loc>https://3d.tosijs.net/gamepad-svg/</loc></url>
@@ -53,5 +55,6 @@
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
+  <url><loc>https://3d.tosijs.net/xr-frames/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-gamepad/</loc></url>
 </urlset>

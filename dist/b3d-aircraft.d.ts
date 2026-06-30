@@ -12,11 +12,7 @@ export declare class B3dAircraft extends B3dControllable {
         enterable: boolean;
         maxSpeed: number;
         acceleration: number;
-        friction: number;
-        pitchRate: number;
-        turnRate: number;
         vtolSpeed: number;
-        stallSpeed: number;
         groundY: number;
         crashSpeed: number;
         x: number;
@@ -49,8 +45,8 @@ export declare class B3dAircraft extends B3dControllable {
     chaseDistance: number;
     private velocity;
     private _fwd;
-    private _up;
-    private rollAngle;
+    private fbw;
+    private fbwSeeded;
     private meshNode;
     private meshesToDispose;
     private groundClearance;

@@ -44,6 +44,7 @@ export function emptyInput() {
         turn: 0,
         pitch: 0,
         throttle: 0,
+        lift: 0,
         jump: 0,
         shoot: 0,
         sprint: 0,
@@ -85,6 +86,7 @@ export class CompositeInputProvider {
             result.strafe = maxAbs(result.strafe, input.strafe);
             result.turn = maxAbs(result.turn, input.turn);
             result.pitch = maxAbs(result.pitch, input.pitch);
+            result.lift = maxAbs(result.lift, input.lift);
             result.cameraZoom = maxAbs(result.cameraZoom, input.cameraZoom);
             // Buttons/throttle: max
             result.throttle = Math.max(result.throttle, input.throttle);

@@ -1,6 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -118,7 +125,9 @@ buttons use max.</p>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/effects/">Effects</a></summary>
@@ -166,6 +175,7 @@ buttons use max.</p>
     </details></li>
     <li><details><summary><a href="/ui/">UI</a></summary>
     <ul>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
       <li><a href="/widgets3d/">widgets3d</a></li>

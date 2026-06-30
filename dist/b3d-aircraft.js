@@ -1,16 +1,24 @@
 /*#
 # b3d-aircraft
 
-Arcade flight controller with optional VTOL. Uses the virtual gamepad input system:
-left stick for pitch/yaw, right stick X for roll, triggers for throttle up/down.
-Solid flight mechanics: rolling costs lift, climbing costs speed.
+Fly-by-wire VTOL controller — a forgiving "drone that becomes a plane" rather
+than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases
+toward it and self-levels when you let go, banking swings the heading (a
+coordinated turn), and the velocity simply chases where the nose points. The
+model is pure and unit-tested in [fly-by-wire](?fly-by-wire.ts).
 
-Throttle has "detents" that make it easy to fly:
-- **Level flight**: no throttle → glide at safe speed with gentle descent; mid → cruise; full → accelerate
-- **VTOL mode**: no throttle → hover; throttle → climb; pitch down to descend
+Two regimes split by forward ground speed (`vtolSpeed`):
+- **Hover / drone** (slow): right trigger climbs, left trigger descends. Let go
+  while slow and it bleeds back to a stationary hover; lean forward (pitch) to
+  build speed and transition.
+- **Plane** (fast): right trigger speeds up, left trigger slows down. Pitch is
+  climb/dive, the turn stick banks to turn. Slow back below `vtolSpeed` and the
+  triggers return to up/down. Banking off level costs a little altitude.
 
-Set `vtolSpeed` > 0 to enable VTOL. Below that airspeed, thrust goes vertical.
-Set `stallSpeed` > 0 for stall behavior (nose drops when too slow).
+Set `vtolSpeed` to 0 for a pure aeroplane with no hover regime.
+
+Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
+lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 
 Mesh can come from a `url` (own GLB) or from a `b3d-library` via `library` + `meshName`.
 
@@ -26,9 +34,9 @@ const aircraft = b3dAircraft({
   // Start parked on the ground. The model is rested on the surface via its
   // computed bounding box, so y is the height of its belly — y: 0 = grounded.
   player: true, y: 0,
-  // vtolSpeed should match the speed at which lift can sustain altitude
-  // — in this model that's maxSpeed * 0.5 (the cruise speed).
-  vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,
+  // Below this forward speed it hovers (triggers = up/down); above it flies like
+  // a plane (triggers = throttle). Set to 0 for a pure aeroplane.
+  vtolSpeed: 12, maxSpeed: 50,
 })
 
 const hud = div({ class: 'hud' },
@@ -40,7 +48,7 @@ const hud = div({ class: 'hud' },
 )
 
 const controls = div({ class: 'controls' },
-  'W/S: pitch | A/D: yaw | \u2190/\u2192: roll | R: throttle+ | Q: throttle\u2212 | Release: snap to detent'
+  'W/S: pitch | A/D: turn (bank) | \u2190/\u2192: roll | R: up / faster | Q: down / slower'
 )
 
 // Scatter reference markers on the ground. Registering them makes them shadow
@@ -152,13 +160,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `library` | `''` | Library type to source mesh from |
 | `meshName` | `''` | Node name to instantiate from library |
 | `enterable` | `false` | Whether a biped can enter |
-| `maxSpeed` | `50` | Max forward speed (m/s) |
-| `acceleration` | `12` | Thrust acceleration |
-| `friction` | `2` | Drag when coasting |
-| `pitchRate` | `60` | Degrees/sec pitch |
-| `turnRate` | `45` | Degrees/sec yaw |
-| `vtolSpeed` | `0` | Forward-airspeed threshold for VTOL (0 = no VTOL). Recommended: `maxSpeed * 0.5` — the speed at which lift sustains altitude in this model. |
-| `stallSpeed` | `40` | Speed below which stall occurs (0 = no stall) |
+| `maxSpeed` | `50` | Top forward speed (m/s) |
+| `acceleration` | `12` | Throttle / lean authority (speed change rate) |
+| `vtolSpeed` | `12` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 
@@ -166,41 +170,38 @@ tosi-b3d { width: 100%; height: 100%; }
 
 - `airspeed: number` — current forward speed (m/s)
 - `altitude: number` — height above ground
-- `vtolActive: boolean` — true when in VTOL mode
-- `stalling: boolean` — true when airspeed < stallSpeed (not in VTOL)
+- `vtolActive: boolean` — true in the hover regime (below `vtolSpeed`)
 - `pullUp: boolean` — true when ground collision predicted within ~5s
 - `grounded: boolean` — true when settled on the ground (wheels/rolling resistance)
 - `crashed: boolean` — true after a hard/inverted ground impact; fires a `crash` event
 
-Flight controls are disabled on the ground (only yaw steers + throttle taxis);
-a contact faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
+On the ground the wings hold level and the turn stick taxi-steers; pulling back
+rotates for takeoff (or a VTOL lifts straight up on the right trigger). A contact
+faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dControllable } from './b3d-controllable';
 import { aircraftMapping } from './virtual-gamepad';
-import { computeForces } from './aircraft-physics';
+import { flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
 import { placeOnSurface, boundingBottomOffset } from './b3d-utils';
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05;
 const DEG2RAD = Math.PI / 180;
 const PULL_UP_SECONDS = 5;
-const LOCAL_Y = new BABYLON.Vector3(0, 1, 0);
 const LOCAL_Z = new BABYLON.Vector3(0, 0, 1);
-// Auto-level: per-second rate the wings relax toward level when the player isn't
-// actively rolling OR turning. Small vs the deliberate 60°/s manual roll, so it
-// only tidies up — it doesn't fight you.
-const AUTO_LEVEL_RATE = 0.35;
-const AUTO_LEVEL_DEADZONE = 0.15; // |roll input| above this suspends auto-level
-// Bank-to-turn: full turn stick banks the wings this far. The BANK is the turn —
-// banked lift has a horizontal component that curves the velocity (a real
-// coordinated turn), and the weathervane swings the nose to follow. Steeper =
-// tighter/faster turn (and more altitude lost, since vertical lift = L·cos bank).
-const MAX_BANK = 45 * DEG2RAD;
-// Weathervane: per-second rate the NOSE converges toward the direction of travel
-// (reduces sideslip/angle-of-attack), scaled by airspeed — so at speed the plane
-// flies pointed where it's going, but slow flight stays loose and forgiving.
-const WEATHERVANE_RATE = 1.6;
+// Fly-by-wire tuning (the model itself lives in fly-by-wire.ts). Attitude eases
+// toward the stick at ATTITUDE_RATE and self-levels at the same rate; the turn
+// stick banks up to MAX_BANK and the bank swings the heading at up to
+// BANK_TURN_RATE (× sin bank); pitch commands up to MAX_PITCH of climb/dive.
+const ATTITUDE_RATE = 3;
+const MAX_BANK = 55 * DEG2RAD;
+const MAX_PITCH = 35 * DEG2RAD;
+const BANK_TURN_RATE = 70 * DEG2RAD;
+// How fast the velocity chases where the nose points (the forgiveness knob), and
+// how fast drone-mode forward speed bleeds back to a stationary hover.
+const VEL_CHASE = 2.5;
+const HOVER_DAMP = 1.5;
 // Pull-back for the parented FLAT chase, since the canonical hull is unit-scale
 // (the offset used to inherit the model's ~2.4x scale). Flat camera only.
 const FLAT_CHASE_SCALE = 1.8;
@@ -219,11 +220,10 @@ export class B3dAircraft extends B3dControllable {
         enterable: false,
         maxSpeed: 50,
         acceleration: 12,
-        friction: 2,
-        pitchRate: 60,
-        turnRate: 45,
-        vtolSpeed: 0,
-        stallSpeed: 40,
+        // Forward ground speed below which the craft hovers like a drone (triggers =
+        // up/down) and above which it flies like a plane (triggers = throttle). Set
+        // to 0 for a pure aeroplane with no hover regime.
+        vtolSpeed: 12,
         // Assumed ground-plane height (used as a floor in addition to any terrain
         // colliders the downward raycast hits).
         groundY: 0,
@@ -255,8 +255,10 @@ export class B3dAircraft extends B3dControllable {
     chaseDistance = 4.8; // chase distance behind
     velocity = new BABYLON.Vector3(0, 0, 0);
     _fwd = new BABYLON.Vector3(); // scratch: world nose direction (unit)
-    _up = new BABYLON.Vector3(); // scratch: world up direction (unit)
-    rollAngle = 0;
+    // Fly-by-wire flight state (heading/pitch/bank/speed). Seeded from the spawned
+    // orientation on the first frame, then this controller owns the quaternion.
+    fbw = { heading: 0, pitch: 0, bank: 0, speed: 0 };
+    fbwSeeded = false;
     meshNode = null;
     meshesToDispose = [];
     // Derived from the model's geometry in setupMesh so the body rests on the
@@ -284,105 +286,61 @@ export class B3dAircraft extends B3dControllable {
             vel.setAll(0);
             return;
         }
-        // --- Orientation: pitch, roll/bank ---
-        // Airborne, the plane turns by BANKING — there is NO direct nose-yaw. A real
-        // aircraft doesn't swing its nose around a fixed velocity; it banks, the
-        // banked lift curves the velocity, and the nose weathervanes to follow. The
-        // old direct world-Y yaw (turnRate °/s) swung the nose ~4× faster than the
-        // lift could curve the path → a permanent skid the weathervane fought. So
-        // turn → bank here, and direct yaw survives only as ground taxi steering.
-        if (!this.grounded) {
-            node.rotate(BABYLON.Axis.X, input.forward * attrs.pitchRate * DEG2RAD * dt, BABYLON.Space.LOCAL);
-            const manualRoll = input.strafe * 60 * DEG2RAD * dt;
-            if (Math.abs(manualRoll) > 0.001) {
-                node.rotate(BABYLON.Axis.Z, -manualRoll, BABYLON.Space.LOCAL);
-            }
-            // Turn-to-bank: the turn stick eases the wings to a bank proportional to
-            // deflection (up to MAX_BANK). This bank IS the turn — its lift curves the
-            // velocity; the weathervane below swings the nose onto the new heading.
-            const bankTarget = -input.turn * MAX_BANK;
-            const prevRoll = this.rollAngle;
-            this.rollAngle += (bankTarget - this.rollAngle) * Math.min(1, 3 * dt);
-            const yawRollDelta = this.rollAngle - prevRoll;
-            if (Math.abs(yawRollDelta) > 0.0001) {
-                node.rotate(BABYLON.Axis.Z, yawRollDelta, BABYLON.Space.LOCAL);
-            }
-            // Auto-level: when the player is neither rolling NOR turning, gently relax
-            // the wings toward level so you don't get stuck banked. (Suspended during a
-            // turn — else it would fight the commanded bank.) Bank angle = the
-            // aircraft's roll about its nose; counter-roll a small fraction of it.
-            if (Math.abs(input.strafe) < AUTO_LEVEL_DEADZONE &&
-                Math.abs(input.turn) < AUTO_LEVEL_DEADZONE) {
-                node.getDirectionToRef(LOCAL_Z, this._fwd);
-                node.getDirectionToRef(LOCAL_Y, this._up);
-                const right = BABYLON.Vector3.Cross(this._fwd, this._up);
-                const bank = Math.atan2(-right.y, this._up.y);
-                // −bank: counter-roll REDUCES the bank (verified in aircraft-rig.test).
-                // +bank amplified it — that was the "self-leveling goes the wrong way".
-                node.rotate(BABYLON.Axis.Z, -bank * AUTO_LEVEL_RATE * dt, BABYLON.Space.LOCAL);
-            }
-            // Weathervane (YAW ONLY): converge the nose's HEADING toward the travel
-            // heading, so the plane points where it's going (kills flying sideways).
-            // Deliberately NOT pitch: chasing the descending velocity in pitch is what
-            // drives the graveyard spiral (bank → descend → nose-follows-down → steeper
-            // → faster → tighter). Airspeed-scaled so slow flight stays forgiving.
-            const spd = vel.length();
-            if (spd > 1) {
-                node.getDirectionToRef(LOCAL_Z, this._fwd);
-                const noseHeading = Math.atan2(this._fwd.x, this._fwd.z);
-                const velHeading = Math.atan2(vel.x, vel.z);
-                let dHeading = velHeading - noseHeading;
-                while (dHeading > Math.PI)
-                    dHeading -= 2 * Math.PI;
-                while (dHeading < -Math.PI)
-                    dHeading += 2 * Math.PI;
-                const airspeed = Math.max(0, BABYLON.Vector3.Dot(vel, this._fwd));
-                const cruise = Math.max(attrs.maxSpeed * 0.5, 1);
-                const frac = Math.min(1, WEATHERVANE_RATE * Math.min(1, airspeed / cruise) * dt);
-                node.rotate(BABYLON.Axis.Y, dHeading * frac, BABYLON.Space.WORLD);
-            }
+        // --- Fly-by-wire VTOL: stick commands attitude, velocity chases the nose ---
+        // The model is pure (fly-by-wire.ts); this bridges it to Babylon. We OWN the
+        // node's quaternion from here on, so seed the heading from the spawned
+        // orientation once.
+        if (!this.fbwSeeded) {
+            node.computeWorldMatrix(true);
+            node.getDirectionToRef(LOCAL_Z, this._fwd);
+            this.fbw.heading = Math.atan2(this._fwd.x, this._fwd.z);
+            this.fbw.pitch = 0;
+            this.fbw.bank = 0;
+            this.fbw.speed = Math.hypot(vel.x, vel.z);
+            this.fbwSeeded = true;
         }
-        else {
-            // Grounded: direct nose-yaw steers the taxiing aircraft (the airborne path
-            // has no direct yaw — it banks to turn).
-            node.rotate(BABYLON.Axis.Y, input.turn * attrs.turnRate * DEG2RAD * dt, BABYLON.Space.WORLD);
-            // Ease any bank back to level so it rests flat.
-            const prevRoll = this.rollAngle;
-            this.rollAngle += (0 - this.rollAngle) * Math.min(1, 3 * dt);
-            const delta = this.rollAngle - prevRoll;
-            if (Math.abs(delta) > 0.0001) {
-                node.rotate(BABYLON.Axis.Z, delta, BABYLON.Space.LOCAL);
-            }
-        }
-        // --- Forces (delegated to pure aircraft-physics module) ---
-        // Normalize the world axes: until the hull is reliably canonical (the
-        // `canonical` bake only covers leaf meshes; a hierarchical model keeps its
-        // scale), the raw forward/up can be non-unit/skewed, which mis-scales every
-        // aero force. getDirectionToRef + normalize gives clean unit axes regardless.
+        const cmd = {
+            pitch: input.pitch,
+            // Left stick X is the primary turn (banks → turns); right stick X adds roll.
+            roll: Math.max(-1, Math.min(1, input.turn + input.strafe)),
+            lift: input.lift, // trigger axis: + up/faster, − down/slower
+        };
+        const cfg = {
+            maxSpeed: attrs.maxSpeed,
+            vtolSpeed: attrs.vtolSpeed,
+            maxBank: MAX_BANK,
+            maxPitch: MAX_PITCH,
+            attitudeRate: ATTITUDE_RATE,
+            bankTurnRate: BANK_TURN_RATE,
+            accel: attrs.acceleration,
+            leanAccel: attrs.acceleration,
+            hoverDamp: HOVER_DAMP,
+            climbRate: attrs.maxSpeed * 0.3,
+            offLevelSink: attrs.maxSpeed * 0.12,
+            diveBoost: attrs.maxSpeed * 0.4,
+            velChase: VEL_CHASE,
+        };
+        // Forward GROUND speed picks the drone↔plane regime.
+        const fwdSpeed = Math.hypot(vel.x, vel.z);
+        flyByWireStep(this.fbw, cmd, fwdSpeed, cfg, dt, this.grounded);
+        // Realise the attitude as a quaternion. Babylon's +pitch(X) drops the nose
+        // and +roll(Z) banks left, so negate both (our state: +pitch = nose up,
+        // +bank = right). Verified through the rig test.
+        node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(this.fbw.heading, -this.fbw.pitch, -this.fbw.bank);
+        node.computeWorldMatrix(true);
         node.getDirectionToRef(LOCAL_Z, this._fwd);
         this._fwd.normalize();
-        node.getDirectionToRef(LOCAL_Y, this._up);
-        this._up.normalize();
-        const localUp = this._up;
-        const localForward = this._fwd;
-        const config = {
-            maxSpeed: attrs.maxSpeed,
-            acceleration: attrs.acceleration,
-            vtolSpeed: attrs.vtolSpeed,
-            stallSpeed: attrs.stallSpeed,
-        };
-        const { dv, vtol, airspeed } = computeForces({ x: vel.x, y: vel.y, z: vel.z }, {
-            forward: { x: localForward.x, y: localForward.y, z: localForward.z },
-            up: { x: localUp.x, y: localUp.y, z: localUp.z },
-        }, input.throttle, config, dt);
-        vel.x += dv.x;
-        vel.y += dv.y;
-        vel.z += dv.z;
-        // Stall: nose drops when too slow (non-VTOL only).
-        // (Kept here because it mutates orientation, not velocity.)
-        if (!vtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed) {
-            node.rotate(BABYLON.Axis.X, 0.5 * dt, BABYLON.Space.LOCAL);
-        }
+        // Velocity eases toward where the nose points (the "go where you're pointing"
+        // chase) — this is what makes it forgiving instead of a skiddy simulation.
+        const tv = targetVelocity(this.fbw, cmd, { x: this._fwd.x, y: this._fwd.y, z: this._fwd.z }, fwdSpeed, cfg);
+        chaseVelocity(vel, tv, cfg.velChase, dt);
+        // Read-only flight state for the HUD / XR rig.
+        this.airspeed = this.fbw.speed;
+        this.altitude = node.position.y;
+        this.throttleLevel =
+            attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0;
+        this.vtolActive = attrs.vtolSpeed > 0 && fwdSpeed < attrs.vtolSpeed;
+        this.stalling = false;
         // === Apply velocity to position ===
         node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt);
         // Ground contact. Clamp out of the terrain; once settled, behave like
@@ -407,13 +365,10 @@ export class B3dAircraft extends B3dControllable {
             vel.x *= roll;
             vel.z *= roll;
         }
-        // --- Update read-only state ---
+        // Read-only flight state (airspeed/altitude/throttle/vtol) is set in the
+        // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
         this.altitude = node.position.y;
-        this.airspeed = airspeed;
-        this.throttleLevel = input.throttle;
-        this.vtolActive = vtol;
         this.updatePullUp(node, dt);
-        this.stalling = !vtol && attrs.stallSpeed > 0 && airspeed < attrs.stallSpeed;
     }
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */

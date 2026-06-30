@@ -1,21 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
   <title>b3d-aircraft — tosijs-3d</title>
-  <meta name="description" content="Arcade flight controller with optional VTOL. Uses the virtual gamepad input system: left stick for pitch/yaw, right stick X for roll, triggers for throttle…" />
+  <meta name="description" content="Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-aircraft/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="b3d-aircraft — tosijs-3d" />
-  <meta property="og:description" content="Arcade flight controller with optional VTOL. Uses the virtual gamepad input system: left stick for pitch/yaw, right stick X for roll, triggers for throttle…" />
+  <meta property="og:description" content="Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases…" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-aircraft/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-aircraft","description":"Arcade flight controller with optional VTOL. Uses the virtual gamepad input system: left stick for pitch/yaw, right stick X for roll, triggers for throttle…","url":"https://3d.tosijs.net/b3d-aircraft/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-aircraft","description":"Fly-by-wire VTOL controller — a forgiving \"drone that becomes a plane\" rather than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases…","url":"https://3d.tosijs.net/b3d-aircraft/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="/tosijs-3d.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
 </head>
@@ -23,16 +30,23 @@
   <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
   <article class="doc-content">
 <h1>b3d-aircraft</h1>
-<p>Arcade flight controller with optional VTOL. Uses the virtual gamepad input system:
-left stick for pitch/yaw, right stick X for roll, triggers for throttle up/down.
-Solid flight mechanics: rolling costs lift, climbing costs speed.</p>
-<p>Throttle has &quot;detents&quot; that make it easy to fly:</p>
+<p>Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather
+than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases
+toward it and self-levels when you let go, banking swings the heading (a
+coordinated turn), and the velocity simply chases where the nose points. The
+model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
+<p>Two regimes split by forward ground speed (<code>vtolSpeed</code>):</p>
 <ul>
-<li><strong>Level flight</strong>: no throttle → glide at safe speed with gentle descent; mid → cruise; full → accelerate</li>
-<li><strong>VTOL mode</strong>: no throttle → hover; throttle → climb; pitch down to descend</li>
+<li><strong>Hover / drone</strong> (slow): right trigger climbs, left trigger descends. Let go
+while slow and it bleeds back to a stationary hover; lean forward (pitch) to
+build speed and transition.</li>
+<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down. Pitch is
+climb/dive, the turn stick banks to turn. Slow back below <code>vtolSpeed</code> and the
+triggers return to up/down. Banking off level costs a little altitude.</li>
 </ul>
-<p>Set <code>vtolSpeed</code> &gt; 0 to enable VTOL. Below that airspeed, thrust goes vertical.
-Set <code>stallSpeed</code> &gt; 0 for stall behavior (nose drops when too slow).</p>
+<p>Set <code>vtolSpeed</code> to 0 for a pure aeroplane with no hover regime.</p>
+<p>Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
+lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
 <p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
@@ -44,9 +58,9 @@ const aircraft = b3dAircraft({
   // Start parked on the ground. The model is rested on the surface via its
   // computed bounding box, so y is the height of its belly — y: 0 = grounded.
   player: true, y: 0,
-  // vtolSpeed should match the speed at which lift can sustain altitude
-  // — in this model that&#39;s maxSpeed * 0.5 (the cruise speed).
-  vtolSpeed: 25, stallSpeed: 0, maxSpeed: 50,
+  // Below this forward speed it hovers (triggers = up/down); above it flies like
+  // a plane (triggers = throttle). Set to 0 for a pure aeroplane.
+  vtolSpeed: 12, maxSpeed: 50,
 })
 
 const hud = div({ class: &#39;hud&#39; },
@@ -58,7 +72,7 @@ const hud = div({ class: &#39;hud&#39; },
 )
 
 const controls = div({ class: &#39;controls&#39; },
-  &#39;W/S: pitch | A/D: yaw | \u2190/\u2192: roll | R: throttle+ | Q: throttle\u2212 | Release: snap to detent&#39;
+  &#39;W/S: pitch | A/D: turn (bank) | \u2190/\u2192: roll | R: up / faster | Q: down / slower&#39;
 )
 
 // Scatter reference markers on the ground. Registering them makes them shadow
@@ -192,37 +206,17 @@ requestAnimationFrame(updateHud)
 <tr>
 <td><code>maxSpeed</code></td>
 <td><code>50</code></td>
-<td>Max forward speed (m/s)</td>
+<td>Top forward speed (m/s)</td>
 </tr>
 <tr>
 <td><code>acceleration</code></td>
 <td><code>12</code></td>
-<td>Thrust acceleration</td>
-</tr>
-<tr>
-<td><code>friction</code></td>
-<td><code>2</code></td>
-<td>Drag when coasting</td>
-</tr>
-<tr>
-<td><code>pitchRate</code></td>
-<td><code>60</code></td>
-<td>Degrees/sec pitch</td>
-</tr>
-<tr>
-<td><code>turnRate</code></td>
-<td><code>45</code></td>
-<td>Degrees/sec yaw</td>
+<td>Throttle / lean authority (speed change rate)</td>
 </tr>
 <tr>
 <td><code>vtolSpeed</code></td>
-<td><code>0</code></td>
-<td>Forward-airspeed threshold for VTOL (0 = no VTOL). Recommended: <code>maxSpeed * 0.5</code> — the speed at which lift sustains altitude in this model.</td>
-</tr>
-<tr>
-<td><code>stallSpeed</code></td>
-<td><code>40</code></td>
-<td>Speed below which stall occurs (0 = no stall)</td>
+<td><code>12</code></td>
+<td>Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.</td>
 </tr>
 <tr>
 <td><code>groundY</code></td>
@@ -239,14 +233,14 @@ requestAnimationFrame(updateHud)
 <ul>
 <li><code>airspeed: number</code> — current forward speed (m/s)</li>
 <li><code>altitude: number</code> — height above ground</li>
-<li><code>vtolActive: boolean</code> — true when in VTOL mode</li>
-<li><code>stalling: boolean</code> — true when airspeed &lt; stallSpeed (not in VTOL)</li>
+<li><code>vtolActive: boolean</code> — true in the hover regime (below <code>vtolSpeed</code>)</li>
 <li><code>pullUp: boolean</code> — true when ground collision predicted within ~5s</li>
 <li><code>grounded: boolean</code> — true when settled on the ground (wheels/rolling resistance)</li>
 <li><code>crashed: boolean</code> — true after a hard/inverted ground impact; fires a <code>crash</code> event</li>
 </ul>
-<p>Flight controls are disabled on the ground (only yaw steers + throttle taxis);
-a contact faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of lands.</p>
+<p>On the ground the wings hold level and the turn stick taxi-steers; pulling back
+rotates for takeoff (or a VTOL lifts straight up on the right trigger). A contact
+faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of lands.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -259,7 +253,9 @@ a contact faster than <code>crashSpeed</code>, or banked/inverted, crashes inste
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/effects/">Effects</a></summary>
@@ -307,6 +303,7 @@ a contact faster than <code>crashSpeed</code>, or banked/inverted, crashes inste
     </details></li>
     <li><details><summary><a href="/ui/">UI</a></summary>
     <ul>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
       <li><a href="/widgets3d/">widgets3d</a></li>

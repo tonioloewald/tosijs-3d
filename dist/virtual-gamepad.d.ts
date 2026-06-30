@@ -43,7 +43,7 @@ export interface ThrottleDetentConfig {
     /** How fast the throttle moves (full range per second). Default 1.5 */
     rate: number;
 }
-export declare function aircraftMapping(config?: Partial<ThrottleDetentConfig>): InputMapping;
+export declare function aircraftMapping(_config?: Partial<ThrottleDetentConfig>): InputMapping;
 export declare function aircraftMappingDescriptor(config?: Partial<ThrottleDetentConfig>): InputMappingDescriptor;
 export declare class MappedInputProvider implements InputProvider {
     private sources;

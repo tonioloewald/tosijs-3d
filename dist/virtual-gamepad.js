@@ -302,48 +302,16 @@ export const carMappingDescriptor = {
         leftBumper: 'nitro',
     },
 };
-const DEFAULT_DETENTS = {
-    detents: [0.3, 0.5, 0.7],
-    rate: 1.5,
-};
-function snapToDetent(level, detents) {
-    if (detents.length === 0)
-        return level;
-    let closest = detents[0];
-    let minDist = Math.abs(level - closest);
-    for (let i = 1; i < detents.length; i++) {
-        const dist = Math.abs(level - detents[i]);
-        if (dist < minDist) {
-            closest = detents[i];
-            minDist = dist;
-        }
-    }
-    return closest;
-}
-export function aircraftMapping(config) {
-    const { detents, rate } = { ...DEFAULT_DETENTS, ...config };
-    let throttleLevel = 0.5;
-    let wasActive = false; // were triggers active last frame?
-    return (pad, dt) => {
+export function aircraftMapping(_config) {
+    return (pad) => {
         const input = emptyInput();
-        input.forward = pad.leftStickY; // pitch
-        input.turn = pad.leftStickX; // yaw
-        input.strafe = pad.rightStickX; // roll
-        // Throttle with detent snapping
-        const triggerDelta = pad.rightTrigger - pad.leftTrigger;
-        const isActive = Math.abs(triggerDelta) > 0.05;
-        if (isActive) {
-            // Actively pushing throttle up/down
-            throttleLevel += triggerDelta * rate * dt;
-            throttleLevel = Math.max(0, Math.min(1, throttleLevel));
-            wasActive = true;
-        }
-        else if (wasActive) {
-            // Just released — snap to nearest detent
-            throttleLevel = snapToDetent(throttleLevel, detents);
-            wasActive = false;
-        }
-        input.throttle = throttleLevel;
+        input.pitch = pad.leftStickY; // nose up/down
+        input.turn = pad.leftStickX; // bank → turn
+        input.strafe = pad.rightStickX; // aux roll
+        // Trigger axis is the VTOL controller's dual-purpose lift: + (right trigger) =
+        // climb when hovering / speed-up when flying; − (left trigger) = descend / slow
+        // down. The flight model integrates it per-regime (no detents — direct rate).
+        input.lift = pad.rightTrigger - pad.leftTrigger;
         // Camera toggle: the glass-gamepad "view" button, or the Y face button (so
         // it's reachable on an XR controller / hardware pad without a view button).
         input.view = Math.max(pad.view, pad.buttonY);
@@ -357,10 +325,10 @@ export function aircraftMappingDescriptor(config) {
         map: aircraftMapping(config),
         labels: {
             leftStickY: 'pitch',
-            leftStickX: 'yaw',
+            leftStickX: 'turn',
             rightStickX: 'roll',
-            rightTrigger: 'throttle+',
-            leftTrigger: 'throttle-',
+            rightTrigger: 'up / faster',
+            leftTrigger: 'down / slower',
             buttonX: 'interact',
             rightStickY: 'camera',
         },

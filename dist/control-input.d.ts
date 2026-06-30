@@ -4,6 +4,7 @@ export interface ControlInput {
     turn: number;
     pitch: number;
     throttle: number;
+    lift: number;
     jump: number;
     shoot: number;
     sprint: number;

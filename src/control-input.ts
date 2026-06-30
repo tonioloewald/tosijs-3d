@@ -44,6 +44,7 @@ export interface ControlInput {
   turn: number // -1..1
   pitch: number // -1..1 (aircraft)
   throttle: number // 0..1 (continuous throttle)
+  lift: number // -1..1 (aircraft trigger axis: + = climb / speed-up, − = descend / slow-down)
   jump: number // 0..1
   shoot: number // 0..1
   sprint: number // 0..1
@@ -68,6 +69,7 @@ export function emptyInput(): ControlInput {
     turn: 0,
     pitch: 0,
     throttle: 0,
+    lift: 0,
     jump: 0,
     shoot: 0,
     sprint: 0,
@@ -113,6 +115,7 @@ export class CompositeInputProvider implements InputProvider {
       result.strafe = maxAbs(result.strafe, input.strafe)
       result.turn = maxAbs(result.turn, input.turn)
       result.pitch = maxAbs(result.pitch, input.pitch)
+      result.lift = maxAbs(result.lift, input.lift)
       result.cameraZoom = maxAbs(result.cameraZoom, input.cameraZoom)
       // Buttons/throttle: max
       result.throttle = Math.max(result.throttle, input.throttle)
