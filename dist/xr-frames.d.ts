@@ -6,6 +6,11 @@ export interface Vec3 {
 }
 /** Shortest signed angle to rotate from `a` to `b`, in (-π, π]. */
 export declare function angleDelta(a: number, b: number): number;
+/** Yaw (about +Y) so a frame's local +Z points horizontally from `from` toward
+ * `to`. Used to face an entity-pinned frame (NPC dialogue, nameplates) at the
+ * player: with the frame facing you, its local −X is your screen-right and +X
+ * your screen-left, so left/right balloon layout stays put as you move. */
+export declare function facingYaw(from: Vec3, to: Vec3): number;
 /** Exponentially damp a yaw toward `target` at `rate` per second. A `deadband`
  * (radians) holds the value still for small offsets, so quick head glances don't
  * drag the body frame — only sustained turns past the deadband move it. Returns

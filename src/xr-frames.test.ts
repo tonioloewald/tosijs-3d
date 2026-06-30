@@ -1,7 +1,23 @@
 import { describe, expect, test } from 'bun:test'
-import { angleDelta, dampYaw, gazeReveal } from './xr-frames'
+import { angleDelta, dampYaw, facingYaw, gazeReveal } from './xr-frames'
 
 const PI = Math.PI
+
+describe('facingYaw', () => {
+  const at = { x: 0, y: 0, z: 0 }
+  test('+Z target → yaw 0', () => {
+    expect(facingYaw(at, { x: 0, y: 0, z: 5 })).toBeCloseTo(0)
+  })
+  test('+X target → yaw +π/2', () => {
+    expect(facingYaw(at, { x: 5, y: 0, z: 0 })).toBeCloseTo(PI / 2)
+  })
+  test('behind (−Z) → yaw π', () => {
+    expect(Math.abs(facingYaw(at, { x: 0, y: 0, z: -5 }))).toBeCloseTo(PI)
+  })
+  test('ignores height', () => {
+    expect(facingYaw(at, { x: 0, y: 9, z: 5 })).toBeCloseTo(0)
+  })
+})
 
 describe('angleDelta', () => {
   test('zero when equal', () => {

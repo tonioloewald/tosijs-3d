@@ -35,6 +35,13 @@ export function angleDelta(a, b) {
         d += 2 * Math.PI;
     return d;
 }
+/** Yaw (about +Y) so a frame's local +Z points horizontally from `from` toward
+ * `to`. Used to face an entity-pinned frame (NPC dialogue, nameplates) at the
+ * player: with the frame facing you, its local −X is your screen-right and +X
+ * your screen-left, so left/right balloon layout stays put as you move. */
+export function facingYaw(from, to) {
+    return Math.atan2(to.x - from.x, to.z - from.z);
+}
 /** Exponentially damp a yaw toward `target` at `rate` per second. A `deadband`
  * (radians) holds the value still for small offsets, so quick head glances don't
  * drag the body frame — only sustained turns past the deadband move it. Returns
