@@ -3,6 +3,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
+import { XrFrames } from './xr-frames';
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -149,6 +150,9 @@ export declare class B3d extends Component {
     glowLayer?: BABYLON.GlowLayer;
     xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
+    /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
+     * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
+    xrFrames: XrFrames | null;
     BABYLON: typeof BABYLON;
     minElevation: number;
     maxElevation: number;

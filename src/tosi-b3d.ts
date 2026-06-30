@@ -147,6 +147,7 @@ import { panel3d, button3d, type Widget3d } from './widgets3d'
 import { SvgTexture } from './svg-texture'
 import { b3dGamepad } from './glass-gamepad'
 import { XrGamepadSource } from './xr-gamepad'
+import { XrFrames } from './xr-frames'
 
 const { canvas, div, slot, button } = elements
 
@@ -350,6 +351,9 @@ export class B3d extends Component {
   glowLayer?: BABYLON.GlowLayer
   xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
+  /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
+   * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
+  xrFrames: XrFrames | null = null
   BABYLON = BABYLON
 
   declare minElevation: number
@@ -742,6 +746,11 @@ export class B3d extends Component {
     rig.position.set(p?.x ?? 0, 0, p?.z ?? -this.minDistance * 2)
     cam.parent = rig
 
+    // Reference frames for spatial UI (body/neck/face follow the head; rig/world
+    // are locomotion/play-space). Updated each XR frame below; UI parents to one.
+    const frames = new XrFrames(scene, rig, cam)
+    this.xrFrames = frames
+
     // The in-scene settings panel (with an Exit-VR button), floating overhead
     // relative to the head and fading in as you tilt up to use it.
     const panel = this._attachXrPanel(base)
@@ -809,6 +818,9 @@ export class B3d extends Component {
       const now = Date.now()
       const dt = Math.min((now - last) * 0.001, 0.1)
       last = now
+      // Keep the body/neck/face frames tracking the head (after locomotion has
+      // moved the rig last frame; before any UI reads them this frame).
+      frames.update(dt)
 
       // Piloting a live controllable → the controllers fly it (via its mapping)
       // and the rig FOLLOWS it: positioned behind/at it AND rotated to face the
@@ -964,10 +976,13 @@ export class B3d extends Component {
       }
     })
 
+    const host = this
     return {
       dispose() {
         base.sessionManager.onXRFrameObservable.remove(frame)
         panel.dispose()
+        frames.dispose()
+        host.xrFrames = null
         cam.parent = null
         ground.dispose()
         grid.dispose()
