@@ -169,6 +169,7 @@ const noop = () => {}
 // reads but never mutates them), so we never allocate a Vector3 per frame.
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1)
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0)
+const XR_UP = new BABYLON.Vector3(0, 1, 0)
 
 export class B3d extends Component {
   static initAttributes = {
@@ -862,12 +863,13 @@ export class B3d extends Component {
     const yawQuat = new BABYLON.Quaternion()
     const followQuat = new BABYLON.Quaternion() // cockpit: aircraft's full orient
     const aimQuat = new BABYLON.Quaternion() // cockpit: target orient (pre-slerp)
+    const recenterQuat = new BABYLON.Quaternion() // cockpit: entry-yaw recenter
     const cockpitLocal = new BABYLON.Vector3() // cockpit offset in the model frame
-    const decScale = new BABYLON.Vector3() // scratch for world-matrix decompose
-    const decPos = new BABYLON.Vector3()
     const mtx = new BABYLON.Matrix()
+    const mtxR = new BABYLON.Matrix() // cockpit: rig (recentered) orientation
     let chaseYaw = 0
     let chaseYawOffset = 0
+    let cockpitYawOffset = 0 // head yaw captured when you take the seat
     let chaseZoom = 0.5 // 0..1 chase distance (right stick Y while piloting)
     let chaseFirstFrame = true
     let lastPiloted: BABYLON.TransformNode | null = null
@@ -907,23 +909,41 @@ export class B3d extends Component {
         const view = entity?.cameraView
         const eyeH = entity?.eyeHeight ?? 1.6
 
-        // COCKPIT: ride INSIDE the aircraft, inheriting its FULL orientation so
-        // you bank/pitch with it (head tracking layers on top → look around the
-        // cockpit). Computed (not literally parented) to dodge model scale: take
-        // the airframe's rotation, place the head at the cockpit point, and
-        // back the rig out by the head's tracked local offset so the head lands
-        // exactly there. (#2)
+        // COCKPIT: ride INSIDE the aircraft, banking with it, head tracking on
+        // top. The airframe ORIENTATION comes from its NORMALIZED world basis
+        // (forward + up) — normalizing is what makes it immune to the model's
+        // scale (a raw basis from a scaled node is non-unit and skews the quat
+        // into the "distorted/scaled" frame). The view is yaw-RECENTERED on entry
+        // so you start looking out the nose regardless of how you were facing.
         if (view === 'cockpit') {
-          // Rigidly ride the hull. Pull a CLEAN rotation + position out of the
-          // airframe's world matrix — decompose strips the model's scale, which
-          // was skewing the getDirectionToRef basis into a distorted "scaled"
-          // frame. The cockpit then sits in the hull exactly, head tracking on
-          // top, immune to whatever scale/__root__ the model carries.
-          piloted.getWorldMatrix().decompose(decScale, aimQuat, decPos)
+          piloted.getDirectionToRef(XR_FORWARD, fwd) // world forward
+          fwd.normalize()
+          piloted.getDirectionToRef(XR_UP, side) // world up (reuse scratch)
+          side.normalize()
+          const airframeQ = BABYLON.Quaternion.FromLookDirectionLH(fwd, side)
+          BABYLON.Matrix.FromQuaternionToRef(airframeQ, mtx) // seat frame (raw)
           if (lastPiloted !== piloted) {
-            followQuat.copyFrom(aimQuat) // seat on entry — no slerp from identity
+            cockpitYawOffset = cam.rotationQuaternion
+              ? cam.rotationQuaternion.toEulerAngles().y
+              : 0
             lastPiloted = piloted
+            BABYLON.Quaternion.RotationYawPitchRollToRef(
+              -cockpitYawOffset,
+              0,
+              0,
+              recenterQuat
+            )
+            airframeQ.multiplyToRef(recenterQuat, followQuat) // seat, no slerp-in
           }
+          // Rig orientation = airframe ∘ (−entry-yaw): banks with the plane but
+          // your neutral head looks out the nose.
+          BABYLON.Quaternion.RotationYawPitchRollToRef(
+            -cockpitYawOffset,
+            0,
+            0,
+            recenterQuat
+          )
+          airframeQ.multiplyToRef(recenterQuat, aimQuat)
           // Light low-pass so flight-model jitter doesn't shake the rigid cockpit.
           BABYLON.Quaternion.SlerpToRef(
             followQuat,
@@ -931,13 +951,16 @@ export class B3d extends Component {
             Math.min(1, 20 * dt),
             followQuat
           )
-          BABYLON.Matrix.FromQuaternionToRef(followQuat, mtx)
+          BABYLON.Matrix.FromQuaternionToRef(followQuat, mtxR) // rig frame
+          // Seat is fixed in the hull (raw airframe frame); head-comp uses the
+          // recentered rig frame so the head lands at the seat.
           cockpitLocal.set(0, eyeH, entity?.cockpitForward ?? 0.5)
           BABYLON.Vector3.TransformCoordinatesToRef(cockpitLocal, mtx, tmp)
-          const cx = decPos.x + tmp.x
-          const cy = decPos.y + tmp.y
-          const cz = decPos.z + tmp.z
-          BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
+          const ap = piloted.absolutePosition
+          const cx = ap.x + tmp.x
+          const cy = ap.y + tmp.y
+          const cz = ap.z + tmp.z
+          BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtxR, tmp)
           rig.rotationQuaternion = followQuat
           rig.position.set(cx - tmp.x, cy - tmp.y, cz - tmp.z)
           chaseFirstFrame = true // re-seat the chase smoothing on toggle-out
@@ -1226,10 +1249,16 @@ export class B3d extends Component {
       )
         return
       const pick = pi.pickInfo
-      const uv =
+      let uv =
         pick?.hit && pick.pickedMesh === plane
           ? pick.getTextureCoordinates()
           : null
+      // The panel may be occluded (e.g. the aircraft cockpit hull blocks the
+      // controller ray) — re-pick against ONLY the panel so it's still pointable.
+      if (!uv && pick?.ray) {
+        const p2 = scene.pickWithRay(pick.ray, (m) => m === plane)
+        if (p2?.hit) uv = p2.getTextureCoordinates()
+      }
       if (uv) {
         vx = uv.x * vb.width
         vy = (1 - uv.y) * vb.height
