@@ -387,6 +387,13 @@ export class B3d extends Component {
     { anchor: 'left-shoulder', title: 'Inventory' },
     { anchor: 'right-shoulder', title: 'Inventory' },
     { anchor: 'waist', title: 'Quick Access' },
+    {
+      frame: 'face',
+      anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
+      reveal: 'always',
+      url: '/reticle.svg',
+      width: 0.12,
+    },
   ]
 
   private lastRender = 0
@@ -1106,6 +1113,10 @@ export class B3d extends Component {
     mat.backFaceCulling = false
     mat.emissiveTexture = tex.texture
     mat.opacityTexture = tex.texture
+    // You view the plane's back (+Z faces you), which mirrors the texture
+    // horizontally — flip U so the panel reads correctly.
+    tex.texture.uScale = -1
+    tex.texture.uOffset = 1
     mat.diffuseColor = BABYLON.Color3.Black()
     mat.disableLighting = true
     plane.material = mat

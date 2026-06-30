@@ -20,18 +20,29 @@ import { SvgTexture } from './svg-texture';
 import { gazeReveal } from './xr-frames';
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const DEG = Math.PI / 180;
-// Kept "not too far": modest offsets so the panels sit just off the body.
+// Angular presets measured off the head: "not too far" → 0.5 m out.
 const PRESETS = {
-    waist: { position: [0, 1.0, 0.32], revealStartDeg: 55, revealFullDeg: 28 },
+    // Low and deliberate — you have to look well down to your belt to show it.
+    waist: {
+        azimuthDeg: 0,
+        elevationDeg: -68,
+        distance: 0.85,
+        revealStartDeg: 34,
+        revealFullDeg: 14,
+    },
     'left-shoulder': {
-        position: [-0.26, 1.5, -0.05],
-        revealStartDeg: 45,
-        revealFullDeg: 22,
+        azimuthDeg: -70,
+        elevationDeg: 20,
+        distance: 0.5,
+        revealStartDeg: 48,
+        revealFullDeg: 24,
     },
     'right-shoulder': {
-        position: [0.26, 1.5, -0.05],
-        revealStartDeg: 45,
-        revealFullDeg: 22,
+        azimuthDeg: 70,
+        elevationDeg: 20,
+        distance: 0.5,
+        revealStartDeg: 48,
+        revealFullDeg: 24,
     },
 };
 const DEFAULT_FOCUS = [0, 1.6, 0];
@@ -69,19 +80,28 @@ export function placeholderPanelSvg(title, w = 320, h = 200) {
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.
  */
 export function attachFramePanel(scene, cam, frame, spec) {
-    const preset = typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : null;
-    const anchor = typeof spec.anchor === 'string'
-        ? { ...PRESETS[spec.anchor] }
-        : spec.anchor;
-    const pos = anchor.position;
+    const anchor = typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor;
     const focus = anchor.focus ?? DEFAULT_FOCUS;
-    const startDeg = anchor.revealStartDeg ?? preset?.revealStartDeg ?? 50;
-    const fullDeg = anchor.revealFullDeg ?? preset?.revealFullDeg ?? 25;
+    const startDeg = anchor.revealStartDeg ?? 50;
+    const fullDeg = anchor.revealFullDeg ?? 25;
     const cosStart = Math.cos(startDeg * DEG);
     const cosFull = Math.cos(fullDeg * DEG);
-    const el = spec.svg ?? placeholderPanelSvg(spec.title ?? '');
-    const vb = el.viewBox.baseVal;
-    const aspect = vb.height / vb.width || 0.625;
+    const alwaysOn = spec.reveal === 'always';
+    // Resolve position: explicit, or by azimuth/elevation/distance off the focus.
+    let pos = anchor.position;
+    if (pos == null) {
+        const az = (anchor.azimuthDeg ?? 0) * DEG;
+        const el = (anchor.elevationDeg ?? 0) * DEG;
+        const d = anchor.distance ?? 0.5;
+        const horiz = d * Math.cos(el);
+        pos = [
+            focus[0] + horiz * Math.sin(az),
+            focus[1] + d * Math.sin(el),
+            focus[2] + horiz * Math.cos(az),
+        ];
+    }
+    const el = spec.svg ?? (spec.url ? null : placeholderPanelSvg(spec.title ?? ''));
+    const aspect = el ? el.viewBox.baseVal.height / el.viewBox.baseVal.width || 1 : spec.aspect ?? 1;
     const width = spec.width ?? 0.26;
     const plane = BABYLON.MeshBuilder.CreatePlane('frame-panel', { width, height: width * aspect, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
     plane.parent = frame;
@@ -95,25 +115,28 @@ export function attachFramePanel(scene, cam, frame, spec) {
     const yaw = Math.atan2(dx, dz);
     const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
     plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, 0);
-    const tex = new SvgTexture({
-        scene,
-        element: el,
-        resolution: 384,
-        updateInterval: 400, // near-static placeholder
-    });
+    const tex = el
+        ? new SvgTexture({ scene, element: el, resolution: 384, updateInterval: 400 })
+        : new SvgTexture({ scene, url: spec.url, resolution: 384 });
     const mat = new BABYLON.StandardMaterial('frame-panel-mat', scene);
     mat.backFaceCulling = false;
     mat.emissiveTexture = tex.texture;
     mat.opacityTexture = tex.texture;
+    // The face you view is the plane's back (+Z points at you), which mirrors the
+    // texture horizontally — flip U so it reads correctly.
+    tex.texture.uScale = -1;
+    tex.texture.uOffset = 1;
     mat.diffuseColor = BABYLON.Color3.Black();
     mat.disableLighting = true;
     plane.material = mat;
-    plane.visibility = 0;
+    plane.visibility = alwaysOn ? 1 : 0;
     const head = new BABYLON.Vector3();
     const fwd = new BABYLON.Vector3();
     const toAnchor = new BABYLON.Vector3();
     return {
         update() {
+            if (alwaysOn)
+                return;
             head.copyFrom(cam.globalPosition);
             cam.getDirectionToRef(XR_FORWARD, fwd);
             plane.getAbsolutePosition().subtractToRef(head, toAnchor);
