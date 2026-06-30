@@ -196,6 +196,9 @@ const AUTO_LEVEL_DEADZONE = 0.15; // |roll input| above this suspends auto-level
 // (reduces sideslip/angle-of-attack), scaled by airspeed — so at speed the plane
 // flies pointed where it's going, but slow flight stays loose and forgiving.
 const WEATHERVANE_RATE = 1.6;
+// Pull-back for the parented FLAT chase, since the canonical hull is unit-scale
+// (the offset used to inherit the model's ~2.4x scale). Flat camera only.
+const FLAT_CHASE_SCALE = 1.8;
 // Landing: distance above clearance still counted as "on the ground", and the
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15;
@@ -248,8 +251,6 @@ export class B3dAircraft extends B3dControllable {
     velocity = new BABYLON.Vector3(0, 0, 0);
     _fwd = new BABYLON.Vector3(); // scratch: world nose direction (unit)
     _up = new BABYLON.Vector3(); // scratch: world up direction (unit)
-    _velDir = new BABYLON.Vector3(); // scratch: travel direction (unit)
-    _axis = new BABYLON.Vector3(); // scratch: weathervane rotation axis
     rollAngle = 0;
     meshNode = null;
     meshesToDispose = [];
@@ -308,26 +309,25 @@ export class B3dAircraft extends B3dControllable {
                 const bank = Math.atan2(-right.y, this._up.y);
                 node.rotate(BABYLON.Axis.Z, bank * AUTO_LEVEL_RATE * dt, BABYLON.Space.LOCAL);
             }
-            // Weathervane: converge the NOSE toward the direction of travel, so the
-            // plane points where it's actually going (kills the fly-sideways/backward
-            // drift and makes a dive read). Airspeed-scaled: no bite when slow, so the
-            // forgiving low-speed envelope is preserved.
+            // Weathervane (YAW ONLY): converge the nose's HEADING toward the travel
+            // heading, so the plane points where it's going (kills flying sideways).
+            // Deliberately NOT pitch: chasing the descending velocity in pitch is what
+            // drives the graveyard spiral (bank → descend → nose-follows-down → steeper
+            // → faster → tighter). Airspeed-scaled so slow flight stays forgiving.
             const spd = vel.length();
             if (spd > 1) {
                 node.getDirectionToRef(LOCAL_Z, this._fwd);
-                this._fwd.normalize();
-                this._velDir.copyFrom(vel).scaleInPlace(1 / spd);
-                const d = BABYLON.Vector3.Dot(this._fwd, this._velDir);
-                BABYLON.Vector3.CrossToRef(this._fwd, this._velDir, this._axis);
-                const axisLen = this._axis.length();
-                if (d < 0.99995 && axisLen > 1e-5) {
-                    this._axis.scaleInPlace(1 / axisLen);
-                    const angle = Math.acos(Math.max(-1, Math.min(1, d)));
-                    const airspeed = Math.max(0, BABYLON.Vector3.Dot(vel, this._fwd));
-                    const cruise = Math.max(attrs.maxSpeed * 0.5, 1);
-                    const frac = Math.min(1, WEATHERVANE_RATE * Math.min(1, airspeed / cruise) * dt);
-                    node.rotate(this._axis, angle * frac, BABYLON.Space.WORLD);
-                }
+                const noseHeading = Math.atan2(this._fwd.x, this._fwd.z);
+                const velHeading = Math.atan2(vel.x, vel.z);
+                let dHeading = velHeading - noseHeading;
+                while (dHeading > Math.PI)
+                    dHeading -= 2 * Math.PI;
+                while (dHeading < -Math.PI)
+                    dHeading += 2 * Math.PI;
+                const airspeed = Math.max(0, BABYLON.Vector3.Dot(vel, this._fwd));
+                const cruise = Math.max(attrs.maxSpeed * 0.5, 1);
+                const frac = Math.min(1, WEATHERVANE_RATE * Math.min(1, airspeed / cruise) * dt);
+                node.rotate(BABYLON.Axis.Y, dHeading * frac, BABYLON.Space.WORLD);
             }
         }
         else {
@@ -542,7 +542,10 @@ export class B3dAircraft extends B3dControllable {
         // yaw-only follow mis-framed the view on load, so it's reverted.
         const chase = new BABYLON.FreeCamera('aircraft-follow-cam', target.getAbsolutePosition().clone(), this.owner.scene);
         chase.parent = target;
-        chase.position = new BABYLON.Vector3(0, this.chaseMinHeight, -this.chaseDistance);
+        // The hull is now unit-scale (canonical), so the parented offset no longer
+        // gets the model's ~2.4x magnification — pull it back to keep the same flat
+        // framing (the VR chase is computed in world space and is unaffected).
+        chase.position = new BABYLON.Vector3(0, this.chaseMinHeight * FLAT_CHASE_SCALE, -this.chaseDistance * FLAT_CHASE_SCALE);
         chase.setTarget(BABYLON.Vector3.Zero());
         this.chaseCamera = chase;
         // Cockpit: near the nose, looking straight ahead (local +Z = forward).
