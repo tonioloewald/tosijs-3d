@@ -73,15 +73,14 @@ const terrain = b3dTerrain({
   surfaceType: &#39;cylinder&#39;,
   radius: 1000,
   cylinderHeight: 1000,
-  // Light-weight for VR: big tiles + few levels keep the pool small (~72 cells
-  // needed, so poolSize 80 never has to steal). Fewer, larger meshes = far less
-  // per-frame work on the headset.
+  // Big tiles + few levels keep the pool small and the meshes cheap. tileSize /
+  // lodLevels / reach are world-shape choices; hiResSubdivisions and poolSize are
+  // left to adapt to the device tier (see b3d-quality) — a workstation gets more
+  // detail, a Quest less, with no per-scene tuning.
   tileSize: 128,
-  hiResSubdivisions: 32,
   lodLevels: 3,
   splitFactor: 2,
   reach: 5000,
-  poolSize: 80,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,

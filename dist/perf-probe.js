@@ -40,12 +40,14 @@ const REF = {
 const WEIGHT = { fillMs: 0.4, vertexMs: 0.25, drawCallMs: 0.15, cpuMs: 0.2 };
 const HIGH_SCORE = 1.5; // ≥ → high
 const MEDIUM_SCORE = 0.6; // ≥ → medium, else low
-// Budget table. `medium` mirrors the hand-tuned VR-light terrain settings; `low`
-// is roughly the "half subdivisions" fallback that ran cleanly on the Quest.
+// Budget table. Terrain subdivisions are the biggest per-tile lever: 24 is plenty
+// even on an M1 Max (32 was a bit hard), 16 mid, 12 for the low/Quest-in-XR tier
+// (a Quest is clamped to medium flat, low in XR). No power-of-2 requirement — LOD
+// vertex alignment only needs tile SIZES to double, so any subdivision count fits.
 const BUDGETS = {
     high: {
         hardwareScaling: 1,
-        hiResSubdivisions: 48,
+        hiResSubdivisions: 24,
         poolSize: 120,
         reach: 6000,
         fillBudget: 24,
@@ -56,7 +58,7 @@ const BUDGETS = {
     },
     medium: {
         hardwareScaling: 1,
-        hiResSubdivisions: 32,
+        hiResSubdivisions: 16,
         poolSize: 80,
         reach: 5000,
         fillBudget: 18,
@@ -67,7 +69,7 @@ const BUDGETS = {
     },
     low: {
         hardwareScaling: 1.5,
-        hiResSubdivisions: 16,
+        hiResSubdivisions: 12,
         poolSize: 56,
         reach: 3500,
         fillBudget: 12,
