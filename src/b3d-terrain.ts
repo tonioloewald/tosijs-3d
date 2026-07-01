@@ -27,6 +27,7 @@ const { demo } = tosi({
   demo: {
     grossScale: 0.03,
     detailScale: 0.15,
+    horizScale: 1,
     grossAmplitude: 30,
     detailAmplitude: 6,
     wireframe: false,
@@ -47,6 +48,7 @@ const terrain = b3dTerrain({
   lodLevels: 4,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
+  horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
   wireframe: demo.wireframe,
@@ -95,19 +97,28 @@ preview.append(
     posDisplay,
     label(
       'gross scale ',
-      input({ type: 'range', min: 0.01, max: 1, step: 0.01, bindValue: demo.grossScale }),
+      input({ type: 'range', min: 0.005, max: 0.3, step: 0.005, bindValue: demo.grossScale }),
+      demo.grossScale,
     ),
     label(
       'detail scale ',
-      input({ type: 'range', min: 0.1, max: 3, step: 0.1, bindValue: demo.detailScale }),
+      input({ type: 'range', min: 0.02, max: 1, step: 0.01, bindValue: demo.detailScale }),
+      demo.detailScale,
+    ),
+    label(
+      'horiz scale ',
+      input({ type: 'range', min: 0.25, max: 6, step: 0.05, bindValue: demo.horizScale }),
+      demo.horizScale,
     ),
     label(
       'gross amp ',
       input({ type: 'range', min: 0, max: 80, step: 1, bindValue: demo.grossAmplitude }),
+      demo.grossAmplitude,
     ),
     label(
       'detail amp ',
       input({ type: 'range', min: 0, max: 20, step: 0.5, bindValue: demo.detailAmplitude }),
+      demo.detailAmplitude,
     ),
     label(
       'wireframe ',
@@ -117,7 +128,7 @@ preview.append(
 )
 
 // Regenerate terrain when parameters change
-for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude', 'wireframe']) {
+for (const key of ['grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe']) {
   demo[key].observe(() => {
     terrain.regenerate()
   })
@@ -174,6 +185,7 @@ tosi-b3d {
 | `lodLevels` | `5` | Number of LOD levels; level k uses `tileSize × 2^k` tiles |
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
+| `horizScale` | `1` | Horizontal feature scale — divides both noise frequencies together (>1 = broader terrain) |
 | `grossAmplitude` | `8` | Gross height multiplier |
 | `detailAmplitude` | `2` | Detail height multiplier |
 | `originResetThreshold` | `500` | Distance before origin rebase |
@@ -262,6 +274,7 @@ export class B3dTerrain extends Component {
     lodLevels: 5,
     grossScale: 0.1,
     detailScale: 0.5,
+    horizScale: 1,
     grossAmplitude: 8,
     detailAmplitude: 2,
     originResetThreshold: 500,
@@ -603,16 +616,24 @@ export class B3dTerrain extends Component {
     const v = this.renderToV(wz)
     const surfPt = this.sampler.sample(u, v)
 
+    // horizScale widens (>1) or tightens (<1) all features horizontally — the
+    // companion to grossAmplitude's vertical scale. It divides the sampling
+    // frequency of both noise layers together, so it sets the terrain's aspect
+    // (broad rolling vs. tight) without touching the height sliders.
+    const hs = attrs.horizScale || 1
+    const gScale = attrs.grossScale / hs
+    const dScale = attrs.detailScale / hs
+
     const grossRaw = this.noise.fractal(
-      surfPt.x * attrs.grossScale,
-      surfPt.y * attrs.grossScale,
-      surfPt.z * attrs.grossScale,
+      surfPt.x * gScale,
+      surfPt.y * gScale,
+      surfPt.z * gScale,
       4
     )
     const detailRaw = this.noise.fractal(
-      surfPt.x * attrs.detailScale,
-      surfPt.y * attrs.detailScale,
-      surfPt.z * attrs.detailScale,
+      surfPt.x * dScale,
+      surfPt.y * dScale,
+      surfPt.z * dScale,
       3
     )
 

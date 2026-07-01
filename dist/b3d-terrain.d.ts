@@ -21,6 +21,7 @@ export declare class B3dTerrain extends Component {
         lodLevels: number;
         grossScale: number;
         detailScale: number;
+        horizScale: number;
         grossAmplitude: number;
         detailAmplitude: number;
         originResetThreshold: number;

@@ -54,6 +54,7 @@ const { demo } = tosi({
   demo: {
     grossScale: 0.03,
     detailScale: 0.15,
+    horizScale: 1,
     grossAmplitude: 30,
     detailAmplitude: 6,
     wireframe: false,
@@ -74,6 +75,7 @@ const terrain = b3dTerrain({
   lodLevels: 4,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
+  horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
   wireframe: demo.wireframe,
@@ -122,19 +124,28 @@ preview.append(
     posDisplay,
     label(
       &#39;gross scale &#39;,
-      input({ type: &#39;range&#39;, min: 0.01, max: 1, step: 0.01, bindValue: demo.grossScale }),
+      input({ type: &#39;range&#39;, min: 0.005, max: 0.3, step: 0.005, bindValue: demo.grossScale }),
+      demo.grossScale,
     ),
     label(
       &#39;detail scale &#39;,
-      input({ type: &#39;range&#39;, min: 0.1, max: 3, step: 0.1, bindValue: demo.detailScale }),
+      input({ type: &#39;range&#39;, min: 0.02, max: 1, step: 0.01, bindValue: demo.detailScale }),
+      demo.detailScale,
+    ),
+    label(
+      &#39;horiz scale &#39;,
+      input({ type: &#39;range&#39;, min: 0.25, max: 6, step: 0.05, bindValue: demo.horizScale }),
+      demo.horizScale,
     ),
     label(
       &#39;gross amp &#39;,
       input({ type: &#39;range&#39;, min: 0, max: 80, step: 1, bindValue: demo.grossAmplitude }),
+      demo.grossAmplitude,
     ),
     label(
       &#39;detail amp &#39;,
       input({ type: &#39;range&#39;, min: 0, max: 20, step: 0.5, bindValue: demo.detailAmplitude }),
+      demo.detailAmplitude,
     ),
     label(
       &#39;wireframe &#39;,
@@ -144,7 +155,7 @@ preview.append(
 )
 
 // Regenerate terrain when parameters change
-for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;wireframe&#39;]) {
+for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&#39;, &#39;grossAmplitude&#39;, &#39;detailAmplitude&#39;, &#39;wireframe&#39;]) {
   demo[key].observe(() =&gt; {
     terrain.regenerate()
   })
@@ -251,6 +262,11 @@ for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;grossAmplit
 <td><code>detailScale</code></td>
 <td><code>0.5</code></td>
 <td>Detail noise frequency (per render unit)</td>
+</tr>
+<tr>
+<td><code>horizScale</code></td>
+<td><code>1</code></td>
+<td>Horizontal feature scale — divides both noise frequencies together (&gt;1 = broader terrain)</td>
 </tr>
 <tr>
 <td><code>grossAmplitude</code></td>
