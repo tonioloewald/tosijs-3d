@@ -18,37 +18,37 @@ const { div, button, p, label, input } = elements
 let sphere = null
 let dropSphere = null
 let dropAggregate = null
-let B = null
+let babylon = null
 const physics = b3dPhysics()
 
 function createSphere() {
-  sphere = B.MeshBuilder.CreateSphere(
+  sphere = babylon.MeshBuilder.CreateSphere(
     'target', { diameter: 2, segments: 12 }, scene.scene
   )
   sphere.position.y = 4
-  const mat = new B.StandardMaterial('mat', scene.scene)
-  mat.diffuseColor = new B.Color3(0.8, 0.2, 0.1)
+  const mat = new babylon.StandardMaterial('mat', scene.scene)
+  mat.diffuseColor = new babylon.Color3(0.8, 0.2, 0.1)
   sphere.material = mat
 }
 
 function createDropSphere() {
-  dropSphere = B.MeshBuilder.CreateSphere(
+  dropSphere = babylon.MeshBuilder.CreateSphere(
     'dropTarget', { diameter: 1.5, segments: 12 }, scene.scene
   )
   dropSphere.position.set(4, 12, 0)
-  const mat = new B.StandardMaterial('dropMat', scene.scene)
-  mat.diffuseColor = new B.Color3(0.2, 0.5, 0.9)
+  const mat = new babylon.StandardMaterial('dropMat', scene.scene)
+  mat.diffuseColor = new babylon.Color3(0.2, 0.5, 0.9)
   dropSphere.material = mat
   // Dynamic physics body — it will fall under gravity
-  dropAggregate = new B.PhysicsAggregate(
-    dropSphere, B.PhysicsShapeType.SPHERE,
+  dropAggregate = new babylon.PhysicsAggregate(
+    dropSphere, babylon.PhysicsShapeType.SPHERE,
     { mass: 2, restitution: 0.1 }, scene.scene
   )
   // Watch for impact
   let prevVelY = 0
   const checkImpact = () => {
     if (!dropSphere) { scene.scene.unregisterBeforeRender(checkImpact); return }
-    const vel = new B.Vector3()
+    const vel = new babylon.Vector3()
     dropAggregate.body.getLinearVelocityToRef(vel)
     // Detect sudden deceleration (hit something)
     if (prevVelY < -2 && Math.abs(vel.y) < Math.abs(prevVelY) * 0.5) {
@@ -109,7 +109,7 @@ function createObstacles(BABYLON, s) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      B = BABYLON
+      babylon = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 14,
         new BABYLON.Vector3(0, 2, 0), el.scene
@@ -127,11 +127,11 @@ const scene = b3d(
 
 // Create obstacles once physics is ready
 physics.ready.then(() => {
-  createObstacles(B, scene.scene)
+  createObstacles(babylon, scene.scene)
   // Also give the ground a static physics body
   const ground = scene.scene.getMeshByName('ground')
   if (ground) {
-    new B.PhysicsAggregate(ground, B.PhysicsShapeType.BOX, { mass: 0, restitution: 0.3 }, scene.scene)
+    new babylon.PhysicsAggregate(ground, babylon.PhysicsShapeType.BOX, { mass: 0, restitution: 0.3 }, scene.scene)
   }
 })
 
