@@ -6,13 +6,14 @@ Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
 symmetric hemispheres with no singularities. Two noise layers (gross contour
 + fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
 
-The terrain is built from a single kind of tile (a heightfield ground patch) in
-concentric LOD levels that stream around the camera. Level 0 is full detail at
-`tileSize`; each level out doubles the tile size (`tileSize × 2^level`) so distant
-ground is covered cheaply by stretched tiles. Levels overlap rather than abut —
-coarser levels sit a hair lower so a finer tile always wins where they overlap,
-and coarse tiles fully covered by a finer level are culled — so there are no gaps
-to skirt over. Includes floating-origin rebasing and a recenter mechanism — when
+The terrain streams from one shared **priority pool** of tiles over a **quadtree
+LOD**: fine near the camera, coarse far, with exactly one LOD per patch of ground
+(a coarse cell is exactly four finer cells — no overlap, no gaps). Each frame the
+pool is diffed against the cells that *should* exist; blanks are filled by
+priority (near, and biased toward where you're facing/travelling) — reusing free
+tiles or stealing the weakest placed one — capped at `fillBudget` per frame so
+movement never hitches. Per-tile skirts (with lied normals) hide any crack at a
+LOD boundary. Includes floating-origin rebasing and a recenter mechanism — when
 travel exceeds `maxTravelDistance`, a `recenter-needed` event fires so the game
 layer can orchestrate a visual transition before calling `recenter()`.
 
@@ -36,25 +37,26 @@ const { demo } = tosi({
   },
 })
 
-// Big tiles + horizScale 4 → the level-0 ring is ~1600 units across, so you're
-// surrounded by full detail. The 4× also stretches each LOD's reach, so only 4
-// levels get to the fogged horizon (~6400) instead of 6 — fewer tiles. Larger
-// radius so the cylinder doesn't visibly repeat across the LOD coverage.
+// Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
+// filled by priority (biased toward where you're looking + going). horizScale 4
+// makes level-0 tiles 320 across, so the fine region is broad; reach 5000 puts
+// the coarse edge just past the fog. Larger radius so the cylinder doesn't repeat.
 const terrain = b3dTerrain({
   seed: demo.seed,
   surfaceType: 'cylinder',
   radius: 1000,
   cylinderHeight: 1000,
   tileSize: 80,
-  hiResGrid: 5,
   hiResSubdivisions: 32,
   lodLevels: 4,
+  splitFactor: 2,
+  reach: 5000,
+  poolSize: 200,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
-  fuzz: demo.fuzz,
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
@@ -193,10 +195,13 @@ tosi-b3d {
 | `minorRadius` | `40` | Torus minor radius |
 | `radius` | `200` | Sphere/cylinder radius |
 | `cylinderHeight` | `200` | Cylinder height (v range before reflection) |
-| `tileSize` | `10` | World-space size of a level-0 tile |
-| `hiResGrid` | `5` | NxN grid of tiles per LOD level (around the camera) |
+| `tileSize` | `10` | World-space size of a level-0 (finest) tile |
 | `hiResSubdivisions` | `24` | Vertices per tile edge (same at every level) |
-| `lodLevels` | `5` | Number of LOD levels; level k uses `tileSize × 2^k` tiles |
+| `lodLevels` | `5` | Number of LOD levels; level k tiles are `tileSize × 2^k` |
+| `poolSize` | `220` | Shared tile budget; the pool renders the top-priority cells |
+| `fillBudget` | `12` | Max tiles (re)built per frame — caps streaming cost |
+| `splitFactor` | `2` | LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize` |
+| `reach` | `0` | Terrain radius (0 = auto from the coarsest tile) |
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
 | `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
@@ -232,10 +237,8 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
-import { lodTileSize, tileCenter, vertexWorld, cellIndex, coverageHalf, spanInside, } from './terrain-grid';
-// Vertical separation between adjacent LOD levels (metres). Tiny — just enough to
-// keep a finer tile in front of the coarse one it overlaps (no z-fighting).
-const LOD_Y_STEP = 0.03;
+import { vertexLocal, desiredCells, } from './terrain-grid';
+const cellKey = (c) => `${c.level},${c.gx},${c.gz}`;
 export class B3dTerrain extends Component {
     static styleSpec = {
         ':host': {
@@ -250,9 +253,17 @@ export class B3dTerrain extends Component {
         radius: 200,
         cylinderHeight: 200,
         tileSize: 10,
-        hiResGrid: 5,
         hiResSubdivisions: 24,
         lodLevels: 5,
+        // Priority-pool streaming (quadtree LOD). `poolSize` tiles are shared across
+        // the whole view and filled/stolen by priority; `fillBudget` caps how many are
+        // (re)built per frame so movement never hitches. `splitFactor` sets the LOD
+        // falloff (subdivide when nearer than splitFactor·tileSize); `reach` is the
+        // terrain radius (0 = auto from the coarsest tile).
+        poolSize: 220,
+        fillBudget: 12,
+        splitFactor: 2,
+        reach: 0,
         grossScale: 0.1,
         detailScale: 0.5,
         horizScale: 1,
@@ -270,10 +281,13 @@ export class B3dTerrain extends Component {
     noise;
     noiseSeed = NaN; // last seed the noise was built with (for re-seeding)
     sampler;
-    lods = [];
+    pool = [];
     tileTemplate = null;
     material;
     registered = false;
+    // Previous camera XZ (render space) — for the travel-direction interest term.
+    lastCamX = NaN;
+    lastCamZ = NaN;
     // Conceptual position on the surface (u,v in [0,1))
     worldU = 0;
     worldV = 0;
@@ -291,7 +305,7 @@ export class B3dTerrain extends Component {
         this.noiseSeed = attrs.seed;
         this.sampler = this.createSampler();
         this.material = this.createMaterial();
-        this.createLods();
+        this.createPool();
         this._beforeRender = () => this.update();
         scene.registerBeforeRender(this._beforeRender);
     }
@@ -299,11 +313,9 @@ export class B3dTerrain extends Component {
         if (this.owner && this._beforeRender) {
             this.owner.scene.unregisterBeforeRender(this._beforeRender);
         }
-        for (const lod of this.lods) {
-            for (const tile of lod.tiles)
-                tile.mesh.dispose();
-        }
-        this.lods = [];
+        for (const tile of this.pool)
+            tile.mesh.dispose();
+        this.pool = [];
         if (this.material)
             this.material.dispose();
         this.owner = null;
@@ -330,35 +342,33 @@ export class B3dTerrain extends Component {
         mat.wireframe = this.wireframe;
         return mat;
     }
-    createLods() {
+    createPool() {
         const attrs = this;
-        const levels = Math.max(1, attrs.lodLevels);
-        const grid = attrs.hiResGrid;
         const subs = attrs.hiResSubdivisions;
         this.tileTemplate = B3dTerrain.buildTileTemplate(subs);
-        const hs = attrs.horizScale || 1;
-        for (let L = 0; L < levels; L++) {
-            const tileSize = lodTileSize(attrs.tileSize, L, hs);
-            const tiles = [];
-            this.createTilesInto(tiles, grid * grid, subs, tileSize, `lod${L}`);
-            this.lods.push({
-                level: L,
-                tileSize,
-                yOffset: -L * LOD_Y_STEP,
-                tiles,
-                lastCamGridX: Infinity,
-                lastCamGridZ: Infinity,
-            });
+        const scene = this.owner.scene;
+        const tpl = this.tileTemplate;
+        const vertCount = tpl.gridCount + tpl.perim.length;
+        const count = Math.max(1, attrs.poolSize);
+        for (let i = 0; i < count; i++) {
+            const mesh = new BABYLON.Mesh(`terrain-tile-${i}`, scene);
+            const vd = new BABYLON.VertexData();
+            vd.positions = new Float32Array(vertCount * 3);
+            vd.normals = new Float32Array(vertCount * 3);
+            vd.colors = new Float32Array(vertCount * 4).fill(1); // white until debug tints
+            vd.indices = tpl.allIndices;
+            vd.applyToMesh(mesh, true); // updatable
+            mesh.material = this.material;
+            mesh.receiveShadows = true;
+            mesh.isVisible = false;
+            mesh.position.y = -10000;
+            this.pool.push({ mesh, cell: null });
         }
         // Register every tile once (invisible until assigned) so they receive
         // shadows / join reflection lists; the sun's activeDistance gates which
-        // actually cast, so the far coarse tiles don't blow up the shadow frustum.
+        // actually cast, so far tiles don't blow up the shadow frustum.
         if (this.owner && !this.registered) {
-            const meshes = [];
-            for (const lod of this.lods)
-                for (const t of lod.tiles)
-                    meshes.push(t.mesh);
-            this.owner.register({ meshes });
+            this.owner.register({ meshes: this.pool.map((t) => t.mesh) });
             this.registered = true;
         }
     }
@@ -408,132 +418,126 @@ export class B3dTerrain extends Component {
             allIndices: [...gridIndices, ...skirtIndices],
         };
     }
-    createTilesInto(pool, count, subdivisions, tileSize, prefix) {
-        const scene = this.owner.scene;
-        const tpl = this.tileTemplate;
-        const vertCount = tpl.gridCount + tpl.perim.length;
-        for (let i = 0; i < count; i++) {
-            const mesh = new BABYLON.Mesh(`terrain-${prefix}-${i}`, scene);
-            const vd = new BABYLON.VertexData();
-            vd.positions = new Float32Array(vertCount * 3);
-            vd.normals = new Float32Array(vertCount * 3);
-            vd.colors = new Float32Array(vertCount * 4).fill(1); // white until debug tints
-            vd.indices = tpl.allIndices;
-            vd.applyToMesh(mesh, true); // updatable
-            mesh.material = this.material;
-            mesh.receiveShadows = true;
-            mesh.isVisible = false;
-            mesh.position.y = -10000;
-            pool.push({ mesh, gridX: Infinity, gridZ: Infinity, assigned: false });
-        }
-    }
-    // World coverage square of a level's tile grid given the camera position: the
-    // snapped centre and the half-extent (centre ± half on each axis).
-    levelCoverage(tileSize, camX, camZ) {
-        return {
-            cx: cellIndex(camX, tileSize) * tileSize,
-            cz: cellIndex(camZ, tileSize) * tileSize,
-            half: coverageHalf(this.hiResGrid, tileSize),
-        };
-    }
-    // --- Update loop ---
-    update() {
+    // --- Update loop: priority-pool streaming (quadtree LOD) ---
+    update(budgetOverride) {
         if (this.owner == null)
             return;
         const camera = this.owner.scene.activeCamera;
         if (camera == null)
             return;
         const attrs = this;
-        // WORLD position — the active camera is often parented (e.g. an aircraft's
-        // chase cam), so `.position` is a constant local offset. globalPosition is the
-        // real point to stream the terrain around.
+        // WORLD position — the active camera is often parented (aircraft chase cam),
+        // so `.position` is a constant local offset. globalPosition is the real point.
         const camX = camera.globalPosition.x;
         const camZ = camera.globalPosition.z;
-        // Floating origin reset — rebase on the COARSEST tile so every level's grid
-        // stays integer-aligned after the shift. The shift is a whole coarsest-tile,
-        // so the trigger distance MUST exceed the coarsest tile size — otherwise the
-        // shift rounds to 0, resetOrigin no-ops, and update() returns here without
-        // streaming, starving the terrain (a param change mid-flight then blanks it).
-        const coarsest = this.lods.length
-            ? this.lods[this.lods.length - 1].tileSize
-            : attrs.tileSize;
-        const resetDist = Math.max(attrs.originResetThreshold, coarsest);
-        const distSq = camX * camX + camZ * camZ;
-        if (distSq > resetDist * resetDist) {
+        // Floating origin reset. The shift is a whole coarsest-tile, so the trigger
+        // distance must exceed it or the shift rounds to 0 (no-op + starvation).
+        const resetDist = Math.max(attrs.originResetThreshold, this.coarsestTileSize());
+        if (camX * camX + camZ * camZ > resetDist * resetDist) {
             this.resetOrigin(camX, camZ, camera);
             return;
         }
         // Recenter threshold (sample-space drift, for the game layer to handle).
-        const totalTravel = Math.sqrt((this.originOffsetX + camX) * (this.originOffsetX + camX) +
-            (this.originOffsetZ + camZ) * (this.originOffsetZ + camZ));
-        if (totalTravel > attrs.maxTravelDistance) {
+        const travel = Math.hypot(this.originOffsetX + camX, this.originOffsetZ + camZ);
+        if (travel > attrs.maxTravelDistance) {
             this.dispatchEvent(new CustomEvent('recenter-needed', {
                 bubbles: true,
-                detail: { distance: totalTravel },
+                detail: { distance: travel },
             }));
         }
-        // Stream each LOD level around the camera. Each level snaps to its own tile
-        // grid, so coarser levels only restream a quarter as often.
-        for (const lod of this.lods) {
-            const gx = cellIndex(camX, lod.tileSize);
-            const gz = cellIndex(camZ, lod.tileSize);
-            if (gx !== lod.lastCamGridX || gz !== lod.lastCamGridZ) {
-                lod.lastCamGridX = gx;
-                lod.lastCamGridZ = gz;
-                this.assignLod(lod, gx, gz, camX, camZ);
+        const cfg = this.buildConfig(camX, camZ, camera);
+        this.lastCamX = camX;
+        this.lastCamZ = camZ;
+        this.streamTiles(desiredCells(camX, camZ, cfg), budgetOverride ?? attrs.fillBudget);
+    }
+    coarsestTileSize() {
+        const attrs = this;
+        const hs = attrs.horizScale || 1;
+        return attrs.tileSize * hs * Math.pow(2, Math.max(0, attrs.lodLevels - 1));
+    }
+    /** Build the quadtree config from attributes + a facing/travel interest. */
+    buildConfig(camX, camZ, camera) {
+        const attrs = this;
+        const hs = attrs.horizScale || 1;
+        const baseTileSize = attrs.tileSize * hs;
+        const reach = attrs.reach > 0
+            ? attrs.reach
+            : this.coarsestTileSize() * (attrs.splitFactor + 1.5);
+        // Interest = where you're looking blended with where you're going. Beyond the
+        // omni ring, cells that way outrank cells behind, so the pool reaches further
+        // ahead. Facing from the camera forward; travel from this frame's motion.
+        const fwd = camera.getDirection(BABYLON.Axis.Z);
+        let ix = fwd.x;
+        let iz = fwd.z;
+        if (!Number.isNaN(this.lastCamX)) {
+            const tx = camX - this.lastCamX;
+            const tz = camZ - this.lastCamZ;
+            const tl = Math.hypot(tx, tz);
+            if (tl > 1e-3) {
+                ix += (tx / tl) * 2; // travel weighted for prefetch
+                iz += (tz / tl) * 2;
             }
         }
+        const il = Math.hypot(ix, iz);
+        return {
+            baseTileSize,
+            levels: Math.max(1, attrs.lodLevels),
+            splitFactor: attrs.splitFactor,
+            maxReach: reach,
+            omniRadius: baseTileSize * 1.5,
+            interest: il > 1e-3 ? { x: ix / il, z: iz / il } : undefined,
+        };
     }
-    assignLod(lod, camGridX, camGridZ, camX, camZ) {
-        const hiHalf = Math.floor(this.hiResGrid / 2);
-        // The finer level (k−1) this level nests around. Tiles fully inside its
-        // coverage are hidden (the finer level draws them); the rest form the ring.
-        // Kept tiles overlap the finer edge slightly so there's never a gap — the
-        // per-tile skirts + finer-on-top yOffset hide the transition.
-        const finer = lod.level > 0 ? this.levelCoverage(lod.tileSize / 2, camX, camZ) : null;
-        const half = lod.tileSize / 2;
-        const needed = [];
-        for (let dx = -hiHalf; dx <= hiHalf; dx++) {
-            for (let dz = -hiHalf; dz <= hiHalf; dz++) {
-                const gx = camGridX + dx;
-                const gz = camGridZ + dz;
-                if (finer) {
-                    const c = tileCenter(gx, gz, lod.tileSize);
-                    // Fully inside the finer coverage → skip (the finer level covers it).
-                    if (spanInside(c.x, half, finer.cx, finer.half) &&
-                        spanInside(c.z, half, finer.cz, finer.half)) {
-                        continue;
-                    }
+    /**
+     * Reconcile the pool with the desired cells: keep tiles whose cell is still
+     * wanted, free the rest, then fill the highest-priority blanks — reusing free
+     * tiles, or STEALING the weakest placed tile a blank outranks — up to `budget`.
+     */
+    streamTiles(desired, budget) {
+        const subs = this.hiResSubdivisions;
+        const desiredByKey = new Map();
+        for (const c of desired)
+            desiredByKey.set(cellKey(c), c);
+        const free = [];
+        const placed = []; // still-desired, kept
+        const covered = new Set();
+        for (const t of this.pool) {
+            if (t.cell) {
+                const k = cellKey(t.cell);
+                const want = desiredByKey.get(k);
+                if (want) {
+                    t.cell.priority = want.priority; // refresh (direction/motion changed)
+                    covered.add(k);
+                    placed.push(t);
+                    continue;
                 }
-                needed.push({ gx, gz });
+                t.cell = null; // no longer desired → free it (hidden until reused)
+                t.mesh.isVisible = false;
             }
+            free.push(t);
         }
-        this.reassignPool(lod, needed);
-    }
-    reassignPool(lod, needed) {
-        const subdivisions = this.hiResSubdivisions;
-        const pool = lod.tiles;
-        const isNeeded = (tile) => needed.some((n) => n.gx === tile.gridX && n.gz === tile.gridZ);
-        const occupied = new Set();
-        for (const tile of pool) {
-            if (tile.assigned && isNeeded(tile)) {
-                occupied.add(`${tile.gridX},${tile.gridZ}`);
+        const blanks = desired
+            .filter((c) => !covered.has(cellKey(c)))
+            .sort((a, b) => b.priority - a.priority);
+        // Weakest placed tiles first, for stealing when the pool is full.
+        placed.sort((a, b) => a.cell.priority - b.cell.priority);
+        let steal = 0;
+        for (const blank of blanks) {
+            if (budget <= 0)
+                break;
+            let tile = free.pop();
+            if (!tile) {
+                const weak = placed[steal];
+                if (weak && weak.cell.priority < blank.priority) {
+                    tile = weak;
+                    steal++;
+                }
             }
-        }
-        const stillNeeded = needed.filter((n) => !occupied.has(`${n.gx},${n.gz}`));
-        const freeTiles = pool.filter((tile) => !tile.assigned || !isNeeded(tile));
-        // Park any free tile that's no longer needed (so culled tiles disappear).
-        for (const tile of freeTiles) {
-            tile.assigned = false;
-            tile.mesh.isVisible = false;
-        }
-        for (let i = 0; i < stillNeeded.length && i < freeTiles.length; i++) {
-            const tile = freeTiles[i];
-            const { gx, gz } = stillNeeded[i];
-            tile.gridX = gx;
-            tile.gridZ = gz;
-            tile.assigned = true;
-            this.generateTileMesh(tile, subdivisions, lod.tileSize, lod.yOffset);
+            if (!tile)
+                break; // nothing reusable and can't steal → the rest rank lower
+            tile.cell = { ...blank };
+            this.generateTileMesh(tile, subs, tile.cell);
+            budget--;
         }
     }
     // --- Height sampling ---
@@ -557,35 +561,38 @@ export class B3dTerrain extends Component {
         return (this.grossFilter.evaluate(grossNorm) * attrs.grossAmplitude +
             this.detailFilter.evaluate(detailNorm) * attrs.detailAmplitude);
     }
-    generateTileMesh(tile, subdivisions, tileSize, yOffset) {
+    generateTileMesh(tile, subdivisions, cell) {
         const mesh = tile.mesh;
         const tpl = this.tileTemplate;
         const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
         const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
         if (positions == null || normals == null)
             return;
+        const tileSize = cell.tileSize;
         const vertsPerSide = subdivisions + 1;
-        const center = tileCenter(tile.gridX, tile.gridZ, tileSize);
         const attrs = this;
         const e = tileSize / subdivisions; // finite-difference step for the normal
         // 1. Heightfield vertices, each given an ANALYTIC normal from the height-field
         //    gradient (heightAt at ±e). Analytic normals are a pure function of world
         //    position, so neighbouring tiles agree exactly on a shared edge vertex →
         //    no lighting seam. (Mesh-averaged normals were computed one-sided at tile
-        //    edges — that WAS the seam.)
+        //    edges — that WAS the seam.) Vertices are placed relative to the cell
+        //    centre; the mesh sits at that centre in the world.
         for (let iz = 0; iz < vertsPerSide; iz++) {
-            const wz = vertexWorld(tile.gridZ, iz, subdivisions, tileSize, true);
+            const localZ = vertexLocal(iz, subdivisions, tileSize, true);
+            const wz = cell.cz + localZ;
             for (let ix = 0; ix < vertsPerSide; ix++) {
-                const wx = vertexWorld(tile.gridX, ix, subdivisions, tileSize);
+                const localX = vertexLocal(ix, subdivisions, tileSize);
+                const wx = cell.cx + localX;
                 const height = this.heightAt(wx, wz);
                 const nx = this.heightAt(wx - e, wz) - this.heightAt(wx + e, wz);
                 const nz = this.heightAt(wx, wz - e) - this.heightAt(wx, wz + e);
                 const ny = 2 * e;
                 const inv = 1 / Math.hypot(nx, ny, nz);
                 const v = iz * vertsPerSide + ix;
-                positions[v * 3] = wx - center.x;
+                positions[v * 3] = localX;
                 positions[v * 3 + 1] = height;
-                positions[v * 3 + 2] = wz - center.z;
+                positions[v * 3 + 2] = localZ;
                 normals[v * 3] = nx * inv;
                 normals[v * 3 + 1] = ny * inv;
                 normals[v * 3 + 2] = nz * inv;
@@ -613,9 +620,9 @@ export class B3dTerrain extends Component {
             let cg = 1;
             let cb = 1;
             if (attrs.debugColor) {
-                const hh = (Math.imul(tile.gridX, 374761393) ^
-                    Math.imul(tile.gridZ, 668265263) ^
-                    Math.imul(Math.round(tileSize), 2246822519)) >>>
+                const hh = (Math.imul(cell.gx, 374761393) ^
+                    Math.imul(cell.gz, 668265263) ^
+                    Math.imul(cell.level + 1, 2246822519)) >>>
                     0;
                 cr = 0.3 + 0.65 * ((hh & 255) / 255);
                 cg = 0.3 + 0.65 * (((hh >>> 8) & 255) / 255);
@@ -632,9 +639,8 @@ export class B3dTerrain extends Component {
         mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
         mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);
         mesh.refreshBoundingInfo();
-        // yOffset (a few cm per level, coarser = lower) keeps a finer tile in front
-        // of the coarse one where they overlap — no z-fighting.
-        mesh.position.set(center.x, yOffset, center.z);
+        // Cells never overlap (quadtree), so no per-level y-offset is needed.
+        mesh.position.set(cell.cx, 0, cell.cz);
         mesh.rotationQuaternion = null;
         mesh.isVisible = true;
     }
@@ -671,26 +677,20 @@ export class B3dTerrain extends Component {
     }
     // --- Floating origin ---
     resetOrigin(camX, camZ, camera) {
-        // Rebase on the COARSEST tile size so the shift is a whole number of tiles at
-        // every level — keeps all the LOD grids aligned through the reset.
-        const coarsest = this.lods.length
-            ? this.lods[this.lods.length - 1].tileSize
-            : this.tileSize;
+        // Rebase on the COARSEST tile so the shift is a whole number of tiles at every
+        // level — each placed cell's grid index stays integer through the shift.
+        const coarsest = this.coarsestTileSize();
         const shiftX = Math.round(camX / coarsest) * coarsest;
         const shiftZ = Math.round(camZ / coarsest) * coarsest;
-        for (const lod of this.lods) {
-            const gridShiftX = shiftX / lod.tileSize;
-            const gridShiftZ = shiftZ / lod.tileSize;
-            for (const tile of lod.tiles) {
-                tile.mesh.position.x -= shiftX;
-                tile.mesh.position.z -= shiftZ;
-                if (tile.assigned) {
-                    tile.gridX -= gridShiftX;
-                    tile.gridZ -= gridShiftZ;
-                }
+        for (const tile of this.pool) {
+            tile.mesh.position.x -= shiftX;
+            tile.mesh.position.z -= shiftZ;
+            if (tile.cell) {
+                tile.cell.cx -= shiftX;
+                tile.cell.cz -= shiftZ;
+                tile.cell.gx -= shiftX / tile.cell.tileSize;
+                tile.cell.gz -= shiftZ / tile.cell.tileSize;
             }
-            lod.lastCamGridX = Infinity;
-            lod.lastCamGridZ = Infinity;
         }
         // Shift whatever actually carries the camera through the world: its parent
         // (e.g. the aircraft) if parented, else the camera itself. The controller
@@ -700,6 +700,7 @@ export class B3dTerrain extends Component {
         carrier.position.z -= shiftZ;
         this.originOffsetX += shiftX;
         this.originOffsetZ += shiftZ;
+        this.lastCamX = NaN; // travel term is meaningless across the discontinuity
     }
     // Reset sample origin — call after a visual discontinuity
     recenter() {
@@ -707,14 +708,17 @@ export class B3dTerrain extends Component {
         this.worldV = 0;
         this.originOffsetX = 0;
         this.originOffsetZ = 0;
-        for (const lod of this.lods) {
-            lod.lastCamGridX = Infinity;
-            lod.lastCamGridZ = Infinity;
+        this.clearPool();
+    }
+    clearPool() {
+        for (const tile of this.pool) {
+            tile.cell = null;
+            tile.mesh.isVisible = false;
         }
     }
-    // Rebuild everything after a parameter change. horizScale rescales the tiles
-    // (changing extent + grid), so we recompute each level's tileSize, park all
-    // tiles, and restream fresh — this covers both noise changes and scale changes.
+    // Rebuild after a parameter change. A height-only change keeps the same cells
+    // (so placed tiles would be kept, unbuilt) — clear the pool so everything is a
+    // blank and refill in full this frame (budget = pool size, no per-frame cap).
     regenerate() {
         const attrs = this;
         if (this.material)
@@ -725,17 +729,8 @@ export class B3dTerrain extends Component {
             this.noiseSeed = attrs.seed;
             this.noise = new PerlinNoise(attrs.seed);
         }
-        const hs = attrs.horizScale || 1;
-        for (const lod of this.lods) {
-            lod.tileSize = lodTileSize(attrs.tileSize, lod.level, hs);
-            for (const tile of lod.tiles) {
-                tile.assigned = false;
-                tile.mesh.isVisible = false;
-            }
-            lod.lastCamGridX = Infinity;
-            lod.lastCamGridZ = Infinity;
-        }
-        this.update();
+        this.clearPool();
+        this.update(this.pool.length);
     }
 }
 export const b3dTerrain = B3dTerrain.elementCreator({

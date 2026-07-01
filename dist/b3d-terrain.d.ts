@@ -16,9 +16,12 @@ export declare class B3dTerrain extends Component {
         radius: number;
         cylinderHeight: number;
         tileSize: number;
-        hiResGrid: number;
         hiResSubdivisions: number;
         lodLevels: number;
+        poolSize: number;
+        fillBudget: number;
+        splitFactor: number;
+        reach: number;
         grossScale: number;
         detailScale: number;
         horizScale: number;
@@ -35,10 +38,12 @@ export declare class B3dTerrain extends Component {
     private noise;
     private noiseSeed;
     private sampler;
-    private lods;
+    private pool;
     private tileTemplate;
     private material;
     private registered;
+    private lastCamX;
+    private lastCamZ;
     private worldU;
     private worldV;
     private originOffsetX;
@@ -50,13 +55,18 @@ export declare class B3dTerrain extends Component {
     disconnectedCallback(): void;
     private createSampler;
     private createMaterial;
-    private createLods;
+    private createPool;
     private static buildTileTemplate;
-    private createTilesInto;
-    private levelCoverage;
     private update;
-    private assignLod;
-    private reassignPool;
+    private coarsestTileSize;
+    /** Build the quadtree config from attributes + a facing/travel interest. */
+    private buildConfig;
+    /**
+     * Reconcile the pool with the desired cells: keep tiles whose cell is still
+     * wanted, free the rest, then fill the highest-priority blanks — reusing free
+     * tiles, or STEALING the weakest placed tile a blank outranks — up to `budget`.
+     */
+    private streamTiles;
     private heightAt;
     private generateTileMesh;
     private renderToU;
@@ -65,6 +75,7 @@ export declare class B3dTerrain extends Component {
     private getCircumferenceV;
     private resetOrigin;
     recenter(): void;
+    private clearPool;
     regenerate(): void;
 }
 export declare const b3dTerrain: import("tosijs").ElementCreator<B3dTerrain>;

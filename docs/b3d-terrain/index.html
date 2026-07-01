@@ -36,13 +36,14 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <ul>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
-<p>The terrain is built from a single kind of tile (a heightfield ground patch) in
-concentric LOD levels that stream around the camera. Level 0 is full detail at
-<code>tileSize</code>; each level out doubles the tile size (<code>tileSize × 2^level</code>) so distant
-ground is covered cheaply by stretched tiles. Levels overlap rather than abut —
-coarser levels sit a hair lower so a finer tile always wins where they overlap,
-and coarse tiles fully covered by a finer level are culled — so there are no gaps
-to skirt over. Includes floating-origin rebasing and a recenter mechanism — when
+<p>The terrain streams from one shared <strong>priority pool</strong> of tiles over a <strong>quadtree
+LOD</strong>: fine near the camera, coarse far, with exactly one LOD per patch of ground
+(a coarse cell is exactly four finer cells — no overlap, no gaps). Each frame the
+pool is diffed against the cells that <em>should</em> exist; blanks are filled by
+priority (near, and biased toward where you&#39;re facing/travelling) — reusing free
+tiles or stealing the weakest placed one — capped at <code>fillBudget</code> per frame so
+movement never hitches. Per-tile skirts (with lied normals) hide any crack at a
+LOD boundary. Includes floating-origin rebasing and a recenter mechanism — when
 travel exceeds <code>maxTravelDistance</code>, a <code>recenter-needed</code> event fires so the game
 layer can orchestrate a visual transition before calling <code>recenter()</code>.</p>
 <h2>Demo</h2>
@@ -63,25 +64,26 @@ const { demo } = tosi({
   },
 })
 
-// Big tiles + horizScale 4 → the level-0 ring is ~1600 units across, so you&#39;re
-// surrounded by full detail. The 4× also stretches each LOD&#39;s reach, so only 4
-// levels get to the fogged horizon (~6400) instead of 6 — fewer tiles. Larger
-// radius so the cylinder doesn&#39;t visibly repeat across the LOD coverage.
+// Priority-pool quadtree LOD: one shared pool of tiles, fine near / coarse far,
+// filled by priority (biased toward where you&#39;re looking + going). horizScale 4
+// makes level-0 tiles 320 across, so the fine region is broad; reach 5000 puts
+// the coarse edge just past the fog. Larger radius so the cylinder doesn&#39;t repeat.
 const terrain = b3dTerrain({
   seed: demo.seed,
   surfaceType: &#39;cylinder&#39;,
   radius: 1000,
   cylinderHeight: 1000,
   tileSize: 80,
-  hiResGrid: 5,
   hiResSubdivisions: 32,
   lodLevels: 4,
+  splitFactor: 2,
+  reach: 5000,
+  poolSize: 200,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
-  fuzz: demo.fuzz,
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
@@ -250,12 +252,7 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
 <tr>
 <td><code>tileSize</code></td>
 <td><code>10</code></td>
-<td>World-space size of a level-0 tile</td>
-</tr>
-<tr>
-<td><code>hiResGrid</code></td>
-<td><code>5</code></td>
-<td>NxN grid of tiles per LOD level (around the camera)</td>
+<td>World-space size of a level-0 (finest) tile</td>
 </tr>
 <tr>
 <td><code>hiResSubdivisions</code></td>
@@ -265,7 +262,27 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
 <tr>
 <td><code>lodLevels</code></td>
 <td><code>5</code></td>
-<td>Number of LOD levels; level k uses <code>tileSize × 2^k</code> tiles</td>
+<td>Number of LOD levels; level k tiles are <code>tileSize × 2^k</code></td>
+</tr>
+<tr>
+<td><code>poolSize</code></td>
+<td><code>220</code></td>
+<td>Shared tile budget; the pool renders the top-priority cells</td>
+</tr>
+<tr>
+<td><code>fillBudget</code></td>
+<td><code>12</code></td>
+<td>Max tiles (re)built per frame — caps streaming cost</td>
+</tr>
+<tr>
+<td><code>splitFactor</code></td>
+<td><code>2</code></td>
+<td>LOD falloff: subdivide a cell when nearer than <code>splitFactor × tileSize</code></td>
+</tr>
+<tr>
+<td><code>reach</code></td>
+<td><code>0</code></td>
+<td>Terrain radius (0 = auto from the coarsest tile)</td>
 </tr>
 <tr>
 <td><code>grossScale</code></td>
