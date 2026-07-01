@@ -178,6 +178,15 @@ Underscore-separated variants also work (e.g., `_collide_box`).
 
 All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. The `AbstractMesh` base class provides position/rotation syncing for components that manage Babylon meshes.
 
+### Styling — use tosijs's CSS facilities, never hand-roll it
+
+tosijs ships a whole optimized, typed CSS/variable library. **Do not** hand-roll `document.createElement('style')`, manual `id`-uniqueness/dedup, or CSS-as-string templates — reach for the built-ins, which are deduped, updatable/bindable, type-checked, and test-covered:
+
+- **Component styles**: `static lightStyleSpec` (light DOM) or `static shadowStyleSpec` (shadow DOM). `static styleSpec` is **deprecated** — prefer the explicit light/shadow forms so it's clear which is intended. Both take an `XinStyleSheet` object (typed, camelCase props), not a CSS string.
+- **Global / light-DOM stylesheets** (e.g. styling a light-DOM component's own tag from the page): `StyleSheet(id, spec)` from `tosijs` — creates/updates one `<style>` keyed by `id`, deduped and re-runnable. This is the correct replacement for any bespoke `<style>` injection (e.g. the pattern in `glass-gamepad.ts`).
+- **CSS variables / theming**: use the variable library — `vars`, `initVars`, `varDefault`, `getCssVar`, `invertLuminance`, and the theme-preference API (`getThemePreferences`, `onThemePreferencesChange`, `onStylesheetChange`) — instead of writing literal `var(--x)` strings. It's the optimized path and stays in sync with theming.
+- Helpers: `css(obj)` renders an `XinStyleSheet` to a string; `Component.StyleNode(spec)` builds a `<style>` element from a spec.
+
 ### Dependencies
 
 - **Runtime**: `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^8.55)

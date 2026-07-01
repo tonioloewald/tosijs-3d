@@ -71,7 +71,7 @@ preview.append(div({ class: 'glass-stage' }, pad, readout))
 ```
 */
 /*{ "parent": "Input" }*/
-import { Component, elements } from 'tosijs';
+import { Component, elements, StyleSheet } from 'tosijs';
 import { TouchGamepadSource } from './touch-gamepad';
 import { emptyGamepad, mergeGamepads, } from './virtual-gamepad';
 const { div } = elements;
@@ -88,21 +88,32 @@ const ANCHOR_CSS = {
 // `.active` press highlight reaches them. Inject the layout + default highlight
 // once, scoped to the tag. `container-type: size` makes the cluster cqmin units
 // scale to the host's own size (the demo card / the b3d view), not the viewport.
-let stylesInjected = false;
 function ensureGamepadStyles() {
-    if (stylesInjected || typeof document === 'undefined')
+    if (typeof document === 'undefined')
         return;
-    stylesInjected = true;
-    const style = document.createElement('style');
-    style.id = 'tosi-b3d-gamepad-styles';
-    style.textContent = [
-        `tosi-b3d-gamepad { position:absolute; inset:0; display:block;`,
-        `  pointer-events:none; z-index:15; container-type:size }`,
-        `tosi-b3d-gamepad .pad-clusters { position:absolute; inset:0; pointer-events:none }`,
-        `tosi-b3d-gamepad [data-part] { transition:stroke-width .08s, filter .08s }`,
-        `tosi-b3d-gamepad [data-part].active { stroke-width:32; filter:brightness(1.35) }`,
-    ].join('\n');
-    document.head.appendChild(style);
+    // StyleSheet dedups by id and is idempotent, so no manual guard is needed.
+    StyleSheet('tosi-b3d-gamepad-styles', {
+        'tosi-b3d-gamepad': {
+            position: 'absolute',
+            inset: 0,
+            display: 'block',
+            pointerEvents: 'none',
+            zIndex: 15,
+            containerType: 'size',
+        },
+        'tosi-b3d-gamepad .pad-clusters': {
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+        },
+        'tosi-b3d-gamepad [data-part]': {
+            transition: 'stroke-width .08s, filter .08s',
+        },
+        'tosi-b3d-gamepad [data-part].active': {
+            strokeWidth: 32,
+            filter: 'brightness(1.35)',
+        },
+    });
 }
 // The static cluster SVGs label paths by `id`; copy these (only) to `data-part`
 // so TouchGamepadSource finds them — and so multiple instances don't clash on a
