@@ -42,9 +42,9 @@ a kinematic fallback handles the animation.</p>
 <p>Set <code>duration</code> to a number (seconds) or <code>&#39;frustum&#39;</code> to keep fragments alive
 until they all leave the camera view.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh, label3d, button3d } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
-const { div, button, p } = elements
+const { div, p } = elements
 
 let sphere = null
 
@@ -60,6 +60,12 @@ function createSphere(B) {
 
 const scene = b3d(
   {
+    // The Explode button lives in the dual-presence ⚙ panel, so you can trigger it
+    // from inside VR as well as on a flat screen.
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Exploder&#39; }),
+      button3d({ label: &#39;Explode!&#39;, onClick: doExplode }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 12,
@@ -92,9 +98,8 @@ function doExplode() {
 preview.append(
   scene,
   div(
-    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px&#39; },
-    p(&#39;Click to shatter the sphere&#39;),
-    button({ textContent: &#39;Explode!&#39;, onclick: doExplode }),
+    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace&#39; },
+    p(&#39;Shatter the sphere via the ⚙ (works in VR).&#39;),
   ),
 )
 </code></pre>

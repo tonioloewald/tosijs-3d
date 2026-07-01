@@ -36,9 +36,9 @@ auto-detect the physics engine and use it when available.</p>
 <p>Jolt loads asynchronously (WASM). The component exposes a <code>ready</code> promise
 and dispatches a <code>&#39;physics-ready&#39;</code> event when initialization completes.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh, label3d, button3d, toggle3d } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
-const { div, button, p, label, input } = elements
+const { div, p } = elements
 
 let sphere = null
 let dropSphere = null
@@ -133,6 +133,14 @@ function createObstacles(BABYLON, s) {
 
 const scene = b3d(
   {
+    // Explode / Drop / show-colliders live in the dual-presence ⚙ panel, so the
+    // physics playground is fully controllable from inside VR too.
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Physics&#39; }),
+      button3d({ label: &#39;Explode!&#39;, onClick: doExplode }),
+      button3d({ label: &#39;Drop!&#39;, onClick: () =&gt; { if (!dropSphere) createDropSphere() } }),
+      toggle3d({ label: &#39;show colliders&#39;, value: false, onChange: (v) =&gt; { physics.debug = v } }),
+    ],
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
@@ -177,14 +185,8 @@ function doExplode() {
 preview.append(
   scene,
   div(
-    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px&#39; },
-    p(&#39;Fragments use Jolt physics&#39;),
-    button({ textContent: &#39;Explode!&#39;, onclick: doExplode }),
-    button({ textContent: &#39;Drop!&#39;, onclick() { if (!dropSphere) createDropSphere() } }),
-    label(
-      input({ type: &#39;checkbox&#39;, onchange(e) { physics.debug = e.target.checked } }),
-      &#39; show colliders&#39;,
-    ),
+    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace&#39; },
+    p(&#39;Fragments use Jolt physics. Controls in the ⚙ (VR too).&#39;),
   ),
 )
 </code></pre>

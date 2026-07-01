@@ -12,9 +12,9 @@ until the user interacts with the page.
 ## Demo
 
 ```js
-import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround } from 'tosijs-3d'
+import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround, label3d, button3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
-const { div, button, p } = elements
+const { div, p } = elements
 
 const spatialSound = b3dSound({
   url: '/hum.mp3',
@@ -29,6 +29,13 @@ const spatialSound = b3dSound({
 preview.append(
   b3d(
     {
+      // Play / Stop in the dual-presence ⚙ panel, so you can start the sound from
+      // inside VR (where spatial panning is most convincing) too.
+      scenePanel: () => [
+        label3d({ text: 'Sound' }),
+        button3d({ label: 'Play', onClick: () => spatialSound.play() }),
+        button3d({ label: 'Stop', onClick: () => spatialSound.stop() }),
+      ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
           'cam', -Math.PI / 2, Math.PI / 3, 12,
@@ -46,9 +53,7 @@ preview.append(
   ),
   div(
     { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
-    p('Orbit the camera to hear spatial panning'),
-    button({ textContent: 'Play', onclick() { spatialSound.play() } }),
-    button({ textContent: 'Stop', onclick() { spatialSound.stop() } }),
+    p('Orbit the camera to hear spatial panning. Play/Stop in the ⚙ (VR too).'),
   ),
 )
 ```

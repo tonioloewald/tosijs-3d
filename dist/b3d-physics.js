@@ -11,9 +11,9 @@ and dispatches a `'physics-ready'` event when initialization completes.
 ## Demo
 
 ```js
-import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh } from 'tosijs-3d'
+import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh, label3d, button3d, toggle3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
-const { div, button, p, label, input } = elements
+const { div, p } = elements
 
 let sphere = null
 let dropSphere = null
@@ -108,6 +108,14 @@ function createObstacles(BABYLON, s) {
 
 const scene = b3d(
   {
+    // Explode / Drop / show-colliders live in the dual-presence ⚙ panel, so the
+    // physics playground is fully controllable from inside VR too.
+    scenePanel: () => [
+      label3d({ text: 'Physics' }),
+      button3d({ label: 'Explode!', onClick: doExplode }),
+      button3d({ label: 'Drop!', onClick: () => { if (!dropSphere) createDropSphere() } }),
+      toggle3d({ label: 'show colliders', value: false, onChange: (v) => { physics.debug = v } }),
+    ],
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
@@ -152,14 +160,8 @@ function doExplode() {
 preview.append(
   scene,
   div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
-    p('Fragments use Jolt physics'),
-    button({ textContent: 'Explode!', onclick: doExplode }),
-    button({ textContent: 'Drop!', onclick() { if (!dropSphere) createDropSphere() } }),
-    label(
-      input({ type: 'checkbox', onchange(e) { physics.debug = e.target.checked } }),
-      ' show colliders',
-    ),
+    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
+    p('Fragments use Jolt physics. Controls in the ⚙ (VR too).'),
   ),
 )
 ```

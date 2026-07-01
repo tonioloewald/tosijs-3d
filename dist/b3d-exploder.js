@@ -19,9 +19,9 @@ until they all leave the camera view.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh } from 'tosijs-3d'
+import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh, label3d, button3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
-const { div, button, p } = elements
+const { div, p } = elements
 
 let sphere = null
 
@@ -37,6 +37,12 @@ function createSphere(B) {
 
 const scene = b3d(
   {
+    // The Explode button lives in the dual-presence ⚙ panel, so you can trigger it
+    // from inside VR as well as on a flat screen.
+    scenePanel: () => [
+      label3d({ text: 'Exploder' }),
+      button3d({ label: 'Explode!', onClick: doExplode }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 12,
@@ -69,9 +75,8 @@ function doExplode() {
 preview.append(
   scene,
   div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
-    p('Click to shatter the sphere'),
-    button({ textContent: 'Explode!', onclick: doExplode }),
+    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
+    p('Shatter the sphere via the ⚙ (works in VR).'),
   ),
 )
 ```
