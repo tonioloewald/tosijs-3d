@@ -12,15 +12,51 @@ direct references.
 ## Demo
 
 ```js
-import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface } from 'tosijs-3d'
-import { popMenu } from 'tosijs-ui'
+import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface, label3d, list3d, button3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
-const { div, button } = elements
+const { div, p } = elements
 
 const lib = b3dLibrary({ url: '/test-2.glb', type: 'scene' })
 
+function isInsertable(node) {
+  return node.isMesh || node.children.some(c => c.isMesh)
+}
+
+// Flatten the GLB hierarchy into one scrollable pick list: every insertable node
+// (a mesh, or a group that contains meshes), children indented under their parent.
+// Instantiating a group clones it whole; instantiating a leaf clones just that.
+function flattenInsertable(nodes, depth = 0, out = []) {
+  for (const node of nodes) {
+    if (isInsertable(node)) {
+      out.push({ label: '  '.repeat(depth) + node.name, name: node.name })
+    }
+    if (node.children.length) flattenInsertable(node.children, depth + 1, out)
+  }
+  return out
+}
+
 const scene = b3d(
   {
+    // Dual-presence picker: the mesh list lives in the ⚙ panel, so you can spawn
+    // parts from inside VR too. The hook re-reads the hierarchy each time the panel
+    // is (re)built; refreshScenePanel() below updates an already-open panel once
+    // the GLB finishes loading.
+    scenePanel: () => {
+      const items = flattenInsertable(lib.getHierarchy())
+      return [
+        label3d({ text: items.length ? 'Spawn a mesh' : 'Loading…' }),
+        list3d({
+          items,
+          onSelect: (it) => {
+            const placed = lib.instantiate(it.name)
+            // Rest the spawn on the ground rather than at the origin (where it may
+            // float or clip depending on the GLB).
+            if (placed) placeOnSurface(placed)
+          },
+        }),
+        button3d({ label: 'Clear all', onClick: () => lib.clearInstances() }),
+      ]
+    },
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 10,
@@ -36,51 +72,15 @@ const scene = b3d(
   lib,
 )
 
-function isInsertable(node) {
-  return node.isMesh || node.children.some(c => c.isMesh)
-}
-
-function buildMenuItems(nodes) {
-  const items = []
-  for (const node of nodes) {
-    if (isInsertable(node)) {
-      items.push({
-        caption: node.name,
-        action: () => {
-          const placed = lib.instantiate(node.name)
-          // Rest the spawned mesh on the ground instead of dropping it at the
-          // origin (where it may float or clip depending on the GLB).
-          if (placed) placeOnSurface(placed)
-        },
-      })
-    }
-    if (node.children.length > 0) {
-      const childItems = buildMenuItems(node.children)
-      if (childItems.length) {
-        items.push({ caption: node.name + ' parts', menuItems: childItems })
-      }
-    }
-  }
-  return items
-}
-
-const pickBtn = button({ textContent: 'Pick mesh…' })
-pickBtn.addEventListener('click', () => {
-  const hierarchy = lib.getHierarchy()
-  popMenu({
-    target: pickBtn,
-    menuItems: buildMenuItems(hierarchy),
-  })
-})
-
-const clearBtn = button({ textContent: 'Clear all', onclick() { lib.clearInstances() } })
+// Refresh an already-open panel once the model has loaded (opening it after the
+// load already picks up the list via the rebuild-on-open above).
+lib.ready.then(() => scene.refreshScenePanel())
 
 preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    pickBtn,
-    clearBtn,
+    p('Open the ⚙ to spawn library meshes — works in VR too.'),
   ),
 )
 ```

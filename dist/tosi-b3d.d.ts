@@ -203,6 +203,10 @@ export declare class B3d extends Component {
     private _startDefaultXrExperience;
     private _makePanel;
     private _setupScenePanel;
+    /** Rebuild the flat scene panel from the current `scenePanel` hook, if it's open.
+     * Call after async state the panel reflects has changed (e.g. a library loaded)
+     * so an already-open panel updates without reopening. */
+    refreshScenePanel(): void;
     private _setupGamepad;
     private _attachXrPanel;
     disconnectedCallback(): void;

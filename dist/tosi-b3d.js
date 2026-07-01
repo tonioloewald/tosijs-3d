@@ -1037,21 +1037,35 @@ export class B3d extends Component {
         return panel3d({ width: 320, height }, ...rows);
     }
     // Flat-screen surface: a top-right gear icon toggles the settings panel as a
-    // DOM overlay. Only revealed when the scenePanel hook returns widgets.
+    // DOM overlay. Only revealed when the scenePanel hook returns widgets. The panel
+    // is REBUILT each time the gear opens it (not once at setup), so a hook whose
+    // contents depend on async state — e.g. a library mesh-picker list that only
+    // exists after the GLB loads — is always current when you open it. (The in-XR
+    // panel likewise re-invokes the hook when it's built on VR entry.)
     _setupScenePanel() {
-        const widgets = this.scenePanel(this);
-        if (widgets.length === 0)
-            return; // nothing to surface on the flat overlay
+        if (this.scenePanel(this).length === 0)
+            return; // nothing to surface at all
         const gear = this.parts.scenePanelGear;
         const host = this.parts.scenePanelHost;
-        host.appendChild(this._makePanel(widgets));
         gear.addEventListener('click', () => {
-            if (host.hasAttribute('hidden'))
+            if (host.hasAttribute('hidden')) {
+                host.replaceChildren(this._makePanel(this.scenePanel(this)));
                 host.removeAttribute('hidden');
-            else
+            }
+            else {
                 host.setAttribute('hidden', '');
+            }
         });
         gear.hidden = false;
+    }
+    /** Rebuild the flat scene panel from the current `scenePanel` hook, if it's open.
+     * Call after async state the panel reflects has changed (e.g. a library loaded)
+     * so an already-open panel updates without reopening. */
+    refreshScenePanel() {
+        const host = this.parts?.scenePanelHost;
+        if (host && !host.hasAttribute('hidden')) {
+            host.replaceChildren(this._makePanel(this.scenePanel(this)));
+        }
     }
     // Mount the split touch "glass" gamepad when the `gamepad` attribute is
     // present, as a light-DOM child (projected over the canvas via the slot, and
