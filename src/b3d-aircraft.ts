@@ -169,7 +169,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
-| `hoverCeiling` | `20` | Height above ground at/above which the trigger becomes forward thrust even at low speed (take off vertically, then fly). 0 = altitude gate off. |
+| `hoverCeiling` | `50` | Height above ground at/above which the trigger becomes forward thrust even at low speed (take off vertically, then fly). 0 = altitude gate off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 
@@ -255,8 +255,9 @@ export class B3dAircraft extends B3dControllable {
     vtolSpeed: 6,
     // Height above ground at/above which the trigger becomes forward thrust even
     // at low speed: you take off VERTICALLY, then fly once you clear it (and gain
-    // altitude by flying). 0 disables the altitude gate (regime is speed-only).
-    hoverCeiling: 20,
+    // altitude by flying; below it, the trigger is vertical so you can descend to
+    // land). 0 disables the altitude gate (regime is speed-only).
+    hoverCeiling: 50,
     // Assumed ground-plane height (used as a floor in addition to any terrain
     // colliders the downward raycast hits).
     groundY: 0,
