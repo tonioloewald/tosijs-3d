@@ -456,6 +456,15 @@ export function slider3d(config) {
     const trackEl = rect({ height: 6, rx: 3, ry: 3, fill: TRACK, y: ROW / 2 - 3 });
     const fillEl = rect({ height: 6, rx: 3, ry: 3, fill: ACCENT, y: ROW / 2 - 3 });
     const knob = circle({ cy: ROW / 2, r: 10, fill: '#fff' });
+    // Exact-value readout: shown (in place of the track) while you point at or drag
+    // the slider, so the precise number is legible even at low XR texture res. The
+    // label stays visible beside it. Decimals follow the step.
+    const decimals = step > 0 ? (step < 1 ? Math.min(4, -Math.floor(Math.log10(step))) : 0) : 2;
+    const valText = baseText('', ACCENT);
+    valText.setAttribute('text-anchor', 'middle');
+    valText.setAttribute('y', String(ROW / 2));
+    valText.setAttribute('font-weight', '600');
+    valText.setAttribute('display', 'none');
     const rowBg = rect({
         x: 0,
         y: 2,
@@ -463,7 +472,7 @@ export function slider3d(config) {
         rx: 6,
         fill: 'transparent',
     });
-    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [lbl] : []), trackEl, fillEl, knob), 'cursor:pointer');
+    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [lbl] : []), trackEl, fillEl, knob, valText), 'cursor:pointer');
     let trackX = 0;
     let trackW = 0;
     const reflect = () => {
@@ -477,6 +486,16 @@ export function slider3d(config) {
         knob.setAttribute('cx', String(cx));
         fillEl.setAttribute('x', String(trackX));
         fillEl.setAttribute('width', String(Math.max(0, cx - trackX)));
+        valText.textContent = v.toFixed(decimals);
+    };
+    // Swap the track/knob for the value readout (or back), so pointing at a slider
+    // reveals its exact value and pointing away restores the control.
+    const peek = (on) => {
+        const track = on ? 'none' : 'inline';
+        trackEl.setAttribute('display', track);
+        fillEl.setAttribute('display', track);
+        knob.setAttribute('display', track);
+        valText.setAttribute('display', on ? 'inline' : 'none');
     };
     // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
     const setFromX = (x) => {
@@ -494,6 +513,7 @@ export function slider3d(config) {
             trackW = width - trackX - PAD_X - 12;
             trackEl.setAttribute('x', String(trackX));
             trackEl.setAttribute('width', String(trackW));
+            valText.setAttribute('x', String(trackX + trackW / 2));
             reflect();
             return ROW;
         },
@@ -502,10 +522,13 @@ export function slider3d(config) {
             return x >= trackX - 10 && x <= trackX + trackW + 10;
         },
         handle(kind, x) {
-            if (kind === 'leave')
+            if (kind === 'leave') {
                 rowBg.setAttribute('fill', 'transparent');
+                peek(false);
+            }
             else {
                 rowBg.setAttribute('fill', ROW_HOVER);
+                peek(true); // pointing at it (hover/press) → show the exact value
                 if (kind === 'down' || kind === 'move')
                     setFromX(x); // hover/up don't set
             }

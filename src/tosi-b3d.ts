@@ -1331,7 +1331,12 @@ export class B3d extends Component {
         if (p2?.hit) uv = p2.getTextureCoordinates()
       }
       if (uv) {
-        vx = uv.x * vb.width
+        // The panel is the plane's BACK face with the texture U-flipped
+        // (uScale=-1) so it READS correctly — but the pick returns the raw mesh
+        // UV, so its x is mirrored relative to what you see. Undo the flip here, or
+        // every right-aligned control (slider track, toggle switch, select arrows)
+        // maps to the dead label zone and feels unresponsive.
+        vx = (1 - uv.x) * vb.width
         vy = (1 - uv.y) * vb.height
       }
       // Route every event; the panel manages press-capture and hover itself.
