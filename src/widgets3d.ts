@@ -541,7 +541,8 @@ export function slider3d(config: {
   const decimals =
     step > 0 ? (step < 1 ? Math.min(4, -Math.floor(Math.log10(step))) : 0) : 2
   const valText = baseText('', ACCENT)
-  valText.setAttribute('text-anchor', 'middle')
+  valText.setAttribute('text-anchor', 'start')
+  valText.setAttribute('x', String(PAD_X))
   valText.setAttribute('y', String(ROW / 2))
   valText.setAttribute('font-weight', '600')
   valText.setAttribute('display', 'none')
@@ -579,13 +580,10 @@ export function slider3d(config: {
     fillEl.setAttribute('width', String(Math.max(0, cx - trackX)))
     valText.textContent = v.toFixed(decimals)
   }
-  // Swap the track/knob for the value readout (or back), so pointing at a slider
-  // reveals its exact value and pointing away restores the control.
+  // Peek shows the exact value in place of the LABEL — the track and knob stay
+  // visible, so you can still see and drag the slider while reading the number.
   const peek = (on: boolean) => {
-    const track = on ? 'none' : 'inline'
-    trackEl.setAttribute('display', track)
-    fillEl.setAttribute('display', track)
-    knob.setAttribute('display', track)
+    if (lbl) lbl.setAttribute('display', on ? 'none' : 'inline')
     valText.setAttribute('display', on ? 'inline' : 'none')
   }
   // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
@@ -604,7 +602,6 @@ export function slider3d(config: {
       trackW = width - trackX - PAD_X - 12
       trackEl.setAttribute('x', String(trackX))
       trackEl.setAttribute('width', String(trackW))
-      valText.setAttribute('x', String(trackX + trackW / 2))
       reflect()
       return ROW
     },
