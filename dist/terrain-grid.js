@@ -49,4 +49,60 @@ export function coverageHalf(hiResGrid, tileSize) {
 export function spanInside(c, half, cc, ch) {
     return c - half >= cc - ch && c + half <= cc + ch;
 }
+/**
+ * The set of terrain cells that SHOULD exist right now, as a quadtree around the
+ * camera: fine near, coarse far, exactly one LOD per patch of ground (no overlap,
+ * no gap). Each carries a `priority` so a fixed pool can fill/steal by importance.
+ * Pure — the allocator just diffs this against what's currently placed.
+ */
+export function desiredCells(camX, camZ, cfg) {
+    const out = [];
+    const top = Math.max(0, cfg.levels - 1);
+    const rootSize = cfg.baseTileSize * Math.pow(2, top);
+    const reach = cfg.maxReach;
+    const dir = cfg.interest;
+    const emit = (gx, gz, level) => {
+        const ts = cfg.baseTileSize * Math.pow(2, level);
+        const cx = (gx + 0.5) * ts;
+        const cz = (gz + 0.5) * ts;
+        const dx = cx - camX;
+        const dz = cz - camZ;
+        const dist = Math.hypot(dx, dz);
+        let priority = 1 / (1 + dist); // near = high
+        if (dist >= cfg.omniRadius && dir) {
+            const align = (dx * dir.x + dz * dir.z) / (dist || 1); // −1 behind … +1 ahead
+            priority *= 0.1 + 0.9 * ((align + 1) / 2); // behind ~0.1, side ~0.55, ahead 1
+        }
+        out.push({ gx, gz, level, tileSize: ts, cx, cz, priority });
+    };
+    const descend = (gx, gz, level) => {
+        const ts = cfg.baseTileSize * Math.pow(2, level);
+        const cx = (gx + 0.5) * ts;
+        const cz = (gz + 0.5) * ts;
+        // Drop cells whose nearest corner is beyond the reach disk.
+        const ndx = Math.max(0, Math.abs(cx - camX) - ts / 2);
+        const ndz = Math.max(0, Math.abs(cz - camZ) - ts / 2);
+        if (Math.hypot(ndx, ndz) > reach)
+            return;
+        const dist = Math.hypot(cx - camX, cz - camZ);
+        if (level > 0 && dist < cfg.splitFactor * ts) {
+            descend(2 * gx, 2 * gz, level - 1);
+            descend(2 * gx + 1, 2 * gz, level - 1);
+            descend(2 * gx, 2 * gz + 1, level - 1);
+            descend(2 * gx + 1, 2 * gz + 1, level - 1);
+        }
+        else {
+            emit(gx, gz, level);
+        }
+    };
+    const g0 = Math.floor((camX - reach) / rootSize);
+    const g1 = Math.floor((camX + reach) / rootSize);
+    const h0 = Math.floor((camZ - reach) / rootSize);
+    const h1 = Math.floor((camZ + reach) / rootSize);
+    for (let gx = g0; gx <= g1; gx++) {
+        for (let gz = h0; gz <= h1; gz++)
+            descend(gx, gz, top);
+    }
+    return out;
+}
 //# sourceMappingURL=terrain-grid.js.map

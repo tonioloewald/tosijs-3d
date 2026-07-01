@@ -13,6 +13,8 @@ import {
   cellIndex,
   coverageHalf,
   spanInside,
+  desiredCells,
+  type QuadtreeConfig,
 } from './terrain-grid'
 
 const SUBS = 8 // small even subdivision count for exact checks
@@ -135,5 +137,100 @@ describe('cull — spanInside', () => {
     expect(spanInside(0, 80, 0, 200)).toBe(true) // inside → cull
     expect(spanInside(160, 80, 0, 200)).toBe(false) // straddles edge 200 → keep
     expect(spanInside(400, 80, 0, 200)).toBe(false) // outside → keep
+  })
+})
+
+describe('desiredCells — quadtree LOD for the pool', () => {
+  const CFG: QuadtreeConfig = {
+    baseTileSize: 80,
+    levels: 4,
+    splitFactor: 2,
+    maxReach: 3000,
+    omniRadius: 400,
+  }
+  // World span of a cell.
+  const span = (c: (typeof cells)[number]) => ({
+    x0: c.gx * c.tileSize,
+    x1: (c.gx + 1) * c.tileSize,
+    z0: c.gz * c.tileSize,
+    z1: (c.gz + 1) * c.tileSize,
+  })
+  const cells = desiredCells(137, -412, CFG)
+
+  test('NO two cells overlap (one LOD per patch of ground)', () => {
+    for (let i = 0; i < cells.length; i++) {
+      for (let j = i + 1; j < cells.length; j++) {
+        const a = span(cells[i])
+        const b = span(cells[j])
+        const disjoint = a.x1 <= b.x0 || b.x1 <= a.x0 || a.z1 <= b.z0 || b.z1 <= a.z0
+        expect(disjoint).toBe(true)
+      }
+    }
+  })
+
+  test('gap-free near the camera — every nearby point is in exactly one cell', () => {
+    const inCell = (x: number, z: number, c: (typeof cells)[number]) => {
+      const s = span(c)
+      return x >= s.x0 && x < s.x1 && z >= s.z0 && z < s.z1
+    }
+    for (let x = 137 - 500; x <= 137 + 500; x += 53) {
+      for (let z = -412 - 500; z <= -412 + 500; z += 53) {
+        const covering = cells.filter((c) => inCell(x, z, c))
+        expect(covering.length).toBe(1)
+      }
+    }
+  })
+
+  test('finer near, coarser far (a quadtree, not a flat grid)', () => {
+    const near = cells.filter((c) => Math.hypot(c.cx - 137, c.cz + 412) < 300)
+    const far = cells.filter((c) => Math.hypot(c.cx - 137, c.cz + 412) > 2000)
+    const minNear = Math.min(...near.map((c) => c.level))
+    const maxFar = Math.max(...far.map((c) => c.level))
+    expect(minNear).toBe(0) // finest right at the camera
+    expect(maxFar).toBeGreaterThan(minNear) // coarser out at the edge
+  })
+
+  test('a coarse cell is exactly 4 fine cells (clean quadtree replace)', () => {
+    // The four level-0 children of a level-1 cell tile it with no slack.
+    const parentTs = 160
+    const px = 3
+    const pz = -5
+    const children = [
+      [2 * px, 2 * pz],
+      [2 * px + 1, 2 * pz],
+      [2 * px, 2 * pz + 1],
+      [2 * px + 1, 2 * pz + 1],
+    ]
+    expect(children.length * 80 * 80).toBe(parentTs * parentTs) // 4·80² == 160²
+    // and every child sits inside the parent's span on both axes
+    for (const [cgx, cgz] of children) {
+      expect(cgx * 80).toBeGreaterThanOrEqual(px * parentTs)
+      expect((cgx + 1) * 80).toBeLessThanOrEqual((px + 1) * parentTs)
+      expect(cgz * 80).toBeGreaterThanOrEqual(pz * parentTs)
+      expect((cgz + 1) * 80).toBeLessThanOrEqual((pz + 1) * parentTs)
+    }
+  })
+
+  test('beyond omniRadius, cells AHEAD outrank cells behind', () => {
+    const ahead = desiredCells(0, 0, { ...CFG, interest: { x: 0, z: 1 } })
+    // pick a far cell ahead (+z) and a far cell behind (−z) at similar distance
+    const far = ahead.filter((c) => Math.abs(Math.hypot(c.cx, c.cz) - 1500) < 400)
+    const fwd = far.filter((c) => c.cz > 800)
+    const bwd = far.filter((c) => c.cz < -800)
+    const bestFwd = Math.max(...fwd.map((c) => c.priority))
+    const bestBwd = Math.max(...bwd.map((c) => c.priority))
+    expect(bestFwd).toBeGreaterThan(bestBwd)
+  })
+
+  test('inside omniRadius, direction does NOT change priority (safe to turn)', () => {
+    const dir = desiredCells(0, 0, { ...CFG, interest: { x: 0, z: 1 } })
+    const omni = desiredCells(0, 0, CFG)
+    const key = (c: (typeof dir)[number]) => `${c.level},${c.gx},${c.gz}`
+    const omniMap = new Map(omni.map((c) => [key(c), c.priority]))
+    for (const c of dir) {
+      if (Math.hypot(c.cx, c.cz) < CFG.omniRadius) {
+        expect(c.priority).toBeCloseTo(omniMap.get(key(c))!, 9)
+      }
+    }
   })
 })

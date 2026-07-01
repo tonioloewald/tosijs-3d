@@ -37,4 +37,39 @@ export declare function cellIndex(coord: number, tileSize: number): number;
 export declare function coverageHalf(hiResGrid: number, tileSize: number): number;
 /** Is the span [c−half, c+half] fully within [cc−ch, cc+ch]? (one axis) */
 export declare function spanInside(c: number, half: number, cc: number, ch: number): boolean;
+export interface DesiredCell {
+    gx: number;
+    gz: number;
+    level: number;
+    tileSize: number;
+    /** Cell centre (where its tile mesh is placed). */
+    cx: number;
+    cz: number;
+    /** Higher = more wanted (fill first / steal last). */
+    priority: number;
+}
+export interface QuadtreeConfig {
+    baseTileSize: number;
+    /** Total LOD levels; the coarsest is `levels - 1`. */
+    levels: number;
+    /** Subdivide a cell when the camera is nearer than `splitFactor · tileSize`. */
+    splitFactor: number;
+    /** Terrain reaches this far from the camera (cells fully beyond are dropped). */
+    maxReach: number;
+    /** Inside this radius, priority ignores direction (omni — safe to look around). */
+    omniRadius: number;
+    /** Unit facing/travel direction; beyond omniRadius, cells ahead outrank those
+     * behind. Omit for undirected (everything omni). */
+    interest?: {
+        x: number;
+        z: number;
+    };
+}
+/**
+ * The set of terrain cells that SHOULD exist right now, as a quadtree around the
+ * camera: fine near, coarse far, exactly one LOD per patch of ground (no overlap,
+ * no gap). Each carries a `priority` so a fixed pool can fill/steal by importance.
+ * Pure — the allocator just diffs this against what's currently placed.
+ */
+export declare function desiredCells(camX: number, camZ: number, cfg: QuadtreeConfig): DesiredCell[];
 //# sourceMappingURL=terrain-grid.d.ts.map
