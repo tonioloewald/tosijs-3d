@@ -51,7 +51,7 @@ const terrain = b3dTerrain({
   lodLevels: 4,
   splitFactor: 2,
   reach: 5000,
-  poolSize: 200,
+  poolSize: 260,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
@@ -261,7 +261,7 @@ export class B3dTerrain extends Component {
         // falloff (subdivide when nearer than splitFactor·tileSize); `reach` is the
         // terrain radius (0 = auto from the coarsest tile).
         poolSize: 220,
-        fillBudget: 12,
+        fillBudget: 18,
         splitFactor: 2,
         reach: 0,
         grossScale: 0.1,
@@ -288,6 +288,9 @@ export class B3dTerrain extends Component {
     // Previous camera XZ (render space) — for the travel-direction interest term.
     lastCamX = NaN;
     lastCamZ = NaN;
+    // Low-passed interest direction (facing + travel), so fast turns don't churn.
+    interestX = 0;
+    interestZ = 0;
     // Conceptual position on the surface (u,v in [0,1))
     worldU = 0;
     worldV = 0;
@@ -466,26 +469,31 @@ export class B3dTerrain extends Component {
         // Interest = where you're looking blended with where you're going. Beyond the
         // omni ring, cells that way outrank cells behind, so the pool reaches further
         // ahead. Facing from the camera forward; travel from this frame's motion.
-        const fwd = camera.getDirection(BABYLON.Axis.Z);
-        let ix = fwd.x;
-        let iz = fwd.z;
+        let tx = camera.getDirection(BABYLON.Axis.Z).x;
+        let tz = camera.getDirection(BABYLON.Axis.Z).z;
         if (!Number.isNaN(this.lastCamX)) {
-            const tx = camX - this.lastCamX;
-            const tz = camZ - this.lastCamZ;
-            const tl = Math.hypot(tx, tz);
-            if (tl > 1e-3) {
-                ix += (tx / tl) * 2; // travel weighted for prefetch
-                iz += (tz / tl) * 2;
+            const mx = camX - this.lastCamX;
+            const mz = camZ - this.lastCamZ;
+            const ml = Math.hypot(mx, mz);
+            if (ml > 1e-3) {
+                tx += (mx / ml) * 2; // travel weighted for prefetch
+                tz += (mz / ml) * 2;
             }
         }
-        const il = Math.hypot(ix, iz);
+        // Low-pass the interest so a FAST turn re-prioritises gradually instead of
+        // flipping all at once (which the fill budget can't absorb → a hiccup).
+        this.interestX += (tx - this.interestX) * 0.1;
+        this.interestZ += (tz - this.interestZ) * 0.1;
+        const il = Math.hypot(this.interestX, this.interestZ);
         return {
             baseTileSize,
             levels: Math.max(1, attrs.lodLevels),
             splitFactor: attrs.splitFactor,
             maxReach: reach,
-            omniRadius: baseTileSize * 1.5,
-            interest: il > 1e-3 ? { x: ix / il, z: iz / il } : undefined,
+            // Omni over the near/mid view (~40% of reach) so turning never reveals a
+            // near blank; direction only culls the distant (largely fogged) cells.
+            omniRadius: reach * 0.4,
+            interest: il > 1e-3 ? { x: this.interestX / il, z: this.interestZ / il } : undefined,
         };
     }
     /**

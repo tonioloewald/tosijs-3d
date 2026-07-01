@@ -44,6 +44,8 @@ export declare class B3dTerrain extends Component {
     private registered;
     private lastCamX;
     private lastCamZ;
+    private interestX;
+    private interestZ;
     private worldU;
     private worldV;
     private originOffsetX;
