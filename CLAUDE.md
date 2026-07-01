@@ -182,7 +182,7 @@ All components are regular tosijs `Component` subclasses (not blueprints). They 
 
 tosijs ships a whole optimized, typed CSS/variable library. **Do not** hand-roll `document.createElement('style')`, manual `id`-uniqueness/dedup, or CSS-as-string templates — reach for the built-ins, which are deduped, updatable/bindable, type-checked, and test-covered.
 
-**Why it matters — the whole philosophy.** The facilities exist to make styling DRY, efficient, low-footprint, and *browser-native*. The principles:
+**Why it matters — the whole philosophy.** The facilities exist to make styling DRY, efficient, low-footprint, and _browser-native_. The principles:
 
 - **DRY / define only what you need.** One sheet per component/id, written once — not per-element inline styles or repeated class strings. No dead rules, no duplication.
 - **Low memory footprint & efficiency.** A handful of real, shared `<style>` sheets the browser parses once and reuses, rather than thousands of generated classes or per-node style objects. Let the cascade and CSS variables do the work at runtime.

@@ -49,7 +49,8 @@ const run = (
   n: number,
   grounded = false
 ) => {
-  for (let i = 0; i < n; i++) flyByWireStep(s, cmd, fwdSpeed, 0, CFG, DT, grounded)
+  for (let i = 0; i < n; i++)
+    flyByWireStep(s, cmd, fwdSpeed, 0, CFG, DT, grounded)
 }
 
 describe('self-levelling', () => {
@@ -90,20 +91,36 @@ describe('bank-to-turn', () => {
 
 describe('regime split (drone ↔ plane)', () => {
   test('regime is 0 below vtolSpeed, 1 above (at ground level)', () => {
-    expect(regime(0, CFG)).toBe(0)
-    expect(regime(6, CFG)).toBeCloseTo(0.5, 5)
-    expect(regime(20, CFG)).toBe(1)
+    expect(regime(0, 0, CFG)).toBe(0)
+    expect(regime(6, 0, CFG)).toBeCloseTo(0.5, 5)
+    expect(regime(20, 0, CFG)).toBe(1)
   })
 
   test('vtolSpeed 0 = always plane', () => {
-    expect(regime(0, { ...CFG, vtolSpeed: 0 })).toBe(1)
+    expect(regime(0, 0, { ...CFG, vtolSpeed: 0 })).toBe(1)
+  })
+
+  test('altitude gate: above hoverCeiling → plane even at 0 speed', () => {
+    const cfg = { ...CFG, hoverCeiling: 50 }
+    expect(regime(0, 0, cfg)).toBe(0) // on the ground, slow → drone
+    expect(regime(0, 30, cfg)).toBe(0) // below the ramp (0.8·50=40) → still drone
+    expect(regime(0, 60, cfg)).toBe(1) // above the ceiling → plane at 0 speed
+    expect(regime(20, 0, cfg)).toBe(1) // or fast enough at ground level
   })
 
   test('above hoverCeiling, braking floors at vtolSpeed (stays flying)', () => {
     const cfg = { ...CFG, hoverCeiling: 30, vtolSpeed: 12 }
     const s = state({ speed: 20 })
     for (let i = 0; i < 120; i++)
-      flyByWireStep(s, { pitch: 0, roll: 0, lift: -1 }, s.speed, 100, cfg, DT, false)
+      flyByWireStep(
+        s,
+        { pitch: 0, roll: 0, lift: -1 },
+        s.speed,
+        100,
+        cfg,
+        DT,
+        false
+      )
     expect(s.speed).toBeCloseTo(12, 5) // can't stall below the transition while high
   })
 
@@ -111,7 +128,15 @@ describe('regime split (drone ↔ plane)', () => {
     const cfg = { ...CFG, hoverCeiling: 30, vtolSpeed: 12 }
     const s = state({ speed: 20 })
     for (let i = 0; i < 120; i++)
-      flyByWireStep(s, { pitch: 0, roll: 0, lift: -1 }, s.speed, 5, cfg, DT, false)
+      flyByWireStep(
+        s,
+        { pitch: 0, roll: 0, lift: -1 },
+        s.speed,
+        5,
+        cfg,
+        DT,
+        false
+      )
     expect(s.speed).toBeLessThan(12) // dropped below transition → hover
   })
 
@@ -126,7 +151,14 @@ describe('regime split (drone ↔ plane)', () => {
     const s = state({ speed: 0 })
     run(s, { pitch: 0, roll: 0, lift: 1 }, 0, 30) // slow → drone
     expect(s.speed).toBeLessThan(0.2) // trigger did NOT add forward speed
-    const tv = targetVelocity(s, { pitch: 0, roll: 0, lift: 1 }, { x: 0, y: 0, z: 1 }, 0, CFG)
+    const tv = targetVelocity(
+      s,
+      { pitch: 0, roll: 0, lift: 1 },
+      { x: 0, y: 0, z: 1 },
+      0,
+      0,
+      CFG
+    )
     expect(tv.y).toBeGreaterThan(5) // it climbed instead
   })
 
@@ -193,8 +225,8 @@ describe('off-level altitude cost', () => {
     const level = state({ speed: 20 })
     const banked = state({ bank: 0.6, speed: 20 })
     const fwd = { x: 0, y: 0, z: 1 } // bank doesn't change forward
-    const tvL = targetVelocity(level, NO_INPUT, fwd, 20, CFG)
-    const tvB = targetVelocity(banked, NO_INPUT, fwd, 20, CFG)
+    const tvL = targetVelocity(level, NO_INPUT, fwd, 20, 0, CFG)
+    const tvB = targetVelocity(banked, NO_INPUT, fwd, 20, 0, CFG)
     expect(tvB.y).toBeLessThan(tvL.y)
   })
 })
@@ -215,7 +247,14 @@ describe('grounded', () => {
   test('right trigger lifts a VTOL straight off the ground', () => {
     const s = state({ speed: 0 })
     flyByWireStep(s, { pitch: 0, roll: 0, lift: 1 }, 0, 0, CFG, DT, true)
-    const tv = targetVelocity(s, { pitch: 0, roll: 0, lift: 1 }, { x: 0, y: 0, z: 1 }, 0, CFG)
+    const tv = targetVelocity(
+      s,
+      { pitch: 0, roll: 0, lift: 1 },
+      { x: 0, y: 0, z: 1 },
+      0,
+      0,
+      CFG
+    )
     expect(tv.y).toBeGreaterThan(5)
   })
 })

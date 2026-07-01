@@ -162,7 +162,8 @@ describe('desiredCells — quadtree LOD for the pool', () => {
       for (let j = i + 1; j < cells.length; j++) {
         const a = span(cells[i])
         const b = span(cells[j])
-        const disjoint = a.x1 <= b.x0 || b.x1 <= a.x0 || a.z1 <= b.z0 || b.z1 <= a.z0
+        const disjoint =
+          a.x1 <= b.x0 || b.x1 <= a.x0 || a.z1 <= b.z0 || b.z1 <= a.z0
         expect(disjoint).toBe(true)
       }
     }
@@ -214,7 +215,9 @@ describe('desiredCells — quadtree LOD for the pool', () => {
   test('beyond omniRadius, cells AHEAD outrank cells behind', () => {
     const ahead = desiredCells(0, 0, { ...CFG, interest: { x: 0, z: 1 } })
     // pick a far cell ahead (+z) and a far cell behind (−z) at similar distance
-    const far = ahead.filter((c) => Math.abs(Math.hypot(c.cx, c.cz) - 1500) < 400)
+    const far = ahead.filter(
+      (c) => Math.abs(Math.hypot(c.cx, c.cz) - 1500) < 400
+    )
     const fwd = far.filter((c) => c.cz > 800)
     const bwd = far.filter((c) => c.cz < -800)
     const bestFwd = Math.max(...fwd.map((c) => c.priority))

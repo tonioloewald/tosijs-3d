@@ -7,14 +7,16 @@ toward it and self-levels when you let go, banking swings the heading (a
 coordinated turn), and the velocity simply chases where the nose points. The
 model is pure and unit-tested in [fly-by-wire](?fly-by-wire.ts).
 
-The regime is set by forward SPEED — below `vtolSpeed` you're hovering ("stalled"
-→ hover regardless of altitude, so you can always slow down and descend vertically
-to land); at/above it you're flying. `hoverCeiling` then gates DECELERATION: above
-it, braking can't stall you below `vtolSpeed`, so you stay committed to forward
-flight and descend by flying DOWN; drop below the ceiling and braking can settle
-you into a hover.
-- **Hover / drone** (slow): right trigger climbs, left trigger descends. Let go
-  and it bleeds back to a stationary hover; lean forward (pitch) to build speed.
+You're in PLANE mode (trigger = forward thrust) if you're fast enough (`vtolSpeed`)
+OR above `hoverCeiling` — so you take off VERTICALLY, and once you clear the ceiling
+the trigger converts to forward thrust and you fly (gaining altitude by flying, not
+by hovering higher). Above the ceiling the brake also can't stall you below
+`vtolSpeed`, so you can't just decelerate back into a hover up high — you must fly
+DOWN below the ceiling, slow to a hover, and descend vertically to land (or land
+conventionally). Below the ceiling the regime is speed-based, so slowing to a hover
+gives you the vertical trigger back.
+- **Hover / drone** (slow, below the ceiling): right trigger climbs, left trigger
+  descends. Let go and it bleeds back to a stationary hover.
 - **Plane** (fast): right trigger speeds up, left trigger slows down; speed holds
   steady when you let go. Holding throttle past `maxSpeed` enters **afterburner**
   (up to `afterburnerSpeed`); release and it bleeds back to `maxSpeed`. Pitch is
@@ -170,7 +172,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
-| `hoverCeiling` | `50` | Height above ground above which braking can't stall you below `vtolSpeed` (stay flying; descend by flying down). Below it, braking can settle into hover for a vertical descent. 0 = off. |
+| `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 
@@ -198,7 +200,6 @@ import {
   flyByWireStep,
   targetVelocity,
   chaseVelocity,
-  regime,
   type FlyByWireConfig,
   type FlyByWireState,
 } from './fly-by-wire'
@@ -254,9 +255,10 @@ export class B3dAircraft extends B3dControllable {
     // up/down) and above which it flies like a plane (triggers = throttle). Set
     // to 0 for a pure aeroplane with no hover regime.
     vtolSpeed: 6,
-    // Height above ground above which DECELERATION can't stall you below vtolSpeed
-    // — you stay in forward flight and descend by flying down; drop below it and
-    // braking can settle into a hover for a vertical landing. 0 = no floor.
+    // Height above ground above which the trigger is forward thrust regardless of
+    // speed (take off vertically, then fly) AND the brake can't stall you below
+    // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
+    // vertical landing. 0 = altitude gate off (regime is speed-only).
     hoverCeiling: 50,
     // Assumed ground-plane height (used as a floor in addition to any terrain
     // colliders the downward raycast hits).
@@ -373,7 +375,15 @@ export class B3dAircraft extends B3dControllable {
     // hoverCeiling. (Height sampled at frame start; refined after the move below.)
     const fwdSpeed = Math.hypot(vel.x, vel.z)
     const heightAboveGround = this.groundDistance(node) - this.groundClearance
-    flyByWireStep(this.fbw, cmd, fwdSpeed, heightAboveGround, cfg, dt, this.grounded)
+    flyByWireStep(
+      this.fbw,
+      cmd,
+      fwdSpeed,
+      heightAboveGround,
+      cfg,
+      dt,
+      this.grounded
+    )
 
     // Realise the attitude as a quaternion. Babylon's +pitch(X) drops the nose
     // and +roll(Z) banks left, so negate both (our state: +pitch = nose up,
@@ -394,6 +404,7 @@ export class B3dAircraft extends B3dControllable {
       cmd,
       { x: this._fwd.x, y: this._fwd.y, z: this._fwd.z },
       fwdSpeed,
+      heightAboveGround,
       cfg
     )
     chaseVelocity(vel, tv, cfg.velChase, dt)
@@ -403,8 +414,9 @@ export class B3dAircraft extends B3dControllable {
     this.altitude = node.position.y
     this.throttleLevel =
       attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0
-    // In the hover regime (trigger is vertical there) = slow, i.e. below vtolSpeed.
-    this.vtolActive = regime(fwdSpeed, cfg) < 0.5 && attrs.vtolSpeed > 0
+    // "In VTOL" = slow (below vtolSpeed), regardless of altitude — above the hover
+    // ceiling you can be stalled but the thrust still goes forward.
+    this.vtolActive = attrs.vtolSpeed > 0 && fwdSpeed < attrs.vtolSpeed
     this.stalling = false
 
     // === Apply velocity to position ===

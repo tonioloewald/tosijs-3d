@@ -28,7 +28,11 @@ describe('normalizeScale', () => {
   test('non-uniform scale → unit scale, orientation preserved', () => {
     const m = BABYLON.MeshBuilder.CreateBox('b', { size: 1 }, scene)
     m.scaling.set(2, 0.5, 3)
-    m.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0.6, -0.3, 0.2)
+    m.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      0.6,
+      -0.3,
+      0.2
+    )
     const before = fwd(m).clone()
     before.normalize()
     normalizeScale(m)
@@ -69,7 +73,11 @@ describe('canonicalize (wrapper)', () => {
     // Mock a scout-like node: a scaled parent with a child mesh, oddly oriented.
     const root = new BABYLON.TransformNode('scout', scene)
     root.scaling.setAll(2.38)
-    root.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0.9, 0.2, -0.5)
+    root.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      0.9,
+      0.2,
+      -0.5
+    )
     const child = BABYLON.MeshBuilder.CreateBox('cockpit', { size: 1 }, scene)
     child.parent = root
     child.position.set(0, 0, 1)

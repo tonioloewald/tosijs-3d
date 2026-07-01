@@ -46,12 +46,15 @@ const terrain = b3dTerrain({
   surfaceType: 'cylinder',
   radius: 1000,
   cylinderHeight: 1000,
-  tileSize: 80,
+  // Light-weight for VR: big tiles + few levels keep the pool small (~72 cells
+  // needed, so poolSize 80 never has to steal). Fewer, larger meshes = far less
+  // per-frame work on the headset.
+  tileSize: 128,
   hiResSubdivisions: 32,
-  lodLevels: 4,
+  lodLevels: 3,
   splitFactor: 2,
   reach: 5000,
-  poolSize: 260,
+  poolSize: 80,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
@@ -492,7 +495,9 @@ export class B3dTerrain extends Component {
             // Omni over the near/mid view (~40% of reach) so turning never reveals a
             // near blank; direction only culls the distant (largely fogged) cells.
             omniRadius: reach * 0.4,
-            interest: il > 1e-3 ? { x: this.interestX / il, z: this.interestZ / il } : undefined,
+            interest: il > 1e-3
+                ? { x: this.interestX / il, z: this.interestZ / il }
+                : undefined,
         };
     }
     /**
