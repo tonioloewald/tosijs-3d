@@ -29,9 +29,9 @@ const { demo } = tosi({
     seed: 42,
     grossScale: 0.03,
     detailScale: 0.15,
-    horizScale: 4,
-    grossAmplitude: 100,
-    detailAmplitude: 6,
+    horizScale: 8,
+    grossAmplitude: 200,
+    detailAmplitude: 10,
     wireframe: false,
     debugColor: false,
   },
@@ -68,8 +68,8 @@ const posDisplay = span({ class: 'pos-display' })
 // moving); pull back to pitch up, turn stick banks.
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  // Start well above the peaks — with v size 100 the terrain reaches ~106 tall.
-  player: true, y: 200, vtolSpeed: 12, maxSpeed: 50,
+  // Start well above the peaks — with v size 200 the terrain reaches ~210 tall.
+  player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
 })
 
 const scene = b3d(
@@ -120,12 +120,12 @@ preview.append(
     ),
     label(
       'v size ',
-      input({ type: 'range', min: 0, max: 250, step: 1, bindValue: demo.grossAmplitude }),
+      input({ type: 'range', min: 0, max: 400, step: 1, bindValue: demo.grossAmplitude }),
       demo.grossAmplitude,
     ),
     label(
       'v detail size ',
-      input({ type: 'range', min: 0, max: 20, step: 0.5, bindValue: demo.detailAmplitude }),
+      input({ type: 'range', min: 0, max: 50, step: 0.5, bindValue: demo.detailAmplitude }),
       demo.detailAmplitude,
     ),
     label(

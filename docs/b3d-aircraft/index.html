@@ -62,7 +62,7 @@ const aircraft = b3dAircraft({
   player: true, y: 0,
   // Below this forward speed it hovers (triggers = up/down); above it flies like
   // a plane (triggers = throttle). Set to 0 for a pure aeroplane.
-  vtolSpeed: 12, maxSpeed: 50,
+  vtolSpeed: 6, maxSpeed: 50,
 })
 
 const hud = div({ class: &#39;hud&#39; },
@@ -222,7 +222,7 @@ requestAnimationFrame(updateHud)
 </tr>
 <tr>
 <td><code>vtolSpeed</code></td>
-<td><code>12</code></td>
+<td><code>6</code></td>
 <td>Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.</td>
 </tr>
 <tr>

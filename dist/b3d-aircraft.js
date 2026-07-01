@@ -38,7 +38,7 @@ const aircraft = b3dAircraft({
   player: true, y: 0,
   // Below this forward speed it hovers (triggers = up/down); above it flies like
   // a plane (triggers = throttle). Set to 0 for a pure aeroplane.
-  vtolSpeed: 12, maxSpeed: 50,
+  vtolSpeed: 6, maxSpeed: 50,
 })
 
 const hud = div({ class: 'hud' },
@@ -165,7 +165,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `maxSpeed` | `50` | Normal top speed (m/s) — the cruise cap a released throttle settles at |
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
-| `vtolSpeed` | `12` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
+| `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 
@@ -204,7 +204,9 @@ const BANK_TURN_RATE = 70 * DEG2RAD;
 // How fast the velocity chases where the nose points (the forgiveness knob), and
 // how fast drone-mode forward speed bleeds back to a stationary hover.
 const VEL_CHASE = 2.5;
-const HOVER_DAMP = 1.5;
+// Gentle hover bleed so a forward lean's speed persists (it can cross vtolSpeed
+// into forward flight) instead of being scrubbed straight back to a hover.
+const HOVER_DAMP = 0.7;
 // Afterburner: per-second rate the speed bleeds from the afterburner range back
 // down to the normal max once the throttle is released.
 const AFTERBURNER_TAPER = 0.6;
@@ -232,7 +234,7 @@ export class B3dAircraft extends B3dControllable {
         // Forward ground speed below which the craft hovers like a drone (triggers =
         // up/down) and above which it flies like a plane (triggers = throttle). Set
         // to 0 for a pure aeroplane with no hover regime.
-        vtolSpeed: 12,
+        vtolSpeed: 6,
         // Assumed ground-plane height (used as a floor in addition to any terrain
         // colliders the downward raycast hits).
         groundY: 0,
@@ -324,7 +326,9 @@ export class B3dAircraft extends B3dControllable {
             attitudeRate: ATTITUDE_RATE,
             bankTurnRate: BANK_TURN_RATE,
             accel: attrs.acceleration,
-            leanAccel: attrs.acceleration,
+            // Lean accelerates harder than the plane throttle so a brief forward tilt
+            // gets you over vtolSpeed and into forward flight quickly (shallow, not a dive).
+            leanAccel: attrs.acceleration * 2,
             hoverDamp: HOVER_DAMP,
             climbRate: attrs.maxSpeed * 0.3,
             offLevelSink: attrs.maxSpeed * 0.12,
