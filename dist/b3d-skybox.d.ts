@@ -27,6 +27,7 @@ export declare class B3dSkybox extends AbstractMesh {
         rz: number;
     };
     private interval;
+    private _sizeToCamera;
     private sunEl;
     private _horizonColor;
     /** Approximate horizon color based on current time of day / atmosphere. */

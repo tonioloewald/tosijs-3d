@@ -87,6 +87,7 @@ export class B3dSkybox extends AbstractMesh {
         applyFog: false,
     };
     interval = 0;
+    _sizeToCamera = null;
     sunEl = null;
     _horizonColor = new BABYLON.Color3(0.75, 0.85, 0.95);
     /** Approximate horizon color based on current time of day / atmosphere. */
@@ -182,6 +183,23 @@ export class B3dSkybox extends AbstractMesh {
         }, scene);
         this.mesh.material = material;
         this.mesh.applyFog = this.applyFog;
+        // infiniteDistance pins the dome to the camera (translation ignored), so you
+        // can fly forever without leaving it. Then scale it each frame to just inside
+        // the active camera's far plane, so ALL in-view geometry (streamed terrain,
+        // etc.) sits inside the dome and it renders behind everything by normal depth
+        // — no fixed size to outgrow. Base box is `skyboxSize` across (half that).
+        this.mesh.infiniteDistance = true;
+        const baseHalf = (this.skyboxSize || 1000) * 0.5;
+        this._sizeToCamera = () => {
+            const cam = scene.activeCamera;
+            if (cam == null || this.mesh == null)
+                return;
+            // Keep even the box CORNERS (at half·√3) well inside the far plane, or they
+            // clip and punch holes in the sky. 0.5·maxZ → corner ≈ 0.87·maxZ, safe.
+            const targetHalf = cam.maxZ * 0.5;
+            this.mesh.scaling.setAll(targetHalf / baseHalf);
+        };
+        scene.registerBeforeRender(this._sizeToCamera);
         this.updateSky();
         owner.register({ meshes: [this.mesh] });
     }
@@ -189,6 +207,10 @@ export class B3dSkybox extends AbstractMesh {
         if (this.interval) {
             clearInterval(this.interval);
             this.interval = 0;
+        }
+        if (this._sizeToCamera && this.owner) {
+            this.owner.scene.unregisterBeforeRender(this._sizeToCamera);
+            this._sizeToCamera = null;
         }
         // Hand intensity ownership back to the sun before we let go of it.
         if (this.sunEl != null)
