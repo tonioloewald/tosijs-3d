@@ -221,6 +221,14 @@ import { PiecewiseLinearFilter } from './gradient-filter'
 import type { GradientFilter } from './gradient-filter'
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler'
 import type { SurfaceSampler } from './surface-sampler'
+import {
+  lodTileSize,
+  tileCenter,
+  vertexWorld,
+  cellIndex,
+  coverageHalf,
+  spanInside,
+} from './terrain-grid'
 
 type TileInfo = {
   mesh: BABYLON.Mesh
@@ -368,7 +376,7 @@ export class B3dTerrain extends Component {
 
     const hs = attrs.horizScale || 1
     for (let L = 0; L < levels; L++) {
-      const tileSize = attrs.tileSize * Math.pow(2, L) * hs
+      const tileSize = lodTileSize(attrs.tileSize, L, hs)
       const tiles: TileInfo[] = []
       this.createTilesInto(tiles, grid * grid, subs, tileSize, `lod${L}`)
       this.lods.push({
@@ -467,11 +475,10 @@ export class B3dTerrain extends Component {
   // World coverage square of a level's tile grid given the camera position: the
   // snapped centre and the half-extent (centre ± half on each axis).
   private levelCoverage(tileSize: number, camX: number, camZ: number) {
-    const hiHalf = Math.floor((this as any).hiResGrid / 2)
     return {
-      cx: Math.round(camX / tileSize) * tileSize,
-      cz: Math.round(camZ / tileSize) * tileSize,
-      half: (hiHalf + 0.5) * tileSize,
+      cx: cellIndex(camX, tileSize) * tileSize,
+      cz: cellIndex(camZ, tileSize) * tileSize,
+      half: coverageHalf((this as any).hiResGrid, tileSize),
     }
   }
 
@@ -514,8 +521,8 @@ export class B3dTerrain extends Component {
     // Stream each LOD level around the camera. Each level snaps to its own tile
     // grid, so coarser levels only restream a quarter as often.
     for (const lod of this.lods) {
-      const gx = Math.round(camX / lod.tileSize)
-      const gz = Math.round(camZ / lod.tileSize)
+      const gx = cellIndex(camX, lod.tileSize)
+      const gz = cellIndex(camZ, lod.tileSize)
       if (gx !== lod.lastCamGridX || gz !== lod.lastCamGridZ) {
         lod.lastCamGridX = gx
         lod.lastCamGridZ = gz
@@ -547,14 +554,11 @@ export class B3dTerrain extends Component {
         const gx = camGridX + dx
         const gz = camGridZ + dz
         if (finer) {
-          const cx = gx * lod.tileSize
-          const cz = gz * lod.tileSize
+          const c = tileCenter(gx, gz, lod.tileSize)
           // Fully inside the finer coverage → skip (the finer level covers it).
           if (
-            cx - half >= finer.cx - finer.half &&
-            cx + half <= finer.cx + finer.half &&
-            cz - half >= finer.cz - finer.half &&
-            cz + half <= finer.cz + finer.half
+            spanInside(c.x, half, finer.cx, finer.half) &&
+            spanInside(c.z, half, finer.cz, finer.half)
           ) {
             continue
           }
@@ -661,15 +665,19 @@ export class B3dTerrain extends Component {
     if (positions == null || normals == null) return
 
     const vertsPerSide = subdivisions + 1
-    const worldTileX = tile.gridX * tileSize
-    const worldTileZ = tile.gridZ * tileSize
+    const center = tileCenter(tile.gridX, tile.gridZ, tileSize)
 
-    // 1. Heightfield vertices at their true sampled heights.
+    // 1. Heightfield vertices at their true sampled heights. Each vertex samples
+    //    heightAt at exactly the world point it is placed — placement (mesh
+    //    position = tile centre) + local offset == the sampled coordinate — so
+    //    the surface is always self-consistent (see terrain-grid.test).
     for (let iz = 0; iz < vertsPerSide; iz++) {
+      const wz = vertexWorld(tile.gridZ, iz, subdivisions, tileSize, true)
+      const localZ = wz - center.z
       for (let ix = 0; ix < vertsPerSide; ix++) {
-        const localX = (ix / subdivisions - 0.5) * tileSize
-        const localZ = (0.5 - iz / subdivisions) * tileSize
-        const height = this.heightAt(worldTileX + localX, worldTileZ + localZ)
+        const wx = vertexWorld(tile.gridX, ix, subdivisions, tileSize)
+        const localX = wx - center.x
+        const height = this.heightAt(wx, wz)
         const idx = (iz * vertsPerSide + ix) * 3
         positions[idx] = localX
         positions[idx + 1] = height
@@ -707,7 +715,7 @@ export class B3dTerrain extends Component {
 
     // yOffset (a few cm per level, coarser = lower) keeps a finer tile in front
     // of the coarse one where they overlap — no z-fighting.
-    mesh.position.set(worldTileX, yOffset, worldTileZ)
+    mesh.position.set(center.x, yOffset, center.z)
     mesh.rotationQuaternion = null
     mesh.isVisible = true
   }
@@ -805,7 +813,7 @@ export class B3dTerrain extends Component {
     if (this.material) this.material.wireframe = attrs.wireframe
     const hs = attrs.horizScale || 1
     for (const lod of this.lods) {
-      lod.tileSize = attrs.tileSize * Math.pow(2, lod.level) * hs
+      lod.tileSize = lodTileSize(attrs.tileSize, lod.level, hs)
       for (const tile of lod.tiles) {
         tile.assigned = false
         tile.mesh.isVisible = false
