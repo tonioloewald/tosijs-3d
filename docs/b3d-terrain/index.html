@@ -72,7 +72,7 @@ const terrain = b3dTerrain({
   tileSize: 80,
   hiResGrid: 5,
   hiResSubdivisions: 32,
-  lodLevels: 4,
+  lodLevels: 6,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
@@ -107,7 +107,7 @@ const scene = b3d(
   b3dSun({ activeDistance: 80 }),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
-  b3dFog({ syncSkybox: true, start: 500, end: 1500 }),
+  b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
   terrain,
   inputFocus(
@@ -266,7 +266,7 @@ for (const key of [&#39;grossScale&#39;, &#39;detailScale&#39;, &#39;horizScale&
 <tr>
 <td><code>horizScale</code></td>
 <td><code>1</code></td>
-<td>Horizontal feature scale — divides both noise frequencies together (&gt;1 = broader terrain)</td>
+<td>Horizontal world scale — scales every tile&#39;s size AND the sampling together (&gt;1 = bigger terrain that reaches further; a clean zoom, not just a frequency change)</td>
 </tr>
 <tr>
 <td><code>grossAmplitude</code></td>

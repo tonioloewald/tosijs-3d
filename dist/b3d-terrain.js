@@ -45,7 +45,7 @@ const terrain = b3dTerrain({
   tileSize: 80,
   hiResGrid: 5,
   hiResSubdivisions: 32,
-  lodLevels: 4,
+  lodLevels: 6,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
@@ -80,7 +80,7 @@ const scene = b3d(
   b3dSun({ activeDistance: 80 }),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
-  b3dFog({ syncSkybox: true, start: 500, end: 1500 }),
+  b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   terrain,
   inputFocus(
@@ -185,7 +185,7 @@ tosi-b3d {
 | `lodLevels` | `5` | Number of LOD levels; level k uses `tileSize × 2^k` tiles |
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
-| `horizScale` | `1` | Horizontal feature scale — divides both noise frequencies together (>1 = broader terrain) |
+| `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
 | `grossAmplitude` | `8` | Gross height multiplier |
 | `detailAmplitude` | `2` | Detail height multiplier |
 | `originResetThreshold` | `500` | Distance before origin rebase |
@@ -316,8 +316,9 @@ export class B3dTerrain extends Component {
         const grid = attrs.hiResGrid;
         const subs = attrs.hiResSubdivisions;
         this.tileTemplate = B3dTerrain.buildTileTemplate(subs);
+        const hs = attrs.horizScale || 1;
         for (let L = 0; L < levels; L++) {
-            const tileSize = attrs.tileSize * Math.pow(2, L);
+            const tileSize = attrs.tileSize * Math.pow(2, L) * hs;
             const tiles = [];
             this.createTilesInto(tiles, grid * grid, subs, tileSize, `lod${L}`);
             this.lods.push({
@@ -527,10 +528,11 @@ export class B3dTerrain extends Component {
         const u = this.renderToU(wx);
         const v = this.renderToV(wz);
         const surfPt = this.sampler.sample(u, v);
-        // horizScale widens (>1) or tightens (<1) all features horizontally — the
-        // companion to grossAmplitude's vertical scale. It divides the sampling
-        // frequency of both noise layers together, so it sets the terrain's aspect
-        // (broad rolling vs. tight) without touching the height sliders.
+        // horizScale is a horizontal WORLD scale (>1 bigger, <1 smaller): createLods
+        // multiplies every tileSize by it (so the terrain physically extends further),
+        // and here we divide the sampling frequency by the same factor. The two cancel
+        // in the noise argument, so features keep their proportion to the tiles — a
+        // clean zoom of the whole terrain rather than just retuning the frequency.
         const hs = attrs.horizScale || 1;
         const gScale = attrs.grossScale / hs;
         const dScale = attrs.detailScale / hs;
@@ -665,21 +667,24 @@ export class B3dTerrain extends Component {
             lod.lastCamGridZ = Infinity;
         }
     }
-    // Regenerate all currently-placed tiles in place (e.g. after a noise-parameter
-    // change). Restreaming won't do it — the tiles are already at the right cells,
-    // so we rebuild their geometry directly.
+    // Rebuild everything after a parameter change. horizScale rescales the tiles
+    // (changing extent + grid), so we recompute each level's tileSize, park all
+    // tiles, and restream fresh — this covers both noise changes and scale changes.
     regenerate() {
         const attrs = this;
         if (this.material)
             this.material.wireframe = attrs.wireframe;
-        const subs = attrs.hiResSubdivisions;
+        const hs = attrs.horizScale || 1;
         for (const lod of this.lods) {
+            lod.tileSize = attrs.tileSize * Math.pow(2, lod.level) * hs;
             for (const tile of lod.tiles) {
-                if (tile.assigned) {
-                    this.generateTileMesh(tile, subs, lod.tileSize, lod.yOffset);
-                }
+                tile.assigned = false;
+                tile.mesh.isVisible = false;
             }
+            lod.lastCamGridX = Infinity;
+            lod.lastCamGridZ = Infinity;
         }
+        this.update();
     }
 }
 export const b3dTerrain = B3dTerrain.elementCreator({

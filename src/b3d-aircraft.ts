@@ -594,6 +594,10 @@ export class B3dAircraft extends B3dControllable {
       -this.chaseDistance * FLAT_CHASE_SCALE
     )
     chase.setTarget(BABYLON.Vector3.Zero())
+    // Far clip well past any streamed terrain so distance/fog is never cut off
+    // (the default 10000 is usually fine, but set it explicitly for aerial views).
+    chase.minZ = 0.5
+    chase.maxZ = 20000
     this.chaseCamera = chase
 
     // Cockpit: near the nose, looking straight ahead (local +Z = forward).
