@@ -123,10 +123,13 @@ function ensureGamepadStyles(): void {
       pointerEvents: 'none',
     },
     'tosi-b3d-gamepad [data-part]': {
+      opacity: 0.25,
+      strokeWidth: 8,
       transition: 'stroke-width .08s, filter .08s',
     },
     'tosi-b3d-gamepad [data-part].active': {
-      strokeWidth: 32,
+      opacity: 0.75,
+      strokeWidth: 16,
       filter: 'brightness(1.35)',
     },
   })

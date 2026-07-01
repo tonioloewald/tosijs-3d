@@ -117,8 +117,7 @@ export class B3dPanel extends Component {
       anchor,
       reveal: this.reveal === 'always' ? 'always' : 'gaze',
       blend: this.blend === 'add' ? 'add' : 'composite',
-      view:
-        this.view === 'first' || this.view === 'third' ? this.view : 'both',
+      view: this.view === 'first' || this.view === 'third' ? this.view : 'both',
       title: this.title || undefined,
       url: this.url || undefined,
       width: this.width,

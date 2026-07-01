@@ -267,10 +267,7 @@ export function attachFramePanel(
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
       const fp = ctx?.firstPerson ?? true
-      if (
-        (viewMode === 'first' && !fp) ||
-        (viewMode === 'third' && fp)
-      ) {
+      if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
         plane.visibility = 0
         return
       }

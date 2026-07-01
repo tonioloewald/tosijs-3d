@@ -90,12 +90,18 @@ describe('gazeReveal', () => {
   const cosFull = Math.cos(0.2) // full at ~11°
 
   test('1 when looking straight at the anchor', () => {
-    expect(gazeReveal({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 5 }, cosStart, cosFull)).toBe(1)
+    expect(
+      gazeReveal({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: 5 }, cosStart, cosFull)
+    ).toBe(1)
   })
 
   test('0 when looking well away', () => {
-    expect(gazeReveal({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -5 }, cosStart, cosFull)).toBe(0)
-    expect(gazeReveal({ x: 0, y: 0, z: 1 }, { x: 5, y: 0, z: 0 }, cosStart, cosFull)).toBe(0)
+    expect(
+      gazeReveal({ x: 0, y: 0, z: 1 }, { x: 0, y: 0, z: -5 }, cosStart, cosFull)
+    ).toBe(0)
+    expect(
+      gazeReveal({ x: 0, y: 0, z: 1 }, { x: 5, y: 0, z: 0 }, cosStart, cosFull)
+    ).toBe(0)
   })
 
   test('ramps between start and full', () => {
@@ -116,6 +122,13 @@ describe('gazeReveal', () => {
   })
 
   test('unnormalised inputs are handled', () => {
-    expect(gazeReveal({ x: 0, y: 0, z: 9 }, { x: 0, y: 0, z: 0.01 }, cosStart, cosFull)).toBe(1)
+    expect(
+      gazeReveal(
+        { x: 0, y: 0, z: 9 },
+        { x: 0, y: 0, z: 0.01 },
+        cosStart,
+        cosFull
+      )
+    ).toBe(1)
   })
 })
