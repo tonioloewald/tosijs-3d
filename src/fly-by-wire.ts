@@ -32,6 +32,10 @@ export interface FlyByWireConfig {
   /** Forward ground speed at/above which the craft flies like a plane; below it
    * hovers like a drone. 0 (or less) = pure plane, no hover regime. */
   vtolSpeed: number
+  /** Height above ground at/above which the trigger converts to forward thrust
+   * even at low speed — so you take off VERTICALLY, then fly once you clear it.
+   * 0 disables the altitude gate (regime is purely by speed). */
+  hoverCeiling: number
   /** Full-stick bank, radians. Steeper = tighter turns. */
   maxBank: number
   /** Full-stick pitch attitude, radians. */
@@ -85,9 +89,21 @@ export interface Vec3 {
 const clamp = (v: number, lo: number, hi: number) =>
   v < lo ? lo : v > hi ? hi : v
 
-/** 0 = drone/hover, 1 = plane — chosen by forward ground speed vs `vtolSpeed`. */
-export function regime(forwardSpeed: number, cfg: FlyByWireConfig): number {
-  return cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1
+/**
+ * 0 = drone/hover (trigger is vertical), 1 = plane (trigger is forward throttle).
+ * Plane if EITHER fast enough (`vtolSpeed`) OR high enough (`hoverCeiling`) — so
+ * you take off VERTICALLY, and once you clear the ceiling the trigger converts to
+ * forward thrust; you then gain altitude by flying, and stay in forward flight as
+ * long as you keep either your speed or your height.
+ */
+export function regime(
+  forwardSpeed: number,
+  altitude: number,
+  cfg: FlyByWireConfig
+): number {
+  const bySpeed = cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1
+  const byAlt = cfg.hoverCeiling > 0 ? clamp(altitude / cfg.hoverCeiling, 0, 1) : 0
+  return Math.max(bySpeed, byAlt)
 }
 
 /**
@@ -103,6 +119,7 @@ export function flyByWireStep(
   state: FlyByWireState,
   cmd: FlyByWireCommand,
   forwardSpeed: number,
+  altitude: number,
   cfg: FlyByWireConfig,
   dt: number,
   grounded: boolean
@@ -126,7 +143,7 @@ export function flyByWireStep(
     : Math.sin(state.bank) * cfg.bankTurnRate * dt
 
   // --- Forward speed ---
-  const t = regime(forwardSpeed, cfg)
+  const t = regime(forwardSpeed, altitude, cfg)
   // Plane: the trigger is throttle — hold it to accelerate toward the afterburner
   // ceiling, left trigger brakes. Release ABOVE the normal max and afterburner
   // bleeds back down to it; at or below the normal max, speed just holds steady
@@ -154,13 +171,14 @@ export function targetVelocity(
   cmd: FlyByWireCommand,
   forward: Vec3,
   forwardSpeed: number,
+  altitude: number,
   cfg: FlyByWireConfig
 ): Vec3 {
   const fhLen = Math.hypot(forward.x, forward.z) || 1
   const horizX = (forward.x / fhLen) * state.speed
   const horizZ = (forward.z / fhLen) * state.speed
 
-  const t = regime(forwardSpeed, cfg)
+  const t = regime(forwardSpeed, altitude, cfg)
   const planeVertical = forward.y * state.speed
   const droneVertical = clamp(cmd.lift, -1, 1) * cfg.climbRate
   let vertical = droneVertical + (planeVertical - droneVertical) * t

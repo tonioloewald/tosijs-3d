@@ -19,9 +19,17 @@
  * quaternion, reads world forward back out, and eases velocity toward `targetVel`.
  */
 const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
-/** 0 = drone/hover, 1 = plane — chosen by forward ground speed vs `vtolSpeed`. */
-export function regime(forwardSpeed, cfg) {
-    return cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1;
+/**
+ * 0 = drone/hover (trigger is vertical), 1 = plane (trigger is forward throttle).
+ * Plane if EITHER fast enough (`vtolSpeed`) OR high enough (`hoverCeiling`) — so
+ * you take off VERTICALLY, and once you clear the ceiling the trigger converts to
+ * forward thrust; you then gain altitude by flying, and stay in forward flight as
+ * long as you keep either your speed or your height.
+ */
+export function regime(forwardSpeed, altitude, cfg) {
+    const bySpeed = cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1;
+    const byAlt = cfg.hoverCeiling > 0 ? clamp(altitude / cfg.hoverCeiling, 0, 1) : 0;
+    return Math.max(bySpeed, byAlt);
 }
 /**
  * Advance the attitude / heading / speed state one step (pure; mutates `state`).
@@ -32,7 +40,7 @@ export function regime(forwardSpeed, cfg) {
  * turns the resulting state into the velocity to chase (it needs the world
  * forward vector, which the bridge derives from `state` via a quaternion).
  */
-export function flyByWireStep(state, cmd, forwardSpeed, cfg, dt, grounded) {
+export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, grounded) {
     const roll = clamp(cmd.roll, -1, 1);
     const pitch = clamp(cmd.pitch, -1, 1);
     const lift = clamp(cmd.lift, -1, 1);
@@ -49,7 +57,7 @@ export function flyByWireStep(state, cmd, forwardSpeed, cfg, dt, grounded) {
         ? roll * cfg.bankTurnRate * dt
         : Math.sin(state.bank) * cfg.bankTurnRate * dt;
     // --- Forward speed ---
-    const t = regime(forwardSpeed, cfg);
+    const t = regime(forwardSpeed, altitude, cfg);
     // Plane: the trigger is throttle — hold it to accelerate toward the afterburner
     // ceiling, left trigger brakes. Release ABOVE the normal max and afterburner
     // bleeds back down to it; at or below the normal max, speed just holds steady
@@ -71,11 +79,11 @@ export function flyByWireStep(state, cmd, forwardSpeed, cfg, dt, grounded) {
  * `speed`. Vertical: plane climbs/dives by pitch attitude, drone climbs by the
  * trigger — blended by regime — minus the altitude a bank costs.
  */
-export function targetVelocity(state, cmd, forward, forwardSpeed, cfg) {
+export function targetVelocity(state, cmd, forward, forwardSpeed, altitude, cfg) {
     const fhLen = Math.hypot(forward.x, forward.z) || 1;
     const horizX = (forward.x / fhLen) * state.speed;
     const horizZ = (forward.z / fhLen) * state.speed;
-    const t = regime(forwardSpeed, cfg);
+    const t = regime(forwardSpeed, altitude, cfg);
     const planeVertical = forward.y * state.speed;
     const droneVertical = clamp(cmd.lift, -1, 1) * cfg.climbRate;
     let vertical = droneVertical + (planeVertical - droneVertical) * t;

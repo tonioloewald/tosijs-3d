@@ -35,12 +35,15 @@ than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft ease
 toward it and self-levels when you let go, banking swings the heading (a
 coordinated turn), and the velocity simply chases where the nose points. The
 model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
-<p>Two regimes split by forward ground speed (<code>vtolSpeed</code>):</p>
+<p>Two regimes, and you&#39;re in PLANE mode if you&#39;re either fast enough (<code>vtolSpeed</code>)
+OR high enough (<code>hoverCeiling</code>) — so you take off vertically, then the trigger
+converts to forward thrust once you clear the ceiling, and you gain altitude by
+flying rather than hovering:</p>
 <ul>
-<li><strong>Hover / drone</strong> (slow): right trigger climbs, left trigger descends. Let go
-while slow and it bleeds back to a stationary hover; lean forward (pitch) to
-build speed and transition.</li>
-<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down; speed holds
+<li><strong>Hover / drone</strong> (low AND slow): right trigger climbs, left trigger descends.
+Let go and it bleeds back to a stationary hover; lift off vertically to clear
+the ceiling (or lean forward to build speed).</li>
+<li><strong>Plane</strong> (high or fast): right trigger speeds up, left trigger slows down; speed holds
 steady when you let go. Holding throttle past <code>maxSpeed</code> enters <strong>afterburner</strong>
 (up to <code>afterburnerSpeed</code>); release and it bleeds back to <code>maxSpeed</code>. Pitch is
 climb/dive, the turn stick banks to turn. Slow back below <code>vtolSpeed</code> and the
@@ -224,6 +227,11 @@ requestAnimationFrame(updateHud)
 <td><code>vtolSpeed</code></td>
 <td><code>6</code></td>
 <td>Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.</td>
+</tr>
+<tr>
+<td><code>hoverCeiling</code></td>
+<td><code>20</code></td>
+<td>Height above ground at/above which the trigger becomes forward thrust even at low speed (take off vertically, then fly). 0 = altitude gate off.</td>
 </tr>
 <tr>
 <td><code>groundY</code></td>

@@ -90,12 +90,11 @@ const terrain = b3dTerrain({
 
 const posDisplay = span({ class: &#39;pos-display&#39; })
 
-// Fly the terrain in the VTOL aircraft, starting parked in a hover at a safe
-// height above the ground. Triggers climb/descend (or throttle once you&#39;re
-// moving); pull back to pitch up, turn stick banks.
+// Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
+// with v size 200), so it&#39;s already above the hover ceiling → in FLIGHT mode:
+// right trigger = forward throttle, pull back to climb, turn stick banks.
 const aircraft = b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
-  // Start well above the peaks — with v size 200 the terrain reaches ~210 tall.
   player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
 })
 
