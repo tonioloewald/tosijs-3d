@@ -96,7 +96,7 @@ const scene = b3d(
     update(el) {
       const cam = el.scene.activeCamera
       if (cam) {
-        const p = cam.position
+        const p = cam.globalPosition // world pos (the chase cam is parented)
         posDisplay.textContent =
           `pos: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`
       }

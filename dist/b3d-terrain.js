@@ -69,7 +69,7 @@ const scene = b3d(
     update(el) {
       const cam = el.scene.activeCamera
       if (cam) {
-        const p = cam.position
+        const p = cam.globalPosition // world pos (the chase cam is parented)
         posDisplay.textContent =
           `pos: ${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`
       }
@@ -410,8 +410,11 @@ export class B3dTerrain extends Component {
         if (camera == null)
             return;
         const attrs = this;
-        const camX = camera.position.x;
-        const camZ = camera.position.z;
+        // WORLD position — the active camera is often parented (e.g. an aircraft's
+        // chase cam), so `.position` is a constant local offset. globalPosition is the
+        // real point to stream the terrain around.
+        const camX = camera.globalPosition.x;
+        const camZ = camera.globalPosition.z;
         // Floating origin reset — rebase on the COARSEST tile so every level's grid
         // stays integer-aligned after the shift.
         const distSq = camX * camX + camZ * camZ;
@@ -622,8 +625,12 @@ export class B3dTerrain extends Component {
             lod.lastCamGridX = Infinity;
             lod.lastCamGridZ = Infinity;
         }
-        camera.position.x -= shiftX;
-        camera.position.z -= shiftZ;
+        // Shift whatever actually carries the camera through the world: its parent
+        // (e.g. the aircraft) if parented, else the camera itself. The controller
+        // keeps integrating from the shifted position, so it's seamless.
+        const carrier = camera.parent ?? camera;
+        carrier.position.x -= shiftX;
+        carrier.position.z -= shiftZ;
         this.originOffsetX += shiftX;
         this.originOffsetZ += shiftZ;
     }
@@ -638,17 +645,21 @@ export class B3dTerrain extends Component {
             lod.lastCamGridZ = Infinity;
         }
     }
-    // Force a full restream (e.g. after a noise-parameter change). Invalidates each
-    // level's cached cell so the next update() regenerates every tile.
+    // Regenerate all currently-placed tiles in place (e.g. after a noise-parameter
+    // change). Restreaming won't do it — the tiles are already at the right cells,
+    // so we rebuild their geometry directly.
     regenerate() {
         const attrs = this;
         if (this.material)
             this.material.wireframe = attrs.wireframe;
+        const subs = attrs.hiResSubdivisions;
         for (const lod of this.lods) {
-            lod.lastCamGridX = Infinity;
-            lod.lastCamGridZ = Infinity;
+            for (const tile of lod.tiles) {
+                if (tile.assigned) {
+                    this.generateTileMesh(tile, subs, lod.tileSize, lod.yOffset);
+                }
+            }
         }
-        this.update();
     }
 }
 export const b3dTerrain = B3dTerrain.elementCreator({
