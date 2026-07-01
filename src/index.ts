@@ -2,6 +2,37 @@
 export { B3d, b3d } from './tosi-b3d'
 export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
+// Device-capability probe (measure-don't-guess quality budgets)
+export { B3dProbe, b3dProbe, runProbe } from './b3d-probe'
+export {
+  getPerfProfile,
+  setPerfProfile,
+  setQuality,
+  getQuality,
+  effectiveTier,
+  qualityBudgets,
+  resolveBudget,
+  onQualityChange,
+} from './b3d-quality'
+export type { QualitySetting, NumericBudgetKey } from './b3d-quality'
+export {
+  PROBE_VERSION,
+  classify,
+  budgetsForTier,
+  resolveProfile,
+  defaultProfile,
+  isStandaloneHmd,
+  tierCap,
+} from './perf-probe'
+export type {
+  PerfTier,
+  PerfMeasurements,
+  PerfBudgets,
+  PerfProfile,
+  StoredProfile,
+  ClassHints,
+} from './perf-probe'
+
 // World simulation (narrative-driver boundary)
 export { WorldStore } from './world-store'
 export { WorldView, defaultMeshFactory } from './world-view'

@@ -39,6 +39,7 @@ export declare class B3dTerrain extends Component {
     private noiseSeed;
     private sampler;
     private pool;
+    private _resolvedSubs;
     private tileTemplate;
     private material;
     private registered;

@@ -103,10 +103,15 @@ export function regime(
   altitude: number,
   cfg: FlyByWireConfig
 ): number {
-  const bySpeed = cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1
+  const bySpeed =
+    cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1
   const byAlt =
     cfg.hoverCeiling > 0
-      ? clamp((altitude - 0.8 * cfg.hoverCeiling) / (0.2 * cfg.hoverCeiling), 0, 1)
+      ? clamp(
+          (altitude - 0.8 * cfg.hoverCeiling) / (0.2 * cfg.hoverCeiling),
+          0,
+          1
+        )
       : 0
   return Math.max(bySpeed, byAlt)
 }

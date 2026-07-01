@@ -24,9 +24,8 @@ import { elements } from 'tosijs'
 const { div, button, p } = elements
 
 let sphere = null
-let B = null
 
-function createSphere() {
+function createSphere(B) {
   sphere = B.MeshBuilder.CreateSphere(
     'target', { diameter: 2, segments: 12 }, scene.scene
   )
@@ -39,14 +38,13 @@ function createSphere() {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      B = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 12,
         new BABYLON.Vector3(0, 1, 0), el.scene
       )
       camera.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(camera)
-      createSphere()
+      createSphere(BABYLON)
     },
   },
   b3dLight({ y: 1, intensity: 0.8 }),

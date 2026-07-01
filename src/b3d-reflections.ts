@@ -51,7 +51,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `probeSize` | `512` | Cubemap resolution per face |
+| `probeSize` | `auto` | Cubemap resolution per face; `auto` = device tier |
 | `refreshRate` | `5` | Frames between probe refreshes inside `farDistance` |
 | `farDistance` | `30` | Distance at which the rate starts ramping toward `farRefreshRate` |
 | `maxDistance` | `100` | Distance beyond which probes freeze entirely |
@@ -68,12 +68,15 @@ tosi-b3d { width: 100%; height: 100%; }
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
+import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dReflections extends Component {
   static initAttributes = {
     refreshRate: 5,
-    probeSize: 512,
+    // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
+    // explicit value to override.
+    probeSize: 0,
     /** Distance beyond which probes stop updating entirely */
     maxDistance: 100,
     /** Distance at which probes switch from near to far refresh rate */
@@ -114,7 +117,7 @@ export class B3dReflections extends Component {
     const attrs = this as any
     const probe = new BABYLON.ReflectionProbe(
       mesh.name.replace(/[_-]mirror/g, '_probe'),
-      attrs.probeSize,
+      resolveBudget(attrs.probeSize, 'reflectionSize'),
       this.owner.scene
     )
     try {

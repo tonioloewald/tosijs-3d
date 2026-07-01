@@ -198,10 +198,10 @@ tosi-b3d {
 | `radius` | `200` | Sphere/cylinder radius |
 | `cylinderHeight` | `200` | Cylinder height (v range before reflection) |
 | `tileSize` | `10` | World-space size of a level-0 (finest) tile |
-| `hiResSubdivisions` | `24` | Vertices per tile edge (same at every level) |
+| `hiResSubdivisions` | `auto` | Vertices per tile edge (same at every level); `auto` = device tier |
 | `lodLevels` | `5` | Number of LOD levels; level k tiles are `tileSize × 2^k` |
-| `poolSize` | `220` | Shared tile budget; the pool renders the top-priority cells |
-| `fillBudget` | `12` | Max tiles (re)built per frame — caps streaming cost |
+| `poolSize` | `auto` | Shared tile budget; the pool renders the top-priority cells (`auto` = device tier) |
+| `fillBudget` | `auto` | Max tiles (re)built per frame — caps streaming cost (`auto` = device tier) |
 | `splitFactor` | `2` | LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize` |
 | `reach` | `0` | Terrain radius (0 = auto from the coarsest tile) |
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
@@ -249,6 +249,7 @@ import {
   type DesiredCell,
   type QuadtreeConfig,
 } from './terrain-grid'
+import { resolveBudget } from './b3d-quality'
 
 // A pooled tile mesh and the quadtree cell it currently renders (null = free).
 type PoolTile = {
@@ -292,15 +293,18 @@ export class B3dTerrain extends Component {
     radius: 200,
     cylinderHeight: 200,
     tileSize: 10,
-    hiResSubdivisions: 24,
+    // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
+    // explicit value to override. hiResSubdivisions/poolSize are read once at pool
+    // creation; fillBudget each frame.
+    hiResSubdivisions: 0,
     lodLevels: 5,
     // Priority-pool streaming (quadtree LOD). `poolSize` tiles are shared across
     // the whole view and filled/stolen by priority; `fillBudget` caps how many are
     // (re)built per frame so movement never hitches. `splitFactor` sets the LOD
     // falloff (subdivide when nearer than splitFactor·tileSize); `reach` is the
     // terrain radius (0 = auto from the coarsest tile).
-    poolSize: 220,
-    fillBudget: 18,
+    poolSize: 0,
+    fillBudget: 0,
     splitFactor: 2,
     reach: 0,
     grossScale: 0.1,
@@ -323,6 +327,7 @@ export class B3dTerrain extends Component {
   private noiseSeed = NaN // last seed the noise was built with (for re-seeding)
   private sampler!: SurfaceSampler
   private pool: PoolTile[] = []
+  private _resolvedSubs = 0 // hiResSubdivisions after auto-resolution (pool is sized to it)
   private tileTemplate: TileTemplate | null = null
   private material!: BABYLON.StandardMaterial
   private registered = false
@@ -408,13 +413,20 @@ export class B3dTerrain extends Component {
 
   private createPool() {
     const attrs = this as any
-    const subs: number = attrs.hiResSubdivisions
+    // auto (0) → resolve from the device tier; explicit value wins. Cache it: the
+    // pool's buffers are sized to this subdivision, so streamTiles must reuse the
+    // SAME value (attrs.hiResSubdivisions may still be the 0 sentinel).
+    const subs: number = resolveBudget(
+      attrs.hiResSubdivisions,
+      'hiResSubdivisions'
+    )
+    this._resolvedSubs = subs
     this.tileTemplate = B3dTerrain.buildTileTemplate(subs)
 
     const scene = this.owner!.scene
     const tpl = this.tileTemplate
     const vertCount = tpl.gridCount + tpl.perim.length
-    const count: number = Math.max(1, attrs.poolSize)
+    const count: number = Math.max(1, resolveBudget(attrs.poolSize, 'poolSize'))
     for (let i = 0; i < count; i++) {
       const mesh = new BABYLON.Mesh(`terrain-tile-${i}`, scene)
       const vd = new BABYLON.VertexData()
@@ -528,7 +540,9 @@ export class B3dTerrain extends Component {
     this.lastCamX = camX
     this.lastCamZ = camZ
     desiredCellsInto(camX, camZ, cfg, this._desired)
-    this.streamTiles(budgetOverride ?? attrs.fillBudget)
+    this.streamTiles(
+      budgetOverride ?? resolveBudget(attrs.fillBudget, 'fillBudget')
+    )
   }
 
   private coarsestTileSize(): number {
@@ -592,7 +606,7 @@ export class B3dTerrain extends Component {
    * tiles, or STEALING the weakest placed tile a blank outranks — up to `budget`.
    */
   private streamTiles(budget: number) {
-    const subs = (this as any).hiResSubdivisions
+    const subs = this._resolvedSubs
     // Reuse the scratch collections (cleared, not reallocated). `_desired` was
     // filled in place by desiredCellsInto; its cell objects are transient (tiles
     // copy the fields they keep, below), so reusing them next frame is safe.

@@ -5,6 +5,7 @@ import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
 import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
+import { type QualitySetting } from './b3d-quality';
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -22,6 +23,7 @@ export declare class B3d extends Component {
         noXr: boolean;
         gamepad: boolean | string;
         gamepadScale: number;
+        quality: QualitySetting;
     };
     static styleSpec: {
         ':host': {
@@ -192,6 +194,10 @@ export declare class B3d extends Component {
     private _notifySubtree;
     private _disposeSubtree;
     private _notifyAllDescendants;
+    private _qualityOff;
+    private static _probeStarted;
+    private _setupQuality;
+    private _applyHardwareScaling;
     connectedCallback(): void;
     private _setupXR;
     private _startDefaultXrExperience;

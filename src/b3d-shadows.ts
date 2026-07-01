@@ -77,10 +77,10 @@ tosi-b3d { width: 100%; height: 100%; }
 | `y` | `-1` | Sun direction Y |
 | `z` | `-0.5` | Sun direction Z |
 | `intensity` | `1` | Sun intensity (overridden by skybox when present) |
-| `shadowTextureSize` | `1024` | Shadow map resolution (per cascade) |
+| `shadowTextureSize` | `auto` | Shadow map resolution (per cascade); `auto` = device tier |
 | `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
 | `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
-| `numCascades` | `4` | Number of cascade splits (1–4) |
+| `numCascades` | `auto` | Number of cascade splits (1–4); `auto` = device tier |
 | `stabilizeCascades` | `true` | Reduce shadow-edge "swimming" under motion |
 | `lambda` | `0.8` | Cascade split blend (0 = uniform, 1 = logarithmic) |
 | `cascadeBlendPercentage` | `0.1` | Soft blend across cascade seams |
@@ -99,18 +99,21 @@ tosi-b3d { width: 100%; height: 100%; }
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
 import { actualMeshes } from './b3d-utils'
+import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dSun extends Component {
   static initAttributes = {
     shadowMaxZ: 100,
     shadowDarkness: 0.1,
-    shadowTextureSize: 1024,
+    // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
+    // explicit value to override. shadowTextureSize is fixed at generator creation.
+    shadowTextureSize: 0,
     activeDistance: 30,
     // Cascaded shadow map (CSM) tuning. CSM covers the camera's view frustum
     // out to shadowMaxZ, which is why it works for both close scenes and fast,
-    // far-ranging ones (e.g. aircraft) — see the aircraft demo.
-    numCascades: 4,
+    // far-ranging ones (e.g. aircraft) — see the aircraft demo. 0 = auto (tier).
+    numCascades: 0,
     // stabilize reduces shadow-edge "swimming" as the camera moves quickly.
     stabilizeCascades: true,
     // lambda: 0 = uniform cascade splits, 1 = logarithmic (more resolution
@@ -232,7 +235,7 @@ export class B3dSun extends Component {
     this.light = light
 
     this.shadowGenerator = new BABYLON.CascadedShadowGenerator(
-      attrs.shadowTextureSize,
+      resolveBudget(attrs.shadowTextureSize, 'shadowTextureSize'),
       light
     )
 
@@ -266,7 +269,10 @@ export class B3dSun extends Component {
 
     // Leave bias/normalBias at Babylon's CSM-tuned defaults — overriding them
     // tends to cause peter-panning (shadows detaching from their caster).
-    this.shadowGenerator.numCascades = attrs.numCascades
+    this.shadowGenerator.numCascades = resolveBudget(
+      attrs.numCascades,
+      'numCascades'
+    )
     this.shadowGenerator.shadowMaxZ = attrs.shadowMaxZ
     this.shadowGenerator.stabilizeCascades = attrs.stabilizeCascades
     this.shadowGenerator.lambda = attrs.lambda

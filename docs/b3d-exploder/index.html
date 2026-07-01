@@ -47,9 +47,8 @@ import { elements } from &#39;tosijs&#39;
 const { div, button, p } = elements
 
 let sphere = null
-let B = null
 
-function createSphere() {
+function createSphere(B) {
   sphere = B.MeshBuilder.CreateSphere(
     &#39;target&#39;, { diameter: 2, segments: 12 }, scene.scene
   )
@@ -62,14 +61,13 @@ function createSphere() {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      B = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
         &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 12,
         new BABYLON.Vector3(0, 1, 0), el.scene
       )
       camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
       el.setActiveCamera(camera)
-      createSphere()
+      createSphere(BABYLON)
     },
   },
   b3dLight({ y: 1, intensity: 0.8 }),
@@ -111,9 +109,12 @@ preview.append(
       <li><a href="/b3d-collisions/">b3d-collisions</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>

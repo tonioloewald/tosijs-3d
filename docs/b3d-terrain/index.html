@@ -258,8 +258,8 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
 </tr>
 <tr>
 <td><code>hiResSubdivisions</code></td>
-<td><code>24</code></td>
-<td>Vertices per tile edge (same at every level)</td>
+<td><code>auto</code></td>
+<td>Vertices per tile edge (same at every level); <code>auto</code> = device tier</td>
 </tr>
 <tr>
 <td><code>lodLevels</code></td>
@@ -268,13 +268,13 @@ for (const key of [&#39;seed&#39;, &#39;grossScale&#39;, &#39;detailScale&#39;, 
 </tr>
 <tr>
 <td><code>poolSize</code></td>
-<td><code>220</code></td>
-<td>Shared tile budget; the pool renders the top-priority cells</td>
+<td><code>auto</code></td>
+<td>Shared tile budget; the pool renders the top-priority cells (<code>auto</code> = device tier)</td>
 </tr>
 <tr>
 <td><code>fillBudget</code></td>
-<td><code>12</code></td>
-<td>Max tiles (re)built per frame — caps streaming cost</td>
+<td><code>auto</code></td>
+<td>Max tiles (re)built per frame — caps streaming cost (<code>auto</code> = device tier)</td>
 </tr>
 <tr>
 <td><code>splitFactor</code></td>
@@ -359,9 +359,12 @@ document.body.append(b3d({}, terrain))
       <li><a href="/b3d-collisions/">b3d-collisions</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>

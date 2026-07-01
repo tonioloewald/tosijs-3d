@@ -178,6 +178,19 @@ Underscore-separated variants also work (e.g., `_collide_box`).
 
 All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. The `AbstractMesh` base class provides position/rotation syncing for components that manage Babylon meshes.
 
+### Adaptive defaults — prefer `auto` over hard-wired performance numbers
+
+The device-capability system (`perf-probe.ts` → `b3d-quality.ts`, driven by the `<tosi-b3d-probe>` benchmark) vends per-tier **budgets** (render scaling, terrain detail, shadow-map size, reflection resolution, …). A single hard-wired default is always wrong for _something_ — too heavy for a Quest, too timid for a workstation.
+
+So **whenever you find a performance-sensitive default, make it `auto` instead of a fixed number**:
+
+- Declare the `initAttributes` default as the `auto` sentinel `0` (a comment says so), not a literal.
+- Resolve it where you use it: `const n = resolveBudget(this.someAttr, 'someBudgetKey', { xr })`. An explicit author value (`> 0`) always wins; `0`/unset falls back to the current device tier's budget.
+- Values read once at setup (pool/buffer sizes, shadow-map size) must be resolved once and cached on the instance (e.g. terrain's `_resolvedSubs`) — the attribute stays at the `0` sentinel, so re-reading it later would break.
+- Add the knob to `PerfBudgets` (and the tier table) in `perf-probe.ts` if it isn't there yet.
+
+`<tosi-b3d>` seeds the profile synchronously from cache before children build (and runs the probe in the background on a cold first visit), applies engine hardware scaling, and re-applies the XR-biased scaling on `IN_XR`. A global `quality="auto|low|medium|high"` attribute (or `setQuality()`) forces a tier. This is the pattern to reach for as more hard-coded defaults surface — terrain/shadows/reflections are the first cases, not the last.
+
 ### Styling — use tosijs's CSS facilities, never hand-roll it
 
 tosijs ships a whole optimized, typed CSS/variable library. **Do not** hand-roll `document.createElement('style')`, manual `id`-uniqueness/dedup, or CSS-as-string templates — reach for the built-ins, which are deduped, updatable/bindable, type-checked, and test-covered.

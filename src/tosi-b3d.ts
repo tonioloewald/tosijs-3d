@@ -149,6 +149,13 @@ import { b3dGamepad } from './glass-gamepad'
 import { XrGamepadSource } from './xr-gamepad'
 import { XrFrames, EntityFrame } from './xr-frames'
 import { attachFramePanel, type FramePanelSpec } from './frame-panel'
+import { runProbe, hydrateProfileFromCache } from './b3d-probe'
+import {
+  setQuality,
+  qualityBudgets,
+  onQualityChange,
+  type QualitySetting,
+} from './b3d-quality'
 
 const { canvas, div, slot, button } = elements
 
@@ -195,6 +202,11 @@ export class B3d extends Component {
     // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
     // wildly across devices, so this is exposed for tuning per scene/device.
     gamepadScale: 1,
+    // Device quality: 'auto' follows the measured/cached device profile (and, if
+    // none exists, runs the probe in the background for next time); 'low' |
+    // 'medium' | 'high' force a tier. Drives the `auto` defaults of shadows,
+    // reflections, terrain, and the engine render scaling. See b3d-quality.
+    quality: 'auto' as QualitySetting,
   }
 
   static styleSpec = {
@@ -574,6 +586,46 @@ export class B3d extends Component {
     }
   }
 
+  private _qualityOff: (() => void) | null = null
+  private static _probeStarted = false
+
+  // Seed the device quality profile and apply render scaling. Explicit `quality`
+  // wins; otherwise hydrate a cached profile synchronously so children build with
+  // the right budgets, and — if there's no cache and no probe on the page — run one
+  // in the background (this scene uses the safe default until it caches for next
+  // time). Render scaling (hardware scaling) is the one lever cheap to re-apply
+  // live, so it tracks quality/XR changes.
+  private _setupQuality(): void {
+    const q = (this as any).quality as QualitySetting
+    if (q && q !== 'auto') setQuality(q)
+
+    // Seed synchronously from cache so children build with the right budgets now.
+    const hydrated = q !== 'auto' || hydrateProfileFromCache()
+
+    // If there's nothing cached, measure — DOM-free (runProbe mounts no element,
+    // so it can't trip live-reload/doc observers) and DEFERRED (its throwaway
+    // engine shouldn't share this scene's setup frame). This scene uses the safe
+    // default until the probe caches for next time.
+    if (q === 'auto' && !hydrated && !B3d._probeStarted) {
+      B3d._probeStarted = true
+      setTimeout(() => {
+        runProbe().catch(() => {
+          /* probing is best-effort — never let it break the host scene */
+        })
+      }, 0)
+    }
+
+    this._applyHardwareScaling(this.xrActive)
+    this._qualityOff = onQualityChange(() =>
+      this._applyHardwareScaling(this.xrActive)
+    )
+  }
+
+  private _applyHardwareScaling(xr: boolean): void {
+    if (this.engine == null) return
+    this.engine.setHardwareScalingLevel(qualityBudgets({ xr }).hardwareScaling)
+  }
+
   connectedCallback(): void {
     super.connectedCallback()
     const cnv = this.parts.canvas as HTMLCanvasElement
@@ -589,6 +641,15 @@ export class B3d extends Component {
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.collisionsEnabled = true
     this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0)
+
+    // Seed device quality BEFORE any child component builds, so terrain/shadows/
+    // reflections resolve their `auto` defaults against the right budget on frame 1.
+    // Never let quality setup break the scene — fall back to the safe default.
+    try {
+      this._setupQuality()
+    } catch (err) {
+      console.warn('b3d quality setup failed; using default profile', err)
+    }
 
     this._childObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
@@ -751,8 +812,12 @@ export class B3d extends Component {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
       vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR'
       if (state === BABYLON.WebXRState.IN_XR) {
+        // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
+        // back to the flat one on exit (the cheap lever that's safe to change live).
+        this._applyHardwareScaling(true)
         xrSession ??= this._startDefaultXrExperience(base, controllers)
       } else if (state === BABYLON.WebXRState.NOT_IN_XR) {
+        this._applyHardwareScaling(false)
         xrSession?.dispose()
         xrSession = undefined
       }
@@ -1288,6 +1353,10 @@ export class B3d extends Component {
   }
 
   disconnectedCallback(): void {
+    if (this._qualityOff) {
+      this._qualityOff()
+      this._qualityOff = null
+    }
     if (this.xrHelper) {
       this.xrHelper.dispose()
       this.xrHelper = undefined

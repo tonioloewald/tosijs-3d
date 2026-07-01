@@ -48,6 +48,10 @@ Full documentation, with live code examples, is at the links below.
   Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
 - https://3d.tosijs.net/b3d-planet/ — b3d-planet
   Procedural planet mesh using a subdivided cube projected onto a sphere.
+- https://3d.tosijs.net/b3d-probe/ — b3d-probe
+  `<tosi-b3d-probe>` — a device-capability probe. Drop it anywhere (a landing page is
+- https://3d.tosijs.net/b3d-quality/ — b3d-quality
+  The **system quality proxy** — the single place that vends device-appropriate
 - https://3d.tosijs.net/b3d-reflections/ — b3d-reflections
   Auto-attaches a reflection probe to every mesh whose name contains `_mirror`
 - https://3d.tosijs.net/b3d-shadows/ — b3d-shadows
@@ -93,6 +97,8 @@ Full documentation, with live code examples, is at the links below.
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/mersenne-twister/ — mersenne-twister
   Seeded pseudo-random number generator based on the Mersenne Twister
+- https://3d.tosijs.net/perf-probe/ — perf-probe
+  Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
