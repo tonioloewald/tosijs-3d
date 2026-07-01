@@ -81,30 +81,3 @@ export function spanInside(
   return c - half >= cc - ch && c + half <= cc + ch
 }
 
-/** Deterministic hash of two integers → [0, 1). */
-function hashUnit(x: number, y: number, seed: number): number {
-  let h = (Math.imul(x, 73856093) ^ Math.imul(y, 19349663) ^ Math.imul(seed, 83492791)) | 0
-  h = Math.imul(h ^ (h >>> 15), 2246822519)
-  h = Math.imul(h ^ (h >>> 13), 3266489917)
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296
-}
-
-/**
- * Deterministic XZ jitter for a grid vertex, keyed on its GLOBAL integer index
- * (world coord / spacing) so a vertex shared between two tiles gets the identical
- * offset in both and they stay stitched. Breaks up the regular grid's straight
- * lines. `amount` is the max offset as a fraction of the grid spacing (~0.125).
- */
-export function vertexFuzz(
-  giX: number,
-  giZ: number,
-  spacing: number,
-  amount: number
-): { dx: number; dz: number } {
-  if (amount <= 0) return { dx: 0, dz: 0 }
-  const r = amount * spacing
-  return {
-    dx: (hashUnit(giX, giZ, 1) - 0.5) * 2 * r,
-    dz: (hashUnit(giX, giZ, 2) - 0.5) * 2 * r,
-  }
-}

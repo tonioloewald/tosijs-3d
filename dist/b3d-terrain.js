@@ -25,12 +25,12 @@ const { div, label, input, span, p } = elements
 
 const { demo } = tosi({
   demo: {
+    seed: 42,
     grossScale: 0.03,
     detailScale: 0.15,
     horizScale: 4,
     grossAmplitude: 100,
     detailAmplitude: 6,
-    fuzz: 0.125,
     wireframe: false,
     debugColor: false,
   },
@@ -41,7 +41,7 @@ const { demo } = tosi({
 // levels get to the fogged horizon (~6400) instead of 6 — fewer tiles. Larger
 // radius so the cylinder doesn't visibly repeat across the LOD coverage.
 const terrain = b3dTerrain({
-  seed: 42,
+  seed: demo.seed,
   surfaceType: 'cylinder',
   radius: 1000,
   cylinderHeight: 1000,
@@ -127,9 +127,8 @@ preview.append(
       demo.detailAmplitude,
     ),
     label(
-      'fuzz ',
-      input({ type: 'range', min: 0, max: 0.5, step: 0.005, bindValue: demo.fuzz }),
-      demo.fuzz,
+      'seed ',
+      input({ type: 'number', step: 1, style: 'width:5em', bindValue: demo.seed }),
     ),
     label(
       'wireframe ',
@@ -143,7 +142,7 @@ preview.append(
 )
 
 // Regenerate terrain when parameters change
-for (const key of ['grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'fuzz', 'wireframe', 'debugColor']) {
+for (const key of ['seed', 'grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe', 'debugColor']) {
   demo[key].observe(() => {
     terrain.regenerate()
   })
@@ -201,7 +200,6 @@ tosi-b3d {
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
 | `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
-| `fuzz` | `0` | Deterministic XZ jitter per vertex as a fraction of grid spacing (~0.125), to break up straight grid lines. Keyed on global index so tiles stay stitched. |
 | `debugColor` | `false` | Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout |
 | `grossAmplitude` | `8` | Gross height multiplier |
 | `detailAmplitude` | `2` | Detail height multiplier |
@@ -234,7 +232,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
-import { lodTileSize, tileCenter, vertexWorld, vertexFuzz, cellIndex, coverageHalf, spanInside, } from './terrain-grid';
+import { lodTileSize, tileCenter, vertexWorld, cellIndex, coverageHalf, spanInside, } from './terrain-grid';
 // Vertical separation between adjacent LOD levels (metres). Tiny — just enough to
 // keep a finer tile in front of the coarse one it overlaps (no z-fighting).
 const LOD_Y_STEP = 0.03;
@@ -260,9 +258,6 @@ export class B3dTerrain extends Component {
         horizScale: 1,
         grossAmplitude: 8,
         detailAmplitude: 2,
-        // Deterministic XZ jitter per grid vertex, as a fraction of grid spacing, to
-        // break up the regular grid's straight lines (0 = off, ~0.125 is subtle).
-        fuzz: 0,
         // Debug: tint each tile a distinct colour to reveal the tile/LOD layout.
         debugColor: false,
         originResetThreshold: 500,
@@ -273,6 +268,7 @@ export class B3dTerrain extends Component {
     grossFilter = new PiecewiseLinearFilter();
     detailFilter = new PiecewiseLinearFilter();
     noise;
+    noiseSeed = NaN; // last seed the noise was built with (for re-seeding)
     sampler;
     lods = [];
     tileTemplate = null;
@@ -292,6 +288,7 @@ export class B3dTerrain extends Component {
         this.owner = owner;
         const attrs = this;
         this.noise = new PerlinNoise(attrs.seed);
+        this.noiseSeed = attrs.seed;
         this.sampler = this.createSampler();
         this.material = this.createMaterial();
         this.createLods();
@@ -570,25 +567,16 @@ export class B3dTerrain extends Component {
         const vertsPerSide = subdivisions + 1;
         const center = tileCenter(tile.gridX, tile.gridZ, tileSize);
         const attrs = this;
-        const spacing = tileSize / subdivisions;
-        const fuzzAmt = attrs.fuzz || 0;
-        const e = spacing; // finite-difference step for the analytic normal
-        // 1. Heightfield vertices. Each is optionally jittered in XZ by a
-        //    DETERMINISTIC amount keyed on its GLOBAL grid index — identical in any
-        //    tile that shares it, so tiles stay stitched — then given an ANALYTIC
-        //    normal from the height-field gradient (heightAt at ±e). Analytic normals
-        //    are a pure function of world position, so neighbouring tiles agree
-        //    exactly on a shared edge vertex → no lighting seam. (Mesh-averaged
-        //    normals were computed one-sided at tile edges — that WAS the seam.)
+        const e = tileSize / subdivisions; // finite-difference step for the normal
+        // 1. Heightfield vertices, each given an ANALYTIC normal from the height-field
+        //    gradient (heightAt at ±e). Analytic normals are a pure function of world
+        //    position, so neighbouring tiles agree exactly on a shared edge vertex →
+        //    no lighting seam. (Mesh-averaged normals were computed one-sided at tile
+        //    edges — that WAS the seam.)
         for (let iz = 0; iz < vertsPerSide; iz++) {
-            const wz0 = vertexWorld(tile.gridZ, iz, subdivisions, tileSize, true);
-            const giZ = Math.round(wz0 / spacing);
+            const wz = vertexWorld(tile.gridZ, iz, subdivisions, tileSize, true);
             for (let ix = 0; ix < vertsPerSide; ix++) {
-                const wx0 = vertexWorld(tile.gridX, ix, subdivisions, tileSize);
-                const giX = Math.round(wx0 / spacing);
-                const f = vertexFuzz(giX, giZ, spacing, fuzzAmt);
-                const wx = wx0 + f.dx;
-                const wz = wz0 + f.dz;
+                const wx = vertexWorld(tile.gridX, ix, subdivisions, tileSize);
                 const height = this.heightAt(wx, wz);
                 const nx = this.heightAt(wx - e, wz) - this.heightAt(wx + e, wz);
                 const nz = this.heightAt(wx, wz - e) - this.heightAt(wx, wz + e);
@@ -731,6 +719,12 @@ export class B3dTerrain extends Component {
         const attrs = this;
         if (this.material)
             this.material.wireframe = attrs.wireframe;
+        // Re-seed if the seed changed — terrain is fully determined by (seed, params),
+        // so the same seed always reproduces the same world.
+        if (attrs.seed !== this.noiseSeed) {
+            this.noiseSeed = attrs.seed;
+            this.noise = new PerlinNoise(attrs.seed);
+        }
         const hs = attrs.horizScale || 1;
         for (const lod of this.lods) {
             lod.tileSize = lodTileSize(attrs.tileSize, lod.level, hs);

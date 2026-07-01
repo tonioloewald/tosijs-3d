@@ -13,7 +13,6 @@ import {
   cellIndex,
   coverageHalf,
   spanInside,
-  vertexFuzz,
 } from './terrain-grid'
 
 const SUBS = 8 // small even subdivision count for exact checks
@@ -127,32 +126,6 @@ describe('camera → cell and coverage', () => {
     const base = coverageHalf(5, lodTileSize(80, 5, 1)) // coarsest level, hs=1
     const doubled = coverageHalf(5, lodTileSize(80, 5, 2)) // hs=2
     expect(doubled).toBeCloseTo(base * 2, 6)
-  })
-})
-
-describe('vertexFuzz — deterministic, bounded, shared-stitch', () => {
-  const spacing = 10
-  test('same global index → same offset (a shared vertex stays stitched)', () => {
-    // Two tiles meeting at global index (42, 7) must fuzz it identically.
-    expect(vertexFuzz(42, 7, spacing, 0.125)).toEqual(vertexFuzz(42, 7, spacing, 0.125))
-  })
-
-  test('offset is bounded by amount·spacing', () => {
-    for (let g = -20; g <= 20; g++) {
-      const f = vertexFuzz(g, g * 3 + 1, spacing, 0.125)
-      expect(Math.abs(f.dx)).toBeLessThanOrEqual(0.125 * spacing)
-      expect(Math.abs(f.dz)).toBeLessThanOrEqual(0.125 * spacing)
-    }
-  })
-
-  test('neighbours get different offsets (breaks the straight lines)', () => {
-    const a = vertexFuzz(5, 5, spacing, 0.125)
-    const b = vertexFuzz(6, 5, spacing, 0.125)
-    expect(a.dx !== b.dx || a.dz !== b.dz).toBe(true)
-  })
-
-  test('amount 0 → no fuzz', () => {
-    expect(vertexFuzz(3, 9, spacing, 0)).toEqual({ dx: 0, dz: 0 })
   })
 })
 

@@ -24,7 +24,6 @@ export declare class B3dTerrain extends Component {
         horizScale: number;
         grossAmplitude: number;
         detailAmplitude: number;
-        fuzz: number;
         debugColor: boolean;
         originResetThreshold: number;
         maxTravelDistance: number;
@@ -34,6 +33,7 @@ export declare class B3dTerrain extends Component {
     grossFilter: GradientFilter;
     detailFilter: GradientFilter;
     private noise;
+    private noiseSeed;
     private sampler;
     private lods;
     private tileTemplate;
