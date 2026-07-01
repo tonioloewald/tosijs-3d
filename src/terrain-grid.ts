@@ -118,17 +118,36 @@ export interface QuadtreeConfig {
  * camera: fine near, coarse far, exactly one LOD per patch of ground (no overlap,
  * no gap). Each carries a `priority` so a fixed pool can fill/steal by importance.
  * Pure — the allocator just diffs this against what's currently placed.
+ *
+ * Allocates a fresh array; for the per-frame streaming hot path use
+ * `desiredCellsInto`, which reuses a caller-owned array (and its cell objects) to
+ * avoid the GC churn of rebuilding ~70 objects every frame.
  */
 export function desiredCells(
   camX: number,
   camZ: number,
   cfg: QuadtreeConfig
 ): DesiredCell[] {
-  const out: DesiredCell[] = []
+  return desiredCellsInto(camX, camZ, cfg, [])
+}
+
+/**
+ * As `desiredCells`, but fills `out` in place — reusing its existing cell objects
+ * (mutated) and truncating any surplus, so a steady camera reuses the same ~70
+ * objects frame after frame instead of allocating a new array of new objects each
+ * time. Returns `out`. This is the pure, poolable core; `desiredCells` wraps it.
+ */
+export function desiredCellsInto(
+  camX: number,
+  camZ: number,
+  cfg: QuadtreeConfig,
+  out: DesiredCell[]
+): DesiredCell[] {
   const top = Math.max(0, cfg.levels - 1)
   const rootSize = cfg.baseTileSize * Math.pow(2, top)
   const reach = cfg.maxReach
   const dir = cfg.interest
+  let n = 0
 
   const emit = (gx: number, gz: number, level: number) => {
     const ts = cfg.baseTileSize * Math.pow(2, level)
@@ -142,7 +161,20 @@ export function desiredCells(
       const align = (dx * dir.x + dz * dir.z) / (dist || 1) // −1 behind … +1 ahead
       priority *= 0.1 + 0.9 * ((align + 1) / 2) // behind ~0.1, side ~0.55, ahead 1
     }
-    out.push({ gx, gz, level, tileSize: ts, cx, cz, priority })
+    // Reuse the slot's object if there is one; only grow the array when needed.
+    const cell = out[n]
+    if (cell == null) {
+      out[n] = { gx, gz, level, tileSize: ts, cx, cz, priority }
+    } else {
+      cell.gx = gx
+      cell.gz = gz
+      cell.level = level
+      cell.tileSize = ts
+      cell.cx = cx
+      cell.cz = cz
+      cell.priority = priority
+    }
+    n++
   }
 
   const descend = (gx: number, gz: number, level: number) => {
@@ -171,5 +203,6 @@ export function desiredCells(
   for (let gx = g0; gx <= g1; gx++) {
     for (let gz = h0; gz <= h1; gz++) descend(gx, gz, top)
   }
+  out.length = n // drop any surplus objects from a busier previous frame
   return out
 }

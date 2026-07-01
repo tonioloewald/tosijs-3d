@@ -51,6 +51,9 @@ export declare class B3dAircraft extends B3dControllable {
     private fbwSeeded;
     private meshNode;
     private meshesToDispose;
+    private _lastGroundDist;
+    private _ray;
+    private _ownMeshes;
     private groundClearance;
     private libraryNode;
     getCameraTarget(): BABYLON.Node | null;
@@ -60,7 +63,9 @@ export declare class B3dAircraft extends B3dControllable {
     private groundDistance;
     /** Transition to the crashed/wrecked state: stop, lock out control, notify. */
     private crash;
-    /** Raycast downward to find distance to ground. Returns Infinity if no hit. */
+    /** Raycast downward to find distance to ground. Returns Infinity if no hit.
+     * Reuses a cached Ray and own-mesh set (rebuilt on model load) to avoid
+     * per-call allocation on this per-frame path. */
     private raycastGround;
     private updatePullUp;
     connectedCallback(): void;

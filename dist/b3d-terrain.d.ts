@@ -42,6 +42,12 @@ export declare class B3dTerrain extends Component {
     private tileTemplate;
     private material;
     private registered;
+    private _desired;
+    private _desiredByKey;
+    private _covered;
+    private _free;
+    private _placed;
+    private _blanks;
     private lastCamX;
     private lastCamZ;
     private interestX;

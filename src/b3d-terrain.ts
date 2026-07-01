@@ -245,7 +245,7 @@ import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler'
 import type { SurfaceSampler } from './surface-sampler'
 import {
   vertexLocal,
-  desiredCells,
+  desiredCellsInto,
   type DesiredCell,
   type QuadtreeConfig,
 } from './terrain-grid'
@@ -256,8 +256,16 @@ type PoolTile = {
   cell: DesiredCell | null
 }
 
-const cellKey = (c: { level: number; gx: number; gz: number }) =>
-  `${c.level},${c.gx},${c.gz}`
+// Pack (level, gx, gz) into a single number for Map/Set keys. Floating-origin
+// rebasing keeps gx/gz within a few hundred of the origin, so a linear pack with a
+// generous ±2^20 range is collision-free with enormous margin — and, unlike a
+// template-string key, allocates nothing. This matters: the streamer keyed ~200
+// cells/tiles per frame, and those short-lived strings were its main GC load.
+const KEY_BIAS = 1 << 20 // 1,048,576
+const cellKeyNum = (level: number, gx: number, gz: number) =>
+  level * 4_398_046_511_104 + // 2^42
+  (gx + KEY_BIAS) * 2_097_152 + // (gx+2^20) · 2^21
+  (gz + KEY_BIAS)
 
 // Shared per-subdivision tile topology: the grid triangles, the perimeter grid
 // vertices, and the full index list (grid + skirt). Built once — every tile has
@@ -318,6 +326,15 @@ export class B3dTerrain extends Component {
   private tileTemplate: TileTemplate | null = null
   private material!: BABYLON.StandardMaterial
   private registered = false
+  // Reusable scratch for the per-frame streamer — cleared and refilled each frame
+  // rather than reallocated, so streaming produces (almost) no garbage. `_desired`
+  // and its cell objects are owned by `desiredCellsInto`; the rest are the diff.
+  private _desired: DesiredCell[] = []
+  private _desiredByKey = new Map<number, DesiredCell>()
+  private _covered = new Set<number>()
+  private _free: PoolTile[] = []
+  private _placed: PoolTile[] = []
+  private _blanks: DesiredCell[] = []
   // Previous camera XZ (render space) — for the travel-direction interest term.
   private lastCamX = NaN
   private lastCamZ = NaN
@@ -510,10 +527,8 @@ export class B3dTerrain extends Component {
     const cfg = this.buildConfig(camX, camZ, camera)
     this.lastCamX = camX
     this.lastCamZ = camZ
-    this.streamTiles(
-      desiredCells(camX, camZ, cfg),
-      budgetOverride ?? attrs.fillBudget
-    )
+    desiredCellsInto(camX, camZ, cfg, this._desired)
+    this.streamTiles(budgetOverride ?? attrs.fillBudget)
   }
 
   private coarsestTileSize(): number {
@@ -576,17 +591,29 @@ export class B3dTerrain extends Component {
    * wanted, free the rest, then fill the highest-priority blanks — reusing free
    * tiles, or STEALING the weakest placed tile a blank outranks — up to `budget`.
    */
-  private streamTiles(desired: DesiredCell[], budget: number) {
+  private streamTiles(budget: number) {
     const subs = (this as any).hiResSubdivisions
-    const desiredByKey = new Map<string, DesiredCell>()
-    for (const c of desired) desiredByKey.set(cellKey(c), c)
+    // Reuse the scratch collections (cleared, not reallocated). `_desired` was
+    // filled in place by desiredCellsInto; its cell objects are transient (tiles
+    // copy the fields they keep, below), so reusing them next frame is safe.
+    const desired = this._desired
+    const desiredByKey = this._desiredByKey
+    const covered = this._covered
+    const free = this._free
+    const placed = this._placed
+    const blanks = this._blanks
+    desiredByKey.clear()
+    covered.clear()
+    free.length = 0
+    placed.length = 0
+    blanks.length = 0
 
-    const free: PoolTile[] = []
-    const placed: PoolTile[] = [] // still-desired, kept
-    const covered = new Set<string>()
+    for (const c of desired)
+      desiredByKey.set(cellKeyNum(c.level, c.gx, c.gz), c)
+
     for (const t of this.pool) {
       if (t.cell) {
-        const k = cellKey(t.cell)
+        const k = cellKeyNum(t.cell.level, t.cell.gx, t.cell.gz)
         const want = desiredByKey.get(k)
         if (want) {
           t.cell.priority = want.priority // refresh (direction/motion changed)
@@ -600,9 +627,9 @@ export class B3dTerrain extends Component {
       free.push(t)
     }
 
-    const blanks = desired
-      .filter((c) => !covered.has(cellKey(c)))
-      .sort((a, b) => b.priority - a.priority)
+    for (const c of desired)
+      if (!covered.has(cellKeyNum(c.level, c.gx, c.gz))) blanks.push(c)
+    blanks.sort((a, b) => b.priority - a.priority)
     // Weakest placed tiles first, for stealing when the pool is full.
     placed.sort((a, b) => a.cell!.priority - b.cell!.priority)
 
@@ -618,8 +645,29 @@ export class B3dTerrain extends Component {
         }
       }
       if (!tile) break // nothing reusable and can't steal → the rest rank lower
-      tile.cell = { ...blank }
-      this.generateTileMesh(tile, subs, tile.cell)
+      // Reuse the tile's own cell object (copy the fields we keep) instead of
+      // spreading a fresh one each fill — blank is a pooled, soon-reused object.
+      const dst = tile.cell
+      if (dst == null) {
+        tile.cell = {
+          gx: blank.gx,
+          gz: blank.gz,
+          level: blank.level,
+          tileSize: blank.tileSize,
+          cx: blank.cx,
+          cz: blank.cz,
+          priority: blank.priority,
+        }
+      } else {
+        dst.gx = blank.gx
+        dst.gz = blank.gz
+        dst.level = blank.level
+        dst.tileSize = blank.tileSize
+        dst.cx = blank.cx
+        dst.cz = blank.cz
+        dst.priority = blank.priority
+      }
+      this.generateTileMesh(tile, subs, tile.cell!)
       budget--
     }
   }
@@ -819,10 +867,27 @@ export class B3dTerrain extends Component {
       }
     }
 
-    // Shift whatever actually carries the camera through the world: its parent
-    // (e.g. the aircraft) if parented, else the camera itself. The controller
-    // keeps integrating from the shifted position, so it's seamless.
-    const carrier = (camera.parent as BABYLON.TransformNode | null) ?? camera
+    // Shift whatever actually carries WORLD POSITION through the scene. When a
+    // controllable is being driven, IT integrates its own position (the aircraft/
+    // biped moves its node) — so that node is the real carrier and must be shifted.
+    //
+    // Crucially do NOT just shift camera.parent: in VR that's the chase RIG, which
+    // re-derives its position from the piloted entity every frame. Shifting the rig
+    // is overwritten next frame, the camera stays put at its far-from-origin point,
+    // so the reset condition stays true and re-fires EVERY frame — a runaway that
+    // flings the tiles away and thrashes the pool (1–2 fps). Shifting the piloted
+    // entity is also the only thing that drops globalPosition below the threshold.
+    //
+    // Fall back to the camera's carrier (the rig in free-walk, else the camera
+    // itself) when nothing is being driven. Both the tiles and the carrier shift by
+    // the same amount, so relative positions are preserved — visually seamless.
+    const focused = (this.owner as any)?.querySelector?.(
+      'tosi-b3d-input-focus'
+    )?.focused
+    const piloted =
+      (focused?.getCameraTarget?.() as BABYLON.TransformNode | null) ?? null
+    const carrier =
+      piloted ?? (camera.parent as BABYLON.TransformNode | null) ?? camera
     carrier.position.x -= shiftX
     carrier.position.z -= shiftZ
 

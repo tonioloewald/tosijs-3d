@@ -14,6 +14,7 @@ import {
   coverageHalf,
   spanInside,
   desiredCells,
+  desiredCellsInto,
   type QuadtreeConfig,
 } from './terrain-grid'
 
@@ -235,5 +236,53 @@ describe('desiredCells — quadtree LOD for the pool', () => {
         expect(c.priority).toBeCloseTo(omniMap.get(key(c))!, 9)
       }
     }
+  })
+})
+
+describe('desiredCellsInto — pooled, allocation-free refill', () => {
+  const CFG: QuadtreeConfig = {
+    baseTileSize: 80,
+    levels: 4,
+    splitFactor: 2,
+    maxReach: 3000,
+    omniRadius: 400,
+  }
+  const same = (
+    a: ReturnType<typeof desiredCells>,
+    b: ReturnType<typeof desiredCells>
+  ) => {
+    expect(b.length).toBe(a.length)
+    for (let i = 0; i < a.length; i++) {
+      expect(b[i].gx).toBe(a[i].gx)
+      expect(b[i].gz).toBe(a[i].gz)
+      expect(b[i].level).toBe(a[i].level)
+      expect(b[i].cx).toBeCloseTo(a[i].cx, 9)
+      expect(b[i].cz).toBeCloseTo(a[i].cz, 9)
+      expect(b[i].priority).toBeCloseTo(a[i].priority, 9)
+    }
+  }
+
+  test('produces the same cells as desiredCells (same camera/config)', () => {
+    const out: ReturnType<typeof desiredCells> = []
+    desiredCellsInto(137, -412, CFG, out)
+    same(desiredCells(137, -412, CFG), out)
+  })
+
+  test('reuses the SAME object instances across refills (no per-frame garbage)', () => {
+    const out: ReturnType<typeof desiredCells> = []
+    desiredCellsInto(137, -412, CFG, out)
+    const first = out.slice() // snapshot the object identities
+    desiredCellsInto(137, -412, CFG, out) // steady camera → same cell set
+    expect(out.length).toBe(first.length)
+    for (let i = 0; i < out.length; i++) expect(out[i]).toBe(first[i]) // identity
+  })
+
+  test('truncates surplus when a later frame needs fewer cells', () => {
+    const out: ReturnType<typeof desiredCells> = []
+    desiredCellsInto(0, 0, CFG, out) // near a busy origin → many cells
+    const big = out.length
+    desiredCellsInto(0, 0, { ...CFG, maxReach: 200 }, out) // tiny reach → few
+    expect(out.length).toBeLessThan(big)
+    same(desiredCells(0, 0, { ...CFG, maxReach: 200 }), out)
   })
 })

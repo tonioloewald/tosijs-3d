@@ -284,6 +284,14 @@ export class B3dAircraft extends B3dControllable {
     fbwSeeded = false;
     meshNode = null;
     meshesToDispose = [];
+    // Ground sampling is ONE raycast per frame, taken after the move and cached: the
+    // pre-move regime height reuses last frame's value (one-frame stale, like the
+    // `grounded` flag already is), and the pull-up warning reuses this frame's. The
+    // Ray and own-mesh set are reused too — the whole path was allocating a Ray,
+    // Set, and a child-mesh array three times a frame.
+    _lastGroundDist = Infinity;
+    _ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 500);
+    _ownMeshes = null;
     // Derived from the model's geometry in setupMesh so the body rests on the
     // ground rather than the origin sinking into it (origins aren't at the feet).
     groundClearance = 0.5;
@@ -352,7 +360,9 @@ export class B3dAircraft extends B3dControllable {
         // off vertically, then the trigger converts to forward thrust once you clear
         // hoverCeiling. (Height sampled at frame start; refined after the move below.)
         const fwdSpeed = Math.hypot(vel.x, vel.z);
-        const heightAboveGround = this.groundDistance(node) - this.groundClearance;
+        // Reuse last frame's post-move ground distance (refined after the move below).
+        // One frame stale, but so is `grounded`, and regime selection is tolerant.
+        const heightAboveGround = this._lastGroundDist - this.groundClearance;
         flyByWireStep(this.fbw, cmd, fwdSpeed, heightAboveGround, cfg, dt, this.grounded);
         // Realise the attitude as a quaternion. Babylon's +pitch(X) drops the nose
         // and +roll(Z) banks left, so negate both (our state: +pitch = nose up,
@@ -380,7 +390,8 @@ export class B3dAircraft extends B3dControllable {
         // wheels — kill the downward bounce and apply rolling resistance so you can
         // land, roll to a stop, and accelerate to take off again. (First cut — tune
         // GROUND_FRICTION / GROUND_TOUCH; the model's own ground tweaks are separate.)
-        const groundDist = this.groundDistance(node);
+        const groundDist = this.groundDistance(node); // the ONE raycast this frame
+        this._lastGroundDist = groundDist;
         const wasGrounded = this.grounded;
         if (groundDist < this.groundClearance) {
             // First contact this approach: a fast or inverted/banked impact is a
@@ -401,7 +412,7 @@ export class B3dAircraft extends B3dControllable {
         // Read-only flight state (airspeed/altitude/throttle/vtol) is set in the
         // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
         this.altitude = node.position.y;
-        this.updatePullUp(node, dt);
+        this.updatePullUp(node, groundDist);
     }
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */
@@ -418,22 +429,29 @@ export class B3dAircraft extends B3dControllable {
         this.velocity.setAll(0);
         this.dispatchEvent(new CustomEvent('crash', { bubbles: true }));
     }
-    /** Raycast downward to find distance to ground. Returns Infinity if no hit. */
+    /** Raycast downward to find distance to ground. Returns Infinity if no hit.
+     * Reuses a cached Ray and own-mesh set (rebuilt on model load) to avoid
+     * per-call allocation on this per-frame path. */
     raycastGround(node) {
         if (!this.owner)
             return Infinity;
-        const ray = new BABYLON.Ray(node.position.clone(), BABYLON.Vector3.Down(), 500);
-        const ownMeshes = new Set();
-        if (node instanceof BABYLON.AbstractMesh)
-            ownMeshes.add(node);
-        for (const child of node.getChildMeshes())
-            ownMeshes.add(child);
-        const hit = this.owner.scene.pickWithRay(ray, (m) => !ownMeshes.has(m) && !m.name.includes('__root__'));
+        this._ray.origin.copyFrom(node.position);
+        this._ray.direction.copyFromFloats(0, -1, 0);
+        this._ray.length = 500;
+        if (this._ownMeshes == null) {
+            const own = new Set();
+            if (node instanceof BABYLON.AbstractMesh)
+                own.add(node);
+            for (const child of node.getChildMeshes())
+                own.add(child);
+            this._ownMeshes = own;
+        }
+        const own = this._ownMeshes;
+        const hit = this.owner.scene.pickWithRay(this._ray, (m) => !own.has(m) && !m.name.includes('__root__'));
         return hit?.hit ? hit.distance : Infinity;
     }
-    updatePullUp(node, _dt) {
+    updatePullUp(node, groundDist) {
         // Warn if projected altitude in PULL_UP_SECONDS is below 10m
-        const groundDist = this.groundDistance(node);
         const futureY = groundDist < Infinity
             ? groundDist + this.velocity.y * PULL_UP_SECONDS
             : node.position.y + this.velocity.y * PULL_UP_SECONDS;
@@ -506,6 +524,7 @@ export class B3dAircraft extends B3dControllable {
     }
     setupMesh(root, owner) {
         this.meshNode = root;
+        this._ownMeshes = null; // rebuild the raycast exclusion set for the new model
         if (root instanceof BABYLON.Mesh) {
             this.mesh = root;
             root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2);

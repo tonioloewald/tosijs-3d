@@ -70,6 +70,17 @@ export interface QuadtreeConfig {
  * camera: fine near, coarse far, exactly one LOD per patch of ground (no overlap,
  * no gap). Each carries a `priority` so a fixed pool can fill/steal by importance.
  * Pure — the allocator just diffs this against what's currently placed.
+ *
+ * Allocates a fresh array; for the per-frame streaming hot path use
+ * `desiredCellsInto`, which reuses a caller-owned array (and its cell objects) to
+ * avoid the GC churn of rebuilding ~70 objects every frame.
  */
 export declare function desiredCells(camX: number, camZ: number, cfg: QuadtreeConfig): DesiredCell[];
+/**
+ * As `desiredCells`, but fills `out` in place — reusing its existing cell objects
+ * (mutated) and truncating any surplus, so a steady camera reuses the same ~70
+ * objects frame after frame instead of allocating a new array of new objects each
+ * time. Returns `out`. This is the pure, poolable core; `desiredCells` wraps it.
+ */
+export declare function desiredCellsInto(camX: number, camZ: number, cfg: QuadtreeConfig, out: DesiredCell[]): DesiredCell[];
 //# sourceMappingURL=terrain-grid.d.ts.map
