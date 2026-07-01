@@ -24,6 +24,8 @@ export declare class B3dTerrain extends Component {
         horizScale: number;
         grossAmplitude: number;
         detailAmplitude: number;
+        fuzz: number;
+        debugColor: boolean;
         originResetThreshold: number;
         maxTravelDistance: number;
         wireframe: boolean;
@@ -55,7 +57,6 @@ export declare class B3dTerrain extends Component {
     private update;
     private assignLod;
     private reassignPool;
-    private static ensureNormalsUp;
     private heightAt;
     private generateTileMesh;
     private renderToU;

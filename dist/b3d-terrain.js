@@ -30,7 +30,9 @@ const { demo } = tosi({
     horizScale: 4,
     grossAmplitude: 100,
     detailAmplitude: 6,
+    fuzz: 0.125,
     wireframe: false,
+    debugColor: false,
   },
 })
 
@@ -52,7 +54,9 @@ const terrain = b3dTerrain({
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
+  fuzz: demo.fuzz,
   wireframe: demo.wireframe,
+  debugColor: demo.debugColor,
 })
 
 const posDisplay = span({ class: 'pos-display' })
@@ -123,14 +127,23 @@ preview.append(
       demo.detailAmplitude,
     ),
     label(
+      'fuzz ',
+      input({ type: 'range', min: 0, max: 0.5, step: 0.005, bindValue: demo.fuzz }),
+      demo.fuzz,
+    ),
+    label(
       'wireframe ',
       input({ type: 'checkbox', bindValue: demo.wireframe }),
+    ),
+    label(
+      'debug color ',
+      input({ type: 'checkbox', bindValue: demo.debugColor }),
     ),
   )
 )
 
 // Regenerate terrain when parameters change
-for (const key of ['grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'wireframe']) {
+for (const key of ['grossScale', 'detailScale', 'horizScale', 'grossAmplitude', 'detailAmplitude', 'fuzz', 'wireframe', 'debugColor']) {
   demo[key].observe(() => {
     terrain.regenerate()
   })
@@ -188,6 +201,8 @@ tosi-b3d {
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
 | `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
+| `fuzz` | `0` | Deterministic XZ jitter per vertex as a fraction of grid spacing (~0.125), to break up straight grid lines. Keyed on global index so tiles stay stitched. |
+| `debugColor` | `false` | Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout |
 | `grossAmplitude` | `8` | Gross height multiplier |
 | `detailAmplitude` | `2` | Detail height multiplier |
 | `originResetThreshold` | `500` | Distance before origin rebase |
@@ -219,7 +234,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
-import { lodTileSize, tileCenter, vertexWorld, cellIndex, coverageHalf, spanInside, } from './terrain-grid';
+import { lodTileSize, tileCenter, vertexWorld, vertexFuzz, cellIndex, coverageHalf, spanInside, } from './terrain-grid';
 // Vertical separation between adjacent LOD levels (metres). Tiny — just enough to
 // keep a finer tile in front of the coarse one it overlaps (no z-fighting).
 const LOD_Y_STEP = 0.03;
@@ -245,6 +260,11 @@ export class B3dTerrain extends Component {
         horizScale: 1,
         grossAmplitude: 8,
         detailAmplitude: 2,
+        // Deterministic XZ jitter per grid vertex, as a fraction of grid spacing, to
+        // break up the regular grid's straight lines (0 = off, ~0.125 is subtle).
+        fuzz: 0,
+        // Debug: tint each tile a distinct colour to reveal the tile/LOD layout.
+        debugColor: false,
         originResetThreshold: 500,
         maxTravelDistance: 5000,
         wireframe: false,
@@ -400,6 +420,7 @@ export class B3dTerrain extends Component {
             const vd = new BABYLON.VertexData();
             vd.positions = new Float32Array(vertCount * 3);
             vd.normals = new Float32Array(vertCount * 3);
+            vd.colors = new Float32Array(vertCount * 4).fill(1); // white until debug tints
             vd.indices = tpl.allIndices;
             vd.applyToMesh(mesh, true); // updatable
             mesh.material = this.material;
@@ -518,16 +539,6 @@ export class B3dTerrain extends Component {
             this.generateTileMesh(tile, subdivisions, lod.tileSize, lod.yOffset);
         }
     }
-    // Ensure all normals point upward (positive Y) — terrain is a heightfield
-    static ensureNormalsUp(normals) {
-        for (let i = 1; i < normals.length; i += 3) {
-            if (normals[i] < 0) {
-                normals[i - 1] = -normals[i - 1];
-                normals[i] = -normals[i];
-                normals[i + 1] = -normals[i + 1];
-            }
-        }
-    }
     // --- Height sampling ---
     heightAt(wx, wz) {
         const attrs = this;
@@ -558,31 +569,43 @@ export class B3dTerrain extends Component {
             return;
         const vertsPerSide = subdivisions + 1;
         const center = tileCenter(tile.gridX, tile.gridZ, tileSize);
-        // 1. Heightfield vertices at their true sampled heights. Each vertex samples
-        //    heightAt at exactly the world point it is placed — placement (mesh
-        //    position = tile centre) + local offset == the sampled coordinate — so
-        //    the surface is always self-consistent (see terrain-grid.test).
+        const attrs = this;
+        const spacing = tileSize / subdivisions;
+        const fuzzAmt = attrs.fuzz || 0;
+        const e = spacing; // finite-difference step for the analytic normal
+        // 1. Heightfield vertices. Each is optionally jittered in XZ by a
+        //    DETERMINISTIC amount keyed on its GLOBAL grid index — identical in any
+        //    tile that shares it, so tiles stay stitched — then given an ANALYTIC
+        //    normal from the height-field gradient (heightAt at ±e). Analytic normals
+        //    are a pure function of world position, so neighbouring tiles agree
+        //    exactly on a shared edge vertex → no lighting seam. (Mesh-averaged
+        //    normals were computed one-sided at tile edges — that WAS the seam.)
         for (let iz = 0; iz < vertsPerSide; iz++) {
-            const wz = vertexWorld(tile.gridZ, iz, subdivisions, tileSize, true);
-            const localZ = wz - center.z;
+            const wz0 = vertexWorld(tile.gridZ, iz, subdivisions, tileSize, true);
+            const giZ = Math.round(wz0 / spacing);
             for (let ix = 0; ix < vertsPerSide; ix++) {
-                const wx = vertexWorld(tile.gridX, ix, subdivisions, tileSize);
-                const localX = wx - center.x;
+                const wx0 = vertexWorld(tile.gridX, ix, subdivisions, tileSize);
+                const giX = Math.round(wx0 / spacing);
+                const f = vertexFuzz(giX, giZ, spacing, fuzzAmt);
+                const wx = wx0 + f.dx;
+                const wz = wz0 + f.dz;
                 const height = this.heightAt(wx, wz);
-                const idx = (iz * vertsPerSide + ix) * 3;
-                positions[idx] = localX;
-                positions[idx + 1] = height;
-                positions[idx + 2] = localZ;
+                const nx = this.heightAt(wx - e, wz) - this.heightAt(wx + e, wz);
+                const nz = this.heightAt(wx, wz - e) - this.heightAt(wx, wz + e);
+                const ny = 2 * e;
+                const inv = 1 / Math.hypot(nx, ny, nz);
+                const v = iz * vertsPerSide + ix;
+                positions[v * 3] = wx - center.x;
+                positions[v * 3 + 1] = height;
+                positions[v * 3 + 2] = wz - center.z;
+                normals[v * 3] = nx * inv;
+                normals[v * 3 + 1] = ny * inv;
+                normals[v * 3 + 2] = nz * inv;
             }
         }
-        // 2. Normals from the HEIGHTFIELD ONLY (grid triangles) — so the skirt, which
-        //    shares these, is shaded as if the terrain simply continued.
-        BABYLON.VertexData.ComputeNormals(positions, tpl.gridIndices, normals);
-        B3dTerrain.ensureNormalsUp(normals);
-        // 3. Skirt vertices: same XZ as their parent perimeter vertex, dropped
-        //    straight down; normal copied from the parent (the "lie") so the vertical
-        //    band reads as ground, not a wall — plugging any crack to a neighbour.
-        const attrs = this;
+        // 2. Skirt vertices: same XZ as their parent perimeter vertex, dropped
+        //    straight down; normal copied from the parent (analytic → matches the
+        //    neighbour), so the vertical band reads as ground, not a wall.
         const skirtDepth = Math.max(attrs.grossAmplitude + attrs.detailAmplitude + 2, tileSize * 0.15);
         for (let p = 0; p < tpl.perim.length; p++) {
             const parent = tpl.perim[p];
@@ -593,6 +616,30 @@ export class B3dTerrain extends Component {
             normals[s * 3] = normals[parent * 3];
             normals[s * 3 + 1] = normals[parent * 3 + 1];
             normals[s * 3 + 2] = normals[parent * 3 + 2];
+        }
+        // 3. Debug: tint the whole tile one hashed colour so the tile layout (and any
+        //    seam that survives) is obvious. White = off, so it's a no-op tint.
+        const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind);
+        if (colors) {
+            let cr = 1;
+            let cg = 1;
+            let cb = 1;
+            if (attrs.debugColor) {
+                const hh = (Math.imul(tile.gridX, 374761393) ^
+                    Math.imul(tile.gridZ, 668265263) ^
+                    Math.imul(Math.round(tileSize), 2246822519)) >>>
+                    0;
+                cr = 0.3 + 0.65 * ((hh & 255) / 255);
+                cg = 0.3 + 0.65 * (((hh >>> 8) & 255) / 255);
+                cb = 0.3 + 0.65 * (((hh >>> 16) & 255) / 255);
+            }
+            for (let v = 0; v < colors.length / 4; v++) {
+                colors[v * 4] = cr;
+                colors[v * 4 + 1] = cg;
+                colors[v * 4 + 2] = cb;
+                colors[v * 4 + 3] = 1;
+            }
+            mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
         }
         mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
         mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);

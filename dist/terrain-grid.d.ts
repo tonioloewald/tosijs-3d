@@ -37,4 +37,14 @@ export declare function cellIndex(coord: number, tileSize: number): number;
 export declare function coverageHalf(hiResGrid: number, tileSize: number): number;
 /** Is the span [c−half, c+half] fully within [cc−ch, cc+ch]? (one axis) */
 export declare function spanInside(c: number, half: number, cc: number, ch: number): boolean;
+/**
+ * Deterministic XZ jitter for a grid vertex, keyed on its GLOBAL integer index
+ * (world coord / spacing) so a vertex shared between two tiles gets the identical
+ * offset in both and they stay stitched. Breaks up the regular grid's straight
+ * lines. `amount` is the max offset as a fraction of the grid spacing (~0.125).
+ */
+export declare function vertexFuzz(giX: number, giZ: number, spacing: number, amount: number): {
+    dx: number;
+    dz: number;
+};
 //# sourceMappingURL=terrain-grid.d.ts.map
