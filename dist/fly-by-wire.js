@@ -20,16 +20,13 @@
  */
 const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
 /**
- * 0 = drone/hover (trigger is vertical), 1 = plane (trigger is forward throttle).
- * Plane if EITHER fast enough (`vtolSpeed`) OR high enough (`hoverCeiling`) — so
- * you take off VERTICALLY, and once you clear the ceiling the trigger converts to
- * forward thrust; you then gain altitude by flying, and stay in forward flight as
- * long as you keep either your speed or your height.
+ * 0 = drone/hover (trigger is vertical), 1 = plane (trigger is forward throttle),
+ * chosen purely by forward ground speed vs `vtolSpeed`. Below it you're "stalled"
+ * → hover regardless of altitude, so you can always slow down and descend
+ * vertically. (Altitude only gates DECELERATION — see flyByWireStep.)
  */
-export function regime(forwardSpeed, altitude, cfg) {
-    const bySpeed = cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1;
-    const byAlt = cfg.hoverCeiling > 0 ? clamp(altitude / cfg.hoverCeiling, 0, 1) : 0;
-    return Math.max(bySpeed, byAlt);
+export function regime(forwardSpeed, cfg) {
+    return cfg.vtolSpeed > 0 ? clamp(forwardSpeed / cfg.vtolSpeed, 0, 1) : 1;
 }
 /**
  * Advance the attitude / heading / speed state one step (pure; mutates `state`).
@@ -57,7 +54,8 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
         ? roll * cfg.bankTurnRate * dt
         : Math.sin(state.bank) * cfg.bankTurnRate * dt;
     // --- Forward speed ---
-    const t = regime(forwardSpeed, altitude, cfg);
+    const t = regime(forwardSpeed, cfg);
+    const speed0 = state.speed;
     // Plane: the trigger is throttle — hold it to accelerate toward the afterburner
     // ceiling, left trigger brakes. Release ABOVE the normal max and afterburner
     // bleeds back down to it; at or below the normal max, speed just holds steady
@@ -72,6 +70,17 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
     state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt;
     state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt);
     state.speed = clamp(state.speed, 0, Math.max(cfg.maxSpeed, cfg.afterburnerSpeed));
+    // Above the hover ceiling, deceleration can't stall you below the transition
+    // speed: you stay in forward flight and descend by flying DOWN, and only drop
+    // into hover (trigger → vertical, so you can descend/land vertically) once
+    // you're below the ceiling. If you were already stalled below it, you're in
+    // hover regardless — no clamp, so the margins don't flip-flop.
+    if (cfg.hoverCeiling > 0 &&
+        altitude > cfg.hoverCeiling &&
+        speed0 >= cfg.vtolSpeed &&
+        state.speed < cfg.vtolSpeed) {
+        state.speed = cfg.vtolSpeed;
+    }
 }
 /**
  * The velocity the craft is trying to achieve, given the freshly-realised world
@@ -79,11 +88,11 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
  * `speed`. Vertical: plane climbs/dives by pitch attitude, drone climbs by the
  * trigger — blended by regime — minus the altitude a bank costs.
  */
-export function targetVelocity(state, cmd, forward, forwardSpeed, altitude, cfg) {
+export function targetVelocity(state, cmd, forward, forwardSpeed, cfg) {
     const fhLen = Math.hypot(forward.x, forward.z) || 1;
     const horizX = (forward.x / fhLen) * state.speed;
     const horizZ = (forward.z / fhLen) * state.speed;
-    const t = regime(forwardSpeed, altitude, cfg);
+    const t = regime(forwardSpeed, cfg);
     const planeVertical = forward.y * state.speed;
     const droneVertical = clamp(cmd.lift, -1, 1) * cfg.climbRate;
     let vertical = droneVertical + (planeVertical - droneVertical) * t;

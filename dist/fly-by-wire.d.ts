@@ -31,9 +31,9 @@ export interface FlyByWireConfig {
     /** Forward ground speed at/above which the craft flies like a plane; below it
      * hovers like a drone. 0 (or less) = pure plane, no hover regime. */
     vtolSpeed: number;
-    /** Height above ground at/above which the trigger converts to forward thrust
-     * even at low speed — so you take off VERTICALLY, then fly once you clear it.
-     * 0 disables the altitude gate (regime is purely by speed). */
+    /** Height above ground above which DECELERATION can't stall you below
+     * `vtolSpeed` — you stay in forward flight and must fly down below it to drop
+     * into hover (and descend vertically). 0 disables the deceleration floor. */
     hoverCeiling: number;
     /** Full-stick bank, radians. Steeper = tighter turns. */
     maxBank: number;
@@ -82,13 +82,12 @@ export interface Vec3 {
     z: number;
 }
 /**
- * 0 = drone/hover (trigger is vertical), 1 = plane (trigger is forward throttle).
- * Plane if EITHER fast enough (`vtolSpeed`) OR high enough (`hoverCeiling`) — so
- * you take off VERTICALLY, and once you clear the ceiling the trigger converts to
- * forward thrust; you then gain altitude by flying, and stay in forward flight as
- * long as you keep either your speed or your height.
+ * 0 = drone/hover (trigger is vertical), 1 = plane (trigger is forward throttle),
+ * chosen purely by forward ground speed vs `vtolSpeed`. Below it you're "stalled"
+ * → hover regardless of altitude, so you can always slow down and descend
+ * vertically. (Altitude only gates DECELERATION — see flyByWireStep.)
  */
-export declare function regime(forwardSpeed: number, altitude: number, cfg: FlyByWireConfig): number;
+export declare function regime(forwardSpeed: number, cfg: FlyByWireConfig): number;
 /**
  * Advance the attitude / heading / speed state one step (pure; mutates `state`).
  * Self-levels when the stick is centred; bank swings the heading; the trigger is
@@ -105,7 +104,7 @@ export declare function flyByWireStep(state: FlyByWireState, cmd: FlyByWireComma
  * `speed`. Vertical: plane climbs/dives by pitch attitude, drone climbs by the
  * trigger — blended by regime — minus the altitude a bank costs.
  */
-export declare function targetVelocity(state: FlyByWireState, cmd: FlyByWireCommand, forward: Vec3, forwardSpeed: number, altitude: number, cfg: FlyByWireConfig): Vec3;
+export declare function targetVelocity(state: FlyByWireState, cmd: FlyByWireCommand, forward: Vec3, forwardSpeed: number, cfg: FlyByWireConfig): Vec3;
 /**
  * Ease the velocity toward a target vector (pure; mutates `vel`). This is the
  * "go where you're pointing" lerp — the body trails its commanded velocity at
