@@ -27,16 +27,17 @@ const { demo } = tosi({
   demo: {
     grossScale: 0.03,
     detailScale: 0.15,
-    horizScale: 1,
-    grossAmplitude: 30,
+    horizScale: 4,
+    grossAmplitude: 100,
     detailAmplitude: 6,
     wireframe: false,
   },
 })
 
-// Big tiles: a 5x5 ring of 80-unit level-0 tiles (~400 units across) keeps you
-// surrounded by full detail instead of skating over a tablecloth. Larger radius
-// so the cylinder doesn't visibly repeat across the much wider LOD coverage.
+// Big tiles + horizScale 4 → the level-0 ring is ~1600 units across, so you're
+// surrounded by full detail. The 4× also stretches each LOD's reach, so only 4
+// levels get to the fogged horizon (~6400) instead of 6 — fewer tiles. Larger
+// radius so the cylinder doesn't visibly repeat across the LOD coverage.
 const terrain = b3dTerrain({
   seed: 42,
   surfaceType: 'cylinder',
@@ -45,7 +46,7 @@ const terrain = b3dTerrain({
   tileSize: 80,
   hiResGrid: 5,
   hiResSubdivisions: 32,
-  lodLevels: 6,
+  lodLevels: 4,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   horizScale: demo.horizScale,
@@ -61,7 +62,8 @@ const posDisplay = span({ class: 'pos-display' })
 // moving); pull back to pitch up, turn stick banks.
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 80, vtolSpeed: 12, maxSpeed: 50,
+  // Start well above the peaks — with v size 100 the terrain reaches ~106 tall.
+  player: true, y: 200, vtolSpeed: 12, maxSpeed: 50,
 })
 
 const scene = b3d(
@@ -106,17 +108,17 @@ preview.append(
       demo.detailScale,
     ),
     label(
-      'horiz scale ',
-      input({ type: 'range', min: 0.25, max: 6, step: 0.05, bindValue: demo.horizScale }),
+      'h size ',
+      input({ type: 'range', min: 0.25, max: 10, step: 0.05, bindValue: demo.horizScale }),
       demo.horizScale,
     ),
     label(
-      'gross amp ',
-      input({ type: 'range', min: 0, max: 80, step: 1, bindValue: demo.grossAmplitude }),
+      'v size ',
+      input({ type: 'range', min: 0, max: 250, step: 1, bindValue: demo.grossAmplitude }),
       demo.grossAmplitude,
     ),
     label(
-      'detail amp ',
+      'v detail size ',
       input({ type: 'range', min: 0, max: 20, step: 0.5, bindValue: demo.detailAmplitude }),
       demo.detailAmplitude,
     ),
