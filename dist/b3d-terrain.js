@@ -236,6 +236,7 @@ export class B3dTerrain extends Component {
     noise;
     sampler;
     lods = [];
+    tileTemplate = null;
     material;
     registered = false;
     // Conceptual position on the surface (u,v in [0,1))
@@ -298,6 +299,7 @@ export class B3dTerrain extends Component {
         const levels = Math.max(1, attrs.lodLevels);
         const grid = attrs.hiResGrid;
         const subs = attrs.hiResSubdivisions;
+        this.tileTemplate = B3dTerrain.buildTileTemplate(subs);
         for (let L = 0; L < levels; L++) {
             const tileSize = attrs.tileSize * Math.pow(2, L);
             const tiles = [];
@@ -323,21 +325,68 @@ export class B3dTerrain extends Component {
             this.registered = true;
         }
     }
+    // Build the shared tile topology for a given subdivision count: heightfield
+    // grid triangles + a perimeter skirt ring (extra verts at the edge XZ that get
+    // dropped straight down at fill time). Corners of the loop are shared.
+    static buildTileTemplate(n) {
+        const vps = n + 1;
+        const gridCount = vps * vps;
+        const gi = (ix, iz) => iz * vps + ix;
+        // Perimeter grid vertices in a closed clockwise loop.
+        const perim = [];
+        for (let ix = 0; ix < n; ix++)
+            perim.push(gi(ix, 0));
+        for (let iz = 0; iz < n; iz++)
+            perim.push(gi(n, iz));
+        for (let ix = n; ix > 0; ix--)
+            perim.push(gi(ix, n));
+        for (let iz = n; iz > 0; iz--)
+            perim.push(gi(0, iz));
+        const gridIndices = [];
+        for (let iz = 0; iz < n; iz++) {
+            for (let ix = 0; ix < n; ix++) {
+                const a = gi(ix, iz);
+                const b = gi(ix + 1, iz);
+                const c = gi(ix, iz + 1);
+                const d = gi(ix + 1, iz + 1);
+                gridIndices.push(a, c, b, b, c, d);
+            }
+        }
+        // Skirt: a vertical quad from each perimeter grid edge down to its dropped
+        // twin (skirt verts are appended after the grid, one per perimeter vertex).
+        const skirtIndices = [];
+        const pc = perim.length;
+        for (let p = 0; p < pc; p++) {
+            const pn = (p + 1) % pc;
+            const ga = perim[p];
+            const gb = perim[pn];
+            const sa = gridCount + p;
+            const sb = gridCount + pn;
+            skirtIndices.push(ga, sa, gb, gb, sa, sb);
+        }
+        return {
+            gridCount,
+            perim,
+            gridIndices,
+            allIndices: [...gridIndices, ...skirtIndices],
+        };
+    }
     createTilesInto(pool, count, subdivisions, tileSize, prefix) {
         const scene = this.owner.scene;
+        const tpl = this.tileTemplate;
+        const vertCount = tpl.gridCount + tpl.perim.length;
         for (let i = 0; i < count; i++) {
-            const mesh = BABYLON.MeshBuilder.CreateGround(`terrain-${prefix}-${i}`, { width: tileSize, height: tileSize, subdivisions, updatable: true }, scene);
+            const mesh = new BABYLON.Mesh(`terrain-${prefix}-${i}`, scene);
+            const vd = new BABYLON.VertexData();
+            vd.positions = new Float32Array(vertCount * 3);
+            vd.normals = new Float32Array(vertCount * 3);
+            vd.indices = tpl.allIndices;
+            vd.applyToMesh(mesh, true); // updatable
             mesh.material = this.material;
             mesh.receiveShadows = true;
             mesh.isVisible = false;
             mesh.position.y = -10000;
-            pool.push({
-                mesh,
-                gridX: Infinity,
-                gridZ: Infinity,
-                assigned: false,
-                seam: false,
-            });
+            pool.push({ mesh, gridX: Infinity, gridZ: Infinity, assigned: false });
         }
     }
     // World coverage square of a level's tile grid given the camera position: the
@@ -390,12 +439,11 @@ export class B3dTerrain extends Component {
     }
     assignLod(lod, camGridX, camGridZ, camX, camZ) {
         const hiHalf = Math.floor(this.hiResGrid / 2);
-        // The finer level (k−1) that this level overlaps — its world coverage square
-        // decides which of this level's tiles are hidden (fully inside it → culled)
-        // and which straddle the seam (need the down-bias so they stay underneath).
-        const finer = lod.level > 0
-            ? this.levelCoverage(lod.tileSize / 2, camX, camZ)
-            : null;
+        // The finer level (k−1) this level nests around. Tiles fully inside its
+        // coverage are hidden (the finer level draws them); the rest form the ring.
+        // Kept tiles overlap the finer edge slightly so there's never a gap — the
+        // per-tile skirts + finer-on-top yOffset hide the transition.
+        const finer = lod.level > 0 ? this.levelCoverage(lod.tileSize / 2, camX, camZ) : null;
         const half = lod.tileSize / 2;
         const needed = [];
         for (let dx = -hiHalf; dx <= hiHalf; dx++) {
@@ -405,25 +453,15 @@ export class B3dTerrain extends Component {
                 if (finer) {
                     const cx = gx * lod.tileSize;
                     const cz = gz * lod.tileSize;
-                    const minX = cx - half;
-                    const maxX = cx + half;
-                    const minZ = cz - half;
-                    const maxZ = cz + half;
-                    const fMinX = finer.cx - finer.half;
-                    const fMaxX = finer.cx + finer.half;
-                    const fMinZ = finer.cz - finer.half;
-                    const fMaxZ = finer.cz + finer.half;
-                    // Fully inside the finer coverage → the finer level draws it; skip.
-                    if (minX >= fMinX && maxX <= fMaxX && minZ >= fMinZ && maxZ <= fMaxZ) {
+                    // Fully inside the finer coverage → skip (the finer level covers it).
+                    if (cx - half >= finer.cx - finer.half &&
+                        cx + half <= finer.cx + finer.half &&
+                        cz - half >= finer.cz - finer.half &&
+                        cz + half <= finer.cz + finer.half) {
                         continue;
                     }
-                    // Overlaps the finer coverage at all → seam tile (gets the down-bias).
-                    const overlaps = maxX > fMinX && minX < fMaxX && maxZ > fMinZ && minZ < fMaxZ;
-                    needed.push({ gx, gz, seam: overlaps });
                 }
-                else {
-                    needed.push({ gx, gz, seam: false });
-                }
+                needed.push({ gx, gz });
             }
         }
         this.reassignPool(lod, needed);
@@ -431,17 +469,15 @@ export class B3dTerrain extends Component {
     reassignPool(lod, needed) {
         const subdivisions = this.hiResSubdivisions;
         const pool = lod.tiles;
-        // A tile is satisfied only if some needed cell matches its grid AND seam
-        // status — a seam flip (finer coverage shifted) forces a regenerate.
-        const satisfies = (n, tile) => n.gx === tile.gridX && n.gz === tile.gridZ && n.seam === tile.seam;
+        const isNeeded = (tile) => needed.some((n) => n.gx === tile.gridX && n.gz === tile.gridZ);
         const occupied = new Set();
         for (const tile of pool) {
-            if (tile.assigned && needed.some((n) => satisfies(n, tile))) {
-                occupied.add(`${tile.gridX},${tile.gridZ},${tile.seam}`);
+            if (tile.assigned && isNeeded(tile)) {
+                occupied.add(`${tile.gridX},${tile.gridZ}`);
             }
         }
-        const stillNeeded = needed.filter((n) => !occupied.has(`${n.gx},${n.gz},${n.seam}`));
-        const freeTiles = pool.filter((tile) => !tile.assigned || !needed.some((n) => satisfies(n, tile)));
+        const stillNeeded = needed.filter((n) => !occupied.has(`${n.gx},${n.gz}`));
+        const freeTiles = pool.filter((tile) => !tile.assigned || !isNeeded(tile));
         // Park any free tile that's no longer needed (so culled tiles disappear).
         for (const tile of freeTiles) {
             tile.assigned = false;
@@ -449,12 +485,11 @@ export class B3dTerrain extends Component {
         }
         for (let i = 0; i < stillNeeded.length && i < freeTiles.length; i++) {
             const tile = freeTiles[i];
-            const { gx, gz, seam } = stillNeeded[i];
+            const { gx, gz } = stillNeeded[i];
             tile.gridX = gx;
             tile.gridZ = gz;
             tile.assigned = true;
-            tile.seam = seam;
-            this.generateTileMesh(tile, subdivisions, lod.tileSize, lod.yOffset, seam);
+            this.generateTileMesh(tile, subdivisions, lod.tileSize, lod.yOffset);
         }
     }
     // Ensure all normals point upward (positive Y) — terrain is a heightfield
@@ -480,14 +515,17 @@ export class B3dTerrain extends Component {
         return (this.grossFilter.evaluate(grossNorm) * attrs.grossAmplitude +
             this.detailFilter.evaluate(detailNorm) * attrs.detailAmplitude);
     }
-    generateTileMesh(tile, subdivisions, tileSize, yOffset, seam) {
+    generateTileMesh(tile, subdivisions, tileSize, yOffset) {
         const mesh = tile.mesh;
+        const tpl = this.tileTemplate;
         const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind);
-        if (positions == null)
+        const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
+        if (positions == null || normals == null)
             return;
         const vertsPerSide = subdivisions + 1;
         const worldTileX = tile.gridX * tileSize;
         const worldTileZ = tile.gridZ * tileSize;
+        // 1. Heightfield vertices at their true sampled heights.
         for (let iz = 0; iz < vertsPerSide; iz++) {
             for (let ix = 0; ix < vertsPerSide; ix++) {
                 const localX = (ix / subdivisions - 0.5) * tileSize;
@@ -499,79 +537,33 @@ export class B3dTerrain extends Component {
                 positions[idx + 2] = localZ;
             }
         }
-        // Seam tile: this coarse tile overlaps a finer level. Its sparse chords can
-        // fly OVER concavities in the field, poking above the finer surface that's
-        // drawn on top. Sample the field at the points the finer level subdivides to
-        // (cell centre + edge midpoints) and pull the four corners down by the worst
-        // overshoot, so the coarse surface stays a conservative under-estimate.
-        if (seam) {
-            this.biasSeamTileDown(positions, subdivisions, tileSize, worldTileX, worldTileZ);
+        // 2. Normals from the HEIGHTFIELD ONLY (grid triangles) — so the skirt, which
+        //    shares these, is shaded as if the terrain simply continued.
+        BABYLON.VertexData.ComputeNormals(positions, tpl.gridIndices, normals);
+        B3dTerrain.ensureNormalsUp(normals);
+        // 3. Skirt vertices: same XZ as their parent perimeter vertex, dropped
+        //    straight down; normal copied from the parent (the "lie") so the vertical
+        //    band reads as ground, not a wall — plugging any crack to a neighbour.
+        const attrs = this;
+        const skirtDepth = Math.max(attrs.grossAmplitude + attrs.detailAmplitude + 2, tileSize * 0.15);
+        for (let p = 0; p < tpl.perim.length; p++) {
+            const parent = tpl.perim[p];
+            const s = tpl.gridCount + p;
+            positions[s * 3] = positions[parent * 3];
+            positions[s * 3 + 1] = positions[parent * 3 + 1] - skirtDepth;
+            positions[s * 3 + 2] = positions[parent * 3 + 2];
+            normals[s * 3] = normals[parent * 3];
+            normals[s * 3 + 1] = normals[parent * 3 + 1];
+            normals[s * 3 + 2] = normals[parent * 3 + 2];
         }
         mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
+        mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);
         mesh.refreshBoundingInfo();
-        const indices = mesh.getIndices();
-        const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
-        if (normals && indices) {
-            BABYLON.VertexData.ComputeNormals(positions, indices, normals);
-            B3dTerrain.ensureNormalsUp(normals);
-            mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);
-        }
         // yOffset (a few cm per level, coarser = lower) keeps a finer tile in front
-        // of the coarse one at their coincident vertices — no z-fighting.
+        // of the coarse one where they overlap — no z-fighting.
         mesh.position.set(worldTileX, yOffset, worldTileZ);
         mesh.rotationQuaternion = null;
         mesh.isVisible = true;
-    }
-    // Lower each vertex by the largest amount its incident chords rise above the
-    // true field at the finer level's in-between sample points (+ a small epsilon).
-    biasSeamTileDown(positions, subdivisions, tileSize, worldTileX, worldTileZ) {
-        const vertsPerSide = subdivisions + 1;
-        const yOf = (ix, iz) => positions[(iz * vertsPerSide + ix) * 3 + 1];
-        const drop = new Float32Array(vertsPerSide * vertsPerSide);
-        // The points the next-finer level adds inside each coarse cell, as fractional
-        // offsets from the cell's low corner: edge mids and the centre.
-        const samples = [
-            [0.5, 0],
-            [0, 0.5],
-            [0.5, 0.5],
-            [1, 0.5],
-            [0.5, 1],
-        ];
-        for (let iz = 0; iz < subdivisions; iz++) {
-            for (let ix = 0; ix < subdivisions; ix++) {
-                const h00 = yOf(ix, iz);
-                const h10 = yOf(ix + 1, iz);
-                const h01 = yOf(ix, iz + 1);
-                const h11 = yOf(ix + 1, iz + 1);
-                for (const [fx, fz] of samples) {
-                    // Bilinear chord value vs the true field at the sample point.
-                    const chord = h00 * (1 - fx) * (1 - fz) +
-                        h10 * fx * (1 - fz) +
-                        h01 * (1 - fx) * fz +
-                        h11 * fx * fz;
-                    const wx = worldTileX + (ix + fx) / subdivisions * tileSize - tileSize / 2;
-                    const wz = worldTileZ + (0.5 - (iz + fz) / subdivisions) * tileSize;
-                    const over = chord - this.heightAt(wx, wz);
-                    if (over > 0) {
-                        const cornerXY = [
-                            [ix, iz],
-                            [ix + 1, iz],
-                            [ix, iz + 1],
-                            [ix + 1, iz + 1],
-                        ];
-                        for (const [cx, cz] of cornerXY) {
-                            const ci = cz * vertsPerSide + cx;
-                            if (over > drop[ci])
-                                drop[ci] = over;
-                        }
-                    }
-                }
-            }
-        }
-        for (let i = 0; i < drop.length; i++) {
-            if (drop[i] > 0)
-                positions[i * 3 + 1] -= drop[i] + LOD_Y_STEP;
-        }
     }
     // --- Coordinate mapping ---
     renderToU(renderX) {

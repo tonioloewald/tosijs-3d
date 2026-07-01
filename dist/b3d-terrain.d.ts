@@ -33,6 +33,7 @@ export declare class B3dTerrain extends Component {
     private noise;
     private sampler;
     private lods;
+    private tileTemplate;
     private material;
     private registered;
     private worldU;
@@ -47,6 +48,7 @@ export declare class B3dTerrain extends Component {
     private createSampler;
     private createMaterial;
     private createLods;
+    private static buildTileTemplate;
     private createTilesInto;
     private levelCoverage;
     private update;
@@ -55,7 +57,6 @@ export declare class B3dTerrain extends Component {
     private static ensureNormalsUp;
     private heightAt;
     private generateTileMesh;
-    private biasSeamTileDown;
     private renderToU;
     private renderToV;
     private getCircumferenceU;
