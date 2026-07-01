@@ -35,9 +35,9 @@ Surface detail from 3D Perlin noise creates sunspot/granulation patterns
 via vertex colors. Spectral class controls the star&#39;s color temperature.</p>
 <p>Optional corona (glow shell) surrounds the star.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dStar, b3dSphere } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dStar, b3dSphere, label3d, slider3d, toggle3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
-const { div, label, input, select, option, span, p } = elements
+const { div, p } = elements
 
 const { demo } = tosi({
   demo: {
@@ -71,6 +71,18 @@ const scene = b3d(
   {
     frameRate: 60,
     clearColor: &#39;#000000&#39;,
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Star&#39; }),
+      select3d({ label: &#39;spectral class&#39;, value: demo.spectralClass, options: [&#39;O&#39;, &#39;B&#39;, &#39;A&#39;, &#39;F&#39;, &#39;G&#39;, &#39;K&#39;, &#39;M&#39;] }),
+      slider3d({ label: &#39;radius&#39;, value: demo.radius, min: 5, max: 50, step: 1 }),
+      slider3d({ label: &#39;surface detail&#39;, value: demo.surfaceDetail, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: &#39;corona size&#39;, value: demo.coronaSize, min: 0, max: 0.5, step: 0.01 }),
+      slider3d({ label: &#39;glow&#39;, value: demo.glowIntensity, min: 0, max: 3, step: 0.1 }),
+      slider3d({ label: &#39;rotation&#39;, value: demo.rotationSpeed, min: 0, max: 0.2, step: 0.005 }),
+      slider3d({ label: &#39;light intensity&#39;, value: demo.lightIntensity, min: 0, max: 5, step: 0.1 }),
+      toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
+      toggle3d({ label: &#39;point light&#39;, value: demo.pointLight }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         &#39;orbit-cam&#39;,
@@ -96,55 +108,7 @@ const scene = b3d(
 
 preview.append(
   scene,
-  div(
-    { class: &#39;debug-panel&#39; },
-    p(&#39;Scroll to zoom, drag to orbit&#39;),
-    label(
-      &#39;spectral class &#39;,
-      select(
-        { bindValue: demo.spectralClass },
-        option({ value: &#39;O&#39; }, &#39;O — Blue&#39;),
-        option({ value: &#39;B&#39; }, &#39;B — Blue-white&#39;),
-        option({ value: &#39;A&#39; }, &#39;A — White&#39;),
-        option({ value: &#39;F&#39; }, &#39;F — Yellow-white&#39;),
-        option({ value: &#39;G&#39; }, &#39;G — Yellow (Sun)&#39;),
-        option({ value: &#39;K&#39; }, &#39;K — Orange&#39;),
-        option({ value: &#39;M&#39; }, &#39;M — Red&#39;),
-      ),
-    ),
-    label(
-      &#39;radius &#39;,
-      input({ type: &#39;range&#39;, min: 5, max: 50, step: 1, bindValue: demo.radius }),
-    ),
-    label(
-      &#39;surface detail &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 1, step: 0.05, bindValue: demo.surfaceDetail }),
-    ),
-    label(
-      &#39;corona size &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 0.5, step: 0.01, bindValue: demo.coronaSize }),
-    ),
-    label(
-      &#39;glow intensity &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 3, step: 0.1, bindValue: demo.glowIntensity }),
-    ),
-    label(
-      &#39;rotation &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 0.2, step: 0.005, bindValue: demo.rotationSpeed }),
-    ),
-    label(
-      &#39;wireframe &#39;,
-      input({ type: &#39;checkbox&#39;, bindValue: demo.wireframe }),
-    ),
-    label(
-      &#39;point light &#39;,
-      input({ type: &#39;checkbox&#39;, bindValue: demo.pointLight }),
-    ),
-    label(
-      &#39;light intensity &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 5, step: 0.1, bindValue: demo.lightIntensity }),
-    ),
-  )
+  div({ class: &#39;debug-panel&#39; }, p(&#39;Scroll to zoom, drag to orbit&#39;)),
 )
 
 for (const key of [&#39;radius&#39;, &#39;surfaceDetail&#39;]) {

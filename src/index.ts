@@ -166,6 +166,7 @@ export {
   button3d,
   toggle3d,
   slider3d,
+  select3d,
   list3d,
 } from './widgets3d'
 export type { Widget3d } from './widgets3d'

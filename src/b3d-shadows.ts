@@ -20,15 +20,18 @@ meshes are skipped to keep the shadow map tight.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dSphere } from 'tosijs-3d'
-import { elements, tosi } from 'tosijs'
-const { div, label, input } = elements
+import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dSphere, label3d, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
 
 const { sun } = tosi({ sun: { timeOfDay: 10 } })
 
 preview.append(
   b3d(
     {
+      scenePanel: () => [
+        label3d({ text: 'Sun' }),
+        slider3d({ label: 'time of day', value: sun.timeOfDay, min: 5, max: 19, step: 0.25 }),
+      ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
           'cam', -Math.PI / 2.5, Math.PI / 3, 8,
@@ -45,28 +48,10 @@ preview.append(
     b3dSphere({ y: 1.2, diameter: 1.5, color: '#cc4422' }),
     b3dSphere({ y: 0.8, diameter: 1, x: 2, z: -1, color: '#4488cc' }),
   ),
-  div(
-    { class: 'controls' },
-    label(
-      'Time of day ',
-      input({ type: 'range', min: 5, max: 19, step: 0.25, bindValue: sun.timeOfDay }),
-    ),
-  ),
 )
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
-.controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font: 12px monospace;
-  z-index: 10;
-}
 ```
 
 ## Attributes

@@ -10,9 +10,8 @@ as CSS hex strings. Call `burst(count)` for one-shot effects like explosions.
 ## Demo
 
 ```js
-import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
-const { div, button, label, input, p } = elements
+import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, button3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
 
 const { demo } = tosi({ demo: { emitRate: 80 } })
 
@@ -38,6 +37,11 @@ const explosion = b3dParticles({
 
 const scene = b3d(
   {
+    scenePanel: () => [
+      label3d({ text: 'Particles' }),
+      slider3d({ label: 'emit rate', value: demo.emitRate, min: 0, max: 200, step: 5 }),
+      button3d({ label: 'Burst', onClick() { explosion.burst(150) } }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 12,
@@ -90,15 +94,7 @@ const scene = b3d(
   // Explosion (burst on click)
   explosion,
 )
-preview.append(
-  scene,
-  div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
-    p('Fire + smoke on left, click button for explosion on right'),
-    button({ textContent: 'Explode!', onclick() { explosion.burst(150) } }),
-    label('emit rate ', input({ type: 'range', min: 0, max: 200, step: 5, bindValue: demo.emitRate })),
-  ),
-)
+preview.append(scene)
 ```
 
 ## Attributes

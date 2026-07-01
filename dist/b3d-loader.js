@@ -16,9 +16,9 @@ Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, label3d, slider3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, span } = elements
+const { div, span } = elements
 
 const { demo } = tosi({ demo: { time: 10 } })
 
@@ -31,6 +31,10 @@ const formatTime = (v) => {
 preview.append(
   b3d(
     {
+      scenePanel: () => [
+        label3d({ text: 'Scene' }),
+        slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
+      ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
           'cam', -Math.PI / 2, Math.PI / 4, 20,
@@ -49,17 +53,12 @@ preview.append(
   ),
   div(
     { class: 'debug-panel' },
-    label(
-      'time ',
-      input({ type: 'range', min: 0, max: 24, step: 0.1, bindValue: demo.time }),
-      ' ',
-      span({
-        bind: {
-          value: demo.time,
-          binding: (el, v) => { el.textContent = formatTime(v) },
-        },
-      })
-    )
+    span({
+      bind: {
+        value: demo.time,
+        binding: (el, v) => { el.textContent = formatTime(v) },
+      },
+    })
   )
 )
 ```

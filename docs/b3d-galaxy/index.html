@@ -43,9 +43,9 @@ rendered star system) and <code>showStarAt(index)</code> to restore it.</p>
 <p>Filter stars by habitability index and/or name using <code>filterStars({ maxHI, nameSearch })</code> —
 non-matching stars are dimmed.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, b3dGalaxy, b3dStarSystem } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dGalaxy, b3dStarSystem, label3d, slider3d, select3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
-const { div, label, input, select, option, p, button, span } = elements
+const { div, label, input, p, button, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -82,6 +82,24 @@ function smoothstep(t) { return t * t * (3 - 2 * t) }
 const scene = b3d(
   {
     frameRate: 60,
+    // Generation settings live in the dual-presence ⚙ panel (works in VR); the
+    // free-text star search + selection readout stay a flat overlay (typing needs
+    // a keyboard). All widgets bind the same demo.* leaves the observers watch.
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Galaxy&#39; }),
+      select3d({ label: &#39;habitability&#39;, value: demo.habitability, options: [
+        { label: &#39;All&#39;, value: 5 },
+        { label: &#39;Robot+&#39;, value: 4 },
+        { label: &#39;EVA+&#39;, value: 3 },
+        { label: &#39;Survivable+&#39;, value: 2 },
+        { label: &#39;Earthlike&#39;, value: 1 },
+      ] }),
+      slider3d({ label: &#39;stars&#39;, value: demo.starCount, min: 1000, max: 20000, step: 1000 }),
+      slider3d({ label: &#39;radius&#39;, value: demo.radius, min: 50, max: 300, step: 10 }),
+      slider3d({ label: &#39;spiral arms&#39;, value: demo.spiralArms, min: 1, max: 8, step: 1 }),
+      slider3d({ label: &#39;particle size&#39;, value: demo.particleSize, min: 0.5, max: 3, step: 0.1 }),
+      slider3d({ label: &#39;seed&#39;, value: demo.seed, min: 0, max: 65535, step: 1 }),
+    ],
     sceneCreated(el, BABYLON) {
       sceneEl = el
       el.scene.clearColor = new BABYLON.Color4(0.012, 0.008, 0.024, 1)
@@ -245,50 +263,18 @@ demo.selectedStar.observe((v) =&gt; {
   backBtn.style.display = v ? &#39;block&#39; : &#39;none&#39;
 })
 
+// Flat overlay keeps only the star search + selection readout; the generation
+// settings all live in the ⚙ scene panel (and in VR).
 preview.append(
   scene,
   div(
     { class: &#39;debug-panel&#39; },
-    p(&#39;Click a star to zoom in. Esc to return.&#39;),
+    p(&#39;Click a star to zoom in. Esc to return. Generation settings in the ⚙ (VR too).&#39;),
     starLabel,
     backBtn,
     label(
       &#39;search &#39;,
       input({ type: &#39;text&#39;, placeholder: &#39;star name&#39;, style: &#39;width:8em; color:white; background:transparent; border:1px solid #666; padding:1px 4px; font:12px monospace&#39;, bindValue: demo.nameSearch }),
-    ),
-    label(
-      &#39;habitability &#39;,
-      select(
-        {
-          style: &#39;color:white; background:#333; border:1px solid #666; font:12px monospace&#39;,
-          bindValue: demo.habitability,
-        },
-        option({ value: 5 }, &#39;All&#39;),
-        option({ value: 4 }, &#39;Robot+ (HI&lt;=4)&#39;),
-        option({ value: 3 }, &#39;EVA+ (HI&lt;=3)&#39;),
-        option({ value: 2 }, &#39;Survivable+ (HI&lt;=2)&#39;),
-        option({ value: 1 }, &#39;Earthlike (HI=1)&#39;),
-      ),
-    ),
-    label(
-      &#39;seed &#39;,
-      input({ type: &#39;number&#39;, min: 0, max: 65535, style: &#39;width:5em; color:white; background:transparent&#39;, bindValue: demo.seed }),
-    ),
-    label(
-      &#39;stars &#39;,
-      input({ type: &#39;range&#39;, min: 1000, max: 20000, step: 1000, bindValue: demo.starCount }),
-    ),
-    label(
-      &#39;radius &#39;,
-      input({ type: &#39;range&#39;, min: 50, max: 300, step: 10, bindValue: demo.radius }),
-    ),
-    label(
-      &#39;spiral arms &#39;,
-      input({ type: &#39;range&#39;, min: 1, max: 8, step: 1, bindValue: demo.spiralArms }),
-    ),
-    label(
-      &#39;particle size &#39;,
-      input({ type: &#39;range&#39;, min: 0.5, max: 3, step: 0.1, bindValue: demo.particleSize }),
     ),
   )
 )

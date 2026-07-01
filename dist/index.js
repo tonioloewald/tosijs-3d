@@ -46,7 +46,7 @@ export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './
 export { B3dCar, b3dCar } from './b3d-car';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft';
 // SVG widgets (DOM-overlay or in-scene panels)
-export { panel3d, label3d, text3d, button3d, toggle3d, slider3d, list3d, } from './widgets3d';
+export { panel3d, label3d, text3d, button3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
 export { stackLayout, clampScroll, wrapText, valueToFraction, fractionToValue, } from './widgets3d-layout';
 // SVG material system
 export { SvgTexture } from './svg-texture';

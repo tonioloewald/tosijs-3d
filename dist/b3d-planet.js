@@ -11,9 +11,9 @@ Optional atmosphere (glow shell) and ocean (water sphere at sea level).
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dPlanet, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, span, p } = elements
+const { div, p } = elements
 
 const { demo } = tosi({
   demo: {
@@ -45,6 +45,17 @@ const planet = b3dPlanet({
 const scene = b3d(
   {
     frameRate: 60,
+    scenePanel: () => [
+      label3d({ text: 'Planet' }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.001, max: 0.05, step: 0.001 }),
+      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.005, max: 0.1, step: 0.005 }),
+      slider3d({ label: 'gross amp', value: demo.grossAmplitude, min: 0, max: 20, step: 0.5 }),
+      slider3d({ label: 'detail amp', value: demo.detailAmplitude, min: 0, max: 5, step: 0.1 }),
+      slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 0.5, step: 0.01 }),
+      slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
+      slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
+      toggle3d({ label: 'wireframe', value: demo.wireframe }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'orbit-cam',
@@ -70,42 +81,7 @@ const scene = b3d(
 
 preview.append(
   scene,
-  div(
-    { class: 'debug-panel' },
-    p('Scroll to zoom, drag to orbit'),
-    label(
-      'gross scale ',
-      input({ type: 'range', min: 0.001, max: 0.05, step: 0.001, bindValue: demo.grossScale }),
-    ),
-    label(
-      'detail scale ',
-      input({ type: 'range', min: 0.005, max: 0.1, step: 0.005, bindValue: demo.detailScale }),
-    ),
-    label(
-      'gross amp ',
-      input({ type: 'range', min: 0, max: 20, step: 0.5, bindValue: demo.grossAmplitude }),
-    ),
-    label(
-      'detail amp ',
-      input({ type: 'range', min: 0, max: 5, step: 0.1, bindValue: demo.detailAmplitude }),
-    ),
-    label(
-      'rotation ',
-      input({ type: 'range', min: 0, max: 0.5, step: 0.01, bindValue: demo.rotationSpeed }),
-    ),
-    label(
-      'atmosphere ',
-      input({ type: 'range', min: 0, max: 0.2, step: 0.01, bindValue: demo.atmosphere }),
-    ),
-    label(
-      'ocean ',
-      input({ type: 'range', min: 0, max: 1, step: 0.05, bindValue: demo.ocean }),
-    ),
-    label(
-      'wireframe ',
-      input({ type: 'checkbox', bindValue: demo.wireframe }),
-    ),
-  )
+  div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
 for (const key of ['grossScale', 'detailScale', 'grossAmplitude', 'detailAmplitude']) {

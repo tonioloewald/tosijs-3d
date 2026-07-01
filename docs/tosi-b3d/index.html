@@ -81,10 +81,10 @@ must be children of a <code>b3d</code> element.</p>
 <pre><code class="language-js">import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
   b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
-  gameController, inputFocus,
+  gameController, inputFocus, label3d, toggle3d, slider3d,
 } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
-const { div, label, input, span } = elements
+const { div, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -107,7 +107,15 @@ preview.append(
     // gamepad: on-screen glass gamepad wired into the input system. XR is on by
     // default — Enter VR drives the same player biped through the unified input
     // spine (XR controllers → bipedMapping), chase-followed by the XR rig.
-    { glowLayerIntensity: 1, gamepad: true },
+    {
+      glowLayerIntensity: 1,
+      gamepad: true,
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Scene&#39; }),
+        toggle3d({ label: &#39;show colliders&#39;, value: demo.showColliders }),
+        slider3d({ label: &#39;time of day&#39;, value: demo.time, min: 0, max: 24, step: 0.1 }),
+      ],
+    },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: &#39;ref-sphere&#39;, diameter: 1, y: 1, x: -3, z: -3, color: &#39;#aaaaaa&#39; }),
@@ -125,22 +133,13 @@ preview.append(
   ),
   div(
     { class: &#39;debug-panel&#39; },
-    label(
-      input({ type: &#39;checkbox&#39;, bindValue: demo.showColliders }),
-      &#39; show colliders&#39;
-    ),
-    label(
-      &#39;time &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 24, step: 0.1, bindValue: demo.time }),
-      &#39; &#39;,
-      span({
-        class: &#39;time-display&#39;,
-        bind: {
-          value: demo.time,
-          binding: (el, v) =&gt; { el.textContent = formatTime(v) },
-        },
-      })
-    )
+    span({
+      class: &#39;time-display&#39;,
+      bind: {
+        value: demo.time,
+        binding: (el, v) =&gt; { el.textContent = formatTime(v) },
+      },
+    })
   )
 )
 

@@ -512,6 +512,94 @@ export function slider3d(config) {
         },
     };
 }
+/**
+ * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
+ * previous/next option — no disclosure, no dropdown, so it reads and taps cleanly
+ * in VR (two big targets). Binds the selected value (string or number); `options`
+ * are bare values or `{ label, value }` pairs. Wraps around the ends by default.
+ */
+export function select3d(config) {
+    const opts = config.options.map((o) => o != null && typeof o === 'object'
+        ? { label: o.label, value: o.value }
+        : { label: String(o), value: o });
+    const wrap = config.wrap ?? true;
+    const bound = boundValue(config.value, config.onChange);
+    const lbl = config.label ? baseText(config.label) : null;
+    if (lbl) {
+        lbl.setAttribute('x', String(PAD_X));
+        lbl.setAttribute('y', String(ROW / 2));
+    }
+    const prev = baseText('‹', ACCENT);
+    const next = baseText('›', ACCENT);
+    const val = baseText('');
+    for (const t of [prev, next, val]) {
+        t.setAttribute('text-anchor', 'middle');
+        t.setAttribute('y', String(ROW / 2));
+    }
+    const rowBg = rect({
+        x: 0,
+        y: 2,
+        height: ROW - 4,
+        rx: 6,
+        fill: 'transparent',
+    });
+    const el = css(g({ 'data-w3d': 'select' }, rowBg, ...(lbl ? [lbl] : []), prev, val, next), 'cursor:pointer');
+    let clusterX = 0;
+    let clusterW = 0;
+    const indexOf = () => {
+        const i = opts.findIndex((o) => o.value === bound.get());
+        return i < 0 ? 0 : i;
+    };
+    const reflect = () => {
+        val.textContent = opts[indexOf()]?.label ?? '';
+    };
+    const step = (d) => {
+        const n = opts.length;
+        if (n === 0)
+            return;
+        let i = indexOf() + d;
+        i = wrap ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i));
+        bound.set(opts[i].value);
+        reflect();
+    };
+    bound.subscribe(reflect);
+    return {
+        el,
+        layout(width) {
+            rowBg.setAttribute('width', String(width));
+            clusterW = Math.min(width * 0.55, 180);
+            clusterX = width - PAD_X - clusterW;
+            prev.setAttribute('x', String(clusterX + 14));
+            next.setAttribute('x', String(clusterX + clusterW - 14));
+            val.setAttribute('x', String(clusterX + clusterW / 2));
+            reflect();
+            return ROW;
+        },
+        // Only the cluster steps; the label area stays a scroll surface.
+        hitTest(x) {
+            return x >= clusterX - 6;
+        },
+        handle(kind, x) {
+            const onLeft = x < clusterX + clusterW / 2;
+            if (kind === 'leave') {
+                rowBg.setAttribute('fill', 'transparent');
+                prev.setAttribute('fill', ACCENT);
+                next.setAttribute('fill', ACCENT);
+                return;
+            }
+            rowBg.setAttribute('fill', ROW_HOVER);
+            if (kind === 'down') {
+                prev.setAttribute('fill', onLeft ? '#fff' : ACCENT);
+                next.setAttribute('fill', onLeft ? ACCENT : '#fff');
+            }
+            else if (kind === 'up') {
+                prev.setAttribute('fill', ACCENT);
+                next.setAttribute('fill', ACCENT);
+                step(onLeft ? -1 : 1);
+            }
+        },
+    };
+}
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export function list3d(config) {
     const rowH = config.rowHeight ?? ROW;

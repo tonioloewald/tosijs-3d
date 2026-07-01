@@ -54,6 +54,22 @@ export declare function slider3d(config: {
     step?: number;
     onChange?: (v: number) => void;
 }): Widget3d;
+/**
+ * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
+ * previous/next option — no disclosure, no dropdown, so it reads and taps cleanly
+ * in VR (two big targets). Binds the selected value (string or number); `options`
+ * are bare values or `{ label, value }` pairs. Wraps around the ends by default.
+ */
+export declare function select3d(config: {
+    label?: string;
+    value: string | number;
+    options: Array<string | number | {
+        label: string;
+        value: string | number;
+    }>;
+    wrap?: boolean;
+    onChange?: (v: string | number) => void;
+}): Widget3d;
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export declare function list3d<T extends {
     label: string;

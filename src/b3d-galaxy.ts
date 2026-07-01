@@ -20,9 +20,9 @@ non-matching stars are dimmed.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dGalaxy, b3dStarSystem } from 'tosijs-3d'
+import { b3d, b3dLight, b3dGalaxy, b3dStarSystem, label3d, slider3d, select3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, select, option, p, button, span } = elements
+const { div, label, input, p, button, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -59,6 +59,24 @@ function smoothstep(t) { return t * t * (3 - 2 * t) }
 const scene = b3d(
   {
     frameRate: 60,
+    // Generation settings live in the dual-presence ⚙ panel (works in VR); the
+    // free-text star search + selection readout stay a flat overlay (typing needs
+    // a keyboard). All widgets bind the same demo.* leaves the observers watch.
+    scenePanel: () => [
+      label3d({ text: 'Galaxy' }),
+      select3d({ label: 'habitability', value: demo.habitability, options: [
+        { label: 'All', value: 5 },
+        { label: 'Robot+', value: 4 },
+        { label: 'EVA+', value: 3 },
+        { label: 'Survivable+', value: 2 },
+        { label: 'Earthlike', value: 1 },
+      ] }),
+      slider3d({ label: 'stars', value: demo.starCount, min: 1000, max: 20000, step: 1000 }),
+      slider3d({ label: 'radius', value: demo.radius, min: 50, max: 300, step: 10 }),
+      slider3d({ label: 'spiral arms', value: demo.spiralArms, min: 1, max: 8, step: 1 }),
+      slider3d({ label: 'particle size', value: demo.particleSize, min: 0.5, max: 3, step: 0.1 }),
+      slider3d({ label: 'seed', value: demo.seed, min: 0, max: 65535, step: 1 }),
+    ],
     sceneCreated(el, BABYLON) {
       sceneEl = el
       el.scene.clearColor = new BABYLON.Color4(0.012, 0.008, 0.024, 1)
@@ -222,50 +240,18 @@ demo.selectedStar.observe((v) => {
   backBtn.style.display = v ? 'block' : 'none'
 })
 
+// Flat overlay keeps only the star search + selection readout; the generation
+// settings all live in the ⚙ scene panel (and in VR).
 preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Click a star to zoom in. Esc to return.'),
+    p('Click a star to zoom in. Esc to return. Generation settings in the ⚙ (VR too).'),
     starLabel,
     backBtn,
     label(
       'search ',
       input({ type: 'text', placeholder: 'star name', style: 'width:8em; color:white; background:transparent; border:1px solid #666; padding:1px 4px; font:12px monospace', bindValue: demo.nameSearch }),
-    ),
-    label(
-      'habitability ',
-      select(
-        {
-          style: 'color:white; background:#333; border:1px solid #666; font:12px monospace',
-          bindValue: demo.habitability,
-        },
-        option({ value: 5 }, 'All'),
-        option({ value: 4 }, 'Robot+ (HI<=4)'),
-        option({ value: 3 }, 'EVA+ (HI<=3)'),
-        option({ value: 2 }, 'Survivable+ (HI<=2)'),
-        option({ value: 1 }, 'Earthlike (HI=1)'),
-      ),
-    ),
-    label(
-      'seed ',
-      input({ type: 'number', min: 0, max: 65535, style: 'width:5em; color:white; background:transparent', bindValue: demo.seed }),
-    ),
-    label(
-      'stars ',
-      input({ type: 'range', min: 1000, max: 20000, step: 1000, bindValue: demo.starCount }),
-    ),
-    label(
-      'radius ',
-      input({ type: 'range', min: 50, max: 300, step: 10, bindValue: demo.radius }),
-    ),
-    label(
-      'spiral arms ',
-      input({ type: 'range', min: 1, max: 8, step: 1, bindValue: demo.spiralArms }),
-    ),
-    label(
-      'particle size ',
-      input({ type: 'range', min: 0.5, max: 3, step: 0.1, bindValue: demo.particleSize }),
     ),
   )
 )

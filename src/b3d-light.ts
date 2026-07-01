@@ -10,9 +10,7 @@ everything visible.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSkybox, b3dGround, b3dSphere } from 'tosijs-3d'
-import { elements } from 'tosijs'
-const { div, label, input } = elements
+import { b3d, b3dLight, b3dSkybox, b3dGround, b3dSphere, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { ambient } = tosi({ ambient: { intensity: 0.6 } })
@@ -20,6 +18,10 @@ const { ambient } = tosi({ ambient: { intensity: 0.6 } })
 preview.append(
   b3d(
     {
+      scenePanel: () => [
+        label3d({ text: 'Light' }),
+        slider3d({ label: 'ambient', value: ambient.intensity, min: 0, max: 1.5, step: 0.05 }),
+      ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
           'cam', -Math.PI / 2.5, Math.PI / 3, 6,
@@ -34,28 +36,10 @@ preview.append(
     b3dGround({ width: 10, height: 10, color: '#556644' }),
     b3dSphere({ y: 1, diameter: 1.5, color: '#4488cc' }),
   ),
-  div(
-    { class: 'controls' },
-    label(
-      'Ambient intensity ',
-      input({ type: 'range', min: 0, max: 1.5, step: 0.05, bindValue: ambient.intensity }),
-    ),
-  ),
 )
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
-.controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font: 12px monospace;
-  z-index: 10;
-}
 ```
 
 ## Attributes

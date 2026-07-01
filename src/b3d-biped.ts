@@ -7,9 +7,8 @@ and drives it via `ControlInput`.
 ## Demo
 
 ```js
-import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, label3d, select3d, slider3d } from 'tosijs-3d'
 import { elements, tosi } from 'tosijs'
-const { div, label, select, option, input } = elements
 
 const animations = [
   'idle', 'walk', 'run', 'sneak', 'climb', 'walkBackwards',
@@ -33,6 +32,11 @@ const biped = b3dBiped({
 preview.append(
   b3d(
     {
+      scenePanel: () => [
+        label3d({ text: 'Biped' }),
+        select3d({ label: 'animation', value: bipedDemo.animation, options: animations }),
+        slider3d({ label: 'speed', value: bipedDemo.speed, min: 0, max: 2, step: 0.1 }),
+      ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
           'cam', -Math.PI / 2, Math.PI / 3.5, 2,
@@ -49,43 +53,10 @@ preview.append(
     b3dGround({ width: 10, height: 10 }),
     biped,
   ),
-  div(
-    { class: 'controls' },
-    label(
-      'Animation ',
-      select(
-        { bindValue: bipedDemo.animation },
-        ...animations.map(a => option({ value: a }, a)),
-      ),
-    ),
-    label(
-      'Speed ',
-      input({ type: 'range', min: 0, max: 2, step: 0.1, bindValue: bipedDemo.speed }),
-    ),
-  ),
 )
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
-.controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border-radius: 6px;
-  font-size: 14px;
-  z-index: 10;
-}
-.controls select {
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: none;
-}
 ```
 
 ## Attributes

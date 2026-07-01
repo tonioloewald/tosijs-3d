@@ -35,9 +35,8 @@ Use it for fire, smoke, explosions, thrusters, weapon trails, and more.</p>
 <p>Supports point, box, sphere, and cone emitter shapes. Colors are specified
 as CSS hex strings. Call <code>burst(count)</code> for one-shot effects like explosions.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
-import { tosi, elements } from &#39;tosijs&#39;
-const { div, button, label, input, p } = elements
+<pre><code class="language-js">import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, button3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
 
 const { demo } = tosi({ demo: { emitRate: 80 } })
 
@@ -63,6 +62,11 @@ const explosion = b3dParticles({
 
 const scene = b3d(
   {
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Particles&#39; }),
+      slider3d({ label: &#39;emit rate&#39;, value: demo.emitRate, min: 0, max: 200, step: 5 }),
+      button3d({ label: &#39;Burst&#39;, onClick() { explosion.burst(150) } }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 12,
@@ -115,15 +119,7 @@ const scene = b3d(
   // Explosion (burst on click)
   explosion,
 )
-preview.append(
-  scene,
-  div(
-    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px&#39; },
-    p(&#39;Fire + smoke on left, click button for explosion on right&#39;),
-    button({ textContent: &#39;Explode!&#39;, onclick() { explosion.burst(150) } }),
-    label(&#39;emit rate &#39;, input({ type: &#39;range&#39;, min: 0, max: 200, step: 5, bindValue: demo.emitRate })),
-  ),
-)
+preview.append(scene)
 </code></pre>
 <h2>Attributes</h2>
 <table>

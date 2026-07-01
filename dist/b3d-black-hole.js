@@ -8,9 +8,9 @@ accurate but visually striking.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dBlackHole, b3dSphere } from 'tosijs-3d'
+import { b3d, b3dLight, b3dBlackHole, b3dSphere, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, span, p } = elements
+const { div, p } = elements
 
 const { demo } = tosi({
   demo: {
@@ -42,6 +42,18 @@ const scene = b3d(
   {
     frameRate: 60,
     clearColor: '#000000',
+    scenePanel: () => [
+      label3d({ text: 'Black hole' }),
+      slider3d({ label: 'radius', value: demo.radius, min: 3, max: 20, step: 0.5 }),
+      slider3d({ label: 'disk inner', value: demo.diskInnerRadius, min: 1.01, max: 2, step: 0.01 }),
+      slider3d({ label: 'disk outer', value: demo.diskOuterRadius, min: 2, max: 8, step: 0.1 }),
+      slider3d({ label: 'disk brightness', value: demo.diskBrightness, min: 0.5, max: 3, step: 0.1 }),
+      slider3d({ label: 'rotation', value: demo.rotationSpeed, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: 'photon ring bright', value: demo.photonRingBrightness, min: 0.5, max: 5, step: 0.1 }),
+      toggle3d({ label: 'lensing', value: demo.lensing }),
+      toggle3d({ label: 'photon ring', value: demo.photonRing }),
+      toggle3d({ label: 'wireframe', value: demo.wireframe }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'orbit-cam',
@@ -66,46 +78,7 @@ const scene = b3d(
 
 preview.append(
   scene,
-  div(
-    { class: 'debug-panel' },
-    p('Scroll to zoom, drag to orbit'),
-    label(
-      'radius ',
-      input({ type: 'range', min: 3, max: 20, step: 0.5, bindValue: demo.radius }),
-    ),
-    label(
-      'disk inner ',
-      input({ type: 'range', min: 1.01, max: 2, step: 0.01, bindValue: demo.diskInnerRadius }),
-    ),
-    label(
-      'disk outer ',
-      input({ type: 'range', min: 2, max: 8, step: 0.1, bindValue: demo.diskOuterRadius }),
-    ),
-    label(
-      'disk brightness ',
-      input({ type: 'range', min: 0.5, max: 3, step: 0.1, bindValue: demo.diskBrightness }),
-    ),
-    label(
-      'rotation ',
-      input({ type: 'range', min: 0, max: 1, step: 0.01, bindValue: demo.rotationSpeed }),
-    ),
-    label(
-      'photon ring brightness ',
-      input({ type: 'range', min: 0.5, max: 5, step: 0.1, bindValue: demo.photonRingBrightness }),
-    ),
-    label(
-      'lensing ',
-      input({ type: 'checkbox', bindValue: demo.lensing }),
-    ),
-    label(
-      'photon ring ',
-      input({ type: 'checkbox', bindValue: demo.photonRing }),
-    ),
-    label(
-      'wireframe ',
-      input({ type: 'checkbox', bindValue: demo.wireframe }),
-    ),
-  )
+  div({ class: 'debug-panel' }, p('Scroll to zoom, drag to orbit'))
 )
 
 for (const key of ['radius', 'diskInnerRadius', 'diskOuterRadius']) {

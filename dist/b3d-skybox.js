@@ -7,14 +7,17 @@ a `b3dSun` sibling's direction, intensity, and color.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround } from 'tosijs-3d'
-import { tosi, elements } from 'tosijs'
-const { div, label, input } = elements
+import { b3d, b3dSun, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
 
 const { sky } = tosi({ sky: { timeOfDay: 17 } })
 
 const scene = b3d(
   {
+    scenePanel: () => [
+      label3d({ text: 'Sky' }),
+      slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 15,
@@ -28,13 +31,7 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
   b3dGround({ width: 20, height: 20 }),
 )
-preview.append(
-  scene,
-  div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px' },
-    label('time of day ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: sky.timeOfDay })),
-  ),
-)
+preview.append(scene)
 ```
 
 ## Attributes

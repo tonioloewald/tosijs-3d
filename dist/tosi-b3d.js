@@ -22,10 +22,10 @@ must be children of a `b3d` element.
 import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
   b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
-  gameController, inputFocus,
+  gameController, inputFocus, label3d, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, span } = elements
+const { div, span } = elements
 
 const { demo } = tosi({
   demo: {
@@ -48,7 +48,15 @@ preview.append(
     // gamepad: on-screen glass gamepad wired into the input system. XR is on by
     // default — Enter VR drives the same player biped through the unified input
     // spine (XR controllers → bipedMapping), chase-followed by the XR rig.
-    { glowLayerIntensity: 1, gamepad: true },
+    {
+      glowLayerIntensity: 1,
+      gamepad: true,
+      scenePanel: () => [
+        label3d({ text: 'Scene' }),
+        toggle3d({ label: 'show colliders', value: demo.showColliders }),
+        slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
+      ],
+    },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
     b3dSkybox({ timeOfDay: demo.time, realtimeScale: 100, latitude: 30, moonIntensity: 1.5 }),
     b3dSphere({ meshName: 'ref-sphere', diameter: 1, y: 1, x: -3, z: -3, color: '#aaaaaa' }),
@@ -66,22 +74,13 @@ preview.append(
   ),
   div(
     { class: 'debug-panel' },
-    label(
-      input({ type: 'checkbox', bindValue: demo.showColliders }),
-      ' show colliders'
-    ),
-    label(
-      'time ',
-      input({ type: 'range', min: 0, max: 24, step: 0.1, bindValue: demo.time }),
-      ' ',
-      span({
-        class: 'time-display',
-        bind: {
-          value: demo.time,
-          binding: (el, v) => { el.textContent = formatTime(v) },
-        },
-      })
-    )
+    span({
+      class: 'time-display',
+      bind: {
+        value: demo.time,
+        binding: (el, v) => { el.textContent = formatTime(v) },
+      },
+    })
   )
 )
 

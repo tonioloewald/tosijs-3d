@@ -11,9 +11,9 @@ Planets orbit at scaled distances and can optionally animate.
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy } from 'tosijs-3d'
+import { b3d, b3dLight, b3dSun, b3dSkybox, b3dStarSystem, generateGalaxy, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, p, pre } = elements
+const { div, p, pre } = elements
 
 const galaxy = generateGalaxy(1234, 1000)
 
@@ -41,6 +41,14 @@ const scene = b3d(
   {
     frameRate: 60,
     clearColor: '#000011',
+    scenePanel: () => [
+      label3d({ text: 'Star system' }),
+      slider3d({ label: 'star index', value: demo.starIndex, min: 0, max: 999, step: 1 }),
+      slider3d({ label: 'scale', value: demo.scale, min: 1, max: 20, step: 0.5 }),
+      slider3d({ label: 'orbit scale', value: demo.orbitScale, min: 1, max: 10, step: 0.5 }),
+      toggle3d({ label: 'animate', value: demo.animate }),
+      toggle3d({ label: 'show orbits', value: demo.showOrbits }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         'orbit-cam',
@@ -69,26 +77,6 @@ preview.append(
   div(
     { class: 'debug-panel' },
     p('Scroll to zoom, drag to orbit'),
-    label(
-      'star index ',
-      input({ type: 'range', min: 0, max: 999, step: 1, bindValue: demo.starIndex }),
-    ),
-    label(
-      'scale ',
-      input({ type: 'range', min: 1, max: 20, step: 0.5, bindValue: demo.scale }),
-    ),
-    label(
-      'orbit scale ',
-      input({ type: 'range', min: 1, max: 10, step: 0.5, bindValue: demo.orbitScale }),
-    ),
-    label(
-      'animate ',
-      input({ type: 'checkbox', bindValue: demo.animate }),
-    ),
-    label(
-      'show orbits ',
-      input({ type: 'checkbox', bindValue: demo.showOrbits }),
-    ),
     infoEl,
   )
 )

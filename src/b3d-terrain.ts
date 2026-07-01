@@ -20,9 +20,9 @@ layer can orchestrate a visual transition before calling `recenter()`.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
-const { div, label, input, span, p } = elements
+const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
@@ -77,6 +77,21 @@ const scene = b3d(
   {
     frameRate: 60,
     gamepad: true,
+    // Controls live in the dual-presence scene panel: a ⚙ toggles them on flat
+    // screens, and the SAME panel floats in front of you in VR — so you can retune
+    // the terrain from inside the headset. All widgets bind the same `demo.*`
+    // reactive values the regenerate observers below already watch.
+    scenePanel: () => [
+      label3d({ text: 'Terrain' }),
+      slider3d({ label: 'gross scale', value: demo.grossScale, min: 0.005, max: 0.3, step: 0.005 }),
+      slider3d({ label: 'detail scale', value: demo.detailScale, min: 0.02, max: 1, step: 0.01 }),
+      slider3d({ label: 'h size', value: demo.horizScale, min: 0.25, max: 10, step: 0.05 }),
+      slider3d({ label: 'v size', value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
+      slider3d({ label: 'v detail', value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
+      slider3d({ label: 'seed', value: demo.seed, min: 0, max: 999, step: 1 }),
+      toggle3d({ label: 'wireframe', value: demo.wireframe }),
+      toggle3d({ label: 'debug color', value: demo.debugColor }),
+    ],
     update(el) {
       const cam = el.scene.activeCamera
       if (cam) {
@@ -98,49 +113,14 @@ const scene = b3d(
   ),
 )
 
+// Only a readout stays as a flat overlay — the tweakable settings all live in the
+// ⚙ scene panel (which also works in VR). See the `scenePanel` hook above.
 preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank'),
+    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank. Tweak terrain via the ⚙ (works in VR too).'),
     posDisplay,
-    label(
-      'gross scale ',
-      input({ type: 'range', min: 0.005, max: 0.3, step: 0.005, bindValue: demo.grossScale }),
-      demo.grossScale,
-    ),
-    label(
-      'detail scale ',
-      input({ type: 'range', min: 0.02, max: 1, step: 0.01, bindValue: demo.detailScale }),
-      demo.detailScale,
-    ),
-    label(
-      'h size ',
-      input({ type: 'range', min: 0.25, max: 10, step: 0.05, bindValue: demo.horizScale }),
-      demo.horizScale,
-    ),
-    label(
-      'v size ',
-      input({ type: 'range', min: 0, max: 400, step: 1, bindValue: demo.grossAmplitude }),
-      demo.grossAmplitude,
-    ),
-    label(
-      'v detail size ',
-      input({ type: 'range', min: 0, max: 50, step: 0.5, bindValue: demo.detailAmplitude }),
-      demo.detailAmplitude,
-    ),
-    label(
-      'seed ',
-      input({ type: 'number', step: 1, style: 'width:5em', bindValue: demo.seed }),
-    ),
-    label(
-      'wireframe ',
-      input({ type: 'checkbox', bindValue: demo.wireframe }),
-    ),
-    label(
-      'debug color ',
-      input({ type: 'checkbox', bindValue: demo.debugColor }),
-    ),
   )
 )
 

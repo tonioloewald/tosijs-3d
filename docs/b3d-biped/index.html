@@ -33,9 +33,8 @@
 <p>Animated humanoid character controller. Loads a GLB model with skeletal animations
 and drives it via <code>ControlInput</code>.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, label3d, select3d, slider3d } from &#39;tosijs-3d&#39;
 import { elements, tosi } from &#39;tosijs&#39;
-const { div, label, select, option, input } = elements
 
 const animations = [
   &#39;idle&#39;, &#39;walk&#39;, &#39;run&#39;, &#39;sneak&#39;, &#39;climb&#39;, &#39;walkBackwards&#39;,
@@ -59,6 +58,11 @@ const biped = b3dBiped({
 preview.append(
   b3d(
     {
+      scenePanel: () =&gt; [
+        label3d({ text: &#39;Biped&#39; }),
+        select3d({ label: &#39;animation&#39;, value: bipedDemo.animation, options: animations }),
+        slider3d({ label: &#39;speed&#39;, value: bipedDemo.speed, min: 0, max: 2, step: 0.1 }),
+      ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
           &#39;cam&#39;, -Math.PI / 2, Math.PI / 3.5, 2,
@@ -75,42 +79,9 @@ preview.append(
     b3dGround({ width: 10, height: 10 }),
     biped,
   ),
-  div(
-    { class: &#39;controls&#39; },
-    label(
-      &#39;Animation &#39;,
-      select(
-        { bindValue: bipedDemo.animation },
-        ...animations.map(a =&gt; option({ value: a }, a)),
-      ),
-    ),
-    label(
-      &#39;Speed &#39;,
-      input({ type: &#39;range&#39;, min: 0, max: 2, step: 0.1, bindValue: bipedDemo.speed }),
-    ),
-  ),
 )
 </code></pre>
 <pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
-.controls {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-  border-radius: 6px;
-  font-size: 14px;
-  z-index: 10;
-}
-.controls select {
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: none;
-}
 </code></pre>
 <h2>Attributes</h2>
 <table>

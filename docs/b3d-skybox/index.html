@@ -33,14 +33,17 @@
 <p>Procedural sky with sun/moon cycle driven by time of day. Automatically controls
 a <code>b3dSun</code> sibling&#39;s direction, intensity, and color.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
-import { tosi, elements } from &#39;tosijs&#39;
-const { div, label, input } = elements
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
 
 const { sky } = tosi({ sky: { timeOfDay: 17 } })
 
 const scene = b3d(
   {
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Sky&#39; }),
+      slider3d({ label: &#39;time of day&#39;, value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
+    ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
         &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 15,
@@ -54,13 +57,7 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
   b3dGround({ width: 20, height: 20 }),
 )
-preview.append(
-  scene,
-  div(
-    { style: &#39;position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace; display:flex; flex-direction:column; gap:4px&#39; },
-    label(&#39;time of day &#39;, input({ type: &#39;range&#39;, min: 0, max: 24, step: 0.5, bindValue: sky.timeOfDay })),
-  ),
-)
+preview.append(scene)
 </code></pre>
 <h2>Attributes</h2>
 <table>
