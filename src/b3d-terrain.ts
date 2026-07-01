@@ -25,23 +25,26 @@ const { div, label, input, span, p } = elements
 
 const { demo } = tosi({
   demo: {
-    grossScale: 0.1,
-    detailScale: 0.5,
-    grossAmplitude: 8,
-    detailAmplitude: 2,
+    grossScale: 0.03,
+    detailScale: 0.15,
+    grossAmplitude: 30,
+    detailAmplitude: 6,
     wireframe: false,
   },
 })
 
+// Big tiles: a 5x5 ring of 80-unit level-0 tiles (~400 units across) keeps you
+// surrounded by full detail instead of skating over a tablecloth. Larger radius
+// so the cylinder doesn't visibly repeat across the much wider LOD coverage.
 const terrain = b3dTerrain({
   seed: 42,
   surfaceType: 'cylinder',
-  radius: 200,
-  cylinderHeight: 200,
-  tileSize: 10,
+  radius: 1000,
+  cylinderHeight: 1000,
+  tileSize: 80,
   hiResGrid: 5,
-  hiResSubdivisions: 24,
-  lodLevels: 5,
+  hiResSubdivisions: 32,
+  lodLevels: 4,
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   grossAmplitude: demo.grossAmplitude,
@@ -56,7 +59,7 @@ const posDisplay = span({ class: 'pos-display' })
 // moving); pull back to pitch up, turn stick banks.
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 30, vtolSpeed: 12, maxSpeed: 50,
+  player: true, y: 80, vtolSpeed: 12, maxSpeed: 50,
 })
 
 const scene = b3d(
@@ -75,7 +78,7 @@ const scene = b3d(
   b3dSun({ activeDistance: 80 }),
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
-  b3dFog({ syncSkybox: true, start: 120, end: 320 }),
+  b3dFog({ syncSkybox: true, start: 500, end: 1500 }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   terrain,
   inputFocus(
@@ -100,11 +103,11 @@ preview.append(
     ),
     label(
       'gross amp ',
-      input({ type: 'range', min: 0, max: 20, step: 0.5, bindValue: demo.grossAmplitude }),
+      input({ type: 'range', min: 0, max: 80, step: 1, bindValue: demo.grossAmplitude }),
     ),
     label(
       'detail amp ',
-      input({ type: 'range', min: 0, max: 5, step: 0.1, bindValue: demo.detailAmplitude }),
+      input({ type: 'range', min: 0, max: 20, step: 0.5, bindValue: demo.detailAmplitude }),
     ),
     label(
       'wireframe ',
