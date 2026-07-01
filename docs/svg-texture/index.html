@@ -41,12 +41,9 @@ DOM mutations. Great for HUDs, radar displays, instrument panels.</li>
 <h2>Example — SVG on a cube</h2>
 <pre><code class="language-js">import { b3d, b3dLight, SvgTexture } from &#39;tosijs-3d&#39;
 
-let B = null
-
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      B = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
         &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 5,
         new BABYLON.Vector3(0, 0, 0), el.scene
