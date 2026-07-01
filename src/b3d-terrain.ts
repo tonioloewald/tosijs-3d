@@ -497,9 +497,16 @@ export class B3dTerrain extends Component {
     const camZ = camera.globalPosition.z
 
     // Floating origin reset — rebase on the COARSEST tile so every level's grid
-    // stays integer-aligned after the shift.
+    // stays integer-aligned after the shift. The shift is a whole coarsest-tile,
+    // so the trigger distance MUST exceed the coarsest tile size — otherwise the
+    // shift rounds to 0, resetOrigin no-ops, and update() returns here without
+    // streaming, starving the terrain (a param change mid-flight then blanks it).
+    const coarsest = this.lods.length
+      ? this.lods[this.lods.length - 1].tileSize
+      : attrs.tileSize
+    const resetDist = Math.max(attrs.originResetThreshold, coarsest)
     const distSq = camX * camX + camZ * camZ
-    if (distSq > attrs.originResetThreshold * attrs.originResetThreshold) {
+    if (distSq > resetDist * resetDist) {
       this.resetOrigin(camX, camZ, camera)
       return
     }
