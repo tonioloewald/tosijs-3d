@@ -180,7 +180,9 @@ All components are regular tosijs `Component` subclasses (not blueprints). They 
 
 ### Styling — use tosijs's CSS facilities, never hand-roll it
 
-tosijs ships a whole optimized, typed CSS/variable library. **Do not** hand-roll `document.createElement('style')`, manual `id`-uniqueness/dedup, or CSS-as-string templates — reach for the built-ins, which are deduped, updatable/bindable, type-checked, and test-covered:
+tosijs ships a whole optimized, typed CSS/variable library. **Do not** hand-roll `document.createElement('style')`, manual `id`-uniqueness/dedup, or CSS-as-string templates — reach for the built-ins, which are deduped, updatable/bindable, type-checked, and test-covered.
+
+**Why it matters — debuggability.** A core goal is *traceable* CSS: every sheet is a real `<style>` keyed by a stable `id`/component tag, readable and inspectable in devtools, with selectors you wrote. This is the deliberate opposite of React/Tailwind's generated, near-untraceable class soup. Hand-rolled or dynamically-concatenated CSS erodes that, so lean on the facilities that preserve it. (`lightStyleSpec` is itself built on `StyleSheet`.)
 
 - **Component styles**: `static lightStyleSpec` (light DOM) or `static shadowStyleSpec` (shadow DOM). `static styleSpec` is **deprecated** — prefer the explicit light/shadow forms so it's clear which is intended. Both take an `XinStyleSheet` object (typed, camelCase props), not a CSS string.
 - **Global / light-DOM stylesheets** (e.g. styling a light-DOM component's own tag from the page): `StyleSheet(id, spec)` from `tosijs` — creates/updates one `<style>` keyed by `id`, deduped and re-runnable. This is the correct replacement for any bespoke `<style>` injection (e.g. the pattern in `glass-gamepad.ts`).
