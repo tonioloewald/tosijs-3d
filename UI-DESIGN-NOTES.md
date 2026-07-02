@@ -209,12 +209,28 @@ _earlier (see `git log`)_
 
 ## Open issues / to investigate
 
-- **Time-of-day slider dead on FIRST XR entry** (b3d demo) — works after exit +
-  re-enter, works flat either way. Smells like a first-session rAF-pump timing gap:
-  the `demo.time → skybox.timeOfDay` projection is window-rAF-batched and the first
-  projection may be scheduled with the real rAF before `_installXrRafPump` shims it
-  (or the binding isn't warm until the 2nd session). Fix idea: flush/re-subscribe
-  bound projections right after the pump installs on IN_XR. (XR-only; TODO.md Bugs.)
+- **Stranded render queue on XR entry** (root-caused; fix pending headset verify).
+  tosijs component render uses a **per-element `_renderQueued` flag**:
+  `if(!this._renderQueued){this._renderQueued=true; requestAnimationFrame(render)}`.
+  If a render is already queued when the immersive session **suspends
+  `window.requestAnimationFrame`**, that callback is stranded → the flag stays
+  `true` forever → the component never schedules another render → the rAF pump
+  never sees it → its bindings freeze for the whole session. This bit the b3d
+  time-of-day slider ("dead on first XR entry"): the skybox's `realtimeScale`
+  `setInterval` constantly queues a render, so there's almost always one pending at
+  entry. **Fix:** `await updates()` (tosijs's flush, built for exactly this) in the
+  Enter-VR flow BEFORE `enterXRAsync`, while flat rAF still works — nothing left
+  stranded.
+- **FOOTGUN (general): XR suspending `window.requestAnimationFrame` breaks ANY UI
+  code that batches on it** — not just tosijs. Tweens, debounced/throttled layout,
+  virtualized lists, IntersectionObserver-driven reveals, CSS-JS animation loops,
+  "coalesce N changes into one rAF" patterns: all silently freeze the moment you
+  enter an immersive session, and any "already scheduled" flag they hold gets
+  stranded. Rules of thumb: (1) route per-frame work through
+  `scene.onBeforeRenderObservable` / the XR frame loop, not `window.rAF`; (2) if a
+  lib you don't control uses window-rAF, it must be pumped (like `_installXrRafPump`)
+  AND flushed before entry; (3) prefer synchronous reactive value reads over
+  rAF-deferred DOM projections for anything that must stay live in VR.
 
 ## Affordances vs. panel content
 
