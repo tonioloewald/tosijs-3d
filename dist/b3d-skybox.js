@@ -60,9 +60,13 @@ function hexToColor3(hex) {
     const b = parseInt(hex.slice(5, 7), 16) / 255;
     return new BABYLON.Color3(r, g, b);
 }
-function blendColor3(a, b, t) {
-    return new BABYLON.Color3(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
-}
+// Shared constants so updateSky (which runs per frame while the sky animates) can
+// stay allocation-free — see the reused scratch on the component.
+const SKY_AXIS_X = new BABYLON.Vector3(1, 0, 0);
+const SKY_AXIS_Z = new BABYLON.Vector3(0, 0, 1);
+const SKY_BLUE = new BABYLON.Color3(0.55, 0.7, 0.9);
+const HORIZON_WHITE = new BABYLON.Color3(0.95, 0.95, 0.97);
+const NIGHT_HORIZON = new BABYLON.Color3(0.08, 0.1, 0.18);
 export class B3dSkybox extends AbstractMesh {
     static initAttributes = {
         ...AbstractMesh.initAttributes,
@@ -90,9 +94,28 @@ export class B3dSkybox extends AbstractMesh {
     _lastSkyTime = NaN;
     sunEl = null;
     _horizonColor = new BABYLON.Color3(0.75, 0.85, 0.95);
+    // Reused scratch + a parsed-color cache so updateSky allocates nothing per frame.
+    _sunVec = new BABYLON.Vector3();
+    _dir = new BABYLON.Vector3();
+    _qLat = new BABYLON.Quaternion();
+    _qTime = new BABYLON.Quaternion();
+    _qTotal = new BABYLON.Quaternion();
+    _horizonScratch = new BABYLON.Color3();
+    _colorCache = new Map();
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor() {
         return this._horizonColor;
+    }
+    // Parse a hex color once and cache it (source strings are stable attributes), so
+    // updateSky doesn't reparse/allocate a Color3 per frame. Returned colors are
+    // treated as read-only (used as Lerp sources / copied from).
+    hex(hex) {
+        let c = this._colorCache.get(hex);
+        if (c == null) {
+            c = hexToColor3(hex);
+            this._colorCache.set(hex, c);
+        }
+        return c;
     }
     updateSky() {
         if (this.mesh?.material == null)
@@ -100,18 +123,16 @@ export class B3dSkybox extends AbstractMesh {
         const attrs = this;
         const material = this.mesh.material;
         const latitude = attrs.latitude * DEG_TO_RAD;
-        const sunVector = new BABYLON.Vector3(0, 100, 0);
-        // East-west rotation axis, tilted by latitude
-        const axis = new BABYLON.Vector3(0, 0, 1);
+        const sunVector = this._sunVec.set(0, 100, 0);
         // Time rotation: noon=0, wraps through day
         const t = (((attrs.timeOfDay + 30) % 12) / 12) * 1.04 - 0.52;
         const timeAngle = t * Math.PI;
-        // Latitude tilts the sun's arc away from vertical
-        const latTilt = BABYLON.Quaternion.RotationAxis(new BABYLON.Vector3(1, 0, 0), latitude);
-        const rotTime = BABYLON.Quaternion.RotationAxis(axis, timeAngle);
-        const totalRot = latTilt.multiply(rotTime);
+        // Latitude tilts the sun's arc away from vertical; time rotates it east-west.
+        BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_X, latitude, this._qLat);
+        BABYLON.Quaternion.RotationAxisToRef(SKY_AXIS_Z, timeAngle, this._qTime);
+        this._qLat.multiplyToRef(this._qTime, this._qTotal);
         const isDay = attrs.timeOfDay > 6 && attrs.timeOfDay < 18;
-        sunVector.rotateByQuaternionToRef(totalRot, sunVector);
+        sunVector.rotateByQuaternionToRef(this._qTotal, sunVector);
         material.luminance = attrs.luminance;
         material.azimuth = attrs.azimuth;
         material.mieDirectionalG = attrs.mieDirectionalG;
@@ -130,32 +151,29 @@ export class B3dSkybox extends AbstractMesh {
                 sunEl.externallyLit = true;
                 const dim = sunEl.dimFactor ?? 1;
                 material.sunPosition = sunVector;
-                const dir = sunVector.normalizeToNew();
-                light.direction.x = -dir.x;
-                light.direction.y = -dir.y;
-                light.direction.z = -dir.z;
+                sunVector.normalizeToRef(this._dir);
+                light.direction.x = -this._dir.x;
+                light.direction.y = -this._dir.y;
+                light.direction.z = -this._dir.z;
                 const intensity = Math.min(Math.abs((t + 0.52) * 10), Math.abs((t - 0.52) * 10), 1);
                 if (isDay) {
-                    const duskC = hexToColor3(attrs.duskColor);
-                    const sunC = hexToColor3(attrs.sunColor);
-                    light.diffuse = blendColor3(duskC, sunC, intensity);
+                    // Blend dusk→sun straight into light.diffuse (cached parsed sources).
+                    BABYLON.Color3.LerpToRef(this.hex(attrs.duskColor), this.hex(attrs.sunColor), intensity, light.diffuse);
                     light.intensity = intensity * dim;
                     material.rayleigh = attrs.rayleigh;
                     material.turbidity = attrs.turbidity;
-                    // Horizon: blend light color with sky blue, desaturate toward white
-                    const skyBlue = new BABYLON.Color3(0.55, 0.7, 0.9);
-                    const horizonBase = blendColor3(light.diffuse, skyBlue, 0.6);
-                    // Brighten toward white at high sun, dim at dusk
-                    const white = new BABYLON.Color3(0.95, 0.95, 0.97);
-                    this._horizonColor = blendColor3(horizonBase, white, intensity * 0.4);
+                    // Horizon: blend light color with sky blue, then brighten toward white
+                    // at high sun — written in place into _horizonColor via a scratch.
+                    BABYLON.Color3.LerpToRef(light.diffuse, SKY_BLUE, 0.6, this._horizonScratch);
+                    BABYLON.Color3.LerpToRef(this._horizonScratch, HORIZON_WHITE, intensity * 0.4, this._horizonColor);
                 }
                 else {
-                    light.diffuse = hexToColor3(attrs.moonColor);
+                    light.diffuse.copyFrom(this.hex(attrs.moonColor));
                     light.intensity = attrs.moonIntensity * dim;
                     material.rayleigh = attrs.rayleigh * 0.05;
                     material.turbidity = attrs.turbidity * 0.05;
                     // Night horizon: dark desaturated blue
-                    this._horizonColor = new BABYLON.Color3(0.08, 0.1, 0.18);
+                    this._horizonColor.copyFrom(NIGHT_HORIZON);
                 }
             }
         }

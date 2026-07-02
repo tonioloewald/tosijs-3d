@@ -31,8 +31,16 @@ export declare class B3dSkybox extends AbstractMesh {
     private _lastSkyTime;
     private sunEl;
     private _horizonColor;
+    private _sunVec;
+    private _dir;
+    private _qLat;
+    private _qTime;
+    private _qTotal;
+    private _horizonScratch;
+    private _colorCache;
     /** Approximate horizon color based on current time of day / atmosphere. */
     get horizonColor(): BABYLON.Color3;
+    private hex;
     private updateSky;
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
