@@ -166,6 +166,15 @@ export type SceneAdditions = {
   lights?: BABYLON.Light[]
 }
 
+// An NPC nameplate: an entity-pinned frame + a gaze-revealed panel on it.
+type Nameplate = {
+  ef: EntityFrame
+  panel: {
+    update: (ctx?: { firstPerson?: boolean }) => void
+    dispose: () => void
+  }
+}
+
 type B3dCallback =
   | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => void)
   | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => Promise<void>)
@@ -481,6 +490,13 @@ export class B3d extends Component {
   // gear is revealed once XR is available even with no scenePanel widgets.
   private _xrAvailable = false
   private _scenePanelWired = false
+
+  // NPC nameplates, live in flat AND XR. Keyed by biped element; a cached list is
+  // iterated per frame (no per-frame allocation), and a throttled scan adds/removes
+  // as bipeds' GLBs load or leave.
+  private _nameplates = new Map<Element, Nameplate>()
+  private _nameplateList: Nameplate[] = []
+  private _nameplateScan = 0
 
   registerWorldRoot(node: BABYLON.TransformNode): void {
     this._worldRoots.add(node)
@@ -829,6 +845,9 @@ export class B3d extends Component {
       // in-scene XR copy is built on session entry.
       this._setupScenePanel()
 
+      // NPC nameplates (above non-player bipeds), in flat AND XR.
+      this._setupNameplates()
+
       // Fade in canvas once all pending file loads complete and shaders compile.
       // Falls back to revealing after assets load even if shaders are still
       // compiling, to avoid an indefinitely hidden canvas.
@@ -989,30 +1008,9 @@ export class B3d extends Component {
       attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), spec)
     )
 
-    // Entity-pinned nameplates: a label over each non-player biped, on a frame
-    // that turns to face you, revealed only when you look at them. The basis for
-    // dialogue balloons and lock-on brackets.
-    const nameplates = Array.from(this.querySelectorAll('tosi-b3d-biped'))
-
-      .map((el) => el as any)
-      .filter((b) => !b.player && b.mesh != null)
-      .map((b) => {
-        const ef = new EntityFrame(scene, b.mesh, {
-          offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
-        })
-        const panel = attachFramePanel(scene, cam, ef.node, {
-          anchor: {
-            position: [0, 0, 0],
-            focus: [0, 0, 1], // faces +Z = toward you (the frame turns to you)
-            revealStartDeg: 26,
-            revealFullDeg: 10,
-          },
-          title: (b.id as string) || 'NPC',
-          width: 0.3,
-          maxDistance: 8, // don't clutter the view with distant nameplates
-        })
-        return { ef, panel }
-      })
+    // NPC nameplates run in a GENERAL manager now (flat + XR) — see
+    // _setupNameplates() — since a frame panel gaze-reveals off the active camera
+    // and works on a monitor too, not just in a headset. Not created here.
 
     // The in-scene settings panel (with an Exit-VR button), anchored to the eye
     // frame 60° up so it sits consistently above your sight-line.
@@ -1101,10 +1099,6 @@ export class B3d extends Component {
       // moved the rig last frame; before any UI reads them this frame).
       frames.update(dt)
       for (const p of bodyPanels) p.update(viewCtx)
-      for (const n of nameplates) {
-        n.ef.update(cam)
-        n.panel.update(viewCtx)
-      }
 
       // getCameraTarget() (not .mesh) — the aircraft's node is `meshNode`, so
       // .mesh is undefined and it would never be chased.
@@ -1296,10 +1290,6 @@ export class B3d extends Component {
         base.sessionManager.onXRFrameObservable.remove(frame)
         panel.dispose()
         for (const p of bodyPanels) p.dispose()
-        for (const n of nameplates) {
-          n.panel.dispose()
-          n.ef.dispose()
-        }
         frames.dispose()
         this.xrFrames = null
         cam.parent = null
@@ -1345,6 +1335,64 @@ export class B3d extends Component {
           ]
         : []
     return [...vr, ...this.scenePanel(this)]
+  }
+
+  // NPC nameplates in ALL contexts (flat + XR): a gaze-revealed label above each
+  // non-player biped. A frame panel already reveals off `scene.activeCamera`, so
+  // the same code works on a monitor and in a headset — no XR-specific wiring.
+  // Created lazily as bipeds' GLBs load (and disposed when they leave), updated
+  // every rendered frame (onBeforeRenderObservable fires in both flat and XR).
+  private _setupNameplates(): void {
+    const scene = this.scene
+    scene.onBeforeRenderObservable.add(() => {
+      const cam = scene.activeCamera as BABYLON.TargetCamera | null
+      if (cam == null) return
+      // Add newly-ready bipeds / drop departed ones only occasionally (querySelector
+      // + set churn shouldn't run every frame).
+      if (this._nameplateScan-- <= 0) {
+        this._nameplateScan = 30
+        this._scanNameplates(cam)
+      }
+      for (let i = 0; i < this._nameplateList.length; i++) {
+        this._nameplateList[i].ef.update(cam)
+        this._nameplateList[i].panel.update()
+      }
+    })
+  }
+
+  private _scanNameplates(cam: BABYLON.TargetCamera): void {
+    const scene = this.scene
+    const seen = new Set<Element>()
+    for (const el of Array.from(this.querySelectorAll('tosi-b3d-biped'))) {
+      const b = el as any
+      if (b.player || b.mesh == null) continue
+      seen.add(el)
+      if (this._nameplates.has(el)) continue
+      const ef = new EntityFrame(scene, b.mesh, {
+        offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
+      })
+      const panel = attachFramePanel(scene, cam, ef.node, {
+        anchor: {
+          position: [0, 0, 0],
+          focus: [0, 0, 1], // faces +Z = toward the viewer (frame turns to face you)
+          revealStartDeg: 26,
+          revealFullDeg: 10,
+        },
+        title: (b.id as string) || 'NPC',
+        width: 0.3,
+        maxDistance: 8, // don't clutter with distant nameplates
+      })
+      this._nameplates.set(el, { ef, panel })
+    }
+    // Drop nameplates whose biped is gone (removed from the DOM / disposed mesh).
+    for (const [el, n] of this._nameplates) {
+      if (!seen.has(el)) {
+        n.panel.dispose()
+        n.ef.dispose()
+        this._nameplates.delete(el)
+      }
+    }
+    this._nameplateList = [...this._nameplates.values()]
   }
 
   private _setupScenePanel(): void {

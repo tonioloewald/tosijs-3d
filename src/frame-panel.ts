@@ -275,8 +275,12 @@ export function attachFramePanel(
         plane.visibility = 1
         return
       }
-      head.copyFrom(cam.globalPosition)
-      cam.getDirectionToRef(XR_FORWARD, fwd)
+      // Gaze-reveal off whatever camera is currently rendering — the flat orbit/
+      // follow camera on a monitor, the headset camera in a session. This is what
+      // lets frame panels (nameplates, HUD) work in NON-VR too, not just XR.
+      const active = (scene.activeCamera as BABYLON.TargetCamera) ?? cam
+      head.copyFrom(active.globalPosition)
+      active.getDirectionToRef(XR_FORWARD, fwd)
       plane.getAbsolutePosition().subtractToRef(head, toAnchor)
       const v = gazeReveal(fwd, toAnchor, cosStart, cosFull)
       plane.visibility = toAnchor.length() > maxDist ? 0 : v
