@@ -28,7 +28,7 @@ function isInsertable(node) {
 function flattenInsertable(nodes, depth = 0, out = []) {
   for (const node of nodes) {
     if (isInsertable(node)) {
-      out.push({ label: '  '.repeat(depth) + node.name, name: node.name })
+      out.push({ label: '- '.repeat(depth) + node.name, name: node.name })
     }
     if (node.children.length) flattenInsertable(node.children, depth + 1, out)
   }

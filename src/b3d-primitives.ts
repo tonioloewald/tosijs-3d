@@ -96,6 +96,7 @@ export class B3dGround extends AbstractMesh {
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     meshName: 'ground',
+    size: 0, // square shortcut; >0 overrides width/height
     width: 4,
     height: 4,
     color: '#888888',
@@ -112,14 +113,17 @@ export class B3dGround extends AbstractMesh {
     this.mesh = BABYLON.MeshBuilder.CreateGround(
       meshName,
       {
-        width: attrs.width,
-        height: attrs.height,
+        width: attrs.size || attrs.width,
+        height: attrs.size || attrs.height,
       },
       scene
     )
     const material = new BABYLON.StandardMaterial(meshName + '-mat', scene)
     material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color)
     this.mesh.material = material
+    // Opt into collisions so character controllers (biped/car) can stand on it —
+    // their grounding probe and moveWithCollisions only see `checkCollisions` meshes.
+    this.mesh.checkCollisions = true
     owner.register({ meshes: [this.mesh] })
   }
 }

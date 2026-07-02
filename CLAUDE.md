@@ -57,6 +57,27 @@ The core coordination mechanism. `B3d` maintains a listener list:
 - Child components call `owner.register({meshes, lights})` when they add content
 - Other components listen via `owner.onSceneAddition(callback)` to react (e.g., reflections adds new meshes to probe render lists, sun adds shadow casters)
 
+### Floating origin
+
+Large worlds drift into float imprecision far from `(0,0,0)`. `B3dTerrain` rebases
+periodically (`resetOrigin`, when the camera passes ~a coarsest-tile distance):
+it shifts its own tiles back toward the origin, then calls **`B3d.shiftOrigin(dx,
+dz)`**, which moves **everything else that carries a world position** by the same
+amount (visually seamless). Any entity that lives in world space MUST opt in or it
+will drift on a reset:
+
+- **`b3d.registerWorldRoot(node)`** / `unregisterWorldRoot` — the entity's world
+  position lives entirely on the node (inert props, targets, parked vehicles); B3d
+  moves the node.
+- **`b3d.onOriginShift((dx,dz) => …)`** / `offOriginShift` — the entity also holds
+  world coordinates in JS (a projectile integrating its own position, remembered
+  target positions, AI memory). It fixes itself (node **and** JS) and must NOT also
+  `registerWorldRoot`.
+
+`shiftOrigin` shifts the camera carrier itself (the piloted entity when one is
+driven — NOT the chase rig, which re-derives from it each frame). Skybox and water
+are viewer/origin-centred and intentionally not shifted.
+
 ### Parent Discovery
 
 Child components find their parent `B3d` via `findB3dOwner(el)` which walks up the DOM looking for an element with `.scene` and `.register` properties (duck typing, not hardcoded tag name). This works regardless of what tag name the consumer chose.
@@ -83,7 +104,27 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 
 ### Aircraft Physics
 
-`aircraft-physics.ts` is a **pure, dependency-free force model** — it uses plain `{x, y, z}` objects (not Babylon Vector3) so it can be unit tested without a 3D engine. The companion `b3d-aircraft.ts` bridges this to Babylon. The force model handles lift, drag, thrust, VTOL transitions, and stall behavior.
+`fly-by-wire.ts` is the aircraft's **pure, dependency-free flight model** — it uses plain `{x, y, z}` objects (not Babylon Vector3) so it can be unit tested without a 3D engine. The companion `b3d-aircraft.ts` bridges it to Babylon. It's the forgiving "drone-that-becomes-a-plane" controller: the stick commands an _attitude_ (bank/pitch) and velocity chases the nose, with a drone/hover regime below `vtolSpeed` and a plane regime above (VTOL transitions, self-levelling, bank-to-turn). Unit-tested headless in `fly-by-wire.test.ts`.
+
+### World Simulation Contract (store ↔ driver ↔ view)
+
+A newer, deliberately-decoupled architecture layer that sits **above** the declarative scene components. It exists so an external driver (an AI narrative engine, a scripted demo — the "Ariosto" use case) can drive a world without the simulation ever knowing about narrative. Three files, three roles:
+
+- **`world-contract.ts`** — the _boundary types only_ (no logic). Defines the serializable `WorldState`, the best-effort `SimulationEvent` stream, and the `WorldApi` surface. Hard rules are baked into the types: the simulation is **narrative-blind** (no `plot`/`quest`/`objective` vocabulary), the driver is **never load-bearing** (the sim runs as a complete sandbox with no driver attached; intents are advisory), and events are **commitments** (intentional acts — interacted/pickedup/chose/died — never proximity).
+- **`world-store.ts`** — pure, **Babylon-free, deterministic** reference implementation. Holds `WorldState`, resolves systemic causality itself, emits events. Determinism is enforced: ids from a counter, time only via `tick()`, **no `Date.now`/`Math.random`** — so it's fully unit-testable and can host a headless driver. Splits methods into `WorldApi` (driver may call) vs. simulation methods (only the engine's own systems call).
+- **`world-view.ts`** — the disposable Babylon **projection**. Watches the store and reconciles one mesh per entity each frame (appeared → create, moved → reposition, forgotten → dispose). Data flows one way, `store → meshes`; the render layer can never desync the sim. Imports Babylon; the store never does. Default factory draws primitives; pass your own `factory` to swap in `b3dBiped`/GLB per entity kind.
+
+The store↔view split mirrors the "keep it pure so it's testable" discipline used for `fly-by-wire`/`perlin-noise`, applied to whole-world state.
+
+### XR Reference Frames & Spatial UI
+
+`xr-frames.ts` maintains a `TransformNode` per **reference frame** so spatial UI can parent to the one it wants: `world`, `rig` (locomotion/vehicle), `body` (torso — head x/z + _damped_ yaw), `neck`, `face` (head-locked), plus sensed hand frames. `body`/`neck` aren't sensed in a head+hands rig, so they're _inferred_ (low-passed yaw, etc.); the yaw-damping/gaze-reveal math is pure and unit-tested.
+
+Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to a frame with gaze-reveal; `b3d-panel.ts` (`b3dPanel`) is the declarative `<tosi-b3d-panel>` wrapper (attributes for frame/azimuth/elevation/preset). If any `<tosi-b3d-panel>` children are present they replace the built-in default set. This is distinct from — and layered over — the `scenePanel` gear-overlay hook described in the WebXR section.
+
+### Ignore these legacy files
+
+`src/reflections.ts`, `src/dynamic-shadows.ts`, and `src/rippling-water.ts` are superseded standalone modules — **not exported from `index.ts` and not referenced anywhere**. Use `b3d-reflections.ts`, `b3d-shadows.ts`, and `b3d-water.ts` instead.
 
 ### Key Files
 
@@ -107,7 +148,18 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 | `src/keyboard-gamepad.ts` | Keyboard/mouse → VirtualGamepad mapping |
 | `src/hardware-gamepad.ts` | Physical gamepad → VirtualGamepad mapping |
 | `src/xr-input-provider.ts` | XR controller input implementation |
+| `src/xr-gamepad.ts` | XR controllers → VirtualGamepad mapping |
+| `src/touch-gamepad.ts` | Touch/pointer SVG virtual gamepad (`data-part` element mapping) |
+| `src/glass-gamepad.ts` | `<tosi-b3d-gamepad>` on-screen glass gamepad component + control parsing |
+| `src/gamepad-svg.ts` / `src/gamepad.ts` | SVG rendering + text/state helpers for the gamepad UI |
 | `src/game-controller.ts` | Legacy keyboard/mouse input with attack/decay smoothing |
+
+**World Simulation (store ↔ driver ↔ view):**
+| File | Purpose |
+| --- | --- |
+| `src/world-contract.ts` | Boundary types: `WorldState`, `SimulationEvent`, `WorldApi` (no logic) |
+| `src/world-store.ts` | Pure, deterministic, Babylon-free reference simulation |
+| `src/world-view.ts` | Babylon projection — one mesh per entity, reconciled `store → meshes` |
 
 **Controllable Entities:**
 | File | Purpose |
@@ -115,7 +167,7 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 | `src/b3d-biped.ts` | Character controller with animation state machine, follow/XR camera |
 | `src/b3d-car.ts` | Vehicle with acceleration, steering, wheel spin, enterability |
 | `src/b3d-aircraft.ts` | Aircraft with VTOL, flight dynamics, follow camera |
-| `src/aircraft-physics.ts` | Pure force model (zero Babylon deps) — lift, drag, thrust, VTOL, stall |
+| `src/fly-by-wire.ts` | Pure "drone-becomes-a-plane" attitude-command flight model (zero Babylon deps), unit-tested |
 
 **Environment & Effects:**
 | File | Purpose |
@@ -139,6 +191,11 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 | --- | --- |
 | `src/svg-texture.ts` | Dynamic SVG → Babylon texture rendering |
 | `src/b3d-svg-plane.ts` | In-scene SVG-based UI planes |
+| `src/widgets3d.ts` / `src/widgets3d-layout.ts` | SVG-native UI widgets (`panel3d`, `slider3d`, …) that work as DOM overlays or in-scene panels; stack layout |
+| `src/xr-frames.ts` | XR reference frames (`world`/`rig`/`body`/`neck`/`face` + hands) for spatial UI |
+| `src/frame-panel.ts` | `attachFramePanel` — SVG panel pinned to an XR frame, gaze-revealed |
+| `src/b3d-panel.ts` | `<tosi-b3d-panel>` declarative spatial-UI panel component |
+| `src/gradient-editor.ts` | Interactive gradient-editing widget |
 | `src/b3d-primitives.ts` | Basic mesh primitives (sphere, ground) |
 | `src/b3d-button.ts` | 3D GUI button |
 | `src/b3d-exploder.ts` | Model exploder (separates mesh parts) |
@@ -150,7 +207,16 @@ Input devices are abstracted through `VirtualGamepad` — a uniform interface wi
 | `src/mersenne-twister.ts` | Seeded PRNG |
 | `src/gradient-filter.ts` | Gradient-based color mapping |
 | `src/surface-sampler.ts` | Surface point sampling |
+| `src/terrain-grid.ts` | Pure LOD terrain-tile grid math (placement/sampling/culling), unit-tested |
+| `src/model-transform.ts` | Babylon-only model frame helpers (`canonicalize`, scale-bake) for spawned models |
+| `src/perf-probe.ts` / `b3d-quality.ts` / `b3d-probe.ts` | Device-capability probe → per-tier `PerfBudgets` (see Adaptive defaults) |
 | `src/b3d-physics.ts` / `jolt-plugin.ts` | Jolt Physics integration layer |
+
+**Combat (pure models + bridges — WIP, spec in `COMBAT-DESIGN.md`):**
+| File | Purpose |
+| --- | --- |
+| `src/resource.ts` | Pure capacity + delayed-regen pool — Destroyable health AND launcher energy |
+| `src/destroyable.ts` | Pure `CombatWorld` — damage (protection/armor), regen, cascading chain reactions; deterministic |
 
 ### Convention-Based Mesh/Light Configuration
 
@@ -195,7 +261,7 @@ So **whenever you find a performance-sensitive default, make it `auto` instead o
 
 **`window.requestAnimationFrame` is suspended during an immersive session** — the browser hands the frame clock to the headset compositor, and rendering is expected to go through `XRSession.requestAnimationFrame` (Babylon switches to this internally). Consequences that bite:
 
-- **tosijs's to-DOM binding flush is rAF-batched, so it STALLS in VR.** Value sets, `.observe()` callbacks, and computed values still run synchronously in a session — but the step that projects an observed change onto the DOM (`bindValue`, attribute reflection like `timeOfDay: demo.time`, the component `render()` a bound change triggers) is coalesced onto `window.requestAnimationFrame` and never flushes while immersive. So the *data* is current but its *DOM projection* freezes. `<tosi-b3d>` works around this with `_installXrRafPump()`: on `IN_XR` it shims `window.requestAnimationFrame` to enqueue callbacks and flushes them from `onXRFrameObservable` each XR frame, restoring on exit. Anything else batching on window-rAF (tweens, other libs) would freeze the same way in a session.
+- **tosijs's to-DOM binding flush is rAF-batched, so it STALLS in VR.** Value sets, `.observe()` callbacks, and computed values still run synchronously in a session — but the step that projects an observed change onto the DOM (`bindValue`, attribute reflection like `timeOfDay: demo.time`, the component `render()` a bound change triggers) is coalesced onto `window.requestAnimationFrame` and never flushes while immersive. So the _data_ is current but its _DOM projection_ freezes. `<tosi-b3d>` works around this with `_installXrRafPump()`: on `IN_XR` it shims `window.requestAnimationFrame` to enqueue callbacks and flushes them from `onXRFrameObservable` each XR frame, restoring on exit. Anything else batching on window-rAF (tweens, other libs) would freeze the same way in a session.
 - **Dual-presence UI — the `scenePanel` hook.** A `b3d({ scenePanel: (host) => Widget3d[] })` hook (widgets from `widgets3d.ts`: `slider3d`, `toggle3d`, `select3d`, `button3d`, `list3d`, `label3d`, `text3d`) renders BOTH as a flat ⚙ gear overlay AND as a floating in-VR panel (`_attachXrPanel`), both binding the same reactive values. This is how demos expose tweakable settings that work inside the headset — prefer it over an HTML overlay of `<input>`s for any in-scene control. The flat panel rebuilds each time the gear opens (so hooks that read async state, like a library mesh list, stay current); `refreshScenePanel()` updates an already-open one. The XR panel routes controller/mouse picks → texture UV → the panel's viewBox coords → `handlePointer` (coordinate-based, not DOM events).
 - **VRAM across sessions:** the Quest browser does not reliably release WebXR GPU resources between enter/exit, so repeated sessions can exhaust VRAM (reticle → checkerboard). Our per-session teardown (`_startDefaultXrExperience`'s disposer) IS complete — verify any new per-session resource is disposed there — but the browser-level retention isn't ours to fix; keep baseline XR VRAM low (render scaling, modest panel/texture resolution).
 
@@ -232,7 +298,7 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 ## Testing Patterns
 
-Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `aircraft-physics.ts` (plain `{x, y, z}` objects, no Babylon) and `perlin-noise.ts` as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly.
+Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.
 
 ## Demo & Docs
 
@@ -240,5 +306,5 @@ Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors 
 - Source files use `/*# */` comments for extractable documentation
 - Assets are in `./static/` and `./demo/static/` (copied to `docs/` during build)
 - Deployed to GitHub Pages with the **publishing source set to `main` branch, `/docs` folder** — `docs/` is the web root. The build emits root-absolute asset paths (`/iife.js`, etc.) and writes `CNAME` + `.nojekyll` into `docs/`, so the Pages source must be `/docs`, not `/` (serving from root 404s every asset).
-- **`/*# */` examples run through the tjs-lang transpiler, which has a bug: reassigning an ALL-UPPERCASE identifier (`B = BABYLON`) is rewritten to `const B = …`, shadowing a module-level `let B` so it reads null in other functions. Don't alias `BABYLON` (or anything) to an all-caps name and reassign it in a callback — pass it as a parameter, or use a lowercase alias (`babylon`). (Bit the exploder/physics demos; being fixed upstream in tjs-lang.)
+- \*_`/_# \*/` examples run through the tjs-lang transpiler, which has a bug: reassigning an ALL-UPPERCASE identifier (`B = BABYLON`) is rewritten to `const B = …`, shadowing a module-level `let B`so it reads null in other functions. Don't alias`BABYLON` (or anything) to an all-caps name and reassign it in a callback — pass it as a parameter, or use a lowercase alias (`babylon`). (Bit the exploder/physics demos; being fixed upstream in tjs-lang.)
 - **Put tweakable demo controls in the `scenePanel` hook, not an HTML overlay** (see WebXR section) so they work in VR. Keep only pure readouts / text-entry (no VR keyboard) as slim flat overlays.

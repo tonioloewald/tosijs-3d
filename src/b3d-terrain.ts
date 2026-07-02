@@ -497,7 +497,7 @@ export class B3dTerrain extends Component {
       this.coarsestTileSize()
     )
     if (camX * camX + camZ * camZ > resetDist * resetDist) {
-      this.resetOrigin(camX, camZ, camera)
+      this.resetOrigin(camX, camZ)
       return
     }
 
@@ -842,7 +842,7 @@ export class B3dTerrain extends Component {
 
   // --- Floating origin ---
 
-  private resetOrigin(camX: number, camZ: number, camera: BABYLON.Camera) {
+  private resetOrigin(camX: number, camZ: number) {
     // Rebase on the COARSEST tile so the shift is a whole number of tiles at every
     // level — each placed cell's grid index stays integer through the shift.
     const coarsest = this.coarsestTileSize()
@@ -860,29 +860,16 @@ export class B3dTerrain extends Component {
       }
     }
 
-    // Shift whatever actually carries WORLD POSITION through the scene. When a
-    // controllable is being driven, IT integrates its own position (the aircraft/
-    // biped moves its node) — so that node is the real carrier and must be shifted.
-    //
-    // Crucially do NOT just shift camera.parent: in VR that's the chase RIG, which
-    // re-derives its position from the piloted entity every frame. Shifting the rig
-    // is overwritten next frame, the camera stays put at its far-from-origin point,
-    // so the reset condition stays true and re-fires EVERY frame — a runaway that
-    // flings the tiles away and thrashes the pool (1–2 fps). Shifting the piloted
-    // entity is also the only thing that drops globalPosition below the threshold.
-    //
-    // Fall back to the camera's carrier (the rig in free-walk, else the camera
-    // itself) when nothing is being driven. Both the tiles and the carrier shift by
-    // the same amount, so relative positions are preserved — visually seamless.
-    const focused = (this.owner as any)?.querySelector?.(
-      'tosi-b3d-input-focus'
-    )?.focused
-    const piloted =
-      (focused?.getCameraTarget?.() as BABYLON.TransformNode | null) ?? null
-    const carrier =
-      piloted ?? (camera.parent as BABYLON.TransformNode | null) ?? camera
-    carrier.position.x -= shiftX
-    carrier.position.z -= shiftZ
+    // We've rebased our own tiles. Now shift everything ELSE that carries a WORLD
+    // position by the same amount, so all relative positions are preserved and the
+    // move is visually seamless. The owner (B3d) knows the full set: the camera
+    // carrier (the piloted entity when one is driven — NOT the chase rig, which
+    // re-derives from it each frame; else the camera's parent; else the camera),
+    // every registered world root (targets, props, other vehicles), and every
+    // onOriginShift listener (projectiles etc. that also hold JS-side coordinates).
+    // Shifting the piloted entity is what drops the camera's globalPosition back
+    // below the reset threshold, so the reset doesn't re-fire.
+    this.owner?.shiftOrigin(shiftX, shiftZ)
 
     this.originOffsetX += shiftX
     this.originOffsetZ += shiftZ
