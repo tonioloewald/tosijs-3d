@@ -625,6 +625,49 @@ export class B3d extends Component {
     this.engine.setHardwareScalingLevel(qualityBudgets({ xr }).hardwareScaling)
   }
 
+  // window.requestAnimationFrame stops firing during an immersive XR session (the
+  // session's own frame loop drives rendering instead). tosijs batches component
+  // re-renders via rAF, so REACTIVE ATTRIBUTE BINDINGS — a skybox's `timeOfDay`
+  // bound to a slider, say — silently stop updating in VR (an explicit `.observe()`
+  // still fires, which is why some controls worked and others didn't). Intercept
+  // rAF while in-session and flush its callbacks from the XR frame loop; restore on
+  // exit. Babylon renders via the XR session's rAF (not window's), so its loop is
+  // untouched. Returns a restore function.
+  private _installXrRafPump(base: BABYLON.WebXRExperienceHelper): () => void {
+    const realRaf = window.requestAnimationFrame.bind(window)
+    const realCancel = window.cancelAnimationFrame.bind(window)
+    let queue: Array<{ id: number; cb: FrameRequestCallback }> = []
+    let nextId = 1
+    window.requestAnimationFrame = (cb: FrameRequestCallback): number => {
+      const id = nextId++
+      queue.push({ id, cb })
+      return id
+    }
+    window.cancelAnimationFrame = (id: number): void => {
+      queue = queue.filter((q) => q.id !== id)
+    }
+    const pump = () => {
+      if (queue.length === 0) return
+      const due = queue
+      queue = []
+      const now = performance.now()
+      for (const { cb } of due) {
+        try {
+          cb(now)
+        } catch (err) {
+          console.warn('rAF callback failed during XR', err)
+        }
+      }
+    }
+    const obs = base.sessionManager.onXRFrameObservable.add(pump)
+    return () => {
+      base.sessionManager.onXRFrameObservable.remove(obs)
+      window.requestAnimationFrame = realRaf
+      window.cancelAnimationFrame = realCancel
+      pump() // flush anything queued just before exit
+    }
+  }
+
   connectedCallback(): void {
     super.connectedCallback()
     const cnv = this.parts.canvas as HTMLCanvasElement
@@ -807,6 +850,7 @@ export class B3d extends Component {
     // exit. On entry we stand the viewer on a walkable floor and wire stick
     // locomotion; on exit we tear it down.
     let xrSession: { dispose: () => void } | undefined
+    let restoreRaf: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
       vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR'
@@ -814,11 +858,15 @@ export class B3d extends Component {
         // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
         // back to the flat one on exit (the cheap lever that's safe to change live).
         this._applyHardwareScaling(true)
+        // Keep tosijs's rAF-batched reactive bindings flushing while in-session.
+        restoreRaf ??= this._installXrRafPump(base)
         xrSession ??= this._startDefaultXrExperience(base, controllers)
       } else if (state === BABYLON.WebXRState.NOT_IN_XR) {
         this._applyHardwareScaling(false)
         xrSession?.dispose()
         xrSession = undefined
+        restoreRaf?.()
+        restoreRaf = undefined
       }
     })
     // The button is part of the template (hidden) — reveal it now that an XR

@@ -198,6 +198,7 @@ export declare class B3d extends Component {
     private static _probeStarted;
     private _setupQuality;
     private _applyHardwareScaling;
+    private _installXrRafPump;
     connectedCallback(): void;
     private _setupXR;
     private _startDefaultXrExperience;
