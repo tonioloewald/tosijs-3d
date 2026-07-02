@@ -276,11 +276,19 @@ export class B3d extends Component {
     ':host .babylonVRicon:hover': {
       transform: 'scale(1.1)',
     },
-    ':host .enter-vr-button': {
+    // Toolbar groups the gear + Enter VR at top-LEFT (demos pin text overlays
+    // top-right, so the left keeps this clear of them). Flex row so children pack
+    // together and a hidden one leaves no gap.
+    ':host .scene-toolbar': {
       position: 'absolute',
-      top: '16px',
-      left: '16px',
+      top: '12px',
+      left: '12px',
       zIndex: '20',
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '8px',
+    },
+    ':host .enter-vr-button': {
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
@@ -301,12 +309,6 @@ export class B3d extends Component {
       transform: 'scale(1.05)',
     },
     ':host .scene-panel-gear': {
-      position: 'absolute',
-      // Top-LEFT: demos conventionally pin their text/status overlays top-right,
-      // so the gear lived right under them and overlapped. Left keeps it clear.
-      top: '12px',
-      left: '12px',
-      zIndex: '20',
       width: '40px',
       height: '40px',
       display: 'flex',
@@ -342,27 +344,31 @@ export class B3d extends Component {
   content = [
     div({ class: 'spinner', part: 'spinner' }),
     canvas({ part: 'canvas' }),
-    button(
-      {
-        class: 'enter-vr-button',
-        part: 'enterVrButton',
-        type: 'button',
-        hidden: true,
-      },
-      'Enter VR'
-    ),
-    // Scene-panel surface: gear toggle + overlay host. Both live in the template
-    // (dynamically appending to the shadow root doesn't reliably persist); the
-    // host is populated by _setupScenePanel only when a scenePanel is supplied.
-    button(
-      {
-        class: 'scene-panel-gear',
-        part: 'scenePanelGear',
-        type: 'button',
-        title: 'Scene settings',
-        hidden: true,
-      },
-      '⚙'
+    // Top-left toolbar grouping the gear (scene settings) and the Enter VR button
+    // side by side — so VR availability is obvious, and Enter VR is never a panel
+    // row that could scroll/clip. Each child reveals itself when relevant. (Both
+    // live in the template — appending to the shadow root later doesn't persist.)
+    div(
+      { class: 'scene-toolbar', part: 'sceneToolbar' },
+      button(
+        {
+          class: 'scene-panel-gear',
+          part: 'scenePanelGear',
+          type: 'button',
+          title: 'Scene settings',
+          hidden: true,
+        },
+        '⚙'
+      ),
+      button(
+        {
+          class: 'enter-vr-button',
+          part: 'enterVrButton',
+          type: 'button',
+          hidden: true,
+        },
+        'Enter VR'
+      )
     ),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
     slot(),
@@ -484,11 +490,7 @@ export class B3d extends Component {
   // share it; the render loop advances it (regen + chain reactions) each frame.
   readonly combat = new CombatWorld()
 
-  // XR availability (set once the default XR experience confirms a session is
-  // possible) + whether the flat gear panel's click handler is wired. Enter VR
-  // lives IN the gear menu (parallel to Exit VR in the in-headset panel), so the
-  // gear is revealed once XR is available even with no scenePanel widgets.
-  private _xrAvailable = false
+  // Whether the flat gear panel's click handler is wired (idempotent setup).
   private _scenePanelWired = false
 
   // NPC nameplates, live in flat AND XR. Keyed by biped element; a cached list is
@@ -952,9 +954,6 @@ export class B3d extends Component {
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
       vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR'
-      // Keep the flat gear panel's Enter VR row in sync (it hides in-session,
-      // returns on exit) if the panel happens to be open.
-      this.refreshScenePanel()
       if (state === BABYLON.WebXRState.IN_XR) {
         // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
         // back to the flat one on exit (the cheap lever that's safe to change live).
@@ -970,11 +969,10 @@ export class B3d extends Component {
         restoreRaf = undefined
       }
     })
-    // XR is available. Enter VR now lives in the gear menu (parallel to Exit VR
-    // in the in-headset panel), so reveal the gear instead of the standalone
-    // button — which stays hidden, avoiding the top-left overlap with the gear.
-    this._xrAvailable = true
-    this._setupScenePanel()
+    // XR is available — reveal the Enter VR button (grouped next to the gear in the
+    // scene toolbar, so it's obvious when VR is available and never clipped by the
+    // panel's scroll).
+    vrButton.hidden = false
   }
 
   // The built-in XR experience used when no `setupXr` hook is supplied: stand
@@ -1344,28 +1342,6 @@ export class B3d extends Component {
   // contents depend on async state — e.g. a library mesh-picker list that only
   // exists after the GLB loads — is always current when you open it. (The in-XR
   // panel likewise re-invokes the hook when it's built on VR entry.)
-  // Rows for the flat gear panel: an "Enter VR" button first when XR is available
-  // and we're not already in a session (parallels the in-headset "Exit VR"),
-  // followed by whatever the scenePanel hook supplies. Enter VR from here is a
-  // valid user gesture — button3d fires onClick on a real DOM pointerup.
-  private _flatPanelRows(): Widget3d[] {
-    const vr =
-      this._xrAvailable && !this.xrActive
-        ? [
-            button3d({
-              label: 'Enter VR',
-              onClick: () => {
-                void this.xrHelper?.baseExperience?.enterXRAsync(
-                  'immersive-vr',
-                  'local-floor'
-                )
-              },
-            }),
-          ]
-        : []
-    return [...vr, ...this.scenePanel(this)]
-  }
-
   // NPC nameplates in ALL contexts (flat + XR): a gaze-revealed label above each
   // non-player biped. A frame panel already reveals off `scene.activeCamera`, so
   // the same code works on a monitor and in a headset — no XR-specific wiring.
@@ -1431,16 +1407,17 @@ export class B3d extends Component {
       this._scenePanelWired = true
       gear.addEventListener('click', () => {
         if (host.hasAttribute('hidden')) {
-          host.replaceChildren(this._makePanel(this._flatPanelRows()))
+          host.replaceChildren(this._makePanel(this.scenePanel(this)))
           host.removeAttribute('hidden')
         } else {
           host.setAttribute('hidden', '')
         }
       })
     }
-    // Reveal the gear when there's anything to surface: scenePanel widgets, or an
-    // Enter-VR affordance once XR is known available. (Re-called when XR resolves.)
-    if (this.scenePanel(this).length > 0 || this._xrAvailable) {
+    // Reveal the gear only when the scenePanel hook actually supplies widgets.
+    // (Enter VR is a SEPARATE button grouped next to the gear — see the toolbar —
+    // so XR availability no longer gates the gear.)
+    if (this.scenePanel(this).length > 0) {
       gear.hidden = false
     }
   }
@@ -1451,7 +1428,7 @@ export class B3d extends Component {
   refreshScenePanel(): void {
     const host = this.parts?.scenePanelHost as HTMLElement | undefined
     if (host && !host.hasAttribute('hidden')) {
-      host.replaceChildren(this._makePanel(this._flatPanelRows()))
+      host.replaceChildren(this._makePanel(this.scenePanel(this)))
     }
   }
 

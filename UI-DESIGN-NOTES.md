@@ -209,7 +209,27 @@ _earlier (see `git log`)_
 
 ## Open issues / to investigate
 
-- _(none open)_
+- **Time-of-day slider dead on FIRST XR entry** (b3d demo) — works after exit +
+  re-enter, works flat either way. Smells like a first-session rAF-pump timing gap:
+  the `demo.time → skybox.timeOfDay` projection is window-rAF-batched and the first
+  projection may be scheduled with the real rAF before `_installXrRafPump` shims it
+  (or the binding isn't warm until the 2nd session). Fix idea: flush/re-subscribe
+  bound projections right after the pump installs on IN_XR. (XR-only; TODO.md Bugs.)
+
+## Affordances vs. panel content
+
+- **Always-available affordances go in a fixed toolbar, not as scrollable panel
+  rows.** Enter VR started as a row inside the flat gear panel; in the library demo
+  (a long scrolling list) it scrolled up and clipped, and it wasn't obvious VR was
+  available. Fix: a fixed top-left **toolbar** grouping the gear + Enter VR side by
+  side — visible, never clipped, obviously present. Lesson: a control the user must
+  always be able to reach (enter VR, exit, home) belongs in chrome, not in
+  scrollable content.
+- **Emoji as button glyphs:** emoji render in SVG `<text>` and rasterize to texture
+  in modern browsers — a fine quick-glyph alternative to icons (the ⚙ gear relies on
+  it). Caveats: color-emoji rasterization varies by platform and they **can't be
+  recolored/themed** (multicolor glyphs). For accent-following monochrome icons, use
+  SVG paths.
 
 ## Resolved
 
