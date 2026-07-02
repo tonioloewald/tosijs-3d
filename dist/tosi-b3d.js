@@ -135,7 +135,7 @@ document.body.append(
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
 /*{ "parent": "Core" }*/
-import { Component, elements } from 'tosijs';
+import { Component, elements, updates } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import { GridMaterial } from '@babylonjs/materials';
@@ -816,6 +816,14 @@ export class B3d extends Component {
                     await base.exitXRAsync();
                 }
                 else {
+                    // Flush any pending tosijs renders WHILE flat rAF still works, so no
+                    // component's per-element `_renderQueued` flag is left stranded when the
+                    // immersive session suspends window.requestAnimationFrame. Otherwise a
+                    // component with a render already queued at entry (e.g. the skybox, whose
+                    // realtimeScale setInterval constantly queues one) never schedules
+                    // another render in-session and its reactive bindings freeze — the
+                    // "time-of-day slider dead on first XR entry" bug.
+                    await updates();
                     await base.enterXRAsync('immersive-vr', 'local-floor');
                 }
             }
