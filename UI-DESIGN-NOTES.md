@@ -216,11 +216,18 @@ _earlier (see `git log`)_
   `window.requestAnimationFrame`**, that callback is stranded → the flag stays
   `true` forever → the component never schedules another render → the rAF pump
   never sees it → its bindings freeze for the whole session. This bit the b3d
-  time-of-day slider ("dead on first XR entry"): the skybox's `realtimeScale`
-  `setInterval` constantly queues a render, so there's almost always one pending at
-  entry. **Fix:** `await updates()` (tosijs's flush, built for exactly this) in the
-  Enter-VR flow BEFORE `enterXRAsync`, while flat rAF still works — nothing left
-  stranded.
+  time-of-day slider ("does nothing in XR until you exit"): the skybox's
+  `realtimeScale` `setInterval` **perpetually re-queues** render(), so a render is
+  always stranded when the session suspends rAF → `updateSky()` (gated behind
+  render()) never runs in-session; the data (`demo.time`) is current, only the
+  visual is frozen (it "takes effect" the instant you exit and the stranded render
+  fires). Diagnostic tell: the sibling **toggle works in XR** — so bindings DO
+  flush via the pump; the freeze was skybox-specific. **`await updates()` before
+  entry can NOT fix a component with a continuous interval** (it re-queues
+  immediately). **Real fix:** drive the visual off the **scene frame loop**, not
+  tosijs render() — the skybox now calls `updateSky()` from its per-frame
+  `onBeforeRenderObservable` observer (fires in flat AND XR), gated on a timeOfDay
+  change. (`await updates()` before `enterXRAsync` kept as general hygiene.)
 - **FOOTGUN (general): XR suspending `window.requestAnimationFrame` breaks ANY UI
   code that batches on it** — not just tosijs. Tweens, debounced/throttled layout,
   virtualized lists, IntersectionObserver-driven reveals, CSS-JS animation loops,
