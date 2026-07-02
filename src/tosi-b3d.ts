@@ -4,18 +4,6 @@
 The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 must be children of a `b3d` element.
 
-## Attributes
-
-| Attribute | Default | Description |
-|-----------|---------|-------------|
-| `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
-| `frameRate` | `30` | Target frame rate |
-| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
-| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
-| `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
-| `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
-| `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
-
 ## Demo
 
 ```js
@@ -133,6 +121,18 @@ document.body.append(
   )
 )
 ```
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
+| `frameRate` | `30` | Target frame rate |
+| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
+| `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
+| `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
+| `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
 /*{ "parent": "Core" }*/
 
@@ -1066,6 +1066,10 @@ export class B3d extends Component {
     const side = new BABYLON.Vector3()
     const head = new BABYLON.Vector3()
     const tmp = new BABYLON.Vector3()
+    // Thumbstick-scroll: a controller pointing at the scrollable panel scrolls it
+    // with its stick (that stick is then withheld from locomotion for the frame).
+    const scrollRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Up())
+    const SCROLL_SPEED = 600 // panel viewBox units / sec at full stick
     // Chase-cam follow state (ported from the biped's XR camera): smoothly track
     // the piloted entity's position AND facing, with head-tracking compensation.
     const chasePos = new BABYLON.Vector3()
@@ -1252,8 +1256,33 @@ export class B3d extends Component {
 
       const left = controllers['left']?.['xr-standard-thumbstick']?.axes
       const right = controllers['right']?.['xr-standard-thumbstick']?.axes
+
+      // Thumbstick scroll: if a controller's ray hits the (scrollable, visible)
+      // panel, its stick Y scrolls the panel and is withheld from locomotion.
+      let leftScroll = false
+      let rightScroll = false
+      if (panel.scrollable && panel.plane.visibility > 0.5) {
+        const inputs = this.xrHelper?.input?.controllers ?? []
+        for (const src of inputs) {
+          src.getWorldPointerRayToRef(scrollRay)
+          if (!scene.pickWithRay(scrollRay, (m) => m === panel.plane)?.hit) {
+            continue
+          }
+          const hand = src.inputSource?.handedness
+          const axes =
+            controllers[hand as 'left' | 'right']?.['xr-standard-thumbstick']
+              ?.axes
+          if (axes != null && Math.abs(axes.y) > DEAD) {
+            panel.scrollBy(axes.y * SCROLL_SPEED * dt)
+          }
+          if (hand === 'left') leftScroll = true
+          else if (hand === 'right') rightScroll = true
+        }
+      }
+
       if (
         left != null &&
+        !leftScroll &&
         (Math.abs(left.x) > DEAD || Math.abs(left.y) > DEAD)
       ) {
         // Walk relative to where the head currently faces (flattened to floor).
@@ -1269,10 +1298,10 @@ export class B3d extends Component {
         side.scaleToRef(left.x * step, tmp)
         rig.position.addInPlace(tmp)
       }
-      if (right != null && Math.abs(right.y) > DEAD) {
+      if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend
       }
-      if (right != null && Math.abs(right.x) > DEAD) {
+      if (right != null && !rightScroll && Math.abs(right.x) > DEAD) {
         // Smooth-turn around the head (not the rig origin) so you spin in place
         // rather than orbiting when you've stepped off-centre. Rotate, then nudge
         // the rig so the head's world XZ is unchanged.
@@ -1451,6 +1480,9 @@ export class B3d extends Component {
     anchorFrame: BABYLON.TransformNode
   ): {
     dispose: () => void
+    plane: BABYLON.AbstractMesh
+    scrollBy: (dy: number) => void
+    scrollable: boolean
   } {
     const scene = this.scene
     // In-scene panel always carries an Exit-VR button (you can't reach a DOM
@@ -1466,6 +1498,8 @@ export class B3d extends Component {
     ]
     const panelEl = this._makePanel(rows) as SVGSVGElement & {
       handlePointer?: (kind: string, x: number, y: number) => void
+      scrollBy?: (dy: number) => void
+      scrollable?: boolean
     }
     const vb = panelEl.viewBox.baseVal
 
@@ -1575,6 +1609,9 @@ export class B3d extends Component {
     })
 
     return {
+      plane,
+      scrollable: !!panelEl.scrollable,
+      scrollBy: (dy: number) => panelEl.scrollBy?.(dy),
       dispose() {
         base.sessionManager.onXRFrameObservable.remove(frame)
         scene.onPointerObservable.remove(obs)

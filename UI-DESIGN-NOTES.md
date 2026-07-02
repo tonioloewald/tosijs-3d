@@ -36,23 +36,23 @@ to absolute.
 - `TouchGamepadSource` went coordinate-based (`handlePointer`) specifically to be
   VR-ready; SVG elements are identified by `data-part` (not `id`) so multiple
   instances coexist.
-- **Thumbstick scroll on pointed-at VR panels (desired UX).** When a controller is
-  pointing at a scrollable UI panel in VR, EITHER thumbstick should scroll it
-  (pointing precisely + drag-scrolling is fiddly in a headset). Enabler added:
-  `panel3d` now exposes `scrollBy(dy)` + a `scrollable` flag (widgets3d.ts). Wiring
-  TODO: per XR frame, if a controller ray hits a panel plane, route that stick's Y
-  to `panel.scrollBy` and suppress its locomotion contribution for that frame
-  (coordinate with the locomotion loop in `_startDefaultXrExperience`). General
-  principle: in VR, prefer **coarse, always-available inputs (sticks)** for
-  panel actions over precise pointing/dragging.
+- **Thumbstick scroll on pointed-at VR panels (DONE).** When a controller's ray
+  hits a scrollable panel in VR, that stick's Y scrolls it and is withheld from
+  locomotion for the frame (pointing precisely + drag-scrolling is fiddly in a
+  headset). `panel3d` exposes `scrollBy(dy)` + a `scrollable` flag;
+  `_attachXrPanel` exposes the plane; the XR loop ray-picks each controller and
+  routes the stick. General principle: in VR, prefer **coarse, always-available
+  inputs (sticks)** for panel actions over precise pointing/dragging.
 
-### Spatial UI should not be XR-only
-- Panels/labels built on `xr-frames` (e.g. **NPC nameplates** via `EntityFrame` +
-  `attachFramePanel`) are currently created only inside `_startDefaultXrExperience`,
-  so they vanish on flat screens. They should render in **non-VR** contexts too
-  (billboard to the active camera, gaze/proximity-reveal off the flat camera) — the
-  same spatial-UI value applies on a monitor. Refactor: create + update these
-  outside the XR-only path.
+### Spatial UI is NOT XR-only (fixed)
+- A frame panel gaze-reveals off `scene.activeCamera`, so nothing about it is
+  inherently XR — it works on a monitor too. **NPC nameplates** (`EntityFrame` +
+  `attachFramePanel`) now render in flat AND XR via a general `_setupNameplates`
+  manager (out of the XR-only `_startDefaultXrExperience`), updated each rendered
+  frame (`onBeforeRenderObservable` fires in both). Lesson: build spatial UI
+  camera-agnostic (active camera, one update path) from the start — don't wire it to
+  the XR camera/loop. Other xr-frames UI (dialogue balloons, lock-on brackets)
+  should follow the same pattern.
 
 ### Attach UI to a _stable frame of reference_ (`xr-frames`)
 
