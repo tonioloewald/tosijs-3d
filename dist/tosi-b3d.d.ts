@@ -183,6 +183,9 @@ export declare class B3d extends Component {
     readonly combat: CombatWorld;
     private _xrAvailable;
     private _scenePanelWired;
+    private _nameplates;
+    private _nameplateList;
+    private _nameplateScan;
     registerWorldRoot(node: BABYLON.TransformNode): void;
     unregisterWorldRoot(node: BABYLON.TransformNode): void;
     onOriginShift(callback: (dx: number, dz: number) => void): void;
@@ -224,6 +227,8 @@ export declare class B3d extends Component {
     private _startDefaultXrExperience;
     private _makePanel;
     private _flatPanelRows;
+    private _setupNameplates;
+    private _scanNameplates;
     private _setupScenePanel;
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,

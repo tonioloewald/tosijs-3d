@@ -32,51 +32,6 @@
 <h1>b3d</h1>
 <p>The root 3D scene container. All other components (<code>b3dSun</code>, <code>b3dSkybox</code>, <code>b3dLoader</code>, etc.)
 must be children of a <code>b3d</code> element.</p>
-<h2>Attributes</h2>
-<table>
-<thead>
-<tr>
-<th>Attribute</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>glowLayerIntensity</code></td>
-<td><code>0</code></td>
-<td>Glow effect intensity (0 = off)</td>
-</tr>
-<tr>
-<td><code>frameRate</code></td>
-<td><code>30</code></td>
-<td>Target frame rate</td>
-</tr>
-<tr>
-<td><code>no-xr</code></td>
-<td><code>false</code></td>
-<td>Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)</td>
-</tr>
-<tr>
-<td><code>gamepad</code></td>
-<td>absent</td>
-<td>When present, mount the on-screen glass gamepad wired into the input system. Bare/<code>true</code> = full layout; a value like <code>&quot;a,b,left_stick&quot;</code> selects controls</td>
-</tr>
-<tr>
-<td><code>gamepadScale</code></td>
-<td><code>1</code></td>
-<td>Scale factor for the glass gamepad clusters</td>
-</tr>
-<tr>
-<td><code>minElevation</code> / <code>maxElevation</code></td>
-<td><code>5</code> / <code>70</code></td>
-<td>Default orbit-camera elevation limits (degrees above the horizon)</td>
-</tr>
-<tr>
-<td><code>minDistance</code> / <code>maxDistance</code></td>
-<td><code>2</code> / <code>50</code></td>
-<td>Default orbit-camera zoom limits</td>
-</tr>
-</tbody></table>
 <h2>Demo</h2>
 <pre><code class="language-js">import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
@@ -188,6 +143,51 @@ document.body.append(
   )
 )
 </code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>glowLayerIntensity</code></td>
+<td><code>0</code></td>
+<td>Glow effect intensity (0 = off)</td>
+</tr>
+<tr>
+<td><code>frameRate</code></td>
+<td><code>30</code></td>
+<td>Target frame rate</td>
+</tr>
+<tr>
+<td><code>no-xr</code></td>
+<td><code>false</code></td>
+<td>Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)</td>
+</tr>
+<tr>
+<td><code>gamepad</code></td>
+<td>absent</td>
+<td>When present, mount the on-screen glass gamepad wired into the input system. Bare/<code>true</code> = full layout; a value like <code>&quot;a,b,left_stick&quot;</code> selects controls</td>
+</tr>
+<tr>
+<td><code>gamepadScale</code></td>
+<td><code>1</code></td>
+<td>Scale factor for the glass gamepad clusters</td>
+</tr>
+<tr>
+<td><code>minElevation</code> / <code>maxElevation</code></td>
+<td><code>5</code> / <code>70</code></td>
+<td>Default orbit-camera elevation limits (degrees above the horizon)</td>
+</tr>
+<tr>
+<td><code>minDistance</code> / <code>maxDistance</code></td>
+<td><code>2</code> / <code>50</code></td>
+<td>Default orbit-camera zoom limits</td>
+</tr>
+</tbody></table>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

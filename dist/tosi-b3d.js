@@ -4,18 +4,6 @@
 The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 must be children of a `b3d` element.
 
-## Attributes
-
-| Attribute | Default | Description |
-|-----------|---------|-------------|
-| `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
-| `frameRate` | `30` | Target frame rate |
-| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
-| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
-| `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
-| `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
-| `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
-
 ## Demo
 
 ```js
@@ -133,6 +121,18 @@ document.body.append(
   )
 )
 ```
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `glowLayerIntensity` | `0` | Glow effect intensity (0 = off) |
+| `frameRate` | `30` | Target frame rate |
+| `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
+| `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
+| `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
+| `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
+| `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
 /*{ "parent": "Core" }*/
 import { Component, elements } from 'tosijs';
@@ -435,6 +435,12 @@ export class B3d extends Component {
     // gear is revealed once XR is available even with no scenePanel widgets.
     _xrAvailable = false;
     _scenePanelWired = false;
+    // NPC nameplates, live in flat AND XR. Keyed by biped element; a cached list is
+    // iterated per frame (no per-frame allocation), and a throttled scan adds/removes
+    // as bipeds' GLBs load or leave.
+    _nameplates = new Map();
+    _nameplateList = [];
+    _nameplateScan = 0;
     registerWorldRoot(node) {
         this._worldRoots.add(node);
     }
@@ -738,6 +744,8 @@ export class B3d extends Component {
             // Mount the gear-toggled DOM-overlay settings panel (flat screens). The
             // in-scene XR copy is built on session entry.
             this._setupScenePanel();
+            // NPC nameplates (above non-player bipeds), in flat AND XR.
+            this._setupNameplates();
             // Fade in canvas once all pending file loads complete and shaders compile.
             // Falls back to revealing after assets load even if shaders are still
             // compiling, to avoid an indefinitely hidden canvas.
@@ -890,29 +898,9 @@ export class B3d extends Component {
         // Body-anchored panels (inventory over the shoulders, quick-access at the
         // waist), pinned to their frame and revealed by looking toward them.
         const bodyPanels = this.bodyPanels(this).map((spec) => attachFramePanel(scene, cam, frames.get(spec.frame ?? 'body'), spec));
-        // Entity-pinned nameplates: a label over each non-player biped, on a frame
-        // that turns to face you, revealed only when you look at them. The basis for
-        // dialogue balloons and lock-on brackets.
-        const nameplates = Array.from(this.querySelectorAll('tosi-b3d-biped'))
-            .map((el) => el)
-            .filter((b) => !b.player && b.mesh != null)
-            .map((b) => {
-            const ef = new EntityFrame(scene, b.mesh, {
-                offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
-            });
-            const panel = attachFramePanel(scene, cam, ef.node, {
-                anchor: {
-                    position: [0, 0, 0],
-                    focus: [0, 0, 1], // faces +Z = toward you (the frame turns to you)
-                    revealStartDeg: 26,
-                    revealFullDeg: 10,
-                },
-                title: b.id || 'NPC',
-                width: 0.3,
-                maxDistance: 8, // don't clutter the view with distant nameplates
-            });
-            return { ef, panel };
-        });
+        // NPC nameplates run in a GENERAL manager now (flat + XR) — see
+        // _setupNameplates() — since a frame panel gaze-reveals off the active camera
+        // and works on a monitor too, not just in a headset. Not created here.
         // The in-scene settings panel (with an Exit-VR button), anchored to the eye
         // frame 60° up so it sits consistently above your sight-line.
         const panel = this._attachXrPanel(base, frames.eye);
@@ -948,6 +936,10 @@ export class B3d extends Component {
         const side = new BABYLON.Vector3();
         const head = new BABYLON.Vector3();
         const tmp = new BABYLON.Vector3();
+        // Thumbstick-scroll: a controller pointing at the scrollable panel scrolls it
+        // with its stick (that stick is then withheld from locomotion for the frame).
+        const scrollRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Up());
+        const SCROLL_SPEED = 600; // panel viewBox units / sec at full stick
         // Chase-cam follow state (ported from the biped's XR camera): smoothly track
         // the piloted entity's position AND facing, with head-tracking compensation.
         const chasePos = new BABYLON.Vector3();
@@ -982,10 +974,6 @@ export class B3d extends Component {
             frames.update(dt);
             for (const p of bodyPanels)
                 p.update(viewCtx);
-            for (const n of nameplates) {
-                n.ef.update(cam);
-                n.panel.update(viewCtx);
-            }
             // getCameraTarget() (not .mesh) — the aircraft's node is `meshNode`, so
             // .mesh is undefined and it would never be chased.
             const piloted = entity?.crashed
@@ -1114,7 +1102,31 @@ export class B3d extends Component {
             }
             const left = controllers['left']?.['xr-standard-thumbstick']?.axes;
             const right = controllers['right']?.['xr-standard-thumbstick']?.axes;
+            // Thumbstick scroll: if a controller's ray hits the (scrollable, visible)
+            // panel, its stick Y scrolls the panel and is withheld from locomotion.
+            let leftScroll = false;
+            let rightScroll = false;
+            if (panel.scrollable && panel.plane.visibility > 0.5) {
+                const inputs = this.xrHelper?.input?.controllers ?? [];
+                for (const src of inputs) {
+                    src.getWorldPointerRayToRef(scrollRay);
+                    if (!scene.pickWithRay(scrollRay, (m) => m === panel.plane)?.hit) {
+                        continue;
+                    }
+                    const hand = src.inputSource?.handedness;
+                    const axes = controllers[hand]?.['xr-standard-thumbstick']
+                        ?.axes;
+                    if (axes != null && Math.abs(axes.y) > DEAD) {
+                        panel.scrollBy(axes.y * SCROLL_SPEED * dt);
+                    }
+                    if (hand === 'left')
+                        leftScroll = true;
+                    else if (hand === 'right')
+                        rightScroll = true;
+                }
+            }
             if (left != null &&
+                !leftScroll &&
                 (Math.abs(left.x) > DEAD || Math.abs(left.y) > DEAD)) {
                 // Walk relative to where the head currently faces (flattened to floor).
                 cam.getDirectionToRef(XR_FORWARD, fwd);
@@ -1129,10 +1141,10 @@ export class B3d extends Component {
                 side.scaleToRef(left.x * step, tmp);
                 rig.position.addInPlace(tmp);
             }
-            if (right != null && Math.abs(right.y) > DEAD) {
+            if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
                 rig.position.y += -right.y * VERT_SPEED * dt; // push up to ascend
             }
-            if (right != null && Math.abs(right.x) > DEAD) {
+            if (right != null && !rightScroll && Math.abs(right.x) > DEAD) {
                 // Smooth-turn around the head (not the rig origin) so you spin in place
                 // rather than orbiting when you've stepped off-centre. Rotate, then nudge
                 // the rig so the head's world XZ is unchanged.
@@ -1150,10 +1162,6 @@ export class B3d extends Component {
                 panel.dispose();
                 for (const p of bodyPanels)
                     p.dispose();
-                for (const n of nameplates) {
-                    n.panel.dispose();
-                    n.ef.dispose();
-                }
                 frames.dispose();
                 this.xrFrames = null;
                 cam.parent = null;
@@ -1193,6 +1201,65 @@ export class B3d extends Component {
             ]
             : [];
         return [...vr, ...this.scenePanel(this)];
+    }
+    // NPC nameplates in ALL contexts (flat + XR): a gaze-revealed label above each
+    // non-player biped. A frame panel already reveals off `scene.activeCamera`, so
+    // the same code works on a monitor and in a headset — no XR-specific wiring.
+    // Created lazily as bipeds' GLBs load (and disposed when they leave), updated
+    // every rendered frame (onBeforeRenderObservable fires in both flat and XR).
+    _setupNameplates() {
+        const scene = this.scene;
+        scene.onBeforeRenderObservable.add(() => {
+            const cam = scene.activeCamera;
+            if (cam == null)
+                return;
+            // Add newly-ready bipeds / drop departed ones only occasionally (querySelector
+            // + set churn shouldn't run every frame).
+            if (this._nameplateScan-- <= 0) {
+                this._nameplateScan = 30;
+                this._scanNameplates(cam);
+            }
+            for (let i = 0; i < this._nameplateList.length; i++) {
+                this._nameplateList[i].ef.update(cam);
+                this._nameplateList[i].panel.update();
+            }
+        });
+    }
+    _scanNameplates(cam) {
+        const scene = this.scene;
+        const seen = new Set();
+        for (const el of Array.from(this.querySelectorAll('tosi-b3d-biped'))) {
+            const b = el;
+            if (b.player || b.mesh == null)
+                continue;
+            seen.add(el);
+            if (this._nameplates.has(el))
+                continue;
+            const ef = new EntityFrame(scene, b.mesh, {
+                offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
+            });
+            const panel = attachFramePanel(scene, cam, ef.node, {
+                anchor: {
+                    position: [0, 0, 0],
+                    focus: [0, 0, 1], // faces +Z = toward the viewer (frame turns to face you)
+                    revealStartDeg: 26,
+                    revealFullDeg: 10,
+                },
+                title: b.id || 'NPC',
+                width: 0.3,
+                maxDistance: 8, // don't clutter with distant nameplates
+            });
+            this._nameplates.set(el, { ef, panel });
+        }
+        // Drop nameplates whose biped is gone (removed from the DOM / disposed mesh).
+        for (const [el, n] of this._nameplates) {
+            if (!seen.has(el)) {
+                n.panel.dispose();
+                n.ef.dispose();
+                this._nameplates.delete(el);
+            }
+        }
+        this._nameplateList = [...this._nameplates.values()];
     }
     _setupScenePanel() {
         const gear = this.parts.scenePanelGear;
@@ -1351,6 +1418,9 @@ export class B3d extends Component {
                 panelEl.handlePointer(kind, vx, vy);
         });
         return {
+            plane,
+            scrollable: !!panelEl.scrollable,
+            scrollBy: (dy) => panelEl.scrollBy?.(dy),
             dispose() {
                 base.sessionManager.onXRFrameObservable.remove(frame);
                 scene.onPointerObservable.remove(obs);
