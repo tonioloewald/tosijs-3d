@@ -85,6 +85,9 @@ export class B3dSkybox extends AbstractMesh {
     };
     interval = 0;
     _sizeToCamera = null;
+    // Last timeOfDay the sky material was rendered for. The per-frame observer
+    // re-runs updateSky when this drifts — see the note on _sizeToCamera.
+    _lastSkyTime = NaN;
     sunEl = null;
     _horizonColor = new BABYLON.Color3(0.75, 0.85, 0.95);
     /** Approximate horizon color based on current time of day / atmosphere. */
@@ -195,6 +198,17 @@ export class B3dSkybox extends AbstractMesh {
             // clip and punch holes in the sky. 0.5·maxZ → corner ≈ 0.87·maxZ, safe.
             const targetHalf = cam.maxZ * 0.5;
             this.mesh.scaling.setAll(targetHalf / baseHalf);
+            // Refresh the sky material HERE (a scene onBeforeRender observer, which fires
+            // in flat AND XR) rather than only from tosijs's rAF-batched render(). In an
+            // immersive session window.rAF is suspended, and this component's continuous
+            // realtimeScale setInterval keeps re-queuing render() so its per-element flag
+            // stays stranded — freezing the sky (the "time-of-day slider does nothing in
+            // XR until you exit" bug). Driving updateSky off the frame loop, gated on a
+            // timeOfDay change, keeps it live everywhere.
+            if (attrs.timeOfDay !== this._lastSkyTime) {
+                this._lastSkyTime = attrs.timeOfDay;
+                this.updateSky();
+            }
         };
         scene.registerBeforeRender(this._sizeToCamera);
         this.updateSky();
