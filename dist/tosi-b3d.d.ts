@@ -86,11 +86,16 @@ export declare class B3d extends Component {
         ':host .babylonVRicon:hover': {
             transform: string;
         };
-        ':host .enter-vr-button': {
+        ':host .scene-toolbar': {
             position: string;
             top: string;
             left: string;
             zIndex: string;
+            display: string;
+            alignItems: string;
+            gap: string;
+        };
+        ':host .enter-vr-button': {
             display: string;
             alignItems: string;
             gap: string;
@@ -111,10 +116,6 @@ export declare class B3d extends Component {
             transform: string;
         };
         ':host .scene-panel-gear': {
-            position: string;
-            top: string;
-            left: string;
-            zIndex: string;
             width: string;
             height: string;
             display: string;
@@ -146,7 +147,7 @@ export declare class B3d extends Component {
             display: string;
         };
     };
-    content: (HTMLCanvasElement | HTMLButtonElement | HTMLDivElement | HTMLSlotElement)[];
+    content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement)[];
     engine: BABYLON.Engine;
     scene: BABYLON.Scene;
     camera?: BABYLON.Camera;
@@ -181,7 +182,6 @@ export declare class B3d extends Component {
     private _worldRoots;
     private _originShiftListeners;
     readonly combat: CombatWorld;
-    private _xrAvailable;
     private _scenePanelWired;
     private _nameplates;
     private _nameplateList;
@@ -226,7 +226,6 @@ export declare class B3d extends Component {
     private _setupXR;
     private _startDefaultXrExperience;
     private _makePanel;
-    private _flatPanelRows;
     private _setupNameplates;
     private _scanNameplates;
     private _setupScenePanel;
