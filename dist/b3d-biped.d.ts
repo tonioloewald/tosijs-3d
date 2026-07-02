@@ -36,6 +36,7 @@ export declare class B3dBiped extends B3dControllable {
         cameraTargetHeight: number;
         cameraMinFollowDistance: number;
         cameraMaxFollowDistance: number;
+        groundY: number;
         eyeHeight: number;
         x: number;
         y: number;

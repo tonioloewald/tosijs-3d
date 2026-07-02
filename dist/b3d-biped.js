@@ -148,6 +148,10 @@ export class B3dBiped extends B3dControllable {
         cameraTargetHeight: 0.75,
         cameraMinFollowDistance: 2,
         cameraMaxFollowDistance: 5,
+        // Hard floor: a biped never falls below this Y (safety net for scenes whose
+        // ground isn't a `checkCollisions` mesh — e.g. a GLB floor not named `_collide`).
+        // Real collidable ground above it still grounds the biped normally.
+        groundY: 0,
         // Eye height for the first-person camera (the view button toggles between
         // third-person over-the-shoulder and this).
         eyeHeight: 1.6,
@@ -295,6 +299,11 @@ export class B3dBiped extends B3dControllable {
                 const gravity = Math.min(0.1, 9.81 * dt);
                 node.moveWithCollisions(new BABYLON.Vector3(0, -gravity, 0));
             }
+            // Safety net: never sink below the hard floor, so a biped can't fall through
+            // the world when no collidable ground is found (grounded surfaces above it
+            // still work via the probe above).
+            if (node.position.y < attrs.groundY)
+                node.position.y = attrs.groundY;
             if (speed > 0.1) {
                 if (sprintSpeed > 0.25) {
                     this.setAnimationState('run', sprintSpeed + 0.25);

@@ -53,7 +53,7 @@ function isInsertable(node) {
 function flattenInsertable(nodes, depth = 0, out = []) {
   for (const node of nodes) {
     if (isInsertable(node)) {
-      out.push({ label: &#39;  &#39;.repeat(depth) + node.name, name: node.name })
+      out.push({ label: &#39;- &#39;.repeat(depth) + node.name, name: node.name })
     }
     if (node.children.length) flattenInsertable(node.children, depth + 1, out)
   }
@@ -172,6 +172,7 @@ preview.append(
     <ul>
       <li><a href="/tosi-b3d/">b3d</a></li>
       <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/" aria-current="page" class="current">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
       <li><a href="/b3d-probe/">b3d-probe</a></li>

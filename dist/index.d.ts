@@ -78,4 +78,13 @@ export { PiecewiseLinearFilter, identityFilter, plateauFilter, } from './gradien
 export { GradientEditor, gradientEditor } from './gradient-editor';
 export { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
 export type { SurfaceSampler, Vec3 } from './surface-sampler';
+export { makeResource, drain, refill, regenTick, isEmpty, isFull, fraction, } from './resource';
+export type { Resource } from './resource';
+export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable';
+export type { Destroyable, DestroyableSpec, ChainLink, CombatEvent, } from './destroyable';
+export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable';
+export { aoeFalloff, resolveAoe, dist3 } from './warhead';
+export type { WarheadSpec, AoeTarget } from './warhead';
+export { ballisticStep, predictPath } from './ballistics';
+export type { BallisticParams, BallisticState, PredictOptions } from './ballistics';
 //# sourceMappingURL=index.d.ts.map

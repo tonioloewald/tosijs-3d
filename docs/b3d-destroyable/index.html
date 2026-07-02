@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-destroyable — tosijs-3d</title>
+  <meta name="description" content="A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a &lt;tosi-b3d&gt;" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-destroyable/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-destroyable — tosijs-3d" />
+  <meta property="og:description" content="A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a &lt;tosi-b3d&gt;" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-destroyable/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-destroyable","description":"A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a \u003ctosi-b3d>","url":"https://3d.tosijs.net/b3d-destroyable/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-destroyable</h1>
+<p>A thing that can take damage and be destroyed — the scene-side bridge to the pure
+<code>CombatWorld</code> (see <code>destroyable.ts</code> / COMBAT-DESIGN.md). Drop it into a <code>&lt;tosi-b3d&gt;</code>
+and it registers a Destroyable in the scene&#39;s combat world, drives a placeholder
+cube mesh (real meshes/GLB later), and runs its death outcome when killed — whether
+by a direct hit or a chain reaction resolved in the combat tick.</p>
+<p>It participates in the <strong>floating origin</strong>: because <code>AbstractMesh</code> treats the
+<code>x/y/z</code> attributes as the source of truth for the mesh position, this uses
+<code>onOriginShift</code> to shift BOTH the mesh node and its <code>x/z</code> attributes on a rebase
+(NOT <code>registerWorldRoot</code>, which would leave the attributes stale so a later render
+would un-shift the mesh).</p>
+<p>Attributes: <code>capacity</code>, <code>armor</code>, <code>regenRate</code>, <code>regenDelay</code>, <code>protectedBy</code>,
+<code>protection</code>, plus <code>size</code>/<code>color</code> for the placeholder cube and the usual
+<code>x/y/z</code>/<code>meshName</code>. Set <code>.chain</code> (a <code>ChainLink[]</code>) in code for chain reactions.
+Call <code>.damage(n)</code> to hurt it (a warhead will do this on contact).</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details open><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-destroyable/" aria-current="page" class="current">b3d-destroyable</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a href="/xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
+    <li><a href="/world-contract/">world-contract</a></li>
+    <li><a href="/world-store/">world-store</a></li>
+    <li><a href="/world-view/">world-view</a></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

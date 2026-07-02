@@ -69,4 +69,10 @@ export { generateGalaxy, generateStarSystem, starTypeData, randomName, capitaliz
 export { PiecewiseLinearFilter, identityFilter, plateauFilter, } from './gradient-filter';
 export { GradientEditor, gradientEditor } from './gradient-editor';
 export { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
+// Combat — pure, deterministic models (see COMBAT-DESIGN.md)
+export { makeResource, drain, refill, regenTick, isEmpty, isFull, fraction, } from './resource';
+export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable';
+export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable';
+export { aoeFalloff, resolveAoe, dist3 } from './warhead';
+export { ballisticStep, predictPath } from './ballistics';
 //# sourceMappingURL=index.js.map

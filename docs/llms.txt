@@ -26,6 +26,8 @@ Full documentation, with live code examples, is at the links below.
   Opt-in collision detection via mesh naming conventions authored in Blender.
 - https://3d.tosijs.net/b3d-controllable/ — b3d-controllable
   Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
+- https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
+  A thing that can take damage and be destroyed — the scene-side bridge to the pure
 - https://3d.tosijs.net/b3d-exploder/ — b3d-exploder
   Shatters a mesh into fragments and animates them flying apart. Works by
 - https://3d.tosijs.net/b3d-fog/ — b3d-fog

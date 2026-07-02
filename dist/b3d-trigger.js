@@ -12,44 +12,83 @@ for `'enter'` / `'exit'` CustomEvents on the element.
 ## Demo
 
 ```js
-import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, emptyInput } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
-const { demo } = tosi({ demo: { status: 'outside' } })
+const { demo } = tosi({ demo: { status: 'walking…' } })
 
-const trigger = b3dTrigger({
-  x: 0, y: 0, z: 5,
-  radius: 3,
-  debug: true,
-})
-trigger.onEnter = () => { demo.status.value = 'INSIDE zone!' }
-trigger.onExit = () => { demo.status.value = 'outside' }
+// A wandering goal (a glowing marker) with a proximity trigger around it.
+let goal = { x: 6, z: 5 }
+const marker = b3dSphere({ meshName: 'goal', diameter: 0.7, y: 0.35, x: goal.x, z: goal.z, color: '#ffcc00' })
+const trigger = b3dTrigger({ x: goal.x, y: 0.5, z: goal.z, radius: 1.4, debug: true })
+
+// The NPC: a NON-player biped driven by a tiny "walk to the goal" AI. A biped
+// polls whatever is on `.inputProvider` every frame, so an AI is just an
+// InputProvider emitting the same ControlInput (forward / turn) a player would.
+const walker = b3dBiped({ url: '/omnidude.glb', x: -6, z: -6, initialState: 'idle' })
+const STOP = 1.2 // how close counts as "arrived"
+walker.inputProvider = {
+  poll() {
+    const m = walker.mesh
+    if (!m) return emptyInput
+    const p = m.getAbsolutePosition()
+    const dx = goal.x - p.x
+    const dz = goal.z - p.z
+    const dist = Math.hypot(dx, dz)
+    // Turn toward the goal (biped forward is +Z) and walk until we're there.
+    const f = m.forward
+    let turn = Math.atan2(dx, dz) - Math.atan2(f.x, f.z)
+    while (turn > Math.PI) turn -= 2 * Math.PI
+    while (turn < -Math.PI) turn += 2 * Math.PI
+    return {
+      ...emptyInput,
+      forward: dist > STOP ? 1 : 0,
+      turn: Math.max(-1, Math.min(1, turn * 2)),
+    }
+  },
+}
+
+// Watch the biped (not the camera): point the trigger at its mesh once loaded.
+const wire = setInterval(() => {
+  if (walker.mesh) { trigger.target = walker.mesh.name; clearInterval(wire) }
+}, 100)
+
+// On arrival: pause, then teleport the goal (marker + trigger) to a random spot
+// on the ground. The NPC notices the trigger it's now outside of and walks to the
+// new position. Repeat forever — trigger + simple AI in a loop.
+trigger.onEnter = () => {
+  demo.status.value = 'reached it — relocating…'
+  setTimeout(() => {
+    goal = { x: (Math.random() - 0.5) * 16, z: (Math.random() - 0.5) * 16 }
+    marker.x = goal.x; marker.z = goal.z
+    trigger.x = goal.x; trigger.z = goal.z
+    demo.status.value = 'walking…'
+  }, 1000)
+}
 
 preview.append(
   b3d(
     {
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 3, 15,
-          BABYLON.Vector3.Zero(), el.scene
+          'cam', -Math.PI / 2, Math.PI / 3.2, 22,
+          new BABYLON.Vector3(0, 0, 0), el.scene
         )
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
-      }
+      },
     },
     b3dLight({ y: 1, intensity: 0.8 }),
     b3dSkybox({ timeOfDay: 12 }),
-    b3dGround({ diameter: 20, color: '#556644' }),
-    inputFocus(
-      gameController(),
-      b3dBiped({ url: '/omnidude.glb', player: true, cameraType: 'follow' }),
-    ),
+    b3dGround({ size: 20, color: '#556644' }),
+    marker,
     trigger,
+    walker,
   ),
   div(
-    { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace' },
-    p('Walk into the green sphere'),
+    { style: 'position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace' },
+    p('An NPC walks to the marker → it relocates → repeat'),
     span({ bindText: demo.status }),
   )
 )

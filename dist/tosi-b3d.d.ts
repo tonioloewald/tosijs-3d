@@ -3,6 +3,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
+import { CombatWorld } from './destroyable';
 import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
 import { type QualitySetting } from './b3d-quality';
@@ -112,7 +113,7 @@ export declare class B3d extends Component {
         ':host .scene-panel-gear': {
             position: string;
             top: string;
-            right: string;
+            left: string;
             zIndex: string;
             width: string;
             height: string;
@@ -137,7 +138,7 @@ export declare class B3d extends Component {
         ':host .scene-panel-overlay': {
             position: string;
             top: string;
-            right: string;
+            left: string;
             zIndex: string;
             filter: string;
         };
@@ -177,6 +178,25 @@ export declare class B3d extends Component {
     onSceneAddition(callback: SceneAdditionHandler): void;
     offSceneAddition(callback: SceneAdditionHandler): void;
     register(additions: SceneAdditions): void;
+    private _worldRoots;
+    private _originShiftListeners;
+    readonly combat: CombatWorld;
+    private _xrAvailable;
+    private _scenePanelWired;
+    registerWorldRoot(node: BABYLON.TransformNode): void;
+    unregisterWorldRoot(node: BABYLON.TransformNode): void;
+    onOriginShift(callback: (dx: number, dz: number) => void): void;
+    offOriginShift(callback: (dx: number, dz: number) => void): void;
+    /**
+     * Move every world-space thing by (-dx, -dz) so the viewpoint returns near the
+     * origin with no visible motion. Called by the terrain AFTER it has rebased its
+     * own tiles by (dx, dz). Shifts: the camera CARRIER (the piloted entity if one is
+     * driven — the chase rig re-derives from it each frame, so shifting the rig would
+     * be overwritten; else the camera's parent; else the camera), every registered
+     * world root, and every onOriginShift listener (which fixes its own node + JS).
+     * Skybox/water are viewer/origin-centred and intentionally NOT shifted.
+     */
+    shiftOrigin(dx: number, dz: number): void;
     registerLibrary(type: string, library: any): void;
     unregisterLibrary(type: string, library: any): void;
     getLibrary(type: string): any | null;
@@ -203,10 +223,11 @@ export declare class B3d extends Component {
     private _setupXR;
     private _startDefaultXrExperience;
     private _makePanel;
+    private _flatPanelRows;
     private _setupScenePanel;
-    /** Rebuild the flat scene panel from the current `scenePanel` hook, if it's open.
-     * Call after async state the panel reflects has changed (e.g. a library loaded)
-     * so an already-open panel updates without reopening. */
+    /** Rebuild the flat scene panel from the current rows, if it's open.
+     * Call after async state the panel reflects has changed (e.g. a library loaded,
+     * or XR availability / session state) so an already-open panel updates. */
     refreshScenePanel(): void;
     private _setupGamepad;
     private _attachXrPanel;

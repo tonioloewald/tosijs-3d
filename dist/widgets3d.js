@@ -826,6 +826,13 @@ export function panel3d(config, ...widgets) {
     ;
     root.handlePointer =
         handlePointer;
+    root.scrollBy = (dy) => {
+        if (!scrollable)
+            return;
+        scroll += dy;
+        applyScroll();
+    };
+    root.scrollable = scrollable;
     root.appendChild(bg);
     root.appendChild(clip);
     root.appendChild(content);

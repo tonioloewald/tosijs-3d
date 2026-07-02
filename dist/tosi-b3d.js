@@ -143,6 +143,7 @@ import '@babylonjs/loaders';
 import { xrControllers } from './gamepad';
 import { panel3d, button3d } from './widgets3d';
 import { SvgTexture } from './svg-texture';
+import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
 import { XrGamepadSource } from './xr-gamepad';
 import { XrFrames, EntityFrame } from './xr-frames';
@@ -270,8 +271,10 @@ export class B3d extends Component {
         },
         ':host .scene-panel-gear': {
             position: 'absolute',
+            // Top-LEFT: demos conventionally pin their text/status overlays top-right,
+            // so the gear lived right under them and overlapped. Left keeps it clear.
             top: '12px',
-            right: '12px',
+            left: '12px',
             zIndex: '20',
             width: '40px',
             height: '40px',
@@ -296,7 +299,7 @@ export class B3d extends Component {
         ':host .scene-panel-overlay': {
             position: 'absolute',
             top: '60px',
-            right: '12px',
+            left: '12px',
             zIndex: '20',
             filter: 'drop-shadow(0 6px 16px rgba(0,0,0,0.5))',
         },
@@ -408,6 +411,74 @@ export class B3d extends Component {
             callback(additions);
         }
     }
+    // --- Floating origin: keeping the whole world shiftable, not just the player ---
+    //
+    // When the terrain rebases (see B3dTerrain.resetOrigin) the world is moved so the
+    // viewpoint returns near the origin. EVERYTHING that carries a world position must
+    // move by the same amount or it drifts relative to the terrain. Two ways in:
+    //
+    //  - registerWorldRoot(node): the entity's world position lives ENTIRELY on the
+    //    node (inert targets, props, other vehicles). We move the node.
+    //  - onOriginShift(cb): the entity also holds world coordinates in JS (a
+    //    projectile integrating its own position, remembered target positions, AI
+    //    memory). It gets (dx, dz) and fixes ITSELF — node AND JS state. Such an
+    //    entity must NOT also registerWorldRoot (that would shift its node twice).
+    _worldRoots = new Set();
+    _originShiftListeners = [];
+    // The scene's combat state (pure, deterministic; see destroyable.ts). Combat
+    // components (b3d-destroyable/warhead/launcher) find it via findB3dOwner and
+    // share it; the render loop advances it (regen + chain reactions) each frame.
+    combat = new CombatWorld();
+    // XR availability (set once the default XR experience confirms a session is
+    // possible) + whether the flat gear panel's click handler is wired. Enter VR
+    // lives IN the gear menu (parallel to Exit VR in the in-headset panel), so the
+    // gear is revealed once XR is available even with no scenePanel widgets.
+    _xrAvailable = false;
+    _scenePanelWired = false;
+    registerWorldRoot(node) {
+        this._worldRoots.add(node);
+    }
+    unregisterWorldRoot(node) {
+        this._worldRoots.delete(node);
+    }
+    onOriginShift(callback) {
+        this._originShiftListeners.push(callback);
+    }
+    offOriginShift(callback) {
+        const idx = this._originShiftListeners.indexOf(callback);
+        if (idx > -1)
+            this._originShiftListeners.splice(idx, 1);
+    }
+    /**
+     * Move every world-space thing by (-dx, -dz) so the viewpoint returns near the
+     * origin with no visible motion. Called by the terrain AFTER it has rebased its
+     * own tiles by (dx, dz). Shifts: the camera CARRIER (the piloted entity if one is
+     * driven — the chase rig re-derives from it each frame, so shifting the rig would
+     * be overwritten; else the camera's parent; else the camera), every registered
+     * world root, and every onOriginShift listener (which fixes its own node + JS).
+     * Skybox/water are viewer/origin-centred and intentionally NOT shifted.
+     */
+    shiftOrigin(dx, dz) {
+        if (dx === 0 && dz === 0)
+            return;
+        const shifted = new Set();
+        const move = (node) => {
+            if (node == null || shifted.has(node))
+                return;
+            node.position.x -= dx;
+            node.position.z -= dz;
+            shifted.add(node);
+        };
+        const camera = this.scene?.activeCamera;
+        const focused = this.querySelector('tosi-b3d-input-focus')?.focused;
+        const piloted = focused?.getCameraTarget?.() ?? null;
+        const carrier = piloted ?? camera?.parent ?? camera;
+        move(carrier);
+        for (const root of this._worldRoots)
+            move(root);
+        for (const cb of this._originShiftListeners)
+            cb(dx, dz);
+    }
     registerLibrary(type, library) {
         if (!this._libraries.has(type)) {
             this._libraries.set(type, new Set());
@@ -448,6 +519,11 @@ export class B3d extends Component {
     }
     _update = () => {
         if (this.scene != null && !this.hidden) {
+            // Advance combat with real elapsed time (regen + scheduled chain reactions),
+            // frame-rate independent and separate from the render throttle below.
+            const dt = this.engine.getDeltaTime() / 1000;
+            if (dt > 0)
+                this.combat.tick(dt);
             if (this.update !== noop) {
                 this.update(this, BABYLON);
             }
@@ -767,6 +843,9 @@ export class B3d extends Component {
         base.onStateChangedObservable.add((state) => {
             this.xrActive = state === BABYLON.WebXRState.IN_XR;
             vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR';
+            // Keep the flat gear panel's Enter VR row in sync (it hides in-session,
+            // returns on exit) if the panel happens to be open.
+            this.refreshScenePanel();
             if (state === BABYLON.WebXRState.IN_XR) {
                 // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
                 // back to the flat one on exit (the cheap lever that's safe to change live).
@@ -783,9 +862,11 @@ export class B3d extends Component {
                 restoreRaf = undefined;
             }
         });
-        // The button is part of the template (hidden) — reveal it now that an XR
-        // session is actually available.
-        vrButton.hidden = false;
+        // XR is available. Enter VR now lives in the gear menu (parallel to Exit VR
+        // in the in-headset panel), so reveal the gear instead of the standalone
+        // button — which stays hidden, avoiding the top-left overlap with the gear.
+        this._xrAvailable = true;
+        this._setupScenePanel();
     }
     // The built-in XR experience used when no `setupXr` hook is supplied: stand
     // the viewer on a grid floor near the scene, walk with the left stick
@@ -838,6 +919,11 @@ export class B3d extends Component {
         // A subtle grid floor — something to stand on and judge motion against.
         const ground = BABYLON.MeshBuilder.CreateGround('xr-ground', { width: 200, height: 200 }, scene);
         ground.isPickable = false;
+        // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
+        // ground / water / terrain at 0 — and so the real scene ground wins visually
+        // (the grid only shows through where there's no ground, rather than covering
+        // it). Imperceptible underfoot (you stand on the local-floor at 0).
+        ground.position.y = -0.05;
         const grid = new GridMaterial('xr-ground-grid', scene);
         grid.majorUnitFrequency = 5;
         grid.minorUnitVisibility = 0.4;
@@ -1091,29 +1177,51 @@ export class B3d extends Component {
     // contents depend on async state — e.g. a library mesh-picker list that only
     // exists after the GLB loads — is always current when you open it. (The in-XR
     // panel likewise re-invokes the hook when it's built on VR entry.)
+    // Rows for the flat gear panel: an "Enter VR" button first when XR is available
+    // and we're not already in a session (parallels the in-headset "Exit VR"),
+    // followed by whatever the scenePanel hook supplies. Enter VR from here is a
+    // valid user gesture — button3d fires onClick on a real DOM pointerup.
+    _flatPanelRows() {
+        const vr = this._xrAvailable && !this.xrActive
+            ? [
+                button3d({
+                    label: 'Enter VR',
+                    onClick: () => {
+                        void this.xrHelper?.baseExperience?.enterXRAsync('immersive-vr', 'local-floor');
+                    },
+                }),
+            ]
+            : [];
+        return [...vr, ...this.scenePanel(this)];
+    }
     _setupScenePanel() {
-        if (this.scenePanel(this).length === 0)
-            return; // nothing to surface at all
         const gear = this.parts.scenePanelGear;
         const host = this.parts.scenePanelHost;
-        gear.addEventListener('click', () => {
-            if (host.hasAttribute('hidden')) {
-                host.replaceChildren(this._makePanel(this.scenePanel(this)));
-                host.removeAttribute('hidden');
-            }
-            else {
-                host.setAttribute('hidden', '');
-            }
-        });
-        gear.hidden = false;
+        if (!this._scenePanelWired) {
+            this._scenePanelWired = true;
+            gear.addEventListener('click', () => {
+                if (host.hasAttribute('hidden')) {
+                    host.replaceChildren(this._makePanel(this._flatPanelRows()));
+                    host.removeAttribute('hidden');
+                }
+                else {
+                    host.setAttribute('hidden', '');
+                }
+            });
+        }
+        // Reveal the gear when there's anything to surface: scenePanel widgets, or an
+        // Enter-VR affordance once XR is known available. (Re-called when XR resolves.)
+        if (this.scenePanel(this).length > 0 || this._xrAvailable) {
+            gear.hidden = false;
+        }
     }
-    /** Rebuild the flat scene panel from the current `scenePanel` hook, if it's open.
-     * Call after async state the panel reflects has changed (e.g. a library loaded)
-     * so an already-open panel updates without reopening. */
+    /** Rebuild the flat scene panel from the current rows, if it's open.
+     * Call after async state the panel reflects has changed (e.g. a library loaded,
+     * or XR availability / session state) so an already-open panel updates. */
     refreshScenePanel() {
         const host = this.parts?.scenePanelHost;
         if (host && !host.hasAttribute('hidden')) {
-            host.replaceChildren(this._makePanel(this.scenePanel(this)));
+            host.replaceChildren(this._makePanel(this._flatPanelRows()));
         }
     }
     // Mount the split touch "glass" gamepad when the `gamepad` attribute is
