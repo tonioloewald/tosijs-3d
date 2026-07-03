@@ -221,8 +221,14 @@ export class B3dTrigger extends B3dChild {
       const cam = this.owner.scene.activeCamera
       return cam ? cam.globalPosition : null
     }
-    const mesh = this.owner.scene.getMeshByName(attrs.target)
-    return mesh ? mesh.absolutePosition : null
+    // Fall back to transform nodes: a GLB/instantiated model's root (what
+    // `biped.mesh` points at) is usually a TransformNode named `__root__`, which
+    // getMeshByName can't see — so a named biped/vehicle target would never
+    // resolve and the trigger would silently never fire.
+    const node =
+      this.owner.scene.getMeshByName(attrs.target) ??
+      this.owner.scene.getTransformNodeByName(attrs.target)
+    return node ? node.getAbsolutePosition() : null
   }
 
   private updateDebugMesh() {
