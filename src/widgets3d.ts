@@ -375,12 +375,13 @@ function localPoint(el: SVGElement, clientX: number, clientY: number) {
   return { x: p.x, y: p.y }
 }
 
-const baseText = (content: string, fill = TEXT) =>
+const baseText = (content: string, fill = TEXT, bold = false) =>
   text(
     {
       'dominant-baseline': 'middle',
       'font-size': FONT,
       'font-family': FONT_FAMILY,
+      'font-weight': bold ? '700' : '400',
       fill,
     },
     content
@@ -388,9 +389,19 @@ const baseText = (content: string, fill = TEXT) =>
 
 // --- Widgets ---------------------------------------------------------------
 
-/** A static caption row. */
-export function label3d(config: { text: string; muted?: boolean }): Widget3d {
-  const t = baseText(config.text, config.muted ? MUTED : TEXT)
+/**
+ * A static caption row. `color` overrides the default text colour (e.g. an
+ * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
+ * is set).
+ */
+export function label3d(config: {
+  text: string
+  muted?: boolean
+  bold?: boolean
+  color?: string
+}): Widget3d {
+  const fill = config.color ?? (config.muted ? MUTED : TEXT)
+  const t = baseText(config.text, fill, config.bold)
   t.setAttribute('x', String(PAD_X))
   t.setAttribute('y', String(ROW / 2))
   return { el: g({ 'data-w3d': 'label' }, t), layout: () => ROW }
