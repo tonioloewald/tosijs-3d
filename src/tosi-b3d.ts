@@ -202,6 +202,9 @@ export class B3d extends Component {
     // scene. Set the `no-xr` attribute to suppress it (e.g. demos that drive
     // XR themselves through a controllable's `cameraType: 'xr'`).
     noXr: false,
+    // The subtle reference grid on the floor during an immersive session (a
+    // locomotion/motion cue). On by default; set `xr-grid="false"` to hide it.
+    xrGrid: true,
     // When present, mount the split on-screen "glass" gamepad and feed it into
     // the active input system (the unified touch control surface). The value
     // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
@@ -390,6 +393,7 @@ export class B3d extends Component {
   declare minDistance: number
   declare maxDistance: number
   declare noXr: boolean
+  declare xrGrid: boolean
 
   sceneCreated: B3dCallback = noop
   update: B3dCallback = noop
@@ -974,25 +978,30 @@ export class B3d extends Component {
     const panel = this._attachXrPanel(base, frames.eye)
 
     // A subtle grid floor — something to stand on and judge motion against.
-    const ground = BABYLON.MeshBuilder.CreateGround(
-      'xr-ground',
-      { width: 200, height: 200 },
-      scene
-    )
-    ground.isPickable = false
-    // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
-    // ground / water / terrain at 0 — and so the real scene ground wins visually
-    // (the grid only shows through where there's no ground, rather than covering
-    // it). Imperceptible underfoot (you stand on the local-floor at 0).
-    ground.position.y = -0.05
-    const grid = new GridMaterial('xr-ground-grid', scene)
-    grid.majorUnitFrequency = 5
-    grid.minorUnitVisibility = 0.4
-    grid.gridRatio = 1
-    grid.mainColor = new BABYLON.Color3(0.09, 0.11, 0.15)
-    grid.lineColor = new BABYLON.Color3(0.25, 0.45, 0.7)
-    grid.opacity = 0.7
-    ground.material = grid
+    // Opt out with `xr-grid="false"`.
+    let ground: BABYLON.Mesh | undefined
+    let grid: GridMaterial | undefined
+    if ((this as any).xrGrid) {
+      ground = BABYLON.MeshBuilder.CreateGround(
+        'xr-ground',
+        { width: 200, height: 200 },
+        scene
+      )
+      ground.isPickable = false
+      // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
+      // ground / water / terrain at 0 — and so the real scene ground wins visually
+      // (the grid only shows through where there's no ground, rather than covering
+      // it). Imperceptible underfoot (you stand on the local-floor at 0).
+      ground.position.y = -0.05
+      grid = new GridMaterial('xr-ground-grid', scene)
+      grid.majorUnitFrequency = 5
+      grid.minorUnitVisibility = 0.4
+      grid.gridRatio = 1
+      grid.mainColor = new BABYLON.Color3(0.09, 0.11, 0.15)
+      grid.lineColor = new BABYLON.Color3(0.25, 0.45, 0.7)
+      grid.opacity = 0.7
+      ground.material = grid
+    }
 
     const HORIZ_SPEED = 2.5 // metres/sec
     const VERT_SPEED = 2.0
@@ -1282,8 +1291,8 @@ export class B3d extends Component {
         frames.dispose()
         this.xrFrames = null
         cam.parent = null
-        ground.dispose()
-        grid.dispose()
+        ground?.dispose()
+        grid?.dispose()
         rig.dispose()
       },
     }
@@ -1336,7 +1345,7 @@ export class B3d extends Component {
       seen.add(el)
       if (this._nameplates.has(el)) continue
       const ef = new EntityFrame(scene, b.mesh, {
-        offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
+        offset: [0, (b.eyeHeight ?? 1.7) + 0.15, 0],
       })
       const panel = attachFramePanel(scene, cam, ef.node, {
         anchor: {
@@ -1346,7 +1355,7 @@ export class B3d extends Component {
           revealFullDeg: 10,
         },
         title: (b.id as string) || '$6M biped',
-        width: 0.3,
+        width: 0.6, // 2× — readable at a glance
         maxDistance: 8, // don't clutter with distant nameplates
       })
       this._nameplates.set(el, { ef, panel })
