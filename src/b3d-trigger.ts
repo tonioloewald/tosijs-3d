@@ -31,7 +31,7 @@ const STOP = 1.2 // how close counts as "arrived"
 walker.inputProvider = {
   poll() {
     const m = walker.mesh
-    if (!m) return emptyInput
+    if (!m) return emptyInput()
     const p = m.getAbsolutePosition()
     const dx = goal.x - p.x
     const dz = goal.z - p.z
@@ -42,7 +42,7 @@ walker.inputProvider = {
     while (turn > Math.PI) turn -= 2 * Math.PI
     while (turn < -Math.PI) turn += 2 * Math.PI
     return {
-      ...emptyInput,
+      ...emptyInput(),
       forward: dist > STOP ? 1 : 0,
       turn: Math.max(-1, Math.min(1, turn * 2)),
     }
