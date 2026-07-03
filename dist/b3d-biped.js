@@ -148,10 +148,13 @@ export class B3dBiped extends B3dControllable {
         cameraTargetHeight: 0.75,
         cameraMinFollowDistance: 2,
         cameraMaxFollowDistance: 5,
-        // Hard floor: a biped never falls below this Y (safety net for scenes whose
-        // ground isn't a `checkCollisions` mesh — e.g. a GLB floor not named `_collide`).
-        // Real collidable ground above it still grounds the biped normally.
-        groundY: 0,
+        // Void-catch backstop: a biped never falls below this Y. It's a last resort for
+        // scenes with NO collidable ground at all (a GLB floor not named `_collide`), so
+        // set it DEEP — not at walking level. At 0 it would act as an invisible floor,
+        // pinning the biped above any sub-zero terrain and sealing water/pits. Real
+        // collidable ground (terrain, seabed) grounds the biped normally above this.
+        // Scenes that genuinely want a shallow floor can raise it.
+        groundY: -1000,
         // Eye height for the first-person camera (the view button toggles between
         // third-person over-the-shoulder and this).
         eyeHeight: 1.6,
@@ -299,9 +302,10 @@ export class B3dBiped extends B3dControllable {
                 const gravity = Math.min(0.1, 9.81 * dt);
                 node.moveWithCollisions(new BABYLON.Vector3(0, -gravity, 0));
             }
-            // Safety net: never sink below the hard floor, so a biped can't fall through
-            // the world when no collidable ground is found (grounded surfaces above it
-            // still work via the probe above).
+            // Void-catch backstop: never sink below groundY, so a biped can't fall forever
+            // when a scene has no collidable ground at all. Default is DEEP (see
+            // initAttributes) so it doesn't act as an invisible floor over sub-zero terrain
+            // or water — real collidable surfaces above it ground the biped via the probe.
             if (node.position.y < attrs.groundY)
                 node.position.y = attrs.groundY;
             if (speed > 0.1) {
