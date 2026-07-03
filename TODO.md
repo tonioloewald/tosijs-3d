@@ -62,7 +62,7 @@ All projectiles are **cubes** for now. Combat atoms spec'd in `COMBAT-DESIGN.md`
 [x] VTOL / Helicopter (integrated into aircraft flight model)
 [ ] Car (code exists, needs car mesh asset and working demo)
 [ ] Biped can aim, shoot, pick up things, gesture, talk
-[ ] Biped grounding robustness (polish): the down-probe is only 0.15m and gravity is capped tiny, so a biped that rises >0.15m above the floor (steps, bumps, spawn offset) stops "seeing" ground. `groundY` safety net now prevents falling through the world, but for real stepping/slopes consider a longer probe + snap-to-surface. Also: GLB scenes only ground where the floor mesh is named `_collide*` (or now via groundY) — consider a floor fallback / ensure scene GLBs tag their ground.
+[ ] Biped grounding robustness (polish): the down-probe is only 0.15m and gravity is capped tiny, so a biped that rises >0.15m above the floor (steps, bumps, spawn offset) stops "seeing" ground. `groundY` is now a DEEP void-catch backstop (default -1000), not a walking floor — it no longer masks terrain (that was pinning the player at y=0, sealing water; fixed). For real stepping/slopes consider a longer probe + snap-to-surface. Also: GLB scenes only ground where the floor mesh is named `_collide*` — with the deep backstop, a scene with NO collidable floor now drops the biped to -1000 instead of catching it at 0, so consider a floor fallback / ensure scene GLBs tag their ground.
 [x] Animation Blending / State Machine (animation attribute, animationSpeed, setAnimationState)
 [x] Triggers (b3d-trigger, proximity-based)
 [ ] Death Persona (floating view of dead body, wrecked aircraft, etc.)
