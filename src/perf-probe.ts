@@ -16,7 +16,7 @@ Re-run only when the benchmark itself changed (`PROBE_VERSION`), the device chan
 (`signature`), or the cache is stale (`DEFAULT_TTL_MS`, 30 days — devices don't get
 faster; the TTL is just a backstop for browser/driver updates and a bad cold read).
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Performance" }*/
 
 /** Bump whenever the benchmark WORKLOAD changes (so old cached measurements, which
  * are only comparable within a workload version, are discarded). Tuning the

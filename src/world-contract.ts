@@ -33,6 +33,7 @@ serializable `WorldState`, a stream of best-effort `SimulationEvent`s, and the
   the one continuous quantity the driver needs — all inference-from-absence
   ("it's been a while and nothing happened") is built on it.
 */
+/*{ "parent": "World Sim" }*/
 
 /** Plain {x, y, z} vector — no Babylon dependency, matches the pure modules. */
 export type Vec3 = { x: number; y: number; z: number }
