@@ -18,8 +18,8 @@ const animations = [
 
 const { bipedDemo } = tosi({
   bipedDemo: {
-    animation: 'idle',
-    speed: 1,
+    animation: 'run',
+    speed: 0.25,
   }
 })
 

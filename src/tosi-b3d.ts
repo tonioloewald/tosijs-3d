@@ -10,7 +10,7 @@ must be children of a `b3d` element.
 import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
   b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
-  gameController, inputFocus, label3d, toggle3d, slider3d,
+  gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
@@ -40,7 +40,6 @@ preview.append(
       glowLayerIntensity: 1,
       gamepad: true,
       scenePanel: () => [
-        label3d({ text: 'Scene' }),
         toggle3d({ label: 'show colliders', value: demo.showColliders }),
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
       ],
@@ -1346,7 +1345,7 @@ export class B3d extends Component {
           revealStartDeg: 26,
           revealFullDeg: 10,
         },
-        title: (b.id as string) || 'NPC',
+        title: (b.id as string) || '$6M biped',
         width: 0.3,
         maxDistance: 8, // don't clutter with distant nameplates
       })

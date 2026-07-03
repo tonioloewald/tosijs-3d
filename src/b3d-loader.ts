@@ -16,7 +16,7 @@ Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 
@@ -32,7 +32,6 @@ preview.append(
   b3d(
     {
       scenePanel: () => [
-        label3d({ text: 'Scene' }),
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
       ],
       sceneCreated(el, BABYLON) {
