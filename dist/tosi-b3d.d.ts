@@ -173,9 +173,10 @@ export declare class B3d extends Component {
     private sceneListeners;
     private pastAdditions;
     private _sceneReady;
-    private _childObserver?;
-    private _notifiedNodes;
+    private _readyQueue;
     private _libraries;
+    /** Run `cb` when the scene is ready — now if it already is, else on scene-ready. */
+    whenReady(cb: () => void): void;
     onSceneAddition(callback: SceneAdditionHandler): void;
     offSceneAddition(callback: SceneAdditionHandler): void;
     register(additions: SceneAdditions): void;
@@ -212,11 +213,6 @@ export declare class B3d extends Component {
     private _resizing;
     onResize(): void;
     loadScene: (path: string, file: string, processCallback?: (scene: BABYLON.Scene) => void) => Promise<void>;
-    private _notifyNode;
-    private _disposeNode;
-    private _notifySubtree;
-    private _disposeSubtree;
-    private _notifyAllDescendants;
     private _qualityOff;
     private static _probeStarted;
     private _setupQuality;

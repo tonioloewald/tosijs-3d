@@ -178,9 +178,6 @@ export class B3dSkybox extends AbstractMesh {
             }
         }
     }
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -246,10 +243,6 @@ export class B3dSkybox extends AbstractMesh {
             this.sunEl.externallyLit = false;
         this.sunEl = null;
         super.sceneDispose();
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

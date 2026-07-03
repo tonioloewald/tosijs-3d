@@ -1,8 +1,8 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import type { GradientFilter } from './gradient-filter';
-export declare class B3dPlanet extends Component {
+export declare class B3dPlanet extends B3dChild {
     static styleSpec: {
         ':host': {
             display: string;
@@ -37,10 +37,8 @@ export declare class B3dPlanet extends Component {
     private _beforeRender;
     private vertexHeights;
     content: () => string;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     private update;
     private buildPlanet;
     /** Get the height at a given percentile (0..1) of all vertex heights */

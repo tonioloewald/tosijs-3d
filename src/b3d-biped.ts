@@ -733,11 +733,6 @@ export class B3dBiped extends B3dControllable {
     super.sceneDispose()
   }
 
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
-  }
-
   render() {
     if (!this.owner) return
     super.render()

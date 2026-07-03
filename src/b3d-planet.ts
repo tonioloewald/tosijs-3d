@@ -134,7 +134,8 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { Component, Color } from 'tosijs'
+import { Color } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
@@ -159,7 +160,7 @@ const CUBE_FACES: { origin: number[]; right: number[]; up: number[] }[] = [
   { origin: [1, -1, -1], right: [-2, 0, 0], up: [0, 2, 0] },
 ]
 
-export class B3dPlanet extends Component {
+export class B3dPlanet extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -199,10 +200,6 @@ export class B3dPlanet extends Component {
 
   content = () => ''
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
@@ -230,11 +227,6 @@ export class B3dPlanet extends Component {
     this.oceanMesh = null
     this.ringMesh = null
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   private update() {

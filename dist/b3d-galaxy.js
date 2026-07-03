@@ -314,11 +314,11 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { generateGalaxy, generateStarSystem, } from './galaxy-data';
 import { b3dBlackHole } from './b3d-black-hole';
-export class B3dGalaxy extends Component {
+export class B3dGalaxy extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -346,9 +346,6 @@ export class B3dGalaxy extends Component {
     registered = false;
     _beforeRender = null;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         this.registerShaders();
@@ -370,10 +367,6 @@ export class B3dGalaxy extends Component {
         this.rootNode?.dispose();
         this.rootNode = null;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     update() {
         // Update particles every frame for billboard facing

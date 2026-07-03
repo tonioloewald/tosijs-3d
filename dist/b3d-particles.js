@@ -129,7 +129,7 @@ preview.append(scene)
 | `attachTo` | `''` | Mesh name to attach emitter to |
 */
 /*{ "parent": "Environment" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 // Default flare texture: 32x32 radial gradient white-to-transparent
 let defaultFlareTexture = null;
@@ -164,7 +164,7 @@ function hexToColor4(hex) {
             : 1;
     return new BABYLON.Color4(c.r, c.g, c.b, a);
 }
-export class B3dParticles extends Component {
+export class B3dParticles extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -204,9 +204,6 @@ export class B3dParticles extends Component {
     _currentRadius = 0;
     content = () => '';
     _started = false;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         const attrs = this;
@@ -225,10 +222,6 @@ export class B3dParticles extends Component {
         }
         this._started = false;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

@@ -593,10 +593,6 @@ export class B3dBiped extends B3dControllable {
         this.xrInputProvider = undefined;
         super.sceneDispose();
     }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
-    }
     render() {
         if (!this.owner)
             return;

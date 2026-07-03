@@ -133,7 +133,8 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { Component, Color } from 'tosijs';
+import { Color } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
@@ -154,7 +155,7 @@ const CUBE_FACES = [
     // -Z
     { origin: [1, -1, -1], right: [-2, 0, 0], up: [0, 2, 0] },
 ];
-export class B3dPlanet extends Component {
+export class B3dPlanet extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -189,9 +190,6 @@ export class B3dPlanet extends Component {
     _beforeRender = null;
     vertexHeights = null;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         const attrs = this;
@@ -215,10 +213,6 @@ export class B3dPlanet extends Component {
         this.oceanMesh = null;
         this.ringMesh = null;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     update() {
         if (this.rootNode == null)

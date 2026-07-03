@@ -44,9 +44,6 @@ export class B3dDestroyable extends AbstractMesh {
     _dead = false;
     _obs;
     _onShift;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;

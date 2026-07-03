@@ -1,8 +1,8 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import type { GradientFilter } from './gradient-filter';
-export declare class B3dTerrain extends Component {
+export declare class B3dTerrain extends B3dChild {
     static styleSpec: {
         ':host': {
             display: string;
@@ -58,10 +58,8 @@ export declare class B3dTerrain extends Component {
     private originOffsetX;
     private originOffsetZ;
     private _beforeRender;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     private createSampler;
     private createMaterial;
     private createPool;

@@ -140,11 +140,11 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { generateGalaxy, generateStarSystem, } from './galaxy-data';
 import { PerlinNoise } from './perlin-noise';
-export class B3dStarSystem extends Component {
+export class B3dStarSystem extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -176,9 +176,6 @@ export class B3dStarSystem extends Component {
     _beforeRender = null;
     time = 0;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         this.rootNode = new BABYLON.TransformNode('star-system-root', scene);
@@ -196,10 +193,6 @@ export class B3dStarSystem extends Component {
         this.rootNode?.dispose();
         this.rootNode = null;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     disposeMeshes() {
         this.starMesh?.dispose();

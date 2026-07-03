@@ -19,7 +19,7 @@
     "globals": "^17.7.0",
     "happy-dom": "^20.10.6",
     "prettier": "^2.8.8",
-    "tosijs-ui": "^1.6.12",
+    "tosijs-ui": "^1.6.20",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1"
   },
@@ -35,7 +35,7 @@
     "@babylonjs/loaders": "^8.0.1",
     "@babylonjs/materials": "^8.0.1",
     "jolt-physics": "^1.0.0",
-    "tosijs": "^1.6.1"
+    "tosijs": "^1.6.6"
   },
   "peerDependenciesMeta": {
     "jolt-physics": {

@@ -78,9 +78,9 @@ preview.append(
 | `playbackRate` | `1` | Playback speed |
 */
 /*{ "parent": "Environment" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
-export class B3dSound extends Component {
+export class B3dSound extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -105,9 +105,6 @@ export class B3dSound extends Component {
     owner = null;
     sound = null;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, _scene) {
         this.owner = owner;
         const attrs = this;
@@ -143,10 +140,6 @@ export class B3dSound extends Component {
             this.sound = null;
         }
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

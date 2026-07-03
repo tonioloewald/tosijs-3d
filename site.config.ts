@@ -56,6 +56,22 @@ export default defineSiteConfig({
   staticDirs: ['static'],
   port: 8030,
 
+  // Give a coding agent eyes + hands on the running dev page via haltija: the dev
+  // server injects a localhost-gated loader (runtime import of the shared local
+  // channel's dev.js — never bundled, self-disables off-localhost) and reuses (or
+  // spins up) the channel on 8701. The channel is SHARED across local projects —
+  // each dev web server has its own port (8030 here), but they all connect to the
+  // one haltija channel; `hj tabs` lists every connected page. Needs mkcert (done).
+  haltijaDev: true,
+
+  // tosijs-ui >=1.6.19's build-time example checker only knows the default
+  // `tosijs` / `tosijs-ui` import context — but nearly every demo here imports
+  // from `tosijs-3d` (the library being documented), which we seed into the LIVE
+  // example context in demo/site.ts. The build-time check can't see that custom
+  // context and there's no config knob to pass extra contextKeys, so per the
+  // tosijs-ui docs we disable it. (The in-browser test tab still runs examples.)
+  checkExamples: false,
+
   // Hosted on GitHub Pages at the 3d.tosijs.net apex subdomain (CNAME).
   host: 'github-pages',
 

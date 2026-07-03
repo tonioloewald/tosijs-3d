@@ -12,10 +12,6 @@ export class B3dSphere extends AbstractMesh {
     mirror: false,
   }
 
-  connectedCallback(): void {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -57,10 +53,6 @@ export class B3dBox extends AbstractMesh {
     mirror: false,
   }
 
-  connectedCallback(): void {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -100,10 +92,6 @@ export class B3dGround extends AbstractMesh {
     width: 4,
     height: 4,
     color: '#888888',
-  }
-
-  connectedCallback(): void {
-    super.connectedCallback()
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {

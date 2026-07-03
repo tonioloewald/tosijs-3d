@@ -74,7 +74,12 @@ describe('regenTick', () => {
   })
 
   test('regen pauses until the delay elapses since the last drain', () => {
-    const r = makeResource({ max: 100, value: 50, regenRate: 10, regenDelay: 0.5 })
+    const r = makeResource({
+      max: 100,
+      value: 50,
+      regenRate: 10,
+      regenDelay: 0.5,
+    })
     drain(r, 0.0001) // effectively resets sinceDrain to 0 without changing value much
     r.value = 50
     // 0.4s < 0.5s delay → still paused
@@ -83,7 +88,12 @@ describe('regenTick', () => {
   })
 
   test('regenerates only the portion of dt past the delay (boundary-precise)', () => {
-    const r = makeResource({ max: 100, value: 50, regenRate: 10, regenDelay: 0.5 })
+    const r = makeResource({
+      max: 100,
+      value: 50,
+      regenRate: 10,
+      regenDelay: 0.5,
+    })
     r.sinceDrain = 0
     // dt=1.0 crosses the 0.5s delay → only 0.5s of regen counts → +5
     regenTick(r, 1.0)
@@ -91,21 +101,36 @@ describe('regenTick', () => {
   })
 
   test('full-rate regen once well past the delay', () => {
-    const r = makeResource({ max: 100, value: 50, regenRate: 10, regenDelay: 0.5 })
+    const r = makeResource({
+      max: 100,
+      value: 50,
+      regenRate: 10,
+      regenDelay: 0.5,
+    })
     r.sinceDrain = 10 // long past the delay
     regenTick(r, 1.0)
     expect(r.value).toBeCloseTo(60, 5)
   })
 
   test('clamps at max', () => {
-    const r = makeResource({ max: 100, value: 98, regenRate: 10, regenDelay: 0 })
+    const r = makeResource({
+      max: 100,
+      value: 98,
+      regenRate: 10,
+      regenDelay: 0,
+    })
     r.sinceDrain = 5
     regenTick(r, 1.0)
     expect(r.value).toBe(100)
   })
 
   test('a drain re-pauses regen', () => {
-    const r = makeResource({ max: 100, value: 50, regenRate: 10, regenDelay: 0.5 })
+    const r = makeResource({
+      max: 100,
+      value: 50,
+      regenRate: 10,
+      regenDelay: 0.5,
+    })
     r.sinceDrain = 10
     regenTick(r, 0.5) // regenerating: +5
     expect(r.value).toBeCloseTo(55, 5)

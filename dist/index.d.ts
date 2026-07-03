@@ -9,7 +9,7 @@ export { WorldStore } from './world-store';
 export { WorldView, defaultMeshFactory } from './world-view';
 export type { MeshFactory } from './world-view';
 export type { WorldState, WorldEntity, EntityComponents, HealthComponent, InventoryEntry, FactionComponent, InteractableComponent, EntityId, EntityKind, EntityIntent, Behavior, Zone, ZoneId, SpawnSpec, SimulationEvent, EventHandler, Unsubscribe, WorldApi, } from './world-contract';
-export { findB3dOwner, AbstractMesh, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
 export type { XRStuff, XRParams } from './b3d-utils';
 export { B3dLoader, b3dLoader } from './b3d-loader';
 export { B3dLibrary, b3dLibrary } from './b3d-library';
@@ -86,5 +86,5 @@ export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export type { WarheadSpec, AoeTarget } from './warhead';
 export { ballisticStep, predictPath } from './ballistics';
-export type { BallisticParams, BallisticState, PredictOptions } from './ballistics';
+export type { BallisticParams, BallisticState, PredictOptions, } from './ballistics';
 //# sourceMappingURL=index.d.ts.map

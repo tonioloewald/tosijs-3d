@@ -94,7 +94,6 @@ export declare class B3dBiped extends B3dControllable {
     connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
 }
 export declare const b3dBiped: import("tosijs").ElementCreator<B3dBiped>;

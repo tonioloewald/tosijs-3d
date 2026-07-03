@@ -512,10 +512,6 @@ export class B3dAircraft extends B3dControllable {
     this.pullUp = futureY < 10 && node.forward.y < -0.05
   }
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -705,11 +701,6 @@ export class B3dAircraft extends B3dControllable {
     this.meshNode = null
     this.inputProvider = null
     super.sceneDispose()
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 }
 

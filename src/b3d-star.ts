@@ -137,7 +137,7 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
@@ -166,7 +166,7 @@ function getSpectralColor(cls: string): [number, number, number] {
   return SPECTRAL_COLORS[cls.toUpperCase()] || SPECTRAL_COLORS.G
 }
 
-export class B3dStar extends Component {
+export class B3dStar extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -213,10 +213,6 @@ export class B3dStar extends Component {
 
   content = () => ''
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
@@ -243,11 +239,6 @@ export class B3dStar extends Component {
     this.starMesh = null
     this.coronaMesh = null
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   private update() {

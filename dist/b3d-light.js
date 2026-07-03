@@ -54,9 +54,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `specular` | `'#808080'` | Specular color (hex) |
 */
 /*{ "parent": "Environment" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
-export class B3dLight extends Component {
+export class B3dLight extends B3dChild {
     static initAttributes = {
         x: 0,
         y: 1,
@@ -67,9 +67,6 @@ export class B3dLight extends Component {
     };
     owner = null;
     light;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         const attrs = this;
@@ -82,10 +79,6 @@ export class B3dLight extends Component {
             this.light = undefined;
         }
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

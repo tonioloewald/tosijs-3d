@@ -136,10 +136,6 @@ export class B3dCar extends B3dControllable {
     }
   }
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -190,11 +186,6 @@ export class B3dCar extends B3dControllable {
     this.wheels = []
     this.inputProvider = null
     super.sceneDispose()
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 }
 

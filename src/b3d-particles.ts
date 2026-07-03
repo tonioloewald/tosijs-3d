@@ -130,7 +130,7 @@ preview.append(scene)
 */
 /*{ "parent": "Environment" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
@@ -179,7 +179,7 @@ function hexToColor4(hex: string): BABYLON.Color4 {
   return new BABYLON.Color4(c.r, c.g, c.b, a)
 }
 
-export class B3dParticles extends Component {
+export class B3dParticles extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -251,10 +251,6 @@ export class B3dParticles extends Component {
 
   private _started = false
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
     const attrs = this as any
@@ -277,11 +273,6 @@ export class B3dParticles extends Component {
     }
     this._started = false
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

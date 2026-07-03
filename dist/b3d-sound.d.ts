@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dSound extends Component {
+export declare class B3dSound extends B3dChild {
     static styleSpec: {
         ':host': {
             display: string;
@@ -40,10 +40,8 @@ export declare class B3dSound extends Component {
     owner: B3d | null;
     sound: BABYLON.Sound | null;
     content: () => string;
-    connectedCallback(): void;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
     /** Start playback */
     play(): void;

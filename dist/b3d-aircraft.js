@@ -457,9 +457,6 @@ export class B3dAircraft extends B3dControllable {
             : node.position.y + this.velocity.y * PULL_UP_SECONDS;
         this.pullUp = futureY < 10 && node.forward.y < -0.05;
     }
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -619,10 +616,6 @@ export class B3dAircraft extends B3dControllable {
         this.meshNode = null;
         this.inputProvider = null;
         super.sceneDispose();
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
 }
 export const b3dAircraft = B3dAircraft.elementCreator({

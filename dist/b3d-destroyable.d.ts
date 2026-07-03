@@ -36,7 +36,6 @@ export declare class B3dDestroyable extends AbstractMesh {
     private _dead;
     private _obs?;
     private _onShift?;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /** Hurt this target; returns the combat events from this hit. */
     damage(amount: number): CombatEvent[];

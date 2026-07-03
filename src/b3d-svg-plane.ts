@@ -421,10 +421,6 @@ export class B3dSvgPlane extends AbstractMesh {
 
   content = () => ''
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -476,11 +472,6 @@ export class B3dSvgPlane extends AbstractMesh {
     this._material?.dispose()
     this._material = null
     super.sceneDispose()
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

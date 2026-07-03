@@ -131,7 +131,7 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
@@ -172,7 +172,7 @@ function _fbmNoise(x: number, y: number, octaves: number): number {
   return val
 }
 
-export class B3dBlackHole extends Component {
+export class B3dBlackHole extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -219,10 +219,6 @@ export class B3dBlackHole extends Component {
 
   content = () => ''
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
@@ -250,11 +246,6 @@ export class B3dBlackHole extends Component {
     this.lensedDiskMesh = null
     this.photonRingMesh = null
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   private update() {

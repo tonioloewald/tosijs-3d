@@ -49,7 +49,10 @@ export class B3dWater extends AbstractMesh {
     subdivisions: 32,
     textureSize: 1024,
     twoSided: false,
-    normalMap: './waterbump.png',
+    // Root-absolute, NOT './waterbump.png': doc pages are served at /{slug}/, so a
+    // relative path resolves to /{slug}/waterbump.png (404). Root-absolute loads
+    // the same everywhere (matches the "root-absolute asset paths" convention).
+    normalMap: '/waterbump.png',
     windForce: -5,
     waveHeight: 0,
     bumpHeight: 0.1,
@@ -98,10 +101,6 @@ export class B3dWater extends AbstractMesh {
       this.waterMaterial.waterColor = new BABYLON.Color3(r, g, b)
     }
     this.waterMaterial.colorBlendFactor = attrs.colorBlendFactor
-  }
-
-  connectedCallback(): void {
-    super.connectedCallback()
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -179,11 +178,6 @@ export class B3dWater extends AbstractMesh {
     }
     this.waterMaterial = undefined
     super.sceneDispose()
-  }
-
-  disconnectedCallback(): void {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

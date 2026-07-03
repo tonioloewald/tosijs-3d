@@ -42,10 +42,8 @@ export declare class B3dSkybox extends AbstractMesh {
     get horizonColor(): BABYLON.Color3;
     private hex;
     private updateSky;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
 }
 export declare const b3dSkybox: import("tosijs").ElementCreator<B3dSkybox>;

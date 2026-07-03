@@ -66,12 +66,12 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Effects" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
-export class B3dReflections extends Component {
+export class B3dReflections extends B3dChild {
   static initAttributes = {
     refreshRate: 5,
     // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
@@ -172,10 +172,6 @@ export class B3dReflections extends Component {
     this.addMeshesToProbes()
   }
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   private updateProbeRate(
     probe: BABYLON.ReflectionProbe,
     mesh: BABYLON.AbstractMesh,
@@ -233,11 +229,6 @@ export class B3dReflections extends Component {
     this.probes = []
     this.nonMirrorMeshes = []
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 }
 

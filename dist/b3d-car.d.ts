@@ -25,10 +25,8 @@ export declare class B3dCar extends B3dControllable {
     private wheels;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
 }
 export declare const b3dCar: import("tosijs").ElementCreator<B3dCar>;
 //# sourceMappingURL=b3d-car.d.ts.map

@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
+import { B3dChild } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
-export declare class B3dSun extends Component {
+export declare class B3dSun extends B3dChild {
     static initAttributes: {
         shadowMaxZ: number;
         shadowDarkness: number;
@@ -40,11 +40,9 @@ export declare class B3dSun extends Component {
      */
     externallyLit: boolean;
     private update;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     private configureShadows;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
 }
 export declare const b3dSun: import("tosijs").ElementCreator<B3dSun>;

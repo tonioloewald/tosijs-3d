@@ -31,7 +31,7 @@
   <article class="doc-content">
 <h1>glass-gamepad (b3dGamepad)</h1>
 <p>A <strong>split</strong> on-screen (&quot;glass&quot;) gamepad for touch contexts, as a Component (so
-it&#39;s both the overlay element <em>and</em> a [[virtual-gamepad]] <code>GamepadSource</code>, like
+it&#39;s both the overlay element <em>and</em> a <a href="/virtual-gamepad/" class="wikilink">virtual-gamepad</a> <code>GamepadSource</code>, like
 <code>gameController</code>/<code>keyboardGamepad</code>). Instead of one controller body, the controls
 are grouped into independently-anchored clusters, each a small SVG pinned to a
 corner of the view:</p>
@@ -63,7 +63,7 @@ corner of the view:</p>
 <code>/gamepad-right.svg</code>, <code>/gamepad-top.svg</code>) whose paths are labelled by <code>id</code>
 (copied to <code>data-part</code> on load). There&#39;s no outer shell — just the clusters.</p>
 <p>Usually you don&#39;t place this yourself: set the <code>gamepad</code> attribute on
-[[tosi-b3d]] and it mounts one and wires it into the active input system. Placed
+<a href="/tosi-b3d/" class="wikilink">tosi-b3d</a> and it mounts one and wires it into the active input system. Placed
 directly, it&#39;s a <code>GamepadSource</code> whose <code>poll()</code> merges all clusters.</p>
 <pre><code class="language-js">import { b3dGamepad } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;

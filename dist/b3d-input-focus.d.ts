@@ -1,9 +1,9 @@
 import * as BABYLON from '@babylonjs/core';
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
 import { B3dControllable } from './b3d-controllable';
 import { MappedInputProvider } from './virtual-gamepad';
-export declare class B3dInputFocus extends Component {
+export declare class B3dInputFocus extends B3dChild {
     static initAttributes: {
         enterDistance: number;
     };
@@ -16,7 +16,6 @@ export declare class B3dInputFocus extends Component {
     /** The current MappedInputProvider (exposed for late-binding by controllables) */
     inputMappedProvider: MappedInputProvider | null;
     private interactWasPressed;
-    connectedCallback(): void;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     private discoverEntities;
     focusEntity(entity: B3dControllable): void;
@@ -25,7 +24,6 @@ export declare class B3dInputFocus extends Component {
     private enterVehicle;
     private exitVehicle;
     sceneDispose(): void;
-    disconnectedCallback(): void;
 }
 export declare const inputFocus: import("tosijs").ElementCreator<B3dInputFocus>;
 //# sourceMappingURL=b3d-input-focus.d.ts.map

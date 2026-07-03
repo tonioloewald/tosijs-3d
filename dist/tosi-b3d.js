@@ -392,9 +392,18 @@ export class B3d extends Component {
     sceneListeners = [];
     pastAdditions = [];
     _sceneReady = false;
-    _childObserver;
-    _notifiedNodes = new WeakSet();
+    // Pull-model readiness: B3dChild components call whenReady() from their own
+    // connectedCallback to insert themselves once the scene is up. Runs the callback
+    // immediately if the scene is already ready, else queues it for the flush below.
+    _readyQueue = [];
     _libraries = new Map();
+    /** Run `cb` when the scene is ready — now if it already is, else on scene-ready. */
+    whenReady(cb) {
+        if (this._sceneReady)
+            cb();
+        else
+            this._readyQueue.push(cb);
+    }
     onSceneAddition(callback) {
         this.sceneListeners.push(callback);
         for (const additions of this.pastAdditions) {
@@ -552,47 +561,9 @@ export class B3d extends Component {
     loadScene = async (path, file, processCallback) => {
         BABYLON.SceneLoader.Append(path, file, this.scene, processCallback);
     };
-    _notifyNode(node) {
-        if (node instanceof HTMLElement &&
-            typeof node.sceneReady === 'function' &&
-            !this._notifiedNodes.has(node)) {
-            this._notifiedNodes.add(node);
-            node.sceneReady(this, this.scene);
-        }
-    }
-    _disposeNode(node) {
-        if (node instanceof HTMLElement &&
-            this._notifiedNodes.has(node) &&
-            typeof node.sceneDispose === 'function') {
-            this._notifiedNodes.delete(node);
-            node.sceneDispose();
-        }
-    }
-    // Notify parent before children (document order = depth-first pre-order)
-    _notifySubtree(node) {
-        this._notifyNode(node);
-        if (node instanceof HTMLElement) {
-            for (const el of Array.from(node.querySelectorAll('*'))) {
-                this._notifyNode(el);
-            }
-        }
-    }
-    // Dispose children before parent (reverse document order)
-    _disposeSubtree(node) {
-        if (node instanceof HTMLElement) {
-            const els = Array.from(node.querySelectorAll('*'));
-            for (let i = els.length - 1; i >= 0; i--) {
-                this._disposeNode(els[i]);
-            }
-        }
-        this._disposeNode(node);
-    }
-    // Notify all descendants in document order (parents before children)
-    _notifyAllDescendants() {
-        for (const el of Array.from(this.querySelectorAll('*'))) {
-            this._notifyNode(el);
-        }
-    }
+    // (Component insert/dispose is pull-model: each B3dChild self-registers via
+    // whenReady() on connect and self-disposes on disconnect — b3d no longer pushes
+    // sceneReady/sceneDispose or watches the subtree.)
     _qualityOff = null;
     static _probeStarted = false;
     // Seed the device quality profile and apply render scaling. Explicit `quality`
@@ -695,19 +666,6 @@ export class B3d extends Component {
         catch (err) {
             console.warn('b3d quality setup failed; using default profile', err);
         }
-        this._childObserver = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                for (const node of Array.from(mutation.addedNodes)) {
-                    if (this._sceneReady) {
-                        this._notifySubtree(node);
-                    }
-                }
-                for (const node of Array.from(mutation.removedNodes)) {
-                    this._disposeSubtree(node);
-                }
-            }
-        });
-        this._childObserver.observe(this, { childList: true, subtree: true });
         const init = async () => {
             if (this.sceneCreated !== noop) {
                 await this.sceneCreated(this, BABYLON);
@@ -731,12 +689,17 @@ export class B3d extends Component {
             }
             this.gui = new GUI.GUI3DManager(this.scene);
             this.engine.runRenderLoop(this._update);
-            // Mount the glass gamepad (if requested) before notifying descendants, so
+            // Mount the glass gamepad (if requested) before releasing descendants, so
             // b3dInputFocus sees its source when it wires up input.
             this._setupGamepad();
-            // Scene is now ready — notify all existing descendants
+            // Scene is ready. Release any B3dChild components that connected and asked
+            // (whenReady) before the scene was up — they insert themselves now. Anything
+            // connecting later self-registers and runs immediately.
             this._sceneReady = true;
-            this._notifyAllDescendants();
+            const queued = this._readyQueue;
+            this._readyQueue = [];
+            for (const cb of queued)
+                cb();
             // Offer WebXR (non-blocking — it must not delay the canvas reveal).
             void this._setupXR();
             // Mount the gear-toggled DOM-overlay settings panel (flat screens). The
@@ -1425,15 +1388,10 @@ export class B3d extends Component {
             this.xrHelper.dispose();
             this.xrHelper = undefined;
         }
-        if (this._childObserver) {
-            this._childObserver.disconnect();
-            this._childObserver = undefined;
-        }
-        const els = Array.from(this.querySelectorAll('*'));
-        for (let i = els.length - 1; i >= 0; i--) {
-            this._disposeNode(els[i]);
-        }
+        // Descendant B3dChild components self-dispose via their own
+        // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
         this._sceneReady = false;
+        this._readyQueue = [];
         super.disconnectedCallback();
     }
     render() {

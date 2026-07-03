@@ -38,11 +38,11 @@ document.body.append(
 */
 /*{ "parent": "Input" }*/
 import * as BABYLON from '@babylonjs/core';
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import { B3dControllable } from './b3d-controllable';
 import { bipedMapping, } from './virtual-gamepad';
 import { CompositeInputProvider } from './control-input';
-export class B3dInputFocus extends Component {
+export class B3dInputFocus extends B3dChild {
     static initAttributes = {
         enterDistance: 3,
     };
@@ -57,9 +57,6 @@ export class B3dInputFocus extends Component {
     /** The current MappedInputProvider (exposed for late-binding by controllables) */
     inputMappedProvider = null;
     interactWasPressed = false;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, _scene) {
         this.owner = owner;
         // Find the GameController child
@@ -226,10 +223,6 @@ export class B3dInputFocus extends Component {
         this.gameController = null;
         this.inputMappedProvider = null;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
 }
 export const inputFocus = B3dInputFocus.elementCreator({

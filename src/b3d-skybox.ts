@@ -213,10 +213,6 @@ export class B3dSkybox extends AbstractMesh {
     }
   }
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -287,11 +283,6 @@ export class B3dSkybox extends AbstractMesh {
     if (this.sunEl != null) this.sunEl.externallyLit = false
     this.sunEl = null
     super.sceneDispose()
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

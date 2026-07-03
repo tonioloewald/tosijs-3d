@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dReflections extends Component {
+export declare class B3dReflections extends B3dChild {
     static initAttributes: {
         refreshRate: number;
         probeSize: number;
@@ -27,11 +27,9 @@ export declare class B3dReflections extends Component {
     private addMeshesToProbes;
     private createProbe;
     private makeReflectiveCallback;
-    connectedCallback(): void;
     private updateProbeRate;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
 }
 export declare const b3dReflections: import("tosijs").ElementCreator<B3dReflections>;
 //# sourceMappingURL=b3d-reflections.d.ts.map

@@ -116,9 +116,6 @@ export class B3dCar extends B3dControllable {
             wheel.rotate(BABYLON.Vector3.Right(), wheelSpin, BABYLON.Space.LOCAL);
         }
     }
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -164,10 +161,6 @@ export class B3dCar extends B3dControllable {
         this.wheels = [];
         this.inputProvider = null;
         super.sceneDispose();
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
 }
 export const b3dCar = B3dCar.elementCreator({ tag: 'tosi-b3d-car' });

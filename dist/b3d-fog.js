@@ -31,14 +31,14 @@ document.body.append(
 ```
 */
 /*{ "parent": "Environment" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 const FOG_MODES = {
     linear: BABYLON.Scene.FOGMODE_LINEAR,
     exp: BABYLON.Scene.FOGMODE_EXP,
     exp2: BABYLON.Scene.FOGMODE_EXP2,
 };
-export class B3dFog extends Component {
+export class B3dFog extends B3dChild {
     static initAttributes = {
         mode: 'linear',
         color: '#bfd9f2',
@@ -50,9 +50,6 @@ export class B3dFog extends Component {
     owner = null;
     skyboxEl = null;
     _beforeRender = null;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, _scene) {
         this.owner = owner;
         this.applyFog();
@@ -72,10 +69,6 @@ export class B3dFog extends Component {
         }
         this.skyboxEl = null;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

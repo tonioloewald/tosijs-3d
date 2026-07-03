@@ -214,7 +214,7 @@ document.body.append(b3d({}, terrain))
 */
 /*{ "parent": "Environment" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
@@ -257,7 +257,7 @@ type TileTemplate = {
   allIndices: number[] // heightfield + skirt triangles (for drawing)
 }
 
-export class B3dTerrain extends Component {
+export class B3dTerrain extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -336,10 +336,6 @@ export class B3dTerrain extends Component {
 
   private _beforeRender: (() => void) | null = null
 
-  connectedCallback(): void {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
 
@@ -363,11 +359,6 @@ export class B3dTerrain extends Component {
     this.pool = []
     if (this.material) this.material.dispose()
     this.owner = null
-  }
-
-  disconnectedCallback(): void {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   private createSampler(): SurfaceSampler {

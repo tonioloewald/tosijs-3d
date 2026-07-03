@@ -401,9 +401,6 @@ export class B3dSvgPlane extends AbstractMesh {
     _lastSvgX = 0;
     _lastSvgY = 0;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -444,10 +441,6 @@ export class B3dSvgPlane extends AbstractMesh {
         this._material?.dispose();
         this._material = null;
         super.sceneDispose();
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

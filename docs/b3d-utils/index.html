@@ -92,6 +92,60 @@ component that calls <code>register()</code>.</p>
 <td>Physics collider (sphere/box/cylinder/mesh)</td>
 </tr>
 </tbody></table>
+<h1>B3dChild</h1>
+<p><code>B3dChild</code> is the base class for <strong>any custom element you write that lives inside a
+<code>&lt;tosi-b3d&gt;</code> scene</strong>. It owns the whole scene-attach lifecycle in one place so you
+never have to reason about component-vs-scene timing yourself.</p>
+<p>Extend it (or <a href="/b3d-utils/">AbstractMesh</a>, which extends <code>B3dChild</code> and adds
+position/rotation syncing) and override two hooks:</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>When it runs</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sceneReady(owner, scene)</code></td>
+<td>Once, when <strong>both</strong> this element is connected (its attributes are drained and readable) <strong>and</strong> the scene&#39;s engine/scene exist.</td>
+<td>Build your Babylon content, <code>owner.register({meshes, lights})</code>, subscribe to <code>owner.onSceneAddition(...)</code>.</td>
+</tr>
+<tr>
+<td><code>sceneDispose()</code></td>
+<td>On disconnect (element removed, or the whole scene torn down).</td>
+<td>Dispose meshes/materials, unsubscribe, release references.</td>
+</tr>
+</tbody></table>
+<p>Do <strong>not</strong> override <code>connectedCallback</code> / <code>disconnectedCallback</code> — the pull-model
+plumbing is centralized in <code>B3dChild</code> so a lifecycle fix lands in exactly one spot.
+(If you must, call <code>super</code> first and keep it side-effect-free.)</p>
+<p>Why a base class rather than parent orchestration? On connect the child discovers its
+owner via <a href="/b3d-utils/">findB3dOwner</a> and asks to attach: <code>owner.whenReady(cb)</code> runs
+<code>cb</code> immediately if the scene is already up, otherwise the instant it becomes ready.
+The parent never <em>pushes</em> <code>sceneReady</code> at a guessed moment, so <code>sceneReady</code> fires only
+when the child is genuinely ready AND the scene exists — no races against tosijs&#39;s
+deferred attribute application.</p>
+<pre><code class="language-javascript">import { B3dChild } from &#39;tosijs-3d&#39;
+import * as BABYLON from &#39;@babylonjs/core&#39;
+
+class MyThing extends B3dChild {
+  static initAttributes = { color: &#39;#ff8800&#39; }
+  declare color: string
+  mesh?: BABYLON.Mesh
+
+  sceneReady(owner, scene) {
+    this.mesh = BABYLON.MeshBuilder.CreateBox(&#39;mything&#39;, {}, scene)
+    owner.register({ meshes: [this.mesh] })
+  }
+
+  sceneDispose() {
+    this.mesh?.dispose()
+    this.mesh = undefined
+  }
+}
+export const myThing = MyThing.elementCreator({ tag: &#39;my-thing&#39; })
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

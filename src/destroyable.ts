@@ -121,7 +121,11 @@ export class CombatWorld {
    * THIS call (a `damaged` or `destroyed`); chain detonations surface later from
    * `tick`. Pushes onto `out` if given (so callers can accumulate across a frame).
    */
-  applyDamage(id: string, amount: number, out: CombatEvent[] = []): CombatEvent[] {
+  applyDamage(
+    id: string,
+    amount: number,
+    out: CombatEvent[] = []
+  ): CombatEvent[] {
     const d = this.map.get(id)
     if (d == null || d.destroyed || amount <= 0) return out
 

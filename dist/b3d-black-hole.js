@@ -130,7 +130,7 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 // 2D noise for disk turbulence (simple hash-based)
 function hash(x, y) {
@@ -164,7 +164,7 @@ function _fbmNoise(x, y, octaves) {
     }
     return val;
 }
-export class B3dBlackHole extends Component {
+export class B3dBlackHole extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -194,9 +194,6 @@ export class B3dBlackHole extends Component {
     _beforeRender = null;
     _time = 0;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         this.rootNode = new BABYLON.TransformNode('blackhole-root', scene);
@@ -221,10 +218,6 @@ export class B3dBlackHole extends Component {
         this.lensedDiskMesh = null;
         this.photonRingMesh = null;
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     update() {
         if (this.rootNode == null || this.owner == null)

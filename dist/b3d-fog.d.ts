@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dFog extends Component {
+export declare class B3dFog extends B3dChild {
     static initAttributes: {
         mode: string;
         color: string;
@@ -13,10 +13,8 @@ export declare class B3dFog extends Component {
     owner: B3d | null;
     private skyboxEl;
     private _beforeRender;
-    connectedCallback(): void;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
     private applyFog;
     private syncFromSkybox;

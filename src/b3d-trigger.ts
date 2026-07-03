@@ -109,11 +109,11 @@ preview.append(
 */
 /*{ "parent": "Core" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
-export class B3dTrigger extends Component {
+export class B3dTrigger extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -150,10 +150,6 @@ export class B3dTrigger extends Component {
 
   content = () => ''
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
     this.owner = owner
 
@@ -170,11 +166,6 @@ export class B3dTrigger extends Component {
     }
     this.disposeDebugMesh()
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

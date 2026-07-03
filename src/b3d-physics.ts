@@ -177,7 +177,7 @@ preview.append(
 */
 /*{ "parent": "Utilities" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer'
 import { JoltPlugin } from './jolt-plugin'
@@ -190,7 +190,7 @@ import type { B3d } from './tosi-b3d'
 // whole ~3MB loader even when no scene uses physics, and would also fight with
 // Bun's IIFE external shim, which can't resolve a synchronous require.
 
-export class B3dPhysics extends Component {
+export class B3dPhysics extends B3dChild {
   static styleSpec = {
     ':host': {
       display: 'none',
@@ -225,10 +225,6 @@ export class B3dPhysics extends Component {
     this.ready = new Promise((resolve) => {
       this._resolveReady = resolve
     })
-  }
-
-  connectedCallback() {
-    super.connectedCallback()
   }
 
   async sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -272,11 +268,6 @@ export class B3dPhysics extends Component {
     }
     this.plugin = null
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

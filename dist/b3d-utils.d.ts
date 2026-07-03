@@ -36,7 +36,28 @@ export declare function enterXR(scene: BABYLON.Scene, options?: XRParams): Promi
  * pre-pass and shadow exclusion automatically.
  */
 export declare function applyMaterialConventions(meshes: BABYLON.AbstractMesh[]): void;
-export declare class AbstractMesh extends Component {
+/**
+ * Base for every element that lives INSIDE a `<tosi-b3d>` scene. The whole
+ * pull-model lifecycle lives here, in ONE place. On connect (by which point tosijs
+ * has drained this element's attributes), the child finds its b3d owner and asks to
+ * insert itself once the scene is ready: `owner.whenReady(cb)` runs `cb` now if the
+ * scene is already up, else when it becomes ready. b3d never *pushes* `sceneReady`
+ * at a guessed time — so a child's `sceneReady` only ever runs when the child is
+ * genuinely ready AND the scene is ready. On disconnect it removes itself.
+ *
+ * Subclasses override `sceneReady(owner, scene)` (build/insert into the scene) and
+ * `sceneDispose()` (tear down + release). They should NOT touch
+ * connected/disconnectedCallback — that plumbing is centralized here so a lifecycle
+ * fix lands in exactly one spot.
+ */
+export declare class B3dChild extends Component {
+    owner: B3d | null;
+    connectedCallback(): void;
+    disconnectedCallback(): void;
+    sceneReady(_owner: B3d, _scene: BABYLON.Scene): void;
+    sceneDispose(): void;
+}
+export declare class AbstractMesh extends B3dChild {
     static initAttributes: {
         x: number;
         y: number;
@@ -45,7 +66,6 @@ export declare class AbstractMesh extends Component {
         ry: number;
         rz: number;
     };
-    owner: B3d | null;
     mesh?: BABYLON.Mesh;
     protected loadGeneration: number;
     get roll(): number;
@@ -54,7 +74,6 @@ export declare class AbstractMesh extends Component {
     set pitch(v: number);
     get yaw(): number;
     set yaw(v: number);
-    connectedCallback(): void;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
     /**
@@ -64,7 +83,6 @@ export declare class AbstractMesh extends Component {
      * their sceneReady to safely resolve async asset loads.
      */
     protected loadAssetContainer(scene: BABYLON.Scene, url: string, onLoaded: (container: BABYLON.AssetContainer) => void): void;
-    disconnectedCallback(): void;
     render(): void;
 }
 //# sourceMappingURL=b3d-utils.d.ts.map

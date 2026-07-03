@@ -65,10 +65,10 @@ tosi-b3d { width: 100%; height: 100%; }
 | `_mirror` (or `-mirror`) | Mesh gets a reflection probe attached |
 */
 /*{ "parent": "Effects" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { resolveBudget } from './b3d-quality';
-export class B3dReflections extends Component {
+export class B3dReflections extends B3dChild {
     static initAttributes = {
         refreshRate: 5,
         // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
@@ -158,9 +158,6 @@ export class B3dReflections extends Component {
         // update all probes with any new non-mirror meshes
         this.addMeshesToProbes();
     }
-    connectedCallback() {
-        super.connectedCallback();
-    }
     updateProbeRate(probe, mesh, camPos) {
         const attrs = this;
         const dist = BABYLON.Vector3.Distance(camPos, mesh.absolutePosition);
@@ -210,10 +207,6 @@ export class B3dReflections extends Component {
         this.probes = [];
         this.nonMirrorMeshes = [];
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
 }
 export const b3dReflections = B3dReflections.elementCreator({

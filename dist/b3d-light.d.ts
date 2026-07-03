@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dLight extends Component {
+export declare class B3dLight extends B3dChild {
     static initAttributes: {
         x: number;
         y: number;
@@ -12,10 +12,8 @@ export declare class B3dLight extends Component {
     };
     owner: B3d | null;
     light?: BABYLON.HemisphericLight;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
 }
 export declare const b3dLight: import("tosijs").ElementCreator<B3dLight>;

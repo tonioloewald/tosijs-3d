@@ -45,6 +45,7 @@ to absolute.
   inputs (sticks)** for panel actions over precise pointing/dragging.
 
 ### Spatial UI is NOT XR-only (fixed)
+
 - A frame panel gaze-reveals off `scene.activeCamera`, so nothing about it is
   inherently XR — it works on a monitor too. **NPC nameplates** (`EntityFrame` +
   `attachFramePanel`) now render in flat AND XR via a general `_setupNameplates`
@@ -119,6 +120,7 @@ to absolute.
   intersection to keep interaction working.
 
 ### Reticle state can encode gameplay (turret reachability)
+
 Beyond position/scale, the reticle's **color encodes state**. First use (aircraft
 combat MVP): the two waist turrets have **limited traverse/elevation**, so the
 player's look direction may be **out of arc** — the reticle goes **green when a

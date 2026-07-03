@@ -1,9 +1,9 @@
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
 import type { B3d } from './tosi-b3d'
 
-export class B3dButton extends Component {
+export class B3dButton extends B3dChild {
   static initAttributes = {
     caption: 'click me',
     textColor: '#ffffff',
@@ -17,10 +17,6 @@ export class B3dButton extends Component {
   button?: GUI.Button3D
   action: (data: any, state: BABYLON.EventState) => void = () => {
     console.warn('<tosi-b3d-button> clicked but has no assigned action')
-  }
-
-  connectedCallback(): void {
-    super.connectedCallback()
   }
 
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
@@ -50,11 +46,6 @@ export class B3dButton extends Component {
       this.button = undefined
     }
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

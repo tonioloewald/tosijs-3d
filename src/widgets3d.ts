@@ -954,9 +954,9 @@ export function panel3d(
   // Scroll by a delta (viewBox units). For an in-scene/VR host to drive scroll
   // from a source that isn't a pointer — e.g. an XR thumbstick while pointing at
   // the panel. No-op when the content doesn't overflow.
-  ;(
-    root as unknown as { scrollBy: (dy: number) => void }
-  ).scrollBy = (dy: number) => {
+  ;(root as unknown as { scrollBy: (dy: number) => void }).scrollBy = (
+    dy: number
+  ) => {
     if (!scrollable) return
     scroll += dy
     applyScroll()

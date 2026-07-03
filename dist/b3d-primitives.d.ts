@@ -15,7 +15,6 @@ export declare class B3dSphere extends AbstractMesh {
         ry: number;
         rz: number;
     };
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
 export declare const b3dSphere: import("tosijs").ElementCreator<B3dSphere>;
@@ -35,7 +34,6 @@ export declare class B3dBox extends AbstractMesh {
         ry: number;
         rz: number;
     };
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
 export declare const b3dBox: import("tosijs").ElementCreator<B3dBox>;
@@ -53,7 +51,6 @@ export declare class B3dGround extends AbstractMesh {
         ry: number;
         rz: number;
     };
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
 export declare const b3dGround: import("tosijs").ElementCreator<B3dGround>;

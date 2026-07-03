@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dCollisions extends Component {
+export declare class B3dCollisions extends B3dChild {
     static initAttributes: {
         debug: boolean;
     };
@@ -17,11 +17,9 @@ export declare class B3dCollisions extends Component {
     private createCylinderCollider;
     private getCollideType;
     private processAdditions;
-    connectedCallback(): void;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
     render(): void;
-    disconnectedCallback(): void;
 }
 export declare const b3dCollisions: import("tosijs").ElementCreator<B3dCollisions>;
 //# sourceMappingURL=b3d-collisions.d.ts.map

@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dParticles extends Component {
+export declare class B3dParticles extends B3dChild {
     static styleSpec: {
         ':host': {
             display: string;
@@ -67,10 +67,8 @@ export declare class B3dParticles extends Component {
     private _currentRadius;
     content: () => string;
     private _started;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
     /** Start emitting particles */
     start(): void;

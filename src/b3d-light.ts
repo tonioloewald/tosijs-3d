@@ -55,11 +55,11 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
-export class B3dLight extends Component {
+export class B3dLight extends B3dChild {
   static initAttributes = {
     x: 0,
     y: 1,
@@ -71,10 +71,6 @@ export class B3dLight extends Component {
 
   owner: B3d | null = null
   light?: BABYLON.HemisphericLight
-
-  connectedCallback() {
-    super.connectedCallback()
-  }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
@@ -93,11 +89,6 @@ export class B3dLight extends Component {
       this.light = undefined
     }
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

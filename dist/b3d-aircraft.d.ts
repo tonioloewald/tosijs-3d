@@ -68,7 +68,6 @@ export declare class B3dAircraft extends B3dControllable {
      * per-call allocation on this per-frame path. */
     private raycastGround;
     private updatePullUp;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     private loadFromUrl;
     private loadFromLibrary;
@@ -81,7 +80,6 @@ export declare class B3dAircraft extends B3dControllable {
      * camera (that would steal it from the WebXR camera and break the headset). */
     setCameraView(view: 'chase' | 'cockpit'): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
 }
 export declare const b3dAircraft: import("tosijs").ElementCreator<B3dAircraft>;
 //# sourceMappingURL=b3d-aircraft.d.ts.map

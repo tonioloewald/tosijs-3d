@@ -34,11 +34,11 @@ document.body.append(
 */
 /*{ "parent": "Core" }*/
 
-import { Component } from 'tosijs'
+import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
-export class B3dCollisions extends Component {
+export class B3dCollisions extends B3dChild {
   static initAttributes = {
     debug: false,
   }
@@ -235,10 +235,6 @@ export class B3dCollisions extends Component {
     }
   }
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
     this.owner = owner
     this._callback = this.processAdditions.bind(this)
@@ -271,11 +267,6 @@ export class B3dCollisions extends Component {
         collider.isVisible = false
       }
     }
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 }
 

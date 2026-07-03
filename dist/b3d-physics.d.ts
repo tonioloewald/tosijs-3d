@@ -1,8 +1,8 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { JoltPlugin } from './jolt-plugin';
 import type { B3d } from './tosi-b3d';
-export declare class B3dPhysics extends Component {
+export declare class B3dPhysics extends B3dChild {
     static styleSpec: {
         ':host': {
             display: string;
@@ -28,10 +28,8 @@ export declare class B3dPhysics extends Component {
     private _shownBodies;
     content: () => string;
     constructor();
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): Promise<void>;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     render(): void;
     /** Show wireframe debug shapes for all physics bodies */
     enableDebug(): void;

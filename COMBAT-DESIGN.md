@@ -13,7 +13,7 @@ agreed; `TODO.md` (Combat) holds the actionable checklist.
   component. Deterministic (MersenneTwister; no `Date.now`/`Math.random`) so it's
   unit-testable and replay-safe.
 - **Respect the sim/driver decoupling** (`world-contract`): combat reports
-  *physical* reality (a Destroyable took damage / died) via events; it never
+  _physical_ reality (a Destroyable took damage / died) via events; it never
   encodes narrative ("objective destroyed"). Meaning is a driver concern.
 
 Status legend: ✅ agreed · 🟡 spec'd, open questions · ✏️ drafting
@@ -26,6 +26,7 @@ The damage-delivery payload. Sits on a projectile (or bomb, or mine); the
 delivery system carries it, the warhead decides what damage happens on contact.
 
 ### Agreed spec
+
 - **Minimum activation time (arming delay).** For a period after launch/spawn the
   warhead is **inert** — it will not detonate. Prevents a projectile detonating on
   the launcher / point-blank.
@@ -39,14 +40,14 @@ delivery system carries it, the warhead decides what damage happens on contact.
       `r_full`) down to **1** (at `R`), i.e.
       `dmg = D − (D − 1)·(d − r_full)/(R − r_full)` for `r_full < d ≤ R`.
     - beyond `R`: **0** (unaffected).
-    Note the floor is **1**, not 0 — anything inside the blast radius takes at
-    least 1 (before armor/protection). (Deliberately linear, not inverse-square.)
-    **Occluded ✅:** the blast only affects a target with **nothing between it and
-    the warhead** — shields and other geometry **block** the splash (line-of-sight
-    per target; a blocked target takes nothing). *Shelved refinement:* if the
-    blast **destroys** the blocker (e.g. pops a shield), let the
-    **remaining/overkill** damage pass through to what was behind it. Not in v1 —
-    v1 is binary block / no-block.
+      Note the floor is **1**, not 0 — anything inside the blast radius takes at
+      least 1 (before armor/protection). (Deliberately linear, not inverse-square.)
+      **Occluded ✅:** the blast only affects a target with **nothing between it and
+      the warhead** — shields and other geometry **block** the splash (line-of-sight
+      per target; a blocked target takes nothing). _Shelved refinement:_ if the
+      blast **destroys** the blocker (e.g. pops a shield), let the
+      **remaining/overkill** damage pass through to what was behind it. Not in v1 —
+      v1 is binary block / no-block.
 - **Explosion effect (optional).** A warhead may spawn an explosion effect,
   oriented either:
   - **normal to the impact** — a surface explosion (uses the hit surface normal), or
@@ -57,7 +58,8 @@ delivery system carries it, the warhead decides what damage happens on contact.
   and single-purpose; stack several for compound effects.
 
 ### Consequences of the composition principle (resolved)
-- **Direct vs. AOE is one mode per warhead ✅** — want a direct hit *plus* splash?
+
+- **Direct vs. AOE is one mode per warhead ✅** — want a direct hit _plus_ splash?
   Put **two warheads** on the projectile (one direct, one AOE). No combined mode.
 - **Death explosion = a Warhead ✅** — a Destroyable that "blows up and hurts
   everything nearby" simply carries a **Warhead that fires on destruction**. (So
@@ -65,21 +67,23 @@ delivery system carries it, the warhead decides what damage happens on contact.
   chain link for scripted propagation.)
 
 ### Defaulted (override anytime)
+
 - **Arming** — time-since-launch only (no min-distance in v1); while inert the
   projectile **passes through** targets (no detonation, no bounce).
 - **Owner / friendly fire — NONE.** A warhead has **no** owner or faction
   exclusion; once armed it damages **anything** in range, **including its own
   launcher/owner**. The **activation delay is the only self-protection** (it can't
-  detonate point-blank on launch). So you *can* blow yourself up with your own bomb
-  if you're too close when it arms. (Contrast: **melee** *is* owner-friendly.)
+  detonate point-blank on launch). So you _can_ blow yourself up with your own bomb
+  if you're too close when it arms. (Contrast: **melee** _is_ owner-friendly.)
 - **Trigger surface** — detonates on **any solid contact** (terrain/geometry too,
   so bombs explode on the ground), not just Destroyables.
 
-*(AOE falloff — RESOLVED: linear `r_full`→`R`, floor 1. AOE occlusion — RESOLVED:
+_(AOE falloff — RESOLVED: linear `r_full`→`R`, floor 1. AOE occlusion — RESOLVED:
 line-of-sight. Damage type — SHELVED, single scalar v1. See Destroyable →
-Resolved.)*
+Resolved.)_
 
 ### Implementation sketch (tentative)
+
 - Pure `warhead.ts`: `resolveDamage(warhead, impactPoint, targets[]) → Array<{target, amount}>` — no Babylon; unit-tested against known geometries. Occlusion stays out of the pure model: it either receives **already-LOS-filtered targets**, or takes an `isVisible(target) => boolean` predicate the bridge supplies. Falloff math is pure/testable.
 - `b3d-warhead` (or a field on the projectile component) bridges: collision-sphere
   overlap test in the scene, arming timer, the **LOS raycast** from the impact
@@ -94,6 +98,7 @@ Anything that can take damage and be destroyed — the sink every warhead resolv
 against. This is the core state model of combat.
 
 ### Agreed spec
+
 - **Damage capacity** — the HP pool. Destroyed when it's exhausted.
 - **Regeneration rate** (default **0**) — capacity restored over time, but only
   after a **regen delay**: regen does not cut in until **no damage has been
@@ -102,24 +107,26 @@ against. This is the core state model of combat.
   incoming damage before it touches capacity).
 - **Protection by another Destroyable** — while the protector is intact, incoming
   damage is reduced by a **flat amount** (the protection value), and the reduced
-  damage simply **vanishes** (it is *not* dealt to the protector). E.g.
-  `protection 2` turns incoming `5` into `3`. *(Revised from an earlier
+  damage simply **vanishes** (it is _not_ dealt to the protector). E.g.
+  `protection 2` turns incoming `5` into `3`. _(Revised from an earlier
   "fraction" reading — it's flat, like armor, but conditional on the protector
-  being intact.)* "Full protection" (suffer no damage) = a protection value large
+  being intact.)_ "Full protection" (suffer no damage) = a protection value large
   enough to absorb any hit.
 - **Chain reaction** — on destruction, inflicts a specified amount of damage to
   **linked** Destroyable(s) after a delay (**default 0.25 s** when a link exists).
   A **list** of links (one-to-many), and it **cascades** (a link that destroys its
-  target fires *that* target's links too). This is the mechanism for:
+  target fires _that_ target's links too). This is the mechanism for:
   - a **generator** whose destruction destroys the **shields it powers**, and
   - the **Death Star**: a bomb down the exhaust chute destroys a small critical
     Destroyable, which chain-links to destroy the **whole station**.
-  So chains model both *propagation* (generator → many shields) and *criticals*
-  (tiny weak point → the big thing dies).
+    So chains model both _propagation_ (generator → many shields) and _criticals_
+    (tiny weak point → the big thing dies).
 
 ### Damage resolution pipeline (draft — confirm ordering)
+
 Per incoming damage packet, tentatively:
-1. **Shield** absorbs first (front of the intake — usually *spatial*: the hit
+
+1. **Shield** absorbs first (front of the intake — usually _spatial_: the hit
    lands on the shield's collider instead; see Shield).
 2. **Protection** — if a protector is intact, subtract its flat protection value
    (the reduced damage **vanishes**; it is not dealt to the protector).
@@ -128,15 +135,16 @@ Per incoming damage packet, tentatively:
 5. If capacity ≤ 0 → **destroyed**: fire the chain link(s) (after each delay), run
    the death outcome (corpse/wreck/explosion — and any on-death **Warhead**), emit
    a `destroyed` event. Otherwise emit `damaged`.
-Regen ticks capacity back toward max **once no damage has arrived for the regen
-delay** (default 0.5 s); never past max; stops at destruction.
+   Regen ticks capacity back toward max **once no damage has arrived for the regen
+   delay** (default 0.5 s); never past max; stops at destruction.
 
 ### Resolved
-- ✅ **Protection is flat + vanishes** (see spec). *Open sub-points:* is
+
+- ✅ **Protection is flat + vanishes** (see spec). _Open sub-points:_ is
   **"intact"** = not-destroyed (assumed) or full-capacity? Are protection links
   **transitive**? (defaulting: intact = not-destroyed, non-transitive for v1.)
-- ✅ **Chain = list, cascades** (generator→shields; Death-Star critical). *Open
-  sub-point:* is chain damage a normal packet (subject to armor/protection/shield)
+- ✅ **Chain = list, cascades** (generator→shields; Death-Star critical). _Open
+  sub-point:_ is chain damage a normal packet (subject to armor/protection/shield)
   or does it bypass? (defaulting: normal packet — set the amount high to guarantee
   a kill.)
 - ✅ **Regen delay** — resumes after no damage for x (default 0.5 s). Armor is
@@ -148,13 +156,15 @@ delay** (default 0.5 s); never past max; stops at destruction.
   now as one scalar but leave room to become per-type later.
 
 ### Open questions (to confirm before implementing)
+
 1. **Ordering sanity:** is the pipeline order (shield → protection → armor →
    capacity) right? Specifically, **armor before or after protection**? (Order
    only matters at the `max(0, …)` floor; with both flat they otherwise commute.)
 
 ### Implementation sketch (tentative)
+
 - Pure `destroyable.ts`: a `DestroyableState` + `applyDamage(state, packet) →
-  {state', events[]}` and `regen(state, dt)`. No Babylon, deterministic,
+{state', events[]}` and `regen(state, dt)`. No Babylon, deterministic,
   unit-tested (armor floor, partial protection, chain-with-delay, cascades).
   Links/protectors referenced by id so the model stays serializable (fits
   `world-store`).
@@ -166,46 +176,51 @@ delay** (default 0.5 s); never past max; stops at destruction.
 ## Shield 🟡
 
 **A Shield is a Destroyable with a collider that spatially blocks attacks aimed at
-something else.** Almost entirely *composition* of primitives already defined —
+something else.** Almost entirely _composition_ of primitives already defined —
 this validates the model rather than adding much new.
 
 ### What it reuses (no new mechanics)
-- **Is a Destroyable** — capacity, regen (this is the classic *shield recharge*),
+
+- **Is a Destroyable** — capacity, regen (this is the classic _shield recharge_),
   armor. Hits on the shield damage the shield's own capacity.
 - **Protection link** — the protected thing has a (full or fractional) protection
-  link to the shield: *impossible or hard* to damage while the shield is intact.
+  link to the shield: _impossible or hard_ to damage while the shield is intact.
 - **Chain links** — the "connected shields" pattern is just one-to-many chain
   links (see below). Confirms Destroyable needs a **list** of chain links.
 
 ### What's genuinely new
+
 - **A collider (sphere or other)** that physically intercepts projectiles/warheads
-  *before* they reach the protected thing. This makes the pipeline's "shield
+  _before_ they reach the protected thing. This makes the pipeline's "shield
   absorbs first" step **spatial**: a projectile simply hits the shield's collider
   (a normal Destroyable taking a hit); only when the shield is **down** do attacks
   pass through to the protected collider. Reuse the convention-based collider
   system (`b3d-collisions`: sphere/box/cylinder/mesh).
 
 ### Two protection mechanisms, combined
-1. **Spatial** (collider) — blocks attacks that *cross* the shield boundary.
+
+1. **Spatial** (collider) — blocks attacks that _cross_ the shield boundary.
 2. **Abstract** (protection link) — while the shield is intact, the protected
    Destroyable takes no / fractional damage even from what leaks (e.g. AOE).
-Emergent nicety from the spatial model: an attack that **originates inside** the
-shield bubble isn't intercepted → "you must get inside the shield to hurt it."
+   Emergent nicety from the spatial model: an attack that **originates inside** the
+   shield bubble isn't intercepted → "you must get inside the shield to hurt it."
 
 ### Canonical patterns (from spec)
+
 - **protected destroyed → shield destroyed** (a chain link protected→shield).
-- **shield intact → protected safe** (full protection); *partial* for the "hard
+- **shield intact → protected safe** (full protection); _partial_ for the "hard
   but not impossible" case.
 - **Cascade vulnerability:** a partially-shielded **generator**, when destroyed,
   chain-links to a bunch of **connected shields**, destroying them → everything
-  *those* shields protected becomes vulnerable at once. (Chain links, one-to-many.)
+  _those_ shields protected becomes vulnerable at once. (Chain links, one-to-many.)
 
 ### Open questions (to confirm before implementing)
+
 1. **Downed collider:** when the shield's capacity hits 0, its collider **stops
    intercepting** (attacks pass through), yes? And on regen, does it **pop back up**
    (collider re-enabled) at full capacity, or at any capacity > 0, or a threshold?
 2. **Recharge behavior:** shields are the poster child for **regen-pause-after-hit**
-   (Destroyable Q3) — want a recharge *delay* after the last hit, then regen? A
+   (Destroyable Q3) — want a recharge _delay_ after the last hit, then regen? A
    downed shield presumably has a longer **down-time** before it starts recharging?
 3. **Topology:** can multiple shields protect one thing (**layered** shields, hit
    outer-first)? Can one shield protect **many** things? ("connected shields"
@@ -215,6 +230,7 @@ shield bubble isn't intercepted → "you must get inside the shield to hurt it."
    yes — targeting sees the outermost collider.)
 
 ### Implementation sketch (tentative)
+
 - No new pure model — Shield = a `DestroyableState` + a collider + protection/chain
   links, all already in `destroyable.ts`.
 - `b3d-shield` component: owns the collider, references its protected target and
@@ -229,6 +245,7 @@ The dumb, fast carrier a Warhead rides on. No guidance — it just flies a plaus
 ballistic arc.
 
 ### Agreed spec
+
 - **Initial velocity** (a world-space vector — the "velocity arrow").
 - **Mass.**
 - **Drag coefficient** — "a little bit of friction."
@@ -240,11 +257,12 @@ ballistic arc.
   (air density/area folded into `dragCoeff` — plausible, not a wind-tunnel).
 
 ### Pure vs. physics engine — the bomb sight decides it
+
 - **Big wrinkle: an optional BOMB SIGHT** that projects the **path** and the
   **expected impact point**.
-- This argues for a **pure integrator** over Jolt: the sight is just the *same*
+- This argues for a **pure integrator** over Jolt: the sight is just the _same_
   integrator **run forward** from the current state until it hits terrain/a
-  collider — so **prediction == simulation** and the drawn arc is *truthful*
+  collider — so **prediction == simulation** and the drawn arc is _truthful_
   (matches where the bomb actually lands, drag and all). A physics-engine
   projectile can't be cheaply/deterministically fast-forwarded for a preview.
 - So: pure `ballistics.ts` (plain `{x,y,z}`, deterministic, unit-tested — like
@@ -252,6 +270,7 @@ ballistic arc.
   adds little here.
 
 ### Resolved
+
 - ✅ **Bomb sight = 3D in-scene arc + impact marker**, shown while aiming a
   ballistic weapon. Normal aiming shows the **reticle**; ballistic mode adds the
   **arc + marker** (reticle can remain). Predicted from `predictPath`, so it's
@@ -270,6 +289,7 @@ ballistic arc.
   first hit = impact point; capped by max preview steps/time.
 
 ### Implementation sketch (tentative)
+
 - Pure `ballistics.ts`: `step(state, {gravity, dragCoeff, mass}, dt) → state'` and
   `predictPath(state, params, {dt, maxSteps, hitTest}) → {points[], impact?}` —
   `hitTest` is a bridge-supplied ray/point test so the pure model stays
@@ -285,9 +305,10 @@ ballistic arc.
 A **ballistic projectile + a seeker + steering**. It reuses everything from
 Ballistic; when it can't or shouldn't guide (thrust spent, target lost past the
 reacquire window) it simply **falls back to pure ballistic flight**. Deliberately
-*arcade*, not a military flight sim.
+_arcade_, not a military flight sim.
 
 ### Agreed spec
+
 - **Seeker: vision range + cone** (default cone **30°**). It can only see/track a
   target within that range and cone.
 - **Acquisition: fire-and-forget.** Takes time to lock — default **3 s** — then it
@@ -310,10 +331,11 @@ reacquire window) it simply **falls back to pure ballistic flight**. Deliberatel
 - **Lock / pit-bull** — future possibilities, **not** in v1.
 
 ### Resolved
+
 - ✅ **Turn rate / agility** — a max turn-rate cap while powered, with a sane
   default.
 - ✅ **Target selection** — lock the **first eligible** target (owner/faction
-  excluded). *Future:* a **fire-control system** that can acquire N locks, manage
+  excluded). _Future:_ a **fire-control system** that can acquire N locks, manage
   them, and **hand them off** to weapons later (a targeting-layer concept, ties to
   Sensorium; not in v1).
 - ✅ **Acquisition = dwell, not cumulative** — target must stay in cone+range
@@ -321,9 +343,10 @@ reacquire window) it simply **falls back to pure ballistic flight**. Deliberatel
 - ✅ **Steering requires thrust** — no thrust ⇒ no steering ⇒ ballistic.
 
 ### Implementation sketch (tentative)
+
 - Reuse pure `ballistics.ts` for the unpowered phase. Add pure `guidance.ts`:
   `firingSolution(targetPos, targetVel, projPos, projSpeed, ballisticParams,
-  smartness) → aimDir` — interpolates from **flat-at-present** (smartness 0) to the
+smartness) → aimDir` — interpolates from **flat-at-present** (smartness 0) to the
   **full solution** (smartness 1): **lead** (predicted intercept) **and drop**
   (elevation for gravity/drag, using the ballistic params). **Shared with the
   turret.** Plus a steering step that turns velocity toward the aim within the
@@ -340,11 +363,12 @@ Spawns projectiles. Holds a **weapon** (a projectile template — a ballistic sh
 a missile, …) and the timing/ammo rules for firing it.
 
 ### Agreed spec
+
 - **Fire delay** (default **0**) — time from pressing fire to the shot leaving
   (trigger windup / spool-up).
 - **Cycle time** (default **0.25 s**) — cooldown before it can fire again. **Just a
   cooldown — no heat/overheat model.** Generalized: cycle time is **either a single
-  value OR a repeating sequence** of intervals (the gap *after* each shot). So a
+  value OR a repeating sequence** of intervals (the gap _after_ each shot). So a
   **burst falls out for free** — e.g. `[0.1, 0.1, 0.5]` = fire, 0.1 s, fire, 0.1 s,
   fire, 0.5 s, then repeat → bursts of 3 with a 0.5 s gap between bursts. The
   sequence length = shots per burst; the last entry = inter-burst interval. No
@@ -367,6 +391,7 @@ a missile, …) and the timing/ammo rules for firing it.
   per shot (default **~0.1°**). Seeded (MersenneTwister) so it's deterministic.
 
 ### Resolved
+
 - ✅ **Refill `0` = finite ammo** (no regen; external reload). Otherwise one shot
   per refill interval (default 0.5 s), up to magazine capacity.
 - ✅ **Burst = cycle-time sequence** (see above) — no separate salvo mechanic.
@@ -375,11 +400,13 @@ a missile, …) and the timing/ammo rules for firing it.
   rapid fire); a typical weapon = little/no delay + short cycle time.
 
 ### Defaulted (override anytime)
+
 - **Energy pool = a generic Resource** — reuse Destroyable's `capacity` / `regen` /
   `regen-delay` mechanic (one tested primitive, two uses). On empty: a **dry-fire
   click** (no shot), not a hard error.
 
 ### Implementation sketch (tentative)
+
 - Mostly a **bridge** component `b3d-launcher`: timers (delay, cycle, per-shot
   regen), ammo/energy accounting, spawns the weapon at the muzzle transform with
   `launcherVelocity + muzzleVelocity` and the accuracy jitter. Little pure math
@@ -391,11 +418,12 @@ a missile, …) and the timing/ammo rules for firing it.
 
 ## Turret ✅
 
-An **aiming platform**, *not* a launcher. It's a mount with **one or more
+An **aiming platform**, _not_ a launcher. It's a mount with **one or more
 Launchers parented to it**; the turret slews/elevates to point them at a target,
 the launchers do the firing. Composition again.
 
 ### Agreed spec
+
 - **Traverse (rotation):** either full **360°** or a **limited deviation from
   forward** (e.g. ±60°). **Default 360°.**
 - **Elevation:** a **max elevation** (default **70°**) and a **max declination**
@@ -406,7 +434,7 @@ the launchers do the firing. Composition again.
   flexibility and faster time-to-bear. A **limited** turret can't cross its dead
   zone, so some targets are **unreachable** and it may have to slew the long way
   within its arc. The aiming model must respect limits and pick the shortest
-  *legal* path.
+  _legal_ path.
 - **Lead + drop / smartness:** uses the **same firing-solution solver + smartness
   dial (0..1)** as the guided projectile. Smartness now covers **both** target
   **lead** and **ballistic drop**: `dumb (0)` points flat at the present position
@@ -416,6 +444,7 @@ the launchers do the firing. Composition again.
   **Acceleration ignored for now** — constant rates.
 
 ### Defaulted (override anytime)
+
 - **Max declination −10°** (tanks can't depress much); elevation 70°.
 - **Acquisition: both supported, default self-acquire** — first-eligible target
   within range + the turret's **reachable** arc; can also be **directed** by a
@@ -430,7 +459,9 @@ the launchers do the firing. Composition again.
 - **Idle: return to forward/neutral** when no target.
 
 ### Control modes (self-acquire vs. directed)
+
 The turret supports both (agreed earlier). A key **directed** mode for the MVP:
+
 - **View-slaved (player-directed):** the turret's aim target is the **player's view
   direction** (flat: camera forward; VR: head forward), clamped to the turret's
   traverse/elevation limits. Used for the aircraft's two waist guns.
@@ -443,6 +474,7 @@ The turret supports both (agreed earlier). A key **directed** mode for the MVP:
   reads it. (Reticle visual spec lives in `UI-DESIGN.md`.)
 
 ### Implementation sketch (tentative)
+
 - Pure aiming helper (in `guidance.ts`): given current traverse/elevation, the
   aimpoint (or a **desired look direction** for view-slaved mode), the limits, and
   the rates → the next traverse/elevation step (shortest legal path, clamped to
@@ -469,6 +501,7 @@ Destroyable it applies damage, then waits a **cycle time** before it can hit
 again.
 
 ### Agreed spec
+
 - **Collider** that inflicts damage on impact with a Destroyable.
 - **Cycle time** between damage applications — and, reusing the launcher's
   generalization, it may be **a single value OR a sequence** (like the burst
@@ -478,11 +511,12 @@ again.
   contact only lands the **first** tick before the collider separates.
 
 ### Resolved
+
 - ✅ **Damage = flat value per tick; the cycle time does the differentiation.**
   How much total damage a hit deals is just how many ticks land — a **glancing**
   contact = one tick (low), a **sustained** contact = the whole sequence (high).
-  No per-tick Warhead needed for that. *(An optional Warhead for fancy hits —
-  AOE/knockback hammer — stays available via composition, but isn't required.)*
+  No per-tick Warhead needed for that. _(An optional Warhead for fancy hits —
+  AOE/knockback hammer — stays available via composition, but isn't required.)_
 
 - ✅ **Collider active window — gated by default.** The melee collider only
   inflicts damage while **active** (an `active` flag driven by the attack
@@ -494,6 +528,7 @@ again.
   faction. (Overridable if you ever want self/friendly-harming hazards.)
 
 ### Implementation sketch (tentative)
+
 - Almost pure-reuse: the **cycle-time sequence** logic (shared with Launcher), the
   **collider** (from `b3d-collisions`), and the **damage pipeline** (Destroyable).
 - `b3d-melee` bridge: tracks per-target contact so it knows a "sustained" contact

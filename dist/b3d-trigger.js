@@ -108,9 +108,9 @@ preview.append(
 | `once` | `false` | Fire onEnter once then deactivate |
 */
 /*{ "parent": "Core" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
-export class B3dTrigger extends Component {
+export class B3dTrigger extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -133,9 +133,6 @@ export class B3dTrigger extends Component {
     _beforeRender = null;
     debugMesh = null;
     content = () => '';
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, _scene) {
         this.owner = owner;
         this._beforeRender = () => this.checkProximity();
@@ -149,10 +146,6 @@ export class B3dTrigger extends Component {
         }
         this.disposeDebugMesh();
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

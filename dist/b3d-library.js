@@ -128,10 +128,10 @@ tosi-b3d { width: 100%; height: 100%; }
 - Options: `{ x?, y?, z?, rx?, ry?, rz?, parent? }`
 */
 /*{ "parent": "Core" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { canonicalize } from './model-transform';
-export class B3dLibrary extends Component {
+export class B3dLibrary extends B3dChild {
     static initAttributes = {
         url: '',
         type: '',
@@ -142,16 +142,13 @@ export class B3dLibrary extends Component {
     _readyResolve;
     ready;
     // See AbstractMesh.loadGeneration — same race-safe pattern, applied here
-    // because B3dLibrary extends Component directly.
+    // because B3dLibrary extends B3dChild directly (not AbstractMesh).
     loadGeneration = 0;
     constructor() {
         super();
         this.ready = new Promise((resolve) => {
             this._readyResolve = resolve;
         });
-    }
-    connectedCallback() {
-        super.connectedCallback();
     }
     sceneReady(owner, scene) {
         this.owner = owner;
@@ -275,10 +272,6 @@ export class B3dLibrary extends Component {
             this.container = null;
         }
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
 }
 export const b3dLibrary = B3dLibrary.elementCreator({

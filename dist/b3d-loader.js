@@ -81,10 +81,9 @@ document.body.append(
 ```
 */
 /*{ "parent": "Core" }*/
-import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
-import { applyMaterialConventions } from './b3d-utils';
-export class B3dLoader extends Component {
+import { applyMaterialConventions, B3dChild } from './b3d-utils';
+export class B3dLoader extends B3dChild {
     static initAttributes = {
         url: '',
         lightIntensityScale: 0.05,
@@ -92,9 +91,6 @@ export class B3dLoader extends Component {
     owner = null;
     meshes;
     lights;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         const url = this.url;
@@ -141,10 +137,6 @@ export class B3dLoader extends Component {
             this.lights = undefined;
         }
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
 }
 export const b3dLoader = B3dLoader.elementCreator({ tag: 'tosi-b3d-loader' });

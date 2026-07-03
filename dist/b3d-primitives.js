@@ -9,9 +9,6 @@ export class B3dSphere extends AbstractMesh {
         color: '#ff0000',
         mirror: false,
     };
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -47,9 +44,6 @@ export class B3dBox extends AbstractMesh {
         color: '#ff0000',
         mirror: false,
     };
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -85,9 +79,6 @@ export class B3dGround extends AbstractMesh {
         height: 4,
         color: '#888888',
     };
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;

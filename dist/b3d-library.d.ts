@@ -1,4 +1,4 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 export interface InstantiateOptions {
@@ -15,7 +15,7 @@ export interface InstantiateOptions {
      * unit and the camera can parent to the hull without per-use scale fixes. */
     canonical?: boolean;
 }
-export declare class B3dLibrary extends Component {
+export declare class B3dLibrary extends B3dChild {
     static initAttributes: {
         url: string;
         type: string;
@@ -27,7 +27,6 @@ export declare class B3dLibrary extends Component {
     ready: Promise<void>;
     private loadGeneration;
     constructor();
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     getNames(): string[];
     getRootNames(): string[];
@@ -39,7 +38,6 @@ export declare class B3dLibrary extends Component {
     clearInstances(): void;
     instantiate(name: string, options?: InstantiateOptions): BABYLON.Node | null;
     sceneDispose(): void;
-    disconnectedCallback(): void;
 }
 export declare const b3dLibrary: import("tosijs").ElementCreator<B3dLibrary>;
 //# sourceMappingURL=b3d-library.d.ts.map

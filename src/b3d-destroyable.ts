@@ -61,10 +61,6 @@ export class B3dDestroyable extends AbstractMesh {
   private _obs?: BABYLON.Observer<BABYLON.Scene>
   private _onShift?: (dx: number, dz: number) => void
 
-  connectedCallback(): void {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
     super.sceneReady(owner, scene)
     const attrs = this as any

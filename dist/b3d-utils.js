@@ -144,7 +144,90 @@ export function applyMaterialConventions(meshes) {
         }
     }
 }
-export class AbstractMesh extends Component {
+/*#
+# B3dChild
+
+`B3dChild` is the base class for **any custom element you write that lives inside a
+`<tosi-b3d>` scene**. It owns the whole scene-attach lifecycle in one place so you
+never have to reason about component-vs-scene timing yourself.
+
+Extend it (or [AbstractMesh](?b3d-utils.ts), which extends `B3dChild` and adds
+position/rotation syncing) and override two hooks:
+
+| Hook | When it runs | What to do |
+|------|--------------|------------|
+| `sceneReady(owner, scene)` | Once, when **both** this element is connected (its attributes are drained and readable) **and** the scene's engine/scene exist. | Build your Babylon content, `owner.register({meshes, lights})`, subscribe to `owner.onSceneAddition(...)`. |
+| `sceneDispose()` | On disconnect (element removed, or the whole scene torn down). | Dispose meshes/materials, unsubscribe, release references. |
+
+Do **not** override `connectedCallback` / `disconnectedCallback` — the pull-model
+plumbing is centralized in `B3dChild` so a lifecycle fix lands in exactly one spot.
+(If you must, call `super` first and keep it side-effect-free.)
+
+Why a base class rather than parent orchestration? On connect the child discovers its
+owner via [findB3dOwner](?b3d-utils.ts) and asks to attach: `owner.whenReady(cb)` runs
+`cb` immediately if the scene is already up, otherwise the instant it becomes ready.
+The parent never *pushes* `sceneReady` at a guessed moment, so `sceneReady` fires only
+when the child is genuinely ready AND the scene exists — no races against tosijs's
+deferred attribute application.
+
+```javascript
+import { B3dChild } from 'tosijs-3d'
+import * as BABYLON from '@babylonjs/core'
+
+class MyThing extends B3dChild {
+  static initAttributes = { color: '#ff8800' }
+  declare color: string
+  mesh?: BABYLON.Mesh
+
+  sceneReady(owner, scene) {
+    this.mesh = BABYLON.MeshBuilder.CreateBox('mything', {}, scene)
+    owner.register({ meshes: [this.mesh] })
+  }
+
+  sceneDispose() {
+    this.mesh?.dispose()
+    this.mesh = undefined
+  }
+}
+export const myThing = MyThing.elementCreator({ tag: 'my-thing' })
+```
+*/
+/*{ "parent": "Core" }*/
+/**
+ * Base for every element that lives INSIDE a `<tosi-b3d>` scene. The whole
+ * pull-model lifecycle lives here, in ONE place. On connect (by which point tosijs
+ * has drained this element's attributes), the child finds its b3d owner and asks to
+ * insert itself once the scene is ready: `owner.whenReady(cb)` runs `cb` now if the
+ * scene is already up, else when it becomes ready. b3d never *pushes* `sceneReady`
+ * at a guessed time — so a child's `sceneReady` only ever runs when the child is
+ * genuinely ready AND the scene is ready. On disconnect it removes itself.
+ *
+ * Subclasses override `sceneReady(owner, scene)` (build/insert into the scene) and
+ * `sceneDispose()` (tear down + release). They should NOT touch
+ * connected/disconnectedCallback — that plumbing is centralized here so a lifecycle
+ * fix lands in exactly one spot.
+ */
+export class B3dChild extends Component {
+    owner = null;
+    connectedCallback() {
+        super.connectedCallback();
+        const owner = findB3dOwner(this);
+        if (owner != null) {
+            owner.whenReady(() => {
+                this.owner = owner;
+                this.sceneReady(owner, owner.scene);
+            });
+        }
+    }
+    disconnectedCallback() {
+        this.sceneDispose();
+        super.disconnectedCallback();
+    }
+    // Overridden by subclasses. Defaults are no-ops so a bare B3dChild is inert.
+    sceneReady(_owner, _scene) { }
+    sceneDispose() { }
+}
+export class AbstractMesh extends B3dChild {
     static initAttributes = {
         x: 0,
         y: 0,
@@ -153,7 +236,6 @@ export class AbstractMesh extends Component {
         ry: 0,
         rz: 0,
     };
-    owner = null;
     mesh;
     // Generation counter for async asset loads. Bumped on every sceneReady and
     // sceneDispose; loadAssetContainer captures it and discards a callback whose
@@ -182,9 +264,6 @@ export class AbstractMesh extends Component {
         ;
         this.ry = v;
     }
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, _scene) {
         this.owner = owner;
     }
@@ -210,10 +289,6 @@ export class AbstractMesh extends Component {
                 return;
             onLoaded(container);
         });
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     render() {
         super.render();

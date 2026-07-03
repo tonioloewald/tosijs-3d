@@ -213,7 +213,7 @@ document.body.append(b3d({}, terrain))
 ```
 */
 /*{ "parent": "Environment" }*/
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
@@ -229,7 +229,7 @@ const KEY_BIAS = 1 << 20; // 1,048,576
 const cellKeyNum = (level, gx, gz) => level * 4_398_046_511_104 + // 2^42
     (gx + KEY_BIAS) * 2_097_152 + // (gx+2^20) · 2^21
     (gz + KEY_BIAS);
-export class B3dTerrain extends Component {
+export class B3dTerrain extends B3dChild {
     static styleSpec = {
         ':host': {
             display: 'none',
@@ -301,9 +301,6 @@ export class B3dTerrain extends Component {
     originOffsetX = 0;
     originOffsetZ = 0;
     _beforeRender = null;
-    connectedCallback() {
-        super.connectedCallback();
-    }
     sceneReady(owner, scene) {
         this.owner = owner;
         const attrs = this;
@@ -325,10 +322,6 @@ export class B3dTerrain extends Component {
         if (this.material)
             this.material.dispose();
         this.owner = null;
-    }
-    disconnectedCallback() {
-        this.sceneDispose();
-        super.disconnectedCallback();
     }
     createSampler() {
         const attrs = this;

@@ -81,13 +81,12 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 
-import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { actualMeshes } from './b3d-utils'
+import { actualMeshes, B3dChild } from './b3d-utils'
 import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
-export class B3dSun extends Component {
+export class B3dSun extends B3dChild {
   static initAttributes = {
     shadowMaxZ: 100,
     shadowDarkness: 0.1,
@@ -200,10 +199,6 @@ export class B3dSun extends Component {
     }
   }
 
-  connectedCallback() {
-    super.connectedCallback()
-  }
-
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
     const attrs = this as any
@@ -280,11 +275,6 @@ export class B3dSun extends Component {
     this.shadowCasters = []
     this.activeShadowCasters = []
     this.owner = null
-  }
-
-  disconnectedCallback() {
-    this.sceneDispose()
-    super.disconnectedCallback()
   }
 
   render() {

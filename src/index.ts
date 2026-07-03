@@ -61,6 +61,7 @@ export type {
 // Utilities
 export {
   findB3dOwner,
+  B3dChild,
   AbstractMesh,
   actualMeshes,
   enterXR,
@@ -248,4 +249,8 @@ export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable'
 export { aoeFalloff, resolveAoe, dist3 } from './warhead'
 export type { WarheadSpec, AoeTarget } from './warhead'
 export { ballisticStep, predictPath } from './ballistics'
-export type { BallisticParams, BallisticState, PredictOptions } from './ballistics'
+export type {
+  BallisticParams,
+  BallisticState,
+  PredictOptions,
+} from './ballistics'

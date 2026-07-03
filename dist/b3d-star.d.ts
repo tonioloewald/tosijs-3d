@@ -1,7 +1,7 @@
-import { Component } from 'tosijs';
+import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
-export declare class B3dStar extends Component {
+export declare class B3dStar extends B3dChild {
     static styleSpec: {
         ':host': {
             display: string;
@@ -42,10 +42,8 @@ export declare class B3dStar extends Component {
     private registered;
     private _beforeRender;
     content: () => string;
-    connectedCallback(): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    disconnectedCallback(): void;
     private update;
     private buildStar;
     private buildCorona;

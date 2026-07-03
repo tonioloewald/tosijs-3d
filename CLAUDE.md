@@ -82,6 +82,16 @@ are viewer/origin-centred and intentionally not shifted.
 
 Child components find their parent `B3d` via `findB3dOwner(el)` which walks up the DOM looking for an element with `.scene` and `.register` properties (duck typing, not hardcoded tag name). This works regardless of what tag name the consumer chose.
 
+### Child Lifecycle — the `B3dChild` pull model
+
+**Every element that lives inside a `<tosi-b3d>` scene extends `B3dChild`** (or `AbstractMesh`, which extends `B3dChild` and adds position/rotation syncing). `B3dChild` (in `b3d-utils.ts`) centralizes the scene-attach lifecycle in ONE place, and it's a **pull** model, not parent orchestration:
+
+- On its own `connectedCallback` (by which point tosijs has drained the element's attributes, so they read correctly), the child finds its owner and calls **`owner.whenReady(cb)`** — which runs `cb` immediately if the scene is already up, else queues it until the scene is ready.
+- `cb` sets `this.owner` and calls the subclass's **`sceneReady(owner, scene)`**. So `sceneReady` fires exactly once, only when the child is ready AND the scene exists.
+- On disconnect, `B3dChild.disconnectedCallback` calls the subclass's **`sceneDispose()`** and releases.
+
+Subclasses override **only** `sceneReady`/`sceneDispose` — never `connected`/`disconnectedCallback` (that plumbing is centralized so a lifecycle fix lands in one spot; if you must, `super` first and stay side-effect-free). `B3d` no longer pushes `sceneReady` at a guessed time or watches the subtree with a MutationObserver — that guessing was the source of races against tosijs's deferred attribute application. `B3dChild` is exported for consumers writing their own scene elements.
+
 ### Input Architecture
 
 Input is abstracted through a layered system:
@@ -132,7 +142,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | File | Purpose |
 | --- | --- |
 | `src/tosi-b3d.ts` | Core `B3d` Component — engine, scene, render loop, scene registration, camera management |
-| `src/b3d-utils.ts` | `AbstractMesh` base class, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, shared types |
+| `src/b3d-utils.ts` | `B3dChild` + `AbstractMesh` base classes, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, shared types |
 | `src/b3d-loader.ts` | Loads GLB/GLTF files, registers meshes/lights, applies naming conventions |
 | `src/b3d-library.ts` | Parts catalog — preloaded mesh library for spawning instances |
 | `src/b3d-collisions.ts` | Collision detection with convention-based collider shapes |
@@ -242,7 +252,7 @@ Underscore-separated variants also work (e.g., `_collide_box`).
 
 ### Component Pattern
 
-All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. The `AbstractMesh` base class provides position/rotation syncing for components that manage Babylon meshes.
+All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. **Scene children extend `B3dChild`** (or `AbstractMesh`, which extends it and adds position/rotation syncing) rather than `Component` directly — see [Child Lifecycle](#child-lifecycle--the-b3dchild-pull-model). Non-scene UI/utility elements (`b3d-panel`, `b3d-probe`) stay on plain `Component`.
 
 ### Adaptive defaults — prefer `auto` over hard-wired performance numbers
 

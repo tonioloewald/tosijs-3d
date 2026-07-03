@@ -8,17 +8,19 @@ around, **shoot** (guns), **bomb**, and **fire missiles** at **cube targets**
 All projectiles are **cubes** for now. Combat atoms spec'd in `COMBAT-DESIGN.md`.
 
 **Loadout:**
-- **2× waist turrets** (poke out left & right of the fuselage) — **limited traverse
-  + elevation**, **slaved to the player's view direction** (flat: camera fwd; VR:
-  head fwd). **Reticle color** shows whether a turret can bear there (green =
-  at-least-one can, red = out of arc; amber = only one). Fire **ballistic** gun
-  rounds.
+
+- **2× waist turrets** (poke out left & right of the fuselage) — \*\*limited traverse
+  - elevation**, **slaved to the player's view direction** (flat: camera fwd; VR:
+    head fwd). **Reticle color** shows whether a turret can bear there (green =
+    at-least-one can, red = out of arc; amber = only one). Fire **ballistic\*\* gun
+    rounds.
 - **Wing-mounted bombs** — ballistic (gravity) drop, with the **bomb-sight arc +
   impact marker**.
 - **Wing-mounted missiles** — guided (fire-and-forget); since targets are inert,
   lead is trivial but steering/acquire still exercised.
 
 **Build order (foundation → weapons → assembly):**
+
 1. `resource.ts` + `destroyable.ts` (pure) → `b3d-destroyable`; spawn cube targets
    (ground + air) that take damage and die.
 2. `warhead.ts` (pure) → `b3d-warhead`; cubes explode (direct for guns/missiles,
@@ -26,13 +28,14 @@ All projectiles are **cubes** for now. Combat atoms spec'd in `COMBAT-DESIGN.md`
 3. `ballistics.ts` (pure) → `b3d` ballistic projectile (cube) + swept collision.
 4. `b3d-launcher` (timing/ammo) — used by all three weapons.
 5. `guidance.ts` turret aim helper → `b3d-turret` view-slaved, 2× on the fuselage,
-   + **reticle can-bear color** (UI). Wire guns to fire.
+   - **reticle can-bear color** (UI). Wire guns to fire.
 6. Bombs: wing launcher + ballistic bomb + **bomb-sight arc/marker** (`predictPath`).
 7. `guidance.ts` steering → guided missile (cube) on a wing launcher.
 8. Assemble the demo scene: aircraft + terrain + water + spawned targets + input
    wiring; tune.
 
 **Known gaps this MVP will hit (address as they surface):**
+
 - **Floating origin — DONE (2026-07-02).** Generalized: `B3d.shiftOrigin(dx,dz)`
   now moves all world-space roots on a terrain rebase. New entities must opt in:
   **`registerWorldRoot(node)`** (position lives on the node — inert targets/props)
@@ -72,42 +75,43 @@ Principle: **pure, deterministic, Babylon-free models** (like `aircraft-physics`
 add special cases. `[MVP]` = needed for the aircraft-combat vertical slice below.
 
 ### Shared pure modules (the foundation — build these first)
+
 [x] `resource.ts` [MVP] — capacity + regen + regen-delay (0.5s). Powers BOTH
-    Destroyable health AND launcher energy pools. (13 tests)
+Destroyable health AND launcher energy pools. (13 tests)
 [x] `destroyable.ts` [MVP] — `CombatWorld`: `applyDamage`/`tick`; flat armor + flat
-    protection (vanishes), cascading chain-link **list** (default 0.25s), delayed
-    regen, death → events. Refs by id (serializable). Damage = single scalar. (14 tests)
+protection (vanishes), cascading chain-link **list** (default 0.25s), delayed
+regen, death → events. Refs by id (serializable). Damage = single scalar. (14 tests)
 [x] `warhead.ts` [MVP] — `aoeFalloff` (linear `r_full`→`R`, floor 1, 0 beyond) +
-    `resolveAoe` (LOS-filtered via target `visible` flag). Direct = `spec.damage`.
-    (10 tests) — bridge `b3d-warhead` (arming, collision sphere, LOS raycast) NEXT.
-[x] `ballistics.ts` [MVP] — `ballisticStep` (gravity + quadratic drag, mass-scaled)
-    + `predictPath` (bomb sight; prediction == simulation, non-mutating). Live
-    flight + bomb sight + guided ballistic fallback. (6 tests)
+`resolveAoe` (LOS-filtered via target `visible` flag). Direct = `spec.damage`.
+(10 tests) — bridge `b3d-warhead` (arming, collision sphere, LOS raycast) NEXT.
+[x] `ballistics.ts` [MVP] — `ballisticStep` (gravity + quadratic drag, mass-scaled) + `predictPath` (bomb sight; prediction == simulation, non-mutating). Live
+flight + bomb sight + guided ballistic fallback. (6 tests)
 [ ] `guidance.ts` [MVP] — `firingSolution` (one `smartness` dial 0..1 = lead **+**
-    drop, interpolated) shared by guided rounds AND turret; steering step; turret
-    aim helper (clamp to limits, shortest legal path, **can-bear** flag → reticle).
+drop, interpolated) shared by guided rounds AND turret; steering step; turret
+aim helper (clamp to limits, shortest legal path, **can-bear** flag → reticle).
 [ ] `sensorium.ts` — cone/range/falloff perception math (LOS predicate from bridge). [later]
 [ ] `npc-ai.ts` — strategy selection + per-strategy `step → ControlInput`. [later,
-    see `AI-DESIGN.md`]
+see `AI-DESIGN.md`]
 
 ### Components (bridges)
+
 [x] `b3d-destroyable` [MVP] — bridges a `CombatWorld` entry to a placeholder cube;
-    `.damage(n)`, death outcome + `destroyed` event, floating-origin via onOriginShift.
-    `<tosi-b3d-destroyable>`. (CombatWorld lives on B3d, ticked each frame.)
+`.damage(n)`, death outcome + `destroyed` event, floating-origin via onOriginShift.
+`<tosi-b3d-destroyable>`. (CombatWorld lives on B3d, ticked each frame.)
 [ ] `b3d-warhead` [MVP] — collision sphere, arming timer, LOS raycast, explosion FX.
 [ ] `b3d` ballistic projectile [MVP] — drives mesh from `step`, swept collision
-    (crude test → finer rays), detonates warhead; end-of-life explode (default) or inert.
+(crude test → finer rays), detonates warhead; end-of-life explode (default) or inert.
 [ ] `b3d` guided projectile [MVP] — ballistic + seeker (range/cone, 3s dwell
-    acquire, fire-and-forget) + thrust-limited steering → ballistic when spent.
+acquire, fire-and-forget) + thrust-limited steering → ballistic when spent.
 [ ] `b3d-launcher` [MVP] — fire delay (windup) + cycle time (single value OR
-    **sequence** = burst), ammo (refill 0 = finite) or energy (Resource), muzzle
-    offset parented to weapon geometry, inherits launcher velocity, ~0.1° accuracy.
+**sequence** = burst), ammo (refill 0 = finite) or energy (Resource), muzzle
+offset parented to weapon geometry, inherits launcher velocity, ~0.1° accuracy.
 [ ] `b3d-turret` [MVP] — aiming platform hosting launcher(s); traverse/elevation
-    limits + rates; **view-slaved** control mode + reticle can-bear feedback;
-    self-acquire + directed both supported; direct-fire v1 (drop later).
+limits + rates; **view-slaved** control mode + reticle can-bear feedback;
+self-acquire + directed both supported; direct-fire v1 (drop later).
 [ ] `b3d-shield` — Destroyable + collider that spatially blocks; recharge; links. [later]
 [ ] `b3d-melee` — active-window collider, cycle-time sequence (sustained vs
-    glancing), owner-friendly. [later]
+glancing), owner-friendly. [later]
 [ ] Flame thrower — SHELVED.
 
 ## AI
@@ -165,16 +169,9 @@ the MVP** — the vertical-slice targets are inert cubes.
 ## Terrain
 
 [ ] LOD Management
-[ ] TILE-BASED terrain / levels (direction note: considered MORE PROMISING than the heightfield approach above). A discrete-lattice generator, distinct from the noise heightfield:
-    - LATTICE: specify the cell type — CUBIC (square/cube cells) or TETRAGONAL (triangle/tetrahedral cells). The absolute-minimum tileset is a single "square" (cubic) or "triangle" (tetragonal) unit mesh.
-    - TILESET: one or more unit meshes (unit-square or unit-triangle meshes). Each tile carries constraints/metadata: adjacency rules (which tiles may neighbor on which face/edge — this is where DOORWAYS / connectors are specified, so passages line up), and ORIENTATION BIASES (this tile prefers to face up / down / uppish / downish / sideways). Think modular kit / Wave-Function-Collapse-style adjacency, not noise.
-    - GENERATION: procedurally fill a CONTIGUOUS VOLUME (a classic 2D maze, or a 3D maze/level) from the tileset using the MINIMUM number of mesh tiles that satisfies the constraints. Seeded / deterministic (MersenneTwister) like the rest of the world sim.
-    - BUDGET: render a low-resolution volume as a level or landscape within a tile/instance budget.
-    - LOD: provide low-LOD meshes per tile so distant regions are cheap (same streaming discipline as the heightfield tiles).
-    Ties to Asset Management: "Tile map component consuming libraries by type" and the seeded Decorator. A tile's local decoration + collisions come from its mesh.
-[ ] UNIFY heightfield + tile systems AT THE TERRAIN-TILE LEVEL (the key architectural bet — the two systems share one streaming/LOD/budget substrate, `terrain-grid.ts` math stays common; only per-tile CONTENT differs). A given terrain tile can render as: (a) a heightfield patch, (b) a set of lattice tiles, or (c) a COMBINATION — e.g. a city that folds seamlessly into the surrounding landscape (tile blocks near the ground plane, heightfield further out, blended at the seam).
-    - HEIGHTFIELD-DEFORMED TILES: offset a tile mesh's internal vertices by the heightfield (ideally a VERTEX SHADER so it's cheap and LOD-friendly) so tile content conforms to the terrain contour instead of sitting on a flat pad.
-    - CONTENT PATCHES as a cheaper decorator: instead of scattering thousands of individual tree/shrub instances, author a "forest" as a single square tile whose mesh already contains many tree meshes; drop it in (substitute for, or lay on top of, the terrain polygon) with its vertices offset by the heightfield. GATE on slope — only place/level-conform where the polygon is reasonably LEVEL; steep tiles fall back to bare terrain or a different tile. This is much cheaper (one mesh/instance per patch vs. per-plant) and is the preferred bulk-vegetation path over the per-instance Decorator (keep the Decorator for sparse hero props).
+[ ] TILE-BASED terrain / levels (direction note: considered MORE PROMISING than the heightfield approach above). A discrete-lattice generator, distinct from the noise heightfield: - LATTICE: specify the cell type — CUBIC (square/cube cells) or TETRAGONAL (triangle/tetrahedral cells). The absolute-minimum tileset is a single "square" (cubic) or "triangle" (tetragonal) unit mesh. - TILESET: one or more unit meshes (unit-square or unit-triangle meshes). Each tile carries constraints/metadata: adjacency rules (which tiles may neighbor on which face/edge — this is where DOORWAYS / connectors are specified, so passages line up), and ORIENTATION BIASES (this tile prefers to face up / down / uppish / downish / sideways). Think modular kit / Wave-Function-Collapse-style adjacency, not noise. - GENERATION: procedurally fill a CONTIGUOUS VOLUME (a classic 2D maze, or a 3D maze/level) from the tileset using the MINIMUM number of mesh tiles that satisfies the constraints. Seeded / deterministic (MersenneTwister) like the rest of the world sim. - BUDGET: render a low-resolution volume as a level or landscape within a tile/instance budget. - LOD: provide low-LOD meshes per tile so distant regions are cheap (same streaming discipline as the heightfield tiles).
+Ties to Asset Management: "Tile map component consuming libraries by type" and the seeded Decorator. A tile's local decoration + collisions come from its mesh.
+[ ] UNIFY heightfield + tile systems AT THE TERRAIN-TILE LEVEL (the key architectural bet — the two systems share one streaming/LOD/budget substrate, `terrain-grid.ts` math stays common; only per-tile CONTENT differs). A given terrain tile can render as: (a) a heightfield patch, (b) a set of lattice tiles, or (c) a COMBINATION — e.g. a city that folds seamlessly into the surrounding landscape (tile blocks near the ground plane, heightfield further out, blended at the seam). - HEIGHTFIELD-DEFORMED TILES: offset a tile mesh's internal vertices by the heightfield (ideally a VERTEX SHADER so it's cheap and LOD-friendly) so tile content conforms to the terrain contour instead of sitting on a flat pad. - CONTENT PATCHES as a cheaper decorator: instead of scattering thousands of individual tree/shrub instances, author a "forest" as a single square tile whose mesh already contains many tree meshes; drop it in (substitute for, or lay on top of, the terrain polygon) with its vertices offset by the heightfield. GATE on slope — only place/level-conform where the polygon is reasonably LEVEL; steep tiles fall back to bare terrain or a different tile. This is much cheaper (one mesh/instance per patch vs. per-plant) and is the preferred bulk-vegetation path over the per-instance Decorator (keep the Decorator for sparse hero props).
 [ ] Decorator (see Asset Management): given a COLLECTION of objects (e.g. from a b3d-library by type) and a BUDGET (count / density), sprinkle instances across the landscape SEEDED / DETERMINISTICALLY (MersenneTwister + the terrain seed) so the same seed always yields the same scatter — reproducible, and streamable per LOD tile (a tile can regenerate its own decorations on demand). Placement rides the height field (place-on-surface, align to normal or up), and should respect the height profile / slope (e.g. no trees on cliff faces, denser in valleys). Budget is spread across tiles, not global-at-once, so it works with the streaming terrain.
 [ ] Local terrain deformers (e.g. blast craters or leveled areas for city placement)
 [ ] Localized deformer / PROFILE applied to a region or path (the global height profile's local sibling): blend a local height override into the field within a footprint. Region form → PLATEAUS / leveled build pads (flatten to a target height with a falloff skirt). Radial form → CRATERS (a depressed bowl with a raised ejecta RIM, optional central peak for big impacts) — authored, and also DYNAMIC at runtime (an explosion/impact spawns a crater deformer; ties to Combat warheads). Path/spline form → ROADS (flatten a corridor of some width along a spline, banking on curves) and RIVERS (carve a channel below the surrounding height, following downhill). Each deformer supplies a mask/weight (0..1, with edge falloff so it blends seamlessly) and a target-height function; `heightAt` composites them over the base noise+profile. Must be deterministic and evaluable per-tile/per-vertex so it works with streaming LOD (a tile samples only the deformers overlapping it). Decorator + collisions should respect these (no trees in the river, road stays clear).
@@ -257,11 +254,23 @@ the MVP** — the vertical-slice targets are inert cubes.
 
 ## Documentation, Examples & Tests
 
+[ ] SCENE TORTURE TEST (demo + ideally an assertable test via the doc-system's
+in-browser harness / haltija). Place a bunch of stuff in the scene initially,
+THEN add more after sceneReady — at intervals, in DIFFERENT orders — and verify
+each addition is fully wired: casts + receives shadows, appears in reflection
+probes, collides, gets its `auto` quality budget, etc. Then REMOVE stuff and
+verify teardown: shadow casters/receivers, reflection render lists, colliders,
+observers, GPU resources all released — no leaks (spawn an enemy → it
+shadows/collides → despawn → nothing left behind). This exercises the
+scene-registration (`register`/`onSceneAddition`) + dispose paths and the
+attribute-drain/sceneReady timing that just bit the b3d/terrain demos. Would
+have caught the "notify descendants before their attributes drained" bug.
+
 [ ] As much test coverage as possible (fly-by-wire, perlin-noise, gradient-filter, surface-sampler, resource, destroyable, warhead; auto-run on build)
 [ ] One SIMPLE (non-trivial) demo for EVERY component that makes sense — a `/*# */`
-    doc example that actually exercises the component, not a stub. AUDIT which
-    components lack a real demo and fill the gaps; new combat components
-    (b3d-destroyable/warhead/launcher/turret) each need one.
+doc example that actually exercises the component, not a stub. AUDIT which
+components lack a real demo and fill the gaps; new combat components
+(b3d-destroyable/warhead/launcher/turret) each need one.
 [ ] Documentation for each component
 
 ## Ariosto
