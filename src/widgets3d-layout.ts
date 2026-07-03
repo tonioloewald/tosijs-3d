@@ -10,6 +10,7 @@ each child, each child reports the height it needs, and the container stacks
 them top-to-bottom with a gap. If the stack is taller than the viewport, the
 container scrolls.
 */
+/*{ "parent": "UI" }*/
 
 /** Vertical stack result: the y offset of each child and the total height. */
 export type StackLayout = { offsets: number[]; total: number }

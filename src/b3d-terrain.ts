@@ -6,17 +6,6 @@ Longitude (u) wraps seamlessly; latitude (v) reflects at the midpoint, creating
 symmetric hemispheres with no singularities. Two noise layers (gross contour
 + fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.
 
-The terrain streams from one shared **priority pool** of tiles over a **quadtree
-LOD**: fine near the camera, coarse far, with exactly one LOD per patch of ground
-(a coarse cell is exactly four finer cells — no overlap, no gaps). Each frame the
-pool is diffed against the cells that *should* exist; blanks are filled by
-priority (near, and biased toward where you're facing/travelling) — reusing free
-tiles or stealing the weakest placed one — capped at `fillBudget` per frame so
-movement never hitches. Per-tile skirts (with lied normals) hide any crack at a
-LOD boundary. Includes floating-origin rebasing and a recenter mechanism — when
-travel exceeds `maxTravelDistance`, a `recenter-needed` event fires so the game
-layer can orchestrate a visual transition before calling `recenter()`.
-
 ## Demo
 
 ```js
@@ -165,6 +154,19 @@ tosi-b3d {
   opacity: 0.7;
 }
 ```
+
+## How it works
+
+The terrain streams from one shared **priority pool** of tiles over a **quadtree
+LOD**: fine near the camera, coarse far, with exactly one LOD per patch of ground
+(a coarse cell is exactly four finer cells — no overlap, no gaps). Each frame the
+pool is diffed against the cells that *should* exist; blanks are filled by
+priority (near, and biased toward where you're facing/travelling) — reusing free
+tiles or stealing the weakest placed one — capped at `fillBudget` per frame so
+movement never hitches. Per-tile skirts (with lied normals) hide any crack at a
+LOD boundary. Includes floating-origin rebasing and a recenter mechanism — when
+travel exceeds `maxTravelDistance`, a `recenter-needed` event fires so the game
+layer can orchestrate a visual transition before calling `recenter()`.
 
 ## Attributes
 
