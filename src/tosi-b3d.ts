@@ -1029,7 +1029,7 @@ export class B3d extends Component {
       BABYLON.Vector3.Zero(),
       BABYLON.Vector3.Up()
     )
-    const SCROLL_SPEED = 600 // panel viewBox units / sec at full stick
+    const SCROLL_SPEED = 1200 // panel viewBox units / sec at full stick (2× — VR thumbstick scroll felt sluggish vs the flat drag)
     // Chase-cam follow state (ported from the biped's XR camera): smoothly track
     // the piloted entity's position AND facing, with head-tracking compensation.
     const chasePos = new BABYLON.Vector3()
