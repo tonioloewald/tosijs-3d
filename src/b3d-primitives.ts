@@ -2,6 +2,31 @@ import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
+/** A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via uScale/vScale. */
+function makeCheckerTexture(
+  name: string,
+  scene: BABYLON.Scene,
+  colorA = '#9a9a9a',
+  colorB = '#767676'
+): BABYLON.DynamicTexture {
+  const size = 128
+  const tex = new BABYLON.DynamicTexture(
+    name,
+    { width: size, height: size },
+    scene,
+    false
+  )
+  const ctx = tex.getContext() as CanvasRenderingContext2D
+  const half = size / 2
+  ctx.fillStyle = colorA
+  ctx.fillRect(0, 0, size, size)
+  ctx.fillStyle = colorB
+  ctx.fillRect(0, 0, half, half)
+  ctx.fillRect(half, half, half, half)
+  tex.update()
+  return tex
+}
+
 export class B3dSphere extends AbstractMesh {
   static initAttributes = {
     ...AbstractMesh.initAttributes,
@@ -92,6 +117,11 @@ export class B3dGround extends AbstractMesh {
     width: 4,
     height: 4,
     color: '#888888',
+    // Optional surface texture on the (shadow-receiving) StandardMaterial:
+    // an image URL, or the built-in procedural value `'checker'`. Empty = flat
+    // `color`. `textureTiles` sets the repeat count across the plane.
+    texture: '',
+    textureTiles: 8,
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -108,6 +138,18 @@ export class B3dGround extends AbstractMesh {
     )
     const material = new BABYLON.StandardMaterial(meshName + '-mat', scene)
     material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color)
+    if (attrs.texture) {
+      const tiles = Math.max(1, attrs.textureTiles)
+      const tex =
+        attrs.texture === 'checker'
+          ? makeCheckerTexture(meshName + '-tex', scene, attrs.color)
+          : new BABYLON.Texture(attrs.texture, scene)
+      tex.uScale = tiles
+      tex.vScale = tiles
+      material.diffuseTexture = tex
+      material.diffuseColor = BABYLON.Color3.White()
+      material.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+    }
     this.mesh.material = material
     // Opt into collisions so character controllers (biped/car) can stand on it —
     // their grounding probe and moveWithCollisions only see `checkCollisions` meshes.
