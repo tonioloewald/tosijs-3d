@@ -147,7 +147,11 @@ import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
 import { XrGamepadSource } from './xr-gamepad'
 import { XrFrames, EntityFrame } from './xr-frames'
-import { attachFramePanel, type FramePanelSpec } from './frame-panel'
+import {
+  attachFramePanel,
+  placeholderPanelSvg,
+  type FramePanelSpec,
+} from './frame-panel'
 import { runProbe, hydrateProfileFromCache } from './b3d-probe'
 import {
   setQuality,
@@ -203,8 +207,10 @@ export class B3d extends Component {
     // XR themselves through a controllable's `cameraType: 'xr'`).
     noXr: false,
     // The subtle reference grid on the floor during an immersive session (a
-    // locomotion/motion cue). On by default; set `xr-grid="false"` to hide it.
-    xrGrid: true,
+    // locomotion/motion cue). `"auto"` (default) shows it for the built-in XR
+    // setup and is implicitly off when you supply your own `setupXr` (this grid
+    // only exists in the default experience); `"on"` forces it, `"off"` hides it.
+    xrGrid: 'auto' as 'on' | 'off' | 'auto',
     // When present, mount the split on-screen "glass" gamepad and feed it into
     // the active input system (the unified touch control surface). The value
     // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
@@ -393,7 +399,7 @@ export class B3d extends Component {
   declare minDistance: number
   declare maxDistance: number
   declare noXr: boolean
-  declare xrGrid: boolean
+  declare xrGrid: 'on' | 'off' | 'auto'
 
   sceneCreated: B3dCallback = noop
   update: B3dCallback = noop
@@ -978,10 +984,10 @@ export class B3d extends Component {
     const panel = this._attachXrPanel(base, frames.eye)
 
     // A subtle grid floor — something to stand on and judge motion against.
-    // Opt out with `xr-grid="false"`.
+    // Opt out with `xr-grid="off"` ("auto"/"on" both show it here — see the attr).
     let ground: BABYLON.Mesh | undefined
     let grid: GridMaterial | undefined
-    if ((this as any).xrGrid) {
+    if ((this as any).xrGrid !== 'off') {
       ground = BABYLON.MeshBuilder.CreateGround(
         'xr-ground',
         { width: 200, height: 200 },
@@ -1345,7 +1351,7 @@ export class B3d extends Component {
       seen.add(el)
       if (this._nameplates.has(el)) continue
       const ef = new EntityFrame(scene, b.mesh, {
-        offset: [0, (b.eyeHeight ?? 1.7) + 0.15, 0],
+        offset: [0, (b.eyeHeight ?? 1.7) + 0.25, 0],
       })
       const panel = attachFramePanel(scene, cam, ef.node, {
         anchor: {
@@ -1354,7 +1360,9 @@ export class B3d extends Component {
           revealStartDeg: 26,
           revealFullDeg: 10,
         },
-        title: (b.id as string) || '$6M biped',
+        // Compact card (280×116 vs the default 320×200) — ~50% less padding
+        // around the label so the plaque hugs the name and doesn't hang low.
+        svg: placeholderPanelSvg((b.id as string) || '$6M biped', 280, 116),
         width: 0.6, // 2× — readable at a glance
         maxDistance: 8, // don't clutter with distant nameplates
       })

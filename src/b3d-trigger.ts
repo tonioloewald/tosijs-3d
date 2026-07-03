@@ -21,7 +21,10 @@ const { demo } = tosi({ demo: { status: 'walking…' } })
 // A wandering goal (a glowing marker) with a proximity trigger around it.
 let goal = { x: 6, z: 5 }
 const marker = b3dSphere({ meshName: 'goal', diameter: 0.7, y: 0.35, x: goal.x, z: goal.z, color: '#ffcc00' })
-const trigger = b3dTrigger({ x: goal.x, y: 0.5, z: goal.z, radius: 1.4, debug: true })
+// Radius comfortably exceeds STOP (below) and the trigger sits low (near the
+// biped's root at the feet, y≈0) — otherwise the 0.5m vertical gap eats the
+// margin and a biped stopping at ~1.2m horizontal lands just outside.
+const trigger = b3dTrigger({ x: goal.x, y: 0.3, z: goal.z, radius: 2, debug: true })
 
 // The NPC: a NON-player biped driven by a tiny "walk to the goal" AI. A biped
 // polls whatever is on `.inputProvider` every frame, so an AI is just an
