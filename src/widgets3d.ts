@@ -243,6 +243,30 @@ const sceneEl = b3d(
 )
 preview.append(sceneEl)
 ```
+
+## Theming
+
+Widget colours, font, and weights are driven by `--w3d-*` CSS variables with
+sensible defaults. Set them on `:root` (or any ancestor of the flat overlay)
+**before the bundle loads** — they're resolved once to concrete values so a theme
+applies identically to the flat DOM overlay and the rasterized in-scene / XR
+texture (the page's live CSS doesn't cascade into a serialized SVG, so live
+`var()` would only theme the flat overlay). Per-widget options (`label3d`'s
+`color` / `bold`) override the variables.
+
+| Variable | Default | Controls |
+|----------|---------|----------|
+| `--w3d-text` | `#f0f0f0` | Primary text/label colour |
+| `--w3d-muted` | `#9aa0a6` | Muted/secondary text |
+| `--w3d-heading-weight` | `700` | Weight of `bold` labels/headings |
+| `--w3d-text-weight` | `400` | Weight of normal text |
+| `--w3d-font-size` | `16` | Base font size (px) |
+| `--w3d-font-family` | `system-ui, sans-serif` | Font family |
+| `--w3d-accent` | `#39c5ff` | Slider fill / active accent |
+| `--w3d-track` | `#3a3f4a` | Slider/toggle track |
+| `--w3d-panel-bg` | `rgba(20,22,28,0.94)` | Panel background |
+| `--w3d-button-bg` / `--w3d-button-hover` / `--w3d-button-active` | greys | Button states |
+| `--w3d-row-bg` / `--w3d-row-hover` | subtle whites | Row background / hover |
 */
 /*{ "parent": "UI" }*/
 
@@ -263,18 +287,38 @@ const ROW = 40
 const PAD_X = 12
 const PAD_Y = 8
 const GAP = 8
-const FONT = 16
-const FONT_FAMILY = 'system-ui, sans-serif'
-const TEXT = '#f0f0f0'
-const MUTED = '#9aa0a6'
-const PANEL_BG = 'rgba(20,22,28,0.94)'
-const BTN_BG = '#2a2f3a'
-const BTN_HOVER = '#333b49'
-const BTN_ACTIVE = '#3a4150'
-const TRACK = '#3a3f4a'
-const ACCENT = '#39c5ff'
-const ROW_BG = 'rgba(255,255,255,0.05)'
-const ROW_HOVER = 'rgba(255,255,255,0.13)'
+
+// Widget styling is driven by `--w3d-*` CSS variables with the values below as
+// sensible defaults. We RESOLVE them to concrete values in JS (one
+// getComputedStyle read at load) rather than emitting live `var(...)` refs,
+// because these SVGs render two ways: as a flat DOM overlay AND rasterized to a
+// Babylon texture (svg-texture serializes the SVG to a standalone Image — the
+// page's CSS custom properties do NOT cascade into that isolated render). Baking
+// the resolved value makes a theme apply identically flat and in-scene/XR.
+// (Trade-off: a theme is read once at load, so set the vars in CSS before the
+// bundle loads — it isn't live-reactive to later JS changes.)
+const _rootStyle =
+  typeof document !== 'undefined'
+    ? getComputedStyle(document.documentElement)
+    : null
+const cssVar = (name: string, fallback: string): string => {
+  const v = _rootStyle?.getPropertyValue(name).trim()
+  return v ? v : fallback
+}
+const FONT = parseFloat(cssVar('--w3d-font-size', '16')) || 16
+const FONT_FAMILY = cssVar('--w3d-font-family', 'system-ui, sans-serif')
+const TEXT = cssVar('--w3d-text', '#f0f0f0')
+const MUTED = cssVar('--w3d-muted', '#9aa0a6')
+const HEADING_WEIGHT = cssVar('--w3d-heading-weight', '700')
+const TEXT_WEIGHT = cssVar('--w3d-text-weight', '400')
+const PANEL_BG = cssVar('--w3d-panel-bg', 'rgba(20,22,28,0.94)')
+const BTN_BG = cssVar('--w3d-button-bg', '#2a2f3a')
+const BTN_HOVER = cssVar('--w3d-button-hover', '#333b49')
+const BTN_ACTIVE = cssVar('--w3d-button-active', '#3a4150')
+const TRACK = cssVar('--w3d-track', '#3a3f4a')
+const ACCENT = cssVar('--w3d-accent', '#39c5ff')
+const ROW_BG = cssVar('--w3d-row-bg', 'rgba(255,255,255,0.05)')
+const ROW_HOVER = cssVar('--w3d-row-hover', 'rgba(255,255,255,0.13)')
 
 let clipSeq = 0
 
@@ -381,7 +425,7 @@ const baseText = (content: string, fill = TEXT, bold = false) =>
       'dominant-baseline': 'middle',
       'font-size': FONT,
       'font-family': FONT_FAMILY,
-      'font-weight': bold ? '700' : '400',
+      'font-weight': bold ? HEADING_WEIGHT : TEXT_WEIGHT,
       fill,
     },
     content
