@@ -48,6 +48,12 @@ const scene = b3d(
         'cam', -Math.PI / 2, Math.PI / 3, 12,
         new BABYLON.Vector3(0, 1, 0), el.scene
       )
+      // Keep the camera >=5deg above the horizon and out of the scene: a bare
+      // ArcRotateCamera tilts under the ground and zooms through everything.
+      camera.lowerBetaLimit = (20 * Math.PI) / 180
+      camera.upperBetaLimit = (85 * Math.PI) / 180
+      camera.lowerRadiusLimit = 4
+      camera.upperRadiusLimit = 30
       camera.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(camera)
       createSphere(BABYLON)
