@@ -337,6 +337,13 @@ export class B3d extends Component {
       background: 'rgba(0,0,0,0.8)',
       transform: 'scale(1.05)',
     },
+    // Toolbar buttons are disabled (dimmed, inert) until the scene has loaded.
+    ':host .scene-toolbar button:disabled': {
+      opacity: '0.4',
+      cursor: 'default',
+      pointerEvents: 'none',
+      transform: 'none',
+    },
     ':host .scene-panel-overlay': {
       position: 'absolute',
       top: '60px',
@@ -365,6 +372,8 @@ export class B3d extends Component {
           type: 'button',
           title: 'Scene settings',
           hidden: true,
+          // Disabled until the scene finishes loading (reveal() enables it).
+          disabled: true,
         },
         '⚙'
       ),
@@ -374,6 +383,8 @@ export class B3d extends Component {
           part: 'enterVrButton',
           type: 'button',
           hidden: true,
+          // Disabled until the scene finishes loading (reveal() enables it).
+          disabled: true,
         },
         'Enter VR'
       )
@@ -821,6 +832,14 @@ export class B3d extends Component {
         revealed = true
         cnv.classList.add('ready')
         spinner.classList.add('hidden')
+        // Enable the toolbar only now the scene is up — the gear + Enter VR
+        // shouldn't be clickable while the scene is still loading.
+        const gearBtn = this.parts.scenePanelGear as
+          | HTMLButtonElement
+          | undefined
+        const vrBtn = this.parts.enterVrButton as HTMLButtonElement | undefined
+        if (gearBtn) gearBtn.disabled = false
+        if (vrBtn) vrBtn.disabled = false
       }
       const checkReady = () => {
         if (this.scene.getWaitingItemsCount() === 0) {
