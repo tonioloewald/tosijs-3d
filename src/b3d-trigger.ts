@@ -129,7 +129,7 @@ preview.append(
 | `y` | `0` | Center Y |
 | `z` | `0` | Center Z |
 | `radius` | `5` | Trigger sphere radius |
-| `active` | `true` | Enable/disable the trigger |
+| `disabled` | `false` | Disable the trigger (default: active) |
 | `target` | `'camera'` | `'camera'` or a mesh name to watch |
 | `debug` | `false` | Show wireframe sphere |
 | `once` | `false` | Fire onEnter once then deactivate |
@@ -152,7 +152,10 @@ export class B3dTrigger extends B3dChild {
     y: 0,
     z: 0,
     radius: 5,
-    active: true,
+    // NOT `active: true` — tosijs treats an absent boolean attribute as false,
+    // ignoring an initAttributes `true` default, so a default-true boolean can
+    // never turn on. Use the HTML-conventional `disabled` (absent → false → active).
+    disabled: false,
     target: 'camera',
     debug: false,
     once: false,
@@ -162,7 +165,7 @@ export class B3dTrigger extends B3dChild {
   declare y: number
   declare z: number
   declare radius: number
-  declare active: boolean
+  declare disabled: boolean
   declare target: string
   declare debug: boolean
   declare once: boolean
@@ -216,7 +219,7 @@ export class B3dTrigger extends B3dChild {
     const tp = this.owner ? this.resolveTargetPosition() : null
     const here = new BABYLON.Vector3(attrs.x, attrs.y, attrs.z)
     return {
-      active: attrs.active,
+      disabled: attrs.disabled,
       target: attrs.target,
       targetResolved: tp != null,
       distance: tp ? +BABYLON.Vector3.Distance(tp, here).toFixed(2) : null,
@@ -229,7 +232,7 @@ export class B3dTrigger extends B3dChild {
   private checkProximity() {
     if (this.owner == null) return
     const attrs = this as any
-    if (!attrs.active) return
+    if (attrs.disabled) return
 
     const targetPos = this.resolveTargetPosition()
     if (!targetPos) return
@@ -244,7 +247,7 @@ export class B3dTrigger extends B3dChild {
         new CustomEvent('enter', { detail: { trigger: this }, bubbles: true })
       )
       if (attrs.once) {
-        ;(this as any).active = false
+        ;(this as any).disabled = true
       }
     } else if (dist >= attrs.radius && this._inside) {
       this._inside = false
