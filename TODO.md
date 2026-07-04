@@ -1,5 +1,23 @@
 # TODO
 
+## Needs validation (built without a headset — spot-check next session)
+
+Changes made from source-only (tsc + unit tests green) that still need a human/headset
+look. **Flat** = check in the browser; **VR** = check in the headset.
+
+- [ ] **Trigger** (flat): reload `/b3d-trigger/`; readout should show `target=walker · resolved=true` and `inside=true` on arrival → marker relocates. (Was the razor-thin geometry + target-name/reactive-set; belt-and-suspenders `setAttribute` applied.)
+- [ ] **b3d-panel demo** (flat + VR): the world-anchored `b3d-svg-plane` panel shows in the flat view; the VR-only `<tosi-b3d-panel>` shows only in-session; dual-presence gear panel opens (starts open via `scenePanelOpen`).
+- [ ] **Scene panel** (flat + VR): `scene-panel-open` starts it open; × close button works (😳 in VR); Enter VR button shows 😎.
+- [ ] **xr-grid auto** (VR): floor grid hidden in the main/biped demos (player-driven rig), shown in free-fly demos; `off`/`on` honored.
+- [ ] **Nameplates** (flat + VR): 2× size, compact card, sit just above the head.
+- [ ] **Skybox demo** (flat): checkered ground receives shadows; box/box/sphere cast; shadows swing with the time-of-day slider.
+- [ ] **Axes gizmo** (flat): `axes: true` on the b3d-panel cube shows the glowing R/G/B gizmo through a translucent cube.
+- [ ] **Demo cameras** (flat): the 8 tuned demos no longer zoom-through / tilt under the horizon; library uses the default camera.
+- [ ] **Gear/Enter-VR gating** (flat): both disabled (dimmed) until the scene finishes loading.
+- [ ] **Spatial-transform Babylon bridge** — NOT built yet (pure math done + tested). Needs headset once built (attach/transition, floating-origin flip, declarative elements).
+
+See the **Bugs** and **Icons / spatial UI** sections below for the known-broken items still needing a headset (galaxy billboard, terrain recenter, VRAM, XR rig misalignment, VR-only panel, library Exit-VR clip).
+
 ## MVP: Aircraft combat vertical slice ⟵ current goal
 
 A quick playable game on the **aircraft + dynamic terrain + water** models: fly
