@@ -72,6 +72,22 @@ export {
 } from './b3d-utils'
 export type { XRStuff, XRParams } from './b3d-utils'
 
+// Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
+export {
+  add,
+  sub,
+  quatConjugate,
+  quatMul,
+  rotateVector,
+  quatFromAxisAngle,
+  composePose,
+  relativePose,
+  placeRelative,
+  IDENTITY_QUAT,
+} from './spatial-transform'
+// Vec3 is already exported (surface-sampler) and is structurally identical.
+export type { Quat, Pose } from './spatial-transform'
+
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader'
 export { B3dLibrary, b3dLibrary } from './b3d-library'
