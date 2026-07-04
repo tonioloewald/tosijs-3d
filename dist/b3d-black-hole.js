@@ -121,8 +121,8 @@ tosi-b3d {
 | `diskOuterRadius` | `4.0` | Outer edge of accretion disk (multiple of radius) |
 | `diskBrightness` | `1.5` | Accretion disk emissive brightness |
 | `rotationSpeed` | `0.3` | Disk rotation speed (rad/sec) |
-| `lensing` | `true` | Show gravitational lensing ring |
-| `photonRing` | `true` | Show photon ring at event horizon |
+| `lensing` | `'on'` | Show gravitational lensing ring |
+| `photonRing` | `'on'` | Show photon ring at event horizon |
 | `photonRingBrightness` | `2.0` | Photon ring glow intensity |
 | `wireframe` | `false` | Debug wireframe |
 | `seed` | `12345` | Noise seed for disk turbulence |
@@ -130,7 +130,7 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild, isOff } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 // 2D noise for disk turbulence (simple hash-based)
 function hash(x, y) {
@@ -176,8 +176,9 @@ export class B3dBlackHole extends B3dChild {
         diskOuterRadius: 3.0,
         diskBrightness: 1.5,
         rotationSpeed: 0.3,
-        lensing: true,
-        photonRing: true,
+        // on-by-default toggles: string 'on'|'off' (a boolean can't default true)
+        lensing: 'on',
+        photonRing: 'on',
         photonRingBrightness: 2.0,
         wireframe: false,
         seed: 12345,
@@ -550,7 +551,7 @@ export class B3dBlackHole extends B3dChild {
         if (this.owner == null || this.rootNode == null)
             return;
         const attrs = this;
-        if (!attrs.lensing)
+        if (isOff(attrs.lensing))
             return;
         const radius = attrs.radius;
         const innerR = radius * attrs.diskInnerRadius;
@@ -570,7 +571,7 @@ export class B3dBlackHole extends B3dChild {
         if (this.owner == null || this.rootNode == null)
             return;
         const attrs = this;
-        if (!attrs.photonRing)
+        if (isOff(attrs.photonRing))
             return;
         const radius = attrs.radius;
         // Photon ring sits just outside the event horizon

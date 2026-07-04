@@ -368,14 +368,14 @@ or implement your own shape-specific point-in-polygon tests.
 | `updateInterval` | `30` | Re-render interval in ms (dynamic mode) |
 | `materialChannel` | `'emissive'` | `'emissive'` (unlit) or `'diffuse'` (lit) |
 | `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
-| `pointerEvents` | `true` | Map 3D pick hits → SVG pointer events |
-| `doubleSided` | `true` | Render both faces |
+| `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
+| `doubleSided` | `'on'` | Render both faces |
 
 Set the `svgElement` property to a live SVG element for dynamic mode.
 */
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
+import { AbstractMesh, isOff } from './b3d-utils';
 import { SvgTexture } from './svg-texture';
 export class B3dSvgPlane extends AbstractMesh {
     static styleSpec = { ':host': { display: 'none' } };
@@ -388,8 +388,8 @@ export class B3dSvgPlane extends AbstractMesh {
         updateInterval: 30,
         materialChannel: 'emissive',
         cameraRelative: false,
-        pointerEvents: true,
-        doubleSided: true,
+        pointerEvents: 'on',
+        doubleSided: 'on',
     };
     /** Set to a live SVG element for dynamic mode. */
     svgElement = null;
@@ -407,9 +407,9 @@ export class B3dSvgPlane extends AbstractMesh {
         this.mesh = BABYLON.MeshBuilder.CreatePlane('svg-plane', {
             width: attrs.width,
             height: attrs.height,
-            sideOrientation: attrs.doubleSided
-                ? BABYLON.Mesh.DOUBLESIDE
-                : BABYLON.Mesh.FRONTSIDE,
+            sideOrientation: isOff(attrs.doubleSided)
+                ? BABYLON.Mesh.FRONTSIDE
+                : BABYLON.Mesh.DOUBLESIDE,
         }, scene);
         this._svgTexture = new SvgTexture({
             scene,
@@ -419,14 +419,14 @@ export class B3dSvgPlane extends AbstractMesh {
             updateInterval: attrs.updateInterval,
         });
         const mat = new BABYLON.StandardMaterial('svg-plane-mat', scene);
-        mat.backFaceCulling = !attrs.doubleSided;
+        mat.backFaceCulling = isOff(attrs.doubleSided);
         this._material = mat;
         this._applyChannel(mat, attrs.materialChannel);
         this.mesh.material = mat;
         if (attrs.cameraRelative && scene.activeCamera) {
             this.mesh.parent = scene.activeCamera;
         }
-        if (attrs.pointerEvents && this.svgElement) {
+        if (!isOff(attrs.pointerEvents) && this.svgElement) {
             this._attachPointerObserver(scene);
         }
         owner.register({ meshes: [this.mesh] });

@@ -7,28 +7,8 @@ toward it and self-levels when you let go, banking swings the heading (a
 coordinated turn), and the velocity simply chases where the nose points. The
 model is pure and unit-tested in [fly-by-wire](?fly-by-wire.ts).
 
-You're in PLANE mode (trigger = forward thrust) if you're fast enough (`vtolSpeed`)
-OR above `hoverCeiling` — so you take off VERTICALLY, and once you clear the ceiling
-the trigger converts to forward thrust and you fly (gaining altitude by flying, not
-by hovering higher). Above the ceiling the brake also can't stall you below
-`vtolSpeed`, so you can't just decelerate back into a hover up high — you must fly
-DOWN below the ceiling, slow to a hover, and descend vertically to land (or land
-conventionally). Below the ceiling the regime is speed-based, so slowing to a hover
-gives you the vertical trigger back.
-- **Hover / drone** (slow, below the ceiling): right trigger climbs, left trigger
-  descends. Let go and it bleeds back to a stationary hover.
-- **Plane** (fast): right trigger speeds up, left trigger slows down; speed holds
-  steady when you let go. Holding throttle past `maxSpeed` enters **afterburner**
-  (up to `afterburnerSpeed`); release and it bleeds back to `maxSpeed`. Pitch is
-  climb/dive, the turn stick banks to turn. Slow back below `vtolSpeed` and the
-  triggers return to up/down. Banking off level costs a little altitude.
-
-Set `vtolSpeed` to 0 for a pure aeroplane with no hover regime.
-
-Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
-lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
-
 Mesh can come from a `url` (own GLB) or from a `b3d-library` via `library` + `meshName`.
+The full flight model is explained below the demo.
 
 ## Demo
 
@@ -159,6 +139,29 @@ tosi-b3d { width: 100%; height: 100%; }
   z-index: 10;
 }
 ```
+
+## Flight model
+
+You're in PLANE mode (trigger = forward thrust) if you're fast enough (`vtolSpeed`)
+OR above `hoverCeiling` — so you take off VERTICALLY, and once you clear the ceiling
+the trigger converts to forward thrust and you fly (gaining altitude by flying, not
+by hovering higher). Above the ceiling the brake also can't stall you below
+`vtolSpeed`, so you can't just decelerate back into a hover up high — you must fly
+DOWN below the ceiling, slow to a hover, and descend vertically to land (or land
+conventionally). Below the ceiling the regime is speed-based, so slowing to a hover
+gives you the vertical trigger back.
+- **Hover / drone** (slow, below the ceiling): right trigger climbs, left trigger
+  descends. Let go and it bleeds back to a stationary hover.
+- **Plane** (fast): right trigger speeds up, left trigger slows down; speed holds
+  steady when you let go. Holding throttle past `maxSpeed` enters **afterburner**
+  (up to `afterburnerSpeed`); release and it bleeds back to `maxSpeed`. Pitch is
+  climb/dive, the turn stick banks to turn. Slow back below `vtolSpeed` and the
+  triggers return to up/down. Banking off level costs a little altitude.
+
+Set `vtolSpeed` to 0 for a pure aeroplane with no hover regime.
+
+Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
+lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 
 ## Attributes
 

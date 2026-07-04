@@ -57,14 +57,9 @@ const scene = b3d(
         button3d({ label: 'Clear all', onClick: () => lib.clearInstances() }),
       ]
     },
-    sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 10,
-        BABYLON.Vector3.Zero(), el.scene
-      )
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
-    },
+    // No custom camera — b3d's default orbit camera already has sensible limits
+    // (≥5° above the horizon, bounded zoom) so you can't tilt under the ground or
+    // zoom through the parts.
   },
   b3dLight({ y: 1, intensity: 0.7 }),
   b3dSkybox({ timeOfDay: 12 }),

@@ -10,6 +10,7 @@ each child, each child reports the height it needs, and the container stacks
 them top-to-bottom with a gap. If the stack is taller than the viewport, the
 container scrolls.
 */
+/*{ "parent": "UI" }*/
 /**
  * Stack `heights` top-to-bottom separated by `gap`. offsets[i] is the y of
  * child i; total is the full content height (no trailing gap).

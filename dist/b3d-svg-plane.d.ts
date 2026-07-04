@@ -16,14 +16,15 @@ export declare class B3dSvgPlane extends AbstractMesh {
         updateInterval: number;
         materialChannel: string;
         cameraRelative: boolean;
-        pointerEvents: boolean;
-        doubleSided: boolean;
+        pointerEvents: "on" | "off";
+        doubleSided: "on" | "off";
         x: number;
         y: number;
         z: number;
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     width: number;
     height: number;
@@ -32,8 +33,8 @@ export declare class B3dSvgPlane extends AbstractMesh {
     updateInterval: number;
     materialChannel: string;
     cameraRelative: boolean;
-    pointerEvents: boolean;
-    doubleSided: boolean;
+    pointerEvents: 'on' | 'off';
+    doubleSided: 'on' | 'off';
     /** Set to a live SVG element for dynamic mode. */
     svgElement: SVGSVGElement | null;
     private _svgTexture;

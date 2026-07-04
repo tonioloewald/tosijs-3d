@@ -44,6 +44,7 @@ export declare class B3dBiped extends B3dControllable {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     entries?: BABYLON.InstantiatedEntries;
     camera?: BABYLON.Camera;

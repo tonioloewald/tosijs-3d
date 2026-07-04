@@ -14,6 +14,7 @@ export declare class B3dSphere extends AbstractMesh {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
@@ -33,6 +34,7 @@ export declare class B3dBox extends AbstractMesh {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }
@@ -44,12 +46,15 @@ export declare class B3dGround extends AbstractMesh {
         width: number;
         height: number;
         color: string;
+        texture: string;
+        textureTiles: number;
         x: number;
         y: number;
         z: number;
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
 }

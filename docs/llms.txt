@@ -1,4 +1,4 @@
-# tosijs-3d v0.2.5
+# tosijs-3d v0.3.0
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -101,7 +101,10 @@ Full documentation, with live code examples, is at the links below.
   Seeded pseudo-random number generator based on the Mersenne Twister
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
+- https://3d.tosijs.net/performance/ — Performance
 - https://3d.tosijs.net/space/ — Space
+- https://3d.tosijs.net/spatial-transform/ — spatial-transform
+  Pure, dependency-free transform math for the **spatial attachment mechanics**
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
 - https://3d.tosijs.net/ — tosijs-3d
@@ -117,6 +120,7 @@ Full documentation, with live code examples, is at the links below.
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
 - https://3d.tosijs.net/widgets3d-layout/ — widgets3d-layout
   Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
+- https://3d.tosijs.net/world-sim/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
 - https://3d.tosijs.net/world-store/ — world-store

@@ -10,7 +10,7 @@ must be children of a `b3d` element.
 import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
   b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
-  gameController, inputFocus, label3d, toggle3d, slider3d,
+  gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
@@ -40,7 +40,6 @@ preview.append(
       glowLayerIntensity: 1,
       gamepad: true,
       scenePanel: () => [
-        label3d({ text: 'Scene' }),
         toggle3d({ label: 'show colliders', value: demo.showColliders }),
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
       ],
@@ -147,7 +146,7 @@ import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
 import { XrGamepadSource } from './xr-gamepad';
 import { XrFrames, EntityFrame } from './xr-frames';
-import { attachFramePanel } from './frame-panel';
+import { attachFramePanel, placeholderPanelSvg, } from './frame-panel';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe';
 import { setQuality, qualityBudgets, onQualityChange, } from './b3d-quality';
 const { canvas, div, slot, button } = elements;
@@ -173,6 +172,15 @@ export class B3d extends Component {
         // scene. Set the `no-xr` attribute to suppress it (e.g. demos that drive
         // XR themselves through a controllable's `cameraType: 'xr'`).
         noXr: false,
+        // The subtle reference grid on the floor during an immersive session (a
+        // locomotion/motion cue). `"auto"` (default) shows it for the built-in
+        // free-fly XR rig, but hides it when a player entity drives the rig (a
+        // focused biped/car/aircraft — its own "non-default rig") or when you supply
+        // your own `setupXr` (this grid only exists in the default experience).
+        // `"on"` always shows it; `"off"` always hides it.
+        xrGrid: 'auto',
+        // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
+        scenePanelOpen: false,
         // When present, mount the split on-screen "glass" gamepad and feed it into
         // the active input system (the unified touch control surface). The value
         // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
@@ -298,6 +306,13 @@ export class B3d extends Component {
             background: 'rgba(0,0,0,0.8)',
             transform: 'scale(1.05)',
         },
+        // Toolbar buttons are disabled (dimmed, inert) until the scene has loaded.
+        ':host .scene-toolbar button:disabled': {
+            opacity: '0.4',
+            cursor: 'default',
+            pointerEvents: 'none',
+            transform: 'none',
+        },
         ':host .scene-panel-overlay': {
             position: 'absolute',
             top: '60px',
@@ -307,6 +322,29 @@ export class B3d extends Component {
         },
         ':host .scene-panel-overlay[hidden]': {
             display: 'none',
+        },
+        // Close (×) button pinned to the panel's top-right corner.
+        ':host .scene-panel-close': {
+            position: 'absolute',
+            top: '4px',
+            right: '4px',
+            zIndex: '1',
+            width: '26px',
+            height: '26px',
+            border: 'none',
+            borderRadius: '50%',
+            background: 'rgba(0,0,0,0.55)',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '17px',
+            lineHeight: '1',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0',
+        },
+        ':host .scene-panel-close:hover': {
+            background: 'rgba(0,0,0,0.85)',
         },
     };
     content = [
@@ -322,12 +360,18 @@ export class B3d extends Component {
             type: 'button',
             title: 'Scene settings',
             hidden: true,
+            // Disabled until the scene finishes loading (reveal() enables it).
+            disabled: true,
         }, '⚙'), button({
             class: 'enter-vr-button',
             part: 'enterVrButton',
             type: 'button',
             hidden: true,
-        }, 'Enter VR')),
+            // Disabled until the scene finishes loading (reveal() enables it).
+            disabled: true,
+            // 😎 "put your shades on" = Enter VR; title carries the accessible label.
+            title: 'Enter VR',
+        }, '😎')),
         div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
         slot(),
     ];
@@ -718,6 +762,14 @@ export class B3d extends Component {
                 revealed = true;
                 cnv.classList.add('ready');
                 spinner.classList.add('hidden');
+                // Enable the toolbar only now the scene is up — the gear + Enter VR
+                // shouldn't be clickable while the scene is still loading.
+                const gearBtn = this.parts.scenePanelGear;
+                const vrBtn = this.parts.enterVrButton;
+                if (gearBtn)
+                    gearBtn.disabled = false;
+                if (vrBtn)
+                    vrBtn.disabled = false;
             };
             const checkReady = () => {
                 if (this.scene.getWaitingItemsCount() === 0) {
@@ -819,7 +871,8 @@ export class B3d extends Component {
         let restoreRaf;
         base.onStateChangedObservable.add((state) => {
             this.xrActive = state === BABYLON.WebXRState.IN_XR;
-            vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR';
+            vrButton.textContent = this.xrActive ? 'Exit VR' : '😎';
+            vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR';
             if (state === BABYLON.WebXRState.IN_XR) {
                 // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
                 // back to the flat one on exit (the cheap lever that's safe to change live).
@@ -870,21 +923,32 @@ export class B3d extends Component {
         // frame 60° up so it sits consistently above your sight-line.
         const panel = this._attachXrPanel(base, frames.eye);
         // A subtle grid floor — something to stand on and judge motion against.
-        const ground = BABYLON.MeshBuilder.CreateGround('xr-ground', { width: 200, height: 200 }, scene);
-        ground.isPickable = false;
-        // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
-        // ground / water / terrain at 0 — and so the real scene ground wins visually
-        // (the grid only shows through where there's no ground, rather than covering
-        // it). Imperceptible underfoot (you stand on the local-floor at 0).
-        ground.position.y = -0.05;
-        const grid = new GridMaterial('xr-ground-grid', scene);
-        grid.majorUnitFrequency = 5;
-        grid.minorUnitVisibility = 0.4;
-        grid.gridRatio = 1;
-        grid.mainColor = new BABYLON.Color3(0.09, 0.11, 0.15);
-        grid.lineColor = new BABYLON.Color3(0.25, 0.45, 0.7);
-        grid.opacity = 0.7;
-        ground.material = grid;
+        // Show the grid when `xr-grid="on"`, or `"auto"` (default) UNLESS a player
+        // entity is driving the rig — a focused controllable (biped/car/aircraft via
+        // input-focus) is its own "non-default rig", so auto hides the grid there.
+        // `"off"` always hides it. (A custom setupXr never reaches this code at all.)
+        const focus = this.querySelector('tosi-b3d-input-focus');
+        const playerDriven = focus?.focused != null;
+        const showGrid = this.xrGrid === 'on' || (this.xrGrid === 'auto' && !playerDriven);
+        let ground;
+        let grid;
+        if (showGrid) {
+            ground = BABYLON.MeshBuilder.CreateGround('xr-ground', { width: 200, height: 200 }, scene);
+            ground.isPickable = false;
+            // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
+            // ground / water / terrain at 0 — and so the real scene ground wins visually
+            // (the grid only shows through where there's no ground, rather than covering
+            // it). Imperceptible underfoot (you stand on the local-floor at 0).
+            ground.position.y = -0.05;
+            grid = new GridMaterial('xr-ground-grid', scene);
+            grid.majorUnitFrequency = 5;
+            grid.minorUnitVisibility = 0.4;
+            grid.gridRatio = 1;
+            grid.mainColor = new BABYLON.Color3(0.09, 0.11, 0.15);
+            grid.lineColor = new BABYLON.Color3(0.25, 0.45, 0.7);
+            grid.opacity = 0.7;
+            ground.material = grid;
+        }
         const HORIZ_SPEED = 2.5; // metres/sec
         const VERT_SPEED = 2.0;
         const TURN_SPEED = 2.0; // radians/sec at full deflection
@@ -904,7 +968,7 @@ export class B3d extends Component {
         // Thumbstick-scroll: a controller pointing at the scrollable panel scrolls it
         // with its stick (that stick is then withheld from locomotion for the frame).
         const scrollRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Up());
-        const SCROLL_SPEED = 600; // panel viewBox units / sec at full stick
+        const SCROLL_SPEED = 1200; // panel viewBox units / sec at full stick (2× — VR thumbstick scroll felt sluggish vs the flat drag)
         // Chase-cam follow state (ported from the biped's XR camera): smoothly track
         // the piloted entity's position AND facing, with head-tracking compensation.
         const chasePos = new BABYLON.Vector3();
@@ -1130,8 +1194,8 @@ export class B3d extends Component {
                 frames.dispose();
                 this.xrFrames = null;
                 cam.parent = null;
-                ground.dispose();
-                grid.dispose();
+                ground?.dispose();
+                grid?.dispose();
                 rig.dispose();
             },
         };
@@ -1141,8 +1205,10 @@ export class B3d extends Component {
     // values, so they stay in sync.
     _makePanel(rows) {
         const n = Math.max(1, rows.length);
-        const height = Math.min(520, 28 + n * 48);
-        return panel3d({ width: 320, height }, ...rows);
+        // Extra top padding so the first row clears the × close button (top-right)
+        // and the panel doesn't read footer-heavy.
+        const height = Math.min(540, 46 + n * 48);
+        return panel3d({ width: 320, height, paddingTop: 34 }, ...rows);
     }
     // Flat-screen surface: a top-right gear icon toggles the settings panel as a
     // DOM overlay. Only revealed when the scenePanel hook returns widgets. The panel
@@ -1184,18 +1250,25 @@ export class B3d extends Component {
             if (this._nameplates.has(el))
                 continue;
             const ef = new EntityFrame(scene, b.mesh, {
-                offset: [0, (b.eyeHeight ?? 1.7) + 0.35, 0],
+                offset: [0, (b.eyeHeight ?? 1.7) + 0.25, 0],
             });
             const panel = attachFramePanel(scene, cam, ef.node, {
                 anchor: {
                     position: [0, 0, 0],
                     focus: [0, 0, 1], // faces +Z = toward the viewer (frame turns to face you)
-                    revealStartDeg: 26,
-                    revealFullDeg: 10,
+                    // Generous gaze cone: the plate sits ~2m above the NPC, so looking AT
+                    // the NPC left it outside a tight cone — you couldn't find it. Wide cone
+                    // (fully visible within 40°, fading to 70°) covers the vertical offset.
+                    revealStartDeg: 70,
+                    revealFullDeg: 40,
                 },
-                title: b.id || 'NPC',
-                width: 0.3,
-                maxDistance: 8, // don't clutter with distant nameplates
+                // Compact card (280×116 vs the default 320×200) — ~50% less padding
+                // around the label so the plaque hugs the name and doesn't hang low.
+                svg: placeholderPanelSvg(b.id || '$6M biped', 280, 116),
+                width: 0.6, // 2× — readable at a glance
+                // No distance gate: an earlier `maxDistance: 8` hid nameplates in VR
+                // (the head is easily >8m from NPCs), while flat worked. The 26° gaze
+                // cone already declutters — you only see the ones you look at.
             });
             this._nameplates.set(el, { ef, panel });
         }
@@ -1215,13 +1288,10 @@ export class B3d extends Component {
         if (!this._scenePanelWired) {
             this._scenePanelWired = true;
             gear.addEventListener('click', () => {
-                if (host.hasAttribute('hidden')) {
-                    host.replaceChildren(this._makePanel(this.scenePanel(this)));
-                    host.removeAttribute('hidden');
-                }
-                else {
-                    host.setAttribute('hidden', '');
-                }
+                if (host.hasAttribute('hidden'))
+                    this._openScenePanel();
+                else
+                    this._closeScenePanel();
             });
         }
         // Reveal the gear only when the scenePanel hook actually supplies widgets.
@@ -1229,7 +1299,27 @@ export class B3d extends Component {
         // so XR availability no longer gates the gear.)
         if (this.scenePanel(this).length > 0) {
             gear.hidden = false;
+            if (this.scenePanelOpen)
+                this._openScenePanel();
         }
+    }
+    /** Open the flat scene panel, with a × close button pinned top-right. */
+    _openScenePanel() {
+        const host = this.parts.scenePanelHost;
+        const close = button({ class: 'scene-panel-close', type: 'button', title: 'Close' }, 
+        // In a session the flat overlay isn't visible anyway, but keep it playful:
+        // a bug-eyed face for VR, the plain × glyph on flat screens.
+        this.xrActive ? '😳' : '×');
+        close.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this._closeScenePanel();
+        });
+        host.replaceChildren(close, this._makePanel(this.scenePanel(this)));
+        host.removeAttribute('hidden');
+    }
+    _closeScenePanel() {
+        ;
+        this.parts.scenePanelHost.setAttribute('hidden', '');
     }
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,
@@ -1237,7 +1327,7 @@ export class B3d extends Component {
     refreshScenePanel() {
         const host = this.parts?.scenePanelHost;
         if (host && !host.hasAttribute('hidden')) {
-            host.replaceChildren(this._makePanel(this.scenePanel(this)));
+            this._openScenePanel();
         }
     }
     // Mount the split touch "glass" gamepad when the `gamepad` attribute is

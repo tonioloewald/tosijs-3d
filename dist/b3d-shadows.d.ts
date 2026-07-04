@@ -8,7 +8,7 @@ export declare class B3dSun extends B3dChild {
         shadowTextureSize: number;
         activeDistance: number;
         numCascades: number;
-        stabilizeCascades: boolean;
+        stabilizeCascades: "on" | "off";
         lambda: number;
         cascadeBlendPercentage: number;
         x: number;

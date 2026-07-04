@@ -19,6 +19,7 @@ export declare class B3dCar extends B3dControllable {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     entries?: BABYLON.InstantiatedEntries;
     private speed;

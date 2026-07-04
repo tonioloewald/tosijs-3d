@@ -47,7 +47,9 @@
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
+  <url><loc>https://3d.tosijs.net/performance/</loc></url>
   <url><loc>https://3d.tosijs.net/space/</loc></url>
+  <url><loc>https://3d.tosijs.net/spatial-transform/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/ui/</loc></url>
@@ -56,6 +58,7 @@
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/widgets3d/</loc></url>
   <url><loc>https://3d.tosijs.net/widgets3d-layout/</loc></url>
+  <url><loc>https://3d.tosijs.net/world-sim/</loc></url>
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>

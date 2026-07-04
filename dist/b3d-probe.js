@@ -42,7 +42,7 @@ preview.append(
 )
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Performance" }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';

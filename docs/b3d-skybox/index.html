@@ -33,7 +33,7 @@
 <p>Procedural sky with sun/moon cycle driven by time of day. Automatically controls
 a <code>b3dSun</code> sibling&#39;s direction, intensity, and color.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere, label3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { sky } = tosi({ sky: { timeOfDay: 17 } })
@@ -55,7 +55,12 @@ const scene = b3d(
   },
   b3dSun(),
   b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
-  b3dGround({ width: 20, height: 20 }),
+  // A checkered ground (receives shadows) + a few casters — scrub the time of
+  // day and watch the shadows swing long at dawn/dusk and short at noon.
+  b3dGround({ width: 20, height: 20, texture: &#39;checker&#39;, textureTiles: 10 }),
+  b3dBox({ meshName: &#39;pillar&#39;, size: 1.5, x: -3, y: 0.75, z: 1, color: &#39;#c85a3a&#39; }),
+  b3dBox({ meshName: &#39;crate&#39;, size: 1, x: 2, y: 0.5, z: 3, color: &#39;#5aa0c8&#39; }),
+  b3dSphere({ meshName: &#39;ball&#39;, diameter: 2, x: 3, y: 1, z: -2, color: &#39;#c8a83a&#39; }),
 )
 preview.append(scene)
 </code></pre>
@@ -131,12 +136,10 @@ preview.append(scene)
       <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
-      <li><a href="/b3d-probe/">b3d-probe</a></li>
-      <li><a href="/b3d-quality/">b3d-quality</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
-      <li><a href="/perf-probe/">perf-probe</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
@@ -173,6 +176,13 @@ preview.append(scene)
       <li><a href="/xr-gamepad/">xr-gamepad</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a href="/space/">Space</a></summary>
     <ul>
       <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
@@ -189,6 +199,7 @@ preview.append(scene)
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
       <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/utilities/">Utilities</a></summary>
@@ -204,10 +215,13 @@ preview.append(scene)
       <li><a href="/b3d-car/">b3d-car</a></li>
     </ul>
     </details></li>
-    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
-    <li><a href="/world-contract/">world-contract</a></li>
-    <li><a href="/world-store/">world-store</a></li>
-    <li><a href="/world-view/">world-view</a></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">

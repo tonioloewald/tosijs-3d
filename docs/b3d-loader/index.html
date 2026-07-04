@@ -54,7 +54,7 @@ Imported point/spot lights have their intensity scaled by <code>lightIntensitySc
 </tr>
 </tbody></table>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, label3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span } = elements
 
@@ -70,7 +70,6 @@ preview.append(
   b3d(
     {
       scenePanel: () =&gt; [
-        label3d({ text: &#39;Scene&#39; }),
         slider3d({ label: &#39;time of day&#39;, value: demo.time, min: 0, max: 24, step: 0.1 }),
       ],
       sceneCreated(el, BABYLON) {
@@ -125,12 +124,10 @@ document.body.append(
       <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/" aria-current="page" class="current">b3d-loader</a></li>
-      <li><a href="/b3d-probe/">b3d-probe</a></li>
-      <li><a href="/b3d-quality/">b3d-quality</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
-      <li><a href="/perf-probe/">perf-probe</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
@@ -167,6 +164,13 @@ document.body.append(
       <li><a href="/xr-gamepad/">xr-gamepad</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a href="/space/">Space</a></summary>
     <ul>
       <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
@@ -183,6 +187,7 @@ document.body.append(
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
       <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/utilities/">Utilities</a></summary>
@@ -198,10 +203,13 @@ document.body.append(
       <li><a href="/b3d-car/">b3d-car</a></li>
     </ul>
     </details></li>
-    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
-    <li><a href="/world-contract/">world-contract</a></li>
-    <li><a href="/world-store/">world-store</a></li>
-    <li><a href="/world-view/">world-view</a></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">

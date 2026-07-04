@@ -37,6 +37,12 @@ preview.append(
           'cam', -Math.PI / 2.5, Math.PI / 3, 8,
           new BABYLON.Vector3(0, 1, 0), el.scene
         )
+        // Keep the camera >=5deg above the horizon and out of the scene: a bare
+        // ArcRotateCamera tilts under the ground and zooms through everything.
+        camera.lowerBetaLimit = (20 * Math.PI) / 180
+        camera.upperBetaLimit = (85 * Math.PI) / 180
+        camera.lowerRadiusLimit = 3
+        camera.upperRadiusLimit = 24
         camera.attachControl(el.querySelector('canvas'), true)
         el.setActiveCamera(camera)
       },
@@ -66,7 +72,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
 | `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
 | `numCascades` | `auto` | Number of cascade splits (1–4); `auto` = device tier |
-| `stabilizeCascades` | `true` | Reduce shadow-edge "swimming" under motion |
+| `stabilizeCascades` | `'on'` | Reduce shadow-edge "swimming" under motion |
 | `lambda` | `0.8` | Cascade split blend (0 = uniform, 1 = logarithmic) |
 | `cascadeBlendPercentage` | `0.1` | Soft blend across cascade seams |
 | `activeDistance` | `30` | Max camera-to-mesh distance a caster participates from |
@@ -81,7 +87,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
-import { actualMeshes, B3dChild } from './b3d-utils';
+import { actualMeshes, B3dChild, isOff } from './b3d-utils';
 import { resolveBudget } from './b3d-quality';
 export class B3dSun extends B3dChild {
     static initAttributes = {
@@ -96,7 +102,7 @@ export class B3dSun extends B3dChild {
         // far-ranging ones (e.g. aircraft) — see the aircraft demo. 0 = auto (tier).
         numCascades: 0,
         // stabilize reduces shadow-edge "swimming" as the camera moves quickly.
-        stabilizeCascades: true,
+        stabilizeCascades: 'on',
         // lambda: 0 = uniform cascade splits, 1 = logarithmic (more resolution
         // near the camera). 0.8 is a good default; raise toward 1 for big depth.
         lambda: 0.8,
@@ -224,7 +230,7 @@ export class B3dSun extends B3dChild {
         // tends to cause peter-panning (shadows detaching from their caster).
         this.shadowGenerator.numCascades = resolveBudget(attrs.numCascades, 'numCascades');
         this.shadowGenerator.shadowMaxZ = attrs.shadowMaxZ;
-        this.shadowGenerator.stabilizeCascades = attrs.stabilizeCascades;
+        this.shadowGenerator.stabilizeCascades = !isOff(attrs.stabilizeCascades);
         this.shadowGenerator.lambda = attrs.lambda;
         this.shadowGenerator.cascadeBlendPercentage = attrs.cascadeBlendPercentage;
     }

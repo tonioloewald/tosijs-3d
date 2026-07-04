@@ -25,6 +25,7 @@ export declare class B3dSkybox extends AbstractMesh {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     private interval;
     private _sizeToCamera;

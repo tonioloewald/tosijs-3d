@@ -355,7 +355,7 @@ components lack a real demo and fill the gaps; new combat components
 [ ] Time-of-day (loader) demo: add a `b3dSun` for shadows + something to cast them, and a texture on the ground plane (currently flat/untextured).
 [ ] Sound demo: intermittent failure to load/play — worked after a page reload. Likely an async audio-engine / asset timing race. Hard to repro; needs instrumentation.
 [ ] b3d-panel demo should demonstrate BOTH: a panel present in flat 3D and VR, AND a VR-only panel that appears only in a session — with the difference explained in the doc.
-[ ] VRAM exhaustion across demos: by the b3d-svg-plane demo, an earlier demo "didn't have enough VRAM to load the material". Navigating the doc browser between demos may not be fully disposing prior b3d scenes/textures. Audit per-demo teardown on doc navigation (each `<tosi-b3d>` disconnect should free its engine/scene/textures).
+[ ] (LOW PRIORITY — don't chase hard) VRAM across demos: watch for leak signs, but entering/exiting dozens of XR sessions in quick succession is a pathological case (the Quest browser itself doesn't reliably free WebXR GPU resources between sessions). Keep baseline XR VRAM low; note leaks, don't rabbit-hole.
 
 ## Icons / spatial UI (from the review passes)
 

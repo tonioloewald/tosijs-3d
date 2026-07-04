@@ -12,7 +12,7 @@ export declare class B3dTrigger extends B3dChild {
         y: number;
         z: number;
         radius: number;
-        active: boolean;
+        disabled: boolean;
         target: string;
         debug: boolean;
         once: boolean;
@@ -21,7 +21,7 @@ export declare class B3dTrigger extends B3dChild {
     y: number;
     z: number;
     radius: number;
-    active: boolean;
+    disabled: boolean;
     target: string;
     debug: boolean;
     once: boolean;
@@ -37,6 +37,20 @@ export declare class B3dTrigger extends B3dChild {
     render(): void;
     /** Whether the target is currently inside the trigger */
     get inside(): boolean;
+    /**
+     * Tuned state for debugging — read `el.debugState` from the console or via
+     * `hj eval`. Surfaces exactly why a trigger is (not) firing: whether its target
+     * name resolves, the live distance, and the radius it's tested against.
+     */
+    get debugState(): {
+        disabled: any;
+        target: any;
+        targetResolved: boolean;
+        distance: number | null;
+        radius: any;
+        inside: boolean;
+        position: any[];
+    };
     private checkProximity;
     private resolveTargetPosition;
     private updateDebugMesh;

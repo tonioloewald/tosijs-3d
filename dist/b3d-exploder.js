@@ -24,6 +24,10 @@ import { elements } from 'tosijs'
 const { div, p } = elements
 
 let sphere = null
+// Captured from sceneCreated so the delayed respawn (setTimeout below) can
+// rebuild the sphere. Lowercase on purpose — aliasing BABYLON to an ALL-CAPS
+// name and reassigning it trips the tjs-lang const-rewrite bug.
+let babylon = null
 
 function createSphere(B) {
   sphere = B.MeshBuilder.CreateSphere(
@@ -44,10 +48,17 @@ const scene = b3d(
       button3d({ label: 'Explode!', onClick: doExplode }),
     ],
     sceneCreated(el, BABYLON) {
+      babylon = BABYLON
       const camera = new BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 3, 12,
         new BABYLON.Vector3(0, 1, 0), el.scene
       )
+      // Keep the camera >=5deg above the horizon and out of the scene: a bare
+      // ArcRotateCamera tilts under the ground and zooms through everything.
+      camera.lowerBetaLimit = (20 * Math.PI) / 180
+      camera.upperBetaLimit = (85 * Math.PI) / 180
+      camera.lowerRadiusLimit = 4
+      camera.upperRadiusLimit = 30
       camera.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(camera)
       createSphere(BABYLON)
@@ -69,7 +80,7 @@ function doExplode() {
     duration: 2.5,
   })
   sphere = null
-  setTimeout(createSphere, 3000)
+  setTimeout(() => createSphere(babylon), 3000)
 }
 
 preview.append(

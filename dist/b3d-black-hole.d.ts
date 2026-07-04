@@ -13,8 +13,8 @@ export declare class B3dBlackHole extends B3dChild {
         diskOuterRadius: number;
         diskBrightness: number;
         rotationSpeed: number;
-        lensing: boolean;
-        photonRing: boolean;
+        lensing: "on" | "off";
+        photonRing: "on" | "off";
         photonRingBrightness: number;
         wireframe: boolean;
         seed: number;
@@ -25,8 +25,8 @@ export declare class B3dBlackHole extends B3dChild {
     diskOuterRadius: number;
     diskBrightness: number;
     rotationSpeed: number;
-    lensing: boolean;
-    photonRing: boolean;
+    lensing: 'on' | 'off';
+    photonRing: 'on' | 'off';
     photonRingBrightness: number;
     wireframe: boolean;
     seed: number;

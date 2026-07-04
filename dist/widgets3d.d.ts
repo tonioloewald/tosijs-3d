@@ -25,10 +25,16 @@ export interface Widget3d {
      */
     hitTest?(x: number, y: number): boolean;
 }
-/** A static caption row. */
+/**
+ * A static caption row. `color` overrides the default text colour (e.g. an
+ * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
+ * is set).
+ */
 export declare function label3d(config: {
     text: string;
     muted?: boolean;
+    bold?: boolean;
+    color?: string;
 }): Widget3d;
 /** A wrapped, multi-line text block (e.g. an NPC's dialogue line). */
 export declare function text3d(config: {
@@ -87,6 +93,8 @@ export declare function panel3d(config: {
     width?: number;
     height?: number;
     padding?: number;
+    /** Top padding, if it should differ from `padding` (e.g. to clear a close button). */
+    paddingTop?: number;
     gap?: number;
     background?: string;
 }, ...widgets: Widget3d[]): SVGSVGElement;

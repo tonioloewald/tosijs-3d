@@ -7,7 +7,7 @@ a `b3dSun` sibling's direction, intensity, and color.
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { sky } = tosi({ sky: { timeOfDay: 17 } })
@@ -29,7 +29,12 @@ const scene = b3d(
   },
   b3dSun(),
   b3dSkybox({ timeOfDay: sky.timeOfDay, realtimeScale: 0, latitude: 40 }),
-  b3dGround({ width: 20, height: 20 }),
+  // A checkered ground (receives shadows) + a few casters — scrub the time of
+  // day and watch the shadows swing long at dawn/dusk and short at noon.
+  b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
+  b3dBox({ meshName: 'pillar', size: 1.5, x: -3, y: 0.75, z: 1, color: '#c85a3a' }),
+  b3dBox({ meshName: 'crate', size: 1, x: 2, y: 0.5, z: 3, color: '#5aa0c8' }),
+  b3dSphere({ meshName: 'ball', diameter: 2, x: 3, y: 1, z: -2, color: '#c8a83a' }),
 )
 preview.append(scene)
 ```

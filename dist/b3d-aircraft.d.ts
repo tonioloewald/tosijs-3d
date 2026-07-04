@@ -23,6 +23,7 @@ export declare class B3dAircraft extends B3dControllable {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     airspeed: number;
     altitude: number;

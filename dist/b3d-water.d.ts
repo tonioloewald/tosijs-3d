@@ -24,6 +24,7 @@ export declare class B3dWater extends AbstractMesh {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     waterMaterial?: WaterMaterial;
     private _callback?;

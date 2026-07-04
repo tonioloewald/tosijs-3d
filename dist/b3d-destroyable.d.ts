@@ -19,6 +19,7 @@ export declare class B3dDestroyable extends AbstractMesh {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     meshName: string;
     size: number;

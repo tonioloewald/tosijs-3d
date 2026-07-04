@@ -8,7 +8,9 @@ export { PROBE_VERSION, classify, budgetsForTier, resolveProfile, defaultProfile
 export { WorldStore } from './world-store';
 export { WorldView, defaultMeshFactory } from './world-view';
 // Utilities
-export { findB3dOwner, B3dChild, AbstractMesh, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+// Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
+export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader';
 export { B3dLibrary, b3dLibrary } from './b3d-library';

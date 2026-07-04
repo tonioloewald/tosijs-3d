@@ -14,8 +14,8 @@ export declare class B3dStarSystem extends B3dChild {
         starIndex: number;
         scale: number;
         orbitScale: number;
-        animate: boolean;
-        showOrbits: boolean;
+        animate: "on" | "off";
+        showOrbits: "on" | "off";
         x: number;
         y: number;
         z: number;
@@ -25,8 +25,8 @@ export declare class B3dStarSystem extends B3dChild {
     starIndex: number;
     scale: number;
     orbitScale: number;
-    animate: boolean;
-    showOrbits: boolean;
+    animate: 'on' | 'off';
+    showOrbits: 'on' | 'off';
     x: number;
     y: number;
     z: number;

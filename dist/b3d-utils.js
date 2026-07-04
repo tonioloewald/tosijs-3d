@@ -17,6 +17,14 @@ export function actualMeshes(meshes) {
     return meshes.filter((mesh) => mesh.geometry != null);
 }
 /**
+ * Is an on-by-default toggle in its OFF state? Use for feature flags that should
+ * default ON: declare them as a string `'on' | 'off'` attribute defaulting `'on'`
+ * (a boolean attribute can't default true — an absent boolean reads false; see the
+ * b3d-trigger `disabled` note). `isOff` also accepts the boolean `false` / string
+ * `'false'` a UI toggle may bind, so a `toggle3d` still disables it.
+ */
+export const isOff = (v) => v === 'off' || v === false || v === 'false';
+/**
  * World-space Y of the bottom of a node's combined geometry (the node itself
  * plus every descendant mesh). Returns null if there's no renderable geometry.
  */
@@ -227,6 +235,57 @@ export class B3dChild extends Component {
     sceneReady(_owner, _scene) { }
     sceneDispose() { }
 }
+/**
+ * Build a programmatic XYZ axis gizmo (no asset) for reference/debugging: a medium
+ * grey origin ball, and an R/G/B shaft-plus-arrowhead for +X/+Y/+Z. All materials
+ * are emissive + unlit ("glow, not lit"), so a scene glow layer makes them bloom.
+ * Returned as one `TransformNode` — parent it to any node to pin axes on it, or
+ * flip the `axes` attribute on any AbstractMesh geometry (b3dBox/b3dSphere/…).
+ */
+export function buildAxes(scene) {
+    const root = new BABYLON.TransformNode('axes', scene);
+    const glow = (name, hex) => {
+        const m = new BABYLON.StandardMaterial(name, scene);
+        m.emissiveColor = BABYLON.Color3.FromHexString(hex);
+        m.disableLighting = true;
+        m.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        m.specularColor = new BABYLON.Color3(0, 0, 0);
+        return m;
+    };
+    const ball = BABYLON.MeshBuilder.CreateSphere('axes-origin', { diameter: 0.25, segments: 12 }, scene);
+    ball.material = glow('axes-origin-mat', '#808080');
+    ball.isPickable = false;
+    ball.parent = root;
+    const axes = [
+        ['x', '#ff2a2a', new BABYLON.Vector3(1, 0, 0)],
+        ['y', '#2aff2a', new BABYLON.Vector3(0, 1, 0)],
+        ['z', '#2a6aff', new BABYLON.Vector3(0, 0, 1)],
+    ];
+    for (const [key, hex, dir] of axes) {
+        const mat = glow(`axes-${key}-mat`, hex);
+        // Shaft: 0.75 long along the axis, 0.0625 square cross-section, centred at 0.5.
+        const shaft = BABYLON.MeshBuilder.CreateBox(`axes-${key}-shaft`, {
+            width: key === 'x' ? 0.75 : 0.0625,
+            height: key === 'y' ? 0.75 : 0.0625,
+            depth: key === 'z' ? 0.75 : 0.0625,
+        }, scene);
+        shaft.position = dir.scale(0.5);
+        shaft.material = mat;
+        shaft.isPickable = false;
+        shaft.parent = root;
+        // 4-sided cone (arrowhead) at 1.0, pointing along +axis (cone defaults to +Y).
+        const cone = BABYLON.MeshBuilder.CreateCylinder(`axes-${key}-cone`, { diameterTop: 0, diameterBottom: 0.15, height: 0.25, tessellation: 4 }, scene);
+        cone.position = dir.scale(1);
+        if (key === 'x')
+            cone.rotation.z = -Math.PI / 2;
+        if (key === 'z')
+            cone.rotation.x = Math.PI / 2;
+        cone.material = mat;
+        cone.isPickable = false;
+        cone.parent = root;
+    }
+    return root;
+}
 export class AbstractMesh extends B3dChild {
     static initAttributes = {
         x: 0,
@@ -235,6 +294,9 @@ export class AbstractMesh extends B3dChild {
         rx: 0,
         ry: 0,
         rz: 0,
+        // Show a debug XYZ axis gizmo pinned to this geometry (see buildAxes). The
+        // host fades to translucent while on, so the gizmo reads through it.
+        axes: false,
     };
     mesh;
     // Generation counter for async asset loads. Bumped on every sceneReady and
@@ -243,6 +305,7 @@ export class AbstractMesh extends B3dChild {
     // instantiates meshes into the scene after the component has been re-init'd
     // or disposed.
     loadGeneration = 0;
+    _axesNode;
     get roll() {
         return this.rz;
     }
@@ -270,11 +333,39 @@ export class AbstractMesh extends B3dChild {
     sceneDispose() {
         // Invalidate any in-flight loadAssetContainer callbacks.
         this.loadGeneration++;
+        // Dispose the axis gizmo explicitly (it's parented to the mesh, but clear our
+        // ref so it rebuilds cleanly on re-init).
+        this._axesNode?.dispose();
+        this._axesNode = undefined;
         if (this.mesh != null) {
             this.mesh.dispose();
             this.mesh = undefined;
         }
         this.owner = null;
+    }
+    /** Attach/detach the debug axis gizmo to track the `axes` attribute. */
+    _updateAxes() {
+        const wantAxes = !!this.axes;
+        if (wantAxes && this.mesh && this._axesNode == null && this.owner) {
+            // Fade the host (mesh-level `visibility`, non-destructive) BEFORE parenting
+            // the gizmo, so you can see the axes THROUGH the object while the gizmo
+            // itself stays fully opaque (it's added after, at visibility 1).
+            this._setHostVisibility(0.3);
+            this._axesNode = buildAxes(this.owner.scene);
+            this._axesNode.parent = this.mesh;
+        }
+        else if (!wantAxes && this._axesNode != null) {
+            this._axesNode.dispose();
+            this._axesNode = undefined;
+            this._setHostVisibility(1); // restore now the gizmo is gone
+        }
+    }
+    _setHostVisibility(v) {
+        if (!this.mesh)
+            return;
+        this.mesh.visibility = v;
+        for (const child of this.mesh.getChildMeshes())
+            child.visibility = v;
     }
     /**
      * Load a glTF/glb into an AssetContainer, with race-safe gen tracking.
@@ -299,6 +390,7 @@ export class AbstractMesh extends B3dChild {
             this.mesh.position.z = z;
             this.mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(this.yaw * DEG_TO_RAD, this.pitch * DEG_TO_RAD, this.roll * DEG_TO_RAD);
         }
+        this._updateAxes();
     }
 }
 //# sourceMappingURL=b3d-utils.js.map

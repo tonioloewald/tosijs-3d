@@ -16,7 +16,7 @@ rest of the framework follows.
 Components declare performance-sensitive attributes with an **`auto` sentinel**
 (`0` for numbers) instead of a hard-wired number, and resolve them here:
 
-```ts
+```typescript
 // in a component's setup:
 const subs = resolveBudget(this.hiResSubdivisions, 'hiResSubdivisions', { xr })
 //           explicit author value wins; 0 (auto) → the tier's budget
@@ -30,7 +30,7 @@ rather than baking one number that's wrong for both a phone and a workstation.
 
 ## Global override
 
-```js
+```javascript
 import { setQuality, getQuality } from 'tosijs-3d'
 
 setQuality('low')            // force low everywhere
@@ -38,7 +38,7 @@ setQuality('auto')           // back to the measured profile (default)
 // a settings <select> calls setQuality(e.target.value) and reads getQuality()
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Performance" }*/
 import { defaultProfile, budgetsForTier, lowerTier, } from './perf-probe';
 let currentProfile = defaultProfile();
 let currentOverride = 'auto';

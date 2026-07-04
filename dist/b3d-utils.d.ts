@@ -4,6 +4,14 @@ import type { B3d } from './tosi-b3d';
 export declare function findB3dOwner(el: HTMLElement): B3d | null;
 export declare function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[];
 /**
+ * Is an on-by-default toggle in its OFF state? Use for feature flags that should
+ * default ON: declare them as a string `'on' | 'off'` attribute defaulting `'on'`
+ * (a boolean attribute can't default true — an absent boolean reads false; see the
+ * b3d-trigger `disabled` note). `isOff` also accepts the boolean `false` / string
+ * `'false'` a UI toggle may bind, so a `toggle3d` still disables it.
+ */
+export declare const isOff: (v: unknown) => boolean;
+/**
  * Vertical gap, in world units, between a node's origin and the bottom of its
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).
@@ -57,6 +65,14 @@ export declare class B3dChild extends Component {
     sceneReady(_owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
 }
+/**
+ * Build a programmatic XYZ axis gizmo (no asset) for reference/debugging: a medium
+ * grey origin ball, and an R/G/B shaft-plus-arrowhead for +X/+Y/+Z. All materials
+ * are emissive + unlit ("glow, not lit"), so a scene glow layer makes them bloom.
+ * Returned as one `TransformNode` — parent it to any node to pin axes on it, or
+ * flip the `axes` attribute on any AbstractMesh geometry (b3dBox/b3dSphere/…).
+ */
+export declare function buildAxes(scene: BABYLON.Scene): BABYLON.TransformNode;
 export declare class AbstractMesh extends B3dChild {
     static initAttributes: {
         x: number;
@@ -65,9 +81,11 @@ export declare class AbstractMesh extends B3dChild {
         rx: number;
         ry: number;
         rz: number;
+        axes: boolean;
     };
     mesh?: BABYLON.Mesh;
     protected loadGeneration: number;
+    private _axesNode?;
     get roll(): number;
     set roll(v: number);
     get pitch(): number;
@@ -76,6 +94,9 @@ export declare class AbstractMesh extends B3dChild {
     set yaw(v: number);
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     sceneDispose(): void;
+    /** Attach/detach the debug axis gizmo to track the `axes` attribute. */
+    private _updateAxes;
+    private _setHostVisibility;
     /**
      * Load a glTF/glb into an AssetContainer, with race-safe gen tracking.
      * The onLoaded callback is only invoked if the component hasn't been

@@ -41,12 +41,15 @@ for <code>&#39;enter&#39;</code> / <code>&#39;exit&#39;</code> CustomEvents on t
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span, p } = elements
 
-const { demo } = tosi({ demo: { status: &#39;walking…&#39; } })
+const { demo } = tosi({ demo: { status: &#39;walking…&#39;, dist: &#39;&#39; } })
 
 // A wandering goal (a glowing marker) with a proximity trigger around it.
 let goal = { x: 6, z: 5 }
 const marker = b3dSphere({ meshName: &#39;goal&#39;, diameter: 0.7, y: 0.35, x: goal.x, z: goal.z, color: &#39;#ffcc00&#39; })
-const trigger = b3dTrigger({ x: goal.x, y: 0.5, z: goal.z, radius: 1.4, debug: true })
+// Radius comfortably exceeds STOP (below) and the trigger sits low (near the
+// biped&#39;s root at the feet, y≈0) — otherwise the 0.5m vertical gap eats the
+// margin and a biped stopping at ~1.2m horizontal lands just outside.
+const trigger = b3dTrigger({ x: goal.x, y: 0.3, z: goal.z, radius: 2, debug: true })
 
 // The NPC: a NON-player biped driven by a tiny &quot;walk to the goal&quot; AI. A biped
 // polls whatever is on `.inputProvider` every frame, so an AI is just an
@@ -56,18 +59,25 @@ const STOP = 1.2 // how close counts as &quot;arrived&quot;
 walker.inputProvider = {
   poll() {
     const m = walker.mesh
-    if (!m) return emptyInput
+    if (!m) return emptyInput()
     const p = m.getAbsolutePosition()
     const dx = goal.x - p.x
     const dz = goal.z - p.z
     const dist = Math.hypot(dx, dz)
+    // Live readout of the trigger&#39;s own view of the world (its debugState) — so
+    // we can see WHY it does/doesn&#39;t fire: what target it&#39;s watching, whether that
+    // target resolves, and its measured distance vs the AI&#39;s.
+    const ds = trigger.debugState
+    demo.dist.value =
+      `AI ${dist.toFixed(1)}m · target=${ds.target} · resolved=${ds.targetResolved}` +
+      ` · trigDist=${ds.distance ?? &#39;—&#39;} · inside=${ds.inside}`
     // Turn toward the goal (biped forward is +Z) and walk until we&#39;re there.
     const f = m.forward
     let turn = Math.atan2(dx, dz) - Math.atan2(f.x, f.z)
     while (turn &gt; Math.PI) turn -= 2 * Math.PI
     while (turn &lt; -Math.PI) turn += 2 * Math.PI
     return {
-      ...emptyInput,
+      ...emptyInput(),
       forward: dist &gt; STOP ? 1 : 0,
       turn: Math.max(-1, Math.min(1, turn * 2)),
     }
@@ -75,8 +85,18 @@ walker.inputProvider = {
 }
 
 // Watch the biped (not the camera): point the trigger at its mesh once loaded.
+// Give the root a KNOWN name first — a GLB root is often &#39;__root__&#39; or even &#39;&#39;,
+// which the trigger&#39;s getMeshByName/getTransformNodeByName lookup can&#39;t resolve.
 const wire = setInterval(() =&gt; {
-  if (walker.mesh) { trigger.target = walker.mesh.name; clearInterval(wire) }
+  if (walker.mesh) {
+    walker.mesh.name = &#39;walker&#39;
+    // Set BOTH ways: the property, and the attribute (drives the reactive value
+    // via attributeChangedCallback) — belt-and-suspenders so `target` reliably
+    // becomes &#39;walker&#39; instead of staying the default &#39;camera&#39;.
+    trigger.target = &#39;walker&#39;
+    trigger.setAttribute(&#39;target&#39;, &#39;walker&#39;)
+    clearInterval(wire)
+  }
 }, 100)
 
 // On arrival: pause, then teleport the goal (marker + trigger) to a random spot
@@ -85,7 +105,13 @@ const wire = setInterval(() =&gt; {
 trigger.onEnter = () =&gt; {
   demo.status.value = &#39;reached it — relocating…&#39;
   setTimeout(() =&gt; {
-    goal = { x: (Math.random() - 0.5) * 16, z: (Math.random() - 0.5) * 16 }
+    // Pick a spot well AWAY from the biped — otherwise the goal can land on top
+    // of it, so it&#39;s already inside the relocated trigger and never exits/re-enters
+    // (the loop stalls).
+    const p = walker.mesh ? walker.mesh.getAbsolutePosition() : { x: 0, z: 0 }
+    do {
+      goal = { x: (Math.random() - 0.5) * 16, z: (Math.random() - 0.5) * 16 }
+    } while (Math.hypot(goal.x - p.x, goal.z - p.z) &lt; 5)
     marker.x = goal.x; marker.z = goal.z
     trigger.x = goal.x; trigger.z = goal.z
     demo.status.value = &#39;walking…&#39;
@@ -100,6 +126,12 @@ preview.append(
           &#39;cam&#39;, -Math.PI / 2, Math.PI / 3.2, 22,
           new BABYLON.Vector3(0, 0, 0), el.scene
         )
+        // Keep the camera &gt;=5deg above the horizon and out of the scene: a bare
+        // ArcRotateCamera tilts under the ground and zooms through everything.
+        camera.lowerBetaLimit = (20 * Math.PI) / 180
+        camera.upperBetaLimit = (85 * Math.PI) / 180
+        camera.lowerRadiusLimit = 8
+        camera.upperRadiusLimit = 60
         camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
         el.setActiveCamera(camera)
       },
@@ -115,6 +147,7 @@ preview.append(
     { style: &#39;position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace&#39; },
     p(&#39;An NPC walks to the marker → it relocates → repeat&#39;),
     span({ bindText: demo.status }),
+    p({ style: &#39;opacity:0.7&#39; }, span({ bindText: demo.dist })),
   )
 )
 </code></pre>
@@ -148,9 +181,9 @@ preview.append(
 <td>Trigger sphere radius</td>
 </tr>
 <tr>
-<td><code>active</code></td>
-<td><code>true</code></td>
-<td>Enable/disable the trigger</td>
+<td><code>disabled</code></td>
+<td><code>false</code></td>
+<td>Disable the trigger (default: active)</td>
 </tr>
 <tr>
 <td><code>target</code></td>
@@ -180,12 +213,10 @@ preview.append(
       <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
-      <li><a href="/b3d-probe/">b3d-probe</a></li>
-      <li><a href="/b3d-quality/">b3d-quality</a></li>
       <li><a href="/b3d-trigger/" aria-current="page" class="current">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
-      <li><a href="/perf-probe/">perf-probe</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
@@ -222,6 +253,13 @@ preview.append(
       <li><a href="/xr-gamepad/">xr-gamepad</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a href="/space/">Space</a></summary>
     <ul>
       <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
@@ -238,6 +276,7 @@ preview.append(
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
       <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/utilities/">Utilities</a></summary>
@@ -253,10 +292,13 @@ preview.append(
       <li><a href="/b3d-car/">b3d-car</a></li>
     </ul>
     </details></li>
-    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
-    <li><a href="/world-contract/">world-contract</a></li>
-    <li><a href="/world-store/">world-store</a></li>
-    <li><a href="/world-view/">world-view</a></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">

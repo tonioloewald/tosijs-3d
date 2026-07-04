@@ -35,27 +35,8 @@ than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft ease
 toward it and self-levels when you let go, banking swings the heading (a
 coordinated turn), and the velocity simply chases where the nose points. The
 model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
-<p>You&#39;re in PLANE mode (trigger = forward thrust) if you&#39;re fast enough (<code>vtolSpeed</code>)
-OR above <code>hoverCeiling</code> — so you take off VERTICALLY, and once you clear the ceiling
-the trigger converts to forward thrust and you fly (gaining altitude by flying, not
-by hovering higher). Above the ceiling the brake also can&#39;t stall you below
-<code>vtolSpeed</code>, so you can&#39;t just decelerate back into a hover up high — you must fly
-DOWN below the ceiling, slow to a hover, and descend vertically to land (or land
-conventionally). Below the ceiling the regime is speed-based, so slowing to a hover
-gives you the vertical trigger back.</p>
-<ul>
-<li><strong>Hover / drone</strong> (slow, below the ceiling): right trigger climbs, left trigger
-descends. Let go and it bleeds back to a stationary hover.</li>
-<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down; speed holds
-steady when you let go. Holding throttle past <code>maxSpeed</code> enters <strong>afterburner</strong>
-(up to <code>afterburnerSpeed</code>); release and it bleeds back to <code>maxSpeed</code>. Pitch is
-climb/dive, the turn stick banks to turn. Slow back below <code>vtolSpeed</code> and the
-triggers return to up/down. Banking off level costs a little altitude.</li>
-</ul>
-<p>Set <code>vtolSpeed</code> to 0 for a pure aeroplane with no hover regime.</p>
-<p>Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
-lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
-<p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.</p>
+<p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.
+The full flight model is explained below the demo.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
@@ -182,6 +163,27 @@ requestAnimationFrame(updateHud)
   z-index: 10;
 }
 </code></pre>
+<h2>Flight model</h2>
+<p>You&#39;re in PLANE mode (trigger = forward thrust) if you&#39;re fast enough (<code>vtolSpeed</code>)
+OR above <code>hoverCeiling</code> — so you take off VERTICALLY, and once you clear the ceiling
+the trigger converts to forward thrust and you fly (gaining altitude by flying, not
+by hovering higher). Above the ceiling the brake also can&#39;t stall you below
+<code>vtolSpeed</code>, so you can&#39;t just decelerate back into a hover up high — you must fly
+DOWN below the ceiling, slow to a hover, and descend vertically to land (or land
+conventionally). Below the ceiling the regime is speed-based, so slowing to a hover
+gives you the vertical trigger back.</p>
+<ul>
+<li><strong>Hover / drone</strong> (slow, below the ceiling): right trigger climbs, left trigger
+descends. Let go and it bleeds back to a stationary hover.</li>
+<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down; speed holds
+steady when you let go. Holding throttle past <code>maxSpeed</code> enters <strong>afterburner</strong>
+(up to <code>afterburnerSpeed</code>); release and it bleeds back to <code>maxSpeed</code>. Pitch is
+climb/dive, the turn stick banks to turn. Slow back below <code>vtolSpeed</code> and the
+triggers return to up/down. Banking off level costs a little altitude.</li>
+</ul>
+<p>Set <code>vtolSpeed</code> to 0 for a pure aeroplane with no hover regime.</p>
+<p>Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
+lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
 <h2>Attributes</h2>
 <table>
 <thead>
@@ -271,12 +273,10 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
-      <li><a href="/b3d-probe/">b3d-probe</a></li>
-      <li><a href="/b3d-quality/">b3d-quality</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
-      <li><a href="/perf-probe/">perf-probe</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
@@ -313,6 +313,13 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a href="/xr-gamepad/">xr-gamepad</a></li>
     </ul>
     </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
     <li><details><summary><a href="/space/">Space</a></summary>
     <ul>
       <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
@@ -329,6 +336,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>
       <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/utilities/">Utilities</a></summary>
@@ -344,10 +352,13 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a href="/b3d-car/">b3d-car</a></li>
     </ul>
     </details></li>
-    <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
-    <li><a href="/world-contract/">world-contract</a></li>
-    <li><a href="/world-store/">world-store</a></li>
-    <li><a href="/world-view/">world-view</a></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
   </ul>
   </nav>
   <ul class="doc-navbar">

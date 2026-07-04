@@ -81,6 +81,7 @@ preview.append(
 )
 ```
 */
+/*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core';
 const KIND_COLORS = {
     player: '#39c5ff',

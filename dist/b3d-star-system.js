@@ -135,12 +135,12 @@ tosi-b3d {
 | `starIndex` | `0` | Which star in the galaxy to render |
 | `scale` | `5` | Visual scale factor for star/planet sizes |
 | `orbitScale` | `3` | Multiplier for orbital distances |
-| `animate` | `true` | Animate planet orbital motion |
-| `showOrbits` | `true` | Show orbital path lines |
+| `animate` | `'on'` | Animate planet orbital motion |
+| `showOrbits` | `'on'` | Show orbital path lines |
 
 */
 /*{ "parent": "Space" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild, isOff } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { generateGalaxy, generateStarSystem, } from './galaxy-data';
 import { PerlinNoise } from './perlin-noise';
@@ -156,8 +156,9 @@ export class B3dStarSystem extends B3dChild {
         starIndex: 0,
         scale: 5,
         orbitScale: 3,
-        animate: true,
-        showOrbits: true,
+        // on-by-default toggles: string 'on'|'off' (a boolean can't default true)
+        animate: 'on',
+        showOrbits: 'on',
         x: 0,
         y: 0,
         z: 0,
@@ -429,7 +430,7 @@ export class B3dStarSystem extends B3dChild {
             planetMesh.position.z = Math.sin(phase) * orbitalDist;
             this.planetMeshes.push(planetMesh);
             // Orbit line
-            if (attrs.showOrbits) {
+            if (!isOff(attrs.showOrbits)) {
                 this.buildOrbitLine(orbitalDist, i);
             }
         }
@@ -528,7 +529,7 @@ export class B3dStarSystem extends B3dChild {
         if (this.rootNode == null || !this.systemData)
             return;
         const attrs = this;
-        if (attrs.animate && this.systemData.planets.length > 0) {
+        if (!isOff(attrs.animate) && this.systemData.planets.length > 0) {
             const dt = this.owner.scene.getEngine().getDeltaTime() / 1000;
             this.time += dt;
             const scale = attrs.scale;
@@ -575,10 +576,10 @@ export class B3dStarSystem extends B3dChild {
         const attrs = this;
         // Toggle orbit visibility
         for (const line of this.orbitLines) {
-            line.setEnabled(attrs.showOrbits);
+            line.setEnabled(!isOff(attrs.showOrbits));
         }
         // If orbits need to be created and don't exist
-        if (attrs.showOrbits && this.orbitLines.length === 0 && this.systemData) {
+        if (!isOff(attrs.showOrbits) && this.orbitLines.length === 0 && this.systemData) {
             const scale = attrs.scale;
             const orbitScale = attrs.orbitScale;
             for (let i = 0; i < this.systemData.planets.length; i++) {

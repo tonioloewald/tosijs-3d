@@ -22,6 +22,8 @@ export declare class B3d extends Component {
         minDistance: number;
         maxDistance: number;
         noXr: boolean;
+        xrGrid: "on" | "off" | "auto";
+        scenePanelOpen: boolean;
         gamepad: boolean | string;
         gamepadScale: number;
         quality: QualitySetting;
@@ -136,6 +138,12 @@ export declare class B3d extends Component {
             background: string;
             transform: string;
         };
+        ':host .scene-toolbar button:disabled': {
+            opacity: string;
+            cursor: string;
+            pointerEvents: string;
+            transform: string;
+        };
         ':host .scene-panel-overlay': {
             position: string;
             top: string;
@@ -145,6 +153,28 @@ export declare class B3d extends Component {
         };
         ':host .scene-panel-overlay[hidden]': {
             display: string;
+        };
+        ':host .scene-panel-close': {
+            position: string;
+            top: string;
+            right: string;
+            zIndex: string;
+            width: string;
+            height: string;
+            border: string;
+            borderRadius: string;
+            background: string;
+            color: string;
+            cursor: string;
+            fontSize: string;
+            lineHeight: string;
+            display: string;
+            alignItems: string;
+            justifyContent: string;
+            padding: string;
+        };
+        ':host .scene-panel-close:hover': {
+            background: string;
         };
     };
     content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement)[];
@@ -164,6 +194,8 @@ export declare class B3d extends Component {
     minDistance: number;
     maxDistance: number;
     noXr: boolean;
+    xrGrid: 'on' | 'off' | 'auto';
+    scenePanelOpen: boolean;
     sceneCreated: B3dCallback;
     update: B3dCallback;
     setupXr: B3dCallback;
@@ -225,6 +257,9 @@ export declare class B3d extends Component {
     private _setupNameplates;
     private _scanNameplates;
     private _setupScenePanel;
+    /** Open the flat scene panel, with a × close button pinned top-right. */
+    private _openScenePanel;
+    private _closeScenePanel;
     /** Rebuild the flat scene panel from the current rows, if it's open.
      * Call after async state the panel reflects has changed (e.g. a library loaded,
      * or XR availability / session state) so an already-open panel updates. */
