@@ -92,6 +92,15 @@ export type { Quat, Pose } from './spatial-transform'
 // Pure aircraft-HUD math (radar-trace projection + horizon)
 export { hudTrace, horizonTransform } from './hud-math'
 export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math'
+// HUD driver (meters / horizon / radar traces over the HUD SVG)
+export { createHudController, loadHud, buildFallbackHud } from './hud'
+export type {
+  HudController,
+  HudControllerOptions,
+  MeterName,
+  TraceKind,
+  HudTraceInput,
+} from './hud'
 
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader'
