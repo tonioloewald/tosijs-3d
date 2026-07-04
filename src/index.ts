@@ -89,6 +89,10 @@ export {
 // Vec3 is already exported (surface-sampler) and is structurally identical.
 export type { Quat, Pose } from './spatial-transform'
 
+// Pure aircraft-HUD math (radar-trace projection + horizon)
+export { hudTrace, horizonTransform } from './hud-math'
+export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math'
+
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader'
 export { B3dLibrary, b3dLibrary } from './b3d-library'
