@@ -30,6 +30,10 @@ true})` never turns on (killed the trigger — fixed via `disabled`). tosijs wil
 - [ ] b3d-star-system `animate`, `showOrbits`
 - [ ] b3d-svg-plane `pointerEvents`, `doubleSided`
 
+## AI scenario harness (verification playgrounds)
+
+[ ] Shared **scenario harness** for watching AIs (design: AI-DESIGN.md → "Scenario playgrounds"). Spawns a configured scene (entities/targets/obstacles/waypoints/roads/traffic), SEEDS RNG (presets = named seeds/configs, randomized runs reproducible), drives the AI(s) as InputProviders, overlays each AI's `debugState`. Beyond the trigger wander demo: AI aircraft (pick targets, avoid air/terrain collisions, fly waypoints, shoot, break off); AI ground vehicle (roads + traffic). The **AI-aircraft playground is how we verify the MVP aircraft-combat slice** — build it alongside the aircraft AI. Leans on the deterministic/seedable world-store.
+
 ## MVP: Aircraft combat vertical slice ⟵ current goal
 
 A quick playable game on the **aircraft + dynamic terrain + water** models: fly
