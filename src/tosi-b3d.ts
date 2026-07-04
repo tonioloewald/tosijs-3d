@@ -1368,8 +1368,10 @@ export class B3d extends Component {
   // values, so they stay in sync.
   private _makePanel(rows: Widget3d[]): SVGSVGElement {
     const n = Math.max(1, rows.length)
-    const height = Math.min(520, 28 + n * 48)
-    return panel3d({ width: 320, height }, ...rows)
+    // Extra top padding so the first row clears the × close button (top-right)
+    // and the panel doesn't read footer-heavy.
+    const height = Math.min(540, 46 + n * 48)
+    return panel3d({ width: 320, height, paddingTop: 34 }, ...rows)
   }
 
   // Flat-screen surface: a top-right gear icon toggles the settings panel as a
@@ -1416,14 +1418,19 @@ export class B3d extends Component {
         anchor: {
           position: [0, 0, 0],
           focus: [0, 0, 1], // faces +Z = toward the viewer (frame turns to face you)
-          revealStartDeg: 26,
-          revealFullDeg: 10,
+          // Generous gaze cone: the plate sits ~2m above the NPC, so looking AT
+          // the NPC left it outside a tight cone — you couldn't find it. Wide cone
+          // (fully visible within 40°, fading to 70°) covers the vertical offset.
+          revealStartDeg: 70,
+          revealFullDeg: 40,
         },
         // Compact card (280×116 vs the default 320×200) — ~50% less padding
         // around the label so the plaque hugs the name and doesn't hang low.
         svg: placeholderPanelSvg((b.id as string) || '$6M biped', 280, 116),
         width: 0.6, // 2× — readable at a glance
-        maxDistance: 8, // don't clutter with distant nameplates
+        // No distance gate: an earlier `maxDistance: 8` hid nameplates in VR
+        // (the head is easily >8m from NPCs), while flat worked. The 26° gaze
+        // cone already declutters — you only see the ones you look at.
       })
       this._nameplates.set(el, { ef, panel })
     }

@@ -839,6 +839,8 @@ export function panel3d(
     width?: number
     height?: number
     padding?: number
+    /** Top padding, if it should differ from `padding` (e.g. to clear a close button). */
+    paddingTop?: number
     gap?: number
     background?: string
   },
@@ -847,9 +849,10 @@ export function panel3d(
   const width = config.width ?? 360
   const height = config.height ?? 480
   const padding = config.padding ?? 12
+  const paddingTop = config.paddingTop ?? padding
   const gap = config.gap ?? GAP
   const innerW = width - padding * 2
-  const viewport = height - padding * 2
+  const viewport = height - paddingTop - padding
 
   // Defend against a host page's global `svg { pointer-events: none }` (it's
   // inherited, so re-enabling the root re-enables the whole subtree).
@@ -876,9 +879,9 @@ export function panel3d(
   const clipId = `w3d-clip-${clipSeq++}`
   const clip = clipPath(
     { id: clipId },
-    rect({ x: padding, y: padding, width: innerW, height: viewport })
+    rect({ x: padding, y: paddingTop, width: innerW, height: viewport })
   )
-  const content = g({ transform: `translate(${padding}, ${padding})` })
+  const content = g({ transform: `translate(${padding}, ${paddingTop})` })
   const scrollGroup = g()
   content.appendChild(scrollGroup)
 
@@ -930,7 +933,7 @@ export function panel3d(
   }
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
     const localX = x - padding
-    const contentY = y - padding + scroll
+    const contentY = y - paddingTop + scroll
     if (kind === 'leave') return setHover(undefined)
     const row = rowAt(localX, contentY)
     if (kind === 'down') {
