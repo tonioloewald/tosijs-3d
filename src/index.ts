@@ -63,6 +63,7 @@ export {
   findB3dOwner,
   B3dChild,
   AbstractMesh,
+  buildAxes,
   actualMeshes,
   enterXR,
   applyMaterialConventions,

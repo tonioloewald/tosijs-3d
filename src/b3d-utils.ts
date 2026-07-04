@@ -266,6 +266,69 @@ export class B3dChild extends Component {
   sceneDispose(): void {}
 }
 
+/**
+ * Build a programmatic XYZ axis gizmo (no asset) for reference/debugging: a medium
+ * grey origin ball, and an R/G/B shaft-plus-arrowhead for +X/+Y/+Z. All materials
+ * are emissive + unlit ("glow, not lit"), so a scene glow layer makes them bloom.
+ * Returned as one `TransformNode` — parent it to any node to pin axes on it, or
+ * flip the `axes` attribute on any AbstractMesh geometry (b3dBox/b3dSphere/…).
+ */
+export function buildAxes(scene: BABYLON.Scene): BABYLON.TransformNode {
+  const root = new BABYLON.TransformNode('axes', scene)
+  const glow = (name: string, hex: string) => {
+    const m = new BABYLON.StandardMaterial(name, scene)
+    m.emissiveColor = BABYLON.Color3.FromHexString(hex)
+    m.disableLighting = true
+    m.diffuseColor = new BABYLON.Color3(0, 0, 0)
+    m.specularColor = new BABYLON.Color3(0, 0, 0)
+    return m
+  }
+  const ball = BABYLON.MeshBuilder.CreateSphere(
+    'axes-origin',
+    { diameter: 0.25, segments: 12 },
+    scene
+  )
+  ball.material = glow('axes-origin-mat', '#808080')
+  ball.isPickable = false
+  ball.parent = root
+
+  const axes: Array<[string, string, BABYLON.Vector3]> = [
+    ['x', '#ff2a2a', new BABYLON.Vector3(1, 0, 0)],
+    ['y', '#2aff2a', new BABYLON.Vector3(0, 1, 0)],
+    ['z', '#2a6aff', new BABYLON.Vector3(0, 0, 1)],
+  ]
+  for (const [key, hex, dir] of axes) {
+    const mat = glow(`axes-${key}-mat`, hex)
+    // Shaft: 0.75 long along the axis, 0.0625 square cross-section, centred at 0.5.
+    const shaft = BABYLON.MeshBuilder.CreateBox(
+      `axes-${key}-shaft`,
+      {
+        width: key === 'x' ? 0.75 : 0.0625,
+        height: key === 'y' ? 0.75 : 0.0625,
+        depth: key === 'z' ? 0.75 : 0.0625,
+      },
+      scene
+    )
+    shaft.position = dir.scale(0.5)
+    shaft.material = mat
+    shaft.isPickable = false
+    shaft.parent = root
+    // 4-sided cone (arrowhead) at 1.0, pointing along +axis (cone defaults to +Y).
+    const cone = BABYLON.MeshBuilder.CreateCylinder(
+      `axes-${key}-cone`,
+      { diameterTop: 0, diameterBottom: 0.15, height: 0.25, tessellation: 4 },
+      scene
+    )
+    cone.position = dir.scale(1)
+    if (key === 'x') cone.rotation.z = -Math.PI / 2
+    if (key === 'z') cone.rotation.x = Math.PI / 2
+    cone.material = mat
+    cone.isPickable = false
+    cone.parent = root
+  }
+  return root
+}
+
 export class AbstractMesh extends B3dChild {
   static initAttributes = {
     x: 0,
@@ -274,6 +337,8 @@ export class AbstractMesh extends B3dChild {
     rx: 0,
     ry: 0,
     rz: 0,
+    // Show a debug XYZ axis gizmo pinned to this geometry (see buildAxes).
+    axes: false,
   }
 
   mesh?: BABYLON.Mesh
@@ -283,6 +348,7 @@ export class AbstractMesh extends B3dChild {
   // instantiates meshes into the scene after the component has been re-init'd
   // or disposed.
   protected loadGeneration = 0
+  private _axesNode?: BABYLON.TransformNode
 
   get roll() {
     return (this as any).rz
@@ -310,11 +376,27 @@ export class AbstractMesh extends B3dChild {
   sceneDispose() {
     // Invalidate any in-flight loadAssetContainer callbacks.
     this.loadGeneration++
+    // Dispose the axis gizmo explicitly (it's parented to the mesh, but clear our
+    // ref so it rebuilds cleanly on re-init).
+    this._axesNode?.dispose()
+    this._axesNode = undefined
     if (this.mesh != null) {
       this.mesh.dispose()
       this.mesh = undefined
     }
     this.owner = null
+  }
+
+  /** Attach/detach the debug axis gizmo to track the `axes` attribute. */
+  private _updateAxes() {
+    const wantAxes = !!(this as any).axes
+    if (wantAxes && this.mesh && this._axesNode == null && this.owner) {
+      this._axesNode = buildAxes(this.owner.scene)
+      this._axesNode.parent = this.mesh
+    } else if (!wantAxes && this._axesNode != null) {
+      this._axesNode.dispose()
+      this._axesNode = undefined
+    }
   }
 
   /**
@@ -353,5 +435,6 @@ export class AbstractMesh extends B3dChild {
         this.roll * DEG_TO_RAD
       )
     }
+    this._updateAxes()
   }
 }

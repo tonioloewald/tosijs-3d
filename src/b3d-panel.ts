@@ -35,7 +35,8 @@ const scene = b3d(
   b3dLight({ y: 1, intensity: 0.8 }),
   b3dSkybox({ timeOfDay: 12 }),
   b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
-  b3dBox({ meshName: 'cube', size: 1, y: cfg.height, color: '#39c5ff' }),
+  // `axes` pins a debug XYZ gizmo on any AbstractMesh geometry (glowing R/G/B).
+  b3dBox({ meshName: 'cube', size: 1, y: cfg.height, color: '#39c5ff', axes: true }),
   // BOTH flat + VR: a world-anchored SVG panel — it IS a mesh in the scene, so it
   // shows in the regular view and in VR, always in the same spot.
   b3dSvgPlane({ url: '/tosi-test-pattern.svg', x: -2.6, y: 1.6, z: 0, width: 1.6, height: 1.6 }),
