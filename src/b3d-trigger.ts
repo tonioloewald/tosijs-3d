@@ -16,7 +16,7 @@ import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, e
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
-const { demo } = tosi({ demo: { status: 'walking…' } })
+const { demo } = tosi({ demo: { status: 'walking…', dist: '' } })
 
 // A wandering goal (a glowing marker) with a proximity trigger around it.
 let goal = { x: 6, z: 5 }
@@ -39,6 +39,9 @@ walker.inputProvider = {
     const dx = goal.x - p.x
     const dz = goal.z - p.z
     const dist = Math.hypot(dx, dz)
+    // Live readout — also a handy sanity check that the trigger is registering:
+    // watch `inside` flip true as `dist` drops below the trigger radius.
+    demo.dist.value = `${dist.toFixed(1)}m away · inside=${trigger.inside}`
     // Turn toward the goal (biped forward is +Z) and walk until we're there.
     const f = m.forward
     let turn = Math.atan2(dx, dz) - Math.atan2(f.x, f.z)
@@ -53,8 +56,14 @@ walker.inputProvider = {
 }
 
 // Watch the biped (not the camera): point the trigger at its mesh once loaded.
+// Give the root a KNOWN name first — a GLB root is often '__root__' or even '',
+// which the trigger's getMeshByName/getTransformNodeByName lookup can't resolve.
 const wire = setInterval(() => {
-  if (walker.mesh) { trigger.target = walker.mesh.name; clearInterval(wire) }
+  if (walker.mesh) {
+    walker.mesh.name = 'walker'
+    trigger.target = 'walker'
+    clearInterval(wire)
+  }
 }, 100)
 
 // On arrival: pause, then teleport the goal (marker + trigger) to a random spot
@@ -99,6 +108,7 @@ preview.append(
     { style: 'position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace' },
     p('An NPC walks to the marker → it relocates → repeat'),
     span({ bindText: demo.status }),
+    p({ style: 'opacity:0.7' }, span({ bindText: demo.dist })),
   )
 )
 ```
@@ -186,6 +196,26 @@ export class B3dTrigger extends B3dChild {
   /** Whether the target is currently inside the trigger */
   get inside(): boolean {
     return this._inside
+  }
+
+  /**
+   * Tuned state for debugging — read `el.debugState` from the console or via
+   * `hj eval`. Surfaces exactly why a trigger is (not) firing: whether its target
+   * name resolves, the live distance, and the radius it's tested against.
+   */
+  get debugState() {
+    const attrs = this as any
+    const tp = this.owner ? this.resolveTargetPosition() : null
+    const here = new BABYLON.Vector3(attrs.x, attrs.y, attrs.z)
+    return {
+      active: attrs.active,
+      target: attrs.target,
+      targetResolved: tp != null,
+      distance: tp ? +BABYLON.Vector3.Distance(tp, here).toFixed(2) : null,
+      radius: attrs.radius,
+      inside: this._inside,
+      position: [attrs.x, attrs.y, attrs.z],
+    }
   }
 
   private checkProximity() {
