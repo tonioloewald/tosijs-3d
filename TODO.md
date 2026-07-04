@@ -18,6 +18,18 @@ look. **Flat** = check in the browser; **VR** = check in the headset.
 
 See the **Bugs** and **Icons / spatial UI** sections below for the known-broken items still needing a headset (galaxy billboard, terrain recenter, VRAM, XR rig misalignment, VR-only panel, library Exit-VR clip).
 
+## Default-true boolean attrs (silently off; will error once tosijs flags them)
+
+tosijs correctly treats an absent boolean attribute as false, so `initAttributes({foo:
+true})` never turns on (killed the trigger — fixed via `disabled`). tosijs will make
+`foo: true` a definition-time error. Convert these (keep positive meaning via a string
+`'on'|'off'` enum, or invert to a negative boolean):
+- [x] b3d-trigger `active` → `disabled` (default false = active) — DONE
+- [ ] b3d-black-hole `lensing`, `photonRing`
+- [ ] b3d-shadows `stabilizeCascades`
+- [ ] b3d-star-system `animate`, `showOrbits`
+- [ ] b3d-svg-plane `pointerEvents`, `doubleSided`
+
 ## MVP: Aircraft combat vertical slice ⟵ current goal
 
 A quick playable game on the **aircraft + dynamic terrain + water** models: fly
