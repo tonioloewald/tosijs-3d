@@ -207,9 +207,11 @@ export class B3d extends Component {
     // XR themselves through a controllable's `cameraType: 'xr'`).
     noXr: false,
     // The subtle reference grid on the floor during an immersive session (a
-    // locomotion/motion cue). `"auto"` (default) shows it for the built-in XR
-    // setup and is implicitly off when you supply your own `setupXr` (this grid
-    // only exists in the default experience); `"on"` forces it, `"off"` hides it.
+    // locomotion/motion cue). `"auto"` (default) shows it for the built-in
+    // free-fly XR rig, but hides it when a player entity drives the rig (a
+    // focused biped/car/aircraft — its own "non-default rig") or when you supply
+    // your own `setupXr` (this grid only exists in the default experience).
+    // `"on"` always shows it; `"off"` always hides it.
     xrGrid: 'auto' as 'on' | 'off' | 'auto',
     // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
     scenePanelOpen: false,
@@ -1032,10 +1034,19 @@ export class B3d extends Component {
     const panel = this._attachXrPanel(base, frames.eye)
 
     // A subtle grid floor — something to stand on and judge motion against.
-    // Opt out with `xr-grid="off"` ("auto"/"on" both show it here — see the attr).
+    // Show the grid when `xr-grid="on"`, or `"auto"` (default) UNLESS a player
+    // entity is driving the rig — a focused controllable (biped/car/aircraft via
+    // input-focus) is its own "non-default rig", so auto hides the grid there.
+    // `"off"` always hides it. (A custom setupXr never reaches this code at all.)
+    const focus = this.querySelector('tosi-b3d-input-focus') as {
+      focused?: unknown
+    } | null
+    const playerDriven = focus?.focused != null
+    const showGrid =
+      this.xrGrid === 'on' || (this.xrGrid === 'auto' && !playerDriven)
     let ground: BABYLON.Mesh | undefined
     let grid: GridMaterial | undefined
-    if ((this as any).xrGrid !== 'off') {
+    if (showGrid) {
       ground = BABYLON.MeshBuilder.CreateGround(
         'xr-ground',
         { width: 200, height: 200 },
