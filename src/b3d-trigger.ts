@@ -65,7 +65,11 @@ walker.inputProvider = {
 const wire = setInterval(() => {
   if (walker.mesh) {
     walker.mesh.name = 'walker'
+    // Set BOTH ways: the property, and the attribute (drives the reactive value
+    // via attributeChangedCallback) — belt-and-suspenders so `target` reliably
+    // becomes 'walker' instead of staying the default 'camera'.
     trigger.target = 'walker'
+    trigger.setAttribute('target', 'walker')
     clearInterval(wire)
   }
 }, 100)
