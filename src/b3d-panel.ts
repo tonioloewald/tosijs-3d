@@ -23,6 +23,8 @@ const { cfg } = tosi({ cfg: { height: 1 } })
 
 const scene = b3d(
   {
+    // Start with the flat panel open so it's visible without hunting for the ⚙.
+    scenePanelOpen: true,
     // DUAL-PRESENCE: the scenePanel hook renders BOTH a flat ⚙ overlay and a
     // floating VR panel, bound to the same reactive values.
     scenePanel: () => [

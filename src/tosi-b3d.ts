@@ -211,6 +211,8 @@ export class B3d extends Component {
     // setup and is implicitly off when you supply your own `setupXr` (this grid
     // only exists in the default experience); `"on"` forces it, `"off"` hides it.
     xrGrid: 'auto' as 'on' | 'off' | 'auto',
+    // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
+    scenePanelOpen: false,
     // When present, mount the split on-screen "glass" gamepad and feed it into
     // the active input system (the unified touch control surface). The value
     // selects/positions controls, e.g. `gamepad="a,b,right_stick(40,0),menu"`;
@@ -354,6 +356,29 @@ export class B3d extends Component {
     ':host .scene-panel-overlay[hidden]': {
       display: 'none',
     },
+    // Close (×) button pinned to the panel's top-right corner.
+    ':host .scene-panel-close': {
+      position: 'absolute',
+      top: '4px',
+      right: '4px',
+      zIndex: '1',
+      width: '26px',
+      height: '26px',
+      border: 'none',
+      borderRadius: '50%',
+      background: 'rgba(0,0,0,0.55)',
+      color: '#fff',
+      cursor: 'pointer',
+      fontSize: '17px',
+      lineHeight: '1',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '0',
+    },
+    ':host .scene-panel-close:hover': {
+      background: 'rgba(0,0,0,0.85)',
+    },
   }
 
   content = [
@@ -385,8 +410,10 @@ export class B3d extends Component {
           hidden: true,
           // Disabled until the scene finishes loading (reveal() enables it).
           disabled: true,
+          // 😎 "put your shades on" = Enter VR; title carries the accessible label.
+          title: 'Enter VR',
         },
-        'Enter VR'
+        '😎'
       )
     ),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
@@ -411,6 +438,7 @@ export class B3d extends Component {
   declare maxDistance: number
   declare noXr: boolean
   declare xrGrid: 'on' | 'off' | 'auto'
+  declare scenePanelOpen: boolean
 
   sceneCreated: B3dCallback = noop
   update: B3dCallback = noop
@@ -941,7 +969,8 @@ export class B3d extends Component {
     let restoreRaf: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
-      vrButton.textContent = this.xrActive ? 'Exit VR' : 'Enter VR'
+      vrButton.textContent = this.xrActive ? 'Exit VR' : '😎'
+      vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR'
       if (state === BABYLON.WebXRState.IN_XR) {
         // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
         // back to the flat one on exit (the cheap lever that's safe to change live).
@@ -1404,12 +1433,8 @@ export class B3d extends Component {
     if (!this._scenePanelWired) {
       this._scenePanelWired = true
       gear.addEventListener('click', () => {
-        if (host.hasAttribute('hidden')) {
-          host.replaceChildren(this._makePanel(this.scenePanel(this)))
-          host.removeAttribute('hidden')
-        } else {
-          host.setAttribute('hidden', '')
-        }
+        if (host.hasAttribute('hidden')) this._openScenePanel()
+        else this._closeScenePanel()
       })
     }
     // Reveal the gear only when the scenePanel hook actually supplies widgets.
@@ -1417,7 +1442,29 @@ export class B3d extends Component {
     // so XR availability no longer gates the gear.)
     if (this.scenePanel(this).length > 0) {
       gear.hidden = false
+      if ((this as any).scenePanelOpen) this._openScenePanel()
     }
+  }
+
+  /** Open the flat scene panel, with a × close button pinned top-right. */
+  private _openScenePanel(): void {
+    const host = this.parts.scenePanelHost as HTMLElement
+    const close = button(
+      { class: 'scene-panel-close', type: 'button', title: 'Close' },
+      // In a session the flat overlay isn't visible anyway, but keep it playful:
+      // a bug-eyed face for VR, the plain × glyph on flat screens.
+      this.xrActive ? '😳' : '×'
+    ) as HTMLButtonElement
+    close.addEventListener('click', (e) => {
+      e.stopPropagation()
+      this._closeScenePanel()
+    })
+    host.replaceChildren(close, this._makePanel(this.scenePanel(this)))
+    host.removeAttribute('hidden')
+  }
+
+  private _closeScenePanel(): void {
+    ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
   }
 
   /** Rebuild the flat scene panel from the current rows, if it's open.
@@ -1426,7 +1473,7 @@ export class B3d extends Component {
   refreshScenePanel(): void {
     const host = this.parts?.scenePanelHost as HTMLElement | undefined
     if (host && !host.hasAttribute('hidden')) {
-      host.replaceChildren(this._makePanel(this.scenePanel(this)))
+      this._openScenePanel()
     }
   }
 
