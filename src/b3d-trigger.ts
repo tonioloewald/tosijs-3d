@@ -80,7 +80,13 @@ const wire = setInterval(() => {
 trigger.onEnter = () => {
   demo.status.value = 'reached it — relocating…'
   setTimeout(() => {
-    goal = { x: (Math.random() - 0.5) * 16, z: (Math.random() - 0.5) * 16 }
+    // Pick a spot well AWAY from the biped — otherwise the goal can land on top
+    // of it, so it's already inside the relocated trigger and never exits/re-enters
+    // (the loop stalls).
+    const p = walker.mesh ? walker.mesh.getAbsolutePosition() : { x: 0, z: 0 }
+    do {
+      goal = { x: (Math.random() - 0.5) * 16, z: (Math.random() - 0.5) * 16 }
+    } while (Math.hypot(goal.x - p.x, goal.z - p.z) < 5)
     marker.x = goal.x; marker.z = goal.z
     trigger.x = goal.x; trigger.z = goal.z
     demo.status.value = 'walking…'

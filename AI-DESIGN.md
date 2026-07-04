@@ -47,6 +47,28 @@ Status legend: ✅ agreed · 🟡 spec'd, open questions · ✏️ drafting
 
 ---
 
+## Verification: watchable AI demos ✅
+
+**Every AI ships with a "watch it respond to a target" demo, along the same lines as
+the [b3d-trigger](src/b3d-trigger.ts) wander demo** (a non-player biped driven by a
+tiny InputProvider that walks to a goal; the goal relocates on arrival; repeat). An AI
+is just an `InputProvider` emitting the same `ControlInput` a player would, so any
+AI can be dropped into this harness and you literally *watch* it behave.
+
+**Why:** you can see — not just assert — that an AI can navigate terrain, avoid
+obstacles, path around geometry, close on and hit what it's aiming at, flee, patrol,
+etc. It's the curb-cut of AI development: the demo is the manual test, the regression
+check, the tuning surface, AND the doc, all at once. Pairs with the debug-instrumentation
+habit (a `debugState` readout on the AI + a live on-screen line, like the trigger demo's
+"Xm away · inside=…").
+
+**Pattern:** target(s) + a visible marker + the AI as an InputProvider + an on-screen
+readout of what the AI perceives/intends. Vary the target (relocate, move it, add
+obstacles between AI and target) to exercise each capability. Consider a shared demo
+scaffold so each new AI is a few lines to drop in.
+
+---
+
 ## NPC AI controller 🟡
 
 ### Agreed spec
