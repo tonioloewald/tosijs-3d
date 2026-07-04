@@ -881,9 +881,15 @@ export function panel3d(
     { id: clipId },
     rect({ x: padding, y: paddingTop, width: innerW, height: viewport })
   )
+  // The clip lives on a NON-transformed wrapper, so its rect is in viewBox space —
+  // unambiguous in both the live DOM and the SVG→texture rasterizer. Clipping the
+  // TRANSLATED `content` group directly makes the two renderers disagree: the VR
+  // texture path double-offsets the clip and crops the top-left of the list.
+  const clipWrap = g()
   const content = g({ transform: `translate(${padding}, ${paddingTop})` })
   const scrollGroup = g()
   content.appendChild(scrollGroup)
+  clipWrap.appendChild(content)
 
   const heights = widgets.map((w) => w.layout(innerW))
   const { offsets, total } = stackLayout(heights, gap)
@@ -898,7 +904,7 @@ export function panel3d(
   })
 
   const scrollable = total > viewport
-  if (scrollable) content.setAttribute('clip-path', `url(#${clipId})`)
+  if (scrollable) clipWrap.setAttribute('clip-path', `url(#${clipId})`)
   let scroll = 0
   const applyScroll = () => {
     scroll = clampScroll(scroll, total, viewport)
@@ -1025,6 +1031,6 @@ export function panel3d(
 
   root.appendChild(bg)
   root.appendChild(clip)
-  root.appendChild(content)
+  root.appendChild(clipWrap)
   return root
 }
