@@ -64,6 +64,7 @@ export {
   B3dChild,
   AbstractMesh,
   buildAxes,
+  isOff,
   actualMeshes,
   enterXR,
   applyMaterialConventions,

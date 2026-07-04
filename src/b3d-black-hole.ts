@@ -121,8 +121,8 @@ tosi-b3d {
 | `diskOuterRadius` | `4.0` | Outer edge of accretion disk (multiple of radius) |
 | `diskBrightness` | `1.5` | Accretion disk emissive brightness |
 | `rotationSpeed` | `0.3` | Disk rotation speed (rad/sec) |
-| `lensing` | `true` | Show gravitational lensing ring |
-| `photonRing` | `true` | Show photon ring at event horizon |
+| `lensing` | `'on'` | Show gravitational lensing ring |
+| `photonRing` | `'on'` | Show photon ring at event horizon |
 | `photonRingBrightness` | `2.0` | Photon ring glow intensity |
 | `wireframe` | `false` | Debug wireframe |
 | `seed` | `12345` | Noise seed for disk turbulence |
@@ -131,7 +131,7 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild, isOff } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
@@ -185,8 +185,9 @@ export class B3dBlackHole extends B3dChild {
     diskOuterRadius: 3.0,
     diskBrightness: 1.5,
     rotationSpeed: 0.3,
-    lensing: true,
-    photonRing: true,
+    // on-by-default toggles: string 'on'|'off' (a boolean can't default true)
+    lensing: 'on' as 'on' | 'off',
+    photonRing: 'on' as 'on' | 'off',
     photonRingBrightness: 2.0,
     wireframe: false,
     seed: 12345,
@@ -198,8 +199,8 @@ export class B3dBlackHole extends B3dChild {
   declare diskOuterRadius: number
   declare diskBrightness: number
   declare rotationSpeed: number
-  declare lensing: boolean
-  declare photonRing: boolean
+  declare lensing: 'on' | 'off'
+  declare photonRing: 'on' | 'off'
   declare photonRingBrightness: number
   declare wireframe: boolean
   declare seed: number
@@ -637,7 +638,7 @@ export class B3dBlackHole extends B3dChild {
   private buildLensedDisk() {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
-    if (!attrs.lensing) return
+    if (isOff(attrs.lensing)) return
 
     const radius: number = attrs.radius
     const innerR = radius * attrs.diskInnerRadius
@@ -660,7 +661,7 @@ export class B3dBlackHole extends B3dChild {
   private buildPhotonRing() {
     if (this.owner == null || this.rootNode == null) return
     const attrs = this as any
-    if (!attrs.photonRing) return
+    if (isOff(attrs.photonRing)) return
 
     const radius: number = attrs.radius
     // Photon ring sits just outside the event horizon

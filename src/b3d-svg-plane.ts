@@ -368,15 +368,15 @@ or implement your own shape-specific point-in-polygon tests.
 | `updateInterval` | `30` | Re-render interval in ms (dynamic mode) |
 | `materialChannel` | `'emissive'` | `'emissive'` (unlit) or `'diffuse'` (lit) |
 | `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
-| `pointerEvents` | `true` | Map 3D pick hits → SVG pointer events |
-| `doubleSided` | `true` | Render both faces |
+| `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
+| `doubleSided` | `'on'` | Render both faces |
 
 Set the `svgElement` property to a live SVG element for dynamic mode.
 */
 /*{ "parent": "UI" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh } from './b3d-utils'
+import { AbstractMesh, isOff } from './b3d-utils'
 import { SvgTexture } from './svg-texture'
 import type { B3d } from './tosi-b3d'
 
@@ -392,8 +392,8 @@ export class B3dSvgPlane extends AbstractMesh {
     updateInterval: 30,
     materialChannel: 'emissive',
     cameraRelative: false,
-    pointerEvents: true,
-    doubleSided: true,
+    pointerEvents: 'on' as 'on' | 'off',
+    doubleSided: 'on' as 'on' | 'off',
   }
 
   declare width: number
@@ -403,8 +403,8 @@ export class B3dSvgPlane extends AbstractMesh {
   declare updateInterval: number
   declare materialChannel: string
   declare cameraRelative: boolean
-  declare pointerEvents: boolean
-  declare doubleSided: boolean
+  declare pointerEvents: 'on' | 'off'
+  declare doubleSided: 'on' | 'off'
 
   /** Set to a live SVG element for dynamic mode. */
   svgElement: SVGSVGElement | null = null
@@ -430,9 +430,9 @@ export class B3dSvgPlane extends AbstractMesh {
       {
         width: attrs.width,
         height: attrs.height,
-        sideOrientation: attrs.doubleSided
-          ? BABYLON.Mesh.DOUBLESIDE
-          : BABYLON.Mesh.FRONTSIDE,
+        sideOrientation: isOff(attrs.doubleSided)
+          ? BABYLON.Mesh.FRONTSIDE
+          : BABYLON.Mesh.DOUBLESIDE,
       },
       scene
     )
@@ -446,7 +446,7 @@ export class B3dSvgPlane extends AbstractMesh {
     })
 
     const mat = new BABYLON.StandardMaterial('svg-plane-mat', scene)
-    mat.backFaceCulling = !attrs.doubleSided
+    mat.backFaceCulling = isOff(attrs.doubleSided)
     this._material = mat
     this._applyChannel(mat, attrs.materialChannel)
     this.mesh.material = mat
@@ -455,7 +455,7 @@ export class B3dSvgPlane extends AbstractMesh {
       this.mesh.parent = scene.activeCamera
     }
 
-    if (attrs.pointerEvents && this.svgElement) {
+    if (!isOff(attrs.pointerEvents) && this.svgElement) {
       this._attachPointerObserver(scene)
     }
 

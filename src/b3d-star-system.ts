@@ -135,13 +135,13 @@ tosi-b3d {
 | `starIndex` | `0` | Which star in the galaxy to render |
 | `scale` | `5` | Visual scale factor for star/planet sizes |
 | `orbitScale` | `3` | Multiplier for orbital distances |
-| `animate` | `true` | Animate planet orbital motion |
-| `showOrbits` | `true` | Show orbital path lines |
+| `animate` | `'on'` | Animate planet orbital motion |
+| `showOrbits` | `'on'` | Show orbital path lines |
 
 */
 /*{ "parent": "Space" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild, isOff } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import {
@@ -164,8 +164,9 @@ export class B3dStarSystem extends B3dChild {
     starIndex: 0,
     scale: 5,
     orbitScale: 3,
-    animate: true,
-    showOrbits: true,
+    // on-by-default toggles: string 'on'|'off' (a boolean can't default true)
+    animate: 'on' as 'on' | 'off',
+    showOrbits: 'on' as 'on' | 'off',
     x: 0,
     y: 0,
     z: 0,
@@ -180,8 +181,8 @@ export class B3dStarSystem extends B3dChild {
   // this as a string-typed reactive attribute; renaming would be a breaking
   // public API change so we just override the inherited type.
   // @ts-expect-error -- intentional override of HTMLElement.animate
-  declare animate: boolean
-  declare showOrbits: boolean
+  declare animate: 'on' | 'off'
+  declare showOrbits: 'on' | 'off'
   declare x: number
   declare y: number
   declare z: number
@@ -512,7 +513,7 @@ export class B3dStarSystem extends B3dChild {
       this.planetMeshes.push(planetMesh)
 
       // Orbit line
-      if (attrs.showOrbits) {
+      if (!isOff(attrs.showOrbits)) {
         this.buildOrbitLine(orbitalDist, i)
       }
     }
@@ -644,7 +645,7 @@ export class B3dStarSystem extends B3dChild {
     if (this.rootNode == null || !this.systemData) return
     const attrs = this as any
 
-    if (attrs.animate && this.systemData.planets.length > 0) {
+    if (!isOff(attrs.animate) && this.systemData.planets.length > 0) {
       const dt = this.owner!.scene.getEngine().getDeltaTime() / 1000
       this.time += dt
 
@@ -700,11 +701,11 @@ export class B3dStarSystem extends B3dChild {
 
     // Toggle orbit visibility
     for (const line of this.orbitLines) {
-      line.setEnabled(attrs.showOrbits)
+      line.setEnabled(!isOff(attrs.showOrbits))
     }
 
     // If orbits need to be created and don't exist
-    if (attrs.showOrbits && this.orbitLines.length === 0 && this.systemData) {
+    if (!isOff(attrs.showOrbits) && this.orbitLines.length === 0 && this.systemData) {
       const scale: number = attrs.scale
       const orbitScale: number = attrs.orbitScale
       for (let i = 0; i < this.systemData.planets.length; i++) {

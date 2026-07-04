@@ -26,6 +26,16 @@ export function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[] {
 }
 
 /**
+ * Is an on-by-default toggle in its OFF state? Use for feature flags that should
+ * default ON: declare them as a string `'on' | 'off'` attribute defaulting `'on'`
+ * (a boolean attribute can't default true — an absent boolean reads false; see the
+ * b3d-trigger `disabled` note). `isOff` also accepts the boolean `false` / string
+ * `'false'` a UI toggle may bind, so a `toggle3d` still disables it.
+ */
+export const isOff = (v: unknown): boolean =>
+  v === 'off' || v === false || v === 'false'
+
+/**
  * World-space Y of the bottom of a node's combined geometry (the node itself
  * plus every descendant mesh). Returns null if there's no renderable geometry.
  */
