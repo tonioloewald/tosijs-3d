@@ -67,6 +67,33 @@ readout of what the AI perceives/intends. Vary the target (relocate, move it, ad
 obstacles between AI and target) to exercise each capability. Consider a shared demo
 scaffold so each new AI is a few lines to drop in.
 
+### Scenario playgrounds (the real goal — not just "walk to a target")
+
+The wander demo is the seed; the goal is **scenario playgrounds** that run **preset
+AND randomized scenarios** so you can watch the *full behavioural repertoire* of an AI,
+not one primitive:
+
+- **AI aircraft**: pick targets from several, avoid mid-air collisions (with each other
+  and terrain), fly a waypoint route, engage/shoot, break off, re-acquire. Randomize
+  target/obstacle/waypoint placement; also ship hand-authored presets (a head-on merge,
+  a canyon run, a 2-v-2) that reproduce a specific situation.
+- **AI ground vehicle**: navigate roads, obey/handle traffic, avoid other cars, route to
+  a destination, park.
+- Same for bipeds/enemies (patrol → notice → pursue → lose → search), turrets (acquire →
+  lead → fire), etc.
+
+**A scenario harness** (shared) is the deliverable: it spawns a configured scene
+(entities, targets, obstacles, waypoints, roads/traffic), seeds RNG so a "randomized"
+run is reproducible from its seed, drives the AI(s), and overlays each AI's `debugState`
+(current target, intended maneuver, threat/collision awareness). Presets are just named
+seeds/configs. This makes AI behaviour **observable, reproducible, and regression-testable**
+— you can replay the exact scenario that exposed a bug.
+
+Ties into the **MVP** (aircraft combat vertical slice — see TODO.md): the AI-aircraft
+scenario playground *is* how we'll verify fly/target/shoot/avoid before wiring enemies
+into the game. Likely leans on the world-sim scenario layer
+([world-store](src/world-store.ts) is deterministic + seedable by design).
+
 ---
 
 ## NPC AI controller 🟡
