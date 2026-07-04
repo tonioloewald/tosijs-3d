@@ -9,14 +9,15 @@ panel you also want on a flat screen, use the `scenePanel` hook (dual-presence).
 
 ## Demo
 
-Two panels with two different lifetimes. The **Settings** panel (from the
-`scenePanel` hook) is *dual-presence*: click the ⚙ gear to see it as a flat overlay,
-and it also floats in front of you in VR — the slider drives the cube's height in
-both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence at all — put on
-a headset (Enter VR) and it appears anchored to your view.
+Three ways to show a panel, side by side. The **world panel** (a `b3d-svg-plane`) is
+a mesh in the scene — it renders in the regular flat view AND in VR, fixed in the
+world. The **Settings** panel (the `scenePanel` hook) is *dual-presence*: a flat ⚙
+overlay (open here) that's also a floating panel in VR — its slider drives the cube in
+both. The **VR only** panel (`<tosi-b3d-panel>`) has no flat presence — enter VR to see
+it anchored to your view.
 
 ```js
-import { b3d, b3dPanel, b3dLight, b3dSkybox, b3dGround, b3dBox, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dPanel, b3dSvgPlane, b3dLight, b3dSkybox, b3dGround, b3dBox, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { cfg } = tosi({ cfg: { height: 1 } })
@@ -25,8 +26,7 @@ const scene = b3d(
   {
     // Start with the flat panel open so it's visible without hunting for the ⚙.
     scenePanelOpen: true,
-    // DUAL-PRESENCE: the scenePanel hook renders BOTH a flat ⚙ overlay and a
-    // floating VR panel, bound to the same reactive values.
+    // DUAL-PRESENCE: a flat ⚙ overlay AND a floating VR panel, same values.
     scenePanel: () => [
       label3d({ text: 'Settings' }),
       slider3d({ label: 'cube height', value: cfg.height, min: 0.5, max: 3, step: 0.1 }),
@@ -36,9 +36,11 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 12 }),
   b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
   b3dBox({ meshName: 'cube', size: 1, y: cfg.height, color: '#39c5ff' }),
-  // VR-ONLY: a <tosi-b3d-panel> anchored to the eye frame. No flat presence —
-  // it only exists in an immersive session.
-  b3dPanel({ frame: 'eye', azimuth: -45, elevation: 25, title: 'VR only', width: 0.4, reveal: 'always' }),
+  // BOTH flat + VR: a world-anchored SVG panel — it IS a mesh in the scene, so it
+  // shows in the regular view and in VR, always in the same spot.
+  b3dSvgPlane({ url: '/tosi-test-pattern.svg', x: -2.6, y: 1.6, z: 0, width: 1.6, height: 1.6 }),
+  // VR-ONLY: a <tosi-b3d-panel> anchored to the eye frame. No flat presence.
+  b3dPanel({ frame: 'eye', azimuth: 45, elevation: 25, title: 'VR only', width: 0.4, reveal: 'always' }),
 )
 preview.append(scene)
 ```
@@ -46,14 +48,15 @@ preview.append(scene)
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
-## Two kinds of panel
+## Three ways to place a panel
 
-- **`scenePanel` hook — dual-presence.** Present on flat screens (a ⚙ gear overlay)
-  AND in VR (a floating panel), both bound to the same reactive values. Use it for
-  settings/controls you want available everywhere.
-- **`<tosi-b3d-panel>` — VR-only.** Anchored to an XR reference frame
-  (`eye`/`body`/`left-hand`/…), it exists only inside an immersive session. Use it for
-  headset-native spatial UI (wrist menus, HUD reticles, over-the-shoulder inventory).
+- **World-anchored (`b3d-svg-plane`)** — a panel that IS a mesh in the scene: visible
+  in flat 3D and VR, fixed in the world. Use for holograms, signage, in-world screens.
+- **Dual-presence (`scenePanel` hook)** — a flat ⚙ overlay AND a floating VR panel,
+  bound to the same reactive values. Use for settings/controls you want everywhere.
+- **Viewer-frame-anchored (`<tosi-b3d-panel>`, VR-only)** — anchored to an XR
+  reference frame (`eye`/`body`/`left-hand`/…); follows you and exists only in a
+  session. Use for HUDs, wrist menus, over-the-shoulder inventory.
 
 If ANY `<tosi-b3d-panel>` children are present they replace the built-in default set,
 so you have full control:

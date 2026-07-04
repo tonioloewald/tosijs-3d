@@ -330,6 +330,7 @@ components lack a real demo and fill the gaps; new combat components
 [ ] Make it possible to attach arbitrary OBJECTS (meshes/GLBs) to an XR frame, not just panels — a declarative `<tosi-b3d-*>` that parents a mesh to `frames.<name>` (the frames are already `TransformNode`s; needs the b3d-panel-style plumbing to expose them declaratively).
 [ ] An xyz axis "gizmo" object placeable for reference/debugging (user is modelling one; Babylon's `Debug.AxesViewer` / `AxesViewer` works as an interim). Pairs with attach-to-frame above and the debug-instrumentation theme.
 [ ] b3d-panel demo: the VR-only `<tosi-b3d-panel>` ("VR only") reportedly doesn't appear in a session — verify it mounts (reveal:'always', eye frame) in headset; may be a panel-detection or frame-attach issue.
+[ ] XR rig misaligned on entry (b3d demo): the default rig's initial position/orientation is off when you enter VR — `_startDefaultXrExperience` seeds the rig from the flat camera; check the seed transform (esp. with a player biped driving the camera, where the free-fly rig shouldn't really be running at all — see the xr-grid auto note; the double-rig may be the root cause). NEEDS HEADSET.
 
 ## Maybe one day
 

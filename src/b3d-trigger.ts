@@ -39,9 +39,13 @@ walker.inputProvider = {
     const dx = goal.x - p.x
     const dz = goal.z - p.z
     const dist = Math.hypot(dx, dz)
-    // Live readout — also a handy sanity check that the trigger is registering:
-    // watch `inside` flip true as `dist` drops below the trigger radius.
-    demo.dist.value = `${dist.toFixed(1)}m away · inside=${trigger.inside}`
+    // Live readout of the trigger's own view of the world (its debugState) — so
+    // we can see WHY it does/doesn't fire: what target it's watching, whether that
+    // target resolves, and its measured distance vs the AI's.
+    const ds = trigger.debugState
+    demo.dist.value =
+      `AI ${dist.toFixed(1)}m · target=${ds.target} · resolved=${ds.targetResolved}` +
+      ` · trigDist=${ds.distance ?? '—'} · inside=${ds.inside}`
     // Turn toward the goal (biped forward is +Z) and walk until we're there.
     const f = m.forward
     let turn = Math.atan2(dx, dz) - Math.atan2(f.x, f.z)
