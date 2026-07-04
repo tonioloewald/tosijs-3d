@@ -337,7 +337,8 @@ export class AbstractMesh extends B3dChild {
     rx: 0,
     ry: 0,
     rz: 0,
-    // Show a debug XYZ axis gizmo pinned to this geometry (see buildAxes).
+    // Show a debug XYZ axis gizmo pinned to this geometry (see buildAxes). The
+    // host fades to translucent while on, so the gizmo reads through it.
     axes: false,
   }
 
@@ -391,12 +392,23 @@ export class AbstractMesh extends B3dChild {
   private _updateAxes() {
     const wantAxes = !!(this as any).axes
     if (wantAxes && this.mesh && this._axesNode == null && this.owner) {
+      // Fade the host (mesh-level `visibility`, non-destructive) BEFORE parenting
+      // the gizmo, so you can see the axes THROUGH the object while the gizmo
+      // itself stays fully opaque (it's added after, at visibility 1).
+      this._setHostVisibility(0.3)
       this._axesNode = buildAxes(this.owner.scene)
       this._axesNode.parent = this.mesh
     } else if (!wantAxes && this._axesNode != null) {
       this._axesNode.dispose()
       this._axesNode = undefined
+      this._setHostVisibility(1) // restore now the gizmo is gone
     }
+  }
+
+  private _setHostVisibility(v: number) {
+    if (!this.mesh) return
+    this.mesh.visibility = v
+    for (const child of this.mesh.getChildMeshes()) child.visibility = v
   }
 
   /**
