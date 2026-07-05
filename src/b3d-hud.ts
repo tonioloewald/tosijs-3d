@@ -72,7 +72,7 @@ tosi-b3d { width: 100%; height: 100%; }
 |-----------|---------|-------------|
 | `url` | `/aircraft-hud.svg` | HUD SVG asset (falls back to the built-in code HUD) |
 | `size` | `40` | Overlay size as a % of the smaller viewport dimension (vmin) |
-| `pxPerDeg` | `6` | Pitch-ladder pixels per degree |
+| `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 */
 /*{ "parent": "UI" }*/
 
@@ -92,7 +92,7 @@ export class B3dHud extends B3dChild {
   static initAttributes = {
     url: '/aircraft-hud.svg',
     size: 40,
-    pxPerDeg: 6,
+    pxPerDeg: 8,
   }
 
   static lightStyleSpec = {
