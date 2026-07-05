@@ -24,11 +24,14 @@ tosijs correctly treats an absent boolean attribute as false, so `initAttributes
 true})` never turns on (killed the trigger — fixed via `disabled`). tosijs will make
 `foo: true` a definition-time error. Convert these (keep positive meaning via a string
 `'on'|'off'` enum, or invert to a negative boolean):
+
 - [x] b3d-trigger `active` → `disabled` (default false = active) — DONE
 - [ ] b3d-black-hole `lensing`, `photonRing`
 - [ ] b3d-shadows `stabilizeCascades`
 - [ ] b3d-star-system `animate`, `showOrbits`
 - [ ] b3d-svg-plane `pointerEvents`, `doubleSided`
+
+[ ] HUD warning block: a text area at the BOTTOM of the aircraft HUD for warnings (PULL UP, MISSILE, STALL, LOW FUEL, ...). User will add the asset region; the driver exposes setWarnings(lines) and styles them (flashing red for critical). Wire to flight/combat state once targets/threats exist.
 
 ## AI scenario harness (verification playgrounds)
 
@@ -368,4 +371,4 @@ components lack a real demo and fill the gaps; new combat components
 
 ## Maybe one day
 
-[ ] Loading spinner occasionally freezes for the first frame(s) of a b3d load — intermittent, hard to repro (loaded the b3d demo 10× with no hiccup). Cause: Babylon's initial spin-up (`new Engine`, scene build, synchronous shader compile) runs as one long main-thread + GPU-process task starting at element upgrade, before the spinner's CSS `transform` animation is ever handed to the compositor, so it sits at 0°. Can't be fixed by reordering init (tried an rAF-yield before the child-build storm — no visible help, because the GPU/shader-compile block stalls the compositor too, which JS can't touch). The ONLY real fix: the spinner must already exist and be compositing in the page *before* `<tosi-b3d>` initializes — i.e. authored into light-DOM content (or injected by the doc pre-render) and merely *hidden* by the component on ready, not born in its shadow DOM at upgrade time. Not worth the churn unless it starts happening often.
+[ ] Loading spinner occasionally freezes for the first frame(s) of a b3d load — intermittent, hard to repro (loaded the b3d demo 10× with no hiccup). Cause: Babylon's initial spin-up (`new Engine`, scene build, synchronous shader compile) runs as one long main-thread + GPU-process task starting at element upgrade, before the spinner's CSS `transform` animation is ever handed to the compositor, so it sits at 0°. Can't be fixed by reordering init (tried an rAF-yield before the child-build storm — no visible help, because the GPU/shader-compile block stalls the compositor too, which JS can't touch). The ONLY real fix: the spinner must already exist and be compositing in the page _before_ `<tosi-b3d>` initializes — i.e. authored into light-DOM content (or injected by the doc pre-render) and merely _hidden_ by the component on ready, not born in its shadow DOM at upgrade time. Not worth the churn unless it starts happening often.

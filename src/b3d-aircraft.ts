@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div, span } = elements
 
@@ -85,6 +85,9 @@ const scene = addMarkers(b3d(
   // aircraft's shadow would shrink to sub-pixel (i.e. invisible).
   b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  // Drop in the gauge HUD — the player aircraft drives it automatically (speed,
+  // altitude vs `ceiling`, and the pitch/roll horizon).
+  b3dHud({}),
   inputFocus(
     gameController(),
     aircraft,
@@ -239,6 +242,12 @@ const FLAT_CHASE_SCALE = 1.8
 const GROUND_TOUCH = 0.15
 const GROUND_FRICTION = 1.2
 
+/** What the aircraft pushes flight state to — a `<tosi-b3d-hud>`, loosely typed. */
+type HudSink = {
+  setMeter(name: string, level: number): void
+  setHorizon(pitch: number, roll: number, angle?: number): void
+}
+
 export class B3dAircraft extends B3dControllable {
   inputMapping = aircraftMapping()
 
@@ -249,6 +258,9 @@ export class B3dAircraft extends B3dControllable {
     meshName: '',
     player: false,
     enterable: false,
+    // Service ceiling (m): the aircraft can't climb past it, and it reads full on
+    // a linked HUD's altitude gauge.
+    ceiling: 300,
     maxSpeed: 50,
     // Hard speed ceiling while the throttle is held past maxSpeed (afterburner).
     // Release and it bleeds back to maxSpeed. ≤ maxSpeed disables afterburner.
@@ -301,6 +313,9 @@ export class B3dAircraft extends B3dControllable {
   // orientation on the first frame, then this controller owns the quaternion.
   private fbw: FlyByWireState = { heading: 0, pitch: 0, bank: 0, speed: 0 }
   private fbwSeeded = false
+  declare ceiling: number
+  // undefined = not yet resolved; null = no HUD / not the player.
+  private _hud: HudSink | null | undefined = undefined
   private meshNode: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
   // Ground sampling is ONE raycast per frame, taken after the move and cached: the
@@ -436,8 +451,35 @@ export class B3dAircraft extends B3dControllable {
     this.vtolActive = attrs.vtolSpeed > 0 && fwdSpeed < attrs.vtolSpeed
     this.stalling = false
 
+    // Drive a linked HUD (a <tosi-b3d-hud> sibling) when this is the player. Found
+    // once and cached; loosely typed so the aircraft doesn't depend on b3d-hud.
+    if (this._hud === undefined) {
+      this._hud =
+        attrs.player && this.owner
+          ? (this.owner.querySelector('tosi-b3d-hud') as HudSink | null)
+          : null
+    }
+    if (this._hud != null) {
+      const RAD = 180 / Math.PI
+      this._hud.setMeter(
+        'speed',
+        attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0
+      )
+      this._hud.setMeter('altitude', this.altitude / attrs.ceiling)
+      // Nose-up should slide the horizon down — flip here if it reads inverted.
+      this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD)
+      // health/energy: wired once the combat resource models drive the aircraft.
+      // radar traces (setTraces): wired once scene targets exist.
+    }
+
     // === Apply velocity to position ===
     node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt)
+
+    // Service ceiling: can't climb past it. Cap altitude and bleed the climb.
+    if (node.position.y > attrs.ceiling) {
+      node.position.y = attrs.ceiling
+      if (vel.y > 0) vel.y = 0
+    }
 
     // Ground contact. Clamp out of the terrain; once settled, behave like
     // wheels — kill the downward bounce and apply rolling resistance so you can
