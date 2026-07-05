@@ -14,11 +14,20 @@ tracking inside the ring when in the field of view and pinning to the periphery 
 they swing out or behind.
 
 ```js
-import { b3d, b3dHud, b3dSkybox, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dHud, b3dSkybox, label3d, slider3d, select3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { s } = tosi({ s: { speed: 0.62, altitude: 0.4, health: 0.9, energy: 0.7, pitch: 0, roll: 0 } })
+const { s } = tosi({ s: { speed: 0.62, altitude: 0.4, health: 0.9, energy: 0.7, pitch: 0, roll: 0, warn: 'none' } })
 const hud = b3dHud({})
+
+// A warning maps to a text line + the arc side that flashes red.
+const warnMap = {
+  'none': [],
+  'PULL UP': [{ text: 'PULL UP', side: 'bottom' }],
+  'MISSILE right': [{ text: 'MISSILE', side: 'right' }],
+  'MISSILE left': [{ text: 'MISSILE', side: 'left' }],
+  'STALL': [{ text: 'STALL', side: 'top' }],
+}
 
 const scene = b3d(
   {
@@ -31,6 +40,7 @@ const scene = b3d(
       slider3d({ label: 'energy (yellow)', value: s.energy, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'pitch', value: s.pitch, min: -90, max: 90, step: 1 }),
       slider3d({ label: 'roll', value: s.roll, min: -90, max: 90, step: 1 }),
+      select3d({ label: 'warning', value: s.warn, options: Object.keys(warnMap) }),
     ],
   },
   b3dSkybox({ timeOfDay: 9 }),
@@ -44,8 +54,9 @@ const apply = () => {
   hud.setMeter('health', s.health.value)
   hud.setMeter('energy', s.energy.value)
   hud.setHorizon(s.pitch.value, s.roll.value, s.pitch.value)
+  hud.setWarnings(warnMap[s.warn.value] || [])
 }
-for (const k of ['speed', 'altitude', 'health', 'energy', 'pitch', 'roll']) s[k].observe(apply)
+for (const k of ['speed', 'altitude', 'health', 'energy', 'pitch', 'roll', 'warn']) s[k].observe(apply)
 apply()
 
 // Radar traces orbiting a fixed viewer at the origin (facing +Z).
@@ -82,6 +93,7 @@ import {
   type HudController,
   type MeterName,
   type HudTraceInput,
+  type HudWarning,
 } from './hud'
 import type { HudTraceOptions } from './hud-math'
 import type { Pose } from './spatial-transform'
@@ -119,6 +131,13 @@ export class B3dHud extends B3dChild {
       height: 'var(--hud-size, 70vmin)',
       display: 'block',
     },
+    // A threatened arc (setWarnings with a `side`) flashes red. The animation
+    // origin outranks the asset's inline stroke, so it wins without !important.
+    '@keyframes hud-threat': {
+      '0%, 100%': { stroke: '#ff1d25', strokeOpacity: '1' },
+      '50%': { stroke: '#ff1d25', strokeOpacity: '0.15' },
+    },
+    ':host .hud-threat': { animation: 'hud-threat 0.5s ease-in-out infinite' },
   }
 
   declare url: string
@@ -128,6 +147,7 @@ export class B3dHud extends B3dChild {
   private controller: HudController | null = null
   private _meters = new Map<MeterName, number>()
   private _horizon: [number, number, number?] | null = null
+  private _warnings: HudWarning[] | null = null
 
   sceneReady(owner: B3d, _scene: BABYLON.Scene): void {
     this.owner = owner
@@ -139,6 +159,7 @@ export class B3dHud extends B3dChild {
       // Replay anything set before the async asset resolved.
       for (const [k, v] of this._meters) c.setMeter(k, v)
       if (this._horizon) c.setHorizon(...this._horizon)
+      if (this._warnings) c.setWarnings(this._warnings)
     })
   }
 
@@ -176,6 +197,12 @@ export class B3dHud extends B3dChild {
   /** Show/hide the whole HUD (e.g. hide it in a chase view, show it in the cockpit). */
   setVisible(visible: boolean): void {
     this.hidden = !visible
+  }
+
+  /** Warning lines (PULL UP / MISSILE …); a warning's `side` flashes that arc red. */
+  setWarnings(warnings: HudWarning[]): void {
+    this._warnings = warnings
+    this.controller?.setWarnings(warnings)
   }
 
   /** Replace the radar/waypoint traces from world positions + the viewer pose. */

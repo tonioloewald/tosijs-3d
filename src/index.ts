@@ -103,6 +103,8 @@ export type {
   MeterName,
   TraceKind,
   HudTraceInput,
+  Side,
+  HudWarning,
 } from './hud'
 export { B3dHud, b3dHud } from './b3d-hud'
 

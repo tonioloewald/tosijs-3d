@@ -20,6 +20,10 @@ import type { Pose, Vec3 } from './spatial-transform'
 export type MeterName = 'speed' | 'altitude' | 'health' | 'energy'
 export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint'
 export type HudTraceInput = { pos: Vec3; kind: TraceKind }
+/** Which gauge-frame arc a threat sits behind (bottom = ground, i.e. PULL UP). */
+export type Side = 'left' | 'right' | 'top' | 'bottom'
+/** A warning line; give it a `side` to also flash that arc frame red. */
+export type HudWarning = { text: string; side?: Side }
 
 export type HudController = {
   /** The live SVG element (mount it, or feed it to an SvgTexture). */
@@ -30,6 +34,89 @@ export type HudController = {
   setHorizon(pitchDeg: number, rollDeg: number, angle?: number): void
   /** Replace the radar/waypoint traces from world positions + the viewer pose. */
   setTraces(traces: HudTraceInput[], viewer: Pose, opts: HudTraceOptions): void
+  /** Show warning lines (the `#warning` text) and flash any threat-side arc red. */
+  setWarnings(warnings: HudWarning[]): void
+}
+
+const SVGNS = 'http://www.w3.org/2000/svg'
+
+/** Rough centroid of a path's coords → which side of centre it sits on. */
+const sideFromD = (d: string): Side => {
+  const n = (d.match(/-?\d*\.?\d+/g) ?? []).map(Number)
+  let sx = 0
+  let sy = 0
+  let c = 0
+  for (let i = 0; i + 1 < n.length; i += 2) {
+    sx += n[i]
+    sy += n[i + 1]
+    c++
+  }
+  const cx = sx / c - CENTER
+  const cy = sy / c - CENTER
+  return Math.abs(cx) >= Math.abs(cy)
+    ? cx < 0
+      ? 'left'
+      : 'right'
+    : cy < 0
+      ? 'top'
+      : 'bottom'
+}
+
+/**
+ * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the
+ * warning/threat features need, keyed off what's STABLE in the export — so the SVG
+ * can be re-exported freely. No-op once tagged (the code HUD is already tagged).
+ */
+const normalizeHud = (el: SVGSVGElement): void => {
+  // radar/waypoint templates: designer `Radar_Hostile` → `radar-hostile`.
+  for (const kind of ['neutral', 'friendly', 'hostile'] as const) {
+    if (el.querySelector(`#radar-${kind}`)) continue
+    const src = el.querySelector(`[id="Radar_${kind[0].toUpperCase()}${kind.slice(1)}"]`)
+    if (src) src.id = `radar-${kind}`
+  }
+  // warning text: `#Warning` → `#warning`.
+  const warn = el.querySelector('#Warning')
+  if (warn && !el.querySelector('#warning')) warn.id = 'warning'
+  // The four thick colored arcs are the meter gauges AND the threat frames: tag each
+  // with its side (threat flash) and its meter id/axis (so setMeter binds). Once.
+  if (el.querySelector('[data-side]')) return
+  const METER = {
+    left: { name: 'speed', axis: 'v' },
+    right: { name: 'altitude', axis: 'v' },
+    top: { name: 'health', axis: 'h' },
+    bottom: { name: 'energy', axis: 'h' },
+  } as const
+  for (const p of Array.from(el.querySelectorAll('path'))) {
+    const style = p.getAttribute('style') ?? ''
+    const w = parseFloat(
+      /stroke-width:\s*([\d.]+)/.exec(style)?.[1] ?? p.getAttribute('stroke-width') ?? '0'
+    )
+    const stroke = (
+      /stroke:\s*([^;]+)/.exec(style)?.[1] ??
+      p.getAttribute('stroke') ??
+      ''
+    )
+      .trim()
+      .toLowerCase()
+    const d = p.getAttribute('d') ?? ''
+    if (w >= 12 && stroke && stroke !== 'none' && !/#000000|black/.test(stroke) && d) {
+      const side = sideFromD(d)
+      p.setAttribute('data-side', side)
+      if (!p.id) {
+        const m = METER[side]
+        p.id = `meter-${m.name}`
+        p.setAttribute('data-meter', m.name)
+        p.setAttribute('data-axis', m.axis)
+        p.setAttribute('pathLength', '1000')
+      }
+    }
+  }
+  // setTraces needs a #traces layer to populate.
+  if (!el.querySelector('#traces')) {
+    const layer = document.createElementNS(SVGNS, 'g')
+    layer.id = 'traces'
+    el.appendChild(layer)
+  }
 }
 
 const CENTER = 128 // HUD viewBox centre
@@ -49,6 +136,7 @@ export function createHudController(
   el: SVGSVGElement,
   options: HudControllerOptions = {}
 ): HudController {
+  normalizeHud(el)
   const pxPerDeg = options.pxPerDeg ?? 8
   const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 
@@ -123,7 +211,29 @@ export function createHudController(
     }
   }
 
-  return { el, setMeter, setHorizon, setTraces }
+  const setWarnings = (warnings: HudWarning[]) => {
+    // Text: stack the lines into the designer's #warning text (keep its x/anchor).
+    const t = el.querySelector('#warning') as SVGTextElement | null
+    if (t != null) {
+      const x = t.querySelector('tspan')?.getAttribute('x') ?? String(CENTER)
+      while (t.firstChild) t.removeChild(t.firstChild)
+      warnings.forEach((w, i) => {
+        const ts = document.createElementNS(SVGNS, 'tspan')
+        ts.setAttribute('x', x)
+        if (i > 0) ts.setAttribute('dy', '1.2em')
+        ts.textContent = w.text
+        t.appendChild(ts)
+      })
+      t.setAttribute('visibility', warnings.length ? 'visible' : 'hidden')
+    }
+    // Flash the arc on each threatened side red (`.hud-threat` keyframes).
+    const active = new Set(warnings.map((w) => w.side).filter(Boolean) as Side[])
+    el.querySelectorAll('[data-side]').forEach((f) =>
+      f.classList.toggle('hud-threat', active.has(f.getAttribute('data-side') as Side))
+    )
+  }
+
+  return { el, setMeter, setHorizon, setTraces, setWarnings }
 }
 
 const { svg, g, path, rect, circle, text, defs } = svgElements
@@ -136,11 +246,12 @@ const FRAME_D = [
   'M54.4609,201.539 C95.0754,242.154,160.925,242.154,201.539,201.539 C201.539,201.539,190.225,190.225,190.225,190.225 C155.859,224.592,100.141,224.592,65.7746,190.225 C65.7746,190.225,54.4609,201.539,54.4609,201.539 z',
 ]
 type Axis = 'v' | 'h'
-const meter = (name: MeterName, axis: Axis, stroke: string, d: string) =>
+const meter = (name: MeterName, axis: Axis, side: Side, stroke: string, d: string) =>
   path({
     id: `meter-${name}`,
     'data-meter': name,
     'data-axis': axis,
+    'data-side': side,
     pathLength: 1000,
     stroke,
     'stroke-dasharray': '0 1000',
@@ -163,10 +274,10 @@ export function buildFallbackHud(
     { width: 256, height: 256, viewBox: '0 0 256 256' },
     g(
       { id: 'meters', fill: 'none', 'stroke-linecap': 'butt', 'stroke-width': 18, 'stroke-opacity': 0.5 },
-      meter('speed', 'v', '#ff1d25', 'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'),
-      meter('altitude', 'v', '#3ea9f5', 'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'),
-      meter('health', 'h', '#8cc63f', 'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'),
-      meter('energy', 'h', '#fcee22', 'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'),
+      meter('speed', 'v', 'left', '#ff1d25', 'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'),
+      meter('altitude', 'v', 'right', '#3ea9f5', 'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'),
+      meter('health', 'h', 'top', '#8cc63f', 'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'),
+      meter('energy', 'h', 'bottom', '#fcee22', 'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'),
     ),
     g(
       { id: 'frames', fill: 'none', stroke: '#00a79e', 'stroke-width': 2 },
@@ -192,6 +303,10 @@ export function buildFallbackHud(
       glyph('radar-friendly', circle({ r: 8, fill: 'none', stroke: '#8cc63f', 'stroke-width': 4 })),
       glyph('radar-hostile', path({ d: 'M0,-11.31 L11.31,0 L0,11.31 L-11.31,0 z', fill: 'none', stroke: '#ff1d25', 'stroke-width': 4 })),
       glyph('waypoint', path({ d: 'M0,6.19 L-6.93,-6.19 L6.93,-6.19 z', fill: 'none', stroke: '#00a79e', 'stroke-width': 4 })),
+    ),
+    text(
+      { id: 'warning', x: 128, y: 246, fill: '#ff1d25', stroke: 'none', 'font-family': 'ui-monospace, monospace', 'font-size': 16, 'font-weight': 'bold', 'text-anchor': 'middle', visibility: 'hidden' },
+      ''
     ),
   ) as unknown as SVGSVGElement
   return createHudController(el, options)
