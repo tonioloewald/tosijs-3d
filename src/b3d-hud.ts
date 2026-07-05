@@ -139,7 +139,13 @@ export class B3dHud extends B3dChild {
       '0%, 100%': { stroke: '#ff1d25', strokeOpacity: '1' },
       '50%': { stroke: '#ff1d25', strokeOpacity: '0.15' },
     },
-    ':host .hud-threat': { animation: 'hud-threat 0.5s ease-in-out infinite' },
+    // Force the FULL arc to show during a threat — a meter at 0 fill has
+    // stroke-dasharray "0 1000" (nothing drawn), so the flash would be invisible.
+    // A class rule outranks the presentation attribute setMeter writes.
+    ':host .hud-threat': {
+      strokeDasharray: 'none',
+      animation: 'hud-threat 0.5s ease-in-out infinite',
+    },
   }
 
   declare url: string
