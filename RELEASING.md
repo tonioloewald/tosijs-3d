@@ -26,6 +26,7 @@ cutting a release.**
 
 2. **Confirm a clean tree** — nothing outstanding except, at most, dev-server
    `docs/` churn which the build in step 4 overwrites deterministically:
+
    ```sh
    git status --short | grep -vE ' docs/'   # should print nothing
    ```
@@ -39,11 +40,13 @@ cutting a release.**
 4. **Full build** — regenerates `docs/` (doc site + `iife.js`) **and** `dist/` (the
    library: `tsc -p tsconfig.build.json`, run by `buildSite()` because
    `emitLibrary: true`):
+
    ```sh
    bun build          # = bun bin/site.ts --build
    ```
 
 5. **Verify** — types + tests + lint:
+
    ```sh
    bunx tsc -p tsconfig.build.json --noEmit   # (build already ran tsc; this is a belt-and-suspenders check)
    bun test
@@ -51,6 +54,7 @@ cutting a release.**
    ```
 
 6. **Commit** the version bump + rebuilt `dist/` + `docs/`:
+
    ```sh
    git add -A
    git commit -m "[release] vX.Y.Z — <one-line summary of the headline changes>"
@@ -58,14 +62,17 @@ cutting a release.**
 
 7. **Tag** the release (annotated). NOTE: this repo has no `vX.Y.Z` tag history yet —
    establish the convention here:
+
    ```sh
    git tag -a vX.Y.Z -m "vX.Y.Z"
    ```
 
 8. **Publish to npm** — **manual, done by a human** (not automated here):
+
    ```sh
    npm publish        # publishes ./dist per package.json "main"/"exports"/"types" + "files"
    ```
+
    Confirm afterwards: `npm view tosijs-3d version`.
 
 9. **Push** `main` + tags (Claude waits for an explicit nudge before any push):

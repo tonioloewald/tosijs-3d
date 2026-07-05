@@ -53,7 +53,7 @@ Status legend: ✅ agreed · 🟡 spec'd, open questions · ✏️ drafting
 the [b3d-trigger](src/b3d-trigger.ts) wander demo** (a non-player biped driven by a
 tiny InputProvider that walks to a goal; the goal relocates on arrival; repeat). An AI
 is just an `InputProvider` emitting the same `ControlInput` a player would, so any
-AI can be dropped into this harness and you literally *watch* it behave.
+AI can be dropped into this harness and you literally _watch_ it behave.
 
 **Why:** you can see — not just assert — that an AI can navigate terrain, avoid
 obstacles, path around geometry, close on and hit what it's aiming at, flee, patrol,
@@ -70,7 +70,7 @@ scaffold so each new AI is a few lines to drop in.
 ### Scenario playgrounds (the real goal — not just "walk to a target")
 
 The wander demo is the seed; the goal is **scenario playgrounds** that run **preset
-AND randomized scenarios** so you can watch the *full behavioural repertoire* of an AI,
+AND randomized scenarios** so you can watch the _full behavioural repertoire_ of an AI,
 not one primitive:
 
 - **AI aircraft**: pick targets from several, avoid mid-air collisions (with each other
@@ -90,7 +90,7 @@ seeds/configs. This makes AI behaviour **observable, reproducible, and regressio
 — you can replay the exact scenario that exposed a bug.
 
 Ties into the **MVP** (aircraft combat vertical slice — see TODO.md): the AI-aircraft
-scenario playground *is* how we'll verify fly/target/shoot/avoid before wiring enemies
+scenario playground _is_ how we'll verify fly/target/shoot/avoid before wiring enemies
 into the game. Likely leans on the world-sim scenario layer
 ([world-store](src/world-store.ts) is deterministic + seedable by design).
 
