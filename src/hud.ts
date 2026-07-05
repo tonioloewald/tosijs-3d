@@ -41,7 +41,7 @@ export type HudController = {
 const SVGNS = 'http://www.w3.org/2000/svg'
 
 /** Rough centroid of a path's coords → which side of centre it sits on. */
-const sideFromD = (d: string): Side => {
+export const sideFromD = (d: string): Side => {
   const n = (d.match(/-?\d*\.?\d+/g) ?? []).map(Number)
   let sx = 0
   let sy = 0
