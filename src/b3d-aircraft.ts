@@ -247,6 +247,7 @@ type HudSink = {
   setMeter(name: string, level: number): void
   setHorizon(pitch: number, roll: number, angle?: number): void
   setVisible(visible: boolean): void
+  setWarnings(warnings: Array<{ text: string; side?: string }>): void
 }
 
 export class B3dAircraft extends B3dControllable {
@@ -477,6 +478,12 @@ export class B3dAircraft extends B3dControllable {
         this._hud.setMeter('altitude', this.altitude / attrs.ceiling)
         // Nose-up should slide the horizon down — flip here if it reads inverted.
         this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD)
+        // Warnings on the graphical HUD: PULL UP flashes the bottom arc (ground
+        // below); STALL is text only (not directional).
+        const warnings: Array<{ text: string; side?: string }> = []
+        if (this.pullUp) warnings.push({ text: 'PULL UP', side: 'bottom' })
+        if (this.stalling) warnings.push({ text: 'STALL' })
+        this._hud.setWarnings(warnings)
         // health/energy: wired once the combat resource models drive the aircraft.
         // radar traces (setTraces): wired once scene targets exist.
       }
