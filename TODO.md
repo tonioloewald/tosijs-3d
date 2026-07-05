@@ -31,7 +31,7 @@ true})` never turns on (killed the trigger — fixed via `disabled`). tosijs wil
 - [ ] b3d-star-system `animate`, `showOrbits`
 - [ ] b3d-svg-plane `pointerEvents`, `doubleSided`
 
-[ ] HUD warning block: a text area at the BOTTOM of the aircraft HUD for warnings (PULL UP, MISSILE, STALL, LOW FUEL, ...). User will add the asset region; the driver exposes setWarnings(lines) and styles them (flashing red for critical). Wire to flight/combat state once targets/threats exist.
+[x] HUD warning block — DONE. `setWarnings([{text, side?}])` on the HUD driver + b3d-hud: shows stacked warning text (#warning) and flashes the threatened-side gauge BORDER red (bottom = PULL UP/ground, etc.). Wired into b3d-aircraft (pullUp → bottom, stall → text). Code HUD (buildFallbackHud) is now the default (fully wired); designer-asset `normalizeHud`/horizon adaptation deferred. Next: drive it from combat threats (incoming missile → bearing side) once weapons exist.
 
 ## AI scenario harness (verification playgrounds)
 
