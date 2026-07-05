@@ -224,17 +224,19 @@ const FRAME_D = [
   'M54.4609,201.539 C95.0754,242.154,160.925,242.154,201.539,201.539 C201.539,201.539,190.225,190.225,190.225,190.225 C155.859,224.592,100.141,224.592,65.7746,190.225 C65.7746,190.225,54.4609,201.539,54.4609,201.539 z',
 ]
 type Axis = 'v' | 'h'
-const meter = (name: MeterName, axis: Axis, side: Side, stroke: string, d: string) =>
+const meter = (name: MeterName, axis: Axis, stroke: string, d: string) =>
   path({
     id: `meter-${name}`,
     'data-meter': name,
     'data-axis': axis,
-    'data-side': side,
     pathLength: 1000,
     stroke,
     'stroke-dasharray': '0 1000',
     d,
   })
+
+// The frame outlines, in the FRAME_D order above → the side each borders.
+const FRAME_SIDE: Side[] = ['right', 'left', 'top', 'bottom']
 const glyph = (id: string, shape: SVGElement) => g({ id }, shape)
 
 const parseSvg = (markup: string): SVGSVGElement =>
@@ -252,14 +254,14 @@ export function buildFallbackHud(
     { width: 256, height: 256, viewBox: '0 0 256 256' },
     g(
       { id: 'meters', fill: 'none', 'stroke-linecap': 'butt', 'stroke-width': 18, 'stroke-opacity': 0.5 },
-      meter('speed', 'v', 'left', '#ff1d25', 'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'),
-      meter('altitude', 'v', 'right', '#3ea9f5', 'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'),
-      meter('health', 'h', 'top', '#8cc63f', 'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'),
-      meter('energy', 'h', 'bottom', '#fcee22', 'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'),
+      meter('speed', 'v', '#ff1d25', 'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'),
+      meter('altitude', 'v', '#3ea9f5', 'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'),
+      meter('health', 'h', '#8cc63f', 'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'),
+      meter('energy', 'h', '#fcee22', 'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'),
     ),
     g(
       { id: 'frames', fill: 'none', stroke: '#00a79e', 'stroke-width': 2 },
-      ...FRAME_D.map((d) => path({ d })),
+      ...FRAME_D.map((d, i) => path({ d, 'data-side': FRAME_SIDE[i] })),
     ),
     g(
       { id: 'horizon', fill: 'none', stroke: '#00a79e', 'stroke-width': 2, 'stroke-opacity': 0.5, 'stroke-linecap': 'butt' },

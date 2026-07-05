@@ -136,14 +136,15 @@ export class B3dHud extends B3dChild {
     // A threatened arc (setWarnings with a `side`) flashes red. The animation
     // origin outranks the asset's inline stroke, so it wins without !important.
     '@keyframes hud-threat': {
-      '0%, 100%': { stroke: '#ff1d25', strokeOpacity: '1' },
-      '50%': { stroke: '#ff1d25', strokeOpacity: '0.15' },
+      '0%, 100%': { strokeOpacity: '1' },
+      '50%': { strokeOpacity: '0.2' },
     },
-    // Force the FULL arc to show during a threat — a meter at 0 fill has
-    // stroke-dasharray "0 1000" (nothing drawn), so the flash would be invisible.
-    // A class rule outranks the presentation attribute setMeter writes.
+    // Flash the gauge BORDER (frame outline) red on the threatened side — it's
+    // always drawn, so it doesn't disturb the gauge fill. A class rule outranks the
+    // frame's inherited stroke/width.
     ':host .hud-threat': {
-      strokeDasharray: 'none',
+      stroke: '#ff1d25',
+      strokeWidth: '6',
       animation: 'hud-threat 0.5s ease-in-out infinite',
     },
   }
