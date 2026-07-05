@@ -119,9 +119,11 @@ export class B3dHud extends B3dChild {
       alignItems: 'center',
       justifyContent: 'center',
       pointerEvents: 'none',
-      // Additive + translucent HUD glow over the scene.
-      mixBlendMode: 'plus-lighter',
-      opacity: '0.85',
+      // Translucent HUD over the scene. NOTE: no `mix-blend-mode: plus-lighter` —
+      // iOS Safari fails to composite it over the WebGL canvas (HUD went invisible
+      // on iPad), and additively it washes out over a bright sky. Re-add a glow via
+      // an SVG filter (drop-shadow/blur) if wanted — that composites reliably.
+      opacity: '0.9',
       zIndex: '15',
     },
     ':host([hidden])': { display: 'none' },
