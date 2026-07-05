@@ -7,6 +7,9 @@ import * as tosijs from 'tosijs'
 import * as tosijs3d from '../src/index'
 import * as tosijsui from 'tosijs-ui'
 
+// Point live examples' asset lookups (assetUrl) at the shared CDN.
+tosijs3d.setAssetBase('https://cdn.tosijs.net')
+
 // <tosi-doc-system> only reads .context inside render(), which awaits the
 // docs.json fetch its connectedCallback kicks off — so a synchronous assignment
 // here, right after the imports register the element, lands well in time.
