@@ -13,7 +13,7 @@ missing.
 */
 /*{ "parent": "Core" }*/
 
-import { hudTrace, horizonTransform, type HudTraceOptions } from './hud-math'
+import { hudTrace, type HudTraceOptions } from './hud-math'
 import type { Pose, Vec3 } from './spatial-transform'
 
 export type MeterName = 'speed' | 'altitude' | 'health' | 'energy'
@@ -35,14 +35,12 @@ const CENTER = 128 // HUD viewBox centre
 const PATH_LEN = 1000 // matches pathLength="1000" on the meter arcs
 
 export type HudControllerOptions = {
-  /** Pixels the pitch ladder slides per degree of pitch. */
-  pxPerDeg?: number
   /**
-   * Vertical period (px) between tiled copies of the pitch ladder. The horizon is
-   * drawn as THREE copies — the one nearest the current level plus one above and one
-   * below — scrolling and wrapping so the ladder stays continuous at any pitch.
+   * Pixels per degree of pitch. Also the copy spacing: the three ladder copies are
+   * 10° apart, so they sit `10 * pxPerDeg` px apart — pick it so that equals the
+   * ladder's own rung spacing (the asset's ladder is 64px tall, so 8 → a 16px gap).
    */
-  ladderPeriodPx?: number
+  pxPerDeg?: number
 }
 
 /** Wrap a (normalized) HUD SVG element with the meter/horizon/trace setters. */
@@ -50,8 +48,7 @@ export function createHudController(
   el: SVGSVGElement,
   options: HudControllerOptions = {}
 ): HudController {
-  const pxPerDeg = options.pxPerDeg ?? 6
-  const ladderPeriod = options.ladderPeriodPx ?? 64
+  const pxPerDeg = options.pxPerDeg ?? 8
   const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 
   const setMeter = (name: MeterName, level: number) => {
@@ -71,8 +68,8 @@ export function createHudController(
 
   const ladder = el.querySelector('#horizon-ladder') as SVGGElement | null
   const horizonG = el.querySelector('#horizon') as SVGGElement | null
-  const angleText = el.querySelector('#hud-angle') as SVGTextElement | null
-  // Three tiled copies of the ladder for a continuous horizon (cloned once).
+  // Three copies of the ladder (cloned once): the 10°-level nearest the current
+  // pitch, one above, one below — each labelled with its own multiple of 10.
   let ladders: SVGGElement[] | null = null
   const ensureLadders = () => {
     if (ladders != null || ladder == null || ladder.parentNode == null) return
@@ -84,24 +81,22 @@ export function createHudController(
     ladder.parentNode.appendChild(below)
     ladders = [ladder, above, below]
   }
-  const setHorizon = (pitchDeg: number, rollDeg: number, angle?: number) => {
-    const t = horizonTransform(pitchDeg, rollDeg, pxPerDeg)
+  const setHorizon = (pitchDeg: number, rollDeg: number, _angle?: number) => {
     ensureLadders()
     if (ladders != null) {
-      const P = ladderPeriod
-      let w = ((t.offsetY % P) + P) % P // wrap into [0, P)
-      if (w > P / 2) w -= P // → [-P/2, P/2): the nearest copy sits closest to centre
-      ladders[0].setAttribute('transform', `translate(0, ${w})`)
-      ladders[1].setAttribute('transform', `translate(0, ${w - P})`) // one above
-      ladders[2].setAttribute('transform', `translate(0, ${w + P})`) // one below
+      const near = Math.round(pitchDeg / 10) * 10
+      const angles = [near, near - 10, near + 10]
+      ladders.forEach((g, i) => {
+        const a = angles[i]
+        // The ladder for angle `a` sits (pitch − a)° below centre (pitch up →
+        // horizon slides down); its label reads that angle.
+        g.setAttribute('transform', `translate(0, ${(pitchDeg - a) * pxPerDeg})`)
+        const label = g.querySelector('.hud-angle')
+        if (label != null) label.textContent = String(a)
+      })
     }
-    horizonG?.setAttribute(
-      'transform',
-      `rotate(${t.rollDeg}, ${CENTER}, ${CENTER})`
-    )
-    if (angleText != null && angle != null) {
-      angleText.textContent = String(Math.round(angle))
-    }
+    // Counter-roll so the horizon reads level.
+    horizonG?.setAttribute('transform', `rotate(${-rollDeg}, ${CENTER}, ${CENTER})`)
   }
 
   const tracesG = el.querySelector('#traces') as SVGGElement | null
@@ -134,15 +129,14 @@ export function createHudController(
 // HUD renders even if the designed asset isn't served. Same ids/structure the
 // controller drives (meters with data-axis + pathLength, horizon, traces, glyphs).
 const FALLBACK_HUD_MARKUP = `<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-<g id="meters" fill="none" stroke-linecap="butt" stroke-width="16">
+<g id="meters" fill="none" stroke-linecap="butt" stroke-width="18" stroke-opacity="0.5">
 <path id="meter-speed" data-axis="v" pathLength="1000" stroke="#ff1d25" stroke-dasharray="0 1000" d="M60.12,195.88 A96,96 0 0 1 60.12,60.12"/>
 <path id="meter-altitude" data-axis="v" pathLength="1000" stroke="#3ea9f5" stroke-dasharray="0 1000" d="M195.88,195.88 A96,96 0 0 0 195.88,60.12"/>
 <path id="meter-health" data-axis="h" pathLength="1000" stroke="#8cc63f" stroke-dasharray="0 1000" d="M60.12,60.12 A96,96 0 0 1 195.88,60.12"/>
 <path id="meter-energy" data-axis="h" pathLength="1000" stroke="#fcee22" stroke-dasharray="0 1000" d="M60.12,195.88 A96,96 0 0 0 195.88,195.88"/>
 </g>
 <g id="horizon" fill="none" stroke="#00a79e" stroke-width="2" stroke-opacity="0.5">
-<g id="horizon-ladder"><path d="M64,128 L112,128"/><path d="M144,128 L192,128"/><path d="M96,112 L160,112"/><path d="M96,144 L160,144"/></g>
-<text id="hud-angle" x="128" y="128" fill="#00a79e" stroke="none" font-family="ui-monospace,monospace" font-size="16" text-anchor="middle" dominant-baseline="central">0</text>
+<g id="horizon-ladder"><path d="M64,128 L112,128"/><path d="M144,128 L192,128"/><path d="M96,96 L160,96"/><path d="M96,112 L160,112"/><path d="M96,144 L160,144"/><path d="M96,160 L160,160"/><text class="hud-angle" x="128" y="128" fill="#00a79e" stroke="none" font-family="ui-monospace,monospace" font-size="16" text-anchor="middle" dominant-baseline="central">0</text></g>
 </g>
 <g id="traces"></g>
 <defs>

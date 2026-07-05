@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Aircraft HUD (normalized for live driving — see src/hud.ts).
-  - 4 meter arcs (width 16), pathLength=1000 so a dash of level*1000 fills exactly:
-      speed=left/red, altitude=right/blue  (vertical: fill bottom→top)
-      health=top/green, energy=bottom/yellow (horizontal: fill MIDDLE-OUT)
-  - frames: turquoise (#00a79e), matching the horizon.
-  - #horizon: pitch ladder (translate/rotate live) + #hud-angle text (AoA number).
-  - <defs> radar-trace glyph templates (centred at 0,0) + waypoint; the driver
-    clones them into #traces. Everything is stroke-only on transparent bg, so it
-    renders cleanly additive + translucent.
+  - 4 meter arcs (width 18, 50% opacity), pathLength=1000 so a dash of level*1000
+    fills exactly: speed=left/red, altitude=right/blue (vertical: fill bottom→top);
+    health=top/green, energy=bottom/yellow (horizontal: fill MIDDLE-OUT).
+  - frames: turquoise (#00a79e), thin (width 2).
+  - #horizon-ladder: one 10° gradation with its own .hud-angle number. The driver
+    clones it into 3 copies (nearest 10°-level + one above + one below), each labelled
+    with its own multiple of 10 and positioned by (pitch - angle) * pxPerDeg.
+  - <defs> radar-trace glyphs (centred) + waypoint; cloned into #traces, tracked
+    inside the ring or pinned OUTSIDE it. Stroke-only → renders additive + translucent.
 -->
 <svg width="256px" height="256px" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-  <g id="meters" fill="none" stroke-linecap="butt" stroke-width="16">
+  <g id="meters" fill="none" stroke-linecap="butt" stroke-width="18" stroke-opacity="0.5">
     <path id="meter-speed" data-meter="speed" data-axis="v" pathLength="1000" stroke="#ff1d25" stroke-dasharray="0 1000"
       d="M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177"/>
     <path id="meter-altitude" data-meter="altitude" data-axis="v" pathLength="1000" stroke="#3ea9f5" stroke-dasharray="0 1000"
@@ -22,7 +23,7 @@
       d="M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882"/>
   </g>
 
-  <g id="frames" fill="none" stroke="#00a79e" stroke-width="4" stroke-miterlimit="10">
+  <g id="frames" fill="none" stroke="#00a79e" stroke-width="2" stroke-miterlimit="10">
     <path d="M201.539,201.539 C242.154,160.925,242.154,95.0754,201.539,54.4609 C201.539,54.4609,190.225,65.7746,190.225,65.7746 C224.592,100.141,224.592,155.859,190.225,190.225 C190.225,190.225,201.539,201.539,201.539,201.539 z"/>
     <path d="M65.7746,190.225 C31.4085,155.859,31.4085,100.141,65.7746,65.7746 C65.7746,65.7746,54.4609,54.4609,54.4609,54.4609 C13.8464,95.0754,13.8464,160.925,54.4609,201.539 C54.4609,201.539,65.7746,190.225,65.7746,190.225 z"/>
     <path d="M65.7746,65.7746 C100.141,31.4085,155.859,31.4085,190.225,65.7746 C190.225,65.7746,201.539,54.4609,201.539,54.4609 C160.925,13.8464,95.0754,13.8464,54.4609,54.4609 C54.4609,54.4609,65.7746,65.7746,65.7746,65.7746 z"/>
@@ -37,9 +38,9 @@
       <path d="M96,112 L160,112"/>
       <path d="M96,144 L160,144"/>
       <path d="M96,160 L160,160"/>
+      <text class="hud-angle" x="128" y="128" fill="#00a79e" fill-opacity="0.9" stroke="none"
+        font-family="ui-monospace, monospace" font-size="16" text-anchor="middle" dominant-baseline="central">0</text>
     </g>
-    <text id="hud-angle" x="128" y="128" fill="#00a79e" fill-opacity="0.9" stroke="none"
-      font-family="ui-monospace, monospace" font-size="16" text-anchor="middle" dominant-baseline="central">40</text>
   </g>
 
   <!-- Live radar/waypoint traces are cloned into here by the driver. -->
