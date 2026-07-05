@@ -246,6 +246,7 @@ const GROUND_FRICTION = 1.2
 type HudSink = {
   setMeter(name: string, level: number): void
   setHorizon(pitch: number, roll: number, angle?: number): void
+  setVisible(visible: boolean): void
 }
 
 export class B3dAircraft extends B3dControllable {
@@ -261,6 +262,8 @@ export class B3dAircraft extends B3dControllable {
     // Service ceiling (m): the aircraft can't climb past it, and it reads full on
     // a linked HUD's altitude gauge.
     ceiling: 300,
+    // Show the HUD in the chase view too (default: cockpit view only).
+    hudChase: false,
     maxSpeed: 50,
     // Hard speed ceiling while the throttle is held past maxSpeed (afterburner).
     // Release and it bleeds back to maxSpeed. ≤ maxSpeed disables afterburner.
@@ -314,6 +317,7 @@ export class B3dAircraft extends B3dControllable {
   private fbw: FlyByWireState = { heading: 0, pitch: 0, bank: 0, speed: 0 }
   private fbwSeeded = false
   declare ceiling: number
+  declare hudChase: boolean
   // undefined = not yet resolved; null = no HUD / not the player.
   private _hud: HudSink | null | undefined = undefined
   private meshNode: BABYLON.TransformNode | null = null
@@ -460,16 +464,22 @@ export class B3dAircraft extends B3dControllable {
           : null
     }
     if (this._hud != null) {
-      const RAD = 180 / Math.PI
-      this._hud.setMeter(
-        'speed',
-        attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0
-      )
-      this._hud.setMeter('altitude', this.altitude / attrs.ceiling)
-      // Nose-up should slide the horizon down — flip here if it reads inverted.
-      this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD)
-      // health/energy: wired once the combat resource models drive the aircraft.
-      // radar traces (setTraces): wired once scene targets exist.
+      // A HUD belongs on the canopy — show it in the cockpit view, hide it in the
+      // chase view (unless `hud-chase` opts in).
+      const showHud = this.cameraView === 'cockpit' || attrs.hudChase
+      this._hud.setVisible(showHud)
+      if (showHud) {
+        const RAD = 180 / Math.PI
+        this._hud.setMeter(
+          'speed',
+          attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0
+        )
+        this._hud.setMeter('altitude', this.altitude / attrs.ceiling)
+        // Nose-up should slide the horizon down — flip here if it reads inverted.
+        this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD)
+        // health/energy: wired once the combat resource models drive the aircraft.
+        // radar traces (setTraces): wired once scene targets exist.
+      }
     }
 
     // === Apply velocity to position ===

@@ -110,6 +110,7 @@ export class B3dHud extends B3dChild {
       zIndex: '15',
     },
     ':host svg': { width: '100%', height: '100%', display: 'block' },
+    ':host([hidden])': { display: 'none' },
   }
 
   declare url: string
@@ -151,6 +152,11 @@ export class B3dHud extends B3dChild {
   setHorizon(pitchDeg: number, rollDeg: number, angle?: number): void {
     this._horizon = [pitchDeg, rollDeg, angle]
     this.controller?.setHorizon(pitchDeg, rollDeg, angle)
+  }
+
+  /** Show/hide the whole HUD (e.g. hide it in a chase view, show it in the cockpit). */
+  setVisible(visible: boolean): void {
+    this.hidden = !visible
   }
 
   /** Replace the radar/waypoint traces from world positions + the viewer pose. */
