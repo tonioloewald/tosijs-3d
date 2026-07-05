@@ -58,7 +58,8 @@ setInterval(() => {
     kind,
     pos: { x: Math.sin(t + i * 1.6) * 34, y: Math.sin(t * 0.7 + i) * 12, z: Math.cos(t + i * 1.6) * 34 },
   }))
-  hud.setTraces(traces, viewer, { fovH: Math.PI / 2, fovV: Math.PI / 2, radius: 96 })
+  // track inside the ring (radius 84), pin OUTSIDE the gauges (pinRadius 116)
+  hud.setTraces(traces, viewer, { fovH: Math.PI / 2, fovV: Math.PI / 2, radius: 84, pinRadius: 116 })
 }, 32)
 ```
 ```css
@@ -122,14 +123,16 @@ export class B3dHud extends B3dChild {
   sceneReady(owner: B3d, _scene: BABYLON.Scene): void {
     this.owner = owner
     this.style.setProperty('--hud-size', `${(this as any).size}vmin`)
-    loadHud((this as any).url, { pxPerDeg: (this as any).pxPerDeg }).then((c) => {
-      if (this.owner == null) return // disposed while loading
-      this.controller = c
-      this.replaceChildren(c.el)
-      // Replay anything set before the async asset resolved.
-      for (const [k, v] of this._meters) c.setMeter(k, v)
-      if (this._horizon) c.setHorizon(...this._horizon)
-    })
+    loadHud((this as any).url, { pxPerDeg: (this as any).pxPerDeg }).then(
+      (c) => {
+        if (this.owner == null) return // disposed while loading
+        this.controller = c
+        this.replaceChildren(c.el)
+        // Replay anything set before the async asset resolved.
+        for (const [k, v] of this._meters) c.setMeter(k, v)
+        if (this._horizon) c.setHorizon(...this._horizon)
+      }
+    )
   }
 
   sceneDispose(): void {

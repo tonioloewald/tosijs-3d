@@ -37,6 +37,12 @@ const PATH_LEN = 1000 // matches pathLength="1000" on the meter arcs
 export type HudControllerOptions = {
   /** Pixels the pitch ladder slides per degree of pitch. */
   pxPerDeg?: number
+  /**
+   * Vertical period (px) between tiled copies of the pitch ladder. The horizon is
+   * drawn as THREE copies — the one nearest the current level plus one above and one
+   * below — scrolling and wrapping so the ladder stays continuous at any pitch.
+   */
+  ladderPeriodPx?: number
 }
 
 /** Wrap a (normalized) HUD SVG element with the meter/horizon/trace setters. */
@@ -45,6 +51,7 @@ export function createHudController(
   options: HudControllerOptions = {}
 ): HudController {
   const pxPerDeg = options.pxPerDeg ?? 6
+  const ladderPeriod = options.ladderPeriodPx ?? 64
   const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v)
 
   const setMeter = (name: MeterName, level: number) => {
@@ -65,10 +72,33 @@ export function createHudController(
   const ladder = el.querySelector('#horizon-ladder') as SVGGElement | null
   const horizonG = el.querySelector('#horizon') as SVGGElement | null
   const angleText = el.querySelector('#hud-angle') as SVGTextElement | null
+  // Three tiled copies of the ladder for a continuous horizon (cloned once).
+  let ladders: SVGGElement[] | null = null
+  const ensureLadders = () => {
+    if (ladders != null || ladder == null || ladder.parentNode == null) return
+    const above = ladder.cloneNode(true) as SVGGElement
+    const below = ladder.cloneNode(true) as SVGGElement
+    above.removeAttribute('id')
+    below.removeAttribute('id')
+    ladder.parentNode.appendChild(above)
+    ladder.parentNode.appendChild(below)
+    ladders = [ladder, above, below]
+  }
   const setHorizon = (pitchDeg: number, rollDeg: number, angle?: number) => {
     const t = horizonTransform(pitchDeg, rollDeg, pxPerDeg)
-    ladder?.setAttribute('transform', `translate(0, ${t.offsetY})`)
-    horizonG?.setAttribute('transform', `rotate(${t.rollDeg}, ${CENTER}, ${CENTER})`)
+    ensureLadders()
+    if (ladders != null) {
+      const P = ladderPeriod
+      let w = ((t.offsetY % P) + P) % P // wrap into [0, P)
+      if (w > P / 2) w -= P // → [-P/2, P/2): the nearest copy sits closest to centre
+      ladders[0].setAttribute('transform', `translate(0, ${w})`)
+      ladders[1].setAttribute('transform', `translate(0, ${w - P})`) // one above
+      ladders[2].setAttribute('transform', `translate(0, ${w + P})`) // one below
+    }
+    horizonG?.setAttribute(
+      'transform',
+      `rotate(${t.rollDeg}, ${CENTER}, ${CENTER})`
+    )
     if (angleText != null && angle != null) {
       angleText.textContent = String(Math.round(angle))
     }
@@ -90,10 +120,7 @@ export function createHudController(
       const glyph = src.cloneNode(true) as SVGGElement
       glyph.removeAttribute('id')
       const { x, y, tracked } = hudTrace(viewer, t.pos, opts)
-      glyph.setAttribute(
-        'transform',
-        `translate(${CENTER + x}, ${CENTER + y})`
-      )
+      glyph.setAttribute('transform', `translate(${CENTER + x}, ${CENTER + y})`)
       // Pinned (out-of-FOV) traces read dimmer than tracked ones.
       glyph.setAttribute('opacity', tracked ? '1' : '0.55')
       tracesG.appendChild(glyph)
@@ -131,7 +158,9 @@ const parseSvg = (markup: string): SVGSVGElement =>
     .documentElement as unknown as SVGSVGElement
 
 /** Build a HUD from the embedded code fallback (no asset fetch). */
-export function buildFallbackHud(options?: HudControllerOptions): HudController {
+export function buildFallbackHud(
+  options?: HudControllerOptions
+): HudController {
   return createHudController(parseSvg(FALLBACK_HUD_MARKUP), options)
 }
 

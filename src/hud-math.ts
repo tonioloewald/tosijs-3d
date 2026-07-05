@@ -38,8 +38,14 @@ export type HudTraceOptions = {
   fovH: number
   /** Vertical field of view in radians (full angle). */
   fovV: number
-  /** HUD radius in HUD units — tracked traces stay within it, pinned ones sit on it. */
+  /** HUD radius in HUD units — tracked (in-FOV) traces stay within it. */
   radius: number
+  /**
+   * Radius for PINNED (out-of-FOV) traces. Set larger than `radius` to pin them
+   * OUTSIDE the gauge ring (in the room around it) rather than over the gauges.
+   * Defaults to `radius`.
+   */
+  pinRadius?: number
 }
 
 /**
@@ -94,9 +100,10 @@ export function hudTrace(
     dirY = ny
   }
   const len = Math.hypot(dirX, dirY) || 1
+  const pin = opts.pinRadius ?? opts.radius
   return {
-    x: (dirX / len) * opts.radius,
-    y: (-dirY / len) * opts.radius,
+    x: (dirX / len) * pin,
+    y: (-dirY / len) * pin,
     tracked: false,
     behind,
     distance,
