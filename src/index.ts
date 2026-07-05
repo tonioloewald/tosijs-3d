@@ -73,6 +73,9 @@ export {
 } from './b3d-utils'
 export type { XRStuff, XRParams } from './b3d-utils'
 
+// Logical asset URLs (retarget the host in one place; see asset-url.ts)
+export { setAssetBase, getAssetBase, assetUrl } from './asset-url'
+
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
 export {
   add,
