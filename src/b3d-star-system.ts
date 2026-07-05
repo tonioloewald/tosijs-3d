@@ -705,7 +705,11 @@ export class B3dStarSystem extends B3dChild {
     }
 
     // If orbits need to be created and don't exist
-    if (!isOff(attrs.showOrbits) && this.orbitLines.length === 0 && this.systemData) {
+    if (
+      !isOff(attrs.showOrbits) &&
+      this.orbitLines.length === 0 &&
+      this.systemData
+    ) {
       const scale: number = attrs.scale
       const orbitScale: number = attrs.orbitScale
       for (let i = 0; i < this.systemData.planets.length; i++) {

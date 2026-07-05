@@ -35,8 +35,16 @@ const yaw = (deg: number) => quatFromAxisAngle(Y, (deg * Math.PI) / 180)
 
 describe('vec/quat primitives', () => {
   test('add / sub', () => {
-    closeVec(add({ x: 1, y: 2, z: 3 }, { x: 4, y: 5, z: 6 }), { x: 5, y: 7, z: 9 })
-    closeVec(sub({ x: 4, y: 5, z: 6 }, { x: 1, y: 2, z: 3 }), { x: 3, y: 3, z: 3 })
+    closeVec(add({ x: 1, y: 2, z: 3 }, { x: 4, y: 5, z: 6 }), {
+      x: 5,
+      y: 7,
+      z: 9,
+    })
+    closeVec(sub({ x: 4, y: 5, z: 6 }, { x: 1, y: 2, z: 3 }), {
+      x: 3,
+      y: 3,
+      z: 3,
+    })
   })
 
   test('rotateVector: 90° about Z maps +X → +Y', () => {
@@ -50,7 +58,11 @@ describe('vec/quat primitives', () => {
   })
 
   test('identity quaternion leaves vectors unchanged', () => {
-    closeVec(rotateVector(IDENTITY_QUAT, { x: 3, y: -2, z: 5 }), { x: 3, y: -2, z: 5 })
+    closeVec(rotateVector(IDENTITY_QUAT, { x: 3, y: -2, z: 5 }), {
+      x: 3,
+      y: -2,
+      z: 5,
+    })
   })
 
   test('quatMul by identity is a no-op', () => {
@@ -73,7 +85,10 @@ describe('vec/quat primitives', () => {
 
 describe('compose ↔ relative (the transition core)', () => {
   const parent: Pose = { position: { x: 10, y: 0, z: -4 }, rotation: yaw(90) }
-  const childWorld: Pose = { position: { x: 12, y: 1, z: -2 }, rotation: yaw(200) }
+  const childWorld: Pose = {
+    position: { x: 12, y: 1, z: -2 },
+    rotation: yaw(200),
+  }
 
   test('relativePose is the inverse of composePose', () => {
     const local = relativePose(parent, childWorld)
@@ -84,7 +99,10 @@ describe('compose ↔ relative (the transition core)', () => {
 
   test('composePose of a local child yields the expected world pose', () => {
     // parent yawed 90° at (10,0,-4); child 2 units "forward" (+Z local), no rot.
-    const local: Pose = { position: { x: 0, y: 0, z: 2 }, rotation: IDENTITY_QUAT }
+    const local: Pose = {
+      position: { x: 0, y: 0, z: 2 },
+      rotation: IDENTITY_QUAT,
+    }
     const world = composePose(parent, local)
     // +Z local → +X world under 90° yaw → parent + (2,0,0)
     closeVec(world.position, { x: 12, y: 0, z: -4 })
@@ -93,8 +111,14 @@ describe('compose ↔ relative (the transition core)', () => {
 
   test('transition preserves world pose: re-parenting to a new frame is a no-jump', () => {
     // The object's world pose must be identical after switching parents.
-    const oldParent: Pose = { position: { x: 1, y: 0, z: 1 }, rotation: yaw(30) }
-    const newParent: Pose = { position: { x: -5, y: 2, z: 8 }, rotation: yaw(-110) }
+    const oldParent: Pose = {
+      position: { x: 1, y: 0, z: 1 },
+      rotation: yaw(30),
+    }
+    const newParent: Pose = {
+      position: { x: -5, y: 2, z: 8 },
+      rotation: yaw(-110),
+    }
     const localUnderOld: Pose = {
       position: { x: 0.5, y: 0.2, z: -1 },
       rotation: yaw(15),
@@ -110,7 +134,10 @@ describe('compose ↔ relative (the transition core)', () => {
   })
 
   test('detach to world (identity parent) yields the world pose unchanged', () => {
-    const worldParent: Pose = { position: { x: 0, y: 0, z: 0 }, rotation: IDENTITY_QUAT }
+    const worldParent: Pose = {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: IDENTITY_QUAT,
+    }
     const world = composePose(
       { position: { x: 3, y: 1, z: -2 }, rotation: yaw(45) },
       { position: { x: 0, y: 0, z: 1 }, rotation: yaw(10) }
@@ -130,7 +157,10 @@ describe('placeRelative (world-offset snapshot)', () => {
   })
 
   test('with no rotation, offset adds directly', () => {
-    const ref: Pose = { position: { x: 1, y: 2, z: 3 }, rotation: IDENTITY_QUAT }
+    const ref: Pose = {
+      position: { x: 1, y: 2, z: 3 },
+      rotation: IDENTITY_QUAT,
+    }
     closeVec(placeRelative(ref, { x: 1, y: -1, z: 1 }), { x: 2, y: 1, z: 4 })
   })
 
@@ -138,7 +168,10 @@ describe('placeRelative (world-offset snapshot)', () => {
     const ref: Pose = { position: { x: -2, y: 5, z: 1 }, rotation: yaw(123) }
     const offset = { x: 0.3, y: -0.4, z: 1.2 }
     const viaPlace = placeRelative(ref, offset)
-    const viaCompose = composePose(ref, { position: offset, rotation: IDENTITY_QUAT })
+    const viaCompose = composePose(ref, {
+      position: offset,
+      rotation: IDENTITY_QUAT,
+    })
     closeVec(viaPlace, viaCompose.position)
   })
 })

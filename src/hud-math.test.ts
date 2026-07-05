@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { hudTrace, horizonTransform } from './hud-math'
-import { IDENTITY_QUAT, quatFromAxisAngle, type Pose } from './spatial-transform'
+import {
+  IDENTITY_QUAT,
+  quatFromAxisAngle,
+  type Pose,
+} from './spatial-transform'
 
 const DEG = Math.PI / 180
 // Viewer at origin, facing +Z (nose), no roll.

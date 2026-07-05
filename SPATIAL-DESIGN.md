@@ -8,19 +8,19 @@ vehicle enter/exit code already does by hand.
 ## The three mechanics (they are DIFFERENT)
 
 1. **Attach — live parent (follows).** The object lives in another object's frame
-   of reference and moves with it. *Prop bolted to a vehicle, a gizmo/panel on an
-   XR frame, an item held in a hand, a turret on a ship.* Relationship persists.
+   of reference and moves with it. _Prop bolted to a vehicle, a gizmo/panel on an
+   XR frame, an item held in a hand, a turret on a ship._ Relationship persists.
 
 2. **Place-relative — world offset (snapshot, does NOT follow).** Position an object
    in world space at an offset from another object, computed at insertion time; it
-   then lives independently. *Spawn a crate beside a ship, drop a marker 2 m in front
-   of the player, scatter debris around an explosion.* Relationship is one-shot.
+   then lives independently. _Spawn a crate beside a ship, drop a marker 2 m in front
+   of the player, scatter debris around an explosion._ Relationship is one-shot.
 
 3. **Transition — re-parent preserving world pose (no visual jump).** Move an object
-   from one frame of reference to another without it teleporting. *Step onto / off an
+   from one frame of reference to another without it teleporting. _Step onto / off an
    elevator or moving ship, pick up (world → hand) / put down (hand → world), board /
-   leave a vehicle.* The object's on-screen pose is identical the instant before and
-   after; only what it's *stable relative to* changes.
+   leave a vehicle._ The object's on-screen pose is identical the instant before and
+   after; only what it's _stable relative to_ changes.
 
 ## The key primitive: Babylon `setParent` vs `parent =`
 
@@ -63,6 +63,7 @@ mechanics each imply the right bookkeeping:
 ## Proposed surface
 
 ### Imperative helpers (pure-ish transform math, unit-testable)
+
 ```
 attach(child, target, { offset?, euler?, keepWorld = false })
   // parent child to target. keepWorld ? setParent (no jump) : parent= + local offset.
@@ -72,16 +73,19 @@ placeRelative(child, ref, offset)   // world snapshot; offset in ref's LOCAL fra
 transition(child, newParent | null) // setParent preserving world pose + flip world-root reg via owner
 detach(child) = transition(child, null)
 ```
+
 The transform math (offset-in-local-frame → world position, world pose preservation)
 is Babylon-`Matrix`/`Vector3` but small and deterministic — split it out and test it
 headless like `fly-by-wire`/`terrain-grid`.
 
 ### Declarative (config elements, like `<tosi-b3d-panel>`)
+
 ```
 <tosi-b3d-attach frame="left-hand" azimuth="…" distance="…"> …child… </tosi-b3d-attach>
 <tosi-b3d-attach to="#ship" offset="0 1 -2"> …child… </tosi-b3d-attach>
 <tosi-b3d-axes frame="left-hand">                <!-- the gizmo as the first payload -->
 ```
+
 `frame="…"` attaches to an XR frame; `to="#id"` attaches to another scene object.
 This makes wrist-panel / HUD tuning a one-attribute, in-headset iteration.
 
