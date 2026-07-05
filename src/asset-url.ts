@@ -11,7 +11,7 @@ once via `setAssetBase(...)`; the base defaults to empty, so paths resolve local
 ```js
 import { setAssetBase, assetUrl, b3dLoader } from 'tosijs-3d'
 
-setAssetBase('https://static.tosijs.net')          // once, e.g. in demo/site.ts
+setAssetBase('https://cdn.tosijs.net')          // once, e.g. in demo/site.ts
 b3dLoader({ url: assetUrl('kenney/vehicles/car.glb') })
 ```
 */
@@ -19,7 +19,7 @@ b3dLoader({ url: assetUrl('kenney/vehicles/car.glb') })
 
 let base = ''
 
-/** Set the base URL prepended to logical asset paths (e.g. `https://static.tosijs.net`). */
+/** Set the base URL prepended to logical asset paths (e.g. `https://cdn.tosijs.net`). */
 export function setAssetBase(url: string): void {
   base = url.replace(/\/+$/, '')
 }

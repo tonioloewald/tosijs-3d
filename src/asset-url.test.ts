@@ -10,18 +10,18 @@ describe('assetUrl', () => {
   })
 
   test('base is applied and trailing slashes are trimmed', () => {
-    setAssetBase('https://static.tosijs.net/')
-    expect(getAssetBase()).toBe('https://static.tosijs.net')
+    setAssetBase('https://cdn.tosijs.net/')
+    expect(getAssetBase()).toBe('https://cdn.tosijs.net')
     expect(assetUrl('kenney/car.glb')).toBe(
-      'https://static.tosijs.net/kenney/car.glb'
+      'https://cdn.tosijs.net/kenney/car.glb'
     )
     expect(assetUrl('/kenney/car.glb')).toBe(
-      'https://static.tosijs.net/kenney/car.glb'
+      'https://cdn.tosijs.net/kenney/car.glb'
     )
   })
 
   test('absolute / data / blob URLs pass through untouched', () => {
-    setAssetBase('https://static.tosijs.net')
+    setAssetBase('https://cdn.tosijs.net')
     expect(assetUrl('https://cdn.example/y.glb')).toBe('https://cdn.example/y.glb')
     expect(assetUrl('//cdn.example/y.glb')).toBe('//cdn.example/y.glb')
     expect(assetUrl('data:image/png;base64,AAA')).toBe(
