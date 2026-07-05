@@ -14,14 +14,14 @@ missing.
 /*{ "parent": "Core" }*/
 
 import { svgElements } from 'tosijs'
-import { hudTrace, type HudTraceOptions } from './hud-math'
+import { hudTrace, sideFromD, type HudTraceOptions, type Side } from './hud-math'
 import type { Pose, Vec3 } from './spatial-transform'
+
+export type { Side } from './hud-math'
 
 export type MeterName = 'speed' | 'altitude' | 'health' | 'energy'
 export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint'
 export type HudTraceInput = { pos: Vec3; kind: TraceKind }
-/** Which gauge-frame arc a threat sits behind (bottom = ground, i.e. PULL UP). */
-export type Side = 'left' | 'right' | 'top' | 'bottom'
 /** A warning line; give it a `side` to also flash that arc frame red. */
 export type HudWarning = { text: string; side?: Side }
 
@@ -39,28 +39,6 @@ export type HudController = {
 }
 
 const SVGNS = 'http://www.w3.org/2000/svg'
-
-/** Rough centroid of a path's coords → which side of centre it sits on. */
-export const sideFromD = (d: string): Side => {
-  const n = (d.match(/-?\d*\.?\d+/g) ?? []).map(Number)
-  let sx = 0
-  let sy = 0
-  let c = 0
-  for (let i = 0; i + 1 < n.length; i += 2) {
-    sx += n[i]
-    sy += n[i + 1]
-    c++
-  }
-  const cx = sx / c - CENTER
-  const cy = sy / c - CENTER
-  return Math.abs(cx) >= Math.abs(cy)
-    ? cx < 0
-      ? 'left'
-      : 'right'
-    : cy < 0
-      ? 'top'
-      : 'bottom'
-}
 
 /**
  * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the

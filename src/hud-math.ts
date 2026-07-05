@@ -18,6 +18,34 @@ import {
   quatConjugate,
 } from './spatial-transform'
 
+/** A HUD gauge-frame side (bottom = ground, i.e. PULL UP). */
+export type Side = 'left' | 'right' | 'top' | 'bottom'
+
+/**
+ * Rough centroid of an SVG path's coordinates → which side of the 256px HUD centre
+ * (128,128) it sits on. Used to tag the four gauge arcs by side.
+ */
+export const sideFromD = (d: string): Side => {
+  const n = (d.match(/-?\d*\.?\d+/g) ?? []).map(Number)
+  let sx = 0
+  let sy = 0
+  let c = 0
+  for (let i = 0; i + 1 < n.length; i += 2) {
+    sx += n[i]
+    sy += n[i + 1]
+    c++
+  }
+  const cx = sx / c - 128
+  const cy = sy / c - 128
+  return Math.abs(cx) >= Math.abs(cy)
+    ? cx < 0
+      ? 'left'
+      : 'right'
+    : cy < 0
+      ? 'top'
+      : 'bottom'
+}
+
 export type HudTrace = {
   /** HUD-space position, centred at (0,0), +x right, +y DOWN (SVG convention). */
   x: number
