@@ -13,6 +13,7 @@ missing.
 */
 /*{ "parent": "Core" }*/
 
+import { svgElements } from 'tosijs'
 import { hudTrace, type HudTraceOptions } from './hud-math'
 import type { Pose, Vec3 } from './spatial-transform'
 
@@ -125,37 +126,75 @@ export function createHudController(
   return { el, setMeter, setHorizon, setTraces }
 }
 
-// Compact code equivalent of static/aircraft-hud.svg — the "default fallback" so a
-// HUD renders even if the designed asset isn't served. Same ids/structure the
-// controller drives (meters with data-axis + pathLength, horizon, traces, glyphs).
-const FALLBACK_HUD_MARKUP = `<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-<g id="meters" fill="none" stroke-linecap="butt" stroke-width="18" stroke-opacity="0.5">
-<path id="meter-speed" data-axis="v" pathLength="1000" stroke="#ff1d25" stroke-dasharray="0 1000" d="M60.12,195.88 A96,96 0 0 1 60.12,60.12"/>
-<path id="meter-altitude" data-axis="v" pathLength="1000" stroke="#3ea9f5" stroke-dasharray="0 1000" d="M195.88,195.88 A96,96 0 0 0 195.88,60.12"/>
-<path id="meter-health" data-axis="h" pathLength="1000" stroke="#8cc63f" stroke-dasharray="0 1000" d="M60.12,60.12 A96,96 0 0 1 195.88,60.12"/>
-<path id="meter-energy" data-axis="h" pathLength="1000" stroke="#fcee22" stroke-dasharray="0 1000" d="M60.12,195.88 A96,96 0 0 0 195.88,195.88"/>
-</g>
-<g id="horizon" fill="none" stroke="#00a79e" stroke-width="2" stroke-opacity="0.5">
-<g id="horizon-ladder"><path d="M64,128 L112,128"/><path d="M144,128 L192,128"/><path d="M96,96 L160,96"/><path d="M96,112 L160,112"/><path d="M96,144 L160,144"/><path d="M96,160 L160,160"/><text class="hud-angle" x="128" y="128" fill="#00a79e" stroke="none" font-family="ui-monospace,monospace" font-size="16" text-anchor="middle" dominant-baseline="central">0</text></g>
-</g>
-<g id="traces"></g>
-<defs>
-<g id="radar-neutral"><rect x="-8" y="-8" width="16" height="16" fill="none" stroke="#fcee22" stroke-width="4"/></g>
-<g id="radar-friendly"><circle r="8" fill="none" stroke="#8cc63f" stroke-width="4"/></g>
-<g id="radar-hostile"><path d="M0,-11.31 L11.31,0 L0,11.31 L-11.31,0 z" fill="none" stroke="#ff1d25" stroke-width="4"/></g>
-<g id="waypoint"><path d="M0,6.19 L-6.93,-6.19 L6.93,-6.19 z" fill="none" stroke="#00a79e" stroke-width="4"/></g>
-</defs>
-</svg>`
+const { svg, g, path, rect, circle, text, defs } = svgElements
+
+// The gauge frame outlines and the four meter arcs (bezier geometry from the asset).
+const FRAME_D = [
+  'M201.539,201.539 C242.154,160.925,242.154,95.0754,201.539,54.4609 C201.539,54.4609,190.225,65.7746,190.225,65.7746 C224.592,100.141,224.592,155.859,190.225,190.225 C190.225,190.225,201.539,201.539,201.539,201.539 z',
+  'M65.7746,190.225 C31.4085,155.859,31.4085,100.141,65.7746,65.7746 C65.7746,65.7746,54.4609,54.4609,54.4609,54.4609 C13.8464,95.0754,13.8464,160.925,54.4609,201.539 C54.4609,201.539,65.7746,190.225,65.7746,190.225 z',
+  'M65.7746,65.7746 C100.141,31.4085,155.859,31.4085,190.225,65.7746 C190.225,65.7746,201.539,54.4609,201.539,54.4609 C160.925,13.8464,95.0754,13.8464,54.4609,54.4609 C54.4609,54.4609,65.7746,65.7746,65.7746,65.7746 z',
+  'M54.4609,201.539 C95.0754,242.154,160.925,242.154,201.539,201.539 C201.539,201.539,190.225,190.225,190.225,190.225 C155.859,224.592,100.141,224.592,65.7746,190.225 C65.7746,190.225,54.4609,201.539,54.4609,201.539 z',
+]
+type Axis = 'v' | 'h'
+const meter = (name: MeterName, axis: Axis, stroke: string, d: string) =>
+  path({
+    id: `meter-${name}`,
+    'data-meter': name,
+    'data-axis': axis,
+    pathLength: 1000,
+    stroke,
+    'stroke-dasharray': '0 1000',
+    d,
+  })
+const glyph = (id: string, shape: SVGElement) => g({ id }, shape)
 
 const parseSvg = (markup: string): SVGSVGElement =>
   new DOMParser().parseFromString(markup, 'image/svg+xml')
     .documentElement as unknown as SVGSVGElement
 
-/** Build a HUD from the embedded code fallback (no asset fetch). */
+/**
+ * Build the HUD in code with tosijs `svgElements` — the default when no designed
+ * asset is supplied (loadHud falls back here). Geometry matches the asset.
+ */
 export function buildFallbackHud(
   options?: HudControllerOptions
 ): HudController {
-  return createHudController(parseSvg(FALLBACK_HUD_MARKUP), options)
+  const el = svg(
+    { width: 256, height: 256, viewBox: '0 0 256 256' },
+    g(
+      { id: 'meters', fill: 'none', 'stroke-linecap': 'butt', 'stroke-width': 18, 'stroke-opacity': 0.5 },
+      meter('speed', 'v', '#ff1d25', 'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'),
+      meter('altitude', 'v', '#3ea9f5', 'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'),
+      meter('health', 'h', '#8cc63f', 'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'),
+      meter('energy', 'h', '#fcee22', 'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'),
+    ),
+    g(
+      { id: 'frames', fill: 'none', stroke: '#00a79e', 'stroke-width': 2 },
+      ...FRAME_D.map((d) => path({ d })),
+    ),
+    g(
+      { id: 'horizon', fill: 'none', stroke: '#00a79e', 'stroke-width': 2, 'stroke-opacity': 0.5, 'stroke-linecap': 'butt' },
+      g(
+        { id: 'horizon-ladder' },
+        ...['M64,128 L112,128', 'M144,128 L192,128', 'M96,96 L160,96', 'M96,112 L160,112', 'M96,144 L160,144', 'M96,160 L160,160'].map(
+          (d) => path({ d })
+        ),
+        text(
+          { class: 'hud-angle', x: 128, y: 128, fill: '#00a79e', 'fill-opacity': 0.9, stroke: 'none', 'font-family': 'ui-monospace, monospace', 'font-size': 16, 'text-anchor': 'middle', 'dominant-baseline': 'central' },
+          '0'
+        ),
+      ),
+    ),
+    g({ id: 'traces' }),
+    defs(
+      {},
+      glyph('radar-neutral', rect({ x: -8, y: -8, width: 16, height: 16, fill: 'none', stroke: '#fcee22', 'stroke-width': 4 })),
+      glyph('radar-friendly', circle({ r: 8, fill: 'none', stroke: '#8cc63f', 'stroke-width': 4 })),
+      glyph('radar-hostile', path({ d: 'M0,-11.31 L11.31,0 L0,11.31 L-11.31,0 z', fill: 'none', stroke: '#ff1d25', 'stroke-width': 4 })),
+      glyph('waypoint', path({ d: 'M0,6.19 L-6.93,-6.19 L6.93,-6.19 z', fill: 'none', stroke: '#00a79e', 'stroke-width': 4 })),
+    ),
+  ) as unknown as SVGSVGElement
+  return createHudController(el, options)
 }
 
 /**
