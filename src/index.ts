@@ -101,6 +101,7 @@ export type {
   TraceKind,
   HudTraceInput,
 } from './hud'
+export { B3dHud, b3dHud } from './b3d-hud'
 
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader'
