@@ -81,7 +81,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `url` | `/aircraft-hud.svg` | HUD SVG asset (falls back to the built-in code HUD) |
+| `url` | `''` | Empty = the built-in code HUD (fully wired); set to a designer SVG to load one |
 | `size` | `70` | HUD height as a % of the canvas's smaller dimension |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 */
@@ -90,6 +90,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import { B3dChild } from './b3d-utils'
 import {
   loadHud,
+  buildFallbackHud,
   type HudController,
   type MeterName,
   type HudTraceInput,
@@ -102,7 +103,8 @@ import * as BABYLON from '@babylonjs/core'
 
 export class B3dHud extends B3dChild {
   static initAttributes = {
-    url: '/aircraft-hud.svg',
+    // Empty = the built-in code HUD (fully wired). Set to a designer SVG to load one.
+    url: '',
     // HUD height as a % of the CANVAS's smaller dimension (the HUD is square).
     size: 70,
     pxPerDeg: 8,
@@ -121,7 +123,7 @@ export class B3dHud extends B3dChild {
       pointerEvents: 'none',
       // Additive + translucent HUD glow over the scene.
       mixBlendMode: 'plus-lighter',
-      opacity: '0.85',
+      opacity: '0.5',
       zIndex: '15',
     },
     ':host([hidden])': { display: 'none' },
@@ -152,7 +154,14 @@ export class B3dHud extends B3dChild {
   sceneReady(owner: B3d, _scene: BABYLON.Scene): void {
     this.owner = owner
     this._measure()
-    loadHud((this as any).url, { pxPerDeg: (this as any).pxPerDeg }).then((c) => {
+    const opts = { pxPerDeg: (this as any).pxPerDeg }
+    const url = (this as any).url as string
+    // Default to the code HUD (fully wired: meters/horizon/traces/warnings); load a
+    // designer SVG only when a url is given.
+    const ready = url
+      ? loadHud(url, opts)
+      : Promise.resolve(buildFallbackHud(opts))
+    ready.then((c) => {
       if (this.owner == null) return // disposed while loading
       this.controller = c
       this.replaceChildren(c.el)
