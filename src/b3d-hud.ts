@@ -71,7 +71,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `/aircraft-hud.svg` | HUD SVG asset (falls back to the built-in code HUD) |
-| `size` | `40` | Overlay size as a % of the smaller viewport dimension (vmin) |
+| `size` | `70` | HUD height as a % of the canvas's smaller dimension |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 */
 /*{ "parent": "UI" }*/
@@ -91,26 +91,34 @@ import * as BABYLON from '@babylonjs/core'
 export class B3dHud extends B3dChild {
   static initAttributes = {
     url: '/aircraft-hud.svg',
-    size: 40,
+    // HUD height as a % of the CANVAS's smaller dimension (the HUD is square).
+    size: 70,
     pxPerDeg: 8,
   }
 
   static lightStyleSpec = {
     ':host': {
+      // Fill the canvas area and centre the square HUD inside it — so the element's
+      // OWN resize (which tosijs Component observes) tracks the canvas, and
+      // onResize() can re-measure. No hand-rolled ResizeObserver to tear down.
       position: 'absolute',
-      left: '50%',
-      top: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: 'var(--hud-size, 40vmin)',
-      height: 'var(--hud-size, 40vmin)',
+      inset: '0',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       pointerEvents: 'none',
       // Additive + translucent HUD glow over the scene.
       mixBlendMode: 'plus-lighter',
       opacity: '0.85',
       zIndex: '15',
     },
-    ':host svg': { width: '100%', height: '100%', display: 'block' },
     ':host([hidden])': { display: 'none' },
+    // --hud-size is set live (onResize) to `size`% of the canvas's smaller side.
+    ':host svg': {
+      width: 'var(--hud-size, 70vmin)',
+      height: 'var(--hud-size, 70vmin)',
+      display: 'block',
+    },
   }
 
   declare url: string
@@ -123,17 +131,28 @@ export class B3dHud extends B3dChild {
 
   sceneReady(owner: B3d, _scene: BABYLON.Scene): void {
     this.owner = owner
-    this.style.setProperty('--hud-size', `${(this as any).size}vmin`)
-    loadHud((this as any).url, { pxPerDeg: (this as any).pxPerDeg }).then(
-      (c) => {
-        if (this.owner == null) return // disposed while loading
-        this.controller = c
-        this.replaceChildren(c.el)
-        // Replay anything set before the async asset resolved.
-        for (const [k, v] of this._meters) c.setMeter(k, v)
-        if (this._horizon) c.setHorizon(...this._horizon)
-      }
-    )
+    this._measure()
+    loadHud((this as any).url, { pxPerDeg: (this as any).pxPerDeg }).then((c) => {
+      if (this.owner == null) return // disposed while loading
+      this.controller = c
+      this.replaceChildren(c.el)
+      // Replay anything set before the async asset resolved.
+      for (const [k, v] of this._meters) c.setMeter(k, v)
+      if (this._horizon) c.setHorizon(...this._horizon)
+    })
+  }
+
+  /** tosijs Component calls this on resize (it owns the observer + teardown). */
+  onResize(): void {
+    this._measure()
+  }
+
+  // Size the square HUD to `size`% of the canvas's SMALLER dimension.
+  private _measure(): void {
+    const min = Math.min(this.clientWidth, this.clientHeight)
+    if (min > 0) {
+      this.style.setProperty('--hud-size', `${(min * (this as any).size) / 100}px`)
+    }
   }
 
   sceneDispose(): void {
