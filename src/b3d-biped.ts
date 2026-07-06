@@ -59,11 +59,73 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## Demo — Kenney character (skins + accessories)
+
+Loads a Kenney *Animated Characters Protagonists* model straight from the shared CDN
+(`cdn.tosijs.net`) — the merged-animation glb our asset pipeline produced — and
+exercises the reskin + equip conventions: the character ships textureless with one
+`skin` material, so **skins** are a texture swap (`applySkin`); **accessories** are
+separate glbs attached to the character (`equip`/`unequip`). Its `idle`/`run`/`jump`
+clips match the biped's animation names directly.
+
+```js
+import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, setAssetBase, assetUrl, label3d, select3d, button3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+setAssetBase('https://cdn.tosijs.net')
+const pack = 'kenney/3D assets/Animated Characters Protagonists'
+const acc = 'kenney/3D assets/Animated Characters Bundle/Accessories/Animals'
+const skins = ['criminalMaleA', 'cyborgFemaleA', 'skaterFemaleA', 'skaterMaleA']
+
+const { s } = tosi({ s: { skin: 'criminalMaleA', anim: 'idle' } })
+
+const biped = b3dBiped({
+  url: assetUrl(pack + '/characterMedium.glb'),
+  skin: assetUrl(pack + '/Skins/criminalMaleA.png'),
+})
+
+preview.append(
+  b3d(
+    {
+      scenePanelOpen: true,
+      scenePanel: () => [
+        label3d({ text: 'Kenney character', bold: true }),
+        select3d({ label: 'skin', value: s.skin, options: skins,
+          onChange: (v) => biped.applySkin(assetUrl(pack + '/Skins/' + v + '.png')) }),
+        select3d({ label: 'animation', value: s.anim, options: ['idle', 'run', 'jump'],
+          onChange: (v) => biped.setAnimationState(v) }),
+        button3d({ label: 'equip ears', onClick: () => biped.equip('ears', assetUrl(acc + '/earsA.glb')) }),
+        button3d({ label: 'equip tail', onClick: () => biped.equip('tail', assetUrl(acc + '/tailA.glb')) }),
+        button3d({ label: 'strip', onClick: () => { biped.unequip('ears'); biped.unequip('tail') } }),
+      ],
+      sceneCreated(el, BABYLON) {
+        const camera = new BABYLON.ArcRotateCamera(
+          'cam', -Math.PI / 2, Math.PI / 3, 5,
+          new BABYLON.Vector3(0, 1, 0), el.scene
+        )
+        camera.lowerRadiusLimit = 2
+        camera.upperRadiusLimit = 12
+        camera.attachControl(el.querySelector('canvas'), true)
+        el.setActiveCamera(camera)
+      },
+    },
+    b3dLight({ y: 1, intensity: 0.8 }),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dGround({ width: 12, height: 12, color: '#9b8b6e' }),
+    biped,
+  ),
+)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
+| `skin` | `''` | Optional albedo texture URL applied to the `skin` material (reskin) |
 | `animation` | `''` | Current animation state name |
 | `animationSpeed` | `1` | Playback speed multiplier (0–2) |
 | `player` | `false` | Whether this biped receives input |
@@ -154,6 +216,10 @@ export class B3dBiped extends B3dControllable {
   static initAttributes = {
     ...B3dControllable.initAttributes,
     url: '',
+    // Optional skin texture URL applied to the model's `skin` material. Kenney
+    // characters ship textureless with one `skin` material + separate skin PNGs,
+    // so reskinning is just swapping this albedo texture.
+    skin: '',
     player: false,
     cameraType: 'none',
     animation: '',
@@ -651,6 +717,58 @@ export class B3dBiped extends B3dControllable {
     }
   }
 
+  /** Swap the model's `skin` material albedo texture (Kenney characters are
+   * textureless + reskinned by this PNG). Empty clears it. Matches materials named
+   * ~`skin`, or all PBR materials if none is. */
+  applySkin(url: string): void {
+    if (this.entries == null || this.owner == null) return
+    const scene = this.owner.scene
+    const mats = new Set<BABYLON.PBRMaterial>()
+    for (const n of this.entries.rootNodes) {
+      for (const m of n.getChildMeshes()) {
+        if (m.material instanceof BABYLON.PBRMaterial) mats.add(m.material)
+      }
+    }
+    const named = [...mats].filter((m) => /skin/i.test(m.name))
+    for (const mat of named.length ? named : [...mats]) {
+      mat.albedoTexture?.dispose()
+      mat.albedoTexture = url ? new BABYLON.Texture(url, scene) : null
+    }
+  }
+
+  private _equipped = new Map<string, BABYLON.InstantiatedEntries>()
+
+  /**
+   * Load an accessory GLB and attach it to the character under a named `slot`
+   * (`ears`, `hat`, …), replacing anything already in that slot. Kenney accessories
+   * are authored in CHARACTER space (their geometry already sits where it belongs on
+   * the body), so we parent to the character root — correct placement, follows the
+   * biped. (Per-bone following, e.g. a weapon that tracks the hand's animation,
+   * needs a bone-rest-offset and is a future refinement — see CONTENT-MAP.md.)
+   */
+  equip(slot: string, url: string): void {
+    if (this.entries == null || this.owner == null || this.mesh == null) return
+    const scene = this.owner.scene
+    this.unequip(slot)
+    this.loadAssetContainer(scene, url, (container) => {
+      if (this.mesh == null) return // disposed while loading
+      const e = container.instantiateModelsToScene(undefined, false, {
+        doNotInstantiate: true,
+      })
+      ;(e.rootNodes[0] as BABYLON.TransformNode).parent = this.mesh
+      this._equipped.set(slot, e)
+    })
+  }
+
+  /** Remove whatever is equipped in a slot. */
+  unequip(slot: string): void {
+    const e = this._equipped.get(slot)
+    if (e != null) {
+      e.dispose()
+      this._equipped.delete(slot)
+    }
+  }
+
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -692,6 +810,7 @@ export class B3dBiped extends B3dControllable {
         this.mesh.checkCollisions = true
         owner.register({ meshes })
         this.setAnimationState(attrs.initialState)
+        if (attrs.skin) this.applySkin(attrs.skin)
 
         // If inputFocus wired input before GLB loaded, it may have been
         // cleared by a dispose/re-init cycle. Re-wire directly.
