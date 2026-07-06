@@ -7,6 +7,60 @@ and it registers a Destroyable in the scene's combat world, drives a placeholder
 cube mesh (real meshes/GLB later), and runs its death outcome when killed — whether
 by a direct hit or a chain reaction resolved in the combat tick.
 
+## Demo
+
+**Click any cube** to damage it (1/click) — it flashes on a hit and dies at 0 hp. The
+front grid are independent targets; the **back row is chain-linked**, so killing the
+leftmost cascades the reaction down the line (chains are wired after mount, since they
+reference combat ids that only exist once the targets have mounted).
+
+```js
+import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+
+const grid = []
+for (let i = 0; i < 12; i++) {
+  grid.push(b3dDestroyable({ x: (i % 4) * 1.6 - 2.4, y: 0.5, z: Math.floor(i / 4) * 1.6, capacity: 3, color: '#cc4444' }))
+}
+const chainRow = []
+for (let i = 0; i < 6; i++) {
+  chainRow.push(b3dDestroyable({ x: i * 1.6 - 4, y: 0.5, z: -3, capacity: 4, color: '#e0a020' }))
+}
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 15, new BABYLON.Vector3(0, 0.5, -0.5), el.scene)
+      cam.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(cam)
+      // click a cube → damage it
+      el.scene.onPointerDown = (_evt, pick) => {
+        if (!pick.hit || !pick.pickedMesh) return
+        const t = [...grid, ...chainRow].find((c) => c.mesh === pick.pickedMesh)
+        if (t) t.damage(1)
+      }
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 24, height: 24, color: '#5a6b52' }),
+  ...grid,
+  ...chainRow,
+)
+preview.append(scene)
+
+// Wire the chain row once every target has mounted (its combat id exists then).
+const wireChain = () => {
+  if (chainRow.some((c) => !c.combatId)) { requestAnimationFrame(wireChain); return }
+  for (let i = 0; i < chainRow.length - 1; i++) {
+    chainRow[i].setChain([{ target: chainRow[i + 1].combatId, amount: 99, delay: 0.15 }])
+  }
+}
+wireChain()
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 It participates in the **floating origin**: because `AbstractMesh` treats the
 `x/y/z` attributes as the source of truth for the mesh position, this uses
 `onOriginShift` to shift BOTH the mesh node and its `x/z` attributes on a rebase
@@ -106,10 +160,33 @@ export class B3dDestroyable extends AbstractMesh {
     })
   }
 
-  /** Hurt this target; returns the combat events from this hit. */
+  /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
   damage(amount: number): CombatEvent[] {
     if (this.owner == null || this._dead) return []
-    return this.owner.combat.applyDamage(this.combatId, amount)
+    const events = this.owner.combat.applyDamage(this.combatId, amount)
+    if (events.some((e) => e.type === 'damaged')) this._flash()
+    return events
+  }
+
+  /**
+   * Set on-destruction chain links AFTER mount — chains reference other targets'
+   * combat ids, which only exist once those elements have mounted. Updates both this
+   * element and the live Destroyable in the combat world.
+   */
+  setChain(links: ChainLink[]): void {
+    this.chain = links
+    const d = this.owner?.combat.get(this.combatId)
+    if (d != null) d.chain = links
+  }
+
+  // Brief white emissive flash so a non-lethal hit reads visually.
+  private _flash(): void {
+    const mat = this.mesh?.material as BABYLON.StandardMaterial | null
+    if (mat == null) return
+    mat.emissiveColor = BABYLON.Color3.White()
+    setTimeout(() => {
+      if (this.mesh != null && !this._dead) mat.emissiveColor = BABYLON.Color3.Black()
+    }, 90)
   }
 
   private _die(): void {
