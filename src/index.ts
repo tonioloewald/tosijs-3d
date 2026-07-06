@@ -286,6 +286,19 @@ export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable'
 export { B3dWarhead, b3dWarhead, detonateWarhead } from './b3d-warhead'
 export { B3dLauncher, b3dLauncher, spawnProjectile } from './b3d-launcher'
 export type { ProjectileOpts } from './b3d-launcher'
+export { B3dTurret, b3dTurret } from './b3d-turret'
+export {
+  steerToward,
+  proNav,
+  interceptLead,
+  gAdd,
+  gSub,
+  gScale,
+  gDot,
+  gCross,
+  gLen,
+  gNormalize,
+} from './guidance'
 export { aoeFalloff, resolveAoe, dist3 } from './warhead'
 export type { WarheadSpec, AoeTarget } from './warhead'
 export { ballisticStep, predictPath } from './ballistics'
