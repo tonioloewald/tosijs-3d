@@ -7,6 +7,12 @@ drive it each frame. The heavy lifting is the pure [hud-math](?hud-math.ts) (rad
 projection + horizon) and the `hud` driver; this component just handles mounting and
 lifecycle. Wire it to a [b3d-aircraft](?b3d-aircraft.ts)'s state + the scene's targets.
 
+**In-scene / cockpit mode.** `attachInScene(parent, opts)` rasterizes the SAME live
+HUD SVG onto a plane in the 3D scene (via [svg-texture](?svg-texture.ts)) — so the HUD
+shows in a **3D cockpit and in VR**, where a DOM overlay is invisible. `b3d-aircraft`
+mounts it on the canopy automatically (banks with the airframe, not head-locked) and
+shows it in the cockpit view; `setInSceneVisible(bool)` toggles it.
+
 ## Demo
 
 Scrub the meters and attitude in the ⚙ panel; the radar traces orbit a fixed viewer,
@@ -88,6 +94,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "UI" }*/
 
 import { B3dChild } from './b3d-utils'
+import { SvgTexture } from './svg-texture'
 import {
   loadHud,
   buildFallbackHud,
@@ -158,6 +165,20 @@ export class B3dHud extends B3dChild {
   private _horizon: [number, number, number?] | null = null
   private _warnings: HudWarning[] | null = null
 
+  // In-scene ("cockpit") projection: the SAME live HUD SVG rasterized onto a plane
+  // in the 3D scene (so it shows in a 3D cockpit and in VR, where the DOM overlay is
+  // invisible). Built lazily once the controller's SVG exists.
+  private _svgTex: SvgTexture | null = null
+  private _plane: BABYLON.Mesh | null = null
+  private _planeMat: BABYLON.StandardMaterial | null = null
+  private _inSceneParent: BABYLON.TransformNode | null = null
+  private _inSceneOpts?: {
+    size?: number
+    position?: BABYLON.Vector3
+    resolution?: number
+  }
+  private _inSceneVisible = false
+
   sceneReady(owner: B3d, _scene: BABYLON.Scene): void {
     this.owner = owner
     this._measure()
@@ -176,7 +197,70 @@ export class B3dHud extends B3dChild {
       for (const [k, v] of this._meters) c.setMeter(k, v)
       if (this._horizon) c.setHorizon(...this._horizon)
       if (this._warnings) c.setWarnings(this._warnings)
+      if (this._inSceneParent != null) this._buildInScenePlane()
     })
+  }
+
+  /**
+   * Project the HUD into the 3D scene on a plane parented to `parent` — e.g. an
+   * aircraft canopy, so it banks with the airframe and reads correctly in a 3D
+   * cockpit and in VR (where the DOM overlay is invisible). Position is in the
+   * parent's local space; default sits it a little ahead of and above the origin.
+   * Call `setInSceneVisible(true)` to show it (the aircraft toggles this per view).
+   */
+  attachInScene(
+    parent: BABYLON.TransformNode,
+    opts?: { size?: number; position?: BABYLON.Vector3; resolution?: number }
+  ): void {
+    this._inSceneParent = parent
+    this._inSceneOpts = opts
+    if (this.controller != null) this._buildInScenePlane()
+  }
+
+  private _buildInScenePlane(): void {
+    if (
+      this.owner == null ||
+      this.controller == null ||
+      this._inSceneParent == null ||
+      this._plane != null
+    )
+      return
+    const scene = this.owner.scene
+    const svg = this.controller.el as unknown as SVGSVGElement
+    this._svgTex = new SvgTexture({
+      scene,
+      element: svg,
+      resolution: this._inSceneOpts?.resolution ?? 1024,
+      updateInterval: 50,
+    })
+    const size = this._inSceneOpts?.size ?? 1.2
+    const plane = BABYLON.MeshBuilder.CreatePlane(
+      'hud-3d',
+      { size, sideOrientation: BABYLON.Mesh.DOUBLESIDE },
+      scene
+    )
+    plane.parent = this._inSceneParent
+    plane.position =
+      this._inSceneOpts?.position?.clone() ??
+      new BABYLON.Vector3(0, 0.9, 1.3)
+    plane.isPickable = false
+    const mat = new BABYLON.StandardMaterial('hud-3d-mat', scene)
+    // Unlit, self-glowing, alpha from the HUD SVG's own transparency.
+    mat.emissiveTexture = this._svgTex.texture
+    mat.opacityTexture = this._svgTex.texture
+    mat.disableLighting = true
+    mat.backFaceCulling = false
+    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+    plane.material = mat
+    plane.setEnabled(this._inSceneVisible)
+    this._plane = plane
+    this._planeMat = mat
+  }
+
+  /** Show/hide the in-scene cockpit HUD plane (independent of the DOM overlay). */
+  setInSceneVisible(visible: boolean): void {
+    this._inSceneVisible = visible
+    this._plane?.setEnabled(visible)
   }
 
   /** tosijs Component calls this on resize (it owns the observer + teardown). */
@@ -193,6 +277,13 @@ export class B3dHud extends B3dChild {
   }
 
   sceneDispose(): void {
+    this._plane?.dispose()
+    this._planeMat?.dispose()
+    this._svgTex?.dispose()
+    this._plane = null
+    this._planeMat = null
+    this._svgTex = null
+    this._inSceneParent = null
     this.controller = null
     this.replaceChildren()
     this.owner = null

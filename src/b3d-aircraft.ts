@@ -337,6 +337,11 @@ type HudSink = {
   setHorizon(pitch: number, roll: number, angle?: number): void
   setVisible(visible: boolean): void
   setWarnings(warnings: Array<{ text: string; side?: string }>): void
+  attachInScene?(
+    parent: BABYLON.TransformNode,
+    opts?: { size?: number; position?: BABYLON.Vector3; resolution?: number }
+  ): void
+  setInSceneVisible?(visible: boolean): void
 }
 
 export class B3dAircraft extends B3dControllable {
@@ -427,6 +432,7 @@ export class B3dAircraft extends B3dControllable {
   declare hudChase: boolean
   // undefined = not yet resolved; null = no HUD / not the player.
   private _hud: HudSink | null | undefined = undefined
+  private _hudMounted = false
   private meshNode: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
   // Ground sampling is ONE raycast per frame, taken after the move and cached: the
@@ -571,10 +577,22 @@ export class B3dAircraft extends B3dControllable {
           : null
     }
     if (this._hud != null) {
-      // A HUD belongs on the canopy — show it in the cockpit view, hide it in the
-      // chase view (unless `hud-chase` opts in).
-      const showHud = this.cameraView === 'cockpit' || attrs.hudChase
-      this._hud.setVisible(showHud)
+      // Mount the HUD onto the canopy (in-scene) once, so it shows in a 3D cockpit
+      // and in VR — parented to the airframe just ahead of the pilot's eye, banking
+      // with the plane (not head-locked).
+      if (!this._hudMounted && this._hud.attachInScene != null) {
+        this._hudMounted = true
+        this._hud.attachInScene(node, {
+          size: 1.1,
+          position: new BABYLON.Vector3(0, this.eyeHeight, this.cockpitForward + 0.9),
+        })
+      }
+      // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is for the
+      // chase view only when `hud-chase` opts in.
+      const inCockpit = this.cameraView === 'cockpit'
+      this._hud.setInSceneVisible?.(inCockpit)
+      const showHud = inCockpit || attrs.hudChase
+      this._hud.setVisible(!inCockpit && attrs.hudChase)
       if (showHud) {
         const RAD = 180 / Math.PI
         this._hud.setMeter(

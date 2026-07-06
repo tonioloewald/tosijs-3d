@@ -213,6 +213,9 @@ export class B3d extends Component {
     // your own `setupXr` (this grid only exists in the default experience).
     // `"on"` always shows it; `"off"` always hides it.
     xrGrid: 'auto' as 'on' | 'off' | 'auto',
+    // Show the head-locked face crosshair (a pin target for aim-tracking UX). Opt-in:
+    // 'off' (default) keeps it out of the way; 'on' shows it (e.g. a tracking weapon).
+    xrReticle: 'off' as 'on' | 'off',
     // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
     scenePanelOpen: false,
     // When present, mount the split on-screen "glass" gamepad and feed it into
@@ -440,6 +443,7 @@ export class B3d extends Component {
   declare maxDistance: number
   declare noXr: boolean
   declare xrGrid: 'on' | 'off' | 'auto'
+  declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
 
   sceneCreated: B3dCallback = noop
@@ -474,11 +478,17 @@ export class B3d extends Component {
     // Anchored in the EYE frame (your head position, rig yaw) at angular offsets,
     // so they ride your real eye through chase head-compensation and stay put as
     // you stand/sit or glance — only swinging when you actually turn.
-    return [
+    const panels: FramePanelSpec[] = [
       { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
       { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
       { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
-      {
+      { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
+    ]
+    // The face crosshair is a PIN TARGET for aim-tracking UX — not something that
+    // belongs on screen everywhere (no more than the quick-access bar does). Opt in
+    // with `xr-reticle="on"` (e.g. when a weapon tracks it); default hides it.
+    if (this.xrReticle === 'on') {
+      panels.push({
         frame: 'face',
         anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
         reveal: 'always',
@@ -486,9 +496,9 @@ export class B3d extends Component {
         view: 'first', // crosshair only when looking through your own eyes
         url: '/reticle.svg',
         width: 0.24,
-      },
-      { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
-    ]
+      })
+    }
+    return panels
   }
 
   private lastRender = 0
