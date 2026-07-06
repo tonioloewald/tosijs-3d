@@ -126,6 +126,7 @@ tosi-b3d { width: 100%; height: 100%; }
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
 | `skin` | `''` | Optional albedo texture URL applied to the `skin` material (reskin) |
+| `scale` | `1` | Uniform scale applied to the loaded model |
 | `animation` | `''` | Current animation state name |
 | `animationSpeed` | `1` | Playback speed multiplier (0–2) |
 | `player` | `false` | Whether this biped receives input |
@@ -220,6 +221,10 @@ export class B3dBiped extends B3dControllable {
     // characters ship textureless with one `skin` material + separate skin PNGs,
     // so reskinning is just swapping this albedo texture.
     skin: '',
+    // Uniform scale applied to the loaded model. Handy when an asset imports at the
+    // wrong size (Kenney FBX characters come in ~2x too big; 0.48 ≈ 1.8m) — though
+    // baking scale into the conversion is preferred so every consumer gets it right.
+    scale: 1,
     player: false,
     cameraType: 'none',
     animation: '',
@@ -793,7 +798,8 @@ export class B3dBiped extends B3dControllable {
           .map((node) => node.getChildMeshes())
           .flat()
         this.mesh = this.entries.rootNodes[0] as BABYLON.Mesh
-        // Derive eye height from the model so first-person sits at the head, not
+        if (attrs.scale !== 1) this.mesh.scaling.setAll(attrs.scale)
+        // Derive eye height from the model (after scaling, so it's the real size) so first-person sits at the head, not
         // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
         // fallback when there's no head node to anchor to.
         const bounds = this.mesh.getHierarchyBoundingVectors()
