@@ -146,45 +146,57 @@ tosi-b3d { width: 100%; height: 100%; }
 ## Combat — shoot down the drones
 
 The aircraft is armed (see [Weapons](#weapons-the-combat-slice)). Fly at the drifting
-**aerial drones** and shoot them down. Each takes a few cannon hits or one missile —
+**aerial drones** and shoot them down. Each takes a short cannon burst or one missile —
 watch a drone glow **redder as it takes damage** (the [destroyable](?b3d-destroyable.ts)
-damage readout), then explode. Missiles **lock the nearest drone in front of you**.
+damage readout), then explode. The **kills counter** (top-right) ticks up as they die,
+and missiles **lock the nearest drone in front of you**.
 
 **Keys:** `Space` / right-Shift = **guns**, `LShift` = **missile**, `F` = **bomb**.
 (Fly with W/S pitch, A/D bank, R/Q throttle.)
 
 ```js
 import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div } = elements
 
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
 })
 
-// A squadron of aerial drone targets — they explode and fire a small death-blast, so
-// a tight formation chain-reacts. capacity 24 ≈ 3 cannon hits or one missile.
+// Big, low-HP drones spread across the takeoff heading (+Z), at cruise height. capacity
+// 6 ≈ one cannon burst or one missile — so a hit obviously registers and kills. They
+// explode and fire a small death-blast, so a tight formation chain-reacts.
 const drones = []
-for (let i = 0; i < 14; i++) {
+for (let i = 0; i < 12; i++) {
   drones.push(b3dDestroyable({
-    meshName: 'drone', size: 1.6, color: '#c0c8d0', capacity: 24,
-    x: (i % 7) * 10 - 30, y: 22 + (i % 3) * 6, z: 60 + Math.floor(i / 7) * 14,
+    meshName: 'drone', size: 2.4, color: '#d05050', capacity: 6,
+    x: (i % 4) * 9 - 13.5, y: 12 + (i % 3) * 5, z: 45 + Math.floor(i / 4) * 22,
     explode: 'on', explodeForce: 8,
-    deathBlast: 'on', blastDamage: 14, blastFullRadius: 1.5, blastRadius: 5,
+    deathBlast: 'on', blastDamage: 10, blastFullRadius: 2, blastRadius: 6,
   }))
 }
+
+const kills = div({ class: 'kills' }, 'Drones down: 0 / 12')
+let down = 0
 
 const scene = b3d(
   {
     gamepad: true,
     sceneCreated(el) {
-      // Gently drift the drones so they're moving but very hittable.
+      // Prove damage→death: count the bubbling `destroyed` events.
+      el.addEventListener('destroyed', () => {
+        down += 1
+        kills.textContent = `Drones down: ${down} / 12`
+      })
+      // Gently drift the drones so they move but stay very hittable.
       let t = 0
       el.scene.onBeforeRenderObservable.add(() => {
         t += el.scene.getEngine().getDeltaTime() / 1000
         drones.forEach((d, i) => {
           if (d.dead) return
-          d.x += Math.sin(t * 0.4 + i) * 0.04
-          d.y += Math.sin(t * 0.7 + i * 2) * 0.02
+          d.x += Math.sin(t * 0.3 + i) * 0.02
+          d.y += Math.sin(t * 0.6 + i * 2) * 0.01
         })
       })
     },
@@ -198,10 +210,15 @@ const scene = b3d(
   ...drones,
   inputFocus(gameController(), aircraft),
 )
-preview.append(scene)
+preview.append(scene, kills)
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
+.kills {
+  position: absolute; top: 10px; right: 10px; z-index: 10;
+  padding: 6px 12px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
+}
 ```
 
 ## Flight model
@@ -242,6 +259,9 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
+| `hudChase` | `false` | Show the flat DOM HUD overlay in chase view (cockpit uses the in-scene HUD) |
+| `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
+| `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |
 | `gunRate` | `9` | Cannon shots/sec while `shoot` is held |
 | `gunSpeed` | `130` | Cannon muzzle speed (added to airspeed) |
@@ -359,6 +379,10 @@ export class B3dAircraft extends B3dControllable {
     ceiling: 300,
     // Show the HUD in the chase view too (default: cockpit view only).
     hudChase: false,
+    // In-cockpit HUD plane placement (see b3d-hud attachInScene): its size in metres
+    // and how far ahead of the pilot's eye it floats. Tune to taste per airframe.
+    hudSize: 0.7,
+    hudForward: 1.6,
     maxSpeed: 50,
     // Hard speed ceiling while the throttle is held past maxSpeed (afterburner).
     // Release and it bleeds back to maxSpeed. ≤ maxSpeed disables afterburner.
@@ -583,8 +607,12 @@ export class B3dAircraft extends B3dControllable {
       if (!this._hudMounted && this._hud.attachInScene != null) {
         this._hudMounted = true
         this._hud.attachInScene(node, {
-          size: 1.1,
-          position: new BABYLON.Vector3(0, this.eyeHeight, this.cockpitForward + 0.9),
+          size: attrs.hudSize,
+          position: new BABYLON.Vector3(
+            0,
+            this.eyeHeight,
+            this.cockpitForward + attrs.hudForward
+          ),
         })
       }
       // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is for the
