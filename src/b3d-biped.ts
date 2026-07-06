@@ -59,67 +59,6 @@ preview.append(
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
-## Demo — Kenney character (skins + accessories)
-
-Loads a Kenney *Animated Characters Protagonists* model straight from the shared CDN
-(`cdn.tosijs.net`) — the merged-animation glb our asset pipeline produced — and
-exercises the reskin + equip conventions: the character ships textureless with one
-`skin` material, so **skins** are a texture swap (`applySkin`); **accessories** are
-separate glbs attached to the character (`equip`/`unequip`). Its `idle`/`run`/`jump`
-clips match the biped's animation names directly.
-
-```js
-import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, setAssetBase, assetUrl, label3d, select3d, button3d } from 'tosijs-3d'
-import { tosi } from 'tosijs'
-
-setAssetBase('https://cdn.tosijs.net')
-const pack = 'kenney/3D assets/Animated Characters Protagonists'
-const acc = 'kenney/3D assets/Animated Characters Bundle/Accessories/Animals'
-const skins = ['criminalMaleA', 'cyborgFemaleA', 'skaterFemaleA', 'skaterMaleA']
-
-const { s } = tosi({ s: { skin: 'criminalMaleA', anim: 'idle' } })
-
-const biped = b3dBiped({
-  url: assetUrl(pack + '/characterMedium.glb'),
-  skin: assetUrl(pack + '/Skins/criminalMaleA.png'),
-})
-
-preview.append(
-  b3d(
-    {
-      scenePanelOpen: true,
-      scenePanel: () => [
-        label3d({ text: 'Kenney character', bold: true }),
-        select3d({ label: 'skin', value: s.skin, options: skins,
-          onChange: (v) => biped.applySkin(assetUrl(pack + '/Skins/' + v + '.png')) }),
-        select3d({ label: 'animation', value: s.anim, options: ['idle', 'run', 'jump'],
-          onChange: (v) => biped.setAnimationState(v) }),
-        button3d({ label: 'equip ears', onClick: () => biped.equip('Head', assetUrl(acc + '/earsA.glb')) }),
-        button3d({ label: 'equip tail', onClick: () => biped.equip('Hips', assetUrl(acc + '/tailA.glb')) }),
-        button3d({ label: 'strip', onClick: () => { biped.unequip('Head'); biped.unequip('Hips') } }),
-      ],
-      sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 3, 5,
-          new BABYLON.Vector3(0, 1, 0), el.scene
-        )
-        camera.lowerRadiusLimit = 2
-        camera.upperRadiusLimit = 12
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
-      },
-    },
-    b3dLight({ y: 1, intensity: 0.8 }),
-    b3dSkybox({ timeOfDay: 12 }),
-    b3dGround({ width: 12, height: 12, color: '#9b8b6e' }),
-    biped,
-  ),
-)
-```
-```css
-tosi-b3d { width: 100%; height: 100%; }
-```
-
 ## Attributes
 
 | Attribute | Default | Description |
