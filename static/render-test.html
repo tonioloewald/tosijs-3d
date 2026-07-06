@@ -39,8 +39,9 @@
     g.material = new BABYLON.StandardMaterial('gm', scene)
     g.material.wireframe = true
 
-    const rootUrl = 'https://cdn.tosijs.net/kenney/3D assets/Animated Characters Protagonists/'
-    const file = 'characterMedium.glb'
+    // The RE-CONVERTED glb (opaque material + fixed animations), served locally.
+    const rootUrl = '/'
+    const file = 'characterMedium-fixed.glb'
     log('loading: ' + rootUrl + file)
 
     BABYLON.SceneLoader.ImportMeshAsync('', rootUrl, file, scene).then((r) => {
@@ -54,7 +55,28 @@
       log('bbox size (WxHxD): ' + [size.x, size.y, size.z].map(n => n.toFixed(2)).join(' x '))
       log('bbox y: ' + bb.min.y.toFixed(2) + ' → ' + bb.max.y.toFixed(2))
       const mat = skinned[0] && skinned[0].material
-      log('material: ' + (mat ? mat.name + ' (albedoTex=' + !!mat.albedoTexture + ')' : 'none'))
+      log('material: ' + (mat ? mat.name : 'none'))
+      if (mat) {
+        // Replicate b3d-biped: force opaque so the alpha-0 material shows.
+        mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE
+        log('metallic=' + mat.metallic + ' roughness=' + mat.roughness +
+            ' albedoColor=' + (mat.albedoColor && mat.albedoColor.toString()))
+        log('mesh useVertexColor=' + skinned[0].useVertexColors + ' hasVertexColors=' + skinned[0].hasVertexColors)
+        const skinUrl = 'https://cdn.tosijs.net/kenney/3D assets/Animated Characters Protagonists/Skins/criminalMaleA.png'
+        const applySkin = () => {
+          const tex = new BABYLON.Texture(skinUrl, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
+            () => log('✅ skin texture LOADED'),
+            (m) => log('❌ skin texture FAILED: ' + m))
+          mat.albedoTexture = tex
+        }
+        const bar2 = document.createElement('div'); bar2.style.cssText = 'position:fixed;bottom:44px;left:10px;z-index:10;display:flex;gap:6px'
+        const mk = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.style.cssText = 'font:12px monospace;padding:4px 10px'; b.onclick = fn; bar2.appendChild(b) }
+        mk('apply skin', applySkin)
+        mk('no skin (grey)', () => { mat.albedoTexture && mat.albedoTexture.dispose(); mat.albedoTexture = null })
+        mk('vtx colors off', () => { skinned.forEach(m => m.useVertexColors = false) })
+        document.body.appendChild(bar2)
+        applySkin() // start like the demo does
+      }
 
       // animation buttons — stop all, then play the chosen one, watching for collapse
       const bar = document.getElementById('bar')

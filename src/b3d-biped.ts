@@ -94,9 +94,9 @@ preview.append(
           onChange: (v) => biped.applySkin(assetUrl(pack + '/Skins/' + v + '.png')) }),
         select3d({ label: 'animation', value: s.anim, options: ['idle', 'run', 'jump'],
           onChange: (v) => biped.setAnimationState(v) }),
-        button3d({ label: 'equip ears', onClick: () => biped.equip('ears', assetUrl(acc + '/earsA.glb')) }),
-        button3d({ label: 'equip tail', onClick: () => biped.equip('tail', assetUrl(acc + '/tailA.glb')) }),
-        button3d({ label: 'strip', onClick: () => { biped.unequip('ears'); biped.unequip('tail') } }),
+        button3d({ label: 'equip ears', onClick: () => biped.equip('Head', assetUrl(acc + '/earsA.glb')) }),
+        button3d({ label: 'equip tail', onClick: () => biped.equip('Hips', assetUrl(acc + '/tailA.glb')) }),
+        button3d({ label: 'strip', onClick: () => { biped.unequip('Head'); biped.unequip('Hips') } }),
       ],
       sceneCreated(el, BABYLON) {
         const camera = new BABYLON.ArcRotateCamera(
@@ -742,33 +742,37 @@ export class B3dBiped extends B3dControllable {
   private _equipped = new Map<string, BABYLON.InstantiatedEntries>()
 
   /**
-   * Load an accessory GLB and attach it to the character under a named `slot`
-   * (`ears`, `hat`, …), replacing anything already in that slot. Kenney accessories
-   * are authored in CHARACTER space (their geometry already sits where it belongs on
-   * the body), so we parent to the character root — correct placement, follows the
-   * biped. (Per-bone following, e.g. a weapon that tracks the hand's animation,
-   * needs a bone-rest-offset and is a future refinement — see CONTENT-MAP.md.)
+   * Load an accessory GLB and attach it to a named rig bone (`Head`, `RightHand`,
+   * `Hips`, …), replacing anything already on that bone. Kenney accessories are
+   * origin-authored (their geometry sits at the origin, meant to be positioned BY
+   * the bone), so parenting to the bone's node places + animates them correctly.
    */
-  equip(slot: string, url: string): void {
-    if (this.entries == null || this.owner == null || this.mesh == null) return
+  equip(boneName: string, url: string): void {
+    if (this.entries == null || this.owner == null) return
     const scene = this.owner.scene
-    this.unequip(slot)
+    const skeleton = this.entries.skeletons?.[0]
+    this.unequip(boneName)
     this.loadAssetContainer(scene, url, (container) => {
       if (this.mesh == null) return // disposed while loading
       const e = container.instantiateModelsToScene(undefined, false, {
         doNotInstantiate: true,
       })
-      ;(e.rootNodes[0] as BABYLON.TransformNode).parent = this.mesh
-      this._equipped.set(slot, e)
+      const acc = e.rootNodes[0] as BABYLON.TransformNode
+      const bone =
+        skeleton?.bones.find(
+          (b) => b.name.toLowerCase() === boneName.toLowerCase()
+        ) ?? skeleton?.bones.find((b) => new RegExp(boneName, 'i').test(b.name))
+      acc.parent = bone?.getTransformNode?.() ?? this.mesh
+      this._equipped.set(boneName, e)
     })
   }
 
-  /** Remove whatever is equipped in a slot. */
-  unequip(slot: string): void {
-    const e = this._equipped.get(slot)
+  /** Remove whatever is equipped on a bone. */
+  unequip(boneName: string): void {
+    const e = this._equipped.get(boneName)
     if (e != null) {
       e.dispose()
-      this._equipped.delete(slot)
+      this._equipped.delete(boneName)
     }
   }
 
