@@ -181,6 +181,32 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
+| `weapons` | `'on'` | `'off'` disarms all weapons |
+| `gunRate` | `9` | Cannon shots/sec while `shoot` is held |
+| `gunSpeed` | `130` | Cannon muzzle speed (added to airspeed) |
+| `gunDamage` | `8` | Per-shell warhead full damage |
+| `missileSpeed` | `55` | Guided-missile cruise speed |
+| `missileTurnRate` | `3` | Guided-missile agility (rad/sec) |
+| `missileDamage` | `30` | Missile warhead full damage |
+| `bombDamage` | `45` | Bomb warhead full damage |
+| `lockRange` | `140` | Max range to acquire a missile target |
+| `lockConeDeg` | `35` | Half-angle of the forward cone missiles lock within |
+
+## Weapons (the combat slice)
+
+Built on the pure combat toolkit ([destroyable](?b3d-destroyable.ts) /
+[warhead](?b3d-warhead.ts) / [launcher](?b3d-launcher.ts) / [guidance](?guidance.ts)).
+Shells inherit the airframe's velocity, so your own motion leads the shot. Any
+[b3d-destroyable](?b3d-destroyable.ts) in the scene takes the damage.
+
+| Control (default map) | Weapon |
+| --- | --- |
+| **Guns** — right bumper / A (held) | Cannon: fast ballistic shells, small blast |
+| **Bomb** — B (tap) | Falls under gravity with your forward momentum; big blast |
+| **Missile** — left bumper (tap) | Homes on the nearest target in the forward cone (else fires straight as a dumb rocket) |
+
+`fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
+an AI pilot). Set `weapons="off"` to disarm.
 
 ## API (read-only properties for HUD binding)
 
@@ -209,7 +235,9 @@ import {
   type FlyByWireConfig,
   type FlyByWireState,
 } from './fly-by-wire'
-import { placeOnSurface, boundingBottomOffset } from './b3d-utils'
+import { placeOnSurface, boundingBottomOffset, isOff } from './b3d-utils'
+import { spawnProjectile, spawnMissile } from './b3d-launcher'
+import type { WarheadSpec } from './warhead'
 
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05
@@ -285,6 +313,17 @@ export class B3dAircraft extends B3dControllable {
     // Vertical impact speed (m/s) above which a ground contact is a crash, not
     // a landing.
     crashSpeed: 8,
+    // --- Weapons (the combat slice; see COMBAT-DESIGN.md). 'off' to disarm. ---
+    weapons: 'on',
+    gunRate: 9, // cannon shots per second (held `shoot`)
+    gunSpeed: 130, // muzzle speed of cannon shells (added to airspeed)
+    gunDamage: 8, // per-shell warhead full damage
+    missileSpeed: 55, // guided-missile cruise speed
+    missileTurnRate: 3, // guided-missile agility (rad/sec)
+    missileDamage: 30,
+    bombDamage: 45,
+    lockRange: 140, // max range to acquire a missile target
+    lockConeDeg: 35, // half-angle of the forward cone missiles can lock within
   }
 
   // Read-only flight state
@@ -313,6 +352,12 @@ export class B3dAircraft extends B3dControllable {
 
   private velocity = new BABYLON.Vector3(0, 0, 0)
   private _fwd = new BABYLON.Vector3() // scratch: world nose direction (unit)
+  // Weapon cooldowns (seconds until ready) + edge-detect for the one-shot weapons.
+  private _gunCd = 0
+  private _bombCd = 0
+  private _missileCd = 0
+  private _bombWas = false
+  private _missileWas = false
   // Fly-by-wire flight state (heading/pitch/bank/speed). Seeded from the spawned
   // orientation on the first frame, then this controller owns the quaternion.
   private fbw: FlyByWireState = { heading: 0, pitch: 0, bank: 0, speed: 0 }
@@ -525,6 +570,144 @@ export class B3dAircraft extends B3dControllable {
     // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
     this.altitude = node.position.y
     this.updatePullUp(node, groundDist)
+
+    // Weapons last, so shells spawn from this frame's muzzle position.
+    this.updateWeapons(input, dt)
+  }
+
+  // --- Weapons ---------------------------------------------------------------
+  // Cannon on held `shoot` (cadence-gated), bomb on `jump` (edge), missile on
+  // `aim` (edge) — all built on the pure combat toolkit (spawnProjectile /
+  // spawnMissile / warhead). Shells inherit the airframe's velocity so they lead
+  // naturally with your own motion.
+  private updateWeapons(input: ControlInput, dt: number): void {
+    if (isOff((this as any).weapons) || this.crashed || !this.meshNode) return
+    if (this.owner == null) return
+    this._gunCd -= dt
+    this._bombCd -= dt
+    this._missileCd -= dt
+
+    if (input.shoot > 0.5 && this._gunCd <= 0) this.fireGuns()
+
+    const bomb = input.jump > 0.5
+    if (bomb && !this._bombWas && this._bombCd <= 0) this.dropBomb()
+    this._bombWas = bomb
+
+    const missile = input.aim > 0.5
+    if (missile && !this._missileWas && this._missileCd <= 0) this.fireMissile()
+    this._missileWas = missile
+  }
+
+  /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
+  private muzzle(ahead: number, drop = 0): BABYLON.Vector3 {
+    const node = this.meshNode!
+    node.getDirectionToRef(LOCAL_Z, this._fwd)
+    return new BABYLON.Vector3(
+      node.position.x + this._fwd.x * ahead,
+      node.position.y + this._fwd.y * ahead - drop,
+      node.position.z + this._fwd.z * ahead
+    )
+  }
+
+  /** Fire one cannon shell forward, inheriting the airframe's velocity. */
+  fireGuns(): void {
+    if (this.owner == null || !this.meshNode) return
+    const attrs = this as any
+    this._gunCd = attrs.gunRate > 0 ? 1 / attrs.gunRate : 0
+    const origin = this.muzzle(2.2) // sets this._fwd to the world nose direction
+    const dir = this._fwd.clone().normalize()
+    spawnProjectile(this.owner, {
+      origin,
+      velocity: this.velocity.add(dir.scale(attrs.gunSpeed)),
+      warhead: this.gunWarhead,
+      params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.001, mass: 2 },
+      radius: 0.08,
+      color: '#fff2a0',
+      maxLifetime: 3,
+    })
+  }
+
+  /** Drop a bomb — it inherits the airframe's velocity and falls under gravity. */
+  dropBomb(): void {
+    if (this.owner == null || !this.meshNode) return
+    const attrs = this as any
+    this._bombCd = 0.6
+    spawnProjectile(this.owner, {
+      origin: this.muzzle(0, 0.6), // from the belly
+      velocity: this.velocity.clone(),
+      warhead: { damage: attrs.bombDamage, fullRadius: 2, blastRadius: 6 },
+      params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.002, mass: 4 },
+      radius: 0.25,
+      color: '#404040',
+      maxLifetime: 12,
+    })
+  }
+
+  /** Fire a guided missile at the nearest target in the forward cone (else dumb). */
+  fireMissile(): void {
+    if (this.owner == null || !this.meshNode) return
+    const attrs = this as any
+    this._missileCd = 0.8
+    const origin = this.muzzle(1.6)
+    const dir = this._fwd.clone().normalize()
+    const spec: WarheadSpec = {
+      damage: attrs.missileDamage,
+      fullRadius: 1.5,
+      blastRadius: 4,
+    }
+    const target = this.acquireTarget(origin, dir, attrs.lockRange, attrs.lockConeDeg)
+    if (target != null) {
+      spawnMissile(this.owner, {
+        origin,
+        target,
+        speed: attrs.missileSpeed,
+        turnRate: attrs.missileTurnRate,
+        warhead: spec,
+        direction: dir,
+        radius: 0.18,
+      })
+    } else {
+      // No lock — fire it straight ahead as an unguided rocket.
+      spawnProjectile(this.owner, {
+        origin,
+        velocity: this.velocity.add(dir.scale(attrs.missileSpeed)),
+        warhead: spec,
+        params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
+        radius: 0.18,
+        color: '#ff6644',
+        maxLifetime: 8,
+      })
+    }
+  }
+
+  private get gunWarhead(): WarheadSpec {
+    return { damage: (this as any).gunDamage, fullRadius: 0.5, blastRadius: 1.5 }
+  }
+
+  /** Nearest destroyable within `range` and inside the forward cone (or null). */
+  private acquireTarget(
+    origin: BABYLON.Vector3,
+    fwd: BABYLON.Vector3,
+    range: number,
+    coneDeg: number
+  ): BABYLON.AbstractMesh | null {
+    const minCos = Math.cos((coneDeg * Math.PI) / 180)
+    let best: BABYLON.AbstractMesh | null = null
+    let bestDist = Infinity
+    const els = this.owner!.querySelectorAll('tosi-b3d-destroyable')
+    for (const el of Array.from(els) as any[]) {
+      const mesh: BABYLON.AbstractMesh | undefined = el.mesh
+      if (mesh == null || mesh.isDisposed()) continue
+      const to = mesh.absolutePosition.subtract(origin)
+      const dist = to.length()
+      if (dist > range || dist < 1e-3) continue
+      if (BABYLON.Vector3.Dot(to.scale(1 / dist), fwd) < minCos) continue
+      if (dist < bestDist) {
+        bestDist = dist
+        best = mesh
+      }
+    }
+    return best
   }
 
   /** Distance from the aircraft origin down to the nearest ground: the lower of
