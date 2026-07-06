@@ -137,12 +137,7 @@ import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import type { CombatEvent, ChainLink } from './destroyable'
-import { detonateWarhead } from './b3d-warhead'
-import { explodeMesh } from './b3d-exploder'
-
-// Monotonic suffix so every Destroyable gets a unique combat id (also the mesh
-// name). Not reset — ids only need to be unique within a run.
-let _destroyableCount = 0
+import { DestroyableBehavior } from './destroyable-behavior'
 
 export class B3dDestroyable extends AbstractMesh {
   static initAttributes = {
@@ -183,48 +178,82 @@ export class B3dDestroyable extends AbstractMesh {
   declare blastRadius: number
   declare blastDelay: number
 
-  /** On-destruction chain links (set in code; see destroyable.ts). */
+  /**
+   * On-destruction direct-transfer chain links (set in code; see destroyable.ts).
+   * Distinct from `deathBlast`, which is an AOE explosion. Mirrored to the behavior.
+   */
   chain: ChainLink[] = []
-  /** This entity's id in the scene combat world (also its mesh name). */
-  combatId = ''
+  private _behavior?: DestroyableBehavior
+  private _onShift?: (dx: number, dz: number) => void
   /**
    * Optional code-set hook, run once when this target is destroyed (before the
-   * visual outcome). This is the clean seam for putting a linked player/vehicle
-   * into a 'dead' state, spawning loot/wreckage, swapping a model, etc. The same
-   * info also rides the bubbling `destroyed` CustomEvent.
+   * visual outcome). The clean seam for putting a linked player/vehicle into a
+   * 'dead' state, spawning loot/wreckage, swapping a model, etc. Also rides the
+   * bubbling `destroyed` CustomEvent.
    */
   onDeath?: (info: { id: string; position: BABYLON.Vector3 }) => void
 
-  private _dead = false
-  private _obs?: BABYLON.Observer<BABYLON.Scene>
-  private _onShift?: (dx: number, dz: number) => void
+  /** This entity's id in the scene combat world (also its mesh name). */
+  get combatId(): string {
+    return this._behavior?.combatId ?? ''
+  }
+
+  /** True once destroyed (mesh gone / exploding). Lets others skip dead targets. */
+  get dead(): boolean {
+    return this._behavior?.dead ?? false
+  }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
     super.sceneReady(owner, scene)
     const attrs = this as any
-    this.combatId = `${attrs.meshName}#${++_destroyableCount}`
 
-    // Placeholder cube (swap for real meshes/GLB later).
-    this.mesh = BABYLON.MeshBuilder.CreateBox(
-      this.combatId,
+    // Placeholder cube — the standalone element is just a DestroyableBehavior wrapped
+    // around a cube. Attach one to a loader/biped/car the same way for a real model.
+    const mesh = BABYLON.MeshBuilder.CreateBox(
+      `${attrs.meshName}-mesh`,
       { size: attrs.size },
       scene
     )
-    const mat = new BABYLON.StandardMaterial(`${this.combatId}-mat`, scene)
+    const mat = new BABYLON.StandardMaterial(`${attrs.meshName}-mat`, scene)
     mat.diffuseColor = BABYLON.Color3.FromHexString(attrs.color)
-    this.mesh.material = mat
-    this.mesh.position.set(attrs.x, attrs.y, attrs.z)
+    mesh.material = mat
+    mesh.position.set(attrs.x, attrs.y, attrs.z)
+    this.mesh = mesh
 
-    owner.combat.add(this.combatId, {
-      capacity: attrs.capacity,
-      regenRate: attrs.regenRate,
-      regenDelay: attrs.regenDelay,
-      armor: attrs.armor,
-      protectedBy: attrs.protectedBy || undefined,
-      protection: attrs.protection,
-      chain: this.chain.length ? this.chain : undefined,
-    })
-    owner.register({ meshes: [this.mesh] })
+    this._behavior = new DestroyableBehavior(
+      owner,
+      this,
+      {
+        idBase: attrs.meshName,
+        capacity: attrs.capacity,
+        regenRate: attrs.regenRate,
+        regenDelay: attrs.regenDelay,
+        armor: attrs.armor,
+        protectedBy: attrs.protectedBy || undefined,
+        protection: attrs.protection,
+        chain: this.chain.length ? this.chain : undefined,
+      },
+      {
+        explode: !isOff(attrs.explode),
+        explodeForce: attrs.explodeForce,
+        deathBlast: !isOff(attrs.deathBlast),
+        blastDamage: attrs.blastDamage,
+        blastFullRadius: attrs.blastFullRadius,
+        blastRadius: attrs.blastRadius,
+        blastDelay: attrs.blastDelay,
+      }
+    )
+    // Run the user hook (mesh still live), then drop our ref — the behavior captured
+    // the mesh before this and will explode/dispose it, so render() must stop writing
+    // to it.
+    this._behavior.onDeath = (info) => {
+      this.onDeath?.(info)
+      this.mesh = undefined
+    }
+    this._behavior.attach()
+    // Name the mesh by the resolved combat id so lookups (warhead/aircraft) find it.
+    mesh.name = this.combatId
+    owner.register({ meshes: [mesh] })
 
     // Floating origin: shift node AND the x/z attributes (see file header).
     this._onShift = (dx, dz) => {
@@ -235,107 +264,29 @@ export class B3dDestroyable extends AbstractMesh {
       attrs.z -= dz
     }
     owner.onOriginShift(this._onShift)
-
-    // Notice destruction from ANY cause (direct hit or a chain reaction resolved
-    // in combat.tick) and run the death outcome once.
-    this._obs = scene.onBeforeRenderObservable.add(() => {
-      if (this._dead) return
-      if (owner.combat.get(this.combatId)?.destroyed) this._die()
-    })
   }
 
   /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
   damage(amount: number): CombatEvent[] {
-    if (this.owner == null || this._dead) return []
-    const events = this.owner.combat.applyDamage(this.combatId, amount)
-    if (events.some((e) => e.type === 'damaged')) this._flash()
-    return events
+    return this._behavior?.damage(amount) ?? []
   }
 
   /**
    * Set on-destruction chain links AFTER mount — chains reference other targets'
-   * combat ids, which only exist once those elements have mounted. Updates both this
-   * element and the live Destroyable in the combat world.
+   * combat ids, which only exist once those elements have mounted.
    */
   setChain(links: ChainLink[]): void {
     this.chain = links
-    const d = this.owner?.combat.get(this.combatId)
-    if (d != null) d.chain = links
-  }
-
-  // Brief white emissive flash so a non-lethal hit reads visually.
-  private _flash(): void {
-    const mat = this.mesh?.material as BABYLON.StandardMaterial | null
-    if (mat == null) return
-    mat.emissiveColor = BABYLON.Color3.White()
-    setTimeout(() => {
-      if (this.mesh != null && !this._dead) mat.emissiveColor = BABYLON.Color3.Black()
-    }, 90)
-  }
-
-  /** True once destroyed (mesh gone / exploding). Lets others skip dead targets. */
-  get dead(): boolean {
-    return this._dead
-  }
-
-  private _die(): void {
-    this._dead = true
-    const attrs = this as any
-    const scene = this.owner?.scene
-    const position =
-      this.mesh?.absolutePosition.clone() ??
-      new BABYLON.Vector3(attrs.x, attrs.y, attrs.z)
-    const info = { id: this.combatId, position }
-
-    // Notify: the bubbling event + the code hook (e.g. flip a player to 'dead').
-    this.dispatchEvent(new CustomEvent('destroyed', { bubbles: true, detail: info }))
-    this.onDeath?.(info)
-
-    // Chain-reaction blast — a SECONDARY mechanism, distinct from `chain`'s direct
-    // HP transfer: a real AOE warhead (falloff + line-of-sight) fired after a short
-    // delay, so a destroyed drum ripples out and sets off its neighbours (which may
-    // in turn blast theirs). This target is already dead, so it never damages itself.
-    if (!isOff(attrs.deathBlast) && this.owner != null) {
-      const owner = this.owner
-      const spec = {
-        damage: attrs.blastDamage,
-        fullRadius: attrs.blastFullRadius,
-        blastRadius: attrs.blastRadius,
-      }
-      const at = position.clone()
-      setTimeout(
-        () => {
-          if (owner.scene != null && !owner.scene.isDisposed)
-            detonateWarhead(owner, at, spec, true)
-        },
-        Math.max(0, attrs.blastDelay) * 1000
-      )
-    }
-
-    // Visual outcome: shatter into fragments, or just remove the mesh.
-    if (this.mesh != null) {
-      if (!isOff(attrs.explode) && scene != null) {
-        explodeMesh(this.mesh, scene, {
-          force: attrs.explodeForce,
-          disposeOriginal: true,
-        })
-      } else {
-        this.mesh.dispose()
-      }
-      this.mesh = undefined
-    }
+    this._behavior?.setChain(links)
   }
 
   sceneDispose(): void {
-    if (this._obs != null) {
-      this.owner?.scene.onBeforeRenderObservable.remove(this._obs)
-      this._obs = undefined
-    }
+    this._behavior?.dispose()
+    this._behavior = undefined
     if (this._onShift != null) {
       this.owner?.offOriginShift(this._onShift)
       this._onShift = undefined
     }
-    this.owner?.combat.remove(this.combatId)
     super.sceneDispose()
   }
 }

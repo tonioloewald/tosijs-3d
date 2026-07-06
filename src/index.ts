@@ -283,6 +283,8 @@ export type {
   CombatEvent,
 } from './destroyable'
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable'
+export { DestroyableBehavior } from './destroyable-behavior'
+export type { DeathOutcome, DestroyableHost } from './destroyable-behavior'
 export { B3dWarhead, b3dWarhead, detonateWarhead } from './b3d-warhead'
 export {
   B3dLauncher,

@@ -12,6 +12,17 @@ Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 |-----------|---------|-------------|
 | `url` | `''` | URL of the GLB/glTF file |
 | `lightIntensityScale` | `0.05` | Scale factor for imported lights |
+| `destroyable` | `'off'` | `'on'` gives the model hit points + a death outcome |
+| `capacity` / `armor` / `regenRate` / `regenDelay` | `10` / `0` / `0` / `0.5` | Combat stats (when destroyable) |
+| `explode` / `explodeForce` | `'off'` / `6` | Shatter on death (best for single-mesh models) |
+| `deathBlast` + `blastDamage`/`blastFullRadius`/`blastRadius`/`blastDelay` | `'off'` … | Fire an AOE [warhead](?b3d-warhead.ts) on death (chain-reaction mechanism) |
+
+Set `destroyable="on"` to make a loaded model take damage and die — the same
+[DestroyableBehavior](?destroyable-behavior.ts) the standalone
+[b3d-destroyable](?b3d-destroyable.ts) cube wraps, attached to the model's root. Call
+`.damage(n)`, read `.combatId`/`.dead`, or set an `.onDeath` hook. (Default death
+hides the model — the loader owns the mesh hierarchy; use `explode` for a single-mesh
+model, or remove the element to free it.)
 
 ## Demo
 
@@ -83,17 +94,56 @@ document.body.append(
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
-import { applyMaterialConventions, B3dChild } from './b3d-utils'
+import { applyMaterialConventions, B3dChild, isOff } from './b3d-utils'
+import { DestroyableBehavior } from './destroyable-behavior'
+import type { CombatEvent, ChainLink } from './destroyable'
 
 export class B3dLoader extends B3dChild {
   static initAttributes = {
     url: '',
     lightIntensityScale: 0.05,
+    // --- Make the loaded model destroyable (see destroyable-behavior). 'off' by
+    // default; set 'on' to give it hit points + a death outcome. ---
+    destroyable: 'off',
+    capacity: 10, // hit points
+    armor: 0,
+    regenRate: 0,
+    regenDelay: 0.5,
+    explode: 'off', // shatter on death (best for single-mesh models)
+    explodeForce: 6,
+    deathBlast: 'off', // AOE warhead on death (chain-reaction mechanism)
+    blastDamage: 20,
+    blastFullRadius: 1,
+    blastRadius: 4,
+    blastDelay: 0.1,
   }
 
   owner: B3d | null = null
   meshes?: BABYLON.AbstractMesh[]
   lights?: BABYLON.Light[]
+  private _behavior?: DestroyableBehavior
+  /** Set in code to react to this model's destruction (see destroyable-behavior). */
+  onDeath?: (info: { id: string; position: BABYLON.Vector3 }) => void
+
+  /** Combat id when `destroyable` is on ('' otherwise). */
+  get combatId(): string {
+    return this._behavior?.combatId ?? ''
+  }
+
+  /** True once a destroyable model has died. */
+  get dead(): boolean {
+    return this._behavior?.dead ?? false
+  }
+
+  /** Damage this model (no-op unless `destroyable` is on). */
+  damage(amount: number): CombatEvent[] {
+    return this._behavior?.damage(amount) ?? []
+  }
+
+  /** Set on-destruction direct-transfer chain links (see destroyable.ts). */
+  setChain(links: ChainLink[]): void {
+    this._behavior?.setChain(links)
+  }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     this.owner = owner
@@ -127,11 +177,48 @@ export class B3dLoader extends B3dChild {
         }
         applyMaterialConventions(meshes)
         this.owner!.register({ lights, meshes })
+        this._attachDestroyable(meshes)
       }
     )
   }
 
+  // Make the loaded model destroyable by attaching a DestroyableBehavior to its root
+  // mesh — the same behavior the standalone <tosi-b3d-destroyable> wraps around a cube.
+  private _attachDestroyable(meshes: BABYLON.AbstractMesh[]) {
+    const attrs = this as any
+    if (isOff(attrs.destroyable) || this.owner == null || meshes.length === 0) return
+    const root = meshes.find((m) => m.parent == null) ?? meshes[0]
+    this._behavior = new DestroyableBehavior(
+      this.owner,
+      { get mesh() { return root }, dispatchEvent: (e) => this.dispatchEvent(e) },
+      {
+        idBase: attrs.url?.split('/').pop()?.replace(/\.[^.]+$/, '') || 'model',
+        capacity: attrs.capacity,
+        armor: attrs.armor,
+        regenRate: attrs.regenRate,
+        regenDelay: attrs.regenDelay,
+      },
+      {
+        explode: !isOff(attrs.explode),
+        explodeForce: attrs.explodeForce,
+        deathBlast: !isOff(attrs.deathBlast),
+        blastDamage: attrs.blastDamage,
+        blastFullRadius: attrs.blastFullRadius,
+        blastRadius: attrs.blastRadius,
+        blastDelay: attrs.blastDelay,
+        // The loader owns `this.meshes`; let the behavior hide the model and we free
+        // the hierarchy in sceneDispose (avoids a double-dispose of the root).
+        meshOnDeath: 'hide',
+      }
+    )
+    this._behavior.onDeath = (info) => this.onDeath?.(info)
+    this._behavior.attach()
+    root.name = this.combatId // so warhead/aircraft lookups can find it
+  }
+
   sceneDispose() {
+    this._behavior?.dispose()
+    this._behavior = undefined
     if (this.meshes != null) {
       for (const mesh of this.meshes) {
         mesh.dispose()
