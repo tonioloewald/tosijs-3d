@@ -733,6 +733,9 @@ export class B3dBiped extends B3dControllable {
     for (const mat of named.length ? named : [...mats]) {
       mat.albedoTexture?.dispose()
       mat.albedoTexture = url ? new BABYLON.Texture(url, scene) : null
+      // Kenney character materials export as alphaMode MASK with base-color alpha 0
+      // (an FBX-import artifact) → fully clipped/invisible. They're opaque, so force it.
+      mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE
     }
   }
 
@@ -809,6 +812,15 @@ export class B3dBiped extends B3dControllable {
         this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
         this.mesh.checkCollisions = true
         owner.register({ meshes })
+        // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX
+        // artifact) render the character fully invisible; they're opaque, so fix it
+        // whether or not a `skin` is applied.
+        for (const mm of meshes) {
+          const mat = (mm as BABYLON.AbstractMesh).material
+          if (mat instanceof BABYLON.PBRMaterial && /skin/i.test(mat.name)) {
+            mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE
+          }
+        }
         this.setAnimationState(attrs.initialState)
         if (attrs.skin) this.applySkin(attrs.skin)
 
