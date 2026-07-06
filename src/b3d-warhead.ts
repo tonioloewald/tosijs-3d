@@ -121,85 +121,104 @@ export class B3dWarhead extends AbstractMesh {
    */
   detonate(center?: BABYLON.Vector3): void {
     if (this.owner == null) return
-    const scene = this.owner.scene
     const c =
       center ??
       new BABYLON.Vector3((this as any).x, (this as any).y, (this as any).z)
-
-    // Live destroyables (their mesh is named by combatId; a dead one has none).
-    const dests = Array.from(
-      this.owner.querySelectorAll('tosi-b3d-destroyable')
-    ) as B3dDestroyable[]
-    const live = dests
-      .map((el) => ({ el, mesh: scene.getMeshByName(el.combatId) }))
-      .filter((e) => e.mesh != null) as Array<{
-      el: B3dDestroyable
-      mesh: BABYLON.AbstractMesh
-    }>
-    const meshes = live.map((e) => e.mesh)
-    const useLos = !isOff(this.los)
-
-    const targets: AoeTarget[] = live.map((e) => {
-      const p = e.mesh.absolutePosition
-      return {
-        id: e.el.combatId,
-        position: { x: p.x, y: p.y, z: p.z },
-        visible: useLos ? this._hasLos(c, e.mesh, meshes) : true,
-      }
-    })
-
-    for (const hit of resolveAoe(this.spec, { x: c.x, y: c.y, z: c.z }, targets)) {
-      live.find((e) => e.el.combatId === hit.id)?.el.damage(hit.amount)
-    }
-    this._boom(c)
-  }
-
-  // A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
-  // between the blast center and the target — cubes don't shadow each other.
-  private _hasLos(
-    from: BABYLON.Vector3,
-    targetMesh: BABYLON.AbstractMesh,
-    destroyableMeshes: BABYLON.AbstractMesh[]
-  ): boolean {
-    const to = targetMesh.absolutePosition
-    const dir = to.subtract(from)
-    const dist = dir.length()
-    if (dist < 0.1) return true
-    const ray = new BABYLON.Ray(from, dir.normalize(), dist - 0.1)
-    const hit = this.owner!.scene.pickWithRay(
-      ray,
-      (m) => m.isPickable && m.name !== 'ground' && !destroyableMeshes.includes(m)
-    )
-    return !(hit != null && hit.hit)
-  }
-
-  private _boom(center: BABYLON.Vector3): void {
-    const scene = this.owner!.scene
-    const s = BABYLON.MeshBuilder.CreateSphere('boom', { diameter: 1 }, scene)
-    s.position.copyFrom(center)
-    s.isPickable = false
-    const m = new BABYLON.StandardMaterial('boom-mat', scene)
-    m.emissiveColor = new BABYLON.Color3(1, 0.55, 0.1)
-    m.disableLighting = true
-    m.alpha = 0.85
-    s.material = m
-    const peak = Math.max(1, this.blastRadius)
-    let t = 0
-    const obs = scene.onBeforeRenderObservable.add(() => {
-      t += scene.getEngine().getDeltaTime() / 1000
-      const k = t / 0.35 // 0.35s flash
-      if (k >= 1) {
-        s.dispose()
-        m.dispose()
-        scene.onBeforeRenderObservable.remove(obs)
-        return
-      }
-      s.scaling.setAll(0.3 + k * peak) // expand toward the blast radius
-      m.alpha = 0.85 * (1 - k)
-    })
+    detonateWarhead(this.owner, c, this.spec, !isOff(this.los))
   }
 }
 
 export const b3dWarhead = B3dWarhead.elementCreator({
   tag: 'tosi-b3d-warhead',
 }) as (...args: unknown[]) => B3dWarhead
+
+/**
+ * Resolve + apply an AOE blast over the scene's destroyables (LOS-gated when
+ * `useLos`) and spawn a flash. Shared by `<tosi-b3d-warhead>` and by projectiles /
+ * bombs, which fire a warhead on impact.
+ */
+export function detonateWarhead(
+  owner: B3d,
+  center: BABYLON.Vector3,
+  spec: WarheadSpec,
+  useLos = true
+): void {
+  const scene = owner.scene
+  // Live destroyables (their mesh is named by combatId; a dead one has none).
+  const dests = Array.from(
+    owner.querySelectorAll('tosi-b3d-destroyable')
+  ) as B3dDestroyable[]
+  const live = dests
+    .map((el) => ({ el, mesh: scene.getMeshByName(el.combatId) }))
+    .filter((e) => e.mesh != null) as Array<{
+    el: B3dDestroyable
+    mesh: BABYLON.AbstractMesh
+  }>
+  const meshes = live.map((e) => e.mesh)
+  const targets: AoeTarget[] = live.map((e) => {
+    const p = e.mesh.absolutePosition
+    return {
+      id: e.el.combatId,
+      position: { x: p.x, y: p.y, z: p.z },
+      visible: useLos ? hasLos(owner, center, e.mesh, meshes) : true,
+    }
+  })
+  for (const hit of resolveAoe(
+    spec,
+    { x: center.x, y: center.y, z: center.z },
+    targets
+  )) {
+    live.find((e) => e.el.combatId === hit.id)?.el.damage(hit.amount)
+  }
+  boom(scene, center, spec.blastRadius ?? 5)
+}
+
+// A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
+// between the blast center and it — cubes don't shadow each other from a blast.
+function hasLos(
+  owner: B3d,
+  from: BABYLON.Vector3,
+  targetMesh: BABYLON.AbstractMesh,
+  destroyableMeshes: BABYLON.AbstractMesh[]
+): boolean {
+  const to = targetMesh.absolutePosition
+  const dir = to.subtract(from)
+  const dist = dir.length()
+  if (dist < 0.1) return true
+  const ray = new BABYLON.Ray(from, dir.normalize(), dist - 0.1)
+  const hit = owner.scene.pickWithRay(
+    ray,
+    (m) => m.isPickable && m.name !== 'ground' && !destroyableMeshes.includes(m)
+  )
+  return !(hit != null && hit.hit)
+}
+
+// Expanding, fading flash at the blast center.
+function boom(
+  scene: BABYLON.Scene,
+  center: BABYLON.Vector3,
+  blastRadius: number
+): void {
+  const s = BABYLON.MeshBuilder.CreateSphere('boom', { diameter: 1 }, scene)
+  s.position.copyFrom(center)
+  s.isPickable = false
+  const m = new BABYLON.StandardMaterial('boom-mat', scene)
+  m.emissiveColor = new BABYLON.Color3(1, 0.55, 0.1)
+  m.disableLighting = true
+  m.alpha = 0.85
+  s.material = m
+  const peak = Math.max(1, blastRadius)
+  let t = 0
+  const obs = scene.onBeforeRenderObservable.add(() => {
+    t += scene.getEngine().getDeltaTime() / 1000
+    const k = t / 0.35
+    if (k >= 1) {
+      s.dispose()
+      m.dispose()
+      scene.onBeforeRenderObservable.remove(obs)
+      return
+    }
+    s.scaling.setAll(0.3 + k * peak)
+    m.alpha = 0.85 * (1 - k)
+  })
+}
