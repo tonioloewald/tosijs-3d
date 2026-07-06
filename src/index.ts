@@ -284,8 +284,13 @@ export type {
 } from './destroyable'
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable'
 export { B3dWarhead, b3dWarhead, detonateWarhead } from './b3d-warhead'
-export { B3dLauncher, b3dLauncher, spawnProjectile } from './b3d-launcher'
-export type { ProjectileOpts } from './b3d-launcher'
+export {
+  B3dLauncher,
+  b3dLauncher,
+  spawnProjectile,
+  spawnMissile,
+} from './b3d-launcher'
+export type { ProjectileOpts, MissileOpts } from './b3d-launcher'
 export { B3dTurret, b3dTurret } from './b3d-turret'
 export {
   steerToward,
