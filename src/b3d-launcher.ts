@@ -188,6 +188,12 @@ export interface ProjectileOpts {
    * `spawnMissile`). Omit for an unguided ballistic shell.
    */
   guide?: (state: { pos: Vec3; vel: Vec3 }, dt: number) => void
+  /**
+   * Meshes the collision ray must ignore — the FIRING entity's own geometry, so a
+   * shell/bomb spawned at/near the shooter (a bomb off the belly, guns in a climb)
+   * doesn't immediately detonate on it. Return true to skip a mesh.
+   */
+  ignore?: (m: BABYLON.AbstractMesh) => boolean
 }
 
 /**
@@ -260,7 +266,13 @@ export function spawnProjectile(
     const len = seg.length()
     if (len > 1e-4) {
       const ray = new BABYLON.Ray(from, seg.scale(1 / len), len)
-      const hit = scene.pickWithRay(ray, (m) => m.isPickable && m !== mesh)
+      const hit = scene.pickWithRay(
+        ray,
+        (m) =>
+          m.isPickable &&
+          m !== mesh &&
+          (opts.ignore == null || !opts.ignore(m))
+      )
       if (hit != null && hit.hit && hit.pickedPoint != null) {
         detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true)
         opts.onImpact?.(hit.pickedPoint)
@@ -293,6 +305,8 @@ export interface MissileOpts {
   maxLifetime?: number
   useLos?: boolean
   onImpact?: (point: BABYLON.Vector3) => void
+  /** Ignore the firing entity's own meshes on the collision ray (see ProjectileOpts). */
+  ignore?: (m: BABYLON.AbstractMesh) => boolean
 }
 
 /**
@@ -323,6 +337,7 @@ export function spawnMissile(
     maxLifetime: opts.maxLifetime ?? 8,
     useLos: opts.useLos,
     onImpact: opts.onImpact,
+    ignore: opts.ignore,
     guide: (state, dt) => {
       if (target.isDisposed()) return // lost lock — fly straight
       const tp = target.absolutePosition

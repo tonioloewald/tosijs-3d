@@ -143,6 +143,67 @@ tosi-b3d { width: 100%; height: 100%; }
 }
 ```
 
+## Combat — shoot down the drones
+
+The aircraft is armed (see [Weapons](#weapons-the-combat-slice)). Fly at the drifting
+**aerial drones** and shoot them down. Each takes a few cannon hits or one missile —
+watch a drone glow **redder as it takes damage** (the [destroyable](?b3d-destroyable.ts)
+damage readout), then explode. Missiles **lock the nearest drone in front of you**.
+
+**Keys:** `Space` / right-Shift = **guns**, `LShift` = **missile**, `F` = **bomb**.
+(Fly with W/S pitch, A/D bank, R/Q throttle.)
+
+```js
+import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+
+const aircraft = b3dAircraft({
+  library: 'vehicles', meshName: 'scout',
+  player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
+})
+
+// A squadron of aerial drone targets — they explode and fire a small death-blast, so
+// a tight formation chain-reacts. capacity 24 ≈ 3 cannon hits or one missile.
+const drones = []
+for (let i = 0; i < 14; i++) {
+  drones.push(b3dDestroyable({
+    meshName: 'drone', size: 1.6, color: '#c0c8d0', capacity: 24,
+    x: (i % 7) * 10 - 30, y: 22 + (i % 3) * 6, z: 60 + Math.floor(i / 7) * 14,
+    explode: 'on', explodeForce: 8,
+    deathBlast: 'on', blastDamage: 14, blastFullRadius: 1.5, blastRadius: 5,
+  }))
+}
+
+const scene = b3d(
+  {
+    gamepad: true,
+    sceneCreated(el) {
+      // Gently drift the drones so they're moving but very hittable.
+      let t = 0
+      el.scene.onBeforeRenderObservable.add(() => {
+        t += el.scene.getEngine().getDeltaTime() / 1000
+        drones.forEach((d, i) => {
+          if (d.dead) return
+          d.x += Math.sin(t * 0.4 + i) * 0.04
+          d.y += Math.sin(t * 0.7 + i * 2) * 0.02
+        })
+      })
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
+  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dHud({}),
+  ...drones,
+  inputFocus(gameController(), aircraft),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Flight model
 
 You're in PLANE mode (trigger = forward thrust) if you're fast enough (`vtolSpeed`)
@@ -598,6 +659,18 @@ export class B3dAircraft extends B3dControllable {
     this._missileWas = missile
   }
 
+  /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
+   * spawned at the belly (or the nose in a climb) never detonates on us. */
+  private ownMeshes(): Set<BABYLON.AbstractMesh> {
+    if (this._ownMeshes == null && this.meshNode != null) {
+      const own = new Set<BABYLON.AbstractMesh>()
+      if (this.meshNode instanceof BABYLON.AbstractMesh) own.add(this.meshNode)
+      for (const child of this.meshNode.getChildMeshes()) own.add(child)
+      this._ownMeshes = own
+    }
+    return this._ownMeshes ?? new Set()
+  }
+
   /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
   private muzzle(ahead: number, drop = 0): BABYLON.Vector3 {
     const node = this.meshNode!
@@ -616,6 +689,7 @@ export class B3dAircraft extends B3dControllable {
     this._gunCd = attrs.gunRate > 0 ? 1 / attrs.gunRate : 0
     const origin = this.muzzle(2.2) // sets this._fwd to the world nose direction
     const dir = this._fwd.clone().normalize()
+    const ignore = (m: BABYLON.AbstractMesh) => this.ownMeshes().has(m)
     spawnProjectile(this.owner, {
       origin,
       velocity: this.velocity.add(dir.scale(attrs.gunSpeed)),
@@ -624,22 +698,26 @@ export class B3dAircraft extends B3dControllable {
       radius: 0.08,
       color: '#fff2a0',
       maxLifetime: 3,
+      ignore,
     })
   }
 
-  /** Drop a bomb — it inherits the airframe's velocity and falls under gravity. */
+  /** Drop a bomb — it inherits the airframe's velocity and falls under gravity.
+   * Released a little below the belly and set to ignore our own geometry, so a bank
+   * doesn't detonate it on the wing. */
   dropBomb(): void {
     if (this.owner == null || !this.meshNode) return
     const attrs = this as any
     this._bombCd = 0.6
     spawnProjectile(this.owner, {
-      origin: this.muzzle(0, 0.6), // from the belly
+      origin: this.muzzle(0, 1.2), // clear of the belly
       velocity: this.velocity.clone(),
       warhead: { damage: attrs.bombDamage, fullRadius: 2, blastRadius: 6 },
       params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.002, mass: 4 },
       radius: 0.25,
       color: '#404040',
       maxLifetime: 12,
+      ignore: (m) => this.ownMeshes().has(m),
     })
   }
 
@@ -655,6 +733,7 @@ export class B3dAircraft extends B3dControllable {
       fullRadius: 1.5,
       blastRadius: 4,
     }
+    const ignore = (m: BABYLON.AbstractMesh) => this.ownMeshes().has(m)
     const target = this.acquireTarget(origin, dir, attrs.lockRange, attrs.lockConeDeg)
     if (target != null) {
       spawnMissile(this.owner, {
@@ -665,6 +744,7 @@ export class B3dAircraft extends B3dControllable {
         warhead: spec,
         direction: dir,
         radius: 0.18,
+        ignore,
       })
     } else {
       // No lock — fire it straight ahead as an unguided rocket.
@@ -676,6 +756,7 @@ export class B3dAircraft extends B3dControllable {
         radius: 0.18,
         color: '#ff6644',
         maxLifetime: 8,
+        ignore,
       })
     }
   }

@@ -71,6 +71,7 @@ export class DestroyableBehavior {
 
   private _dead = false
   private _obs?: BABYLON.Observer<BABYLON.Scene>
+  private _capacity: number
 
   constructor(
     private owner: B3d,
@@ -79,6 +80,7 @@ export class DestroyableBehavior {
     private death: DeathOutcome = {}
   ) {
     this.chain = spec.chain ?? []
+    this._capacity = spec.capacity
     this.combatId = `${spec.idBase ?? 'destroyable'}#${++_behaviorCount}`
   }
 
@@ -106,11 +108,15 @@ export class DestroyableBehavior {
     return this._dead
   }
 
-  /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
+  /** Hurt this target; returns the combat events from this hit (flashes + shows the
+   * accumulated-damage glow so you can read how close it is to dying). */
   damage(amount: number): CombatEvent[] {
     if (this._dead) return []
     const events = this.owner.combat.applyDamage(this.combatId, amount)
-    if (events.some((e) => e.type === 'damaged')) this._flash()
+    const hit = events.find((e) => e.type === 'damaged') as
+      | { hp: number }
+      | undefined
+    if (hit != null) this._flash(hit.hp)
     return events
   }
 
@@ -129,25 +135,30 @@ export class DestroyableBehavior {
     this.owner.combat.remove(this.combatId)
   }
 
-  // Brief white emissive flash so a non-lethal hit reads — across every material on
-  // the host mesh and its children (a GLB model has many).
-  private _flash(): void {
+  // Damage feedback: a brief white flash, then settle to a red glow that grows as hp
+  // falls — so you can SEE how close a target is to dying (full hp → no glow, near
+  // death → bright red). Applied to every material on the mesh and its children (a
+  // GLB has many); the emissive channel is used as the damage indicator.
+  private _flash(hp: number): void {
     const mesh = this.host.mesh
     if (mesh == null) return
+    const frac =
+      this._capacity > 0 ? Math.max(0, Math.min(1, hp / this._capacity)) : 1
+    const glow = 1 - frac // 0 at full hp, 1 at death
+    const damage = new BABYLON.Color3(0.65 * glow, 0.04 * glow, 0.04 * glow)
     const mats = new Set<BABYLON.Material>()
     if (mesh.material != null) mats.add(mesh.material)
     for (const c of mesh.getChildMeshes())
       if (c.material != null) mats.add(c.material)
-    const restore: Array<[any, BABYLON.Color3]> = []
     for (const m of mats) {
-      const em = (m as any).emissiveColor as BABYLON.Color3 | undefined
-      if (em == null) continue
-      restore.push([m, em.clone()])
+      if ((m as any).emissiveColor == null) continue
       ;(m as any).emissiveColor = BABYLON.Color3.White()
     }
     setTimeout(() => {
       if (this._dead) return
-      for (const [m, c] of restore) (m as any).emissiveColor = c
+      for (const m of mats)
+        if ((m as any).emissiveColor != null)
+          (m as any).emissiveColor = damage
     }, 90)
   }
 
