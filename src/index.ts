@@ -283,6 +283,7 @@ export type {
   CombatEvent,
 } from './destroyable'
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable'
+export { B3dWarhead, b3dWarhead } from './b3d-warhead'
 export { aoeFalloff, resolveAoe, dist3 } from './warhead'
 export type { WarheadSpec, AoeTarget } from './warhead'
 export { ballisticStep, predictPath } from './ballistics'
