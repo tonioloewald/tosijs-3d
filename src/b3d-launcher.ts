@@ -11,11 +11,11 @@ direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo 
 
 ## Demo
 
-**Left-click a spot on the ground (or a cube) to fire a stream of shells at it**;
-**right-drag to orbit** the view (left is reserved for aiming, so it won't spin the
-camera). Shells arc under gravity and blast the cube field — a direct hit kills, a near
-miss chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙
-panel.
+**Move the cursor to aim, hold `Space` (or `F`) to fire** a stream of shells;
+**left-drag to orbit** the view (aiming is on the cursor + fire key, so it never fights
+the camera — same on a trackpad). Shells arc under gravity and blast the cube field — a
+direct hit kills, a near miss chips the neighbours. Tune muzzle speed, fire rate, drag
+and the warhead in the ⚙ panel.
 
 ```js
 import { b3d, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
@@ -41,22 +41,24 @@ const scene = b3d(
       slider3d({ label: 'blast radius', value: s.blastRadius, min: 0.5, max: 8, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
+      const canvas = el.querySelector('canvas')
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 20, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      // Left button = aim + fire; orbit with RIGHT-drag — so aiming the gun doesn't
-      // spin the camera (the pointer's left button is left free for the scene).
-      cam.inputs.attached.pointers.buttons = [2]
+      cam.attachControl(canvas, true) // standard: left-drag orbit, wheel / pinch zoom
       el.setActiveCamera(cam)
-      // Left-click the field to aim there and fire a stream while held (the click's
-      // own pick point — reliable, same as the warhead demo). Click again to re-aim.
+      // Standard controls: MOVE the cursor to aim, HOLD Space (or F) to fire, and
+      // left-drag to orbit — so aiming never fights the camera (and it's the same on a
+      // trackpad). The aim is the ground/target point under the cursor.
+      let aim = new BABYLON.Vector3(0, 0.4, 6)
+      canvas.addEventListener('pointermove', (evt) => {
+        const p = el.scene.pick(evt.offsetX, evt.offsetY)
+        if (p.hit && p.pickedPoint) aim = p.pickedPoint.clone()
+      })
       let firing = false
-      let aim = null
-      el.scene.onPointerDown = (_e, pick) => {
-        if (pick.hit && pick.pickedPoint) { firing = true; aim = pick.pickedPoint.clone() }
-      }
-      el.scene.onPointerUp = () => { firing = false }
+      const isFire = (e) => e.code === 'Space' || e.key === 'f' || e.key === 'F'
+      window.addEventListener('keydown', (e) => { if (isFire(e)) { firing = true; e.preventDefault() } })
+      window.addEventListener('keyup', (e) => { if (isFire(e)) firing = false })
       el.scene.onBeforeRenderObservable.add(() => {
-        if (!firing || !aim) return
+        if (!firing) return
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
         launcher.drag = s.drag.value
@@ -91,7 +93,9 @@ hard-turning target.
 import { b3d, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { s } = tosi({ s: { missileSpeed: 20, turnRate: 3, fireRate: 1.5 } })
+// fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
+// air at once, chasing the target together before it's destroyed.
+const { s } = tosi({ s: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
 
 const scene = b3d(
@@ -112,7 +116,7 @@ const scene = b3d(
       // Respawn the target on death at a fresh (hittable) altitude.
       const spawn = () => {
         baseY = 3 + Math.random() * 7 // ~3–10m: high enough to lead, low enough to reach
-        const t = b3dDestroyable({ meshName: 'drone', x: 12, y: baseY, z: 0, size: 1.4, capacity: 18, color: '#3388dd', explode: 'on' })
+        const t = b3dDestroyable({ meshName: 'drone', x: 12, y: baseY, z: 0, size: 1.4, capacity: 40, color: '#3388dd', explode: 'on' })
         el.appendChild(t)
         return t
       }
