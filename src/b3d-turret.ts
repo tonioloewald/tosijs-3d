@@ -12,8 +12,9 @@ you can watch it acquire, lead, and open up.
 
 A target cube **orbits** the turret; the turret tracks it, **leads** the crossing
 motion, and fires when aligned (barrel glows red when it can bear). Shots arc in and
-blast the target. Tune traverse speed, range, fire rate and lead in the ⚙ panel — drop
-the traverse rate and watch it struggle to keep up with the crossing target.
+blast the target — which **respawns at a fresh altitude** each time it's destroyed. Tune
+traverse speed, range, fire rate and lead in the ⚙ panel — drop the traverse rate and
+watch it struggle to keep up with the crossing target.
 
 ```js
 import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
@@ -21,7 +22,6 @@ import { tosi } from 'tosijs'
 
 const { s } = tosi({ s: { traverseRate: 2.5, range: 30, fireRate: 2, muzzleSpeed: 35 } })
 const turret = b3dTurret({ x: 0, y: 0, z: 0, traverseRate: s.traverseRate, range: s.range, fireRate: s.fireRate, muzzleSpeed: s.muzzleSpeed })
-const target = b3dDestroyable({ x: 12, y: 2, z: 0, size: 1, capacity: 60, color: '#3388dd' })
 
 const scene = b3d(
   {
@@ -34,21 +34,35 @@ const scene = b3d(
       slider3d({ label: 'muzzle speed', value: s.muzzleSpeed, min: 15, max: 60, step: 1 }),
     ],
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.2, Math.PI / 3.2, 34, new BABYLON.Vector3(0, 2, 0), el.scene)
+      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.2, Math.PI / 3.2, 34, new BABYLON.Vector3(0, 3, 0), el.scene)
       cam.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(cam)
       let a = 0
+      let target = null, baseY = 4
+      // Respawn on death at a fresh altitude the turret can still bear on.
+      const spawn = () => {
+        baseY = 3 + Math.random() * 8 // ~3–11m, within the turret's reach
+        const t = b3dDestroyable({ meshName: 'drone', x: 12, y: baseY, z: 0, size: 1.3, capacity: 24, color: '#3388dd', explode: 'on' })
+        el.appendChild(t)
+        return t
+      }
+      target = spawn()
+      el.addEventListener('destroyed', () => {
+        const dead = target; target = null
+        if (dead) dead.remove()
+        setTimeout(() => { target = spawn() }, 500)
+      })
       el.scene.onBeforeRenderObservable.add(() => {
         turret.traverseRate = s.traverseRate.value
         turret.range = s.range.value
         turret.fireRate = s.fireRate.value
         turret.muzzleSpeed = s.muzzleSpeed.value
-        // orbit the target
         a += el.scene.getEngine().getDeltaTime() / 1000
+        if (!target || target.dead || !target.mesh) return
         target.x = Math.cos(a * 0.6) * 12
         target.z = Math.sin(a * 0.6) * 12
-        target.y = 2 + Math.sin(a * 1.3) * 1.2
-        if (target.mesh) turret.track(target.mesh)
+        target.y = baseY + Math.sin(a * 1.3) * 1.2
+        turret.track(target.mesh)
       })
     },
   },
@@ -56,7 +70,6 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 10 }),
   b3dGround({ width: 60, height: 60, color: '#5a6b52' }),
   turret,
-  target,
 )
 preview.append(scene)
 ```
