@@ -41,24 +41,21 @@ const scene = b3d(
       slider3d({ label: 'blast radius', value: s.blastRadius, min: 0.5, max: 8, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      const canvas = el.querySelector('canvas')
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 20, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(canvas, true) // standard: left-drag orbit, wheel / pinch zoom
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true) // left-drag orbit, wheel zoom
       el.setActiveCamera(cam)
       // Standard controls: MOVE the cursor to aim, HOLD Space (or F) to fire, and
-      // left-drag to orbit — so aiming never fights the camera (and it's the same on a
-      // trackpad). The aim is the ground/target point under the cursor.
-      let aim = new BABYLON.Vector3(0, 0.4, 6)
-      canvas.addEventListener('pointermove', (evt) => {
-        const p = el.scene.pick(evt.offsetX, evt.offsetY)
-        if (p.hit && p.pickedPoint) aim = p.pickedPoint.clone()
-      })
+      // left-drag to orbit — so aiming never fights the camera (same on a trackpad).
+      // Aim is the point under the cursor each frame (fall back to the field centre).
+      const fieldCentre = new BABYLON.Vector3(0, 0.4, 6)
       let firing = false
       const isFire = (e) => e.code === 'Space' || e.key === 'f' || e.key === 'F'
       window.addEventListener('keydown', (e) => { if (isFire(e)) { firing = true; e.preventDefault() } })
       window.addEventListener('keyup', (e) => { if (isFire(e)) firing = false })
       el.scene.onBeforeRenderObservable.add(() => {
         if (!firing) return
+        const p = el.scene.pick(el.scene.pointerX, el.scene.pointerY)
+        const aim = p && p.hit && p.pickedPoint ? p.pickedPoint : fieldCentre
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
         launcher.drag = s.drag.value
