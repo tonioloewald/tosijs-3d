@@ -42,20 +42,19 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 20, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true) // left-drag orbit, wheel zoom
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
       el.setActiveCamera(cam)
-      // Standard controls: MOVE the cursor to aim, HOLD Space (or F) to fire, and
-      // left-drag to orbit — so aiming never fights the camera (same on a trackpad).
-      // Aim is the point under the cursor each frame (fall back to the field centre).
-      const fieldCentre = new BABYLON.Vector3(0, 0.4, 6)
+      // Click a spot to fire a stream of shells at it (exactly the pointer trigger the
+      // guided-missile demo uses — a plain scene.onPointerDown pick). Hold to keep
+      // firing at that point; drag orbits the view.
       let firing = false
-      const isFire = (e) => e.code === 'Space' || e.key === 'f' || e.key === 'F'
-      window.addEventListener('keydown', (e) => { if (isFire(e)) { firing = true; e.preventDefault() } })
-      window.addEventListener('keyup', (e) => { if (isFire(e)) firing = false })
+      let aim = null
+      el.scene.onPointerDown = (_e, pick) => {
+        if (pick.hit && pick.pickedPoint) { firing = true; aim = pick.pickedPoint.clone() }
+      }
+      el.scene.onPointerUp = () => { firing = false }
       el.scene.onBeforeRenderObservable.add(() => {
-        if (!firing) return
-        const p = el.scene.pick(el.scene.pointerX, el.scene.pointerY)
-        const aim = p && p.hit && p.pickedPoint ? p.pickedPoint : fieldCentre
+        if (!firing || !aim) return
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
         launcher.drag = s.drag.value
