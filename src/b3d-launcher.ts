@@ -11,9 +11,10 @@ direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo 
 
 ## Demo
 
-**Click-and-hold over the ground to aim and fire** a stream of shells downrange. They
-arc under gravity and blast the cube field — a direct hit kills, a near miss chips the
-neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.
+**Click a spot on the ground (or a cube) to fire a stream of shells at it** — hold and
+drag to walk your aim across the field. They arc under gravity and blast the cube field
+— a direct hit kills, a near miss chips the neighbours. Tune muzzle speed, fire rate,
+drag and the warhead in the ⚙ panel.
 
 ```js
 import { b3d, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
@@ -42,19 +43,25 @@ const scene = b3d(
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 20, new BABYLON.Vector3(0, 0.5, 0), el.scene)
       cam.attachControl(el.querySelector('canvas'), true)
       el.setActiveCamera(cam)
+      // Aim from the click's OWN pick (reliable — same as the warhead demo), then
+      // fire a stream toward that point while held. Click elsewhere to re-aim.
       let firing = false
-      el.scene.onPointerDown = (_e, pick) => { if (pick.hit) firing = true }
+      let aim = null
+      el.scene.onPointerDown = (_e, pick) => {
+        if (pick.hit && pick.pickedPoint) { firing = true; aim = pick.pickedPoint.clone() }
+      }
+      el.scene.onPointerMove = (_e, pick) => {
+        if (firing && pick.hit && pick.pickedPoint) aim = pick.pickedPoint.clone()
+      }
       el.scene.onPointerUp = () => { firing = false }
       el.scene.onBeforeRenderObservable.add(() => {
-        if (!firing) return
-        const p = el.scene.pick(el.scene.pointerX, el.scene.pointerY, (m) => m.name === 'ground')
-        if (!p || !p.hit || !p.pickedPoint) return
+        if (!firing || !aim) return
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
         launcher.drag = s.drag.value
         launcher.damage = s.damage.value
         launcher.blastRadius = s.blastRadius.value
-        launcher.fire(p.pickedPoint.subtract(launcher.muzzle()))
+        launcher.fire(aim.subtract(launcher.muzzle()))
       })
     },
   },
