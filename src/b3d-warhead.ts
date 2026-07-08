@@ -11,24 +11,30 @@ you can also place one and detonate it directly.
 
 ## Demo
 
-**Click the ground** to set off a blast there. Cubes inside the radius take falloff
-damage (they flash, and die at 0 hp); the **wall blocks line of sight**, so cubes
-behind it are spared. Tune the blast in the ⚙ panel.
+**Steer the reticle with A/D + W/S (left stick / VR), press `F` (glass fire button / an
+XR trigger) to detonate there** — the [standard controller](?b3d-controller.ts). Cubes
+inside the radius take falloff damage (they flash, and die at 0 hp); the **wall blocks
+line of sight**, so parking the reticle behind it spares the cubes there. Tune the blast
+in the ⚙ panel.
 
 ```js
-import { b3d, b3dWarhead, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dController, b3dWarhead, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { s } = tosi({ s: { damage: 20, fullRadius: 1.5, blastRadius: 5, los: true } })
-const warhead = b3dWarhead({ damage: s.damage, fullRadius: s.fullRadius, blastRadius: s.blastRadius })
+const warhead = b3dWarhead({ y: 0.4, damage: s.damage, fullRadius: s.fullRadius, blastRadius: s.blastRadius })
 
 const targets = []
 for (let i = 0; i < 24; i++) {
   targets.push(b3dDestroyable({ x: (i % 6) * 1.4 - 3.5, y: 0.4, z: Math.floor(i / 6) * 1.4 - 2, size: 0.8, capacity: 8, color: '#cc4444' }))
 }
 
+// Shared reticle position + shoot edge, reachable by both sceneCreated and onInput.
+const state = { rx: 0, rz: -3, shootWas: false }
+
 const scene = b3d(
   {
+    gamepad: true,
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Warhead', bold: true }),
@@ -39,7 +45,7 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.3, Math.PI / 3, 16, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
       el.setActiveCamera(cam)
       // a wall for line-of-sight blocking
       const wall = BABYLON.MeshBuilder.CreateBox('wall', { width: 6, height: 2.5, depth: 0.4 }, el.scene)
@@ -47,20 +53,37 @@ const scene = b3d(
       const wm = new BABYLON.StandardMaterial('wm', el.scene)
       wm.diffuseColor = new BABYLON.Color3(0.4, 0.42, 0.48)
       wall.material = wm
-      el.scene.onPointerDown = (_e, pick) => {
-        if (pick.hit && pick.pickedPoint) {
-          warhead.damage = s.damage.value
-          warhead.fullRadius = s.fullRadius.value
-          warhead.blastRadius = s.blastRadius.value
-          warhead.los = s.los.value ? 'on' : 'off'
-          warhead.detonate(pick.pickedPoint)
-        }
-      }
+      // a glowing reticle you steer across the ground
+      const reticle = BABYLON.MeshBuilder.CreateTorus('reticle', { diameter: 1.3, thickness: 0.12 }, el.scene)
+      reticle.isPickable = false
+      const rmat = new BABYLON.StandardMaterial('rmat', el.scene)
+      rmat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.2)
+      rmat.disableLighting = true
+      reticle.material = rmat
+      el.scene.onBeforeRenderObservable.add(() => reticle.position.set(state.rx, 0.05, state.rz))
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dGround({ width: 30, height: 30, color: '#5a6b52' }),
+  b3dController({
+    mapping: 'biped',
+    onInput(input, dt) {
+      state.rx = Math.max(-6, Math.min(6, state.rx + input.turn * 7 * dt)) // A/D
+      state.rz = Math.max(-5, Math.min(6, state.rz + input.forward * 7 * dt)) // W/S
+      const shoot = input.shoot > 0.5
+      if (shoot && !state.shootWas) {
+        warhead.damage = s.damage.value
+        warhead.fullRadius = s.fullRadius.value
+        warhead.blastRadius = s.blastRadius.value
+        warhead.los = s.los.value ? 'on' : 'off'
+        warhead.x = state.rx
+        warhead.z = state.rz
+        warhead.detonate() // blast at the reticle (F · glass button · XR trigger)
+      }
+      state.shootWas = shoot
+    },
+  }),
   warhead,
   ...targets,
 )

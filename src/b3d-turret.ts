@@ -10,21 +10,25 @@ you can watch it acquire, lead, and open up.
 
 ## Demo
 
-A target cube **orbits** the turret; the turret tracks it, **leads** the crossing
-motion, and fires when aligned (barrel glows red when it can bear). Shots arc in and
-blast the target — which **respawns at a fresh altitude** each time it's destroyed. Tune
-traverse speed, range, fire rate and lead in the ⚙ panel — drop the traverse rate and
-watch it struggle to keep up with the crossing target.
+A drone **orbits** the turret; the turret tracks it, **leads** the crossing motion, and
+fires when aligned (barrel glows red when it can bear). **Steer the drone with A/D + W/S
+(left stick / VR)** to shift its orbit and try to dodge — the turret hunts it and blasts
+it, and it **respawns at a fresh altitude** each time. Tune traverse speed, range, fire
+rate and lead in the ⚙ panel — drop the traverse rate and watch it struggle to keep up.
 
 ```js
-import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dController, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 const { s } = tosi({ s: { traverseRate: 2.5, range: 30, fireRate: 2, muzzleSpeed: 35 } })
 const turret = b3dTurret({ x: 0, y: 0, z: 0, traverseRate: s.traverseRate, range: s.range, fireRate: s.fireRate, muzzleSpeed: s.muzzleSpeed })
 
+// Shared so the orbit loop and the controller (which steers the drone) both reach it.
+const state = { target: null, offX: 0, offZ: 0 }
+
 const scene = b3d(
   {
+    gamepad: true,
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Turret', bold: true }),
@@ -35,10 +39,9 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.2, Math.PI / 3.2, 34, new BABYLON.Vector3(0, 3, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
       el.setActiveCamera(cam)
-      let a = 0
-      let target = null, baseY = 4
+      let a = 0, baseY = 4
       // Respawn on death at a fresh altitude the turret can still bear on.
       const spawn = () => {
         baseY = 3 + Math.random() * 8 // ~3–11m, within the turret's reach
@@ -46,11 +49,11 @@ const scene = b3d(
         el.appendChild(t)
         return t
       }
-      target = spawn()
+      state.target = spawn()
       el.addEventListener('destroyed', () => {
-        const dead = target; target = null
+        const dead = state.target; state.target = null
         if (dead) dead.remove()
-        setTimeout(() => { target = spawn() }, 500)
+        setTimeout(() => { state.target = spawn() }, 500)
       })
       el.scene.onBeforeRenderObservable.add(() => {
         turret.traverseRate = s.traverseRate.value
@@ -58,17 +61,26 @@ const scene = b3d(
         turret.fireRate = s.fireRate.value
         turret.muzzleSpeed = s.muzzleSpeed.value
         a += el.scene.getEngine().getDeltaTime() / 1000
-        if (!target || target.dead || !target.mesh) return
-        target.x = Math.cos(a * 0.6) * 12
-        target.z = Math.sin(a * 0.6) * 12
-        target.y = baseY + Math.sin(a * 1.3) * 1.2
-        turret.track(target.mesh)
+        const t = state.target
+        if (!t || t.dead || !t.mesh) return
+        t.x = Math.cos(a * 0.6) * 10 + state.offX
+        t.z = Math.sin(a * 0.6) * 10 + state.offZ
+        t.y = baseY + Math.sin(a * 1.3) * 1.2
+        turret.track(t.mesh)
       })
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dGround({ width: 60, height: 60, color: '#5a6b52' }),
+  b3dController({
+    mapping: 'biped',
+    onInput(input, dt) {
+      // Steer the drone's orbit centre to dodge (A/D + W/S · stick · VR).
+      state.offX = Math.max(-9, Math.min(9, state.offX + input.turn * 10 * dt))
+      state.offZ = Math.max(-9, Math.min(9, state.offZ + input.forward * 10 * dt))
+    },
+  }),
   turret,
 )
 preview.append(scene)

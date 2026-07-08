@@ -11,26 +11,28 @@ direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo 
 
 ## Demo
 
-**Move the cursor to aim, hold `Space` (or `F`) to fire** a stream of shells;
-**left-drag to orbit** the view (aiming is on the cursor + fire key, so it never fights
-the camera — same on a trackpad). Shells arc under gravity and blast the cube field — a
-direct hit kills, a near miss chips the neighbours. Tune muzzle speed, fire rate, drag
-and the warhead in the ⚙ panel.
+**Steer the gun with A/D (left stick / VR), hold `F` (glass fire button / an XR
+trigger) to fire** a stream of shells — the [standard controller](?b3d-controller.ts),
+so the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
+Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
+chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.
 
 ```js
-import { b3d, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { s } = tosi({ s: { muzzleSpeed: 26, fireRate: 5, drag: 0.01, damage: 20, blastRadius: 3 } })
+const { s } = tosi({ s: { muzzleSpeed: 30, fireRate: 5, drag: 0.01, damage: 20, blastRadius: 3 } })
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: -8, muzzleSpeed: s.muzzleSpeed })
 
+// A wide, shallow field so steering the gun left/right sweeps across it.
 const targets = []
-for (let i = 0; i < 30; i++) {
-  targets.push(b3dDestroyable({ x: (i % 6) * 1.6 - 4, y: 0.4, z: Math.floor(i / 6) * 1.6 + 2, size: 0.8, capacity: 10, color: '#cc4444' }))
+for (let i = 0; i < 24; i++) {
+  targets.push(b3dDestroyable({ x: (i % 8) * 1.5 - 5.25, y: 0.4, z: Math.floor(i / 8) * 1.6, size: 0.8, capacity: 10, color: '#cc4444' }))
 }
 
 const scene = b3d(
   {
+    gamepad: true,
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Launcher', bold: true }),
@@ -44,29 +46,25 @@ const scene = b3d(
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 20, new BABYLON.Vector3(0, 0.5, 0), el.scene)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
       el.setActiveCamera(cam)
-      // Click a spot to fire a stream of shells at it (exactly the pointer trigger the
-      // guided-missile demo uses — a plain scene.onPointerDown pick). Hold to keep
-      // firing at that point; drag orbits the view.
-      let firing = false
-      let aim = null
-      el.scene.onPointerDown = (_e, pick) => {
-        if (pick.hit && pick.pickedPoint) { firing = true; aim = pick.pickedPoint.clone() }
-      }
-      el.scene.onPointerUp = () => { firing = false }
-      el.scene.onBeforeRenderObservable.add(() => {
-        if (!firing || !aim) return
-        launcher.muzzleSpeed = s.muzzleSpeed.value
-        launcher.fireRate = s.fireRate.value
-        launcher.drag = s.drag.value
-        launcher.damage = s.damage.value
-        launcher.blastRadius = s.blastRadius.value
-        launcher.fire(aim.subtract(launcher.muzzle()))
-      })
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dGround({ width: 40, height: 40, color: '#5a6b52' }),
+  b3dController({
+    mapping: 'biped',
+    onInput(input, dt) {
+      launcher.ry -= input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
+      if (input.shoot > 0.5) {
+        launcher.muzzleSpeed = s.muzzleSpeed.value
+        launcher.fireRate = s.fireRate.value
+        launcher.drag = s.drag.value
+        launcher.damage = s.damage.value
+        launcher.blastRadius = s.blastRadius.value
+        launcher.fire() // fire where the barrel points (F · glass button · XR trigger)
+      }
+    },
+  }),
   launcher,
   ...targets,
 )
@@ -80,13 +78,13 @@ tosi-b3d { width: 100%; height: 100%; }
 
 `fireAt(targetMesh)` launches a **homing** missile instead of a dumb shell — it leads
 the target and curves onto it (pure `interceptLead` + `steerToward`), holding
-`missileSpeed`, turning within `turnRate`. **Click-and-hold to loose missiles** at the
-orbiting cube; they bend to chase it and detonate on contact. The target **respawns at a
-fresh altitude** each time you destroy it. Drop `turnRate` and watch them overshoot a
-hard-turning target.
+`missileSpeed`, turning within `turnRate`. **Hold `F` (glass fire button / an XR
+trigger) to loose missiles** at the orbiting cube; they bend to chase it and detonate on
+contact. The target **respawns at a fresh altitude** each time you destroy it. Drop
+`turnRate` and watch them overshoot a hard-turning target.
 
 ```js
-import { b3d, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 // fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
@@ -94,8 +92,12 @@ import { tosi } from 'tosijs'
 const { s } = tosi({ s: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
 
+// Shared so the orbit loop (in sceneCreated) and the controller's onInput both reach it.
+const state = { target: null }
+
 const scene = b3d(
   {
+    gamepad: true,
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Missile', bold: true }),
@@ -105,10 +107,9 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.2, Math.PI / 3, 30, new BABYLON.Vector3(0, 4, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
       el.setActiveCamera(cam)
-      let firing = false, a = 0
-      let target = null, baseY = 4
+      let a = 0, baseY = 4
       // Respawn the target on death at a fresh (hittable) altitude.
       const spawn = () => {
         baseY = 3 + Math.random() * 7 // ~3–10m: high enough to lead, low enough to reach
@@ -116,32 +117,37 @@ const scene = b3d(
         el.appendChild(t)
         return t
       }
-      target = spawn()
+      state.target = spawn()
       el.addEventListener('destroyed', () => {
-        const dead = target; target = null
+        const dead = state.target; state.target = null
         if (dead) dead.remove()
-        setTimeout(() => { target = spawn() }, 400)
+        setTimeout(() => { state.target = spawn() }, 400)
       })
-      el.scene.onPointerDown = (_e, pick) => { if (pick.hit) firing = true }
-      el.scene.onPointerUp = () => { firing = false }
       el.scene.onBeforeRenderObservable.add(() => {
         a += el.scene.getEngine().getDeltaTime() / 1000
-        if (!target || target.dead || !target.mesh) return
-        target.x = Math.cos(a * 0.7) * 12
-        target.z = Math.sin(a * 0.7) * 12
-        target.y = baseY + Math.sin(a * 1.5) * 1.2
-        if (firing) {
-          launcher.missileSpeed = s.missileSpeed.value
-          launcher.turnRate = s.turnRate.value
-          launcher.fireRate = s.fireRate.value
-          launcher.fireAt(target.mesh)
-        }
+        const t = state.target
+        if (!t || t.dead || !t.mesh) return
+        t.x = Math.cos(a * 0.7) * 12
+        t.z = Math.sin(a * 0.7) * 12
+        t.y = baseY + Math.sin(a * 1.5) * 1.2
       })
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dGround({ width: 50, height: 50, color: '#5a6b52' }),
+  b3dController({
+    mapping: 'biped',
+    onInput(input) {
+      const t = state.target
+      if (input.shoot > 0.5 && t && !t.dead && t.mesh) {
+        launcher.missileSpeed = s.missileSpeed.value
+        launcher.turnRate = s.turnRate.value
+        launcher.fireRate = s.fireRate.value
+        launcher.fireAt(t.mesh) // launch a homing missile (F · glass button · XR trigger)
+      }
+    },
+  }),
   launcher,
 )
 preview.append(scene)
