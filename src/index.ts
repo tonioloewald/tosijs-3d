@@ -135,6 +135,7 @@ export type { ControlInput, InputProvider } from './control-input'
 export { emptyInput, CompositeInputProvider } from './control-input'
 export { XRInputProvider } from './xr-input-provider'
 export { B3dControllable } from './b3d-controllable'
+export { B3dController, b3dController } from './b3d-controller'
 
 // Virtual gamepad system
 export type {

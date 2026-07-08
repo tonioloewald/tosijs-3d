@@ -432,6 +432,22 @@ export class B3d extends Component {
   glowLayer?: BABYLON.GlowLayer
   xrHelper?: BABYLON.WebXRDefaultExperience
   xrActive = false
+
+  // The scene the pointer last entered / pressed — so that when a page hosts several
+  // live demos, global keyboard/gamepad input only drives the one you're interacting
+  // with (see `hasInputFocus`). Null until the first interaction (then everything is
+  // "focused", i.e. a lone demo just works).
+  private static _active: B3d | null = null
+  /** True when this scene should consume shared keyboard/gamepad input — it's the
+   * active (last hovered/clicked) scene, or none has been touched yet. Controllables
+   * gate their input on this so one gamepad doesn't drive every demo on a page. */
+  get hasInputFocus(): boolean {
+    return B3d._active === null || B3d._active === this
+  }
+  /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
+  takeInputFocus(): void {
+    B3d._active = this
+  }
   /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
    * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
   xrFrames: XrFrames | null = null
@@ -791,6 +807,10 @@ export class B3d extends Component {
     super.connectedCallback()
     const cnv = this.parts.canvas as HTMLCanvasElement
     cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
+    // Input focus follows the pointer: hovering or pressing this scene makes it the
+    // one shared keyboard/gamepad input drives (see hasInputFocus).
+    cnv.addEventListener('pointerenter', () => this.takeInputFocus())
+    cnv.addEventListener('pointerdown', () => this.takeInputFocus())
     this.engine = new BABYLON.Engine(cnv, true, {
       preserveDrawingBuffer: true,
       stencil: true,
@@ -964,7 +984,13 @@ export class B3d extends Component {
       inputMappedProvider?: { addSource(s: unknown): void }
       focused?: { mesh?: BABYLON.AbstractMesh }
     } | null
-    focus?.inputMappedProvider?.addSource(new XrGamepadSource(controllers))
+    const xrSource = new XrGamepadSource(controllers)
+    focus?.inputMappedProvider?.addSource(xrSource)
+    // Standalone <tosi-b3d-controller>s self-wire their own input, so feed them the XR
+    // controllers too (same VirtualGamepad spine — the VR sticks/triggers drive them).
+    for (const c of Array.from(this.querySelectorAll('tosi-b3d-controller'))) {
+      ;(c as any).inputMappedProvider?.addSource(xrSource)
+    }
     // The default experience enables teleportation; we drive locomotion
     // ourselves, so remove it to stop the thumbstick fighting our movement.
     try {
@@ -1673,6 +1699,7 @@ export class B3d extends Component {
   }
 
   disconnectedCallback(): void {
+    if (B3d._active === this) B3d._active = null
     if (this._qualityOff) {
       this._qualityOff()
       this._qualityOff = null

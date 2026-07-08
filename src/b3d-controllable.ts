@@ -18,6 +18,7 @@ The base class handles the update loop: poll input → apply input.
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
+import { emptyInput } from './control-input'
 import type { ControlInput, InputProvider } from './control-input'
 import type { InputMapping } from './virtual-gamepad'
 
@@ -60,7 +61,11 @@ export class B3dControllable extends AbstractMesh {
     this.lastUpdate = now
 
     if (this.inputProvider == null) return
-    const input = this.inputProvider.poll(dt)
+    // Scene input focus: when a page hosts multiple demos, only the active (last
+    // hovered/clicked) scene consumes the shared keyboard/gamepad — an unfocused
+    // scene sees neutral input so it idles instead of being driven in the background.
+    const focused = this.owner?.hasInputFocus ?? true
+    const input = focused ? this.inputProvider.poll(dt) : emptyInput()
     this.lastInput = input
     this.applyInput(input, dt)
   }

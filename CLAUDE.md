@@ -101,6 +101,9 @@ Input is abstracted through a layered system:
 - **`CompositeInputProvider`** — merges multiple providers (e.g., keyboard + XR sticks)
 - **`B3dControllable`** — base class for any entity that accepts `ControlInput` (biped, car, etc.)
 - **`B3dInputFocus`** (`inputFocus()`) — routes input to the active controllable entity and handles vehicle enter/exit via the `interact` action
+- **`B3dController`** (`b3dController()`) — the **casual** path: a bodyless `B3dControllable` that self-wires the whole standard stack (keyboard/mouse + glass gamepad + hardware pad + XR controllers) and hands you the merged `ControlInput` each frame via an `onInput(input, dt)` callback. Use it instead of hand-rolling per-demo key/pointer listeners (that was the source of the launcher-demo "gun won't fire" churn). Put it inside an `inputFocus` only if you want that manager to drive it.
+
+**Scene input focus (multi-demo scoping).** Keyboard/hardware gamepad sources listen on `window` (global), so a page with several live `<tosi-b3d>` demos would have one keypress drive them all. Fix: `B3d` tracks the **active scene** — the one the pointer last entered/pressed (`takeInputFocus()`, `hasInputFocus`) — and `B3dControllable._update` feeds an unfocused scene `emptyInput()` so it idles. A lone demo (nothing focused yet) still just works. This is a demo/authoring concern, not a runtime-world one.
 
 ### Gamepad Architecture
 
