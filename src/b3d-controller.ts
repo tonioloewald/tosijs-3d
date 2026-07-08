@@ -117,7 +117,10 @@ export class B3dController extends B3dControllable {
     if (this.closest('tosi-b3d-input-focus') == null) {
       const gc = gameController() as unknown as GameController
       this._gc = gc
-      this.appendChild(gc as unknown as Node) // connects → attaches its listeners
+      // Append to the b3d host (the proven place for a gameController child) rather
+      // than to ourselves, so nothing about our own element lifecycle can strip it —
+      // it just needs to be connected to attach its window key/mouse listeners.
+      ;(owner as unknown as HTMLElement).appendChild(gc as unknown as Node)
       const provider = gc.getInputProvider(this.inputMapping)
       const glass = owner.querySelector(
         'tosi-b3d-gamepad'

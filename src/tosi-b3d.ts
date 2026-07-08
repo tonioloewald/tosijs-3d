@@ -807,10 +807,12 @@ export class B3d extends Component {
     super.connectedCallback()
     const cnv = this.parts.canvas as HTMLCanvasElement
     cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
-    // Input focus follows the pointer: hovering or pressing this scene makes it the
-    // one shared keyboard/gamepad input drives (see hasInputFocus).
-    cnv.addEventListener('pointerenter', () => this.takeInputFocus())
-    cnv.addEventListener('pointerdown', () => this.takeInputFocus())
+    // Input focus follows the pointer: hovering or pressing anywhere in this scene
+    // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
+    // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
+    // on the host so overlay interaction counts; pointerdown bubbles from any child.
+    this.addEventListener('pointerenter', () => this.takeInputFocus())
+    this.addEventListener('pointerdown', () => this.takeInputFocus())
     this.engine = new BABYLON.Engine(cnv, true, {
       preserveDrawingBuffer: true,
       stencil: true,
