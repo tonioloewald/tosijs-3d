@@ -4,7 +4,7 @@
 The **casual way to read the standard controller.** Drop a `<tosi-b3d-controller>` into
 a scene and it self-wires the whole unified input stack — keyboard/mouse, the on-screen
 glass gamepad, a hardware gamepad, and (in a headset) the XR controllers — then hands
-you a merged [`ControlInput`](?control-input.ts) every frame via `onInput`. No
+you a merged [`ControlInput`](?control-input.ts) every frame via `drive`. No
 `inputFocus` + `gameController` boilerplate, no bespoke key listeners: just read
 `input.forward` / `input.turn` / `input.shoot` / … and drive whatever you like.
 
@@ -14,9 +14,9 @@ hovering/interacting with receives input (one gamepad no longer drives them all)
 
 ## Demo
 
-**Steer the launcher with A/D (or the left stick / VR), and press `F` (or the glass
-gamepad's fire button / an XR trigger) to fire** at the cube field. Same controls on
-keyboard, touch, and in VR — because it's the standard controller, not a demo hack.
+**Steer the launcher with A/D (or the left stick), and pull the right trigger (or `F` /
+the glass B button) to fire** at the cube field. Same controls on keyboard, touch, and
+in VR — because it's the standard controller, not a demo hack.
 
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
@@ -41,9 +41,9 @@ const scene = b3d(
   b3dGround({ width: 40, height: 40, color: '#5a6b52' }),
   b3dController({
     mapping: 'biped',
-    onInput(input, dt) {
+    drive(input, dt) {
       launcher.ry -= input.turn * dt * 70 // steer the barrel (A/D / left stick)
-      if (input.shoot > 0.5) launcher.fire() // fire where it points (F / button / trigger)
+      if (input.shoot > 0.5 || input.sprint > 0.5) launcher.fire() // fire (F / B button / right trigger)
     },
   }),
   launcher,
@@ -60,7 +60,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `mapping` | `'biped'` | Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'` |
-| `onInput` | — | `(input: ControlInput, dt: number) => void`, called each frame with the merged input (set in code / via the creator) |
+| `drive` | — | `(input: ControlInput, dt: number) => void`, called each frame with the merged input (set in code / via the creator). Named `drive`, not `onInput` — `on*` props become DOM event listeners |
 
 Put it inside a `<tosi-b3d-input-focus>` only if you want that manager to drive it
 instead — on its own it wires input itself.
@@ -101,8 +101,12 @@ export class B3dController extends B3dControllable {
    * Called every frame with the merged `ControlInput` and `dt` — THE seam. Set in
    * code or via the element creator. Read `input.forward/turn/shoot/…` and drive
    * anything (a launcher, a custom rig, an experiment).
+   *
+   * NOTE: deliberately NOT named `onInput` — the element creator treats `on*` props as
+   * DOM event listeners, so an `onInput` prop would silently become an `input`-event
+   * handler and never be called here.
    */
-  onInput: ((input: ControlInput, dt: number) => void) | null = null
+  drive: ((input: ControlInput, dt: number) => void) | null = null
 
   /** The merged input provider — exposed so the XR rig can add its controller source. */
   inputMappedProvider: MappedInputProvider | null = null
@@ -133,7 +137,7 @@ export class B3dController extends B3dControllable {
   }
 
   applyInput(input: ControlInput, dt: number): void {
-    this.onInput?.(input, dt)
+    this.drive?.(input, dt)
   }
 
   sceneDispose(): void {

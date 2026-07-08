@@ -11,8 +11,8 @@ you can also place one and detonate it directly.
 
 ## Demo
 
-**Steer the reticle with A/D + W/S (left stick / VR), press `F` (glass fire button / an
-XR trigger) to detonate there** — the [standard controller](?b3d-controller.ts). Cubes
+**Steer the reticle with A/D + W/S (left stick), pull the right trigger (or `F`) to
+detonate there** — the [standard controller](?b3d-controller.ts). Cubes
 inside the radius take falloff damage (they flash, and die at 0 hp); the **wall blocks
 line of sight**, so parking the reticle behind it spares the cubes there. Tune the blast
 in the ⚙ panel.
@@ -29,7 +29,7 @@ for (let i = 0; i < 24; i++) {
   targets.push(b3dDestroyable({ x: (i % 6) * 1.4 - 3.5, y: 0.4, z: Math.floor(i / 6) * 1.4 - 2, size: 0.8, capacity: 8, color: '#cc4444' }))
 }
 
-// Shared reticle position + shoot edge, reachable by both sceneCreated and onInput.
+// Shared reticle position + shoot edge, reachable by both sceneCreated and drive.
 const state = { rx: 0, rz: -3, shootWas: false }
 
 const scene = b3d(
@@ -68,10 +68,10 @@ const scene = b3d(
   b3dGround({ width: 30, height: 30, color: '#5a6b52' }),
   b3dController({
     mapping: 'biped',
-    onInput(input, dt) {
+    drive(input, dt) {
       state.rx = Math.max(-6, Math.min(6, state.rx + input.turn * 7 * dt)) // A/D
       state.rz = Math.max(-5, Math.min(6, state.rz + input.forward * 7 * dt)) // W/S
-      const shoot = input.shoot > 0.5
+      const shoot = input.shoot > 0.5 || input.sprint > 0.5
       if (shoot && !state.shootWas) {
         warhead.damage = s.damage.value
         warhead.fullRadius = s.fullRadius.value

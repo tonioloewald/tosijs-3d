@@ -11,9 +11,9 @@ direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo 
 
 ## Demo
 
-**Steer the gun with A/D (left stick / VR), hold `F` (glass fire button / an XR
-trigger) to fire** a stream of shells — the [standard controller](?b3d-controller.ts),
-so the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
+**Steer the gun with A/D (left stick), hold the right trigger (or `F` / the glass B
+button) to fire** a stream of shells — the [standard controller](?b3d-controller.ts), so
+the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.
 
@@ -53,15 +53,15 @@ const scene = b3d(
   b3dGround({ width: 40, height: 40, color: '#5a6b52' }),
   b3dController({
     mapping: 'biped',
-    onInput(input, dt) {
+    drive(input, dt) {
       launcher.ry -= input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
-      if (input.shoot > 0.5) {
+      if (input.shoot > 0.5 || input.sprint > 0.5) {
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
         launcher.drag = s.drag.value
         launcher.damage = s.damage.value
         launcher.blastRadius = s.blastRadius.value
-        launcher.fire() // fire where the barrel points (F · glass button · XR trigger)
+        launcher.fire() // fire where the barrel points (right trigger · F · glass button)
       }
     },
   }),
@@ -78,8 +78,8 @@ tosi-b3d { width: 100%; height: 100%; }
 
 `fireAt(targetMesh)` launches a **homing** missile instead of a dumb shell — it leads
 the target and curves onto it (pure `interceptLead` + `steerToward`), holding
-`missileSpeed`, turning within `turnRate`. **Hold `F` (glass fire button / an XR
-trigger) to loose missiles** at the orbiting cube; they bend to chase it and detonate on
+`missileSpeed`, turning within `turnRate`. **Hold the right trigger (or `F`) to loose
+missiles** at the orbiting cube; they bend to chase it and detonate on
 contact. The target **respawns at a fresh altitude** each time you destroy it. Drop
 `turnRate` and watch them overshoot a hard-turning target.
 
@@ -92,7 +92,7 @@ import { tosi } from 'tosijs'
 const { s } = tosi({ s: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
 
-// Shared so the orbit loop (in sceneCreated) and the controller's onInput both reach it.
+// Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
 const state = { target: null }
 
 const scene = b3d(
@@ -138,9 +138,9 @@ const scene = b3d(
   b3dGround({ width: 50, height: 50, color: '#5a6b52' }),
   b3dController({
     mapping: 'biped',
-    onInput(input) {
+    drive(input) {
       const t = state.target
-      if (input.shoot > 0.5 && t && !t.dead && t.mesh) {
+      if ((input.shoot > 0.5 || input.sprint > 0.5) && t && !t.dead && t.mesh) {
         launcher.missileSpeed = s.missileSpeed.value
         launcher.turnRate = s.turnRate.value
         launcher.fireRate = s.fireRate.value
