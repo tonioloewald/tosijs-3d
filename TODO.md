@@ -31,18 +31,29 @@ true})` never turns on (killed the trigger — fixed via `disabled`). tosijs wil
 - [ ] b3d-star-system `animate`, `showOrbits`
 - [ ] b3d-svg-plane `pointerEvents`, `doubleSided`
 
-[x] HUD warning block — DONE. `setWarnings([{text, side?}])` on the HUD driver + b3d-hud: shows stacked warning text (#warning) and flashes the threatened-side gauge BORDER red (bottom = PULL UP/ground, etc.). Wired into b3d-aircraft (pullUp → bottom, stall → text). Code HUD (buildFallbackHud) is now the default (fully wired); designer-asset `normalizeHud`/horizon adaptation deferred. Next: drive it from combat threats (incoming missile → bearing side) once weapons exist.
+[x] HUD warning block — DONE. `setWarnings([{text, side?}])` on the HUD driver + b3d-hud: shows stacked warning text (#warning) and flashes the threatened-side gauge BORDER red (bottom = PULL UP/ground, etc.). Wired into b3d-aircraft (pullUp → bottom, stall → text). Code HUD (buildFallbackHud) is now the default (fully wired); designer-asset `normalizeHud`/horizon adaptation deferred. Next: weapons exist now (v0.4.0) — drive threat warnings from combat (incoming missile → bearing side); and the radar traces (`setTraces`) still need wiring to live scene targets.
 
 ## AI scenario harness (verification playgrounds)
 
 [ ] Shared **scenario harness** for watching AIs (design: AI-DESIGN.md → "Scenario playgrounds"). Spawns a configured scene (entities/targets/obstacles/waypoints/roads/traffic), SEEDS RNG (presets = named seeds/configs, randomized runs reproducible), drives the AI(s) as InputProviders, overlays each AI's `debugState`. Beyond the trigger wander demo: AI aircraft (pick targets, avoid air/terrain collisions, fly waypoints, shoot, break off); AI ground vehicle (roads + traffic). The **AI-aircraft playground is how we verify the MVP aircraft-combat slice** — build it alongside the aircraft AI. Leans on the deterministic/seedable world-store.
 
-## MVP: Aircraft combat vertical slice ⟵ current goal
+## MVP: Aircraft combat vertical slice ⟵ mostly SHIPPED (v0.4.0)
 
 A quick playable game on the **aircraft + dynamic terrain + water** models: fly
 around, **shoot** (guns), **bomb**, and **fire missiles** at **cube targets**
 (ground + air; inert for now — "make them do stuff" = later, via `AI-DESIGN.md`).
 All projectiles are **cubes** for now. Combat atoms spec'd in `COMBAT-DESIGN.md`.
+
+> **STATUS (v0.4.0):** the combat toolkit + weapons are DONE and interactively
+> testable — destroyables/warheads/launcher/turret/guided missiles (each with a live
+> demo), and **the aircraft is armed** (guns on held fire, bomb + guided missile with
+> forward-cone lock, mapped through `aircraftMapping`). Combat verified live via Haltija.
+> **Still open vs. the original plan:** (1) the **bomb-sight arc + impact marker**
+> (`predictPath` exists, not drawn); (2) the loadout was built as aircraft-integrated
+> weapons + a standalone auto-turret, not **2× view-slaved waist turrets** (view-slaved
+> turret mode is TODO); (3) the **full assembly demo** (aircraft + streaming terrain +
+> water + spawned targets in one scene) — there's a drifting-aerial-drone combat demo in
+> the aircraft doc, but not the terrain/water assembly.
 
 **Loadout:**
 
@@ -123,9 +134,12 @@ regen, death → events. Refs by id (serializable). Damage = single scalar. (14 
 (10 tests) — bridge `b3d-warhead` (arming, collision sphere, LOS raycast) NEXT.
 [x] `ballistics.ts` [MVP] — `ballisticStep` (gravity + quadratic drag, mass-scaled) + `predictPath` (bomb sight; prediction == simulation, non-mutating). Live
 flight + bomb sight + guided ballistic fallback. (6 tests)
-[ ] `guidance.ts` [MVP] — `firingSolution` (one `smartness` dial 0..1 = lead **+**
-drop, interpolated) shared by guided rounds AND turret; steering step; turret
-aim helper (clamp to limits, shortest legal path, **can-bear** flag → reticle).
+[x] `guidance.ts` [MVP] — DONE (v0.4.0): `steerToward` (turn-rate-limited seeker),
+`proNav` (proportional navigation), `interceptLead` (turret firing lead) + `ballisticAim`
+(drop-compensated elevation, in `ballistics.ts`). The `smartness` 0..1 dial landed on
+`b3d-turret` (`smart`: lead ramps to full by 0.5, then drop to 1) with the `can-bear`
+flag → reticle color. (13 guidance tests + 4 ballisticAim.) Traverse-limit clamp/shortest
+path is the turret's `steerToward` slew, not a separate aim helper.
 [ ] `sensorium.ts` — cone/range/falloff perception math (LOS predicate from bridge). [later]
 [ ] `npc-ai.ts` — strategy selection + per-strategy `step → ControlInput`. [later,
 see `AI-DESIGN.md`]
@@ -135,17 +149,22 @@ see `AI-DESIGN.md`]
 [x] `b3d-destroyable` [MVP] — bridges a `CombatWorld` entry to a placeholder cube;
 `.damage(n)`, death outcome + `destroyed` event, floating-origin via onOriginShift.
 `<tosi-b3d-destroyable>`. (CombatWorld lives on B3d, ticked each frame.)
-[ ] `b3d-warhead` [MVP] — collision sphere, arming timer, LOS raycast, explosion FX.
-[ ] `b3d` ballistic projectile [MVP] — drives mesh from `step`, swept collision
-(crude test → finer rays), detonates warhead; end-of-life explode (default) or inert.
-[ ] `b3d` guided projectile [MVP] — ballistic + seeker (range/cone, 3s dwell
-acquire, fire-and-forget) + thrust-limited steering → ballistic when spent.
-[ ] `b3d-launcher` [MVP] — fire delay (windup) + cycle time (single value OR
-**sequence** = burst), ammo (refill 0 = finite) or energy (Resource), muzzle
-offset parented to weapon geometry, inherits launcher velocity, ~0.1° accuracy.
-[ ] `b3d-turret` [MVP] — aiming platform hosting launcher(s); traverse/elevation
-limits + rates; **view-slaved** control mode + reticle can-bear feedback;
-self-acquire + directed both supported; direct-fire v1 (drop later).
+[x] `b3d-warhead` [MVP] — DONE (v0.4.0): `detonateWarhead` gathers scene destroyables,
+LOS raycast, AOE falloff, **outward-rippling shockwave** (damage staggered by distance in
+step with the expanding boom), boom FX. `<tosi-b3d-warhead>`. Also fired on projectile
+impact + on `deathBlast`. (Arming timer not needed — single-use payload.)
+[x] `b3d` ballistic projectile [MVP] — DONE: `spawnProjectile` (drives the mesh via
+`ballisticStep`, swept-collision ray, self-mesh `ignore`, floating-origin, detonates its
+warhead on impact). Shared by launcher/turret/aircraft.
+[x] `b3d` guided projectile [MVP] — DONE: `spawnMissile` (seeker: `interceptLead` +
+`steerToward` at constant cruise, via a `guide` hook on spawnProjectile). Fire-and-forget.
+(Range/cone + 3s dwell acquire not needed for the inert-target slice.)
+[x] `b3d-launcher` [MVP] — DONE: fire-rate cadence + ammo `Resource`, muzzle offset,
+`fire()` (ballistic) / `fireAt()` (guided). `<tosi-b3d-launcher>`. (Windup + burst
+sequence + ~0.1° jitter still TODO.)
+[x] `b3d-turret` [MVP] — DONE: auto-tracking aiming platform; traverse-rate limit, range +
+aim-tolerance, `smart` dial (lead + drop), can-bear armed color. `<tosi-b3d-turret>`.
+(Built SELF-ACQUIRE/auto rather than view-slaved — view-slaved mode still TODO.)
 [ ] `b3d-shield` — Destroyable + collider that spatially blocks; recharge; links. [later]
 [ ] `b3d-melee` — active-window collider, cycle-time sequence (sustained vs
 glancing), owner-friendly. [later]
@@ -306,8 +325,9 @@ have caught the "notify descendants before their attributes drained" bug.
 [ ] As much test coverage as possible (fly-by-wire, perlin-noise, gradient-filter, surface-sampler, resource, destroyable, warhead; auto-run on build)
 [ ] One SIMPLE (non-trivial) demo for EVERY component that makes sense — a `/*# */`
 doc example that actually exercises the component, not a stub. AUDIT which
-components lack a real demo and fill the gaps; new combat components
-(b3d-destroyable/warhead/launcher/turret) each need one.
+components lack a real demo and fill the gaps. (The combat components —
+b3d-destroyable/warhead/launcher/turret + b3d-controller — now each have a real,
+interactive demo; re-audit the rest.)
 [ ] Documentation for each component
 
 ## Ariosto
@@ -330,8 +350,9 @@ components lack a real demo and fill the gaps; new combat components
 [x] Gamepad support for all controllers (VirtualGamepad abstraction)
 [x] Gamepad control should work the same way in XR / mouse+keyboard / Gamepad / Touch (MappedInputProvider + GamepadSource)
 [x] Map keyboard / mouse to standard gamepad (KeyboardGamepad)
-[ ] Implement on screen "glass" gamerpad for touch contexts
-[ ] Offer standard way of displaying game controls and mappings, and editing mappings
+[x] On-screen "glass" gamepad for touch contexts — `glass-gamepad.ts` (`<tosi-b3d-gamepad>`), mounted via the `gamepad` attr; a `controls` spec (`"left_stick,right_trigger"`) shows only the pieces a scene uses.
+[x] `B3dController` (`<tosi-b3d-controller>`) — casual access to the unified controller (keyboard/glass/hardware/XR) via a `drive(input, dt)` callback, no `inputFocus` boilerplate. Plus **scene input focus**: with several live demos on a page, only the hovered/pressed one consumes shared input.
+[ ] Offer standard way of displaying game controls and mappings, and editing mappings (glass gamepad shows the layout; live remapping/editing still TODO)
 
 ## Workflow
 
