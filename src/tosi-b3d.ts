@@ -141,7 +141,7 @@ import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
 import { xrControllers, type TosiXRControllerMap } from './gamepad'
-import { panel3d, button3d, type Widget3d } from './widgets3d'
+import { panel3d, button3d, label3d, type Widget3d } from './widgets3d'
 import { SvgTexture } from './svg-texture'
 import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
@@ -157,10 +157,34 @@ import {
   setQuality,
   qualityBudgets,
   onQualityChange,
+  effectiveTier,
   type QualitySetting,
 } from './b3d-quality'
 
 const { canvas, div, slot, button } = elements
+
+// Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
+// `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
+// attribute or a URL flag. Library consumers leave it off — their scenes stay
+// uncluttered unless they set `stats` or add `#perf`.
+let _statsGlobal = false
+export const showB3dStats = (on = true): void => {
+  _statsGlobal = on
+}
+
+// Whether the 📊 toggle should be revealed on a given scene. True when the host
+// enabled it site-wide, OR `#perf` / `#debug` (or the `?perf` / `?debug` query
+// form) is in the page URL — so it's reachable on a device with no console (the
+// whole reason this exists). The HASH form is preferred: it survives the
+// doc-browser's client-side navigation (a query string can be dropped when the
+// SPA rewrites the URL between docs) and never hits the server. Guarded for
+// non-browser contexts (SSR/tests).
+const perfDebugEnabled = (): boolean => {
+  if (_statsGlobal) return true
+  if (typeof window === 'undefined' || !window.location) return false
+  const { search, hash } = window.location
+  return /(^|[?&])(perf|debug)\b/.test(search) || /\b(perf|debug)\b/.test(hash)
+}
 
 export type SceneAdditionHandler = (additions: SceneAdditions) => void
 
@@ -231,6 +255,12 @@ export class B3d extends Component {
     // 'medium' | 'high' force a tier. Drives the `auto` defaults of shadows,
     // reflections, terrain, and the engine render scaling. See b3d-quality.
     quality: 'auto' as QualitySetting,
+    // Add a "Perf stats" section to the scene panel (the ⚙ gear overlay AND the
+    // in-VR panel — so it's reachable in a headset). Opt-in per scene; a global
+    // `#perf` / `#debug` (or `?perf` / `?debug`) in the page URL, or a host calling
+    // `showB3dStats()`, reveals it on every scene (handy on mobile, no console
+    // needed). Shows `debugState` plus a one-tap hardware-scaling probe. Default off.
+    stats: false,
   }
 
   static styleSpec = {
@@ -461,6 +491,7 @@ export class B3d extends Component {
   declare xrGrid: 'on' | 'off' | 'auto'
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
+  declare stats: boolean
 
   sceneCreated: B3dCallback = noop
   update: B3dCallback = noop
@@ -700,11 +731,38 @@ export class B3d extends Component {
   }
 
   private _resizing = false
+  // How many times onResize has driven engine.resize(). A steady climb every
+  // frame (rather than a couple of firings that settle) is the fingerprint of a
+  // resize→reflow→resize feedback loop — surfaced in `debugState` / the 📊 overlay.
+  _resizeCount = 0
   onResize() {
     if (this.engine && !this._resizing) {
       this._resizing = true
       this.engine.resize()
+      this._resizeCount++
       this._resizing = false
+    }
+  }
+
+  // A cheap, allocation-light snapshot of the render pipeline's live state —
+  // handy from the console, haltija, or the 📊 stats overlay (no devtools needed
+  // on mobile). Reports the actual backbuffer vs CSS size (is DPR inflating it?),
+  // the current hardware-scaling level and quality tier, live FPS, and the resize
+  // count (loop detector). Returns nulls before the engine exists.
+  get debugState() {
+    const e = this.engine
+    return {
+      renderWidth: e ? e.getRenderWidth() : null,
+      renderHeight: e ? e.getRenderHeight() : null,
+      cssWidth: this.clientWidth,
+      cssHeight: this.clientHeight,
+      devicePixelRatio:
+        typeof window !== 'undefined' ? window.devicePixelRatio : null,
+      hardwareScaling: e ? e.getHardwareScalingLevel() : null,
+      tier: effectiveTier({ xr: this.xrActive }),
+      fps: e ? Math.round(e.getFps()) : null,
+      resizeCount: this._resizeCount,
+      xrActive: this.xrActive,
     }
   }
 
@@ -758,6 +816,88 @@ export class B3d extends Component {
   private _applyHardwareScaling(xr: boolean): void {
     if (this.engine == null) return
     this.engine.setHardwareScalingLevel(qualityBudgets({ xr }).hardwareScaling)
+  }
+
+  private _statsBaseScale: number | null = null
+  private _statsExpanded = false
+
+  // Perf-stats rows for the scene panel (dual-presence: flat overlay AND the in-VR
+  // panel), so the readout is reachable in a headset too — the reason it lives here
+  // and not in the flat toolbar. Collapsed to a single "Perf Stats" button by
+  // default; tapping it expands the readout (kept out of the way of the demo's own
+  // controls). The panel rebuilds each open, so the numbers are a snapshot at open
+  // time; the collapse toggle and the probe button rebuild the flat panel on tap.
+  //
+  // `toggleable` is true for the flat panel (which we can rebuild via
+  // refreshScenePanel); the XR panel is built once on entry with no rebuild handle,
+  // so it renders always-expanded with a plain header (no dead toggle in VR).
+  private _perfPanelRows(toggleable: boolean): Widget3d[] {
+    const expanded = !toggleable || this._statsExpanded
+    if (!expanded) {
+      return [
+        button3d({
+          label: 'Perf Stats ▸',
+          onClick: () => {
+            this._statsExpanded = true
+            this.refreshScenePanel()
+          },
+        }),
+      ]
+    }
+    const s = this.debugState
+    const scaled = this._statsBaseScale != null
+    const header = toggleable
+      ? button3d({
+          label: 'Perf Stats ▾',
+          onClick: () => {
+            this._statsExpanded = false
+            this.refreshScenePanel()
+          },
+        })
+      : label3d({ text: 'Perf Stats', bold: true })
+    return [
+      header,
+      label3d({
+        text: `render ${s.renderWidth}×${s.renderHeight}  (css ${s.cssWidth}×${s.cssHeight})`,
+        muted: true,
+      }),
+      label3d({
+        text: `dpr ${s.devicePixelRatio}  scale ${s.hardwareScaling?.toFixed(2)}  ${s.tier}`,
+        muted: true,
+      }),
+      label3d({
+        text: `fps ${s.fps}  resizes ${s.resizeCount}${s.xrActive ? '  [XR]' : ''}`,
+        muted: true,
+      }),
+      // One-tap discriminator: swap between the engine's real hardware scaling and
+      // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
+      // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
+      button3d({
+        label: scaled ? 'Reset scale' : 'Force scale ×3',
+        onClick: () => {
+          if (this.engine == null) return
+          if (this._statsBaseScale == null) {
+            this._statsBaseScale = this.engine.getHardwareScalingLevel()
+            this.engine.setHardwareScalingLevel(3)
+          } else {
+            this.engine.setHardwareScalingLevel(this._statsBaseScale)
+            this._statsBaseScale = null
+          }
+          this.refreshScenePanel()
+        },
+      }),
+    ]
+  }
+
+  // The scene panel's widgets: the author's `scenePanel` hook, plus the perf-stats
+  // section when opted in. Both the flat overlay and the XR panel build from this,
+  // and the gear reveals when it's non-empty. `xr` selects the always-expanded,
+  // non-toggleable perf rendering for the headset panel.
+  private _panelWidgets(xr = false): Widget3d[] {
+    const rows = this.scenePanel(this)
+    return perfDebugEnabled() || this.stats
+      ? [...rows, ...this._perfPanelRows(!xr)]
+      : rows
   }
 
   // window.requestAnimationFrame stops firing during an immersive XR session (the
@@ -833,6 +973,7 @@ export class B3d extends Component {
     } catch (err) {
       console.warn('b3d quality setup failed; using default profile', err)
     }
+
 
     const init = async () => {
       if (this.sceneCreated !== noop) {
@@ -1493,10 +1634,10 @@ export class B3d extends Component {
         else this._closeScenePanel()
       })
     }
-    // Reveal the gear only when the scenePanel hook actually supplies widgets.
-    // (Enter VR is a SEPARATE button grouped next to the gear — see the toolbar —
-    // so XR availability no longer gates the gear.)
-    if (this.scenePanel(this).length > 0) {
+    // Reveal the gear when the panel has any widgets — the scenePanel hook's, or
+    // the opted-in perf-stats section. (Enter VR is a SEPARATE button grouped next
+    // to the gear — see the toolbar — so XR availability no longer gates the gear.)
+    if (this._panelWidgets().length > 0) {
       gear.hidden = false
       if ((this as any).scenePanelOpen) this._openScenePanel()
     }
@@ -1515,12 +1656,14 @@ export class B3d extends Component {
       e.stopPropagation()
       this._closeScenePanel()
     })
-    host.replaceChildren(close, this._makePanel(this.scenePanel(this)))
+    host.replaceChildren(close, this._makePanel(this._panelWidgets()))
     host.removeAttribute('hidden')
   }
 
   private _closeScenePanel(): void {
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
+    // Perf stats collapse again on next open — kept out of the way by default.
+    this._statsExpanded = false
   }
 
   /** Rebuild the flat scene panel from the current rows, if it's open.
@@ -1572,7 +1715,7 @@ export class B3d extends Component {
           void this.xrHelper?.baseExperience?.exitXRAsync()
         },
       }),
-      ...this.scenePanel(this),
+      ...this._panelWidgets(true),
     ]
     const panelEl = this._makePanel(rows) as SVGSVGElement & {
       handlePointer?: (kind: string, x: number, y: number) => void

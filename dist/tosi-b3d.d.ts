@@ -7,6 +7,7 @@ import { CombatWorld } from './destroyable';
 import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
 import { type QualitySetting } from './b3d-quality';
+export declare const showB3dStats: (on?: boolean) => void;
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -28,6 +29,7 @@ export declare class B3d extends Component {
         gamepad: boolean | string;
         gamepadScale: number;
         quality: QualitySetting;
+        stats: boolean;
     };
     static styleSpec: {
         ':host': {
@@ -205,6 +207,7 @@ export declare class B3d extends Component {
     xrGrid: 'on' | 'off' | 'auto';
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
+    stats: boolean;
     sceneCreated: B3dCallback;
     update: B3dCallback;
     setupXr: B3dCallback;
@@ -252,12 +255,29 @@ export declare class B3d extends Component {
     }): void;
     private _update;
     private _resizing;
+    _resizeCount: number;
     onResize(): void;
+    get debugState(): {
+        renderWidth: number | null;
+        renderHeight: number | null;
+        cssWidth: number;
+        cssHeight: number;
+        devicePixelRatio: number | null;
+        hardwareScaling: number | null;
+        tier: import("./perf-probe").PerfTier;
+        fps: number | null;
+        resizeCount: number;
+        xrActive: boolean;
+    };
     loadScene: (path: string, file: string, processCallback?: (scene: BABYLON.Scene) => void) => Promise<void>;
     private _qualityOff;
     private static _probeStarted;
     private _setupQuality;
     private _applyHardwareScaling;
+    private _statsBaseScale;
+    private _statsExpanded;
+    private _perfPanelRows;
+    private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;
     private _setupXR;

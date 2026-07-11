@@ -1,5 +1,5 @@
 // Core
-export { B3d, b3d } from './tosi-b3d'
+export { B3d, b3d, showB3dStats } from './tosi-b3d'
 export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 // Device-capability probe (measure-don't-guess quality budgets)

@@ -10,6 +10,11 @@ import * as tosijsui from 'tosijs-ui'
 // Point live examples' asset lookups (assetUrl) at the shared CDN.
 tosijs3d.setAssetBase('https://cdn.tosijs.net')
 
+// Show the 📊 perf/debug toggle on every live demo across the doc site (each
+// scene's own toolbar). A dev/authoring affordance — library consumers don't get
+// it unless they opt in per scene (`stats`) or via `#perf`.
+tosijs3d.showB3dStats()
+
 // <tosi-doc-system> only reads .context inside render(), which awaits the
 // docs.json fetch its connectedCallback kicks off — so a synchronous assignment
 // here, right after the imports register the element, lands well in time.
