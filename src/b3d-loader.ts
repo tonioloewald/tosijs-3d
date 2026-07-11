@@ -186,13 +186,23 @@ export class B3dLoader extends B3dChild {
   // mesh — the same behavior the standalone <tosi-b3d-destroyable> wraps around a cube.
   private _attachDestroyable(meshes: BABYLON.AbstractMesh[]) {
     const attrs = this as any
-    if (isOff(attrs.destroyable) || this.owner == null || meshes.length === 0) return
+    if (isOff(attrs.destroyable) || this.owner == null || meshes.length === 0)
+      return
     const root = meshes.find((m) => m.parent == null) ?? meshes[0]
     this._behavior = new DestroyableBehavior(
       this.owner,
-      { get mesh() { return root }, dispatchEvent: (e) => this.dispatchEvent(e) },
       {
-        idBase: attrs.url?.split('/').pop()?.replace(/\.[^.]+$/, '') || 'model',
+        get mesh() {
+          return root
+        },
+        dispatchEvent: (e) => this.dispatchEvent(e),
+      },
+      {
+        idBase:
+          attrs.url
+            ?.split('/')
+            .pop()
+            ?.replace(/\.[^.]+$/, '') || 'model',
         capacity: attrs.capacity,
         armor: attrs.armor,
         regenRate: attrs.regenRate,

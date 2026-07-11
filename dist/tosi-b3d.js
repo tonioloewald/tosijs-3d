@@ -179,6 +179,9 @@ export class B3d extends Component {
         // your own `setupXr` (this grid only exists in the default experience).
         // `"on"` always shows it; `"off"` always hides it.
         xrGrid: 'auto',
+        // Show the head-locked face crosshair (a pin target for aim-tracking UX). Opt-in:
+        // 'off' (default) keeps it out of the way; 'on' shows it (e.g. a tracking weapon).
+        xrReticle: 'off',
         // Start with the ⚙ scene-settings panel open (instead of collapsed to the gear).
         scenePanelOpen: false,
         // When present, mount the split on-screen "glass" gamepad and feed it into
@@ -382,6 +385,21 @@ export class B3d extends Component {
     glowLayer;
     xrHelper;
     xrActive = false;
+    // The scene the pointer last entered / pressed — so that when a page hosts several
+    // live demos, global keyboard/gamepad input only drives the one you're interacting
+    // with (see `hasInputFocus`). Null until the first interaction (then everything is
+    // "focused", i.e. a lone demo just works).
+    static _active = null;
+    /** True when this scene should consume shared keyboard/gamepad input — it's the
+     * active (last hovered/clicked) scene, or none has been touched yet. Controllables
+     * gate their input on this so one gamepad doesn't drive every demo on a page. */
+    get hasInputFocus() {
+        return B3d._active === null || B3d._active === this;
+    }
+    /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
+    takeInputFocus() {
+        B3d._active = this;
+    }
     /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
      * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
     xrFrames = null;
@@ -416,11 +434,17 @@ export class B3d extends Component {
         // Anchored in the EYE frame (your head position, rig yaw) at angular offsets,
         // so they ride your real eye through chase head-compensation and stay put as
         // you stand/sit or glance — only swinging when you actually turn.
-        return [
+        const panels = [
             { frame: 'eye', anchor: 'left-shoulder', title: 'Inventory' },
             { frame: 'eye', anchor: 'right-shoulder', title: 'Inventory' },
             { frame: 'eye', anchor: 'waist', title: 'Quick Access' },
-            {
+            { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
+        ];
+        // The face crosshair is a PIN TARGET for aim-tracking UX — not something that
+        // belongs on screen everywhere (no more than the quick-access bar does). Opt in
+        // with `xr-reticle="on"` (e.g. when a weapon tracks it); default hides it.
+        if (this.xrReticle === 'on') {
+            panels.push({
                 frame: 'face',
                 anchor: { position: [0, 0, 2], focus: [0, 0, 0] },
                 reveal: 'always',
@@ -428,9 +452,9 @@ export class B3d extends Component {
                 view: 'first', // crosshair only when looking through your own eyes
                 url: '/reticle.svg',
                 width: 0.24,
-            },
-            { frame: 'left-hand', anchor: 'wrist', title: 'Menu', width: 0.09 },
-        ];
+            });
+        }
+        return panels;
     };
     lastRender = 0;
     sceneListeners = [];
@@ -690,6 +714,12 @@ export class B3d extends Component {
         super.connectedCallback();
         const cnv = this.parts.canvas;
         cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+        // Input focus follows the pointer: hovering or pressing anywhere in this scene
+        // (canvas OR the glass-gamepad / panel overlays, which are siblings of the canvas)
+        // makes it the one shared keyboard/gamepad input drives — see hasInputFocus. Listen
+        // on the host so overlay interaction counts; pointerdown bubbles from any child.
+        this.addEventListener('pointerenter', () => this.takeInputFocus());
+        this.addEventListener('pointerdown', () => this.takeInputFocus());
         this.engine = new BABYLON.Engine(cnv, true, {
             preserveDrawingBuffer: true,
             stencil: true,
@@ -854,7 +884,14 @@ export class B3d extends Component {
         // so the focused controllable (biped/aircraft/car) is driven by the
         // controllers in VR through its existing mapping. No per-entity XR code.
         const focus = this.querySelector('tosi-b3d-input-focus');
-        focus?.inputMappedProvider?.addSource(new XrGamepadSource(controllers));
+        const xrSource = new XrGamepadSource(controllers);
+        focus?.inputMappedProvider?.addSource(xrSource);
+        // Standalone <tosi-b3d-controller>s self-wire their own input, so feed them the XR
+        // controllers too (same VirtualGamepad spine — the VR sticks/triggers drive them).
+        for (const c of Array.from(this.querySelectorAll('tosi-b3d-controller'))) {
+            ;
+            c.inputMappedProvider?.addSource(xrSource);
+        }
         // The default experience enables teleportation; we drive locomotion
         // ourselves, so remove it to stop the thumbstick fighting our movement.
         try {
@@ -1470,6 +1507,8 @@ export class B3d extends Component {
         };
     }
     disconnectedCallback() {
+        if (B3d._active === this)
+            B3d._active = null;
         if (this._qualityOff) {
             this._qualityOff();
             this._qualityOff = null;

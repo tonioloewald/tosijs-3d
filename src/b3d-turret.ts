@@ -204,7 +204,10 @@ export class B3dTurret extends AbstractMesh {
     )
     this._barrel.parent = this.mesh
     this._barrel.position.set(0, 0.55, 0) // sit atop the pedestal
-    this._barrelMat = new BABYLON.StandardMaterial(`${this.meshName}-bmat`, scene)
+    this._barrelMat = new BABYLON.StandardMaterial(
+      `${this.meshName}-bmat`,
+      scene
+    )
     this._barrelMat.diffuseColor = BABYLON.Color3.FromHexString(this.idleColor)
     this._barrel.material = this._barrelMat
 
@@ -278,7 +281,8 @@ export class B3dTurret extends AbstractMesh {
       }
       const straight = gNormalize(gSub(aimPoint, mount)) // line to the (lead-adjusted) point
       const ball =
-        ballisticAim(mount, aimPoint, this.muzzleSpeed, this.gravity) ?? straight
+        ballisticAim(mount, aimPoint, this.muzzleSpeed, this.gravity) ??
+        straight
       solution = gNormalize({
         x: straight.x + (ball.x - straight.x) * dropK,
         y: straight.y + (ball.y - straight.y) * dropK,
@@ -299,7 +303,15 @@ export class B3dTurret extends AbstractMesh {
     // Can we bear? aim within tolerance of the solution AND target in range.
     let armed = false
     if (solution != null && inRange) {
-      const cos = Math.max(-1, Math.min(1, this._aim.x * solution.x + this._aim.y * solution.y + this._aim.z * solution.z))
+      const cos = Math.max(
+        -1,
+        Math.min(
+          1,
+          this._aim.x * solution.x +
+            this._aim.y * solution.y +
+            this._aim.z * solution.z
+        )
+      )
       const offDeg = Math.acos(cos) * RAD_TO_DEG
       armed = offDeg <= this.aimTolerance
     }

@@ -319,6 +319,10 @@ export function aircraftMapping(_config) {
         input.view = Math.max(pad.view, pad.buttonY);
         input.interact = pad.buttonX;
         input.cameraZoom = pad.rightStickY;
+        // Weapons (the combat slice): guns held, bomb + missile edge-fired.
+        input.shoot = Math.max(pad.rightBumper, pad.buttonA); // cannon (held)
+        input.jump = pad.buttonB; // drop bomb (edge-detected by the aircraft)
+        input.aim = pad.leftBumper; // fire guided missile (edge-detected)
         return input;
     };
 }
@@ -333,6 +337,10 @@ export function aircraftMappingDescriptor(config) {
             leftTrigger: 'down / slower',
             buttonX: 'interact',
             rightStickY: 'camera',
+            rightBumper: 'guns',
+            buttonA: 'guns',
+            buttonB: 'bomb',
+            leftBumper: 'missile',
         },
     };
 }

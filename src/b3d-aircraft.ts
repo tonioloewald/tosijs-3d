@@ -780,7 +780,12 @@ export class B3dAircraft extends B3dControllable {
       blastRadius: 4,
     }
     const ignore = (m: BABYLON.AbstractMesh) => this.ownMeshes().has(m)
-    const target = this.acquireTarget(origin, dir, attrs.lockRange, attrs.lockConeDeg)
+    const target = this.acquireTarget(
+      origin,
+      dir,
+      attrs.lockRange,
+      attrs.lockConeDeg
+    )
     if (target != null) {
       spawnMissile(this.owner, {
         origin,
@@ -808,7 +813,11 @@ export class B3dAircraft extends B3dControllable {
   }
 
   private get gunWarhead(): WarheadSpec {
-    return { damage: (this as any).gunDamage, fullRadius: 0.5, blastRadius: 1.5 }
+    return {
+      damage: (this as any).gunDamage,
+      fullRadius: 0.5,
+      blastRadius: 1.5,
+    }
   }
 
   /** Nearest destroyable within `range` and inside the forward cone (or null). */

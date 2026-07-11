@@ -158,8 +158,7 @@ export class DestroyableBehavior {
     setTimeout(() => {
       if (this._dead) return
       for (const m of mats)
-        if ((m as any).emissiveColor != null)
-          (m as any).emissiveColor = damage
+        if ((m as any).emissiveColor != null) (m as any).emissiveColor = damage
     }, 90)
   }
 
@@ -167,8 +166,7 @@ export class DestroyableBehavior {
     this._dead = true
     const scene = this.owner.scene
     const mesh = this.host.mesh
-    const position =
-      mesh?.absolutePosition.clone() ?? BABYLON.Vector3.Zero()
+    const position = mesh?.absolutePosition.clone() ?? BABYLON.Vector3.Zero()
     const info = { id: this.combatId, position }
 
     // Notify: the bubbling event + the code hook (e.g. flip a player to 'dead').
@@ -188,13 +186,10 @@ export class DestroyableBehavior {
         blastRadius: d.blastRadius ?? 4,
       }
       const at = position.clone()
-      setTimeout(
-        () => {
-          if (owner.scene != null && !owner.scene.isDisposed)
-            detonateWarhead(owner, at, spec, true)
-        },
-        Math.max(0, d.blastDelay ?? 0.1) * 1000
-      )
+      setTimeout(() => {
+        if (owner.scene != null && !owner.scene.isDisposed)
+          detonateWarhead(owner, at, spec, true)
+      }, Math.max(0, d.blastDelay ?? 0.1) * 1000)
     }
 
     // Visual outcome.

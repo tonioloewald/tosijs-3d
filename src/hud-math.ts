@@ -42,8 +42,8 @@ export const sideFromD = (d: string): Side => {
       ? 'left'
       : 'right'
     : cy < 0
-      ? 'top'
-      : 'bottom'
+    ? 'top'
+    : 'bottom'
 }
 
 export type HudTrace = {

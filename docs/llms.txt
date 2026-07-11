@@ -1,4 +1,4 @@
-# tosijs-3d v0.3.0
+# tosijs-3d v0.4.0
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -81,7 +81,7 @@ Full documentation, with live code examples, is at the links below.
 - https://3d.tosijs.net/b3d-trigger/ — b3d-trigger
   Invisible proximity zone that fires callbacks and dispatches events when
 - https://3d.tosijs.net/b3d-turret/ — b3d-turret
-  An **auto-tracking gun** — it slews its barrel to lead a moving target (pure
+  An **auto-tracking gun** — it slews its barrel to lead a moving target and elevate for
 - https://3d.tosijs.net/b3d-warhead/ — b3d-warhead
   The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
 - https://3d.tosijs.net/b3d-water/ — b3d-water

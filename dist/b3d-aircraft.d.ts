@@ -10,6 +10,10 @@ export declare class B3dAircraft extends B3dControllable {
         meshName: string;
         player: boolean;
         enterable: boolean;
+        ceiling: number;
+        hudChase: boolean;
+        hudSize: number;
+        hudForward: number;
         maxSpeed: number;
         afterburnerSpeed: number;
         acceleration: number;
@@ -17,6 +21,16 @@ export declare class B3dAircraft extends B3dControllable {
         hoverCeiling: number;
         groundY: number;
         crashSpeed: number;
+        weapons: string;
+        gunRate: number;
+        gunSpeed: number;
+        gunDamage: number;
+        missileSpeed: number;
+        missileTurnRate: number;
+        missileDamage: number;
+        bombDamage: number;
+        lockRange: number;
+        lockConeDeg: number;
         x: number;
         y: number;
         z: number;
@@ -48,8 +62,17 @@ export declare class B3dAircraft extends B3dControllable {
     chaseDistance: number;
     private velocity;
     private _fwd;
+    private _gunCd;
+    private _bombCd;
+    private _missileCd;
+    private _bombWas;
+    private _missileWas;
     private fbw;
     private fbwSeeded;
+    ceiling: number;
+    hudChase: boolean;
+    private _hud;
+    private _hudMounted;
     private meshNode;
     private meshesToDispose;
     private _lastGroundDist;
@@ -59,6 +82,23 @@ export declare class B3dAircraft extends B3dControllable {
     private libraryNode;
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;
+    private updateWeapons;
+    /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
+     * spawned at the belly (or the nose in a climb) never detonates on us. */
+    private ownMeshes;
+    /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
+    private muzzle;
+    /** Fire one cannon shell forward, inheriting the airframe's velocity. */
+    fireGuns(): void;
+    /** Drop a bomb — it inherits the airframe's velocity and falls under gravity.
+     * Released a little below the belly and set to ignore our own geometry, so a bank
+     * doesn't detonate it on the wing. */
+    dropBomb(): void;
+    /** Fire a guided missile at the nearest target in the forward cone (else dumb). */
+    fireMissile(): void;
+    private get gunWarhead();
+    /** Nearest destroyable within `range` and inside the forward cone (or null). */
+    private acquireTarget;
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */
     private groundDistance;

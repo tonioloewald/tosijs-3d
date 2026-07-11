@@ -188,13 +188,14 @@ import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics'
+import { steerToward, interceptLead, gNormalize, gSub } from './guidance'
 import {
-  steerToward,
-  interceptLead,
-  gNormalize,
-  gSub,
-} from './guidance'
-import { makeResource, drain, regenTick, isEmpty, type Resource } from './resource'
+  makeResource,
+  drain,
+  regenTick,
+  isEmpty,
+  type Resource,
+} from './resource'
 import { detonateWarhead } from './b3d-warhead'
 import type { WarheadSpec } from './warhead'
 
@@ -301,12 +302,15 @@ export function spawnProjectile(
       const hit = scene.pickWithRay(
         ray,
         (m) =>
-          m.isPickable &&
-          m !== mesh &&
-          (opts.ignore == null || !opts.ignore(m))
+          m.isPickable && m !== mesh && (opts.ignore == null || !opts.ignore(m))
       )
       if (hit != null && hit.hit && hit.pickedPoint != null) {
-        detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true)
+        detonateWarhead(
+          owner,
+          hit.pickedPoint,
+          opts.warhead,
+          opts.useLos ?? true
+        )
         opts.onImpact?.(hit.pickedPoint)
         dispose()
         return
@@ -355,15 +359,17 @@ export function spawnMissile(
   const target = opts.target
   const toTarget = (): BABYLON.Vector3 =>
     target.absolutePosition.subtract(opts.origin)
-  const dir0 = gNormalize(
-    (opts.direction ?? toTarget()) as unknown as Vec3
-  )
+  const dir0 = gNormalize((opts.direction ?? toTarget()) as unknown as Vec3)
   let last: Vec3 | null = null
   return spawnProjectile(owner, {
     origin: opts.origin,
     velocity: new BABYLON.Vector3(dir0.x, dir0.y, dir0.z).scale(opts.speed),
     warhead: opts.warhead,
-    params: opts.params ?? { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
+    params: opts.params ?? {
+      gravity: { x: 0, y: 0, z: 0 },
+      dragCoeff: 0,
+      mass: 1,
+    },
     radius: opts.radius,
     color: opts.color ?? '#ff6644',
     maxLifetime: opts.maxLifetime ?? 8,

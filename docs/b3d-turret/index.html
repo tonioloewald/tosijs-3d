@@ -14,15 +14,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
   <title>b3d-turret — tosijs-3d</title>
-  <meta name="description" content="An auto-tracking gun — it slews its barrel to lead a moving target (pure interceptLead from guidance.ts), turns within a traverseRate budget (steerToward), and…" />
+  <meta name="description" content="An auto-tracking gun — it slews its barrel to lead a moving target and elevate for gravity drop (how much of each is governed by smart; drop uses ballisticAim…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-turret/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="b3d-turret — tosijs-3d" />
-  <meta property="og:description" content="An auto-tracking gun — it slews its barrel to lead a moving target (pure interceptLead from guidance.ts), turns within a traverseRate budget (steerToward), and…" />
+  <meta property="og:description" content="An auto-tracking gun — it slews its barrel to lead a moving target and elevate for gravity drop (how much of each is governed by smart; drop uses ballisticAim…" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-turret/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-turret","description":"An auto-tracking gun — it slews its barrel to lead a moving target (pure interceptLead from guidance.ts), turns within a traverseRate budget (steerToward), and…","url":"https://3d.tosijs.net/b3d-turret/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-turret","description":"An auto-tracking gun — it slews its barrel to lead a moving target and elevate for gravity drop (how much of each is governed by smart; drop uses ballisticAim…","url":"https://3d.tosijs.net/b3d-turret/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="/tosijs-3d.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
 </head>
@@ -30,9 +30,10 @@
   <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
   <article class="doc-content">
 <h1>b3d-turret</h1>
-<p>An <strong>auto-tracking gun</strong> — it slews its barrel to lead a moving target (pure
-<code>interceptLead</code> from <a href="?guidance.ts">guidance.ts</a>), turns within a <code>traverseRate</code>
-budget (<code>steerToward</code>), and fires <a href="/b3d-warhead/">warhead</a> shells
+<p>An <strong>auto-tracking gun</strong> — it slews its barrel to lead a moving target and elevate for
+gravity drop (how much of each is governed by <code>smart</code>; drop uses <code>ballisticAim</code> from
+<a href="?ballistics.ts">ballistics.ts</a>), turns within a <code>traverseRate</code> budget (<code>steerToward</code>
+from <a href="?guidance.ts">guidance.ts</a>), and fires <a href="/b3d-warhead/">warhead</a> shells
 (<a href="/b3d-launcher/">spawnProjectile</a>) once the target is <strong>in range and it can
 bear</strong>. The barrel glows its <code>armedColor</code> the instant it has a firing solution — so
 you can watch it acquire, lead, and open up.</p>
@@ -40,13 +41,19 @@ you can watch it acquire, lead, and open up.</p>
 <p>A drone <strong>orbits</strong> the turret; the turret tracks it, <strong>leads</strong> the crossing motion, and
 fires when aligned (barrel glows red when it can bear). Shots arc in and blast the drone,
 which <strong>respawns at a fresh altitude</strong> each time. It&#39;s fully automatic — no controls;
-just watch it acquire, lead, and engage. Tune traverse speed, range, fire rate and lead
-in the ⚙ panel — drop the traverse rate and watch it struggle to keep up.</p>
+just watch it acquire, engage, and correct. The <strong><code>smart</code> (0..1)</strong> slider is a skill
+<em>curve</em>: at <strong>0</strong> it aims straight at where the target <em>is now</em> — so it whiffs the
+crossing motion and, at the default low muzzle speed, <strong>falls short</strong>. <strong>Leading ramps in
+first — full by 0.5</strong> — then <strong>drop compensation</strong> finishes ramping to <strong>1</strong>, elevating
+the barrel for gravity. So low-smart turrets lead but shoot flat; high-smart ones lead
+<em>and</em> arc their shots onto target. (0.5–1 is reserved to fold in target
+acceleration/turn-rate prediction later.) Drop the traverse rate to watch it struggle to
+keep up even when smart.</p>
 <pre><code class="language-js">import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
 import { tosi } from &#39;tosijs&#39;
 
-const { s } = tosi({ s: { traverseRate: 2.5, range: 30, fireRate: 2, muzzleSpeed: 35 } })
-const turret = b3dTurret({ x: 0, y: 0, z: 0, traverseRate: s.traverseRate, range: s.range, fireRate: s.fireRate, muzzleSpeed: s.muzzleSpeed })
+const { s } = tosi({ s: { traverseRate: 2.5, range: 30, fireRate: 2, muzzleSpeed: 24, smart: 0 } })
+const turret = b3dTurret({ x: 0, y: 0, z: 0, traverseRate: s.traverseRate, range: s.range, fireRate: s.fireRate, muzzleSpeed: s.muzzleSpeed, smart: s.smart })
 
 const scene = b3d(
   {
@@ -57,6 +64,7 @@ const scene = b3d(
       slider3d({ label: &#39;range&#39;, value: s.range, min: 8, max: 40, step: 1 }),
       slider3d({ label: &#39;fire rate&#39;, value: s.fireRate, min: 0.5, max: 8, step: 0.5 }),
       slider3d({ label: &#39;muzzle speed&#39;, value: s.muzzleSpeed, min: 15, max: 60, step: 1 }),
+      slider3d({ label: &#39;smart (drop comp)&#39;, value: s.smart, min: 0, max: 1, step: 0.05 }),
     ],
     sceneCreated(el, BABYLON) {
       const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2.2, Math.PI / 3.2, 34, new BABYLON.Vector3(0, 3, 0), el.scene)
@@ -80,6 +88,7 @@ const scene = b3d(
         turret.range = s.range.value
         turret.fireRate = s.fireRate.value
         turret.muzzleSpeed = s.muzzleSpeed.value
+        turret.smart = s.smart.value
         a += el.scene.getEngine().getDeltaTime() / 1000
         if (!target || target.dead || !target.mesh) return
         target.x = Math.cos(a * 0.6) * 12
@@ -126,6 +135,11 @@ preview.append(scene)
 <td><code>traverseRate</code></td>
 <td><code>2.5</code></td>
 <td>Max barrel slew rate (rad/sec)</td>
+</tr>
+<tr>
+<td><code>smart</code></td>
+<td><code>0</code></td>
+<td>Skill curve 0..1: <strong>lead</strong> ramps to full by <strong>0.5</strong>, <strong>drop</strong> compensation to full by <strong>1</strong> (0 = aim at the target&#39;s current spot). 0.5–1 reserved for acceleration/turn-rate prediction later</td>
 </tr>
 <tr>
 <td><code>aimTolerance</code></td>

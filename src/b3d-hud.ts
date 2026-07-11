@@ -241,8 +241,7 @@ export class B3dHud extends B3dChild {
     )
     plane.parent = this._inSceneParent
     plane.position =
-      this._inSceneOpts?.position?.clone() ??
-      new BABYLON.Vector3(0, 0.9, 1.3)
+      this._inSceneOpts?.position?.clone() ?? new BABYLON.Vector3(0, 0.9, 1.3)
     plane.isPickable = false
     const mat = new BABYLON.StandardMaterial('hud-3d-mat', scene)
     // Unlit, self-glowing, alpha from the HUD SVG's own transparency.
@@ -272,7 +271,10 @@ export class B3dHud extends B3dChild {
   private _measure(): void {
     const min = Math.min(this.clientWidth, this.clientHeight)
     if (min > 0) {
-      this.style.setProperty('--hud-size', `${(min * (this as any).size) / 100}px`)
+      this.style.setProperty(
+        '--hud-size',
+        `${(min * (this as any).size) / 100}px`
+      )
     }
   }
 

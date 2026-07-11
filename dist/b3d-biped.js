@@ -64,6 +64,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `url` | `''` | GLB model URL |
+| `skin` | `''` | Optional albedo texture URL applied to the `skin` material (reskin) |
+| `scale` | `1` | Uniform scale applied to the loaded model |
 | `animation` | `''` | Current animation state name |
 | `animationSpeed` | `1` | Playback speed multiplier (0–2) |
 | `player` | `false` | Whether this biped receives input |
@@ -135,6 +137,14 @@ export class B3dBiped extends B3dControllable {
     static initAttributes = {
         ...B3dControllable.initAttributes,
         url: '',
+        // Optional skin texture URL applied to the model's `skin` material. Kenney
+        // characters ship textureless with one `skin` material + separate skin PNGs,
+        // so reskinning is just swapping this albedo texture.
+        skin: '',
+        // Uniform scale applied to the loaded model. Handy when an asset imports at the
+        // wrong size (Kenney FBX characters come in ~2x too big; 0.48 ≈ 1.8m) — though
+        // baking scale into the conversion is preferred so every consumer gets it right.
+        scale: 1,
         player: false,
         cameraType: 'none',
         animation: '',
@@ -522,6 +532,62 @@ export class B3dBiped extends B3dControllable {
             }
         }
     }
+    /** Swap the model's `skin` material albedo texture (Kenney characters are
+     * textureless + reskinned by this PNG). Empty clears it. Matches materials named
+     * ~`skin`, or all PBR materials if none is. */
+    applySkin(url) {
+        if (this.entries == null || this.owner == null)
+            return;
+        const scene = this.owner.scene;
+        const mats = new Set();
+        for (const n of this.entries.rootNodes) {
+            for (const m of n.getChildMeshes()) {
+                if (m.material instanceof BABYLON.PBRMaterial)
+                    mats.add(m.material);
+            }
+        }
+        const named = [...mats].filter((m) => /skin/i.test(m.name));
+        for (const mat of named.length ? named : [...mats]) {
+            mat.albedoTexture?.dispose();
+            mat.albedoTexture = url ? new BABYLON.Texture(url, scene) : null;
+            // Kenney character materials export as alphaMode MASK with base-color alpha 0
+            // (an FBX-import artifact) → fully clipped/invisible. They're opaque, so force it.
+            mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
+        }
+    }
+    _equipped = new Map();
+    /**
+     * Load an accessory GLB and attach it to a named rig bone (`Head`, `RightHand`,
+     * `Hips`, …), replacing anything already on that bone. Kenney accessories are
+     * origin-authored (their geometry sits at the origin, meant to be positioned BY
+     * the bone), so parenting to the bone's node places + animates them correctly.
+     */
+    equip(boneName, url) {
+        if (this.entries == null || this.owner == null)
+            return;
+        const scene = this.owner.scene;
+        const skeleton = this.entries.skeletons?.[0];
+        this.unequip(boneName);
+        this.loadAssetContainer(scene, url, (container) => {
+            if (this.mesh == null)
+                return; // disposed while loading
+            const e = container.instantiateModelsToScene(undefined, false, {
+                doNotInstantiate: true,
+            });
+            const acc = e.rootNodes[0];
+            const bone = skeleton?.bones.find((b) => b.name.toLowerCase() === boneName.toLowerCase()) ?? skeleton?.bones.find((b) => new RegExp(boneName, 'i').test(b.name));
+            acc.parent = bone?.getTransformNode?.() ?? this.mesh;
+            this._equipped.set(boneName, e);
+        });
+    }
+    /** Remove whatever is equipped on a bone. */
+    unequip(boneName) {
+        const e = this._equipped.get(boneName);
+        if (e != null) {
+            e.dispose();
+            this._equipped.delete(boneName);
+        }
+    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -537,7 +603,9 @@ export class B3dBiped extends B3dControllable {
                     .map((node) => node.getChildMeshes())
                     .flat();
                 this.mesh = this.entries.rootNodes[0];
-                // Derive eye height from the model so first-person sits at the head, not
+                if (attrs.scale !== 1)
+                    this.mesh.scaling.setAll(attrs.scale);
+                // Derive eye height from the model (after scaling, so it's the real size) so first-person sits at the head, not
                 // the origin (the feet). ~0.93 of total height ≈ eye level. Used as a
                 // fallback when there's no head node to anchor to.
                 const bounds = this.mesh.getHierarchyBoundingVectors();
@@ -557,7 +625,18 @@ export class B3dBiped extends B3dControllable {
                 this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0);
                 this.mesh.checkCollisions = true;
                 owner.register({ meshes });
+                // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX
+                // artifact) render the character fully invisible; they're opaque, so fix it
+                // whether or not a `skin` is applied.
+                for (const mm of meshes) {
+                    const mat = mm.material;
+                    if (mat instanceof BABYLON.PBRMaterial && /skin/i.test(mat.name)) {
+                        mat.transparencyMode = BABYLON.PBRMaterial.PBRMATERIAL_OPAQUE;
+                    }
+                }
                 this.setAnimationState(attrs.initialState);
+                if (attrs.skin)
+                    this.applySkin(attrs.skin);
                 // If inputFocus wired input before GLB loaded, it may have been
                 // cleared by a dispose/re-init cycle. Re-wire directly.
                 if (attrs.player && this.inputProvider == null) {

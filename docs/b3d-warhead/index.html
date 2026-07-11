@@ -34,9 +34,12 @@
 COMBAT-DESIGN.md). On <code>detonate(center)</code> it gathers every <a href="/b3d-destroyable/">b3d-destroyable</a>
 in the scene, resolves the blast (full damage inside <code>fullRadius</code>, falling linearly to
 1 at <code>blastRadius</code>, 0 beyond), <strong>line-of-sight gates</strong> each target with a raycast (a
-wall between the blast and a target spares it), applies the damage, and spawns a quick
-expanding flash. Single-use — a projectile/bomb owns one and fires it on impact; here
-you can also place one and detonate it directly.</p>
+wall between the blast and a target spares it), and applies the damage as an <strong>outward
+shockwave</strong>: each target&#39;s hit lands on a short delay proportional to its distance, so
+the effect ripples out (near things die first, far last) in step with the expanding
+flash — cheap (amounts + delays computed instantly, only application is staggered), not
+an all-at-once kill. Single-use — a projectile/bomb owns one and fires it on impact;
+here you can also place one and detonate it directly.</p>
 <h2>Demo</h2>
 <p><strong>Steer the reticle with A/D + W/S (left stick), pull the right trigger (or <code>F</code>) to
 detonate there</strong> — the <a href="/b3d-controller/">standard controller</a>. Cubes

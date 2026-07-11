@@ -13,6 +13,13 @@ export declare class B3dDestroyable extends AbstractMesh {
         regenDelay: number;
         protectedBy: string;
         protection: number;
+        explode: string;
+        explodeForce: number;
+        deathBlast: string;
+        blastDamage: number;
+        blastFullRadius: number;
+        blastRadius: number;
+        blastDelay: number;
         x: number;
         y: number;
         z: number;
@@ -30,17 +37,42 @@ export declare class B3dDestroyable extends AbstractMesh {
     regenDelay: number;
     protectedBy: string;
     protection: number;
-    /** On-destruction chain links (set in code; see destroyable.ts). */
+    explode: string;
+    explodeForce: number;
+    deathBlast: string;
+    blastDamage: number;
+    blastFullRadius: number;
+    blastRadius: number;
+    blastDelay: number;
+    /**
+     * On-destruction direct-transfer chain links (set in code; see destroyable.ts).
+     * Distinct from `deathBlast`, which is an AOE explosion. Mirrored to the behavior.
+     */
     chain: ChainLink[];
-    /** This entity's id in the scene combat world (also its mesh name). */
-    combatId: string;
-    private _dead;
-    private _obs?;
+    private _behavior?;
     private _onShift?;
+    /**
+     * Optional code-set hook, run once when this target is destroyed (before the
+     * visual outcome). The clean seam for putting a linked player/vehicle into a
+     * 'dead' state, spawning loot/wreckage, swapping a model, etc. Also rides the
+     * bubbling `destroyed` CustomEvent.
+     */
+    whenDestroyed?: (info: {
+        id: string;
+        position: BABYLON.Vector3;
+    }) => void;
+    /** This entity's id in the scene combat world (also its mesh name). */
+    get combatId(): string;
+    /** True once destroyed (mesh gone / exploding). Lets others skip dead targets. */
+    get dead(): boolean;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
-    /** Hurt this target; returns the combat events from this hit. */
+    /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
     damage(amount: number): CombatEvent[];
-    private _die;
+    /**
+     * Set on-destruction chain links AFTER mount — chains reference other targets'
+     * combat ids, which only exist once those elements have mounted.
+     */
+    setChain(links: ChainLink[]): void;
     sceneDispose(): void;
 }
 export declare const b3dDestroyable: import("tosijs").ElementCreator<B3dDestroyable>;

@@ -23,6 +23,7 @@ export declare class B3d extends Component {
         maxDistance: number;
         noXr: boolean;
         xrGrid: "on" | "off" | "auto";
+        xrReticle: "on" | "off";
         scenePanelOpen: boolean;
         gamepad: boolean | string;
         gamepadScale: number;
@@ -185,6 +186,13 @@ export declare class B3d extends Component {
     glowLayer?: BABYLON.GlowLayer;
     xrHelper?: BABYLON.WebXRDefaultExperience;
     xrActive: boolean;
+    private static _active;
+    /** True when this scene should consume shared keyboard/gamepad input — it's the
+     * active (last hovered/clicked) scene, or none has been touched yet. Controllables
+     * gate their input on this so one gamepad doesn't drive every demo on a page. */
+    get hasInputFocus(): boolean;
+    /** Make this the input-focused scene (also happens on pointerenter/pointerdown). */
+    takeInputFocus(): void;
     /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
      * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
     xrFrames: XrFrames | null;
@@ -195,6 +203,7 @@ export declare class B3d extends Component {
     maxDistance: number;
     noXr: boolean;
     xrGrid: 'on' | 'off' | 'auto';
+    xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
     sceneCreated: B3dCallback;
     update: B3dCallback;

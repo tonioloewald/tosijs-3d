@@ -25,6 +25,41 @@ export function ballisticStep(state, params, dt) {
     state.pos.z += v.z * dt;
 }
 /**
+ * **Firing-elevation solver** — the launch DIRECTION (unit vector) that lands a shot of
+ * constant `speed` on `target` from `origin` under gravity `gravityY` (e.g. -9.81),
+ * compensating for **drop**. Picks the *low* (direct) arc. Returns `null` when the
+ * target is out of range at that speed (no real solution). Ignores drag — a good
+ * approximation for fast shots; pair with a small speed margin for draggy ones.
+ *
+ * This is what lets a turret "aim high to reach": as `speed` drops or range grows, the
+ * returned direction tilts up to keep the shot on target instead of falling short.
+ */
+export function ballisticAim(origin, target, speed, gravityY) {
+    const dx = target.x - origin.x;
+    const dy = target.y - origin.y;
+    const dz = target.z - origin.z;
+    const horiz = Math.sqrt(dx * dx + dz * dz);
+    const g = Math.abs(gravityY);
+    if (g < 1e-9) {
+        // No gravity → straight line.
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        return d > 1e-9 ? { x: dx / d, y: dy / d, z: dz / d } : null;
+    }
+    if (horiz < 1e-6)
+        return { x: 0, y: dy >= 0 ? 1 : -1, z: 0 }; // straight up/down
+    const v2 = speed * speed;
+    // Real launch angle exists iff v⁴ ≥ g(g·d² + 2·h·v²).
+    const disc = v2 * v2 - g * (g * horiz * horiz + 2 * dy * v2);
+    if (disc < 0)
+        return null;
+    const tanAngle = (v2 - Math.sqrt(disc)) / (g * horiz); // low arc
+    const angle = Math.atan(tanAngle);
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    // Unit already: (c·ĥ)² + s² = c² + s² = 1.
+    return { x: (dx / horiz) * c, y: s, z: (dz / horiz) * c };
+}
+/**
  * Run the integrator FORWARD from `state0` (without mutating it) to project the
  * flight path and the first impact point — this is the bomb sight. Returns the
  * polyline `points` (starting at the launch point) and `impact` (the first point

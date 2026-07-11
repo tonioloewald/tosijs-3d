@@ -14,7 +14,12 @@ missing.
 /*{ "parent": "Core" }*/
 
 import { svgElements } from 'tosijs'
-import { hudTrace, sideFromD, type HudTraceOptions, type Side } from './hud-math'
+import {
+  hudTrace,
+  sideFromD,
+  type HudTraceOptions,
+  type Side,
+} from './hud-math'
 import type { Pose, Vec3 } from './spatial-transform'
 
 export type { Side } from './hud-math'
@@ -49,7 +54,9 @@ const normalizeHud = (el: SVGSVGElement): void => {
   // radar/waypoint templates: designer `Radar_Hostile` → `radar-hostile`.
   for (const kind of ['neutral', 'friendly', 'hostile'] as const) {
     if (el.querySelector(`#radar-${kind}`)) continue
-    const src = el.querySelector(`[id="Radar_${kind[0].toUpperCase()}${kind.slice(1)}"]`)
+    const src = el.querySelector(
+      `[id="Radar_${kind[0].toUpperCase()}${kind.slice(1)}"]`
+    )
     if (src) src.id = `radar-${kind}`
   }
   // warning text: `#Warning` → `#warning`.
@@ -67,7 +74,9 @@ const normalizeHud = (el: SVGSVGElement): void => {
   for (const p of Array.from(el.querySelectorAll('path'))) {
     const style = p.getAttribute('style') ?? ''
     const w = parseFloat(
-      /stroke-width:\s*([\d.]+)/.exec(style)?.[1] ?? p.getAttribute('stroke-width') ?? '0'
+      /stroke-width:\s*([\d.]+)/.exec(style)?.[1] ??
+        p.getAttribute('stroke-width') ??
+        '0'
     )
     const stroke = (
       /stroke:\s*([^;]+)/.exec(style)?.[1] ??
@@ -77,7 +86,13 @@ const normalizeHud = (el: SVGSVGElement): void => {
       .trim()
       .toLowerCase()
     const d = p.getAttribute('d') ?? ''
-    if (w >= 12 && stroke && stroke !== 'none' && !/#000000|black/.test(stroke) && d) {
+    if (
+      w >= 12 &&
+      stroke &&
+      stroke !== 'none' &&
+      !/#000000|black/.test(stroke) &&
+      d
+    ) {
       const side = sideFromD(d)
       p.setAttribute('data-side', side)
       if (!p.id) {
@@ -157,13 +172,19 @@ export function createHudController(
         const a = angles[i]
         // The ladder for angle `a` sits (pitch − a)° below centre (pitch up →
         // horizon slides down); its label reads that angle.
-        g.setAttribute('transform', `translate(0, ${(pitchDeg - a) * pxPerDeg})`)
+        g.setAttribute(
+          'transform',
+          `translate(0, ${(pitchDeg - a) * pxPerDeg})`
+        )
         const label = g.querySelector('.hud-angle')
         if (label != null) label.textContent = String(a)
       })
     }
     // Counter-roll so the horizon reads level.
-    horizonG?.setAttribute('transform', `rotate(${-rollDeg}, ${CENTER}, ${CENTER})`)
+    horizonG?.setAttribute(
+      'transform',
+      `rotate(${-rollDeg}, ${CENTER}, ${CENTER})`
+    )
   }
 
   const tracesG = el.querySelector('#traces') as SVGGElement | null
@@ -205,9 +226,14 @@ export function createHudController(
       t.setAttribute('visibility', warnings.length ? 'visible' : 'hidden')
     }
     // Flash the arc on each threatened side red (`.hud-threat` keyframes).
-    const active = new Set(warnings.map((w) => w.side).filter(Boolean) as Side[])
+    const active = new Set(
+      warnings.map((w) => w.side).filter(Boolean) as Side[]
+    )
     el.querySelectorAll('[data-side]').forEach((f) =>
-      f.classList.toggle('hud-threat', active.has(f.getAttribute('data-side') as Side))
+      f.classList.toggle(
+        'hud-threat',
+        active.has(f.getAttribute('data-side') as Side)
+      )
     )
   }
 
@@ -253,41 +279,131 @@ export function buildFallbackHud(
   const el = svg(
     { width: 256, height: 256, viewBox: '0 0 256 256' },
     g(
-      { id: 'meters', fill: 'none', 'stroke-linecap': 'butt', 'stroke-width': 18, 'stroke-opacity': 0.5 },
-      meter('speed', 'v', '#ff1d25', 'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'),
-      meter('altitude', 'v', '#3ea9f5', 'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'),
-      meter('health', 'h', '#8cc63f', 'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'),
-      meter('energy', 'h', '#fcee22', 'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'),
+      {
+        id: 'meters',
+        fill: 'none',
+        'stroke-linecap': 'butt',
+        'stroke-width': 18,
+        'stroke-opacity': 0.5,
+      },
+      meter(
+        'speed',
+        'v',
+        '#ff1d25',
+        'M60.1178,195.882 C22.6274,158.392,22.6274,97.6081,60.1178,60.1177'
+      ),
+      meter(
+        'altitude',
+        'v',
+        '#3ea9f5',
+        'M195.882,195.882 C233.373,158.392,233.373,97.6081,195.882,60.1178'
+      ),
+      meter(
+        'health',
+        'h',
+        '#8cc63f',
+        'M60.1178,60.1178 C97.6081,22.6274,158.392,22.6274,195.882,60.1178'
+      ),
+      meter(
+        'energy',
+        'h',
+        '#fcee22',
+        'M60.1178,195.882 C97.6081,233.373,158.392,233.373,195.882,195.882'
+      )
     ),
     g(
       { id: 'frames', fill: 'none', stroke: '#00a79e', 'stroke-width': 2 },
-      ...FRAME_D.map((d, i) => path({ d, 'data-side': FRAME_SIDE[i] })),
+      ...FRAME_D.map((d, i) => path({ d, 'data-side': FRAME_SIDE[i] }))
     ),
     g(
-      { id: 'horizon', fill: 'none', stroke: '#00a79e', 'stroke-width': 2, 'stroke-opacity': 0.5, 'stroke-linecap': 'butt' },
+      {
+        id: 'horizon',
+        fill: 'none',
+        stroke: '#00a79e',
+        'stroke-width': 2,
+        'stroke-opacity': 0.5,
+        'stroke-linecap': 'butt',
+      },
       g(
         { id: 'horizon-ladder' },
-        ...['M64,128 L112,128', 'M144,128 L192,128', 'M96,96 L160,96', 'M96,112 L160,112', 'M96,144 L160,144', 'M96,160 L160,160'].map(
-          (d) => path({ d })
-        ),
+        ...[
+          'M64,128 L112,128',
+          'M144,128 L192,128',
+          'M96,96 L160,96',
+          'M96,112 L160,112',
+          'M96,144 L160,144',
+          'M96,160 L160,160',
+        ].map((d) => path({ d })),
         text(
-          { class: 'hud-angle', x: 128, y: 128, fill: '#00a79e', 'fill-opacity': 0.9, stroke: 'none', 'font-family': 'ui-monospace, monospace', 'font-size': 16, 'text-anchor': 'middle', 'dominant-baseline': 'central' },
+          {
+            class: 'hud-angle',
+            x: 128,
+            y: 128,
+            fill: '#00a79e',
+            'fill-opacity': 0.9,
+            stroke: 'none',
+            'font-family': 'ui-monospace, monospace',
+            'font-size': 16,
+            'text-anchor': 'middle',
+            'dominant-baseline': 'central',
+          },
           '0'
-        ),
-      ),
+        )
+      )
     ),
     g({ id: 'traces' }),
     defs(
       {},
-      glyph('radar-neutral', rect({ x: -8, y: -8, width: 16, height: 16, fill: 'none', stroke: '#fcee22', 'stroke-width': 4 })),
-      glyph('radar-friendly', circle({ r: 8, fill: 'none', stroke: '#8cc63f', 'stroke-width': 4 })),
-      glyph('radar-hostile', path({ d: 'M0,-11.31 L11.31,0 L0,11.31 L-11.31,0 z', fill: 'none', stroke: '#ff1d25', 'stroke-width': 4 })),
-      glyph('waypoint', path({ d: 'M0,6.19 L-6.93,-6.19 L6.93,-6.19 z', fill: 'none', stroke: '#00a79e', 'stroke-width': 4 })),
+      glyph(
+        'radar-neutral',
+        rect({
+          x: -8,
+          y: -8,
+          width: 16,
+          height: 16,
+          fill: 'none',
+          stroke: '#fcee22',
+          'stroke-width': 4,
+        })
+      ),
+      glyph(
+        'radar-friendly',
+        circle({ r: 8, fill: 'none', stroke: '#8cc63f', 'stroke-width': 4 })
+      ),
+      glyph(
+        'radar-hostile',
+        path({
+          d: 'M0,-11.31 L11.31,0 L0,11.31 L-11.31,0 z',
+          fill: 'none',
+          stroke: '#ff1d25',
+          'stroke-width': 4,
+        })
+      ),
+      glyph(
+        'waypoint',
+        path({
+          d: 'M0,6.19 L-6.93,-6.19 L6.93,-6.19 z',
+          fill: 'none',
+          stroke: '#00a79e',
+          'stroke-width': 4,
+        })
+      )
     ),
     text(
-      { id: 'warning', x: 128, y: 246, fill: '#ff1d25', stroke: 'none', 'font-family': 'ui-monospace, monospace', 'font-size': 16, 'font-weight': 'bold', 'text-anchor': 'middle', visibility: 'hidden' },
+      {
+        id: 'warning',
+        x: 128,
+        y: 246,
+        fill: '#ff1d25',
+        stroke: 'none',
+        'font-family': 'ui-monospace, monospace',
+        'font-size': 16,
+        'font-weight': 'bold',
+        'text-anchor': 'middle',
+        visibility: 'hidden',
+      },
       ''
-    ),
+    )
   ) as unknown as SVGSVGElement
   return createHudController(el, options)
 }

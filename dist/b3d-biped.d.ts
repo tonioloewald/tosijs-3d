@@ -23,6 +23,8 @@ export declare class AnimState {
 export declare class B3dBiped extends B3dControllable {
     static initAttributes: {
         url: string;
+        skin: string;
+        scale: number;
         player: boolean;
         cameraType: string;
         animation: string;
@@ -93,6 +95,20 @@ export declare class B3dBiped extends B3dControllable {
      * list regardless of `isVisible`, so you still cast a full-body shadow. */
     private setBodyHidden;
     connectedCallback(): void;
+    /** Swap the model's `skin` material albedo texture (Kenney characters are
+     * textureless + reskinned by this PNG). Empty clears it. Matches materials named
+     * ~`skin`, or all PBR materials if none is. */
+    applySkin(url: string): void;
+    private _equipped;
+    /**
+     * Load an accessory GLB and attach it to a named rig bone (`Head`, `RightHand`,
+     * `Hips`, …), replacing anything already on that bone. Kenney accessories are
+     * origin-authored (their geometry sits at the origin, meant to be positioned BY
+     * the bone), so parenting to the bone's node places + animates them correctly.
+     */
+    equip(boneName: string, url: string): void;
+    /** Remove whatever is equipped on a bone. */
+    unequip(boneName: string): void;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
     render(): void;

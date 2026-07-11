@@ -27,6 +27,17 @@ export interface BallisticState {
 }
 /** Advance one projectile by `dt` seconds (mutates `state`). */
 export declare function ballisticStep(state: BallisticState, params: BallisticParams, dt: number): void;
+/**
+ * **Firing-elevation solver** — the launch DIRECTION (unit vector) that lands a shot of
+ * constant `speed` on `target` from `origin` under gravity `gravityY` (e.g. -9.81),
+ * compensating for **drop**. Picks the *low* (direct) arc. Returns `null` when the
+ * target is out of range at that speed (no real solution). Ignores drag — a good
+ * approximation for fast shots; pair with a small speed margin for draggy ones.
+ *
+ * This is what lets a turret "aim high to reach": as `speed` drops or range grows, the
+ * returned direction tilts up to keep the shot on target instead of falling short.
+ */
+export declare function ballisticAim(origin: Vec3, target: Vec3, speed: number, gravityY: number): Vec3 | null;
 export interface PredictOptions {
     /** Integration step (use the same `dt` as live flight for a truthful preview). */
     dt: number;

@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div, span } = elements
 
@@ -85,6 +85,9 @@ const scene = addMarkers(b3d(
   // aircraft's shadow would shrink to sub-pixel (i.e. invisible).
   b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  // Drop in the gauge HUD — the player aircraft drives it automatically (speed,
+  // altitude vs `ceiling`, and the pitch/roll horizon).
+  b3dHud({}),
   inputFocus(
     gameController(),
     aircraft,
@@ -140,6 +143,84 @@ tosi-b3d { width: 100%; height: 100%; }
 }
 ```
 
+## Combat — shoot down the drones
+
+The aircraft is armed (see [Weapons](#weapons-the-combat-slice)). Fly at the drifting
+**aerial drones** and shoot them down. Each takes a short cannon burst or one missile —
+watch a drone glow **redder as it takes damage** (the [destroyable](?b3d-destroyable.ts)
+damage readout), then explode. The **kills counter** (top-right) ticks up as they die,
+and missiles **lock the nearest drone in front of you**.
+
+**Keys:** `Space` / right-Shift = **guns**, `LShift` = **missile**, `F` = **bomb**.
+(Fly with W/S pitch, A/D bank, R/Q throttle.)
+
+```js
+import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div } = elements
+
+const aircraft = b3dAircraft({
+  library: 'vehicles', meshName: 'scout',
+  player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
+})
+
+// Big, low-HP drones spread across the takeoff heading (+Z), at cruise height. capacity
+// 6 ≈ one cannon burst or one missile — so a hit obviously registers and kills. They
+// explode and fire a small death-blast, so a tight formation chain-reacts.
+const drones = []
+for (let i = 0; i < 12; i++) {
+  drones.push(b3dDestroyable({
+    meshName: 'drone', size: 2.4, color: '#d05050', capacity: 6,
+    x: (i % 4) * 9 - 13.5, y: 12 + (i % 3) * 5, z: 45 + Math.floor(i / 4) * 22,
+    explode: 'on', explodeForce: 8,
+    deathBlast: 'on', blastDamage: 10, blastFullRadius: 2, blastRadius: 6,
+  }))
+}
+
+const kills = div({ class: 'kills' }, 'Drones down: 0 / 12')
+let down = 0
+
+const scene = b3d(
+  {
+    gamepad: true,
+    sceneCreated(el) {
+      // Prove damage→death: count the bubbling `destroyed` events.
+      el.addEventListener('destroyed', () => {
+        down += 1
+        kills.textContent = `Drones down: ${down} / 12`
+      })
+      // Gently drift the drones so they move but stay very hittable.
+      let t = 0
+      el.scene.onBeforeRenderObservable.add(() => {
+        t += el.scene.getEngine().getDeltaTime() / 1000
+        drones.forEach((d, i) => {
+          if (d.dead) return
+          d.x += Math.sin(t * 0.3 + i) * 0.02
+          d.y += Math.sin(t * 0.6 + i * 2) * 0.01
+        })
+      })
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
+  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dHud({}),
+  ...drones,
+  inputFocus(gameController(), aircraft),
+)
+preview.append(scene, kills)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+.kills {
+  position: absolute; top: 10px; right: 10px; z-index: 10;
+  padding: 6px 12px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
+}
+```
+
 ## Flight model
 
 You're in PLANE mode (trigger = forward thrust) if you're fast enough (`vtolSpeed`)
@@ -178,6 +259,35 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
+| `hudChase` | `false` | Show the flat DOM HUD overlay in chase view (cockpit uses the in-scene HUD) |
+| `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
+| `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
+| `weapons` | `'on'` | `'off'` disarms all weapons |
+| `gunRate` | `9` | Cannon shots/sec while `shoot` is held |
+| `gunSpeed` | `130` | Cannon muzzle speed (added to airspeed) |
+| `gunDamage` | `8` | Per-shell warhead full damage |
+| `missileSpeed` | `55` | Guided-missile cruise speed |
+| `missileTurnRate` | `3` | Guided-missile agility (rad/sec) |
+| `missileDamage` | `30` | Missile warhead full damage |
+| `bombDamage` | `45` | Bomb warhead full damage |
+| `lockRange` | `140` | Max range to acquire a missile target |
+| `lockConeDeg` | `35` | Half-angle of the forward cone missiles lock within |
+
+## Weapons (the combat slice)
+
+Built on the pure combat toolkit ([destroyable](?b3d-destroyable.ts) /
+[warhead](?b3d-warhead.ts) / [launcher](?b3d-launcher.ts) / [guidance](?guidance.ts)).
+Shells inherit the airframe's velocity, so your own motion leads the shot. Any
+[b3d-destroyable](?b3d-destroyable.ts) in the scene takes the damage.
+
+| Control (default map) | Weapon |
+| --- | --- |
+| **Guns** — right bumper / A (held) | Cannon: fast ballistic shells, small blast |
+| **Bomb** — B (tap) | Falls under gravity with your forward momentum; big blast |
+| **Missile** — left bumper (tap) | Homes on the nearest target in the forward cone (else fires straight as a dumb rocket) |
+
+`fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
+an AI pilot). Set `weapons="off"` to disarm.
 
 ## API (read-only properties for HUD binding)
 
@@ -197,7 +307,8 @@ import * as BABYLON from '@babylonjs/core';
 import { B3dControllable } from './b3d-controllable';
 import { aircraftMapping } from './virtual-gamepad';
 import { flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
-import { placeOnSurface, boundingBottomOffset } from './b3d-utils';
+import { placeOnSurface, boundingBottomOffset, isOff } from './b3d-utils';
+import { spawnProjectile, spawnMissile } from './b3d-launcher';
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05;
 const DEG2RAD = Math.PI / 180;
@@ -236,6 +347,15 @@ export class B3dAircraft extends B3dControllable {
         meshName: '',
         player: false,
         enterable: false,
+        // Service ceiling (m): the aircraft can't climb past it, and it reads full on
+        // a linked HUD's altitude gauge.
+        ceiling: 300,
+        // Show the HUD in the chase view too (default: cockpit view only).
+        hudChase: false,
+        // In-cockpit HUD plane placement (see b3d-hud attachInScene): its size in metres
+        // and how far ahead of the pilot's eye it floats. Tune to taste per airframe.
+        hudSize: 0.7,
+        hudForward: 1.6,
         maxSpeed: 50,
         // Hard speed ceiling while the throttle is held past maxSpeed (afterburner).
         // Release and it bleeds back to maxSpeed. ≤ maxSpeed disables afterburner.
@@ -256,6 +376,17 @@ export class B3dAircraft extends B3dControllable {
         // Vertical impact speed (m/s) above which a ground contact is a crash, not
         // a landing.
         crashSpeed: 8,
+        // --- Weapons (the combat slice; see COMBAT-DESIGN.md). 'off' to disarm. ---
+        weapons: 'on',
+        gunRate: 9, // cannon shots per second (held `shoot`)
+        gunSpeed: 130, // muzzle speed of cannon shells (added to airspeed)
+        gunDamage: 8, // per-shell warhead full damage
+        missileSpeed: 55, // guided-missile cruise speed
+        missileTurnRate: 3, // guided-missile agility (rad/sec)
+        missileDamage: 30,
+        bombDamage: 45,
+        lockRange: 140, // max range to acquire a missile target
+        lockConeDeg: 35, // half-angle of the forward cone missiles can lock within
     };
     // Read-only flight state
     airspeed = 0;
@@ -281,10 +412,19 @@ export class B3dAircraft extends B3dControllable {
     chaseDistance = 4.8; // chase distance behind
     velocity = new BABYLON.Vector3(0, 0, 0);
     _fwd = new BABYLON.Vector3(); // scratch: world nose direction (unit)
+    // Weapon cooldowns (seconds until ready) + edge-detect for the one-shot weapons.
+    _gunCd = 0;
+    _bombCd = 0;
+    _missileCd = 0;
+    _bombWas = false;
+    _missileWas = false;
     // Fly-by-wire flight state (heading/pitch/bank/speed). Seeded from the spawned
     // orientation on the first frame, then this controller owns the quaternion.
     fbw = { heading: 0, pitch: 0, bank: 0, speed: 0 };
     fbwSeeded = false;
+    // undefined = not yet resolved; null = no HUD / not the player.
+    _hud = undefined;
+    _hudMounted = false;
     meshNode = null;
     meshesToDispose = [];
     // Ground sampling is ONE raycast per frame, taken after the move and cached: the
@@ -387,8 +527,57 @@ export class B3dAircraft extends B3dControllable {
         // ceiling you can be stalled but the thrust still goes forward.
         this.vtolActive = attrs.vtolSpeed > 0 && fwdSpeed < attrs.vtolSpeed;
         this.stalling = false;
+        // Drive a linked HUD (a <tosi-b3d-hud> sibling) when this is the player. Found
+        // once and cached; loosely typed so the aircraft doesn't depend on b3d-hud.
+        if (this._hud === undefined) {
+            this._hud =
+                attrs.player && this.owner
+                    ? this.owner.querySelector('tosi-b3d-hud')
+                    : null;
+        }
+        if (this._hud != null) {
+            // Mount the HUD onto the canopy (in-scene) once, so it shows in a 3D cockpit
+            // and in VR — parented to the airframe just ahead of the pilot's eye, banking
+            // with the plane (not head-locked).
+            if (!this._hudMounted && this._hud.attachInScene != null) {
+                this._hudMounted = true;
+                this._hud.attachInScene(node, {
+                    size: attrs.hudSize,
+                    position: new BABYLON.Vector3(0, this.eyeHeight, this.cockpitForward + attrs.hudForward),
+                });
+            }
+            // In cockpit view the 3D canopy HUD is the HUD; the flat DOM overlay is for the
+            // chase view only when `hud-chase` opts in.
+            const inCockpit = this.cameraView === 'cockpit';
+            this._hud.setInSceneVisible?.(inCockpit);
+            const showHud = inCockpit || attrs.hudChase;
+            this._hud.setVisible(!inCockpit && attrs.hudChase);
+            if (showHud) {
+                const RAD = 180 / Math.PI;
+                this._hud.setMeter('speed', attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0);
+                this._hud.setMeter('altitude', this.altitude / attrs.ceiling);
+                // Nose-up should slide the horizon down — flip here if it reads inverted.
+                this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD);
+                // Warnings on the graphical HUD: PULL UP flashes the bottom arc (ground
+                // below); STALL is text only (not directional).
+                const warnings = [];
+                if (this.pullUp)
+                    warnings.push({ text: 'PULL UP', side: 'bottom' });
+                if (this.stalling)
+                    warnings.push({ text: 'STALL' });
+                this._hud.setWarnings(warnings);
+                // health/energy: wired once the combat resource models drive the aircraft.
+                // radar traces (setTraces): wired once scene targets exist.
+            }
+        }
         // === Apply velocity to position ===
         node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt);
+        // Service ceiling: can't climb past it. Cap altitude and bleed the climb.
+        if (node.position.y > attrs.ceiling) {
+            node.position.y = attrs.ceiling;
+            if (vel.y > 0)
+                vel.y = 0;
+        }
         // Ground contact. Clamp out of the terrain; once settled, behave like
         // wheels — kill the downward bounce and apply rolling resistance so you can
         // land, roll to a stop, and accelerate to take off again. (First cut — tune
@@ -416,6 +605,161 @@ export class B3dAircraft extends B3dControllable {
         // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
         this.altitude = node.position.y;
         this.updatePullUp(node, groundDist);
+        // Weapons last, so shells spawn from this frame's muzzle position.
+        this.updateWeapons(input, dt);
+    }
+    // --- Weapons ---------------------------------------------------------------
+    // Cannon on held `shoot` (cadence-gated), bomb on `jump` (edge), missile on
+    // `aim` (edge) — all built on the pure combat toolkit (spawnProjectile /
+    // spawnMissile / warhead). Shells inherit the airframe's velocity so they lead
+    // naturally with your own motion.
+    updateWeapons(input, dt) {
+        if (isOff(this.weapons) || this.crashed || !this.meshNode)
+            return;
+        if (this.owner == null)
+            return;
+        this._gunCd -= dt;
+        this._bombCd -= dt;
+        this._missileCd -= dt;
+        if (input.shoot > 0.5 && this._gunCd <= 0)
+            this.fireGuns();
+        const bomb = input.jump > 0.5;
+        if (bomb && !this._bombWas && this._bombCd <= 0)
+            this.dropBomb();
+        this._bombWas = bomb;
+        const missile = input.aim > 0.5;
+        if (missile && !this._missileWas && this._missileCd <= 0)
+            this.fireMissile();
+        this._missileWas = missile;
+    }
+    /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
+     * spawned at the belly (or the nose in a climb) never detonates on us. */
+    ownMeshes() {
+        if (this._ownMeshes == null && this.meshNode != null) {
+            const own = new Set();
+            if (this.meshNode instanceof BABYLON.AbstractMesh)
+                own.add(this.meshNode);
+            for (const child of this.meshNode.getChildMeshes())
+                own.add(child);
+            this._ownMeshes = own;
+        }
+        return this._ownMeshes ?? new Set();
+    }
+    /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
+    muzzle(ahead, drop = 0) {
+        const node = this.meshNode;
+        node.getDirectionToRef(LOCAL_Z, this._fwd);
+        return new BABYLON.Vector3(node.position.x + this._fwd.x * ahead, node.position.y + this._fwd.y * ahead - drop, node.position.z + this._fwd.z * ahead);
+    }
+    /** Fire one cannon shell forward, inheriting the airframe's velocity. */
+    fireGuns() {
+        if (this.owner == null || !this.meshNode)
+            return;
+        const attrs = this;
+        this._gunCd = attrs.gunRate > 0 ? 1 / attrs.gunRate : 0;
+        const origin = this.muzzle(2.2); // sets this._fwd to the world nose direction
+        const dir = this._fwd.clone().normalize();
+        const ignore = (m) => this.ownMeshes().has(m);
+        spawnProjectile(this.owner, {
+            origin,
+            velocity: this.velocity.add(dir.scale(attrs.gunSpeed)),
+            warhead: this.gunWarhead,
+            params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.001, mass: 2 },
+            radius: 0.08,
+            color: '#fff2a0',
+            maxLifetime: 3,
+            ignore,
+        });
+    }
+    /** Drop a bomb — it inherits the airframe's velocity and falls under gravity.
+     * Released a little below the belly and set to ignore our own geometry, so a bank
+     * doesn't detonate it on the wing. */
+    dropBomb() {
+        if (this.owner == null || !this.meshNode)
+            return;
+        const attrs = this;
+        this._bombCd = 0.6;
+        spawnProjectile(this.owner, {
+            origin: this.muzzle(0, 1.2), // clear of the belly
+            velocity: this.velocity.clone(),
+            warhead: { damage: attrs.bombDamage, fullRadius: 2, blastRadius: 6 },
+            params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.002, mass: 4 },
+            radius: 0.25,
+            color: '#404040',
+            maxLifetime: 12,
+            ignore: (m) => this.ownMeshes().has(m),
+        });
+    }
+    /** Fire a guided missile at the nearest target in the forward cone (else dumb). */
+    fireMissile() {
+        if (this.owner == null || !this.meshNode)
+            return;
+        const attrs = this;
+        this._missileCd = 0.8;
+        const origin = this.muzzle(1.6);
+        const dir = this._fwd.clone().normalize();
+        const spec = {
+            damage: attrs.missileDamage,
+            fullRadius: 1.5,
+            blastRadius: 4,
+        };
+        const ignore = (m) => this.ownMeshes().has(m);
+        const target = this.acquireTarget(origin, dir, attrs.lockRange, attrs.lockConeDeg);
+        if (target != null) {
+            spawnMissile(this.owner, {
+                origin,
+                target,
+                speed: attrs.missileSpeed,
+                turnRate: attrs.missileTurnRate,
+                warhead: spec,
+                direction: dir,
+                radius: 0.18,
+                ignore,
+            });
+        }
+        else {
+            // No lock — fire it straight ahead as an unguided rocket.
+            spawnProjectile(this.owner, {
+                origin,
+                velocity: this.velocity.add(dir.scale(attrs.missileSpeed)),
+                warhead: spec,
+                params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
+                radius: 0.18,
+                color: '#ff6644',
+                maxLifetime: 8,
+                ignore,
+            });
+        }
+    }
+    get gunWarhead() {
+        return {
+            damage: this.gunDamage,
+            fullRadius: 0.5,
+            blastRadius: 1.5,
+        };
+    }
+    /** Nearest destroyable within `range` and inside the forward cone (or null). */
+    acquireTarget(origin, fwd, range, coneDeg) {
+        const minCos = Math.cos((coneDeg * Math.PI) / 180);
+        let best = null;
+        let bestDist = Infinity;
+        const els = this.owner.querySelectorAll('tosi-b3d-destroyable');
+        for (const el of Array.from(els)) {
+            const mesh = el.mesh;
+            if (mesh == null || mesh.isDisposed())
+                continue;
+            const to = mesh.absolutePosition.subtract(origin);
+            const dist = to.length();
+            if (dist > range || dist < 1e-3)
+                continue;
+            if (BABYLON.Vector3.Dot(to.scale(1 / dist), fwd) < minCos)
+                continue;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = mesh;
+            }
+        }
+        return best;
     }
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */

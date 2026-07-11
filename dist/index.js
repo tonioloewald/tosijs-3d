@@ -9,8 +9,15 @@ export { WorldStore } from './world-store';
 export { WorldView, defaultMeshFactory } from './world-view';
 // Utilities
 export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+// Logical asset URLs (retarget the host in one place; see asset-url.ts)
+export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
+// Pure aircraft-HUD math (radar-trace projection + horizon)
+export { hudTrace, horizonTransform } from './hud-math';
+// HUD driver (meters / horizon / radar traces over the HUD SVG)
+export { createHudController, loadHud, buildFallbackHud } from './hud';
+export { B3dHud, b3dHud } from './b3d-hud';
 // Scene components
 export { B3dLoader, b3dLoader } from './b3d-loader';
 export { B3dLibrary, b3dLibrary } from './b3d-library';
@@ -28,6 +35,7 @@ export { JoltPlugin } from './jolt-plugin';
 export { emptyInput, CompositeInputProvider } from './control-input';
 export { XRInputProvider } from './xr-input-provider';
 export { B3dControllable } from './b3d-controllable';
+export { B3dController, b3dController } from './b3d-controller';
 export { emptyGamepad, mergeGamepads, bipedMapping, bipedMappingDescriptor, carMapping, carMappingDescriptor, aircraftMapping, aircraftMappingDescriptor, MappedInputProvider, } from './virtual-gamepad';
 export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad';
 export { HardwareGamepadSource } from './hardware-gamepad';
@@ -75,6 +83,11 @@ export { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler'
 export { makeResource, drain, refill, regenTick, isEmpty, isFull, fraction, } from './resource';
 export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable';
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable';
+export { DestroyableBehavior } from './destroyable-behavior';
+export { B3dWarhead, b3dWarhead, detonateWarhead } from './b3d-warhead';
+export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, } from './b3d-launcher';
+export { B3dTurret, b3dTurret } from './b3d-turret';
+export { steerToward, proNav, interceptLead, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
-export { ballisticStep, predictPath } from './ballistics';
+export { ballisticStep, predictPath, ballisticAim } from './ballistics';
 //# sourceMappingURL=index.js.map

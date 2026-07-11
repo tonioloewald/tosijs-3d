@@ -142,7 +142,7 @@ as much as matching GTA.
 But **standard gamepad ≠ available in VR**: XR controllers have far fewer buttons than a
 console pad. So every essential action needs a **VR-reachable fallback**:
 
-1. Prefer mapping essentials onto what VR *does* have — two sticks, two triggers, two
+1. Prefer mapping essentials onto what VR _does_ have — two sticks, two triggers, two
    grips, and a couple of face/menu buttons per hand.
 2. When actions outnumber buttons, put the overflow (and anything non-time-critical)
    into the **overhead / spatial menu** (`xr-frames` panels — inventory/quick-access/

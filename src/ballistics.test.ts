@@ -133,13 +133,23 @@ describe('predictPath (bomb sight)', () => {
 
 describe('ballisticAim (firing-elevation solver)', () => {
   test('no gravity → aims straight at the target', () => {
-    const dir = ballisticAim({ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, 30, 0)!
+    const dir = ballisticAim(
+      { x: 0, y: 0, z: 0 },
+      { x: 10, y: 0, z: 0 },
+      30,
+      0
+    )!
     expect(dir.x).toBeCloseTo(1, 6)
     expect(dir.y).toBeCloseTo(0, 6)
   })
 
   test('with gravity, a level distant target needs positive elevation', () => {
-    const dir = ballisticAim({ x: 0, y: 0, z: 0 }, { x: 40, y: 0, z: 0 }, 30, -9.81)!
+    const dir = ballisticAim(
+      { x: 0, y: 0, z: 0 },
+      { x: 40, y: 0, z: 0 },
+      30,
+      -9.81
+    )!
     expect(dir.y).toBeGreaterThan(0) // tilts up to reach
     expect(dir.x).toBeGreaterThan(0)
   })
@@ -163,7 +173,11 @@ describe('ballisticAim (firing-elevation solver)', () => {
     let best = Infinity
     for (let i = 0; i < 2000; i++) {
       ballisticStep(s, params, 0.005)
-      const d = Math.hypot(s.pos.x - target.x, s.pos.y - target.y, s.pos.z - target.z)
+      const d = Math.hypot(
+        s.pos.x - target.x,
+        s.pos.y - target.y,
+        s.pos.z - target.z
+      )
       best = Math.min(best, d)
       if (s.pos.y < -5) break
     }
@@ -171,6 +185,8 @@ describe('ballisticAim (firing-elevation solver)', () => {
   })
 
   test('out of range at low speed → null', () => {
-    expect(ballisticAim({ x: 0, y: 0, z: 0 }, { x: 500, y: 0, z: 0 }, 8, -9.81)).toBeNull()
+    expect(
+      ballisticAim({ x: 0, y: 0, z: 0 }, { x: 500, y: 0, z: 0 }, 8, -9.81)
+    ).toBeNull()
   })
 })

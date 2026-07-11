@@ -22,7 +22,9 @@ describe('assetUrl', () => {
 
   test('absolute / data / blob URLs pass through untouched', () => {
     setAssetBase('https://cdn.tosijs.net')
-    expect(assetUrl('https://cdn.example/y.glb')).toBe('https://cdn.example/y.glb')
+    expect(assetUrl('https://cdn.example/y.glb')).toBe(
+      'https://cdn.example/y.glb'
+    )
     expect(assetUrl('//cdn.example/y.glb')).toBe('//cdn.example/y.glb')
     expect(assetUrl('data:image/png;base64,AAA')).toBe(
       'data:image/png;base64,AAA'
