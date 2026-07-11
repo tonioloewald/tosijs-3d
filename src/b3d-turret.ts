@@ -1,9 +1,10 @@
 /*#
 # b3d-turret
 
-An **auto-tracking gun** — it slews its barrel to lead a moving target (pure
-`interceptLead` from [guidance.ts](?guidance.ts)), turns within a `traverseRate`
-budget (`steerToward`), and fires [warhead](?b3d-warhead.ts) shells
+An **auto-tracking gun** — it slews its barrel to lead a moving target and elevate for
+gravity drop (how much of each is governed by `smart`; drop uses `ballisticAim` from
+[ballistics.ts](?ballistics.ts)), turns within a `traverseRate` budget (`steerToward`
+from [guidance.ts](?guidance.ts)), and fires [warhead](?b3d-warhead.ts) shells
 ([spawnProjectile](?b3d-launcher.ts)) once the target is **in range and it can
 bear**. The barrel glows its `armedColor` the instant it has a firing solution — so
 you can watch it acquire, lead, and open up.
@@ -13,12 +14,14 @@ you can watch it acquire, lead, and open up.
 A drone **orbits** the turret; the turret tracks it, **leads** the crossing motion, and
 fires when aligned (barrel glows red when it can bear). Shots arc in and blast the drone,
 which **respawns at a fresh altitude** each time. It's fully automatic — no controls;
-just watch it acquire, engage, and correct. The **`smart` (0..1)** slider is one skill
-dial for BOTH lead and drop: at **0** it aims straight at where the target *is now* — so
-it whiffs the crossing motion and, at the default low muzzle speed, **falls short**; wind
-it up and it **leads** the target *and* **elevates to compensate for gravity**, landing
-hits without cranking muzzle speed. Drop the traverse rate to watch it struggle to keep
-up even when smart.
+just watch it acquire, engage, and correct. The **`smart` (0..1)** slider is a skill
+*curve*: at **0** it aims straight at where the target *is now* — so it whiffs the
+crossing motion and, at the default low muzzle speed, **falls short**. **Leading ramps in
+first — full by 0.5** — then **drop compensation** finishes ramping to **1**, elevating
+the barrel for gravity. So low-smart turrets lead but shoot flat; high-smart ones lead
+*and* arc their shots onto target. (0.5–1 is reserved to fold in target
+acceleration/turn-rate prediction later.) Drop the traverse rate to watch it struggle to
+keep up even when smart.
 
 ```js
 import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
@@ -89,7 +92,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `fireRate` | `2` | Max shots per second |
 | `range` | `30` | Won't fire beyond this distance |
 | `traverseRate` | `2.5` | Max barrel slew rate (rad/sec) |
-| `smart` | `0` | Skill 0..1 for BOTH lead and drop: 0 aims at the target's current spot (no lead/drop); 1 leads it and elevates for gravity |
+| `smart` | `0` | Skill curve 0..1: **lead** ramps to full by **0.5**, **drop** compensation to full by **1** (0 = aim at the target's current spot). 0.5–1 reserved for acceleration/turn-rate prediction later |
 | `aimTolerance` | `6` | Fires only when the barrel is within this many degrees of the solution |
 | `gravity` / `drag` / `mass` | `-9.81` / `0.01` / `1` | Shell ballistics (see b3d-launcher) |
 | `damage` / `fullRadius` / `blastRadius` / `los` | `20` / `1` / `2.5` / `'on'` | Warhead payload (see b3d-warhead) |
@@ -103,7 +106,7 @@ import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { ballisticAim, type BallisticParams } from './ballistics'
 import { spawnProjectile } from './b3d-launcher'
-import { steerToward, interceptLead, gNormalize, gSub, type Vec3 } from './guidance'
+import { steerToward, gNormalize, gSub, type Vec3 } from './guidance'
 import type { WarheadSpec } from './warhead'
 
 const RAD_TO_DEG = 180 / Math.PI
@@ -256,28 +259,30 @@ export class B3dTurret extends AbstractMesh {
       const mount: Vec3 = { x: base.x, y: base.y + 0.55, z: base.z }
       inRange = this._dist(tPos, mount) <= this.range
 
-      // `smart` (0..1) is one skill dial governing BOTH lead and drop:
-      //  - DUMB (0): aim straight at where the target is RIGHT NOW — no lead, no drop,
-      //    so it whiffs crossing targets and falls short at range.
-      //  - SMART (1): lead the target (aim where it WILL be) AND elevate to compensate
-      //    for gravity drop, so it lands hits without cranking muzzle speed.
-      // Between, it blends the two aim directions.
-      const dumb = gNormalize(gSub(tPos, mount))
+      // `smart` (0..1) is a skill CURVE governing lead and drop, with lead ramping in
+      // faster than drop:
+      //  - 0     = dumb: aim straight at where the target IS now (whiffs crossing
+      //            motion, falls short at range).
+      //  - →0.5  = lead ramps to FULL (aim where the target WILL be).
+      //  - →1    = drop compensation ramps to full (elevate for gravity).
+      // (The 0.5..1 band is where target acceleration / turn-rate prediction will fold
+      //  in later — for now it just finishes the drop ramp.)
+      const smart = Math.max(0, Math.min(1, this.smart))
+      const leadK = Math.min(1, smart / 0.5) // full lead by 0.5
+      const dropK = smart // full drop by 1
       const flight = this._dist(tPos, mount) / Math.max(1, this.muzzleSpeed)
-      const leadPoint: Vec3 = {
-        x: tPos.x + tVel.x * flight,
-        y: tPos.y + tVel.y * flight,
-        z: tPos.z + tVel.z * flight,
+      const aimPoint: Vec3 = {
+        x: tPos.x + tVel.x * flight * leadK,
+        y: tPos.y + tVel.y * flight * leadK,
+        z: tPos.z + tVel.z * flight * leadK,
       }
-      const full =
-        ballisticAim(mount, leadPoint, this.muzzleSpeed, this.gravity) ?? // lead + drop
-        interceptLead(mount, this.muzzleSpeed, tPos, tVel) ?? // lead only (out of arc)
-        dumb
-      const k = Math.max(0, Math.min(1, this.smart))
+      const straight = gNormalize(gSub(aimPoint, mount)) // line to the (lead-adjusted) point
+      const ball =
+        ballisticAim(mount, aimPoint, this.muzzleSpeed, this.gravity) ?? straight
       solution = gNormalize({
-        x: dumb.x + (full.x - dumb.x) * k,
-        y: dumb.y + (full.y - dumb.y) * k,
-        z: dumb.z + (full.z - dumb.z) * k,
+        x: straight.x + (ball.x - straight.x) * dropK,
+        y: straight.y + (ball.y - straight.y) * dropK,
+        z: straight.z + (ball.z - straight.z) * dropK,
       })
       // Slew the aim toward the solution within the traverse budget.
       this._aim = gNormalize(
