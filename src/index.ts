@@ -309,7 +309,7 @@ export {
 } from './guidance'
 export { aoeFalloff, resolveAoe, dist3 } from './warhead'
 export type { WarheadSpec, AoeTarget } from './warhead'
-export { ballisticStep, predictPath } from './ballistics'
+export { ballisticStep, predictPath, ballisticAim } from './ballistics'
 export type {
   BallisticParams,
   BallisticState,

@@ -6,6 +6,7 @@ import { describe, test, expect } from 'bun:test'
 import {
   ballisticStep,
   predictPath,
+  ballisticAim,
   type BallisticParams,
   type BallisticState,
 } from './ballistics'
@@ -127,5 +128,49 @@ describe('predictPath (bomb sight)', () => {
       hitTest: (p) => p.y <= 0,
     })
     expect(impact).toBeUndefined()
+  })
+})
+
+describe('ballisticAim (firing-elevation solver)', () => {
+  test('no gravity → aims straight at the target', () => {
+    const dir = ballisticAim({ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, 30, 0)!
+    expect(dir.x).toBeCloseTo(1, 6)
+    expect(dir.y).toBeCloseTo(0, 6)
+  })
+
+  test('with gravity, a level distant target needs positive elevation', () => {
+    const dir = ballisticAim({ x: 0, y: 0, z: 0 }, { x: 40, y: 0, z: 0 }, 30, -9.81)!
+    expect(dir.y).toBeGreaterThan(0) // tilts up to reach
+    expect(dir.x).toBeGreaterThan(0)
+  })
+
+  test('the solved shot actually lands on the target (drop compensated)', () => {
+    const origin = { x: 0, y: 2, z: 0 }
+    const target = { x: 45, y: 1, z: 12 }
+    const speed = 35
+    const dir = ballisticAim(origin, target, speed, -9.81)!
+    // fly it with the same integrator
+    const s: BallisticState = {
+      pos: { ...origin },
+      vel: { x: dir.x * speed, y: dir.y * speed, z: dir.z * speed },
+    }
+    const params: BallisticParams = {
+      gravity: { x: 0, y: -9.81, z: 0 },
+      dragCoeff: 0,
+      mass: 1,
+    }
+    // find closest approach to the target over the flight
+    let best = Infinity
+    for (let i = 0; i < 2000; i++) {
+      ballisticStep(s, params, 0.005)
+      const d = Math.hypot(s.pos.x - target.x, s.pos.y - target.y, s.pos.z - target.z)
+      best = Math.min(best, d)
+      if (s.pos.y < -5) break
+    }
+    expect(best).toBeLessThan(0.5) // passes within half a metre
+  })
+
+  test('out of range at low speed → null', () => {
+    expect(ballisticAim({ x: 0, y: 0, z: 0 }, { x: 500, y: 0, z: 0 }, 8, -9.81)).toBeNull()
   })
 })
