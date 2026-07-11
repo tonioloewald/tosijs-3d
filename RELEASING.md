@@ -60,8 +60,8 @@ cutting a release.**
    git commit -m "[release] vX.Y.Z — <one-line summary of the headline changes>"
    ```
 
-7. **Tag** the release (annotated). NOTE: this repo has no `vX.Y.Z` tag history yet —
-   establish the convention here:
+7. **Tag** the release (annotated) — `vX.Y.Z`, matching the existing tag history
+   (`v0.3.0`, `v0.4.0`, …):
 
    ```sh
    git tag -a vX.Y.Z -m "vX.Y.Z"
