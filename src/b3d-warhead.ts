@@ -34,7 +34,7 @@ const state = { rx: 0, rz: -3, shootWas: false }
 
 const scene = b3d(
   {
-    gamepad: true,
+    gamepad: 'left_stick,right_trigger',
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Warhead', bold: true }),

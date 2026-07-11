@@ -32,7 +32,7 @@ for (let i = 0; i < 24; i++) {
 
 const scene = b3d(
   {
-    gamepad: true,
+    gamepad: 'left_stick,right_trigger',
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Launcher', bold: true }),
@@ -97,7 +97,7 @@ const state = { target: null }
 
 const scene = b3d(
   {
-    gamepad: true,
+    gamepad: 'right_trigger',
     scenePanelOpen: true,
     scenePanel: () => [
       label3d({ text: 'Missile', bold: true }),

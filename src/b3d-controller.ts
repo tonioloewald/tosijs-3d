@@ -29,7 +29,7 @@ for (let i = 0; i < 24; i++) {
 
 const scene = b3d(
   {
-    gamepad: true, // the on-screen glass gamepad feeds the same controller
+    gamepad: 'left_stick,right_trigger', // glass gamepad shows only what this demo uses
     sceneCreated(el, BABYLON) {
       const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 22, new BABYLON.Vector3(0, 0.5, -2), el.scene)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
