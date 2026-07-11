@@ -5,9 +5,12 @@ The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts`
 COMBAT-DESIGN.md). On `detonate(center)` it gathers every [b3d-destroyable](?b3d-destroyable.ts)
 in the scene, resolves the blast (full damage inside `fullRadius`, falling linearly to
 1 at `blastRadius`, 0 beyond), **line-of-sight gates** each target with a raycast (a
-wall between the blast and a target spares it), applies the damage, and spawns a quick
-expanding flash. Single-use — a projectile/bomb owns one and fires it on impact; here
-you can also place one and detonate it directly.
+wall between the blast and a target spares it), and applies the damage as an **outward
+shockwave**: each target's hit lands on a short delay proportional to its distance, so
+the effect ripples out (near things die first, far last) in step with the expanding
+flash — cheap (amounts + delays computed instantly, only application is staggered), not
+an all-at-once kill. Single-use — a projectile/bomb owns one and fires it on impact;
+here you can also place one and detonate it directly.
 
 ## Demo
 
@@ -110,6 +113,10 @@ import type { B3d } from './tosi-b3d'
 import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead'
 import type { B3dDestroyable } from './b3d-destroyable'
 
+// Seconds for the blast to expand from the centre to its full radius — shared by the
+// boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.
+const BOOM_DURATION = 0.35
+
 export class B3dWarhead extends AbstractMesh {
   static initAttributes = {
     ...AbstractMesh.initAttributes,
@@ -186,14 +193,30 @@ export function detonateWarhead(
       visible: useLos ? hasLos(owner, center, e.mesh, meshes) : true,
     }
   })
+  // Shockwave: apply each target's damage on a delay proportional to its distance
+  // from the blast, so the effect ripples OUTWARD (near things die first, far last) in
+  // step with the expanding boom — rather than everything dying at once. Cheap: the
+  // amounts + delays are computed instantly here; only the application is staggered.
+  const blastRadius = spec.blastRadius ?? 5
+  const shockSpeed = blastRadius / BOOM_DURATION // reaches the edge as the shell does
   for (const hit of resolveAoe(
     spec,
     { x: center.x, y: center.y, z: center.z },
     targets
   )) {
-    live.find((e) => e.el.combatId === hit.id)?.el.damage(hit.amount)
+    const e = live.find((x) => x.el.combatId === hit.id)
+    if (e == null) continue
+    const p = e.mesh.absolutePosition
+    const d = Math.sqrt(
+      (p.x - center.x) ** 2 + (p.y - center.y) ** 2 + (p.z - center.z) ** 2
+    )
+    const delayMs = Math.min(BOOM_DURATION, d / shockSpeed) * 1000
+    const el = e.el
+    const amount = hit.amount
+    if (delayMs < 16) el.damage(amount)
+    else setTimeout(() => el.damage(amount), delayMs)
   }
-  boom(scene, center, spec.blastRadius ?? 5)
+  boom(scene, center, blastRadius)
 }
 
 // A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
@@ -234,7 +257,7 @@ function boom(
   let t = 0
   const obs = scene.onBeforeRenderObservable.add(() => {
     t += scene.getEngine().getDeltaTime() / 1000
-    const k = t / 0.35
+    const k = t / BOOM_DURATION
     if (k >= 1) {
       s.dispose()
       m.dispose()
