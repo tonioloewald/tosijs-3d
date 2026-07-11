@@ -18,7 +18,7 @@ Death outcome (all optional; default just removes/hides the mesh):
 - `deathBlast` — detonate an AOE warhead at the death point after `blastDelay`
   (default 100 ms): a **second** chain mechanism distinct from `chain`'s direct HP
   transfer — a falloff + line-of-sight explosion that ripples through neighbours.
-- `onDeath` callback + a bubbling `destroyed` event — the seam for flipping a linked
+- `whenDestroyed` callback + a bubbling `destroyed` event — the seam for flipping a linked
   player/vehicle into a *dead* state, spawning loot, swapping a wreck model, etc.
 */
 import * as BABYLON from '@babylonjs/core'
@@ -44,7 +44,7 @@ export interface DeathOutcome {
   blastDelay?: number
   /**
    * What to do with the mesh visually. `'dispose'` (default) frees it; `'hide'`
-   * disables it (a host that swaps in a wreck model in `onDeath` wants `'hide'` or
+   * disables it (a host that swaps in a wreck model in `whenDestroyed` wants `'hide'` or
    * `'keep'` so it can manage the mesh itself). Ignored when `explode` fires.
    */
   meshOnDeath?: 'dispose' | 'hide' | 'keep'
@@ -67,7 +67,7 @@ export class DestroyableBehavior {
   /** On-destruction direct-transfer chain links (see destroyable.ts). */
   chain: ChainLink[]
   /** Code hook run once on death, before the visual outcome. */
-  onDeath?: (info: { id: string; position: BABYLON.Vector3 }) => void
+  whenDestroyed?: (info: { id: string; position: BABYLON.Vector3 }) => void
 
   private _dead = false
   private _obs?: BABYLON.Observer<BABYLON.Scene>
@@ -174,7 +174,7 @@ export class DestroyableBehavior {
     this.host.dispatchEvent(
       new CustomEvent('destroyed', { bubbles: true, detail: info })
     )
-    this.onDeath?.(info)
+    this.whenDestroyed?.(info)
 
     // Chain-reaction blast (a real AOE warhead) after a short delay so cascades
     // ripple outward. Already dead → never damages itself.

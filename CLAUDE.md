@@ -257,6 +257,8 @@ Underscore-separated variants also work (e.g., `_collide_box`).
 
 All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. **Scene children extend `B3dChild`** (or `AbstractMesh`, which extends it and adds position/rotation syncing) rather than `Component` directly — see [Child Lifecycle](#child-lifecycle--the-b3dchild-pull-model). Non-scene UI/utility elements (`b3d-panel`, `b3d-probe`) stay on plain `Component`.
 
+**⚠️ Never name a callback prop `onFoo`.** The element creator (`elementCreator()`) treats any `on*`-prefixed prop as a **DOM event listener** — `b3dController({ onInput })` silently becomes `addEventListener('input', …)` and the `onInput` class field stays `null`, so your callback is never called and there's **no error**. This cost a long debugging detour (the `b3dController` fire callback). Name frame/lifecycle callback props off the `on` prefix: `drive` (controller), `whenDestroyed` (destroyable/loader/behavior), etc. (Reported upstream; tosijs should eventually flag declaring an `onX` property that's also creator-assigned.)
+
 ### Adaptive defaults — prefer `auto` over hard-wired performance numbers
 
 The device-capability system (`perf-probe.ts` → `b3d-quality.ts`, driven by the `<tosi-b3d-probe>` benchmark) vends per-tier **budgets** (render scaling, terrain detail, shadow-map size, reflection resolution, …). A single hard-wired default is always wrong for _something_ — too heavy for a Quest, too timid for a workstation.

@@ -73,7 +73,7 @@ you can compose:
   is a falloff + line-of-sight **explosion** that ripples out and can set off *any*
   nearby destroyable — which may blast *its* neighbours, cascading. (`blastDamage` /
   `blastFullRadius` / `blastRadius`.)
-- **`onDeath` callback** (set in code) + the bubbling **`destroyed`** event — the seam
+- **`whenDestroyed` callback** (set in code) + the bubbling **`destroyed`** event — the seam
   for putting a linked player/vehicle into a *dead* state, spawning loot, or swapping
   in a wreck model.
 
@@ -129,7 +129,7 @@ Attributes: `capacity`, `armor`, `regenRate`, `regenDelay`, `protectedBy`,
 `protection`, the death-outcome knobs (`explode`/`explodeForce`, `deathBlast` +
 `blastDamage`/`blastFullRadius`/`blastRadius`/`blastDelay`), plus `size`/`color` for
 the placeholder cube and the usual `x/y/z`/`meshName`. Set `.chain` (a `ChainLink[]`)
-in code for direct-transfer chain reactions, or `onDeath` for a death hook. Call
+in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook. Call
 `.damage(n)` to hurt it (a warhead will do this on contact).
 */
 /*{ "parent": "Core" }*/
@@ -191,7 +191,7 @@ export class B3dDestroyable extends AbstractMesh {
    * 'dead' state, spawning loot/wreckage, swapping a model, etc. Also rides the
    * bubbling `destroyed` CustomEvent.
    */
-  onDeath?: (info: { id: string; position: BABYLON.Vector3 }) => void
+  whenDestroyed?: (info: { id: string; position: BABYLON.Vector3 }) => void
 
   /** This entity's id in the scene combat world (also its mesh name). */
   get combatId(): string {
@@ -246,8 +246,8 @@ export class B3dDestroyable extends AbstractMesh {
     // Run the user hook (mesh still live), then drop our ref — the behavior captured
     // the mesh before this and will explode/dispose it, so render() must stop writing
     // to it.
-    this._behavior.onDeath = (info) => {
-      this.onDeath?.(info)
+    this._behavior.whenDestroyed = (info) => {
+      this.whenDestroyed?.(info)
       this.mesh = undefined
     }
     this._behavior.attach()

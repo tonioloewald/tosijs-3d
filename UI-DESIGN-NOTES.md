@@ -130,6 +130,30 @@ it. General principle: the reticle is a cheap, always-in-view status channel —
 on **color/shape**, not extra HUD, for "can I act here?" feedback. (Combat spec:
 `COMBAT-DESIGN.md` → Turret → Control modes.)
 
+### Control assignments — GTA V as the de-facto-standard north star
+
+When in doubt about which control does what, **conform to the de-facto standard so
+players don't have to relearn per game** (the "is the accelerator X or right-trigger?"
+tax). **Our north star is GTA V** — match its gamepad/keyboard conventions (drive/aim/
+fire/enter-vehicle/camera) unless there's a strong reason not to, and note the reason
+when we deviate. Consistency across our own entities (biped/car/aircraft/turret) matters
+as much as matching GTA.
+
+But **standard gamepad ≠ available in VR**: XR controllers have far fewer buttons than a
+console pad. So every essential action needs a **VR-reachable fallback**:
+
+1. Prefer mapping essentials onto what VR *does* have — two sticks, two triggers, two
+   grips, and a couple of face/menu buttons per hand.
+2. When actions outnumber buttons, put the overflow (and anything non-time-critical)
+   into the **overhead / spatial menu** (`xr-frames` panels — inventory/quick-access/
+   menu) rather than inventing an obscure chord.
+3. The flat controller can be richer (full pad / keyboard), but the VR mapping is the
+   **constraint that shapes the scheme** — design the control set to degrade gracefully
+   from full pad → XR controllers → spatial menu, not the other way around.
+
+(First bite: combat demos fire on `shoot` **or** `sprint` so the right trigger works;
+`b3dController` + the glass gamepad's `controls` spec keep the on-screen set minimal.)
+
 ### Dead ends — don't revisit
 
 - **WebXR DOM Overlay is a joke — not worth exploring.** (Ruled out
@@ -149,6 +173,18 @@ on **color/shape**, not extra HUD, for "can I act here?" feedback. (Combat spec:
 ---
 
 ## Timeline / experiments (most recent first)
+
+_2026-07-11_
+
+- **Standard controller for demos → `b3dController` + scene input focus.** Combat demos
+  now drive through the unified controller (keyboard/glass-gamepad/hardware/XR) instead
+  of bespoke per-demo pointer/key handlers. Two lessons folded into Principles: (1)
+  **control assignments follow GTA V** with a VR-reachable fallback (essentials on XR
+  buttons, overflow to the spatial menu); (2) **never name a callback prop `onFoo`** —
+  the element creator binds `on*` props as DOM event listeners, so `onInput` silently
+  became an `input`-event handler and never fired (renamed → `drive`; `onDeath` →
+  `whenDestroyed` for the same reason). Cost a long blind-debugging detour; verified the
+  fix live via Haltija. Glass gamepad's `controls` spec used to show only needed pieces.
 
 _2026-07-02_
 

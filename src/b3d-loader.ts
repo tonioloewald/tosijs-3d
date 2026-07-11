@@ -20,7 +20,7 @@ Imported point/spot lights have their intensity scaled by `lightIntensityScale`.
 Set `destroyable="on"` to make a loaded model take damage and die — the same
 [DestroyableBehavior](?destroyable-behavior.ts) the standalone
 [b3d-destroyable](?b3d-destroyable.ts) cube wraps, attached to the model's root. Call
-`.damage(n)`, read `.combatId`/`.dead`, or set an `.onDeath` hook. (Default death
+`.damage(n)`, read `.combatId`/`.dead`, or set a `.whenDestroyed` hook. (Default death
 hides the model — the loader owns the mesh hierarchy; use `explode` for a single-mesh
 model, or remove the element to free it.)
 
@@ -123,7 +123,7 @@ export class B3dLoader extends B3dChild {
   lights?: BABYLON.Light[]
   private _behavior?: DestroyableBehavior
   /** Set in code to react to this model's destruction (see destroyable-behavior). */
-  onDeath?: (info: { id: string; position: BABYLON.Vector3 }) => void
+  whenDestroyed?: (info: { id: string; position: BABYLON.Vector3 }) => void
 
   /** Combat id when `destroyable` is on ('' otherwise). */
   get combatId(): string {
@@ -211,7 +211,7 @@ export class B3dLoader extends B3dChild {
         meshOnDeath: 'hide',
       }
     )
-    this._behavior.onDeath = (info) => this.onDeath?.(info)
+    this._behavior.whenDestroyed = (info) => this.whenDestroyed?.(info)
     this._behavior.attach()
     root.name = this.combatId // so warhead/aircraft lookups can find it
   }
