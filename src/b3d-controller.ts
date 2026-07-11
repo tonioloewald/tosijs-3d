@@ -42,7 +42,7 @@ const scene = b3d(
   b3dController({
     mapping: 'biped',
     drive(input, dt) {
-      launcher.ry -= input.turn * dt * 70 // steer the barrel (A/D / left stick)
+      launcher.ry += input.turn * dt * 70 // steer the barrel (A/D / left stick)
       if (input.shoot > 0.5 || input.sprint > 0.5) launcher.fire() // fire (F / B button / right trigger)
     },
   }),

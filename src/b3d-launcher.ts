@@ -21,7 +21,10 @@ chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the 
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
-const { s } = tosi({ s: { muzzleSpeed: 30, fireRate: 5, drag: 0.01, damage: 20, blastRadius: 3 } })
+// Unique tosi() key per demo — tosi() is a singleton keyed by path, so two demos on the
+// same page both using `s` would clobber each other (the missile demo's `s` has no
+// muzzleSpeed → the gun bound to undefined → NaN velocity → invisible shells).
+const { launcherGun: s } = tosi({ launcherGun: { muzzleSpeed: 30, fireRate: 5, drag: 0.01, damage: 20, blastRadius: 3 } })
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: -8, muzzleSpeed: s.muzzleSpeed })
 
 // A wide, shallow field so steering the gun left/right sweeps across it.
@@ -54,7 +57,7 @@ const scene = b3d(
   b3dController({
     mapping: 'biped',
     drive(input, dt) {
-      launcher.ry -= input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
+      launcher.ry += input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
       if (input.shoot > 0.5 || input.sprint > 0.5) {
         launcher.muzzleSpeed = s.muzzleSpeed.value
         launcher.fireRate = s.fireRate.value
@@ -89,7 +92,8 @@ import { tosi } from 'tosijs'
 
 // fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
 // air at once, chasing the target together before it's destroyed.
-const { s } = tosi({ s: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
+// Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
+const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
 const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
 
 // Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
