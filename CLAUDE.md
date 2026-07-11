@@ -1,5 +1,17 @@
 # CLAUDE.md
 
+> **Shared engineering practices** live at
+> **https://github.com/tonioloewald/tosijs-coding-practices** — and, when checked out beside
+> this repo, at [`../tosijs-coding-practices`](../tosijs-coding-practices/README.md). Read that
+> index first for the cross-project defaults (development, testing, code quality, performance,
+> review, releasing, deployment, and the **observant** tosijs/tjs stack). This file records only
+> what is **specific to or divergent from** those defaults — when they conflict, this file wins.
+>
+> Those docs are **living, not graven in stone.** Don't rewrite them unprompted, but do speak up:
+> voice concerns, flag inconsistencies, and suggest improvements as you work. Continuous
+> improvement is the goal — see the repo's `CONTRIBUTING.md`.
+
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -156,6 +168,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | --- | --- |
 | `src/control-input.ts` | `ControlInput` interface, `InputProvider`, `CompositeInputProvider` |
 | `src/b3d-controllable.ts` | Base class for input-driven entities (biped, car, aircraft) |
+| `src/b3d-controller.ts` | `<tosi-b3d-controller>` / `b3dController()` — casual bodyless controllable; self-wires the full input stack, hands merged input to a `drive(input, dt)` callback |
 | `src/b3d-input-focus.ts` | Input routing and vehicle enter/exit mechanics |
 | `src/virtual-gamepad.ts` | `VirtualGamepad` — unified gamepad abstraction (sticks, buttons, triggers) |
 | `src/keyboard-gamepad.ts` | Keyboard/mouse → VirtualGamepad mapping |
@@ -222,14 +235,34 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/surface-sampler.ts` | Surface point sampling |
 | `src/terrain-grid.ts` | Pure LOD terrain-tile grid math (placement/sampling/culling), unit-tested |
 | `src/model-transform.ts` | Babylon-only model frame helpers (`canonicalize`, scale-bake) for spawned models |
+| `src/spatial-transform.ts` | Pure transform math for spatial attachment (`SPATIAL-DESIGN.md`) — vector/quaternion ops, compose ↔ relative, unit-tested |
+| `src/asset-url.ts` | `assetUrl()` — resolve a logical asset path to a hosted URL (retargetable CDN base, see `static-assets` memory) |
 | `src/perf-probe.ts` / `b3d-quality.ts` / `b3d-probe.ts` | Device-capability probe → per-tier `PerfBudgets` (see Adaptive defaults) |
 | `src/b3d-physics.ts` / `jolt-plugin.ts` | Jolt Physics integration layer |
 
-**Combat (pure models + bridges — WIP, spec in `COMBAT-DESIGN.md`):**
+**Combat (shipped v0.4.0 — pure models bridged to Babylon, spec in `COMBAT-DESIGN.md`):**
+
+Same discipline as `fly-by-wire`/`world-store`: the `*.ts` model files are pure, Babylon-free, deterministic (plain `{x,y,z}`, no `Date.now`/`Math.random`, time via `dt`), unit-tested; the `b3d-*.ts` files bridge them to the scene. The pure integrator that drives live flight is the SAME one the bomb sight predicts with (prediction == simulation), and one `smart`/`smartness` 0..1 dial governs both guided rounds and turret lead.
+
 | File | Purpose |
 | --- | --- |
-| `src/resource.ts` | Pure capacity + delayed-regen pool — Destroyable health AND launcher energy |
+| `src/resource.ts` | Pure capacity + delayed-regen pool — Destroyable health AND launcher ammo/energy |
 | `src/destroyable.ts` | Pure `CombatWorld` — damage (protection/armor), regen, cascading chain reactions; deterministic |
+| `src/warhead.ts` | Pure warhead resolution — DIRECT (single hit) or AOE (outward shockwave, distance-staggered) |
+| `src/ballistics.ts` | Pure ballistic flight — `ballisticStep` (gravity + quadratic drag), `predictPath` (bomb sight), `ballisticAim` (drop-compensated elevation) |
+| `src/guidance.ts` | Pure guidance/interception — `steerToward` (turn-rate-limited seeker), `proNav`, `interceptLead` (firing lead) |
+| `src/b3d-destroyable.ts` | `<tosi-b3d-destroyable>` — bridges a `CombatWorld` entry to a mesh; `.damage(n)`, `destroyed` event, floating-origin aware |
+| `src/destroyable-behavior.ts` | Attachable destroyable — makes *any* modeled element (GLB, biped, vehicle) take damage without being a separate element |
+| `src/b3d-warhead.ts` | `<tosi-b3d-warhead>` — on `detonate(center)` gathers `b3d-destroyable`s in range (LOS raycast), applies `warhead.ts` AOE + explosion FX |
+| `src/b3d-launcher.ts` | `<tosi-b3d-launcher>` — scene-side shoot loop; drives projectile meshes via `ballistics.ts`, ammo via `resource.ts`, swept collision → warhead |
+| `src/b3d-turret.ts` | `<tosi-b3d-turret>` — auto-tracking gun; slews to lead + elevate (`smart` dial), `can-bear` flag → reticle color |
+
+**HUD (aircraft):**
+| File | Purpose |
+| --- | --- |
+| `src/hud.ts` | HUD driver — sets 4 meters, horizon/pitch ladder, radar traces on the normalized `static/aircraft-hud.svg` |
+| `src/hud-math.ts` | Pure HUD math — Manta-style radar-trace projection (track off-screen targets); unit-tested |
+| `src/b3d-hud.ts` | `<tosi-b3d-hud>` — drop-in additive/translucent HUD overlay; `setMeter`/`setHorizon`/`setTraces`/`setWarnings` |
 
 ### Convention-Based Mesh/Light Configuration
 
@@ -301,9 +334,10 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 ### Dependencies
 
-- **Runtime**: `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^8.55)
+- **Runtime**: `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^8.56)
 - **Physics**: `jolt-physics` (^1.0.0) — optional peer dependency
-- **Framework**: `tosijs` (^1.5.0) — peer dependency, do not re-export from this library
+- **Framework**: `tosijs` (^1.6.6) — peer dependency, do not re-export from this library
+- **Debug/automation**: `haltija` (`hj`) — headless-browser debug tool used to drive/verify live demos (see the `no-electron-haltija-by-default` memory for the pin-the-right-tab guardrails)
 - **Build tooling**: Bun (bundler, dev server, test runner)
 
 ## Code Style
