@@ -132,7 +132,7 @@ the placeholder cube and the usual `x/y/z`/`meshName`. Set `.chain` (a `ChainLin
 in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook. Call
 `.damage(n)` to hurt it (a warhead will do this on contact).
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'

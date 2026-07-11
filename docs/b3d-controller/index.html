@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-controller — tosijs-3d</title>
+  <meta name="description" content="The casual way to read the standard controller. Drop a &lt;tosi-b3d-controller&gt; into a scene and it self-wires the whole unified input stack — keyboard/mouse, the…" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-controller/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-controller — tosijs-3d" />
+  <meta property="og:description" content="The casual way to read the standard controller. Drop a &lt;tosi-b3d-controller&gt; into a scene and it self-wires the whole unified input stack — keyboard/mouse, the…" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-controller/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-controller","description":"The casual way to read the standard controller. Drop a \u003ctosi-b3d-controller> into a scene and it self-wires the whole unified input stack — keyboard/mouse, the…","url":"https://3d.tosijs.net/b3d-controller/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-controller</h1>
+<p>The <strong>casual way to read the standard controller.</strong> Drop a <code>&lt;tosi-b3d-controller&gt;</code> into
+a scene and it self-wires the whole unified input stack — keyboard/mouse, the on-screen
+glass gamepad, a hardware gamepad, and (in a headset) the XR controllers — then hands
+you a merged <a href="/control-input/"><code>ControlInput</code></a> every frame via <code>drive</code>. No
+<code>inputFocus</code> + <code>gameController</code> boilerplate, no bespoke key listeners: just read
+<code>input.forward</code> / <code>input.turn</code> / <code>input.shoot</code> / … and drive whatever you like.</p>
+<p>It&#39;s a <a href="/b3d-controllable/">b3d-controllable</a> with no body of its own, so it also
+respects <strong>scene input focus</strong>: on a page with several live demos, only the scene you&#39;re
+hovering/interacting with receives input (one gamepad no longer drives them all).</p>
+<h2>Demo</h2>
+<p><strong>Steer the launcher with A/D (or the left stick), and pull the right trigger (or <code>F</code> /
+the glass B button) to fire</strong> at the cube field. Same controls on keyboard, touch, and
+in VR — because it&#39;s the standard controller, not a demo hack.</p>
+<pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: -9, fireRate: 3, damage: 20 })
+const targets = []
+for (let i = 0; i &lt; 24; i++) {
+  targets.push(b3dDestroyable({ x: (i % 6) * 1.6 - 4, y: 0.4, z: Math.floor(i / 6) * 1.6, size: 0.8, capacity: 10, color: &#39;#cc4444&#39; }))
+}
+
+const scene = b3d(
+  {
+    gamepad: &#39;left_stick,right_trigger&#39;, // glass gamepad shows only what this demo uses
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3.2, 22, new BABYLON.Vector3(0, 0.5, -2), el.scene)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      el.setActiveCamera(cam)
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 40, height: 40, color: &#39;#5a6b52&#39; }),
+  b3dController({
+    mapping: &#39;biped&#39;,
+    drive(input, dt) {
+      launcher.ry += input.turn * dt * 70 // steer the barrel (A/D / left stick)
+      if (input.shoot &gt; 0.5 || input.sprint &gt; 0.5) launcher.fire() // fire (F / B button / right trigger)
+    },
+  }),
+  launcher,
+  ...targets,
+)
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>mapping</code></td>
+<td><code>&#39;biped&#39;</code></td>
+<td>Which control scheme maps the gamepad to <code>ControlInput</code>: <code>&#39;biped&#39;</code>, <code>&#39;car&#39;</code>, or <code>&#39;aircraft&#39;</code></td>
+</tr>
+<tr>
+<td><code>drive</code></td>
+<td>—</td>
+<td><code>(input: ControlInput, dt: number) =&gt; void</code>, called each frame with the merged input (set in code / via the creator). Named <code>drive</code>, not <code>onInput</code> — <code>on*</code> props become DOM event listeners</td>
+</tr>
+</tbody></table>
+<p>Put it inside a <code>&lt;tosi-b3d-input-focus&gt;</code> only if you want that manager to drive it
+instead — on its own it wires input itself.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/" aria-current="page" class="current">b3d-controller</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a href="/xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

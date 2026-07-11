@@ -52,7 +52,33 @@ Imported point/spot lights have their intensity scaled by <code>lightIntensitySc
 <td><code>0.05</code></td>
 <td>Scale factor for imported lights</td>
 </tr>
+<tr>
+<td><code>destroyable</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> gives the model hit points + a death outcome</td>
+</tr>
+<tr>
+<td><code>capacity</code> / <code>armor</code> / <code>regenRate</code> / <code>regenDelay</code></td>
+<td><code>10</code> / <code>0</code> / <code>0</code> / <code>0.5</code></td>
+<td>Combat stats (when destroyable)</td>
+</tr>
+<tr>
+<td><code>explode</code> / <code>explodeForce</code></td>
+<td><code>&#39;off&#39;</code> / <code>6</code></td>
+<td>Shatter on death (best for single-mesh models)</td>
+</tr>
+<tr>
+<td><code>deathBlast</code> + <code>blastDamage</code>/<code>blastFullRadius</code>/<code>blastRadius</code>/<code>blastDelay</code></td>
+<td><code>&#39;off&#39;</code> …</td>
+<td>Fire an AOE <a href="/b3d-warhead/">warhead</a> on death (chain-reaction mechanism)</td>
+</tr>
 </tbody></table>
+<p>Set <code>destroyable=&quot;on&quot;</code> to make a loaded model take damage and die — the same
+<a href="/destroyable-behavior/">DestroyableBehavior</a> the standalone
+<a href="/b3d-destroyable/">b3d-destroyable</a> cube wraps, attached to the model&#39;s root. Call
+<code>.damage(n)</code>, read <code>.combatId</code>/<code>.dead</code>, or set a <code>.whenDestroyed</code> hook. (Default death
+hides the model — the loader owns the mesh hierarchy; use <code>explode</code> for a single-mesh
+model, or remove the element to free it.)</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
@@ -119,13 +145,15 @@ document.body.append(
     <li><a href="/">tosijs-3d</a></li>
     <li><details open><summary><a href="/core/">Core</a></summary>
     <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
       <li><a href="/tosi-b3d/">b3d</a></li>
       <li><a href="/b3d-collisions/">b3d-collisions</a></li>
-      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/" aria-current="page" class="current">b3d-loader</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
       <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
@@ -135,6 +163,15 @@ document.body.append(
     <ul>
       <li><a href="/b3d-exploder/">b3d-exploder</a></li>
       <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/environment/">Environment</a></summary>
@@ -152,6 +189,7 @@ document.body.append(
     <li><details><summary><a href="/input/">Input</a></summary>
     <ul>
       <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/">b3d-controller</a></li>
       <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
       <li><a href="/control-input/">control-input</a></li>
       <li><a href="/game-controller/">game-controller</a></li>
@@ -183,6 +221,7 @@ document.body.append(
     </details></li>
     <li><details><summary><a href="/ui/">UI</a></summary>
     <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
       <li><a href="/b3d-panel/">b3d-panel</a></li>
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>

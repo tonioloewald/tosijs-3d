@@ -38,7 +38,7 @@ model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
 <p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.
 The full flight model is explained below the demo.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, span } = elements
 
@@ -110,6 +110,9 @@ const scene = addMarkers(b3d(
   // aircraft&#39;s shadow would shrink to sub-pixel (i.e. invisible).
   b3dGround({ meshName: &#39;ground_nocast&#39;, width: 500, height: 500, color: &#39;#7d9b6e&#39; }),
   b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
+  // Drop in the gauge HUD — the player aircraft drives it automatically (speed,
+  // altitude vs `ceiling`, and the pitch/roll horizon).
+  b3dHud({}),
   inputFocus(
     gameController(),
     aircraft,
@@ -161,6 +164,78 @@ requestAnimationFrame(updateHud)
   border-radius: 4px;
   font: 12px monospace;
   z-index: 10;
+}
+</code></pre>
+<h2>Combat — shoot down the drones</h2>
+<p>The aircraft is armed (see <a href="#weapons-the-combat-slice">Weapons</a>). Fly at the drifting
+<strong>aerial drones</strong> and shoot them down. Each takes a short cannon burst or one missile —
+watch a drone glow <strong>redder as it takes damage</strong> (the <a href="/b3d-destroyable/">destroyable</a>
+damage readout), then explode. The <strong>kills counter</strong> (top-right) ticks up as they die,
+and missiles <strong>lock the nearest drone in front of you</strong>.</p>
+<p><strong>Keys:</strong> <code>Space</code> / right-Shift = <strong>guns</strong>, <code>LShift</code> = <strong>missile</strong>, <code>F</code> = <strong>bomb</strong>.
+(Fly with W/S pitch, A/D bank, R/Q throttle.)</p>
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div } = elements
+
+const aircraft = b3dAircraft({
+  library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
+  player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
+})
+
+// Big, low-HP drones spread across the takeoff heading (+Z), at cruise height. capacity
+// 6 ≈ one cannon burst or one missile — so a hit obviously registers and kills. They
+// explode and fire a small death-blast, so a tight formation chain-reacts.
+const drones = []
+for (let i = 0; i &lt; 12; i++) {
+  drones.push(b3dDestroyable({
+    meshName: &#39;drone&#39;, size: 2.4, color: &#39;#d05050&#39;, capacity: 6,
+    x: (i % 4) * 9 - 13.5, y: 12 + (i % 3) * 5, z: 45 + Math.floor(i / 4) * 22,
+    explode: &#39;on&#39;, explodeForce: 8,
+    deathBlast: &#39;on&#39;, blastDamage: 10, blastFullRadius: 2, blastRadius: 6,
+  }))
+}
+
+const kills = div({ class: &#39;kills&#39; }, &#39;Drones down: 0 / 12&#39;)
+let down = 0
+
+const scene = b3d(
+  {
+    gamepad: true,
+    sceneCreated(el) {
+      // Prove damage→death: count the bubbling `destroyed` events.
+      el.addEventListener(&#39;destroyed&#39;, () =&gt; {
+        down += 1
+        kills.textContent = `Drones down: ${down} / 12`
+      })
+      // Gently drift the drones so they move but stay very hittable.
+      let t = 0
+      el.scene.onBeforeRenderObservable.add(() =&gt; {
+        t += el.scene.getEngine().getDeltaTime() / 1000
+        drones.forEach((d, i) =&gt; {
+          if (d.dead) return
+          d.x += Math.sin(t * 0.3 + i) * 0.02
+          d.y += Math.sin(t * 0.6 + i * 2) * 0.01
+        })
+      })
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ meshName: &#39;ground_nocast&#39;, width: 500, height: 500, color: &#39;#7d9b6e&#39; }),
+  b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
+  b3dHud({}),
+  ...drones,
+  inputFocus(gameController(), aircraft),
+)
+preview.append(scene, kills)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+.kills {
+  position: absolute; top: 10px; right: 10px; z-index: 10;
+  padding: 6px 12px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
 }
 </code></pre>
 <h2>Flight model</h2>
@@ -248,7 +323,99 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
 <td><code>8</code></td>
 <td>Vertical impact speed (m/s) above which a ground contact is a crash</td>
 </tr>
+<tr>
+<td><code>hudChase</code></td>
+<td><code>false</code></td>
+<td>Show the flat DOM HUD overlay in chase view (cockpit uses the in-scene HUD)</td>
+</tr>
+<tr>
+<td><code>hudSize</code></td>
+<td><code>0.7</code></td>
+<td>In-cockpit HUD plane size (metres)</td>
+</tr>
+<tr>
+<td><code>hudForward</code></td>
+<td><code>1.6</code></td>
+<td>How far ahead of the pilot&#39;s eye the HUD floats (metres)</td>
+</tr>
+<tr>
+<td><code>weapons</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;off&#39;</code> disarms all weapons</td>
+</tr>
+<tr>
+<td><code>gunRate</code></td>
+<td><code>9</code></td>
+<td>Cannon shots/sec while <code>shoot</code> is held</td>
+</tr>
+<tr>
+<td><code>gunSpeed</code></td>
+<td><code>130</code></td>
+<td>Cannon muzzle speed (added to airspeed)</td>
+</tr>
+<tr>
+<td><code>gunDamage</code></td>
+<td><code>8</code></td>
+<td>Per-shell warhead full damage</td>
+</tr>
+<tr>
+<td><code>missileSpeed</code></td>
+<td><code>55</code></td>
+<td>Guided-missile cruise speed</td>
+</tr>
+<tr>
+<td><code>missileTurnRate</code></td>
+<td><code>3</code></td>
+<td>Guided-missile agility (rad/sec)</td>
+</tr>
+<tr>
+<td><code>missileDamage</code></td>
+<td><code>30</code></td>
+<td>Missile warhead full damage</td>
+</tr>
+<tr>
+<td><code>bombDamage</code></td>
+<td><code>45</code></td>
+<td>Bomb warhead full damage</td>
+</tr>
+<tr>
+<td><code>lockRange</code></td>
+<td><code>140</code></td>
+<td>Max range to acquire a missile target</td>
+</tr>
+<tr>
+<td><code>lockConeDeg</code></td>
+<td><code>35</code></td>
+<td>Half-angle of the forward cone missiles lock within</td>
+</tr>
 </tbody></table>
+<h2>Weapons (the combat slice)</h2>
+<p>Built on the pure combat toolkit (<a href="/b3d-destroyable/">destroyable</a> /
+<a href="/b3d-warhead/">warhead</a> / <a href="/b3d-launcher/">launcher</a> / <a href="?guidance.ts">guidance</a>).
+Shells inherit the airframe&#39;s velocity, so your own motion leads the shot. Any
+<a href="/b3d-destroyable/">b3d-destroyable</a> in the scene takes the damage.</p>
+<table>
+<thead>
+<tr>
+<th>Control (default map)</th>
+<th>Weapon</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Guns</strong> — right bumper / A (held)</td>
+<td>Cannon: fast ballistic shells, small blast</td>
+</tr>
+<tr>
+<td><strong>Bomb</strong> — B (tap)</td>
+<td>Falls under gravity with your forward momentum; big blast</td>
+</tr>
+<tr>
+<td><strong>Missile</strong> — left bumper (tap)</td>
+<td>Homes on the nearest target in the forward cone (else fires straight as a dumb rocket)</td>
+</tr>
+</tbody></table>
+<p><code>fireGuns()</code>, <code>dropBomb()</code>, and <code>fireMissile()</code> are also callable directly (e.g. for
+an AI pilot). Set <code>weapons=&quot;off&quot;</code> to disarm.</p>
 <h2>API (read-only properties for HUD binding)</h2>
 <ul>
 <li><code>airspeed: number</code> — current forward speed (m/s)</li>
@@ -268,13 +435,15 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     <li><a href="/">tosijs-3d</a></li>
     <li><details><summary><a href="/core/">Core</a></summary>
     <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
       <li><a href="/tosi-b3d/">b3d</a></li>
       <li><a href="/b3d-collisions/">b3d-collisions</a></li>
-      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
       <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
@@ -284,6 +453,15 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     <ul>
       <li><a href="/b3d-exploder/">b3d-exploder</a></li>
       <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/environment/">Environment</a></summary>
@@ -301,6 +479,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     <li><details><summary><a href="/input/">Input</a></summary>
     <ul>
       <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/">b3d-controller</a></li>
       <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
       <li><a href="/control-input/">control-input</a></li>
       <li><a href="/game-controller/">game-controller</a></li>
@@ -332,6 +511,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     </details></li>
     <li><details><summary><a href="/ui/">UI</a></summary>
     <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
       <li><a href="/b3d-panel/">b3d-panel</a></li>
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>

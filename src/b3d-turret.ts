@@ -90,7 +90,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `armedColor` | `'#e04030'` | Barrel colour when it can bear (has a solution, in range) |
 | `x`,`y`,`z` | `0` | Turret base position |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'

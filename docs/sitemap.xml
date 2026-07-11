@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://3d.tosijs.net/</loc></url>
+  <url><loc>https://3d.tosijs.net/core/</loc></url>
+  <url><loc>https://3d.tosijs.net/effects/</loc></url>
+  <url><loc>https://3d.tosijs.net/combat/</loc></url>
+  <url><loc>https://3d.tosijs.net/asset-url/</loc></url>
   <url><loc>https://3d.tosijs.net/tosi-b3d/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-aircraft/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-biped/</loc></url>
@@ -8,11 +12,14 @@
   <url><loc>https://3d.tosijs.net/b3d-car/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-collisions/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-controllable/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-controller/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-destroyable/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-exploder/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-fog/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-galaxy/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-hud/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-input-focus/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-launcher/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-library/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-light/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-loader/</loc></url>
@@ -31,10 +38,11 @@
   <url><loc>https://3d.tosijs.net/b3d-svg-plane/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-terrain/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-turret/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-warhead/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-water/</loc></url>
   <url><loc>https://3d.tosijs.net/control-input/</loc></url>
-  <url><loc>https://3d.tosijs.net/core/</loc></url>
-  <url><loc>https://3d.tosijs.net/effects/</loc></url>
+  <url><loc>https://3d.tosijs.net/destroyable-behavior/</loc></url>
   <url><loc>https://3d.tosijs.net/environment/</loc></url>
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/galaxy-data/</loc></url>
@@ -42,6 +50,8 @@
   <url><loc>https://3d.tosijs.net/gamepad-svg/</loc></url>
   <url><loc>https://3d.tosijs.net/glass-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/hardware-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/hud/</loc></url>
+  <url><loc>https://3d.tosijs.net/hud-math/</loc></url>
   <url><loc>https://3d.tosijs.net/input/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>

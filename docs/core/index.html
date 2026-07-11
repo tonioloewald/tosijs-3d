@@ -14,15 +14,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
   <title>Core — tosijs-3d</title>
-  <meta name="description" content="- b3d - b3d-collisions - b3d-destroyable - b3d-library - b3d-loader - b3d-trigger" />
+  <meta name="description" content="- asset-url - b3d - b3d-collisions - b3d-library - b3d-loader - b3d-trigger" />
   <link rel="canonical" href="https://3d.tosijs.net/core/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="Core — tosijs-3d" />
-  <meta property="og:description" content="- b3d - b3d-collisions - b3d-destroyable - b3d-library - b3d-loader - b3d-trigger" />
+  <meta property="og:description" content="- asset-url - b3d - b3d-collisions - b3d-library - b3d-loader - b3d-trigger" />
   <meta property="og:url" content="https://3d.tosijs.net/core/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Core","description":"- b3d - b3d-collisions - b3d-destroyable - b3d-library - b3d-loader - b3d-trigger","url":"https://3d.tosijs.net/core/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Core","description":"- asset-url - b3d - b3d-collisions - b3d-library - b3d-loader - b3d-trigger","url":"https://3d.tosijs.net/core/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="/tosijs-3d.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
 </head>
@@ -30,15 +30,19 @@
   <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
   <article class="doc-content">
 <h1>Core</h1>
+<!--{ "order": 10 }-->
+
 <!-- toc -->
 <ul>
+<li><a href="/asset-url/">asset-url</a></li>
 <li><a href="/tosi-b3d/">b3d</a></li>
 <li><a href="/b3d-collisions/">b3d-collisions</a></li>
-<li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
 <li><a href="/b3d-library/">b3d-library</a></li>
 <li><a href="/b3d-loader/">b3d-loader</a></li>
 <li><a href="/b3d-trigger/">b3d-trigger</a></li>
 <li><a href="/frame-panel/">frame-panel</a></li>
+<li><a href="/hud/">hud</a></li>
+<li><a href="/hud-math/">hud-math</a></li>
 <li><a href="/b3d-utils/">Material Conventions</a></li>
 <li><a href="/spatial-transform/">spatial-transform</a></li>
 <li><a href="/xr-frames/">xr-frames</a></li>
@@ -51,13 +55,15 @@
     <li><a href="/">tosijs-3d</a></li>
     <li><details open><summary><a href="/core/" aria-current="page" class="current">Core</a></summary>
     <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
       <li><a href="/tosi-b3d/">b3d</a></li>
       <li><a href="/b3d-collisions/">b3d-collisions</a></li>
-      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
       <li><a href="/b3d-library/">b3d-library</a></li>
       <li><a href="/b3d-loader/">b3d-loader</a></li>
       <li><a href="/b3d-trigger/">b3d-trigger</a></li>
       <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
       <li><a href="/b3d-utils/">Material Conventions</a></li>
       <li><a href="/spatial-transform/">spatial-transform</a></li>
       <li><a href="/xr-frames/">xr-frames</a></li>
@@ -67,6 +73,15 @@
     <ul>
       <li><a href="/b3d-exploder/">b3d-exploder</a></li>
       <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/environment/">Environment</a></summary>
@@ -84,6 +99,7 @@
     <li><details><summary><a href="/input/">Input</a></summary>
     <ul>
       <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/">b3d-controller</a></li>
       <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
       <li><a href="/control-input/">control-input</a></li>
       <li><a href="/game-controller/">game-controller</a></li>
@@ -115,6 +131,7 @@
     </details></li>
     <li><details><summary><a href="/ui/">UI</a></summary>
     <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
       <li><a href="/b3d-panel/">b3d-panel</a></li>
       <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a href="/svg-texture/">svg-texture</a></li>

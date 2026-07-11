@@ -21,6 +21,7 @@ Death outcome (all optional; default just removes/hides the mesh):
 - `whenDestroyed` callback + a bubbling `destroyed` event — the seam for flipping a linked
   player/vehicle into a *dead* state, spawning loot, swapping a wreck model, etc.
 */
+/*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import type { DestroyableSpec, ChainLink, CombatEvent } from './destroyable'

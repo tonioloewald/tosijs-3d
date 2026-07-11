@@ -12,6 +12,8 @@ Full documentation, with live code examples, is at the links below.
 
 ## Pages
 
+- https://3d.tosijs.net/asset-url/ — asset-url
+  A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/tosi-b3d/ — b3d
   The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 - https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
@@ -26,6 +28,8 @@ Full documentation, with live code examples, is at the links below.
   Opt-in collision detection via mesh naming conventions authored in Blender.
 - https://3d.tosijs.net/b3d-controllable/ — b3d-controllable
   Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
+- https://3d.tosijs.net/b3d-controller/ — b3d-controller
+  The **casual way to read the standard controller.** Drop a `<tosi-b3d-controller>` into
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
   A thing that can take damage and be destroyed — the scene-side bridge to the pure
 - https://3d.tosijs.net/b3d-exploder/ — b3d-exploder
@@ -34,8 +38,12 @@ Full documentation, with live code examples, is at the links below.
   Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
 - https://3d.tosijs.net/b3d-galaxy/ — b3d-galaxy
   Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
+- https://3d.tosijs.net/b3d-hud/ — b3d-hud
+  A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
   Focus manager that wires input to the active controllable entity and handles
+- https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
+  Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
 - https://3d.tosijs.net/b3d-library/ — b3d-library
   Asset library component. Loads a GLB file via `LoadAssetContainer` and holds
 - https://3d.tosijs.net/b3d-light/ — b3d-light
@@ -72,11 +80,19 @@ Full documentation, with live code examples, is at the links below.
   Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
 - https://3d.tosijs.net/b3d-trigger/ — b3d-trigger
   Invisible proximity zone that fires callbacks and dispatches events when
+- https://3d.tosijs.net/b3d-turret/ — b3d-turret
+  An **auto-tracking gun** — it slews its barrel to lead a moving target (pure
+- https://3d.tosijs.net/b3d-warhead/ — b3d-warhead
+  The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
 - https://3d.tosijs.net/b3d-water/ — b3d-water
   Water plane with reflections, waves, and underwater fog effect.
+- https://3d.tosijs.net/combat/ — Combat
+  Damage, destruction, and weapons — pure deterministic models (`destroyable` /
 - https://3d.tosijs.net/control-input/ — control-input
   Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
 - https://3d.tosijs.net/core/ — Core
+- https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
+  The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/effects/ — Effects
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/frame-panel/ — frame-panel
@@ -91,6 +107,10 @@ Full documentation, with live code examples, is at the links below.
   A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
 - https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
   Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
+- https://3d.tosijs.net/hud/ — hud
+  Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
+- https://3d.tosijs.net/hud-math/ — hud-math
+  Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
 - https://3d.tosijs.net/input/ — Input
   Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
 - https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad

@@ -103,7 +103,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `los` | `'on'` | Line-of-sight occlusion (a wall between blast + target spares it) |
 | `x`,`y`,`z` | `0` | Detonation point when `detonate()` is called with no argument |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'

@@ -183,7 +183,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `los` | `'on'` | Warhead line-of-sight gating |
 | `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
