@@ -11,7 +11,6 @@
 > voice concerns, flag inconsistencies, and suggest improvements as you work. Continuous
 > improvement is the goal — see the repo's `CONTRIBUTING.md`.
 
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -244,18 +243,18 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 
 Same discipline as `fly-by-wire`/`world-store`: the `*.ts` model files are pure, Babylon-free, deterministic (plain `{x,y,z}`, no `Date.now`/`Math.random`, time via `dt`), unit-tested; the `b3d-*.ts` files bridge them to the scene. The pure integrator that drives live flight is the SAME one the bomb sight predicts with (prediction == simulation), and one `smart`/`smartness` 0..1 dial governs both guided rounds and turret lead.
 
-| File | Purpose |
-| --- | --- |
-| `src/resource.ts` | Pure capacity + delayed-regen pool — Destroyable health AND launcher ammo/energy |
-| `src/destroyable.ts` | Pure `CombatWorld` — damage (protection/armor), regen, cascading chain reactions; deterministic |
-| `src/warhead.ts` | Pure warhead resolution — DIRECT (single hit) or AOE (outward shockwave, distance-staggered) |
-| `src/ballistics.ts` | Pure ballistic flight — `ballisticStep` (gravity + quadratic drag), `predictPath` (bomb sight), `ballisticAim` (drop-compensated elevation) |
-| `src/guidance.ts` | Pure guidance/interception — `steerToward` (turn-rate-limited seeker), `proNav`, `interceptLead` (firing lead) |
-| `src/b3d-destroyable.ts` | `<tosi-b3d-destroyable>` — bridges a `CombatWorld` entry to a mesh; `.damage(n)`, `destroyed` event, floating-origin aware |
-| `src/destroyable-behavior.ts` | Attachable destroyable — makes *any* modeled element (GLB, biped, vehicle) take damage without being a separate element |
-| `src/b3d-warhead.ts` | `<tosi-b3d-warhead>` — on `detonate(center)` gathers `b3d-destroyable`s in range (LOS raycast), applies `warhead.ts` AOE + explosion FX |
-| `src/b3d-launcher.ts` | `<tosi-b3d-launcher>` — scene-side shoot loop; drives projectile meshes via `ballistics.ts`, ammo via `resource.ts`, swept collision → warhead |
-| `src/b3d-turret.ts` | `<tosi-b3d-turret>` — auto-tracking gun; slews to lead + elevate (`smart` dial), `can-bear` flag → reticle color |
+| File                          | Purpose                                                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/resource.ts`             | Pure capacity + delayed-regen pool — Destroyable health AND launcher ammo/energy                                                               |
+| `src/destroyable.ts`          | Pure `CombatWorld` — damage (protection/armor), regen, cascading chain reactions; deterministic                                                |
+| `src/warhead.ts`              | Pure warhead resolution — DIRECT (single hit) or AOE (outward shockwave, distance-staggered)                                                   |
+| `src/ballistics.ts`           | Pure ballistic flight — `ballisticStep` (gravity + quadratic drag), `predictPath` (bomb sight), `ballisticAim` (drop-compensated elevation)    |
+| `src/guidance.ts`             | Pure guidance/interception — `steerToward` (turn-rate-limited seeker), `proNav`, `interceptLead` (firing lead)                                 |
+| `src/b3d-destroyable.ts`      | `<tosi-b3d-destroyable>` — bridges a `CombatWorld` entry to a mesh; `.damage(n)`, `destroyed` event, floating-origin aware                     |
+| `src/destroyable-behavior.ts` | Attachable destroyable — makes _any_ modeled element (GLB, biped, vehicle) take damage without being a separate element                        |
+| `src/b3d-warhead.ts`          | `<tosi-b3d-warhead>` — on `detonate(center)` gathers `b3d-destroyable`s in range (LOS raycast), applies `warhead.ts` AOE + explosion FX        |
+| `src/b3d-launcher.ts`         | `<tosi-b3d-launcher>` — scene-side shoot loop; drives projectile meshes via `ballistics.ts`, ammo via `resource.ts`, swept collision → warhead |
+| `src/b3d-turret.ts`           | `<tosi-b3d-turret>` — auto-tracking gun; slews to lead + elevate (`smart` dial), `can-bear` flag → reticle color                               |
 
 **HUD (aircraft):**
 | File | Purpose |
@@ -349,6 +348,8 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 ## Testing Patterns
 
 Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.
+
+Run `bun test` to exercise the full pure-model suite — the `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `world-store`/`world-view`, `terrain-grid`, `hud-math`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
 
 ## Demo & Docs
 

@@ -209,6 +209,22 @@ the MVP** — the vertical-slice targets are inert cubes.
 
 ### XR spatial panels (placement / clipping)
 
+[ ] **Spawned sub-panels (popMenu-style) instead of cramming one panel.** Disclosure
+controls — `select3d` dropdowns, submenus, pickers, confirmations, and eventually the
+perf-stats readout — should open a SEPARATE panel (a child panel spawned near the
+trigger) rather than re-flow the parent panel's layout. This **revises the `select3d`
+note above** (grow the stackLayout in place): growing works, but a fresh panel reads
+better and scales. Rationale: **in XR we own the ENTIRE canvas** — unlike a web app
+boxed into a viewport, a headset can float as many panels as the space affords, at
+comfortable depths/angles, so spatial UI can be **first-class** (menus that live in the
+world, not stacked in a scrollbox — something web apps can only dream of). Model it on a
+`popMenu`-style API: a control requests a sub-panel; a panel MANAGER spawns it (anchored
+to the trigger's frame/position, offset so it doesn't occlude the parent), routes
+pointer/gaze to it, and disposes it on pick/dismiss. Works flat too (the sub-panel is
+just another overlay). Ties to: the notification/toast panels (same spawn → gaze →
+dispose lifecycle), `frame-panel` anchoring, `select3d`/`list3d`, and the reticle/gaze
+work. Log the UX decisions in UI-DESIGN-NOTES.md as it firms up.
+
 [x] Enter VR button GROUPED next to the gear in a top-left toolbar (not a panel row — a panel row scrolled/clipped in the library demo's long list, and a separate button makes VR availability obvious). Gear top-left so it clears demos' top-right text overlays. `panel3d.scrollBy`/`scrollable` enabler added.
 [ ] `toolbar3d` widget: a widgets3d row that lays out a series of buttons in a SINGLE row, equally sized. (Emoji work as button glyphs in SVG text — rasterize in modern browsers — but can't be recolored/themed; use SVG paths for themeable icons.) First use case: the **sound demo** wants a play/stop toolbar (currently separate button rows).
 [x] Thumbstick scroll on pointed-at VR panels — DONE: per XR frame, a controller ray-hit on the scrollable panel routes that stick's Y → `panel.scrollBy` and withholds that stick from locomotion. `_attachXrPanel` exposes plane/scrollBy/scrollable. (Needs headset verification; SCROLL_SPEED tunable.)
