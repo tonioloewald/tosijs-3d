@@ -112,22 +112,21 @@ export function hudPointFromUV(u, v, opts) {
     };
 }
 /**
- * How opaque a radar trace's FILL is, given the radar's lock state. The trace's outline
- * never changes — the fill is the whole cue, so a contact "solidifies" as you hold the
- * nose on it:
+ * How opaque a radar trace's FILL is: nothing at 0, ramping to **50% white** at a full
+ * `lockProgress`. That ramp is the *acquiring* cue — a contact solidifies while you hold
+ * the nose on it, and drains back when it slips the acquisition cone (the radar's lock
+ * decays, it isn't instant). Without it the pilot gets no signal at all until the lock
+ * lands, and can't make the decision the mechanic exists to force: stay on him or break.
  *
- * - **acquiring** — fill ramps from nothing to **50%** as `lockProgress` runs 0 → 1;
- * - **locked** — snaps to **75%**, a deliberate jump so the moment of lock reads as an
- *   event rather than the top of a fade.
- *
- * The ramp matters because the radar's lock is not instant (`lockTime`) and it DECAYS
- * when a contact slips out of the acquisition cone. Without it the pilot gets no signal
- * — nothing, nothing, then abruptly a locked trace — and so can't make the one decision
- * the mechanic exists to force: hold the nose on him, or break off.
+ * **A positive lock is NOT more fill — it turns the OUTLINE white** (see the renderer in
+ * `hud.ts`). Two notches of the same continuous cue proved too subtle to tell apart on a
+ * thin glyph in flight; the lock has to be a categorical change, not a darker shade. So
+ * the fill tops out at 50% and stays there — `locked` only pins it there in case the
+ * progress value arrives short.
  */
 export function lockFillOpacity(lockProgress, locked) {
     if (locked === true)
-        return 0.75;
+        return 0.5; // full fill; the WHITE OUTLINE is the lock cue
     if (!(lockProgress > 0))
         return 0; // also catches NaN
     return Math.min(1, lockProgress) * 0.5;

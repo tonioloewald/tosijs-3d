@@ -175,13 +175,17 @@ ahead of the nose) and hold fire for the straight-ahead cannon; tap <strong>miss
 guided round at your nearest lock (no lock ⇒ it flies ballistic). Neutrals show on radar
 but never lock. Your own missile shows as a faint friendly blip. Targets glow redder as
 they take damage, then explode.</p>
-<p><strong>Watch a contact SOLIDIFY to read your lock.</strong> A lock isn&#39;t instant (<code>lockTime</code>) and it
-decays if the contact slips out of the acquisition cone, so the trace&#39;s <em>fill</em> tells you
-where you stand: an unlocked contact is <strong>outline only</strong>, it fills toward <strong>half white</strong>
-as the lock builds, and snaps to <strong>bright white</strong> the instant it locks. Hold the nose on
-him and watch it fill; let him drift wide and watch it drain back. That&#39;s the decision the
-mechanic exists to force — stay on him, or break off. (Outline colour never changes: it&#39;s
-still the faction. Neutrals never fill, because they never lock.)</p>
+<p><strong>Watch a contact FILL to read your lock.</strong> A lock isn&#39;t instant (<code>lockTime</code>) and it decays
+if the contact slips out of the acquisition cone, so the trace tells you where you stand in
+two different ways:</p>
+<ul>
+<li><strong>acquiring</strong> — the glyph <em>fills</em> with white, from nothing to half, as the lock builds.
+Hold the nose on him and watch it fill; let him drift wide and watch it drain back.</li>
+<li><strong>locked</strong> — the <em>outline</em> snaps to <em>white</em>. Deliberately a different KIND of change, so
+you read it instantly in peripheral vision instead of squinting at how full a fill is.</li>
+</ul>
+<p>That&#39;s the decision the mechanic exists to force — stay on him, or break off. Neutrals
+never fill or go white, because they never lock.</p>
 <p><strong>Controls:</strong> on the glass pad, <strong>A = guns</strong> (hold), <strong>B = missile</strong>, <strong>right bumper =
 bomb</strong>. On the keyboard: <code>Space</code> = guns, <code>F</code> = missile, <code>RShift</code> = bomb. (Fly with W/S
 pitch, A/D bank, R/Q throttle.)</p>

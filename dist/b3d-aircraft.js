@@ -154,13 +154,17 @@ guided round at your nearest lock (no lock ⇒ it flies ballistic). Neutrals sho
 but never lock. Your own missile shows as a faint friendly blip. Targets glow redder as
 they take damage, then explode.
 
-**Watch a contact SOLIDIFY to read your lock.** A lock isn't instant (`lockTime`) and it
-decays if the contact slips out of the acquisition cone, so the trace's *fill* tells you
-where you stand: an unlocked contact is **outline only**, it fills toward **half white**
-as the lock builds, and snaps to **bright white** the instant it locks. Hold the nose on
-him and watch it fill; let him drift wide and watch it drain back. That's the decision the
-mechanic exists to force — stay on him, or break off. (Outline colour never changes: it's
-still the faction. Neutrals never fill, because they never lock.)
+**Watch a contact FILL to read your lock.** A lock isn't instant (`lockTime`) and it decays
+if the contact slips out of the acquisition cone, so the trace tells you where you stand in
+two different ways:
+
+- **acquiring** — the glyph *fills* with white, from nothing to half, as the lock builds.
+  Hold the nose on him and watch it fill; let him drift wide and watch it drain back.
+- **locked** — the *outline* snaps to *white*. Deliberately a different KIND of change, so
+  you read it instantly in peripheral vision instead of squinting at how full a fill is.
+
+That's the decision the mechanic exists to force — stay on him, or break off. Neutrals
+never fill or go white, because they never lock.
 
 **Controls:** on the glass pad, **A = guns** (hold), **B = missile**, **right bumper =
 bomb**. On the keyboard: `Space` = guns, `F` = missile, `RShift` = bomb. (Fly with W/S

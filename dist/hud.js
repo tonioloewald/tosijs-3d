@@ -156,20 +156,27 @@ export function createHudController(el, options = {}) {
             glyph.removeAttribute('id');
             const { x, y, tracked } = t; // already in HUD viewBox coords
             glyph.setAttribute('transform', `translate(${x}, ${y})`);
-            // THE LOCK CUE IS THE FILL, AND ONLY THE FILL. The outline keeps its faction
-            // colour throughout — what changes is that the glyph SOLIDIFIES as the radar
-            // builds a lock: nothing → 50% white across the acquisition ramp, then a jump to
-            // 75% on lock so it reads as an event (see hud-math.lockFillOpacity). A trace
-            // template is a <g> whose child shapes each carry their own inline stroke, so
-            // this has to be applied to the shapes, not the group.
+            // TWO CUES, DELIBERATELY DIFFERENT IN KIND.
+            //  - ACQUIRING is continuous: the glyph fills with white, nothing → 50%, as the
+            //    lock builds (and drains back if the contact slips the cone).
+            //  - LOCK is categorical: the OUTLINE goes white. Making lock merely a *denser*
+            //    fill was tried and is too subtle to tell apart on a thin glyph in flight —
+            //    the moment of lock has to change something else about the trace, not just
+            //    deepen what's already changing.
+            // A trace template is a <g> whose child shapes each carry their own inline
+            // stroke, so both cues apply to the shapes, not the group.
             const fill = lockFillOpacity(t.lockProgress ?? 0, t.locked);
-            if (fill > 0) {
+            if (fill > 0 || t.locked) {
                 for (const s of Array.from(glyph.querySelectorAll('*'))) {
                     const col = s.style.stroke || s.getAttribute('stroke') || '';
                     if (col === '')
                         continue; // unstroked shapes aren't part of the outline
-                    s.style.fill = '#ffffff';
-                    s.style.fillOpacity = String(fill);
+                    if (fill > 0) {
+                        s.style.fill = '#ffffff';
+                        s.style.fillOpacity = String(fill);
+                    }
+                    if (t.locked)
+                        s.style.stroke = '#ffffff'; // the lock cue
                 }
             }
             // A locked contact stays bold even when pinned off-glass; everything else dims

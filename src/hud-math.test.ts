@@ -212,16 +212,18 @@ describe('lockFillOpacity — a trace solidifies as the radar builds a lock', ()
     }
   })
 
-  test('LOCK jumps to 75% — the moment reads as an event, not the top of a fade', () => {
-    // The jump is the point: a full ramp tops out at 0.5, and lock lands well clear of
-    // it, so "locked" is visually distinct from "nearly locked".
-    expect(lockFillOpacity(1, true)).toBe(0.75)
-    expect(lockFillOpacity(1, true)).toBeGreaterThan(lockFillOpacity(1) + 0.2)
+  test('LOCK adds no more fill — 50% is the ceiling, locked or not', () => {
+    // The lock cue is the OUTLINE going white (see hud.ts), NOT a denser fill. Flying it
+    // with lock as "more fill" (0.5 → 0.75), the two states were too close to tell apart
+    // on a thin glyph at speed: the moment of lock has to change something else about
+    // the trace, not just deepen what is already changing. So the fill tops out here.
+    expect(lockFillOpacity(1, true)).toBe(0.5)
+    expect(lockFillOpacity(1, true)).toBe(lockFillOpacity(1))
   })
 
-  test('locked wins regardless of the progress value it arrives with', () => {
-    expect(lockFillOpacity(0, true)).toBe(0.75)
-    expect(lockFillOpacity(0.3, true)).toBe(0.75)
+  test('locked pins the fill full, even if the progress arrives short', () => {
+    expect(lockFillOpacity(0, true)).toBe(0.5)
+    expect(lockFillOpacity(0.3, true)).toBe(0.5)
   })
 
   test('garbage in stays in range — it is an opacity', () => {
