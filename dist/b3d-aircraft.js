@@ -143,57 +143,84 @@ tosi-b3d { width: 100%; height: 100%; }
 }
 ```
 
-## Combat — shoot down the drones
+## Combat — radar, locks, guns & missiles
 
-The aircraft is armed (see [Weapons](#weapons-the-combat-slice)). Fly at the drifting
-**aerial drones** and shoot them down. Each takes a short cannon burst or one missile —
-watch a drone glow **redder as it takes damage** (the [destroyable](?b3d-destroyable.ts)
-damage readout), then explode. The **kills counter** (top-right) ticks up as they die,
-and missiles **lock the nearest drone in front of you**.
+The aircraft carries a [radar](?b3d-radar.ts) (a `<tosi-b3d-radar>` child) that paints
+every [radar-blip](?b3d-radar-blip.ts) in range on the HUD — **red = hostile, tan =
+neutral**, a diamond ahead is a **waypoint** — and builds a **lock** on the nearest
+*hostile* in front of you (up to two). Fly a target into the **gun reticle** (the ring
+ahead of the nose) and hold fire for the straight-ahead cannon; tap **missile** to send a
+guided round at your nearest lock (no lock ⇒ it flies ballistic). Neutrals show on radar
+but never lock. Your own missile shows as a faint friendly blip. Targets glow redder as
+they take damage, then explode.
 
-**Keys:** `Space` / right-Shift = **guns**, `LShift` = **missile**, `F` = **bomb**.
-(Fly with W/S pitch, A/D bank, R/Q throttle.)
+**Controls:** on the glass pad, **A = guns** (hold), **B = missile**, **right bumper =
+bomb**. On the keyboard: `Space` = guns, `F` = missile, `RShift` = bomb. (Fly with W/S
+pitch, A/D bank, R/Q throttle.)
 
 ```js
-import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div } = elements
+
+// The aircraft with an attached radar: 250m nominal range, front hemisphere, ~1.2s to
+// lock, up to 2 locks. Its state is surfaced on the HUD (the radar itself has no UI).
+const RADAR_RANGE = 250 // nominal radar range (m); a profile-1 blip detects within it
+const MAX_ALT = 300 // the aircraft's max altitude (its `ceiling`, default 300)
 
 const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
-})
+  hudChase: true, // show the HUD (and its radar) in the chase view, not just cockpit
+}, b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }))
 
-// Big, low-HP drones spread across the takeoff heading (+Z), at cruise height. capacity
-// 6 ≈ one cannon burst or one missile — so a hit obviously registers and kills. They
-// explode and fire a small death-blast, so a tight formation chain-reacts.
-const drones = []
-for (let i = 0; i < 12; i++) {
-  drones.push(b3dDestroyable({
-    meshName: 'drone', size: 2.4, color: '#d05050', capacity: 6,
-    x: (i % 4) * 9 - 13.5, y: 12 + (i % 3) * 5, z: 45 + Math.floor(i / 4) * 22,
-    explode: 'on', explodeForce: 8,
-    deathBlast: 'on', blastDamage: 10, blastFullRadius: 2, blastRadius: 6,
-  }))
+// A target = a destroyable cube that's ALSO a radar-blip (nested, so the blip follows
+// the cube). Faction picks the colour + whether the radar will lock it: HOSTILE locks,
+// NEUTRAL only shows. capacity 6 ≈ one cannon burst or one missile.
+function target({ faction, ...pos }) {
+  const color = faction === 'hostile' ? '#d05050' : '#c7ad55'
+  return b3dDestroyable(
+    { meshName: 'drone', size: 2.4, color, capacity: 6, ...pos,
+      explode: 'on', explodeForce: 8,
+      deathBlast: 'on', blastDamage: 10, blastFullRadius: 2, blastRadius: 6 },
+    b3dRadarBlip({ faction, profile: 1 }),
+  )
 }
 
-const kills = div({ class: 'kills' }, 'Drones down: 0 / 12')
+// Scatter targets across a wide forward arc, 0.5×–1.5× radar range out — so some sit
+// BEYOND radar range and only appear as you close on them. AERIAL targets span 0.1×–
+// 1.25× the aircraft's max altitude (a few above its ceiling → radar contacts you can
+// only reach with a missile); GROUND targets sit on the deck.
+function scatter(aerial) {
+  const d = RADAR_RANGE * (0.5 + Math.random()) // 0.5×..1.5× range
+  const az = (Math.random() - 0.5) * (170 * Math.PI / 180) // ±85° around the nose (+Z)
+  return target({
+    faction: Math.random() < 0.65 ? 'hostile' : 'neutral',
+    x: Math.sin(az) * d,
+    z: Math.cos(az) * d,
+    y: aerial ? MAX_ALT * (0.1 + Math.random() * 1.15) : 1.0 + Math.random() * 1.2,
+  })
+}
+const air = Array.from({ length: 12 }, () => scatter(true))
+const ground = Array.from({ length: 8 }, () => scatter(false))
+const targets = [...air, ...ground]
+
+const kills = div({ class: 'kills' }, `Targets down: 0 / ${targets.length}`)
 let down = 0
 
 const scene = b3d(
   {
     gamepad: true,
     sceneCreated(el) {
-      // Prove damage→death: count the bubbling `destroyed` events.
       el.addEventListener('destroyed', () => {
         down += 1
-        kills.textContent = `Drones down: ${down} / 12`
+        kills.textContent = `Targets down: ${down} / ${targets.length}`
       })
-      // Gently drift the drones so they move but stay very hittable.
+      // Gently drift the AIR targets so they move on radar but stay hittable.
       let t = 0
       el.scene.onBeforeRenderObservable.add(() => {
         t += el.scene.getEngine().getDeltaTime() / 1000
-        drones.forEach((d, i) => {
+        air.forEach((d, i) => {
           if (d.dead) return
           d.x += Math.sin(t * 0.3 + i) * 0.02
           d.y += Math.sin(t * 0.6 + i * 2) * 0.01
@@ -204,10 +231,13 @@ const scene = b3d(
   b3dLight({ y: 1, intensity: 0.5 }),
   b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300 }),
   b3dSkybox({ timeOfDay: 10 }),
-  b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
+  b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   b3dHud({}),
-  ...drones,
+  // A NAV WAYPOINT: a positional blip (no mesh), always detectable (profile -1),
+  // shown far ahead on the HUD as a waypoint diamond.
+  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
+  ...targets,
   inputFocus(gameController(), aircraft),
 )
 preview.append(scene, kills)
@@ -282,9 +312,9 @@ Shells inherit the airframe's velocity, so your own motion leads the shot. Any
 
 | Control (default map) | Weapon |
 | --- | --- |
-| **Guns** — right bumper / A (held) | Cannon: fast ballistic shells, small blast |
-| **Bomb** — B (tap) | Falls under gravity with your forward momentum; big blast |
-| **Missile** — left bumper (tap) | Homes on the nearest target in the forward cone (else fires straight as a dumb rocket) |
+| **Guns** — A (held) | Cannon: fast ballistic shells, small blast |
+| **Missile** — B (tap) | Homes on your nearest radar lock (else fires straight as a dumb rocket) |
+| **Bomb** — right bumper (tap) | Falls under gravity with your forward momentum; big blast |
 
 `fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
 an AI pilot). Set `weapons="off"` to disarm.
@@ -381,12 +411,17 @@ export class B3dAircraft extends B3dControllable {
         gunRate: 9, // cannon shots per second (held `shoot`)
         gunSpeed: 130, // muzzle speed of cannon shells (added to airspeed)
         gunDamage: 8, // per-shell warhead full damage
-        missileSpeed: 55, // guided-missile cruise speed
+        missileSpeed: 90, // guided-missile cruise speed (faster than the airframe so it pulls ahead)
+        missileAccel: 90, // thrust accel (units/s²) ramping launch → cruise (inherits your velocity)
         missileTurnRate: 3, // guided-missile agility (rad/sec)
         missileDamage: 30,
         bombDamage: 45,
-        lockRange: 140, // max range to acquire a missile target
+        lockRange: 140, // max range to acquire a missile target (fallback when no radar)
         lockConeDeg: 35, // half-angle of the forward cone missiles can lock within
+        // Gun-aiming reticle: a bore-line ring parented to the airframe you look THROUGH
+        // to aim the (straight-ahead, ballistic) cannon. 'on' (default) / 'off'.
+        reticle: 'on',
+        reticleRange: 120, // metres ahead the reticle ring sits on the gun bore line
     };
     // Read-only flight state
     airspeed = 0;
@@ -425,6 +460,10 @@ export class B3dAircraft extends B3dControllable {
     // undefined = not yet resolved; null = no HUD / not the player.
     _hud = undefined;
     _hudMounted = false;
+    // The attached <tosi-b3d-radar> child (found once). undefined = unresolved,
+    // null = none. Drives the HUD radar traces and the missile's lock target.
+    _radar = undefined;
+    _reticleMesh = null;
     meshNode = null;
     meshesToDispose = [];
     // Ground sampling is ONE raycast per frame, taken after the move and cached: the
@@ -567,7 +606,10 @@ export class B3dAircraft extends B3dControllable {
                     warnings.push({ text: 'STALL' });
                 this._hud.setWarnings(warnings);
                 // health/energy: wired once the combat resource models drive the aircraft.
-                // radar traces (setTraces): wired once scene targets exist.
+                // Radar traces: surface the attached <tosi-b3d-radar>'s detected contacts on
+                // the HUD (the radar itself is UI-less). Faction → trace colour; the aircraft
+                // pose is the projection viewer.
+                this._pushRadarToHud(node);
             }
         }
         // === Apply velocity to position ===
@@ -632,6 +674,47 @@ export class B3dAircraft extends B3dControllable {
             this.fireMissile();
         this._missileWas = missile;
     }
+    // Scratch for the active camera's world-rotation (radar-trace projection viewer).
+    _camQuat = new BABYLON.Quaternion();
+    /** Push the attached radar's detected contacts onto the HUD as radar traces. */
+    _pushRadarToHud(_node) {
+        const radar = this.radar;
+        const hud = this._hud;
+        if (radar == null || hud?.setTraces == null)
+            return;
+        const cam = this.owner?.scene.activeCamera;
+        if (cam == null)
+            return;
+        const traces = [];
+        for (const t of radar.tracks) {
+            if (!t.detected)
+                continue;
+            traces.push({ pos: t.pos, kind: t.id.faction, locked: t.locked });
+        }
+        // Project from the ACTIVE CAMERA (what you actually see), not the airframe body —
+        // so a blip overlays the enemy on screen in every view (cockpit, chase, VR). Match
+        // the HUD ring's angular span to the camera FOV so positions line up.
+        const p = cam.globalPosition;
+        cam.getWorldMatrix().decompose(undefined, this._camQuat, undefined);
+        const q = this._camQuat;
+        const fovV = cam.fov ?? Math.PI / 4;
+        const eng = this.owner.engine;
+        const h = eng.getRenderHeight();
+        const aspect = h > 0 ? eng.getRenderWidth() / h : 1;
+        const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect);
+        hud.setTraces(traces, {
+            position: { x: p.x, y: p.y, z: p.z },
+            rotation: { x: q.x, y: q.y, z: q.z, w: q.w },
+        }, { fovH, fovV, radius: 84, pinRadius: 116 });
+    }
+    /** The attached `<tosi-b3d-radar>` child (found once), or null. */
+    get radar() {
+        if (this._radar === undefined) {
+            this._radar =
+                this.querySelector('tosi-b3d-radar') ?? null;
+        }
+        return this._radar;
+    }
     /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
      * spawned at the belly (or the nose in a climb) never detonates on us. */
     ownMeshes() {
@@ -690,7 +773,12 @@ export class B3dAircraft extends B3dControllable {
             ignore: (m) => this.ownMeshes().has(m),
         });
     }
-    /** Fire a guided missile at the nearest target in the forward cone (else dumb). */
+    /**
+     * Fire a guided missile at your **nearest radar lock** (no lock ⇒ it goes ballistic
+     * straight ahead). With a `<tosi-b3d-radar>` attached the lock comes from the radar;
+     * without one it falls back to the legacy forward-cone acquire. The missile carries a
+     * small radar signature (profile 0.25, friendly) so it shows on the HUD.
+     */
     fireMissile() {
         if (this.owner == null || !this.meshNode)
             return;
@@ -704,7 +792,11 @@ export class B3dAircraft extends B3dControllable {
             blastRadius: 4,
         };
         const ignore = (m) => this.ownMeshes().has(m);
-        const target = this.acquireTarget(origin, dir, attrs.lockRange, attrs.lockConeDeg);
+        // Prefer the radar's nearest lock; else fall back to the cone acquire (no radar).
+        const target = this.radar != null
+            ? this.radar.nearestLockMesh()
+            : this.acquireTarget(origin, dir, attrs.lockRange, attrs.lockConeDeg);
+        const radarSig = { profile: 0.25, faction: 'friendly' };
         if (target != null) {
             spawnMissile(this.owner, {
                 origin,
@@ -715,6 +807,11 @@ export class B3dAircraft extends B3dControllable {
                 direction: dir,
                 radius: 0.18,
                 ignore,
+                radar: radarSig,
+                // Inherit the airframe's world velocity so the missile doesn't drop behind,
+                // then thrust up to cruise.
+                inheritVelocity: { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z },
+                accel: attrs.missileAccel,
             });
         }
         else {
@@ -728,6 +825,7 @@ export class B3dAircraft extends B3dControllable {
                 color: '#ff6644',
                 maxLifetime: 8,
                 ignore,
+                radar: radarSig,
             });
         }
     }
@@ -890,6 +988,37 @@ export class B3dAircraft extends B3dControllable {
         }
         this.lastUpdate = Date.now();
         owner.scene.registerBeforeRender(this._update);
+        this._createReticle(owner);
+    }
+    /**
+     * Build the gun-aiming reticle: a ring parented to the airframe, sitting
+     * `reticleRange` metres ahead on the cannon's bore line with its hole facing
+     * forward — you fly the target INTO the ring to aim the straight-ahead guns. It
+     * rides the airframe (and so the XR rig) automatically. Player + `reticle:'on'`
+     * + armed only.
+     */
+    _createReticle(owner) {
+        const attrs = this;
+        if (this.meshNode == null ||
+            !attrs.player ||
+            isOff(attrs.reticle) ||
+            isOff(attrs.weapons)) {
+            return;
+        }
+        const range = attrs.reticleRange;
+        const ring = BABYLON.MeshBuilder.CreateTorus('gun-reticle', { diameter: range * 0.05, thickness: range * 0.006, tessellation: 24 }, owner.scene);
+        // Default torus hole faces +Y; tip it so the hole faces +Z (the bore/nose).
+        ring.rotation.x = Math.PI / 2;
+        ring.position.set(0, 0, range);
+        ring.parent = this.meshNode;
+        ring.isPickable = false;
+        ring.receiveShadows = false;
+        ring.__isReticle = true;
+        const mat = new BABYLON.StandardMaterial('gun-reticle-mat', owner.scene);
+        mat.emissiveColor = BABYLON.Color3.FromHexString('#ff5030');
+        mat.disableLighting = true;
+        ring.material = mat;
+        this._reticleMesh = ring;
     }
     chaseCamera = null;
     cockpitCamera = null;
@@ -960,7 +1089,13 @@ export class B3dAircraft extends B3dControllable {
             this.libraryNode.dispose();
             this.libraryNode = null;
         }
+        if (this._reticleMesh) {
+            this._reticleMesh.material?.dispose();
+            this._reticleMesh.dispose();
+            this._reticleMesh = null;
+        }
         this.meshNode = null;
+        this._radar = undefined;
         this.inputProvider = null;
         super.sceneDispose();
     }

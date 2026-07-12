@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
+import type { B3d, RadarFaction } from './tosi-b3d';
 import { type BallisticParams, type Vec3 } from './ballistics';
 import type { WarheadSpec } from './warhead';
 export interface ProjectileOpts {
@@ -34,6 +34,15 @@ export interface ProjectileOpts {
      * doesn't immediately detonate on it. Return true to skip a mesh.
      */
     ignore?: (m: BABYLON.AbstractMesh) => boolean;
+    /**
+     * Make this projectile show on radar (e.g. your own missile). It registers a
+     * `RadarBlip` that follows the shell and unregisters when it disposes. A homing
+     * weapon can chase it via the blip's `radarMesh()`.
+     */
+    radar?: {
+        profile: number;
+        faction: RadarFaction;
+    };
 }
 /**
  * Spawn one ballistic shell into the scene and fly it under `params` until it hits
@@ -49,10 +58,16 @@ export interface MissileOpts {
     origin: BABYLON.Vector3;
     /** The mesh to home on. If it's disposed mid-flight the missile flies straight. */
     target: BABYLON.AbstractMesh;
-    /** Cruise speed (held constant by the seeker). */
+    /** Cruise speed the motor accelerates to (and the seeker holds once reached). */
     speed: number;
     /** Max turn rate (rad/sec) — the missile's agility. */
     turnRate: number;
+    /** Launch platform's world velocity — the missile INHERITS it so it doesn't drop
+     * behind a fast mover, then thrusts up to `speed`. Default none. */
+    inheritVelocity?: Vec3;
+    /** Thrust acceleration (units/s²) ramping launch speed → cruise `speed`. Omit/0 =
+     * instant cruise (legacy). */
+    accel?: number;
     warhead: WarheadSpec;
     /** Initial launch direction (defaults to straight at the target). */
     direction?: BABYLON.Vector3;
@@ -65,6 +80,11 @@ export interface MissileOpts {
     onImpact?: (point: BABYLON.Vector3) => void;
     /** Ignore the firing entity's own meshes on the collision ray (see ProjectileOpts). */
     ignore?: (m: BABYLON.AbstractMesh) => boolean;
+    /** Give the missile a radar signature (see ProjectileOpts.radar). */
+    radar?: {
+        profile: number;
+        faction: RadarFaction;
+    };
 }
 /**
  * Spawn a **guided missile** that homes on `target`: each frame it leads the target

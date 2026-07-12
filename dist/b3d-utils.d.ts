@@ -2,6 +2,14 @@ import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 export declare function findB3dOwner(el: HTMLElement): B3d | null;
+/**
+ * The element's SEMANTIC parent — its nearest ancestor that isn't a tosijs slot
+ * wrapper. tosijs mounts a component's light-DOM children inside a `<tosi-slot>`, so
+ * a child's `parentElement` is that slot, not the component you nested it in. Any
+ * child that wants to find "the thing I'm nested in" (a radar in an aircraft, a
+ * radar-blip in a target) must skip the slot(s).
+ */
+export declare function semanticParent(el: HTMLElement): HTMLElement | null;
 export declare function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[];
 /**
  * Is an on-by-default toggle in its OFF state? Use for feature flags that should

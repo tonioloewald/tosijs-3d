@@ -26,7 +26,12 @@ export type { Side } from './hud-math'
 
 export type MeterName = 'speed' | 'altitude' | 'health' | 'energy'
 export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint'
-export type HudTraceInput = { pos: Vec3; kind: TraceKind }
+export type HudTraceInput = {
+  pos: Vec3
+  kind: TraceKind
+  /** Radar has a lock on this contact — drawn with a bolder, fully-opaque stroke. */
+  locked?: boolean
+}
 /** A warning line; give it a `side` to also flash that arc frame red. */
 export type HudWarning = { text: string; side?: Side }
 
@@ -204,8 +209,23 @@ export function createHudController(
       glyph.removeAttribute('id')
       const { x, y, tracked } = hudTrace(viewer, t.pos, opts)
       glyph.setAttribute('transform', `translate(${CENTER + x}, ${CENTER + y})`)
-      // Pinned (out-of-FOV) traces read dimmer than tracked ones.
-      glyph.setAttribute('opacity', tracked ? '1' : '0.55')
+      // A trace template is a <g> whose child shapes carry the stroke (each with
+      // its own inline `style`), so the lock cue has to be applied to the shapes,
+      // not the group. LOCKED: white outline + the faction colour as a translucent
+      // FILL (reads as "targeted"). Otherwise pinned (out-of-FOV) traces dim.
+      if (t.locked) {
+        const shapes = Array.from(glyph.querySelectorAll<SVGElement>('*'))
+        for (const s of shapes) {
+          const col = s.style.stroke || s.getAttribute('stroke') || ''
+          if (col === '') continue // skip unstroked shapes
+          s.style.stroke = '#ffffff'
+          s.style.fill = col
+          s.style.fillOpacity = '0.25'
+        }
+        glyph.style.opacity = '1'
+      } else {
+        glyph.style.opacity = tracked ? '1' : '0.55'
+      }
       tracesG.appendChild(glyph)
     }
   }

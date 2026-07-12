@@ -24,6 +24,9 @@ export declare class GameController extends Component implements GamepadSource {
     private _handleKeyDown;
     private _handleKeyUp;
     private _handleWheel;
+    private _handleMouseDown;
+    private _handleMouseUp;
+    private _handleContextMenu;
     private _updateSmoothing;
     connectedCallback(): void;
     disconnectedCallback(): void;

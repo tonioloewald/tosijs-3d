@@ -166,53 +166,80 @@ requestAnimationFrame(updateHud)
   z-index: 10;
 }
 </code></pre>
-<h2>Combat — shoot down the drones</h2>
-<p>The aircraft is armed (see <a href="#weapons-the-combat-slice">Weapons</a>). Fly at the drifting
-<strong>aerial drones</strong> and shoot them down. Each takes a short cannon burst or one missile —
-watch a drone glow <strong>redder as it takes damage</strong> (the <a href="/b3d-destroyable/">destroyable</a>
-damage readout), then explode. The <strong>kills counter</strong> (top-right) ticks up as they die,
-and missiles <strong>lock the nearest drone in front of you</strong>.</p>
-<p><strong>Keys:</strong> <code>Space</code> / right-Shift = <strong>guns</strong>, <code>LShift</code> = <strong>missile</strong>, <code>F</code> = <strong>bomb</strong>.
-(Fly with W/S pitch, A/D bank, R/Q throttle.)</p>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+<h2>Combat — radar, locks, guns &amp; missiles</h2>
+<p>The aircraft carries a <a href="/b3d-radar/">radar</a> (a <code>&lt;tosi-b3d-radar&gt;</code> child) that paints
+every <a href="/b3d-radar-blip/">radar-blip</a> in range on the HUD — <strong>red = hostile, tan =
+neutral</strong>, a diamond ahead is a <strong>waypoint</strong> — and builds a <strong>lock</strong> on the nearest
+<em>hostile</em> in front of you (up to two). Fly a target into the <strong>gun reticle</strong> (the ring
+ahead of the nose) and hold fire for the straight-ahead cannon; tap <strong>missile</strong> to send a
+guided round at your nearest lock (no lock ⇒ it flies ballistic). Neutrals show on radar
+but never lock. Your own missile shows as a faint friendly blip. Targets glow redder as
+they take damage, then explode.</p>
+<p><strong>Controls:</strong> on the glass pad, <strong>A = guns</strong> (hold), <strong>B = missile</strong>, <strong>right bumper =
+bomb</strong>. On the keyboard: <code>Space</code> = guns, <code>F</code> = missile, <code>RShift</code> = bomb. (Fly with W/S
+pitch, A/D bank, R/Q throttle.)</p>
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div } = elements
+
+// The aircraft with an attached radar: 250m nominal range, front hemisphere, ~1.2s to
+// lock, up to 2 locks. Its state is surfaced on the HUD (the radar itself has no UI).
+const RADAR_RANGE = 250 // nominal radar range (m); a profile-1 blip detects within it
+const MAX_ALT = 300 // the aircraft&#39;s max altitude (its `ceiling`, default 300)
 
 const aircraft = b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
   player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
-})
+  hudChase: true, // show the HUD (and its radar) in the chase view, not just cockpit
+}, b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }))
 
-// Big, low-HP drones spread across the takeoff heading (+Z), at cruise height. capacity
-// 6 ≈ one cannon burst or one missile — so a hit obviously registers and kills. They
-// explode and fire a small death-blast, so a tight formation chain-reacts.
-const drones = []
-for (let i = 0; i &lt; 12; i++) {
-  drones.push(b3dDestroyable({
-    meshName: &#39;drone&#39;, size: 2.4, color: &#39;#d05050&#39;, capacity: 6,
-    x: (i % 4) * 9 - 13.5, y: 12 + (i % 3) * 5, z: 45 + Math.floor(i / 4) * 22,
-    explode: &#39;on&#39;, explodeForce: 8,
-    deathBlast: &#39;on&#39;, blastDamage: 10, blastFullRadius: 2, blastRadius: 6,
-  }))
+// A target = a destroyable cube that&#39;s ALSO a radar-blip (nested, so the blip follows
+// the cube). Faction picks the colour + whether the radar will lock it: HOSTILE locks,
+// NEUTRAL only shows. capacity 6 ≈ one cannon burst or one missile.
+function target({ faction, ...pos }) {
+  const color = faction === &#39;hostile&#39; ? &#39;#d05050&#39; : &#39;#c7ad55&#39;
+  return b3dDestroyable(
+    { meshName: &#39;drone&#39;, size: 2.4, color, capacity: 6, ...pos,
+      explode: &#39;on&#39;, explodeForce: 8,
+      deathBlast: &#39;on&#39;, blastDamage: 10, blastFullRadius: 2, blastRadius: 6 },
+    b3dRadarBlip({ faction, profile: 1 }),
+  )
 }
 
-const kills = div({ class: &#39;kills&#39; }, &#39;Drones down: 0 / 12&#39;)
+// Scatter targets across a wide forward arc, 0.5×–1.5× radar range out — so some sit
+// BEYOND radar range and only appear as you close on them. AERIAL targets span 0.1×–
+// 1.25× the aircraft&#39;s max altitude (a few above its ceiling → radar contacts you can
+// only reach with a missile); GROUND targets sit on the deck.
+function scatter(aerial) {
+  const d = RADAR_RANGE * (0.5 + Math.random()) // 0.5×..1.5× range
+  const az = (Math.random() - 0.5) * (170 * Math.PI / 180) // ±85° around the nose (+Z)
+  return target({
+    faction: Math.random() &lt; 0.65 ? &#39;hostile&#39; : &#39;neutral&#39;,
+    x: Math.sin(az) * d,
+    z: Math.cos(az) * d,
+    y: aerial ? MAX_ALT * (0.1 + Math.random() * 1.15) : 1.0 + Math.random() * 1.2,
+  })
+}
+const air = Array.from({ length: 12 }, () =&gt; scatter(true))
+const ground = Array.from({ length: 8 }, () =&gt; scatter(false))
+const targets = [...air, ...ground]
+
+const kills = div({ class: &#39;kills&#39; }, `Targets down: 0 / ${targets.length}`)
 let down = 0
 
 const scene = b3d(
   {
     gamepad: true,
     sceneCreated(el) {
-      // Prove damage→death: count the bubbling `destroyed` events.
       el.addEventListener(&#39;destroyed&#39;, () =&gt; {
         down += 1
-        kills.textContent = `Drones down: ${down} / 12`
+        kills.textContent = `Targets down: ${down} / ${targets.length}`
       })
-      // Gently drift the drones so they move but stay very hittable.
+      // Gently drift the AIR targets so they move on radar but stay hittable.
       let t = 0
       el.scene.onBeforeRenderObservable.add(() =&gt; {
         t += el.scene.getEngine().getDeltaTime() / 1000
-        drones.forEach((d, i) =&gt; {
+        air.forEach((d, i) =&gt; {
           if (d.dead) return
           d.x += Math.sin(t * 0.3 + i) * 0.02
           d.y += Math.sin(t * 0.6 + i * 2) * 0.01
@@ -223,10 +250,13 @@ const scene = b3d(
   b3dLight({ y: 1, intensity: 0.5 }),
   b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300 }),
   b3dSkybox({ timeOfDay: 10 }),
-  b3dGround({ meshName: &#39;ground_nocast&#39;, width: 500, height: 500, color: &#39;#7d9b6e&#39; }),
+  b3dGround({ meshName: &#39;ground_nocast&#39;, width: 900, height: 900, color: &#39;#7d9b6e&#39; }),
   b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
   b3dHud({}),
-  ...drones,
+  // A NAV WAYPOINT: a positional blip (no mesh), always detectable (profile -1),
+  // shown far ahead on the HUD as a waypoint diamond.
+  b3dRadarBlip({ faction: &#39;waypoint&#39;, profile: -1, x: 0, y: 25, z: 300 }),
+  ...targets,
   inputFocus(gameController(), aircraft),
 )
 preview.append(scene, kills)
@@ -402,16 +432,16 @@ Shells inherit the airframe&#39;s velocity, so your own motion leads the shot. A
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>Guns</strong> — right bumper / A (held)</td>
+<td><strong>Guns</strong> — A (held)</td>
 <td>Cannon: fast ballistic shells, small blast</td>
 </tr>
 <tr>
-<td><strong>Bomb</strong> — B (tap)</td>
-<td>Falls under gravity with your forward momentum; big blast</td>
+<td><strong>Missile</strong> — B (tap)</td>
+<td>Homes on your nearest radar lock (else fires straight as a dumb rocket)</td>
 </tr>
 <tr>
-<td><strong>Missile</strong> — left bumper (tap)</td>
-<td>Homes on the nearest target in the forward cone (else fires straight as a dumb rocket)</td>
+<td><strong>Bomb</strong> — right bumper (tap)</td>
+<td>Falls under gravity with your forward momentum; big blast</td>
 </tr>
 </tbody></table>
 <p><code>fireGuns()</code>, <code>dropBomb()</code>, and <code>fireMissile()</code> are also callable directly (e.g. for
@@ -464,6 +494,8 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
     </ul>
     </details></li>
+    <li><a href="/b3d-radar/">b3d-radar</a></li>
+    <li><a href="/b3d-radar-blip/">b3d-radar-blip</a></li>
     <li><details><summary><a href="/environment/">Environment</a></summary>
     <ul>
       <li><a href="/b3d-fog/">b3d-fog</a></li>
@@ -499,6 +531,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a href="/perf-probe/">perf-probe</a></li>
     </ul>
     </details></li>
+    <li><a href="/radar/">radar.ts</a></li>
     <li><details><summary><a href="/space/">Space</a></summary>
     <ul>
       <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>

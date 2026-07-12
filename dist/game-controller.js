@@ -76,11 +76,15 @@ const DEFAULT_AXES = [
         decay: 5,
     },
 ];
+// Mouse buttons map to the three "fire" pad buttons via pseudo-keycodes (added to
+// `pressedKeys` on a canvas click): LEFT = primary (buttonA), RIGHT = secondary
+// (buttonB), MIDDLE = tertiary (rightBumper) — matching A / B / right-bumper.
 const DEFAULT_BUTTONS = [
-    { field: 'buttonA', keys: ['Space'], attack: 5, decay: 10 },
-    { field: 'buttonB', keys: ['F'], attack: 5, decay: 10 },
+    { field: 'buttonA', keys: ['Space', 'Mouse0'], attack: 5, decay: 10 },
+    { field: 'buttonB', keys: ['F', 'Mouse2'], attack: 5, decay: 10 },
     { field: 'buttonX', keys: ['E'], attack: 5, decay: 10 },
     { field: 'leftBumper', keys: ['ShiftLeft'], attack: 5, decay: 10 },
+    { field: 'rightBumper', keys: ['ShiftRight', 'Mouse1'], attack: 5, decay: 10 },
     { field: 'leftTrigger', keys: ['Q'], attack: 5, decay: 10 },
     { field: 'rightTrigger', keys: ['R'], attack: 5, decay: 10 },
     { field: 'dpadDown', keys: ['G'], attack: 5, decay: 10, type: 'toggle' },
@@ -140,6 +144,25 @@ export class GameController extends Component {
     _handleWheel = (event) => {
         this.wheelAccum = clamp(-1, this.wheelAccum + event.deltaY * this.wheelSensitivity * 0.01, 1);
     };
+    // Mouse fire buttons — pressed only when the click STARTS on a scene canvas, so
+    // clicking UI (gear, panels, glass gamepad, doc links) never fires. Release is
+    // ungated so dragging off the canvas can't stick a button on. Middle/right also
+    // preventDefault (autoscroll / context menu).
+    _handleMouseDown = (event) => {
+        if (!(event.target instanceof HTMLCanvasElement))
+            return;
+        this.pressedKeys.add('Mouse' + event.button);
+        if (event.button !== 0)
+            event.preventDefault();
+    };
+    _handleMouseUp = (event) => {
+        this.pressedKeys.delete('Mouse' + event.button);
+    };
+    _handleContextMenu = (event) => {
+        // Suppress the browser menu so right-click can be "secondary fire" over the scene.
+        if (event.target instanceof HTMLCanvasElement)
+            event.preventDefault();
+    };
     _updateSmoothing = () => {
         const now = Date.now();
         const dt = (now - this.lastUpdate) * 0.001;
@@ -198,6 +221,9 @@ export class GameController extends Component {
         window.addEventListener('keydown', this._handleKeyDown);
         window.addEventListener('keyup', this._handleKeyUp);
         window.addEventListener('wheel', this._handleWheel, { passive: false });
+        window.addEventListener('mousedown', this._handleMouseDown);
+        window.addEventListener('mouseup', this._handleMouseUp);
+        window.addEventListener('contextmenu', this._handleContextMenu);
     }
     disconnectedCallback() {
         clearInterval(this.interval);
@@ -205,6 +231,9 @@ export class GameController extends Component {
         window.removeEventListener('keydown', this._handleKeyDown);
         window.removeEventListener('keyup', this._handleKeyUp);
         window.removeEventListener('wheel', this._handleWheel);
+        window.removeEventListener('mousedown', this._handleMouseDown);
+        window.removeEventListener('mouseup', this._handleMouseUp);
+        window.removeEventListener('contextmenu', this._handleContextMenu);
         super.disconnectedCallback();
     }
 }

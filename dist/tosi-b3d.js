@@ -533,6 +533,11 @@ export class B3d extends Component {
     //    entity must NOT also registerWorldRoot (that would shift its node twice).
     _worldRoots = new Set();
     _originShiftListeners = [];
+    // Everything detectable on radar this scene (targets, the player's own missiles,
+    // waypoints). A radar platform — the aircraft HUD — enumerates these each frame.
+    // Blips self-register (b3d-radar-blip on connect; spawnProjectile for a missile)
+    // and unregister on dispose. Position is pulled live, so movers just work.
+    _radarBlips = new Set();
     // The scene's combat state (pure, deterministic; see destroyable.ts). Combat
     // components (b3d-destroyable/warhead/launcher) find it via findB3dOwner and
     // share it; the render loop advances it (regen + chain reactions) each frame.
@@ -558,6 +563,16 @@ export class B3d extends Component {
         const idx = this._originShiftListeners.indexOf(callback);
         if (idx > -1)
             this._originShiftListeners.splice(idx, 1);
+    }
+    registerRadarBlip(blip) {
+        this._radarBlips.add(blip);
+    }
+    unregisterRadarBlip(blip) {
+        this._radarBlips.delete(blip);
+    }
+    /** Every radar-detectable blip in the scene (targets, own missiles, waypoints). */
+    get radarBlips() {
+        return this._radarBlips;
     }
     /**
      * Move every world-space thing by (-dx, -dz) so the viewpoint returns near the

@@ -13,6 +13,29 @@ export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
     lights?: BABYLON.Light[];
 };
+/** Radar alignment — matches the HUD's `TraceKind` so a blip's faction maps
+ * straight to a radar-trace colour/template. Extend freely; these are the seed. */
+export type RadarFaction = 'friendly' | 'neutral' | 'hostile' | 'waypoint';
+/** Anything detectable on radar — a target, the player's own missile, a waypoint.
+ * A radar platform (e.g. the aircraft HUD) enumerates `B3d.radarBlips`, gates each
+ * by its `radarProfile` against the platform's range, and plots the survivors. */
+export interface RadarBlip {
+    /** Detectability multiplier: 1 = detectable at the platform's nominal range,
+     * 2 = out to 2× range, 0.05 = very stealthy; NEGATIVE = always detectable
+     * regardless of range (e.g. waypoints). */
+    radarProfile: number;
+    faction: RadarFaction;
+    /** Current world position (floating-origin-corrected), or null if not yet placed
+     * (mesh still loading, etc.) — the platform skips a null. */
+    radarPosition(): {
+        x: number;
+        y: number;
+        z: number;
+    } | null;
+    /** The mesh a homing weapon should chase when this blip is locked, or null (a
+     * positional-only blip like a waypoint — a missile fired at it goes ballistic). */
+    radarMesh(): BABYLON.AbstractMesh | null;
+}
 type B3dCallback = ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => void) | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => Promise<void>);
 export declare class B3d extends Component {
     static initAttributes: {
@@ -226,6 +249,7 @@ export declare class B3d extends Component {
     register(additions: SceneAdditions): void;
     private _worldRoots;
     private _originShiftListeners;
+    private _radarBlips;
     readonly combat: CombatWorld;
     private _scenePanelWired;
     private _nameplates;
@@ -235,6 +259,10 @@ export declare class B3d extends Component {
     unregisterWorldRoot(node: BABYLON.TransformNode): void;
     onOriginShift(callback: (dx: number, dz: number) => void): void;
     offOriginShift(callback: (dx: number, dz: number) => void): void;
+    registerRadarBlip(blip: RadarBlip): void;
+    unregisterRadarBlip(blip: RadarBlip): void;
+    /** Every radar-detectable blip in the scene (targets, own missiles, waypoints). */
+    get radarBlips(): ReadonlySet<RadarBlip>;
     /**
      * Move every world-space thing by (-dx, -dz) so the viewpoint returns near the
      * origin with no visible motion. Called by the terrain AFTER it has rebased its

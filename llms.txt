@@ -62,6 +62,10 @@ Full documentation, with live code examples, is at the links below.
   `<tosi-b3d-probe>` — a device-capability probe. Drop it anywhere (a landing page is
 - https://3d.tosijs.net/b3d-quality/ — b3d-quality
   The **system quality proxy** — the single place that vends device-appropriate
+- https://3d.tosijs.net/b3d-radar/ — b3d-radar
+  A **radar sensor** you attach to a platform (an aircraft, a turret). It enumerates the
+- https://3d.tosijs.net/b3d-radar-blip/ — b3d-radar-blip
+  Tags something as **detectable on radar** — a target, a landmark, a waypoint. It has
 - https://3d.tosijs.net/b3d-reflections/ — b3d-reflections
   Auto-attaches a reflection probe to every mesh whose name contains `_mirror`
 - https://3d.tosijs.net/b3d-shadows/ — b3d-shadows
@@ -122,6 +126,8 @@ Full documentation, with live code examples, is at the links below.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/radar/ — radar.ts
+  The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**

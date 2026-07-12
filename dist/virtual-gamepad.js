@@ -319,10 +319,13 @@ export function aircraftMapping(_config) {
         input.view = Math.max(pad.view, pad.buttonY);
         input.interact = pad.buttonX;
         input.cameraZoom = pad.rightStickY;
-        // Weapons (the combat slice): guns held, bomb + missile edge-fired.
-        input.shoot = Math.max(pad.rightBumper, pad.buttonA); // cannon (held)
-        input.jump = pad.buttonB; // drop bomb (edge-detected by the aircraft)
-        input.aim = pad.leftBumper; // fire guided missile (edge-detected)
+        // Weapons (the combat slice): guns held, missile + bomb edge-fired. Button choice
+        // is XR-driven — Y is taken for `view` and X for `menu` (XR controllers overload
+        // those), and the LEFT bumper chords badly with the left stick (move/aim), so:
+        //   A = guns, B = missile (adjacent face buttons), RIGHT bumper = bomb.
+        input.shoot = pad.buttonA; // cannon — A (held)
+        input.aim = pad.buttonB; // fire guided missile — B (edge-detected)
+        input.jump = pad.rightBumper; // drop bomb — right bumper (edge; left chords with the stick)
         return input;
     };
 }

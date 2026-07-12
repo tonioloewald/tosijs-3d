@@ -6,6 +6,8 @@ export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint';
 export type HudTraceInput = {
     pos: Vec3;
     kind: TraceKind;
+    /** Radar has a lock on this contact — drawn with a bolder, fully-opaque stroke. */
+    locked?: boolean;
 };
 /** A warning line; give it a `side` to also flash that arc frame red. */
 export type HudWarning = {

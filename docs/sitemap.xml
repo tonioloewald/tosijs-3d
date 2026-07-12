@@ -29,6 +29,8 @@
   <url><loc>https://3d.tosijs.net/b3d-planet/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-probe/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-quality/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-radar/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-radar-blip/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-reflections/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-shadows/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-skybox/</loc></url>
@@ -58,6 +60,7 @@
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
   <url><loc>https://3d.tosijs.net/performance/</loc></url>
+  <url><loc>https://3d.tosijs.net/radar/</loc></url>
   <url><loc>https://3d.tosijs.net/space/</loc></url>
   <url><loc>https://3d.tosijs.net/spatial-transform/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>

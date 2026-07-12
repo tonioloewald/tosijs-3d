@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import { B3dControllable } from './b3d-controllable';
 import type { ControlInput } from './control-input';
+import type { B3dRadar } from './b3d-radar';
 export declare class B3dAircraft extends B3dControllable {
     inputMapping: import("./virtual-gamepad").InputMapping;
     static initAttributes: {
@@ -26,11 +27,14 @@ export declare class B3dAircraft extends B3dControllable {
         gunSpeed: number;
         gunDamage: number;
         missileSpeed: number;
+        missileAccel: number;
         missileTurnRate: number;
         missileDamage: number;
         bombDamage: number;
         lockRange: number;
         lockConeDeg: number;
+        reticle: string;
+        reticleRange: number;
         x: number;
         y: number;
         z: number;
@@ -71,8 +75,12 @@ export declare class B3dAircraft extends B3dControllable {
     private fbwSeeded;
     ceiling: number;
     hudChase: boolean;
+    reticle: string;
+    reticleRange: number;
     private _hud;
     private _hudMounted;
+    private _radar;
+    private _reticleMesh;
     private meshNode;
     private meshesToDispose;
     private _lastGroundDist;
@@ -83,6 +91,11 @@ export declare class B3dAircraft extends B3dControllable {
     getCameraTarget(): BABYLON.Node | null;
     applyInput(input: ControlInput, dt: number): void;
     private updateWeapons;
+    private _camQuat;
+    /** Push the attached radar's detected contacts onto the HUD as radar traces. */
+    private _pushRadarToHud;
+    /** The attached `<tosi-b3d-radar>` child (found once), or null. */
+    get radar(): B3dRadar | null;
     /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
      * spawned at the belly (or the nose in a climb) never detonates on us. */
     private ownMeshes;
@@ -94,7 +107,12 @@ export declare class B3dAircraft extends B3dControllable {
      * Released a little below the belly and set to ignore our own geometry, so a bank
      * doesn't detonate it on the wing. */
     dropBomb(): void;
-    /** Fire a guided missile at the nearest target in the forward cone (else dumb). */
+    /**
+     * Fire a guided missile at your **nearest radar lock** (no lock ⇒ it goes ballistic
+     * straight ahead). With a `<tosi-b3d-radar>` attached the lock comes from the radar;
+     * without one it falls back to the legacy forward-cone acquire. The missile carries a
+     * small radar signature (profile 0.25, friendly) so it shows on the HUD.
+     */
     fireMissile(): void;
     private get gunWarhead();
     /** Nearest destroyable within `range` and inside the forward cone (or null). */
@@ -113,6 +131,14 @@ export declare class B3dAircraft extends B3dControllable {
     private loadFromUrl;
     private loadFromLibrary;
     private setupMesh;
+    /**
+     * Build the gun-aiming reticle: a ring parented to the airframe, sitting
+     * `reticleRange` metres ahead on the cannon's bore line with its hole facing
+     * forward — you fly the target INTO the ring to aim the straight-ahead guns. It
+     * rides the airframe (and so the XR rig) automatically. Player + `reticle:'on'`
+     * + armed only.
+     */
+    private _createReticle;
     private chaseCamera;
     private cockpitCamera;
     setupFollowCamera(): void;

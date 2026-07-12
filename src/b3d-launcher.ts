@@ -186,7 +186,11 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
-import type { B3d } from './tosi-b3d'
+import type { B3d, RadarFaction } from './tosi-b3d'
+
+/** A guided missile always cruises at least this much FASTER than the platform that
+ * launched it — otherwise it crawls off the rail and trails a fast mover. */
+const MIN_CLOSING_SPEED = 45
 import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics'
 import { steerToward, interceptLead, gNormalize, gSub } from './guidance'
 import {
@@ -227,6 +231,12 @@ export interface ProjectileOpts {
    * doesn't immediately detonate on it. Return true to skip a mesh.
    */
   ignore?: (m: BABYLON.AbstractMesh) => boolean
+  /**
+   * Make this projectile show on radar (e.g. your own missile). It registers a
+   * `RadarBlip` that follows the shell and unregisters when it disposes. A homing
+   * weapon can chase it via the blip's `radarMesh()`.
+   */
+  radar?: { profile: number; faction: RadarFaction }
 }
 
 /**
@@ -270,10 +280,24 @@ export function spawnProjectile(
   }
   owner.onOriginShift(onShift)
 
+  // Optional radar signature: a blip that tracks this shell's mesh while it lives.
+  const blip =
+    opts.radar != null
+      ? {
+          radarProfile: opts.radar.profile,
+          faction: opts.radar.faction,
+          radarPosition: () =>
+            alive ? { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z } : null,
+          radarMesh: () => (alive ? mesh : null),
+        }
+      : null
+  if (blip != null) owner.registerRadarBlip(blip)
+
   const dispose = () => {
     if (!alive) return
     alive = false
     owner.offOriginShift(onShift)
+    if (blip != null) owner.unregisterRadarBlip(blip)
     scene.onBeforeRenderObservable.remove(obs)
     mesh.dispose()
     mat.dispose()
@@ -327,10 +351,16 @@ export interface MissileOpts {
   origin: BABYLON.Vector3
   /** The mesh to home on. If it's disposed mid-flight the missile flies straight. */
   target: BABYLON.AbstractMesh
-  /** Cruise speed (held constant by the seeker). */
+  /** Cruise speed the motor accelerates to (and the seeker holds once reached). */
   speed: number
   /** Max turn rate (rad/sec) — the missile's agility. */
   turnRate: number
+  /** Launch platform's world velocity — the missile INHERITS it so it doesn't drop
+   * behind a fast mover, then thrusts up to `speed`. Default none. */
+  inheritVelocity?: Vec3
+  /** Thrust acceleration (units/s²) ramping launch speed → cruise `speed`. Omit/0 =
+   * instant cruise (legacy). */
+  accel?: number
   warhead: WarheadSpec
   /** Initial launch direction (defaults to straight at the target). */
   direction?: BABYLON.Vector3
@@ -343,6 +373,8 @@ export interface MissileOpts {
   onImpact?: (point: BABYLON.Vector3) => void
   /** Ignore the firing entity's own meshes on the collision ray (see ProjectileOpts). */
   ignore?: (m: BABYLON.AbstractMesh) => boolean
+  /** Give the missile a radar signature (see ProjectileOpts.radar). */
+  radar?: { profile: number; faction: RadarFaction }
 }
 
 /**
@@ -360,10 +392,29 @@ export function spawnMissile(
   const toTarget = (): BABYLON.Vector3 =>
     target.absolutePosition.subtract(opts.origin)
   const dir0 = gNormalize((opts.direction ?? toTarget()) as unknown as Vec3)
+  const accel = opts.accel ?? 0
+  const inherit = opts.inheritVelocity ?? { x: 0, y: 0, z: 0 }
+  const inheritSpeed = Math.hypot(inherit.x, inherit.y, inherit.z)
+  // CRUISE must outrun the LAUNCHER, not just be a fixed number: a missile whose cruise
+  // is barely above the airframe's speed crawls off the rail and drops behind once it
+  // starts steering (it looked fine parked, wrong at speed). Guarantee a closing margin.
+  const cruise = Math.max(opts.speed, inheritSpeed + MIN_CLOSING_SPEED)
+  // Launch velocity: inherit the platform's motion + a real forward kick (a fraction of
+  // cruise) so it visibly separates immediately; then the guide thrusts up to cruise.
+  // With no accel, launch straight at cruise (legacy).
+  const launchKick = accel > 0 ? Math.max(10, cruise * 0.2) : cruise
+  const launchVel =
+    accel > 0
+      ? {
+          x: inherit.x + dir0.x * launchKick,
+          y: inherit.y + dir0.y * launchKick,
+          z: inherit.z + dir0.z * launchKick,
+        }
+      : { x: dir0.x * cruise, y: dir0.y * cruise, z: dir0.z * cruise }
   let last: Vec3 | null = null
   return spawnProjectile(owner, {
     origin: opts.origin,
-    velocity: new BABYLON.Vector3(dir0.x, dir0.y, dir0.z).scale(opts.speed),
+    velocity: new BABYLON.Vector3(launchVel.x, launchVel.y, launchVel.z),
     warhead: opts.warhead,
     params: opts.params ?? {
       gravity: { x: 0, y: 0, z: 0 },
@@ -376,6 +427,7 @@ export function spawnMissile(
     useLos: opts.useLos,
     onImpact: opts.onImpact,
     ignore: opts.ignore,
+    radar: opts.radar,
     guide: (state, dt) => {
       if (target.isDisposed()) return // lost lock — fly straight
       const tp = target.absolutePosition
@@ -389,8 +441,28 @@ export function spawnMissile(
             }
           : { x: 0, y: 0, z: 0 }
       last = tPos
+      // Thrust: ramp the current speed toward cruise (accelerate off the launch/inherit
+      // velocity), then steer — steerToward preserves whatever magnitude we set here.
+      if (accel > 0) {
+        const cur = Math.hypot(state.vel.x, state.vel.y, state.vel.z)
+        const step = accel * dt
+        const spd =
+          Math.abs(cruise - cur) <= step
+            ? cruise
+            : cur + Math.sign(cruise - cur) * step
+        if (cur > 1e-6) {
+          const s = spd / cur
+          state.vel.x *= s
+          state.vel.y *= s
+          state.vel.z *= s
+        } else {
+          state.vel.x = dir0.x * spd
+          state.vel.y = dir0.y * spd
+          state.vel.z = dir0.z * spd
+        }
+      }
       const desired =
-        interceptLead(state.pos, opts.speed, tPos, tVel) ??
+        interceptLead(state.pos, cruise, tPos, tVel) ??
         gNormalize(gSub(tPos, state.pos))
       const v = steerToward(state.vel, desired, opts.turnRate, dt)
       state.vel.x = v.x
