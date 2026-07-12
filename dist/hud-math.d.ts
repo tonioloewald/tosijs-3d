@@ -58,6 +58,21 @@ export declare function hudPointFromUV(u: number, v: number, opts: {
     tracked: boolean;
 };
 /**
+ * How opaque a radar trace's FILL is, given the radar's lock state. The trace's outline
+ * never changes — the fill is the whole cue, so a contact "solidifies" as you hold the
+ * nose on it:
+ *
+ * - **acquiring** — fill ramps from nothing to **50%** as `lockProgress` runs 0 → 1;
+ * - **locked** — snaps to **75%**, a deliberate jump so the moment of lock reads as an
+ *   event rather than the top of a fade.
+ *
+ * The ramp matters because the radar's lock is not instant (`lockTime`) and it DECAYS
+ * when a contact slips out of the acquisition cone. Without it the pilot gets no signal
+ * — nothing, nothing, then abruptly a locked trace — and so can't make the one decision
+ * the mechanic exists to force: hold the nose on him, or break off.
+ */
+export declare function lockFillOpacity(lockProgress: number, locked?: boolean): number;
+/**
  * The cockpit HUD is a real quad — a combiner glass. Given the EYE and the TARGET
  * expressed in that quad's LOCAL space (where the glass is the `z = 0` square spanning
  * ±`half`), return where the **eye→target ray crosses the glass**, as normalised -1..1

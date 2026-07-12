@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { hudTrace, horizonTransform, glassUV, hudPointFromUV } from './hud-math'
+import {
+  hudTrace,
+  horizonTransform,
+  glassUV,
+  hudPointFromUV,
+  lockFillOpacity,
+} from './hud-math'
 import {
   IDENTITY_QUAT,
   quatFromAxisAngle,
@@ -184,5 +190,43 @@ describe('horizonTransform', () => {
     const h = horizonTransform(0, 0, 3)
     expect(h.offsetY).toBe(0)
     expect(h.rollDeg).toBe(-0)
+  })
+})
+
+describe('lockFillOpacity — a trace solidifies as the radar builds a lock', () => {
+  test('no lock, no fill — an unlocked contact is outline only', () => {
+    expect(lockFillOpacity(0)).toBe(0)
+  })
+
+  test('fills to 50% white across the acquisition ramp', () => {
+    expect(lockFillOpacity(0.5)).toBeCloseTo(0.25, 6)
+    expect(lockFillOpacity(1)).toBeCloseTo(0.5, 6)
+  })
+
+  test('monotonic — holding the nose on a contact never makes it fade', () => {
+    let prev = -1
+    for (let p = 0; p <= 1.0001; p += 0.05) {
+      const v = lockFillOpacity(p)
+      expect(v).toBeGreaterThanOrEqual(prev)
+      prev = v
+    }
+  })
+
+  test('LOCK jumps to 75% — the moment reads as an event, not the top of a fade', () => {
+    // The jump is the point: a full ramp tops out at 0.5, and lock lands well clear of
+    // it, so "locked" is visually distinct from "nearly locked".
+    expect(lockFillOpacity(1, true)).toBe(0.75)
+    expect(lockFillOpacity(1, true)).toBeGreaterThan(lockFillOpacity(1) + 0.2)
+  })
+
+  test('locked wins regardless of the progress value it arrives with', () => {
+    expect(lockFillOpacity(0, true)).toBe(0.75)
+    expect(lockFillOpacity(0.3, true)).toBe(0.75)
+  })
+
+  test('garbage in stays in range — it is an opacity', () => {
+    expect(lockFillOpacity(-1)).toBe(0)
+    expect(lockFillOpacity(NaN)).toBe(0)
+    expect(lockFillOpacity(5)).toBe(0.5) // clamped, not 2.5
   })
 })

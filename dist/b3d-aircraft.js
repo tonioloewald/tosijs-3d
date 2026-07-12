@@ -154,6 +154,14 @@ guided round at your nearest lock (no lock ⇒ it flies ballistic). Neutrals sho
 but never lock. Your own missile shows as a faint friendly blip. Targets glow redder as
 they take damage, then explode.
 
+**Watch a contact SOLIDIFY to read your lock.** A lock isn't instant (`lockTime`) and it
+decays if the contact slips out of the acquisition cone, so the trace's *fill* tells you
+where you stand: an unlocked contact is **outline only**, it fills toward **half white**
+as the lock builds, and snaps to **bright white** the instant it locks. Hold the nose on
+him and watch it fill; let him drift wide and watch it drain back. That's the decision the
+mechanic exists to force — stay on him, or break off. (Outline colour never changes: it's
+still the faction. Neutrals never fill, because they never lock.)
+
 **Controls:** on the glass pad, **A = guns** (hold), **B = missile**, **right bumper =
 bomb**. On the keyboard: `Space` = guns, `F` = missile, `RShift` = bomb. (Fly with W/S
 pitch, A/D bank, R/Q throttle.)
@@ -690,7 +698,15 @@ export class B3dAircraft extends B3dControllable {
         for (const t of radar.tracks) {
             if (!t.detected)
                 continue;
-            traces.push({ pos: t.pos, kind: t.id.faction, locked: t.locked });
+            // lockProgress rides along so the trace can fill in as the lock builds — the
+            // radar's lock is not instant (lockTime) and decays if the contact slips the
+            // acquisition cone, and the pilot has to be able to SEE that happening.
+            traces.push({
+                pos: t.pos,
+                kind: t.id.faction,
+                lockProgress: t.lockProgress,
+                locked: t.locked,
+            });
         }
         // The HUD projects these itself, onto its own quad (the cockpit combiner), by
         // intersecting the eye→target ray with the glass — so blips land on the targets you

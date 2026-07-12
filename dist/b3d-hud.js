@@ -357,6 +357,7 @@ export class B3dHud extends B3dChild {
                 x: p.x,
                 y: p.y,
                 kind: t.kind,
+                lockProgress: t.lockProgress,
                 locked: t.locked,
                 tracked: p.tracked,
             });

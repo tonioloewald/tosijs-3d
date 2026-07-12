@@ -14,7 +14,7 @@ export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 // Pure aircraft-HUD math (radar-trace projection + horizon + glass projection)
-export { hudTrace, horizonTransform, glassUV, hudPointFromUV } from './hud-math';
+export { hudTrace, horizonTransform, glassUV, hudPointFromUV, lockFillOpacity, } from './hud-math';
 // HUD driver (meters / horizon / radar traces over the HUD SVG)
 export { createHudController, loadHud, buildFallbackHud } from './hud';
 export { B3dHud, b3dHud } from './b3d-hud';

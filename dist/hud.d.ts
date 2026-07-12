@@ -6,7 +6,11 @@ export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint';
 export type HudTraceInput = {
     pos: Vec3;
     kind: TraceKind;
-    /** Radar has a lock on this contact — drawn with a bolder, fully-opaque stroke. */
+    /** Radar's lock acquisition on this contact, 0..1 — the trace fills in as it builds
+     * (nothing → 50% white), so the pilot can see a lock coming. */
+    lockProgress?: number;
+    /** Radar HAS a lock — the fill jumps to 75% white and the trace stays bold even when
+     * pinned off-glass. */
     locked?: boolean;
 };
 /**
@@ -20,6 +24,8 @@ export type HudTracePoint = {
     x: number;
     y: number;
     kind: TraceKind;
+    /** Radar's lock acquisition, 0..1 — drives how solidly the trace fills in. */
+    lockProgress?: number;
     locked?: boolean;
     tracked: boolean;
 };

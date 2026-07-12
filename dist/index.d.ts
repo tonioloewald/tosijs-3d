@@ -14,7 +14,7 @@ export type { XRStuff, XRParams } from './b3d-utils';
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 export type { Quat, Pose } from './spatial-transform';
-export { hudTrace, horizonTransform, glassUV, hudPointFromUV } from './hud-math';
+export { hudTrace, horizonTransform, glassUV, hudPointFromUV, lockFillOpacity, } from './hud-math';
 export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math';
 export { createHudController, loadHud, buildFallbackHud } from './hud';
 export type { HudController, HudControllerOptions, MeterName, TraceKind, HudTraceInput, Side, HudWarning, } from './hud';

@@ -175,6 +175,13 @@ ahead of the nose) and hold fire for the straight-ahead cannon; tap <strong>miss
 guided round at your nearest lock (no lock ⇒ it flies ballistic). Neutrals show on radar
 but never lock. Your own missile shows as a faint friendly blip. Targets glow redder as
 they take damage, then explode.</p>
+<p><strong>Watch a contact SOLIDIFY to read your lock.</strong> A lock isn&#39;t instant (<code>lockTime</code>) and it
+decays if the contact slips out of the acquisition cone, so the trace&#39;s <em>fill</em> tells you
+where you stand: an unlocked contact is <strong>outline only</strong>, it fills toward <strong>half white</strong>
+as the lock builds, and snaps to <strong>bright white</strong> the instant it locks. Hold the nose on
+him and watch it fill; let him drift wide and watch it drain back. That&#39;s the decision the
+mechanic exists to force — stay on him, or break off. (Outline colour never changes: it&#39;s
+still the faction. Neutrals never fill, because they never lock.)</p>
 <p><strong>Controls:</strong> on the glass pad, <strong>A = guns</strong> (hold), <strong>B = missile</strong>, <strong>right bumper =
 bomb</strong>. On the keyboard: <code>Space</code> = guns, <code>F</code> = missile, <code>RShift</code> = bomb. (Fly with W/S
 pitch, A/D bank, R/Q throttle.)</p>

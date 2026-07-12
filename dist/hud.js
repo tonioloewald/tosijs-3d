@@ -13,7 +13,7 @@ missing.
 */
 /*{ "parent": "Core" }*/
 import { svgElements } from 'tosijs';
-import { sideFromD } from './hud-math';
+import { sideFromD, lockFillOpacity } from './hud-math';
 const SVGNS = 'http://www.w3.org/2000/svg';
 /**
  * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the
@@ -156,25 +156,25 @@ export function createHudController(el, options = {}) {
             glyph.removeAttribute('id');
             const { x, y, tracked } = t; // already in HUD viewBox coords
             glyph.setAttribute('transform', `translate(${x}, ${y})`);
-            // A trace template is a <g> whose child shapes carry the stroke (each with
-            // its own inline `style`), so the lock cue has to be applied to the shapes,
-            // not the group. LOCKED: white outline + the faction colour as a translucent
-            // FILL (reads as "targeted"). Otherwise pinned (out-of-FOV) traces dim.
-            if (t.locked) {
-                const shapes = Array.from(glyph.querySelectorAll('*'));
-                for (const s of shapes) {
+            // THE LOCK CUE IS THE FILL, AND ONLY THE FILL. The outline keeps its faction
+            // colour throughout — what changes is that the glyph SOLIDIFIES as the radar
+            // builds a lock: nothing → 50% white across the acquisition ramp, then a jump to
+            // 75% on lock so it reads as an event (see hud-math.lockFillOpacity). A trace
+            // template is a <g> whose child shapes each carry their own inline stroke, so
+            // this has to be applied to the shapes, not the group.
+            const fill = lockFillOpacity(t.lockProgress ?? 0, t.locked);
+            if (fill > 0) {
+                for (const s of Array.from(glyph.querySelectorAll('*'))) {
                     const col = s.style.stroke || s.getAttribute('stroke') || '';
                     if (col === '')
-                        continue; // skip unstroked shapes
-                    s.style.stroke = '#ffffff';
-                    s.style.fill = col;
-                    s.style.fillOpacity = '0.25';
+                        continue; // unstroked shapes aren't part of the outline
+                    s.style.fill = '#ffffff';
+                    s.style.fillOpacity = String(fill);
                 }
-                glyph.style.opacity = '1';
             }
-            else {
-                glyph.style.opacity = tracked ? '1' : '0.55';
-            }
+            // A locked contact stays bold even when pinned off-glass; everything else dims
+            // when it's out of the field of view.
+            glyph.style.opacity = t.locked || tracked ? '1' : '0.55';
             tracesG.appendChild(glyph);
         }
     };

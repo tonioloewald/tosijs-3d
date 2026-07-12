@@ -402,6 +402,8 @@ export class B3dHud extends B3dChild {
     traces: Array<{
       pos: { x: number; y: number; z: number }
       kind: TraceKind
+      /** 0..1 lock acquisition — the trace fills in as it builds. */
+      lockProgress?: number
       locked?: boolean
     }>,
     camera: BABYLON.Camera
@@ -415,6 +417,7 @@ export class B3dHud extends B3dChild {
         x: p.x,
         y: p.y,
         kind: t.kind,
+        lockProgress: t.lockProgress,
         locked: t.locked,
         tracked: p.tracked,
       })

@@ -120,6 +120,8 @@ export declare class B3dHud extends B3dChild {
             z: number;
         };
         kind: TraceKind;
+        /** 0..1 lock acquisition — the trace fills in as it builds. */
+        lockProgress?: number;
         locked?: boolean;
     }>, camera: BABYLON.Camera): void;
 }
