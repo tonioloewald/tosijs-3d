@@ -17,6 +17,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs web component framework. It provides composable custom elements for building 3D scenes — a parent `<tosi-b3d>` element manages the engine/scene, and child components (sun, skybox, water, reflections, character controllers, etc.) compose inside it to build scenes declaratively.
 
+### Where the design intent is written down
+
+This file is the map; the reasoning lives in the root design docs. **Read the relevant one
+before (re)designing in its area** — they hold the decisions and the rejected alternatives,
+not just the current state:
+
+| Doc                  | What it holds                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `TODO.md`            | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.     |
+| `COMBAT-DESIGN.md`   | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model              |
+| `AI-DESIGN.md`       | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds  |
+| `SPATIAL-DESIGN.md`  | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math |
+| `UI-DESIGN-NOTES.md` | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                   |
+| `RELEASING.md`       | Release checklist (run steps 1–7; stop before `npm publish`)                                            |
+| `llms.txt`           | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)          |
+
 ## Build & Development Commands
 
 Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
@@ -256,12 +272,21 @@ Same discipline as `fly-by-wire`/`world-store`: the `*.ts` model files are pure,
 | `src/b3d-launcher.ts`         | `<tosi-b3d-launcher>` — scene-side shoot loop; drives projectile meshes via `ballistics.ts`, ammo via `resource.ts`, swept collision → warhead |
 | `src/b3d-turret.ts`           | `<tosi-b3d-turret>` — auto-tracking gun; slews to lead + elevate (`smart` dial), `can-bear` flag → reticle color                               |
 
-**HUD (aircraft):**
-| File | Purpose |
-| --- | --- |
-| `src/hud.ts` | HUD driver — sets 4 meters, horizon/pitch ladder, radar traces on the normalized `static/aircraft-hud.svg` |
-| `src/hud-math.ts` | Pure HUD math — Manta-style radar-trace projection (track off-screen targets); unit-tested |
-| `src/b3d-hud.ts` | `<tosi-b3d-hud>` — drop-in additive/translucent HUD overlay; `setMeter`/`setHorizon`/`setTraces`/`setWarnings` |
+**HUD & Radar (aircraft):**
+
+Same pure-model-bridged-to-Babylon discipline as combat. The sensor (`radar.ts`) decides
+_what is seen and locked_; the HUD (`hud-math.ts` → `hud.ts`) decides _where it draws_.
+A platform reads `radar.tracks` to plot the HUD and `radar.nearestLock` to give a homing
+missile its target (no lock ⇒ the round flies ballistic).
+
+| File                    | Purpose                                                                                                                                               |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/radar.ts`          | Pure, deterministic radar model — range · profile, detection cone, lock acquisition/decay (narrow _acquire_ cone, wider _maintain_ cone); unit-tested |
+| `src/hud-math.ts`       | Pure HUD math — Manta-style radar-trace projection (tracks off-screen targets), horizon transform; unit-tested                                        |
+| `src/hud.ts`            | HUD driver — 4 meters, horizon/pitch ladder, radar traces, warnings; code HUD (`buildFallbackHud`) is the default, designer SVG via `loadHud`         |
+| `src/b3d-hud.ts`        | `<tosi-b3d-hud>` — drop-in additive/translucent HUD overlay; `setMeter`/`setHorizon`/`setTraces`/`setWarnings`                                        |
+| `src/b3d-radar.ts`      | `<tosi-b3d-radar>` — nest in the platform (aircraft, turret); enumerates blips, runs `radar.ts`, exposes `tracks`/`nearestLock`                       |
+| `src/b3d-radar-blip.ts` | `<tosi-b3d-radar-blip>` — tags a thing as detectable (`profile`, `faction`); nested = follows that mesh, standalone = static world point              |
 
 ### Convention-Based Mesh/Light Configuration
 
@@ -291,7 +316,9 @@ All components are regular tosijs `Component` subclasses (not blueprints). They 
 
 **⚠️ Never name a callback prop `onFoo`.** The element creator (`elementCreator()`) treats any `on*`-prefixed prop as a **DOM event listener** — `b3dController({ onInput })` silently becomes `addEventListener('input', …)` and the `onInput` class field stays `null`, so your callback is never called and there's **no error**. This cost a long debugging detour (the `b3dController` fire callback). Name frame/lifecycle callback props off the `on` prefix: `drive` (controller), `whenDestroyed` (destroyable/loader/behavior), etc. (Reported upstream; tosijs should eventually flag declaring an `onX` property that's also creator-assigned.)
 
-**⚠️ `parentElement` is the `<tosi-slot>`, not the component you nested into.** tosijs mounts a component's light-DOM children inside a `<tosi-slot>` wrapper, so for `b3dDestroyable({…}, b3dRadarBlip({…}))` the blip's `parentElement` is that **slot**, not the destroyable. Any child that wants to find "the thing I'm nested in" must skip it — use **`semanticParent(el)`** from `b3d-utils` (walks up past `TOSI-SLOT`). This fails **silently**: the lookup just returns a node with no `mesh`, so the child quietly finds nothing (it cost a long detour — `<tosi-b3d-radar>` found no platform and every nested `<tosi-b3d-radar-blip>` reported a null position, so the radar produced zero tracks and the HUD zero blips). `findB3dOwner()` is unaffected because it walks *all* the way up. There's no clean workaround — the slot is a real DOM node, so `parentElement` is honestly reporting it; skipping it is the fix. (Documented upstream in the tosijs docs.)
+**⚠️ A boolean attribute can't default to `true`.** HTML boolean semantics are correct here — an absent attribute is `false` — so `static initAttributes = { foo: true }` never turns on when the element is written without `foo`, and it fails **silently** (it killed `b3d-trigger`'s `active`). Never declare a default-`true` boolean: either invert it to a negative (`disabled`, default `false` = active — what the trigger now does) or keep the positive meaning with a string enum (`'on' | 'off'`). TODO.md tracks the remaining offenders (black-hole, shadows, star-system, svg-plane). tosijs will eventually make `foo: true` a definition-time error.
+
+**⚠️ `parentElement` is the `<tosi-slot>`, not the component you nested into.** tosijs mounts a component's light-DOM children inside a `<tosi-slot>` wrapper, so for `b3dDestroyable({…}, b3dRadarBlip({…}))` the blip's `parentElement` is that **slot**, not the destroyable. Any child that wants to find "the thing I'm nested in" must skip it — use **`semanticParent(el)`** from `b3d-utils` (walks up past `TOSI-SLOT`). This fails **silently**: the lookup just returns a node with no `mesh`, so the child quietly finds nothing (it cost a long detour — `<tosi-b3d-radar>` found no platform and every nested `<tosi-b3d-radar-blip>` reported a null position, so the radar produced zero tracks and the HUD zero blips). `findB3dOwner()` is unaffected because it walks _all_ the way up. There's no clean workaround — the slot is a real DOM node, so `parentElement` is honestly reporting it; skipping it is the fix. (Documented upstream in the tosijs docs.)
 
 ### Adaptive defaults — prefer `auto` over hard-wired performance numbers
 
@@ -351,13 +378,15 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.
 
-Run `bun test` to exercise the full pure-model suite — the `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `world-store`/`world-view`, `terrain-grid`, `hud-math`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
+Run `bun test` to exercise the full pure-model suite (26 files, ~300 tests, under a second — no excuse to skip it). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
 
 ## Demo & Docs
 
 - The doc browser is built from `demo/src/` using tosijs-ui's `createDocBrowser`
-- Source files use `/*# */` comments for extractable documentation
-- Assets are in `./static/` and `./demo/static/` (copied to `docs/` during build)
+- Source files use `/*# */` comments for extractable documentation. **Each `src/*.ts` doc comment becomes its own page** — writing the doc where the code is _is_ how a component gets documented; there's no separate docs tree to update.
+- `src/docs/*.md` are the hand-written **category landing pages** (`core`, `input`, `vehicles`, `combat`, `world-sim`, `space`, `environment`, `effects`, `ui`, `performance`, `utilities`) — an `<!--{ "order": n }-->` block sets their position and a `<!-- toc -->` lists the pages beneath them. Add a new component's page to the matching category's toc, or it's orphaned.
+- `bin/svg-to-code.ts` converts a designer's SVG into a parameterized tosijs `svgElements` builder (HUD, gauges, touch controls). It's how the gamepad/HUD art gets into code as tweakable functions rather than a static asset.
+- Assets are in `./static/` and `./demo/static/` (copied to `docs/` during build); large shared blobs (Kenney/CC0 models) live in the sibling `static-assets` repo and are referenced via `assetUrl()`.
 - Deployed to GitHub Pages with the **publishing source set to `main` branch, `/docs` folder** — `docs/` is the web root. The build emits root-absolute asset paths (`/iife.js`, etc.) and writes `CNAME` + `.nojekyll` into `docs/`, so the Pages source must be `/docs`, not `/` (serving from root 404s every asset).
 - \*_`/_# \*/` examples run through the tjs-lang transpiler, which has a bug: reassigning an ALL-UPPERCASE identifier (`B = BABYLON`) is rewritten to `const B = …`, shadowing a module-level `let B`so it reads null in other functions. Don't alias`BABYLON` (or anything) to an all-caps name and reassign it in a callback — pass it as a parameter, or use a lowercase alias (`babylon`). (Bit the exploder/physics demos; being fixed upstream in tjs-lang.)
 - **Put tweakable demo controls in the `scenePanel` hook, not an HTML overlay** (see WebXR section) so they work in VR. Keep only pure readouts / text-entry (no VR keyboard) as slim flat overlays.
