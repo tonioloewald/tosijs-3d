@@ -450,7 +450,8 @@ export class B3dAircraft extends B3dControllable {
     gunDamage: 8, // per-shell warhead full damage
     missileSpeed: 90, // guided-missile cruise speed (faster than the airframe so it pulls ahead)
     missileAccel: 120, // thrust accel (units/s²) ramping launch → cruise (inherits your velocity)
-    missileBoost: 0.45, // seconds of STRAIGHT thrust before the seeker may steer
+    missileBoost: 0.45, // boost: forced forward accel; seeker authority ramps in across it
+
     missileTurnRate: 3, // guided-missile agility (rad/sec)
     missileDamage: 30,
     bombDamage: 45,

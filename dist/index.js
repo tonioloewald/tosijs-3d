@@ -90,7 +90,7 @@ export { B3dTurret, b3dTurret } from './b3d-turret';
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip';
 export { B3dRadar, b3dRadar } from './b3d-radar';
 export { Radar, coneDotFromDegrees, isOpposed } from './radar';
-export { steerToward, proNav, interceptLead, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
+export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';
 //# sourceMappingURL=index.js.map

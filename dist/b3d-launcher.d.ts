@@ -68,9 +68,21 @@ export interface MissileOpts {
     /** Thrust acceleration (units/s²) ramping launch speed → cruise `speed`. Omit/0 =
      * instant cruise (legacy). */
     accel?: number;
-    /** BOOST: seconds of straight-line thrust before the seeker is allowed to steer.
-     * A seeker that turns immediately bleeds the forward speed the round needs to outrun
-     * its launcher — boost first, guide after. Default 0.45s. */
+    /** BOOST: seconds of forced forward acceleration off the rail. Default 0.45s.
+     *
+     * The motor thrusts along the body, so the round leaves accelerating more-or-less
+     * straight — but the seeker is NOT asleep: its turn authority ramps in across this
+     * window (`boostAuthority`), from 0 at launch to full at burnout. Agility is tied to
+     * speed, which is the honest physical constraint: a slow round shouldn't be able to
+     * yank itself sideways, a fast one should.
+     *
+     * It previously BLOCKED steering outright for the whole window, which cost the round
+     * its opening 50-odd units — it's fired along the launcher's nose with a lock up to
+     * 35° off it, so it flew the wrong way, and at a turn radius of v/turnRate (~50 units)
+     * it couldn't recover: it overshot and never came back. Measured nose-launched at
+     * turnRate 3, a hard gate hit 3 of 6 test geometries (missing everything past 25°
+     * off-axis); the ramp hits 6 of 6 while still leaving straight. `0` = full authority
+     * from frame 1. */
     boostTime?: number;
     warhead: WarheadSpec;
     /** Initial launch direction (defaults to straight at the target). */

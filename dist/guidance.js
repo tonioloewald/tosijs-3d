@@ -71,6 +71,28 @@ export function steerToward(vel, desiredDir, maxTurnRate, dt) {
     return gScale(dir, speed);
 }
 /**
+ * How much of its turn budget a seeker may spend, `elapsed` seconds into a `boostTime`
+ * boost: a linear ramp from **0 at launch to 1 at burnout**, and 1 forever after.
+ *
+ * A missile leaves the rail slow — it has its launcher's velocity plus a small kick,
+ * and the motor is still spooling it up to cruise. Thrust acts along the body, so a
+ * hard turn while it's slow just throws away the forward speed it hasn't got yet.
+ * Ramping the seeker in ties agility to speed: it accelerates more-or-less straight off
+ * the rail, steers gently as the motor bites, and has full authority once it's fast.
+ *
+ * This replaces a hard "no steering until burnout" gate, which cost the round the whole
+ * boost window — fired along the nose at a lock up to 35° off it, it spent ~50 units
+ * flying the WRONG WAY, and at a turn radius of v/turnRate (~50 units) it then couldn't
+ * recover. `boostTime <= 0` disables the ramp (full authority from frame 1).
+ */
+export function boostAuthority(elapsed, boostTime) {
+    if (!(boostTime > 0))
+        return 1;
+    if (elapsed >= boostTime)
+        return 1;
+    return Math.max(0, elapsed / boostTime);
+}
+/**
  * Proportional-navigation lateral acceleration command (the guidance real missiles
  * use). Steers to null the **line-of-sight rotation rate** between missile and target,
  * leading a crossing target instead of tail-chasing it. `N` (~3–5) is the navigation

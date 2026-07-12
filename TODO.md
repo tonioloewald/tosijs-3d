@@ -193,13 +193,25 @@ sequence + ~0.1° jitter still TODO.)
 aim-tolerance, `smart` dial (lead + drop), can-bear armed color. `<tosi-b3d-turret>`.
 (Built SELF-ACQUIRE/auto rather than view-slaved — view-slaved mode still TODO.)
 [x] Guided missile flight — DONE (works in flight): inherits the launcher's world
-velocity, BOOSTS straight (`boostTime`, 0.45s) before the seeker may steer, then guides.
-Cruise is relative to the launcher (`max(speed, launcherSpeed + MIN_CLOSING_SPEED)`) so a
-round can never trail whatever fired it. The tell was that DUMB rounds always flew out
-fine — no seeker, so nothing bled their forward speed on frame 1.
-[ ] Missile POLISH (deferred): tune `boostTime` / `missileAccel` / `MIN_CLOSING_SPEED` —
-too much boost overshoots close targets, too little sags. Consider boost ending on a
-SPEED threshold rather than a fixed time, and a proportional-nav midcourse. Also: the
+velocity, BOOSTS (`boostTime`, 0.45s of forced forward thrust) while the seeker's turn
+authority RAMPS IN (`guidance.boostAuthority`, 0 → full across the window), then guides at
+full agility. Cruise is relative to the launcher (`max(speed, launcherSpeed +
+MIN_CLOSING_SPEED)`) so a round can never trail whatever fired it.
+[x] Missile overshoot — DONE. Boost originally BLOCKED steering outright for 0.45s, which
+cost the round its opening ~50 units: it's fired along the NOSE with a lock up to 35° off
+it, so it flew the wrong way, and at a turn radius of v/turnRate (~50 units at cruise 150)
+it couldn't recover — it overshot and never came back. Measured nose-launched at turnRate
+3: a hard gate hit 3 of 6 test geometries (missing everything past 25° off-axis), the ramp
+hits 6 of 6 while still leaving the rail at 0.1° off the nose and accelerating. The "guided
+rounds sag" bug that motivated the gate was really THRUST being skipped by an early return
+— fixed independently, so the gate was only ever costing range.
+The envelope is now pinned by tests (`b3d-launcher.spawn.test.ts`): a fast platform makes a
+fast round (cruise floor) and a fast round has a WIDE turn circle, so fast + close +
+off-axis is a **forced miss** — physics, not a bug to tune away. Don't "fix" a miss by
+inflating `turnRate` or dropping `MIN_CLOSING_SPEED`.
+[ ] Missile POLISH (deferred): consider boost ending on a SPEED threshold rather than a
+fixed time, and a proportional-nav midcourse (`proNav` is written + tested, still unused —
+pure pursuit is what makes the endgame overshoot a hard-turning target). Also: the
 turret/launcher demos still use the legacy instant-cruise path (no accel/boost).
 [ ] `b3d-shield` — Destroyable + collider that spatially blocks; recharge; links. [later]
 [ ] `b3d-melee` — active-window collider, cycle-time sequence (sustained vs

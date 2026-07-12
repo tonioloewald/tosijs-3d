@@ -303,6 +303,7 @@ export {
   steerToward,
   proNav,
   interceptLead,
+  boostAuthority,
   gAdd,
   gSub,
   gScale,

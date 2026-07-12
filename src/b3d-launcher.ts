@@ -193,7 +193,13 @@ import type { B3d, RadarFaction } from './tosi-b3d'
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
 const MIN_CLOSING_SPEED = 70
 import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics'
-import { steerToward, interceptLead, gNormalize, gSub } from './guidance'
+import {
+  steerToward,
+  interceptLead,
+  boostAuthority,
+  gNormalize,
+  gSub,
+} from './guidance'
 import {
   makeResource,
   drain,
@@ -364,9 +370,21 @@ export interface MissileOpts {
   /** Thrust acceleration (units/s²) ramping launch speed → cruise `speed`. Omit/0 =
    * instant cruise (legacy). */
   accel?: number
-  /** BOOST: seconds of straight-line thrust before the seeker is allowed to steer.
-   * A seeker that turns immediately bleeds the forward speed the round needs to outrun
-   * its launcher — boost first, guide after. Default 0.45s. */
+  /** BOOST: seconds of forced forward acceleration off the rail. Default 0.45s.
+   *
+   * The motor thrusts along the body, so the round leaves accelerating more-or-less
+   * straight — but the seeker is NOT asleep: its turn authority ramps in across this
+   * window (`boostAuthority`), from 0 at launch to full at burnout. Agility is tied to
+   * speed, which is the honest physical constraint: a slow round shouldn't be able to
+   * yank itself sideways, a fast one should.
+   *
+   * It previously BLOCKED steering outright for the whole window, which cost the round
+   * its opening 50-odd units — it's fired along the launcher's nose with a lock up to
+   * 35° off it, so it flew the wrong way, and at a turn radius of v/turnRate (~50 units)
+   * it couldn't recover: it overshot and never came back. Measured nose-launched at
+   * turnRate 3, a hard gate hit 3 of 6 test geometries (missing everything past 25°
+   * off-axis); the ramp hits 6 of 6 while still leaving straight. `0` = full authority
+   * from frame 1. */
   boostTime?: number
   warhead: WarheadSpec
   /** Initial launch direction (defaults to straight at the target). */
@@ -461,12 +479,6 @@ export function spawnMissile(
         }
       }
 
-      // BOOST PHASE: fly STRAIGHT while the motor builds separation. Without this the
-      // seeker starts turning on frame 1, which bleeds the forward component before the
-      // round has outrun its launcher — so it appears to sag behind a moving aircraft
-      // (a dumb round, having no seeker, always flew out fine). Boost, then guide.
-      if (elapsed < boostTime) return
-
       if (target.isDisposed()) return // lost lock — coast straight
 
       const tp = target.absolutePosition
@@ -484,7 +496,12 @@ export function spawnMissile(
       const desired =
         interceptLead(state.pos, cruise, tPos, tVel) ??
         gNormalize(gSub(tPos, state.pos))
-      const v = steerToward(state.vel, desired, opts.turnRate, dt)
+      // BOOST: the seeker steers throughout, but its authority ramps in as the motor
+      // brings the round up to speed — so it leaves the rail accelerating essentially
+      // straight, and is fully agile by burnout. (Thrust itself, above, is
+      // unconditional: a motor burns whether or not the seeker wants to turn.)
+      const authority = boostAuthority(elapsed, boostTime)
+      const v = steerToward(state.vel, desired, opts.turnRate * authority, dt)
       state.vel.x = v.x
       state.vel.y = v.y
       state.vel.z = v.z

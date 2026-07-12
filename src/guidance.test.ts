@@ -7,6 +7,7 @@ import {
   steerToward,
   proNav,
   interceptLead,
+  boostAuthority,
   gLen,
   gNormalize,
   gSub,
@@ -149,5 +150,39 @@ test('dir helper normalises a to-b vector', () => {
     x: 0,
     y: 1,
     z: 0,
+  })
+})
+
+describe('boostAuthority — the seeker fades in as the motor brings it up to speed', () => {
+  test('no authority at the instant of launch', () => {
+    expect(boostAuthority(0, 0.45)).toBe(0)
+  })
+
+  test('ramps linearly across the boost', () => {
+    expect(boostAuthority(0.225, 0.45)).toBeCloseTo(0.5, 6)
+    expect(boostAuthority(0.1125, 0.45)).toBeCloseTo(0.25, 6)
+  })
+
+  test('full authority at burnout, and forever after', () => {
+    expect(boostAuthority(0.45, 0.45)).toBe(1)
+    expect(boostAuthority(9, 0.45)).toBe(1)
+  })
+
+  test('no boost = full authority from frame 1 (0 and negative both disable)', () => {
+    expect(boostAuthority(0, 0)).toBe(1)
+    expect(boostAuthority(0, -1)).toBe(1)
+  })
+
+  test('never negative, never over 1 — it scales a turn rate', () => {
+    for (const [e, b] of [
+      [-1, 0.45],
+      [0, 0.45],
+      [0.2, 0.45],
+      [10, 0.45],
+    ]) {
+      const a = boostAuthority(e, b)
+      expect(a).toBeGreaterThanOrEqual(0)
+      expect(a).toBeLessThanOrEqual(1)
+    }
   })
 })

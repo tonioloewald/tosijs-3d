@@ -191,7 +191,7 @@ import { AbstractMesh, isOff } from './b3d-utils';
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
 const MIN_CLOSING_SPEED = 70;
 import { ballisticStep } from './ballistics';
-import { steerToward, interceptLead, gNormalize, gSub } from './guidance';
+import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance';
 import { makeResource, drain, regenTick, isEmpty, } from './resource';
 import { detonateWarhead } from './b3d-warhead';
 /**
@@ -351,12 +351,6 @@ export function spawnMissile(owner, opts) {
                     state.vel.z = dir0.z * spd;
                 }
             }
-            // BOOST PHASE: fly STRAIGHT while the motor builds separation. Without this the
-            // seeker starts turning on frame 1, which bleeds the forward component before the
-            // round has outrun its launcher — so it appears to sag behind a moving aircraft
-            // (a dumb round, having no seeker, always flew out fine). Boost, then guide.
-            if (elapsed < boostTime)
-                return;
             if (target.isDisposed())
                 return; // lost lock — coast straight
             const tp = target.absolutePosition;
@@ -371,7 +365,12 @@ export function spawnMissile(owner, opts) {
             last = tPos;
             const desired = interceptLead(state.pos, cruise, tPos, tVel) ??
                 gNormalize(gSub(tPos, state.pos));
-            const v = steerToward(state.vel, desired, opts.turnRate, dt);
+            // BOOST: the seeker steers throughout, but its authority ramps in as the motor
+            // brings the round up to speed — so it leaves the rail accelerating essentially
+            // straight, and is fully agile by burnout. (Thrust itself, above, is
+            // unconditional: a motor burns whether or not the seeker wants to turn.)
+            const authority = boostAuthority(elapsed, boostTime);
+            const v = steerToward(state.vel, desired, opts.turnRate * authority, dt);
             state.vel.x = v.x;
             state.vel.y = v.y;
             state.vel.z = v.z;
