@@ -13,7 +13,7 @@ missing.
 */
 /*{ "parent": "Core" }*/
 import { svgElements } from 'tosijs';
-import { sideFromD, } from './hud-math';
+import { sideFromD } from './hud-math';
 const SVGNS = 'http://www.w3.org/2000/svg';
 /**
  * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the

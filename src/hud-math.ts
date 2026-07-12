@@ -140,6 +140,59 @@ export function hudTrace(
   }
 }
 
+/**
+ * Where a contact lands on the HUD, in viewBox coords, given NORMALISED surface coords
+ * (`u`,`v` = -1..1 across the HUD, +u right, +v **up**). Inside the surface → `tracked`;
+ * outside → **pinned** to the ring along that bearing.
+ *
+ * Shared by BOTH HUD projections (the cockpit quad and the flat overlay) so the two can't
+ * drift apart. Note SVG's +y is DOWN, hence the flip.
+ */
+export function hudPointFromUV(
+  u: number,
+  v: number,
+  opts: { center: number; pinRadius: number }
+): { x: number; y: number; tracked: boolean } {
+  const { center, pinRadius } = opts
+  if (Math.abs(u) <= 1 && Math.abs(v) <= 1) {
+    return { x: center + u * center, y: center - v * center, tracked: true }
+  }
+  const len = Math.hypot(u, v) || 1
+  return {
+    x: center + (u / len) * pinRadius,
+    y: center - (v / len) * pinRadius,
+    tracked: false,
+  }
+}
+
+/**
+ * The cockpit HUD is a real quad — a combiner glass. Given the EYE and the TARGET
+ * expressed in that quad's LOCAL space (where the glass is the `z = 0` square spanning
+ * ±`half`), return where the **eye→target ray crosses the glass**, as normalised -1..1
+ * coords. Null when it can't: the ray runs parallel to the glass, or the crossing is
+ * behind the eye.
+ *
+ * This is the whole trick behind the HUD: because it's plain geometry against the quad's
+ * own frame, there's no projection matrix, no FOV and no handedness to get wrong — so it
+ * CANNOT disagree with what the renderer draws through that glass. (The previous
+ * approach re-derived the camera projection by hand and never lined up.)
+ */
+export function glassUV(
+  eyeLocal: Vec3,
+  targetLocal: Vec3,
+  half: number
+): { u: number; v: number } | null {
+  if (!(half > 0)) return null
+  const dz = targetLocal.z - eyeLocal.z
+  if (Math.abs(dz) < 1e-6) return null // parallel to the glass
+  const t = -eyeLocal.z / dz // param where the ray crosses z = 0
+  if (t <= 0) return null // glass is behind us relative to the target
+  return {
+    u: (eyeLocal.x + t * (targetLocal.x - eyeLocal.x)) / half,
+    v: (eyeLocal.y + t * (targetLocal.y - eyeLocal.y)) / half,
+  }
+}
+
 export type HorizonTransform = {
   /** Vertical pixel offset for the pitch ladder (climb → ladder slides DOWN). */
   offsetY: number

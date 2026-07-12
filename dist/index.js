@@ -13,8 +13,8 @@ export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, e
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
-// Pure aircraft-HUD math (radar-trace projection + horizon)
-export { hudTrace, horizonTransform } from './hud-math';
+// Pure aircraft-HUD math (radar-trace projection + horizon + glass projection)
+export { hudTrace, horizonTransform, glassUV, hudPointFromUV } from './hud-math';
 // HUD driver (meters / horizon / radar traces over the HUD SVG)
 export { createHudController, loadHud, buildFallbackHud } from './hud';
 export { B3dHud, b3dHud } from './b3d-hud';
@@ -89,7 +89,7 @@ export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, } from './b3d-
 export { B3dTurret, b3dTurret } from './b3d-turret';
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip';
 export { B3dRadar, b3dRadar } from './b3d-radar';
-export { Radar, coneDotFromDegrees, isOpposed, } from './radar';
+export { Radar, coneDotFromDegrees, isOpposed } from './radar';
 export { steerToward, proNav, interceptLead, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';

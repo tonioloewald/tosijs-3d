@@ -95,6 +95,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import { B3dChild } from './b3d-utils';
 import { SvgTexture } from './svg-texture';
 import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud';
+import { glassUV, hudPointFromUV } from './hud-math';
 import * as BABYLON from '@babylonjs/core';
 export class B3dHud extends B3dChild {
     static initAttributes = {
@@ -296,34 +297,19 @@ export class B3dHud extends B3dChild {
         if (plane == null || !this._inSceneVisible) {
             return this._projectViaScreen(world, camera);
         }
+        // Work in the quad's LOCAL space: the glass is then the z = 0 square spanning ±half,
+        // which folds in its position/orientation/parent/scale for free.
         const inv = BABYLON.Matrix.Invert(plane.getWorldMatrix());
         const eye = BABYLON.Vector3.TransformCoordinates(camera.globalPosition, inv);
         const tgt = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(world.x, world.y, world.z), inv);
-        const dz = tgt.z - eye.z;
-        if (Math.abs(dz) < 1e-6)
-            return null; // ray parallel to the glass
-        const t = -eye.z / dz; // where the eye→target ray crosses the plane (z = 0)
-        if (t <= 0)
-            return null; // the glass is behind us relative to the target
         const half = (this._inSceneOpts?.size ?? 1.2) / 2;
-        const u = (eye.x + t * (tgt.x - eye.x)) / half; // -1..1 across the glass
-        const v = (eye.y + t * (tgt.y - eye.y)) / half;
-        const tracked = Math.abs(u) <= 1 && Math.abs(v) <= 1;
-        if (tracked) {
-            // +y is DOWN in SVG, +Y is UP on the quad.
-            return {
-                x: HUD_CENTER + u * HUD_CENTER,
-                y: HUD_CENTER - v * HUD_CENTER,
-                tracked: true,
-            };
-        }
-        // Off the glass: pin to the ring in that bearing direction.
-        const len = Math.hypot(u, v) || 1;
-        return {
-            x: HUD_CENTER + (u / len) * HUD_PIN_RADIUS,
-            y: HUD_CENTER - (v / len) * HUD_PIN_RADIUS,
-            tracked: false,
-        };
+        const uv = glassUV(eye, tgt, half); // pure — see hud-math
+        if (uv == null)
+            return null;
+        return hudPointFromUV(uv.u, uv.v, {
+            center: HUD_CENTER,
+            pinRadius: HUD_PIN_RADIUS,
+        });
     }
     /** Flat-overlay projection: Babylon projects the world point to SCREEN (its real
      * projection — cannot disagree with what's drawn), then we map that screen point into
@@ -351,20 +337,11 @@ export class B3dHud extends B3dChild {
         const py = cr.top + (p.y / rh) * cr.height;
         const u = ((px - sr.left) / sr.width) * 2 - 1;
         const v = -(((py - sr.top) / sr.height) * 2 - 1);
-        const tracked = Math.abs(u) <= 1 && Math.abs(v) <= 1;
-        if (tracked) {
-            return {
-                x: HUD_CENTER + u * HUD_CENTER,
-                y: HUD_CENTER - v * HUD_CENTER,
-                tracked: true,
-            };
-        }
-        const len = Math.hypot(u, v) || 1;
-        return {
-            x: HUD_CENTER + (u / len) * HUD_PIN_RADIUS,
-            y: HUD_CENTER - (v / len) * HUD_PIN_RADIUS,
-            tracked: false,
-        };
+        // Same placement/pinning rule as the glass path — shared so they can't drift apart.
+        return hudPointFromUV(u, v, {
+            center: HUD_CENTER,
+            pinRadius: HUD_PIN_RADIUS,
+        });
     }
     /** Replace the radar traces from WORLD positions — the HUD projects them onto its
      * own quad (see projectWorldToHud), so blips land on the targets you see. */

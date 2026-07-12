@@ -92,8 +92,8 @@ export {
 // Vec3 is already exported (surface-sampler) and is structurally identical.
 export type { Quat, Pose } from './spatial-transform'
 
-// Pure aircraft-HUD math (radar-trace projection + horizon)
-export { hudTrace, horizonTransform } from './hud-math'
+// Pure aircraft-HUD math (radar-trace projection + horizon + glass projection)
+export { hudTrace, horizonTransform, glassUV, hudPointFromUV } from './hud-math'
 export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math'
 // HUD driver (meters / horizon / radar traces over the HUD SVG)
 export { createHudController, loadHud, buildFallbackHud } from './hud'
@@ -297,11 +297,7 @@ export type { ProjectileOpts, MissileOpts } from './b3d-launcher'
 export { B3dTurret, b3dTurret } from './b3d-turret'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip'
 export { B3dRadar, b3dRadar } from './b3d-radar'
-export {
-  Radar,
-  coneDotFromDegrees,
-  isOpposed,
-} from './radar'
+export { Radar, coneDotFromDegrees, isOpposed } from './radar'
 export type { RadarContact, RadarTrack, RadarParams } from './radar'
 export {
   steerToward,

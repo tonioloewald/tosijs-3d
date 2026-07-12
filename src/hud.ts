@@ -14,13 +14,8 @@ missing.
 /*{ "parent": "Core" }*/
 
 import { svgElements } from 'tosijs'
-import {
-  hudTrace,
-  sideFromD,
-  type HudTraceOptions,
-  type Side,
-} from './hud-math'
-import type { Pose, Vec3 } from './spatial-transform'
+import { sideFromD, type Side } from './hud-math'
+import type { Vec3 } from './spatial-transform'
 
 export type { Side } from './hud-math'
 
