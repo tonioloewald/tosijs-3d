@@ -189,8 +189,9 @@ import { AbstractMesh, isOff } from './b3d-utils'
 import type { B3d, RadarFaction } from './tosi-b3d'
 
 /** A guided missile always cruises at least this much FASTER than the platform that
- * launched it — otherwise it crawls off the rail and trails a fast mover. */
-const MIN_CLOSING_SPEED = 45
+ * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
+ * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
+const MIN_CLOSING_SPEED = 70
 import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics'
 import { steerToward, interceptLead, gNormalize, gSub } from './guidance'
 import {
@@ -361,6 +362,10 @@ export interface MissileOpts {
   /** Thrust acceleration (units/s²) ramping launch speed → cruise `speed`. Omit/0 =
    * instant cruise (legacy). */
   accel?: number
+  /** BOOST: seconds of straight-line thrust before the seeker is allowed to steer.
+   * A seeker that turns immediately bleeds the forward speed the round needs to outrun
+   * its launcher — boost first, guide after. Default 0.45s. */
+  boostTime?: number
   warhead: WarheadSpec
   /** Initial launch direction (defaults to straight at the target). */
   direction?: BABYLON.Vector3
@@ -402,6 +407,8 @@ export function spawnMissile(
   // Launch velocity: inherit the platform's motion + a real forward kick (a fraction of
   // cruise) so it visibly separates immediately; then the guide thrusts up to cruise.
   // With no accel, launch straight at cruise (legacy).
+  const boostTime = opts.boostTime ?? 0.45
+  let elapsed = 0
   const launchKick = accel > 0 ? Math.max(10, cruise * 0.2) : cruise
   const launchVel =
     accel > 0
@@ -429,20 +436,10 @@ export function spawnMissile(
     ignore: opts.ignore,
     radar: opts.radar,
     guide: (state, dt) => {
-      if (target.isDisposed()) return // lost lock — fly straight
-      const tp = target.absolutePosition
-      const tPos: Vec3 = { x: tp.x, y: tp.y, z: tp.z }
-      const tVel: Vec3 =
-        last != null && dt > 1e-5
-          ? {
-              x: (tPos.x - last.x) / dt,
-              y: (tPos.y - last.y) / dt,
-              z: (tPos.z - last.z) / dt,
-            }
-          : { x: 0, y: 0, z: 0 }
-      last = tPos
-      // Thrust: ramp the current speed toward cruise (accelerate off the launch/inherit
-      // velocity), then steer — steerToward preserves whatever magnitude we set here.
+      elapsed += dt
+      // THRUST first, and unconditionally — a motor burns whether or not there's a
+      // target, and (crucially) whether or not the seeker wants to turn.
+      // ramp the current speed toward cruise; steerToward below preserves the magnitude.
       if (accel > 0) {
         const cur = Math.hypot(state.vel.x, state.vel.y, state.vel.z)
         const step = accel * dt
@@ -461,6 +458,27 @@ export function spawnMissile(
           state.vel.z = dir0.z * spd
         }
       }
+
+      // BOOST PHASE: fly STRAIGHT while the motor builds separation. Without this the
+      // seeker starts turning on frame 1, which bleeds the forward component before the
+      // round has outrun its launcher — so it appears to sag behind a moving aircraft
+      // (a dumb round, having no seeker, always flew out fine). Boost, then guide.
+      if (elapsed < boostTime) return
+
+      if (target.isDisposed()) return // lost lock — coast straight
+
+      const tp = target.absolutePosition
+      const tPos: Vec3 = { x: tp.x, y: tp.y, z: tp.z }
+      const tVel: Vec3 =
+        last != null && dt > 1e-5
+          ? {
+              x: (tPos.x - last.x) / dt,
+              y: (tPos.y - last.y) / dt,
+              z: (tPos.z - last.z) / dt,
+            }
+          : { x: 0, y: 0, z: 0 }
+      last = tPos
+
       const desired =
         interceptLead(state.pos, cruise, tPos, tVel) ??
         gNormalize(gSub(tPos, state.pos))

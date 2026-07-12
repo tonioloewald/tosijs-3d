@@ -28,6 +28,7 @@ export declare class B3dAircraft extends B3dControllable {
         gunDamage: number;
         missileSpeed: number;
         missileAccel: number;
+        missileBoost: number;
         missileTurnRate: number;
         missileDamage: number;
         bombDamage: number;

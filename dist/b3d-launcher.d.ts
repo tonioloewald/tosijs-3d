@@ -68,6 +68,10 @@ export interface MissileOpts {
     /** Thrust acceleration (units/s²) ramping launch speed → cruise `speed`. Omit/0 =
      * instant cruise (legacy). */
     accel?: number;
+    /** BOOST: seconds of straight-line thrust before the seeker is allowed to steer.
+     * A seeker that turns immediately bleeds the forward speed the round needs to outrun
+     * its launcher — boost first, guide after. Default 0.45s. */
+    boostTime?: number;
     warhead: WarheadSpec;
     /** Initial launch direction (defaults to straight at the target). */
     direction?: BABYLON.Vector3;

@@ -449,7 +449,8 @@ export class B3dAircraft extends B3dControllable {
     gunSpeed: 130, // muzzle speed of cannon shells (added to airspeed)
     gunDamage: 8, // per-shell warhead full damage
     missileSpeed: 90, // guided-missile cruise speed (faster than the airframe so it pulls ahead)
-    missileAccel: 90, // thrust accel (units/s²) ramping launch → cruise (inherits your velocity)
+    missileAccel: 120, // thrust accel (units/s²) ramping launch → cruise (inherits your velocity)
+    missileBoost: 0.45, // seconds of STRAIGHT thrust before the seeker may steer
     missileTurnRate: 3, // guided-missile agility (rad/sec)
     missileDamage: 30,
     bombDamage: 45,
@@ -894,6 +895,7 @@ export class B3dAircraft extends B3dControllable {
         // then thrust up to cruise.
         inheritVelocity: { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z },
         accel: attrs.missileAccel,
+        boostTime: attrs.missileBoost,
       })
     } else {
       // No lock — fire it straight ahead as an unguided rocket.
