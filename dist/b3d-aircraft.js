@@ -158,10 +158,13 @@ they take damage, then explode.
 if the contact slips out of the acquisition cone, so the trace tells you where you stand in
 two different ways:
 
-- **acquiring** — the glyph *fills* with white, from nothing to half, as the lock builds.
-  Hold the nose on him and watch it fill; let him drift wide and watch it drain back.
-- **locked** — the *outline* snaps to *white*. Deliberately a different KIND of change, so
-  you read it instantly in peripheral vision instead of squinting at how full a fill is.
+- **acquiring** — the glyph *fills* with **white**, from nothing to half, as the lock
+  builds, while the outline stays the faction colour. Hold the nose on him and watch it
+  fill; let him drift wide and watch it drain back.
+- **locked** — the *outline* snaps to **white**, and the fill hands back the **faction**
+  colour. Deliberately a different KIND of change, so you read it instantly in peripheral
+  vision instead of squinting at how full a fill is — and because the two channels trade
+  jobs, a locked contact never stops telling you *what* it is.
 
 That's the decision the mechanic exists to force — stay on him, or break off. Neutrals
 never fill or go white, because they never lock.

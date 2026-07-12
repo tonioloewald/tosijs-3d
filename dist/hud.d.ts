@@ -10,8 +10,9 @@ export type HudTraceInput = {
      * builds (nothing → 50%), so the pilot can see a lock coming, and drains back if the
      * contact slips the cone. */
     lockProgress?: number;
-    /** Radar HAS a lock — the trace's OUTLINE goes white (a categorical change, not more
-     * fill) and it stays bold even when pinned off-glass. */
+    /** Radar HAS a lock — the trace's OUTLINE goes white and its fill takes over the
+     * FACTION colour (the channels trade jobs, so it still says what it is). A categorical
+     * change, not more fill. Stays bold even when pinned off-glass. */
     locked?: boolean;
 };
 /**

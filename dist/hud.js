@@ -156,23 +156,30 @@ export function createHudController(el, options = {}) {
             glyph.removeAttribute('id');
             const { x, y, tracked } = t; // already in HUD viewBox coords
             glyph.setAttribute('transform', `translate(${x}, ${y})`);
-            // TWO CUES, DELIBERATELY DIFFERENT IN KIND.
-            //  - ACQUIRING is continuous: the glyph fills with white, nothing → 50%, as the
-            //    lock builds (and drains back if the contact slips the cone).
-            //  - LOCK is categorical: the OUTLINE goes white. Making lock merely a *denser*
-            //    fill was tried and is too subtle to tell apart on a thin glyph in flight —
-            //    the moment of lock has to change something else about the trace, not just
-            //    deepen what's already changing.
-            // A trace template is a <g> whose child shapes each carry their own inline
-            // stroke, so both cues apply to the shapes, not the group.
+            // TWO CUES, DELIBERATELY DIFFERENT IN KIND — and the faction colour survives both.
+            //  - ACQUIRING is continuous: the glyph fills with WHITE, nothing → 50%, as the
+            //    lock builds (and drains back if the contact slips the cone). The outline is
+            //    still the faction, so you know WHAT it is while the lock comes up.
+            //  - LOCK is categorical: the OUTLINE goes WHITE, and the fill hands back — it
+            //    switches to the FACTION colour. So the trace never stops telling you what
+            //    you're looking at: the two channels simply trade jobs. (This is also what
+            //    keeps a lockable NEUTRAL legible, if we ever allow one.)
+            //
+            // Lock was originally just a denser fill (50% → 75%). Too subtle to tell apart on
+            // a thin glyph at speed: the moment of lock has to change something else about the
+            // trace, not deepen what's already changing.
+            //
+            // A trace template is a <g> whose child shapes each carry their own inline stroke,
+            // so both cues apply to the shapes, not the group — and the faction colour has to
+            // be read off the stroke BEFORE we overwrite it.
             const fill = lockFillOpacity(t.lockProgress ?? 0, t.locked);
             if (fill > 0 || t.locked) {
                 for (const s of Array.from(glyph.querySelectorAll('*'))) {
-                    const col = s.style.stroke || s.getAttribute('stroke') || '';
-                    if (col === '')
+                    const faction = s.style.stroke || s.getAttribute('stroke') || '';
+                    if (faction === '')
                         continue; // unstroked shapes aren't part of the outline
                     if (fill > 0) {
-                        s.style.fill = '#ffffff';
+                        s.style.fill = t.locked ? faction : '#ffffff';
                         s.style.fillOpacity = String(fill);
                     }
                     if (t.locked)

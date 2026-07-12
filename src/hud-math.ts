@@ -172,11 +172,14 @@ export function hudPointFromUV(
  * decays, it isn't instant). Without it the pilot gets no signal at all until the lock
  * lands, and can't make the decision the mechanic exists to force: stay on him or break.
  *
- * **A positive lock is NOT more fill — it turns the OUTLINE white** (see the renderer in
- * `hud.ts`). Two notches of the same continuous cue proved too subtle to tell apart on a
- * thin glyph in flight; the lock has to be a categorical change, not a darker shade. So
- * the fill tops out at 50% and stays there — `locked` only pins it there in case the
- * progress value arrives short.
+ * **A positive lock is NOT more fill.** It turns the OUTLINE white, and the fill switches
+ * from white to the FACTION colour — the two channels trade jobs, so the trace never stops
+ * saying what it is (and a lockable *neutral* would stay legible). That's the renderer's
+ * business (`hud.ts`); this function only vends the opacity, which tops out at 50% either
+ * way. `locked` merely pins it full in case the progress value arrives short.
+ *
+ * Lock was first drawn as simply a denser fill (50% → 75%) and proved too subtle to tell
+ * apart on a thin glyph in flight: it has to be a categorical change, not a darker shade.
  */
 export function lockFillOpacity(
   lockProgress: number,
