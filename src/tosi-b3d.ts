@@ -902,11 +902,15 @@ export class B3d extends Component {
         muted: true,
       }),
       label3d({
-        text: `dpr ${s.devicePixelRatio}  scale ${s.hardwareScaling?.toFixed(2)}  ${s.tier}`,
+        text: `dpr ${s.devicePixelRatio}  scale ${s.hardwareScaling?.toFixed(
+          2
+        )}  ${s.tier}`,
         muted: true,
       }),
       label3d({
-        text: `fps ${s.fps}  resizes ${s.resizeCount}${s.xrActive ? '  [XR]' : ''}`,
+        text: `fps ${s.fps}  resizes ${s.resizeCount}${
+          s.xrActive ? '  [XR]' : ''
+        }`,
         muted: true,
       }),
       // One-tap discriminator: swap between the engine's real hardware scaling and
@@ -1013,7 +1017,6 @@ export class B3d extends Component {
     } catch (err) {
       console.warn('b3d quality setup failed; using default profile', err)
     }
-
 
     const init = async () => {
       if (this.sceneCreated !== noop) {

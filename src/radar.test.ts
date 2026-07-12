@@ -16,7 +16,9 @@ const contact = (
   lockable = true
 ): RadarContact<string> => ({ id, pos, profile, lockable })
 
-const params = (over: Partial<ConstructorParameters<typeof Radar>[0]> = {}) => ({
+const params = (
+  over: Partial<ConstructorParameters<typeof Radar>[0]> = {}
+) => ({
   range: 100,
   coneDot: coneDotFromDegrees(90), // front hemisphere (maintenance)
   lockTime: 1,
@@ -34,7 +36,10 @@ describe('radar detection', () => {
     const tracks = r.update(
       origin,
       nose,
-      [contact('near', { x: 0, y: 0, z: 80 }), contact('far', { x: 0, y: 0, z: 120 })],
+      [
+        contact('near', { x: 0, y: 0, z: 80 }),
+        contact('far', { x: 0, y: 0, z: 120 }),
+      ],
       0.016
     )
     expect(tracks.find((t) => t.id === 'near')!.detected).toBe(true)
@@ -168,7 +173,9 @@ describe('radar lock', () => {
 
   test('acquisition needs the SHORTER range; a held lock survives to full range', () => {
     // Acquire within half range (≤ 50), maintain to full range (≤ 100).
-    const r = new Radar<string>(params({ lockTime: 0, acquireRangeFraction: 0.5 }))
+    const r = new Radar<string>(
+      params({ lockTime: 0, acquireRangeFraction: 0.5 })
+    )
     r.update(origin, nose, [contact('t', { x: 0, y: 0, z: 70 })], 0.016) // 70 > 50
     expect(r.nearestLock).toBeNull()
     r.update(origin, nose, [contact('t', { x: 0, y: 0, z: 40 })], 0.016) // 40 ≤ 50 → lock
@@ -182,7 +189,10 @@ describe('radar lock', () => {
     r.update(
       origin,
       nose,
-      [contact('far', { x: 0, y: 0, z: 70 }), contact('near', { x: 0, y: 0, z: 30 })],
+      [
+        contact('far', { x: 0, y: 0, z: 70 }),
+        contact('near', { x: 0, y: 0, z: 30 }),
+      ],
       0.016
     )
     expect(r.nearestLock?.id).toBe('near')

@@ -893,7 +893,11 @@ export class B3dAircraft extends B3dControllable {
         radar: radarSig,
         // Inherit the airframe's world velocity so the missile doesn't drop behind,
         // then thrust up to cruise.
-        inheritVelocity: { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z },
+        inheritVelocity: {
+          x: this.velocity.x,
+          y: this.velocity.y,
+          z: this.velocity.z,
+        },
         accel: attrs.missileAccel,
         boostTime: attrs.missileBoost,
       })

@@ -230,7 +230,9 @@ export function spawnProjectile(owner, opts) {
         ? {
             radarProfile: opts.radar.profile,
             faction: opts.radar.faction,
-            radarPosition: () => alive ? { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z } : null,
+            radarPosition: () => alive
+                ? { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z }
+                : null,
             radarMesh: () => (alive ? mesh : null),
         }
         : null;
