@@ -19,6 +19,21 @@ export function findB3dOwner(el: HTMLElement): B3d | null {
   return null
 }
 
+/**
+ * The element's SEMANTIC parent — its nearest ancestor that isn't a tosijs slot
+ * wrapper. tosijs mounts a component's light-DOM children inside a `<tosi-slot>`, so
+ * a child's `parentElement` is that slot, not the component you nested it in. Any
+ * child that wants to find "the thing I'm nested in" (a radar in an aircraft, a
+ * radar-blip in a target) must skip the slot(s).
+ */
+export function semanticParent(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement
+  while (node != null && node.tagName === 'TOSI-SLOT') {
+    node = node.parentElement
+  }
+  return node
+}
+
 export function actualMeshes(meshes: BABYLON.AbstractMesh[]): BABYLON.Mesh[] {
   return meshes.filter(
     (mesh) => (mesh as BABYLON.Mesh).geometry != null

@@ -193,6 +193,27 @@ export type SceneAdditions = {
   lights?: BABYLON.Light[]
 }
 
+/** Radar alignment — matches the HUD's `TraceKind` so a blip's faction maps
+ * straight to a radar-trace colour/template. Extend freely; these are the seed. */
+export type RadarFaction = 'friendly' | 'neutral' | 'hostile' | 'waypoint'
+
+/** Anything detectable on radar — a target, the player's own missile, a waypoint.
+ * A radar platform (e.g. the aircraft HUD) enumerates `B3d.radarBlips`, gates each
+ * by its `radarProfile` against the platform's range, and plots the survivors. */
+export interface RadarBlip {
+  /** Detectability multiplier: 1 = detectable at the platform's nominal range,
+   * 2 = out to 2× range, 0.05 = very stealthy; NEGATIVE = always detectable
+   * regardless of range (e.g. waypoints). */
+  radarProfile: number
+  faction: RadarFaction
+  /** Current world position (floating-origin-corrected), or null if not yet placed
+   * (mesh still loading, etc.) — the platform skips a null. */
+  radarPosition(): { x: number; y: number; z: number } | null
+  /** The mesh a homing weapon should chase when this blip is locked, or null (a
+   * positional-only blip like a waypoint — a missile fired at it goes ballistic). */
+  radarMesh(): BABYLON.AbstractMesh | null
+}
+
 // An NPC nameplate: an entity-pinned frame + a gaze-revealed panel on it.
 type Nameplate = {
   ef: EntityFrame
@@ -600,6 +621,12 @@ export class B3d extends Component {
   private _worldRoots = new Set<BABYLON.TransformNode>()
   private _originShiftListeners: Array<(dx: number, dz: number) => void> = []
 
+  // Everything detectable on radar this scene (targets, the player's own missiles,
+  // waypoints). A radar platform — the aircraft HUD — enumerates these each frame.
+  // Blips self-register (b3d-radar-blip on connect; spawnProjectile for a missile)
+  // and unregister on dispose. Position is pulled live, so movers just work.
+  private _radarBlips = new Set<RadarBlip>()
+
   // The scene's combat state (pure, deterministic; see destroyable.ts). Combat
   // components (b3d-destroyable/warhead/launcher) find it via findB3dOwner and
   // share it; the render loop advances it (regen + chain reactions) each frame.
@@ -630,6 +657,19 @@ export class B3d extends Component {
   offOriginShift(callback: (dx: number, dz: number) => void): void {
     const idx = this._originShiftListeners.indexOf(callback)
     if (idx > -1) this._originShiftListeners.splice(idx, 1)
+  }
+
+  registerRadarBlip(blip: RadarBlip): void {
+    this._radarBlips.add(blip)
+  }
+
+  unregisterRadarBlip(blip: RadarBlip): void {
+    this._radarBlips.delete(blip)
+  }
+
+  /** Every radar-detectable blip in the scene (targets, own missiles, waypoints). */
+  get radarBlips(): ReadonlySet<RadarBlip> {
+    return this._radarBlips
   }
 
   /**
