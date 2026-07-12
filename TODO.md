@@ -151,10 +151,22 @@ scent as additional "senses" (each range/cone/falloff + sensitivity), **line-of-
 gating, and **last-known-position** memory when a track is lost. Becomes the shared
 sensorium for ALL AIs (turrets, bipeds, vehicles), not just radar. Keep the pure/tested
 discipline; `Radar` is the first sense. (LOS predicate from the bridge.)
-[ ] HUD: **visualize lock state** — the radar reports `lockProgress`/`locked` per track,
-but `hud.setTraces` only takes `{pos, kind}` today, so the HUD shows detection colour but
-not lock brackets/progress. Extend `HudTraceInput` with an optional `locked`/`lockProgress`
-and draw a lock reticle/box around locked traces (touches `hud.ts` SVG rendering).
+[x] HUD radar traces — DONE, and blips land ON their targets: the HUD projects onto its
+OWN geometry rather than re-deriving a projection. Cockpit/VR = ray from the eye through
+the target intersected with the HUD quad (the combiner glass), done in the quad's local
+space; chase = Babylon's own `Vector3.Project` mapped into the flat overlay's rect. Flat
+path measured pixel-exact (errPx 0). Locked traces get a white stroke + translucent
+faction fill. See `b3d-hud.projectWorldToHud`.
+[ ] HUD radar POLISH (deferred, from the live pass):
+  - **Pin radius / cutover** needs tuning — where a contact stops being drawn on-glass
+    and pins to the ring (`HUD_PIN_RADIUS`, and the |u|,|v| ≤ 1 test). Currently it pins
+    the moment it leaves the glass, so contacts just off the HUD snap to the ring.
+    Consider pinning at a conical angle that sits comfortably INSIDE the rendered view
+    rather than at the glass edge.
+  - **Lock progress**: `locked` is drawn, but `lockProgress` (0..1 acquisition ramp) is
+    not — worth a closing bracket / building-lock cue.
+  - Cockpit quad orientation (local +X/+Y → viewBox, DOUBLESIDE facing) confirmed good
+    by eye; if a mirrored axis ever shows up, that's the suspect.
 [ ] `npc-ai.ts` — strategy selection + per-strategy `step → ControlInput`. [later,
 see `AI-DESIGN.md`]
 
