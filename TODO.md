@@ -191,6 +191,15 @@ sequence + ~0.1° jitter still TODO.)
 [x] `b3d-turret` [MVP] — DONE: auto-tracking aiming platform; traverse-rate limit, range +
 aim-tolerance, `smart` dial (lead + drop), can-bear armed color. `<tosi-b3d-turret>`.
 (Built SELF-ACQUIRE/auto rather than view-slaved — view-slaved mode still TODO.)
+[x] Guided missile flight — DONE (works in flight): inherits the launcher's world
+velocity, BOOSTS straight (`boostTime`, 0.45s) before the seeker may steer, then guides.
+Cruise is relative to the launcher (`max(speed, launcherSpeed + MIN_CLOSING_SPEED)`) so a
+round can never trail whatever fired it. The tell was that DUMB rounds always flew out
+fine — no seeker, so nothing bled their forward speed on frame 1.
+[ ] Missile POLISH (deferred): tune `boostTime` / `missileAccel` / `MIN_CLOSING_SPEED` —
+too much boost overshoots close targets, too little sags. Consider boost ending on a
+SPEED threshold rather than a fixed time, and a proportional-nav midcourse. Also: the
+turret/launcher demos still use the legacy instant-cruise path (no accel/boost).
 [ ] `b3d-shield` — Destroyable + collider that spatially blocks; recharge; links. [later]
 [ ] `b3d-melee` — active-window collider, cycle-time sequence (sustained vs
 glancing), owner-friendly. [later]
