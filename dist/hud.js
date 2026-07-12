@@ -161,13 +161,14 @@ export function createHudController(el, options = {}) {
             //    lock builds (and drains back if the contact slips the cone). The outline is
             //    still the faction, so you know WHAT it is while the lock comes up.
             //  - LOCK is categorical: the OUTLINE goes WHITE, and the fill hands back — it
-            //    switches to the FACTION colour. So the trace never stops telling you what
-            //    you're looking at: the two channels simply trade jobs. (This is also what
-            //    keeps a lockable NEUTRAL legible, if we ever allow one.)
+            //    switches to the FACTION colour (and to a bolder 75%, which a white outline
+            //    needs or the faction reads washed out). So the trace never stops telling you
+            //    what you're looking at: the two channels simply trade jobs. (This is also
+            //    what keeps a lockable NEUTRAL legible, if we ever allow one.)
             //
-            // Lock was originally just a denser fill (50% → 75%). Too subtle to tell apart on
-            // a thin glyph at speed: the moment of lock has to change something else about the
-            // trace, not deepen what's already changing.
+            // Lock was originally ONLY that denser fill, same colour (50% → 75%). Too subtle
+            // to tell apart on a thin glyph at speed: the moment of lock has to change a
+            // DIFFERENT channel, not deepen the one that's already moving.
             //
             // A trace template is a <g> whose child shapes each carry their own inline stroke,
             // so both cues apply to the shapes, not the group — and the faction colour has to

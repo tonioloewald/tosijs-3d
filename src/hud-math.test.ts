@@ -212,18 +212,19 @@ describe('lockFillOpacity — a trace solidifies as the radar builds a lock', ()
     }
   })
 
-  test('LOCK adds no more fill — 50% is the ceiling, locked or not', () => {
-    // The lock cue is the OUTLINE going white (see hud.ts), NOT a denser fill. Flying it
-    // with lock as "more fill" (0.5 → 0.75), the two states were too close to tell apart
-    // on a thin glyph at speed: the moment of lock has to change something else about
-    // the trace, not just deepen what is already changing. So the fill tops out here.
-    expect(lockFillOpacity(1, true)).toBe(0.5)
-    expect(lockFillOpacity(1, true)).toBe(lockFillOpacity(1))
+  test('locked fills bolder — 75%, above anything the ramp can reach', () => {
+    // NB this alone is NOT what makes a lock readable: lock was once drawn as only a
+    // denser fill of the same colour (0.5 → 0.75) and was unreadable on a thin glyph at
+    // speed. The categorical cue is the outline going white + the fill switching to the
+    // faction colour (pinned in hud-trace.test.ts). The extra opacity is here because a
+    // 50% faction fill looks washed out inside a white outline.
+    expect(lockFillOpacity(1, true)).toBe(0.75)
+    expect(lockFillOpacity(1, true)).toBeGreaterThan(lockFillOpacity(1))
   })
 
   test('locked pins the fill full, even if the progress arrives short', () => {
-    expect(lockFillOpacity(0, true)).toBe(0.5)
-    expect(lockFillOpacity(0.3, true)).toBe(0.5)
+    expect(lockFillOpacity(0, true)).toBe(0.75)
+    expect(lockFillOpacity(0.3, true)).toBe(0.75)
   })
 
   test('garbage in stays in range — it is an opacity', () => {

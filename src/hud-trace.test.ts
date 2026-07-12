@@ -4,13 +4,15 @@
  *
  * The contract, and why it is what it is (it's been got wrong twice):
  *  - acquiring → WHITE fill ramping to 50%, outline still the FACTION colour;
- *  - locked    → outline goes WHITE, and the fill takes over the faction colour.
+ *  - locked    → outline goes WHITE, and the fill takes over the faction colour at 75%.
  * The two channels trade jobs, so a trace never stops saying what it is — which is also
  * what would keep a lockable NEUTRAL legible.
  *
- * Lock was first drawn as merely a denser fill (50% → 75%) and proved unreadable in
- * flight; that's why "locked" now changes a different channel rather than deepening the
- * one that's already moving. Don't collapse them back together.
+ * Lock was first drawn as merely a denser fill of the SAME colour (50% → 75%) and proved
+ * unreadable in flight; that's why "locked" now changes a different channel rather than
+ * only deepening the one that's already moving. The 75% survives, but as legibility (a
+ * 50% faction fill is washed out inside a white outline), NOT as the cue. Don't collapse
+ * the two channels back together.
  */
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
@@ -80,22 +82,30 @@ describe('radar trace — acquiring', () => {
 })
 
 describe('radar trace — locked', () => {
-  test('the OUTLINE goes white — a different channel, not a denser fill', () => {
-    const locked = draw(1, true)
-    expect(isWhite(locked.stroke)).toBe(true)
-    // and NOT by simply deepening the fill, which is what proved unreadable in flight
-    expect(locked.fillOpacity).toBeCloseTo(draw(1).fillOpacity, 6)
+  test('the OUTLINE goes white — a CHANGE OF CHANNEL is what makes lock readable', () => {
+    // Lock was once drawn as only a denser fill of the same colour, and at speed you
+    // could not tell it from "nearly locked". Whatever else changes, this must: the
+    // channel that was NOT moving during acquisition is the one that announces the lock.
+    expect(isWhite(draw(1, true).stroke)).toBe(true)
+    expect(isWhite(draw(1).stroke)).toBe(false) // ...and not a moment before
   })
 
   test('the FILL hands back the faction colour the outline just gave up', () => {
-    // The whole point of this trade: locked or not, the trace still tells you WHAT it
-    // is. Without it, "locked" would erase "hostile" — and a lockable neutral would be
+    // The whole point of the trade: locked or not, the trace still tells you WHAT it is.
+    // Without it, "locked" would erase "hostile" — and a lockable neutral would be
     // indistinguishable from a lockable hostile.
     const acquiring = draw(0.9)
     const locked = draw(1, true)
     expect(isWhite(acquiring.fill)).toBe(true) // white while acquiring…
     expect(isWhite(locked.fill)).toBe(false) // …faction once locked
     expect(locked.fill).toBe(acquiring.stroke) // exactly the colour the outline had
-    expect(locked.fillOpacity).toBeCloseTo(0.5, 6)
+  })
+
+  test('and it fills bolder than the ramp ever gets — 75% vs 50%', () => {
+    // Not the cue (see above), just legibility: a 50% faction fill reads washed out
+    // inside a white outline.
+    const locked = draw(1, true)
+    expect(locked.fillOpacity).toBeCloseTo(0.75, 6)
+    expect(locked.fillOpacity).toBeGreaterThan(draw(1).fillOpacity)
   })
 })

@@ -112,24 +112,27 @@ export function hudPointFromUV(u, v, opts) {
     };
 }
 /**
- * How opaque a radar trace's FILL is: nothing at 0, ramping to **50% white** at a full
- * `lockProgress`. That ramp is the *acquiring* cue — a contact solidifies while you hold
- * the nose on it, and drains back when it slips the acquisition cone (the radar's lock
- * decays, it isn't instant). Without it the pilot gets no signal at all until the lock
- * lands, and can't make the decision the mechanic exists to force: stay on him or break.
+ * How opaque a radar trace's FILL is: nothing at 0, ramping to **50%** at a full
+ * `lockProgress`, and **75% once locked**.
  *
- * **A positive lock is NOT more fill.** It turns the OUTLINE white, and the fill switches
- * from white to the FACTION colour — the two channels trade jobs, so the trace never stops
- * saying what it is (and a lockable *neutral* would stay legible). That's the renderer's
- * business (`hud.ts`); this function only vends the opacity, which tops out at 50% either
- * way. `locked` merely pins it full in case the progress value arrives short.
+ * The ramp is the *acquiring* cue — a contact solidifies while you hold the nose on it,
+ * and drains back when it slips the acquisition cone (the radar's lock decays, it isn't
+ * instant). Without it the pilot gets no signal at all until the lock lands, and can't
+ * make the decision the mechanic exists to force: stay on him, or break off.
  *
- * Lock was first drawn as simply a denser fill (50% → 75%) and proved too subtle to tell
- * apart on a thin glyph in flight: it has to be a categorical change, not a darker shade.
+ * **What makes LOCK unmistakable is not this number** — it's that the OUTLINE goes white
+ * and the fill switches from white to the FACTION colour (the renderer's business, in
+ * `hud.ts`). The two channels trade jobs, so a locked trace never stops saying what it is,
+ * and a lockable *neutral* would stay legible. Lock was once drawn as ONLY a denser fill
+ * (50% → 75%, same colour) and was unreadable on a thin glyph at speed: a categorical
+ * change was needed, not a darker shade.
+ *
+ * The 75% is worth having anyway, now that it isn't load-bearing: a 50% faction fill reads
+ * washed-out inside a white outline.
  */
 export function lockFillOpacity(lockProgress, locked) {
     if (locked === true)
-        return 0.5; // full fill; the WHITE OUTLINE is the lock cue
+        return 0.75; // bold faction fill, inside the white outline
     if (!(lockProgress > 0))
         return 0; // also catches NaN
     return Math.min(1, lockProgress) * 0.5;
