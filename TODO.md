@@ -140,7 +140,21 @@ flight + bomb sight + guided ballistic fallback. (6 tests)
 `b3d-turret` (`smart`: lead ramps to full by 0.5, then drop to 1) with the `can-bear`
 flag → reticle color. (13 guidance tests + 4 ballisticAim.) Traverse-limit clamp/shortest
 path is the turret's `steerToward` slew, not a separate aim helper.
-[ ] `sensorium.ts` — cone/range/falloff perception math (LOS predicate from bridge). [later]
+[x] `radar.ts` + `b3d-radar` + `b3d-radar-blip` — SHIPPED. Pure radar model
+(range·profile detection, cone, timed lock acquisition, maxLocks, faction opposition;
+14 tests) bridged by a UI-less `<tosi-b3d-radar>` (dithered sub-frame cadence) and a
+`<tosi-b3d-radar-blip>` (profile + faction; follows a nested target's mesh, or standalone
+for waypoints). The aircraft surfaces its radar on the HUD (traces) and fires missiles at
+the nearest lock. **This is the seed of `sensorium.ts`** ↓.
+[ ] `sensorium.ts` — GENERALIZE `radar.ts` into multi-sense perception: vision/hearing/
+scent as additional "senses" (each range/cone/falloff + sensitivity), **line-of-sight**
+gating, and **last-known-position** memory when a track is lost. Becomes the shared
+sensorium for ALL AIs (turrets, bipeds, vehicles), not just radar. Keep the pure/tested
+discipline; `Radar` is the first sense. (LOS predicate from the bridge.)
+[ ] HUD: **visualize lock state** — the radar reports `lockProgress`/`locked` per track,
+but `hud.setTraces` only takes `{pos, kind}` today, so the HUD shows detection colour but
+not lock brackets/progress. Extend `HudTraceInput` with an optional `locked`/`lockProgress`
+and draw a lock reticle/box around locked traces (touches `hud.ts` SVG rendering).
 [ ] `npc-ai.ts` — strategy selection + per-strategy `step → ControlInput`. [later,
 see `AI-DESIGN.md`]
 
@@ -224,6 +238,18 @@ pointer/gaze to it, and disposes it on pick/dismiss. Works flat too (the sub-pan
 just another overlay). Ties to: the notification/toast panels (same spawn → gaze →
 dispose lifecycle), `frame-panel` anchoring, `select3d`/`list3d`, and the reticle/gaze
 work. Log the UX decisions in UI-DESIGN-NOTES.md as it firms up.
+
+[ ] **Radial menu — a standard "spawn a wheel that takes over a stick" primitive.**
+`spawnRadialMenu(items)` pops a ring of choices and temporarily **captures the left OR
+right stick / d-pad** (the direction picks a wedge; release/confirm selects). First use
+case: **weapon selection** (guns/missile/bomb/…), so we don't burn a face button per
+weapon. Must work in BOTH modalities the same way: **glass overlay = press-and-drag**
+(touch vector → wedge), **VR = press-and-stick** (thumbstick vector → wedge). Because it
+temporarily commandeers an input axis, it belongs in the input/controller layer, not just
+UI. Likely the general model for **select menus / disclosure** too (a select3d could open
+as a radial in VR). Shares the spawn→pick→dispose lifecycle with the sub-panels item
+above; log UX in UI-DESIGN-NOTES.md. (Surfaced wiring the aircraft weapons — 3 weapons
+already strain the face-button budget; see [[control-conventions-gtav]].)
 
 [x] Enter VR button GROUPED next to the gear in a top-left toolbar (not a panel row — a panel row scrolled/clipped in the library demo's long list, and a separate button makes VR availability obvious). Gear top-left so it clears demos' top-right text overlays. `panel3d.scrollBy`/`scrollable` enabler added.
 [ ] `toolbar3d` widget: a widgets3d row that lays out a series of buttons in a SINGLE row, equally sized. (Emoji work as button glyphs in SVG text — rasterize in modern browsers — but can't be recolored/themed; use SVG paths for themeable icons.) First use case: the **sound demo** wants a play/stop toolbar (currently separate button rows).
