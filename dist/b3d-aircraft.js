@@ -691,21 +691,10 @@ export class B3dAircraft extends B3dControllable {
                 continue;
             traces.push({ pos: t.pos, kind: t.id.faction, locked: t.locked });
         }
-        // Project from the ACTIVE CAMERA (what you actually see), not the airframe body —
-        // so a blip overlays the enemy on screen in every view (cockpit, chase, VR). Match
-        // the HUD ring's angular span to the camera FOV so positions line up.
-        const p = cam.globalPosition;
-        cam.getWorldMatrix().decompose(undefined, this._camQuat, undefined);
-        const q = this._camQuat;
-        const fovV = cam.fov ?? Math.PI / 4;
-        const eng = this.owner.engine;
-        const h = eng.getRenderHeight();
-        const aspect = h > 0 ? eng.getRenderWidth() / h : 1;
-        const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect);
-        hud.setTraces(traces, {
-            position: { x: p.x, y: p.y, z: p.z },
-            rotation: { x: q.x, y: q.y, z: q.z, w: q.w },
-        }, { fovH, fovV, radius: 84, pinRadius: 116 });
+        // The HUD projects these itself, onto its own quad (the cockpit combiner), by
+        // intersecting the eye→target ray with the glass — so blips land on the targets you
+        // actually see. We just hand it world positions + the eye.
+        hud.setTraces(traces, cam);
     }
     /** The attached `<tosi-b3d-radar>` child (found once), or null. */
     get radar() {

@@ -32,6 +32,22 @@ export type HudTraceInput = {
   /** Radar has a lock on this contact — drawn with a bolder, fully-opaque stroke. */
   locked?: boolean
 }
+
+/**
+ * A trace ALREADY placed in HUD viewBox coordinates (0..VIEWBOX, +y down) by whoever
+ * owns the HUD's geometry. We deliberately do NOT re-derive a projection here: the HUD
+ * is a real quad in the world (the cockpit combiner), so `b3d-hud` places each contact
+ * by intersecting the eye→target ray with that quad — which cannot disagree with what
+ * the renderer draws. `tracked` = it fell ON the glass; false = pinned to the ring.
+ */
+export type HudTracePoint = {
+  x: number
+  y: number
+  kind: TraceKind
+  locked?: boolean
+  tracked: boolean
+}
+
 /** A warning line; give it a `side` to also flash that arc frame red. */
 export type HudWarning = { text: string; side?: Side }
 
@@ -42,8 +58,10 @@ export type HudController = {
   setMeter(name: MeterName, level: number): void
   /** Drive the horizon: pitch/roll in degrees, optional centre AoA number. */
   setHorizon(pitchDeg: number, rollDeg: number, angle?: number): void
-  /** Replace the radar/waypoint traces from world positions + the viewer pose. */
-  setTraces(traces: HudTraceInput[], viewer: Pose, opts: HudTraceOptions): void
+  /** Replace the radar traces. Points are ALREADY in HUD viewBox coords — whoever
+   * owns the HUD's geometry (b3d-hud) projects them, because only it knows where the
+   * HUD actually is. See `HudTracePoint`. */
+  setTraces(points: HudTracePoint[]): void
   /** Show warning lines (the `#warning` text) and flash any threat-side arc red. */
   setWarnings(warnings: HudWarning[]): void
 }
@@ -117,7 +135,14 @@ const normalizeHud = (el: SVGSVGElement): void => {
   }
 }
 
-const CENTER = 128 // HUD viewBox centre
+/** HUD viewBox is 256×256; CENTER is its middle. Exported so whoever projects onto
+ * the HUD (b3d-hud) can map its quad's local (u,v) into these coords. */
+export const HUD_VIEWBOX = 256
+export const HUD_CENTER = HUD_VIEWBOX / 2
+/** Radius the ring sits at, and where out-of-glass contacts pin. */
+export const HUD_RING_RADIUS = 84
+export const HUD_PIN_RADIUS = 116
+const CENTER = HUD_CENTER // HUD viewBox centre
 const PATH_LEN = 1000 // matches pathLength="1000" on the meter arcs
 
 export type HudControllerOptions = {
@@ -195,11 +220,7 @@ export function createHudController(
   const tracesG = el.querySelector('#traces') as SVGGElement | null
   const templateId = (kind: TraceKind) =>
     kind === 'waypoint' ? 'waypoint' : `radar-${kind}`
-  const setTraces = (
-    list: HudTraceInput[],
-    viewer: Pose,
-    opts: HudTraceOptions
-  ) => {
+  const setTraces = (list: HudTracePoint[]) => {
     if (tracesG == null) return
     while (tracesG.firstChild) tracesG.removeChild(tracesG.firstChild)
     for (const t of list) {
@@ -207,8 +228,8 @@ export function createHudController(
       if (src == null) continue
       const glyph = src.cloneNode(true) as SVGGElement
       glyph.removeAttribute('id')
-      const { x, y, tracked } = hudTrace(viewer, t.pos, opts)
-      glyph.setAttribute('transform', `translate(${CENTER + x}, ${CENTER + y})`)
+      const { x, y, tracked } = t // already in HUD viewBox coords
+      glyph.setAttribute('transform', `translate(${x}, ${y})`)
       // A trace template is a <g> whose child shapes carry the stroke (each with
       // its own inline `style`), so the lock cue has to be applied to the shapes,
       // not the group. LOCKED: white outline + the faction colour as a translucent

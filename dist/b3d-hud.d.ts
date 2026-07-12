@@ -1,7 +1,5 @@
 import { B3dChild } from './b3d-utils';
-import { type MeterName, type HudTraceInput, type HudWarning } from './hud';
-import type { HudTraceOptions } from './hud-math';
-import type { Pose } from './spatial-transform';
+import { type MeterName, type TraceKind, type HudWarning } from './hud';
 import type { B3d } from './tosi-b3d';
 import * as BABYLON from '@babylonjs/core';
 export declare class B3dHud extends B3dChild {
@@ -85,8 +83,45 @@ export declare class B3dHud extends B3dChild {
     setVisible(visible: boolean): void;
     /** Warning lines (PULL UP / MISSILE …); a warning's `side` flashes that arc red. */
     setWarnings(warnings: HudWarning[]): void;
-    /** Replace the radar/waypoint traces from world positions + the viewer pose. */
-    setTraces(traces: HudTraceInput[], viewer: Pose, opts: HudTraceOptions): void;
+    /**
+     * Where a WORLD point appears ON THE HUD, in viewBox coords — using the HUD's REAL
+     * geometry rather than re-deriving a projection.
+     *
+     * The in-scene HUD is a literal quad on the canopy (a combiner glass), so "where does
+     * that target appear on the HUD" is just: cast a ray from the EYE through the target
+     * and intersect it with the quad. We do it in the quad's LOCAL space (transform eye +
+     * target by the plane's inverse world matrix; the plane is then the z=0 square from
+     * -size/2..+size/2), which folds in the plane's position, orientation, parent and
+     * scale for free — no projection matrix, no FOV, no handedness to get wrong. It
+     * therefore cannot disagree with what the renderer draws through the glass.
+     *
+     * Returns null if the target isn't in front of the eye. `tracked` is false when the
+     * hit falls OUTSIDE the glass — the caller pins those to the ring.
+     */
+    projectWorldToHud(world: {
+        x: number;
+        y: number;
+        z: number;
+    }, camera: BABYLON.Camera): {
+        x: number;
+        y: number;
+        tracked: boolean;
+    } | null;
+    /** Flat-overlay projection: Babylon projects the world point to SCREEN (its real
+     * projection — cannot disagree with what's drawn), then we map that screen point into
+     * the overlay SVG's on-screen rect → viewBox coords. */
+    private _projectViaScreen;
+    /** Replace the radar traces from WORLD positions — the HUD projects them onto its
+     * own quad (see projectWorldToHud), so blips land on the targets you see. */
+    setTraces(traces: Array<{
+        pos: {
+            x: number;
+            y: number;
+            z: number;
+        };
+        kind: TraceKind;
+        locked?: boolean;
+    }>, camera: BABYLON.Camera): void;
 }
 export declare const b3dHud: (...args: unknown[]) => B3dHud;
 //# sourceMappingURL=b3d-hud.d.ts.map

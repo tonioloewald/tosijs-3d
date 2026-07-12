@@ -9,7 +9,7 @@
         "@babylonjs/gui": "^8.56.2",
         "@babylonjs/loaders": "^8.56.2",
         "@babylonjs/materials": "^8.56.2",
-        "haltija": "^1.3.2",
+        "haltija": "^1.3.4",
         "jolt-physics": "^1.0.0",
       },
       "devDependencies": {
@@ -211,7 +211,7 @@
 
     "globals": ["globals@17.7.0", "", {}, "sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg=="],
 
-    "haltija": ["haltija@1.3.2", "", { "dependencies": { "tosijs-schema": "^1.1.3" }, "bin": { "tosijs-dev": "bin/tosijs-dev.mjs", "haltija": "bin/tosijs-dev.mjs", "hj": "bin/hj.mjs", "haltija-mcp-setup": "bin/mcp-setup.mjs" } }, "sha512-29jAYpf16io0OUHRN53c0QKgffGpgPJxbYXpm1Iz4PFTiF35SEuBvff7qLQzWW1SVh8LYZoX+/9dBXd7LQNCIQ=="],
+    "haltija": ["haltija@1.3.4", "", { "dependencies": { "tosijs-schema": "^1.1.3" }, "bin": { "tosijs-dev": "bin/tosijs-dev.mjs", "haltija": "bin/tosijs-dev.mjs", "hj": "bin/hj.mjs", "haltija-mcp-setup": "bin/mcp-setup.mjs" } }, "sha512-XwckqnmO104jShTZCpp6MrYnIzC5F91wobM30fMvi8ZuUvxFdvIJy49NouI6aKrhpn+4xv9xPLpdtO2uCunYVA=="],
 
     "happy-dom": ["happy-dom@20.10.6", "", { "dependencies": { "@types/node": ">=20.0.0", "@types/whatwg-mimetype": "^3.0.2", "@types/ws": "^8.18.1", "buffer-image-size": "^0.6.4", "entities": "^7.0.1", "whatwg-mimetype": "^3.0.0", "ws": "^8.21.0" } }, "sha512-6QD0ilzDDt93tX44y8tbmZdAcdTRYDhUP+Asgi6pC8Pp5IA3cvaZGyoVN/EGtlq9ziT65iPuBBn3ASLr6hCgVw=="],
 

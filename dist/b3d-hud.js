@@ -94,7 +94,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "UI" }*/
 import { B3dChild } from './b3d-utils';
 import { SvgTexture } from './svg-texture';
-import { loadHud, buildFallbackHud, } from './hud';
+import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud';
 import * as BABYLON from '@babylonjs/core';
 export class B3dHud extends B3dChild {
     static initAttributes = {
@@ -273,9 +273,118 @@ export class B3dHud extends B3dChild {
         this._warnings = warnings;
         this.controller?.setWarnings(warnings);
     }
-    /** Replace the radar/waypoint traces from world positions + the viewer pose. */
-    setTraces(traces, viewer, opts) {
-        this.controller?.setTraces(traces, viewer, opts);
+    /**
+     * Where a WORLD point appears ON THE HUD, in viewBox coords — using the HUD's REAL
+     * geometry rather than re-deriving a projection.
+     *
+     * The in-scene HUD is a literal quad on the canopy (a combiner glass), so "where does
+     * that target appear on the HUD" is just: cast a ray from the EYE through the target
+     * and intersect it with the quad. We do it in the quad's LOCAL space (transform eye +
+     * target by the plane's inverse world matrix; the plane is then the z=0 square from
+     * -size/2..+size/2), which folds in the plane's position, orientation, parent and
+     * scale for free — no projection matrix, no FOV, no handedness to get wrong. It
+     * therefore cannot disagree with what the renderer draws through the glass.
+     *
+     * Returns null if the target isn't in front of the eye. `tracked` is false when the
+     * hit falls OUTSIDE the glass — the caller pins those to the ring.
+     */
+    projectWorldToHud(world, camera) {
+        const plane = this._plane;
+        // Flat DOM overlay (chase view): there's no glass in the world, so use Babylon's
+        // OWN screen projection and map that screen point into the overlay's rect. Same
+        // principle — let the renderer do the projection, don't re-derive it.
+        if (plane == null || !this._inSceneVisible) {
+            return this._projectViaScreen(world, camera);
+        }
+        const inv = BABYLON.Matrix.Invert(plane.getWorldMatrix());
+        const eye = BABYLON.Vector3.TransformCoordinates(camera.globalPosition, inv);
+        const tgt = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(world.x, world.y, world.z), inv);
+        const dz = tgt.z - eye.z;
+        if (Math.abs(dz) < 1e-6)
+            return null; // ray parallel to the glass
+        const t = -eye.z / dz; // where the eye→target ray crosses the plane (z = 0)
+        if (t <= 0)
+            return null; // the glass is behind us relative to the target
+        const half = (this._inSceneOpts?.size ?? 1.2) / 2;
+        const u = (eye.x + t * (tgt.x - eye.x)) / half; // -1..1 across the glass
+        const v = (eye.y + t * (tgt.y - eye.y)) / half;
+        const tracked = Math.abs(u) <= 1 && Math.abs(v) <= 1;
+        if (tracked) {
+            // +y is DOWN in SVG, +Y is UP on the quad.
+            return {
+                x: HUD_CENTER + u * HUD_CENTER,
+                y: HUD_CENTER - v * HUD_CENTER,
+                tracked: true,
+            };
+        }
+        // Off the glass: pin to the ring in that bearing direction.
+        const len = Math.hypot(u, v) || 1;
+        return {
+            x: HUD_CENTER + (u / len) * HUD_PIN_RADIUS,
+            y: HUD_CENTER - (v / len) * HUD_PIN_RADIUS,
+            tracked: false,
+        };
+    }
+    /** Flat-overlay projection: Babylon projects the world point to SCREEN (its real
+     * projection — cannot disagree with what's drawn), then we map that screen point into
+     * the overlay SVG's on-screen rect → viewBox coords. */
+    _projectViaScreen(world, camera) {
+        const scene = this.owner?.scene;
+        const svg = this.controller?.el;
+        if (scene == null || svg == null)
+            return null;
+        const engine = scene.getEngine();
+        const canvas = engine.getRenderingCanvas();
+        if (canvas == null)
+            return null;
+        const rw = engine.getRenderWidth();
+        const rh = engine.getRenderHeight();
+        const p = BABYLON.Vector3.Project(new BABYLON.Vector3(world.x, world.y, world.z), BABYLON.Matrix.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(rw, rh));
+        if (p.z < 0 || p.z > 1)
+            return null; // behind the eye
+        const cr = canvas.getBoundingClientRect();
+        const sr = svg.getBoundingClientRect();
+        if (sr.width < 1 || sr.height < 1)
+            return null; // overlay not laid out
+        // render px → page px → normalised across the overlay (-1..1, +v up)
+        const px = cr.left + (p.x / rw) * cr.width;
+        const py = cr.top + (p.y / rh) * cr.height;
+        const u = ((px - sr.left) / sr.width) * 2 - 1;
+        const v = -(((py - sr.top) / sr.height) * 2 - 1);
+        const tracked = Math.abs(u) <= 1 && Math.abs(v) <= 1;
+        if (tracked) {
+            return {
+                x: HUD_CENTER + u * HUD_CENTER,
+                y: HUD_CENTER - v * HUD_CENTER,
+                tracked: true,
+            };
+        }
+        const len = Math.hypot(u, v) || 1;
+        return {
+            x: HUD_CENTER + (u / len) * HUD_PIN_RADIUS,
+            y: HUD_CENTER - (v / len) * HUD_PIN_RADIUS,
+            tracked: false,
+        };
+    }
+    /** Replace the radar traces from WORLD positions — the HUD projects them onto its
+     * own quad (see projectWorldToHud), so blips land on the targets you see. */
+    setTraces(traces, camera) {
+        if (this.controller == null)
+            return;
+        const points = [];
+        for (const t of traces) {
+            const p = this.projectWorldToHud(t.pos, camera);
+            if (p == null)
+                continue; // behind the glass — not shown
+            points.push({
+                x: p.x,
+                y: p.y,
+                kind: t.kind,
+                locked: t.locked,
+                tracked: p.tracked,
+            });
+        }
+        this.controller.setTraces(points);
     }
 }
 export const b3dHud = B3dHud.elementCreator({ tag: 'tosi-b3d-hud' });

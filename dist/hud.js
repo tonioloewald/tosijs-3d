@@ -13,7 +13,7 @@ missing.
 */
 /*{ "parent": "Core" }*/
 import { svgElements } from 'tosijs';
-import { hudTrace, sideFromD, } from './hud-math';
+import { sideFromD, } from './hud-math';
 const SVGNS = 'http://www.w3.org/2000/svg';
 /**
  * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the
@@ -77,7 +77,14 @@ const normalizeHud = (el) => {
         el.appendChild(layer);
     }
 };
-const CENTER = 128; // HUD viewBox centre
+/** HUD viewBox is 256×256; CENTER is its middle. Exported so whoever projects onto
+ * the HUD (b3d-hud) can map its quad's local (u,v) into these coords. */
+export const HUD_VIEWBOX = 256;
+export const HUD_CENTER = HUD_VIEWBOX / 2;
+/** Radius the ring sits at, and where out-of-glass contacts pin. */
+export const HUD_RING_RADIUS = 84;
+export const HUD_PIN_RADIUS = 116;
+const CENTER = HUD_CENTER; // HUD viewBox centre
 const PATH_LEN = 1000; // matches pathLength="1000" on the meter arcs
 /** Wrap a (normalized) HUD SVG element with the meter/horizon/trace setters. */
 export function createHudController(el, options = {}) {
@@ -136,7 +143,7 @@ export function createHudController(el, options = {}) {
     };
     const tracesG = el.querySelector('#traces');
     const templateId = (kind) => kind === 'waypoint' ? 'waypoint' : `radar-${kind}`;
-    const setTraces = (list, viewer, opts) => {
+    const setTraces = (list) => {
         if (tracesG == null)
             return;
         while (tracesG.firstChild)
@@ -147,8 +154,8 @@ export function createHudController(el, options = {}) {
                 continue;
             const glyph = src.cloneNode(true);
             glyph.removeAttribute('id');
-            const { x, y, tracked } = hudTrace(viewer, t.pos, opts);
-            glyph.setAttribute('transform', `translate(${CENTER + x}, ${CENTER + y})`);
+            const { x, y, tracked } = t; // already in HUD viewBox coords
+            glyph.setAttribute('transform', `translate(${x}, ${y})`);
             // A trace template is a <g> whose child shapes carry the stroke (each with
             // its own inline `style`), so the lock cue has to be applied to the shapes,
             // not the group. LOCKED: white outline + the faction colour as a translucent

@@ -388,17 +388,14 @@ type HudSink = {
   setHorizon(pitch: number, roll: number, angle?: number): void
   setVisible(visible: boolean): void
   setWarnings(warnings: Array<{ text: string; side?: string }>): void
+  /** World positions + the eye; the HUD projects them onto its own quad. */
   setTraces?(
     traces: Array<{
       pos: { x: number; y: number; z: number }
       kind: string
       locked?: boolean
     }>,
-    viewer: {
-      position: { x: number; y: number; z: number }
-      rotation: { x: number; y: number; z: number; w: number }
-    },
-    opts: { fovH: number; fovV: number; radius: number; pinRadius?: number }
+    camera: BABYLON.Camera
   ): void
   attachInScene?(
     parent: BABYLON.TransformNode,
@@ -781,25 +778,10 @@ export class B3dAircraft extends B3dControllable {
       if (!t.detected) continue
       traces.push({ pos: t.pos, kind: t.id.faction, locked: t.locked })
     }
-    // Project from the ACTIVE CAMERA (what you actually see), not the airframe body —
-    // so a blip overlays the enemy on screen in every view (cockpit, chase, VR). Match
-    // the HUD ring's angular span to the camera FOV so positions line up.
-    const p = cam.globalPosition
-    cam.getWorldMatrix().decompose(undefined, this._camQuat, undefined)
-    const q = this._camQuat
-    const fovV = (cam as { fov?: number }).fov ?? Math.PI / 4
-    const eng = this.owner!.engine
-    const h = eng.getRenderHeight()
-    const aspect = h > 0 ? eng.getRenderWidth() / h : 1
-    const fovH = 2 * Math.atan(Math.tan(fovV / 2) * aspect)
-    hud.setTraces(
-      traces,
-      {
-        position: { x: p.x, y: p.y, z: p.z },
-        rotation: { x: q.x, y: q.y, z: q.z, w: q.w },
-      },
-      { fovH, fovV, radius: 84, pinRadius: 116 }
-    )
+    // The HUD projects these itself, onto its own quad (the cockpit combiner), by
+    // intersecting the eye→target ray with the glass — so blips land on the targets you
+    // actually see. We just hand it world positions + the eye.
+    hud.setTraces(traces, cam)
   }
 
   /** The attached `<tosi-b3d-radar>` child (found once), or null. */
