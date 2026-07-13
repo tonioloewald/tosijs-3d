@@ -97,6 +97,49 @@ a request/response worker pool.</li>
 capabilities and a gas limit (the gas limit <em>is</em> its worst-case guarantee), and it
 sidesteps <code>unsafe-eval</code>. Wasm is for numeric kernels; a decision-maker is not one.</li>
 </ul>
+<h2>Testing a driver: THREE parts, and dead air is the point</h2>
+<p>Because this boundary is serializable and both halves are deterministic, a driver can be
+developed and tested as a <strong>black box, with no renderer and no browser</strong> — and the
+simulation can be tested against a fake driver in the same way. But the rig needs three
+parts, and the middle one is the whole job:</p>
+<ol>
+<li><p><strong>The real store — don&#39;t fake the mechanics.</strong> <code>world-store</code> is pure, deterministic and
+Babylon-free precisely so it can run headless. A hand-written &quot;fake simulation&quot; would
+drift from it and then lie to you.</p>
+</li>
+<li><p><strong>Synthetic PLAYER PERSONAS — fake the <em>player</em>, because that&#39;s the real input.</strong> The
+store on its own emits nothing. What a driver actually consumes is a stream produced by
+<em>somebody blundering about</em>: walking past the clue eleven times, talking to the wrong
+NPC, getting bored, ignoring a nudge entirely. That distribution — the pacing, the
+backtracking, the <em>not</em> engaging — is the input, and it is the thing that must be
+synthesised. Seeded and reproducible; knobs for engagement, attention, persistence,
+goal-directedness.</p>
+<p><strong>These personas ARE the &quot;artificial stupidity&quot; work (AI-DESIGN), pointed at testing.</strong>
+A GM that only copes with a competent player is pointless — a GM exists <em>for</em> the player
+who is lost.</p>
+</li>
+<li><p><strong>A HOSTILE transport.</strong> The membrane is lossy and async <em>by contract</em>, so the double
+must drop, delay and reorder events, and answer <code>getState</code> from a snapshot the world has
+already moved past. That isn&#39;t a stress test, it&#39;s a <strong>conformance</strong> test: a driver that
+only works against a perfect synchronous stream will break the instant it&#39;s in a worker,
+and a friendly mock will never show you.</p>
+</li>
+</ol>
+<p><strong>Dead air is a first-class test case.</strong> Because events are <em>commitments, not proximity</em>, a
+player who blunders past the clue a dozen times generates <strong>no events at all</strong>. The driver
+must infer stuckness from <strong>silence plus state queries</strong> — which is exactly why
+<code>WorldState.now</code> crosses the boundary. That is the hardest driver behaviour there is, and a
+harness that replays canned event logs can never produce it: the interesting signal is the
+<em>absence</em> of one. Only a persona that <em>nearly</em> engages generates it.</p>
+<p><strong>Assert in both directions</strong>, or it&#39;s a demo rather than a test:</p>
+<ul>
+<li><strong>under-intervention</strong> — the player is stuck for ten minutes of sim time and the driver
+never escalated;</li>
+<li><strong>over-intervention</strong> — the driver railroaded someone who was happily exploring.</li>
+</ul>
+<p>And in reverse, to prove the sim is the sandbox it claims to be: a <strong>scripted adversarial
+driver</strong> pushing intents that are stale, impossible, contradictory, aimed at dead entities,
+or simply flooding — none of which may corrupt anything, because intents are advisory.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

@@ -86,6 +86,42 @@ steering API to take ARRAYS now so the kernel can drop in later without an API b
 for why): pure JS stays canonical, wasm is optional behind the same batch interface, differential
 test asserts they agree. Jolt stays — it's already wasm and already mature.
 
+## GM / narrative driver — the off-thread actor (see world-contract.ts + PERF-DESIGN.md)
+
+The GM is a separate project built on AJS, running in a worker, driving this sim through
+`world-contract`. Distributable tasks once it's refocused:
+
+[ ] **Extract the contract as its own tiny package.** `world-contract.ts` is pure types with
+ZERO dependencies. The GM repo must depend on _that_, never on tosijs-3d — otherwise a narrative
+engine transitively depends on a 3D renderer, which is the exact coupling the contract exists to
+prevent. Ship the doubles + conformance kit with it.
+[ ] **The driver test rig — THREE parts** (the middle one is the job):
+
+1. the REAL `world-store` (pure, deterministic, headless — don't fake the mechanics, a fake
+   drifts and then lies to you);
+2. **synthetic PLAYER PERSONAS** — the store emits nothing on its own; what a GM consumes is a
+   stream produced by somebody BLUNDERING. Seeded, reproducible; knobs for engagement,
+   attention, persistence, goal-directedness. **These personas ARE the artificial-stupidity work
+   (AI-DESIGN) pointed at testing** — a GM that only copes with a competent player is pointless;
+3. a **HOSTILE transport** — drop/delay/reorder events, answer getState from a stale snapshot.
+   Conformance, not stress: the membrane is lossy and async BY CONTRACT, and a friendly mock
+   would hide a driver that can't survive being in a worker.
+   [ ] **Dead air is a first-class test case.** Events are commitments, not proximity — so a player
+   who walks past the clue a dozen times generates NO EVENTS. The GM must infer stuckness from
+   silence + state queries (which is why `WorldState.now` crosses the boundary). A canned event log
+   can never test this; only a persona that NEARLY engages produces it.
+   [ ] Assert in BOTH directions or it's a demo, not a test: under-intervention (stuck ten minutes,
+   GM never escalated) AND over-intervention (GM railroaded someone who was happily exploring).
+   [ ] Reverse rig, on our side: a **scripted adversarial driver** pushing stale/impossible/
+   contradictory/dead-entity/flooding intents — none of which may corrupt anything, since intents
+   are advisory. This is what proves the sim is the complete sandbox the contract claims.
+   [ ] **Golden replays for free:** the store is deterministic and clock-free, so (seed + event log)
+   reproduces a session exactly. Regression = replay this stream, assert the intents. Seeded ⇒ you
+   can FUZZ the guarantees reproducibly ("drop 30% of events; assert the GM still converges").
+   [ ] **NB the rig is the AI scenario harness with a different observer** — seeded scene, seeded
+   RNG, drivers as input providers, debugState overlays. Swap the NPC-AI-under-test for a player
+   PERSONA and make the GM the thing observed. One harness, two consumers: build it once, properly.
+
 ## AI scenario harness (verification playgrounds)
 
 [ ] Shared **scenario harness** for watching AIs (design: AI-DESIGN.md → "Scenario playgrounds"). Spawns a configured scene (entities/targets/obstacles/waypoints/roads/traffic), SEEDS RNG (presets = named seeds/configs, randomized runs reproducible), drives the AI(s) as InputProviders, overlays each AI's `debugState`. Beyond the trigger wander demo: AI aircraft (pick targets, avoid air/terrain collisions, fly waypoints, shoot, break off); AI ground vehicle (roads + traffic). The **AI-aircraft playground is how we verify the MVP aircraft-combat slice** — build it alongside the aircraft AI. Leans on the deterministic/seedable world-store.
