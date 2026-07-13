@@ -4,6 +4,19 @@
  */
 export class PerlinNoise {
     perm;
+    /**
+     * Gradient vectors, FLAT: `[x0,y0,z0, x1,y1,z1, …]`, 512 × 3 doubles.
+     *
+     * This was `Array<[number, number, number]>` — 512 little boxed tuple arrays — and
+     * `grad()` destructured one per call. `grad()` runs EIGHT times per `noise3D` (one per
+     * cube corner), `noise3D` runs 7× per terrain height sample, and a terrain tile takes
+     * 729 samples: that destructure-from-a-pointer-chase was the hottest line in the
+     * library, and V8 suffers far more from it than JavaScriptCore does.
+     *
+     * Flat `Float64Array` keeps the values BIT-IDENTICAL (doubles in, doubles out — a
+     * Float32Array would silently change the terrain) while making a corner lookup three
+     * contiguous loads with no indirection.
+     */
     gradP;
     /**
      * Creates a new Perlin noise generator
@@ -12,7 +25,7 @@ export class PerlinNoise {
     constructor(seed) {
         // Initialize permutation table
         this.perm = new Uint8Array(512);
-        this.gradP = new Array(512);
+        this.gradP = new Float64Array(512 * 3);
         this.seed(seed || Math.random() * 65536);
     }
     /**
@@ -42,7 +55,10 @@ export class PerlinNoise {
         // Duplicate to avoid buffer overruns
         for (let i = 0; i < 512; i++) {
             this.perm[i] = p[i & 255];
-            this.gradP[i] = this.generateGradient(this.perm[i]);
+            const [gx, gy, gz] = this.generateGradient(this.perm[i]);
+            this.gradP[i * 3] = gx;
+            this.gradP[i * 3 + 1] = gy;
+            this.gradP[i * 3 + 2] = gz;
         }
     }
     /**
@@ -54,13 +70,18 @@ export class PerlinNoise {
      */
     noise3D(x, y, z) {
         // Find unit cube that contains point
-        const X = Math.floor(x) & 255;
-        const Y = Math.floor(y) & 255;
-        const Z = Math.floor(z) & 255;
+        // Floor ONCE per axis and reuse it for both the cell index and the fractional part
+        // (it used to be computed twice per axis, six Math.floor calls where three will do).
+        const fx = Math.floor(x);
+        const fy = Math.floor(y);
+        const fz = Math.floor(z);
+        const X = fx & 255;
+        const Y = fy & 255;
+        const Z = fz & 255;
         // Find relative position in cube
-        x -= Math.floor(x);
-        y -= Math.floor(y);
-        z -= Math.floor(z);
+        x -= fx;
+        y -= fy;
+        z -= fz;
         // Compute fade curves
         const u = this.fade(x);
         const v = this.fade(y);
@@ -129,10 +150,10 @@ export class PerlinNoise {
      * gradient vectors and distance vectors
      */
     grad(hash, x, y, z) {
-        // Get gradient vector for this corner
-        const [gx, gy, gz] = this.gradP[hash & 511];
-        // Compute dot product with distance vector
-        return gx * x + gy * y + gz * z;
+        // Three contiguous loads, no indirection and nothing to destructure — see `gradP`.
+        const g = this.gradP;
+        const i = (hash & 511) * 3;
+        return g[i] * x + g[i + 1] * y + g[i + 2] * z;
     }
     /**
      * Internal helper: Generate a random gradient vector

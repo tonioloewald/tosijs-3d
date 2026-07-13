@@ -136,3 +136,55 @@ test('performance benchmark', async () => {
   // Optional performance assertion - uncomment if you want to enforce performance
   // expect(duration).toBeLessThan(500); // Should complete in under 500ms
 })
+
+/**
+ * GOLDEN VALUES — the terrain's shape IS these numbers.
+ *
+ * Perlin output isn't an implementation detail here: a tile's heightfield is derived from
+ * it, so any change to these values silently reshapes every world, invalidates saved
+ * coordinates, and breaks the determinism the worker/wasm plan depends on (worker and
+ * main thread MUST agree bit-for-bit, since they rebuild the noise from the same seed).
+ *
+ * The rest of this file only checks ranges, which would happily pass while the terrain
+ * turned into a different planet. These are exact, and they are pinned deliberately: they
+ * caught nothing when `gradP` was flattened from an array-of-tuples to a flat
+ * Float64Array (3.1× faster, bit-identical) — which is exactly the outcome you want a
+ * golden test to certify.
+ */
+describe('golden values — the shape of every world', () => {
+  const n = new PerlinNoise(42)
+
+  test('noise3D is bit-identical to the reference', () => {
+    // Exact round-trip literals — do NOT retype these by hand (I shortened one digit and
+    // produced a different double, which is precisely the failure mode they exist to catch).
+    const expected = [
+      -0.17656480703999927, -0.4094007159191367, 0.033592915297415836,
+      0.15824159714171637, 0.41043875924047857, 0.11909135116189193,
+      0.4791952595714808, 0.20400249388853364,
+    ]
+    for (let i = 0; i < expected.length; i++) {
+      expect(n.noise3D(i * 1.37, i * 0.71 + 0.3, i * 2.13 - 1.1)).toBe(
+        expected[i]
+      )
+    }
+  })
+
+  test('fractal is bit-identical to the reference', () => {
+    const expected = [
+      -0.10974719999999998, 0.006454424983633837, 0.1147543415466668,
+      0.15081488591934808,
+    ]
+    for (let i = 0; i < expected.length; i++) {
+      expect(n.fractal(i * 0.9 + 0.2, i * 1.3, i * 0.4, 4)).toBe(expected[i])
+    }
+  })
+
+  test('same seed, same world — twice', () => {
+    const a = new PerlinNoise(1234)
+    const b = new PerlinNoise(1234)
+    for (let i = 0; i < 32; i++) {
+      const args: [number, number, number] = [i * 0.31, i * 0.77, i * 0.13]
+      expect(a.noise3D(...args)).toBe(b.noise3D(...args))
+    }
+  })
+})
