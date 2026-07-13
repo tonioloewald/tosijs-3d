@@ -1403,7 +1403,15 @@ export class B3d extends Component {
 
     // The in-scene settings panel (with an Exit-VR button), anchored to the eye
     // frame 60° up so it sits consistently above your sight-line.
-    const panel = this._attachXrPanel(base, frames.eye)
+    // Rebuildable: a structural change (expanding the perf stats, a debug source adding a
+    // line) DISPOSES and re-attaches, because the panel's pointer/scroll closures can't
+    // survive having their widgets swapped underneath them. Live numbers don't come
+    // through here — those update the <text> nodes in place.
+    let panel = this._attachXrPanel(base, frames.eye)
+    this._refreshXrPanel = () => {
+      panel.dispose()
+      panel = this._attachXrPanel(base, frames.eye)
+    }
 
     // A subtle grid floor — something to stand on and judge motion against.
     // Show the grid when `xr-grid="on"`, or `"auto"` (default) UNLESS a player
@@ -1726,6 +1734,7 @@ export class B3d extends Component {
     return {
       dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
+        this._refreshXrPanel = noopRefresh
         panel.dispose()
         for (const p of bodyPanels) p.dispose()
         frames.dispose()
@@ -1921,24 +1930,23 @@ export class B3d extends Component {
     // LIVE numbers in the headset. The XR panel is built once at entry, so a debug
     // readout would otherwise freeze at whatever it said when you put the headset on —
     // useless for watching a worst-frame spike as you fly. The SvgTexture re-renders
-    // this element on its own cadence (200ms below), so we don't rebuild the panel: we
-    // swap its CHILDREN in place, keeping the element identity the texture holds (and
-    // the `handlePointer` the pointer-picking uses). Only while a debug source is
-    // registered — otherwise this is idle.
-    this._refreshXrPanel = () => {
-      if (this._debugSources.length === 0) return
-      const fresh = this._makePanel([
-        button3d({
-          label: 'Exit VR',
-          onClick: () => {
-            void this.xrHelper?.baseExperience?.exitXRAsync()
-          },
-        }),
-        ...this._panelWidgets(true),
-      ])
-      panelEl.replaceChildren(...Array.from(fresh.childNodes))
-    }
-    const liveTimer = setInterval(() => this._refreshXrPanel(), 500)
+    // ⚠️ DO NOT "refresh" this panel by swapping its children.
+    //
+    // `panel3d` hangs `handlePointer`, `scrollBy` and `scrollable` off the SVG element as
+    // CLOSURES over the widget objects it built, and the element's viewBox is sized for
+    // that row count. `replaceChildren()` therefore leaves the pointer router aiming at
+    // detached widgets laid out for a different height — the ray still reports a hit on
+    // the panel and a plausible uv, but it maps to the WRONG control (a few px off, or
+    // wildly, depending on how far the layout drifted), and scrolling dies outright
+    // because `scrollBy` still drives nodes that are no longer in the tree.
+    //
+    // That is exactly what happened: a 500ms child-swap made the XR panel untargetable,
+    // and only in scenes with a registered debug source — which is why the terrain demo
+    // broke and the otherwise-identical combat demo didn't.
+    //
+    // Structural changes REBUILD the panel (dispose + re-attach: see `_refreshXrPanel`,
+    // set where the panel is created). Live NUMBERS don't need any of that — `_startLiveDebug`
+    // rewrites the <text> nodes in place, which changes no structure and no closure.
     const vb = panelEl.viewBox.baseVal
 
     // Anchored to the eye frame (origin = your head), 60° up the sight-line.
@@ -2088,9 +2096,7 @@ export class B3d extends Component {
       dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
         scene.onPointerObservable.remove(obs)
-        clearInterval(liveTimer) // the debug-panel refresher (see _refreshXrPanel)
         offDbg()
-        this._refreshXrPanel = noopRefresh
         this._liveDebug.xr = [] // its <text> nodes die with the panel
         tex.dispose()
         mat.dispose()
