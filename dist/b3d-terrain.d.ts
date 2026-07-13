@@ -44,8 +44,25 @@ export declare class B3dTerrain extends B3dChild {
     /** Padded height grid reused by every tile build — sized once, never reallocated (the
      * streamer builds tiles every frame; allocating here would feed the GC forever). */
     private _fieldScratch;
-    /** Pre-bound so passing it to the kernel doesn't allocate a closure per tile. */
-    private _heightAt;
+    /**
+     * Build a height function with EVERY constant hoisted into a plain local.
+     *
+     * `heightAt` used to read nine reactive component attributes per call (`surfaceType`,
+     * `radius`, `cylinderHeight`, `horizScale`, `grossScale`, `detailScale`, both
+     * amplitudes) and call two helpers that compare strings — inside the innermost loop of
+     * the whole library. At 729 samples per tile and up to 24 tiles a frame that's ~157,000
+     * reactive attribute reads in a saturated frame, all of them re-fetching values that
+     * cannot change during a build.
+     *
+     * They're constant for the tile, so read them ONCE. The returned closure touches nothing
+     * but numbers and three object refs — which is also what makes it portable to a worker
+     * or a wasm kernel later (see PERF-DESIGN.md): it closes over plain data, not over a DOM
+     * component.
+     *
+     * Rebuilt per tile build (24×/frame at worst — nothing), so a slider change or an origin
+     * shift is always picked up.
+     */
+    private makeHeightFn;
     private pool;
     private _resolvedSubs;
     private tileTemplate;
@@ -116,7 +133,6 @@ export declare class B3dTerrain extends B3dChild {
      * average tile. */
     private endProfileFrame;
     private streamTiles;
-    private heightAt;
     private generateTileMesh;
     private renderToU;
     private renderToV;

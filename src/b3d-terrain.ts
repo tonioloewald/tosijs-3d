@@ -387,8 +387,66 @@ export class B3dTerrain extends B3dChild {
   /** Padded height grid reused by every tile build — sized once, never reallocated (the
    * streamer builds tiles every frame; allocating here would feed the GC forever). */
   private _fieldScratch: Float64Array | null = null
-  /** Pre-bound so passing it to the kernel doesn't allocate a closure per tile. */
-  private _heightAt = (wx: number, wz: number): number => this.heightAt(wx, wz)
+  /**
+   * Build a height function with EVERY constant hoisted into a plain local.
+   *
+   * `heightAt` used to read nine reactive component attributes per call (`surfaceType`,
+   * `radius`, `cylinderHeight`, `horizScale`, `grossScale`, `detailScale`, both
+   * amplitudes) and call two helpers that compare strings — inside the innermost loop of
+   * the whole library. At 729 samples per tile and up to 24 tiles a frame that's ~157,000
+   * reactive attribute reads in a saturated frame, all of them re-fetching values that
+   * cannot change during a build.
+   *
+   * They're constant for the tile, so read them ONCE. The returned closure touches nothing
+   * but numbers and three object refs — which is also what makes it portable to a worker
+   * or a wasm kernel later (see PERF-DESIGN.md): it closes over plain data, not over a DOM
+   * component.
+   *
+   * Rebuilt per tile build (24×/frame at worst — nothing), so a slider change or an origin
+   * shift is always picked up.
+   */
+  private makeHeightFn(): (wx: number, wz: number) => number {
+    const attrs = this as any
+    const sampler = this.sampler
+    const noise = this.noise
+    const grossFilter = this.grossFilter
+    const detailFilter = this.detailFilter
+
+    const surfaceType = attrs.surfaceType
+    const radius = attrs.radius
+    const circumU =
+      surfaceType === 'torus'
+        ? 2 * Math.PI * attrs.majorRadius
+        : 2 * Math.PI * radius
+    const circumV =
+      surfaceType === 'sphere'
+        ? Math.PI * radius
+        : surfaceType === 'torus'
+        ? 2 * Math.PI * attrs.minorRadius
+        : attrs.cylinderHeight
+    const worldU = this.worldU
+    const worldV = this.worldV
+    const offX = this.originOffsetX
+    const offZ = this.originOffsetZ
+
+    const hs = attrs.horizScale || 1
+    const gScale = attrs.grossScale / hs
+    const dScale = attrs.detailScale / hs
+    const grossAmp = attrs.grossAmplitude
+    const detailAmp = attrs.detailAmplitude
+
+    return (wx: number, wz: number): number => {
+      const u = worldU + (wx + offX) / circumU
+      const v = worldV + (wz + offZ) / circumV
+      const p = sampler.sample(u, v)
+      const gross = noise.fractal(p.x * gScale, p.y * gScale, p.z * gScale, 4)
+      const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3)
+      return (
+        grossFilter.evaluate(gross * 0.5 + 0.5) * grossAmp +
+        detailFilter.evaluate(detail * 0.5 + 0.5) * detailAmp
+      )
+    }
+  }
   private pool: PoolTile[] = []
   private _resolvedSubs = 0 // hiResSubdivisions after auto-resolution (pool is sized to it)
   private tileTemplate: TileTemplate | null = null
@@ -866,43 +924,6 @@ export class B3dTerrain extends B3dChild {
 
   // --- Height sampling ---
 
-  private heightAt(wx: number, wz: number): number {
-    const attrs = this as any
-    const u = this.renderToU(wx)
-    const v = this.renderToV(wz)
-    const surfPt = this.sampler.sample(u, v)
-
-    // horizScale is a horizontal WORLD scale (>1 bigger, <1 smaller): createLods
-    // multiplies every tileSize by it (so the terrain physically extends further),
-    // and here we divide the sampling frequency by the same factor. The two cancel
-    // in the noise argument, so features keep their proportion to the tiles — a
-    // clean zoom of the whole terrain rather than just retuning the frequency.
-    const hs = attrs.horizScale || 1
-    const gScale = attrs.grossScale / hs
-    const dScale = attrs.detailScale / hs
-
-    const grossRaw = this.noise.fractal(
-      surfPt.x * gScale,
-      surfPt.y * gScale,
-      surfPt.z * gScale,
-      4
-    )
-    const detailRaw = this.noise.fractal(
-      surfPt.x * dScale,
-      surfPt.y * dScale,
-      surfPt.z * dScale,
-      3
-    )
-
-    const grossNorm = grossRaw * 0.5 + 0.5
-    const detailNorm = detailRaw * 0.5 + 0.5
-
-    return (
-      this.grossFilter.evaluate(grossNorm) * attrs.grossAmplitude +
-      this.detailFilter.evaluate(detailNorm) * attrs.detailAmplitude
-    )
-  }
-
   private generateTileMesh(
     tile: PoolTile,
     subdivisions: number,
@@ -938,7 +959,7 @@ export class B3dTerrain extends B3dChild {
     //    Normals stay a function of WORLD position, so same-level neighbouring tiles
     //    still agree exactly on a shared edge vertex → no lighting seam.
     buildTileField(
-      this._heightAt,
+      this.makeHeightFn(),
       cell.cx,
       cell.cz,
       subdivisions,
