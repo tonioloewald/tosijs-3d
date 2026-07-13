@@ -48,6 +48,11 @@ flying, then decide. (Worker before wasm: a shorter blocking burst still drops f
 seed/scales — determinism is what makes this tiny), TRANSFER the result buffers back. Wrinkles:
 async tiles × floating origin (a tile computed pre-shift must rebase or be discarded), a
 `pending` tile state so the pool can't steal an in-flight tile, no SharedArrayBuffer on GH Pages.
+**And the one that decides the design: `new Worker()` needs a SAME-ORIGIN script, so a consumer
+importing us unbundled from a CDN can't spawn one at all** — needs a blob-URL shim that
+dynamic-imports the real worker by absolute URL (see PERF-DESIGN.md). That ceremony is exactly
+what Tonio's unpublished **wobbly** already solves; check whether it does web workers (blob-
+spawnable) vs service workers (NOT — registration rejects blob: and demands same-origin).
 [ ] Batch noise API (`sampleGrid`) — pays in plain JS, serves terrain + planet + star-system,
 and is the seam a wasm kernel drops into. Design it before the kernel.
 [ ] Steering/crowd kernel — NOT yet justified (a handful of agents is free). **The AI scenario

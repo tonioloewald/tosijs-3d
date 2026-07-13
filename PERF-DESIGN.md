@@ -98,10 +98,24 @@ find yourself sending the data, the worker is probably a loss.**
 Two practical notes:
 
 - You cannot clone a closure. Our `heightAt` closes over `PerlinNoise`, the gradient
-  filters and the sampler, so "ship the function across the membrane" doesn't apply —
-  use a **module worker** (`new Worker(new URL('./x.js', import.meta.url), {type:'module'})`,
-  which works unbundled from a CDN _and_ through bundlers) that imports the same ESM and
-  reconstructs from params.
+  filters and the sampler, so "ship the function across the membrane" doesn't apply — the
+  worker should **import the same ESM** and reconstruct the height function from params
+  (determinism is what makes that reconstruction exact).
+- **⚠️ `new Worker(url)` requires a SAME-ORIGIN script — which our own distribution story
+  breaks.** A consumer who bundles from npm is fine (`new Worker(new URL('./x.js',
+import.meta.url), {type:'module'})` — the bundler emits the worker on their origin). A
+  consumer who imports us **unbundled from a CDN** (`cdn.tosijs.net`, esm.sh — exactly the
+  zero-build-step consumption this library is designed for) gets a **cross-origin worker URL
+  and it is blocked outright.**
+  The escape: spawn from a **blob URL** (`URL.createObjectURL`), which inherits the
+  _document's_ origin. The catch is that relative imports inside a blob worker resolve
+  against the blob URL and break — so the blob must be a tiny shim that dynamic-imports the
+  real worker by **absolute URL**, and the module graph loads normally from there.
+  Note **service workers can NOT do this** — `navigator.serviceWorker.register()` demands a
+  same-origin script and rejects `blob:`. Web workers only.
+- **CSP:** a strict `worker-src 'self'` blocks blob workers. So the worker path must always
+  degrade gracefully to the synchronous JS kernel — which we get for free, since the pure JS
+  stays canonical.
 - **No `SharedArrayBuffer` on GitHub Pages** — SAB needs COOP/COEP headers and Pages can't
   set them, so `3d.tosijs.net` can't have it. Transferables only. (This is fine.)
 
