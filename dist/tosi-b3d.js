@@ -767,6 +767,15 @@ export class B3d extends Component {
      * })
      * ```
      */
+    _recenterXr = noop;
+    /**
+     * Re-seat the head: take your CURRENT head yaw as "facing forward". The same thing the
+     * headset's own recentre (holding the Meta button) asks for — we listen for that too, so
+     * it now works; this is the manual door, e.g. a panel button.
+     */
+    recenterXr() {
+        this._recenterXr();
+    }
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
      * its contents in place. Unified on purpose — see `_perfPanelRows`. */
     _repaintPanels() {
@@ -1300,6 +1309,49 @@ export class B3d extends Component {
         let chaseYaw = 0;
         let chaseYawOffset = 0;
         let cockpitYawOffset = 0; // head yaw captured when you take the seat
+        // Deferred + re-armable, rather than captured once on entry. See the capture site.
+        let yawCaptureNeeded = false;
+        const sm = base.sessionManager;
+        /** A real head pose this frame? Before one arrives the camera's rotation is stale. */
+        const hasViewerPose = () => {
+            const f = sm.currentFrame;
+            const rs = sm.referenceSpace;
+            if (f == null || rs == null)
+                return false;
+            try {
+                return f.getViewerPose(rs) != null;
+            }
+            catch {
+                return false;
+            }
+        };
+        /**
+         * Re-seat the head. Holding the Meta button (or any system recentre) fires `reset` on
+         * the XR reference space — the runtime moves the world under you and expects the app
+         * to take the new pose as forward.
+         *
+         * We used to bake `cockpitYawOffset` once, on entry, and then keep applying it — so a
+         * system recentre changed the reference space while we went on correcting by a yaw
+         * measured against the OLD one. The recentre appeared to do nothing (we were undoing
+         * it), which is why the only cure was to exit and re-enter. Re-arm the capture and the
+         * next posed frame re-derives it.
+         */
+        const rearmYaw = () => {
+            yawCaptureNeeded = true;
+        };
+        let resetSpace = null;
+        const bindReset = () => {
+            resetSpace?.removeEventListener('reset', rearmYaw);
+            resetSpace = sm.referenceSpace ?? null;
+            resetSpace?.addEventListener('reset', rearmYaw);
+        };
+        bindReset();
+        // Babylon swaps the reference space on teleport/recentre — rebind, and re-seat.
+        const refSpaceObs = sm.onXRReferenceSpaceChanged.add(() => {
+            bindReset();
+            rearmYaw();
+        });
+        this._recenterXr = rearmYaw;
         let lastView = ''; // re-seat when the camera view toggles
         let chaseZoom = 0.5; // 0..1 chase distance (right stick Y while piloting)
         let chaseFirstFrame = true;
@@ -1357,11 +1409,21 @@ export class B3d extends Component {
                 if (isCockpit) {
                     if (rig.parent !== piloted) {
                         rig.parent = piloted;
-                        // Capture the head's entry yaw so we can recenter the CAMERA to look
-                        // out the nose without moving the (correctly-placed) panels.
+                        yawCaptureNeeded = true;
+                    }
+                    // Capture the head's entry yaw so we can recenter the CAMERA to look out the
+                    // nose without moving the (correctly-placed) panels.
+                    //
+                    // NOT on the frame we take the seat: for the first frames of a session the
+                    // viewer pose can still be null, and the camera then reports a stale/identity
+                    // rotation — so we'd bake a garbage yaw and you'd be seated facing the wrong
+                    // way. (The tell: exiting, holding your head still, and re-entering "fixed" it —
+                    // that just bought a clean capture.) Wait for a real pose.
+                    if (yawCaptureNeeded && hasViewerPose()) {
                         cockpitYawOffset = cam.rotationQuaternion
                             ? cam.rotationQuaternion.toEulerAngles().y
                             : 0;
+                        yawCaptureNeeded = false;
                     }
                     // Neutralize the hull's scale so head tracking & the seat offset stay
                     // 1:1 (no-op once the hull is canonical, but the model isn't always).
@@ -1514,6 +1576,9 @@ export class B3d extends Component {
         return {
             dispose: () => {
                 base.sessionManager.onXRFrameObservable.remove(frame);
+                sm.onXRReferenceSpaceChanged.remove(refSpaceObs);
+                resetSpace?.removeEventListener('reset', rearmYaw);
+                this._recenterXr = noop;
                 this._refreshXrPanel = noopRefresh;
                 panel.dispose();
                 for (const p of bodyPanels)
@@ -1687,6 +1752,12 @@ export class B3d extends Component {
                 onClick: () => {
                     void this.xrHelper?.baseExperience?.exitXRAsync();
                 },
+            }),
+            // Re-seat is XR-only because it's meaningless flat — but it must be REACHABLE from
+            // inside the headset, which is the whole reason the panel exists there.
+            button3d({
+                label: 'Re-seat (look forward first)',
+                onClick: () => this.recenterXr(),
             }),
             ...this._panelWidgets(true),
         ];

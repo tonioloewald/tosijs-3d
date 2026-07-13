@@ -346,6 +346,13 @@ export declare class B3d extends Component {
      * })
      * ```
      */
+    private _recenterXr;
+    /**
+     * Re-seat the head: take your CURRENT head yaw as "facing forward". The same thing the
+     * headset's own recentre (holding the Meta button) asks for — we listen for that too, so
+     * it now works; this is the manual door, e.g. a panel button.
+     */
+    recenterXr(): void;
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
      * its contents in place. Unified on purpose — see `_perfPanelRows`. */
     private _repaintPanels;
