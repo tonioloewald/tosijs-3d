@@ -133,4 +133,74 @@ export function desiredCellsInto(camX, camZ, cfg, out) {
     out.length = n; // drop any surplus objects from a busier previous frame
     return out;
 }
+/**
+ * Scratch size for `buildTileField`: a padded (subdivisions + 3)² height grid — the
+ * tile's own vertices plus **one ring beyond each edge**, which is what the normals
+ * need. Allocate once per subdivision count and reuse it for every tile; the streamer
+ * builds tiles every frame, so this must not allocate.
+ */
+export const tileFieldScratchSize = (subdivisions) => (subdivisions + 3) * (subdivisions + 3);
+/**
+ * Build one tile's heightfield + normals into caller-owned buffers. **Pure**: it knows
+ * nothing about Babylon, meshes, or the noise model — you pass `heightAt`, it fills
+ * `positions` and `normals`.
+ *
+ * ## Why it samples a padded grid
+ *
+ * The normal at a vertex is the height-field gradient, central-differenced over ±e where
+ * `e = tileSize / subdivisions`. But that spacing IS the vertex spacing — so `heightAt(wx
+ * ± e, wz)` is *precisely the height of the neighbouring vertex*. Sampling ±e per vertex
+ * therefore recomputes, five times over, heights the tile is about to compute anyway.
+ *
+ * So: sample a grid ONE RING wider than the tile, then difference neighbours. Same values
+ * (identical heights; normals agree to float32 rounding), and the noise evaluations drop
+ * from `(subs+1)² × 5` to `(subs+3)²` — ~4.3× fewer at subs 24, measured ~3.7–4.8× faster.
+ * The normals stay *analytic* (a function of world position, not of mesh topology), so
+ * same-level neighbouring tiles still agree exactly on a shared edge vertex — which is
+ * what keeps the lighting seam away.
+ *
+ * ## Why it looks like this
+ *
+ * Fixed, caller-owned buffers; no allocation; one call does a whole tile. That's the shape
+ * a wasm kernel wants (see PERF-DESIGN.md) — if tile building ever moves to a worker or to
+ * wasm, THIS is the function that gets replaced, and the differential test that pins it
+ * (terrain-grid.test.ts) becomes the conformance test for the port.
+ */
+export function buildTileField(heightAt, cx, cz, subdivisions, tileSize, scratch, 
+// Babylon's getVerticesData hands back a FloatArray (Float32Array | number[]); this
+// module stays Babylon-free, so accept both rather than lie with a cast.
+positions, normals) {
+    const verts = subdivisions + 1;
+    const P = verts + 2; // padded side: one ring beyond each edge
+    const e = tileSize / subdivisions; // finite-difference step === vertex spacing
+    // 1. Heights over the padded grid, indices -1 … subdivisions+1 on both axes.
+    for (let jz = 0; jz < P; jz++) {
+        const wz = cz + vertexLocal(jz - 1, subdivisions, tileSize, true);
+        for (let jx = 0; jx < P; jx++) {
+            const wx = cx + vertexLocal(jx - 1, subdivisions, tileSize);
+            scratch[jz * P + jx] = heightAt(wx, wz);
+        }
+    }
+    // 2. Positions + analytic normals, differencing the neighbours we just sampled.
+    const ny = 2 * e;
+    for (let iz = 0; iz < verts; iz++) {
+        const localZ = vertexLocal(iz, subdivisions, tileSize, true);
+        for (let ix = 0; ix < verts; ix++) {
+            const j = (iz + 1) * P + (ix + 1);
+            const nx = scratch[j - 1] - scratch[j + 1]; // h(wx-e) − h(wx+e)
+            // localZ is FLIPPED, so the iz+1 neighbour lies at wz − e (not wz + e): the row
+            // BELOW in the scratch grid is the one at wz − e. Get this backwards and every
+            // normal's z is mirrored — the terrain lights from the wrong side.
+            const nz = scratch[j + P] - scratch[j - P]; // h(wz-e) − h(wz+e)
+            const inv = 1 / Math.hypot(nx, ny, nz);
+            const v = iz * verts + ix;
+            positions[v * 3] = vertexLocal(ix, subdivisions, tileSize);
+            positions[v * 3 + 1] = scratch[j];
+            positions[v * 3 + 2] = localZ;
+            normals[v * 3] = nx * inv;
+            normals[v * 3 + 1] = ny * inv;
+            normals[v * 3 + 2] = nz * inv;
+        }
+    }
+}
 //# sourceMappingURL=terrain-grid.js.map

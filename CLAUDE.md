@@ -23,15 +23,16 @@ This file is the map; the reasoning lives in the root design docs. **Read the re
 before (re)designing in its area** — they hold the decisions and the rejected alternatives,
 not just the current state:
 
-| Doc                  | What it holds                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------- |
-| `TODO.md`            | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.     |
-| `COMBAT-DESIGN.md`   | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model              |
-| `AI-DESIGN.md`       | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds  |
-| `SPATIAL-DESIGN.md`  | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math |
-| `UI-DESIGN-NOTES.md` | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                   |
-| `RELEASING.md`       | Release checklist (run steps 1–7; stop before `npm publish`)                                            |
-| `llms.txt`           | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)          |
+| Doc                  | What it holds                                                                                                                                                              |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TODO.md`            | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.                                                                        |
+| `COMBAT-DESIGN.md`   | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model                                                                                 |
+| `AI-DESIGN.md`       | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds                                                                     |
+| `SPATIAL-DESIGN.md`  | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math                                                                    |
+| `PERF-DESIGN.md`     | Acceleration — measure the movable/immovable split first; batch-buffer kernels; workers (send the recipe, transfer the result); where wasm pays and where it's a pure loss |
+| `UI-DESIGN-NOTES.md` | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                                                                                      |
+| `RELEASING.md`       | Release checklist (run steps 1–7; stop before `npm publish`)                                                                                                               |
+| `llms.txt`           | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                             |
 
 ## Build & Development Commands
 

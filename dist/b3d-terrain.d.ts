@@ -41,6 +41,11 @@ export declare class B3dTerrain extends B3dChild {
     private sampler;
     /** Non-null only while `profile` is on — its absence is what makes profiling free. */
     private _prof;
+    /** Padded height grid reused by every tile build — sized once, never reallocated (the
+     * streamer builds tiles every frame; allocating here would feed the GC forever). */
+    private _fieldScratch;
+    /** Pre-bound so passing it to the kernel doesn't allocate a closure per tile. */
+    private _heightAt;
     private pool;
     private _resolvedSubs;
     private tileTemplate;

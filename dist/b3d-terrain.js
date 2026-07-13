@@ -254,7 +254,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
-import { vertexLocal, desiredCellsInto, } from './terrain-grid';
+import { buildTileField, tileFieldScratchSize, desiredCellsInto, } from './terrain-grid';
 import { resolveBudget } from './b3d-quality';
 // Pack (level, gx, gz) into a single number for Map/Set keys. Floating-origin
 // rebasing keeps gx/gz within a few hundred of the origin, so a linear pack with a
@@ -334,6 +334,11 @@ export class B3dTerrain extends B3dChild {
     sampler;
     /** Non-null only while `profile` is on — its absence is what makes profiling free. */
     _prof = null;
+    /** Padded height grid reused by every tile build — sized once, never reallocated (the
+     * streamer builds tiles every frame; allocating here would feed the GC forever). */
+    _fieldScratch = null;
+    /** Pre-bound so passing it to the kernel doesn't allocate a closure per tile. */
+    _heightAt = (wx, wz) => this.heightAt(wx, wz);
     pool = [];
     _resolvedSubs = 0; // hiResSubdivisions after auto-resolution (pool is sized to it)
     tileTemplate = null;
@@ -415,6 +420,7 @@ export class B3dTerrain extends B3dChild {
         // SAME value (attrs.hiResSubdivisions may still be the 0 sentinel).
         const subs = resolveBudget(attrs.hiResSubdivisions, 'hiResSubdivisions');
         this._resolvedSubs = subs;
+        this._fieldScratch = new Float64Array(tileFieldScratchSize(subs));
         this.tileTemplate = B3dTerrain.buildTileTemplate(subs);
         const scene = this.owner.scene;
         const tpl = this.tileTemplate;
@@ -761,33 +767,15 @@ export class B3dTerrain extends B3dChild {
         const tileSize = cell.tileSize;
         const vertsPerSide = subdivisions + 1;
         const attrs = this;
-        const e = tileSize / subdivisions; // finite-difference step for the normal
-        // 1. Heightfield vertices, each given an ANALYTIC normal from the height-field
-        //    gradient (heightAt at ±e). Analytic normals are a pure function of world
-        //    position, so neighbouring tiles agree exactly on a shared edge vertex →
-        //    no lighting seam. (Mesh-averaged normals were computed one-sided at tile
-        //    edges — that WAS the seam.) Vertices are placed relative to the cell
-        //    centre; the mesh sits at that centre in the world.
-        for (let iz = 0; iz < vertsPerSide; iz++) {
-            const localZ = vertexLocal(iz, subdivisions, tileSize, true);
-            const wz = cell.cz + localZ;
-            for (let ix = 0; ix < vertsPerSide; ix++) {
-                const localX = vertexLocal(ix, subdivisions, tileSize);
-                const wx = cell.cx + localX;
-                const height = this.heightAt(wx, wz);
-                const nx = this.heightAt(wx - e, wz) - this.heightAt(wx + e, wz);
-                const nz = this.heightAt(wx, wz - e) - this.heightAt(wx, wz + e);
-                const ny = 2 * e;
-                const inv = 1 / Math.hypot(nx, ny, nz);
-                const v = iz * vertsPerSide + ix;
-                positions[v * 3] = localX;
-                positions[v * 3 + 1] = height;
-                positions[v * 3 + 2] = localZ;
-                normals[v * 3] = nx * inv;
-                normals[v * 3 + 1] = ny * inv;
-                normals[v * 3 + 2] = nz * inv;
-            }
-        }
+        // 1. Heightfield vertices + ANALYTIC normals, via the pure kernel. Normals are the
+        //    height-field gradient central-differenced over ±e, and since e IS the vertex
+        //    spacing, those samples are just the neighbouring vertices — so the kernel
+        //    samples a grid ONE RING wider than the tile and differences it, instead of
+        //    re-evaluating the noise five times per vertex (~4.3× fewer evals; identical
+        //    output — pinned by the differential test in terrain-grid.test.ts).
+        //    Normals stay a function of WORLD position, so same-level neighbouring tiles
+        //    still agree exactly on a shared edge vertex → no lighting seam.
+        buildTileField(this._heightAt, cell.cx, cell.cz, subdivisions, tileSize, this._fieldScratch, positions, normals);
         const tField = now();
         // 2. Skirt vertices: same XZ as their parent perimeter vertex, dropped
         //    straight down; normal copied from the parent (analytic → matches the

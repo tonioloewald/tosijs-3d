@@ -33,6 +33,30 @@ true})` never turns on (killed the trigger — fixed via `disabled`). tosijs wil
 
 [x] HUD warning block — DONE. `setWarnings([{text, side?}])` on the HUD driver + b3d-hud: shows stacked warning text (#warning) and flashes the threatened-side gauge BORDER red (bottom = PULL UP/ground, etc.). Wired into b3d-aircraft (pullUp → bottom, stall → text). Code HUD (buildFallbackHud) is now the default (fully wired); designer-asset `normalizeHud`/horizon adaptation deferred. Next: weapons exist now (v0.4.0) — drive threat warnings from combat (incoming missile → bearing side); and the radar traces (`setTraces`) still need wiring to live scene targets.
 
+## Acceleration (workers / wasm) — see PERF-DESIGN.md
+
+[x] Terrain tile profiler — `profile` attr → `debugState`, split MOVABLE (noise/normals) vs
+IMMOVABLE (GPU upload), plus worst-frame. `movableShare` is the ceiling on any worker/wasm win.
+[x] Padded-grid normals — the ±e gradient samples ARE the neighbouring vertices, so we were
+evaluating the noise 5× per vertex for no reason. `terrain-grid.buildTileField` samples one
+ring wider and differences it: identical output (differential test), ~4.3× fewer evals,
+2.54ms → 0.68ms per tile, worst frame ~61ms → ~16ms. **Algorithmic win before technology win.**
+[ ] **RE-MEASURE in the browser** before building anything else — the padded-grid fix may have
+demoted a terrain worker from _necessary_ to _nice_. Read `movableShare` + `worstFrameMs` while
+flying, then decide. (Worker before wasm: a shorter blocking burst still drops frames.)
+[ ] Terrain worker (only if the numbers say so): send the RECIPE (`{cx,cz,subs,tileSize}` +
+seed/scales — determinism is what makes this tiny), TRANSFER the result buffers back. Wrinkles:
+async tiles × floating origin (a tile computed pre-shift must rebase or be discarded), a
+`pending` tile state so the pool can't steal an in-flight tile, no SharedArrayBuffer on GH Pages.
+[ ] Batch noise API (`sampleGrid`) — pays in plain JS, serves terrain + planet + star-system,
+and is the seam a wasm kernel drops into. Design it before the kernel.
+[ ] Steering/crowd kernel — NOT yet justified (a handful of agents is free). **The AI scenario
+harness is the forcing function**: 50–200 agents doing avoidance is the frame budget. Design the
+steering API to take ARRAYS now so the kernel can drop in later without an API break.
+[ ] tjs-lang as a pinpoint wasm accelerator (NOT a whole-codebase migration — see PERF-DESIGN.md
+for why): pure JS stays canonical, wasm is optional behind the same batch interface, differential
+test asserts they agree. Jolt stays — it's already wasm and already mature.
+
 ## AI scenario harness (verification playgrounds)
 
 [ ] Shared **scenario harness** for watching AIs (design: AI-DESIGN.md → "Scenario playgrounds"). Spawns a configured scene (entities/targets/obstacles/waypoints/roads/traffic), SEEDS RNG (presets = named seeds/configs, randomized runs reproducible), drives the AI(s) as InputProviders, overlays each AI's `debugState`. Beyond the trigger wander demo: AI aircraft (pick targets, avoid air/terrain collisions, fly waypoints, shoot, break off); AI ground vehicle (roads + traffic). The **AI-aircraft playground is how we verify the MVP aircraft-combat slice** — build it alongside the aircraft AI. Leans on the deterministic/seedable world-store.

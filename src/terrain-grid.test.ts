@@ -6,6 +6,8 @@
  */
 import { describe, test, expect } from 'bun:test'
 import {
+  buildTileField,
+  tileFieldScratchSize,
   lodTileSize,
   tileCenter,
   vertexLocal,
@@ -284,5 +286,137 @@ describe('desiredCellsInto — pooled, allocation-free refill', () => {
     desiredCellsInto(0, 0, { ...CFG, maxReach: 200 }, out) // tiny reach → few
     expect(out.length).toBeLessThan(big)
     same(desiredCells(0, 0, { ...CFG, maxReach: 200 }), out)
+  })
+})
+
+/**
+ * The PADDED-GRID heightfield must produce exactly what the naive "sample ±e per vertex"
+ * version produced — because it is not an approximation. `e` (the finite-difference step)
+ * IS the vertex spacing, so the ±e samples are literally the neighbouring vertices'
+ * heights; the padded grid computes them once instead of five times.
+ *
+ * This is the conformance test for that claim. It is also, deliberately, the conformance
+ * test any future WORKER or WASM port of buildTileField has to pass — swap the
+ * implementation, keep this test (see PERF-DESIGN.md).
+ */
+describe('buildTileField — the padded grid IS the ±e gradient, computed once', () => {
+  const SUBS = 12
+  const TILE = 64
+  const VERTS = SUBS + 1
+
+  // A deliberately lumpy, non-separable height function: anything that treats x and z
+  // symmetrically, or that is locally linear, would hide a transposed or sign-flipped
+  // gradient. This one doesn't.
+  const heightAt = (wx: number, wz: number): number =>
+    Math.sin(wx * 0.05) * 7 +
+    Math.cos(wz * 0.031) * 5 +
+    Math.sin(wx * 0.013 + wz * 0.02) * 3
+
+  /** The ORIGINAL algorithm, kept here as the spec: 5 heightAt calls per vertex. */
+  function reference(cx: number, cz: number) {
+    const positions = new Float32Array(VERTS * VERTS * 3)
+    const normals = new Float32Array(VERTS * VERTS * 3)
+    const e = TILE / SUBS
+    for (let iz = 0; iz < VERTS; iz++) {
+      const localZ = vertexLocal(iz, SUBS, TILE, true)
+      const wz = cz + localZ
+      for (let ix = 0; ix < VERTS; ix++) {
+        const localX = vertexLocal(ix, SUBS, TILE)
+        const wx = cx + localX
+        const h = heightAt(wx, wz)
+        const nx = heightAt(wx - e, wz) - heightAt(wx + e, wz)
+        const nz = heightAt(wx, wz - e) - heightAt(wx, wz + e)
+        const ny = 2 * e
+        const inv = 1 / Math.hypot(nx, ny, nz)
+        const v = iz * VERTS + ix
+        positions[v * 3] = localX
+        positions[v * 3 + 1] = h
+        positions[v * 3 + 2] = localZ
+        normals[v * 3] = nx * inv
+        normals[v * 3 + 1] = ny * inv
+        normals[v * 3 + 2] = nz * inv
+      }
+    }
+    return { positions, normals }
+  }
+
+  function subject(cx: number, cz: number) {
+    const positions = new Float32Array(VERTS * VERTS * 3)
+    const normals = new Float32Array(VERTS * VERTS * 3)
+    const scratch = new Float64Array(tileFieldScratchSize(SUBS))
+    buildTileField(heightAt, cx, cz, SUBS, TILE, scratch, positions, normals)
+    return { positions, normals }
+  }
+
+  // Several cells, including negative coords — a transposed index or a sign error can
+  // survive at the origin and only show up once the tile is off it.
+  for (const [cx, cz] of [
+    [0, 0],
+    [128, -64],
+    [-256, 320],
+  ]) {
+    test(`matches the reference at cell (${cx}, ${cz})`, () => {
+      const ref = reference(cx, cz)
+      const got = subject(cx, cz)
+      for (let i = 0; i < ref.positions.length; i++) {
+        expect(got.positions[i]).toBeCloseTo(ref.positions[i], 4)
+        expect(got.normals[i]).toBeCloseTo(ref.normals[i], 4)
+      }
+    })
+  }
+
+  test('it really is 4x+ fewer samples — the whole point', () => {
+    let calls = 0
+    const counting = (wx: number, wz: number) => {
+      calls++
+      return heightAt(wx, wz)
+    }
+    const scratch = new Float64Array(tileFieldScratchSize(SUBS))
+    buildTileField(
+      counting,
+      0,
+      0,
+      SUBS,
+      TILE,
+      scratch,
+      new Float32Array(VERTS * VERTS * 3),
+      new Float32Array(VERTS * VERTS * 3)
+    )
+    expect(calls).toBe(tileFieldScratchSize(SUBS)) // (subs+3)^2, sampled once each
+
+    // The old algorithm sampled 5× per vertex. The saving is (subs+1)²·5 / (subs+3)²,
+    // which RISES with tile density — 3.8× at subs 12, 4.3× at subs 24, → 5× in the
+    // limit. So the denser the tile (i.e. the more it costs), the more this saves.
+    const before = VERTS * VERTS * 5
+    expect(before / calls).toBeGreaterThan(3.5)
+  })
+
+  test('normals are unit length, and point UP out of the terrain', () => {
+    const { normals } = subject(64, 64)
+    for (let v = 0; v < VERTS * VERTS; v++) {
+      const x = normals[v * 3]
+      const y = normals[v * 3 + 1]
+      const z = normals[v * 3 + 2]
+      expect(Math.hypot(x, y, z)).toBeCloseTo(1, 5)
+      expect(y).toBeGreaterThan(0) // a heightfield normal never points down
+    }
+  })
+
+  test('same-level neighbours agree on a shared edge vertex (no lighting seam)', () => {
+    // The tile at cx=0 and its neighbour at cx=TILE share an edge. The normals there are
+    // analytic — a function of WORLD position, not of which tile computed them — so both
+    // must produce the same normal, or the seam lights up.
+    const left = subject(0, 0)
+    const right = subject(TILE, 0)
+    for (let iz = 0; iz < VERTS; iz++) {
+      const lastCol = (iz * VERTS + (VERTS - 1)) * 3 // right edge of the left tile
+      const firstCol = (iz * VERTS + 0) * 3 // left edge of the right tile
+      for (let k = 0; k < 3; k++) {
+        expect(left.normals[lastCol + k]).toBeCloseTo(
+          right.normals[firstCol + k],
+          4
+        )
+      }
+    }
   })
 })

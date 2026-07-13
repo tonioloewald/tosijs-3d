@@ -83,4 +83,38 @@ export declare function desiredCells(camX: number, camZ: number, cfg: QuadtreeCo
  * time. Returns `out`. This is the pure, poolable core; `desiredCells` wraps it.
  */
 export declare function desiredCellsInto(camX: number, camZ: number, cfg: QuadtreeConfig, out: DesiredCell[]): DesiredCell[];
+/**
+ * Scratch size for `buildTileField`: a padded (subdivisions + 3)² height grid — the
+ * tile's own vertices plus **one ring beyond each edge**, which is what the normals
+ * need. Allocate once per subdivision count and reuse it for every tile; the streamer
+ * builds tiles every frame, so this must not allocate.
+ */
+export declare const tileFieldScratchSize: (subdivisions: number) => number;
+/**
+ * Build one tile's heightfield + normals into caller-owned buffers. **Pure**: it knows
+ * nothing about Babylon, meshes, or the noise model — you pass `heightAt`, it fills
+ * `positions` and `normals`.
+ *
+ * ## Why it samples a padded grid
+ *
+ * The normal at a vertex is the height-field gradient, central-differenced over ±e where
+ * `e = tileSize / subdivisions`. But that spacing IS the vertex spacing — so `heightAt(wx
+ * ± e, wz)` is *precisely the height of the neighbouring vertex*. Sampling ±e per vertex
+ * therefore recomputes, five times over, heights the tile is about to compute anyway.
+ *
+ * So: sample a grid ONE RING wider than the tile, then difference neighbours. Same values
+ * (identical heights; normals agree to float32 rounding), and the noise evaluations drop
+ * from `(subs+1)² × 5` to `(subs+3)²` — ~4.3× fewer at subs 24, measured ~3.7–4.8× faster.
+ * The normals stay *analytic* (a function of world position, not of mesh topology), so
+ * same-level neighbouring tiles still agree exactly on a shared edge vertex — which is
+ * what keeps the lighting seam away.
+ *
+ * ## Why it looks like this
+ *
+ * Fixed, caller-owned buffers; no allocation; one call does a whole tile. That's the shape
+ * a wasm kernel wants (see PERF-DESIGN.md) — if tile building ever moves to a worker or to
+ * wasm, THIS is the function that gets replaced, and the differential test that pins it
+ * (terrain-grid.test.ts) becomes the conformance test for the port.
+ */
+export declare function buildTileField(heightAt: (wx: number, wz: number) => number, cx: number, cz: number, subdivisions: number, tileSize: number, scratch: Float64Array, positions: Float32Array | number[], normals: Float32Array | number[]): void;
 //# sourceMappingURL=terrain-grid.d.ts.map
