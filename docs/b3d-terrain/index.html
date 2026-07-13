@@ -287,6 +287,11 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <td>Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout</td>
 </tr>
 <tr>
+<td><code>profile</code></td>
+<td><code>false</code></td>
+<td>Debug: time tile building and report it on <code>debugState</code> (see below). Off = zero cost</td>
+</tr>
+<tr>
 <td><code>grossAmplitude</code></td>
 <td><code>8</code></td>
 <td>Gross height multiplier</td>
@@ -312,6 +317,59 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <td>Debug: render terrain as wireframe</td>
 </tr>
 </tbody></table>
+<h2>Profiling tile builds</h2>
+<p>Terrain is the only place this library does <em>bulk</em> numeric work in a burst, so it&#39;s the
+only real candidate for a worker or wasm. Before moving anything, measure it:</p>
+<pre><code class="language-js">terrain.setProfiling(true)   // or the `profile` attribute
+// …fly around for a bit, then:
+terrain.resetProfile()       // drop the first-load burst
+// …fly some more:
+console.table(terrain.debugState)
+</code></pre>
+<p><code>debugState</code> splits the cost where it actually matters — <strong>not</strong> into &quot;fast&quot; and &quot;slow&quot;,
+but into <strong>movable</strong> and <strong>immovable</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fieldMsPerTile</code></td>
+<td>Noise + analytic normals. Plain float arithmetic — a worker or wasm <em>could</em> take this</td>
+</tr>
+<tr>
+<td><code>skirtMsPerTile</code></td>
+<td>Skirt verts + debug tint. Also movable</td>
+</tr>
+<tr>
+<td><code>uploadMsPerTile</code></td>
+<td><code>updateVerticesData</code> — a GPU handoff. <strong>Nothing</strong> moves this off the main thread</td>
+</tr>
+<tr>
+<td><code>movableShare</code></td>
+<td>The <strong>ceiling on any threading/wasm win</strong>. If it&#39;s small, don&#39;t bother</td>
+</tr>
+<tr>
+<td><code>nsPerSample</code></td>
+<td>Cost per <code>heightAt</code> (each is 2 fractal calls × 6 octaves = 12 perlin evals)</td>
+</tr>
+<tr>
+<td><code>worstFrameMs</code></td>
+<td>The hitch you actually feel — one saturated frame, not the average tile</td>
+</tr>
+<tr>
+<td><code>worstFrameSaturated</code></td>
+<td>Whether that frame hit <code>fillBudget</code> (the cap set the ceiling, not the work)</td>
+</tr>
+</tbody></table>
+<p>Two things to know before reading the numbers. <code>samplesPerTile</code> counts <strong>five</strong> <code>heightAt</code>
+per vertex — one for the height, four for the ±e normal gradient — so ~80% of the noise
+exists to make normals; sampling a padded grid once and central-differencing it would cut
+that ~4–5× <strong>in plain JS</strong>, before any new technology. And a big <code>movableMs</code> only becomes a
+<em>felt</em> win if it moves off-thread: making a blocking 20ms burst into a blocking 5ms burst
+still drops frames (and in XR a dropped frame is nausea, not jank).</p>
 <h2>Usage</h2>
 <pre><code class="language-javascript">import { b3d, b3dTerrain, plateauFilter } from &#39;tosijs-3d&#39;
 

@@ -189,11 +189,45 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `detailScale` | `0.5` | Detail noise frequency (per render unit) |
 | `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
 | `debugColor` | `false` | Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout |
+| `profile` | `false` | Debug: time tile building and report it on `debugState` (see below). Off = zero cost |
 | `grossAmplitude` | `8` | Gross height multiplier |
 | `detailAmplitude` | `2` | Detail height multiplier |
 | `originResetThreshold` | `500` | Distance before origin rebase |
 | `maxTravelDistance` | `5000` | Distance before firing recenter-needed event |
 | `wireframe` | `false` | Debug: render terrain as wireframe |
+
+## Profiling tile builds
+
+Terrain is the only place this library does *bulk* numeric work in a burst, so it's the
+only real candidate for a worker or wasm. Before moving anything, measure it:
+
+```js
+terrain.setProfiling(true)   // or the `profile` attribute
+// …fly around for a bit, then:
+terrain.resetProfile()       // drop the first-load burst
+// …fly some more:
+console.table(terrain.debugState)
+```
+
+`debugState` splits the cost where it actually matters — **not** into "fast" and "slow",
+but into **movable** and **immovable**:
+
+| Field | Means |
+|-------|-------|
+| `fieldMsPerTile` | Noise + analytic normals. Plain float arithmetic — a worker or wasm *could* take this |
+| `skirtMsPerTile` | Skirt verts + debug tint. Also movable |
+| `uploadMsPerTile` | `updateVerticesData` — a GPU handoff. **Nothing** moves this off the main thread |
+| `movableShare` | The **ceiling on any threading/wasm win**. If it's small, don't bother |
+| `nsPerSample` | Cost per `heightAt` (each is 2 fractal calls × 6 octaves = 12 perlin evals) |
+| `worstFrameMs` | The hitch you actually feel — one saturated frame, not the average tile |
+| `worstFrameSaturated` | Whether that frame hit `fillBudget` (the cap set the ceiling, not the work) |
+
+Two things to know before reading the numbers. `samplesPerTile` counts **five** `heightAt`
+per vertex — one for the height, four for the ±e normal gradient — so ~80% of the noise
+exists to make normals; sampling a padded grid once and central-differencing it would cut
+that ~4–5× **in plain JS**, before any new technology. And a big `movableMs` only becomes a
+*felt* win if it moves off-thread: making a blocking 20ms burst into a blocking 5ms burst
+still drops frames (and in XR a dropped frame is nausea, not jank).
 
 ## Usage
 
@@ -231,6 +265,25 @@ const KEY_BIAS = 1 << 20; // 1,048,576
 const cellKeyNum = (level, gx, gz) => level * 4_398_046_511_104 + // 2^42
     (gx + KEY_BIAS) * 2_097_152 + // (gx+2^20) · 2^21
     (gz + KEY_BIAS);
+// Two clocks, so profiling costs literally nothing when it's off — no branch inside the
+// vertex loop, just a nullary that folds to a constant.
+const ZERO = () => 0;
+const PERF_NOW = typeof performance !== 'undefined' && performance.now
+    ? () => performance.now()
+    : () => Date.now();
+const emptyTileProfile = () => ({
+    tiles: 0,
+    samples: 0,
+    field: 0,
+    skirt: 0,
+    upload: 0,
+    frames: 0,
+    frameTiles: 0,
+    frameMs: 0,
+    worstFrameMs: 0,
+    worstFrameTiles: 0,
+    worstFrameSaturated: false,
+});
 export class B3dTerrain extends B3dChild {
     static styleSpec = {
         ':host': {
@@ -266,6 +319,9 @@ export class B3dTerrain extends B3dChild {
         detailAmplitude: 2,
         // Debug: tint each tile a distinct colour to reveal the tile/LOD layout.
         debugColor: false,
+        // Debug: time tile building and report it on `debugState`. Off = zero cost (no
+        // clock reads at all). See `debugState` for what the numbers mean.
+        profile: false,
         originResetThreshold: 500,
         maxTravelDistance: 5000,
         wireframe: false,
@@ -276,6 +332,8 @@ export class B3dTerrain extends B3dChild {
     noise;
     noiseSeed = NaN; // last seed the noise was built with (for re-seeding)
     sampler;
+    /** Non-null only while `profile` is on — its absence is what makes profiling free. */
+    _prof = null;
     pool = [];
     _resolvedSubs = 0; // hiResSubdivisions after auto-resolution (pool is sized to it)
     tileTemplate = null;
@@ -310,9 +368,16 @@ export class B3dTerrain extends B3dChild {
         this.noiseSeed = attrs.seed;
         this.sampler = this.createSampler();
         this.material = this.createMaterial();
+        if (attrs.profile)
+            this._prof = emptyTileProfile();
         this.createPool();
         this._beforeRender = () => this.update();
         scene.registerBeforeRender(this._beforeRender);
+    }
+    /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
+     * Handy from the console: `$0.setProfiling(true)` … fly … `$0.debugState`. */
+    setProfiling(on) {
+        this._prof = on ? this._prof ?? emptyTileProfile() : null;
     }
     sceneDispose() {
         if (this.owner && this._beforeRender) {
@@ -454,7 +519,9 @@ export class B3dTerrain extends B3dChild {
         this.lastCamX = camX;
         this.lastCamZ = camZ;
         desiredCellsInto(camX, camZ, cfg, this._desired);
-        this.streamTiles(budgetOverride ?? resolveBudget(attrs.fillBudget, 'fillBudget'));
+        const budget = budgetOverride ?? resolveBudget(attrs.fillBudget, 'fillBudget');
+        this.streamTiles(budget);
+        this.endProfileFrame(budget);
     }
     coarsestTileSize() {
         const attrs = this;
@@ -506,6 +573,73 @@ export class B3dTerrain extends B3dChild {
      * wanted, free the rest, then fill the highest-priority blanks — reusing free
      * tiles, or STEALING the weakest placed tile a blank outranks — up to `budget`.
      */
+    /**
+     * Tile-build cost, for deciding what (if anything) is worth moving off the main thread
+     * or into wasm. Set `profile` to collect it; `resetProfile()` to zero it.
+     *
+     * The split is the point. `movableMs` (noise/normals/skirt — plain float arithmetic)
+     * is what a worker or wasm could take; `upload` is a GPU handoff and can NEVER leave
+     * the main thread, so it's the floor on any threading win. If `movableShare` is small,
+     * neither wasm nor a worker will buy you much, however big the sample count looks.
+     *
+     * `nsPerSample` is the honest per-noise-eval cost (each heightAt = 2 fractal calls × 6
+     * octaves = 12 perlin evals, so divide by 12 for per-octave). And note `samples`
+     * counts FIVE heightAt per vertex — one for the height, four for the ±e normal
+     * gradient — so ~80% of the noise here exists to compute normals, and sampling a
+     * padded grid once and central-differencing it would cut that ~4-5× in plain JS,
+     * before any new technology.
+     *
+     * `worstFrameMs` is the number that matters for feel: the hitch is one saturated
+     * frame, not the average tile. `worstFrameSaturated` says whether that frame was
+     * fillBudget-capped (i.e. the cap, not the work, set the ceiling).
+     */
+    get debugState() {
+        const p = this._prof;
+        if (p == null)
+            return null;
+        const per = (v) => (p.tiles > 0 ? v / p.tiles : 0);
+        const cpu = p.field + p.skirt;
+        const total = cpu + p.upload;
+        return {
+            tiles: p.tiles,
+            frames: p.frames,
+            subdivisions: this._resolvedSubs,
+            samplesPerTile: per(p.samples),
+            msPerTile: per(total),
+            fieldMsPerTile: per(p.field), // noise + normals
+            skirtMsPerTile: per(p.skirt),
+            uploadMsPerTile: per(p.upload), // GPU — immovable
+            movableMsPerTile: per(cpu),
+            movableShare: total > 0 ? cpu / total : 0, // the ceiling on any worker/wasm win
+            nsPerSample: p.samples > 0 ? (cpu * 1e6) / p.samples : 0,
+            worstFrameMs: p.worstFrameMs,
+            worstFrameTiles: p.worstFrameTiles,
+            worstFrameSaturated: p.worstFrameSaturated,
+        };
+    }
+    /** Zero the profile counters (e.g. after the first-load burst, to measure steady flight). */
+    resetProfile() {
+        if (this._prof != null)
+            this._prof = emptyTileProfile();
+    }
+    /** Close the frame's books: fold this frame's build cost into the worst-case, which is
+     * the number that actually matters — the hitch you feel is one saturated frame, not the
+     * average tile. */
+    endProfileFrame(budget) {
+        const p = this._prof;
+        if (p == null)
+            return;
+        if (p.frameTiles > 0) {
+            p.frames++;
+            if (p.frameMs > p.worstFrameMs) {
+                p.worstFrameMs = p.frameMs;
+                p.worstFrameTiles = p.frameTiles;
+                p.worstFrameSaturated = p.frameTiles >= budget;
+            }
+        }
+        p.frameTiles = 0;
+        p.frameMs = 0;
+    }
     streamTiles(budget) {
         const subs = this._resolvedSubs;
         // Reuse the scratch collections (cleared, not reallocated). `_desired` was
@@ -614,6 +748,16 @@ export class B3dTerrain extends B3dChild {
         const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
         if (positions == null || normals == null)
             return;
+        // Profiling is OFF by default and costs nothing then: `now()` is a nullary that
+        // returns 0 unless `profile` is set. Split at the seams that decide whether this
+        // work could ever leave the main thread (see debugState):
+        //   FIELD  — noise + analytic normals. Pure numbers in, floats out: movable.
+        //   SKIRT  — skirt verts + debug tint. CPU, movable.
+        //   UPLOAD — updateVerticesData/refreshBoundingInfo. A GPU upload: NOT movable,
+        //            no worker or wasm takes this off the main thread.
+        const prof = this._prof;
+        const now = prof == null ? ZERO : PERF_NOW;
+        const t0 = now();
         const tileSize = cell.tileSize;
         const vertsPerSide = subdivisions + 1;
         const attrs = this;
@@ -644,6 +788,7 @@ export class B3dTerrain extends B3dChild {
                 normals[v * 3 + 2] = nz * inv;
             }
         }
+        const tField = now();
         // 2. Skirt vertices: same XZ as their parent perimeter vertex, dropped
         //    straight down; normal copied from the parent (analytic → matches the
         //    neighbour), so the vertical band reads as ground, not a wall.
@@ -680,8 +825,12 @@ export class B3dTerrain extends B3dChild {
                 colors[v * 4 + 2] = cb;
                 colors[v * 4 + 3] = 1;
             }
-            mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
         }
+        // Everything above is arithmetic on plain floats; everything below hands buffers to
+        // the GPU. That's the line a worker could be drawn along, so it's the line we time.
+        const tSkirt = now();
+        if (colors)
+            mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
         mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);
         mesh.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals);
         mesh.refreshBoundingInfo();
@@ -689,6 +838,19 @@ export class B3dTerrain extends B3dChild {
         mesh.position.set(cell.cx, 0, cell.cz);
         mesh.rotationQuaternion = null;
         mesh.isVisible = true;
+        if (prof != null) {
+            const tEnd = now();
+            prof.tiles++;
+            prof.field += tField - t0;
+            prof.skirt += tSkirt - tField;
+            prof.upload += tEnd - tSkirt;
+            // Exact, not counted: heightAt runs once per vertex for the height and 4 more
+            // times for the ±e normal gradient, and each heightAt is 2 fractal calls × 6
+            // octaves. So 80% of the noise this tile evaluates exists to make normals.
+            prof.samples += vertsPerSide * vertsPerSide * 5;
+            prof.frameTiles++;
+            prof.frameMs += tEnd - t0;
+        }
     }
     // --- Coordinate mapping ---
     renderToU(renderX) {

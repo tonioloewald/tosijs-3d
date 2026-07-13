@@ -28,6 +28,7 @@ export declare class B3dTerrain extends B3dChild {
         grossAmplitude: number;
         detailAmplitude: number;
         debugColor: boolean;
+        profile: boolean;
         originResetThreshold: number;
         maxTravelDistance: number;
         wireframe: boolean;
@@ -38,6 +39,8 @@ export declare class B3dTerrain extends B3dChild {
     private noise;
     private noiseSeed;
     private sampler;
+    /** Non-null only while `profile` is on — its absence is what makes profiling free. */
+    private _prof;
     private pool;
     private _resolvedSubs;
     private tileTemplate;
@@ -59,6 +62,9 @@ export declare class B3dTerrain extends B3dChild {
     private originOffsetZ;
     private _beforeRender;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
+     * Handy from the console: `$0.setProfiling(true)` … fly … `$0.debugState`. */
+    setProfiling(on: boolean): void;
     sceneDispose(): void;
     private createSampler;
     private createMaterial;
@@ -73,6 +79,33 @@ export declare class B3dTerrain extends B3dChild {
      * wanted, free the rest, then fill the highest-priority blanks — reusing free
      * tiles, or STEALING the weakest placed tile a blank outranks — up to `budget`.
      */
+    /**
+     * Tile-build cost, for deciding what (if anything) is worth moving off the main thread
+     * or into wasm. Set `profile` to collect it; `resetProfile()` to zero it.
+     *
+     * The split is the point. `movableMs` (noise/normals/skirt — plain float arithmetic)
+     * is what a worker or wasm could take; `upload` is a GPU handoff and can NEVER leave
+     * the main thread, so it's the floor on any threading win. If `movableShare` is small,
+     * neither wasm nor a worker will buy you much, however big the sample count looks.
+     *
+     * `nsPerSample` is the honest per-noise-eval cost (each heightAt = 2 fractal calls × 6
+     * octaves = 12 perlin evals, so divide by 12 for per-octave). And note `samples`
+     * counts FIVE heightAt per vertex — one for the height, four for the ±e normal
+     * gradient — so ~80% of the noise here exists to compute normals, and sampling a
+     * padded grid once and central-differencing it would cut that ~4-5× in plain JS,
+     * before any new technology.
+     *
+     * `worstFrameMs` is the number that matters for feel: the hitch is one saturated
+     * frame, not the average tile. `worstFrameSaturated` says whether that frame was
+     * fillBudget-capped (i.e. the cap, not the work, set the ceiling).
+     */
+    get debugState(): Record<string, unknown> | null;
+    /** Zero the profile counters (e.g. after the first-load burst, to measure steady flight). */
+    resetProfile(): void;
+    /** Close the frame's books: fold this frame's build cost into the worst-case, which is
+     * the number that actually matters — the hitch you feel is one saturated frame, not the
+     * average tile. */
+    private endProfileFrame;
     private streamTiles;
     private heightAt;
     private generateTileMesh;
