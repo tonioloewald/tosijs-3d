@@ -17,8 +17,32 @@ about it. Always split the cost into:
 enormous the raw operation count looks. `b3d-terrain` reports exactly this
 (`profile` attribute → `debugState`), and any future hot spot should too.
 
+## The goal is the WORST CASE, not throughput
+
 And measure the **worst frame**, not the average. The hitch you feel is one saturated
-frame; the mean tile cost is a number nobody experiences.
+frame; the mean tile cost is a number nobody experiences. **A change that improves average
+throughput while adding to the tail is a straight loss.** In XR a dropped frame is nausea,
+not jank.
+
+This isn't just a reporting preference — it decides designs, and it cuts against the way
+most parallel/streaming machinery is built:
+
+- **Queues must be priority-ordered and droppable, not FIFO.** The tile we need now must not
+  wait behind twenty tiles queued three frames ago that nobody wants. FIFO turns a spike
+  into a stall. (Our tile pool already works this way: it fills by priority and _steals the
+  weakest_.)
+- **Work must be cancellable and replaceable.** After an origin reset or a hard turn, most
+  queued work is instantly garbage; being unable to drop it _is_ the worst case.
+- **Small jobs, partial results.** Batching work to amortise dispatch maximises throughput
+  and maximises time-to-first-useful-result. Prefer one tile per job.
+- **No allocation in the steady state.** A worst frame is as likely to be a GC pause as
+  compute. Preallocate, reuse, ping-pong buffers.
+- **Predictable per-job cost** — fixed capacity, no growth, no rare expensive path.
+- **Idle must be free**, and warm-up must not happen during a burst (worker/pool startup is
+  part of the worst case; pay it at scene start).
+
+`worstFrameMs` and `worstFrameSaturated` exist on terrain's `debugState` for exactly this
+reason — a mean would hide the only number that matters.
 
 ## What we already did (and why it came first)
 
