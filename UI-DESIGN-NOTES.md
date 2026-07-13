@@ -15,6 +15,34 @@ to absolute.
 
 ## Principles (current best understanding)
 
+### One UI, two presentations — divergence is a bug until proven otherwise
+
+The scene panel is **not** "a flat panel and an XR panel". It is **one widget list with two
+presentations** (a DOM overlay, and an `SvgTexture` on a plane). Treat any difference
+between them as a defect unless it's justified and confined:
+
+- **Behavioural drift is a bug.** If a control exists in one presentation it must work in
+  the other. (We shipped a perf section that auto-expanded in XR but sat collapsed behind a
+  button flat — nobody decided that; it accreted.)
+- **Divergent MECHANISMS breed divergent bugs, and that's the dangerous kind.** The flat
+  panel could rebuild (`refreshScenePanel`) and the XR panel could not — so the XR side grew
+  its own "refresh" that swapped the SVG's children in place. That quietly detached the
+  pointer/scroll closures `panel3d` hangs off the element, and the panel became
+  untargetable **only in XR, only in some scenes**. The drift wasn't cosmetic; it was the
+  root cause.
+- **One widget list (`_panelWidgets`), one repaint entry point (`_repaintPanels`).** Both
+  presentations build from the same rows and are repainted together. If you find yourself
+  adding an `if (xr)` inside the widget list, stop — that's the drift starting.
+- **XR-only rows are allowed, but they must be ADDITIVE and live in one place** (Exit VR,
+  Re-seat — things that are meaningless flat, where the OS chrome does the job). They are
+  appended at the XR mount site, never branched into the shared list.
+- **Status before controls.** Debug/diagnostic rows render first. A readout below the fold
+  is a readout you can't read — and if the panel's own picking is broken, you can neither
+  press nor scroll to it.
+- **Never gate the escape hatch on the thing that might be broken.** Scrolling was gated on
+  the panel ray-pick, so when picking broke you couldn't press _or_ scroll — including to
+  the diagnostics explaining why. Scroll is gaze-gated now.
+
 ### SVG-native UI, not HTML
 
 - Widgets (`widgets3d.ts`: `panel3d`, `slider3d`, `toggle3d`, `select3d`,
@@ -173,6 +201,47 @@ console pad. So every essential action needs a **VR-reachable fallback**:
 ---
 
 ## Timeline / experiments (most recent first)
+
+_2026-07-13_
+
+- **The panel became untargetable in VR — and it was a drift bug wearing a physics
+  costume.** Symptoms: in the terrain demo the controller beam hit the panel but the dot
+  landed elsewhere (sometimes ~10px off, sometimes wildly), nothing was clickable
+  (Exit VR included), scrolling was dead, and it was _intermittent_ — re-entering VR
+  sometimes gave a perfectly working panel. The aircraft was suspected (cockpit rig,
+  moving carrier, floating origin) and exonerated: the same aircraft was fine in the
+  combat demo.
+  **Cause:** a "refresh" that called `panelEl.replaceChildren()`. `panel3d` hangs
+  `handlePointer` / `scrollBy` / `scrollable` off the SVG element as **closures over the
+  widget objects it built**, and sizes the viewBox for that row count — so swapping the
+  children left the pointer router aiming at _detached widgets laid out for a different
+  height_. The ray genuinely hit the panel and produced a plausible uv; it just mapped to
+  the wrong control. Scrolling died because `scrollBy` drove nodes no longer in the tree.
+  It ran on a 500ms timer, and only fired when a debug source was registered — which is
+  exactly why the terrain demo broke, the combat demo didn't, and a fresh entry looked
+  fine until the first tick.
+  **Lessons:** (1) if a component hands you an element with behaviour attached, that
+  element is not a container you may reach into — rebuild it or leave it alone;
+  (2) structural changes rebuild, live values update `<text>` in place (no structure, no
+  closures touched); (3) the XR-only refresh mechanism existed _because_ of UI drift, so
+  the drift caused the bug — see the new Principle above.
+- **The headset's own recentre did nothing, because we were undoing it.** Holding the Meta
+  button fires `reset` on the XR reference space: the runtime moves the world under you and
+  expects the app to take the new pose as forward. We had baked `cockpitYawOffset` once, on
+  entry, and kept applying it — correcting away the recentre against a reference space that
+  no longer existed. Now we listen for `reset` (+ `onXRReferenceSpaceChanged`) and re-derive.
+  Also: the entry capture happened **on the frame you took the seat**, when the viewer pose
+  can still be null and the camera reports a stale rotation — hence "sometimes misaligned on
+  entry, and exiting/re-entering while holding still fixes it" (that just bought a clean
+  capture). Capture now waits for a real `getViewerPose()`.
+  **The through-line for both bugs:** a value was baked once and then asserted against a
+  world that had moved on. Presents as "sometimes fine, sometimes wildly off" — the
+  signature of stale state, not of wrong maths.
+- **Write-in debug panel (`addDebugSource`).** Any code can contribute lines + buttons to
+  the Perf Stats panel, which is the only readout that exists in a headset (there's no
+  console in VR, and VR is where the frame budget is tightest). Terrain reports its tile
+  profile there and can be switched on from inside the headset. Lines update in place, so
+  they're live — the first version snapshotted them and you sat watching frozen zeros.
 
 _2026-07-11_
 
