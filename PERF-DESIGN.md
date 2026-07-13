@@ -148,15 +148,60 @@ import.meta.url), {type:'module'})` — the bundler emits the worker on their or
 `resetOrigin` must be rebased or discarded, and the pool needs a _pending_ state so an
 in-flight tile isn't stolen. That's where the bugs would live.
 
-## Status: what's justified today
+## Status: MEASURED — the worker is NOT justified. Don't build it.
 
-**Nothing, yet — re-measure first.** The padded-grid fix cut the worst frame ~4×, which may
-have demoted a terrain worker from _necessary_ to _nice_. Fly it, read `debugState`, and
-decide with `movableShare` and `worstFrameMs` in hand.
+We said we'd decide with a number. Here is the number, from a **Quest** (the device that
+decides, because it has the least headroom):
 
-If it's still hitching, the order is: **worker before wasm.** A blocking 16 ms burst made
-into a blocking 5 ms burst still drops frames; off-thread makes it drop none. And in XR a
-dropped frame is nausea, not jank.
+> **worst frame 3 ms, 4 tiles. `movableShare` 50–70%.**
+
+Against a ~11 ms budget at 90 Hz, terrain streaming is a rounding error on the weakest
+device we target. And `movableShare` is the kicker: on the Quest **only half to two-thirds
+of the tile cost can leave the main thread at all** (the GPU upload is a much bigger share
+there than on a workstation, where it read 93–97%). So even a perfect worker could take at
+most ~2 ms off a 3 ms frame. That is not worth a thread, a blob-URL spawn, a pending-tile
+state machine, and floating-origin rebasing of stale results.
+
+**This is the metric earning its keep.** `movableShare` told us not to build the thing
+_before_ we built it.
+
+What got us here was **three pure-JS wins, no new technology**, each found by measuring
+rather than assuming:
+
+|                                 |                                                                                  |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| padded-grid normals             | 4.3× fewer noise samples (the ±e gradient samples ARE the neighbouring vertices) |
+| hoisted height-fn constants     | ~2× (nine component-attribute reads per sample, in the innermost loop)           |
+| flattened Perlin gradient table | 3.1× (`grad()` destructured a boxed tuple, 8× per noise eval)                    |
+
+Chrome went from a projected **~61 ms** saturated frame to **~3 ms** of tile work; the Quest
+lands at 3 ms worst. Do the algorithmic win first — every time.
+
+**Revisit only if a number moves**: crank `hiResSubdivisions` well past the tier default, add
+octaves, or make the height function much dearer, then re-read `worstFrameMs` and
+`movableShare`. Note that raising detail inflates the **upload** too, and no thread can move
+that.
+
+## The guarantee: a TIME budget, not a tile count
+
+Good numbers are not a guarantee. `fillBudget` caps tiles _by count_, which bounds the frame
+only by accident — a tile's cost swings with subdivisions, octaves, device and JS engine, so
+the same count is 3 ms on a workstation and 30 ms on a Quest.
+
+`tileBuildMs` (auto, per tier) caps the **time** spent building tiles each frame: build in
+priority order until the budget is spent, then stop and continue next frame (always ≥1 tile,
+or a slow enough device would stream nothing). That bounds the worst frame **by
+construction, everywhere**, and it self-corrects when you raise detail — pricier tiles simply
+means fewer per frame, never a bigger hitch. tosijs does the same for large virtual-list
+bindings, so it's the house idiom rather than an invention.
+
+The trade is honest: tiles arrive over more frames, so fast flight pops in a little more.
+That's latency for a hitch — and pop-in is a nuisance where a dropped frame in a headset is
+nausea.
+
+**Spend the headroom on DETAIL, not on a smaller number** — but only now that the worst case
+is bounded. Cost scales as `(subs+3)²`, so the wins above buy roughly double the linear
+vertex density. Raise the tier table, and the Quest gets better terrain too.
 
 ## tjs-lang: a pinpoint accelerator, not a language migration
 

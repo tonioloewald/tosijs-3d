@@ -53,6 +53,19 @@ export interface PerfBudgets {
   poolSize: number
   reach: number
   fillBudget: number
+  /**
+   * Milliseconds of tile BUILDING allowed per frame — the real cap.
+   *
+   * `fillBudget` counts tiles, which is the wrong unit: a tile's cost varies with
+   * subdivisions, octaves, device and JS engine, so a count budget bounds the frame only by
+   * accident. A time budget bounds it BY CONSTRUCTION, on every device, and self-corrects
+   * when you raise detail — pricier tiles just means fewer per frame, instead of a bigger
+   * hitch. (NB not `fillMs`, which is a measured fill RATE in PerfMeasurements.)
+   *
+   * Sized well under a frame: the hitch you feel is one saturated frame, and in XR a
+   * dropped frame is nausea, not jank. `fillBudget` stays as a belt-and-braces cap on churn.
+   */
+  tileBuildMs: number
   shadowTextureSize: number
   numCascades: number
   /** Reflection probe resolution (per face). */
@@ -132,6 +145,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     poolSize: 120,
     reach: 6000,
     fillBudget: 24,
+    tileBuildMs: 4,
     shadowTextureSize: 2048,
     numCascades: 4,
     reflectionSize: 512,
@@ -143,6 +157,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     poolSize: 80,
     reach: 5000,
     fillBudget: 18,
+    tileBuildMs: 3,
     shadowTextureSize: 1024,
     numCascades: 4,
     reflectionSize: 256,
@@ -154,6 +169,7 @@ const BUDGETS: Record<PerfTier, PerfBudgets> = {
     poolSize: 56,
     reach: 3500,
     fillBudget: 12,
+    tileBuildMs: 2,
     shadowTextureSize: 1024,
     numCascades: 2,
     reflectionSize: 128,

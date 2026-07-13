@@ -28,6 +28,7 @@ export declare class B3dTerrain extends B3dChild {
         grossAmplitude: number;
         detailAmplitude: number;
         debugColor: boolean;
+        tileBuildMs: number;
         profile: boolean;
         originResetThreshold: number;
         maxTravelDistance: number;
@@ -132,6 +133,20 @@ export declare class B3dTerrain extends B3dChild {
      * the number that actually matters — the hitch you feel is one saturated frame, not the
      * average tile. */
     private endProfileFrame;
+    /**
+     * Fill blank cells, highest priority first, until we run out of tiles (`budget`) OR out
+     * of TIME (`msBudget`) — whichever comes first.
+     *
+     * The time cap is the one that matters. A tile-count cap bounds the frame only by
+     * accident: tile cost swings with subdivisions, octaves, device and JS engine, so the
+     * same `fillBudget` is a 3ms frame on a workstation and a 30ms frame on a Quest. Capping
+     * TIME bounds the worst frame by construction everywhere, and self-corrects when detail
+     * goes up — pricier tiles simply means fewer of them this frame, never a bigger hitch.
+     * (tosijs does the same thing for large virtual-list bindings.)
+     *
+     * Always builds at least ONE tile, or a device slow enough to blow the budget on a single
+     * tile would stream nothing, ever.
+     */
     private streamTiles;
     private generateTileMesh;
     private renderToU;

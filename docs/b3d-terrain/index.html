@@ -254,7 +254,12 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <tr>
 <td><code>fillBudget</code></td>
 <td><code>auto</code></td>
-<td>Max tiles (re)built per frame — caps streaming cost (<code>auto</code> = device tier)</td>
+<td>Max tiles (re)built per frame — a churn backstop (<code>auto</code> = device tier)</td>
+</tr>
+<tr>
+<td><code>tileBuildMs</code></td>
+<td><code>auto</code></td>
+<td><strong>Milliseconds of tile building allowed per frame</strong> — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile&#39;s cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (<code>auto</code> = device tier)</td>
 </tr>
 <tr>
 <td><code>splitFactor</code></td>

@@ -182,7 +182,8 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `hiResSubdivisions` | `auto` | Vertices per tile edge (same at every level); `auto` = device tier |
 | `lodLevels` | `5` | Number of LOD levels; level k tiles are `tileSize × 2^k` |
 | `poolSize` | `auto` | Shared tile budget; the pool renders the top-priority cells (`auto` = device tier) |
-| `fillBudget` | `auto` | Max tiles (re)built per frame — caps streaming cost (`auto` = device tier) |
+| `fillBudget` | `auto` | Max tiles (re)built per frame — a churn backstop (`auto` = device tier) |
+| `tileBuildMs` | `auto` | **Milliseconds of tile building allowed per frame** — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile's cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (`auto` = device tier) |
 | `splitFactor` | `2` | LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize` |
 | `reach` | `0` | Terrain radius (0 = auto from the coarsest tile) |
 | `grossScale` | `0.1` | Gross noise frequency (per render unit) |
@@ -283,6 +284,7 @@ const emptyTileProfile = () => ({
     worstFrameMs: 0,
     worstFrameTiles: 0,
     worstFrameSaturated: false,
+    frameTimeCapped: false,
 });
 export class B3dTerrain extends B3dChild {
     static styleSpec = {
@@ -319,6 +321,9 @@ export class B3dTerrain extends B3dChild {
         detailAmplitude: 2,
         // Debug: tint each tile a distinct colour to reveal the tile/LOD layout.
         debugColor: false,
+        // 0 = auto: ms of tile building allowed per frame, from the device tier. THE cap that
+        // bounds the worst frame; `fillBudget` (a tile COUNT) is only a churn backstop.
+        tileBuildMs: 0,
         // Debug: time tile building and report it on `debugState`. Off = zero cost (no
         // clock reads at all). See `debugState` for what the numbers mean.
         profile: false,
@@ -616,7 +621,11 @@ export class B3dTerrain extends B3dChild {
         this.lastCamZ = camZ;
         desiredCellsInto(camX, camZ, cfg, this._desired);
         const budget = budgetOverride ?? resolveBudget(attrs.fillBudget, 'fillBudget');
-        this.streamTiles(budget);
+        // budgetOverride = regenerate(): rebuild everything now, deliberately unbounded.
+        const msBudget = budgetOverride != null
+            ? 0
+            : resolveBudget(attrs.tileBuildMs, 'tileBuildMs');
+        this.streamTiles(budget, msBudget);
         this.endProfileFrame(budget);
     }
     coarsestTileSize() {
@@ -711,6 +720,9 @@ export class B3dTerrain extends B3dChild {
             worstFrameMs: p.worstFrameMs,
             worstFrameTiles: p.worstFrameTiles,
             worstFrameSaturated: p.worstFrameSaturated,
+            // True once the time cap has actually bitten — i.e. the guarantee is doing work, and
+            // tiles are arriving over more frames rather than in one hitch.
+            timeCapped: p.frameTimeCapped,
         };
     }
     /** Zero the profile counters (e.g. after the first-load burst, to measure steady flight). */
@@ -736,7 +748,21 @@ export class B3dTerrain extends B3dChild {
         p.frameTiles = 0;
         p.frameMs = 0;
     }
-    streamTiles(budget) {
+    /**
+     * Fill blank cells, highest priority first, until we run out of tiles (`budget`) OR out
+     * of TIME (`msBudget`) — whichever comes first.
+     *
+     * The time cap is the one that matters. A tile-count cap bounds the frame only by
+     * accident: tile cost swings with subdivisions, octaves, device and JS engine, so the
+     * same `fillBudget` is a 3ms frame on a workstation and a 30ms frame on a Quest. Capping
+     * TIME bounds the worst frame by construction everywhere, and self-corrects when detail
+     * goes up — pricier tiles simply means fewer of them this frame, never a bigger hitch.
+     * (tosijs does the same thing for large virtual-list bindings.)
+     *
+     * Always builds at least ONE tile, or a device slow enough to blow the budget on a single
+     * tile would stream nothing, ever.
+     */
+    streamTiles(budget, msBudget) {
         const subs = this._resolvedSubs;
         // Reuse the scratch collections (cleared, not reallocated). `_desired` was
         // filled in place by desiredCellsInto; its cell objects are transient (tiles
@@ -776,9 +802,19 @@ export class B3dTerrain extends B3dChild {
         // Weakest placed tiles first, for stealing when the pool is full.
         placed.sort((a, b) => a.cell.priority - b.cell.priority);
         let steal = 0;
+        let built = 0;
+        const clock = msBudget > 0 ? PERF_NOW : ZERO;
+        const started = clock();
         for (const blank of blanks) {
             if (budget <= 0)
                 break;
+            // Out of time — the rest wait for the next frame. They're priority-sorted, so what we
+            // drop is always the least important thing we could have drawn.
+            if (built > 0 && msBudget > 0 && clock() - started >= msBudget) {
+                if (this._prof != null)
+                    this._prof.frameTimeCapped = true;
+                break;
+            }
             let tile = free.pop();
             if (!tile) {
                 const weak = placed[steal];
@@ -813,6 +849,7 @@ export class B3dTerrain extends B3dChild {
                 dst.priority = blank.priority;
             }
             this.generateTileMesh(tile, subs, tile.cell);
+            built++;
             budget--;
         }
     }

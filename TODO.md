@@ -41,10 +41,25 @@ IMMOVABLE (GPU upload), plus worst-frame. `movableShare` is the ceiling on any w
 evaluating the noise 5× per vertex for no reason. `terrain-grid.buildTileField` samples one
 ring wider and differences it: identical output (differential test), ~4.3× fewer evals,
 2.54ms → 0.68ms per tile, worst frame ~61ms → ~16ms. **Algorithmic win before technology win.**
-[ ] **RE-MEASURE in the browser** before building anything else — the padded-grid fix may have
-demoted a terrain worker from _necessary_ to _nice_. Read `movableShare` + `worstFrameMs` while
-flying, then decide. (Worker before wasm: a shorter blocking burst still drops frames.)
-[ ] Terrain worker (only if the numbers say so): send the RECIPE (`{cx,cz,subs,tileSize}` +
+[x] **RE-MEASURED — the worker is NOT justified. Decision: don't build it.** Quest: **worst frame
+3ms / 4 tiles, movableShare 50-70%**. Against ~11ms at 90Hz that's a rounding error on the weakest
+device — and only half to two-thirds of the cost can leave the main thread AT ALL there (the GPU
+upload is a far bigger share on mobile than on a workstation, where it read 93-97%). A perfect
+worker could take ~2ms off a 3ms frame. Not worth a thread + blob spawn + pending-tile state
+machine + floating-origin rebasing of stale results. `movableShare` told us not to build the thing
+before we built it — the metric earned its keep.
+[x] Three pure-JS wins got us there, no new technology: padded-grid normals (4.3x fewer samples),
+hoisted height-fn constants (~2x — nine attribute reads per sample in the innermost loop), flattened
+Perlin gradient table (3.1x — grad() destructured a boxed tuple 8x per noise eval). Chrome: ~61ms
+projected saturated frame → ~3ms of tile work.
+[x] **Time budget** (`tileBuildMs`, auto per tier) — build in priority order until the ms budget is
+spent, then continue next frame (always ≥1 tile). A tile COUNT bounds the frame only by accident;
+TIME bounds it by construction on every device, and self-corrects when detail rises. Same idiom
+tosijs uses for big virtual-list bindings.
+[ ] **Spend the headroom on DETAIL** now the worst case is bounded: raise `hiResSubdivisions` in the
+tier table (cost scales as `(subs+3)²`, so ~2x the linear vertex density is available), re-measure
+worst frame + movableShare. NB detail inflates the UPLOAD too, and no thread can move that.
+[~] Terrain worker — NOT JUSTIFIED (see above); kept only as a record of the design. Send the RECIPE (`{cx,cz,subs,tileSize}` +
 seed/scales — determinism is what makes this tiny), TRANSFER the result buffers back. Wrinkles:
 async tiles × floating origin (a tile computed pre-shift must rebase or be discarded), a
 `pending` tile state so the pool can't steal an in-flight tile, no SharedArrayBuffer on GH Pages.
