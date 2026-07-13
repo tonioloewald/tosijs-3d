@@ -8,6 +8,22 @@ import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
 import { type QualitySetting } from './b3d-quality';
 export declare const showB3dStats: (on?: boolean) => void;
+/**
+ * A contributor to the Perf Stats panel (see `B3d.addDebugSource`). The panel is
+ * dual-presence — flat overlay AND in-headset — which is the whole point: there's no
+ * console in VR, and VR is where the frame budget is tightest.
+ */
+export type DebugPanelSource = {
+    /** Short header, e.g. `'terrain'`. */
+    name: string;
+    /** Called on every refresh — return LIVE values, not a snapshot. */
+    lines: () => string[];
+    /** Rendered as buttons. This is how you toggle a profiler on from inside a headset. */
+    actions?: Array<{
+        label: string | (() => string);
+        onClick: () => void;
+    }>;
+};
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
     meshes?: BABYLON.AbstractMesh[];
@@ -304,6 +320,35 @@ export declare class B3d extends Component {
     private _applyHardwareScaling;
     private _statsBaseScale;
     private _statsExpanded;
+    private _debugSources;
+    private _liveDebug;
+    private _liveDebugTimer;
+    /** Set while an XR panel exists; rewrites its contents in place so debug numbers stay
+     * live in the headset. No-op flat (the flat panel rebuilds on open). */
+    private _refreshXrPanel;
+    /**
+     * Write into the **Perf Stats panel** — the only debug readout that exists BOTH as a
+     * flat overlay and as a floating panel inside a headset. There is no console in VR, so
+     * without this a profiler's numbers are unreadable on the one device whose budget is
+     * tightest.
+     *
+     * Any code can contribute: a scene child, a demo, an ad-hoc investigation. `lines()` is
+     * re-called on every panel refresh, so return live values, not a snapshot. `actions`
+     * become buttons — which is how you turn a profiler ON from inside a headset.
+     *
+     * Returns an unregister function.
+     *
+     * ```js
+     * const off = b3d.addDebugSource({
+     *   name: 'terrain',
+     *   lines: () => [`worst ${t.debugState.worstFrameMs.toFixed(1)}ms`],
+     *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), onClick: () => t.setProfiling(!t.profiling) }],
+     * })
+     * ```
+     */
+    addDebugSource(source: DebugPanelSource): () => void;
+    private _debugSourceRows;
+    private _startLiveDebug;
     private _perfPanelRows;
     private _panelWidgets;
     private _installXrRafPump;

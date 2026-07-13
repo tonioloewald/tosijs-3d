@@ -1,6 +1,10 @@
 // Core
 export { B3d, b3d, showB3dStats } from './tosi-b3d'
-export type { SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
+export type {
+  SceneAdditions,
+  SceneAdditionHandler,
+  DebugPanelSource,
+} from './tosi-b3d'
 
 // Device-capability probe (measure-don't-guess quality budgets)
 export { B3dProbe, b3dProbe, runProbe } from './b3d-probe'

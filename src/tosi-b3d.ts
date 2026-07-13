@@ -186,6 +186,20 @@ const perfDebugEnabled = (): boolean => {
   return /(^|[?&])(perf|debug)\b/.test(search) || /\b(perf|debug)\b/.test(hash)
 }
 
+/**
+ * A contributor to the Perf Stats panel (see `B3d.addDebugSource`). The panel is
+ * dual-presence — flat overlay AND in-headset — which is the whole point: there's no
+ * console in VR, and VR is where the frame budget is tightest.
+ */
+export type DebugPanelSource = {
+  /** Short header, e.g. `'terrain'`. */
+  name: string
+  /** Called on every refresh — return LIVE values, not a snapshot. */
+  lines: () => string[]
+  /** Rendered as buttons. This is how you toggle a profiler on from inside a headset. */
+  actions?: Array<{ label: string | (() => string); onClick: () => void }>
+}
+
 export type SceneAdditionHandler = (additions: SceneAdditions) => void
 
 export type SceneAdditions = {
@@ -228,6 +242,13 @@ type B3dCallback =
   | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => Promise<void>)
 
 const noop = () => {}
+const noopRefresh = () => {}
+
+/** One debug source's live <text> nodes, so the panel can update without rebuilding. */
+type LiveDebugRow = {
+  els: Array<SVGTextElement | null>
+  lines: () => string[]
+}
 
 // Read-only local axes reused by the per-frame XR loops (getDirectionToRef
 // reads but never mutates them), so we never allocate a Vector3 per frame.
@@ -860,6 +881,125 @@ export class B3d extends Component {
 
   private _statsBaseScale: number | null = null
   private _statsExpanded = false
+  private _debugSources: DebugPanelSource[] = []
+  private _liveDebug: { flat: LiveDebugRow[]; xr: LiveDebugRow[] } = {
+    flat: [],
+    xr: [],
+  }
+  private _liveDebugTimer: ReturnType<typeof setInterval> | null = null
+  /** Set while an XR panel exists; rewrites its contents in place so debug numbers stay
+   * live in the headset. No-op flat (the flat panel rebuilds on open). */
+  private _refreshXrPanel: () => void = noopRefresh
+
+  /**
+   * Write into the **Perf Stats panel** — the only debug readout that exists BOTH as a
+   * flat overlay and as a floating panel inside a headset. There is no console in VR, so
+   * without this a profiler's numbers are unreadable on the one device whose budget is
+   * tightest.
+   *
+   * Any code can contribute: a scene child, a demo, an ad-hoc investigation. `lines()` is
+   * re-called on every panel refresh, so return live values, not a snapshot. `actions`
+   * become buttons — which is how you turn a profiler ON from inside a headset.
+   *
+   * Returns an unregister function.
+   *
+   * ```js
+   * const off = b3d.addDebugSource({
+   *   name: 'terrain',
+   *   lines: () => [`worst ${t.debugState.worstFrameMs.toFixed(1)}ms`],
+   *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), onClick: () => t.setProfiling(!t.profiling) }],
+   * })
+   * ```
+   */
+  addDebugSource(source: DebugPanelSource): () => void {
+    this._debugSources.push(source)
+    this.refreshScenePanel()
+    return () => {
+      const i = this._debugSources.indexOf(source)
+      if (i >= 0) this._debugSources.splice(i, 1)
+      this.refreshScenePanel()
+    }
+  }
+
+  // Rows contributed by registered debug sources. Kept generic on purpose: the core
+  // knows nothing about terrain (or whatever else) — each source decides what's worth
+  // three lines on a panel you're reading through a headset.
+  //
+  // The lines UPDATE IN PLACE (see `_startLiveDebug`): we keep their <text> nodes and
+  // rewrite the content on a timer, rather than rebuilding the panel. Rebuilding would
+  // fight with interaction (a slider drag torn out from under you), and — the bug that
+  // prompted this — a readout that only refreshes when you REOPEN the panel is useless:
+  // you switch a profiler on, the panel rebuilds instantly with the fresh (all-zero)
+  // counters, and then you sit there watching frozen zeros while you fly.
+  private _debugSourceRows(xr: boolean): Widget3d[] {
+    const rows: Widget3d[] = []
+    const bucket: LiveDebugRow[] = []
+    for (const src of this._debugSources) {
+      let lines: string[]
+      try {
+        lines = src.lines()
+      } catch (err) {
+        lines = [`(threw: ${(err as Error)?.message ?? err})`]
+      }
+      rows.push(label3d({ text: src.name, bold: true }))
+      const els: Array<SVGTextElement | null> = []
+      for (const text of lines) {
+        const w = label3d({ text, muted: true })
+        els.push(w.el.querySelector('text'))
+        rows.push(w)
+      }
+      bucket.push({ els, lines: () => src.lines() })
+      for (const action of src.actions ?? []) {
+        rows.push(
+          button3d({
+            label:
+              typeof action.label === 'function'
+                ? action.label()
+                : action.label,
+            // A button's own label can change ('Profile tiles' → 'Profiling ON'), and a
+            // button label isn't live text — so this one case does want a rebuild.
+            onClick: () => {
+              action.onClick()
+              this.refreshScenePanel()
+              this._refreshXrPanel()
+            },
+          })
+        )
+      }
+    }
+    this._liveDebug[xr ? 'xr' : 'flat'] = bucket
+    this._startLiveDebug()
+    return rows
+  }
+
+  // Rewrite the debug lines' text in place. The flat panel is live DOM, so it just shows
+  // the new text; the XR panel is rasterised by an SvgTexture that re-renders on its own
+  // cadence (200ms), so it picks the change up for free. Cheap — a few string compares.
+  private _startLiveDebug(): void {
+    if (this._liveDebugTimer != null) return
+    this._liveDebugTimer = setInterval(() => {
+      const rows = [...this._liveDebug.flat, ...this._liveDebug.xr]
+      if (rows.length === 0) {
+        clearInterval(this._liveDebugTimer as ReturnType<typeof setInterval>)
+        this._liveDebugTimer = null
+        return
+      }
+      for (const row of rows) {
+        let lines: string[]
+        try {
+          lines = row.lines()
+        } catch {
+          continue
+        }
+        row.els.forEach((el, i) => {
+          const next = lines[i] ?? ''
+          // A source that changes its LINE COUNT needs a rebuild to show the new rows;
+          // the ones already on screen stay live regardless.
+          if (el != null && el.textContent !== next) el.textContent = next
+        })
+      }
+    }, 400)
+  }
 
   // Perf-stats rows for the scene panel (dual-presence: flat overlay AND the in-VR
   // panel), so the readout is reachable in a headset too — the reason it lives here
@@ -939,9 +1079,12 @@ export class B3d extends Component {
   // non-toggleable perf rendering for the headset panel.
   private _panelWidgets(xr = false): Widget3d[] {
     const rows = this.scenePanel(this)
+    // Debug sources show whenever anything registered — they're opt-in by construction
+    // (nothing registers unless it wants to be seen), so they don't need the stats gate.
+    const debug = this._debugSourceRows(xr)
     return perfDebugEnabled() || this.stats
-      ? [...rows, ...this._perfPanelRows(!xr)]
-      : rows
+      ? [...rows, ...this._perfPanelRows(!xr), ...debug]
+      : [...rows, ...debug]
   }
 
   // window.requestAnimationFrame stops firing during an immersive XR session (the
@@ -1765,6 +1908,27 @@ export class B3d extends Component {
       scrollBy?: (dy: number) => void
       scrollable?: boolean
     }
+    // LIVE numbers in the headset. The XR panel is built once at entry, so a debug
+    // readout would otherwise freeze at whatever it said when you put the headset on —
+    // useless for watching a worst-frame spike as you fly. The SvgTexture re-renders
+    // this element on its own cadence (200ms below), so we don't rebuild the panel: we
+    // swap its CHILDREN in place, keeping the element identity the texture holds (and
+    // the `handlePointer` the pointer-picking uses). Only while a debug source is
+    // registered — otherwise this is idle.
+    this._refreshXrPanel = () => {
+      if (this._debugSources.length === 0) return
+      const fresh = this._makePanel([
+        button3d({
+          label: 'Exit VR',
+          onClick: () => {
+            void this.xrHelper?.baseExperience?.exitXRAsync()
+          },
+        }),
+        ...this._panelWidgets(true),
+      ])
+      panelEl.replaceChildren(...Array.from(fresh.childNodes))
+    }
+    const liveTimer = setInterval(() => this._refreshXrPanel(), 500)
     const vb = panelEl.viewBox.baseVal
 
     // Anchored to the eye frame (origin = your head), 60° up the sight-line.
@@ -1876,9 +2040,12 @@ export class B3d extends Component {
       plane,
       scrollable: !!panelEl.scrollable,
       scrollBy: (dy: number) => panelEl.scrollBy?.(dy),
-      dispose() {
+      dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
         scene.onPointerObservable.remove(obs)
+        clearInterval(liveTimer) // the debug-panel refresher (see _refreshXrPanel)
+        this._refreshXrPanel = noopRefresh
+        this._liveDebug.xr = [] // its <text> nodes die with the panel
         tex.dispose()
         mat.dispose()
         plane.dispose()

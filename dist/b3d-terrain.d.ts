@@ -70,6 +70,10 @@ export declare class B3dTerrain extends B3dChild {
     /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
      * Handy from the console: `$0.setProfiling(true)` … fly … `$0.debugState`. */
     setProfiling(on: boolean): void;
+    /** Is tile profiling on? (Drives the Perf Stats panel's button label.) */
+    get profiling(): boolean;
+    private _debugOff;
+    private _joinDebugPanel;
     sceneDispose(): void;
     private createSampler;
     private createMaterial;

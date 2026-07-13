@@ -375,6 +375,7 @@ export class B3dTerrain extends B3dChild {
         this.material = this.createMaterial();
         if (attrs.profile)
             this._prof = emptyTileProfile();
+        this._joinDebugPanel(owner);
         this.createPool();
         this._beforeRender = () => this.update();
         scene.registerBeforeRender(this._beforeRender);
@@ -384,7 +385,45 @@ export class B3dTerrain extends B3dChild {
     setProfiling(on) {
         this._prof = on ? this._prof ?? emptyTileProfile() : null;
     }
+    /** Is tile profiling on? (Drives the Perf Stats panel's button label.) */
+    get profiling() {
+        return this._prof != null;
+    }
+    _debugOff = null;
+    // Join the scene's Perf Stats panel — the ONLY debug readout that exists inside a
+    // headset, and the headset is exactly where these numbers matter most (least CPU
+    // headroom, and a dropped frame there is nausea rather than jank). Without this you'd
+    // have to read `debugState` from a console you can't open while wearing a Quest.
+    _joinDebugPanel(owner) {
+        this._debugOff = owner.addDebugSource({
+            name: 'terrain tiles',
+            lines: () => {
+                const d = this.debugState;
+                if (d == null)
+                    return ['profiling off'];
+                const n = (v, p = 2) => v.toFixed(p);
+                return [
+                    // The number that decides everything — one saturated frame is the hitch you
+                    // feel. `capped` = it hit fillBudget, so the cap set the ceiling, not the work.
+                    `worst ${n(d.worstFrameMs, 1)}ms · ${d.worstFrameTiles} tiles${d.worstFrameSaturated ? ' (capped)' : ''}`,
+                    `tile ${n(d.msPerTile)}ms = field ${n(d.fieldMsPerTile)} + gpu ${n(d.uploadMsPerTile)}`,
+                    // movable = the ceiling on what a worker or wasm could EVER take; the GPU
+                    // upload cannot move off the main thread at all.
+                    `movable ${(d.movableShare * 100).toFixed(0)}% · ${n(d.nsPerSample, 0)}ns/sample · ${d.tiles} tiles`,
+                ];
+            },
+            actions: [
+                {
+                    label: () => (this.profiling ? 'Profiling ON' : 'Profile tiles'),
+                    onClick: () => this.setProfiling(!this.profiling),
+                },
+                { label: 'Reset', onClick: () => this.resetProfile() },
+            ],
+        });
+    }
     sceneDispose() {
+        this._debugOff?.();
+        this._debugOff = null;
         if (this.owner && this._beforeRender) {
             this.owner.scene.unregisterBeforeRender(this._beforeRender);
         }
@@ -765,7 +804,6 @@ export class B3dTerrain extends B3dChild {
         const now = prof == null ? ZERO : PERF_NOW;
         const t0 = now();
         const tileSize = cell.tileSize;
-        const vertsPerSide = subdivisions + 1;
         const attrs = this;
         // 1. Heightfield vertices + ANALYTIC normals, via the pure kernel. Normals are the
         //    height-field gradient central-differenced over ±e, and since e IS the vertex
@@ -832,10 +870,11 @@ export class B3dTerrain extends B3dChild {
             prof.field += tField - t0;
             prof.skirt += tSkirt - tField;
             prof.upload += tEnd - tSkirt;
-            // Exact, not counted: heightAt runs once per vertex for the height and 4 more
-            // times for the ±e normal gradient, and each heightAt is 2 fractal calls × 6
-            // octaves. So 80% of the noise this tile evaluates exists to make normals.
-            prof.samples += vertsPerSide * vertsPerSide * 5;
+            // Exact, not counted: buildTileField samples the PADDED grid — (subs+3)² — once
+            // each. (It used to be 5 per vertex: the height plus 4 for the ±e gradient. That
+            // was the redundancy the padded grid removed, and this count must track it or
+            // nsPerSample lies by ~4.3×.)
+            prof.samples += tileFieldScratchSize(subdivisions);
             prof.frameTiles++;
             prof.frameMs += tEnd - t0;
         }
