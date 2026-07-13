@@ -61,6 +61,42 @@ fingerprints. An optional opaque <code>ref</code> rides along untouched by the s
 the one continuous quantity the driver needs — all inference-from-absence
 (&quot;it&#39;s been a while and nothing happened&quot;) is built on it.</li>
 </ul>
+<h2>The driver belongs OFF-THREAD — and this contract is already the membrane</h2>
+<p>A GM/narrative driver <em>thinks</em>: a planner, a search, an LLM round-trip. That&#39;s
+100ms–2s, which inline is 20–200 dropped frames. It must never run on the frame
+thread. (See <code>PERF-DESIGN.md</code> — this is the one acceleration case we&#39;ve
+<strong>approved</strong>; terrain&#39;s worker was measured and rejected.)</p>
+<p>The seam is <strong>latency tolerance, not CPU cost</strong>, and it is exactly the seam these
+rules already draw. Every hard rule above, written for <em>decoupling</em>, turns out to
+be precisely what makes a worker <strong>correct</strong>:</p>
+<ul>
+<li><strong>Advisory intents ⇒ async is SAFE.</strong> An intent that arrives late — or never —
+leaves the simulation complete and consistent. You cannot put a <em>load-bearing</em>
+component behind a membrane without inventing a stall; this one is load-bearing
+nowhere.</li>
+<li><strong>Best-effort events ⇒ shed, don&#39;t queue.</strong> Under backpressure, DROP or coalesce.
+A driver that falls behind must never accumulate a queue that later delivers
+stale advice — that converts a slow GM into a wrong one.</li>
+<li><strong>Query is truth ⇒ the async gap is survivable.</strong> An intent is computed against a
+snapshot the world has already moved past. The rule &quot;re-<code>getState</code> before a
+consequential decision&quot; exists for lossy events, and it is the same rule that
+makes a <em>round-trip delay</em> safe. The sim validates intents anyway.</li>
+<li><strong>Serializable <code>WorldState</code> + stable round-tripping <code>EntityId</code>s ⇒ small parcels,
+surviving references.</strong> Events out, intents in: tens of bytes to a few KB. Nothing
+needs a shared heap.</li>
+<li><strong>Deterministic, <code>Date.now</code>-free store ⇒ replay and audit.</strong> The same seed and the
+same event log reproduce the session — which is what an agentic GM needs to be
+debuggable at all.</li>
+</ul>
+<p>Two shape notes, because they decide the plumbing:</p>
+<ul>
+<li><strong>The driver is an ACTOR, not a task.</strong> Long-lived, persistent memory across ticks,
+it <em>initiates</em> (an intent nobody asked for), and it does network I/O. That is not
+a request/response worker pool.</li>
+<li><strong>Run it on a VM, not wasm.</strong> GM code is agent-authored, so it wants injected
+capabilities and a gas limit (the gas limit <em>is</em> its worst-case guarantee), and it
+sidesteps <code>unsafe-eval</code>. Wasm is for numeric kernels; a decision-maker is not one.</li>
+</ul>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

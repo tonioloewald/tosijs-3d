@@ -103,6 +103,45 @@ Rules that follow:
   in pairs (524k). Without a fixed broadphase (uniform/hash grid, sort-and-sweep) a "fixed
   budget" smuggles an O(n²) back in.
 
+## The one worker we HAVE approved: the GM / narrative driver
+
+Terrain's worker was measured and rejected. The GM's is approved without needing a
+measurement, and the contrast is the whole lesson: **split on latency tolerance, not on CPU
+cost.**
+
+|               | terrain tiles            | GM / narrative driver                      |
+| ------------- | ------------------------ | ------------------------------------------ |
+| result needed | this frame (or the next) | whenever — 100 ms, 2 s, never              |
+| work          | small, bounded, numeric  | unbounded: planner, search, LLM round-trip |
+| inline cost   | a few ms                 | **20–200 dropped frames**                  |
+| verdict       | keep it on the thread    | **must never touch the frame thread**      |
+
+Blocking is a nuisance for terrain and _fatal_ for a GM. That's the axis — not FLOPS.
+
+**And the membrane is already specified**: `world-contract.ts`. Its rules were written to
+decouple narrative from simulation, and they turn out to be exactly the rules that make a
+worker _correct_:
+
+- **intents are advisory** ⇒ an intent that arrives late, or never, still leaves the sim
+  complete. _You cannot put a load-bearing component behind a membrane without inventing a
+  stall_ — this one is load-bearing nowhere.
+- **events are best-effort** ⇒ under backpressure you **shed**, you don't queue. A driver
+  that falls behind must not later deliver stale advice: that turns a slow GM into a wrong
+  one.
+- **query is truth** ⇒ the round-trip gap is survivable, because the driver already must
+  re-`getState` before a consequential decision (a rule written for lossy events; it covers
+  latency for free).
+- **serializable state, stable ids, deterministic store** ⇒ small parcels, references that
+  survive the crossing, and a session that can be replayed and audited.
+
+Two shape notes: the driver is an **actor** (long-lived, persistent memory, initiates, does
+network I/O) — _not_ a request/response task pool. And it runs on a **VM (AJS), not wasm**:
+GM code is agent-authored, so it wants injected capabilities and a **gas limit** (which is
+its worst-case guarantee), and that sidesteps `unsafe-eval` too. Wasm is for numeric
+kernels; a decision-maker is not one.
+
+See `src/world-contract.ts` → "The driver belongs OFF-THREAD".
+
 ## Workers: send the recipe, transfer the result
 
 The reason most worker experiments disappoint is that people send the **data** —

@@ -68,6 +68,15 @@ importing us unbundled from a CDN can't spawn one at all** — needs a blob-URL 
 dynamic-imports the real worker by absolute URL (see PERF-DESIGN.md). That ceremony is exactly
 what Tonio's unpublished **wobbly** already solves; check whether it does web workers (blob-
 spawnable) vs service workers (NOT — registration rejects blob: and demands same-origin).
+[ ] **GM / narrative driver in a worker — the one worker we've APPROVED** (see PERF-DESIGN.md +
+world-contract.ts). Split on LATENCY TOLERANCE, not CPU: a planner/LLM round-trip is 100ms-2s,
+which inline is 20-200 dropped frames. `world-contract.ts` is already the membrane spec — its
+decoupling rules turn out to be exactly what makes a worker correct (advisory intents ⇒ late-or-
+never is safe; best-effort events ⇒ SHED under backpressure, never queue stale advice; query-is-
+truth ⇒ the round-trip gap is survivable; serializable state + stable ids ⇒ small parcels).
+Shape: an ACTOR (long-lived, persistent memory, initiates, does network I/O) — not a task pool.
+Engine: the AJS **VM** (capabilities + gas limit = its worst-case guarantee; sidesteps unsafe-eval),
+NOT wasm — it's decisions, not arithmetic. This is the wobbly use case that's genuinely ironclad.
 [ ] Batch noise API (`sampleGrid`) — pays in plain JS, serves terrain + planet + star-system,
 and is the seam a wasm kernel drops into. Design it before the kernel.
 [ ] Steering/crowd kernel — NOT yet justified (a handful of agents is free). **The AI scenario
