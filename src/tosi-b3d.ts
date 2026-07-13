@@ -911,6 +911,13 @@ export class B3d extends Component {
    * })
    * ```
    */
+  /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
+   * its contents in place. Unified on purpose — see `_perfPanelRows`. */
+  private _repaintPanels(): void {
+    this.refreshScenePanel()
+    this._refreshXrPanel()
+  }
+
   addDebugSource(source: DebugPanelSource): () => void {
     this._debugSources.push(source)
     this.refreshScenePanel()
@@ -1003,38 +1010,35 @@ export class B3d extends Component {
 
   // Perf-stats rows for the scene panel (dual-presence: flat overlay AND the in-VR
   // panel), so the readout is reachable in a headset too — the reason it lives here
-  // and not in the flat toolbar. Collapsed to a single "Perf Stats" button by
-  // default; tapping it expands the readout (kept out of the way of the demo's own
-  // controls). The panel rebuilds each open, so the numbers are a snapshot at open
-  // time; the collapse toggle and the probe button rebuild the flat panel on tap.
+  // and not in the flat toolbar. Collapsed to a single "Perf Stats" button by default;
+  // tapping it expands the readout (kept out of the way of the demo's own controls).
   //
-  // `toggleable` is true for the flat panel (which we can rebuild via
-  // refreshScenePanel); the XR panel is built once on entry with no rebuild handle,
-  // so it renders always-expanded with a plain header (no dead toggle in VR).
-  private _perfPanelRows(toggleable: boolean): Widget3d[] {
-    const expanded = !toggleable || this._statsExpanded
-    if (!expanded) {
+  // IDENTICAL flat and in XR. It used to render always-expanded with a dead header in the
+  // headset, because the XR panel was built once on entry with no way to rebuild it — so a
+  // collapse toggle there would have done nothing. `_refreshXrPanel` now rewrites the XR
+  // panel's contents in place, so that excuse is gone and the divergence with it: the panel
+  // is ONE ui with two presentations, and a control that exists in one must work in both.
+  private _perfPanelRows(): Widget3d[] {
+    if (!this._statsExpanded) {
       return [
         button3d({
           label: 'Perf Stats ▸',
           onClick: () => {
             this._statsExpanded = true
-            this.refreshScenePanel()
+            this._repaintPanels()
           },
         }),
       ]
     }
     const s = this.debugState
     const scaled = this._statsBaseScale != null
-    const header = toggleable
-      ? button3d({
-          label: 'Perf Stats ▾',
-          onClick: () => {
-            this._statsExpanded = false
-            this.refreshScenePanel()
-          },
-        })
-      : label3d({ text: 'Perf Stats', bold: true })
+    const header = button3d({
+      label: 'Perf Stats ▾',
+      onClick: () => {
+        this._statsExpanded = false
+        this._repaintPanels()
+      },
+    })
     return [
       header,
       label3d({
@@ -1083,7 +1087,7 @@ export class B3d extends Component {
     // (nothing registers unless it wants to be seen), so they don't need the stats gate.
     const debug = this._debugSourceRows(xr)
     return perfDebugEnabled() || this.stats
-      ? [...rows, ...this._perfPanelRows(!xr), ...debug]
+      ? [...rows, ...this._perfPanelRows(), ...debug]
       : [...rows, ...debug]
   }
 
@@ -1994,6 +1998,25 @@ export class B3d extends Component {
     const T = BABYLON.PointerEventTypes
     let vx = 0
     let vy = 0
+    // XR pointer diagnostics, shown ON THE PANEL — the only way to debug a panel you
+    // can't press. (The panel renders fine and its lines are live, so you can READ it in
+    // the headset even when picking is broken.) Off unless something registered.
+    const dbg = {
+      kind: '-',
+      events: 0,
+      hit: '-',
+      repick: '-',
+      vis: 0,
+      uv: '-',
+    }
+    const offDbg = this.addDebugSource({
+      name: 'xr pointer',
+      lines: () => [
+        `events ${dbg.events}  last ${dbg.kind}  vis ${dbg.vis.toFixed(2)}`,
+        `pick ${dbg.hit}`,
+        `repick ${dbg.repick}  uv ${dbg.uv}`,
+      ],
+    })
     const obs = scene.onPointerObservable.add((pi) => {
       const kind =
         pi.type === T.POINTERDOWN
@@ -2003,6 +2026,18 @@ export class B3d extends Component {
           : pi.type === T.POINTERMOVE
           ? 'move'
           : ''
+      if (kind) {
+        dbg.events++
+        dbg.kind = kind
+        dbg.vis = plane.visibility
+        dbg.hit = pi.pickInfo?.pickedMesh
+          ? `${pi.pickInfo.pickedMesh.name}${
+              pi.pickInfo.pickedMesh === plane ? ' (PANEL)' : ''
+            }`
+          : pi.pickInfo?.ray
+          ? 'nothing (ray ok)'
+          : 'NO RAY'
+      }
       // Only interactive while it's actually visible (you're looking at it).
       if (
         !kind ||
@@ -2020,7 +2055,11 @@ export class B3d extends Component {
       if (!uv && pick?.ray) {
         const p2 = scene.pickWithRay(pick.ray, (m) => m === plane)
         if (p2?.hit) uv = p2.getTextureCoordinates()
+        if (kind) dbg.repick = p2?.hit ? 'HIT' : 'miss'
+      } else if (kind) {
+        dbg.repick = uv ? 'n/a (direct)' : 'no ray'
       }
+      if (kind) dbg.uv = uv ? `${uv.x.toFixed(2)},${uv.y.toFixed(2)}` : 'none'
       if (uv) {
         // The panel is the plane's BACK face with the texture U-flipped
         // (uScale=-1) so it READS correctly — but the pick returns the raw mesh
@@ -2044,6 +2083,7 @@ export class B3d extends Component {
         base.sessionManager.onXRFrameObservable.remove(frame)
         scene.onPointerObservable.remove(obs)
         clearInterval(liveTimer) // the debug-panel refresher (see _refreshXrPanel)
+        offDbg()
         this._refreshXrPanel = noopRefresh
         this._liveDebug.xr = [] // its <text> nodes die with the panel
         tex.dispose()

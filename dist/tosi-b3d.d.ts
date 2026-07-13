@@ -346,6 +346,9 @@ export declare class B3d extends Component {
      * })
      * ```
      */
+    /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
+     * its contents in place. Unified on purpose — see `_perfPanelRows`. */
+    private _repaintPanels;
     addDebugSource(source: DebugPanelSource): () => void;
     private _debugSourceRows;
     private _startLiveDebug;
