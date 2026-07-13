@@ -934,12 +934,15 @@ export class B3d extends Component {
     // non-toggleable perf rendering for the headset panel.
     _panelWidgets(xr = false) {
         const rows = this.scenePanel(this);
-        // Debug sources show whenever anything registered — they're opt-in by construction
-        // (nothing registers unless it wants to be seen), so they don't need the stats gate.
+        // Debug sources go FIRST. They're opt-in by construction (nothing registers unless it
+        // wants to be seen), and a diagnostic below the fold is a diagnostic you can't read —
+        // which is exactly how we got stuck: the panel's pick was broken, so the buttons AND
+        // the scrolling were dead, and the readout that would have explained why was parked
+        // underneath a demo's nine sliders. Status before controls.
         const debug = this._debugSourceRows(xr);
         return perfDebugEnabled() || this.stats
-            ? [...rows, ...this._perfPanelRows(), ...debug]
-            : [...rows, ...debug];
+            ? [...debug, ...this._perfPanelRows(), ...rows]
+            : [...debug, ...rows];
     }
     // window.requestAnimationFrame stops firing during an immersive XR session (the
     // session's own frame loop drives rendering instead). tosijs batches component
@@ -1451,9 +1454,12 @@ export class B3d extends Component {
                 const inputs = this.xrHelper?.input?.controllers ?? [];
                 for (const src of inputs) {
                     src.getWorldPointerRayToRef(scrollRay);
-                    if (!scene.pickWithRay(scrollRay, (m) => m === panel.plane)?.hit) {
-                        continue;
-                    }
+                    // Scroll is gated on GAZE (the panel is visible = you're looking at it), NOT on
+                    // the controller ray hitting the panel. It used to require the pick — which made
+                    // scrolling die whenever picking died, so a panel whose content ran below the
+                    // fold became completely unreachable: you couldn't press anything AND you
+                    // couldn't scroll to what you couldn't press. Never gate the only escape hatch
+                    // on the thing that's broken.
                     const hand = src.inputSource?.handedness;
                     const axes = controllers[hand]?.['xr-standard-thumbstick']
                         ?.axes;
