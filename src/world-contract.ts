@@ -32,6 +32,15 @@ serializable `WorldState`, a stream of best-effort `SimulationEvent`s, and the
 - **Time crosses the boundary; the sim owns the clock.** `WorldState.now` is
   the one continuous quantity the driver needs — all inference-from-absence
   ("it's been a while and nothing happened") is built on it.
+- **The simulation NEVER grows a rules engine.** Physical questions are answered
+  deterministically — did the missile hit, did the round penetrate, could the
+  airframe make that turn — and stay that way. (NPC *imperfection* is seeded
+  randomness in a behaviour model; that is not the same thing.) The driver
+  adjudicates everything **unmodeled**: the improvised, the social, the ambiguous.
+  *"Just add a skill check"* is exactly how narrative vocabulary creeps into a
+  narrative-blind simulation — the same failure as adding an `isClue` field. If the
+  driver needs to adjudicate something the sim doesn't model, then **the driver
+  adjudicates it**; the sim does not learn to.
 
 ## The driver belongs OFF-THREAD — and this contract is already the membrane
 

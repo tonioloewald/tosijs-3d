@@ -60,6 +60,15 @@ fingerprints. An optional opaque <code>ref</code> rides along untouched by the s
 <li><strong>Time crosses the boundary; the sim owns the clock.</strong> <code>WorldState.now</code> is
 the one continuous quantity the driver needs — all inference-from-absence
 (&quot;it&#39;s been a while and nothing happened&quot;) is built on it.</li>
+<li><strong>The simulation NEVER grows a rules engine.</strong> Physical questions are answered
+deterministically — did the missile hit, did the round penetrate, could the
+airframe make that turn — and stay that way. (NPC <em>imperfection</em> is seeded
+randomness in a behaviour model; that is not the same thing.) The driver
+adjudicates everything <strong>unmodeled</strong>: the improvised, the social, the ambiguous.
+<em>&quot;Just add a skill check&quot;</em> is exactly how narrative vocabulary creeps into a
+narrative-blind simulation — the same failure as adding an <code>isClue</code> field. If the
+driver needs to adjudicate something the sim doesn&#39;t model, then <strong>the driver
+adjudicates it</strong>; the sim does not learn to.</li>
 </ul>
 <h2>The driver belongs OFF-THREAD — and this contract is already the membrane</h2>
 <p>A GM/narrative driver <em>thinks</em>: a planner, a search, an LLM round-trip. That&#39;s
