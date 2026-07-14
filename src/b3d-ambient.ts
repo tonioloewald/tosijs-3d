@@ -13,6 +13,13 @@ falls *past* you, motes drift *by* you, bubbles rise *away* from you. Emit them 
 frame instead and they travel with you like dandruff on the lens, which is the single most
 common way ambient particles are got wrong.
 
+The box has a **hole in the middle**, and it matters: a box centred on the camera will happily
+give birth to a particle *on your face*, and a few-centimetre sprite half a metre from the lens
+is a big soft blob covering a chunk of the screen. That's not a mote, that's a smudge. Nothing
+spawns inside the preset's `near` radius (drifting in close later is fine — it's being *born*
+there that reads as dirt on the lens). Particles also **fade in**, not just out: born at full
+alpha they blink into existence, which reads as sensor noise rather than as dust.
+
 Because the box follows you, an endless snowstorm costs a **fixed** number of particles no
 matter how big the world is. Nothing grows, nothing allocates.
 
@@ -103,7 +110,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `radius` | `18` | Size of the box around the camera that particles spawn in |
 | `rate` | `0` | Particles/sec (0 = derive from the preset) |
 | `color` | `''` | Override the preset's colour |
-| `size` | `0` | Override the preset's size |
+| `size` | `0` | Scale the preset's sprite size |
 | `windX` | `0` | World wind (rain slants, dust blows) |
 | `windZ` | `0` | |
 | `disabled` | `false` | Stop emitting |
@@ -139,6 +146,13 @@ type Preset = {
    * It's what makes a bubble MEANDER upward instead of firing like a bullet, and a mote
    * shimmer in place instead of sitting there like a dead pixel. */
   wander: BABYLON.Vector3 | null
+  /**
+   * **Don't spawn within this many metres of the eye.** The emitter box is centred on the
+   * camera, so without this a particle is born ON YOUR FACE — and a centimetre-wide sprite
+   * half a metre from the lens is a big soft blob covering a chunk of the screen. That's not
+   * a mote, that's a smudge. Keep them out at a distance where they read as specks.
+   */
+  near: number
 }
 
 const V = (x: number, y: number, z: number) => new BABYLON.Vector3(x, y, z)
@@ -149,7 +163,10 @@ const PRESETS: Record<string, Preset> = {
   // Hanging in the light. Near-weightless: the point is that they DRIFT, and drifting is
   // what makes a volume read as a substance rather than as empty space.
   motes: {
-    size: [0.03, 0.12],
+    // TINY. A mote is a speck catching the light, not a glowing orb — at 0.12 across it stops
+    // being dust and becomes a bright blurry circle, which is the classic way this effect is
+    // got wrong. Small and faint, and let there be MANY of them.
+    size: [0.008, 0.03],
     life: [10, 22],
     rate: 55,
     desired: 1210,
@@ -159,11 +176,12 @@ const PRESETS: Record<string, Preset> = {
     gravity: V(0, 0, 0),
     dir1: V(-0.015, -0.01, -0.015),
     dir2: V(0.015, 0.01, 0.015),
-    color1: C(1, 1, 0.95, 0.5),
-    color2: C(0.85, 0.95, 1, 0.35),
+    color1: C(1, 1, 0.95, 0.28),
+    color2: C(0.85, 0.95, 1, 0.16),
     dead: C(1, 1, 1, 0),
     additive: true,
     wander: V(0.35, 0.2, 0.35), // a shimmer, not a drift
+    near: 1.5, // nothing born inside arm's reach — that's where blobs come from
   },
   // Rise, wobble, accelerate. (A bubble really does speed up as it rises and expands.)
   bubbles: {
@@ -177,11 +195,17 @@ const PRESETS: Record<string, Preset> = {
     gravity: V(0, 0.22, 0),
     dir1: V(-0.05, 0.12, -0.05),
     dir2: V(0.05, 0.35, 0.05),
-    color1: C(0.8, 0.95, 1, 0.5),
-    color2: C(0.6, 0.85, 1, 0.35),
+    // NOT additive, and this is the whole reason you can see them. Additive ADDS light, and
+    // underwater the fog is already a bright pale blue — you cannot meaningfully add
+    // brightness to something that's nearly white, so additive bubbles are invisible exactly
+    // where bubbles are supposed to be. Alpha-blended near-white reads as the silvery rim of
+    // a real bubble against the water.
+    color1: C(0.95, 1, 1, 0.85),
+    color2: C(0.75, 0.9, 1, 0.6),
     dead: C(1, 1, 1, 0),
-    additive: true,
+    additive: false,
     wander: V(1.1, 0.25, 1.1), // wide sideways wander, barely any vertical
+    near: 0.8, // a bubble born on the lens is a smudge, not a bubble
   },
   rain: {
     size: [0.02, 0.06],
@@ -197,6 +221,7 @@ const PRESETS: Record<string, Preset> = {
     dead: C(0.7, 0.8, 0.9, 0),
     additive: false,
     wander: null, // rain is the one thing that should NOT wander
+    near: 0.6, // no drops materialising on your nose
   },
   snow: {
     size: [0.06, 0.22],
@@ -212,6 +237,7 @@ const PRESETS: Record<string, Preset> = {
     dead: C(1, 1, 1, 0),
     additive: false,
     wander: V(0.8, 0.15, 0.8), // wandering is most of what makes snow read as snow
+    near: 0.6,
   },
   dust: {
     size: [0.04, 0.16],
@@ -227,6 +253,7 @@ const PRESETS: Record<string, Preset> = {
     dead: C(0.8, 0.75, 0.6, 0),
     additive: false,
     wander: V(0.9, 0.4, 0.9),
+    near: 0.6,
   },
 }
 
@@ -356,14 +383,57 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     ps.particleTexture = dotTexture(scene)
     ps.emitter = this._emitter // a WORLD point we move to the camera each frame
 
+    // The box, MINUS a sphere around the eye. Without the hole, particles are born on your
+    // face: a sprite a few centimetres wide at half a metre is a big soft blob filling a chunk
+    // of the screen — the "bright blurry circle" failure. Anything that drifts in close later
+    // is fine; it's being BORN there that reads as a smudge on the lens.
     const r = this.radius
-    ps.minEmitBox = V(-r, -r, -r)
-    ps.maxEmitBox = V(r, r, r)
+    const near = p.near
+    ps.startPositionFunction = (
+      worldMatrix,
+      positionToUpdate,
+      _particle,
+      isLocal
+    ) => {
+      let x = 0
+      let y = 0
+      let z = 0
+      // Rejection-sample out of the near-field core. Bounded — on the rare miss we just take
+      // the last sample rather than spin.
+      for (let i = 0; i < 8; i++) {
+        x = (Math.random() * 2 - 1) * r
+        y = (Math.random() * 2 - 1) * r
+        z = (Math.random() * 2 - 1) * r
+        if (x * x + y * y + z * z >= near * near) break
+      }
+      if (isLocal) {
+        positionToUpdate.copyFromFloats(x, y, z)
+        return
+      }
+      BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(
+        x,
+        y,
+        z,
+        worldMatrix,
+        positionToUpdate
+      )
+    }
 
     const c = this.color ? BABYLON.Color3.FromHexString(this.color) : null
-    ps.color1 = c ? C(c.r, c.g, c.b, p.color1.a) : p.color1
-    ps.color2 = c ? C(c.r, c.g, c.b, p.color2.a) : p.color2
+    const c1 = c ? C(c.r, c.g, c.b, p.color1.a) : p.color1
+    const c2 = c ? C(c.r, c.g, c.b, p.color2.a) : p.color2
+    ps.color1 = c1
+    ps.color2 = c2
     ps.colorDead = p.dead
+
+    // FADE IN, not just out. Born at full alpha, a particle BLINKS into existence — which
+    // reads as sensor noise rather than as dust hanging in the air. Ramp up over the first
+    // sliver of its life and back down at the end, and it simply drifts into view.
+    const clear = (col: BABYLON.Color4) => C(col.r, col.g, col.b, 0)
+    ps.addColorGradient(0, clear(c1), clear(c2))
+    ps.addColorGradient(0.18, c1, c2)
+    ps.addColorGradient(0.75, c1, c2)
+    ps.addColorGradient(1, p.dead, p.dead)
 
     const scale = this._sizeScale
     ps.minSize = p.size[0] * scale

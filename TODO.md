@@ -173,6 +173,14 @@ per-system counter and the cost is GPU fill, so `EXT_disjoint_timer_query` you w
 Quest). **An effect that can't be given its honest minimum switches OFF rather than thinning** —
 40 raindrops is a rendering bug, not light rain. Shed lowest-priority-first; freed budget goes to
 the survivors. Sustained under-target frame rate ratchets the pool down, ONE-WAY.
+[ ] **Ambient art direction: authorable textures / SVGs** (Tonio) — the presets currently draw a
+generated soft dot and pick blend/opacity themselves; that's a placeholder, not a decision. Expose
+the sprite (`texture` attr, and an SVG path through `svg-texture.ts` — a designer-authored snowflake
+/ raindrop streak / bubble rim, same pipeline the HUD and gamepad art use) plus `blend` and opacity
+as authorable knobs, and let the preset supply only the DEFAULT. NB the two lessons already paid
+for: additive is invisible against a bright background (it's why underwater bubbles vanished — you
+can't add brightness to near-white fog), and the emitter box is camera-centred so sprites MUST have
+a near-field exclusion or they're born on the lens as big soft blobs.
 [ ] **Reclaim ambient budget in quiet moments** (Tonio) — the ratchet above is deliberately
 one-way, so an effect shed during a heavy fight stays gone for the session. Find headroom when the
 scene is genuinely calm and let switched-off garnish back in. The hard part is NOT detecting

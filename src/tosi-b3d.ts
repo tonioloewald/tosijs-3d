@@ -10,7 +10,7 @@ must be children of a `b3d` element.
 import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
   b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
-  gameController, inputFocus, toggle3d, slider3d,
+  b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
@@ -19,6 +19,9 @@ const { demo } = tosi({
   demo: {
     showColliders: false,
     time: 19,
+    // Drag this UP to flood the scene and walk your biped under. The fog closes in and the
+    // bubbles ramp in with the depth — neither of them switches on at the surface.
+    waterLevel: -0.2,
   },
 })
 
@@ -42,6 +45,7 @@ preview.append(
       scenePanel: () => [
         toggle3d({ label: 'show colliders', value: demo.showColliders }),
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
+        slider3d({ label: 'water level', value: demo.waterLevel, min: -1, max: 4, step: 0.1 }),
       ],
     },
     b3dSun({ shadowTextureSize: 2048, activeDistance: 20 }),
@@ -55,7 +59,13 @@ preview.append(
     b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: 'idle' }),
     b3dBiped({ url: omnidude, x: 3, z: -2, initialState: 'dance' }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
-    b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 }),
+    b3dWater({ y: demo.waterLevel, twoSided: true, waterSize: 1024 }),
+    // Dust hanging in the light — the cheapest way to make air read as a SUBSTANCE rather
+    // than a vacuum. The box rides the camera, so it costs the same wherever you walk.
+    b3dAmbient({ preset: 'motes', radius: 10 }),
+    // And under the surface: bubbles. Raise the water level and they arrive AS the water
+    // does — emission ramps with depth rather than switching on at the plane.
+    b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 8 }),
     b3dReflections(),
     b3dCollisions({ debug: demo.showColliders })
   ),

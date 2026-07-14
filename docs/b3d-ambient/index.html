@@ -40,6 +40,12 @@ dust or drifting seeds when you&#39;re not.</strong></p>
 falls <em>past</em> you, motes drift <em>by</em> you, bubbles rise <em>away</em> from you. Emit them in your local
 frame instead and they travel with you like dandruff on the lens, which is the single most
 common way ambient particles are got wrong.</p>
+<p>The box has a <strong>hole in the middle</strong>, and it matters: a box centred on the camera will happily
+give birth to a particle <em>on your face</em>, and a few-centimetre sprite half a metre from the lens
+is a big soft blob covering a chunk of the screen. That&#39;s not a mote, that&#39;s a smudge. Nothing
+spawns inside the preset&#39;s <code>near</code> radius (drifting in close later is fine — it&#39;s being <em>born</em>
+there that reads as dirt on the lens). Particles also <strong>fade in</strong>, not just out: born at full
+alpha they blink into existence, which reads as sensor noise rather than as dust.</p>
 <p>Because the box follows you, an endless snowstorm costs a <strong>fixed</strong> number of particles no
 matter how big the world is. Nothing grows, nothing allocates.</p>
 <h2>It switches off rather than thinning out</h2>
@@ -182,7 +188,7 @@ preview.append(scene)
 <tr>
 <td><code>size</code></td>
 <td><code>0</code></td>
-<td>Override the preset&#39;s size</td>
+<td>Scale the preset&#39;s sprite size</td>
 </tr>
 <tr>
 <td><code>windX</code></td>
