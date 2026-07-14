@@ -28,6 +28,9 @@ export { B3dWater, b3dWater } from './b3d-water';
 export { B3dLight, b3dLight } from './b3d-light';
 export { B3dFog, b3dFog } from './b3d-fog';
 export { B3dClouds, b3dClouds } from './b3d-clouds';
+export { B3dAmbient, b3dAmbient } from './b3d-ambient';
+// Garnish competes for ONE pool and switches OFF rather than thinning into a lie.
+export { allocateAmbient, fillWeight, ratchetPool } from './ambient-budget';
 // Atmosphere: fog is ALWAYS ON and systems lean on it (underwater / cloud / space).
 export { compositeFog, approachFog, band } from './atmosphere';
 export { B3dSphere, b3dSphere, B3dBox, b3dBox, B3dGround, b3dGround, } from './b3d-primitives';

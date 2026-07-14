@@ -150,6 +150,7 @@ import { attachFramePanel, placeholderPanelSvg, } from './frame-panel';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe';
 import { compositeFog, approachFog, } from './atmosphere';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, } from './b3d-quality';
+import { allocateAmbient, ratchetPool, } from './ambient-budget';
 const { canvas, div, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
@@ -653,6 +654,7 @@ export class B3d extends Component {
                 this.combat.tick(dt);
             if (dt > 0)
                 this._updateFog(dt);
+            this._ambientWatchdog();
             if (this.update !== noop) {
                 this.update(this, BABYLON);
             }
@@ -732,12 +734,87 @@ export class B3d extends Component {
             }, 0);
         }
         this._applyHardwareScaling(this.xrActive);
-        this._qualityOff = onQualityChange(() => this._applyHardwareScaling(this.xrActive));
+        this._qualityOff = onQualityChange(() => {
+            this._applyHardwareScaling(this.xrActive);
+            this._reallocAmbient(); // a new tier is a new pool
+        });
     }
     _applyHardwareScaling(xr) {
         if (this.engine == null)
             return;
         this.engine.setHardwareScalingLevel(qualityBudgets({ xr }).hardwareScaling);
+    }
+    // ─── Ambient budget ───────────────────────────────────────────────────────
+    // Ambient effects (rain, motes, bubbles — and one day footprints and bullet holes) are
+    // GARNISH: they compete for one shared pool, and an effect that can't be given its honest
+    // minimum switches OFF rather than thinning into a lie. The maths is pure and lives in
+    // `ambient-budget.ts`; B3d just owns the registry, the pool, and the watchdog.
+    _ambient = [];
+    /** Shrunk by the watchdog, never grown. See `ratchetPool` — and TODO: reclaiming budget in
+     * quiet moments is a real want, but it must be a damped, deliberate thing, not a rebound. */
+    _ambientPoolScale = 1;
+    _ambientSampleMs = 0;
+    _ambientBadSamples = 0;
+    _ambientCooldownMs = 0;
+    /** An ambient effect joins the scene's pool. Returns its unregister. */
+    registerAmbient(effect) {
+        this._ambient.push(effect);
+        this._reallocAmbient();
+        return () => {
+            const i = this._ambient.indexOf(effect);
+            if (i < 0)
+                return;
+            this._ambient.splice(i, 1);
+            this._reallocAmbient(); // its budget goes back to the survivors
+        };
+    }
+    /** Divide the pool and tell everyone what they got (0 = switch off). */
+    _reallocAmbient() {
+        if (this._ambient.length === 0)
+            return;
+        const xr = this.xrActive;
+        const pool = qualityBudgets({ xr }).ambientParticles * this._ambientPoolScale;
+        const alloc = allocateAmbient(this._ambient.map((a) => a.budgetRequest()), { pool, tier: effectiveTier({ xr }) });
+        for (const a of this._ambient) {
+            a.applyAllocation(alloc[a.budgetRequest().id] ?? 0);
+        }
+    }
+    /**
+     * Garnish is the first thing to go. If the frame stays under target we shrink the ambient
+     * pool — effects that fall below their honest minimum switch themselves off.
+     *
+     * This needs NO cost attribution, which is the point: we can't measure what the rain costs
+     * (Babylon has no per-system counter, and the real cost is GPU fill), but we don't have to.
+     * We only need to know that ambient is the cheapest thing in the scene to give up.
+     */
+    _ambientWatchdog() {
+        if (this._ambient.length === 0 || this._ambientPoolScale <= 0)
+            return;
+        if (this.engine == null)
+            return;
+        const dt = this.engine.getDeltaTime();
+        if (this._ambientCooldownMs > 0) {
+            this._ambientCooldownMs -= dt;
+            return;
+        }
+        this._ambientSampleMs += dt;
+        if (this._ambientSampleMs < 1000)
+            return;
+        this._ambientSampleMs = 0;
+        const target = this.xrActive ? 72 : 60;
+        const fps = this.engine.getFps();
+        if (Number.isFinite(fps) && fps > 0 && fps < target * 0.85) {
+            this._ambientBadSamples++;
+        }
+        else {
+            this._ambientBadSamples = 0; // it must be SUSTAINED — one bad second is a hitch, not a trend
+        }
+        if (this._ambientBadSamples < 3)
+            return;
+        this._ambientBadSamples = 0;
+        this._ambientCooldownMs = 3000; // let the frame settle before judging again
+        this._ambientPoolScale = ratchetPool(this._ambientPoolScale);
+        this._reallocAmbient();
     }
     _statsBaseScale = null;
     _statsExpanded = false;
@@ -1282,12 +1359,16 @@ export class B3d extends Component {
                 // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
                 // back to the flat one on exit (the cheap lever that's safe to change live).
                 this._applyHardwareScaling(true);
+                // Same reason: the XR tier is a smaller ambient pool, so re-divide it. A snowstorm
+                // that was honest on a monitor may only afford to be nothing at all in a headset.
+                this._reallocAmbient();
                 // Keep tosijs's rAF-batched reactive bindings flushing while in-session.
                 restoreRaf ??= this._installXrRafPump(base);
                 xrSession ??= this._startDefaultXrExperience(base, controllers);
             }
             else if (state === BABYLON.WebXRState.NOT_IN_XR) {
                 this._applyHardwareScaling(false);
+                this._reallocAmbient();
                 xrSession?.dispose();
                 xrSession = undefined;
                 restoreRaf?.();

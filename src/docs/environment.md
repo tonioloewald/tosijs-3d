@@ -2,6 +2,7 @@
 
 <!-- toc -->
 - [atmosphere](/atmosphere/)
+- [b3d-ambient](/b3d-ambient/)
 - [b3d-clouds](/b3d-clouds/)
 - [b3d-fog](/b3d-fog/)
 - [b3d-light](/b3d-light/)

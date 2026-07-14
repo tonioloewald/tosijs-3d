@@ -164,10 +164,29 @@ awkward in stereo; fog is per-pixel and ~free. ⚠️ Clouds MUST be `isPickable
 from projectile rays — a cloud between the controller and a panel, or between a missile and its
 target, would silently break picking and swept collision (we lost an hour to exactly that class of
 bug on the XR panel).
-[ ] **Ambient particles** — ONE component: rain, snow, motes, windblown debris, underwater bubbles.
-Emit in a box around the CAMERA while particles move in WORLD space (so rain falls past you rather
-than travelling with you), recycle on exit, FIXED capacity from the device tier, no per-frame
-allocation. Preset chosen by where the camera is (above water / below water / inside a cloud).
+[x] **Ambient particles** — `b3d-ambient` (motes/bubbles/rain/snow/dust). Emitter box rides the
+CAMERA, particles live in WORLD space (rain falls PAST you). `where: underwater` ramps with depth
+via the fog's own `band()` — it arrives with the water, no thunk. Capacity is not a number you set:
+each effect ASKS, and `ambient-budget.ts` divides one shared, device-tier-sized pool between all
+comers, charging modelled fill cost (area × blend — measuring is impossible: Babylon has no
+per-system counter and the cost is GPU fill, so `EXT_disjoint_timer_query` you won't get on a
+Quest). **An effect that can't be given its honest minimum switches OFF rather than thinning** —
+40 raindrops is a rendering bug, not light rain. Shed lowest-priority-first; freed budget goes to
+the survivors. Sustained under-target frame rate ratchets the pool down, ONE-WAY.
+[ ] **Reclaim ambient budget in quiet moments** (Tonio) — the ratchet above is deliberately
+one-way, so an effect shed during a heavy fight stays gone for the session. Find headroom when the
+scene is genuinely calm and let switched-off garnish back in. The hard part is NOT detecting
+headroom, it's not building an oscillator: ambient popping in and out as you fly is its own broken
+promise. Wants a long observation window, hysteresis, and probably a cap on how many times a given
+effect may return (a thing that has flickered twice has earned its retirement).
+[ ] **Decals: footprints, blood drips, bullet holes** (Tonio) — the same garnish discipline, but a
+DIFFERENT beast from ambient, and the differences are the whole design: they ACCUMULATE (ambient is
+fixed-capacity because particles die), they're anchored in WORLD space (so they MUST opt into the
+floating origin — `registerWorldRoot` / `onOriginShift`, or they'll drift off the wall they were
+shot into), and they need a ring buffer with oldest-fades-first eviction rather than a lifetime.
+Should claim from the SAME `ambient-budget` pool — a scene can't afford rain _and_ unbounded
+bullet holes, and only a shared pool can know that. Strongly on the north star: a footprint is a
+**trace of agency** — the world remembering what you did. Depth is systemic, not textural.
 [ ] **Sun shafts = translucent ADDITIVE PANELS, judiciously placed** (Tonio) — NOT a real
 post-process god-ray (VolumetricLightScatteringPostProcess is expensive and awkward in stereo).
 Cheap, stereo-safe, costs ~nothing on a Quest. To read volumetrically: billboard each panel AROUND

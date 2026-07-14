@@ -1,0 +1,168 @@
+import { describe, expect, test } from 'bun:test'
+import { allocateAmbient, fillWeight, ratchetPool } from './ambient-budget'
+import type { AmbientRequest } from './ambient-budget'
+import type { PerfTier } from './perf-probe'
+
+const req = (
+  over: Partial<AmbientRequest> & { id: string }
+): AmbientRequest => ({
+  desired: 1000,
+  min: 200,
+  minTier: 'low' as PerfTier,
+  priority: 0,
+  weight: 1,
+  ...over,
+})
+
+describe('fillWeight', () => {
+  test('prices by AREA — the big soft flake costs far more than the thin drop', () => {
+    expect(fillWeight(0.22, false)).toBeGreaterThan(fillWeight(0.06, false) * 4)
+  })
+
+  test('additive pays a premium', () => {
+    expect(fillWeight(0.12, true)).toBeGreaterThan(fillWeight(0.12, false))
+  })
+
+  test('clamped — a model that says 40x is lying with unearned confidence', () => {
+    expect(fillWeight(10, true)).toBe(4)
+    expect(fillWeight(0.0001, false)).toBe(0.25)
+    expect(fillWeight(0, false)).toBe(0.25)
+  })
+})
+
+describe('allocateAmbient', () => {
+  test('everyone gets what they asked for when the pool covers it', () => {
+    const out = allocateAmbient([req({ id: 'rain' }), req({ id: 'motes' })], {
+      pool: 5000,
+      tier: 'high',
+    })
+    expect(out).toEqual({ rain: 1000, motes: 1000 })
+  })
+
+  test('a mild squeeze thins everyone rather than killing anyone', () => {
+    // 2000 weighted units wanted, 1500 available, nobody falls under min (200).
+    const out = allocateAmbient([req({ id: 'rain' }), req({ id: 'motes' })], {
+      pool: 1500,
+      tier: 'high',
+    })
+    expect(out.rain).toBe(750)
+    expect(out.motes).toBe(750)
+  })
+
+  test('weight is what gets charged — the expensive effect eats more of the pool', () => {
+    const out = allocateAmbient(
+      [req({ id: 'cheap', weight: 0.25 }), req({ id: 'pricey', weight: 4 })],
+      { pool: 4250, tier: 'high' }
+    )
+    // 1000*0.25 + 1000*4 = 4250 → exactly affordable, both whole.
+    expect(out).toEqual({ cheap: 1000, pricey: 1000 })
+    // Halve the pool and both thin by the same FACTOR, not the same amount.
+    const tight = allocateAmbient(
+      [req({ id: 'cheap', weight: 0.25 }), req({ id: 'pricey', weight: 4 })],
+      { pool: 2125, tier: 'high' }
+    )
+    expect(tight.cheap).toBe(500)
+    expect(tight.pricey).toBe(500)
+  })
+
+  test('an effect that would drop below min switches OFF — it does not thin out', () => {
+    // Pool only affords ~600 total; splitting it two ways puts BOTH under min 500.
+    // So the low-priority one dies and the survivor gets the whole pool, honestly.
+    const out = allocateAmbient(
+      [
+        req({ id: 'rain', min: 500, priority: 10 }),
+        req({ id: 'motes', min: 500, priority: 1 }),
+      ],
+      { pool: 600, tier: 'high' }
+    )
+    expect(out.motes).toBe(0) // lower priority — sacrificed
+    expect(out.rain).toBe(600) // and it got the freed budget, so it's real rain
+    expect(out.rain).toBeGreaterThanOrEqual(500)
+  })
+
+  test('the freed budget goes to the survivors — that is the point of sacrificing', () => {
+    const out = allocateAmbient(
+      [
+        req({ id: 'a', desired: 1000, min: 900, priority: 5 }),
+        req({ id: 'b', desired: 1000, min: 900, priority: 1 }),
+      ],
+      { pool: 1000, tier: 'high' }
+    )
+    expect(out.b).toBe(0)
+    expect(out.a).toBe(1000) // full strength, not 500
+  })
+
+  test('when nobody can be honest, everything is off — no fake ambient', () => {
+    const out = allocateAmbient(
+      [req({ id: 'rain', min: 500 }), req({ id: 'motes', min: 500 })],
+      { pool: 100, tier: 'high' }
+    )
+    expect(out).toEqual({ rain: 0, motes: 0 })
+  })
+
+  test('an empty pool switches everything off rather than throwing', () => {
+    const out = allocateAmbient([req({ id: 'rain' })], {
+      pool: 0,
+      tier: 'high',
+    })
+    expect(out.rain).toBe(0)
+  })
+
+  test('minTier is an absolute gate — no budget buys you onto a weak device', () => {
+    const out = allocateAmbient(
+      [
+        req({ id: 'fancy', minTier: 'high' }),
+        req({ id: 'plain', minTier: 'low' }),
+      ],
+      { pool: 100000, tier: 'low' }
+    )
+    expect(out.fancy).toBe(0) // pool is enormous; it still doesn't run
+    expect(out.plain).toBe(1000)
+  })
+
+  test('a tier-gated effect frees its budget for the ones that can run', () => {
+    const out = allocateAmbient(
+      [
+        req({ id: 'fancy', minTier: 'high', weight: 4 }),
+        req({ id: 'plain', min: 900 }),
+      ],
+      { pool: 1000, tier: 'medium' }
+    )
+    expect(out.fancy).toBe(0)
+    expect(out.plain).toBe(1000) // would have starved under min if 'fancy' had been charged
+  })
+
+  test('deterministic — ties break on id, so the same scene sheds the same thing', () => {
+    const mk = () => [
+      req({ id: 'zebra', min: 900, priority: 0 }),
+      req({ id: 'aardvark', min: 900, priority: 0 }),
+    ]
+    const a = allocateAmbient(mk(), { pool: 1000, tier: 'high' })
+    const b = allocateAmbient(mk().reverse(), { pool: 1000, tier: 'high' })
+    expect(a).toEqual(b)
+    expect(a.aardvark).toBe(0) // lower id sheds first when priority ties
+    expect(a.zebra).toBe(1000)
+  })
+
+  test('no requests is not an error', () => {
+    expect(allocateAmbient([], { pool: 1000, tier: 'high' })).toEqual({})
+  })
+})
+
+describe('ratchetPool', () => {
+  test('only ever goes down', () => {
+    const a = ratchetPool(1)
+    expect(a).toBeLessThan(1)
+    expect(ratchetPool(a)).toBeLessThan(a)
+  })
+
+  test('bottoms out at zero — below a quarter there is no honest effect left', () => {
+    let scale = 1
+    for (let i = 0; i < 20; i++) scale = ratchetPool(scale)
+    expect(scale).toBe(0)
+  })
+
+  test('a fully-shed pool stays shed', () => {
+    expect(ratchetPool(0)).toBe(0)
+  })
+})

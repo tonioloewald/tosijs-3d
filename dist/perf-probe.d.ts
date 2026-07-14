@@ -49,6 +49,17 @@ export interface PerfBudgets {
     /** Whether automatic reflection probes run at all (off on the weakest tier — a
      * real-time cube probe is one of the most expensive things you can add). */
     reflections: boolean;
+    /**
+     * The ambient particle pool for the WHOLE SCENE, in reference-particle units — not a
+     * per-system capacity. Ambient effects compete: rain, dust and motes can each be
+     * individually "affordable" and still cook the frame together, so the scene divides one
+     * pool between them (`ambient-budget.ts` → `allocateAmbient`), charging each by modelled
+     * fill cost. Effects that can't be given their honest minimum switch OFF rather than thin.
+     *
+     * Ambient is also the rare case where the total is genuinely FIXED: the emitter box rides
+     * the camera, so cost doesn't grow with the world.
+     */
+    ambientParticles: number;
 }
 export interface StoredProfile {
     probeVersion: number;

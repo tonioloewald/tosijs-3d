@@ -56,6 +56,7 @@ const BUDGETS = {
         numCascades: 4,
         reflectionSize: 512,
         reflections: true,
+        ambientParticles: 3000,
     },
     medium: {
         hardwareScaling: 1,
@@ -68,6 +69,7 @@ const BUDGETS = {
         numCascades: 4,
         reflectionSize: 256,
         reflections: true,
+        ambientParticles: 1400,
     },
     low: {
         hardwareScaling: 1.5,
@@ -80,6 +82,7 @@ const BUDGETS = {
         numCascades: 2,
         reflectionSize: 128,
         reflections: false,
+        ambientParticles: 500,
     },
 };
 /** Combined capability score (higher = faster; ~1 = medium baseline). */

@@ -12,6 +12,8 @@ Full documentation, with live code examples, is at the links below.
 
 ## Pages
 
+- https://3d.tosijs.net/ambient-budget/ — ambient-budget
+  Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/atmosphere/ — atmosphere
@@ -20,6 +22,8 @@ Full documentation, with live code examples, is at the links below.
   The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 - https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
   Fly-by-wire VTOL controller — a forgiving "drone that becomes a plane" rather
+- https://3d.tosijs.net/b3d-ambient/ — b3d-ambient
+  The stuff in the air, or in the water. **Bubbles and motes when you're under; rain, snow,
 - https://3d.tosijs.net/b3d-biped/ — b3d-biped
   Animated humanoid character controller. Loads a GLB model with skeletal animations
 - https://3d.tosijs.net/b3d-black-hole/ — b3d-black-hole

@@ -8,6 +8,7 @@ import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
 import { type FogState, type FogLayer } from './atmosphere';
 import { type QualitySetting } from './b3d-quality';
+import { type AmbientEffect } from './ambient-budget';
 export declare const showB3dStats: (on?: boolean) => void;
 /**
  * A contributor to the Perf Stats panel (see `B3d.addDebugSource`). The panel is
@@ -321,6 +322,26 @@ export declare class B3d extends Component {
     private static _probeStarted;
     private _setupQuality;
     private _applyHardwareScaling;
+    private _ambient;
+    /** Shrunk by the watchdog, never grown. See `ratchetPool` — and TODO: reclaiming budget in
+     * quiet moments is a real want, but it must be a damped, deliberate thing, not a rebound. */
+    private _ambientPoolScale;
+    private _ambientSampleMs;
+    private _ambientBadSamples;
+    private _ambientCooldownMs;
+    /** An ambient effect joins the scene's pool. Returns its unregister. */
+    registerAmbient(effect: AmbientEffect): () => void;
+    /** Divide the pool and tell everyone what they got (0 = switch off). */
+    private _reallocAmbient;
+    /**
+     * Garnish is the first thing to go. If the frame stays under target we shrink the ambient
+     * pool — effects that fall below their honest minimum switch themselves off.
+     *
+     * This needs NO cost attribution, which is the point: we can't measure what the rain costs
+     * (Babylon has no per-system counter, and the real cost is GPU fill), but we don't have to.
+     * We only need to know that ambient is the cheapest thing in the scene to give up.
+     */
+    private _ambientWatchdog;
     private _statsBaseScale;
     private _statsExpanded;
     private _debugSources;
