@@ -71,6 +71,8 @@ export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
 export { B3dTrigger, b3dTrigger } from './b3d-trigger';
 export { B3dDeath, b3dDeath } from './b3d-death';
+export { definePrefab, getPrefab, prefabNames, spawnPrefab } from './prefab';
+export type { Prefab, PrefabContext, PrefabVec3 } from './prefab';
 export { explodeMesh } from './b3d-exploder';
 export type { ExplodeOptions } from './b3d-exploder';
 export { PerlinNoise } from './perlin-noise';

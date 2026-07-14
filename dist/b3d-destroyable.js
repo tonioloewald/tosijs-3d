@@ -73,9 +73,17 @@ you can compose:
   is a falloff + line-of-sight **explosion** that ripples out and can set off *any*
   nearby destroyable — which may blast *its* neighbours, cascading. (`blastDamage` /
   `blastFullRadius` / `blastRadius`.)
+- **`remains="<prefab>"`** — what it LEAVES BEHIND: wreckage, a burning hull, a crater,
+  scattered loot. A [prefab](?prefab.ts) is a named factory that instantiates a package of
+  stuff at a pose, and it's spawned at the death pose **inheriting the victim's velocity**,
+  so debris keeps its momentum instead of dropping like a stone. (`remainsPrefab` takes a
+  function directly, when a name won't do.)
+- **`sound="<url>"`** — a positional death sound at the death point. Sugar over `remains`
+  (it *is* just a `b3dSound` in a prefab), because almost every death wants one and making
+  you write a factory for a single sound would be silly.
 - **`whenDestroyed` callback** (set in code) + the bubbling **`destroyed`** event — the seam
-  for putting a linked player/vehicle into a *dead* state, spawning loot, or swapping
-  in a wreck model.
+  for putting a linked player/vehicle into a *dead* state, or anything `remains` can't
+  express.
 
 ### Demo — a field of fuel drums that chain-explode
 
@@ -136,6 +144,8 @@ in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh, isOff } from './b3d-utils';
 import { DestroyableBehavior } from './destroyable-behavior';
+import { spawnPrefab } from './prefab';
+import { b3dSound } from './b3d-sound';
 export class B3dDestroyable extends AbstractMesh {
     static initAttributes = {
         ...AbstractMesh.initAttributes,
@@ -149,6 +159,14 @@ export class B3dDestroyable extends AbstractMesh {
         protectedBy: '', // combat id of a protector ('' = none)
         protection: 0, // flat reduction while the protector is intact
         // --- Death outcome (all optional; default is just "remove the mesh") ---
+        // What it LEAVES BEHIND: a prefab name (see prefab.ts) — wreckage, a burning hull, a
+        // crater, scattered loot. Spawned at the death pose, inheriting the victim's velocity
+        // so debris keeps its momentum instead of dropping like a stone.
+        remains: '',
+        // Death sound (url) — positional, at the death point. Sugar: it's the one thing almost
+        // every death wants, and making people write a prefab for a single sound is silly.
+        sound: '',
+        soundVolume: 1,
         explode: 'off', // on death, shatter the mesh into fragments (see b3d-exploder)
         explodeForce: 6, // outward fragment force when exploding
         deathBlast: 'off', // on death, detonate an AOE warhead (chain-reaction mechanism)
@@ -171,6 +189,45 @@ export class B3dDestroyable extends AbstractMesh {
      * bubbling `destroyed` CustomEvent.
      */
     whenDestroyed;
+    /** A prefab FUNCTION, when a name won't do (a closure over game state). Takes precedence
+     * over the `remains` attribute. Not `onRemains` — an `on*` prop would be bound as a DOM
+     * event listener and never fire (see CLAUDE.md). */
+    remainsPrefab = null;
+    /** Spawn `remains` (+ the death `sound`) at the death pose. Both optional; a destroyable
+     * with neither just vanishes, as before. */
+    _leaveRemains(at) {
+        const owner = this.owner;
+        if (owner == null)
+            return;
+        const attrs = this;
+        const node = this.mesh;
+        const position = { x: at.x, y: at.y, z: at.z };
+        if (attrs.sound) {
+            owner.appendChild(b3dSound({
+                url: attrs.sound,
+                autoplay: true,
+                volume: attrs.soundVolume,
+                x: position.x,
+                y: position.y,
+                z: position.z,
+            }));
+        }
+        const prefab = this.remainsPrefab ?? attrs.remains;
+        spawnPrefab(prefab, {
+            owner,
+            position,
+            rotation: node
+                ? {
+                    x: (node.rotation?.x ?? 0) * (180 / Math.PI),
+                    y: (node.rotation?.y ?? 0) * (180 / Math.PI),
+                    z: (node.rotation?.z ?? 0) * (180 / Math.PI),
+                }
+                : undefined,
+            velocity: this.velocity ?? undefined,
+            source: this,
+            faction: this.faction ?? undefined,
+        });
+    }
     /** This entity's id in the scene combat world (also its mesh name). */
     get combatId() {
         return this._behavior?.combatId ?? '';
@@ -212,6 +269,10 @@ export class B3dDestroyable extends AbstractMesh {
         // the mesh before this and will explode/dispose it, so render() must stop writing
         // to it.
         this._behavior.whenDestroyed = (info) => {
+            // What it leaves behind. Spawned while the mesh is still live, so the prefab can read
+            // the death POSE and the victim's VELOCITY — debris that ignores momentum drops like
+            // a stone and reads as fake.
+            this._leaveRemains(info.position);
             this.whenDestroyed?.(info);
             this.mesh = undefined;
         };

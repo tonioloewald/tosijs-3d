@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
 import type { CombatEvent, ChainLink } from './destroyable';
+import { type Prefab } from './prefab';
 export declare class B3dDestroyable extends AbstractMesh {
     static initAttributes: {
         meshName: string;
@@ -13,6 +14,9 @@ export declare class B3dDestroyable extends AbstractMesh {
         regenDelay: number;
         protectedBy: string;
         protection: number;
+        remains: string;
+        sound: string;
+        soundVolume: number;
         explode: string;
         explodeForce: number;
         deathBlast: string;
@@ -61,6 +65,13 @@ export declare class B3dDestroyable extends AbstractMesh {
         id: string;
         position: BABYLON.Vector3;
     }) => void;
+    /** A prefab FUNCTION, when a name won't do (a closure over game state). Takes precedence
+     * over the `remains` attribute. Not `onRemains` — an `on*` prop would be bound as a DOM
+     * event listener and never fire (see CLAUDE.md). */
+    remainsPrefab: Prefab | null;
+    /** Spawn `remains` (+ the death `sound`) at the death pose. Both optional; a destroyable
+     * with neither just vanishes, as before. */
+    private _leaveRemains;
     /** This entity's id in the scene combat world (also its mesh name). */
     get combatId(): string;
     /** True once destroyed (mesh gone / exploding). Lets others skip dead targets. */

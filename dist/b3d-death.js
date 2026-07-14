@@ -97,6 +97,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils';
+import { spawnPrefab } from './prefab';
 import { explosionFx } from './b3d-warhead';
 import { panel3d, label3d, button3d } from './widgets3d';
 import { b3dSvgPlane } from './b3d-svg-plane';
@@ -115,12 +116,17 @@ export class B3dDeath extends B3dChild {
     respawn = null;
     /** Replace the panel body entirely: Rewind, Spectate, Eject, Quit — whatever the game has. */
     choices = null;
+    /** What to leave at the crash site — a [prefab](?prefab.ts) name or factory. Overrides the
+     * built-in fire + smoke, so a game can drop a proper wreck model, a crater, a rescue
+     * beacon. Cleared when you respawn, along with the built-in burn. */
+    remains = null;
     /** True from the bang until the player picks something. */
     get dying() {
         return this._dying;
     }
     _dying = false;
     _wreck = null;
+    _remains = [];
     _orbitCam = null;
     _prevCam = null;
     _panel = null;
@@ -172,7 +178,17 @@ export class B3dDeath extends B3dChild {
         // 1. The bang, and something that goes on burning while you look at it.
         if (this.wreckage !== 'off') {
             explosionFx(scene, at, this.blastRadius);
-            this._burn(scene, mesh, at);
+            if (this.remains != null) {
+                this._remains = spawnPrefab(this.remains, {
+                    owner: this.owner,
+                    position: { x: at.x, y: at.y, z: at.z },
+                    velocity: entity?.velocity ?? undefined,
+                    source: entity,
+                });
+            }
+            else {
+                this._burn(scene, mesh, at);
+            }
         }
         // 2. Stop driving the corpse. THE bug this component exists to fix.
         this.focusManager?.releaseFocus();
@@ -282,6 +298,9 @@ export class B3dDeath extends B3dChild {
         // (otherwise the focus manager could pick the corpse as the player all over again).
         this._wreck?.remove();
         this._wreck = null;
+        for (const el of this._remains)
+            el.remove();
+        this._remains = [];
         if (this._timer != null)
             clearTimeout(this._timer);
         this._timer = null;

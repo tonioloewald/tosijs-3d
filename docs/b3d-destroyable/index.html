@@ -95,9 +95,17 @@ mechanism from <code>chain</code>: <code>chain</code> is direct HP transfer to n
 is a falloff + line-of-sight <strong>explosion</strong> that ripples out and can set off <em>any</em>
 nearby destroyable — which may blast <em>its</em> neighbours, cascading. (<code>blastDamage</code> /
 <code>blastFullRadius</code> / <code>blastRadius</code>.)</li>
+<li><strong><code>remains=&quot;&lt;prefab&gt;&quot;</code></strong> — what it LEAVES BEHIND: wreckage, a burning hull, a crater,
+scattered loot. A <a href="/prefab/">prefab</a> is a named factory that instantiates a package of
+stuff at a pose, and it&#39;s spawned at the death pose <strong>inheriting the victim&#39;s velocity</strong>,
+so debris keeps its momentum instead of dropping like a stone. (<code>remainsPrefab</code> takes a
+function directly, when a name won&#39;t do.)</li>
+<li><strong><code>sound=&quot;&lt;url&gt;&quot;</code></strong> — a positional death sound at the death point. Sugar over <code>remains</code>
+(it <em>is</em> just a <code>b3dSound</code> in a prefab), because almost every death wants one and making
+you write a factory for a single sound would be silly.</li>
 <li><strong><code>whenDestroyed</code> callback</strong> (set in code) + the bubbling <strong><code>destroyed</code></strong> event — the seam
-for putting a linked player/vehicle into a <em>dead</em> state, spawning loot, or swapping
-in a wreck model.</li>
+for putting a linked player/vehicle into a <em>dead</em> state, or anything <code>remains</code> can&#39;t
+express.</li>
 </ul>
 <h3>Demo — a field of fuel drums that chain-explode</h3>
 <p><strong>Click any drum</strong> — it explodes, and the blast sets off its neighbours in a spreading
@@ -257,6 +265,7 @@ in code for direct-transfer chain reactions, or <code>whenDestroyed</code> for a
     <li><details><summary><a href="/world-sim/">World Sim</a></summary>
     <ul>
       <li><a href="/b3d-death/">b3d-death</a></li>
+      <li><a href="/prefab/">prefab</a></li>
       <li><a href="/world-contract/">world-contract</a></li>
       <li><a href="/world-store/">world-store</a></li>
       <li><a href="/world-view/">world-view</a></li>

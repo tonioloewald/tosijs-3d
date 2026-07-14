@@ -239,6 +239,10 @@ export { B3dSound, b3dSound } from './b3d-sound'
 export { B3dTrigger, b3dTrigger } from './b3d-trigger'
 // Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
 export { B3dDeath, b3dDeath } from './b3d-death'
+// Prefabs: a named factory that instantiates a package of stuff at a pose (remains, loot,
+// spawner payloads, pickups). See prefab.ts.
+export { definePrefab, getPrefab, prefabNames, spawnPrefab } from './prefab'
+export type { Prefab, PrefabContext, PrefabVec3 } from './prefab'
 export { explodeMesh } from './b3d-exploder'
 export type { ExplodeOptions } from './b3d-exploder'
 
