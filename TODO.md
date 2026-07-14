@@ -56,9 +56,20 @@ projected saturated frame → ~3ms of tile work.
 spent, then continue next frame (always ≥1 tile). A tile COUNT bounds the frame only by accident;
 TIME bounds it by construction on every device, and self-corrects when detail rises. Same idiom
 tosijs uses for big virtual-list bindings.
-[ ] **Spend the headroom on DETAIL** now the worst case is bounded: raise `hiResSubdivisions` in the
-tier table (cost scales as `(subs+3)²`, so ~2x the linear vertex density is available), re-measure
-worst frame + movableShare. NB detail inflates the UPLOAD too, and no thread can move that.
+### ⏸ PARKED — exploratory, NOT the priority (2026-07-14)
+
+Terrain is fast (3ms worst on Quest) and smoothness is now GUARANTEED (`tileBuildMs`). That was
+worth doing, but it's infrastructure, and infrastructure is exactly the thing that quietly becomes
+the project. **Off-track for the local goal (a playable aircraft combat game) and the north star (an
+immersive sandbox sim paired with a dynamic GM).** Pick these up only when they're on the path:
+
+[ ] Spend the headroom on DETAIL: raise `hiResSubdivisions` in the tier table (cost scales as
+`(subs+3)²`, so ~2x the linear vertex density is available), re-measure worst frame + movableShare.
+NB detail inflates the UPLOAD too, and no thread can move that.
+[ ] **Opportunistic / closed-loop quality** — the time budget affords this for free: if frames land
+comfortably under budget, raise detail; if the budget keeps biting, lower it. A quality GOVERNOR
+rather than a static device tier. (The tier table becomes the starting guess, not the answer.)
+Attractive, and still not the priority.
 [~] Terrain worker — NOT JUSTIFIED (see above); kept only as a record of the design. Send the RECIPE (`{cx,cz,subs,tileSize}` +
 seed/scales — determinism is what makes this tiny), TRANSFER the result buffers back. Wrinkles:
 async tiles × floating origin (a tile computed pre-shift must rebase or be discarded), a
