@@ -176,6 +176,14 @@ export function attachFramePanel(
 ): {
   update: (ctx?: { firstPerson?: boolean }) => void
   dispose: () => void
+  /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
+   * the ONLY way to see why a panel is (or isn't) revealing. */
+  readonly debug: {
+    reveal: number
+    cosine: number
+    updates: number
+    camera: string
+  }
 } {
   const anchor: AnchorSpec =
     typeof spec.anchor === 'string' ? PRESETS[spec.anchor] : spec.anchor
@@ -261,18 +269,31 @@ export function attachFramePanel(
   const toAnchor = new BABYLON.Vector3()
   const viewMode = spec.view ?? 'both'
   const maxDist = spec.maxDistance ?? Infinity
+  // `updates` is the load-bearing one: if it doesn't ADVANCE in a session, the
+  // reveal isn't broken — it's simply never running, and the panel is stuck at
+  // whatever visibility it was born with.
+  const debug = {
+    reveal: alwaysOn ? 1 : 0,
+    cosine: 0,
+    updates: 0,
+    camera: '—',
+  }
 
   return {
+    debug,
     // `ctx.firstPerson` is the active camera view (fpv/cockpit vs chase), so a
     // panel can be limited to one. Defaults to visible if no context is given.
     update(ctx?: { firstPerson?: boolean }) {
+      debug.updates++
       const fp = ctx?.firstPerson ?? true
       if ((viewMode === 'first' && !fp) || (viewMode === 'third' && fp)) {
         plane.visibility = 0
+        debug.reveal = 0
         return
       }
       if (alwaysOn) {
         plane.visibility = 1
+        debug.reveal = 1
         return
       }
       // Gaze-reveal off whatever camera is currently rendering — the flat orbit/
@@ -284,6 +305,11 @@ export function attachFramePanel(
       plane.getAbsolutePosition().subtractToRef(head, toAnchor)
       const v = gazeReveal(fwd, toAnchor, cosStart, cosFull)
       plane.visibility = toAnchor.length() > maxDist ? 0 : v
+      debug.reveal = plane.visibility
+      debug.camera = active.getClassName()
+      const fl = fwd.length() || 1
+      const al = toAnchor.length() || 1
+      debug.cosine = BABYLON.Vector3.Dot(fwd, toAnchor) / (fl * al)
     },
     dispose() {
       tex.dispose()

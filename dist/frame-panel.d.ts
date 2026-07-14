@@ -59,5 +59,13 @@ export declare function attachFramePanel(scene: BABYLON.Scene, cam: BABYLON.Targ
         firstPerson?: boolean;
     }) => void;
     dispose: () => void;
+    /** Last computed gaze state. Exposed for `addDebugSource` — in a headset this is
+     * the ONLY way to see why a panel is (or isn't) revealing. */
+    readonly debug: {
+        reveal: number;
+        cosine: number;
+        updates: number;
+        camera: string;
+    };
 };
 //# sourceMappingURL=frame-panel.d.ts.map

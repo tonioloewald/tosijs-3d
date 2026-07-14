@@ -1787,6 +1787,30 @@ export class B3d extends Component {
     // every rendered frame (onBeforeRenderObservable fires in both flat and XR).
     _setupNameplates() {
         const scene = this.scene;
+        // Gaze-reveal works flat but reportedly NOT in a session (plates stay visible).
+        // There's no console in a headset, so put the evidence where it can be read:
+        // `updates` is the discriminator — if it doesn't ADVANCE in XR, the reveal
+        // isn't miscomputing, it's never running, and the plate is stuck at birth
+        // visibility. If it advances but `cos` sits high, the head forward vector is
+        // wrong. If `cam` isn't WebXRCamera, we're gazing off the wrong camera entirely.
+        this.addDebugSource({
+            name: 'Nameplates',
+            lines: () => {
+                const n = this._nameplateList.length;
+                if (n === 0)
+                    return ['none'];
+                const d = this._nameplateList[0].panel.debug;
+                const cam = scene.activeCamera;
+                return [
+                    `xr=${this.xrActive} cam=${cam?.getClassName() ?? '—'} (gaze: ${d.camera})`,
+                    `updates=${d.updates}`,
+                    `plates=${n} reveal=${this._nameplateList
+                        .map((x) => x.panel.debug.reveal.toFixed(2))
+                        .join(' ')}`,
+                    `cos=${d.cosine.toFixed(3)} (full≥${Math.cos(40 * (Math.PI / 180)).toFixed(3)})`,
+                ];
+            },
+        });
         scene.onBeforeRenderObservable.add(() => {
             const cam = scene.activeCamera;
             if (cam == null)
