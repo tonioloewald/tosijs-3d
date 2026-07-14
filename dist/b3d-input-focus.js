@@ -70,15 +70,38 @@ export class B3dInputFocus extends B3dChild {
         // (inputFocus is notified before its children in document order)
         requestAnimationFrame(() => this.discoverEntities());
     }
-    discoverEntities() {
-        // Find the player entity (the one with player=true)
-        const allControllables = Array.from(this.querySelectorAll('*')).filter((el) => el instanceof B3dControllable);
-        for (const entity of allControllables) {
-            if (entity.player) {
-                this.playerEntity = entity;
-                break;
-            }
+    /**
+     * The live `player: true` controllable among our children — skipping any that are dead or
+     * crashed, so a wreck lying on the hillside never gets picked as the player again.
+     */
+    findPlayer() {
+        const controllables = Array.from(this.querySelectorAll('*')).filter((el) => el instanceof B3dControllable);
+        for (const entity of controllables) {
+            const e = entity;
+            if (e.player && !e.crashed && !e.dead)
+                return entity;
         }
+        return null;
+    }
+    /**
+     * Re-scan for the player entity and drive it. **Call this after a respawn.**
+     *
+     * The initial scan runs once, at setup — so an entity added later (a fresh aircraft after
+     * you augered in) is invisible to it, and you'd respawn into a plane nobody is flying.
+     * Safe to call before the new entity's mesh has loaded: a controllable that gets focused
+     * early sets its own camera up when the mesh arrives.
+     */
+    focusPlayer() {
+        const player = this.findPlayer();
+        if (player == null)
+            return null;
+        this.playerEntity = player;
+        if (this.inputMappedProvider)
+            this.focusEntity(player);
+        return player;
+    }
+    discoverEntities() {
+        this.playerEntity = this.findPlayer();
         if (this.playerEntity && this.inputMappedProvider) {
             this.focusEntity(this.playerEntity);
         }

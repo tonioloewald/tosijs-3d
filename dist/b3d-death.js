@@ -32,27 +32,38 @@ should really emit a death and really emit a spawn, because that's the stream a 
 
 ## Demo
 
-```js
-import { b3d, b3dAircraft, b3dDeath, b3dGround, b3dLight, b3dSkybox, gameController, inputFocus } from 'tosijs-3d'
+**Fly it into the ground.** (W/S pitch, A/D bank, R/Q throttle.) Watch it burn, then press
+Respawn on the floating panel.
 
-// Fly it into the ground. Watch it burn. Press Respawn.
+```js
+import { b3d, b3dAircraft, b3dDeath, b3dLibrary, b3dGround, b3dLight, b3dSun, b3dSkybox, gameController, inputFocus } from 'tosijs-3d'
+
+const plane = () => b3dAircraft({
+  library: 'vehicles', meshName: 'scout',
+  player: true, y: 80, vtolSpeed: 6, maxSpeed: 50,
+})
+
+// The focus manager only scans for the `player` entity ONCE, at setup — so a respawned
+// aircraft has to be appended INSIDE it and claimed with focusPlayer().
+const focus = inputFocus(gameController(), plane())
+
 const scene = b3d(
   { gamepad: true },
-  b3dLight({ y: 1, intensity: 0.9 }),
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ intensity: 0.9 }),
   b3dSkybox({ timeOfDay: 9 }),
-  b3dGround({ width: 400, height: 400, color: '#6b7f5e' }),
+  b3dGround({ meshName: 'ground_nocast', width: 600, height: 600, color: '#6b7f5e' }),
+  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   b3dDeath({
     title: 'DOWN',
     respawn() {
-      // A fresh aircraft — not a reset of the dead one.
-      const plane = b3dAircraft({ library: 'vehicles', meshName: 'scout', player: true, y: 60 })
-      scene.appendChild(plane)
+      // A fresh aircraft — NOT a reset of the dead one. The sim really emits a death and
+      // really emits a spawn, which is the stream a narrative driver reads.
+      focus.appendChild(plane())
+      focus.focusPlayer()
     },
   }),
-  inputFocus(
-    gameController(),
-    b3dAircraft({ library: 'vehicles', meshName: 'scout', player: true, y: 60 }),
-  ),
+  focus,
 )
 preview.append(scene)
 ```
@@ -109,6 +120,7 @@ export class B3dDeath extends B3dChild {
         return this._dying;
     }
     _dying = false;
+    _wreck = null;
     _orbitCam = null;
     _prevCam = null;
     _panel = null;
@@ -151,6 +163,7 @@ export class B3dDeath extends B3dChild {
         if (this._dying || this.owner == null)
             return;
         this._dying = true;
+        this._wreck = entity;
         const scene = this.owner.scene;
         const mesh = entity?.mesh ?? null;
         const at = mesh
@@ -265,6 +278,10 @@ export class B3dDeath extends B3dChild {
         next?.();
     }
     _cleanup() {
+        // The wreck burns until you respawn — then it goes, along with its `player: true` flag
+        // (otherwise the focus manager could pick the corpse as the player all over again).
+        this._wreck?.remove();
+        this._wreck = null;
         if (this._timer != null)
             clearTimeout(this._timer);
         this._timer = null;

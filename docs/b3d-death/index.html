@@ -55,26 +55,36 @@ is secretly a reset is a lie the narrative layer would have to un-learn — the 
 should really emit a death and really emit a spawn, because that&#39;s the stream a driver reads
 (see <code>world-contract.ts</code>).</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dDeath, b3dGround, b3dLight, b3dSkybox, gameController, inputFocus } from &#39;tosijs-3d&#39;
+<p><strong>Fly it into the ground.</strong> (W/S pitch, A/D bank, R/Q throttle.) Watch it burn, then press
+Respawn on the floating panel.</p>
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dDeath, b3dLibrary, b3dGround, b3dLight, b3dSun, b3dSkybox, gameController, inputFocus } from &#39;tosijs-3d&#39;
 
-// Fly it into the ground. Watch it burn. Press Respawn.
+const plane = () =&gt; b3dAircraft({
+  library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
+  player: true, y: 80, vtolSpeed: 6, maxSpeed: 50,
+})
+
+// The focus manager only scans for the `player` entity ONCE, at setup — so a respawned
+// aircraft has to be appended INSIDE it and claimed with focusPlayer().
+const focus = inputFocus(gameController(), plane())
+
 const scene = b3d(
   { gamepad: true },
-  b3dLight({ y: 1, intensity: 0.9 }),
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ intensity: 0.9 }),
   b3dSkybox({ timeOfDay: 9 }),
-  b3dGround({ width: 400, height: 400, color: &#39;#6b7f5e&#39; }),
+  b3dGround({ meshName: &#39;ground_nocast&#39;, width: 600, height: 600, color: &#39;#6b7f5e&#39; }),
+  b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
   b3dDeath({
     title: &#39;DOWN&#39;,
     respawn() {
-      // A fresh aircraft — not a reset of the dead one.
-      const plane = b3dAircraft({ library: &#39;vehicles&#39;, meshName: &#39;scout&#39;, player: true, y: 60 })
-      scene.appendChild(plane)
+      // A fresh aircraft — NOT a reset of the dead one. The sim really emits a death and
+      // really emits a spawn, which is the stream a narrative driver reads.
+      focus.appendChild(plane())
+      focus.focusPlayer()
     },
   }),
-  inputFocus(
-    gameController(),
-    b3dAircraft({ library: &#39;vehicles&#39;, meshName: &#39;scout&#39;, player: true, y: 60 }),
-  ),
+  focus,
 )
 preview.append(scene)
 </code></pre>

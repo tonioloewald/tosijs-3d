@@ -26,6 +26,7 @@ export declare class B3dDeath extends B3dChild {
     /** True from the bang until the player picks something. */
     get dying(): boolean;
     private _dying;
+    private _wreck;
     private _orbitCam;
     private _prevCam;
     private _panel;

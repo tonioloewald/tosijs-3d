@@ -17,6 +17,20 @@ export declare class B3dInputFocus extends B3dChild {
     inputMappedProvider: MappedInputProvider | null;
     private interactWasPressed;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
+    /**
+     * The live `player: true` controllable among our children — skipping any that are dead or
+     * crashed, so a wreck lying on the hillside never gets picked as the player again.
+     */
+    private findPlayer;
+    /**
+     * Re-scan for the player entity and drive it. **Call this after a respawn.**
+     *
+     * The initial scan runs once, at setup — so an entity added later (a fresh aircraft after
+     * you augered in) is invisible to it, and you'd respawn into a plane nobody is flying.
+     * Safe to call before the new entity's mesh has loaded: a controllable that gets focused
+     * early sets its own camera up when the mesh arrives.
+     */
+    focusPlayer(): B3dControllable | null;
     private discoverEntities;
     focusEntity(entity: B3dControllable): void;
     /**
