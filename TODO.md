@@ -15,6 +15,9 @@ look. **Flat** = check in the browser; **VR** = check in the headset.
 - [ ] **Demo cameras** (flat): the 8 tuned demos no longer zoom-through / tilt under the horizon; library uses the default camera.
 - [ ] **Gear/Enter-VR gating** (flat): both disabled (dimmed) until the scene finishes loading.
 - [ ] **Spatial-transform Babylon bridge** — NOT built yet (pure math done + tested). Needs headset once built (attach/transition, floating-origin flip, declarative elements).
+- [ ] **Babylon 9.16.2 — the pixels** (flat): types + 402 tests are green and 9.x has ZERO breaking-change entries, but headless can't see rendering, and Babylon ships silent visual fixes without a breaking tag. Eyeball water, reflections, CSM shadows, particles, and a real GLB scene.
+- [ ] **Babylon 9.16.2 — XR VRAM** (VR): 9.x fixes a `WebXRSessionManager` disposal-ORDER bug. That lands squarely on our repeated-session VRAM exhaustion (reticle → checkerboard), which we'd written off as a Quest-browser problem. Re-test enter/exit cycles — some of it may have been ours.
+- [ ] **Jolt 1.1.0 — physics FEEL** (flat): the JS/TS API is purely additive, but it pulls Jolt 5.6.0, which **changed the friction model** ("the simulation changed slightly… effects accumulate over time"). Our plugin defaults are `friction: 0.5, staticFriction: 0.5`. Nothing breaks; things settle and slide differently. Re-drive the physics demos and re-tune if needed.
 
 See the **Bugs** and **Icons / spatial UI** sections below for the known-broken items still needing a headset (galaxy billboard, terrain recenter, VRAM, XR rig misalignment, VR-only panel, library Exit-VR clip).
 

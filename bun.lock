@@ -11,7 +11,7 @@
         "@babylonjs/materials": "^9.16.2",
         "babylonjs-gltf2interface": "^9.16.2",
         "haltija": "^1.3.4",
-        "jolt-physics": "^1.0.0",
+        "jolt-physics": "^1.1.0",
       },
       "devDependencies": {
         "@eslint/js": "^10.0.1",
@@ -29,7 +29,7 @@
         "@babylonjs/gui": "^9.0.0",
         "@babylonjs/loaders": "^9.0.0",
         "@babylonjs/materials": "^9.0.0",
-        "jolt-physics": "^1.0.0",
+        "jolt-physics": "^1.1.0",
         "tosijs": "^1.6.8",
       },
       "optionalPeers": [
@@ -182,7 +182,7 @@
 
     "isexe": ["isexe@2.0.0", "", {}, ""],
 
-    "jolt-physics": ["jolt-physics@1.0.0", "", {}, ""],
+    "jolt-physics": ["jolt-physics@1.1.0", "", {}, "sha512-Erl+X0yK2f9/8Wrl55Nb2y9FYS5xDx375EabnHq+TbSDYEuPZBLvpaLV4nbc1M5gyA5Llbug81wSj1zSMRUr7Q=="],
 
     "json-buffer": ["json-buffer@3.0.1", "", {}, ""],
 
