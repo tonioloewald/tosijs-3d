@@ -313,15 +313,29 @@ export class B3dDeath extends B3dChild {
         this._fires = [];
         this._panel?.remove();
         this._panel = null;
-        if (this._orbitCam) {
-            // Restore whatever was looking before, so a respawn's own camera setup takes over
-            // from a sane place rather than from a dead orbit.
-            if (this._prevCam && this.owner)
-                this.owner.setActiveCamera(this._prevCam);
-            this._orbitCam.dispose();
-            this._orbitCam = null;
-        }
+        // CAMERA HANDOFF. Do NOT restore `_prevCam`: that camera belonged to the aircraft we
+        // just deleted, so restoring it points the scene at a corpse's disposed follow-cam.
+        //
+        // Instead: stop orbiting, but KEEP the orbit camera live and active until the respawned
+        // entity claims the view. A controllable sets its own camera up when its mesh finishes
+        // loading, which is a beat AFTER respawn is pressed — and a scene with no active camera
+        // in between renders black. So we hold the shot, then dispose ourselves once someone
+        // else has taken over.
+        const cam = this._orbitCam;
+        this._orbitCam = null;
         this._prevCam = null;
+        if (cam == null)
+            return;
+        if (scene == null || scene.activeCamera !== cam) {
+            cam.dispose();
+            return;
+        }
+        const handoff = scene.onActiveCameraChanged.add(() => {
+            if (scene.activeCamera === cam)
+                return; // still us — keep holding
+            scene.onActiveCameraChanged.remove(handoff);
+            cam.dispose();
+        });
     }
 }
 export const b3dDeath = B3dDeath.elementCreator({
