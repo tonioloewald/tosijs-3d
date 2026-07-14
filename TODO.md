@@ -134,6 +134,50 @@ prevent. Ship the doubles + conformance kit with it.
    RNG, drivers as input providers, debugState overlays. Swap the NPC-AI-under-test for a player
    PERSONA and make the GM the thing observed. One harness, two consumers: build it once, properly.
 
+## THE GAME: integrated aircraft combat demo (the local goal → v0.5.0)
+
+Fly, shoot stuff down, get shot down, crash, RESPAWN. Dynamic terrain + water (≈30% land),
+enemies spawned in SETS, waypoints that die with their target, weather + day/night + shadows.
+"Rich enough for a GM to spawn content into and evaluate player actions" (find and destroy the
+mothership) — so every piece below is systemic, narrative-blind, and driver-ready.
+
+[x] Death loop — `b3d-death` (wreck, orbit camera, panel), `releaseFocus`, pull-model respawn.
+[x] Prefabs — a named factory that instantiates a package of stuff at a pose.
+[ ] **Spawner + ENCOUNTERS** ⟵ the keystone. "Mothership + escorts", "base with ground defences
+and air cover" are not spawns, they're COMPOSED GROUPS WITH A LAYOUT — i.e. a prefab whose members
+are placed in a formation. Spawner rules: what, max-alive (capacity + eviction), interval, min/max
+distance from the player, SEEDED (so scenarios reproduce). Formation helpers (ring/vee/escort).
+**The encounter prefab NAMES become the GM's spawn vocabulary** — `spawn('mothership-group', at)`
+is a string that crosses the worker membrane; a closure could not. That's why prefabs are a
+registry, and it's how "find and destroy the mothership" is a GM composing systemic pieces with no
+narrative vocabulary in the sim.
+[ ] **Waypoints that die with their target** (PRIORITY). Should already work: a `b3dRadarBlip`
+nested in a destroyable follows that mesh via semanticParent, and a dead destroyable sets
+`mesh = undefined` → the blip reports null → the radar drops the track → the HUD marker vanishes
+because the thing it marked stopped existing. VERIFY in the scene rather than assume.
+[ ] **The assembly scene** — terrain + water + aircraft + death/respawn + spawner + HUD. This IS
+the game, and the integration test. Sea level at the **70th percentile of a sampled heightfield**
+(deterministic) rather than a hand-tuned constant — otherwise every reseed re-breaks the coastline.
+[ ] **Clouds** — cheap blob geometry at a layer altitude, and the whiteout driven by FOG (colour →
+white, density → up as you penetrate), NOT a post-process: post-processes are expensive in XR and
+awkward in stereo; fog is per-pixel and ~free. ⚠️ Clouds MUST be `isPickable = false` and excluded
+from projectile rays — a cloud between the controller and a panel, or between a missile and its
+target, would silently break picking and swept collision (we lost an hour to exactly that class of
+bug on the XR panel).
+[ ] **Ambient particles** — ONE component: rain, snow, motes, windblown debris, underwater bubbles.
+Emit in a box around the CAMERA while particles move in WORLD space (so rain falls past you rather
+than travelling with you), recycle on exit, FIXED capacity from the device tier, no per-frame
+allocation. Preset chosen by where the camera is (above water / below water / inside a cloud).
+[ ] **Sun shafts are the odd one out** — real god-rays are a post-process
+(VolumetricLightScatteringPostProcess) and expensive in a headset. Tier-gate it (desktop yes, Quest
+no) or fake it with additive geometry. Decide deliberately rather than discovering it on the Quest.
+[ ] Day/night + shadows — mostly composing what exists (skybox `timeOfDay`/`realtimeScale`, b3dSun
+CSM). Tune in the assembly scene.
+[ ] AI beyond turrets — later, via the scenario harness. Turrets + spawned sets are enough for now.
+[ ] **Multi-viewpoint / TV-guided weapons** (Carrier Command!) — unblocked by the per-instance
+camera fix: "one player entity" was never the real model. Switching which entity you drive AND see
+is close, and a TV-guided weapon is just an entity with a camera you temporarily drive.
+
 ## AI scenario harness (verification playgrounds)
 
 [ ] Shared **scenario harness** for watching AIs (design: AI-DESIGN.md → "Scenario playgrounds"). Spawns a configured scene (entities/targets/obstacles/waypoints/roads/traffic), SEEDS RNG (presets = named seeds/configs, randomized runs reproducible), drives the AI(s) as InputProviders, overlays each AI's `debugState`. Beyond the trigger wander demo: AI aircraft (pick targets, avoid air/terrain collisions, fly waypoints, shoot, break off); AI ground vehicle (roads + traffic). The **AI-aircraft playground is how we verify the MVP aircraft-combat slice** — build it alongside the aircraft AI. Leans on the deterministic/seedable world-store.
