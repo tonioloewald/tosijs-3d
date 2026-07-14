@@ -159,14 +159,21 @@ const V = (x: number, y: number, z: number) => new BABYLON.Vector3(x, y, z)
 const C = (r: number, g: number, b: number, a: number) =>
   new BABYLON.Color4(r, g, b, a)
 
+/** Seconds to close a population deficit — how fast an effect fills in when it ramps on. */
+const FILL_SECONDS = 2
+/** Ceiling on the catch-up. Fill too hard and the whole cohort is born together, which means
+ * it later DIES together — one population arriving fast is worth it; one pulsing forever isn't. */
+const MAX_FILL_BOOST = 6
+
 const PRESETS: Record<string, Preset> = {
   // Hanging in the light. Near-weightless: the point is that they DRIFT, and drifting is
   // what makes a volume read as a substance rather than as empty space.
   motes: {
-    // TINY. A mote is a speck catching the light, not a glowing orb — at 0.12 across it stops
-    // being dust and becomes a bright blurry circle, which is the classic way this effect is
-    // got wrong. Small and faint, and let there be MANY of them.
-    size: [0.008, 0.03],
+    // A speck catching the light, not a glowing orb. But don't overcorrect: below ~2cm a mote
+    // is SUB-PIXEL at any real distance and simply isn't there. The "bright blurry circle"
+    // failure was never the size — it was being born on the lens, and `near` fixes that
+    // structurally, which is what buys the size back.
+    size: [0.02, 0.07],
     life: [10, 22],
     rate: 55,
     desired: 1210,
@@ -176,10 +183,14 @@ const PRESETS: Record<string, Preset> = {
     gravity: V(0, 0, 0),
     dir1: V(-0.015, -0.01, -0.015),
     dir2: V(0.015, 0.01, 0.015),
-    color1: C(1, 1, 0.95, 0.28),
-    color2: C(0.85, 0.95, 1, 0.16),
+    // Alpha-blended, for the same reason as the bubbles: ADDITIVE IS INVISIBLE AGAINST A BRIGHT
+    // BACKGROUND. Additive adds light, and you cannot add brightness to a bright sky or to pale
+    // underwater fog — additive motes simply vanish in daylight. (Additive is the right choice
+    // for glowing embers in a DARK scene; that's a different preset, not this one.)
+    color1: C(1, 1, 0.95, 0.55),
+    color2: C(0.85, 0.95, 1, 0.32),
     dead: C(1, 1, 1, 0),
-    additive: true,
+    additive: false,
     wander: V(0.35, 0.2, 0.35), // a shimmer, not a drift
     near: 1.5, // nothing born inside arm's reach — that's where blobs come from
   },
@@ -503,7 +514,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     this._emitter.z -= this.windZ * 0.5
 
     this._intensity = this.disabled ? 0 : this._whereWeight(eye.y)
-    ps.emitRate = this._baseRate * this._intensity
+    ps.emitRate = this._fillRate(ps)
 
     // Wind is world-space drift, applied to the emission cone rather than to each particle.
     if (this.windX !== 0 || this.windZ !== 0) {
@@ -511,6 +522,32 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
       ps.direction1.set(p.dir1.x + this.windX, p.dir1.y, p.dir1.z + this.windZ)
       ps.direction2.set(p.dir2.x + this.windX, p.dir2.y, p.dir2.z + this.windZ)
     }
+  }
+
+  /**
+   * Emit toward a POPULATION, not at a fixed rate.
+   *
+   * A rate only reaches its steady-state population after roughly one particle lifetime — and
+   * a mote lives up to 22 seconds, so a naive `rate × intensity` means you walk into an empty
+   * room and watch the dust slowly arrive. You'd start with nothing every single time: on load,
+   * and on every ramp-in.
+   *
+   * So aim at the population the look actually wants (`rate × mean life × intensity`) and, when
+   * short, emit fast enough to close the gap in a couple of seconds rather than in a lifetime.
+   * The boost is self-cancelling — the deficit goes to zero as the population arrives and the
+   * rate settles back to natural — so this is a fill, not a permanent multiplier. Capped,
+   * because an unbounded catch-up would slam the whole population out in one frame and they'd
+   * then all die together in one visible pulse.
+   */
+  private _fillRate(ps: BABYLON.ParticleSystem): number {
+    const natural = this._baseRate * this._intensity
+    if (natural <= 0) return 0
+    const p = this._p
+    const meanLife = (p.life[0] + p.life[1]) / 2
+    const target = Math.min(natural * meanLife, this._granted)
+    const deficit = target - ps.getActiveCount()
+    if (deficit <= 0) return natural
+    return Math.min(natural + deficit / FILL_SECONDS, natural * MAX_FILL_BOOST)
   }
 
   /**

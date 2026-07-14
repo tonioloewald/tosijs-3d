@@ -173,6 +173,41 @@ per-system counter and the cost is GPU fill, so `EXT_disjoint_timer_query` you w
 Quest). **An effect that can't be given its honest minimum switches OFF rather than thinning** —
 40 raindrops is a rendering bug, not light rain. Shed lowest-priority-first; freed budget goes to
 the survivors. Sustained under-target frame rate ratchets the pool down, ONE-WAY.
+[ ] **Ambient wind + turbulence — ONE sampleable vector field** (Tonio). The headline isn't
+weather, it's this: **a shared field is how you get motion that looks Brownian but stays coherent,
+without tracking an insane number of per-thing movement vectors.** Don't give every particle, leaf,
+smoke puff and aircraft its own random walk — give them all one pure function
+`wind(x, y, z, t) → {x,y,z}` and let them SAMPLE it. Two things that sample the same point at the
+same instant agree, for free: the rain streaks slant the way the smoke drifts the way the leaves
+blow. Stateless, so nothing accumulates drift; deterministic, so a headless driver and the render
+both see the same gust.
+
+Shape (same discipline as `perlin-noise` / `fly-by-wire`): pure, Babylon-free, seeded, no
+`Date.now`/`Math.random`, time passed in — unit-testable, and cheap because we already have a
+fast flattened-gradient Perlin. Layer it: steady base wind (direction + speed) + slow large-scale
+GUSTS + fast small-scale TURBULENCE.
+
+Consumers, and why each one is a behavioural win rather than a visual one:
+
+- **Aircraft jitter** — a plane that hangs in the air perfectly still is a lie about flying. Sample
+  turbulence into the flight model so you must actively correct. Straight at the north star:
+  behaviour, not vertices. NB `fly-by-wire.ts` is PURE — wind must be an INPUT to the step
+  function, never a global it reaches out and reads, or it stops being testable.
+- **Rain** — a streak particle whose direction is (gravity + wind), so it slants _consistently_
+  with everything else, plus a **puddle splash** where it lands (splash ties into the decal TODO
+  below — same ring-buffer, same shared pool).
+- **Smoke / leaves / dust / flags** — all just samplers. Smoke especially: it's the one effect
+  that's ALL about the medium it's in.
+- Ambient particles today fake this with a per-system Babylon `noiseTexture`. That's the cheap
+  approximation, and it's fine — but the strengths and directions should come FROM the field so
+  the fake agrees with the real one. Honest tension to design around: Babylon's CPU particle
+  update doesn't give us a cheap per-particle hook, so per-particle field sampling means a custom
+  update function and a real cost. Measure before committing to it.
+
+⚠️ **Floating origin**: the field is sampled by WORLD position, so a terrain rebase would slide the
+whole weather system sideways relative to the world unless sampling adds the accumulated origin
+offset back. Same class of bug as anything else holding world coordinates — see `onOriginShift`.
+
 [ ] **Ambient art direction: authorable textures / SVGs** (Tonio) — the presets currently draw a
 generated soft dot and pick blend/opacity themselves; that's a placeholder, not a decision. Expose
 the sprite (`texture` attr, and an SVG path through `svg-texture.ts` — a designer-authored snowflake
