@@ -81,23 +81,39 @@ export class B3dFog extends B3dChild {
             return;
         const attrs = this;
         const scene = this.owner.scene;
+        // The MODE is set here and never touched again. It's a shader define — changing it at
+        // runtime recompiles every material, and that hitch is most of the "thunk" you feel
+        // crossing the water's surface. Everything else (underwater, cloud, space) leans on the
+        // BASE below by contributing a weighted layer; see atmosphere.ts.
         scene.fogMode = FOG_MODES[attrs.mode] ?? BABYLON.Scene.FOGMODE_LINEAR;
-        scene.fogStart = attrs.start;
-        scene.fogEnd = attrs.end;
-        scene.fogDensity = attrs.density;
-        if (!attrs.syncSkybox) {
-            scene.fogColor = BABYLON.Color3.FromHexString(attrs.color);
-        }
+        this.publishBase();
     }
-    syncFromSkybox() {
+    /** Hand the scene our fog as the BASE everything else blends from. */
+    publishBase() {
         if (this.owner == null)
             return;
-        if (this.skyboxEl == null) {
+        const attrs = this;
+        const c = attrs.syncSkybox
+            ? this.skybox()?.horizonColor ?? BABYLON.Color3.FromHexString(attrs.color)
+            : BABYLON.Color3.FromHexString(attrs.color);
+        this.owner.setFogBase({
+            color: { r: c.r, g: c.g, b: c.b },
+            density: attrs.density,
+            start: attrs.start,
+            end: attrs.end,
+        });
+    }
+    skybox() {
+        if (this.skyboxEl == null && this.owner != null) {
             this.skyboxEl = this.owner.querySelector('tosi-b3d-skybox');
         }
-        if (this.skyboxEl != null) {
-            this.owner.scene.fogColor = this.skyboxEl.horizonColor;
-        }
+        return this.skyboxEl;
+    }
+    syncFromSkybox() {
+        // Re-publish the base as the sky colour drifts (day/night). We do NOT write scene.fogColor
+        // directly any more — the atmosphere composite owns that, so a cloud or the sea can lean
+        // on top of a base that's still tracking the sky.
+        this.publishBase();
     }
 }
 export const b3dFog = B3dFog.elementCreator({ tag: 'tosi-b3d-fog' });

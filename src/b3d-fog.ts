@@ -91,26 +91,43 @@ export class B3dFog extends B3dChild {
     const attrs = this as any
     const scene = this.owner.scene
 
+    // The MODE is set here and never touched again. It's a shader define — changing it at
+    // runtime recompiles every material, and that hitch is most of the "thunk" you feel
+    // crossing the water's surface. Everything else (underwater, cloud, space) leans on the
+    // BASE below by contributing a weighted layer; see atmosphere.ts.
     scene.fogMode = FOG_MODES[attrs.mode] ?? BABYLON.Scene.FOGMODE_LINEAR
-    scene.fogStart = attrs.start
-    scene.fogEnd = attrs.end
-    scene.fogDensity = attrs.density
-
-    if (!attrs.syncSkybox) {
-      scene.fogColor = BABYLON.Color3.FromHexString(attrs.color)
-    }
+    this.publishBase()
   }
 
-  private syncFromSkybox() {
+  /** Hand the scene our fog as the BASE everything else blends from. */
+  private publishBase(): void {
     if (this.owner == null) return
-    if (this.skyboxEl == null) {
+    const attrs = this as any
+    const c = attrs.syncSkybox
+      ? this.skybox()?.horizonColor ?? BABYLON.Color3.FromHexString(attrs.color)
+      : BABYLON.Color3.FromHexString(attrs.color)
+    this.owner.setFogBase({
+      color: { r: c.r, g: c.g, b: c.b },
+      density: attrs.density,
+      start: attrs.start,
+      end: attrs.end,
+    })
+  }
+
+  private skybox(): B3dSkybox | null {
+    if (this.skyboxEl == null && this.owner != null) {
       this.skyboxEl = this.owner.querySelector(
         'tosi-b3d-skybox'
       ) as unknown as B3dSkybox | null
     }
-    if (this.skyboxEl != null) {
-      this.owner.scene.fogColor = this.skyboxEl.horizonColor
-    }
+    return this.skyboxEl
+  }
+
+  private syncFromSkybox() {
+    // Re-publish the base as the sky colour drifts (day/night). We do NOT write scene.fogColor
+    // directly any more — the atmosphere composite owns that, so a cloud or the sea can lean
+    // on top of a base that's still tracking the sky.
+    this.publishBase()
   }
 }
 

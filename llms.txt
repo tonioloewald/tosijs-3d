@@ -14,6 +14,8 @@ Full documentation, with live code examples, is at the links below.
 
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
+- https://3d.tosijs.net/atmosphere/ — atmosphere
+  Underwater, inside a cloud, out in space — each is a *layer* that pulls the fog toward its
 - https://3d.tosijs.net/tosi-b3d/ — b3d
   The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
 - https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
@@ -24,6 +26,8 @@ Full documentation, with live code examples, is at the links below.
   Procedural black hole with accretion disk, gravitational lensing effect,
 - https://3d.tosijs.net/b3d-car/ — b3d-car
   Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+- https://3d.tosijs.net/b3d-clouds/ — b3d-clouds
+  A cloud layer you can **fly into** — and lose the world inside.
 - https://3d.tosijs.net/b3d-collisions/ — b3d-collisions
   Opt-in collision detection via mesh naming conventions authored in Blender.
 - https://3d.tosijs.net/b3d-controllable/ — b3d-controllable

@@ -25,10 +25,14 @@ export declare class B3dWater extends AbstractMesh {
         ry: number;
         rz: number;
         axes: boolean;
+        underwaterFog: number;
+        underwaterMurk: number;
+        fogTransition: number;
     };
     waterMaterial?: WaterMaterial;
     private _callback?;
     private _underwaterUpdate?;
+    private _removeFogLayer?;
     private _savedFogMode;
     private _savedFogColor;
     private _savedFogDensity;

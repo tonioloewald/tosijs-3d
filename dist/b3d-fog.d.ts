@@ -17,6 +17,9 @@ export declare class B3dFog extends B3dChild {
     sceneDispose(): void;
     render(): void;
     private applyFog;
+    /** Hand the scene our fog as the BASE everything else blends from. */
+    private publishBase;
+    private skybox;
     private syncFromSkybox;
 }
 export declare const b3dFog: import("tosijs").ElementCreator<B3dFog>;

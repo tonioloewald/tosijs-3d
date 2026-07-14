@@ -148,6 +148,7 @@ import { XrGamepadSource } from './xr-gamepad';
 import { XrFrames, EntityFrame } from './xr-frames';
 import { attachFramePanel, placeholderPanelSvg, } from './frame-panel';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe';
+import { compositeFog, approachFog, } from './atmosphere';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, } from './b3d-quality';
 const { canvas, div, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
@@ -650,6 +651,8 @@ export class B3d extends Component {
             const dt = this.engine.getDeltaTime() / 1000;
             if (dt > 0)
                 this.combat.tick(dt);
+            if (dt > 0)
+                this._updateFog(dt);
             if (this.update !== noop) {
                 this.update(this, BABYLON);
             }
@@ -767,6 +770,84 @@ export class B3d extends Component {
      * })
      * ```
      */
+    // --- Atmosphere: fog is ALWAYS ON, and systems lean on it (see atmosphere.ts) ---
+    //
+    // Nothing may switch `fogMode` at runtime: it's a shader DEFINE, so toggling it recompiles
+    // every material — that hitch is most of the "thunk" you feel crossing the water's surface.
+    // The mode is set once; contributors modulate only the UNIFORMS (colour, density, start,
+    // end), their weights ramp over a band rather than flipping at a boundary, and the result
+    // is temporally smoothed.
+    _fogLayers = [];
+    _fogBase = null;
+    _fogNow = null;
+    /**
+     * Contribute a fog layer — underwater, inside a cloud, out in space. Return `null` (or
+     * `weight: 0`) when you're not contributing. Returns an unregister function.
+     *
+     * `b3d-fog` sets the BASE (and the mode, once). Everyone else leans on it.
+     */
+    addFogLayer(layer) {
+        this._fogLayers.push(layer);
+        return () => {
+            const i = this._fogLayers.indexOf(layer);
+            if (i >= 0)
+                this._fogLayers.splice(i, 1);
+        };
+    }
+    /** The fog everything else blends FROM. `b3d-fog` owns this; without one we still keep a
+     * whisper of fog on, so a layer can ramp up without ever switching the mode. */
+    setFogBase(base) {
+        this._fogBase = base;
+        if (this._fogNow == null) {
+            this._fogNow = {
+                color: { ...base.color },
+                density: base.density,
+                start: base.start,
+                end: base.end,
+            };
+        }
+    }
+    _updateFog(dt) {
+        const scene = this.scene;
+        if (scene == null)
+            return;
+        // No <tosi-b3d-fog> in the scene? Fog is STILL on, at a whisper — because a layer
+        // (underwater, cloud) must be able to ramp up without ever switching fogMode, which
+        // would recompile every shader. "Always on to some extent" is the whole trick.
+        if (this._fogBase == null && this._fogLayers.length > 0) {
+            scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+            this.setFogBase({
+                color: {
+                    r: scene.fogColor.r,
+                    g: scene.fogColor.g,
+                    b: scene.fogColor.b,
+                },
+                density: 0.00001,
+                start: scene.fogStart,
+                end: scene.fogEnd,
+            });
+        }
+        const base = this._fogBase;
+        if (base == null || this._fogNow == null)
+            return;
+        const layers = [];
+        for (const fn of this._fogLayers) {
+            const l = fn();
+            if (l != null && l.weight > 0)
+                layers.push(l);
+        }
+        const target = compositeFog(base, layers);
+        // A SHORT time constant. This exists to stop a hard pop (and to absorb a layer whose
+        // weight jumps — a cloud recycling behind you, a camera teleporting), NOT to make
+        // transitions leisurely. Crossing the water's surface should read as instant-but-smooth:
+        // a few frames, not a fade.
+        this._fogNow = approachFog(this._fogNow, target, dt, 0.07);
+        const f = this._fogNow;
+        scene.fogColor.set(f.color.r, f.color.g, f.color.b);
+        scene.fogDensity = f.density;
+        scene.fogStart = f.start;
+        scene.fogEnd = f.end;
+    }
     _recenterXr = noop;
     /**
      * Re-seat the head: take your CURRENT head yaw as "facing forward". The same thing the

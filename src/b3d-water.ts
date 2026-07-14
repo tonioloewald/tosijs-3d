@@ -39,10 +39,17 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core'
 import { WaterMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils'
+import { band } from './atmosphere'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dWater extends AbstractMesh {
   static initAttributes = {
+    // Underwater fog: how thick, and how sharply it takes over as you cross the surface.
+    // The transition is deliberately TIGHT (see the fog layer below): killing the "thunk"
+    // meant killing the discontinuity, not the contrast.
+    underwaterFog: 0.12, // density the moment you're under
+    underwaterMurk: 0.08, // extra density at 30m down (the sea thickens with depth)
+    fogTransition: 0.2, // metres below the surface to reach FULL underwater fog
     ...AbstractMesh.initAttributes,
     spherical: false,
     waterSize: 128,
@@ -66,6 +73,7 @@ export class B3dWater extends AbstractMesh {
   waterMaterial?: WaterMaterial
   private _callback?: SceneAdditionHandler
   private _underwaterUpdate?: () => void
+  private _removeFogLayer?: () => void
   private _savedFogMode = BABYLON.Scene.FOGMODE_NONE
   private _savedFogColor = new BABYLON.Color3()
   private _savedFogDensity = 0
@@ -138,43 +146,48 @@ export class B3dWater extends AbstractMesh {
     this._callback = this.waterCallback.bind(this)
     owner.onSceneAddition(this._callback)
 
-    // Underwater fog effect
-    this._savedFogMode = scene.fogMode
-    this._savedFogColor = scene.fogColor.clone()
-    this._savedFogDensity = scene.fogDensity
-    this._underwaterUpdate = () => {
+    // UNDERWATER — a fog LAYER, not a switch.
+    //
+    // This used to snap: `if (underwater && !wasUnderwater) { fogMode = EXP2; … }`. Two
+    // discontinuities in one line — fogMode is a shader DEFINE (so every material recompiled:
+    // that's the hitch), and colour/density jumped at the exact plane of the surface. The
+    // "thunk".
+    //
+    // Now the weight RAMPS over a band around the waterline (so passing through reads as
+    // *entering the water* rather than teleporting into it) and keeps deepening as you go
+    // down. The scene composites and smooths it; nothing toggles. See atmosphere.ts.
+    this._removeFogLayer = owner.addFogLayer(() => {
       const cam = scene.activeCamera
-      if (!cam || !this.mesh) return
-      const camY = cam.globalPosition.y
-      const waterY = this.mesh.absolutePosition.y
-      const underwater = camY < waterY
-      if (underwater && !this._wasUnderwater) {
-        this._wasUnderwater = true
-        scene.fogMode = BABYLON.Scene.FOGMODE_EXP2
-        scene.fogColor = new BABYLON.Color3(0, 0.15, 0.3)
-        scene.fogDensity = 0.12
-      } else if (!underwater && this._wasUnderwater) {
-        this._wasUnderwater = false
-        scene.fogMode = this._savedFogMode
-        scene.fogColor = this._savedFogColor
-        scene.fogDensity = this._savedFogDensity
+      if (!cam || !this.mesh) return null
+      const depth = this.mesh.absolutePosition.y - cam.globalPosition.y
+      // A TIGHT band across the surface — full underwater within ~20cm of crossing.
+      //
+      // Killing the "thunk" meant killing the DISCONTINUITY (the shader recompile from
+      // switching fogMode, and the instant jump at a plane), NOT the contrast. A wide band
+      // reads as mush: at the waterline you'd be only ~10% submerged and the sea would fade
+      // in over metres. Being underwater should be OBVIOUS the moment you are — and being out
+      // should be obvious the moment you're out. Fast, but continuous.
+      const attrs = this as any
+      const w = band(depth, -0.05, Math.max(0.02, attrs.fogTransition))
+      if (w <= 0) return null
+      // Full sea-fog immediately on entry, then keep thickening as you go deeper (murk with
+      // depth is both true and useful — it hides what's below you).
+      const deeper = Math.min(1, Math.max(0, depth / 30))
+      return {
+        weight: w,
+        color: { r: 0, g: 0.15, b: 0.3 },
+        density: attrs.underwaterFog + attrs.underwaterMurk * deeper,
       }
-    }
-    scene.registerBeforeRender(this._underwaterUpdate)
+    })
   }
 
   sceneDispose(): void {
     if (this.owner && this._callback) {
       this.owner.offSceneAddition(this._callback)
     }
-    if (this._underwaterUpdate && this.owner?.scene) {
-      this.owner.scene.unregisterBeforeRender(this._underwaterUpdate)
-      if (this._wasUnderwater) {
-        this.owner.scene.fogMode = this._savedFogMode
-        this.owner.scene.fogColor = this._savedFogColor
-        this.owner.scene.fogDensity = this._savedFogDensity
-      }
-      this._underwaterUpdate = undefined
+    if (this._removeFogLayer) {
+      this._removeFogLayer() // the scene composites fog; nothing to restore, nothing to snap
+      this._removeFogLayer = undefined
     }
     this.waterMaterial = undefined
     super.sceneDispose()

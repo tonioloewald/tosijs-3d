@@ -6,6 +6,7 @@ import { type Widget3d } from './widgets3d';
 import { CombatWorld } from './destroyable';
 import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
+import { type FogState, type FogLayer } from './atmosphere';
 import { type QualitySetting } from './b3d-quality';
 export declare const showB3dStats: (on?: boolean) => void;
 /**
@@ -53,6 +54,8 @@ export interface RadarBlip {
     radarMesh(): BABYLON.AbstractMesh | null;
 }
 type B3dCallback = ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => void) | ((element: B3d, BABYLON: typeof import('@babylonjs/core')) => Promise<void>);
+/** A registered fog contributor: underwater, cloud, space… (see atmosphere.ts). */
+type FogContributor = () => FogLayer | null;
 export declare class B3d extends Component {
     static initAttributes: {
         glowLayerIntensity: number;
@@ -346,6 +349,20 @@ export declare class B3d extends Component {
      * })
      * ```
      */
+    private _fogLayers;
+    private _fogBase;
+    private _fogNow;
+    /**
+     * Contribute a fog layer — underwater, inside a cloud, out in space. Return `null` (or
+     * `weight: 0`) when you're not contributing. Returns an unregister function.
+     *
+     * `b3d-fog` sets the BASE (and the mode, once). Everyone else leans on it.
+     */
+    addFogLayer(layer: FogContributor): () => void;
+    /** The fog everything else blends FROM. `b3d-fog` owns this; without one we still keep a
+     * whisper of fog on, so a layer can ramp up without ever switching the mode. */
+    setFogBase(base: FogState): void;
+    private _updateFog;
     private _recenterXr;
     /**
      * Re-seat the head: take your CURRENT head yaw as "facing forward". The same thing the
