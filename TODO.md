@@ -168,9 +168,12 @@ bug on the XR panel).
 Emit in a box around the CAMERA while particles move in WORLD space (so rain falls past you rather
 than travelling with you), recycle on exit, FIXED capacity from the device tier, no per-frame
 allocation. Preset chosen by where the camera is (above water / below water / inside a cloud).
-[ ] **Sun shafts are the odd one out** — real god-rays are a post-process
-(VolumetricLightScatteringPostProcess) and expensive in a headset. Tier-gate it (desktop yes, Quest
-no) or fake it with additive geometry. Decide deliberately rather than discovering it on the Quest.
+[ ] **Sun shafts = translucent ADDITIVE PANELS, judiciously placed** (Tonio) — NOT a real
+post-process god-ray (VolumetricLightScatteringPostProcess is expensive and awkward in stereo).
+Cheap, stereo-safe, costs ~nothing on a Quest. To read volumetrically: billboard each panel AROUND
+THE LIGHT AXIS (holds up from any angle) and fade alpha by `dot(viewDir, lightDir)` so shafts bloom
+when you look toward the sun and vanish when you look away. `isPickable=false`, no shadow cast —
+same rule as clouds.
 [ ] Day/night + shadows — mostly composing what exists (skybox `timeOfDay`/`realtimeScale`, b3dSun
 CSM). Tune in the assembly scene.
 [ ] AI beyond turrets — later, via the scenario harness. Turrets + spawned sets are enough for now.
