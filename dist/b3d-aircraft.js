@@ -1046,14 +1046,22 @@ export class B3dAircraft extends B3dControllable {
         const target = this.getCameraTarget();
         if (!target)
             return;
-        const existing = this.owner.scene.getCameraByName('aircraft-follow-cam');
-        if (existing)
+        // Guard on OUR OWN cameras, not on a scene-wide NAME.
+        //
+        // This used to be `if (scene.getCameraByName('aircraft-follow-cam')) return` — a
+        // singleton assumption that breaks the moment a second aircraft exists. A RESPAWNED
+        // plane found the dead one's camera still named in the scene, bailed out, never made
+        // its own cameras, and so never took the view: you respawned into a plane you couldn't
+        // see. The same bug would hit ANY scene with two aircraft — i.e. every scene with an
+        // enemy in it.
+        if (this.chaseCamera != null)
             return;
+        const camId = this.instanceId; // unique per element — two aircraft, two cameras
         // Chase: behind and above, parented to the airframe (the known-good "starts
         // ok" framing). It inherits the plane's pitch/roll, so it swings somewhat on
         // hard manoeuvres — that belongs to the flight-model pass. An unparented
         // yaw-only follow mis-framed the view on load, so it's reverted.
-        const chase = new BABYLON.FreeCamera('aircraft-follow-cam', target.getAbsolutePosition().clone(), this.owner.scene);
+        const chase = new BABYLON.FreeCamera(`aircraft-follow-cam-${camId}`, target.getAbsolutePosition().clone(), this.owner.scene);
         chase.parent = target;
         // The hull is now unit-scale (canonical), so the parented offset no longer
         // gets the model's ~2.4x magnification — pull it back to keep the same flat
@@ -1067,7 +1075,7 @@ export class B3dAircraft extends B3dControllable {
         this.chaseCamera = chase;
         // Cockpit: near the nose, looking straight ahead (local +Z = forward).
         // Parented so it banks/pitches with the airframe.
-        const cockpit = new BABYLON.FreeCamera('aircraft-cockpit-cam', target.getAbsolutePosition().clone(), this.owner.scene);
+        const cockpit = new BABYLON.FreeCamera(`aircraft-cockpit-cam-${camId}`, target.getAbsolutePosition().clone(), this.owner.scene);
         cockpit.parent = target;
         cockpit.position = new BABYLON.Vector3(0, this.eyeHeight, this.cockpitForward);
         cockpit.rotation = new BABYLON.Vector3(0, 0, 0);
@@ -1091,12 +1099,17 @@ export class B3dAircraft extends B3dControllable {
         if (this.owner?.scene) {
             this.owner.scene.unregisterBeforeRender(this._update);
         }
+        // DISPOSE them, don't just unparent. Leaving them in the scene leaked a camera per
+        // aircraft — and, because setupFollowCamera used to look them up BY NAME, a dead
+        // plane's abandoned camera stopped the next one from ever building its own.
         if (this.chaseCamera) {
             this.chaseCamera.parent = null;
+            this.chaseCamera.dispose();
         }
         this.chaseCamera = null;
         if (this.cockpitCamera) {
             this.cockpitCamera.parent = null;
+            this.cockpitCamera.dispose();
         }
         this.cockpitCamera = null;
         for (const node of this.meshesToDispose) {
