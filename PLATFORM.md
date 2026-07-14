@@ -135,28 +135,102 @@ Those are the reasons. Portability is a side effect we don't pay for and shouldn
 | XR                   | **The open web** — the platform, not a fallback | Zero                        |
 | Meta Horizon Store   | PWA / Bubblewrap submission                     | Days; keeps the whole stack |
 
-## 7. Where XR is heading (Tonio, 2026-07)
+## 7. Where XR is heading (Tonio, 2026-07) — and the input problem it exposes
 
-**Don't over-index on Quest.** Meta's commitment reads as waning, and the energy is moving to
-**Android XR** and **Vision Pro**. This does not change the conclusion above — if anything it
-_reinforces_ it, because both of those platforms ship **WebXR-capable browsers** (Chrome on Android
-XR; Safari on visionOS) while every native path (Babylon Native) ships **no headset XR at all**. The
-open web is the one runtime present on all of them.
+**Don't over-index on Quest.** The energy is moving to **Android XR** and **Vision Pro**. This
+_reinforces_ the web bet: all three ship **WebXR-capable browsers**, while every native path
+(Babylon Native) ships **no headset XR at all**. The open web is the one runtime present on all of
+them.
 
-The thing to watch is not rendering, it's **input**. Quest is a controller-first platform; visionOS
-is **eyes-and-hands first, with no controllers at all**. A framework whose locomotion and UI assume
-thumbsticks and face buttons is a framework that arrives on Vision Pro broken. Our input stack is
-already abstracted the right way (`ControlInput` / `InputProvider` / `VirtualGamepad`), which means
-the work is a **new provider**, not a rewrite — but the _interaction design_ (gaze + pinch, no
-thumbstick locomotion) is a real design question, not a mapping exercise.
+Meta's signal is genuinely mixed, and worth stating precisely rather than as vibes:
+
+- **The browser is alive** — Quest Browser shipped Chromium 144/146, experimental WebGPU + WebXR
+  depth projection (2026-04-21), wall anchoring (2026-05-11). No deprecation signals. The Horizon
+  Store PWA path is still open.
+- **The org is retreating** — Reality Labs cut ~1,500 jobs (~10%, Jan 2026), Workrooms shut down
+  (Feb 2026), **Horizon Worlds VR removed from Quest after 2026-06-15**, Meta pivoting to AI.
+
+Net: the Quest _web platform_ is maintained, but it's the platform whose corporate commitment is
+**falling** while visionOS and Android XR rise. **Betting the input architecture on Quest is betting
+on the wrong curve.**
+
+### ⚠️ The real finding: we are controller-first, and visionOS has NO controllers
+
+This is the one place the platform shift forces an **architecture** change, not a port.
+
+|                      | **visionOS (Safari)**                                                              | **Android XR (Chrome)**               | **Quest (Browser)**             |
+| -------------------- | ---------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------- |
+| `immersive-vr`       | ✅ default-on since visionOS 2 / Safari 18                                         | ✅ default-on                         | ✅ default-on                   |
+| `immersive-ar`       | ❌ **not supported, no timeline**                                                  | ✅                                    | ✅                              |
+| Primary input        | 👁️+🤏 **gaze + pinch only** (`transient-pointer`)                                  | ✋ **hands** (+ optional controllers) | 🎮 **controllers** (+ hands)    |
+| Controllers in WebXR | ❌ **none** — PSVR2 Sense appear in `getGamepads()` but **not as `XRInputSource`** | ✅                                    | ✅                              |
+| Hand tracking        | ✅ (permission-gated)                                                              | ✅                                    | ✅                              |
+| Store path           | ❌ none found — **the app is a URL**                                               | ❓ unverified                         | ✅ Horizon Store via Bubblewrap |
+
+**On visionOS, `session.inputSources` is EMPTY except during a pinch.** No thumbsticks, no buttons,
+no triggers, no persistent ray. Our whole `VirtualGamepad` stack (`KeyboardGamepad`,
+`HardwareGamepad`, `XrGamepad` → `ControlInput.forward/strafe/turn/throttle`) assumes a persistent
+source reporting continuous axes every frame. On Vision Pro a stick-driven `b3dBiped` or
+`b3dAircraft` receives **zero input, forever** — and the app doesn't degrade, it looks **broken**.
+
+Four consequences, in order of how much they hurt:
+
+1. **Locomotion cannot be thumbstick-primary.** The _canonical_ locomotion has to be **gaze/point +
+   commit** (teleport arc, waypoint move, look-to-steer with pinch-to-throttle), with continuous
+   stick locomotion as the **enhancement** available when a `tracked-pointer` with axes exists.
+   Today it is exactly backwards. This is the genuine architectural inversion.
+2. **"No persistent input source" must be a first-class state, not an error path.**
+   `CompositeInputProvider` has to tolerate an empty `inputSources` and still produce usable
+   `ControlInput` from transient selects. A `TransientPointerProvider` (gaze ray + pinch →
+   `select`/`selectstart`/`selectend`) belongs beside `XrInputProvider`.
+3. **There is no hover on visionOS — by design, for privacy.** Apple reveals gaze **only at the
+   instant of pinch**. RaananW (Babylon's XR lead): _"I only know where you are looking at when you
+   tap."_ So **`frame-panel`'s gaze-reveal is dead on Vision Pro**, as is any "look at it to arm it"
+   affordance and any persistent ray cursor. `_attachXrPanel`'s ray→UV pick must work from a
+   **transient ray fired once at pinch-start**, with no pre-select hover.
+4. **Discrete actions only.** `shoot`/`interact`/`jump` map onto a pinch (`select`) fine. Hold
+   duration, button combos, and any second/third button (B/X/Y) have **no visionOS mapping** —
+   overflow them to the `scenePanel` spatial UI, which is already the right escape hatch and already
+   picks by coordinate. (This is the "VR-reachable fallback" in the control conventions, and it just
+   got load-bearing.)
+
+**Hands + gaze-commit is the only genuinely universal input model** (all three platforms have hand
+tracking). Controllers are the **platform-specific enhancement**, not the base. That is the
+inversion to design toward.
+
+**⚠️ Index-shift footgun:** with hand tracking enabled on visionOS, transient pointers land at
+`inputSources[2]`/`[3]`, **not** `[0]`/`[1]` — WebKit explicitly calls this out as breaking
+frameworks that assume selection comes from indices 0–1.
+
+**⚠️ Passthrough is not cross-platform.** `immersive-ar` is structurally unavailable on Vision Pro
+with no Apple timeline. Do **not** put passthrough on a critical path.
+
+### Store strategy follows from this
+
+The only shipping "WebXR app in a store" path is **Meta Horizon Store via Bubblewrap** — i.e. the
+store path exists exactly on the platform whose commitment is weakest. On visionOS and Android XR, a
+WebXR app is (as far as anyone could verify) **a URL**. So **treat the URL as the product**: fast
+load, no install, deep-linkable. Store distribution is an opportunistic extra, not the plan.
 
 See `TODO.md` → XR for the live items, and `UI-DESIGN-NOTES.md` for the running UX log.
 
+## 8. Baselines and known quirks
+
+- **WebGL2 is the baseline. Confirmed on all three.** WebGPU-in-WebXR is shipped only on visionOS
+  (Safari 26.2, 2025-12-12), experimental on Quest, unverified on Android XR. Keep WebGPU an
+  **opt-in fast path**, never a requirement — and **feature-detect `navigator.gpu`, never
+  version-sniff** (the Android WebView metadata is self-contradictory).
+- **Android XR is clean out of the box** — Google's own XR web docs recommend three.js and
+  babylon.js by name.
+- **visionOS is NOT clean.** Babylon [forum 47849](https://forum.babylonjs.com/t/webxr-hand-tracking-error-on-safari-vision-pro/47849)
+  (open across Babylon 5.71 → 7.26): `enabledFeatures.indexOf` crash when enabling hand tracking on
+  Vision Pro; cursor-stability problems in all pointer modes after the 7.26.3 rework ("head
+  tracking" mode is the most stable). Expect visionOS-specific workarounds.
+
 ## Open questions
 
-- Current WebXR status on **visionOS Safari** and **Android XR Chrome** — default-on or flagged?
-  input models? store paths? (Under research; fill this in.)
-- **WebGL2 stays the baseline.** Quest Browser's WebGPU is experimental; iOS 26 is a hard floor for
-  WebGPU in WKWebView; Android System WebView gets it around M146. **Feature-detect `navigator.gpu`
-  — never version-sniff** (the Android WebView metadata is self-contradictory).
-- Does Babylon's WebXR layer need visionOS-specific workarounds?
+- Can a WKWebView wrapper enter an immersive WebXR session on visionOS at all? (Probably not —
+  unverified. If not, Tauri is **definitively** flat-only, which is what we've assumed.)
+- Does Android XR support PWA/TWA (Bubblewrap) distribution of a WebXR app to Play? No Google doc
+  either way.
+- Does Safari on visionOS support WebXR Layers? (No documentation found; assume no.)
