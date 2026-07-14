@@ -199,7 +199,11 @@ export {
   gazeReveal,
 } from './xr-frames'
 export type { FrameName, XrFramesOptions } from './xr-frames'
-export { attachFramePanel, placeholderPanelSvg } from './frame-panel'
+export {
+  attachFramePanel,
+  placeholderPanelSvg,
+  excludeFromGlow,
+} from './frame-panel'
 export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel'
 export { B3dPanel, b3dPanel } from './b3d-panel'
 

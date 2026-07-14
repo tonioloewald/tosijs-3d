@@ -2419,6 +2419,13 @@ export class B3d extends Component {
     if (intensity > 0) {
       if (!this.glowLayer) {
         this.glowLayer = new BABYLON.GlowLayer('glow', this.scene)
+        // A glow layer ignores `mesh.visibility` (see `excludeFromGlow`), so any panel that
+        // already exists would be drawn by the glow pass even when gaze-hidden. Panels built
+        // AFTER this exclude themselves on creation; these are the ones that got here first.
+        for (const m of this.scene.meshes) {
+          if (m.name === 'frame-panel')
+            this.glowLayer.addExcludedMesh(m as BABYLON.Mesh)
+        }
       }
       this.glowLayer.intensity = intensity
     } else if (this.glowLayer) {

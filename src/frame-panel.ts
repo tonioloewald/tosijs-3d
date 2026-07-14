@@ -165,6 +165,27 @@ export function placeholderPanelSvg(
 }
 
 /**
+ * Keep a mesh out of every glow layer in the scene.
+ *
+ * **A glow layer ignores `mesh.visibility` entirely** (Babylon's effect layer never reads it),
+ * so ANY emissive mesh you hide by setting `visibility = 0` will still be drawn by the glow
+ * pass. Anything whose visibility you animate — a gaze-revealed panel, a fading-out fragment —
+ * and which is emissive, has to opt out of glow or it cannot actually hide.
+ *
+ * Exported because this is a trap, not a nameplate quirk.
+ */
+export function excludeFromGlow(
+  scene: BABYLON.Scene,
+  mesh: BABYLON.AbstractMesh
+): void {
+  for (const layer of scene.effectLayers ?? []) {
+    if (layer.getClassName() === 'GlowLayer') {
+      ;(layer as BABYLON.GlowLayer).addExcludedMesh(mesh as BABYLON.Mesh)
+    }
+  }
+}
+
+/**
  * Mount a panel on a frame node. Call `update()` each XR frame (drives the gaze
  * reveal from the camera) and `dispose()` to tear down. Returns those handles.
  */
@@ -263,6 +284,13 @@ export function attachFramePanel(
   }
   plane.material = mat
   plane.visibility = alwaysOn ? 1 : 0
+  // ⚠️ THE GLOW LAYER DOES NOT RESPECT `mesh.visibility` — Babylon's effect-layer code never
+  // reads it. And this material is PURE EMISSIVE (black diffuse, lighting off, emissive =
+  // the SVG), which is exactly what glow harvests. So a gaze-hidden panel keeps being drawn
+  // by the glow pass, BEHIND visibility's back: the reveal computes perfectly and the plate
+  // never goes away. It reads as a soft bloom on a monitor (easy to miss) and as a plainly
+  // visible floating plaque in a headset. Exclude it — a UI plaque shouldn't bloom anyway.
+  excludeFromGlow(scene, plane)
 
   const head = new BABYLON.Vector3()
   const fwd = new BABYLON.Vector3()
