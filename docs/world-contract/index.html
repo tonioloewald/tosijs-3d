@@ -98,10 +98,28 @@ capabilities and a gas limit (the gas limit <em>is</em> its worst-case guarantee
 sidesteps <code>unsafe-eval</code>. Wasm is for numeric kernels; a decision-maker is not one.</li>
 </ul>
 <h2>Testing a driver: THREE parts, and dead air is the point</h2>
-<p>Because this boundary is serializable and both halves are deterministic, a driver can be
-developed and tested as a <strong>black box, with no renderer and no browser</strong> — and the
-simulation can be tested against a fake driver in the same way. But the rig needs three
-parts, and the middle one is the whole job:</p>
+<p>A driver can be developed and tested as a <strong>black box, with no renderer and no browser</strong> —
+the boundary is serializable, so nothing about it needs a 3D engine.</p>
+<p>But be precise about the determinism, because the useful property is not the obvious one.
+<strong>The driver is LLM-backed and therefore stochastic. Everything else is seeded</strong> — the
+store, the player persona, the transport&#39;s losses. So the <em>stimulus</em> is exactly
+reproducible even though the <em>response</em> is not, which is what makes testing a stochastic
+system tractable at all: <strong>the non-determinism is confined to one place</strong>, and any variance
+in outcome is attributable to the model rather than to a harness that was also wandering.</p>
+<p>Consequences for how you assert:</p>
+<ul>
+<li><strong>Assert properties and bounds, not equality.</strong> Not &quot;it emitted intent X&quot;, but: the
+intents are well-formed and reference live entities; it escalated within N minutes of sim
+time once the player was stuck; it intervened at most K times while the player was
+engaged; it never leaked narrative vocabulary into a sim call. Run the scenario R times
+and require the property to hold in ≥X% — a threshold, not a golden output.</li>
+<li><strong>Record/replay the model calls</strong> for CI (fixtures), so regression runs are deterministic
+end-to-end, with a periodic live run to catch model drift.</li>
+<li><strong>The seeded scenarios are a BENCHMARK, not just a test suite.</strong> A corpus (stuck player,
+distracted player, adversarial player) can be replayed against any GM version or model, so
+swapping the model tells you whether behaviour regressed.</li>
+</ul>
+<p>The rig needs three parts, and the middle one is the whole job:</p>
 <ol>
 <li><p><strong>The real store — don&#39;t fake the mechanics.</strong> <code>world-store</code> is pure, deterministic and
 Babylon-free precisely so it can run headless. A hand-written &quot;fake simulation&quot; would

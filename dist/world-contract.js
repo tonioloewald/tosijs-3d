@@ -73,10 +73,30 @@ Two shape notes, because they decide the plumbing:
 
 ## Testing a driver: THREE parts, and dead air is the point
 
-Because this boundary is serializable and both halves are deterministic, a driver can be
-developed and tested as a **black box, with no renderer and no browser** — and the
-simulation can be tested against a fake driver in the same way. But the rig needs three
-parts, and the middle one is the whole job:
+A driver can be developed and tested as a **black box, with no renderer and no browser** —
+the boundary is serializable, so nothing about it needs a 3D engine.
+
+But be precise about the determinism, because the useful property is not the obvious one.
+**The driver is LLM-backed and therefore stochastic. Everything else is seeded** — the
+store, the player persona, the transport's losses. So the *stimulus* is exactly
+reproducible even though the *response* is not, which is what makes testing a stochastic
+system tractable at all: **the non-determinism is confined to one place**, and any variance
+in outcome is attributable to the model rather than to a harness that was also wandering.
+
+Consequences for how you assert:
+
+- **Assert properties and bounds, not equality.** Not "it emitted intent X", but: the
+  intents are well-formed and reference live entities; it escalated within N minutes of sim
+  time once the player was stuck; it intervened at most K times while the player was
+  engaged; it never leaked narrative vocabulary into a sim call. Run the scenario R times
+  and require the property to hold in ≥X% — a threshold, not a golden output.
+- **Record/replay the model calls** for CI (fixtures), so regression runs are deterministic
+  end-to-end, with a periodic live run to catch model drift.
+- **The seeded scenarios are a BENCHMARK, not just a test suite.** A corpus (stuck player,
+  distracted player, adversarial player) can be replayed against any GM version or model, so
+  swapping the model tells you whether behaviour regressed.
+
+The rig needs three parts, and the middle one is the whole job:
 
 1. **The real store — don't fake the mechanics.** `world-store` is pure, deterministic and
    Babylon-free precisely so it can run headless. A hand-written "fake simulation" would
