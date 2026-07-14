@@ -29,6 +29,7 @@ b3dDestroyable({ x: 0, y: 1, z: 40, capacity: 6 },
 b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 0, z: 200 })
 ```
 #*/
+/*{ "parent": "Combat" }*/
 
 import type * as BABYLON from '@babylonjs/core'
 import { B3dChild, semanticParent } from './b3d-utils'
@@ -76,7 +77,16 @@ export class B3dRadarBlip extends B3dChild implements RadarBlip {
 
   /** Live world position: the followed mesh's, or our own (origin-corrected). */
   radarPosition(): PosLike | null {
-    if (this._host) return readPos(this._host)
+    if (this._host) {
+      // A DEAD host reports nothing — the marker stops existing because the thing it marked
+      // stopped existing. Without this, a blip on a destroyed target keeps reporting FOREVER:
+      // `readPos` falls back to the host's x/y/z attributes when its mesh is gone (right for
+      // a mesh that hasn't loaded yet, fatal for one that's been blown up), so the corpse's
+      // spawn coordinates go on painting a waypoint over an empty patch of sky.
+      if ((this._host as unknown as { dead?: boolean }).dead === true)
+        return null
+      return readPos(this._host)
+    }
     return this._pos
   }
 

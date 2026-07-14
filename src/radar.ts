@@ -11,6 +11,7 @@ the platform's forward with the bearing to the contact ≥ `coneDot`; ±90° →
 Detected, **lockable** contacts build a lock over `lockTime` seconds; up to `maxLocks`
 of the **nearest** ones hold locks at once. Losing detection decays the lock back down.
 #*/
+/*{ "parent": "Combat" }*/
 
 export type Vec3 = { x: number; y: number; z: number }
 

@@ -76,6 +76,8 @@ Full documentation, with live code examples, is at the links below.
   Procedural sky with sun/moon cycle driven by time of day. Automatically controls
 - https://3d.tosijs.net/b3d-sound/ — b3d-sound
   Declarative audio component wrapping Babylon.js `Sound`. Supports both
+- https://3d.tosijs.net/b3d-spawner/ — b3d-spawner
+  Keeps the world **populated**. Spawns [prefabs](?prefab.ts) — usually *encounters*: a
 - https://3d.tosijs.net/b3d-star/ — b3d-star
   Procedural star mesh using a subdivided cube projected onto a sphere.
 - https://3d.tosijs.net/b3d-star-system/ — b3d-star-system
@@ -101,6 +103,8 @@ Full documentation, with live code examples, is at the links below.
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/effects/ — Effects
 - https://3d.tosijs.net/environment/ — Environment
+- https://3d.tosijs.net/formations/ — formations
+  Pure, deterministic **placement patterns** — where the members of an encounter stand relative
 - https://3d.tosijs.net/frame-panel/ — frame-panel
   A spatial UI panel pinned to an XR reference frame (see [xr-frames](?xr-frames.ts)).
 - https://3d.tosijs.net/galaxy-data/ — galaxy-data

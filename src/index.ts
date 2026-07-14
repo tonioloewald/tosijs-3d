@@ -239,6 +239,11 @@ export { B3dSound, b3dSound } from './b3d-sound'
 export { B3dTrigger, b3dTrigger } from './b3d-trigger'
 // Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
 export { B3dDeath, b3dDeath } from './b3d-death'
+// Spawner: keeps the world populated with encounters (prefab + a rule).
+export { B3dSpawner, b3dSpawner } from './b3d-spawner'
+// Formations: pure placement patterns for an encounter's members.
+export { ring, vee, escorts, line, at } from './formations'
+export type { Offset, RingOptions, VeeOptions } from './formations'
 // Prefabs: a named factory that instantiates a package of stuff at a pose (remains, loot,
 // spawner payloads, pickups). See prefab.ts.
 export { definePrefab, getPrefab, prefabNames, spawnPrefab } from './prefab'

@@ -9,7 +9,10 @@ Damage, destruction, and weapons — pure deterministic models (`destroyable` /
 <!-- toc -->
 - [b3d-destroyable](/b3d-destroyable/)
 - [b3d-launcher](/b3d-launcher/)
+- [b3d-radar](/b3d-radar/)
+- [b3d-radar-blip](/b3d-radar-blip/)
 - [b3d-turret](/b3d-turret/)
 - [b3d-warhead](/b3d-warhead/)
 - [destroyable-behavior](/destroyable-behavior/)
+- [radar.ts](/radar/)
 <!-- /toc -->
