@@ -25,16 +25,17 @@ This file is the map; the reasoning lives in the root design docs. **Read the re
 before (re)designing in its area** — they hold the decisions and the rejected alternatives,
 not just the current state:
 
-| Doc                  | What it holds                                                                                                                                                              |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TODO.md`            | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.                                                                        |
-| `COMBAT-DESIGN.md`   | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model                                                                                 |
-| `AI-DESIGN.md`       | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds                                                                     |
-| `SPATIAL-DESIGN.md`  | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math                                                                    |
-| `PERF-DESIGN.md`     | Acceleration — measure the movable/immovable split first; batch-buffer kernels; workers (send the recipe, transfer the result); where wasm pays and where it's a pure loss |
-| `UI-DESIGN-NOTES.md` | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                                                                                      |
-| `RELEASING.md`       | Release checklist (run steps 1–7; stop before `npm publish`)                                                                                                               |
-| `llms.txt`           | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                             |
+| Doc                  | What it holds                                                                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TODO.md`            | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.                                                                                                                  |
+| `COMBAT-DESIGN.md`   | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model                                                                                                                           |
+| `AI-DESIGN.md`       | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds                                                                                                               |
+| `SPATIAL-DESIGN.md`  | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math                                                                                                              |
+| `PERF-DESIGN.md`     | Acceleration — measure the movable/immovable split first; batch-buffer kernels; workers (send the recipe, transfer the result); where wasm pays and where it's a pure loss                                           |
+| `PLATFORM.md`        | Where this runs — why we stay on the web and DON'T abstract the renderer (WKWebView has full JIT; Babylon Native has no DOM); Tauri = flat only, XR lives on the open web; input is the visionOS risk, not rendering |
+| `UI-DESIGN-NOTES.md` | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                                                                                                                                |
+| `RELEASING.md`       | Release checklist (run steps 1–7; stop before `npm publish`)                                                                                                                                                         |
+| `llms.txt`           | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                                                                       |
 
 ## Build & Development Commands
 
@@ -337,6 +338,14 @@ So **whenever you find a performance-sensitive default, make it `auto` instead o
 `<tosi-b3d>` seeds the profile synchronously from cache before children build (and runs the probe in the background on a cold first visit), applies engine hardware scaling, and re-applies the XR-biased scaling on `IN_XR`. A global `quality="auto|low|medium|high"` attribute (or `setQuality()`) forces a tier. This is the pattern to reach for as more hard-coded defaults surface — terrain/shadows/reflections are the first cases, not the last.
 
 ### WebXR / immersive rendering
+
+> **Platform bet: see `PLATFORM.md`.** We stay on the web and don't abstract the renderer. Quest is
+> a low-tier _performance baseline_, not the strategic target — the energy is moving to **Android XR
+> and Vision Pro**, both of which ship WebXR-capable browsers (which is precisely why the web bet
+> holds). The risk that shift creates is **input, not rendering**: visionOS is eyes-and-hands first
+> with **no controllers**, so anything that assumes thumbsticks and face buttons arrives broken.
+> `ControlInput`/`InputProvider` means that's a new provider, not a rewrite — but the interaction
+> _design_ (gaze + pinch locomotion) is a real open question.
 
 **`window.requestAnimationFrame` is suspended during an immersive session** — the browser hands the frame clock to the headset compositor, and rendering is expected to go through `XRSession.requestAnimationFrame` (Babylon switches to this internally). Consequences that bite:
 
