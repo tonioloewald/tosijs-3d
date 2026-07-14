@@ -189,7 +189,7 @@ export function detonateWarhead(owner, center, spec, useLos = true) {
         else
             setTimeout(() => el.damage(amount), delayMs);
     }
-    boom(scene, center, blastRadius);
+    explosionFx(scene, center, blastRadius);
 }
 // A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
 // between the blast center and it — cubes don't shadow each other from a blast.
@@ -204,7 +204,12 @@ function hasLos(owner, from, targetMesh, destroyableMeshes) {
     return !(hit != null && hit.hit);
 }
 // Expanding, fading flash at the blast center.
-function boom(scene, center, blastRadius) {
+/**
+ * The fireball, on its own — an expanding, fading emissive sphere. Exported because a
+ * detonation isn't the only thing that explodes: an aircraft flying into a hill wants the
+ * same visual without any of the AOE damage machinery behind it (see `b3d-death`).
+ */
+export function explosionFx(scene, center, blastRadius) {
     const s = BABYLON.MeshBuilder.CreateSphere('boom', { diameter: 1 }, scene);
     s.position.copyFrom(center);
     s.isPickable = false;

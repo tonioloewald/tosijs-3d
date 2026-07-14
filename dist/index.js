@@ -65,6 +65,8 @@ export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane';
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
 export { B3dTrigger, b3dTrigger } from './b3d-trigger';
+// Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
+export { B3dDeath, b3dDeath } from './b3d-death';
 export { explodeMesh } from './b3d-exploder';
 // Procedural
 export { PerlinNoise } from './perlin-noise';
@@ -84,7 +86,7 @@ export { makeResource, drain, refill, regenTick, isEmpty, isFull, fraction, } fr
 export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable';
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable';
 export { DestroyableBehavior } from './destroyable-behavior';
-export { B3dWarhead, b3dWarhead, detonateWarhead } from './b3d-warhead';
+export { B3dWarhead, b3dWarhead, detonateWarhead, explosionFx, } from './b3d-warhead';
 export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, } from './b3d-launcher';
 export { B3dTurret, b3dTurret } from './b3d-turret';
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip';

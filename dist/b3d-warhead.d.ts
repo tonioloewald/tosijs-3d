@@ -36,4 +36,10 @@ export declare const b3dWarhead: (...args: unknown[]) => B3dWarhead;
  * bombs, which fire a warhead on impact.
  */
 export declare function detonateWarhead(owner: B3d, center: BABYLON.Vector3, spec: WarheadSpec, useLos?: boolean): void;
+/**
+ * The fireball, on its own — an expanding, fading emissive sphere. Exported because a
+ * detonation isn't the only thing that explodes: an aircraft flying into a hill wants the
+ * same visual without any of the AOE damage machinery behind it (see `b3d-death`).
+ */
+export declare function explosionFx(scene: BABYLON.Scene, center: BABYLON.Vector3, blastRadius: number): void;
 //# sourceMappingURL=b3d-warhead.d.ts.map

@@ -56,6 +56,7 @@ projected saturated frame → ~3ms of tile work.
 spent, then continue next frame (always ≥1 tile). A tile COUNT bounds the frame only by accident;
 TIME bounds it by construction on every device, and self-corrects when detail rises. Same idiom
 tosijs uses for big virtual-list bindings.
+
 ### ⏸ PARKED — exploratory, NOT the priority (2026-07-14)
 
 Terrain is fast (3ms worst on Quest) and smoothness is now GUARANTEED (`tileBuildMs`). That was

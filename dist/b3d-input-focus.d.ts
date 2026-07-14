@@ -19,6 +19,16 @@ export declare class B3dInputFocus extends B3dChild {
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     private discoverEntities;
     focusEntity(entity: B3dControllable): void;
+    /**
+     * Stop driving whatever we were driving. **Death needs an exit.**
+     *
+     * Without this the manager stays welded to a wrecked entity: the player goes on "flying"
+     * a corpse, the game has no way out, and the whole loop dead-ends. (`b3d-aircraft` even
+     * said so — on crash: "Stays put until something resets it", and nothing did.) The
+     * camera is left alone deliberately: whoever handles the death (`b3d-death`) wants to
+     * take it over, and yanking it back to a default here would fight them.
+     */
+    releaseFocus(): void;
     private setupCameraForEntity;
     private _checkInteract;
     private enterVehicle;

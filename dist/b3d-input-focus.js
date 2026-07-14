@@ -113,6 +113,23 @@ export class B3dInputFocus extends B3dChild {
         // Switch camera to follow the new entity
         this.setupCameraForEntity(entity);
     }
+    /**
+     * Stop driving whatever we were driving. **Death needs an exit.**
+     *
+     * Without this the manager stays welded to a wrecked entity: the player goes on "flying"
+     * a corpse, the game has no way out, and the whole loop dead-ends. (`b3d-aircraft` even
+     * said so — on crash: "Stays put until something resets it", and nothing did.) The
+     * camera is left alone deliberately: whoever handles the death (`b3d-death`) wants to
+     * take it over, and yanking it back to a default here would fight them.
+     */
+    releaseFocus() {
+        const entity = this.focusedEntity;
+        if (entity == null)
+            return;
+        entity.onLoseFocus();
+        entity.inputProvider = null;
+        this.focusedEntity = null;
+    }
     setupCameraForEntity(entity) {
         // For bipeds, let them handle their own camera via cameraType attribute
         // For other entities, set up a follow camera on the entity's camera target

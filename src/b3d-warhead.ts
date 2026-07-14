@@ -216,7 +216,7 @@ export function detonateWarhead(
     if (delayMs < 16) el.damage(amount)
     else setTimeout(() => el.damage(amount), delayMs)
   }
-  boom(scene, center, blastRadius)
+  explosionFx(scene, center, blastRadius)
 }
 
 // A target is visible unless a NON-destroyable pickable mesh (a wall/cover) sits
@@ -240,7 +240,12 @@ function hasLos(
 }
 
 // Expanding, fading flash at the blast center.
-function boom(
+/**
+ * The fireball, on its own — an expanding, fading emissive sphere. Exported because a
+ * detonation isn't the only thing that explodes: an aircraft flying into a hill wants the
+ * same visual without any of the AOE damage machinery behind it (see `b3d-death`).
+ */
+export function explosionFx(
   scene: BABYLON.Scene,
   center: BABYLON.Vector3,
   blastRadius: number

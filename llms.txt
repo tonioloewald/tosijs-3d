@@ -30,6 +30,8 @@ Full documentation, with live code examples, is at the links below.
   Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
 - https://3d.tosijs.net/b3d-controller/ — b3d-controller
   The **casual way to read the standard controller.** Drop a `<tosi-b3d-controller>` into
+- https://3d.tosijs.net/b3d-death/ — b3d-death
+  to the wreck, you go on "flying" a corpse, and the game is stuck. (`b3d-aircraft` used to
 - https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
   A thing that can take damage and be destroyed — the scene-side bridge to the pure
 - https://3d.tosijs.net/b3d-exploder/ — b3d-exploder
