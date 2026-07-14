@@ -24,6 +24,21 @@ export class B3dControllable extends AbstractMesh {
     lastUpdate = 0;
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
+        // PULL, don't push. A controllable added mid-game (a RESPAWNED aircraft) announces
+        // itself to the focus manager once IT is ready — rather than the manager guessing when
+        // to look, or watching the subtree.
+        //
+        // This is not a style preference: the manager scans for `player: true` at ITS setup,
+        // and a caller who appends an entity and immediately asks the manager to re-scan will
+        // find `player` still false — tosijs drains attributes on connectedCallback, so the
+        // flag isn't there yet at the moment of appendChild. (B3d abandoned MutationObserver
+        // discovery for exactly this race; see CLAUDE.md.) By sceneReady the attributes are
+        // drained, so this is the moment when the question can be answered truthfully.
+        //
+        // The manager only takes us if it's driving NOBODY — so this never steals the camera
+        // from a live player; it only fills a vacancy, which is precisely the respawn case.
+        const focus = this.closest('tosi-b3d-input-focus');
+        focus?.adoptIfVacant?.(this);
     }
     sceneDispose() {
         this.inputProvider = null;

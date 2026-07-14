@@ -23,12 +23,21 @@ export declare class B3dInputFocus extends B3dChild {
      */
     private findPlayer;
     /**
-     * Re-scan for the player entity and drive it. **Call this after a respawn.**
+     * A controllable calls this on ITS `sceneReady` — "I'm here, take me if you have nobody."
      *
-     * The initial scan runs once, at setup — so an entity added later (a fresh aircraft after
-     * you augered in) is invisible to it, and you'd respawn into a plane nobody is flying.
-     * Safe to call before the new entity's mesh has loaded: a controllable that gets focused
-     * early sets its own camera up when the mesh arrives.
+     * This is how a RESPAWNED entity gets driven. The manager scans for `player: true` once,
+     * at its own setup, so an aircraft appended later is invisible to it — and a caller that
+     * appends one and immediately asks for a re-scan finds `player` still false, because
+     * tosijs drains attributes on connectedCallback. Pull, don't push: by the child's
+     * sceneReady the attributes are drained and the question can be answered truthfully.
+     *
+     * Only fills a VACANCY, so it can never steal the camera from a live player.
+     */
+    adoptIfVacant(entity: B3dControllable): void;
+    /**
+     * Re-scan for the player entity and drive it. Mostly unnecessary now — a controllable
+     * announces itself via `adoptIfVacant` when it's ready — but useful to force a switch
+     * (hand control to a different entity that's already in the scene).
      */
     focusPlayer(): B3dControllable | null;
     private discoverEntities;

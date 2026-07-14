@@ -43,8 +43,8 @@ const plane = () => b3dAircraft({
   player: true, y: 80, vtolSpeed: 6, maxSpeed: 50,
 })
 
-// The focus manager only scans for the `player` entity ONCE, at setup — so a respawned
-// aircraft has to be appended INSIDE it and claimed with focusPlayer().
+// A respawned aircraft is appended INSIDE the focus manager — it then announces itself
+// (adoptIfVacant) once it's ready, and the manager takes it because it's driving nobody.
 const focus = inputFocus(gameController(), plane())
 
 const scene = b3d(
@@ -59,8 +59,12 @@ const scene = b3d(
     respawn() {
       // A fresh aircraft — NOT a reset of the dead one. The sim really emits a death and
       // really emits a spawn, which is the stream a narrative driver reads.
+      //
+      // No need to tell the focus manager: a controllable ANNOUNCES itself when it's ready
+      // (adoptIfVacant), and the manager takes it because it's driving nobody. Asking the
+      // manager to re-scan here would find `player` still false — attributes aren't drained
+      // until connectedCallback.
       focus.appendChild(plane())
-      focus.focusPlayer()
     },
   }),
   focus,
