@@ -62,8 +62,38 @@ export interface FramePanelSpec {
    * `both` (default). Hidden when the active view doesn't match. */
   view?: 'first' | 'third' | 'both'
   /** Hide beyond this distance (metres) from the head — e.g. NPC nameplates that
-   * shouldn't clutter the view at range. */
+   * shouldn't clutter the view at range. A HARD cliff; prefer `fadeFrom`/`fadeTo`. */
   maxDistance?: number
+  /**
+   * Soft distance falloff: full strength within `fadeFrom` m, gone by `fadeTo` m.
+   *
+   * A hard `maxDistance` was tried and removed — it snapped nameplates out of existence, and
+   * the cutoff that felt right on a monitor was wrong in a headset (you stand further away).
+   * A fade degrades instead of switching, which is the same lesson the fog and the underwater
+   * bubbles already taught us.
+   */
+  fadeFrom?: number
+  fadeTo?: number
+  /**
+   * **Measure gaze against THIS, not against the panel.** A nameplate floats above its NPC's
+   * head, so looking straight AT the NPC leaves the plate well outside a tight cone — and you
+   * cannot summon the thing by looking at the thing. The workaround was to widen the cone to
+   * 70°, which is most of your field of view, so the plates then never went away.
+   *
+   * The honest fix is to point the cone at what the user is actually looking AT (the subject),
+   * and let the panel hang wherever it likes. Then a tight, well-behaved cone works.
+   */
+  gazeTarget?: BABYLON.TransformNode
+  /**
+   * Offset from `gazeTarget`'s origin to the point you'd actually LOOK at (metres, world axes).
+   *
+   * A character's node origin is at their FEET. Aim a tight cone there and, standing near
+   * someone in VR, their feet are 40° below your gaze — so looking them in the eye reveals
+   * nothing, forever. (Flat hides this: a chase camera looks down at the scene, so the feet
+   * land near screen centre. It reads fine on a monitor and is dead in a headset.) Aim at the
+   * chest.
+   */
+  gazeOffset?: [number, number, number]
   /** `composite` (default): alpha-over, for dialogs/panels. `add`: additive, for
    * glowing HUD glyphs like reticles (dark pixels vanish, bright ones add). */
   blend?: 'composite' | 'add'
@@ -202,6 +232,7 @@ export function attachFramePanel(
   readonly debug: {
     reveal: number
     cosine: number
+    distance: number
     updates: number
     camera: string
   }
@@ -295,14 +326,20 @@ export function attachFramePanel(
   const head = new BABYLON.Vector3()
   const fwd = new BABYLON.Vector3()
   const toAnchor = new BABYLON.Vector3()
+  const toSubject = new BABYLON.Vector3()
   const viewMode = spec.view ?? 'both'
   const maxDist = spec.maxDistance ?? Infinity
+  const gazeTarget = spec.gazeTarget ?? null
+  const gazeOffset = spec.gazeOffset ?? [0, 0, 0]
+  const fadeFrom = spec.fadeFrom ?? Infinity
+  const fadeTo = spec.fadeTo ?? Infinity
   // `updates` is the load-bearing one: if it doesn't ADVANCE in a session, the
   // reveal isn't broken — it's simply never running, and the panel is stuck at
   // whatever visibility it was born with.
   const debug = {
     reveal: alwaysOn ? 1 : 0,
     cosine: 0,
+    distance: 0,
     updates: 0,
     camera: '—',
   }
@@ -331,13 +368,33 @@ export function attachFramePanel(
       head.copyFrom(active.globalPosition)
       active.getDirectionToRef(XR_FORWARD, fwd)
       plane.getAbsolutePosition().subtractToRef(head, toAnchor)
-      const v = gazeReveal(fwd, toAnchor, cosStart, cosFull)
-      plane.visibility = toAnchor.length() > maxDist ? 0 : v
+      // Aim the cone at the SUBJECT (the NPC), not at the plate hovering above their head —
+      // otherwise looking straight at someone doesn't reveal their name, and the only way to
+      // fix THAT is a cone so wide it never hides anything. Distance is still measured to the
+      // panel, which is what "how far away is this label" actually means.
+      if (gazeTarget != null) {
+        gazeTarget.getAbsolutePosition().subtractToRef(head, toSubject)
+        toSubject.x += gazeOffset[0]
+        toSubject.y += gazeOffset[1]
+        toSubject.z += gazeOffset[2]
+      } else {
+        toSubject.copyFrom(toAnchor)
+      }
+      let v = gazeReveal(fwd, toSubject, cosStart, cosFull)
+
+      // Soft distance falloff — fade, never cliff.
+      const dist = toAnchor.length()
+      if (v > 0 && dist > fadeFrom && fadeTo > fadeFrom) {
+        v *= Math.max(0, 1 - (dist - fadeFrom) / (fadeTo - fadeFrom))
+      }
+      plane.visibility = dist > maxDist ? 0 : v
+
       debug.reveal = plane.visibility
       debug.camera = active.getClassName()
+      debug.distance = dist
       const fl = fwd.length() || 1
-      const al = toAnchor.length() || 1
-      debug.cosine = BABYLON.Vector3.Dot(fwd, toAnchor) / (fl * al)
+      const sl = toSubject.length() || 1
+      debug.cosine = BABYLON.Vector3.Dot(fwd, toSubject) / (fl * sl)
     },
     dispose() {
       tex.dispose()

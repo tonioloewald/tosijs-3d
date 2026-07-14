@@ -1,0 +1,179 @@
+/*#
+# b3d-water
+
+Water plane with reflections, waves, and underwater fog effect.
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `waterSize` | `128` | Size of the water plane |
+| `subdivisions` | `32` | Mesh subdivisions |
+| `twoSided` | `false` | Render both sides |
+| `windForce` | `-5` | Wind strength |
+| `waveHeight` | `0` | Wave amplitude |
+| `bumpHeight` | `0.1` | Normal map bump intensity |
+| `waterColor` | `'#0066cc'` | Water tint color |
+| `colorBlendFactor` | `0.1` | How much color tints the water |
+| `spherical` | `false` | Use a sphere instead of a plane |
+
+## Underwater Effect
+
+When the camera goes below the water surface, a blue fog is automatically applied.
+The sun (if present via `b3dSun`) is also dimmed based on depth.
+
+```javascript
+import { b3d, b3dWater, b3dSun, b3dSkybox } from 'tosijs-3d'
+
+document.body.append(
+  b3d({},
+    b3dSun({}),
+    b3dSkybox({ timeOfDay: 12 }),
+    b3dWater({ y: -0.2, twoSided: true, waterSize: 1024, normalMap: '/waterbump.png' })
+  )
+)
+```
+*/
+/*{ "parent": "Environment" }*/
+import * as BABYLON from '@babylonjs/core';
+import { WaterMaterial } from '@babylonjs/materials';
+import { AbstractMesh } from './b3d-utils';
+import { band } from './atmosphere';
+export class B3dWater extends AbstractMesh {
+    static initAttributes = {
+        // Underwater fog: how thick, and how sharply it takes over as you cross the surface.
+        // The transition is deliberately TIGHT (see the fog layer below): killing the "thunk"
+        // meant killing the discontinuity, not the contrast.
+        underwaterFog: 0.12, // density the moment you're under
+        underwaterMurk: 0.08, // extra density at 30m down (the sea thickens with depth)
+        fogTransition: 0.2, // metres below the surface to reach FULL underwater fog
+        ...AbstractMesh.initAttributes,
+        spherical: false,
+        waterSize: 128,
+        subdivisions: 32,
+        textureSize: 1024,
+        twoSided: false,
+        // Root-absolute, NOT './waterbump.png': doc pages are served at /{slug}/, so a
+        // relative path resolves to /{slug}/waterbump.png (404). Root-absolute loads
+        // the same everywhere (matches the "root-absolute asset paths" convention).
+        normalMap: '/waterbump.png',
+        windForce: -5,
+        waveHeight: 0,
+        bumpHeight: 0.1,
+        waveLength: 0.1,
+        waterColor: '#0066cc',
+        colorBlendFactor: 0.1,
+        windDirectionX: 0.6,
+        windDirectionY: 0.8,
+    };
+    waterMaterial;
+    _callback;
+    _underwaterUpdate;
+    _removeFogLayer;
+    _savedFogMode = BABYLON.Scene.FOGMODE_NONE;
+    _savedFogColor = new BABYLON.Color3();
+    _savedFogDensity = 0;
+    _wasUnderwater = false;
+    waterCallback(additions) {
+        const { meshes } = additions;
+        if (meshes == null)
+            return;
+        for (const mesh of meshes) {
+            if (!mesh.name.includes('water')) {
+                this.waterMaterial.addToRenderList(mesh);
+            }
+        }
+    }
+    updateWater() {
+        if (this.waterMaterial == null || this.owner == null)
+            return;
+        const attrs = this;
+        this.waterMaterial.backFaceCulling = !attrs.twoSided;
+        this.waterMaterial.windForce = attrs.windForce;
+        this.waterMaterial.windDirection = new BABYLON.Vector2(attrs.windDirectionX, attrs.windDirectionY);
+        this.waterMaterial.waveHeight = attrs.waveHeight;
+        this.waterMaterial.waveLength = attrs.waveLength;
+        this.waterMaterial.bumpHeight = attrs.bumpHeight;
+        if (attrs.colorBlendFactor > 0) {
+            const hex = attrs.waterColor;
+            const r = parseInt(hex.slice(1, 3), 16) / 255;
+            const g = parseInt(hex.slice(3, 5), 16) / 255;
+            const b = parseInt(hex.slice(5, 7), 16) / 255;
+            this.waterMaterial.waterColor = new BABYLON.Color3(r, g, b);
+        }
+        this.waterMaterial.colorBlendFactor = attrs.colorBlendFactor;
+    }
+    sceneReady(owner, scene) {
+        super.sceneReady(owner, scene);
+        const attrs = this;
+        if (attrs.spherical) {
+            this.mesh = BABYLON.MeshBuilder.CreateSphere('water_nocast', { segments: attrs.subdivisions, diameter: attrs.waterSize }, scene);
+        }
+        else {
+            this.mesh = BABYLON.MeshBuilder.CreateGround('water_nocast', {
+                width: attrs.waterSize,
+                height: attrs.waterSize,
+                subdivisions: attrs.subdivisions,
+            }, scene);
+        }
+        this.mesh.checkCollisions = false;
+        this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(attrs.textureSize, attrs.textureSize));
+        this.waterMaterial.bumpTexture = new BABYLON.Texture(attrs.normalMap, scene);
+        this.updateWater();
+        this.mesh.material = this.waterMaterial;
+        this._callback = this.waterCallback.bind(this);
+        owner.onSceneAddition(this._callback);
+        // UNDERWATER — a fog LAYER, not a switch.
+        //
+        // This used to snap: `if (underwater && !wasUnderwater) { fogMode = EXP2; … }`. Two
+        // discontinuities in one line — fogMode is a shader DEFINE (so every material recompiled:
+        // that's the hitch), and colour/density jumped at the exact plane of the surface. The
+        // "thunk".
+        //
+        // Now the weight RAMPS over a band around the waterline (so passing through reads as
+        // *entering the water* rather than teleporting into it) and keeps deepening as you go
+        // down. The scene composites and smooths it; nothing toggles. See atmosphere.ts.
+        this._removeFogLayer = owner.addFogLayer(() => {
+            const cam = scene.activeCamera;
+            if (!cam || !this.mesh)
+                return null;
+            const depth = this.mesh.absolutePosition.y - cam.globalPosition.y;
+            // A TIGHT band across the surface — full underwater within ~20cm of crossing.
+            //
+            // Killing the "thunk" meant killing the DISCONTINUITY (the shader recompile from
+            // switching fogMode, and the instant jump at a plane), NOT the contrast. A wide band
+            // reads as mush: at the waterline you'd be only ~10% submerged and the sea would fade
+            // in over metres. Being underwater should be OBVIOUS the moment you are — and being out
+            // should be obvious the moment you're out. Fast, but continuous.
+            const attrs = this;
+            const w = band(depth, -0.05, Math.max(0.02, attrs.fogTransition));
+            if (w <= 0)
+                return null;
+            // Full sea-fog immediately on entry, then keep thickening as you go deeper (murk with
+            // depth is both true and useful — it hides what's below you).
+            const deeper = Math.min(1, Math.max(0, depth / 30));
+            return {
+                weight: w,
+                color: { r: 0, g: 0.15, b: 0.3 },
+                density: attrs.underwaterFog + attrs.underwaterMurk * deeper,
+            };
+        });
+    }
+    sceneDispose() {
+        if (this.owner && this._callback) {
+            this.owner.offSceneAddition(this._callback);
+        }
+        if (this._removeFogLayer) {
+            this._removeFogLayer(); // the scene composites fog; nothing to restore, nothing to snap
+            this._removeFogLayer = undefined;
+        }
+        this.waterMaterial = undefined;
+        super.sceneDispose();
+    }
+    render() {
+        super.render();
+        this.updateWater();
+    }
+}
+export const b3dWater = B3dWater.elementCreator({ tag: 'tosi-b3d-water' });
+//# sourceMappingURL=b3d-water.js.map

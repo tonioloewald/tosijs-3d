@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>Material Conventions — tosijs-3d</title>
+  <meta name="description" content="These conventions apply to all meshes entering the scene — via b3d-loader, b3d-library, or any component that calls register()." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-utils/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="Material Conventions — tosijs-3d" />
+  <meta property="og:description" content="These conventions apply to all meshes entering the scene — via b3d-loader, b3d-library, or any component that calls register()." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-utils/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Material Conventions","description":"These conventions apply to all meshes entering the scene — via b3d-loader, b3d-library, or any component that calls register().","url":"https://3d.tosijs.net/b3d-utils/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>Material Conventions</h1>
+<p>These conventions apply to all meshes entering the scene — via
+<a href="/b3d-loader/">b3d-loader</a>, <a href="/b3d-library/">b3d-library</a>, or any
+component that calls <code>register()</code>.</p>
+<h2>Property-Based (automatic from Blender materials)</h2>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Threshold</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>alpha</code> &gt; 0.95</td>
+<td>snapped to 1.0</td>
+<td>Treated as fully opaque (avoids blend cost)</td>
+</tr>
+<tr>
+<td><code>alpha</code> ≤ 0.95</td>
+<td>—</td>
+<td>Alpha blend, depth pre-pass, double-sided, excluded from shadow casting</td>
+</tr>
+<tr>
+<td><code>unlit</code> (glTF KHR_materials_unlit)</td>
+<td>—</td>
+<td>Respected as-is</td>
+</tr>
+<tr>
+<td>Transmission &gt; 0 + <code>_mirror</code></td>
+<td>—</td>
+<td>Cubemap-based refraction with proper IOR (replaces glTF screen-space)</td>
+</tr>
+</tbody></table>
+<h2>Name Suffixes (behavioral overrides, not material appearance)</h2>
+<table>
+<thead>
+<tr>
+<th>Suffix</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>_noshadow</code> / <code>-noshadow</code></td>
+<td>Mesh doesn&#39;t receive shadows</td>
+</tr>
+<tr>
+<td><code>_nocast</code> / <code>-nocast</code></td>
+<td>Mesh doesn&#39;t cast shadows</td>
+</tr>
+<tr>
+<td><code>_mirror</code> / <code>-mirror</code></td>
+<td>Dynamic reflection probe (+ refraction if transmissive)</td>
+</tr>
+<tr>
+<td><code>-ignore</code></td>
+<td>Node is disposed on load</td>
+</tr>
+<tr>
+<td><code>_collide*</code></td>
+<td>Physics collider (sphere/box/cylinder/mesh)</td>
+</tr>
+</tbody></table>
+<h1>B3dChild</h1>
+<p><code>B3dChild</code> is the base class for <strong>any custom element you write that lives inside a
+<code>&lt;tosi-b3d&gt;</code> scene</strong>. It owns the whole scene-attach lifecycle in one place so you
+never have to reason about component-vs-scene timing yourself.</p>
+<p>Extend it (or <a href="/b3d-utils/">AbstractMesh</a>, which extends <code>B3dChild</code> and adds
+position/rotation syncing) and override two hooks:</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>When it runs</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sceneReady(owner, scene)</code></td>
+<td>Once, when <strong>both</strong> this element is connected (its attributes are drained and readable) <strong>and</strong> the scene&#39;s engine/scene exist.</td>
+<td>Build your Babylon content, <code>owner.register({meshes, lights})</code>, subscribe to <code>owner.onSceneAddition(...)</code>.</td>
+</tr>
+<tr>
+<td><code>sceneDispose()</code></td>
+<td>On disconnect (element removed, or the whole scene torn down).</td>
+<td>Dispose meshes/materials, unsubscribe, release references.</td>
+</tr>
+</tbody></table>
+<p>Do <strong>not</strong> override <code>connectedCallback</code> / <code>disconnectedCallback</code> — the pull-model
+plumbing is centralized in <code>B3dChild</code> so a lifecycle fix lands in exactly one spot.
+(If you must, call <code>super</code> first and keep it side-effect-free.)</p>
+<p>Why a base class rather than parent orchestration? On connect the child discovers its
+owner via <a href="/b3d-utils/">findB3dOwner</a> and asks to attach: <code>owner.whenReady(cb)</code> runs
+<code>cb</code> immediately if the scene is already up, otherwise the instant it becomes ready.
+The parent never <em>pushes</em> <code>sceneReady</code> at a guessed moment, so <code>sceneReady</code> fires only
+when the child is genuinely ready AND the scene exists — no races against tosijs&#39;s
+deferred attribute application.</p>
+<pre><code class="language-javascript">import { B3dChild } from &#39;tosijs-3d&#39;
+import * as BABYLON from &#39;@babylonjs/core&#39;
+
+class MyThing extends B3dChild {
+  static initAttributes = { color: &#39;#ff8800&#39; }
+  declare color: string
+  mesh?: BABYLON.Mesh
+
+  sceneReady(owner, scene) {
+    this.mesh = BABYLON.MeshBuilder.CreateBox(&#39;mything&#39;, {}, scene)
+    owner.register({ meshes: [this.mesh] })
+  }
+
+  sceneDispose() {
+    this.mesh?.dispose()
+    this.mesh = undefined
+  }
+}
+export const myThing = MyThing.elementCreator({ tag: &#39;my-thing&#39; })
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details open><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
+      <li><a href="/b3d-utils/" aria-current="page" class="current">Material Conventions</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-radar/">b3d-radar</a></li>
+      <li><a href="/b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a href="/radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/atmosphere/">atmosphere</a></li>
+      <li><a href="/b3d-ambient/">b3d-ambient</a></li>
+      <li><a href="/b3d-clouds/">b3d-clouds</a></li>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/">b3d-controller</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a href="/xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/ambient-budget/">ambient-budget</a></li>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/b3d-death/">b3d-death</a></li>
+      <li><a href="/b3d-spawner/">b3d-spawner</a></li>
+      <li><a href="/formations/">formations</a></li>
+      <li><a href="/prefab/">prefab</a></li>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

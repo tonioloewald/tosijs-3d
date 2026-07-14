@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-clouds — tosijs-3d</title>
+  <meta name="description" content="A cloud layer you can fly into — and lose the world inside." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-clouds/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-clouds — tosijs-3d" />
+  <meta property="og:description" content="A cloud layer you can fly into — and lose the world inside." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-clouds/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-clouds","description":"A cloud layer you can fly into — and lose the world inside.","url":"https://3d.tosijs.net/b3d-clouds/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-clouds</h1>
+<p>A cloud layer you can <strong>fly into</strong> — and lose the world inside.</p>
+<p>Not a skybox texture and not a shader: a few dozen soft blobs at an altitude, plus a <strong>fog
+whiteout</strong> that ramps up as you penetrate one. Fly into a cloud and the world dissolves;
+come out the other side and it snaps back.</p>
+<h2>It&#39;s a TACTIC, not a texture</h2>
+<p><code>insideCloud</code> (0…1) is exposed, so a cloud is something the game can <em>use</em>: break a radar
+lock, shake a pursuer, hide a mothership until you&#39;re on top of it. That is the whole point
+— <strong>behavioural richness, not photorealism</strong> (see AI-DESIGN.md). A cloud you can hide in is
+worth more than a cloud that merely looks convincing.</p>
+<h2>Demo</h2>
+<p><strong>Climb into the cloud layer</strong> (R to throttle up, W/S pitch). Watch the world white out as
+you enter, and the readout climb. Then dive back out.</p>
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dClouds, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div } = elements
+
+const aircraft = b3dAircraft({
+  library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
+  player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
+})
+const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, seed: 7 })
+const readout = div({ class: &#39;readout&#39; })
+
+const scene = b3d(
+  { gamepad: true },
+  b3dLight({ y: 1, intensity: 0.6 }),
+  b3dSun({ intensity: 0.9 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dFog({ start: 400, end: 3000, color: &#39;#bfd9f2&#39; }),
+  b3dGround({ meshName: &#39;ground_nocast&#39;, width: 4000, height: 4000, color: &#39;#6b7f5e&#39; }),
+  b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
+  clouds,
+  inputFocus(gameController(), aircraft),
+)
+
+setInterval(() =&gt; {
+  const t = clouds.insideCloud
+  readout.textContent = `altitude ${aircraft.altitude.toFixed(0)}   in cloud ${(t * 100).toFixed(0)}%`
+  readout.style.color = t &gt; 0.5 ? &#39;#fff&#39; : &#39;#9fb&#39;
+}, 100)
+
+preview.append(scene, readout)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+.readout {
+  position: absolute; bottom: 12px; left: 12px;
+  padding: 6px 12px; border-radius: 6px;
+  background: rgba(0,0,0,0.55); color: #9fb;
+  font: 13px ui-monospace, monospace; z-index: 10;
+}
+</code></pre>
+<h2>How it works</h2>
+<ul>
+<li><strong>A fixed number of blobs, recycled.</strong> <code>count</code> soft spheres are scattered (seeded) in a
+disc around you. Fly far enough and a blob that falls behind <strong>wraps to the far side</strong> —
+so an endless cloudscape costs a fixed, tier-friendly number of meshes and never
+allocates. (Same discipline as the terrain tile pool.)</li>
+<li><strong>The whiteout is FOG, not a post-process.</strong> Post-processes are expensive in XR and
+awkward in stereo; fog is per-pixel and effectively free. Immersion ramps <code>fogDensity</code> up
+and <code>fogColor</code> toward the cloud&#39;s colour, then <strong>restores whatever <code>b3d-fog</code> had set</strong> on
+the way out — so the two compose instead of fighting.</li>
+<li><strong>Clouds are not pickable and cast no shadows.</strong> A cloud between your controller and a
+panel — or between a missile and its target — would silently break picking and swept
+collision, and that is a bug you would chase for an hour. (We have.)</li>
+</ul>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>count</code></td>
+<td><code>36</code></td>
+<td>Number of blobs (fixed — they recycle, they don&#39;t grow)</td>
+</tr>
+<tr>
+<td><code>altitude</code></td>
+<td><code>140</code></td>
+<td>Centre height of the layer</td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td><code>36</code></td>
+<td>Vertical spread of the layer</td>
+</tr>
+<tr>
+<td><code>spread</code></td>
+<td><code>1200</code></td>
+<td>Radius of the disc of cloud around you</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>70</code></td>
+<td>Blob radius — also the distance at which whiteout is total</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>&#39;#ffffff&#39;</code></td>
+<td>Cloud (and whiteout) colour</td>
+</tr>
+<tr>
+<td><code>opacity</code></td>
+<td><code>0.5</code></td>
+<td>Blob alpha</td>
+</tr>
+<tr>
+<td><code>fogDensity</code></td>
+<td><code>0.05</code></td>
+<td>Fog density at full immersion (the whiteout)</td>
+</tr>
+<tr>
+<td><code>approach</code></td>
+<td><code>0.8</code></td>
+<td>How far OUTSIDE a blob the whiteout starts (× <code>size</code>). You go white BEFORE you touch the geometry — which is what stops a crude blob from looking like a crude blob</td>
+</tr>
+<tr>
+<td><code>seed</code></td>
+<td><code>1</code></td>
+<td>Deterministic layout — same seed, same sky</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-radar/">b3d-radar</a></li>
+      <li><a href="/b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a href="/radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/atmosphere/">atmosphere</a></li>
+      <li><a href="/b3d-ambient/">b3d-ambient</a></li>
+      <li><a href="/b3d-clouds/" aria-current="page" class="current">b3d-clouds</a></li>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/">b3d-controller</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a href="/xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/ambient-budget/">ambient-budget</a></li>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/b3d-death/">b3d-death</a></li>
+      <li><a href="/b3d-spawner/">b3d-spawner</a></li>
+      <li><a href="/formations/">formations</a></li>
+      <li><a href="/prefab/">prefab</a></li>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>

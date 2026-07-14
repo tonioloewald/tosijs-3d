@@ -258,6 +258,7 @@ type Nameplate = {
     readonly debug: {
       reveal: number
       cosine: number
+      distance: number
       updates: number
       camera: string
     }
@@ -925,9 +926,30 @@ export class B3d extends Component {
   private _ambientSampleMs = 0
   private _ambientBadSamples = 0
   private _ambientCooldownMs = 0
+  /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`. */
+  private _ambientWarmupMs = 10000
 
   /** An ambient effect joins the scene's pool. Returns its unregister. */
   registerAmbient(effect: AmbientEffect): () => void {
+    if (this._ambient.length === 0) {
+      // Readable IN the headset — the only place the watchdog's damage is visible. `pool` < 1
+      // means the ratchet has fired and garnish has been permanently shed this session.
+      this.addDebugSource({
+        name: 'Ambient',
+        lines: () => [
+          `pool=${this._ambientPoolScale.toFixed(2)} warmup=${Math.max(
+            0,
+            Math.round(this._ambientWarmupMs / 1000)
+          )}s bad=${this._ambientBadSamples}`,
+          ...this._ambient.map((a) => {
+            const r = a.budgetRequest()
+            return `${r.id} want=${r.desired} got=${
+              (a as unknown as { granted: number }).granted
+            }`
+          }),
+        ],
+      })
+    }
     this._ambient.push(effect)
     this._reallocAmbient()
     return () => {
@@ -965,6 +987,16 @@ export class B3d extends Component {
     if (this._ambient.length === 0 || this._ambientPoolScale <= 0) return
     if (this.engine == null) return
     const dt = this.engine.getDeltaTime()
+
+    // WARM UP before judging. The frame rate right after load — and right after XR entry — is
+    // garbage for reasons that have nothing to do with ambient: shaders compiling, textures
+    // uploading, GLBs landing. Judged during that, a ONE-WAY ratchet would shed the garnish
+    // for the whole session over a hitch that was already over. Grace period first.
+    if (this._ambientWarmupMs > 0) {
+      this._ambientWarmupMs -= dt
+      this._ambientBadSamples = 0
+      return
+    }
     if (this._ambientCooldownMs > 0) {
       this._ambientCooldownMs -= dt
       return
@@ -973,17 +1005,20 @@ export class B3d extends Component {
     if (this._ambientSampleMs < 1000) return
     this._ambientSampleMs = 0
 
+    // 0.75, not 0.85: shedding is IRREVERSIBLE, so the bar to do it has to be a frame rate
+    // that's actually bad, not one that's merely short of ideal. A headset running 68 of a
+    // nominal 72 is fine; it is not a reason to delete the weather for the rest of the session.
     const target = this.xrActive ? 72 : 60
     const fps = this.engine.getFps()
-    if (Number.isFinite(fps) && fps > 0 && fps < target * 0.85) {
+    if (Number.isFinite(fps) && fps > 0 && fps < target * 0.75) {
       this._ambientBadSamples++
     } else {
       this._ambientBadSamples = 0 // it must be SUSTAINED — one bad second is a hitch, not a trend
     }
-    if (this._ambientBadSamples < 3) return
+    if (this._ambientBadSamples < 6) return // ~6s of genuinely bad frames, not 3
 
     this._ambientBadSamples = 0
-    this._ambientCooldownMs = 3000 // let the frame settle before judging again
+    this._ambientCooldownMs = 5000 // let the frame settle before judging again
     this._ambientPoolScale = ratchetPool(this._ambientPoolScale)
     this._reallocAmbient()
   }
@@ -1550,6 +1585,11 @@ export class B3d extends Component {
         // Same reason: the XR tier is a smaller ambient pool, so re-divide it. A snowstorm
         // that was honest on a monitor may only afford to be nothing at all in a headset.
         this._reallocAmbient()
+        // And re-arm the warm-up: XR entry is the single worst frame-rate moment there is
+        // (stereo shaders compiling, the session spinning up). Judging the pool there and
+        // shedding IRREVERSIBLY is how you lose the weather to a hitch that's already over.
+        this._ambientWarmupMs = 10000
+        this._ambientBadSamples = 0
         // Keep tosijs's rAF-batched reactive bindings flushing while in-session.
         restoreRaf ??= this._installXrRafPump(base)
         xrSession ??= this._startDefaultXrExperience(base, controllers)
@@ -2084,15 +2124,30 @@ export class B3d extends Component {
         offset: [0, (b.eyeHeight ?? 1.7) + 0.25, 0],
       })
       const panel = attachFramePanel(scene, cam, ef.node, {
+        // Aim the cone at the NPC, not at the plate floating above their head. The wide
+        // 70°/40° cone that used to be here was a WORKAROUND for measuring against the plate
+        // (looking at someone didn't reveal their name), and 70° is most of your field of
+        // view — which is why the plates never went away. With the cone pointed at the
+        // subject, a tight one behaves: look at someone, get their name; look away, lose it.
+        gazeTarget: b.mesh,
+        // Aim at the CHEST. A biped's node origin is at their FEET — with a tight cone aimed
+        // there, standing near someone in VR puts their feet ~40° below your gaze, so looking
+        // them in the eye revealed nothing at all (the plates read 0 forever). Flat hid this
+        // completely: a chase camera looks DOWN at the scene, so the feet sit near the middle
+        // of the screen and it all seemed fine.
+        gazeOffset: [0, (b.eyeHeight ?? 1.7) * 0.6, 0],
         anchor: {
           position: [0, 0, 0],
           focus: [0, 0, 1], // faces +Z = toward the viewer (frame turns to face you)
-          // Generous gaze cone: the plate sits ~2m above the NPC, so looking AT
-          // the NPC left it outside a tight cone — you couldn't find it. Wide cone
-          // (fully visible within 40°, fading to 70°) covers the vertical offset.
-          revealStartDeg: 70,
-          revealFullDeg: 40,
+          // Not too tight: in a headset you aim with your head, not a mouse.
+          revealStartDeg: 32,
+          revealFullDeg: 14,
         },
+        // Fade with distance rather than cliff-edging. A hard `maxDistance: 8` was tried and
+        // removed because it snapped plates out of existence and the monitor-tuned cutoff was
+        // wrong in a headset. Fade, don't switch — same lesson as the fog and the bubbles.
+        fadeFrom: 12,
+        fadeTo: 25,
         // Compact card (280×116 vs the default 320×200) — ~50% less padding
         // around the label so the plaque hugs the name and doesn't hang low.
         svg: placeholderPanelSvg((b.id as string) || '$6M biped', 280, 116),

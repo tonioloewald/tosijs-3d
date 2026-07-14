@@ -1,0 +1,175 @@
+# tosijs-3d v0.4.1
+
+Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
+
+- Docs: https://3d.tosijs.net
+- Source: https://github.com/tonioloewald/tosijs-3d
+- npm: https://www.npmjs.com/package/tosijs-3d
+
+## Documentation
+
+Full documentation, with live code examples, is at the links below.
+
+## Pages
+
+- https://3d.tosijs.net/ambient-budget/ — ambient-budget
+  Who gets to exist, when the frame can't afford everyone.
+- https://3d.tosijs.net/asset-url/ — asset-url
+  A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
+- https://3d.tosijs.net/atmosphere/ — atmosphere
+  Underwater, inside a cloud, out in space — each is a *layer* that pulls the fog toward its
+- https://3d.tosijs.net/tosi-b3d/ — b3d
+  The root 3D scene container. All other components (`b3dSun`, `b3dSkybox`, `b3dLoader`, etc.)
+- https://3d.tosijs.net/b3d-aircraft/ — b3d-aircraft
+  Fly-by-wire VTOL controller — a forgiving "drone that becomes a plane" rather
+- https://3d.tosijs.net/b3d-ambient/ — b3d-ambient
+  The stuff in the air, or in the water. **Bubbles and motes when you're under; rain, snow,
+- https://3d.tosijs.net/b3d-biped/ — b3d-biped
+  Animated humanoid character controller. Loads a GLB model with skeletal animations
+- https://3d.tosijs.net/b3d-black-hole/ — b3d-black-hole
+  Procedural black hole with accretion disk, gravitational lensing effect,
+- https://3d.tosijs.net/b3d-car/ — b3d-car
+  Vehicle controller with acceleration, braking, friction, and speed-dependent steering.
+- https://3d.tosijs.net/b3d-clouds/ — b3d-clouds
+  A cloud layer you can **fly into** — and lose the world inside.
+- https://3d.tosijs.net/b3d-collisions/ — b3d-collisions
+  Opt-in collision detection via mesh naming conventions authored in Blender.
+- https://3d.tosijs.net/b3d-controllable/ — b3d-controllable
+  Base class for any entity that can be driven by a `ControlInput` — bipeds, cars,
+- https://3d.tosijs.net/b3d-controller/ — b3d-controller
+  The **casual way to read the standard controller.** Drop a `<tosi-b3d-controller>` into
+- https://3d.tosijs.net/b3d-death/ — b3d-death
+  to the wreck, you go on "flying" a corpse, and the game is stuck. (`b3d-aircraft` used to
+- https://3d.tosijs.net/b3d-destroyable/ — b3d-destroyable
+  A thing that can take damage and be destroyed — the scene-side bridge to the pure
+- https://3d.tosijs.net/b3d-exploder/ — b3d-exploder
+  Shatters a mesh into fragments and animates them flying apart. Works by
+- https://3d.tosijs.net/b3d-fog/ — b3d-fog
+  Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
+- https://3d.tosijs.net/b3d-galaxy/ — b3d-galaxy
+  Procedural galaxy renderer using Babylon.js SolidParticleSystem. Generates
+- https://3d.tosijs.net/b3d-hud/ — b3d-hud
+  A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
+- https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
+  Focus manager that wires input to the active controllable entity and handles
+- https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
+  Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
+- https://3d.tosijs.net/b3d-library/ — b3d-library
+  Asset library component. Loads a GLB file via `LoadAssetContainer` and holds
+- https://3d.tosijs.net/b3d-light/ — b3d-light
+  Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
+- https://3d.tosijs.net/b3d-loader/ — b3d-loader
+  Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
+- https://3d.tosijs.net/b3d-panel/ — b3d-panel
+  A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
+- https://3d.tosijs.net/b3d-particles/ — b3d-particles
+  Declarative particle effect component wrapping Babylon.js `ParticleSystem`.
+- https://3d.tosijs.net/b3d-physics/ — b3d-physics
+  Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
+- https://3d.tosijs.net/b3d-planet/ — b3d-planet
+  Procedural planet mesh using a subdivided cube projected onto a sphere.
+- https://3d.tosijs.net/b3d-probe/ — b3d-probe
+  `<tosi-b3d-probe>` — a device-capability probe. Drop it anywhere (a landing page is
+- https://3d.tosijs.net/b3d-quality/ — b3d-quality
+  The **system quality proxy** — the single place that vends device-appropriate
+- https://3d.tosijs.net/b3d-radar/ — b3d-radar
+  A **radar sensor** you attach to a platform (an aircraft, a turret). It enumerates the
+- https://3d.tosijs.net/b3d-radar-blip/ — b3d-radar-blip
+  Tags something as **detectable on radar** — a target, a landmark, a waypoint. It has
+- https://3d.tosijs.net/b3d-reflections/ — b3d-reflections
+  Auto-attaches a reflection probe to every mesh whose name contains `_mirror`
+- https://3d.tosijs.net/b3d-shadows/ — b3d-shadows
+  `B3dSun` — directional light + cascaded shadow generator. Add a `<tosi-b3d-sun>`
+- https://3d.tosijs.net/b3d-skybox/ — b3d-skybox
+  Procedural sky with sun/moon cycle driven by time of day. Automatically controls
+- https://3d.tosijs.net/b3d-sound/ — b3d-sound
+  Declarative audio component wrapping Babylon.js `Sound`. Supports both
+- https://3d.tosijs.net/b3d-spawner/ — b3d-spawner
+  Keeps the world **populated**. Spawns [prefabs](?prefab.ts) — usually *encounters*: a
+- https://3d.tosijs.net/b3d-star/ — b3d-star
+  Procedural star mesh using a subdivided cube projected onto a sphere.
+- https://3d.tosijs.net/b3d-star-system/ — b3d-star-system
+  Renders an individual star system with a procedural star and its planets.
+- https://3d.tosijs.net/b3d-svg-plane/ — b3d-svg-plane
+  A plane mesh textured with SVG content. Supports static SVG from a URL or
+- https://3d.tosijs.net/b3d-terrain/ — b3d-terrain
+  Procedural terrain generator using 3D Perlin noise sampled on a cylinder surface.
+- https://3d.tosijs.net/b3d-trigger/ — b3d-trigger
+  Invisible proximity zone that fires callbacks and dispatches events when
+- https://3d.tosijs.net/b3d-turret/ — b3d-turret
+  An **auto-tracking gun** — it slews its barrel to lead a moving target and elevate for
+- https://3d.tosijs.net/b3d-warhead/ — b3d-warhead
+  The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
+- https://3d.tosijs.net/b3d-water/ — b3d-water
+  Water plane with reflections, waves, and underwater fog effect.
+- https://3d.tosijs.net/combat/ — Combat
+  Damage, destruction, and weapons — pure deterministic models (`destroyable` /
+- https://3d.tosijs.net/control-input/ — control-input
+  Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
+- https://3d.tosijs.net/core/ — Core
+- https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
+  The **attachable** destroyable — the reusable bridge that makes *any* modeled element
+- https://3d.tosijs.net/effects/ — Effects
+- https://3d.tosijs.net/environment/ — Environment
+- https://3d.tosijs.net/formations/ — formations
+  Pure, deterministic **placement patterns** — where the members of an encounter stand relative
+- https://3d.tosijs.net/frame-panel/ — frame-panel
+  A spatial UI panel pinned to an XR reference frame (see [xr-frames](?xr-frames.ts)).
+- https://3d.tosijs.net/galaxy-data/ — galaxy-data
+  Procedural galaxy generation data and functions. Pure logic — no Babylon.js
+- https://3d.tosijs.net/game-controller/ — game-controller
+  Input component that maps keyboard/mouse to a virtual gamepad and optionally
+- https://3d.tosijs.net/gamepad-svg/ — gamepad-svg
+  Generates a gamepad SVG using tosijs element creators. All colors and stroke
+- https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)
+  A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
+- https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
+  Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
+- https://3d.tosijs.net/hud/ — hud
+  Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
+- https://3d.tosijs.net/hud-math/ — hud-math
+  Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
+- https://3d.tosijs.net/input/ — Input
+  Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
+- https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad
+  Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
+- https://3d.tosijs.net/b3d-utils/ — Material Conventions
+  These conventions apply to all meshes entering the scene — via
+- https://3d.tosijs.net/mersenne-twister/ — mersenne-twister
+  Seeded pseudo-random number generator based on the Mersenne Twister
+- https://3d.tosijs.net/perf-probe/ — perf-probe
+  Pure, Babylon-free core for the device-capability probe (see
+- https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/prefab/ — prefab
+  A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
+- https://3d.tosijs.net/radar/ — radar.ts
+  The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/space/ — Space
+- https://3d.tosijs.net/spatial-transform/ — spatial-transform
+  Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/svg-texture/ — svg-texture
+  Renders SVG content to a Babylon.js texture via an offscreen canvas.
+- https://3d.tosijs.net/ — tosijs-3d
+  Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
+- https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
+  Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
+- https://3d.tosijs.net/ui/ — UI
+- https://3d.tosijs.net/utilities/ — Utilities
+- https://3d.tosijs.net/vehicles/ — Vehicles
+- https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
+  Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
+- https://3d.tosijs.net/widgets3d/ — widgets3d
+  A small collection of **SVG-native** UI widgets with element-creator ergonomics
+- https://3d.tosijs.net/widgets3d-layout/ — widgets3d-layout
+  Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
+- https://3d.tosijs.net/world-sim/ — World Sim
+- https://3d.tosijs.net/world-contract/ — world-contract
+  The boundary between the **simulation** (tosijs-3d) and an **external driver**
+- https://3d.tosijs.net/world-store/ — world-store
+  A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
+- https://3d.tosijs.net/world-view/ — world-view
+  The Babylon **view** of a [[world-store]]. The store is the authoritative,
+- https://3d.tosijs.net/xr-frames/ — xr-frames
+  Reference frames for spatial XR UI. "Stable" in XR isn't one thing — there are
+- https://3d.tosijs.net/xr-gamepad/ — xr-gamepad
+  `XrGamepadSource` adapts the live XR controllers (from [[gamepad]]'s

@@ -161,6 +161,10 @@ const C = (r: number, g: number, b: number, a: number) =>
 
 /** Seconds to close a population deficit — how fast an effect fills in when it ramps on. */
 const FILL_SECONDS = 2
+/** Fade a particle in/out over a TIME, not a fraction of its life — see `_build`. Short enough
+ * that a mote drifts into view rather than materialising, long enough that it never blinks. */
+const FADE_IN_SECONDS = 0.5
+const FADE_OUT_SECONDS = 1.5
 /** Ceiling on the catch-up. Fill too hard and the whole cohort is born together, which means
  * it later DIES together — one population arriving fast is worth it; one pulsing forever isn't. */
 const MAX_FILL_BOOST = 6
@@ -367,16 +371,31 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   }
 
   /**
-   * The scene's answer. `0` means we could not be given enough to be *honest* — so we switch
-   * off rather than emit a thin lie. Rebuilds because Babylon bakes capacity into the
-   * ParticleSystem at construction; this only runs on real changes (quality, XR entry, a shed).
+   * The scene's answer: the POPULATION we're allowed to sustain. `0` = switch off.
+   *
+   * **This must not rebuild the ParticleSystem, and it used to.** Capacity is baked in at
+   * construction, so re-allocating meant tear-down + rebuild — and every re-allocation
+   * (quality change, XR entry, a watchdog shed) made the whole effect vanish and visibly
+   * REGENERATE in front of you. Worse, a shed to 0 deleted the particles mid-air.
+   *
+   * So the buffer is sized ONCE, for the effect's full desired population, and the allocation
+   * drives the emission instead (see `_fillRate`). A buffer is cheap; what actually costs is
+   * live particles filling pixels, and that's exactly what the population governs. Shedding to
+   * 0 now stops emission and lets the existing particles LIVE OUT their lives — the effect
+   * drains away instead of being snatched.
    */
   applyAllocation(capacity: number): void {
     if (capacity === this._granted) return
     this._granted = capacity
-    this._teardown()
-    if (capacity > 0 && this.owner != null)
-      this._build(this.owner.scene, capacity)
+    // Build on first non-zero grant. Never rebuild after that.
+    if (capacity > 0 && this._ps == null && this.owner != null) {
+      this._build(this.owner.scene, this._budgetCapacity())
+    }
+  }
+
+  /** Buffer size: the effect's FULL desired population, regardless of what it's granted. */
+  private _budgetCapacity(): number {
+    return this.count > 0 ? this.count : this._p.desired
   }
 
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
@@ -438,12 +457,21 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     ps.colorDead = p.dead
 
     // FADE IN, not just out. Born at full alpha, a particle BLINKS into existence — which
-    // reads as sensor noise rather than as dust hanging in the air. Ramp up over the first
-    // sliver of its life and back down at the end, and it simply drifts into view.
+    // reads as sensor noise rather than as dust hanging in the air.
+    //
+    // But the fade must be a TIME, not a fraction of life. Babylon's gradients are keyed on
+    // life fraction, and a mote lives up to 22s — so a "fade in over the first 18%" is a FOUR
+    // SECOND fade, and the room appears to fill in slow motion even though the particles are
+    // already there. The same 18% is a perfectly good 0.2s for rain. So pick the seconds you
+    // want and convert: the fade is what the eye reads, and the eye reads seconds.
+    const frac = (seconds: number) =>
+      Math.min(0.3, Math.max(0.01, seconds / p.life[1]))
+    const inAt = frac(FADE_IN_SECONDS)
+    const outAt = 1 - frac(FADE_OUT_SECONDS)
     const clear = (col: BABYLON.Color4) => C(col.r, col.g, col.b, 0)
     ps.addColorGradient(0, clear(c1), clear(c2))
-    ps.addColorGradient(0.18, c1, c2)
-    ps.addColorGradient(0.75, c1, c2)
+    ps.addColorGradient(inAt, c1, c2)
+    ps.addColorGradient(outAt, c1, c2)
     ps.addColorGradient(1, p.dead, p.dead)
 
     const scale = this._sizeScale
@@ -540,7 +568,13 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
    * then all die together in one visible pulse.
    */
   private _fillRate(ps: BABYLON.ParticleSystem): number {
-    const natural = this._baseRate * this._intensity
+    // The GRANT is a population, and it's what the budget actually bought. Scale the preset's
+    // natural rate by the share we were given, so a squeezed effect emits proportionally
+    // slower rather than being torn down and rebuilt at a smaller size.
+    const share = this._granted / Math.max(1, this._budgetCapacity())
+    const natural = this._baseRate * this._intensity * Math.min(1, share)
+    // Granted 0 ⇒ stop emitting. The particles already in the air live out their lives and the
+    // effect DRAINS instead of being snatched away mid-frame.
     if (natural <= 0) return 0
     const p = this._p
     const meanLife = (p.life[0] + p.life[1]) / 2

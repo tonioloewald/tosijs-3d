@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Hide the pre-rendered body until <tosi-doc-system> hydrates, then fade it
+       in — avoids the layout shift as the static markup is swapped for the live
+       doc browser. <noscript> keeps it visible for no-JS readers/crawlers; the
+       timeout is a safety net so a failed/slow hydration can't leave it blank. -->
+  <style>body{opacity:0;transition:opacity .25s ease}</style>
+  <noscript><style>body{opacity:1!important}</style></noscript>
+  <script>setTimeout(function(){if(document.body)document.body.style.opacity='1'},4000)</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/doc-system.css" data-tosi-doc-system />
+  <title>b3d-destroyable — tosijs-3d</title>
+  <meta name="description" content="A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a &lt;tosi-b3d&gt;" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-destroyable/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-destroyable — tosijs-3d" />
+  <meta property="og:description" content="A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a &lt;tosi-b3d&gt;" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-destroyable/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-destroyable","description":"A thing that can take damage and be destroyed — the scene-side bridge to the pure CombatWorld (see destroyable.ts / COMBAT-DESIGN.md). Drop it into a \u003ctosi-b3d>","url":"https://3d.tosijs.net/b3d-destroyable/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="/tosijs-3d.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>
+</head>
+<body>
+  <tosi-doc-system docs="/docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;}}">
+  <article class="doc-content">
+<h1>b3d-destroyable</h1>
+<p>A thing that can take damage and be destroyed — the scene-side bridge to the pure
+<code>CombatWorld</code> (see <code>destroyable.ts</code> / COMBAT-DESIGN.md). Drop it into a <code>&lt;tosi-b3d&gt;</code>
+and it registers a Destroyable in the scene&#39;s combat world, drives a placeholder
+cube mesh (real meshes/GLB later), and runs its death outcome when killed — whether
+by a direct hit or a chain reaction resolved in the combat tick.</p>
+<h2>Demo</h2>
+<p><strong>Click any cube</strong> to damage it (1/click) — it flashes on a hit and dies at 0 hp. The
+front grid are independent targets; the <strong>back row is chain-linked</strong>, so killing the
+leftmost cascades the reaction down the line (chains are wired after mount, since they
+reference combat ids that only exist once the targets have mounted).</p>
+<pre><code class="language-js">import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+
+const grid = []
+for (let i = 0; i &lt; 12; i++) {
+  grid.push(b3dDestroyable({ x: (i % 4) * 1.6 - 2.4, y: 0.5, z: Math.floor(i / 4) * 1.6, capacity: 3, color: &#39;#cc4444&#39; }))
+}
+const chainRow = []
+for (let i = 0; i &lt; 6; i++) {
+  chainRow.push(b3dDestroyable({ x: i * 1.6 - 4, y: 0.5, z: -3, capacity: 4, color: &#39;#e0a020&#39; }))
+}
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3.2, 15, new BABYLON.Vector3(0, 0.5, -0.5), el.scene)
+      cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
+      el.setActiveCamera(cam)
+      // click a cube → damage it
+      el.scene.onPointerDown = (_evt, pick) =&gt; {
+        if (!pick.hit || !pick.pickedMesh) return
+        const t = [...grid, ...chainRow].find((c) =&gt; c.mesh === pick.pickedMesh)
+        if (t) t.damage(1)
+      }
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 24, height: 24, color: &#39;#5a6b52&#39; }),
+  ...grid,
+  ...chainRow,
+)
+preview.append(scene)
+
+// Wire the chain row once every target has mounted (its combat id exists then).
+const wireChain = () =&gt; {
+  if (chainRow.some((c) =&gt; !c.combatId)) { requestAnimationFrame(wireChain); return }
+  for (let i = 0; i &lt; chainRow.length - 1; i++) {
+    chainRow[i].setChain([{ target: chainRow[i + 1].combatId, amount: 99, delay: 0.15 }])
+  }
+}
+wireChain()
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>Death outcomes</h2>
+<p>What happens when it dies is configurable — the default just removes the mesh, but
+you can compose:</p>
+<ul>
+<li><strong><code>explode=&quot;on&quot;</code></strong> — shatter the mesh into flying fragments (<a href="/b3d-exploder/">b3d-exploder</a>; <code>explodeForce</code> tunes it).</li>
+<li><strong><code>deathBlast=&quot;on&quot;</code></strong> — detonate a real AOE <a href="/b3d-warhead/">warhead</a> at the death
+point after <code>blastDelay</code> (default 100 ms). This is a <strong>second, distinct</strong> chain
+mechanism from <code>chain</code>: <code>chain</code> is direct HP transfer to named targets; <code>deathBlast</code>
+is a falloff + line-of-sight <strong>explosion</strong> that ripples out and can set off <em>any</em>
+nearby destroyable — which may blast <em>its</em> neighbours, cascading. (<code>blastDamage</code> /
+<code>blastFullRadius</code> / <code>blastRadius</code>.)</li>
+<li><strong><code>remains=&quot;&lt;prefab&gt;&quot;</code></strong> — what it LEAVES BEHIND: wreckage, a burning hull, a crater,
+scattered loot. A <a href="/prefab/">prefab</a> is a named factory that instantiates a package of
+stuff at a pose, and it&#39;s spawned at the death pose <strong>inheriting the victim&#39;s velocity</strong>,
+so debris keeps its momentum instead of dropping like a stone. (<code>remainsPrefab</code> takes a
+function directly, when a name won&#39;t do.)</li>
+<li><strong><code>sound=&quot;&lt;url&gt;&quot;</code></strong> — a positional death sound at the death point. Sugar over <code>remains</code>
+(it <em>is</em> just a <code>b3dSound</code> in a prefab), because almost every death wants one and making
+you write a factory for a single sound would be silly.</li>
+<li><strong><code>whenDestroyed</code> callback</strong> (set in code) + the bubbling <strong><code>destroyed</code></strong> event — the seam
+for putting a linked player/vehicle into a <em>dead</em> state, or anything <code>remains</code> can&#39;t
+express.</li>
+</ul>
+<h3>Demo — a field of fuel drums that chain-explode</h3>
+<p><strong>Click any drum</strong> — it explodes, and the blast sets off its neighbours in a spreading
+chain reaction (each drum both <code>explode</code>s and fires a <code>deathBlast</code>).</p>
+<pre><code class="language-js">import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+
+const drums = []
+for (let i = 0; i &lt; 48; i++) {
+  drums.push(b3dDestroyable({
+    x: (i % 8) * 1.5 - 5.25, y: 0.5, z: Math.floor(i / 8) * 1.5 - 3.75,
+    size: 0.9, capacity: 6, color: &#39;#d06020&#39;,
+    explode: &#39;on&#39;, explodeForce: 7,
+    deathBlast: &#39;on&#39;, blastDamage: 30, blastFullRadius: 1.2, blastRadius: 2.4,
+  }))
+}
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 18, new BABYLON.Vector3(0, 0.5, 0), el.scene)
+      cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
+      el.setActiveCamera(cam)
+      el.scene.onPointerDown = (_evt, pick) =&gt; {
+        if (!pick.hit || !pick.pickedMesh) return
+        const t = drums.find((d) =&gt; d.mesh === pick.pickedMesh)
+        if (t) t.damage(99)
+      }
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 30, height: 30, color: &#39;#5a6b52&#39; }),
+  ...drums,
+)
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<p>It participates in the <strong>floating origin</strong>: because <code>AbstractMesh</code> treats the
+<code>x/y/z</code> attributes as the source of truth for the mesh position, this uses
+<code>onOriginShift</code> to shift BOTH the mesh node and its <code>x/z</code> attributes on a rebase
+(NOT <code>registerWorldRoot</code>, which would leave the attributes stale so a later render
+would un-shift the mesh).</p>
+<p>Attributes: <code>capacity</code>, <code>armor</code>, <code>regenRate</code>, <code>regenDelay</code>, <code>protectedBy</code>,
+<code>protection</code>, the death-outcome knobs (<code>explode</code>/<code>explodeForce</code>, <code>deathBlast</code> +
+<code>blastDamage</code>/<code>blastFullRadius</code>/<code>blastRadius</code>/<code>blastDelay</code>), plus <code>size</code>/<code>color</code> for
+the placeholder cube and the usual <code>x/y/z</code>/<code>meshName</code>. Set <code>.chain</code> (a <code>ChainLink[]</code>)
+in code for direct-transfer chain reactions, or <code>whenDestroyed</code> for a death hook. Call
+<code>.damage(n)</code> to hurt it (a warhead will do this on contact).</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a href="/">tosijs-3d</a></li>
+    <li><details><summary><a href="/core/">Core</a></summary>
+    <ul>
+      <li><a href="/asset-url/">asset-url</a></li>
+      <li><a href="/tosi-b3d/">b3d</a></li>
+      <li><a href="/b3d-collisions/">b3d-collisions</a></li>
+      <li><a href="/b3d-library/">b3d-library</a></li>
+      <li><a href="/b3d-loader/">b3d-loader</a></li>
+      <li><a href="/b3d-trigger/">b3d-trigger</a></li>
+      <li><a href="/frame-panel/">frame-panel</a></li>
+      <li><a href="/hud/">hud</a></li>
+      <li><a href="/hud-math/">hud-math</a></li>
+      <li><a href="/b3d-utils/">Material Conventions</a></li>
+      <li><a href="/spatial-transform/">spatial-transform</a></li>
+      <li><a href="/xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/effects/">Effects</a></summary>
+    <ul>
+      <li><a href="/b3d-exploder/">b3d-exploder</a></li>
+      <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a href="/combat/">Combat</a></summary>
+    <ul>
+      <li><a href="/b3d-destroyable/" aria-current="page" class="current">b3d-destroyable</a></li>
+      <li><a href="/b3d-launcher/">b3d-launcher</a></li>
+      <li><a href="/b3d-radar/">b3d-radar</a></li>
+      <li><a href="/b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a href="/b3d-turret/">b3d-turret</a></li>
+      <li><a href="/b3d-warhead/">b3d-warhead</a></li>
+      <li><a href="/destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a href="/radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/environment/">Environment</a></summary>
+    <ul>
+      <li><a href="/atmosphere/">atmosphere</a></li>
+      <li><a href="/b3d-ambient/">b3d-ambient</a></li>
+      <li><a href="/b3d-clouds/">b3d-clouds</a></li>
+      <li><a href="/b3d-fog/">b3d-fog</a></li>
+      <li><a href="/b3d-light/">b3d-light</a></li>
+      <li><a href="/b3d-particles/">b3d-particles</a></li>
+      <li><a href="/b3d-shadows/">b3d-shadows</a></li>
+      <li><a href="/b3d-skybox/">b3d-skybox</a></li>
+      <li><a href="/b3d-sound/">b3d-sound</a></li>
+      <li><a href="/b3d-terrain/">b3d-terrain</a></li>
+      <li><a href="/b3d-water/">b3d-water</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/input/">Input</a></summary>
+    <ul>
+      <li><a href="/b3d-controllable/">b3d-controllable</a></li>
+      <li><a href="/b3d-controller/">b3d-controller</a></li>
+      <li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a href="/control-input/">control-input</a></li>
+      <li><a href="/game-controller/">game-controller</a></li>
+      <li><a href="/gamepad-svg/">gamepad-svg</a></li>
+      <li><a href="/glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a href="/touch-gamepad/">touch-gamepad</a></li>
+      <li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a href="/xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/performance/">Performance</a></summary>
+    <ul>
+      <li><a href="/ambient-budget/">ambient-budget</a></li>
+      <li><a href="/b3d-probe/">b3d-probe</a></li>
+      <li><a href="/b3d-quality/">b3d-quality</a></li>
+      <li><a href="/perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/space/">Space</a></summary>
+    <ul>
+      <li><a href="/b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a href="/b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a href="/b3d-planet/">b3d-planet</a></li>
+      <li><a href="/b3d-star/">b3d-star</a></li>
+      <li><a href="/b3d-star-system/">b3d-star-system</a></li>
+      <li><a href="/galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/ui/">UI</a></summary>
+    <ul>
+      <li><a href="/b3d-hud/">b3d-hud</a></li>
+      <li><a href="/b3d-panel/">b3d-panel</a></li>
+      <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a href="/svg-texture/">svg-texture</a></li>
+      <li><a href="/widgets3d/">widgets3d</a></li>
+      <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/utilities/">Utilities</a></summary>
+    <ul>
+      <li><a href="/b3d-physics/">b3d-physics</a></li>
+      <li><a href="/mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a href="/b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a href="/b3d-biped/">b3d-biped</a></li>
+      <li><a href="/b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a href="/world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a href="/b3d-death/">b3d-death</a></li>
+      <li><a href="/b3d-spawner/">b3d-spawner</a></li>
+      <li><a href="/formations/">formations</a></li>
+      <li><a href="/prefab/">prefab</a></li>
+      <li><a href="/world-contract/">world-contract</a></li>
+      <li><a href="/world-store/">world-store</a></li>
+      <li><a href="/world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script src="/iife.js"></script>
+</body>
+</html>
