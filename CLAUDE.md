@@ -17,6 +17,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 tosijs-3d is a declarative 3D/XR framework built on Babylon.js and the tosijs web component framework. It provides composable custom elements for building 3D scenes — a parent `<tosi-b3d>` element manages the engine/scene, and child components (sun, skybox, water, reflections, character controllers, etc.) compose inside it to build scenes declaratively.
 
+**North star: behavioural richness, not photorealism.** The uncanny valley isn't a rendering problem, it's a broken contract — _fidelity is a promise_, and every increment of visual realism raises the behavioural expectation it must then satisfy. So: choose a style that under-promises so behaviour can over-deliver; spend performance headroom on **agents and reactions, not vertices** (we banked ~27× on terrain and deliberately did NOT spend it on detail); depth is **systemic, not textural**; and the unit of progress is a _watchable behaviour_, not a screenshot. See AI-DESIGN.md → "North star".
+
 ### Where the design intent is written down
 
 This file is the map; the reasoning lives in the root design docs. **Read the relevant one

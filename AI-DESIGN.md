@@ -5,6 +5,39 @@ Sensorium), a deterministic **strategy** selector modulated by **skill**, and th
 behaviors themselves. Sits alongside `COMBAT-DESIGN.md` (AI drives weapons; shares
 the smartness/firing-solution dial) and respects the `world-contract` decoupling.
 
+## North star: BEHAVIOURAL RICHNESS, not photorealism
+
+**The goal is not to look real, it is to _act_ interesting.** Photorealism is a race that
+cannot be won — the target keeps moving — and the uncanny valley is not a rendering problem
+at all. It's a **broken contract**.
+
+**Fidelity is a promise.** Every increment of visual realism raises the behavioural
+expectation it must then satisfy. A photoreal human who walks into a wall is horrifying; a
+stick figure who walks into a wall is _funny_; and a stick figure who **notices** the wall,
+looks annoyed, and goes around it is **delightful**. Raise fidelity and you have raised the
+bar you are judged against — which is exactly why the valley keeps receding.
+
+The corollary is not merely "spend the budget on behaviour". It's stronger:
+
+- **Choose a style that deliberately UNDER-promises, so behaviour can over-deliver.**
+  Stylised worlds age well for precisely this reason.
+- **Spend performance headroom on AGENTS AND REACTIONS, not on vertices.** (We banked ~27×
+  on terrain and deliberately did NOT spend it on detail — see PERF-DESIGN.md. Higher-res
+  terrain buys a screenshot; a mothership whose escorts break formation when you kill it
+  buys a story.)
+- **Depth is systemic, not textural.** Cheap assets + deep interacting systems (fire
+  spreads, wrecks persist, waypoints vanish with their target, factions notice) beat
+  expensive assets sitting inert.
+- **The unit of progress is a watchable BEHAVIOUR, not a screenshot** — which is why every
+  AI ships a "watch it respond to a target" demo (below).
+- **In XR this compounds**: a smooth, stylised world beats a stuttering photoreal one, since
+  jank there is nausea rather than a blemish. Guarantee the frame, then spend what's left on
+  behaviour.
+
+Everything below — artificial stupidity, the skill dial, the scenario harness — is this
+principle applied to NPCs. The GM (`world-contract.md`) is the same principle applied to
+narrative: a world that _reacts meaningfully_ is worth more than a world that _looks correct_.
+
 ## Design philosophy: artificial _stupidity_
 
 **Fun AIs are believably imperfect, not lethal.** A perfect killer is trivial to
