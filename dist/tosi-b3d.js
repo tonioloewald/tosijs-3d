@@ -60,11 +60,12 @@ preview.append(
     b3dBiped({ url: omnidude, x: 3, z: -2, initialState: 'dance' }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
     b3dWater({ y: demo.waterLevel, twoSided: true, waterSize: 1024 }),
-    // Dust hanging in the light — the cheapest way to make air read as a SUBSTANCE rather
-    // than a vacuum. The box rides the camera, so it costs the same wherever you walk.
-    b3dAmbient({ preset: 'motes', radius: 10 }),
-    // And under the surface: bubbles. Raise the water level and they arrive AS the water
-    // does — emission ramps with depth rather than switching on at the plane.
+    // ABOVE the surface: leaves tumbling on the breeze — two-sided quads that flip and blow,
+    // not dust. Raise the water level (scene panel) and they fade as you submerge.
+    b3dAmbient({ preset: 'leaves', where: 'above', radius: 10, windX: 1.5 }),
+    // BELOW it: plankton hanging in the light (motes) and bubbles rising. Both arrive AS the
+    // water does — emission ramps with depth rather than switching on at the plane.
+    b3dAmbient({ preset: 'motes', where: 'underwater', radius: 8 }),
     b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 8 }),
     b3dReflections(),
     b3dCollisions({ debug: demo.showColliders })

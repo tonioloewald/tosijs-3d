@@ -14,6 +14,8 @@ Full documentation, with live code examples, is at the links below.
 
 - https://3d.tosijs.net/ambient-budget/ — ambient-budget
   Who gets to exist, when the frame can't afford everyone.
+- https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
+  The one ambient effect that is **not a sprite**.
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/atmosphere/ — atmosphere

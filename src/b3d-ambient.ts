@@ -96,12 +96,13 @@ tosi-b3d { width: 100%; height: 100%; }
 | `rain` | Fast, stretched, near-vertical. Add `wind` and it slants |
 | `snow` | Slow, wide, wandering |
 | `dust` | Blown horizontally — the wind made visible |
+| `leaves` | Two-sided quads that **tumble** and blow — real oriented geometry, not a billboard, so they flip edge-on and show their back. `windX`/`windZ` stream them downwind |
 
 ## Attributes
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `preset` | `'motes'` | `motes` / `bubbles` / `rain` / `snow` / `dust` |
+| `preset` | `'motes'` | `motes` / `bubbles` / `rain` / `snow` / `dust` / `leaves` |
 | `where` | `'always'` | `always` / `underwater` / `above` — emission ramps with depth, it doesn't switch |
 | `count` | `auto` | Capacity to ASK for (`auto` = what the preset's look needs). You may not get it — the scene divides a shared pool |
 | `minCount` | `auto` | Below this the effect is a lie, so it switches **off** instead. `auto` = the preset's floor (rain needs density; a few motes still read fine as motes) |
@@ -121,6 +122,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild } from './b3d-utils'
 import { band } from './atmosphere'
 import { fillWeight } from './ambient-budget'
+import { LeafField } from './ambient-leaves'
 import type { AmbientEffect, AmbientRequest } from './ambient-budget'
 import type { PerfTier } from './perf-probe'
 import type { B3d } from './tosi-b3d'
@@ -270,7 +272,30 @@ const PRESETS: Record<string, Preset> = {
     wander: V(0.9, 0.4, 0.9),
     near: 0.6,
   },
+  // NOT a sprite. Leaves are two-sided tumbling quads (see ambient-leaves.ts) — this entry only
+  // supplies the shared numbers B3dAmbient reads: budget (desired/min), the fill weight (a leaf
+  // quad is far bigger than a dot, so it rightly costs more of the pool), and the near radius.
+  // The sprite-only fields (colours, dirs, gravity, wander) are inert for this preset.
+  leaves: {
+    size: [0.14, 0.3], // quad size in metres
+    life: [8, 16],
+    rate: 0,
+    desired: 220,
+    min: 40,
+    gravity: V(0, 0, 0),
+    dir1: V(0, 0, 0),
+    dir2: V(0, 0, 0),
+    color1: C(1, 1, 1, 1),
+    color2: C(1, 1, 1, 1),
+    dead: C(1, 1, 1, 0),
+    additive: false,
+    wander: null,
+    near: 1.0,
+  },
 }
+
+/** Presets that render as tumbling quads (SolidParticleSystem) rather than camera-facing sprites. */
+const QUAD_PRESETS = new Set(['leaves'])
 
 /**
  * A soft round dot, drawn once. Babylon needs a particle texture, and a hard-edged square is
@@ -341,6 +366,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   }
 
   private _ps: BABYLON.ParticleSystem | null = null
+  private _leaves: LeafField | null = null
   private _emitter = new BABYLON.Vector3(0, 0, 0)
   private _intensity = 0
   private _baseRate = 0
@@ -351,6 +377,10 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
 
   private get _p(): Preset {
     return PRESETS[this.preset] ?? PRESETS.motes
+  }
+
+  private get _isQuad(): boolean {
+    return QUAD_PRESETS.has(this.preset)
   }
 
   private get _sizeScale(): number {
@@ -388,8 +418,15 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     if (capacity === this._granted) return
     this._granted = capacity
     // Build on first non-zero grant. Never rebuild after that.
-    if (capacity > 0 && this._ps == null && this.owner != null) {
-      this._build(this.owner.scene, this._budgetCapacity())
+    if (
+      capacity > 0 &&
+      this.owner != null &&
+      this._ps == null &&
+      this._leaves == null
+    ) {
+      if (this._isQuad)
+        this._buildLeaves(this.owner.scene, this._budgetCapacity())
+      else this._build(this.owner.scene, this._budgetCapacity())
     }
   }
 
@@ -509,14 +546,29 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     scene.registerBeforeRender(this._tick)
   }
 
+  /** The quad (leaf) path — a SolidParticleSystem, not a ParticleSystem. Same box-rides-camera,
+   * grant-drives-population, fade-don't-switch contract; the tumble lives in `ambient-leaves.ts`. */
+  private _buildLeaves(scene: BABYLON.Scene, capacity: number): void {
+    const p = this._p
+    this._leaves = new LeafField(scene, {
+      capacity,
+      radius: this.radius,
+      near: p.near,
+      size: [p.size[0] * this._sizeScale, p.size[1] * this._sizeScale],
+    })
+    scene.registerBeforeRender(this._tick)
+  }
+
   /** Give the GPU resources back. The noise texture is ours too — dispose it or a shed effect
    * keeps paying for the wander it no longer draws. */
   private _teardown(): void {
-    if (this._ps == null) return
+    if (this._ps == null && this._leaves == null) return
     this.owner?.scene.unregisterBeforeRender(this._tick)
-    this._ps.noiseTexture?.dispose()
-    this._ps.dispose()
+    this._ps?.noiseTexture?.dispose()
+    this._ps?.dispose()
     this._ps = null
+    this._leaves?.dispose()
+    this._leaves = null
     this._intensity = 0
   }
 
@@ -529,19 +581,34 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   private _update(): void {
     const scene = this.owner?.scene
     const cam = scene?.activeCamera
-    const ps = this._ps
-    if (scene == null || cam == null || ps == null) return
+    if (scene == null || cam == null) return
 
     // The box rides with you; the particles, once born, do NOT (Babylon particles live in
     // world space unless you ask otherwise). That's the whole illusion.
     const eye = cam.globalPosition
+    this._intensity = this.disabled ? 0 : this._whereWeight(eye.y)
+
+    // Quad (leaf) path: population the budget×gaze allow, eased in `LeafField`.
+    if (this._isQuad) {
+      const leaves = this._leaves
+      if (leaves == null) return
+      leaves.setEmitter(eye.x, eye.y, eye.z)
+      leaves.setWind(this.windX, this.windZ)
+      const cap = this._budgetCapacity()
+      const share = this._granted / Math.max(1, cap)
+      const dt = (scene.getEngine().getDeltaTime() ?? 16) / 1000
+      leaves.update(dt, cap * Math.min(1, share) * this._intensity)
+      return
+    }
+
+    const ps = this._ps
+    if (ps == null) return
     this._emitter.copyFrom(eye)
     // Bias the box along the wind, so windblown stuff arrives from upwind instead of
     // materialising all around you.
     this._emitter.x -= this.windX * 0.5
     this._emitter.z -= this.windZ * 0.5
 
-    this._intensity = this.disabled ? 0 : this._whereWeight(eye.y)
     ps.emitRate = this._fillRate(ps)
 
     // Wind is world-space drift, applied to the emission cone rather than to each particle.

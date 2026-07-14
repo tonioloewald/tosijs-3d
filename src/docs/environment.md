@@ -1,6 +1,7 @@
 # Environment
 
 <!-- toc -->
+- [ambient-leaves](/ambient-leaves/)
 - [atmosphere](/atmosphere/)
 - [b3d-ambient](/b3d-ambient/)
 - [b3d-clouds](/b3d-clouds/)

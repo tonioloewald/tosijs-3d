@@ -37,6 +37,7 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     /** Capacity the scene actually granted. **0 = switched off** (couldn't be honest). */
     get granted(): number;
     private _ps;
+    private _leaves;
     private _emitter;
     private _intensity;
     private _baseRate;
@@ -45,6 +46,7 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     private _offBudget;
     private _tick;
     private get _p();
+    private get _isQuad();
     private get _sizeScale();
     /** What we're ASKING the scene for. The scene divides one pool between all comers. */
     budgetRequest(): AmbientRequest;
@@ -67,6 +69,9 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     private _budgetCapacity;
     sceneReady(owner: B3d, _scene: BABYLON.Scene): void;
     private _build;
+    /** The quad (leaf) path — a SolidParticleSystem, not a ParticleSystem. Same box-rides-camera,
+     * grant-drives-population, fade-don't-switch contract; the tumble lives in `ambient-leaves.ts`. */
+    private _buildLeaves;
     /** Give the GPU resources back. The noise texture is ours too — dispose it or a shed effect
      * keeps paying for the wander it no longer draws. */
     private _teardown;
