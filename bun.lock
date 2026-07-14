@@ -5,10 +5,11 @@
     "": {
       "name": "tosijs-3d",
       "dependencies": {
-        "@babylonjs/core": "^8.56.2",
-        "@babylonjs/gui": "^8.56.2",
-        "@babylonjs/loaders": "^8.56.2",
-        "@babylonjs/materials": "^8.56.2",
+        "@babylonjs/core": "^9.16.2",
+        "@babylonjs/gui": "^9.16.2",
+        "@babylonjs/loaders": "^9.16.2",
+        "@babylonjs/materials": "^9.16.2",
+        "babylonjs-gltf2interface": "^9.16.2",
         "haltija": "^1.3.4",
         "jolt-physics": "^1.0.0",
       },
@@ -24,12 +25,12 @@
         "typescript-eslint": "^8.62.1",
       },
       "peerDependencies": {
-        "@babylonjs/core": "^8.0.1",
-        "@babylonjs/gui": "^8.0.1",
-        "@babylonjs/loaders": "^8.0.1",
-        "@babylonjs/materials": "^8.0.1",
+        "@babylonjs/core": "^9.0.0",
+        "@babylonjs/gui": "^9.0.0",
+        "@babylonjs/loaders": "^9.0.0",
+        "@babylonjs/materials": "^9.0.0",
         "jolt-physics": "^1.0.0",
-        "tosijs": "^1.6.6",
+        "tosijs": "^1.6.8",
       },
       "optionalPeers": [
         "jolt-physics",
@@ -37,13 +38,13 @@
     },
   },
   "packages": {
-    "@babylonjs/core": ["@babylonjs/core@8.56.2", "", {}, ""],
+    "@babylonjs/core": ["@babylonjs/core@9.16.2", "", {}, "sha512-C4cIyQ/lwfH+Rx8HOhw3YmdhSWff4eSJjwsmGNiz4cyuygWFnOWw5ar+Q1g8yZuyy29rqn6+dQ++OqvhePeuXQ=="],
 
-    "@babylonjs/gui": ["@babylonjs/gui@8.56.2", "", { "peerDependencies": { "@babylonjs/core": "^8.0.0" } }, ""],
+    "@babylonjs/gui": ["@babylonjs/gui@9.16.2", "", { "peerDependencies": { "@babylonjs/core": "^9.0.0" } }, "sha512-K/MvA98Ey9yROalThsq+8WA6XWE2WvWGivbgYos/FXF8CjP/5BJVHkL9wxpBVcduKEPcRJPzB7b6Qy3Uway7KQ=="],
 
-    "@babylonjs/loaders": ["@babylonjs/loaders@8.56.2", "", { "peerDependencies": { "@babylonjs/core": "^8.0.0", "babylonjs-gltf2interface": "^8.0.0" } }, ""],
+    "@babylonjs/loaders": ["@babylonjs/loaders@9.16.2", "", { "peerDependencies": { "@babylonjs/core": "^9.0.0", "babylonjs-gltf2interface": "^9.0.0" } }, "sha512-iNmhiOc8XodJC19SsZ8mGlebPkuVHHKiC4r2quedkobkkb7aDoBp7NSSuuiKhYkhmCXQ9eUxWkWXnRHwpjgDZA=="],
 
-    "@babylonjs/materials": ["@babylonjs/materials@8.56.2", "", { "peerDependencies": { "@babylonjs/core": "^8.6.0" } }, ""],
+    "@babylonjs/materials": ["@babylonjs/materials@9.16.2", "", { "peerDependencies": { "@babylonjs/core": "^9.0.0" } }, "sha512-Oe2Xiy5JxFYcNAftPJRPwYr1kFCZ7WIOeokHvuupFzJLPwBKDdhR2Mlg/TGd6p4C9o+xtK11mjiiidfnc19MeQ=="],
 
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.9.1", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, ""],
 
@@ -111,7 +112,7 @@
 
     "ajv": ["ajv@6.14.0", "", { "dependencies": { "fast-deep-equal": "^3.1.1", "fast-json-stable-stringify": "^2.0.0", "json-schema-traverse": "^0.4.1", "uri-js": "^4.2.2" } }, ""],
 
-    "babylonjs-gltf2interface": ["babylonjs-gltf2interface@8.56.2", "", {}, ""],
+    "babylonjs-gltf2interface": ["babylonjs-gltf2interface@9.16.2", "", {}, "sha512-h1qvmBI4DCzcz8JHjGJfCkC0KGZ80m5f/AMZYK8T9/m7VSlDxxsMTrYVPPSkuRqucmS9t0aeznPep/Luuxm/IA=="],
 
     "balanced-match": ["balanced-match@4.0.4", "", {}, "sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA=="],
 
@@ -229,7 +230,7 @@
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, ""],
 
-    "tosijs": ["tosijs@1.6.6", "", {}, "sha512-arPYinK6D3EGzgRMxArFp+3u0Hk1cLTFa7QPwmqpVHT8Ie9yaht20WmFyVLlSzMrgeU2zm3f5zR6uB1+gR+7Iw=="],
+    "tosijs": ["tosijs@1.6.8", "", {}, "sha512-+eCWU68wPgSmawJhsV92Fb/TrfjIPhyfKNrtg/UU/m+AQHMj2cL400FH1hJ5B07bpTaWyHT+KHjAof6AdV3RXA=="],
 
     "tosijs-schema": ["tosijs-schema@1.4.0", "", {}, "sha512-ESNQNw3dcCU3hMhrMLQvzPP+mRth+cew/YMjQt4Y6z8Hth2AMYCVRk/uc/MXcSoLiZhmhL0bF2hu66xlIsjZCQ=="],
 

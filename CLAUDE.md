@@ -370,7 +370,7 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 ### Dependencies
 
-- **Runtime**: `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^8.56)
+- **Runtime**: `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^9.16)
 - **Physics**: `jolt-physics` (^1.0.0) — optional peer dependency
 - **Framework**: `tosijs` (^1.6.6) — peer dependency, do not re-export from this library
 - **Debug/automation**: `haltija` (`hj`) — headless-browser debug tool used to drive/verify live demos (see the `no-electron-haltija-by-default` memory for the pin-the-right-tab guardrails)
