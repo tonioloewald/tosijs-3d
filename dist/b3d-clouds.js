@@ -289,8 +289,17 @@ export class B3dClouds extends B3dChild {
                 blob.position.z = eye.z - dz;
             }
             const dy = blob.position.y - eye.y;
-            // Distance to the blob's SURFACE, roughly — its x/z radius is scaling.x.
-            const d = Math.hypot(dx, dy / 0.45, dz) - blob.scaling.x;
+            // True WORLD distance to the squashed-ellipsoid surface along the view ray — so the whiteout
+            // builds over the same real distance from any direction. The old `hypot(dx, dy/0.45, dz) -
+            // rx` put the surface in the right place but measured the APPROACH in stretched units
+            // vertically, so coming at a flat cloud from above/below the fog only arrived at the last
+            // moment. `nd` is the normalized ellipsoid distance (1 at the skin); dc·(nd-1)/nd is how far
+            // that skin is in real metres.
+            const sx = blob.scaling.x;
+            const sy = blob.scaling.y;
+            const dc = Math.hypot(dx, dy, dz);
+            const nd = Math.hypot(dx / sx, dy / sy, dz / sx);
+            const d = nd > 0 ? (dc * (nd - 1)) / nd : -sx;
             if (d < nearest)
                 nearest = d;
         }

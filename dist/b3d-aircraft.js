@@ -366,7 +366,8 @@ export class B3dAircraft extends B3dControllable {
     // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
     // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
     _chasePivot = null;
-    _chaseBank = 0; // low-passed bank the chase pivot follows (Manta-style)
+    _chaseBank = 0; // low-passed bank the chase follows (Manta-style)
+    _chaseLookPitch = 0; // fixed look-down angle of the chase camera
     meshesToDispose = [];
     // Ground sampling is ONE raycast per frame, taken after the move and cached: the
     // pre-move regime height reuses last frame's value (one-frame stale, like the
@@ -460,26 +461,24 @@ export class B3dAircraft extends B3dControllable {
         // a floating-origin rebase (which shifts the airframe) is absorbed automatically — the pivot is
         // deliberately NOT origin-registered.
         if (this._chasePivot != null) {
+            // Pivot: aircraft POSITION + HEADING only, held level. This is what steadies the view (no
+            // pitch/roll jitter to lever-arm). It re-derives from the airframe each frame, so a
+            // floating-origin rebase is absorbed for free — deliberately NOT origin-registered.
             this._chasePivot.position.copyFrom(node.absolutePosition);
             if (this._chasePivot.rotationQuaternion == null) {
                 this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
             }
-            // Yaw-only pivot — position + heading, held level. (Rolling the PIVOT does nothing visible:
-            // a parented FreeCamera keeps its upVector world-locked, so the view never banks. The bank
-            // has to go on the camera's up vector instead — below.)
             BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, 0, this._chasePivot.rotationQuaternion);
-            // Manta-style bank: tilt the chase's UP vector by a LOW-PASSED fraction of the plane's roll.
-            // The low-pass lets the smooth bank through and strips the high-frequency attitude jitter, so
-            // you get the lean without the shake. Rolling the up (not the rig) tilts the horizon while
-            // the camera stays squarely behind the plane — no orbiting.
-            const kBank = 1 - Math.exp(-dt * CHASE_BANK_DAMP);
-            this._chaseBank += (this.fbw.bank - this._chaseBank) * kBank;
-            if (this.chaseCamera != null) {
-                const b = this._chaseBank * CHASE_BANK_FOLLOW;
-                const sb = Math.sin(b);
-                const h = this.fbw.heading;
-                // world-up rotated by `b` about the level heading axis (sin h, 0, cos h)
-                this.chaseCamera.upVector.set(-Math.cos(h) * sb, Math.cos(b), Math.sin(h) * sb);
+            // Manta bank goes in the camera's LOCAL rotation (pitch = fixed look-down, roll = damped
+            // bank), NOT the pivot roll or the up vector — a parented FreeCamera ignores both for the
+            // view. The roll is IN the quaternion, so the horizon banks. Low-passed so the smooth lean
+            // comes through and the attitude jitter doesn't; heading is the parent's, so this is
+            // yaw 0.
+            if (this.chaseCamera?.rotationQuaternion != null) {
+                const kBank = 1 - Math.exp(-dt * CHASE_BANK_DAMP);
+                this._chaseBank += (this.fbw.bank - this._chaseBank) * kBank;
+                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, -this._chaseBank * CHASE_BANK_FOLLOW, // airframe roll sign convention
+                this.chaseCamera.rotationQuaternion);
             }
         }
         // Velocity eases toward where the nose points (the "go where you're pointing"
@@ -986,7 +985,11 @@ export class B3dAircraft extends B3dControllable {
         // gets the model's ~2.4x magnification — pull it back to keep the same flat
         // framing (the VR chase is computed in world space and is unaffected).
         chase.position = new BABYLON.Vector3(0, this.chaseMinHeight * FLAT_CHASE_SCALE, -this.chaseDistance * FLAT_CHASE_SCALE);
-        chase.setTarget(BABYLON.Vector3.Zero());
+        // Look-down angle to keep the aircraft framed from behind+above. We set the camera's LOCAL
+        // rotation quaternion each frame (pitch = this, roll = damped bank) instead of setTarget —
+        // setTarget bakes a no-roll look, so the bank never shows. The pivot supplies the heading.
+        this._chaseLookPitch = Math.atan2(this.chaseMinHeight, this.chaseDistance);
+        chase.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0, this._chaseLookPitch, 0);
         // Far clip well past any streamed terrain so distance/fog is never cut off
         // (the default 10000 is usually fine, but set it explicitly for aerial views).
         chase.minZ = 0.5;
