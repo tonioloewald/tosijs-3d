@@ -453,30 +453,6 @@ export class B3dAircraft extends B3dControllable {
         node.computeWorldMatrix(true);
         node.getDirectionToRef(LOCAL_Z, this._fwd);
         this._fwd.normalize();
-        // Drive the chase pivot: the aircraft's position, and its HEADING only (level — no pitch, no
-        // roll). This is what steadies the chase view. It re-derives from the airframe every frame, so
-        // a floating-origin rebase (which shifts the airframe) is absorbed automatically — the pivot is
-        // deliberately NOT origin-registered.
-        if (this._chasePivot != null) {
-            // Pivot: aircraft POSITION + HEADING only, held level. This is what steadies the view (no
-            // pitch/roll jitter to lever-arm). It re-derives from the airframe each frame, so a
-            // floating-origin rebase is absorbed for free — deliberately NOT origin-registered.
-            this._chasePivot.position.copyFrom(node.absolutePosition);
-            if (this._chasePivot.rotationQuaternion == null) {
-                this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
-            }
-            BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, 0, this._chasePivot.rotationQuaternion);
-            // Manta bank goes in the camera's LOCAL rotation (pitch = fixed look-down, roll = a
-            // fraction of the plane's bank), NOT the pivot roll or the up vector — a parented
-            // FreeCamera ignores both for the view. The roll is IN the quaternion, so the horizon
-            // banks. Use `fbw.bank` DIRECTLY, not a low-passed copy: the cockpit rides the full bank
-            // and is smooth, so the source is already clean — and a low-pass with a jittery per-frame
-            // dt actually ADDS shake around a smooth target. Heading is the parent's, so yaw is 0.
-            if (this.chaseCamera?.rotationQuaternion != null) {
-                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
-                this.chaseCamera.rotationQuaternion);
-            }
-        }
         // Velocity eases toward where the nose points (the "go where you're pointing"
         // chase) — this is what makes it forgiving instead of a skiddy simulation.
         const tv = targetVelocity(this.fbw, cmd, { x: this._fwd.x, y: this._fwd.y, z: this._fwd.z }, fwdSpeed, heightAboveGround, cfg);
@@ -571,6 +547,25 @@ export class B3dAircraft extends B3dControllable {
         // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
         this.altitude = node.position.y;
         this.updatePullUp(node, groundDist);
+        // Drive the chase pivot LAST — after position is integrated AND ground-clamped, so it uses
+        // THIS frame's final position. (Sampling it earlier, before the move, left the chase a frame
+        // stale: harmless at constant speed, but under acceleration the per-frame lag CHANGES, which
+        // read as jitter every time you touched the throttle.) Pivot = position + heading, held
+        // level (steady); the Manta bank goes in the camera's own quaternion (a parented FreeCamera
+        // ignores parent-roll and upVector for the view). It re-derives from the airframe each frame,
+        // so a floating-origin rebase is absorbed for free — deliberately NOT origin-registered.
+        if (this._chasePivot != null) {
+            node.computeWorldMatrix(true); // refresh: position moved since the attitude pass
+            this._chasePivot.position.copyFrom(node.absolutePosition);
+            if (this._chasePivot.rotationQuaternion == null) {
+                this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
+            }
+            BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, 0, this._chasePivot.rotationQuaternion);
+            if (this.chaseCamera?.rotationQuaternion != null) {
+                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
+                this.chaseCamera.rotationQuaternion);
+            }
+        }
         // Weapons last, so shells spawn from this frame's muzzle position.
         this.updateWeapons(input, dt);
     }
