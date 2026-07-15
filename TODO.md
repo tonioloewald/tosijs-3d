@@ -556,6 +556,20 @@ altitude is sub-sea-level, FLIP the bar (it grows DOWN from the top = sea level,
 depth). And consider allowing depth/altitude beyond max, where the bar goes RED. New meter render in
 `hud.ts` (the arc → segmented bar), new inputs from `b3d-aircraft`/the platform. Visual + untestable
 by me, so its own focused pass.
+[ ] **Fog FLOOR to mask pop-in** (Tonio) — clouds "flicker like hell" as they recycle in at the
+`spread` distance, because there's little fog out there to hide the pop. The fix is a scene-level
+principle: **guarantee the base fog fully obscures at (or before) the camera's far clip / the recycle
+distance**, so anything appearing that far out is already white and the pop is invisible. Same trick
+masks terrain-tile LOD pop-in. Fog is EXP2 (density only — start/end are ignored), so this is a
+minimum `fogDensity` derived from the far distance (e.g. density ≈ 2.2 / farDistance for ~99% at that
+range). Probably belongs in `b3d-fog`/atmosphere as a `floor`/`maskDistance` option, or `b3d`
+deriving it from the active camera's `maxZ`. Cheap; visual to tune.
+[ ] **Water + terrain** (Tonio) — the terrain demo has NO water because (a) it's a `cylinder`
+surface, so a flat plane doesn't fit, and (b) the heightfield is UNSIGNED (0..grossAmplitude), so
+water at 0 sits at the base, not mid-height. To do it right: a **flat**-surface terrain (or a
+`baseHeight`/`y` offset on terrain so it can be centred, height −amp/2..+amp/2) + water at 0 for a
+proper fjord/island sea, AND the `follow` water below so it doesn't get left behind. Could be its own
+"archipelago" demo rather than bolted onto the dramatic cylinder-mountain one.
 [ ] **Water that appears stationary (infinite ocean)** (Tonio). `b3d-water` is a finite plane with
 no follow — fly far and it's left behind (which is why the terrain demo has NO water yet). Add a
 `follow` mode: recenter the plane's x/z on the active camera each frame AND offset the wave/UV by

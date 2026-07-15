@@ -95,6 +95,10 @@ the way out — so the two compose instead of fighting.</li>
 undersides fall dark — which is most of what reads as <em>cloud</em> rather than a decal. <code>selfIllum</code>
 keeps a thin cloud glowing a little (the old fully-emissive look is <code>selfIllum: 1</code>); a
 thunderhead wants it near 0 so the underbelly goes properly dark.</li>
+<li><strong>The whiteout darkens as you sink.</strong> Inside a cloud the fog colour isn&#39;t a flat white — it&#39;s
+white near the top of the layer and murkier the deeper you go, and a thick/heavy (<code>coverage</code>)
+cloud goes properly dark while a thin one barely dims. That&#39;s the difference between flying
+through a fair-weather puff and the gloom inside a thunderhead.</li>
 <li><strong>One dial from clear sky to thunderheads.</strong> <code>coverage</code> (0…1) is the weather knob — it gates how
 many blobs are in the sky, how opaque and dark they are, and how much they self-illuminate.
 Bind it to a slider and fly from wisps to overcast. (Blob <em>size</em> is fixed at build, so that one

@@ -75,6 +75,10 @@ tosi-b3d { width: 100%; height: 100%; }
   undersides fall dark — which is most of what reads as *cloud* rather than a decal. `selfIllum`
   keeps a thin cloud glowing a little (the old fully-emissive look is `selfIllum: 1`); a
   thunderhead wants it near 0 so the underbelly goes properly dark.
+- **The whiteout darkens as you sink.** Inside a cloud the fog colour isn't a flat white — it's
+  white near the top of the layer and murkier the deeper you go, and a thick/heavy (`coverage`)
+  cloud goes properly dark while a thin one barely dims. That's the difference between flying
+  through a fair-weather puff and the gloom inside a thunderhead.
 - **One dial from clear sky to thunderheads.** `coverage` (0…1) is the weather knob — it gates how
   many blobs are in the sky, how opaque and dark they are, and how much they self-illuminate.
   Bind it to a slider and fly from wisps to overcast. (Blob *size* is fixed at build, so that one
@@ -124,13 +128,13 @@ export class B3dClouds extends B3dChild {
     // geometry. (You *can* set < 1 for wisps, but the default is a solid cloud.)
     opacity: 1,
     // EXP2 fog (the scene's only mode), so this is the whiteout density and it has to be HIGH
-    // to be opaque: at 0.05 you saw straight through it. ~0.6 whites out the world within a few
-    // metres, which is what "inside a cloud" should look like.
-    fogDensity: 0.6,
+    // to be BLINDING: you shouldn't see your own aircraft from the chase cam inside a cloud.
+    // ~1.0 whites out the world within ~2-3 m.
+    fogDensity: 1.0,
     // How far OUTSIDE a blob the whiteout BEGINS, as a fraction of `size`. It reaches FULL well
-    // before the surface (see _update) so you never see the crude geometry edge — the whole
-    // trick of making cheap blobs look like weather.
-    approach: 0.5,
+    // before the surface (see _update) so the cloud is completely white BEFORE you'd see the
+    // geometry edge — which is the real experience: fluffy from afar, blinding as you reach it.
+    approach: 0.8,
     // 0…1 self-illumination. Clouds are LIT now (darker underneath, sun from above), but a thin
     // cloud glows a little on its own — this is that floor. 1 ≈ the old fully-emissive look;
     // a thunderhead wants it near 0 so its underbelly goes properly dark.
@@ -174,6 +178,8 @@ export class B3dClouds extends B3dChild {
   private _removeFogLayer: (() => void) | null = null
   private _mat: BABYLON.StandardMaterial | null = null
   private _baseColor = new BABYLON.Color3(1, 1, 1)
+  /** Whiteout colour, recomputed each frame — white at the cloud top, murk deeper down. */
+  private _fogColor = new BABYLON.Color3(1, 1, 1)
   private _lastCoverage = -1
   private _tick = () => this._update()
   private _onShift = (dx: number, dz: number) => {
@@ -226,14 +232,19 @@ export class B3dClouds extends B3dChild {
     scene.onBeforeCameraRenderObservable.add(this._tick)
 
     // The whiteout is a fog LAYER — the scene composites and smooths it, so it can't fight
-    // b3d-fog or the sea, and nothing ever switches fogMode (see atmosphere.ts).
-    const cloudColor = BABYLON.Color3.FromHexString(this.color)
+    // b3d-fog or the sea, and nothing ever switches fogMode (see atmosphere.ts). The colour is
+    // computed each frame (`_fogColor`) — white near the top, darkening as you sink into a
+    // thick cloud.
     this._removeFogLayer = owner.addFogLayer(() =>
       this._immersion <= 0
         ? null
         : {
             weight: this._immersion,
-            color: { r: cloudColor.r, g: cloudColor.g, b: cloudColor.b },
+            color: {
+              r: this._fogColor.r,
+              g: this._fogColor.g,
+              b: this._fogColor.b,
+            },
             density: this.fogDensity,
             // Pull the linear-fog distances in too, so the whiteout works whichever mode the
             // scene's b3d-fog chose.
@@ -325,8 +336,23 @@ export class B3dClouds extends B3dChild {
     // clamps to 1 for anything nearer, including negative = inside) you STAY white the whole
     // time you're in the cloud, until you come out the far side.
     const startDist = Math.max(1, this.size * this.approach)
-    const fullDist = startDist * 0.2 // total whiteout this far out — before the surface
+    const fullDist = startDist * 0.3 // total whiteout this far out — well before the surface
     this._immersion = band(nearest, startDist, fullDist)
+
+    // Whiteout COLOUR by vertical depth: white near the cloud top, darkening as you sink. The
+    // top of the layer is `altitude + thickness/2`; how far below it you sit (0…thickness) sets
+    // the murk, and a thick/heavy (high-`coverage`) cloud goes properly dark while a thin one
+    // barely dims — the difference between a fair-weather puff and the inside of a thunderhead.
+    if (this._immersion > 0) {
+      const top = this.altitude + this.thickness / 2
+      const frac =
+        this.thickness > 0
+          ? Math.min(1, Math.max(0, (top - eye.y) / this.thickness))
+          : 0
+      const cov = Math.min(1, Math.max(0, this.coverage))
+      const shade = 1 - 0.8 * frac * (0.35 + 0.65 * cov)
+      this._fogColor.copyFrom(this._baseColor).scaleInPlace(shade)
+    }
   }
 }
 

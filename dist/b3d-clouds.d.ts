@@ -40,6 +40,8 @@ export declare class B3dClouds extends B3dChild {
     private _removeFogLayer;
     private _mat;
     private _baseColor;
+    /** Whiteout colour, recomputed each frame — white at the cloud top, murk deeper down. */
+    private _fogColor;
     private _lastCoverage;
     private _tick;
     private _onShift;
