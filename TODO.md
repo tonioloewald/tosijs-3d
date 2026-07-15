@@ -536,9 +536,19 @@ Ties to Asset Management: "Tile map component consuming libraries by type" and t
 
 ## Effects
 
+[ ] **Custom cloud meshes** (Tonio) — let `b3dClouds` use one or more MODELED meshes instead of
+squashed spheres (`meshName: 'cumulus,cirrus'`, random pick per blob for variety). Mechanism:
+resolve the template(s) from a loaded GLB/`b3dLibrary` by name, `createInstance` per blob (shared
+geometry, cheap), keep the recycle/coverage/shadow logic. The one real wrinkle is ASYNC: the GLB
+may not be loaded when clouds build, so it needs the same wait-for-mesh pattern the library
+consumers use — deferred because that + no way for me to eyeball it = don't bolt it on blind.
+[ ] **Clouds: verify the new pass in VR/flat** (Tonio) — lit (dark undersides), `selfIllum` floor,
+`coverage` dial (wisps→thunderheads, live), `castShadows`. All shipped but UNSEEN by me. Also: soft
+transparent shadows — a cast cloud shadow is currently an opaque-ish ellipse (Babylon needs
+`transparencyShadow`/blur on the generator for a soft one); tune if it reads hard.
 [ ] Cloud Layers
-[ ] God Rays (through clouds and from water)
-[ ] Ambient (weather, bubbles, wind, snow, lightning)
+[ ] God Rays (through clouds and from water) — the sun-shafts-as-additive-panels item
+[ ] Ambient (weather, bubbles, wind, snow, lightning) — bubbles/motes/leaves SHIPPED (b3d-ambient); remaining: weather tie-in via the wind field, lightning
 [ ] Lava
 [ ] Improved water
 [x] Under Surface of Water (underwater tint/fog effects)

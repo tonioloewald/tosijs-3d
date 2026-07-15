@@ -12,6 +12,9 @@ export declare class B3dClouds extends B3dChild {
         opacity: number;
         fogDensity: number;
         approach: number;
+        selfIllum: number;
+        coverage: number;
+        castShadows: boolean;
         seed: number;
     };
     count: number;
@@ -23,6 +26,9 @@ export declare class B3dClouds extends B3dChild {
     opacity: number;
     fogDensity: number;
     approach: number;
+    selfIllum: number;
+    coverage: number;
+    castShadows: boolean;
     seed: number;
     /**
      * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
@@ -32,10 +38,16 @@ export declare class B3dClouds extends B3dChild {
     private _blobs;
     private _immersion;
     private _removeFogLayer;
+    private _mat;
+    private _baseColor;
+    private _lastCoverage;
     private _tick;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
     private _placeRandom;
+    /** Apply the `coverage` weather dial: how many blobs are active, how opaque, how dark, and
+     * how much they still self-illuminate. Live — cheap enough to run when coverage moves. */
+    private _applyCoverage;
     private _update;
 }
 export declare const b3dClouds: (...args: unknown[]) => B3dClouds;

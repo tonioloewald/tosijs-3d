@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div, span } = elements
 
@@ -85,6 +85,11 @@ const scene = addMarkers(b3d(
   // aircraft's shadow would shrink to sub-pixel (i.e. invisible).
   b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  // A cloud layer to climb into — the whiteout is FOG (no post-process), so it works in
+  // stereo and reads `insideCloud`. b3dFog gives the clouds a sky to fade against; the
+  // clouds RESTORE it on the way out.
+  b3dFog({ start: 200, end: 900, color: '#cfe0f2' }),
+  b3dClouds({ altitude: 110, thickness: 40, size: 60, coverage: 0.5, seed: 4 }),
   // Drop in the gauge HUD — the player aircraft drives it automatically (speed,
   // altitude vs `ceiling`, and the pitch/roll horizon).
   b3dHud({}),

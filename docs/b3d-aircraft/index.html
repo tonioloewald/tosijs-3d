@@ -38,7 +38,7 @@ model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
 <p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.
 The full flight model is explained below the demo.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dHud, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, span } = elements
 
@@ -110,6 +110,11 @@ const scene = addMarkers(b3d(
   // aircraft&#39;s shadow would shrink to sub-pixel (i.e. invisible).
   b3dGround({ meshName: &#39;ground_nocast&#39;, width: 500, height: 500, color: &#39;#7d9b6e&#39; }),
   b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
+  // A cloud layer to climb into — the whiteout is FOG (no post-process), so it works in
+  // stereo and reads `insideCloud`. b3dFog gives the clouds a sky to fade against; the
+  // clouds RESTORE it on the way out.
+  b3dFog({ start: 200, end: 900, color: &#39;#cfe0f2&#39; }),
+  b3dClouds({ altitude: 110, thickness: 40, size: 60, coverage: 0.5, seed: 4 }),
   // Drop in the gauge HUD — the player aircraft drives it automatically (speed,
   // altitude vs `ceiling`, and the pitch/roll horizon).
   b3dHud({}),
