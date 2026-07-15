@@ -42,6 +42,7 @@ export declare class B3dClouds extends B3dChild {
     private _baseColor;
     private _lastCoverage;
     private _tick;
+    private _onShift;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
     private _placeRandom;

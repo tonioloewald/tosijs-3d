@@ -546,6 +546,23 @@ consumers use — deferred because that + no way for me to eyeball it = don't bo
 `coverage` dial (wisps→thunderheads, live), `castShadows`. All shipped but UNSEEN by me. Also: soft
 transparent shadows — a cast cloud shadow is currently an opaque-ish ellipse (Babylon needs
 `transparencyShadow`/blur on the generator for a soft one); tune if it reads hard.
+[ ] **HUD altitude bar — Manta-style, ground-referenced** (Tonio). The HUD altitude meter is
+currently a 0..1 arc (`setMeter('altitude', level)`). Replace/augment with a BAR read against the
+terrain, not against a fixed 0..ceiling: plane at 100 over ground at 30 ⇒ bar blank (or a distinct
+colour) 0–30, filled 30–100, empty 100–ceiling. So the coloured band literally shows your clearance
+above the ground below you. Needs ground height under the aircraft (sample terrain / raycast down)
+fed to the HUD alongside altitude+ceiling. **Manta twist**: the vehicle is a flying SUBMARINE — when
+altitude is sub-sea-level, FLIP the bar (it grows DOWN from the top = sea level, to max operating
+depth). And consider allowing depth/altitude beyond max, where the bar goes RED. New meter render in
+`hud.ts` (the arc → segmented bar), new inputs from `b3d-aircraft`/the platform. Visual + untestable
+by me, so its own focused pass.
+[ ] **Water that appears stationary (infinite ocean)** (Tonio). `b3d-water` is a finite plane with
+no follow — fly far and it's left behind (which is why the terrain demo has NO water yet). Add a
+`follow` mode: recenter the plane's x/z on the active camera each frame AND offset the wave/UV by
+the camera's world position, so the mesh rides with you while the SURFACE detail stays put — it
+reads as a stationary infinite sea. Floating-origin: recentre from the shifted camera each frame, so
+a rebase is naturally absorbed. THEN add water to the terrain demo. Deferred: needs the b3d-water
+feature + a visual check I can't do.
 [ ] Cloud Layers
 [ ] God Rays (through clouds and from water) — the sun-shafts-as-additive-panels item
 [ ] Ambient (weather, bubbles, wind, snow, lightning) — bubbles/motes/leaves SHIPPED (b3d-ambient); remaining: weather tie-in via the wind field, lightning

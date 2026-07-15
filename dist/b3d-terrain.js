@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -96,6 +96,9 @@ const scene = b3d(
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   terrain,
+  // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
+  // rebases the world under you. Fly down into it and the world whites out.
+  b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
   inputFocus(
     gameController(),
     aircraft,

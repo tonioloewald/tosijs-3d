@@ -176,6 +176,12 @@ export class B3dClouds extends B3dChild {
   private _baseColor = new BABYLON.Color3(1, 1, 1)
   private _lastCoverage = -1
   private _tick = () => this._update()
+  private _onShift = (dx: number, dz: number) => {
+    for (const b of this._blobs) {
+      b.position.x += dx
+      b.position.z += dz
+    }
+  }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     const rng = new MersenneTwister(this.seed)
@@ -212,6 +218,11 @@ export class B3dClouds extends B3dChild {
     // adds every registered mesh). Off by default — see the attribute note.
     if (this.castShadows) owner.register({ meshes: this._blobs })
 
+    // Floating origin: blob positions are WORLD coordinates held in JS, so on a terrain rebase
+    // they must shift with everything else or the whole sky would jump. (The per-frame recycle
+    // would eventually mask it, but not without a visible lurch.)
+    owner.onOriginShift(this._onShift)
+
     scene.onBeforeCameraRenderObservable.add(this._tick)
 
     // The whiteout is a fog LAYER — the scene composites and smooths it, so it can't fight
@@ -234,6 +245,7 @@ export class B3dClouds extends B3dChild {
 
   sceneDispose() {
     this.owner?.scene.onBeforeCameraRenderObservable.removeCallback(this._tick)
+    this.owner?.offOriginShift(this._onShift)
     this._removeFogLayer?.()
     this._removeFogLayer = null
     for (const b of this._blobs) b.dispose()

@@ -37,7 +37,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span, p } = elements
 
@@ -124,6 +124,9 @@ const scene = b3d(
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
   b3dLibrary({ url: &#39;/test-2.glb&#39;, type: &#39;vehicles&#39; }),
   terrain,
+  // A cloud layer over the peaks — origin-shift aware, so it doesn&#39;t lurch when the terrain
+  // rebases the world under you. Fly down into it and the world whites out.
+  b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
   inputFocus(
     gameController(),
     aircraft,
