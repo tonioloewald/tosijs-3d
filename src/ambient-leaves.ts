@@ -141,11 +141,20 @@ export class LeafField {
     mat.diffuseTexture.hasAlpha = true
     mat.useAlphaFromDiffuseTexture = true
     mat.backFaceCulling = false // TWO-SIDED — the point of the whole exercise
-    // A generous emissive floor so leaves READ against sky or shade — they were nearly black
-    // and easy to miss. (Real art direction later; this is a placeholder shape anyway.)
-    mat.emissiveColor = new BABYLON.Color3(0.35, 0.42, 0.2)
+    // A SMALL emissive floor so a leaf isn't pure black in shade — the visibility comes from the
+    // lit diffuse texture, not from making the whole thing glow. (Earlier it was set high, and
+    // in a scene with a glow layer that read as leaves GLOWING; the real fix is the glow
+    // exclusion below, and keeping emissive modest.)
+    mat.emissiveColor = new BABYLON.Color3(0.08, 0.1, 0.05)
     mat.specularColor = BABYLON.Color3.Black()
     this._mesh.material = mat
+    // A leaf is not a light source. Any glow layer in the scene would otherwise harvest the
+    // emissive and bloom every leaf — exactly the "glowing pretty hard" report.
+    for (const layer of scene.effectLayers ?? []) {
+      if (layer.getClassName() === 'GlowLayer') {
+        ;(layer as BABYLON.GlowLayer).addExcludedMesh(this._mesh)
+      }
+    }
 
     // We vary position/rotation/scale, never colour or uv — skip those to save work.
     sps.computeParticleColor = false

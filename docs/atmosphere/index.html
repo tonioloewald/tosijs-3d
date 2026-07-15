@@ -35,8 +35,10 @@
 own colour and density by a weight of 0…1. The layers composite, and the result is smoothed
 over time. Nothing ever toggles.</p>
 <h2>Why (the &quot;thunk&quot;)</h2>
-<p>Fog used to be snapped on at the water&#39;s surface:</p>
-<pre><code class="language-js">if (underwater &amp;&amp; !wasUnderwater) { scene.fogMode = EXP2; fogColor = blue; fogDensity = 0.12 }
+<p>Fog used to be snapped on at the water&#39;s surface (illustrative — NOT runnable, which is
+why this block is <code>javascript</code> not <code>js</code>: the doc system SMOKE-TESTS every <code>js</code> example, and
+this pseudocode&#39;s identifiers are all undefined):</p>
+<pre><code class="language-javascript">if (underwater &amp;&amp; !wasUnderwater) { scene.fogMode = EXP2; fogColor = blue; fogDensity = 0.12 }
 </code></pre>
 <p>That&#39;s <strong>two</strong> discontinuities in one line:</p>
 <ol>

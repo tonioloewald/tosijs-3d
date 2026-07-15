@@ -9,9 +9,11 @@ over time. Nothing ever toggles.
 
 ## Why (the "thunk")
 
-Fog used to be snapped on at the water's surface:
+Fog used to be snapped on at the water's surface (illustrative — NOT runnable, which is
+why this block is `javascript` not `js`: the doc system SMOKE-TESTS every `js` example, and
+this pseudocode's identifiers are all undefined):
 
-```js
+```javascript
 if (underwater && !wasUnderwater) { scene.fogMode = EXP2; fogColor = blue; fogDensity = 0.12 }
 ```
 

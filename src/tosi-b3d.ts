@@ -2162,8 +2162,9 @@ export class B3d extends Component {
         // Fade with distance rather than cliff-edging. A hard `maxDistance: 8` was tried and
         // removed because it snapped plates out of existence and the monitor-tuned cutoff was
         // wrong in a headset. Fade, don't switch — same lesson as the fog and the bubbles.
-        fadeFrom: 12,
-        fadeTo: 25,
+        // Pulled in per Tonio: plates should declutter at much closer range than the first pass.
+        fadeFrom: 4,
+        fadeTo: 9,
         // Compact card (280×116 vs the default 320×200) — ~50% less padding
         // around the label so the plaque hugs the name and doesn't hang low.
         svg: placeholderPanelSvg((b.id as string) || '$6M biped', 280, 116),
@@ -2494,7 +2495,8 @@ export class B3d extends Component {
         // already exists would be drawn by the glow pass even when gaze-hidden. Panels built
         // AFTER this exclude themselves on creation; these are the ones that got here first.
         for (const m of this.scene.meshes) {
-          if (m.name === 'frame-panel')
+          // Neither UI plaques nor leaves are light sources — keep them out of the bloom.
+          if (m.name === 'frame-panel' || m.name === 'ambient-leaves')
             this.glowLayer.addExcludedMesh(m as BABYLON.Mesh)
         }
       }
