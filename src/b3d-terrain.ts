@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -48,6 +48,11 @@ const terrain = b3dTerrain({
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
+  // Drop the whole heightfield by half its (default) gross height, so it straddles 0 — peaks up,
+  // valleys down — which is what lets the water plane at 0 flood the valleys into a sea. Without
+  // it the terrain sits ON 0 and the water is just a floor. (Fixed to the default v-size; slide
+  // v-size far and you'd re-centre this too.)
+  baseHeight: -100,
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
@@ -99,6 +104,12 @@ const scene = b3d(
   // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.
   b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
+  // A sea at height 0. The terrain now straddles 0 (baseHeight above), so the valleys flood into
+  // fjords and islands. The plane is huge AND stays put at the world origin — and because the
+  // floating origin keeps the CAMERA near the origin (the world rebases under you), a plane
+  // centred there is always beneath you: it reads as a stationary, endless ocean with no follow
+  // logic. Dive below it and the underwater fog closes in.
+  b3dWater({ y: 0, waterSize: 6000, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
   inputFocus(
@@ -198,6 +209,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `profile` | `false` | Debug: time tile building and report it on `debugState` (see below). Off = zero cost |
 | `grossAmplitude` | `8` | Gross height multiplier |
 | `detailAmplitude` | `2` | Detail height multiplier |
+| `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
 | `originResetThreshold` | `500` | Distance before origin rebase |
 | `maxTravelDistance` | `5000` | Distance before firing recenter-needed event |
 | `wireframe` | `false` | Debug: render terrain as wireframe |
@@ -373,6 +385,10 @@ export class B3dTerrain extends B3dChild {
     horizScale: 1,
     grossAmplitude: 8,
     detailAmplitude: 2,
+    // Flat vertical offset of the whole heightfield (metres). The noise is 0..amplitude, so
+    // `-grossAmplitude/2` centres the terrain around 0 — the thing that lets a water plane at 0
+    // flood the valleys into a sea. Default 0 = unchanged (heightfield sits on 0).
+    baseHeight: 0,
     // Debug: tint each tile a distinct colour to reveal the tile/LOD layout.
     debugColor: false,
     // 0 = auto: ms of tile building allowed per frame, from the device tier. THE cap that
@@ -445,6 +461,11 @@ export class B3dTerrain extends B3dChild {
     const dScale = attrs.detailScale / hs
     const grossAmp = attrs.grossAmplitude
     const detailAmp = attrs.detailAmplitude
+    // A flat vertical shift of the whole heightfield. The noise maps to 0..(grossAmp+detailAmp),
+    // so `baseHeight: -grossAmplitude/2` CENTRES the terrain around 0 — which is what lets a flat
+    // water plane at 0 read as a sea flooding the valleys (see the water demo). Hoisted with the
+    // rest so it costs nothing per sample.
+    const baseHeight = attrs.baseHeight
 
     return (wx: number, wz: number): number => {
       const u = worldU + (wx + offX) / circumU
@@ -454,7 +475,8 @@ export class B3dTerrain extends B3dChild {
       const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3)
       return (
         grossFilter.evaluate(gross * 0.5 + 0.5) * grossAmp +
-        detailFilter.evaluate(detail * 0.5 + 0.5) * detailAmp
+        detailFilter.evaluate(detail * 0.5 + 0.5) * detailAmp +
+        baseHeight
       )
     }
   }

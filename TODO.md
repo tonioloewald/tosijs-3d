@@ -564,12 +564,13 @@ masks terrain-tile LOD pop-in. Fog is EXP2 (density only — start/end are ignor
 minimum `fogDensity` derived from the far distance (e.g. density ≈ 2.2 / farDistance for ~99% at that
 range). Probably belongs in `b3d-fog`/atmosphere as a `floor`/`maskDistance` option, or `b3d`
 deriving it from the active camera's `maxZ`. Cheap; visual to tune.
-[ ] **Water + terrain** (Tonio) — the terrain demo has NO water because (a) it's a `cylinder`
-surface, so a flat plane doesn't fit, and (b) the heightfield is UNSIGNED (0..grossAmplitude), so
-water at 0 sits at the base, not mid-height. To do it right: a **flat**-surface terrain (or a
-`baseHeight`/`y` offset on terrain so it can be centred, height −amp/2..+amp/2) + water at 0 for a
-proper fjord/island sea, AND the `follow` water below so it doesn't get left behind. Could be its own
-"archipelago" demo rather than bolted onto the dramatic cylinder-mountain one.
+[x] **Water + terrain** — DONE. The terrain mesh is a FLAT heightfield (the `cylinder` surfaceType
+is only the noise SAMPLE space, not curved geometry), so a flat water plane fits fine. Added a
+`baseHeight` offset to terrain (hoisted, ~free per sample); the demo sets `-100` to centre the
+±-height field on 0, and a big `b3dWater({ y: 0, waterSize: 6000 })` floods the valleys. No follow
+needed: the floating origin keeps the CAMERA near world-origin, so a plane centred there is always
+under you — reads as a stationary endless ocean for free. (A truly unbounded world that outruns a
+6000 plane would still want the [[follow]] water below, but the rebase keeps the demo covered.)
 [ ] **Water that appears stationary (infinite ocean)** (Tonio). `b3d-water` is a finite plane with
 no follow — fly far and it's left behind (which is why the terrain demo has NO water yet). Add a
 `follow` mode: recenter the plane's x/z on the active camera each frame AND offset the wave/UV by

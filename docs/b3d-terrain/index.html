@@ -37,7 +37,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span, p } = elements
 
@@ -76,6 +76,11 @@ const terrain = b3dTerrain({
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
+  // Drop the whole heightfield by half its (default) gross height, so it straddles 0 — peaks up,
+  // valleys down — which is what lets the water plane at 0 flood the valleys into a sea. Without
+  // it the terrain sits ON 0 and the water is just a floor. (Fixed to the default v-size; slide
+  // v-size far and you&#39;d re-centre this too.)
+  baseHeight: -100,
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
@@ -127,6 +132,12 @@ const scene = b3d(
   // A cloud layer over the peaks — origin-shift aware, so it doesn&#39;t lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.
   b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
+  // A sea at height 0. The terrain now straddles 0 (baseHeight above), so the valleys flood into
+  // fjords and islands. The plane is huge AND stays put at the world origin — and because the
+  // floating origin keeps the CAMERA near the origin (the world rebases under you), a plane
+  // centred there is always beneath you: it reads as a stationary, endless ocean with no follow
+  // logic. Dive below it and the underwater fog closes in.
+  b3dWater({ y: 0, waterSize: 6000, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
   inputFocus(
@@ -310,6 +321,11 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <td><code>detailAmplitude</code></td>
 <td><code>2</code></td>
 <td>Detail height multiplier</td>
+</tr>
+<tr>
+<td><code>baseHeight</code></td>
+<td><code>0</code></td>
+<td>Flat vertical offset (m). The noise is 0..amplitude; <code>-grossAmplitude/2</code> centres the terrain on 0 so a water plane at 0 floods the valleys into a sea</td>
 </tr>
 <tr>
 <td><code>originResetThreshold</code></td>
