@@ -230,6 +230,7 @@ export {
   panel3d,
   label3d,
   text3d,
+  textBlock3d,
   button3d,
   toggle3d,
   slider3d,
@@ -241,10 +242,15 @@ export {
   stackLayout,
   clampScroll,
   wrapText,
+  wrapByMeasure,
+  cssFont,
+  textMeasurer,
+  measureTextWrap,
+  measureTextWidth,
   valueToFraction,
   fractionToValue,
 } from './widgets3d-layout'
-export type { StackLayout } from './widgets3d-layout'
+export type { StackLayout, FontSpec } from './widgets3d-layout'
 
 // SVG material system
 export { SvgTexture } from './svg-texture'

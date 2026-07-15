@@ -3,9 +3,15 @@ import {
   stackLayout,
   clampScroll,
   wrapText,
+  wrapByMeasure,
+  cssFont,
   valueToFraction,
   fractionToValue,
 } from './widgets3d-layout'
+
+// A synthetic measurer: every character is 1 unit wide. Lets the pure wrapping
+// logic be tested exactly, with no canvas and no font.
+const oneUnitPerChar = (s: string) => s.length
 
 describe('stackLayout', () => {
   test('stacks with gaps and reports total', () => {
@@ -48,6 +54,51 @@ describe('wrapText', () => {
   })
   test('empty text yields one empty line', () => {
     expect(wrapText('   ', 100, 10)).toEqual([''])
+  })
+})
+
+describe('wrapByMeasure', () => {
+  test('packs words greedily up to the width', () => {
+    // width 7: "one two" = 7 fits; adding " six" (→11) doesn't.
+    expect(wrapByMeasure('one two six', 7, oneUnitPerChar)).toEqual([
+      'one two',
+      'six',
+    ])
+  })
+
+  test('a word wider than the line is kept whole, on its own line', () => {
+    expect(
+      wrapByMeasure('hi supercalifragilistic yo', 6, oneUnitPerChar)
+    ).toEqual(['hi', 'supercalifragilistic', 'yo'])
+  })
+
+  test('honours explicit newlines as hard breaks', () => {
+    expect(wrapByMeasure('a\nb c', 99, oneUnitPerChar)).toEqual(['a', 'b c'])
+  })
+
+  test('a blank paragraph survives as an empty line (keeps vertical rhythm)', () => {
+    expect(wrapByMeasure('a\n\nb', 99, oneUnitPerChar)).toEqual(['a', '', 'b'])
+  })
+
+  test('empty / whitespace-only text yields one empty line', () => {
+    expect(wrapByMeasure('   ', 100, oneUnitPerChar)).toEqual([''])
+    expect(wrapByMeasure('', 100, oneUnitPerChar)).toEqual([''])
+  })
+
+  test('never drops a word even at zero width', () => {
+    expect(wrapByMeasure('a b c', 0, oneUnitPerChar)).toEqual(['a', 'b', 'c'])
+  })
+})
+
+describe('cssFont', () => {
+  test('builds a shorthand canvas/CSS can parse', () => {
+    expect(cssFont({ size: 16 })).toBe('16px system-ui, sans-serif')
+    expect(cssFont({ size: 14, family: 'Inter', weight: 700 })).toBe(
+      '700 14px Inter'
+    )
+    expect(cssFont({ size: 12, weight: 400, style: 'italic' })).toBe(
+      'italic 400 12px system-ui, sans-serif'
+    )
   })
 })
 

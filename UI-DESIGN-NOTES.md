@@ -361,6 +361,49 @@ _earlier (see `git log`)_
   recolored/themed** (multicolor glyphs). For accent-following monochrome icons, use
   SVG paths.
 
+## SVG UI text: measure to lay out (2026-07-15)
+
+SVG `<text>` cannot wrap — and the usual escape, HTML in `<foreignObject>`, is **dead in
+our pipeline specifically**: `SvgTexture` serialises the SVG to a Blob URL and draws it via
+`<img>`, and browsers refuse to render `foreignObject` content from an image-loaded SVG (a
+security wall — it would let you rasterise arbitrary DOM and read it back). It only renders
+for SVG live in the document. So the answer everyone reaches for first is a trap here.
+
+What actually works — and it's better than it sounds — is to **do our own wrapping**: split,
+measure each candidate line with `canvas.measureText`, emit each line as its own `<text>`.
+The non-obvious win is that `measureText`/`fillText` call the **same** shaper HTML text does,
+so kerning/ligatures/proportional widths come out correct — we're not reimplementing text
+_rendering_, only text _layout_. And for LTR UI chrome that layout collapses to "greedy
+break on whitespace against measured widths," because the two brutal layers (shaping, bidi)
+are respectively done-for-us and absent.
+
+The boundary, on the record: whitespace breaks only — no CJK mid-run breaks, no hyphenation,
+no bidi reordering. Fine for labels/HUD/debug; the moment localised text shows up, that's the
+line that breaks first, and the escalation is Satori (flexbox→SVG, pairs with the resvg we
+already depend on transitively) or HarfBuzz.
+
+**Measure in LAYOUT space, not raster space.** Set `ctx.font` to the size in SVG user units
+and compare to the SVG-space width — so the wrap is resolution-independent and bumping the
+texture from 384→512 doesn't silently re-wrap every label. (Implemented: `widgets3d-layout`
+`wrapByMeasure`/`textMeasurer`/`measureTextWrap`; `widgets3d` `textBlock3d` + `label3d`
+`compact`. Debug panel converted — compact block per source instead of a 40px row per line,
+which both wasted vertical space and clipped.)
+
+## Next: graphical widgets + floating layers (Tonio, 2026-07-15)
+
+Two directions the measured-layout work unblocks, filed for when we pick them up:
+
+- **Icon widgets** — a button should be able to carry an SVG glyph (or emoji, with the
+  recolour caveat above) instead of a text label, and size to it. Now that widgets measure
+  content, a button can shrink-wrap its icon/label instead of assuming a full row. This is the
+  path to a compact, non-text-hungry control strip.
+- **Popups / sub-windows / floats** — so a `select3d` can be a small closed control that opens
+  a menu, a menu can be an actual overlay rather than an inline expanded list, tooltips exist,
+  etc. Needs a floating layer above the panel's scroll region with its own hit-testing, and in
+  VR that means a second quad/panel positioned in front (coordinate-picked like the scene
+  panel), not a DOM popover. This is the bigger piece; the text measurement is a prerequisite
+  (a menu has to size to its widest item).
+
 ## Resolved
 
 - **Time-of-day slider in XR — works** (b3d demo; confirmed in the headset

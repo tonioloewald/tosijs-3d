@@ -274,9 +274,10 @@ import { svgElements } from 'tosijs'
 import {
   stackLayout,
   clampScroll,
-  wrapText,
+  measureTextWrap,
   valueToFraction,
   fractionToValue,
+  type FontSpec,
 } from './widgets3d-layout'
 
 const { svg, g, rect, text, circle, clipPath } = svgElements
@@ -319,6 +320,18 @@ const TRACK = cssVar('--w3d-track', '#3a3f4a')
 const ACCENT = cssVar('--w3d-accent', '#39c5ff')
 const ROW_BG = cssVar('--w3d-row-bg', 'rgba(255,255,255,0.05)')
 const ROW_HOVER = cssVar('--w3d-row-hover', 'rgba(255,255,255,0.13)')
+
+// Compact line height for stacked text (text3d / textBlock3d) — a fraction of a full
+// interactive ROW, which is what buys the vertical space back on text-heavy panels.
+const LINE_H = Math.round(FONT * 1.35)
+// One FontSpec, used BOTH to measure and to stamp the matching font-* attributes on
+// the <text>, so measurement and rendering can't drift out of sync.
+const TEXT_FONT: FontSpec = {
+  size: FONT,
+  family: FONT_FAMILY,
+  weight: TEXT_WEIGHT,
+}
+const BOLD_FONT: FontSpec = { ...TEXT_FONT, weight: HEADING_WEIGHT }
 
 let clipSeq = 0
 
@@ -436,37 +449,83 @@ const baseText = (content: string, fill = TEXT, bold = false) =>
 /**
  * A static caption row. `color` overrides the default text colour (e.g. an
  * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
- * is set).
+ * is set). `compact` shrinks the row to one text line instead of a full
+ * interactive-height ROW — for dense readouts (debug panels) where a 40px row per
+ * short line is mostly wasted space.
  */
 export function label3d(config: {
   text: string
   muted?: boolean
   bold?: boolean
   color?: string
+  compact?: boolean
 }): Widget3d {
   const fill = config.color ?? (config.muted ? MUTED : TEXT)
   const t = baseText(config.text, fill, config.bold)
+  const h = config.compact ? LINE_H : ROW
   t.setAttribute('x', String(PAD_X))
-  t.setAttribute('y', String(ROW / 2))
-  return { el: g({ 'data-w3d': 'label' }, t), layout: () => ROW }
+  t.setAttribute('y', String(h / 2))
+  return { el: g({ 'data-w3d': 'label' }, t), layout: () => h }
 }
 
-/** A wrapped, multi-line text block (e.g. an NPC's dialogue line). */
-export function text3d(config: { text: string }): Widget3d {
-  const el = g({ 'data-w3d': 'text' })
+/**
+ * A wrapped, multi-line text block — the honest way to render prose in an SVG
+ * panel (NPC dialogue, a paragraph of help). Lines are broken by real glyph
+ * measurement (`measureTextWrap`), so they neither clip nor waste space, and
+ * explicit `\n`s are respected. See [[widgets3d-layout]] for the wrapping model
+ * and its limits (whitespace breaks only; no bidi).
+ */
+export function text3d(config: { text: string; muted?: boolean }): Widget3d {
+  return textBlock3d({ lines: [config.text], muted: config.muted })
+}
+
+/**
+ * A compact, live-updatable stack of text lines, each wrapped to the panel width.
+ *
+ * This is the "text block" that replaces one-`label3d`-per-line for dense readouts:
+ * compact line height (reclaims the vertical space) plus measured wrapping (kills the
+ * clip). `update(lines)` re-lays-out at the last width it was given — so a live source
+ * (a debug panel) can push new text every tick without a full panel rebuild, as long
+ * as the line COUNT is stable (a changed count still needs a rebuild to reflow siblings).
+ */
+export function textBlock3d(config: {
+  lines: string[]
+  muted?: boolean
+  bold?: boolean
+  color?: string
+}): Widget3d & { update(lines: string[]): void } {
+  const el = g({ 'data-w3d': 'textblock' })
+  const fill = config.color ?? (config.muted ? MUTED : TEXT)
+  const font = config.bold ? BOLD_FONT : TEXT_FONT
+  let lines = config.lines
+  let lastWidth = 0
+
+  const paint = (width: number): number => {
+    while (el.firstChild) el.removeChild(el.firstChild)
+    const wrapped: string[] = []
+    for (const line of lines) {
+      // Empty line stays empty (keeps blank-line rhythm); else wrap it.
+      const w = measureTextWrap(line, width - PAD_X * 2, font)
+      for (const ln of w) wrapped.push(ln)
+    }
+    wrapped.forEach((ln, i) => {
+      const t = baseText(ln, fill, config.bold)
+      t.setAttribute('x', String(PAD_X))
+      t.setAttribute('y', String(PAD_Y + LINE_H * (i + 0.6)))
+      el.appendChild(t)
+    })
+    return Math.max(LINE_H, wrapped.length * LINE_H + PAD_Y * 2)
+  }
+
   return {
     el,
     layout(width) {
-      while (el.firstChild) el.removeChild(el.firstChild)
-      const lines = wrapText(config.text, width - PAD_X * 2, FONT * 0.56)
-      const lineHeight = FONT * 1.35
-      lines.forEach((ln, i) => {
-        const t = baseText(ln)
-        t.setAttribute('x', String(PAD_X))
-        t.setAttribute('y', String(PAD_Y + lineHeight * (i + 0.6)))
-        el.appendChild(t)
-      })
-      return Math.max(ROW, lines.length * lineHeight + PAD_Y * 2)
+      lastWidth = width
+      return paint(width)
+    },
+    update(next) {
+      lines = next
+      if (lastWidth > 0) paint(lastWidth)
     },
   }
 }

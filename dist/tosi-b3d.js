@@ -151,7 +151,7 @@ import * as GUI from '@babylonjs/gui';
 import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
 import { xrControllers } from './gamepad';
-import { panel3d, button3d, label3d } from './widgets3d';
+import { panel3d, button3d, label3d, textBlock3d, } from './widgets3d';
 import { SvgTexture } from './svg-texture';
 import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
@@ -1010,14 +1010,15 @@ export class B3d extends Component {
             catch (err) {
                 lines = [`(threw: ${err?.message ?? err})`];
             }
-            rows.push(label3d({ text: src.name, bold: true }));
-            const els = [];
-            for (const text of lines) {
-                const w = label3d({ text, muted: true });
-                els.push(w.el.querySelector('text'));
-                rows.push(w);
-            }
-            bucket.push({ els, lines: () => src.lines() });
+            // Name as a compact heading, then ONE wrapping block for the body — instead of a
+            // 40px row per line that both wasted vertical space and clipped long lines.
+            rows.push(label3d({ text: src.name, bold: true, compact: true }));
+            const block = textBlock3d({ lines, muted: true });
+            rows.push(block);
+            bucket.push({
+                update: (next) => block.update(next),
+                lines: () => src.lines(),
+            });
             for (const action of src.actions ?? []) {
                 rows.push(button3d({
                     label: typeof action.label === 'function'
@@ -1058,13 +1059,9 @@ export class B3d extends Component {
                 catch {
                     continue;
                 }
-                row.els.forEach((el, i) => {
-                    const next = lines[i] ?? '';
-                    // A source that changes its LINE COUNT needs a rebuild to show the new rows;
-                    // the ones already on screen stay live regardless.
-                    if (el != null && el.textContent !== next)
-                        el.textContent = next;
-                });
+                // The block re-wraps in place. A source that changes its LINE COUNT still needs a
+                // rebuild to reflow the rows below it; the block itself stays live regardless.
+                row.update(lines);
             }
         }, 400);
     }

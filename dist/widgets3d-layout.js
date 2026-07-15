@@ -32,30 +32,106 @@ export function clampScroll(offset, contentHeight, viewportHeight) {
     return Math.min(Math.max(offset, 0), max);
 }
 /**
- * Greedy word-wrap. Returns the lines that fit `maxWidth` given an average
- * `charWidth` (px). A single word longer than the line is left whole (it'll
- * overflow rather than vanish). Always returns at least one line.
+ * Greedy word-wrap by a fixed average `charWidth` (px). **Deprecated** — a single
+ * average width both clips (a `W` is far wider than an `i`) and wastes space (you
+ * pad the average up to be safe). Prefer `wrapByMeasure` / `measureTextWrap`, which
+ * measure the actual glyphs. Kept for callers that genuinely only have an average.
  */
 export function wrapText(text, maxWidth, charWidth) {
-    const words = text.split(/\s+/).filter(Boolean);
-    if (words.length === 0)
-        return [''];
-    const fits = (s) => s.length * charWidth <= maxWidth;
-    const lines = [];
-    let current = '';
-    for (const word of words) {
-        const candidate = current ? `${current} ${word}` : word;
-        if (current === '' || fits(candidate)) {
-            current = candidate;
+    return wrapByMeasure(text, maxWidth, (s) => s.length * charWidth);
+}
+/**
+ * Greedy word-wrap against a **measure** function (the pixel width of a string).
+ *
+ * This is the pure core: pass any measurer — a real canvas (`textMeasurer`) in the
+ * browser, or a synthetic one (`s => s.length`) in a test. Honest boundary, on the
+ * record so nobody mistakes it for a real text engine: it breaks on **whitespace
+ * only** (no hyphenation, no CJK mid-run breaks) and does **not** reorder bidi. That
+ * is genuinely enough for LTR UI chrome and nothing more — because the truly hard
+ * layers (glyph shaping, kerning) are done for you by whatever measurer you pass, and
+ * bidi is absent as long as the text is left-to-right.
+ *
+ * Respects explicit newlines (each `\n` is a hard break). A single word wider than
+ * the line is kept whole — it overflows rather than vanishing. Always ≥1 line.
+ */
+export function wrapByMeasure(text, maxWidth, measure) {
+    const out = [];
+    for (const para of text.split('\n')) {
+        const words = para.split(/\s+/).filter(Boolean);
+        if (words.length === 0) {
+            out.push('');
+            continue;
         }
-        else {
-            lines.push(current);
-            current = word;
+        let current = '';
+        for (const word of words) {
+            const candidate = current ? `${current} ${word}` : word;
+            if (current === '' || measure(candidate) <= maxWidth) {
+                current = candidate;
+            }
+            else {
+                out.push(current);
+                current = word;
+            }
         }
+        out.push(current);
     }
-    if (current)
-        lines.push(current);
-    return lines;
+    return out.length > 0 ? out : [''];
+}
+/** CSS `font` shorthand for a spec — what `canvas.measureText` needs on `ctx.font`. */
+export function cssFont(f) {
+    const style = f.style ? `${f.style} ` : '';
+    const weight = f.weight != null ? `${f.weight} ` : '';
+    return `${style}${weight}${f.size}px ${f.family ?? 'system-ui, sans-serif'}`;
+}
+// One shared offscreen 2D context measures every string — the canvas text engine IS
+// the same shaper HTML uses, so this isn't an approximation, it's the real width
+// (kerning, ligatures, proportional glyphs and all). `undefined` = not tried yet,
+// `null` = no canvas here (headless/test), so callers fall back to an estimate.
+let _measureCtx;
+function measureContext() {
+    if (_measureCtx !== undefined)
+        return _measureCtx;
+    try {
+        const c = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+        _measureCtx = c?.getContext('2d') ?? null;
+    }
+    catch {
+        _measureCtx = null;
+    }
+    return _measureCtx;
+}
+/**
+ * A measurer for a font: `(string) => width` in the **same units as `font.size`**.
+ *
+ * Measure in your LAYOUT space (SVG user units), NOT the rasterised texture space —
+ * so the wrap is resolution-independent and bumping the texture from 384 to 512 px
+ * doesn't silently re-wrap every label. Sets `ctx.font` on each call (cheap, and safe
+ * against two measurers sharing the one context). Falls back to a crude average width
+ * where there's no canvas (headless), so this never throws.
+ */
+export function textMeasurer(font) {
+    const ctx = measureContext();
+    if (ctx) {
+        const f = cssFont(font);
+        return (s) => {
+            ctx.font = f;
+            return ctx.measureText(s).width;
+        };
+    }
+    const avg = font.size * 0.56;
+    return (s) => s.length * avg;
+}
+/** Wrap `text` to `maxWidth` (layout units) using real glyph measurement. */
+export function measureTextWrap(text, maxWidth, font) {
+    return wrapByMeasure(text, maxWidth, textMeasurer(font));
+}
+/** Measured width of the widest line in `text` — for sizing a box to its content. */
+export function measureTextWidth(text, font) {
+    const measure = textMeasurer(font);
+    let max = 0;
+    for (const line of text.split('\n'))
+        max = Math.max(max, measure(line));
+    return max;
 }
 /** Map a value in [min, max] to a 0..1 fraction (clamped, step-snapped). */
 export function valueToFraction(value, min, max) {

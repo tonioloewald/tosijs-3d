@@ -28,18 +28,45 @@ export interface Widget3d {
 /**
  * A static caption row. `color` overrides the default text colour (e.g. an
  * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
- * is set).
+ * is set). `compact` shrinks the row to one text line instead of a full
+ * interactive-height ROW — for dense readouts (debug panels) where a 40px row per
+ * short line is mostly wasted space.
  */
 export declare function label3d(config: {
     text: string;
     muted?: boolean;
     bold?: boolean;
     color?: string;
+    compact?: boolean;
 }): Widget3d;
-/** A wrapped, multi-line text block (e.g. an NPC's dialogue line). */
+/**
+ * A wrapped, multi-line text block — the honest way to render prose in an SVG
+ * panel (NPC dialogue, a paragraph of help). Lines are broken by real glyph
+ * measurement (`measureTextWrap`), so they neither clip nor waste space, and
+ * explicit `\n`s are respected. See [[widgets3d-layout]] for the wrapping model
+ * and its limits (whitespace breaks only; no bidi).
+ */
 export declare function text3d(config: {
     text: string;
+    muted?: boolean;
 }): Widget3d;
+/**
+ * A compact, live-updatable stack of text lines, each wrapped to the panel width.
+ *
+ * This is the "text block" that replaces one-`label3d`-per-line for dense readouts:
+ * compact line height (reclaims the vertical space) plus measured wrapping (kills the
+ * clip). `update(lines)` re-lays-out at the last width it was given — so a live source
+ * (a debug panel) can push new text every tick without a full panel rebuild, as long
+ * as the line COUNT is stable (a changed count still needs a rebuild to reflow siblings).
+ */
+export declare function textBlock3d(config: {
+    lines: string[];
+    muted?: boolean;
+    bold?: boolean;
+    color?: string;
+}): Widget3d & {
+    update(lines: string[]): void;
+};
 /** A pressable button. */
 export declare function button3d(config: {
     label: string;
