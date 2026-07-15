@@ -202,7 +202,7 @@ layer can orchestrate a visual transition before calling `recenter()`.
 Terrain is the only place this library does *bulk* numeric work in a burst, so it's the
 only real candidate for a worker or wasm. Before moving anything, measure it:
 
-```js
+```javascript
 terrain.setProfiling(true)   // or the `profile` attribute
 // …fly around for a bit, then:
 terrain.resetProfile()       // drop the first-load burst

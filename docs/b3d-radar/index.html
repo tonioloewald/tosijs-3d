@@ -34,7 +34,7 @@
 scene&#39;s <a href="/b3d-radar-blip/">radar-blips</a>, detects those in <strong>range · profile</strong> and
 inside its <strong>cone</strong>, and acquires <strong>locks</strong> on the nearest <em>opposed</em> contacts — all via
 the pure, tested <a href="/radar/">radar</a> model. Nest it in the thing it rides:</p>
-<pre><code class="language-js">b3dAircraft({ player: true, y: 0 },
+<pre><code class="language-javascript">b3dAircraft({ player: true, y: 0 },
   b3dRadar({ range: 250, coneDeg: 90, lockTime: 1.5, maxLocks: 2 }))
 </code></pre>
 <p>The platform reads <code>radar.tracks</code> (to plot the HUD) and <code>radar.nearestLock</code> (a homing

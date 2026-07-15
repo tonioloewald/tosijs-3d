@@ -16,7 +16,7 @@ Because a prefab returns **elements**, and this library is elements, a prefab is
 function. There is no new object model to learn: whatever you'd have written by hand, write
 it in a function and give it a name.
 
-```js
+```javascript
 import { definePrefab, b3dParticles, b3dSound, b3dDestroyable } from 'tosijs-3d'
 
 definePrefab('fuel-drum-remains', ({ position, velocity }) => [

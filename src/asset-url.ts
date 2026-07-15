@@ -8,7 +8,7 @@ once via `setAssetBase(...)`; the base defaults to empty, so paths resolve local
 (served from `static/`) for tests and offline dev. Already-absolute URLs
 (`http(s)://`, `data:`, `blob:`) pass through untouched.
 
-```js
+```javascript
 import { setAssetBase, assetUrl, b3dLoader } from 'tosijs-3d'
 
 setAssetBase('https://cdn.tosijs.net')          // once, e.g. in demo/site.ts

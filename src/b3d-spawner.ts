@@ -8,7 +8,7 @@ refills them as you destroy them.
 An encounter is **not a special kind of thing**. It's a prefab whose members are placed in a
 [formation](?formations.ts). That's the whole idea:
 
-```js
+```javascript
 import { definePrefab, escorts, at, b3dSpawner, b3dDestroyable, b3dRadarBlip } from 'tosijs-3d'
 
 definePrefab('mothership-group', ({ position }) => [

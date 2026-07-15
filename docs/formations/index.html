@@ -38,7 +38,7 @@ encounter&#39;s <em>shape</em> is unit-testable without a 3D engine, and the sam
 the same battle — which is what lets a scenario be replayed (and what lets a GM&#39;s benchmark
 mean anything).</p>
 <p>Offsets are <code>{x, y, z}</code> in the encounter&#39;s local frame: <strong>+y is up, +z is forward</strong>.</p>
-<pre><code class="language-js">import { ring, vee, escorts } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript">import { ring, vee, escorts } from &#39;tosijs-3d&#39;
 
 // Four escorts in a ring 30 units out, 5 above the leader.
 for (const at of ring(4, 30, { y: 5 })) spawnEscort(at)

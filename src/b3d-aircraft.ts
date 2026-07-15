@@ -13,138 +13,97 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { elements } from 'tosijs'
-const { div, span } = elements
+const { div } = elements
 
-const aircraft = b3dAircraft({
-  library: 'vehicles', meshName: 'scout',
-  // Start parked on the ground. The model is rested on the surface via its
-  // computed bounding box, so y is the height of its belly — y: 0 = grounded.
-  player: true, y: 0,
-  // Below this forward speed it hovers (triggers = up/down); above it flies like
-  // a plane (triggers = throttle). Set to 0 for a pure aeroplane.
-  vtolSpeed: 6, maxSpeed: 50,
-})
+const RADAR_RANGE = 250 // nominal radar range (m); a profile-1 blip detects within it
+const MAX_ALT = 300     // the aircraft's ceiling (its `ceiling`, default 300)
 
-const hud = div({ class: 'hud' },
-  span({ class: 'hud-speed' }),
-  span({ class: 'hud-alt' }),
-  span({ class: 'hud-throttle' }),
-  span({ class: 'hud-mode' }),
-  span({ class: 'hud-warn' }),
+// A FACTORY — so a respawn is a genuinely new aircraft (with its radar), not a reset. The sim
+// really emits a death and a spawn, which is the stream a narrative driver reads (see b3d-death).
+// The HUD stays in the COCKPIT view only (hudChase defaults false); the chase view is clean.
+const plane = () => b3dAircraft(
+  { library: 'vehicles', meshName: 'scout', player: true, y: 0, vtolSpeed: 6, maxSpeed: 55 },
+  b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }),
 )
+// A respawned aircraft is appended INSIDE the focus manager; it announces itself when ready
+// (adoptIfVacant) and the manager takes it because it's driving nobody.
+const focus = inputFocus(gameController(), plane())
 
-const controls = div({ class: 'controls' },
-  'W/S: pitch | A/D: turn (bank) | \u2190/\u2192: roll | R: up / faster | Q: down / slower'
-)
-
-// Scatter reference markers on the ground. Registering them makes them shadow
-// casters, so there are always crisp ground shadows for depth/scale cues — the
-// aircraft's own shadow is small and far-offset when it's high up.
-function addMarkers(scene) {
-  scene.sceneCreated = (owner, BABYLON) => {
-    const mat = new BABYLON.StandardMaterial('marker-mat', owner.scene)
-    mat.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.8)
-    const boxes = []
-    for (let i = 0; i < 40; i++) {
-      const x = (Math.random() - 0.5) * 200
-      const z = (Math.random() - 0.5) * 200
-      const box = BABYLON.MeshBuilder.CreateBox('marker' + i, { size: 2, height: 1 + Math.random() * 4 }, owner.scene)
-      box.position.set(x, 0, z)
-      box.material = mat
-      box.receiveShadows = true
-      boxes.push(box)
-    }
-    owner.register({ meshes: boxes })
-  }
-  return scene
+// A target = a destroyable cube that is ALSO a radar-blip (nested, so the blip follows it).
+// Faction picks the colour + whether the radar locks it: HOSTILE locks, NEUTRAL only shows.
+function target({ faction, ...pos }) {
+  const color = faction === 'hostile' ? '#d05050' : '#c7ad55'
+  return b3dDestroyable(
+    { meshName: 'drone', size: 2.4, color, capacity: 6, ...pos,
+      explode: 'on', explodeForce: 8,
+      deathBlast: 'on', blastDamage: 10, blastFullRadius: 2, blastRadius: 6 },
+    b3dRadarBlip({ faction, profile: 1 }),
+  )
 }
+function scatter(aerial) {
+  const d = RADAR_RANGE * (0.5 + Math.random()) // 0.5x..1.5x range
+  const az = (Math.random() - 0.5) * (170 * Math.PI / 180) // +/-85 deg around the nose (+Z)
+  return target({
+    faction: Math.random() < 0.65 ? 'hostile' : 'neutral',
+    x: Math.sin(az) * d,
+    z: Math.cos(az) * d,
+    y: aerial ? MAX_ALT * (0.1 + Math.random() * 1.15) : 1.0 + Math.random() * 1.2,
+  })
+}
+const air = Array.from({ length: 12 }, () => scatter(true))
+const ground = Array.from({ length: 8 }, () => scatter(false))
+const targets = [...air, ...ground]
 
-const scene = addMarkers(b3d(
-  // On-screen glass gamepad (touch) wired into the input system: left stick
-  // pitch/roll, right trigger throttle, etc. via aircraftMapping.
-  { gamepad: true },
-  // Ambient fill kept low so the directional sun's shadows actually read.
-  b3dLight({ y: 1, intensity: 0.4 }),
-  // Cascaded shadows cover the whole camera view with a sensible depth range,
-  // which suits an aerial scene (aircraft high above a large ground plane).
-  // shadowMaxZ spans altitude→ground; activeDistance keeps the aircraft a
-  // caster; the low updateIntervalMs keeps caster gating responsive in flight.
-  b3dSun({
-    x: -0.6, y: -1, z: -0.4,
-    intensity: 0.9,
-    shadowTextureSize: 2048,
-    shadowMaxZ: 300,
-    activeDistance: 150,
-    updateIntervalMs: 50,
-  }),
+const kills = div({ class: 'kills' }, `Targets down: 0 / ${targets.length}`)
+let down = 0
+
+const scene = b3d(
+  {
+    gamepad: true,
+    sceneCreated(el) {
+      el.addEventListener('destroyed', () => {
+        down += 1
+        kills.textContent = `Targets down: ${down} / ${targets.length}`
+      })
+      // Drift the AIR targets so they move on radar but stay hittable.
+      let t = 0
+      el.scene.onBeforeRenderObservable.add(() => {
+        t += el.scene.getEngine().getDeltaTime() / 1000
+        air.forEach((d, i) => {
+          if (d.dead) return
+          d.x += Math.sin(t * 0.3 + i) * 0.02
+          d.y += Math.sin(t * 0.6 + i * 2) * 0.01
+        })
+      })
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.45 }),
+  b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300, activeDistance: 150, updateIntervalMs: 50 }),
   b3dSkybox({ timeOfDay: 10 }),
-  // `_nocast` so the huge ground only RECEIVES shadows. If it also cast,
-  // the sun's auto-fit shadow frustum would stretch to 500 units and the
-  // aircraft's shadow would shrink to sub-pixel (i.e. invisible).
-  b3dGround({ meshName: 'ground_nocast', width: 500, height: 500, color: '#7d9b6e' }),
+  b3dFog({ start: 200, end: 1200, color: '#cfe0f2' }),
+  b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
-  // A cloud layer to climb into — the whiteout is FOG (no post-process), so it works in
-  // stereo and reads `insideCloud`. b3dFog gives the clouds a sky to fade against; the
-  // clouds RESTORE it on the way out.
-  b3dFog({ start: 200, end: 900, color: '#cfe0f2' }),
-  b3dClouds({ altitude: 110, thickness: 40, size: 60, coverage: 0.5, seed: 4 }),
-  // Drop in the gauge HUD — the player aircraft drives it automatically (speed,
-  // altitude vs `ceiling`, and the pitch/roll horizon).
+  // Fly UP into the cloud layer — the whiteout is fog (stereo-safe) and reads insideCloud.
+  b3dClouds({ altitude: 120, thickness: 40, size: 60, coverage: 0.45, seed: 4 }),
   b3dHud({}),
-  inputFocus(
-    gameController(),
-    aircraft,
-  ),
-))
-
-function updateHud() {
-  const speedEl = hud.querySelector('.hud-speed')
-  const altEl = hud.querySelector('.hud-alt')
-  const modeEl = hud.querySelector('.hud-mode')
-  const warnEl = hud.querySelector('.hud-warn')
-  const throttleEl = hud.querySelector('.hud-throttle')
-  speedEl.textContent = `Speed: ${aircraft.airspeed.toFixed(0)} m/s`
-  altEl.textContent = `Alt: ${aircraft.altitude.toFixed(0)} m`
-  throttleEl.textContent = `Throttle: ${(aircraft.throttleLevel * 100).toFixed(0)}%`
-  modeEl.textContent = aircraft.vtolActive ? 'VTOL' : 'FLIGHT'
-  const warnings = []
-  if (aircraft.stalling) warnings.push('STALL')
-  if (aircraft.pullUp) warnings.push('PULL UP')
-  warnEl.textContent = warnings.join(' | ')
-  warnEl.style.color = warnings.length ? '#ff4444' : 'white'
-  requestAnimationFrame(updateHud)
-}
-
-preview.append(scene, hud, controls)
-requestAnimationFrame(updateHud)
+  // A nav waypoint far ahead: a positional blip (no mesh), always detectable (profile -1).
+  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
+  ...targets,
+  // DEATH NEEDS AN EXIT: fly into the ground (or get caught in a blast) and it burns, releases
+  // input, orbits the wreck, then floats a Respawn panel — which appends a fresh aircraft.
+  b3dDeath({ title: 'DOWN', respawn() { focus.appendChild(plane()) } }),
+  focus,
+)
+preview.append(scene, kills)
 ```
 ```css
 tosi-b3d { width: 100%; height: 100%; }
-.hud {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  display: flex;
-  gap: 16px;
-  padding: 8px 16px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  border-radius: 6px;
-  font: 14px monospace;
-  z-index: 10;
-}
-.controls {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.5);
-  color: #ccc;
-  border-radius: 4px;
-  font: 12px monospace;
-  z-index: 10;
+.kills {
+  position: absolute; top: 10px; right: 10px; z-index: 10;
+  padding: 6px 12px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
 }
 ```
 
@@ -178,98 +137,8 @@ never fill or go white, because they never lock.
 bomb**. On the keyboard: `Space` = guns, `F` = missile, `RShift` = bomb. (Fly with W/S
 pitch, A/D bank, R/Q throttle.)
 
-```js
-import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dLibrary, b3dDestroyable, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
-import { elements } from 'tosijs'
-const { div } = elements
 
-// The aircraft with an attached radar: 250m nominal range, front hemisphere, ~1.2s to
-// lock, up to 2 locks. Its state is surfaced on the HUD (the radar itself has no UI).
-const RADAR_RANGE = 250 // nominal radar range (m); a profile-1 blip detects within it
-const MAX_ALT = 300 // the aircraft's max altitude (its `ceiling`, default 300)
-
-const aircraft = b3dAircraft({
-  library: 'vehicles', meshName: 'scout',
-  player: true, y: 0, vtolSpeed: 6, maxSpeed: 55,
-  hudChase: true, // show the HUD (and its radar) in the chase view, not just cockpit
-}, b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }))
-
-// A target = a destroyable cube that's ALSO a radar-blip (nested, so the blip follows
-// the cube). Faction picks the colour + whether the radar will lock it: HOSTILE locks,
-// NEUTRAL only shows. capacity 6 ≈ one cannon burst or one missile.
-function target({ faction, ...pos }) {
-  const color = faction === 'hostile' ? '#d05050' : '#c7ad55'
-  return b3dDestroyable(
-    { meshName: 'drone', size: 2.4, color, capacity: 6, ...pos,
-      explode: 'on', explodeForce: 8,
-      deathBlast: 'on', blastDamage: 10, blastFullRadius: 2, blastRadius: 6 },
-    b3dRadarBlip({ faction, profile: 1 }),
-  )
-}
-
-// Scatter targets across a wide forward arc, 0.5×–1.5× radar range out — so some sit
-// BEYOND radar range and only appear as you close on them. AERIAL targets span 0.1×–
-// 1.25× the aircraft's max altitude (a few above its ceiling → radar contacts you can
-// only reach with a missile); GROUND targets sit on the deck.
-function scatter(aerial) {
-  const d = RADAR_RANGE * (0.5 + Math.random()) // 0.5×..1.5× range
-  const az = (Math.random() - 0.5) * (170 * Math.PI / 180) // ±85° around the nose (+Z)
-  return target({
-    faction: Math.random() < 0.65 ? 'hostile' : 'neutral',
-    x: Math.sin(az) * d,
-    z: Math.cos(az) * d,
-    y: aerial ? MAX_ALT * (0.1 + Math.random() * 1.15) : 1.0 + Math.random() * 1.2,
-  })
-}
-const air = Array.from({ length: 12 }, () => scatter(true))
-const ground = Array.from({ length: 8 }, () => scatter(false))
-const targets = [...air, ...ground]
-
-const kills = div({ class: 'kills' }, `Targets down: 0 / ${targets.length}`)
-let down = 0
-
-const scene = b3d(
-  {
-    gamepad: true,
-    sceneCreated(el) {
-      el.addEventListener('destroyed', () => {
-        down += 1
-        kills.textContent = `Targets down: ${down} / ${targets.length}`
-      })
-      // Gently drift the AIR targets so they move on radar but stay hittable.
-      let t = 0
-      el.scene.onBeforeRenderObservable.add(() => {
-        t += el.scene.getEngine().getDeltaTime() / 1000
-        air.forEach((d, i) => {
-          if (d.dead) return
-          d.x += Math.sin(t * 0.3 + i) * 0.02
-          d.y += Math.sin(t * 0.6 + i * 2) * 0.01
-        })
-      })
-    },
-  },
-  b3dLight({ y: 1, intensity: 0.5 }),
-  b3dSun({ x: -0.6, y: -1, z: -0.4, intensity: 0.9, shadowTextureSize: 2048, shadowMaxZ: 300 }),
-  b3dSkybox({ timeOfDay: 10 }),
-  b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
-  b3dHud({}),
-  // A NAV WAYPOINT: a positional blip (no mesh), always detectable (profile -1),
-  // shown far ahead on the HUD as a waypoint diamond.
-  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
-  ...targets,
-  inputFocus(gameController(), aircraft),
-)
-preview.append(scene, kills)
-```
-```css
-tosi-b3d { width: 100%; height: 100%; }
-.kills {
-  position: absolute; top: 10px; right: 10px; z-index: 10;
-  padding: 6px 12px; border-radius: 4px;
-  background: rgba(0, 0, 0, 0.55); color: #ffcf6a; font: 14px monospace;
-}
-```
+The **Demo** at the top of this page IS this combat scene — fly it (and crash it).
 
 ## Flight model
 

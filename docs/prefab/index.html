@@ -43,7 +43,7 @@ its destroyable <em>plus</em> its AI);</li>
 <p>Because a prefab returns <strong>elements</strong>, and this library is elements, a prefab is just a
 function. There is no new object model to learn: whatever you&#39;d have written by hand, write
 it in a function and give it a name.</p>
-<pre><code class="language-js">import { definePrefab, b3dParticles, b3dSound, b3dDestroyable } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript">import { definePrefab, b3dParticles, b3dSound, b3dDestroyable } from &#39;tosijs-3d&#39;
 
 definePrefab(&#39;fuel-drum-remains&#39;, ({ position, velocity }) =&gt; [
   b3dSound({ url: &#39;/sfx/explode.mp3&#39;, autoplay: true, ...position }),

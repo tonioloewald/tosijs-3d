@@ -36,7 +36,7 @@ host in one place. <code>assetUrl(&#39;kenney/vehicles/car.glb&#39;)</code> reso
 once via <code>setAssetBase(...)</code>; the base defaults to empty, so paths resolve locally
 (served from <code>static/</code>) for tests and offline dev. Already-absolute URLs
 (<code>http(s)://</code>, <code>data:</code>, <code>blob:</code>) pass through untouched.</p>
-<pre><code class="language-js">import { setAssetBase, assetUrl, b3dLoader } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript">import { setAssetBase, assetUrl, b3dLoader } from &#39;tosijs-3d&#39;
 
 setAssetBase(&#39;https://cdn.tosijs.net&#39;)          // once, e.g. in demo/site.ts
 b3dLoader({ url: assetUrl(&#39;kenney/vehicles/car.glb&#39;) })

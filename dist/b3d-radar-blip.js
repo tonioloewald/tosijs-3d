@@ -18,7 +18,7 @@ HUD) plots. Two ways to place one:
 | `faction` | `'neutral'` | `friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour. |
 | `x`,`y`,`z` | `0` | World position when standalone (ignored while following a target's mesh). |
 
-```js
+```javascript
 import { b3d, b3dRadarBlip, b3dDestroyable } from 'tosijs-3d'
 
 // A hostile target that shows on radar (blip follows the cube):

@@ -12,7 +12,7 @@ mean anything).
 
 Offsets are `{x, y, z}` in the encounter's local frame: **+y is up, +z is forward**.
 
-```js
+```javascript
 import { ring, vee, escorts } from 'tosijs-3d'
 
 // Four escorts in a ring 30 units out, 5 above the leader.

@@ -6,7 +6,7 @@ scene's [radar-blips](?b3d-radar-blip.ts), detects those in **range · profile**
 inside its **cone**, and acquires **locks** on the nearest *opposed* contacts — all via
 the pure, tested [radar](?radar.ts) model. Nest it in the thing it rides:
 
-```js
+```javascript
 b3dAircraft({ player: true, y: 0 },
   b3dRadar({ range: 250, coneDeg: 90, lockTime: 1.5, maxLocks: 2 }))
 ```
