@@ -401,6 +401,11 @@ export class B3dAircraft extends B3dControllable {
   private _radar: B3dRadar | null | undefined = undefined
   private _reticleMesh: BABYLON.Mesh | null = null
   private meshNode: BABYLON.TransformNode | null = null
+  // The chase camera parents to THIS, not to the airframe. It tracks the aircraft's position and
+  // HEADING (yaw) only, held level — so the plane pitches and rolls WITHIN the view instead of
+  // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
+  // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
+  private _chasePivot: BABYLON.TransformNode | null = null
   private meshesToDispose: BABYLON.Node[] = []
   // Ground sampling is ONE raycast per frame, taken after the move and cached: the
   // pre-move regime height reuses last frame's value (one-frame stale, like the
@@ -512,6 +517,23 @@ export class B3dAircraft extends B3dControllable {
     node.computeWorldMatrix(true)
     node.getDirectionToRef(LOCAL_Z, this._fwd)
     this._fwd.normalize()
+
+    // Drive the chase pivot: the aircraft's position, and its HEADING only (level — no pitch, no
+    // roll). This is what steadies the chase view. It re-derives from the airframe every frame, so
+    // a floating-origin rebase (which shifts the airframe) is absorbed automatically — the pivot is
+    // deliberately NOT origin-registered.
+    if (this._chasePivot != null) {
+      this._chasePivot.position.copyFrom(node.absolutePosition)
+      if (this._chasePivot.rotationQuaternion == null) {
+        this._chasePivot.rotationQuaternion = new BABYLON.Quaternion()
+      }
+      BABYLON.Quaternion.RotationYawPitchRollToRef(
+        this.fbw.heading,
+        0,
+        0,
+        this._chasePivot.rotationQuaternion
+      )
+    }
 
     // Velocity eases toward where the nose points (the "go where you're pointing"
     // chase) — this is what makes it forgiving instead of a skiddy simulation.
@@ -1053,16 +1075,25 @@ export class B3dAircraft extends B3dControllable {
     if (this.chaseCamera != null) return
     const camId = this.instanceId // unique per element — two aircraft, two cameras
 
-    // Chase: behind and above, parented to the airframe (the known-good "starts
-    // ok" framing). It inherits the plane's pitch/roll, so it swings somewhat on
-    // hard manoeuvres — that belongs to the flight-model pass. An unparented
-    // yaw-only follow mis-framed the view on load, so it's reverted.
+    // Chase: behind and above, parented to a POSITION+HEADING pivot (not the airframe). The pivot
+    // (updated in _update) holds the aircraft's position and yaw but stays LEVEL, so the plane
+    // banks and pitches within the frame and the camera doesn't inherit — or lever-arm-amplify —
+    // the airframe's attitude jitter. (An earlier UNPARENTED yaw follow mis-framed on load; this
+    // one is a real node in the graph, seeded at the aircraft before the first render, so the
+    // framing is stable.)
+    const pivot = new BABYLON.TransformNode(
+      `aircraft-chase-pivot-${camId}`,
+      this.owner.scene
+    )
+    pivot.rotationQuaternion = new BABYLON.Quaternion()
+    pivot.position.copyFrom(target.absolutePosition)
+    this._chasePivot = pivot
     const chase = new BABYLON.FreeCamera(
       `aircraft-follow-cam-${camId}`,
       target.getAbsolutePosition().clone(),
       this.owner.scene
     )
-    chase.parent = target
+    chase.parent = pivot
     // The hull is now unit-scale (canonical), so the parented offset no longer
     // gets the model's ~2.4x magnification — pull it back to keep the same flat
     // framing (the VR chase is computed in world space and is unaffected).
@@ -1122,6 +1153,10 @@ export class B3dAircraft extends B3dControllable {
       this.chaseCamera.dispose()
     }
     this.chaseCamera = null
+    if (this._chasePivot) {
+      this._chasePivot.dispose()
+      this._chasePivot = null
+    }
     if (this.cockpitCamera) {
       this.cockpitCamera.parent = null
       this.cockpitCamera.dispose()
