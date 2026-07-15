@@ -90,8 +90,10 @@ preview.append(
     // not dust. Raise the water level (scene panel) and they fade as you submerge.
     b3dAmbient({ preset: &#39;leaves&#39;, where: &#39;above&#39;, radius: 10, windX: 1.5 }),
     // BELOW it: plankton hanging in the light (motes) and bubbles rising. Both arrive AS the
-    // water does — emission ramps with depth rather than switching on at the plane.
-    b3dAmbient({ preset: &#39;motes&#39;, where: &#39;underwater&#39;, radius: 8 }),
+    // water does — emission ramps with depth rather than switching on at the plane. The motes
+    // are tinted dark green so they read as plankton and DON&#39;T blur together with the bright
+    // silvery bubbles.
+    b3dAmbient({ preset: &#39;motes&#39;, where: &#39;underwater&#39;, radius: 8, color: &#39;#3c5238&#39; }),
     b3dAmbient({ preset: &#39;bubbles&#39;, where: &#39;underwater&#39;, radius: 8 }),
     b3dReflections(),
     b3dCollisions({ debug: demo.showColliders })

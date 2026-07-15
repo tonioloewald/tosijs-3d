@@ -101,7 +101,9 @@ export class LeafField {
         mat.diffuseTexture.hasAlpha = true;
         mat.useAlphaFromDiffuseTexture = true;
         mat.backFaceCulling = false; // TWO-SIDED — the point of the whole exercise
-        mat.emissiveColor = new BABYLON.Color3(0.12, 0.16, 0.08); // never fully black in shade
+        // A generous emissive floor so leaves READ against sky or shade — they were nearly black
+        // and easy to miss. (Real art direction later; this is a placeholder shape anyway.)
+        mat.emissiveColor = new BABYLON.Color3(0.35, 0.42, 0.2);
         mat.specularColor = BABYLON.Color3.Black();
         this._mesh.material = mat;
         // We vary position/rotation/scale, never colour or uv — skip those to save work.
@@ -150,8 +152,10 @@ export class LeafField {
     _freshProps(size) {
         return {
             axis: new BABYLON.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1).normalize(),
-            tumble: 1 + Math.random() * 3, // rad/s
-            fall: 0.4 + Math.random() * 0.7, // m/s
+            // Slower tumble than instinct says: a fast spin is edge-on (invisible) half the time and
+            // reads as a flicker. A lazy tumble lingers broadside, which is where you actually see it.
+            tumble: 0.4 + Math.random() * 1.1, // rad/s
+            fall: 0.3 + Math.random() * 0.5, // m/s — drifting down, not dropping
             swayAmp: 0.3 + Math.random() * 0.6,
             swayFreq: 0.6 + Math.random() * 1.2,
             phase: Math.random() * TAU,

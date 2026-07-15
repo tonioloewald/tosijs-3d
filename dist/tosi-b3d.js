@@ -64,8 +64,10 @@ preview.append(
     // not dust. Raise the water level (scene panel) and they fade as you submerge.
     b3dAmbient({ preset: 'leaves', where: 'above', radius: 10, windX: 1.5 }),
     // BELOW it: plankton hanging in the light (motes) and bubbles rising. Both arrive AS the
-    // water does — emission ramps with depth rather than switching on at the plane.
-    b3dAmbient({ preset: 'motes', where: 'underwater', radius: 8 }),
+    // water does — emission ramps with depth rather than switching on at the plane. The motes
+    // are tinted dark green so they read as plankton and DON'T blur together with the bright
+    // silvery bubbles.
+    b3dAmbient({ preset: 'motes', where: 'underwater', radius: 8, color: '#3c5238' }),
     b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 8 }),
     b3dReflections(),
     b3dCollisions({ debug: demo.showColliders })
@@ -780,7 +782,10 @@ export class B3d extends Component {
                     `pool=${this._ambientPoolScale.toFixed(2)} warmup=${Math.max(0, Math.round(this._ambientWarmupMs / 1000))}s bad=${this._ambientBadSamples}`,
                     ...this._ambient.map((a) => {
                         const r = a.budgetRequest();
-                        return `${r.id} want=${r.desired} got=${a.granted}`;
+                        const s = a;
+                        // got but live=0 ⇒ built, not rendering. live>0 but you see nothing ⇒ a LOOK
+                        // problem (too small/sparse/faint), not a plumbing one.
+                        return `${s.preset} got=${s.granted}/${r.desired} live=${s.active} i=${s.intensity.toFixed(2)}`;
                     }),
                 ],
             });

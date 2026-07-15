@@ -142,9 +142,14 @@ const PRESETS = {
         // failure was never the size — it was being born on the lens, and `near` fixes that
         // structurally, which is what buys the size back.
         size: [0.02, 0.07],
-        life: [10, 22],
+        // Shorter than "hanging dust" wants, on purpose: these ramp with depth, and when you
+        // SURFACE the emission stops but the living particles remain — a 22s life meant they hung
+        // for 20s after you left the water. A ~6-11s life drains in a few seconds, so they fade AS
+        // you rise rather than lingering. (When ambient wind lands, a longer-lived air variant can
+        // split off; the underwater plankton wants the quick drain.)
+        life: [6, 11],
         rate: 55,
-        desired: 1210,
+        desired: 700,
         min: 80,
         // They HANG. No gravity worth the name and almost no launch velocity — all the motion is
         // wander, which is why they read as suspended IN something rather than falling through it.
@@ -239,11 +244,11 @@ const PRESETS = {
     // quad is far bigger than a dot, so it rightly costs more of the pool), and the near radius.
     // The sprite-only fields (colours, dirs, gravity, wander) are inert for this preset.
     leaves: {
-        size: [0.14, 0.3], // quad size in metres
+        size: [0.22, 0.45], // quad size in metres — big enough to read as a leaf at a glance
         life: [8, 16],
         rate: 0,
-        desired: 220,
-        min: 40,
+        desired: 320,
+        min: 50,
         gravity: V(0, 0, 0),
         dir1: V(0, 0, 0),
         dir2: V(0, 0, 0),
@@ -301,6 +306,12 @@ export class B3dAmbient extends B3dChild {
     /** Capacity the scene actually granted. **0 = switched off** (couldn't be honest). */
     get granted() {
         return this._granted;
+    }
+    /** Particles alive right now — diagnostic. `granted` but `active` 0 = built, not rendering. */
+    get active() {
+        if (this._leaves != null)
+            return this._leaves.liveCount;
+        return this._ps?.getActiveCount() ?? 0;
     }
     _ps = null;
     _leaves = null;

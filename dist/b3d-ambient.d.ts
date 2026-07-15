@@ -36,6 +36,8 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     get intensity(): number;
     /** Capacity the scene actually granted. **0 = switched off** (couldn't be honest). */
     get granted(): number;
+    /** Particles alive right now — diagnostic. `granted` but `active` 0 = built, not rendering. */
+    get active(): number;
     private _ps;
     private _leaves;
     private _emitter;
