@@ -253,6 +253,12 @@ const AFTERBURNER_TAPER = 0.6;
 // Pull-back for the parented FLAT chase, since the canonical hull is unit-scale
 // (the offset used to inherit the model's ~2.4x scale). Flat camera only.
 const FLAT_CHASE_SCALE = 1.8;
+// Chase camera bank (Manta-style): the pivot follows a FRACTION of the plane's bank, low-passed.
+// The low-pass is what makes this safe — it lets the smooth bank through and filters out the
+// high-frequency attitude jitter that a rigid parent would lever-arm into a shake. Follow ~half
+// the bank; the damp rate trades responsiveness against how much jitter is filtered.
+const CHASE_BANK_FOLLOW = 0.5;
+const CHASE_BANK_DAMP = 5;
 // Landing: distance above clearance still counted as "on the ground", and the
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15;
@@ -360,6 +366,7 @@ export class B3dAircraft extends B3dControllable {
     // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
     // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
     _chasePivot = null;
+    _chaseBank = 0; // low-passed bank the chase pivot follows (Manta-style)
     meshesToDispose = [];
     // Ground sampling is ONE raycast per frame, taken after the move and cached: the
     // pre-move regime height reuses last frame's value (one-frame stale, like the
@@ -457,7 +464,13 @@ export class B3dAircraft extends B3dControllable {
             if (this._chasePivot.rotationQuaternion == null) {
                 this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
             }
-            BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, 0, this._chasePivot.rotationQuaternion);
+            // Manta-style: bank the chase with the plane, but LOW-PASSED — the damping lets the smooth
+            // bank through and strips the high-frequency jitter that a rigid parent would amplify. Pitch
+            // stays 0 (level); the plane pitches within the frame.
+            const kBank = 1 - Math.exp(-dt * CHASE_BANK_DAMP);
+            this._chaseBank += (this.fbw.bank - this._chaseBank) * kBank;
+            BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, -this._chaseBank * CHASE_BANK_FOLLOW, // same sign convention as the airframe roll
+            this._chasePivot.rotationQuaternion);
         }
         // Velocity eases toward where the nose points (the "go where you're pointing"
         // chase) — this is what makes it forgiving instead of a skiddy simulation.

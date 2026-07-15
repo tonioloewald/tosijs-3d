@@ -43,8 +43,10 @@ export declare class B3dWater extends AbstractMesh {
     private updateWater;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
-    /** Recenter the plane on the camera and scroll the ripple back into world space so the surface
-     * looks fixed while the mesh rides along. `follow` only. */
+    /** Reposition the plane under the camera — but SNAPPED to a coarse grid, so it moves
+     * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.
+     * The waves are world-anchored (procedural + the bump UV offset), so a snap is seamless: the
+     * same sea, a differently-centred mesh. `follow` only. */
     private _applyFollow;
     render(): void;
 }

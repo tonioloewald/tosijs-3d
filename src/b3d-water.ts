@@ -162,10 +162,11 @@ export class B3dWater extends AbstractMesh {
       // attrs, which would yank a followed plane back to the origin for a frame.
       this._followTick = () => this._applyFollow()
       scene.registerBeforeRender(this._followTick)
-      // A moving sea doesn't need a per-frame mirror — refresh the reflection every 3rd frame.
+      // The plane snaps rather than sliding, so it's static most frames — a modest refresh keeps
+      // the reflection cheap without the moving-mesh mismatch that made it flicker at rate 3.
       const rtt = this.waterMaterial
         .reflectionTexture as BABYLON.RenderTargetTexture
-      if (rtt) rtt.refreshRate = 3
+      if (rtt) rtt.refreshRate = 2
     }
 
     // UNDERWATER — a fog LAYER, not a switch.
@@ -219,19 +220,26 @@ export class B3dWater extends AbstractMesh {
     super.sceneDispose()
   }
 
-  /** Recenter the plane on the camera and scroll the ripple back into world space so the surface
-   * looks fixed while the mesh rides along. `follow` only. */
+  /** Reposition the plane under the camera — but SNAPPED to a coarse grid, so it moves
+   * occasionally (once per cell crossed), not every frame. Per-frame movement was the flicker.
+   * The waves are world-anchored (procedural + the bump UV offset), so a snap is seamless: the
+   * same sea, a differently-centred mesh. `follow` only. */
   private _applyFollow(): void {
     const cam = this.owner?.scene.activeCamera
     if (!cam || !this.mesh) return
+    const size = Math.max(1, (this as any).waterSize)
+    const step = size / 16 // snap cell — small vs the plane, so its edge is never near the view
     const p = cam.globalPosition
-    this.mesh.position.x = p.x
-    this.mesh.position.z = p.z
+    const sx = Math.round(p.x / step) * step
+    const sz = Math.round(p.z / step) * step
+    if (this.mesh.position.x === sx && this.mesh.position.z === sz) return
+    this.mesh.position.x = sx
+    this.mesh.position.z = sz
+    // Re-anchor the ripple to WORLD space at the new centre, so the surface detail stays put.
     const bump = this.waterMaterial?.bumpTexture as BABYLON.Texture | undefined
     if (bump) {
-      const size = Math.max(1, (this as any).waterSize)
-      bump.uOffset = (p.x / size) * (bump.uScale ?? 1)
-      bump.vOffset = (p.z / size) * (bump.vScale ?? 1)
+      bump.uOffset = (sx / size) * (bump.uScale ?? 1)
+      bump.vOffset = (sz / size) * (bump.vScale ?? 1)
     }
   }
 

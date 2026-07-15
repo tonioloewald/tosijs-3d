@@ -103,10 +103,10 @@ const scene = b3d(
   // rebases the world under you. Fly down into it and the world whites out.
   b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
-  // fjords and islands. `follow` rides the camera in x/z so the plane never runs out from under
-  // you, while the ripples stay anchored in world space — an endless, stationary ocean. Dive
-  // below it and the underwater fog closes in.
-  b3dWater({ y: 0, waterSize: 1200, follow: true, twoSided: true }),
+  // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
+  // never runs out from under you and never flickers), while the ripples stay anchored in world
+  // space — an endless, stationary ocean. Dive below it and the underwater fog closes in.
+  b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
   inputFocus(

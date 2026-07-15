@@ -218,10 +218,15 @@ export class B3dClouds extends B3dChild {
                     b: this._fogColor.b,
                 },
                 density: this.fogDensity,
-                // Pull the linear-fog distances in too, so the whiteout works whichever mode the
-                // scene's b3d-fog chose.
+                // The scene's fog is usually LINEAR (b3d-fog defaults to it), so DENSITY above is
+                // ignored and it's `end` that decides opacity — and a big end is never opaque
+                // close-up (that was the "fog never reaches full white" bug). Pull `end` right in
+                // to a few metres: at full immersion the linear ramp is total within arm's reach,
+                // so you cannot see your own aircraft. At partial immersion the composite lerps end
+                // back out toward the base fog, which is the approach haze. Density still covers the
+                // EXP2 case for scenes with no b3d-fog.
                 start: 0,
-                end: this.size * 0.6,
+                end: Math.max(4, this.size * 0.06),
             });
     }
     sceneDispose() {

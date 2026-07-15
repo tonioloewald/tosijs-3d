@@ -84,6 +84,7 @@ export declare class B3dAircraft extends B3dControllable {
     private _reticleMesh;
     private meshNode;
     private _chasePivot;
+    private _chaseBank;
     private meshesToDispose;
     private _lastGroundDist;
     private _ray;
