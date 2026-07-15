@@ -9,6 +9,7 @@ export declare class B3dWater extends AbstractMesh {
         subdivisions: number;
         textureSize: number;
         twoSided: boolean;
+        follow: boolean;
         normalMap: string;
         windForce: number;
         waveHeight: number;
@@ -33,6 +34,7 @@ export declare class B3dWater extends AbstractMesh {
     private _callback?;
     private _underwaterUpdate?;
     private _removeFogLayer?;
+    private _followTick?;
     private _savedFogMode;
     private _savedFogColor;
     private _savedFogDensity;
@@ -41,6 +43,9 @@ export declare class B3dWater extends AbstractMesh {
     private updateWater;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;
+    /** Recenter the plane on the camera and scroll the ripple back into world space so the surface
+     * looks fixed while the mesh rides along. `follow` only. */
+    private _applyFollow;
     render(): void;
 }
 export declare const b3dWater: import("tosijs").ElementCreator<B3dWater>;

@@ -76,11 +76,9 @@ const terrain = b3dTerrain({
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
-  // Drop the whole heightfield by half its (default) gross height, so it straddles 0 — peaks up,
-  // valleys down — which is what lets the water plane at 0 flood the valleys into a sea. Without
-  // it the terrain sits ON 0 and the water is just a floor. (Fixed to the default v-size; slide
-  // v-size far and you&#39;d re-centre this too.)
-  baseHeight: -100,
+  // Auto-centre the heightfield on 0 (peaks up, valleys down) so the water plane at 0 floods the
+  // valleys into a sea — and it stays centred as you slide v-size, unlike a fixed baseHeight.
+  center: true,
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
@@ -132,12 +130,11 @@ const scene = b3d(
   // A cloud layer over the peaks — origin-shift aware, so it doesn&#39;t lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.
   b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
-  // A sea at height 0. The terrain now straddles 0 (baseHeight above), so the valleys flood into
-  // fjords and islands. The plane is huge AND stays put at the world origin — and because the
-  // floating origin keeps the CAMERA near the origin (the world rebases under you), a plane
-  // centred there is always beneath you: it reads as a stationary, endless ocean with no follow
-  // logic. Dive below it and the underwater fog closes in.
-  b3dWater({ y: 0, waterSize: 6000, twoSided: true }),
+  // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
+  // fjords and islands. `follow` rides the camera in x/z so the plane never runs out from under
+  // you, while the ripples stay anchored in world space — an endless, stationary ocean. Dive
+  // below it and the underwater fog closes in.
+  b3dWater({ y: 0, waterSize: 1200, follow: true, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
   inputFocus(

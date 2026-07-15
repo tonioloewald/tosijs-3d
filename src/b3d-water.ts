@@ -10,6 +10,7 @@ Water plane with reflections, waves, and underwater fog effect.
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
+| `follow` | `false` | Ride the camera in x/z (endless sea): the plane surrounds you while the ripples stay anchored in world space; reflection refreshes every 3rd frame |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
 | `bumpHeight` | `0.1` | Normal map bump intensity |
@@ -56,6 +57,11 @@ export class B3dWater extends AbstractMesh {
     subdivisions: 32,
     textureSize: 1024,
     twoSided: false,
+    // Follow the camera in x/z so a finite plane reads as an ENDLESS sea. The mesh rides with
+    // you but the ripple pattern is offset back into WORLD space (so the surface looks fixed, not
+    // dragged along), and the reflection map refreshes every few frames instead of every one
+    // (a moving sea doesn't need a perfect mirror). Off by default (a small pond doesn't need it).
+    follow: false,
     // Root-absolute, NOT './waterbump.png': doc pages are served at /{slug}/, so a
     // relative path resolves to /{slug}/waterbump.png (404). Root-absolute loads
     // the same everywhere (matches the "root-absolute asset paths" convention).
@@ -74,6 +80,7 @@ export class B3dWater extends AbstractMesh {
   private _callback?: SceneAdditionHandler
   private _underwaterUpdate?: () => void
   private _removeFogLayer?: () => void
+  private _followTick?: () => void
   private _savedFogMode = BABYLON.Scene.FOGMODE_NONE
   private _savedFogColor = new BABYLON.Color3()
   private _savedFogDensity = 0
@@ -146,6 +153,21 @@ export class B3dWater extends AbstractMesh {
     this._callback = this.waterCallback.bind(this)
     owner.onSceneAddition(this._callback)
 
+    // FOLLOW: ride the camera in x/z so the finite plane always surrounds you (an endless sea),
+    // while the bump pattern is scrolled back into WORLD space so the ripples stay put instead
+    // of sliding along with the mesh. The plane's y stays where the attr puts it (sea level).
+    if (attrs.follow) {
+      // Run it on beforeRender (authoritative, right before the scene draws) AND re-run it from
+      // render() below — because AbstractMesh.render() rewrites the mesh position from the x/z
+      // attrs, which would yank a followed plane back to the origin for a frame.
+      this._followTick = () => this._applyFollow()
+      scene.registerBeforeRender(this._followTick)
+      // A moving sea doesn't need a per-frame mirror — refresh the reflection every 3rd frame.
+      const rtt = this.waterMaterial
+        .reflectionTexture as BABYLON.RenderTargetTexture
+      if (rtt) rtt.refreshRate = 3
+    }
+
     // UNDERWATER — a fog LAYER, not a switch.
     //
     // This used to snap: `if (underwater && !wasUnderwater) { fogMode = EXP2; … }`. Two
@@ -185,6 +207,10 @@ export class B3dWater extends AbstractMesh {
     if (this.owner && this._callback) {
       this.owner.offSceneAddition(this._callback)
     }
+    if (this._followTick) {
+      this.owner?.scene.unregisterBeforeRender(this._followTick)
+      this._followTick = undefined
+    }
     if (this._removeFogLayer) {
       this._removeFogLayer() // the scene composites fog; nothing to restore, nothing to snap
       this._removeFogLayer = undefined
@@ -193,9 +219,27 @@ export class B3dWater extends AbstractMesh {
     super.sceneDispose()
   }
 
+  /** Recenter the plane on the camera and scroll the ripple back into world space so the surface
+   * looks fixed while the mesh rides along. `follow` only. */
+  private _applyFollow(): void {
+    const cam = this.owner?.scene.activeCamera
+    if (!cam || !this.mesh) return
+    const p = cam.globalPosition
+    this.mesh.position.x = p.x
+    this.mesh.position.z = p.z
+    const bump = this.waterMaterial?.bumpTexture as BABYLON.Texture | undefined
+    if (bump) {
+      const size = Math.max(1, (this as any).waterSize)
+      bump.uOffset = (p.x / size) * (bump.uScale ?? 1)
+      bump.vOffset = (p.z / size) * (bump.vScale ?? 1)
+    }
+  }
+
   render() {
     super.render()
     this.updateWater()
+    // super.render() just wrote the plane back to its x/z attrs — put it back under the camera.
+    if (this._followTick) this._applyFollow()
   }
 }
 

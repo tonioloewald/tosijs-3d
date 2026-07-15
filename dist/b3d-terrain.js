@@ -48,11 +48,9 @@ const terrain = b3dTerrain({
   horizScale: demo.horizScale,
   grossAmplitude: demo.grossAmplitude,
   detailAmplitude: demo.detailAmplitude,
-  // Drop the whole heightfield by half its (default) gross height, so it straddles 0 — peaks up,
-  // valleys down — which is what lets the water plane at 0 flood the valleys into a sea. Without
-  // it the terrain sits ON 0 and the water is just a floor. (Fixed to the default v-size; slide
-  // v-size far and you'd re-centre this too.)
-  baseHeight: -100,
+  // Auto-centre the heightfield on 0 (peaks up, valleys down) so the water plane at 0 floods the
+  // valleys into a sea — and it stays centred as you slide v-size, unlike a fixed baseHeight.
+  center: true,
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
@@ -104,12 +102,11 @@ const scene = b3d(
   // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.
   b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, seed: 9 }),
-  // A sea at height 0. The terrain now straddles 0 (baseHeight above), so the valleys flood into
-  // fjords and islands. The plane is huge AND stays put at the world origin — and because the
-  // floating origin keeps the CAMERA near the origin (the world rebases under you), a plane
-  // centred there is always beneath you: it reads as a stationary, endless ocean with no follow
-  // logic. Dive below it and the underwater fog closes in.
-  b3dWater({ y: 0, waterSize: 6000, twoSided: true }),
+  // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
+  // fjords and islands. `follow` rides the camera in x/z so the plane never runs out from under
+  // you, while the ripples stay anchored in world space — an endless, stationary ocean. Dive
+  // below it and the underwater fog closes in.
+  b3dWater({ y: 0, waterSize: 1200, follow: true, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
   inputFocus(
@@ -336,10 +333,12 @@ export class B3dTerrain extends B3dChild {
         horizScale: 1,
         grossAmplitude: 8,
         detailAmplitude: 2,
-        // Flat vertical offset of the whole heightfield (metres). The noise is 0..amplitude, so
-        // `-grossAmplitude/2` centres the terrain around 0 — the thing that lets a water plane at 0
-        // flood the valleys into a sea. Default 0 = unchanged (heightfield sits on 0).
+        // Flat vertical offset of the whole heightfield (metres). Default 0 = heightfield sits on 0.
         baseHeight: 0,
+        // Auto-centre the heightfield on 0 (offset by -grossAmplitude/2), so it straddles 0 whatever
+        // the amplitude — the robust way to keep a water plane at 0 reading as a sea while you tune
+        // v-size. Composes with `baseHeight`.
+        center: false,
         // Debug: tint each tile a distinct colour to reveal the tile/LOD layout.
         debugColor: false,
         // 0 = auto: ms of tile building allowed per frame, from the device tier. THE cap that
@@ -407,10 +406,11 @@ export class B3dTerrain extends B3dChild {
         const grossAmp = attrs.grossAmplitude;
         const detailAmp = attrs.detailAmplitude;
         // A flat vertical shift of the whole heightfield. The noise maps to 0..(grossAmp+detailAmp),
-        // so `baseHeight: -grossAmplitude/2` CENTRES the terrain around 0 — which is what lets a flat
-        // water plane at 0 read as a sea flooding the valleys (see the water demo). Hoisted with the
+        // so a negative offset lets a flat water plane at 0 read as a sea flooding the valleys (see
+        // the water demo). `center` auto-offsets by -grossAmp/2 so the field straddles 0 REGARDLESS of
+        // the amplitude — the robust way to keep a sea at 0 while you tune v-size. Hoisted with the
         // rest so it costs nothing per sample.
-        const baseHeight = attrs.baseHeight;
+        const baseHeight = attrs.baseHeight + (attrs.center ? -grossAmp / 2 : 0);
         return (wx, wz) => {
             const u = worldU + (wx + offX) / circumU;
             const v = worldV + (wz + offZ) / circumV;

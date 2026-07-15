@@ -28,6 +28,7 @@ export declare class B3dTerrain extends B3dChild {
         grossAmplitude: number;
         detailAmplitude: number;
         baseHeight: number;
+        center: boolean;
         debugColor: boolean;
         tileBuildMs: number;
         profile: boolean;
