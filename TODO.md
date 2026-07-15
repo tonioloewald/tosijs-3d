@@ -169,12 +169,14 @@ because the thing it marked stopped existing. VERIFY in the scene rather than as
 [ ] **The assembly scene** — terrain + water + aircraft + death/respawn + spawner + HUD. This IS
 the game, and the integration test. Sea level at the **70th percentile of a sampled heightfield**
 (deterministic) rather than a hand-tuned constant — otherwise every reseed re-breaks the coastline.
-[ ] **Clouds** — cheap blob geometry at a layer altitude, and the whiteout driven by FOG (colour →
-white, density → up as you penetrate), NOT a post-process: post-processes are expensive in XR and
-awkward in stereo; fog is per-pixel and ~free. ⚠️ Clouds MUST be `isPickable = false` and excluded
-from projectile rays — a cloud between the controller and a panel, or between a missile and its
-target, would silently break picking and swept collision (we lost an hour to exactly that class of
-bug on the XR panel).
+[x] **Clouds** — SHIPPED (`b3d-clouds`). Cheap soft blobs at a layer altitude; the whiteout is
+driven by FOG (colour → white, density → up as you penetrate) via the always-on atmosphere's
+`band()`, NOT a post-process (those are expensive in XR and awkward in stereo; fog is per-pixel and
+~free). `isPickable = false` set on every blob (the picking/swept-collision trap is handled).
+`insideCloud` (0…1) exposed so a cloud is a TACTIC — break a radar lock, hide a mothership — not
+just a texture. Own doc-page demo (fly in, world dissolves). REMAINING (future, line ~537): multiple
+cloud LAYERS, and god-rays through clouds (= the sun-shafts-as-additive-panels item, not a
+post-process). Still wants a VR eyeball (whiteout in stereo, blobs read as volume not cards).
 [x] **Ambient particles** — `b3d-ambient` (motes/bubbles/rain/snow/dust). Emitter box rides the
 CAMERA, particles live in WORLD space (rain falls PAST you). `where: underwater` ramps with depth
 via the fog's own `band()` — it arrives with the water, no thunk. Capacity is not a number you set:
