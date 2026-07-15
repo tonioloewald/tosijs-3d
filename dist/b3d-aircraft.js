@@ -253,12 +253,10 @@ const AFTERBURNER_TAPER = 0.6;
 // Pull-back for the parented FLAT chase, since the canonical hull is unit-scale
 // (the offset used to inherit the model's ~2.4x scale). Flat camera only.
 const FLAT_CHASE_SCALE = 1.8;
-// Chase camera bank (Manta-style): the pivot follows a FRACTION of the plane's bank, low-passed.
-// The low-pass is what makes this safe — it lets the smooth bank through and filters out the
-// high-frequency attitude jitter that a rigid parent would lever-arm into a shake. Follow ~half
-// the bank; the damp rate trades responsiveness against how much jitter is filtered.
+// Chase camera bank (Manta-style): the view rolls with a FRACTION of the plane's bank. Taken
+// from `fbw.bank` directly (the cockpit rides the full bank smoothly, so the source is clean) —
+// no low-pass, which with a jittery per-frame dt would only add shake.
 const CHASE_BANK_FOLLOW = 0.5;
-const CHASE_BANK_DAMP = 5;
 // Landing: distance above clearance still counted as "on the ground", and the
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15;
@@ -366,7 +364,6 @@ export class B3dAircraft extends B3dControllable {
     // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
     // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
     _chasePivot = null;
-    _chaseBank = 0; // low-passed bank the chase follows (Manta-style)
     _chaseLookPitch = 0; // fixed look-down angle of the chase camera
     meshesToDispose = [];
     // Ground sampling is ONE raycast per frame, taken after the move and cached: the
@@ -469,15 +466,14 @@ export class B3dAircraft extends B3dControllable {
                 this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
             }
             BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, 0, this._chasePivot.rotationQuaternion);
-            // Manta bank goes in the camera's LOCAL rotation (pitch = fixed look-down, roll = damped
-            // bank), NOT the pivot roll or the up vector — a parented FreeCamera ignores both for the
-            // view. The roll is IN the quaternion, so the horizon banks. Low-passed so the smooth lean
-            // comes through and the attitude jitter doesn't; heading is the parent's, so this is
-            // yaw 0.
+            // Manta bank goes in the camera's LOCAL rotation (pitch = fixed look-down, roll = a
+            // fraction of the plane's bank), NOT the pivot roll or the up vector — a parented
+            // FreeCamera ignores both for the view. The roll is IN the quaternion, so the horizon
+            // banks. Use `fbw.bank` DIRECTLY, not a low-passed copy: the cockpit rides the full bank
+            // and is smooth, so the source is already clean — and a low-pass with a jittery per-frame
+            // dt actually ADDS shake around a smooth target. Heading is the parent's, so yaw is 0.
             if (this.chaseCamera?.rotationQuaternion != null) {
-                const kBank = 1 - Math.exp(-dt * CHASE_BANK_DAMP);
-                this._chaseBank += (this.fbw.bank - this._chaseBank) * kBank;
-                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, -this._chaseBank * CHASE_BANK_FOLLOW, // airframe roll sign convention
+                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
                 this.chaseCamera.rotationQuaternion);
             }
         }
@@ -822,7 +818,16 @@ export class B3dAircraft extends B3dControllable {
             this._ownMeshes = own;
         }
         const own = this._ownMeshes;
-        const hit = this.owner.scene.pickWithRay(this._ray, (m) => !own.has(m) && !m.name.includes('__root__'));
+        // ⚠️ Passing a predicate to pickWithRay makes Babylon SKIP its built-in isPickable/isEnabled
+        // filter (ray.core.js: predicate is the SOLE test) — so the predicate MUST re-check them, or
+        // the ground ray hits non-pickable things. Clouds are `isPickable = false`, so without this
+        // the aircraft picks a cloud blob as "ground" (PULL UP / crash in mid-air over a cloud layer)
+        // — exactly the picking trap b3d-clouds warns about. `isEnabled` also skips coverage-hidden
+        // blobs.
+        const hit = this.owner.scene.pickWithRay(this._ray, (m) => m.isPickable &&
+            m.isEnabled() &&
+            !own.has(m) &&
+            !m.name.includes('__root__'));
         return hit?.hit ? hit.distance : Infinity;
     }
     updatePullUp(node, groundDist) {
