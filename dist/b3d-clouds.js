@@ -3,9 +3,9 @@
 
 A cloud layer you can **fly into** — and lose the world inside.
 
-Not a skybox texture and not a shader: a few dozen soft blobs at an altitude, plus a **fog
-whiteout** that ramps up as you penetrate one. Fly into a cloud and the world dissolves;
-come out the other side and it snaps back.
+Not a skybox texture and not a shader: a few dozen **opaque** blobs at an altitude, plus a
+**fog whiteout** that goes total *before* you reach one. Fly into a cloud and the world is
+already gone; you're in white until you come out the far side.
 
 ## It's a TACTIC, not a texture
 
@@ -95,9 +95,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `spread` | `1200` | Radius of the disc of cloud around you |
 | `size` | `70` | Blob radius — also the distance at which whiteout is total. Set at build |
 | `color` | `'#ffffff'` | Cloud (and whiteout) colour |
-| `opacity` | `0.5` | Base blob alpha (`coverage` scales it) |
-| `fogDensity` | `0.05` | Fog density at full immersion (the whiteout) |
-| `approach` | `0.8` | How far OUTSIDE a blob the whiteout starts (× `size`). You go white BEFORE you touch the geometry — which is what stops a crude blob from looking like a crude blob |
+| `opacity` | `1` | Blob alpha. Default OPAQUE — translucent clouds read badly. Set < 1 only for deliberate wisps |
+| `fogDensity` | `0.6` | Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres |
+| `approach` | `0.5` | Where the whiteout BEGINS, × `size` outside the blob. It's TOTAL well before the surface (you never see the geometry edge) and stays total until you leave |
 | `selfIllum` | `0.35` | Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides) |
 | `coverage` | `0.5` | Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum |
 | `castShadows` | `false` | Opt-in: register the blobs so they cast ground shadows |
@@ -116,11 +116,18 @@ export class B3dClouds extends B3dChild {
         spread: 1200,
         size: 70,
         color: '#ffffff',
-        opacity: 0.5,
-        fogDensity: 0.05,
-        // How far OUTSIDE a blob the whiteout begins, as a fraction of `size`. The point is to be
-        // fully white before you'd ever touch the geometry — see _update().
-        approach: 0.8,
+        // OPAQUE by default. Translucent blobs read badly — you see through them and overlapping
+        // alpha muddies. A cloud is solid; the fog is what softens the approach, not see-through
+        // geometry. (You *can* set < 1 for wisps, but the default is a solid cloud.)
+        opacity: 1,
+        // EXP2 fog (the scene's only mode), so this is the whiteout density and it has to be HIGH
+        // to be opaque: at 0.05 you saw straight through it. ~0.6 whites out the world within a few
+        // metres, which is what "inside a cloud" should look like.
+        fogDensity: 0.6,
+        // How far OUTSIDE a blob the whiteout BEGINS, as a fraction of `size`. It reaches FULL well
+        // before the surface (see _update) so you never see the crude geometry edge — the whole
+        // trick of making cheap blobs look like weather.
+        approach: 0.5,
         // 0…1 self-illumination. Clouds are LIT now (darker underneath, sun from above), but a thin
         // cloud glows a little on its own — this is that floor. 1 ≈ the old fully-emissive look;
         // a thunderhead wants it near 0 so its underbelly goes properly dark.
@@ -219,11 +226,10 @@ export class B3dClouds extends B3dChild {
         const active = Math.max(1, Math.round(this.count * (0.25 + 0.75 * cov)));
         if (cov !== this._lastCoverage && this._mat != null) {
             this._lastCoverage = cov;
-            // Thicker sky ⇒ more opaque, darker (storm grey), and less self-lit (dark underbellies).
-            const alpha = Math.min(1, this.opacity * (0.55 + 0.9 * cov));
+            // Thicker sky ⇒ darker (storm grey) and less self-lit (dark underbellies). Opacity is NOT
+            // touched — the blobs are solid; coverage changes how MANY and how DARK, not how see-through.
             const dark = 1 - 0.45 * cov;
             const illum = Math.min(1, Math.max(0, this.selfIllum * (1.4 - cov)));
-            this._mat.alpha = alpha;
             this._mat.diffuseColor = this._baseColor.scale(dark);
             this._mat.emissiveColor = this._baseColor.scale(dark * illum);
         }
@@ -261,15 +267,16 @@ export class B3dClouds extends B3dChild {
             if (d < nearest)
                 nearest = d;
         }
-        // WHITEOUT ON APPROACH — not on entry.
+        // WHITEOUT ON APPROACH — and TOTAL BEFORE ENTRY.
         //
-        // `nearest` is the distance to the blob's SURFACE. If the whiteout only began once you
-        // were inside (nearest < 0), you'd watch yourself fly THROUGH a polygon — and these blobs
-        // are crude on purpose. Instead the fog closes in over `approach` metres *outside* the
-        // cloud and is total by the time you reach the skin, so you never see the geometry you're
-        // entering. That's what makes cheap clouds look like weather.
-        const approach = Math.max(1, this.size * this.approach);
-        this._immersion = band(nearest, approach, 0);
+        // `nearest` is the distance to the blob's SURFACE. The fog begins closing in `approach`
+        // metres outside the cloud and reaches FULL at `fullDist` — still OUTSIDE the geometry — so
+        // you go completely white before you'd ever see the crude blob edge, and (because `band`
+        // clamps to 1 for anything nearer, including negative = inside) you STAY white the whole
+        // time you're in the cloud, until you come out the far side.
+        const startDist = Math.max(1, this.size * this.approach);
+        const fullDist = startDist * 0.2; // total whiteout this far out — before the surface
+        this._immersion = band(nearest, startDist, fullDist);
     }
 }
 export const b3dClouds = B3dClouds.elementCreator({

@@ -31,9 +31,9 @@
   <article class="doc-content">
 <h1>b3d-clouds</h1>
 <p>A cloud layer you can <strong>fly into</strong> — and lose the world inside.</p>
-<p>Not a skybox texture and not a shader: a few dozen soft blobs at an altitude, plus a <strong>fog
-whiteout</strong> that ramps up as you penetrate one. Fly into a cloud and the world dissolves;
-come out the other side and it snaps back.</p>
+<p>Not a skybox texture and not a shader: a few dozen <strong>opaque</strong> blobs at an altitude, plus a
+<strong>fog whiteout</strong> that goes total <em>before</em> you reach one. Fly into a cloud and the world is
+already gone; you&#39;re in white until you come out the far side.</p>
 <h2>It&#39;s a TACTIC, not a texture</h2>
 <p><code>insideCloud</code> (0…1) is exposed, so a cloud is something the game can <em>use</em>: break a radar
 lock, shake a pursuer, hide a mothership until you&#39;re on top of it. That is the whole point
@@ -146,18 +146,18 @@ altitude.</li>
 </tr>
 <tr>
 <td><code>opacity</code></td>
-<td><code>0.5</code></td>
-<td>Base blob alpha (<code>coverage</code> scales it)</td>
+<td><code>1</code></td>
+<td>Blob alpha. Default OPAQUE — translucent clouds read badly. Set &lt; 1 only for deliberate wisps</td>
 </tr>
 <tr>
 <td><code>fogDensity</code></td>
-<td><code>0.05</code></td>
-<td>Fog density at full immersion (the whiteout)</td>
+<td><code>0.6</code></td>
+<td>Whiteout density (EXP2, the scene&#39;s mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres</td>
 </tr>
 <tr>
 <td><code>approach</code></td>
-<td><code>0.8</code></td>
-<td>How far OUTSIDE a blob the whiteout starts (× <code>size</code>). You go white BEFORE you touch the geometry — which is what stops a crude blob from looking like a crude blob</td>
+<td><code>0.5</code></td>
+<td>Where the whiteout BEGINS, × <code>size</code> outside the blob. It&#39;s TOTAL well before the surface (you never see the geometry edge) and stays total until you leave</td>
 </tr>
 <tr>
 <td><code>selfIllum</code></td>
