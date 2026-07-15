@@ -10,7 +10,7 @@ Water plane with reflections, waves, and underwater fog effect.
 | `waterSize` | `128` | Size of the water plane |
 | `subdivisions` | `32` | Mesh subdivisions |
 | `twoSided` | `false` | Render both sides |
-| `follow` | `false` | Ride the camera in x/z (endless sea): the plane surrounds you while the ripples stay anchored in world space; reflection refreshes every 3rd frame |
+| `follow` | `false` | Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space |
 | `windForce` | `-5` | Wind strength |
 | `waveHeight` | `0` | Wave amplitude |
 | `bumpHeight` | `0.1` | Normal map bump intensity |
@@ -162,11 +162,6 @@ export class B3dWater extends AbstractMesh {
       // attrs, which would yank a followed plane back to the origin for a frame.
       this._followTick = () => this._applyFollow()
       scene.registerBeforeRender(this._followTick)
-      // The plane snaps rather than sliding, so it's static most frames — a modest refresh keeps
-      // the reflection cheap without the moving-mesh mismatch that made it flicker at rate 3.
-      const rtt = this.waterMaterial
-        .reflectionTexture as BABYLON.RenderTargetTexture
-      if (rtt) rtt.refreshRate = 2
     }
 
     // UNDERWATER — a fog LAYER, not a switch.

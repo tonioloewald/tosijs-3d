@@ -534,17 +534,32 @@ export class B3dAircraft extends B3dControllable {
       if (this._chasePivot.rotationQuaternion == null) {
         this._chasePivot.rotationQuaternion = new BABYLON.Quaternion()
       }
-      // Manta-style: bank the chase with the plane, but LOW-PASSED — the damping lets the smooth
-      // bank through and strips the high-frequency jitter that a rigid parent would amplify. Pitch
-      // stays 0 (level); the plane pitches within the frame.
-      const kBank = 1 - Math.exp(-dt * CHASE_BANK_DAMP)
-      this._chaseBank += (this.fbw.bank - this._chaseBank) * kBank
+      // Yaw-only pivot — position + heading, held level. (Rolling the PIVOT does nothing visible:
+      // a parented FreeCamera keeps its upVector world-locked, so the view never banks. The bank
+      // has to go on the camera's up vector instead — below.)
       BABYLON.Quaternion.RotationYawPitchRollToRef(
         this.fbw.heading,
         0,
-        -this._chaseBank * CHASE_BANK_FOLLOW, // same sign convention as the airframe roll
+        0,
         this._chasePivot.rotationQuaternion
       )
+      // Manta-style bank: tilt the chase's UP vector by a LOW-PASSED fraction of the plane's roll.
+      // The low-pass lets the smooth bank through and strips the high-frequency attitude jitter, so
+      // you get the lean without the shake. Rolling the up (not the rig) tilts the horizon while
+      // the camera stays squarely behind the plane — no orbiting.
+      const kBank = 1 - Math.exp(-dt * CHASE_BANK_DAMP)
+      this._chaseBank += (this.fbw.bank - this._chaseBank) * kBank
+      if (this.chaseCamera != null) {
+        const b = this._chaseBank * CHASE_BANK_FOLLOW
+        const sb = Math.sin(b)
+        const h = this.fbw.heading
+        // world-up rotated by `b` about the level heading axis (sin h, 0, cos h)
+        this.chaseCamera.upVector.set(
+          -Math.cos(h) * sb,
+          Math.cos(b),
+          Math.sin(h) * sb
+        )
+      }
     }
 
     // Velocity eases toward where the nose points (the "go where you're pointing"
