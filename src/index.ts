@@ -128,6 +128,16 @@ export { B3dWater, b3dWater } from './b3d-water'
 export { B3dLight, b3dLight } from './b3d-light'
 export { B3dFog, b3dFog } from './b3d-fog'
 export { B3dClouds, b3dClouds } from './b3d-clouds'
+export {
+  softShadowTexture,
+  shadowDecalMaterial,
+  createShadowDecal,
+  projectShadowDown,
+} from './shadow-decal'
+export type {
+  ShadowDecalOptions,
+  ProjectDownOptions,
+} from './shadow-decal'
 export { B3dAmbient, b3dAmbient } from './b3d-ambient'
 export { LeafField } from './ambient-leaves'
 export type { LeafFieldOptions } from './ambient-leaves'

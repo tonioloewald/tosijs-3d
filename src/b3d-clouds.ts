@@ -28,7 +28,7 @@ const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
 })
-const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, seed: 7 })
+const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: 'readout' })
 
 const scene = b3d(
@@ -83,11 +83,13 @@ tosi-b3d { width: 100%; height: 100%; }
   many blobs are in the sky, how opaque and dark they are, and how much they self-illuminate.
   Bind it to a slider and fly from wisps to overcast. (Blob *size* is fixed at build, so that one
   needs a reload; everything else moves live.)
-- **Clouds are never pickable; shadows are opt-in.** A cloud between your controller and a panel —
-  or between a missile and its target — would silently break picking and swept collision, so
-  `isPickable` is always off. Shadow *casting* is `castShadows` (default off): a cloud shadow is a
-  big soft silhouette and only wants to exist when the sun has the shadow range to reach cloud
-  altitude.
+- **Clouds are never pickable; shadows are soft decals.** A cloud between your controller and a
+  panel — or between a missile and its target — would silently break picking and swept collision,
+  so `isPickable` is always off. Shadow *casting* is `castShadows` (default off) and does **not**
+  go through the shadow map — a cloud at altitude is out of cascade range and a hard silhouette
+  reads wrong anyway. Instead each blob drops a soft [shadow-decal](?shadow-decal.ts) on the ground,
+  offset along the sun, darkened by `shadowStrength` × `coverage`. The whole field shares one
+  ground plane (sampled under the camera) so the cost is a single ray, not one per cloud.
 
 ## Attributes
 
@@ -100,11 +102,12 @@ tosi-b3d { width: 100%; height: 100%; }
 | `size` | `70` | Blob radius — also the distance at which whiteout is total. Set at build |
 | `color` | `'#ffffff'` | Cloud (and whiteout) colour |
 | `opacity` | `1` | Blob alpha. Default OPAQUE — translucent clouds read badly. Set < 1 only for deliberate wisps |
-| `fogDensity` | `0.6` | Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres |
+| `fogDensity` | `1.0` | Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres |
 | `approach` | `0.5` | Where the whiteout BEGINS, × `size` outside the blob. It's TOTAL well before the surface (you never see the geometry edge) and stays total until you leave |
 | `selfIllum` | `0.35` | Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides) |
 | `coverage` | `0.5` | Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum |
-| `castShadows` | `false` | Opt-in: register the blobs so they cast ground shadows |
+| `castShadows` | `false` | Opt-in: drop a soft [shadow-decal](?shadow-decal.ts) on the ground under each blob (not the shadow map) |
+| `shadowStrength` | `0.5` | Darkness of those decals 0…1, scaled further by `coverage` |
 | `seed` | `1` | Deterministic layout — same seed, same sky |
 */
 /*{ "parent": "Environment" }*/
@@ -113,6 +116,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild } from './b3d-utils'
 import { MersenneTwister } from './mersenne-twister'
 import { band } from './atmosphere'
+import { createShadowDecal } from './shadow-decal'
 import type { B3d } from './tosi-b3d'
 
 export class B3dClouds extends B3dChild {
@@ -144,10 +148,14 @@ export class B3dClouds extends B3dChild {
     // slider). Blob SIZE is set at build, so a size change needs a reload; everything else
     // responds immediately.
     coverage: 0.5,
-    // Opt-in: cast shadows on the ground. Off by default — a cloud shadow is a big soft
-    // silhouette and only wants to exist when the scene is set up for it (a sun with enough
-    // shadow range to reach cloud altitude). Registering the blobs is what enlists them.
+    // Opt-in: lay a soft SHADOW DECAL on the ground under each blob (shadow-decal.ts). NOT the
+    // cascaded shadow map — a cloud at altitude is out of CSM range and a hard silhouette reads
+    // wrong anyway. A soft dark blob on the ground, offset along the sun, grounds the sky for
+    // almost nothing. Off by default (it wants a ground to fall on).
     castShadows: false,
+    // Darkness of those decals, 0…1. Scaled further by `coverage` (an overcast sky shadows
+    // harder than a few wisps). 0 ⇒ invisible even with castShadows on.
+    shadowStrength: 0.5,
     seed: 1,
   }
 
@@ -163,6 +171,7 @@ export class B3dClouds extends B3dChild {
   declare selfIllum: number
   declare coverage: number
   declare castShadows: boolean
+  declare shadowStrength: number
   declare seed: number
 
   /**
@@ -174,6 +183,13 @@ export class B3dClouds extends B3dChild {
   }
 
   private _blobs: BABYLON.Mesh[] = []
+  /** One soft ground decal per blob (shadow-decal.ts), when castShadows is on. */
+  private _decals: BABYLON.Mesh[] = []
+  /** Shared ground-plane height the decals sit on, resampled under the camera every so often —
+   * one ray for the whole field instead of one per decal. */
+  private _shadowGroundY = 0
+  private _shadowSampleAge = 0
+  private _sun: BABYLON.DirectionalLight | null = null
   private _immersion = 0
   private _removeFogLayer: (() => void) | null = null
   private _mat: BABYLON.StandardMaterial | null = null
@@ -220,9 +236,19 @@ export class B3dClouds extends B3dChild {
       this._blobs.push(blob)
     }
 
-    // Shadow casting is opt-in: registering the blobs is what enlists them as casters (the sun
-    // adds every registered mesh). Off by default — see the attribute note.
-    if (this.castShadows) owner.register({ meshes: this._blobs })
+    // Shadow casting is opt-in and does NOT go through the shadow map (a cloud at altitude is out
+    // of CSM range). One soft ground decal per blob, positioned under it each frame — see _update.
+    if (this.castShadows) {
+      this._sun =
+        (scene.lights.find(
+          (l) => l instanceof BABYLON.DirectionalLight
+        ) as BABYLON.DirectionalLight) ?? null
+      for (let i = 0; i < this.count; i++) {
+        const decal = createShadowDecal(scene, { name: `cloud-shadow-${i}` })
+        decal.setEnabled(false)
+        this._decals.push(decal)
+      }
+    }
 
     // Floating origin: blob positions are WORLD coordinates held in JS, so on a terrain rebase
     // they must shift with everything else or the whole sky would jump. (The per-frame recycle
@@ -266,6 +292,9 @@ export class B3dClouds extends B3dChild {
     this._removeFogLayer = null
     for (const b of this._blobs) b.dispose()
     this._blobs = []
+    for (const d of this._decals) d.dispose()
+    this._decals = []
+    this._sun = null
   }
 
   private _placeRandom(
@@ -303,12 +332,67 @@ export class B3dClouds extends B3dChild {
     return active
   }
 
+  /** Resample the ground height under the camera (one downward ray), throttled — every decal in
+   * the field shares this one plane, so the whole cloudscape's shadows cost a single ray, not one
+   * per blob. Softness hides the fact that a distant decal isn't hugging its own patch of terrain. */
+  private _sampleShadowGround(scene: BABYLON.Scene, eye: BABYLON.Vector3): void {
+    if (this._shadowSampleAge-- > 0) return
+    this._shadowSampleAge = 20 // frames between resamples
+    const ray = new BABYLON.Ray(
+      new BABYLON.Vector3(eye.x, this.altitude, eye.z),
+      BABYLON.Vector3.Down(),
+      this.altitude + 500
+    )
+    // Ground only: skip clouds (not pickable anyway), skip our own decals, take the first
+    // pickable surface below. Fall back to the last plane if the camera is over a hole.
+    const hit = scene.pickWithRay(
+      ray,
+      (m) => m.isPickable && m.isEnabled() && !m.name.startsWith('cloud')
+    )
+    if (hit?.pickedPoint) this._shadowGroundY = hit.pickedPoint.y
+  }
+
+  /** Drop one decal on the shared ground plane where THIS blob's sun-shadow lands, sized to the
+   * blob's footprint and darkened by `vis`. */
+  private _placeDecal(
+    decal: BABYLON.Mesh,
+    blob: BABYLON.Mesh,
+    vis: number
+  ): void {
+    const groundY = this._shadowGroundY
+    let x = blob.position.x
+    let z = blob.position.z
+    // Offset along the sun so the shadow lands where the light actually throws it, not straight
+    // down (a 45° sun on a 140 m cloud is a LONG way off). dir is the light's travel direction.
+    const dir = this._sun?.direction
+    if (dir && dir.y < -1e-3) {
+      const t = (groundY - blob.position.y) / dir.y // >0: distance down-sun to the plane
+      x += dir.x * t
+      z += dir.z * t
+    }
+    decal.position.set(x, groundY + 0.05, z)
+    // Footprint a touch wider than the blob — a shadow spreads. Blob scaling.x is its X radius.
+    const d = blob.scaling.x * 2.2
+    decal.scaling.x = decal.scaling.z = d
+    if (decal.visibility !== vis) decal.visibility = vis
+    if (!decal.isEnabled()) decal.setEnabled(true)
+  }
+
   private _update(): void {
     const scene = this.owner?.scene
     const cam = scene?.activeCamera
     if (scene == null || cam == null) return
     const eye = cam.globalPosition
     const active = this._applyCoverage()
+
+    // Shadow decals: refresh the shared ground plane the whole field sits on (one ray, throttled),
+    // and the per-decal darkness (a thick overcast shadows harder than a few wisps).
+    const decalsOn = this._decals.length > 0
+    if (decalsOn) this._sampleShadowGround(scene, eye)
+    const shadowVis = decalsOn
+      ? Math.min(1, Math.max(0, this.shadowStrength)) *
+        (0.4 + 0.6 * Math.min(1, Math.max(0, this.coverage)))
+      : 0
 
     // Recycle: a blob that falls behind wraps to the far side, so an endless cloudscape
     // costs a FIXED number of meshes. No allocation, no growth.
@@ -319,7 +403,11 @@ export class B3dClouds extends B3dChild {
       // no whiteout contribution) so "virtually no clouds" really is a near-empty sky.
       const on = i < active
       if (blob.isEnabled() !== on) blob.setEnabled(on)
-      if (!on) continue
+      const decal = decalsOn ? this._decals[i] : null
+      if (!on) {
+        if (decal && decal.isEnabled()) decal.setEnabled(false)
+        continue
+      }
       const dx = blob.position.x - eye.x
       const dz = blob.position.z - eye.z
       const flat = Math.hypot(dx, dz)
@@ -327,6 +415,7 @@ export class B3dClouds extends B3dChild {
         blob.position.x = eye.x - dx
         blob.position.z = eye.z - dz
       }
+      if (decal) this._placeDecal(decal, blob, shadowVis)
       const dy = blob.position.y - eye.y
       // True WORLD distance to the squashed-ellipsoid surface along the view ray — so the whiteout
       // builds over the same real distance from any direction. The old `hypot(dx, dy/0.45, dz) -
