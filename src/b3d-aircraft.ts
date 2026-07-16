@@ -472,10 +472,17 @@ export class B3dAircraft extends B3dControllable {
       this.fbwSeeded = true
     }
 
+    // On the ground the stick is DEAD — only the throttle (lift) gets you off the pad.
+    // Otherwise jerking pitch/roll/turn tilts the airframe and the lean-thrust bootstraps
+    // you into the air with no throttle at all (you could "fly" off by waggling the stick).
+    // The fly-by-wire keeps easing the commanded attitude toward level (0/0), so a plane
+    // that lands banked settles flat.
     const cmd = {
-      pitch: input.pitch,
+      pitch: this.grounded ? 0 : input.pitch,
       // Left stick X is the primary turn (banks → turns); right stick X adds roll.
-      roll: Math.max(-1, Math.min(1, input.turn + input.strafe)),
+      roll: this.grounded
+        ? 0
+        : Math.max(-1, Math.min(1, input.turn + input.strafe)),
       lift: input.lift, // trigger axis: + up/faster, − down/slower
     }
     const cfg: FlyByWireConfig = {
