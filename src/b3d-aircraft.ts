@@ -274,6 +274,9 @@ const CHASE_BANK_FOLLOW = 0.5
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15
 const GROUND_FRICTION = 1.2
+// You must climb this far above the pad before a touchdown can register as a crash. Keeps a
+// wobbly VTOL liftoff (rise a little, tip, settle back) from exploding on takeoff.
+const TAKEOFF_MARGIN = 2.5
 
 /** What the aircraft pushes flight state to — a `<tosi-b3d-hud>`, loosely typed. */
 type HudSink = {
@@ -366,6 +369,8 @@ export class B3dAircraft extends B3dControllable {
   pullUp = false
   grounded = false
   crashed = false
+  /** Armed once you clear TAKEOFF_MARGIN above the pad; only then can a touchdown crash you. */
+  private _hasFlown = false
   /** Active camera mode — toggled by the `view` button. Also read by the XR
    * chase rig to sit in the cockpit vs. behind the aircraft. */
   cameraView: 'chase' | 'cockpit' = 'chase'
@@ -616,13 +621,25 @@ export class B3dAircraft extends B3dControllable {
     if (groundDist < this.groundClearance) {
       // First contact this approach: a fast or inverted/banked impact is a
       // crash; a gentle, roughly-level touchdown is a landing.
-      if (!wasGrounded && (vel.y < -attrs.crashSpeed || node.up.y < 0.5)) {
+      // A crash-land is only possible once you've actually GOT airborne. A VTOL takeoff
+      // wobble (lift a metre, tip, settle back) would otherwise register a first-contact
+      // "impact" and explode you on the pad — the "crashed on takeoff, never got to fly"
+      // report. `_hasFlown` arms the check only after you clear a takeoff margin.
+      if (
+        this._hasFlown &&
+        !wasGrounded &&
+        (vel.y < -attrs.crashSpeed || node.up.y < 0.5)
+      ) {
         this.crash()
       }
       node.position.y += this.groundClearance - groundDist
     }
+    // Arm the crash-land check once you've genuinely cleared the pad; disarm on a settled
+    // touchdown so the NEXT takeoff starts forgiving again.
+    if (groundDist > this.groundClearance + TAKEOFF_MARGIN) this._hasFlown = true
     this.grounded = groundDist <= this.groundClearance + GROUND_TOUCH
     if (this.grounded && !this.crashed) {
+      this._hasFlown = false
       if (vel.y < 0) vel.y = 0 // don't sink or bounce off the surface
       const roll = Math.exp(-GROUND_FRICTION * dt)
       vel.x *= roll
