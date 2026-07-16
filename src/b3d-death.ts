@@ -180,6 +180,7 @@ export class B3dDeath extends B3dChild {
   private _prevCam: BABYLON.Camera | null = null
   private _panel: B3dSvgPlane | null = null
   private _fires: BABYLON.ParticleSystem[] = []
+  private _charMats: BABYLON.Material[] = []
   private _obs: BABYLON.Observer<BABYLON.Scene> | null = null
   private _timer: ReturnType<typeof setTimeout> | null = null
   private _onDeath = (e: Event) => this._handleDeath(e)
@@ -349,16 +350,25 @@ export class B3dDeath extends B3dChild {
 
     this._fires.push(fire, smoke)
 
-    // Char the airframe, and stop it casting the crisp shadow of a healthy aeroplane. `mesh` may
-    // be a TransformNode (library instance) whose visible geometry is its CHILDREN — char those,
-    // plus the node itself only if it carries geometry.
+    // Char the airframe. `mesh` may be a TransformNode (library instance) whose visible geometry
+    // is its CHILDREN — char those, plus the node itself only if it carries geometry.
+    //
+    // CRUCIAL: char a CLONE of the material, never the material itself. Library instances share
+    // one source material, so mutating it blackens every future spawn of this model (the wreck
+    // burned and the respawned aircraft came out charcoal). The clones are tracked and disposed
+    // with the rest of the burn on respawn.
     if (mesh) {
       const parts: BABYLON.AbstractMesh[] = mesh.getChildMeshes(false)
       if (mesh instanceof BABYLON.AbstractMesh) parts.push(mesh)
       for (const m of parts) {
         const mat = m.material as BABYLON.PBRMaterial | null
         if (mat && 'albedoColor' in mat) {
-          mat.albedoColor = new BABYLON.Color3(0.12, 0.1, 0.1)
+          const charred = mat.clone(`${mat.name}-charred`) as BABYLON.PBRMaterial
+          charred.albedoColor = new BABYLON.Color3(0.12, 0.1, 0.1)
+          charred.metallic = 0.2
+          charred.roughness = 0.9
+          m.material = charred
+          this._charMats.push(charred)
         }
       }
     }
@@ -419,6 +429,8 @@ export class B3dDeath extends B3dChild {
     this._obs = null
     for (const p of this._fires) p.dispose()
     this._fires = []
+    for (const mat of this._charMats) mat.dispose()
+    this._charMats = []
     this._panel?.remove()
     this._panel = null
     // CAMERA HANDOFF. Do NOT restore `_prevCam`: that camera belonged to the aircraft we
