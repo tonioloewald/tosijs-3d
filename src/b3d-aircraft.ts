@@ -903,10 +903,7 @@ export class B3dAircraft extends B3dControllable {
     if (this.crashed) return
     this.crashed = true
     this.velocity.setAll(0)
-    // Pop OUT to the chase view so you watch it die from behind rather than from a dead cockpit.
-    // No-op in VR (setGameplayCamera), where the rig owns the view. Do it before the crash event
-    // so b3d-death's flat handoff (if any) layers on top of an already-third-person shot.
-    if (this.cameraView === 'cockpit') this.setCameraView('chase')
+    // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
     this.dispatchEvent(new CustomEvent('crash', { bubbles: true }))
   }
 

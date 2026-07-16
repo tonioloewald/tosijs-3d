@@ -113,6 +113,29 @@ import type { B3dControllable } from './b3d-controllable'
 
 const DEG = Math.PI / 180
 
+/** A soft round dot for the wreck fire/smoke. A ParticleSystem with NO particleTexture emits
+ * nothing (it silently produced zero particles — that was the "lost explosion"), so it needs one. */
+function sootDot(scene: BABYLON.Scene): BABYLON.DynamicTexture {
+  const existing = scene.getTextureByName?.('wreck-dot')
+  if (existing) return existing as BABYLON.DynamicTexture
+  const tex = new BABYLON.DynamicTexture(
+    'wreck-dot',
+    { width: 64, height: 64 },
+    scene,
+    false
+  )
+  const ctx = tex.getContext() as unknown as CanvasRenderingContext2D
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.4, 'rgba(255,255,255,0.7)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  tex.update()
+  tex.hasAlpha = true
+  return tex
+}
+
 export class B3dDeath extends B3dChild {
   static initAttributes = {
     title: 'DOWN',
@@ -202,9 +225,14 @@ export class B3dDeath extends B3dChild {
     this._wreck = entity
     const scene = this.owner.scene
 
-    const mesh = entity?.mesh ?? null
-    const at = mesh
-      ? mesh.absolutePosition.clone()
+    // The wreck NODE via getCameraTarget(), not `entity.mesh` — a LIBRARY-loaded controllable
+    // (scout instance) has a TransformNode root, so `mesh` is null and everything (explosion,
+    // fire, spectator camera) would land at the fallback (the old camera position) behind the
+    // plane, off-screen. getCameraTarget() returns the real node for both mesh and library paths.
+    const node =
+      (entity?.getCameraTarget?.() as BABYLON.TransformNode | null) ?? null
+    const at = node
+      ? node.getAbsolutePosition().clone()
       : scene.activeCamera?.globalPosition.clone() ?? BABYLON.Vector3.Zero()
 
     // 1. The bang, and something that goes on burning while you look at it.
@@ -218,7 +246,7 @@ export class B3dDeath extends B3dChild {
           source: entity,
         })
       } else {
-        this._burn(scene, mesh, at)
+        this._burn(scene, node, at)
       }
     }
 
@@ -232,15 +260,18 @@ export class B3dDeath extends B3dChild {
     this._prevCam = scene.activeCamera
     let cam: BABYLON.Camera
     let orbit: BABYLON.ArcRotateCamera | null = null
-    if (this.spectate === 'chase' && this._prevCam != null) {
-      // Freeze the shot you died in (the aircraft popped to chase on crash) into a persistent
-      // camera — it must OUTLIVE the wreck, which is removed on respawn along with its own
-      // cameras, so we can't just keep the aircraft's chase.
-      const fc = new BABYLON.FreeCamera(
-        'death-chase',
-        this._prevCam.globalPosition.clone(),
-        scene
-      )
+    if (this.spectate === 'chase') {
+      // A held third-person shot of the WRECK: behind and above it, looking at it. Positioned from
+      // the wreck, NOT from the dead aircraft's chase camera — that camera's globalPosition
+      // collapses onto the wreck at the crash frame (its follow pivot updates AFTER the crash
+      // event fires), which put the camera inside the wreck looking at itself. This is reliable.
+      const fwd = node?.forward.clone() ?? new BABYLON.Vector3(0, 0, 1)
+      fwd.y = 0
+      if (fwd.lengthSquared() < 1e-4) fwd.set(0, 0, 1)
+      fwd.normalize()
+      const pos = at.subtract(fwd.scale(this.orbitRadius * 0.7))
+      pos.y = at.y + this.orbitHeight
+      const fc = new BABYLON.FreeCamera('death-chase', pos, scene)
       fc.setTarget(at)
       cam = fc
     } else {
@@ -276,11 +307,11 @@ export class B3dDeath extends B3dChild {
 
   private _burn(
     scene: BABYLON.Scene,
-    mesh: BABYLON.AbstractMesh | null,
+    mesh: BABYLON.TransformNode | null,
     at: BABYLON.Vector3
   ): void {
     const fire = new BABYLON.ParticleSystem('wreck-fire', 220, scene)
-    fire.particleTexture = null
+    fire.particleTexture = sootDot(scene)
     fire.emitter = at.clone()
     fire.minEmitBox = new BABYLON.Vector3(-1, 0, -1)
     fire.maxEmitBox = new BABYLON.Vector3(1, 0.5, 1)
@@ -299,7 +330,7 @@ export class B3dDeath extends B3dChild {
     fire.start()
 
     const smoke = new BABYLON.ParticleSystem('wreck-smoke', 160, scene)
-    smoke.particleTexture = null
+    smoke.particleTexture = sootDot(scene)
     smoke.emitter = at.clone()
     smoke.minEmitBox = new BABYLON.Vector3(-0.8, 0.5, -0.8)
     smoke.maxEmitBox = new BABYLON.Vector3(0.8, 1, 0.8)
@@ -318,9 +349,13 @@ export class B3dDeath extends B3dChild {
 
     this._fires.push(fire, smoke)
 
-    // Char the airframe, and stop it casting the crisp shadow of a healthy aeroplane.
+    // Char the airframe, and stop it casting the crisp shadow of a healthy aeroplane. `mesh` may
+    // be a TransformNode (library instance) whose visible geometry is its CHILDREN — char those,
+    // plus the node itself only if it carries geometry.
     if (mesh) {
-      for (const m of mesh.getChildMeshes(false).concat(mesh)) {
+      const parts: BABYLON.AbstractMesh[] = mesh.getChildMeshes(false)
+      if (mesh instanceof BABYLON.AbstractMesh) parts.push(mesh)
+      for (const m of parts) {
         const mat = m.material as BABYLON.PBRMaterial | null
         if (mat && 'albedoColor' in mat) {
           mat.albedoColor = new BABYLON.Color3(0.12, 0.1, 0.1)
