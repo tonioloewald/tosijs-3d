@@ -216,6 +216,15 @@ export class B3dHud extends B3dChild {
   ): void {
     this._inSceneParent = parent
     this._inSceneOpts = opts
+    // Rebuild for this (possibly NEW) parent. On respawn the old plane was disposed along with
+    // the old airframe, but our `_plane` reference lingered — and `_buildInScenePlane` bails when
+    // `_plane != null`, so the fresh aircraft never got its HUD back. Tear down cleanly first.
+    this._plane?.dispose()
+    this._planeMat?.dispose()
+    this._svgTex?.dispose()
+    this._plane = null
+    this._planeMat = null
+    this._svgTex = null
     if (this.controller != null) this._buildInScenePlane()
   }
 

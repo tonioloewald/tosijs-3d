@@ -10,6 +10,7 @@ export declare class B3dDeath extends B3dChild {
         orbitRadius: number;
         orbitHeight: number;
         orbitSpeed: number;
+        spectate: "orbit" | "chase";
         wreckage: "on" | "off";
         blastRadius: number;
     };
@@ -18,6 +19,7 @@ export declare class B3dDeath extends B3dChild {
     orbitRadius: number;
     orbitHeight: number;
     orbitSpeed: number;
+    spectate: 'orbit' | 'chase';
     wreckage: 'on' | 'off';
     blastRadius: number;
     /** What "Respawn" does. No callback ⇒ no Respawn button (the game may not allow one). */

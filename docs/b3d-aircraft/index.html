@@ -118,7 +118,7 @@ const scene = b3d(
   ...targets,
   // DEATH NEEDS AN EXIT: fly into the ground (or get caught in a blast) and it burns, releases
   // input, orbits the wreck, then floats a Respawn panel — which appends a fresh aircraft.
-  b3dDeath({ title: &#39;DOWN&#39;, respawn() { focus.appendChild(plane()) } }),
+  b3dDeath({ title: &#39;DOWN&#39;, spectate: &#39;chase&#39;, respawn() { focus.appendChild(plane()) } }),
   focus,
 )
 preview.append(scene, kills)

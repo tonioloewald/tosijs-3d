@@ -84,6 +84,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `orbitRadius` | `14` | Camera distance from the wreck |
 | `orbitHeight` | `6` | Camera height above the wreck |
 | `orbitSpeed` | `6` | Degrees/sec — slow. This is a moment, not a ride |
+| `spectate` | `'orbit'` | `orbit` circles the wreck; `chase` freezes the third-person shot you died in (static). Flat only |
 | `wreckage` | `'on'` | Explode + leave burning wreckage (`'off'` = just the panel) |
 | `blastRadius` | `6` | Size of the fireball |
 
@@ -119,6 +120,9 @@ export class B3dDeath extends B3dChild {
     orbitRadius: 14,
     orbitHeight: 6,
     orbitSpeed: 6,
+    // Spectator shot (flat only). `orbit` circles the wreck. `chase` FREEZES the third-person
+    // view you died in (an aircraft pops to chase on crash) into a static held shot — no circling.
+    spectate: 'orbit' as 'orbit' | 'chase',
     wreckage: 'on' as 'on' | 'off',
     blastRadius: 6,
   }
@@ -128,6 +132,7 @@ export class B3dDeath extends B3dChild {
   declare orbitRadius: number
   declare orbitHeight: number
   declare orbitSpeed: number
+  declare spectate: 'orbit' | 'chase'
   declare wreckage: 'on' | 'off'
   declare blastRadius: number
 
@@ -148,7 +153,7 @@ export class B3dDeath extends B3dChild {
   private _dying = false
   private _wreck: B3dControllable | null = null
   private _remains: Element[] = []
-  private _orbitCam: BABYLON.ArcRotateCamera | null = null
+  private _orbitCam: BABYLON.Camera | null = null
   private _prevCam: BABYLON.Camera | null = null
   private _panel: B3dSvgPlane | null = null
   private _fires: BABYLON.ParticleSystem[] = []
@@ -225,22 +230,40 @@ export class B3dDeath extends B3dChild {
     //    building the orbit rig entirely. In VR you keep your head where it is and the Respawn
     //    panel comes to you (pinned to the rig — see _showPanel).
     this._prevCam = scene.activeCamera
-    const cam = new BABYLON.ArcRotateCamera(
-      'death-orbit',
-      -Math.PI / 2,
-      Math.PI / 2.6,
-      this.orbitRadius,
-      at.add(new BABYLON.Vector3(0, this.orbitHeight * 0.35, 0)),
-      scene
-    )
-    cam.lowerRadiusLimit = cam.upperRadiusLimit = this.orbitRadius
+    let cam: BABYLON.Camera
+    let orbit: BABYLON.ArcRotateCamera | null = null
+    if (this.spectate === 'chase' && this._prevCam != null) {
+      // Freeze the shot you died in (the aircraft popped to chase on crash) into a persistent
+      // camera — it must OUTLIVE the wreck, which is removed on respawn along with its own
+      // cameras, so we can't just keep the aircraft's chase.
+      const fc = new BABYLON.FreeCamera(
+        'death-chase',
+        this._prevCam.globalPosition.clone(),
+        scene
+      )
+      fc.setTarget(at)
+      cam = fc
+    } else {
+      orbit = new BABYLON.ArcRotateCamera(
+        'death-orbit',
+        -Math.PI / 2,
+        Math.PI / 2.6,
+        this.orbitRadius,
+        at.add(new BABYLON.Vector3(0, this.orbitHeight * 0.35, 0)),
+        scene
+      )
+      orbit.lowerRadiusLimit = orbit.upperRadiusLimit = this.orbitRadius
+      cam = orbit
+    }
     if (this.owner.setGameplayCamera(cam)) {
       this._orbitCam = cam
-      // Slow. This is a moment, not a ride.
-      this._obs = scene.onBeforeRenderObservable.add(() => {
-        cam.alpha +=
-          this.orbitSpeed * DEG * (scene.getEngine().getDeltaTime() / 1000)
-      })
+      if (orbit != null) {
+        // Slow. This is a moment, not a ride.
+        this._obs = scene.onBeforeRenderObservable.add(() => {
+          orbit!.alpha +=
+            this.orbitSpeed * DEG * (scene.getEngine().getDeltaTime() / 1000)
+        })
+      }
     } else {
       cam.dispose() // XR: no flat camera needed
       this._prevCam = null

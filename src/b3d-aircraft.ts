@@ -93,7 +93,7 @@ const scene = b3d(
   ...targets,
   // DEATH NEEDS AN EXIT: fly into the ground (or get caught in a blast) and it burns, releases
   // input, orbits the wreck, then floats a Respawn panel — which appends a fresh aircraft.
-  b3dDeath({ title: 'DOWN', respawn() { focus.appendChild(plane()) } }),
+  b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
   focus,
 )
 preview.append(scene, kills)
@@ -903,6 +903,10 @@ export class B3dAircraft extends B3dControllable {
     if (this.crashed) return
     this.crashed = true
     this.velocity.setAll(0)
+    // Pop OUT to the chase view so you watch it die from behind rather than from a dead cockpit.
+    // No-op in VR (setGameplayCamera), where the rig owns the view. Do it before the crash event
+    // so b3d-death's flat handoff (if any) layers on top of an already-third-person shot.
+    if (this.cameraView === 'cockpit') this.setCameraView('chase')
     this.dispatchEvent(new CustomEvent('crash', { bubbles: true }))
   }
 
