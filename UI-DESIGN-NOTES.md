@@ -110,6 +110,44 @@ between them as a defect unless it's justified and confined:
   already-open one. Tradeoff: freshness vs. redraw cost — rebuild on open is
   cheap and correct; don't rebuild every frame.
 
+### Changing the viewpoint: NEVER swap `scene.activeCamera` in a session
+
+This bit us three times (chase camera, death orbit, and it will hit vehicle enter/exit) — so the
+rule now lives in ONE place, `B3d.setGameplayCamera(camera)`:
+
+- **In an XR session the WebXR camera OWNS the view.** Setting `scene.activeCamera` to anything
+  else steals it from the headset and blanks the display. So `setGameplayCamera` swaps the camera
+  **flat only** and is a **no-op in XR**, returning `false` so the caller can skip building a
+  flat-only camera rig entirely (see how `b3d-death` disposes its orbit cam when it returns false).
+- **Every gameplay camera change routes through it** — chase↔cockpit (`b3d-aircraft.setCameraView`),
+  death spectator, and vehicle enter/exit. Nothing calls `setActiveCamera` / `scene.activeCamera`
+  for gameplay. (`setActiveCamera` stays the low-level primitive for the ONE initial setup camera
+  and for XR-internal use.)
+- **In XR you move the RIG, not the camera.** The piloted entity parents the XR rig to itself so
+  the head rides along (cockpit = rig parented to the hull; see `xr-frames` `rig` frame and the
+  "parent the rig to the hull" note above). "Changing viewpoint" in XR = re-parenting/re-seating
+  the rig, never swapping cameras.
+
+**The next case is vehicle enter/exit** (there's a parked plane in the b3d test scene waiting for
+it). The clean shape, reusing this affordance:
+
+- **Flat:** `setGameplayCamera(vehicle.cockpitCamera)` on enter, `setGameplayCamera(biped.followCamera)`
+  on exit — the no-op-in-XR guard is automatic.
+- **XR:** re-parent the rig from the biped frame to the vehicle's cockpit node (and back on exit) —
+  one "re-seat the rig on this node" primitive, which `b3d-input-focus`'s enter/exit already has the
+  hook points for. Worth extracting that as `B3d.seatRig(node | null, offset)` so death (leave the
+  rig where the head is), cockpit (rig on hull), and vehicle-enter (rig on cockpit) all share it —
+  the rig counterpart to `setGameplayCamera`.
+
+**Open VR items (need a headset to finish):**
+
+- **Death panel is head-locked** — it's a `b3d-svg-plane` with `cameraRelative`, which parents to
+  `scene.activeCamera` = the head in VR, so it swims with your gaze and sits behind the global
+  panels. Should pin to the `rig` frame, front-and-centre. Needs `b3d-svg-plane` to accept a frame
+  to parent to (or the death panel to manage the reparent once the plane mounts).
+- **Death wreckage/explosion + the flat orbit** — reported not visible in VR; diagnose on-device
+  (the FX are scene-side and should render; the orbit is correctly flat-only now).
+
 ### Avoid window-`rAF`-driven animation in immersive sessions
 
 - `window.requestAnimationFrame` is **suspended** during an immersive session

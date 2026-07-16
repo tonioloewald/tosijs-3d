@@ -810,6 +810,30 @@ export class B3d extends Component {
     }
   }
 
+  /**
+   * Switch the **gameplay viewpoint** — chase↔cockpit, a death spectator orbit, climbing into a
+   * vehicle. This is the ONE sanctioned way to change what the player looks through, and the ONE
+   * place that knows the XR rule:
+   *
+   * > **In an XR session the WebXR camera OWNS the view. Never swap `scene.activeCamera` — that
+   * > steals it from the headset and blanks the display.** Instead the piloted entity moves the
+   * > XR *rig* (it parents the rig to itself), so the head rides along.
+   *
+   * So: flat → swap to `camera` (returns `true`); XR → **no-op on the camera** (returns `false`,
+   * so the caller can skip building a flat-only camera and let the rig handle the view). Every
+   * gameplay camera change must route through here rather than `setActiveCamera` /
+   * `scene.activeCamera` directly — that's what stops "it breaks in VR" from recurring
+   * (it bit the chase camera, then the death orbit; centralising the rule is the fix).
+   */
+  setGameplayCamera(
+    camera: BABYLON.Camera,
+    options: { attach?: boolean; preventDefault?: boolean } = {}
+  ): boolean {
+    if (this.xrActive) return false
+    this.setActiveCamera(camera, options)
+    return true
+  }
+
   private _update = () => {
     if (this.scene != null && !this.hidden) {
       // Advance combat with real elapsed time (regen + scheduled chain reactions),

@@ -196,21 +196,24 @@ export class B3dDeath extends B3dChild {
         }
         // 2. Stop driving the corpse. THE bug this component exists to fix.
         this.focusManager?.releaseFocus();
-        // 3. Orbit the mistake you made — FLAT ONLY. In a headset the WebXR camera owns the view;
-        //    swapping `scene.activeCamera` would steal it from the WebXR camera and break the display
-        //    (the same rule the aircraft's setCameraView follows). In VR you keep your head where it
-        //    is and the Respawn panel — being camera-relative — simply appears in front of you.
-        if (!this.owner.xrActive) {
-            this._prevCam = scene.activeCamera;
-            const cam = new BABYLON.ArcRotateCamera('death-orbit', -Math.PI / 2, Math.PI / 2.6, this.orbitRadius, at.add(new BABYLON.Vector3(0, this.orbitHeight * 0.35, 0)), scene);
-            cam.lowerRadiusLimit = cam.upperRadiusLimit = this.orbitRadius;
+        // 3. Orbit the mistake you made — FLAT ONLY. `setGameplayCamera` is a no-op in a headset (the
+        //    WebXR camera owns the view; swapping it blanks the display), and returns false so we skip
+        //    building the orbit rig entirely. In VR you keep your head where it is and the Respawn
+        //    panel comes to you (pinned to the rig — see _showPanel).
+        this._prevCam = scene.activeCamera;
+        const cam = new BABYLON.ArcRotateCamera('death-orbit', -Math.PI / 2, Math.PI / 2.6, this.orbitRadius, at.add(new BABYLON.Vector3(0, this.orbitHeight * 0.35, 0)), scene);
+        cam.lowerRadiusLimit = cam.upperRadiusLimit = this.orbitRadius;
+        if (this.owner.setGameplayCamera(cam)) {
             this._orbitCam = cam;
-            this.owner.setActiveCamera(cam);
             // Slow. This is a moment, not a ride.
             this._obs = scene.onBeforeRenderObservable.add(() => {
                 cam.alpha +=
                     this.orbitSpeed * DEG * (scene.getEngine().getDeltaTime() / 1000);
             });
+        }
+        else {
+            cam.dispose(); // XR: no flat camera needed
+            this._prevCam = null;
         }
         // 4. A beat to watch it burn, THEN the panel. Offering a menu over a fireball reads
         //    as a bug report rather than a death.
