@@ -197,6 +197,7 @@ export class B3dClouds extends B3dChild {
   private _shadowRepaintAge = 0
   private _lastSunDir = new BABYLON.Vector3(0, -1, 0)
   private _sun: BABYLON.DirectionalLight | null = null
+  private _removeDebug: (() => void) | null = null
   private _immersion = 0
   private _removeFogLayer: (() => void) | null = null
   private _mat: BABYLON.StandardMaterial | null = null
@@ -271,6 +272,18 @@ export class B3dClouds extends B3dChild {
         if (m.receiveShadows && m.material) this._shadowMap.attachTo(m.material)
       }
       owner.onSceneAddition(this._onAddition)
+      // The Perf Stats panel is the one debug readout that exists everywhere (incl. VR).
+      this._removeDebug = owner.addDebugSource({
+        name: 'cloud-shadows',
+        lines: () => {
+          const map = this._shadowMap
+          if (map == null) return ['off']
+          return [
+            `receivers ${map.attachedCount}  painted ${map.lastPaintCount}`,
+            `window ${map.worldSize.toFixed(0)}m @ (${map.centerX.toFixed(0)}, ${map.centerZ.toFixed(0)})`,
+          ]
+        },
+      })
     }
 
     // Floating origin: blob positions are WORLD coordinates held in JS, so on a terrain rebase
@@ -316,6 +329,8 @@ export class B3dClouds extends B3dChild {
     for (const b of this._blobs) b.dispose()
     this._blobs = []
     this.owner?.offSceneAddition(this._onAddition)
+    this._removeDebug?.()
+    this._removeDebug = null
     this._shadowMap?.dispose()
     this._shadowMap = null
     this._sun = null
@@ -362,9 +377,17 @@ export class B3dClouds extends B3dChild {
    * nothing but the per-pixel sample the receiving materials already do. */
   private _updateShadows(eye: BABYLON.Vector3, active: number): void {
     const map = this._shadowMap
-    if (map == null) return
+    const scene = this.owner?.scene
+    if (map == null || scene == null) return
     if (this._shadowRepaintAge-- > 0) return
     this._shadowRepaintAge = 10 // frames between checks — shadows are slow-moving
+    // Lazy attach sweep: receivers arrive on their own schedule (terrain builds its tile pool
+    // whenever it's ready, GLBs load async) and registration order isn't guaranteed, so rather
+    // than trust the one-time sweep + addition events, re-check cheaply on every beat.
+    // attachTo is idempotent, so this is a no-op once everyone has the hook.
+    for (const m of scene.meshes) {
+      if (m.receiveShadows && m.material) map.attachTo(m.material)
+    }
     // Window drift: recentre once the camera strays a decent fraction of the window.
     const drift = Math.hypot(eye.x - map.centerX, eye.z - map.centerZ)
     if (drift > map.worldSize * 0.1) this._shadowDirty = true

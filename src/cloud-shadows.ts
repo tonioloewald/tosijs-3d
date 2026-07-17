@@ -162,6 +162,13 @@ export class CloudShadowMap {
   centerZ = 0
 
   private _plugins: CloudShadowPlugin[] = []
+  /** How many blobs the last {@link paint} stamped — a debug readout. */
+  lastPaintCount = 0
+
+  /** How many materials carry the (enabled) hook — a debug readout. */
+  get attachedCount(): number {
+    return this._plugins.length
+  }
 
   constructor(scene: BABYLON.Scene, worldSize: number, resolution = 256) {
     this.worldSize = worldSize
@@ -199,6 +206,7 @@ export class CloudShadowMap {
   /** Repaint the whole field. Blob positions are WORLD XZ of where the shadow LANDS (project
    * along the sun with {@link projectShadowXZ} first). White = lit; blobs darken. */
   paint(blobs: CloudShadowBlob[]): void {
+    this.lastPaintCount = blobs.length
     const res = this.resolution
     const ctx = this.texture.getContext() as unknown as CanvasRenderingContext2D
     ctx.globalCompositeOperation = 'source-over'
