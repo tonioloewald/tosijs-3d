@@ -134,10 +134,14 @@ export {
   createShadowDecal,
   projectShadowDown,
 } from './shadow-decal'
-export type {
-  ShadowDecalOptions,
-  ProjectDownOptions,
-} from './shadow-decal'
+export type { ShadowDecalOptions, ProjectDownOptions } from './shadow-decal'
+// Projected cloud shadows: one top-down texture sampled by world position (works over terrain).
+export {
+  CloudShadowMap,
+  projectShadowXZ,
+  shadowWindowUv,
+} from './cloud-shadows'
+export type { CloudShadowBlob } from './cloud-shadows'
 export { B3dAmbient, b3dAmbient } from './b3d-ambient'
 export { LeafField } from './ambient-leaves'
 export type { LeafFieldOptions } from './ambient-leaves'
