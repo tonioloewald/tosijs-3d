@@ -108,7 +108,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `selfIllum` | `0.35` | Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides) |
 | `coverage` | `0.5` | Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum |
 | `castShadows` | `false` | Opt-in: project the field's shadows onto every shadow-receiving surface ([cloud-shadows](?cloud-shadows.ts)) |
-| `shadowStrength` | `0.5` | Darkness of those shadows 0…1, scaled further by `coverage` |
+| `shadowStrength` | `0.65` | Darkness of those shadows 0…1, scaled further by `coverage` (≈50% darkening at typical coverage) |
 | `seed` | `1` | Deterministic layout — same seed, same sky |
 */
 /*{ "parent": "Environment" }*/
@@ -162,7 +162,7 @@ export class B3dClouds extends B3dChild {
     castShadows: false,
     // Darkness of those shadows, 0…1. Scaled further by `coverage` (an overcast sky shadows
     // harder than a few wisps). 0 ⇒ invisible even with castShadows on.
-    shadowStrength: 0.5,
+    shadowStrength: 0.65,
     seed: 1,
   }
 
