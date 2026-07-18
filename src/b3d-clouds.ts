@@ -408,6 +408,11 @@ export class B3dClouds extends B3dChild {
       Math.min(1, Math.max(0, this.shadowStrength)) *
       (0.6 + 0.4 * Math.min(1, Math.max(0, this.coverage)))
     const sun = dir ?? DOWN
+    // Tell the shader the same sun + ground plane the blobs are projected to, so a receiver at
+    // altitude (the aircraft) projects itself down the sun and gets shaded by the cloud overhead.
+    // layerTop stops a receiver flying ABOVE the clouds from being falsely shadowed.
+    map.setSun(sun, 0)
+    map.layerTop = this.altitude + this.thickness / 2
     const blobs: CloudShadowBlob[] = []
     for (let i = 0; i < active && i < this._blobs.length; i++) {
       const b = this._blobs[i]

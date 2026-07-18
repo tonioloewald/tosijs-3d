@@ -114,9 +114,13 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
     fragment: string
   } {
     return {
-      ubo: [{ name: 'cloudShadowWindow', size: 4, type: 'vec4' }],
+      ubo: [
+        { name: 'cloudShadowWindow', size: 4, type: 'vec4' },
+        { name: 'cloudShadowSun', size: 4, type: 'vec4' },
+      ],
       fragment: `#ifdef CLOUDSHADOW
         uniform vec4 cloudShadowWindow;
+        uniform vec4 cloudShadowSun;
       #endif`,
     }
   }
@@ -135,7 +139,20 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
       map.centerX,
       map.centerZ,
       1 / map.worldSize,
-      0
+      // .w = cloud-layer TOP. A flat projected shadow has no occluder height, so a receiver
+      // ABOVE the clouds must not be shaded (it's above everything that could cast). Ground and
+      // anything flying below the layer are fine.
+      map.layerTop
+    )
+    // xyz = sun travel direction, w = the shadow ground-plane Y. Lets the shader project a
+    // receiver at ANY height down the sun to the same plane the blobs were projected onto —
+    // so a cloud shades the aircraft flying under it, not just the ground below the aircraft.
+    uniformBuffer.updateFloat4(
+      'cloudShadowSun',
+      map.sunX,
+      map.sunY,
+      map.sunZ,
+      map.groundY
     )
     uniformBuffer.setTexture('cloudShadowSampler', map.texture)
   }
@@ -147,8 +164,14 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
         uniform sampler2D cloudShadowSampler;
       #endif`,
       CUSTOM_FRAGMENT_MAIN_END: `#ifdef CLOUDSHADOW
-      {
-        vec2 csUv = (vPositionW.xz - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
+      if (vPositionW.y <= cloudShadowWindow.w) {
+        // Project THIS fragment down the sun to the shadow ground plane, then look it up. For the
+        // ground (y≈groundY) the offset is ~0; for a mesh at altitude it finds the cloud overhead.
+        float csT = (cloudShadowSun.y < -0.001)
+          ? (cloudShadowSun.w - vPositionW.y) / cloudShadowSun.y
+          : 0.0;
+        vec2 csGround = vPositionW.xz + cloudShadowSun.xz * csT;
+        vec2 csUv = (csGround - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
         if (csUv.x > 0.0 && csUv.x < 1.0 && csUv.y > 0.0 && csUv.y < 1.0) {
           gl_FragColor.rgb *= texture2D(cloudShadowSampler, csUv).r;
         }
@@ -166,6 +189,15 @@ export class CloudShadowMap {
   worldSize: number
   centerX = 0
   centerZ = 0
+  /** Sun TRAVEL direction (normalised, y<0 shining down) + the shadow ground-plane Y. The
+   * shader projects each receiver fragment down this to sample the right cloud — see the plugin. */
+  sunX = 0
+  sunY = -1
+  sunZ = 0
+  groundY = 0
+  /** Top of the cloud layer (world Y). Receivers above this get no shadow (nothing casts from
+   * higher). Defaults huge so an unset map shadows everything; clouds set it to the real top. */
+  layerTop = 1e9
 
   private _plugins: CloudShadowPlugin[] = []
   /** How many blobs the last {@link paint} stamped — a debug readout. */
@@ -209,6 +241,15 @@ export class CloudShadowMap {
   setCenter(x: number, z: number): void {
     this.centerX = x
     this.centerZ = z
+  }
+
+  /** Sun travel direction receivers project along, and the ground plane blobs were projected to
+   * (keep it the same value {@link projectShadowXZ} used when painting — default 0). */
+  setSun(dir: { x: number; y: number; z: number }, groundY = 0): void {
+    this.sunX = dir.x
+    this.sunY = dir.y
+    this.sunZ = dir.z
+    this.groundY = groundY
   }
 
   /** Repaint the whole field. Blob positions are WORLD XZ of where the shadow LANDS (project
