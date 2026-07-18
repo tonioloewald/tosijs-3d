@@ -280,7 +280,9 @@ export class B3dClouds extends B3dChild {
           if (map == null) return ['off']
           return [
             `receivers ${map.attachedCount}  painted ${map.lastPaintCount}`,
-            `window ${map.worldSize.toFixed(0)}m @ (${map.centerX.toFixed(0)}, ${map.centerZ.toFixed(0)})`,
+            `window ${map.worldSize.toFixed(0)}m @ (${map.centerX.toFixed(
+              0
+            )}, ${map.centerZ.toFixed(0)})`,
           ]
         },
       })
@@ -400,9 +402,11 @@ export class B3dClouds extends B3dChild {
     if (!this._shadowDirty) return
     this._shadowDirty = false
     map.setCenter(eye.x, eye.z)
+    // A thicker sky shadows harder, but even a few wisps throw a readable shadow — so the
+    // coverage term has a high floor (0.6) rather than fading the shadow away with the cloud count.
     const strength =
       Math.min(1, Math.max(0, this.shadowStrength)) *
-      (0.4 + 0.6 * Math.min(1, Math.max(0, this.coverage)))
+      (0.6 + 0.4 * Math.min(1, Math.max(0, this.coverage)))
     const sun = dir ?? DOWN
     const blobs: CloudShadowBlob[] = []
     for (let i = 0; i < active && i < this._blobs.length; i++) {

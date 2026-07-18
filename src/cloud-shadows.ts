@@ -121,9 +121,15 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
     }
   }
 
-  bindForSubMesh(uniformBuffer: BABYLON.UniformBuffer): void {
+  bindForSubMesh(
+    uniformBuffer: BABYLON.UniformBuffer,
+    _scene: BABYLON.Scene,
+    _engine: BABYLON.AbstractEngine,
+    _subMesh: BABYLON.SubMesh
+  ): void {
     const map = this.map
     if (!this._isEnabled || map == null) return
+    map.bindCount++
     uniformBuffer.updateFloat4(
       'cloudShadowWindow',
       map.centerX,
@@ -164,6 +170,8 @@ export class CloudShadowMap {
   private _plugins: CloudShadowPlugin[] = []
   /** How many blobs the last {@link paint} stamped — a debug readout. */
   lastPaintCount = 0
+  /** Debug: how many times the shader hook has bound (0 ⇒ bindForSubMesh never runs). */
+  bindCount = 0
 
   /** How many materials carry the (enabled) hook — a debug readout. */
   get attachedCount(): number {
@@ -232,8 +240,10 @@ export class CloudShadowMap {
       ctx.translate(px, py)
       ctx.scale(1, rz / rx)
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx)
-      g.addColorStop(0, `rgba(0,0,0,${(a * 0.85).toFixed(3)})`)
-      g.addColorStop(0.55, `rgba(0,0,0,${(a * 0.45).toFixed(3)})`)
+      // Full strength at the core, a long soft shoulder. Overlapping blobs (source-over)
+      // compound, so a dense patch of sky darkens harder than a lone puff — as it should.
+      g.addColorStop(0, `rgba(0,0,0,${a.toFixed(3)})`)
+      g.addColorStop(0.5, `rgba(0,0,0,${(a * 0.7).toFixed(3)})`)
       g.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.fillStyle = g
       ctx.beginPath()
