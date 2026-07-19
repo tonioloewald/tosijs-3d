@@ -195,6 +195,7 @@ export class B3dClouds extends B3dChild {
   /** Something moved (recycle, coverage, sun, window) — repaint on the next throttled beat. */
   private _shadowDirty = true
   private _shadowRepaintAge = 0
+  private _lastSweptMeshCount = -1
   private _lastSunDir = new BABYLON.Vector3(0, -1, 0)
   private _sun: BABYLON.DirectionalLight | null = null
   private _removeDebug: (() => void) | null = null
@@ -384,11 +385,14 @@ export class B3dClouds extends B3dChild {
     if (this._shadowRepaintAge-- > 0) return
     this._shadowRepaintAge = 10 // frames between checks — shadows are slow-moving
     // Lazy attach sweep: receivers arrive on their own schedule (terrain builds its tile pool
-    // whenever it's ready, GLBs load async) and registration order isn't guaranteed, so rather
-    // than trust the one-time sweep + addition events, re-check cheaply on every beat.
-    // attachTo is idempotent, so this is a no-op once everyone has the hook.
-    for (const m of scene.meshes) {
-      if (m.receiveShadows && m.material) map.attachTo(m.material)
+    // whenever it's ready, GLBs load async) and registration order isn't guaranteed. onSceneAddition
+    // catches registered arrivals; this is the backstop for anything else — but only when the mesh
+    // COUNT changed, so the steady state costs one length compare, not an O(meshes) sweep forever.
+    if (scene.meshes.length !== this._lastSweptMeshCount) {
+      this._lastSweptMeshCount = scene.meshes.length
+      for (const m of scene.meshes) {
+        if (m.receiveShadows && m.material) map.attachTo(m.material)
+      }
     }
     // Window drift: recentre once the camera strays a decent fraction of the window.
     const drift = Math.hypot(eye.x - map.centerX, eye.z - map.centerZ)

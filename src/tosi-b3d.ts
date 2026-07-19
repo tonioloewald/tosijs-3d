@@ -2502,6 +2502,17 @@ export class B3d extends Component {
       this.xrHelper.dispose()
       this.xrHelper = undefined
     }
+    // Kill the live-debug timer explicitly. Its self-clear only fires when BOTH row buckets are
+    // empty, but `_liveDebug.flat` never empties on its own — so without this a removed scene
+    // leaves a 400ms interval calling each debug source's `lines()` closure forever, pinning the
+    // whole (disposed) scene from GC. A multi-demo docs page would leak one per visit. See the
+    // pre-release review; this is exactly the leak class this project guards against.
+    if (this._liveDebugTimer != null) {
+      clearInterval(this._liveDebugTimer)
+      this._liveDebugTimer = null
+    }
+    this._liveDebug = { flat: [], xr: [] }
+    this._debugSources = []
     // Descendant B3dChild components self-dispose via their own
     // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
     this._sceneReady = false

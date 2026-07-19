@@ -239,15 +239,17 @@ export class B3dDestroyable extends AbstractMesh {
     }
 
     const prefab = this.remainsPrefab ?? (attrs.remains as string)
+    // b3d meshes are quaternion-driven, so `node.rotation` (euler) is always (0,0,0) and Babylon
+    // ignores it — read the quaternion so the wreck/crater faces the way the victim actually did.
+    const euler = node
+      ? (node.rotationQuaternion?.toEulerAngles() ?? node.rotation)
+      : null
+    const RAD2DEG = 180 / Math.PI
     spawnPrefab(prefab, {
       owner,
       position,
-      rotation: node
-        ? {
-            x: (node.rotation?.x ?? 0) * (180 / Math.PI),
-            y: (node.rotation?.y ?? 0) * (180 / Math.PI),
-            z: (node.rotation?.z ?? 0) * (180 / Math.PI),
-          }
+      rotation: euler
+        ? { x: euler.x * RAD2DEG, y: euler.y * RAD2DEG, z: euler.z * RAD2DEG }
         : undefined,
       velocity: (this as any).velocity ?? undefined,
       source: this,
