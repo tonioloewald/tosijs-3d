@@ -643,7 +643,8 @@ export class B3dAircraft extends B3dControllable {
     }
     // Arm the crash-land check once you've genuinely cleared the pad; disarm on a settled
     // touchdown so the NEXT takeoff starts forgiving again.
-    if (groundDist > this.groundClearance + TAKEOFF_MARGIN) this._hasFlown = true
+    if (groundDist > this.groundClearance + TAKEOFF_MARGIN)
+      this._hasFlown = true
     this.grounded = groundDist <= this.groundClearance + GROUND_TOUCH
     if (this.grounded && !this.crashed) {
       this._hasFlown = false

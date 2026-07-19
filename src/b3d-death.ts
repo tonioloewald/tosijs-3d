@@ -363,7 +363,9 @@ export class B3dDeath extends B3dChild {
       for (const m of parts) {
         const mat = m.material as BABYLON.PBRMaterial | null
         if (mat && 'albedoColor' in mat) {
-          const charred = mat.clone(`${mat.name}-charred`) as BABYLON.PBRMaterial
+          const charred = mat.clone(
+            `${mat.name}-charred`
+          ) as BABYLON.PBRMaterial
           charred.albedoColor = new BABYLON.Color3(0.12, 0.1, 0.1)
           charred.metallic = 0.2
           charred.roughness = 0.9
