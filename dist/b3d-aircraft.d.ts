@@ -52,6 +52,8 @@ export declare class B3dAircraft extends B3dControllable {
     pullUp: boolean;
     grounded: boolean;
     crashed: boolean;
+    /** Armed once you clear TAKEOFF_MARGIN above the pad; only then can a touchdown crash you. */
+    private _hasFlown;
     /** Active camera mode — toggled by the `view` button. Also read by the XR
      * chase rig to sit in the cockpit vs. behind the aircraft. */
     cameraView: 'chase' | 'cockpit';

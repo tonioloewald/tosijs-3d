@@ -107,6 +107,24 @@ import { explosionFx } from './b3d-warhead';
 import { panel3d, label3d, button3d } from './widgets3d';
 import { b3dSvgPlane } from './b3d-svg-plane';
 const DEG = Math.PI / 180;
+/** A soft round dot for the wreck fire/smoke. A ParticleSystem with NO particleTexture emits
+ * nothing (it silently produced zero particles — that was the "lost explosion"), so it needs one. */
+function sootDot(scene) {
+    const existing = scene.getTextureByName?.('wreck-dot');
+    if (existing)
+        return existing;
+    const tex = new BABYLON.DynamicTexture('wreck-dot', { width: 64, height: 64 }, scene, false);
+    const ctx = tex.getContext();
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(255,255,255,0.7)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+    tex.update();
+    tex.hasAlpha = true;
+    return tex;
+}
 export class B3dDeath extends B3dChild {
     static initAttributes = {
         title: 'DOWN',
@@ -139,6 +157,7 @@ export class B3dDeath extends B3dChild {
     _prevCam = null;
     _panel = null;
     _fires = [];
+    _charMats = [];
     _obs = null;
     _timer = null;
     _onDeath = (e) => this._handleDeath(e);
@@ -179,9 +198,13 @@ export class B3dDeath extends B3dChild {
         this._dying = true;
         this._wreck = entity;
         const scene = this.owner.scene;
-        const mesh = entity?.mesh ?? null;
-        const at = mesh
-            ? mesh.absolutePosition.clone()
+        // The wreck NODE via getCameraTarget(), not `entity.mesh` — a LIBRARY-loaded controllable
+        // (scout instance) has a TransformNode root, so `mesh` is null and everything (explosion,
+        // fire, spectator camera) would land at the fallback (the old camera position) behind the
+        // plane, off-screen. getCameraTarget() returns the real node for both mesh and library paths.
+        const node = entity?.getCameraTarget?.() ?? null;
+        const at = node
+            ? node.getAbsolutePosition().clone()
             : scene.activeCamera?.globalPosition.clone() ?? BABYLON.Vector3.Zero();
         // 1. The bang, and something that goes on burning while you look at it.
         if (this.wreckage !== 'off') {
@@ -195,7 +218,7 @@ export class B3dDeath extends B3dChild {
                 });
             }
             else {
-                this._burn(scene, mesh, at);
+                this._burn(scene, node, at);
             }
         }
         // 2. Stop driving the corpse. THE bug this component exists to fix.
@@ -207,11 +230,19 @@ export class B3dDeath extends B3dChild {
         this._prevCam = scene.activeCamera;
         let cam;
         let orbit = null;
-        if (this.spectate === 'chase' && this._prevCam != null) {
-            // Freeze the shot you died in (the aircraft popped to chase on crash) into a persistent
-            // camera — it must OUTLIVE the wreck, which is removed on respawn along with its own
-            // cameras, so we can't just keep the aircraft's chase.
-            const fc = new BABYLON.FreeCamera('death-chase', this._prevCam.globalPosition.clone(), scene);
+        if (this.spectate === 'chase') {
+            // A held third-person shot of the WRECK: behind and above it, looking at it. Positioned from
+            // the wreck, NOT from the dead aircraft's chase camera — that camera's globalPosition
+            // collapses onto the wreck at the crash frame (its follow pivot updates AFTER the crash
+            // event fires), which put the camera inside the wreck looking at itself. This is reliable.
+            const fwd = node?.forward.clone() ?? new BABYLON.Vector3(0, 0, 1);
+            fwd.y = 0;
+            if (fwd.lengthSquared() < 1e-4)
+                fwd.set(0, 0, 1);
+            fwd.normalize();
+            const pos = at.subtract(fwd.scale(this.orbitRadius * 0.7));
+            pos.y = at.y + this.orbitHeight;
+            const fc = new BABYLON.FreeCamera('death-chase', pos, scene);
             fc.setTarget(at);
             cam = fc;
         }
@@ -240,7 +271,7 @@ export class B3dDeath extends B3dChild {
     }
     _burn(scene, mesh, at) {
         const fire = new BABYLON.ParticleSystem('wreck-fire', 220, scene);
-        fire.particleTexture = null;
+        fire.particleTexture = sootDot(scene);
         fire.emitter = at.clone();
         fire.minEmitBox = new BABYLON.Vector3(-1, 0, -1);
         fire.maxEmitBox = new BABYLON.Vector3(1, 0.5, 1);
@@ -258,7 +289,7 @@ export class B3dDeath extends B3dChild {
         fire.gravity = new BABYLON.Vector3(0, 1.5, 0);
         fire.start();
         const smoke = new BABYLON.ParticleSystem('wreck-smoke', 160, scene);
-        smoke.particleTexture = null;
+        smoke.particleTexture = sootDot(scene);
         smoke.emitter = at.clone();
         smoke.minEmitBox = new BABYLON.Vector3(-0.8, 0.5, -0.8);
         smoke.maxEmitBox = new BABYLON.Vector3(0.8, 1, 0.8);
@@ -275,12 +306,26 @@ export class B3dDeath extends B3dChild {
         smoke.gravity = new BABYLON.Vector3(0, 0.6, 0);
         smoke.start();
         this._fires.push(fire, smoke);
-        // Char the airframe, and stop it casting the crisp shadow of a healthy aeroplane.
+        // Char the airframe. `mesh` may be a TransformNode (library instance) whose visible geometry
+        // is its CHILDREN — char those, plus the node itself only if it carries geometry.
+        //
+        // CRUCIAL: char a CLONE of the material, never the material itself. Library instances share
+        // one source material, so mutating it blackens every future spawn of this model (the wreck
+        // burned and the respawned aircraft came out charcoal). The clones are tracked and disposed
+        // with the rest of the burn on respawn.
         if (mesh) {
-            for (const m of mesh.getChildMeshes(false).concat(mesh)) {
+            const parts = mesh.getChildMeshes(false);
+            if (mesh instanceof BABYLON.AbstractMesh)
+                parts.push(mesh);
+            for (const m of parts) {
                 const mat = m.material;
                 if (mat && 'albedoColor' in mat) {
-                    mat.albedoColor = new BABYLON.Color3(0.12, 0.1, 0.1);
+                    const charred = mat.clone(`${mat.name}-charred`);
+                    charred.albedoColor = new BABYLON.Color3(0.12, 0.1, 0.1);
+                    charred.metallic = 0.2;
+                    charred.roughness = 0.9;
+                    m.material = charred;
+                    this._charMats.push(charred);
                 }
             }
         }
@@ -342,6 +387,9 @@ export class B3dDeath extends B3dChild {
         for (const p of this._fires)
             p.dispose();
         this._fires = [];
+        for (const mat of this._charMats)
+            mat.dispose();
+        this._charMats = [];
         this._panel?.remove();
         this._panel = null;
         // CAMERA HANDOFF. Do NOT restore `_prevCam`: that camera belonged to the aircraft we

@@ -86,7 +86,7 @@ const scene = b3d(
   b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
   // Fly UP into the cloud layer — the whiteout is fog (stereo-safe) and reads insideCloud.
-  b3dClouds({ altitude: 120, thickness: 40, size: 60, coverage: 0.45, seed: 4 }),
+  b3dClouds({ altitude: 120, thickness: 40, size: 60, coverage: 0.45, castShadows: true, seed: 4 }),
   b3dHud({}),
   // A nav waypoint far ahead: a positional blip (no mesh), always detectable (profile -1).
   b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
@@ -261,6 +261,9 @@ const CHASE_BANK_FOLLOW = 0.5;
 // per-second rolling-resistance decay applied to horizontal velocity once down.
 const GROUND_TOUCH = 0.15;
 const GROUND_FRICTION = 1.2;
+// You must climb this far above the pad before a touchdown can register as a crash. Keeps a
+// wobbly VTOL liftoff (rise a little, tip, settle back) from exploding on takeoff.
+const TAKEOFF_MARGIN = 2.5;
 export class B3dAircraft extends B3dControllable {
     inputMapping = aircraftMapping();
     static initAttributes = {
@@ -326,6 +329,8 @@ export class B3dAircraft extends B3dControllable {
     pullUp = false;
     grounded = false;
     crashed = false;
+    /** Armed once you clear TAKEOFF_MARGIN above the pad; only then can a touchdown crash you. */
+    _hasFlown = false;
     /** Active camera mode — toggled by the `view` button. Also read by the XR
      * chase rig to sit in the cockpit vs. behind the aircraft. */
     cameraView = 'chase';
@@ -412,10 +417,17 @@ export class B3dAircraft extends B3dControllable {
             this.fbw.speed = Math.hypot(vel.x, vel.z);
             this.fbwSeeded = true;
         }
+        // On the ground the stick is DEAD — only the throttle (lift) gets you off the pad.
+        // Otherwise jerking pitch/roll/turn tilts the airframe and the lean-thrust bootstraps
+        // you into the air with no throttle at all (you could "fly" off by waggling the stick).
+        // The fly-by-wire keeps easing the commanded attitude toward level (0/0), so a plane
+        // that lands banked settles flat.
         const cmd = {
-            pitch: input.pitch,
+            pitch: this.grounded ? 0 : input.pitch,
             // Left stick X is the primary turn (banks → turns); right stick X adds roll.
-            roll: Math.max(-1, Math.min(1, input.turn + input.strafe)),
+            roll: this.grounded
+                ? 0
+                : Math.max(-1, Math.min(1, input.turn + input.strafe)),
             lift: input.lift, // trigger axis: + up/faster, − down/slower
         };
         const cfg = {
@@ -530,13 +542,24 @@ export class B3dAircraft extends B3dControllable {
         if (groundDist < this.groundClearance) {
             // First contact this approach: a fast or inverted/banked impact is a
             // crash; a gentle, roughly-level touchdown is a landing.
-            if (!wasGrounded && (vel.y < -attrs.crashSpeed || node.up.y < 0.5)) {
+            // A crash-land is only possible once you've actually GOT airborne. A VTOL takeoff
+            // wobble (lift a metre, tip, settle back) would otherwise register a first-contact
+            // "impact" and explode you on the pad — the "crashed on takeoff, never got to fly"
+            // report. `_hasFlown` arms the check only after you clear a takeoff margin.
+            if (this._hasFlown &&
+                !wasGrounded &&
+                (vel.y < -attrs.crashSpeed || node.up.y < 0.5)) {
                 this.crash();
             }
             node.position.y += this.groundClearance - groundDist;
         }
+        // Arm the crash-land check once you've genuinely cleared the pad; disarm on a settled
+        // touchdown so the NEXT takeoff starts forgiving again.
+        if (groundDist > this.groundClearance + TAKEOFF_MARGIN)
+            this._hasFlown = true;
         this.grounded = groundDist <= this.groundClearance + GROUND_TOUCH;
         if (this.grounded && !this.crashed) {
+            this._hasFlown = false;
             if (vel.y < 0)
                 vel.y = 0; // don't sink or bounce off the surface
             const roll = Math.exp(-GROUND_FRICTION * dt);
@@ -793,11 +816,7 @@ export class B3dAircraft extends B3dControllable {
             return;
         this.crashed = true;
         this.velocity.setAll(0);
-        // Pop OUT to the chase view so you watch it die from behind rather than from a dead cockpit.
-        // No-op in VR (setGameplayCamera), where the rig owns the view. Do it before the crash event
-        // so b3d-death's flat handoff (if any) layers on top of an already-third-person shot.
-        if (this.cameraView === 'cockpit')
-            this.setCameraView('chase');
+        // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
         this.dispatchEvent(new CustomEvent('crash', { bubbles: true }));
     }
     /** Raycast downward to find distance to ground. Returns Infinity if no hit.

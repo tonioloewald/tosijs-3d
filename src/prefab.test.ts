@@ -24,7 +24,7 @@ function ctx(owner: PrefabContext['owner']): PrefabContext {
 }
 
 // Distinct fake "elements" — spawnPrefab treats them opaquely.
-const el = (id: string) => ({ id }) as unknown as Element
+const el = (id: string) => ({ id } as unknown as Element)
 
 describe('registry', () => {
   test('definePrefab then getPrefab returns the same function', () => {

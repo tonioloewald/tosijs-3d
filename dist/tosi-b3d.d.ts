@@ -403,7 +403,7 @@ export declare class B3d extends Component {
     addFogLayer(layer: FogContributor): () => void;
     /** The fog everything else blends FROM. `b3d-fog` owns this; without one we still keep a
      * whisper of fog on, so a layer can ramp up without ever switching the mode. */
-    setFogBase(base: FogState): void;
+    setFogBase(base: FogState | null): void;
     private _updateFog;
     private _recenterXr;
     /**

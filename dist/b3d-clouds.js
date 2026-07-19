@@ -28,7 +28,7 @@ const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
 })
-const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, seed: 7 })
+const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: 'readout' })
 
 const scene = b3d(
@@ -83,11 +83,14 @@ tosi-b3d { width: 100%; height: 100%; }
   many blobs are in the sky, how opaque and dark they are, and how much they self-illuminate.
   Bind it to a slider and fly from wisps to overcast. (Blob *size* is fixed at build, so that one
   needs a reload; everything else moves live.)
-- **Clouds are never pickable; shadows are opt-in.** A cloud between your controller and a panel —
-  or between a missile and its target — would silently break picking and swept collision, so
-  `isPickable` is always off. Shadow *casting* is `castShadows` (default off): a cloud shadow is a
-  big soft silhouette and only wants to exist when the sun has the shadow range to reach cloud
-  altitude.
+- **Clouds are never pickable; shadows are a projected texture.** A cloud between your controller
+  and a panel — or between a missile and its target — would silently break picking and swept
+  collision, so `isPickable` is always off. Shadow *casting* is `castShadows` (default off) and
+  goes through neither the shadow map (a cloud at altitude is out of cascade range) nor decals (a
+  flat quad can't conform to terrain): the whole field is painted top-down into **one small
+  texture** ([cloud-shadows](?cloud-shadows.ts)) that every shadow-receiving material samples by
+  world position — so the shadows drape over hills and valleys per-pixel, offset along the sun,
+  darkened by `shadowStrength` × `coverage`, repainted only when the sky actually changes.
 
 ## Attributes
 
@@ -100,11 +103,12 @@ tosi-b3d { width: 100%; height: 100%; }
 | `size` | `70` | Blob radius — also the distance at which whiteout is total. Set at build |
 | `color` | `'#ffffff'` | Cloud (and whiteout) colour |
 | `opacity` | `1` | Blob alpha. Default OPAQUE — translucent clouds read badly. Set < 1 only for deliberate wisps |
-| `fogDensity` | `0.6` | Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres |
+| `fogDensity` | `1.0` | Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres |
 | `approach` | `0.5` | Where the whiteout BEGINS, × `size` outside the blob. It's TOTAL well before the surface (you never see the geometry edge) and stays total until you leave |
 | `selfIllum` | `0.35` | Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides) |
 | `coverage` | `0.5` | Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum |
-| `castShadows` | `false` | Opt-in: register the blobs so they cast ground shadows |
+| `castShadows` | `false` | Opt-in: project the field's shadows onto every shadow-receiving surface ([cloud-shadows](?cloud-shadows.ts)) |
+| `shadowStrength` | `0.65` | Darkness of those shadows 0…1, scaled further by `coverage` (≈50% darkening at typical coverage) |
 | `seed` | `1` | Deterministic layout — same seed, same sky |
 */
 /*{ "parent": "Environment" }*/
@@ -112,6 +116,8 @@ import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils';
 import { MersenneTwister } from './mersenne-twister';
 import { band } from './atmosphere';
+import { CloudShadowMap, projectShadowXZ, } from './cloud-shadows';
+const DOWN = { x: 0, y: -1, z: 0 };
 export class B3dClouds extends B3dChild {
     static initAttributes = {
         count: 36,
@@ -141,10 +147,14 @@ export class B3dClouds extends B3dChild {
         // slider). Blob SIZE is set at build, so a size change needs a reload; everything else
         // responds immediately.
         coverage: 0.5,
-        // Opt-in: cast shadows on the ground. Off by default — a cloud shadow is a big soft
-        // silhouette and only wants to exist when the scene is set up for it (a sun with enough
-        // shadow range to reach cloud altitude). Registering the blobs is what enlists them.
+        // Opt-in: project the field's shadows onto every shadow-receiving surface via ONE top-down
+        // texture (cloud-shadows.ts) sampled by world position. NOT the cascaded shadow map — a
+        // cloud at altitude is out of CSM range — and not decals, which can't conform to terrain.
+        // Off by default (it wants a ground to fall on).
         castShadows: false,
+        // Darkness of those shadows, 0…1. Scaled further by `coverage` (an overcast sky shadows
+        // harder than a few wisps). 0 ⇒ invisible even with castShadows on.
+        shadowStrength: 0.65,
         seed: 1,
     };
     /**
@@ -155,6 +165,15 @@ export class B3dClouds extends B3dChild {
         return this._immersion;
     }
     _blobs = [];
+    /** Projected cloud-shadow texture (cloud-shadows.ts), when castShadows is on. */
+    _shadowMap = null;
+    /** Something moved (recycle, coverage, sun, window) — repaint on the next throttled beat. */
+    _shadowDirty = true;
+    _shadowRepaintAge = 0;
+    _lastSweptMeshCount = -1;
+    _lastSunDir = new BABYLON.Vector3(0, -1, 0);
+    _sun = null;
+    _removeDebug = null;
     _immersion = 0;
     _removeFogLayer = null;
     _mat = null;
@@ -167,6 +186,18 @@ export class B3dClouds extends B3dChild {
         for (const b of this._blobs) {
             b.position.x += dx;
             b.position.z += dz;
+        }
+        this._shadowDirty = true;
+    };
+    /** New meshes join the scene (terrain tiles, loaded GLBs) → attach the shadow hook to any
+     * that declare themselves receivers. */
+    _onAddition = (additions) => {
+        const map = this._shadowMap;
+        if (map == null || additions.meshes == null)
+            return;
+        for (const m of additions.meshes) {
+            if (m.receiveShadows && m.material)
+                map.attachTo(m.material);
         }
     };
     sceneReady(owner, scene) {
@@ -195,10 +226,34 @@ export class B3dClouds extends B3dChild {
             this._placeRandom(blob, rng, { x: 0, z: 0 }, sizeMul);
             this._blobs.push(blob);
         }
-        // Shadow casting is opt-in: registering the blobs is what enlists them as casters (the sun
-        // adds every registered mesh). Off by default — see the attribute note.
-        if (this.castShadows)
-            owner.register({ meshes: this._blobs });
+        // Shadow casting is opt-in and does NOT go through the shadow map (a cloud at altitude is
+        // out of CSM range) — nor decals (a flat quad can't conform to terrain). The whole field is
+        // painted top-down into ONE texture (cloud-shadows.ts) that shadow-receiving materials
+        // sample by world position, so the shadows drape over any topology. See _updateShadows.
+        if (this.castShadows) {
+            this._sun =
+                scene.lights.find((l) => l instanceof BABYLON.DirectionalLight) ?? null;
+            // Window: the blob disc plus room for the sun to throw shadows sideways off a high cloud.
+            this._shadowMap = new CloudShadowMap(scene, (this.spread + this.altitude * 1.5) * 2);
+            for (const m of scene.meshes) {
+                if (m.receiveShadows && m.material)
+                    this._shadowMap.attachTo(m.material);
+            }
+            owner.onSceneAddition(this._onAddition);
+            // The Perf Stats panel is the one debug readout that exists everywhere (incl. VR).
+            this._removeDebug = owner.addDebugSource({
+                name: 'cloud-shadows',
+                lines: () => {
+                    const map = this._shadowMap;
+                    if (map == null)
+                        return ['off'];
+                    return [
+                        `receivers ${map.attachedCount}  painted ${map.lastPaintCount}`,
+                        `window ${map.worldSize.toFixed(0)}m @ (${map.centerX.toFixed(0)}, ${map.centerZ.toFixed(0)})`,
+                    ];
+                },
+            });
+        }
         // Floating origin: blob positions are WORLD coordinates held in JS, so on a terrain rebase
         // they must shift with everything else or the whole sky would jump. (The per-frame recycle
         // would eventually mask it, but not without a visible lurch.)
@@ -237,6 +292,12 @@ export class B3dClouds extends B3dChild {
         for (const b of this._blobs)
             b.dispose();
         this._blobs = [];
+        this.owner?.offSceneAddition(this._onAddition);
+        this._removeDebug?.();
+        this._removeDebug = null;
+        this._shadowMap?.dispose();
+        this._shadowMap = null;
+        this._sun = null;
     }
     _placeRandom(blob, rng, centre, sizeMul = 1) {
         const a = rng.random() * Math.PI * 2;
@@ -253,6 +314,7 @@ export class B3dClouds extends B3dChild {
         const active = Math.max(1, Math.round(this.count * (0.25 + 0.75 * cov)));
         if (cov !== this._lastCoverage && this._mat != null) {
             this._lastCoverage = cov;
+            this._shadowDirty = true;
             // Thicker sky ⇒ darker (storm grey) and less self-lit (dark underbellies). Opacity is NOT
             // touched — the blobs are solid; coverage changes how MANY and how DARK, not how see-through.
             const dark = 1 - 0.45 * cov;
@@ -261,6 +323,67 @@ export class B3dClouds extends B3dChild {
             this._mat.emissiveColor = this._baseColor.scale(dark * illum);
         }
         return active;
+    }
+    /** Repaint the projected shadow texture when something changed (a blob recycled, coverage or
+     * the sun moved, the window drifted off the camera) — throttled, so the steady state costs
+     * nothing but the per-pixel sample the receiving materials already do. */
+    _updateShadows(eye, active) {
+        const map = this._shadowMap;
+        const scene = this.owner?.scene;
+        if (map == null || scene == null)
+            return;
+        if (this._shadowRepaintAge-- > 0)
+            return;
+        this._shadowRepaintAge = 10; // frames between checks — shadows are slow-moving
+        // Lazy attach sweep: receivers arrive on their own schedule (terrain builds its tile pool
+        // whenever it's ready, GLBs load async) and registration order isn't guaranteed. onSceneAddition
+        // catches registered arrivals; this is the backstop for anything else — but only when the mesh
+        // COUNT changed, so the steady state costs one length compare, not an O(meshes) sweep forever.
+        if (scene.meshes.length !== this._lastSweptMeshCount) {
+            this._lastSweptMeshCount = scene.meshes.length;
+            for (const m of scene.meshes) {
+                if (m.receiveShadows && m.material)
+                    map.attachTo(m.material);
+            }
+        }
+        // Window drift: recentre once the camera strays a decent fraction of the window.
+        const drift = Math.hypot(eye.x - map.centerX, eye.z - map.centerZ);
+        if (drift > map.worldSize * 0.1)
+            this._shadowDirty = true;
+        // Sun swing (time-of-day): repaint when the direction has moved meaningfully.
+        const dir = this._sun?.direction;
+        if (dir && BABYLON.Vector3.Dot(dir, this._lastSunDir) < 0.9995) {
+            this._lastSunDir.copyFrom(dir);
+            this._shadowDirty = true;
+        }
+        if (!this._shadowDirty)
+            return;
+        this._shadowDirty = false;
+        map.setCenter(eye.x, eye.z);
+        // A thicker sky shadows harder, but even a few wisps throw a readable shadow — so the
+        // coverage term has a high floor (0.6) rather than fading the shadow away with the cloud count.
+        const strength = Math.min(1, Math.max(0, this.shadowStrength)) *
+            (0.6 + 0.4 * Math.min(1, Math.max(0, this.coverage)));
+        const sun = dir ?? DOWN;
+        // Tell the shader the same sun + ground plane the blobs are projected to, so a receiver at
+        // altitude (the aircraft) projects itself down the sun and gets shaded by the cloud overhead.
+        // layerTop stops a receiver flying ABOVE the clouds from being falsely shadowed.
+        map.setSun(sun, 0);
+        map.layerTop = this.altitude + this.thickness / 2;
+        const blobs = [];
+        for (let i = 0; i < active && i < this._blobs.length; i++) {
+            const b = this._blobs[i];
+            const at = projectShadowXZ(b.position.x, b.position.y, b.position.z, sun);
+            // Footprint a touch wider than the blob — a shadow spreads.
+            blobs.push({
+                x: at.x,
+                z: at.z,
+                rx: b.scaling.x * 1.2,
+                rz: b.scaling.z * 1.2,
+                strength,
+            });
+        }
+        map.paint(blobs);
     }
     _update() {
         const scene = this.owner?.scene;
@@ -287,6 +410,7 @@ export class B3dClouds extends B3dChild {
             if (flat > this.spread) {
                 blob.position.x = eye.x - dx;
                 blob.position.z = eye.z - dz;
+                this._shadowDirty = true;
             }
             const dy = blob.position.y - eye.y;
             // True WORLD distance to the squashed-ellipsoid surface along the view ray — so the whiteout
@@ -303,6 +427,7 @@ export class B3dClouds extends B3dChild {
             if (d < nearest)
                 nearest = d;
         }
+        this._updateShadows(eye, active);
         // WHITEOUT ON APPROACH — and TOTAL BEFORE ENTRY.
         //
         // `nearest` is the distance to the blob's SURFACE. The fog begins closing in `approach`

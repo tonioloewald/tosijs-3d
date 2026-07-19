@@ -940,6 +940,13 @@ export class B3d extends Component {
      * whisper of fog on, so a layer can ramp up without ever switching the mode. */
     setFogBase(base) {
         this._fogBase = base;
+        // Clearing the base (the <tosi-b3d-fog> was removed) must also drop the cached current fog,
+        // or `_updateFog`'s "no base + live layers → auto-enable" branch can never re-fire and
+        // underwater/cloud fog stays dead for the rest of the scene's life.
+        if (base == null) {
+            this._fogNow = null;
+            return;
+        }
         if (this._fogNow == null) {
             this._fogNow = {
                 color: { ...base.color },
@@ -2207,6 +2214,17 @@ export class B3d extends Component {
             this.xrHelper.dispose();
             this.xrHelper = undefined;
         }
+        // Kill the live-debug timer explicitly. Its self-clear only fires when BOTH row buckets are
+        // empty, but `_liveDebug.flat` never empties on its own — so without this a removed scene
+        // leaves a 400ms interval calling each debug source's `lines()` closure forever, pinning the
+        // whole (disposed) scene from GC. A multi-demo docs page would leak one per visit. See the
+        // pre-release review; this is exactly the leak class this project guards against.
+        if (this._liveDebugTimer != null) {
+            clearInterval(this._liveDebugTimer);
+            this._liveDebugTimer = null;
+        }
+        this._liveDebug = { flat: [], xr: [] };
+        this._debugSources = [];
         // Descendant B3dChild components self-dispose via their own
         // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
         this._sceneReady = false;

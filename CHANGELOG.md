@@ -16,16 +16,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   relevant if you use `<tosi-b3d-physics>`; retune friction if grip/slide changed.
 - **Packaging fix:** `@babylonjs/*` and `jolt-physics` are now **peer-only** (they
   were previously declared in both `dependencies` and `peerDependencies`). A hard
-  Babylon dependency would nest a *second* engine copy in a consumer holding a
+  Babylon dependency would nest a _second_ engine copy in a consumer holding a
   direct Babylon dep — silently breaking `instanceof`, engine singletons, and
   plugin registration. No action needed by consumers; this just makes install
   resolution correct.
 
 ### Added
 
-- **Clouds** (`<tosi-b3d-clouds>`) — an opaque blob cloud layer you can *fly into*
+- **Clouds** (`<tosi-b3d-clouds>`) — an opaque blob cloud layer you can _fly into_
   and lose the world inside (a fog whiteout, not a texture). A `coverage` weather
-  dial from wisps to thunderheads, and `insideCloud` so a cloud is a *tactic*
+  dial from wisps to thunderheads, and `insideCloud` so a cloud is a _tactic_
   (break a radar lock, shake a pursuer).
 - **Projected cloud shadows** (`cloud-shadows.ts`) — the field painted top-down
   into one texture, sampled by world position in a material plugin, so shadows
@@ -46,7 +46,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
   headset, swap the camera when flat), so chase/death/vehicle transitions stop
   breaking in VR.
 - **`PLATFORM.md`** — the platform bet (stay on the web, don't abstract the
-  renderer; the real risk of the Android XR / Vision Pro shift is *input*).
+  renderer; the real risk of the Android XR / Vision Pro shift is _input_).
 
 ### Changed
 

@@ -35,9 +35,6 @@ export declare class B3dWater extends AbstractMesh {
     private _underwaterUpdate?;
     private _removeFogLayer?;
     private _followTick?;
-    private _savedFogMode;
-    private _savedFogColor;
-    private _savedFogDensity;
     private _wasUnderwater;
     private waterCallback;
     private updateWater;

@@ -477,10 +477,10 @@ follow/vehicle camera doesn't re-derive them:
    and yaw; the camera rides that.
 3. **A parented `FreeCamera` ignores parent-roll AND `upVector` for the view.** To bank the view,
    put the roll in the camera's OWN `rotationQuaternion` (`RotationYawPitchRoll(0, lookPitch,
-   -bank * follow)`), not on the parent and not via upVector.
+-bank * follow)`), not on the parent and not via upVector.
 4. **Don't per-frame low-pass a value you can derive deterministically.** Damping the bank added
    dt-dependent jitter; taking `fbw.bank` directly (the model already eased it) is smooth. Low-pass
    only genuinely noisy sensed inputs, never a clean computed one.
 
-Companion to the `setGameplayCamera` note above — this is the *content* of a good gameplay camera;
-that's the XR-safe *mechanism* for switching to one.
+Companion to the `setGameplayCamera` note above — this is the _content_ of a good gameplay camera;
+that's the XR-safe _mechanism_ for switching to one.

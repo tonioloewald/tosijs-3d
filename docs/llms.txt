@@ -1,4 +1,4 @@
-# tosijs-3d v0.4.1
+# tosijs-3d v0.5.0
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -104,6 +104,8 @@ Full documentation, with live code examples, is at the links below.
   The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
 - https://3d.tosijs.net/b3d-water/ — b3d-water
   Water plane with reflections, waves, and underwater fog effect.
+- https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
+  terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/combat/ — Combat
   Damage, destruction, and weapons — pure deterministic models (`destroyable` /
 - https://3d.tosijs.net/control-input/ — control-input
@@ -146,6 +148,8 @@ Full documentation, with live code examples, is at the links below.
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/shadow-decal/ — shadow-decal
+  A **soft blob shadow** — the oldest trick in real-time 3D, and still the right one in a lot of
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**

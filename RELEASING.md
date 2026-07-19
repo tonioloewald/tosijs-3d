@@ -14,7 +14,7 @@ same source. Both are produced by `bun build` and are committed to `main`.
 
 > **`dist/`, `docs/`, and `llms.txt` are generated build artifacts, committed to
 > `main`.** They are regenerated deterministically by the release build (step 4) and
-> are *expected to be stale/dirty on `main` between releases* (the dev server rewrites
+> are _expected to be stale/dirty on `main` between releases_ (the dev server rewrites
 > `docs/` constantly). Don't hand-edit them, and don't treat their staleness as a
 > defect — a reviewer seeing a stale barrel or doc page is seeing normal between-release
 > state, not a bug. Source of truth is `src/` (`index.ts` exports + `src/docs/*` tocs).
@@ -46,15 +46,15 @@ cutting a release.**
    at least a minor and MUST be called out in the changelog + migration note (below).**
 
 3a. **Write the changelog** — add a section to `CHANGELOG.md` for this version:
-   headline Added/Changed/Fixed, and — critically — a **⚠️ Breaking** block for any
-   peer-dependency range change (what moved, and what the consumer must do). A
-   `^8`-pinned consumer hitting an `ERESOLVE` deserves a note that says why.
+headline Added/Changed/Fixed, and — critically — a **⚠️ Breaking** block for any
+peer-dependency range change (what moved, and what the consumer must do). A
+`^8`-pinned consumer hitting an `ERESOLVE` deserves a note that says why.
 
 3b. **Map-drift gate** — every new `src/*.ts` this release must be in **both**
-   `CLAUDE.md`'s "Key Files" table **and** its category doc toc (`src/docs/*.md`).
-   The tocs are easy to remember (they gate the doc build); the CLAUDE.md map is the
-   one that silently rots. Quick check: `git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test`
-   and confirm each is mentioned in `CLAUDE.md`.
+`CLAUDE.md`'s "Key Files" table **and** its category doc toc (`src/docs/*.md`).
+The tocs are easy to remember (they gate the doc build); the CLAUDE.md map is the
+one that silently rots. Quick check: `git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test`
+and confirm each is mentioned in `CLAUDE.md`.
 
 4. **Full build** — regenerates `docs/` (doc site + `iife.js`) **and** `dist/` (the
    library: `tsc -p tsconfig.build.json`, run by `buildSite()` because

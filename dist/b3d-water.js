@@ -77,9 +77,6 @@ export class B3dWater extends AbstractMesh {
     _underwaterUpdate;
     _removeFogLayer;
     _followTick;
-    _savedFogMode = BABYLON.Scene.FOGMODE_NONE;
-    _savedFogColor = new BABYLON.Color3();
-    _savedFogDensity = 0;
     _wasUnderwater = false;
     waterCallback(additions) {
         const { meshes } = additions;
@@ -169,10 +166,16 @@ export class B3dWater extends AbstractMesh {
             // Full sea-fog immediately on entry, then keep thickening as you go deeper (murk with
             // depth is both true and useful — it hides what's below you).
             const deeper = Math.min(1, Math.max(0, depth / 30));
+            const density = attrs.underwaterFog + attrs.underwaterMurk * deeper;
             return {
                 weight: w,
                 color: { r: 0, g: 0.15, b: 0.3 },
-                density: attrs.underwaterFog + attrs.underwaterMurk * deeper,
+                density,
+                // b3d-fog defaults to LINEAR, which IGNORES density and uses start/end — so contribute a
+                // short `end` too (as clouds do), else underwater tints but never thickens. Visibility
+                // shrinks as the sea deepens (~25m near the surface, ~15m in the murk).
+                start: 0,
+                end: Math.max(6, 3 / density),
             };
         });
     }

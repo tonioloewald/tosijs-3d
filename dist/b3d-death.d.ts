@@ -39,6 +39,7 @@ export declare class B3dDeath extends B3dChild {
     private _prevCam;
     private _panel;
     private _fires;
+    private _charMats;
     private _obs;
     private _timer;
     private _onDeath;

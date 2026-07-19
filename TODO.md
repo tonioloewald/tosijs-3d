@@ -748,7 +748,7 @@ rotation from the quaternion; underwater fog contributing start/end under LINEAR
 fixed. Remaining, deferred:
 
 - [ ] **Efficiency — ambient runs `querySelector('tosi-b3d-water')` every frame** (`b3d-ambient.ts` ~681) for any non-`always` effect. Resolve/cache the water element once in `sceneReady`.
-- [ ] **Dryness — `excludeFromGlow` re-implemented inline** in `ambient-leaves.ts` (~153); this release *extracted* it as an exported helper in `frame-panel.ts`. Import and call it.
+- [ ] **Dryness — `excludeFromGlow` re-implemented inline** in `ambient-leaves.ts` (~153); this release _extracted_ it as an exported helper in `frame-panel.ts`. Import and call it.
 - [ ] **Dryness — soft-dot radial-gradient texture copy-pasted 3×**: `b3d-death.ts` `sootDot`, `b3d-ambient.ts` `dotTexture`, `b3d-particles.ts` `getDefaultFlare`. Extract one `softDotTexture(scene, {name, midAlpha?, size?})` — natural home `shadow-decal.ts` (already owns the black variant).
 - [ ] **Coverage — spawner determinism untested & not extractable** (`b3d-spawner.ts` ~213). Extract seeded ring placement + `_prune` predicate into a pure helper and test identical-seed → identical sequence. (Also: `_prune` allocates fresh arrays every frame — prune on the spawn cadence or early-out when nothing died.)
 - [ ] **Blast-radius — Jolt 1.0 → 1.1 (Jolt 5.6.0, friction model moved) not revalidated.** `jolt-plugin.ts` sets `friction/staticFriction` directly and was untouched. Run a ramp/slide/stack smoke check; retune defaults or note in the changelog.
@@ -761,7 +761,7 @@ release: the **42MB doc-site iife bundle no longer ships in the npm tarball** (`
 585kB), plus the fog-dispose re-enable bug (clear `_fogBase`/`_fogNow` when `<tosi-b3d-fog>` is
 removed) and two dead `_savedFog*` fields. Deferred:
 
-- [ ] **(verified major, coverage) Test the aircraft ground/crash gating.** The two in-window fixes — `pitch/roll = grounded ? 0 : input` (4ebff41) and `_hasFlown` crash-arming on `groundDist > groundClearance + TAKEOFF_MARGIN` (a49eb89) — live untested in the Babylon bridge (`fly-by-wire.test.ts` covers a *different* pure mechanism). Extract the gating into a pure `({grounded, groundDist, groundClearance, wasGrounded, verticalSpeed}) → {stickLive, armCrash}` and unit-test both boundaries. Non-blocking (bugs already fixed) but this is the regression guard.
+- [ ] **(verified major, coverage) Test the aircraft ground/crash gating.** The two in-window fixes — `pitch/roll = grounded ? 0 : input` (4ebff41) and `_hasFlown` crash-arming on `groundDist > groundClearance + TAKEOFF_MARGIN` (a49eb89) — live untested in the Babylon bridge (`fly-by-wire.test.ts` covers a _different_ pure mechanism). Extract the gating into a pure `({grounded, groundDist, groundClearance, wasGrounded, verticalSpeed}) → {stickLive, armCrash}` and unit-test both boundaries. Non-blocking (bugs already fixed) but this is the regression guard.
 - [ ] **(coverage) `widgets3d-layout` no-canvas fallback untested** (`widgets3d-layout.ts:140`) — the path that runs headless. Test `measureTextWidth` returns the widest line for multi-line input and the `size*0.56` fallback scales linearly.
 - [ ] **(efficiency, nit) `_reallocAmbient` calls `budgetRequest()` twice per effect** (`tosi-b3d.ts:1013`) — reuse the mapped `AmbientRequest` array. Rare path.
 

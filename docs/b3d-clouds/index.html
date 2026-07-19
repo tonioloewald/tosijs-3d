@@ -50,7 +50,7 @@ const aircraft = b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
   player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
 })
-const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, seed: 7 })
+const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: &#39;readout&#39; })
 
 const scene = b3d(
@@ -103,11 +103,14 @@ through a fair-weather puff and the gloom inside a thunderhead.</li>
 many blobs are in the sky, how opaque and dark they are, and how much they self-illuminate.
 Bind it to a slider and fly from wisps to overcast. (Blob <em>size</em> is fixed at build, so that one
 needs a reload; everything else moves live.)</li>
-<li><strong>Clouds are never pickable; shadows are opt-in.</strong> A cloud between your controller and a panel —
-or between a missile and its target — would silently break picking and swept collision, so
-<code>isPickable</code> is always off. Shadow <em>casting</em> is <code>castShadows</code> (default off): a cloud shadow is a
-big soft silhouette and only wants to exist when the sun has the shadow range to reach cloud
-altitude.</li>
+<li><strong>Clouds are never pickable; shadows are a projected texture.</strong> A cloud between your controller
+and a panel — or between a missile and its target — would silently break picking and swept
+collision, so <code>isPickable</code> is always off. Shadow <em>casting</em> is <code>castShadows</code> (default off) and
+goes through neither the shadow map (a cloud at altitude is out of cascade range) nor decals (a
+flat quad can&#39;t conform to terrain): the whole field is painted top-down into <strong>one small
+texture</strong> (<a href="/cloud-shadows/">cloud-shadows</a>) that every shadow-receiving material samples by
+world position — so the shadows drape over hills and valleys per-pixel, offset along the sun,
+darkened by <code>shadowStrength</code> × <code>coverage</code>, repainted only when the sky actually changes.</li>
 </ul>
 <h2>Attributes</h2>
 <table>
@@ -155,7 +158,7 @@ altitude.</li>
 </tr>
 <tr>
 <td><code>fogDensity</code></td>
-<td><code>0.6</code></td>
+<td><code>1.0</code></td>
 <td>Whiteout density (EXP2, the scene&#39;s mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres</td>
 </tr>
 <tr>
@@ -176,7 +179,12 @@ altitude.</li>
 <tr>
 <td><code>castShadows</code></td>
 <td><code>false</code></td>
-<td>Opt-in: register the blobs so they cast ground shadows</td>
+<td>Opt-in: project the field&#39;s shadows onto every shadow-receiving surface (<a href="/cloud-shadows/">cloud-shadows</a>)</td>
+</tr>
+<tr>
+<td><code>shadowStrength</code></td>
+<td><code>0.65</code></td>
+<td>Darkness of those shadows 0…1, scaled further by <code>coverage</code> (≈50% darkening at typical coverage)</td>
 </tr>
 <tr>
 <td><code>seed</code></td>
@@ -209,6 +217,8 @@ altitude.</li>
     <ul>
       <li><a href="/b3d-exploder/">b3d-exploder</a></li>
       <li><a href="/b3d-reflections/">b3d-reflections</a></li>
+      <li><a href="/cloud-shadows/">cloud-shadows</a></li>
+      <li><a href="/shadow-decal/">shadow-decal</a></li>
     </ul>
     </details></li>
     <li><details><summary><a href="/combat/">Combat</a></summary>
