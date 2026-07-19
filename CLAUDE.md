@@ -205,6 +205,10 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/world-contract.ts` | Boundary types: `WorldState`, `SimulationEvent`, `WorldApi` (no logic) |
 | `src/world-store.ts` | Pure, deterministic, Babylon-free reference simulation |
 | `src/world-view.ts` | Babylon projection — one mesh per entity, reconciled `store → meshes` |
+| `src/b3d-death.ts` | `<tosi-b3d-death>` — death's exit: explode + wreckage, release input, third-person spectate (orbit/chase), respawn panel; flat + VR |
+| `src/b3d-spawner.ts` | `<tosi-b3d-spawner>` — seeded encounter spawning (ring placement, group death), "same seed, same battles" |
+| `src/formations.ts` | Pure formation-placement math (line/wedge/ring/grid), Babylon-free, unit-tested |
+| `src/prefab.ts` | Named prefab registry + `spawnPrefab` — set-dressing (wreck/crater/loot) a death or spawn drops; missing prefab warns, never throws |
 
 **Controllable Entities:**
 | File | Purpose |
@@ -223,6 +227,13 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-reflections.ts` | Automatic reflection probes for `_mirror` meshes |
 | `src/b3d-light.ts` | Hemispheric ambient light |
 | `src/b3d-fog.ts` | Fog configuration |
+| `src/b3d-clouds.ts` | `<tosi-b3d-clouds>` — opaque blob cloud layer you can fly into (fog whiteout), `coverage` weather dial, `insideCloud` tactic |
+| `src/cloud-shadows.ts` | Projected cloud-shadow texture (world-XZ sampled in a material plugin) — conforms to terrain, falls on elevated receivers |
+| `src/shadow-decal.ts` | Reusable soft blob-shadow decal (single caster: character/vehicle/item) — `createShadowDecal` / `projectShadowDown` |
+| `src/atmosphere.ts` | Pure fog compositing (`compositeFog`/`approachFog`/`band`) — layers underwater/cloud/space whiteouts over the base fog |
+| `src/b3d-ambient.ts` | `<tosi-b3d-ambient>` — device-budgeted ambient garnish (motes/bubbles/leaves); competes for one pool, switches OFF rather than thinning |
+| `src/ambient-leaves.ts` | `LeafField` — tumbling two-sided quads (`SolidParticleSystem`), the one ambient effect that isn't a billboard |
+| `src/ambient-budget.ts` | Pure ambient-budget allocator (`allocateAmbient`/`fillWeight`/`ratchetPool`), unit-tested |
 | `src/b3d-particles.ts` | Particle effect system |
 | `src/b3d-sound.ts` | Positional 3D audio |
 | `src/b3d-terrain.ts` | Terrain generation |
@@ -379,9 +390,9 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 ### Dependencies
 
-- **Runtime**: `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^9.16)
-- **Physics**: `jolt-physics` (^1.0.0) — optional peer dependency
-- **Framework**: `tosijs` (^1.6.6) — peer dependency, do not re-export from this library
+- **Peers** (not bundled, not hard deps — the consumer provides them; see `package.json` for exact ranges): `@babylonjs/core`, `@babylonjs/gui`, `@babylonjs/loaders`, `@babylonjs/materials` (^9), `tosijs` (do not re-export from this library)
+- **Physics**: `jolt-physics` (^1.1) — optional peer dependency
+- **Dev/debug**: `haltija`, Babylon + jolt live in `devDependencies` (for build/test only) — they are peers at publish time, never runtime `dependencies` (a hard Babylon dep would nest a second engine copy in a consumer)
 - **Debug/automation**: `haltija` (`hj`) — headless-browser debug tool used to drive/verify live demos (see the `no-electron-haltija-by-default` memory for the pin-the-right-tab guardrails)
 - **Build tooling**: Bun (bundler, dev server, test runner)
 

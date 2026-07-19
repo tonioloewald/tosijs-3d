@@ -462,3 +462,25 @@ Two directions the measured-layout work unblocks, filed for when we pick them up
 - tjs-lang transpiler: don't alias `BABYLON` to an ALL-CAPS name and reassign it
   in a callback (`B = BABYLON`) — it's rewritten to `const` and shadows a
   module-level `let`. Use a lowercase alias or pass as a parameter.
+
+## Follow-camera jitter — the rules we paid for (aircraft chase)
+
+~6 commits fought chase-camera jitter before it settled. The root causes, so the next
+follow/vehicle camera doesn't re-derive them:
+
+1. **Sample the followed entity AFTER it integrates, not before.** Reading the aircraft's
+   position at the top of the frame (pre-move) and placing the rig from it lags one frame and
+   jitters under acceleration/throttle. Update the chase pivot at the END of the movement step,
+   after position + ground clamp, with `node.computeWorldMatrix(true)`.
+2. **Parent the rig to a level position+heading pivot — not the airframe.** A camera parented to
+   a rolling/pitching mesh inherits its shake. Use a `TransformNode` that carries only position
+   and yaw; the camera rides that.
+3. **A parented `FreeCamera` ignores parent-roll AND `upVector` for the view.** To bank the view,
+   put the roll in the camera's OWN `rotationQuaternion` (`RotationYawPitchRoll(0, lookPitch,
+   -bank * follow)`), not on the parent and not via upVector.
+4. **Don't per-frame low-pass a value you can derive deterministically.** Damping the bank added
+   dt-dependent jitter; taking `fbw.bank` directly (the model already eased it) is smooth. Low-pass
+   only genuinely noisy sensed inputs, never a clean computed one.
+
+Companion to the `setGameplayCamera` note above — this is the *content* of a good gameplay camera;
+that's the XR-safe *mechanism* for switching to one.

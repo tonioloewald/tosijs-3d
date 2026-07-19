@@ -12,6 +12,13 @@ same source. Both are produced by `bun build` and are committed to `main`.
 - Publishing rights to the `tosijs-3d` npm package (for the publish step, which is
   done manually — see step 8).
 
+> **`dist/`, `docs/`, and `llms.txt` are generated build artifacts, committed to
+> `main`.** They are regenerated deterministically by the release build (step 4) and
+> are *expected to be stale/dirty on `main` between releases* (the dev server rewrites
+> `docs/` constantly). Don't hand-edit them, and don't treat their staleness as a
+> defect — a reviewer seeing a stale barrel or doc page is seeing normal between-release
+> state, not a bug. Source of truth is `src/` (`index.ts` exports + `src/docs/*` tocs).
+
 ## The dev-server caveat
 
 `bun start` runs `buildSite()` on every file change and **continuously rewrites
@@ -35,7 +42,19 @@ cutting a release.**
    semver is loose, but as a rule of thumb: new/changed public API or an
    architectural shift → **minor** (`0.N.0`); pure fixes → **patch** (`0.N.M`). The
    B3dChild lifecycle release (new exported `B3dChild` + pull-model refactor + tosijs
-   dep bump) was a **minor** bump.
+   dep bump) was a **minor** bump. **A peer-dependency break (e.g. Babylon 8 → 9) is
+   at least a minor and MUST be called out in the changelog + migration note (below).**
+
+3a. **Write the changelog** — add a section to `CHANGELOG.md` for this version:
+   headline Added/Changed/Fixed, and — critically — a **⚠️ Breaking** block for any
+   peer-dependency range change (what moved, and what the consumer must do). A
+   `^8`-pinned consumer hitting an `ERESOLVE` deserves a note that says why.
+
+3b. **Map-drift gate** — every new `src/*.ts` this release must be in **both**
+   `CLAUDE.md`'s "Key Files" table **and** its category doc toc (`src/docs/*.md`).
+   The tocs are easy to remember (they gate the doc build); the CLAUDE.md map is the
+   one that silently rots. Quick check: `git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test`
+   and confirm each is mentioned in `CLAUDE.md`.
 
 4. **Full build** — regenerates `docs/` (doc site + `iife.js`) **and** `dist/` (the
    library: `tsc -p tsconfig.build.json`, run by `buildSite()` because
