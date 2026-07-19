@@ -1124,8 +1124,15 @@ export class B3d extends Component {
 
   /** The fog everything else blends FROM. `b3d-fog` owns this; without one we still keep a
    * whisper of fog on, so a layer can ramp up without ever switching the mode. */
-  setFogBase(base: FogState): void {
+  setFogBase(base: FogState | null): void {
     this._fogBase = base
+    // Clearing the base (the <tosi-b3d-fog> was removed) must also drop the cached current fog,
+    // or `_updateFog`'s "no base + live layers → auto-enable" branch can never re-fire and
+    // underwater/cloud fog stays dead for the rest of the scene's life.
+    if (base == null) {
+      this._fogNow = null
+      return
+    }
     if (this._fogNow == null) {
       this._fogNow = {
         color: { ...base.color },

@@ -81,9 +81,6 @@ export class B3dWater extends AbstractMesh {
   private _underwaterUpdate?: () => void
   private _removeFogLayer?: () => void
   private _followTick?: () => void
-  private _savedFogMode = BABYLON.Scene.FOGMODE_NONE
-  private _savedFogColor = new BABYLON.Color3()
-  private _savedFogDensity = 0
   private _wasUnderwater = false
 
   private waterCallback(additions: SceneAdditions) {

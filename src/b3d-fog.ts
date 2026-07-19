@@ -75,6 +75,8 @@ export class B3dFog extends B3dChild {
         this._beforeRender = null
       }
       this.owner.scene.fogMode = BABYLON.Scene.FOGMODE_NONE
+      // Release the base so a surviving layer (underwater/cloud) can re-arm the always-on fog.
+      this.owner.setFogBase(null)
     }
     this.skyboxEl = null
     this.owner = null

@@ -35,6 +35,8 @@ not just the current state:
 | `PLATFORM.md`        | Where this runs — why we stay on the web and DON'T abstract the renderer (WKWebView has full JIT; Babylon Native has no DOM); Tauri = flat only, XR lives on the open web; input is the visionOS risk, not rendering |
 | `UI-DESIGN-NOTES.md` | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                                                                                                                                |
 | `RELEASING.md`       | Release checklist (run steps 1–7; stop before `npm publish`)                                                                                                                                                         |
+| `CHANGELOG.md`       | Per-version Added/Changed/Fixed, with a **⚠️ Breaking** block for any peer-dependency range change                                                                                                                   |
+| `UPSTREAM.md`        | Ecosystem debt to file as issues on `tosijs`/`tosijs-ui`/`tjs-lang` (file, don't fix) — recurring footguns we work around                                                                                            |
 | `llms.txt`           | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                                                                       |
 
 ## Build & Development Commands
@@ -207,7 +209,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/world-view.ts` | Babylon projection — one mesh per entity, reconciled `store → meshes` |
 | `src/b3d-death.ts` | `<tosi-b3d-death>` — death's exit: explode + wreckage, release input, third-person spectate (orbit/chase), respawn panel; flat + VR |
 | `src/b3d-spawner.ts` | `<tosi-b3d-spawner>` — seeded encounter spawning (ring placement, group death), "same seed, same battles" |
-| `src/formations.ts` | Pure formation-placement math (line/wedge/ring/grid), Babylon-free, unit-tested |
+| `src/formations.ts` | Pure formation-placement math (`ring`/`vee`/`escorts`/`line`/`at`), Babylon-free, unit-tested |
 | `src/prefab.ts` | Named prefab registry + `spawnPrefab` — set-dressing (wreck/crater/loot) a death or spawn drops; missing prefab warns, never throws |
 
 **Controllable Entities:**

@@ -6,7 +6,9 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "!dist/iife.js",
+    "!dist/iife.js.map"
   ],
   "repository": {
     "type": "git",
