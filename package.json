@@ -13,11 +13,18 @@
     "url": "https://github.com/tonioloewald/tosijs-3d.git"
   },
   "devDependencies": {
+    "@babylonjs/core": "^9.16.2",
+    "@babylonjs/gui": "^9.16.2",
+    "@babylonjs/loaders": "^9.16.2",
+    "@babylonjs/materials": "^9.16.2",
     "@eslint/js": "^10.0.1",
     "@types/bun": "latest",
+    "babylonjs-gltf2interface": "^9.16.2",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
     "happy-dom": "^20.10.6",
+    "haltija": "^1.4.0",
+    "jolt-physics": "^1.1.0",
     "prettier": "^2.8.8",
     "tosijs-ui": "^1.6.23",
     "typescript": "^5.9.3",
@@ -41,14 +48,5 @@
     "jolt-physics": {
       "optional": true
     }
-  },
-  "dependencies": {
-    "@babylonjs/core": "^9.16.2",
-    "@babylonjs/gui": "^9.16.2",
-    "@babylonjs/loaders": "^9.16.2",
-    "@babylonjs/materials": "^9.16.2",
-    "babylonjs-gltf2interface": "^9.16.2",
-    "haltija": "^1.4.0",
-    "jolt-physics": "^1.1.0"
   }
 }
