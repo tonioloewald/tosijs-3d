@@ -3,7 +3,7 @@
 How a release is cut. The npm package ships **per-file, unminified `dist/` JS +
 `.d.ts` + sourcemaps** (browseable source for consumers and AI agents), and the
 doc site (`docs/`, the GitHub Pages web root at `3d.tosijs.net`) is rebuilt from the
-same source. Both are produced by `bun build` and are committed to `main`.
+same source. Both are produced by `bun run build` and are committed to `main`.
 
 ## Prerequisites
 
@@ -61,8 +61,12 @@ and confirm each is mentioned in `CLAUDE.md`.
    `emitLibrary: true`):
 
    ```sh
-   bun build          # = bun bin/site.ts --build
+   bun run build      # = bun bin/site.ts --build
    ```
+
+   ⚠️ `run` is required. `build` collides with Bun's own `bun build` subcommand, so
+   bare `bun build` invokes Bun's bundler and dies with "Missing entrypoints" instead
+   of running our script.
 
 5. **Verify** — types + tests + lint:
 

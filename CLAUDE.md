@@ -44,7 +44,7 @@ not just the current state:
 Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 
 - **Dev server**: `bun start` (formats code, then runs HTTPS dev server on port 8030 with file watching)
-- **Build**: `bun build` (runs `bun bin/site.ts --build`: doc-site build + library `tsc -p tsconfig.build.json`, exits)
+- **Build**: `bun run build` (runs `bun bin/site.ts --build`: doc-site build + library `tsc -p tsconfig.build.json`, exits)
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
 - **Run single test**: `bun test src/perlin-noise.test.ts`
@@ -60,7 +60,35 @@ Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 6. Burns the theme (`{accent, background, text}` from `site.config.ts`) into a static `docs/doc-system.css` (no FOUC).
 7. Emits `sitemap.xml`, `robots.txt`, and `.nojekyll` + the existing `CNAME` (`3d.tosijs.net`) for GitHub Pages.
 
-`bun build` also emits the library: `site.config.ts` sets `emitLibrary: true` + `libraryTsconfig: 'tsconfig.build.json'`, so `buildSite()` runs the library `tsc` step itself after the doc-site build (there is no separate `tsc` invocation in `bin/site.ts`). The published `dist/` ships **per-file, unminified JS + `.d.ts` + sourcemaps with doc comments preserved** (`removeComments: false`), so consumers and AI agents have browseable source plus types. The root `tsconfig.json` is `noEmit`; `tsconfig.build.json` overrides it.
+`bun run build` also emits the library: `site.config.ts` sets `emitLibrary: true` + `libraryTsconfig: 'tsconfig.build.json'`, so `buildSite()` runs the library `tsc` step itself after the doc-site build (there is no separate `tsc` invocation in `bin/site.ts`). The published `dist/` ships **per-file, unminified JS + `.d.ts` + sourcemaps with doc comments preserved** (`removeComments: false`), so consumers and AI agents have browseable source plus types. The root `tsconfig.json` is `noEmit`; `tsconfig.build.json` overrides it.
+
+### Driving the live page (haltija / `hj`)
+
+`bun start` runs a [haltija](https://github.com/tonioloewald/haltija) dev-channel so an agent can
+drive the running page (`hj eval`, `hj tree`, `hj click`). It is genuinely useful — synthetic
+keyboard events through `KeyboardGamepad` will fly the aircraft — but **three things make a
+healthy page look broken.** Check them before diagnosing anything:
+
+1. **`hj where` first.** It prints the port, WHY that server was chosen (servers register the
+   directory they were started in; `hj` picks the nearest ancestor of your cwd), and **which tab
+   is focused**. One shared server can hold tabs from several projects.
+2. **Confirm which tab you're actually on.** With more than one tab connected, commands target
+   the **focused** one — which may be another project's page. Verified case: from this repo's
+   cwd, `hj eval` landed on a `tosijs-ui` page. Cheap guard — have the eval tell you:
+   `hj eval 'location.pathname'` before trusting a result.
+3. **A backgrounded tab is throttled, and reads exactly like a broken page.** Offscreen, behind
+   another window, or with the display asleep, the browser throttles `requestAnimationFrame` and
+   `IntersectionObserver` — so the doc browser never mounts its live example and
+   `document.querySelector('tosi-b3d')` returns 0 for minutes. Nothing is wrong with the code.
+   Tell them apart with the tab's **`lastSeen`** age in `hj tabs`: a stale `lastSeen` means the
+   tab is asleep, not that the page failed. (Same failure family as XR suspending `rAF`.)
+
+Also: `hj --no-launch …` skips the "open Haltija to resume" prompt, and **the dev server
+idle-exits after several hours** (deliberate — it's a leak guard, and a fresh one picks up
+dependency updates). Don't assume it's still up; check, and restart with `bun start` if not.
+
+Live examples take ~20–30s to mount after a reload even on a healthy, visible tab. Be patient
+before concluding something is broken.
 
 ## Architecture
 
