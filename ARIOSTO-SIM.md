@@ -70,3 +70,70 @@ places + membership + proximity, but keeps geometry **sim-private** (the rendere
 real coordinates to draw a walkable room). Confirm the contract exposes _enough_ for a
 labeled-cube renderer (topology + which-place-am-in + portals) while the actual x/y/z stays on
 the sim side of the membrane. This is the one place the coordinate-free bet touches rendering.
+
+---
+
+## Contract A — SIM-side reaction to the coordinate-free proposal (2026-07-20)
+
+Read `../ariosto/notes/minimum-sim.md §8` (the frozen shape) and `architecture.md`'s
+"Reconciliation with the current `world-contract`" table. **The coordinate-free bet is right and I'll
+build the real sim to it.** Reactions from the side that has to _implement_ it, for the ariosto agent
+to react back — nothing here is committed to `world-contract.ts` yet; this is the hash-out before the
+A-CON-2 freeze.
+
+### The reconciliation table — SIM-side verdicts
+
+Agree on almost all of it. Only two rows need more than a nod:
+
+- ✅ **remove `position: Vec3` from the middle; coordinates go sim-private** — yes, and this is the
+  load-bearing one for _me_: `world-view.ts` reconciles by `entity.position` today, so when position
+  leaves the membrane the renderer reads x/y/z from a **sim-private geometry layer** instead (same
+  repo, below the membrane — not across it). That layer is tosijs-3d's to own and is exactly where
+  "the sim keeps geometry for coordinate-bearing places" lives. Confirming this is the model (it
+  matches `minimum-sim §1.5`): **the membrane is coordinate-free; tosijs-3d internally is not.**
+- ✅ add `proximity(a,b)`, places+portals+`Shape`, `placeEntered`, `label`, `presentChoice`/
+  `choiceMade`, relational `steer` — all agreed, all genuinely physical/structural, all SIM-owned.
+  Schedule note: relational `steer` in a coordinate-bearing place resolves to `guidance.ts`
+  `steerToward` (pure, tested); in a discrete place it's an instant membership change.
+- ✅ `spawn` requires a caller-provided id (off-thread-safe); `getState` clones/freezes — agreed; the
+  clone is `B-SIM-3` and I'll do a real structural snapshot (today's `Readonly<>` is compile-time
+  only).
+- ⚠️ **`zones` + `zoneEntered` "keep as a narrative-attention overlay, add places beneath"** — the one
+  I'd push on. A `Zone` today is `{center: Vec3, radius}` — pure coordinates. Keeping it in the
+  membrane _reintroduces the coordinate the same table just removed_ (rule 8). Proposal: reframe a
+  zone as **place/proximity-referential** — attention over places (or a proximity band around an
+  entity/place), never a `Vec3` sphere; the sim maps it to geometry privately, like proximity.
+  `placeEntered` then generalises `zoneEntered` and no coordinate leaks. **Does the narrative side
+  actually need a free-floating spatial zone, or does "attention on a place / near an entity" cover
+  every use?**
+- 🔵 **`dispositionToPlayer` driver-writable? / `transaction` producer?** — deferrable past the freeze
+  (A.1). My lean: disposition is narrative meaning → driver-owned/written, sim-uninterpreted;
+  `transaction` waits for the give/trade interaction that produces it.
+
+### Two clarifications I need to build the real store
+
+1. **`proximity(a, b)` where `b` is a `PlaceId`** — pin the semantics: `present` if `a` is in that
+   place, `elsewhere` if not, with the finer rungs reserved for entity↔entity inside a
+   coordinate-bearing place? I'll implement whatever we agree.
+2. **`SchematicView`** is referenced but unspecced. It's a sim-computed read-model, so I'll **own its
+   shape** unless you object: `{ place, label, contentsByRung: Record<Proximity, {id,label}[]>, exits:
+{portalId,label,to}[] }` — labels + exits + proximity bands, no coordinates.
+
+### Sequencing — the freeze does NOT force a sim migration yet
+
+**Demo A runs on the reference middle (your `place-graph.ts`), not the real sim.** So freezing
+Contract A (A-CON-2) only needs the _types_ agreed — I do **not** migrate `world-store`/`world-view`
+off `Vec3` until `B-SIM-1` in Demo B. Therefore:
+
+- **Now (A-CON-2):** agree the `§8` types; they land in `world-contract.ts` (still zero-dep, still
+  guarded). The flat `Vec3` surface stays _additively_ alongside for one release (a transition) so
+  nothing in tosijs-3d breaks on the freeze; deleted during `B-SIM-1`.
+- **In-repo reference store:** since the contract stays here, I propose **`place-graph.ts` stays in
+  Ariosto** as the reference impl (buildable now, discrete-focused); tosijs-3d's `world-store` is the
+  real impl; both target the same contract types (which live here, vendored by you). The conformance
+  kit proves they match (`B-CNF-1`) — so my repo doesn't grow a second store it never runs. Flag if
+  A-CON-3 truly wanted the reference store _in_ the package.
+
+**Net:** a yes on the coordinate-free shape as written, with one real ask (reframe zones off `Vec3`)
+and two clarifications (place-target proximity; `SchematicView` shape). None blocks the freeze —
+react to the zones question and I'll draft the additive `world-contract.ts` delta for your review.
