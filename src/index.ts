@@ -60,6 +60,21 @@ export type {
   EventHandler,
   Unsubscribe,
   WorldApi,
+  // Contract A — the coordinate-free surface (minimum-sim.md §8; additive, retires flat at B-SIM-1)
+  PlaceId,
+  PortalId,
+  ChoiceId,
+  Shape,
+  Proximity,
+  PlaceKind,
+  Place,
+  Portal,
+  PlacedEntity,
+  Anchor,
+  SteerTarget,
+  Choice,
+  SchematicView,
+  MinSimApi,
 } from './world-contract'
 
 // Utilities

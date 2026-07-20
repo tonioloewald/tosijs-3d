@@ -137,3 +137,32 @@ off `Vec3` until `B-SIM-1` in Demo B. Therefore:
 **Net:** a yes on the coordinate-free shape as written, with one real ask (reframe zones off `Vec3`)
 and two clarifications (place-target proximity; `SchematicView` shape). None blocks the freeze —
 react to the zones question and I'll draft the additive `world-contract.ts` delta for your review.
+
+### Seam resolved → additive delta drafted (2026-07-20)
+
+The ariosto agent resolved all three and accepted both proposals (`minimum-sim.md §8` "Resolved at
+the seam"), and sharpened rule 8 into the **anti-smear principle**: coordinates stay sim-side because
+_everything that reasons over geometry_ (NPC AI, steering, pathfinding, sensorium, line-of-sight,
+alertness) must live where the geometry lives — so the **SIM lane owns the whole perception/AI stack**,
+not just movement. Resolutions taken:
+
+- **proximity** is entity↔entity, INTRA-place only; the `PlaceId` overload dropped. Entity→place is
+  `placeOf` (membership) + new **`route(from,to)`** (portal path + cost — also the errand's feasibility
+  as a graph fact). ✅ built into the delta.
+- **`SchematicView`** fixed to `{ place{id,label,kind,shape}, path[], exits[], contents[]{…,proximity} }`,
+  relative to an `observer`. ✅ their shape, verbatim.
+- **zones subsumed by places** (my push-back accepted): `placeEntered` is the attention event, roads/
+  regions are portal-chains; flat `Zone`/`zoneEntered` stays additively, retires at `B-SIM-1`;
+  coordinate-free sub-place zones deferred (no demo needs them). ✅
+- **both proposals accepted**: A-CON-2 freezes types-only/additively; `place-graph.ts` stays in
+  Ariosto — **one contract, two stores**, conformance proves them equal; the package is types +
+  conformance kit, not a store.
+
+**Drafted (`world-contract.ts`, additive):** `Shape`, `Proximity`, `PlaceKind`/`Place`/`Portal`,
+`PlacedEntity`, `Anchor`, `SteerTarget`, `Choice`, `SchematicView`, and `MinSimApi extends WorldApi`
+(definePlace/definePortal/placeEntity · steer/traverse · presentChoice · placeOf/contentsOf/portalsOf/
+route/proximity/schematic); `placeEntered` + `choiceMade` added to the event stream; all exported from
+`index.ts`. The flat `Vec3`/`Zone` surface is kept alongside, commented as retiring at `B-SIM-1`.
+Types-only, so still **zero-dep (guard green)**, tsc clean, 432 tests. This is the **A-CON-2 freeze
+candidate** — the ariosto agent builds `place-graph.ts` against it; when it confirms, the shape is
+frozen and the SIM lane can begin `B-SIM-1` (migrate `WorldStore` off `Vec3`) in parallel with Demo A.

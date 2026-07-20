@@ -275,6 +275,9 @@ export type SimulationEvent =
     }
   | { type: 'death'; at: number; entityId: EntityId; killerId?: EntityId }
   | { type: 'zoneEntered'; at: number; entityId: EntityId; zoneId: ZoneId }
+  // --- Contract A (coordinate-free surface) — see the section at the end of this file ---
+  | { type: 'placeEntered'; at: number; entityId: EntityId; placeId: PlaceId }
+  | { type: 'choiceMade'; at: number; choiceId: ChoiceId; optionId: string }
 
 export type EventHandler = (event: SimulationEvent) => void
 /** Call to stop receiving events. */
@@ -318,4 +321,179 @@ export interface WorldApi {
 
   // events (best-effort)
   subscribe(handler: EventHandler): Unsubscribe
+}
+
+// ===========================================================================
+// Contract A — the coordinate-free surface
+// ---------------------------------------------------------------------------
+// The frozen shape from Ariosto's `minimum-sim.md §8`, resolved with the SIM lane
+// at the seam (2026-07-20; see ARIOSTO-SIM.md). It is **ADDITIVE**: it sits
+// ALONGSIDE the flat `Vec3`/`Zone` surface above during a transition release, so
+// the freeze breaks nothing in tosijs-3d. The flat surface — `Vec3`, `position`
+// on `WorldEntity`, `Zone`, `zoneEntered`, `defineZone`/`removeZone`, and
+// `EntityIntent.steeringGoal: Vec3` — RETIRES at `B-SIM-1`, when `WorldStore`
+// migrates off coordinates onto places + proximity.
+//
+// The rule it expresses: **no coordinate crosses the membrane.** Space is
+// TOPOLOGY (the place graph) + QUALITY (the proximity ladder). Precise geometry —
+// and everything that reasons over it (NPC AI, steering, pathfinding, sensorium,
+// line-of-sight, alertness) — stays wholly sim-private, or a subsystem gets
+// smeared across all three parts (architecture.md rule 8 + its corollary).
+//
+// `WorldStore` still implements the flat `WorldApi`; `MinSimApi` (below) is the
+// grown surface a coordinate-free store implements — reference (`place-graph.ts`,
+// stays in Ariosto) AND real (`WorldStore` at `B-SIM-1`), proven equal by the
+// shared conformance kit. One contract, two stores.
+// ===========================================================================
+
+export type PlaceId = string
+export type PortalId = string
+export type ChoiceId = string
+
+/**
+ * A place's QUALITATIVE shape — four adjectives; the sim DERIVES its geometry and
+ * mechanics from them (the same move as `ease × score`: describe with adjectives,
+ * compute the specifics). `dimensionality` is sim-internal — `discrete` is the
+ * default and needs no coordinates; the finer values mean the sim keeps a private
+ * coordinate frame that never crosses the membrane.
+ */
+export type Shape = {
+  enclosure: 'open' | 'semi-open' | 'closed' | 'lockable'
+  extent: 'intimate' | 'small' | 'medium' | 'large' | 'vast'
+  dimensionality: 'discrete' | 'linear' | 'planar' | 'volumetric'
+  structure: 'natural' | 'some-structures' | 'built' | 'enclosed'
+}
+
+/**
+ * The distance ladder — the ONLY spatial quantity that crosses the membrane, and
+ * it's an adjective (the spatial `ease × score`). Queried, never pushed (no
+ * proximity events). Entity↔entity and INTRA-place only: across places is
+ * `elsewhere`; "how far to a place" is topology (`route`), not a rung.
+ */
+export type Proximity =
+  | 'same-spot'
+  | 'contact'
+  | 'reach'
+  | 'obvious'
+  | 'noticeable'
+  | 'present'
+  | 'elsewhere'
+
+export type PlaceKind =
+  | 'world'
+  | 'region'
+  | 'settlement'
+  | 'building'
+  | 'room'
+  | 'place'
+
+/** A node in the containment graph. `parent` gives the zoom path; `shape` derives the rest. */
+export type Place = {
+  id: PlaceId
+  kind: PlaceKind
+  parent?: PlaceId
+  label: string
+  shape: Shape
+}
+
+/** An edge in the place graph — a door, gate, road. `cost` is coarse sim-seconds (feasibility is a graph sum, not `Vec3` maths). */
+export type Portal = {
+  id: PortalId
+  from: PlaceId
+  to: PlaceId
+  locked: boolean
+  label: string
+  cost: number
+}
+
+/** An entity as the coordinate-free surface sees it: IN a place, with a label — no position. */
+export type PlacedEntity = {
+  id: EntityId
+  place: PlaceId
+  kind: EntityKind
+  label: string
+  /** Opaque, driver-owned; echoed, never interpreted. */
+  ref?: unknown
+}
+
+/** Relational placement — "in the study, near the table" — never a point. */
+export type Anchor = { place: PlaceId; near?: EntityId; at?: Proximity }
+
+/** Relational steering — "approach the butler" / "flee the wolf" — never a point. */
+export type SteerTarget = {
+  toPlace?: PlaceId
+  toEntity?: EntityId
+  behavior?: Behavior
+  fleeFrom?: EntityId
+}
+
+/** A labelled set of options surfaced in-world (the "fight / flee" mid-air menu). The sim presents
+ * and reports the pick (`choiceMade`); it NEVER resolves the choice — adjudication is the driver's. */
+export type Choice = {
+  id: ChoiceId
+  at: PlaceId | EntityId
+  options: { id: string; label: string }[]
+}
+
+/**
+ * The qualitative read-model of a place — labels + topology + proximity bands,
+ * NEVER coordinates. Sim-computed (it has the geometry); the contract only fixes
+ * the shape. It is both a debug instrument and the AI player's spatial sensorium.
+ */
+export type SchematicView = {
+  place: { id: PlaceId; label: string; kind: PlaceKind; shape: Shape }
+  /** Containment breadcrumb, root → here. */
+  path: { id: PlaceId; label: string }[]
+  exits: {
+    portal: PortalId
+    label: string
+    to: PlaceId
+    toLabel: string
+    locked: boolean
+  }[]
+  /** Everything in the place, each annotated with its rung relative to the `observer`. */
+  contents: {
+    id: EntityId
+    kind: EntityKind
+    label: string
+    proximity: Proximity
+  }[]
+}
+
+/**
+ * The grown, coordinate-free surface. Extends `WorldApi` with the place graph, the
+ * choice primitive, relational movement, and topology/quality reads. Implemented by
+ * BOTH stores (Ariosto's reference `place-graph.ts` and, at `B-SIM-1`, tosijs-3d's
+ * `WorldStore`); the shared conformance kit proves they behave identically.
+ */
+export interface MinSimApi extends WorldApi {
+  // world-building — the driver stages the board ahead (off-thread-safe)
+  definePlace(place: Place): void
+  definePortal(portal: Portal): void
+  placeEntity(
+    spec: { id: EntityId; kind: EntityKind; label: string; ref?: unknown },
+    at: Anchor
+  ): void
+
+  // movement — relational only; the sim owns the geometry of getting there
+  steer(id: EntityId, target: SteerTarget | null): void
+  /** Through a door/road → emits `placeEntered`. */
+  traverse(id: EntityId, portal: PortalId): void
+
+  // choices — present labels, report the pick (via `choiceMade`); the sim never resolves them
+  presentChoice(choice: Choice): void
+
+  // reads — topology + quality, never geometry
+  placeOf(id: EntityId): PlaceId
+  contentsOf(place: PlaceId): PlacedEntity[]
+  portalsOf(place: PlaceId): Portal[]
+  /** Portal path + coarse cost between places; null when unreachable. Feasibility as a graph fact. */
+  route(
+    from: PlaceId,
+    to: PlaceId
+  ): { portals: PortalId[]; cost: number } | null
+  /** A rung on the ladder — INTRA-place, entity↔entity; a quality, not a number. */
+  proximity(a: EntityId, b: EntityId): Proximity
+  /** The qualitative read-model, proximities relative to `observer` (defaults to the player). */
+  schematic(place: PlaceId, observer?: EntityId): SchematicView
 }
