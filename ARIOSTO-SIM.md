@@ -50,6 +50,21 @@ this side is well-placed to lead the extraction; it's the short serial spine tha
 swarms. Then the SIM lane takes Demo B (`B-SIM-1..5`) the instant Contract A freezes, in
 parallel with the narrative lane finishing Demo A.
 
+### A-CON-1 progress (in-repo, per the "don't spin up another package" call)
+
+A-CON-1 stays **inside tosijs-3d** rather than becoming a separate package. The audit found the
+boundary already clean — `world-contract.ts` imports **nothing** (pure types), `world-store.ts`
+imports only `type` from `./world-contract`. So "no Babylon pulled" is already true; the work is
+to **guarantee** it so a future edit can't quietly break the membrane both repos rely on.
+
+- ✅ **Zero-dep + determinism guard** (`world-contract.deps.test.ts`): fails if the contract or the
+  reference store ever imports an external package (`@babylonjs/*`, `tosijs`, anything non-local) or
+  reaches for a wall clock / `Math.random`. The two files are now a locked, vendorable unit.
+- **How Ariosto consumes it (in-repo):** vendor the two files (they're guaranteed Babylon-free by
+  the guard) — the current arrangement, now safe to keep. If a cleaner seam is wanted later, the
+  next lean step is grouping them under `src/contract/` so the unit is a folder, not two files
+  among sixty — proposed, not yet done (deferred to avoid churn while the shape is still moving).
+
 **Open sim-side question for the CONTRACT freeze:** `B-SIM-1` drops the shared `Vec3` for
 places + membership + proximity, but keeps geometry **sim-private** (the renderer still needs
 real coordinates to draw a walkable room). Confirm the contract exposes _enough_ for a
