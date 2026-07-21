@@ -186,3 +186,9 @@ static/jolt-physics.wasm-compat.js
 
 # in-browser test results (generated)
 .browser-tests.json
+
+# secrets — never commit API keys / env files
+.env
+.env.*
+*.key
+*resemble*.key
