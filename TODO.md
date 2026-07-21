@@ -769,3 +769,38 @@ removed) and two dead `_savedFog*` fields. Deferred:
 the map-drift gate and the mandatory-peer-dep-changelog block (both invented here, held this
 release) to `practices/releasing.md`; add a gate that no release ships with an `UPSTREAM.md` row
 `(unfiled)` older than one release (drafting has substituted for filing two releases running).
+
+## Speech / voice acting
+
+**SHIPPED (test-tier):** `bin/bake-speech.ts` bakes a `{ voice, text, direction }` manifest via
+Resemble (`model: "chatterbox"`, which honours the inline `<speak prompt="…">` **acting
+direction**) → `static-assets/assets/speech/` → `cdn.tosijs.net/speech` → `assetUrl('speech/<id>.mp3')`.
+Content-cached by `hash(text+voice+direction+model)`, so re-runs only re-synthesise changed lines
+(don't burn credits). Key from `RESEMBLE_API_KEY` (env only, never committed).
+
+Findings worth keeping:
+
+- **Chatterbox is stochastic**, but the synth response **returns the `seed`** — capture it for
+  reproducible re-bakes (a bad roll can be re-rolled; a good one can be pinned).
+- **Write directions as ATTITUDE, not VOLUME.** `quietly` / `hush` / `voice dropping` get taken
+  literally and whisper over the emotion ("quietly suspicious" → a whisper). Say "pressing and
+  level at full voice, an edge of threat" instead.
+- Only _some_ Resemble stock voices are enabled on the account (Grant/Fiona work; most 401).
+- `chatterbox-turbo` OOMs server-side; use plain `chatterbox`.
+
+**FUTURE DIRECTION — audio → animation hints (NOT MVP; gated on the animation pipeline).** The
+data to drive lip-sync + gesture cues is already available; deferred until characters/animation are
+ready to consume it:
+
+- Resemble's synth response carries `audio_timestamps` = **`graph_chars`/`graph_times`**
+  (per-character `[start,end]` — a full source-text→audio map). `phon_chars`/`phon_times` (phonemes,
+  for visemes) exist but came back **empty** for chatterbox — verify a model/flag, or force-align.
+- **SSML `<break>` works** (scripted pauses); the pause is a gap in the timeline to hang a gesture on.
+- For real **lip-sync**: **Azure Speech** is the gold standard — first-class **viseme events** +
+  **55 blendshape coefficients/frame** + `<bookmark>` cue events. **Polly** has viseme + `<mark>`
+  speech marks. **Local** (Chatterbox/Piper) → **forced alignment** (whisperX / MFA) recovers timing.
+- Landing shape: `bake-speech` also saves `<id>.timing.json` (+ seed) next to the mp3; runtime plays
+  via `b3d-sound` and drives (a) lip-sync — viseme morph if the rig has mouth blendshapes, else an
+  amplitude/vowel-openness jaw for placeholders — and (b) **gesture cues** — a `<break>`/`<bookmark>`
+  (or computed char-offset) fires a `b3d-biped` animation clip at that moment. Gesture-at-mark is the
+  tractable half (no morph targets needed); full facial lip-sync waits on rigs with visemes.
