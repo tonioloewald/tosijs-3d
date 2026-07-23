@@ -6,6 +6,7 @@ import 'tosijs-ui' // registers <tosi-doc-system> and the tosi-* element family
 import * as tosijs from 'tosijs'
 import * as tosijs3d from '../src/index'
 import * as tosijsui from 'tosijs-ui'
+import * as demoUtils from './demo-utils' // shared "when in doubt" helpers for live examples
 
 // Point live examples' asset lookups (assetUrl) at the shared CDN.
 tosijs3d.setAssetBase('https://cdn.tosijs.net')
@@ -23,5 +24,6 @@ for (const el of document.querySelectorAll('tosi-doc-system')) {
     tosijs,
     'tosijs-3d': tosijs3d,
     'tosijs-ui': tosijsui,
+    'demo-utils': demoUtils,
   }
 }
