@@ -14,6 +14,30 @@ The `B-SIM-*` / `A-CON-*` IDs below refer to the roadmap's work items.
 
 ## Review log
 
+### 2026-07-24 — B-SIM-1: coordinate-free surface + shared conformance kit BUILT
+
+The additive `MinSimApi` surface is now implemented and proven, not just typed.
+
+- **`WorldStore implements MinSimApi`** — the full §8 surface, ADDITIVE over the flat `Vec3`+zones
+  (which stay until they retire). Coordinates never cross: the driver gets topology + the proximity
+  ladder; the geometry that computes them stays sim-private on `entity.position`. definePlace/
+  definePortal/placeEntity (relational `Anchor`), steer (approach/flee/travel, resolved each `tick`),
+  traverse→`placeEntered`, presentChoice + `chooseOption`→`choiceMade`; reads placeOf/contentsOf/
+  portalsOf/route/proximity/schematic.
+- **`world-topology.ts`** — the pure spatial maths, Babylon-free + deterministic + unit-tested
+  (proximityRung / rungNominal / routePortals[Dijkstra, bidirectional, locked=impassable] /
+  containmentPath). The store delegates; the numbers are testable without a store or an engine.
+- **`min-sim-conformance.ts` — the shared kit is READY for Ariosto.** Framework-agnostic (imports no
+  test runner; takes the harness + a store factory). **Ariosto: run `runMinSimConformance(() => new
+  YourReferenceStore(), { describe, test, expect })` against `place-graph.ts` to prove parity** — "one
+  contract, two stores." It pins contract *behaviour* (membership, routing, the ladder, schematic
+  shape, traverse events, steering closes distance), never a coordinate.
+
+Status: `A-CON-2` types are frozen+aligned and now have a *reference implementation + conformance
+harness*. Remaining B-SIM-1: retire the flat `Vec3`/zones once Demo B no longer needs the transition
+surface. 455 tests green, tsc clean.
+
+
 ### 2026-07-24 — reconciled Ariosto's contract-seam resolution
 
 Checked Ariosto's recent sim-spec work against our `world-contract.ts` Contract A delta. **We are
