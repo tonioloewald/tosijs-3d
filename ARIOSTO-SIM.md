@@ -166,3 +166,27 @@ route/proximity/schematic); `placeEntered` + `choiceMade` added to the event str
 Types-only, so still **zero-dep (guard green)**, tsc clean, 432 tests. This is the **A-CON-2 freeze
 candidate** — the ariosto agent builds `place-graph.ts` against it; when it confirms, the shape is
 frozen and the SIM lane can begin `B-SIM-1` (migrate `WorldStore` off `Vec3`) in parallel with Demo A.
+
+---
+
+## Conversation — hint + contract nudges for the narrative side (2026-07-23)
+
+Full SIM-lane spec: [`CONVERSATION-DESIGN.md`](./CONVERSATION-DESIGN.md). The membrane split holds —
+Ariosto owns the dialogue content/branches/chronicle; tosijs-3d owns staging (balloon panels, audio,
+camera, animation, barge-in turn-taking, the reviewable transcript). Two small asks for the narrative
+side:
+
+- **Authoring hint — player options TERSE.** Both the **label** (glanced at, clicked) and the
+  **voiced line** (baked, spoken) stay short. Nobody reads a paragraph to pick, and nobody wants to
+  hear their own character give a speech — least of all mid-stride in a walk-and-talk. Terse options
+  are a first-class content constraint, not a nicety.
+- **Contract nudges (additive, small) to the choice/dialogue types:**
+  - `Choice.options` currently `{ id, label }` → add an optional **`line`** (the voiced/baked player
+    response); when absent, the `label` IS the line (the tersest case). Keeps the glanced label and
+    the spoken line independently authorable.
+  - Dialogue **lines** carry an optional **`interruptible: boolean` (default true)** — so a punchline
+    or a critical reveal can be marked un-interruptible; everything else barges out on a fast fade
+    when the player picks. This is the sim's "cut the previous line, _if appropriate_" made explicit.
+- **No contract change for transcripts** — the sim's conversation driver played every line, so it
+  logs `{ lineId, speaker, text, audioAsset, at }` itself for the review panel (with audio replay).
+  Separate from the chronicle (which records what the conversation _meant_); do not unify them.
