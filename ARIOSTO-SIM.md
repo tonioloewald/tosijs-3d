@@ -14,6 +14,34 @@ The `B-SIM-*` / `A-CON-*` IDs below refer to the roadmap's work items.
 
 ## Review log
 
+### 2026-07-24 — reconciled Ariosto's contract-seam resolution
+
+Checked Ariosto's recent sim-spec work against our `world-contract.ts` Contract A delta. **We are
+fully in sync — no code changes needed.**
+
+- **`3752975` "Contract seam: answer three questions; accept two proposals"** (authoritative in
+  `minimum-sim.md §8`) is already reflected in our delta (we drafted it the same day; they converged).
+  Verified field-by-field: `Shape` (4 adjectives), `Proximity` (7 rungs same-spot…elsewhere),
+  `PlaceKind`, `Place`, `Portal` (with coarse `cost`), `PlacedEntity`, `Anchor`, `SteerTarget`,
+  `Choice`, `SchematicView` (place+shape / breadcrumb `path` / labelled `exits` / `contents` with a
+  rung relative to `observer`), and `MinSimApi` (definePlace/definePortal/placeEntity/steer/traverse/
+  presentChoice/placeOf/contentsOf/portalsOf/route/proximity/schematic) **all match §8 exactly**.
+  The three resolutions landed: `proximity` is entity↔entity INTRA-place only (no `PlaceId` overload;
+  entity→place is `placeOf` + `route`); `SchematicView` shape fixed; zones subsumed by places
+  (`placeEntered` added, flat `Zone`/`zoneEntered` kept additively until `Vec3` retires at `B-SIM-1`).
+- **`§8` is unchanged since that seam** (`git log 3752975..HEAD -- notes/minimum-sim.md` is empty).
+- **`236e171` "precise positioning is wholly sim-side"** touched only `architecture.md`, not the
+  contract. It's the rule's corollary and it lands squarely on us: because coordinates stay whole on
+  the sim side, so does **everything that reasons over them** — NPC AI, steering, sensorium/LOS,
+  pathfinding, collision, weather, deterministic physical resolution — all live in tosijs-3d (Part 1),
+  and the middle sees only the qualitative result. Consistent with what we already ship (`steerToward`/
+  `proNav`, `radar` sensorium, the combat resolution models). No contract impact.
+- **Ball status:** the "draft the additive delta from §8" ask is **satisfied** — the delta is in
+  `world-contract.ts`, additive over the flat `Vec3`+zones surface, and matches §8. Accepted proposals
+  hold: `A-CON-2` freezes TYPES ONLY additively (breaks nothing here until `B-SIM-1`); `place-graph.ts`
+  stays in Ariosto (one contract, two stores, conformance proves parity).
+
+
 ### 2026-07-20 — after `v0.5.0`
 
 **Verdict: the roadmap's SIM baseline is accurate and `v0.5.0` did not move it.** 0.5.0 was
