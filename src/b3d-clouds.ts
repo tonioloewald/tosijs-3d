@@ -532,7 +532,12 @@ export class B3dClouds extends B3dChild {
     // clamps to 1 for anything nearer, including negative = inside) you STAY white the whole
     // time you're in the cloud, until you come out the far side.
     const startDist = Math.max(1, this.size * this.approach)
-    const fullDist = startDist * 0.3 // total whiteout this far out — well before the surface
+    // Reach FULL immersion well before the surface (0.6·startDist, was 0.3): the scene fog is
+    // temporally smoothed (~0.25s), so at 60 m/s the *visible* whiteout lags the immersion ramp by
+    // ~15 m. Ramping to full earlier means the density has time to build to opaque BEFORE you enter
+    // — otherwise the fog reads as "snapping on right at entry" and, on a fast pass, never fully
+    // settles (distant geometry/shadows show through). Total whiteout is still comfortably close.
+    const fullDist = startDist * 0.6
     this._immersion = band(nearest, startDist, fullDist)
 
     // Whiteout COLOUR by vertical depth: white near the cloud top, darkening as you sink. The
