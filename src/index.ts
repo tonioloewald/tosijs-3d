@@ -41,6 +41,7 @@ export type {
 export { WorldStore } from './world-store'
 export { WorldView, defaultMeshFactory } from './world-view'
 export type { MeshFactory } from './world-view'
+export { proximityRung, routePortals, containmentPath } from './world-topology'
 export type {
   WorldState,
   WorldEntity,
