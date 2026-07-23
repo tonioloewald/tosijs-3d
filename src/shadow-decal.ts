@@ -19,23 +19,33 @@ better than a crisp CSM shadow would anyway.
 position over the floor.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, createShadowDecal } from 'tosijs-3d'
+import { b3d, b3dSkybox, b3dBox, createShadowDecal } from 'tosijs-3d'
+import { demoSun, orbitCam, patternGround } from 'demo-utils'
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.3, Math.PI / 3.2, 14, new BABYLON.Vector3(0, 1.5, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
-      // one soft decal, sized to the crate's footprint, laid just above the floor
+      orbitCam(el, { radius: 15, beta: Math.PI / 3.2, target: [0, 1.2, 0] })
+      // a soft grounding decal, placed where the SUN projects the floater onto the ground — so it
+      // lines up with the light direction, not just straight down (which read wrong under an angled sun).
       const decal = createShadowDecal(el.scene, { size: 3.2 })
-      decal.position.set(0, 0.02, 0)
+      const floater = new BABYLON.Vector3(0, 2.6, 0)
+      const place = () => {
+        const sun = el.scene.lights.find((l) => l.getClassName?.() === 'DirectionalLight')
+        if (!sun) return
+        const d = sun.direction.normalizeToNew() // light travel direction (points down-and-across)
+        const t = floater.y / -d.y
+        decal.position.set(floater.x + d.x * t, 0.02, floater.z + d.z * t)
+        el.scene.onBeforeRenderObservable.removeCallback(place) // place once, then stop
+      }
+      el.scene.onBeforeRenderObservable.add(place)
     },
   },
-  b3dSun(),
+  demoSun(),
   b3dSkybox({ timeOfDay: 10 }),
-  b3dGround({ width: 30, height: 30, texture: 'checker', textureTiles: 15 }),
-  b3dBox({ meshName: 'floater', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
+  patternGround({ size: 30, tiles: 15 }),
+  // `_nocast` so no real CSM shadow competes with the decal — the decal IS the grounding shadow here
+  b3dBox({ meshName: 'floater_nocast', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
 )
 preview.append(scene)
 ```
