@@ -228,14 +228,20 @@ export class B3dClouds extends B3dChild {
     const rng = new MersenneTwister(this.seed)
     this._baseColor = BABYLON.Color3.FromHexString(this.color)
     const mat = new BABYLON.StandardMaterial('cloud-mat', scene)
-    // LIT now — the sun rakes the tops and the undersides fall dark, which is what reads as a
-    // cloud rather than a flat decal. `selfIllum` keeps it from going to a grey rock (the old
-    // reason for disableLighting); `coverage` modulates all of this live in _update.
+    // FLAT by default — deliberate, not lazy. A cloud is a CLUMP of overlapping opaque blobs; the
+    // moment they're LIT, adjacent blobs shade differently, so wherever two surfaces coincide in
+    // depth the z-fight becomes VISIBLE and flickers like crazy as you tilt (worse once they
+    // drift). Flat, every blob is the SAME colour, so the z-fight is invisible — no flicker, ever.
+    // Form comes from the projected shadow + the fog whiteout + the silhouette, not per-blob
+    // shading. (A lit-but-stable version needs a single merged mesh or a deterministic opaque
+    // sort so ties don't flip — tracked in TODO. `backFaceCulling` ON for the same reason: a
+    // blob's dark interior must not compete with a neighbour's exterior in the depth buffer.)
     mat.diffuseColor = this._baseColor
-    mat.emissiveColor = this._baseColor.scale(this.selfIllum)
+    mat.emissiveColor = this._baseColor.clone() // fully self-lit → flat lit blob, not a grey rock
     mat.specularColor = BABYLON.Color3.Black()
+    mat.disableLighting = true
     mat.alpha = this.opacity
-    mat.backFaceCulling = false
+    mat.backFaceCulling = true
     this._mat = mat
 
     const sizeMul = 0.7 + this.coverage * 0.6 // denser sky → bigger, more-overlapping blobs
@@ -365,12 +371,11 @@ export class B3dClouds extends B3dChild {
     if (cov !== this._lastCoverage && this._mat != null) {
       this._lastCoverage = cov
       this._shadowDirty = true
-      // Thicker sky ⇒ darker (storm grey) and less self-lit (dark underbellies). Opacity is NOT
-      // touched — the blobs are solid; coverage changes how MANY and how DARK, not how see-through.
-      const dark = 1 - 0.45 * cov
-      const illum = Math.min(1, Math.max(0, this.selfIllum * (1.4 - cov)))
+      // Thicker sky ⇒ darker (storm grey). Opacity is NOT touched — the blobs are solid; coverage
+      // changes how MANY and how DARK, not how see-through. Flat model: emissive IS what shows.
+      const dark = 1 - 0.5 * cov
       this._mat.diffuseColor = this._baseColor.scale(dark)
-      this._mat.emissiveColor = this._baseColor.scale(dark * illum)
+      this._mat.emissiveColor = this._baseColor.scale(dark)
     }
     return active
   }

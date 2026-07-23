@@ -52,7 +52,15 @@ export function patternGround(
   })
 }
 
-/** The standard ArcRotateCamera every demo sets up — one call instead of six lines. In sceneCreated. */
+/**
+ * The standard ArcRotateCamera every demo sets up — one call instead of six lines. In sceneCreated.
+ *
+ * Clamps the tilt by DEFAULT so you can't drag the view below the horizon and see the world from
+ * underneath (an ArcRotateCamera happily orbits under the floor otherwise — a long-standing demo
+ * papercut). `minElevationDeg` (default 5) keeps the camera at least that many degrees above
+ * horizontal; `maxElevationDeg` (default 89) stops it going exactly top-down. Set either to null
+ * to opt out.
+ */
 export function orbitCam(
   el: B3dEl,
   opts: {
@@ -60,6 +68,8 @@ export function orbitCam(
     beta?: number
     radius?: number
     target?: [number, number, number]
+    minElevationDeg?: number | null
+    maxElevationDeg?: number | null
   } = {}
 ): BABYLON.ArcRotateCamera {
   const {
@@ -67,6 +77,8 @@ export function orbitCam(
     beta = Math.PI / 3,
     radius = 14,
     target = [0, 0.8, 0],
+    minElevationDeg = 5,
+    maxElevationDeg = 89,
   } = opts
   const cam = new BABYLON.ArcRotateCamera(
     'demo-cam',
@@ -77,6 +89,12 @@ export function orbitCam(
     el.scene
   )
   cam.attachControl(el.querySelector('canvas'), true)
+  // beta is measured from straight-up (0) to straight-down (π); π/2 is level with the horizon.
+  // Elevation ABOVE horizontal = π/2 − beta, so a min elevation is an UPPER beta limit.
+  if (minElevationDeg != null)
+    cam.upperBetaLimit = Math.PI / 2 - (minElevationDeg * Math.PI) / 180
+  if (maxElevationDeg != null)
+    cam.lowerBetaLimit = Math.PI / 2 - (maxElevationDeg * Math.PI) / 180
   el.setActiveCamera(cam)
   return cam
 }

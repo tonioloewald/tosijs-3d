@@ -928,3 +928,25 @@ to the local surface normal — no physics engine needed). Same sampling helps *
 (ride the swell, bank into turns). Exposes a `waterHeightAt(x, z)` / surface-normal query on the
 water so bobbing, boats, and the ambient depth-ramp all read ONE source of truth. Related: the
 demo-utils `spinner` bob is currently hand-rolled per demo — this would replace it.
+
+## Clouds & demo camera (Tonio, 2026-07-23)
+
+- [x] **Cloud flicker (z-fighting)** — overlapping opaque LIT blobs z-fight visibly (adjacent blobs
+  shade differently at coincident depths, tie-break flips per frame → flickers like crazy on tilt).
+  Fixed: FLAT shading default (disableLighting + backFaceCulling) so the z-fight is invisible.
+- [ ] **Lit clouds WITHOUT flicker** — the flat default is robust but loses the raked-top look. To
+  bring lighting back safely: either merge all blobs into ONE mesh (fixed triangle order →
+  deterministic depth), or give the cloud layer its own renderingGroupId with a STABLE opaque sort
+  (by uniqueId) so ties don't flip. Then re-enable lighting behind an attr.
+- [ ] **Clouds should MOVE / be dynamic** — they currently just sit there. Drift the layer with the
+  global WIND (ties to the wind-system TODO) + gentle per-blob wobble/scale breathing. Motion makes
+  even flat clouds read as alive — and it's what makes the sky interesting.
+- [ ] **Cloud SHADOWS churn** — the projected shadow window recentres on camera DRIFT (`drift >
+  worldSize*0.1`), so an orbiting demo camera constantly triggers throttled repaints and the shadow
+  steps/churns even though the blobs are stationary. Investigate: bigger window / higher drift
+  threshold / don't recentre for a static layer / smooth the recenter. Separate from the flicker.
+- [ ] **Demo camera tilt limit — roll out** — `demo-utils.orbitCam` now clamps beta (default: ≥5°
+  above horizontal, ≤89° so not dead top-down) so you can't orbit under the floor. But MANY demos
+  still hand-roll their own ArcRotateCamera in sceneCreated and don't get it — migrate them to
+  `orbitCam`, or (bigger call) apply a default beta clamp in B3d.setActiveCamera for any
+  ArcRotateCamera without limits. "I can see the world from below in almost any demo scene."
