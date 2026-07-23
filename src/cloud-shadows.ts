@@ -202,7 +202,14 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
         vec2 csGround = vPositionW.xz + cloudShadowSun.xz * csT;
         vec2 csUv = (csGround - cloudShadowWindow.xy) * cloudShadowWindow.z + 0.5;
         if (csUv.x > 0.0 && csUv.x < 1.0 && csUv.y > 0.0 && csUv.y < 1.0) {
-          gl_FragColor.rgb *= texture2D(cloudShadowSampler, csUv).r;
+          float csShadow = texture2D(cloudShadowSampler, csUv).r;
+          #ifdef FOG
+            // We inject at MAIN_END, AFTER fog — so a naive multiply darkens the already-fogged
+            // colour, and a projected cloud shadow shows straight THROUGH the cloud's own whiteout.
+            // Fade the shadow out with the fog: a fully-fogged fragment must stay fog-coloured.
+            csShadow = mix(csShadow, 1.0, clamp(1.0 - CalcFogFactor(), 0.0, 1.0));
+          #endif
+          gl_FragColor.rgb *= csShadow;
         }
       }
       #endif`,
