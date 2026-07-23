@@ -11,7 +11,11 @@ import { join } from 'node:path'
 const SRC = join(import.meta.dir)
 
 function importsOf(file: string): string[] {
-  const text = readFileSync(join(SRC, file), 'utf8')
+  // Strip comments FIRST — a doc-comment `/*# … */` example may `import { b3d, WorldView } from
+  // 'tosijs-3d'` to SHOW how to drive the pure store from the Babylon view. That's illustration,
+  // not a real module dependency, and must not count against the purity guard (the module's real
+  // imports are only local `./world-contract`).
+  const text = stripComments(readFileSync(join(SRC, file), 'utf8'))
   // Every `... from '<spec>'` (static import or re-export), plus dynamic import('<spec>').
   const specs: string[] = []
   for (const m of text.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)) specs.push(m[1])

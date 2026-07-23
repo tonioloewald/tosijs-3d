@@ -335,7 +335,7 @@ export class B3dGamepad extends Component implements GamepadSource {
     right?: ClusterConfig | false
     top?: ClusterConfig | false
   }
-  onButton?: (part: string, pressed: boolean) => void
+  handleButton?: (part: string, pressed: boolean) => void
 
   private sources: TouchGamepadSource[] = []
   private built = false
@@ -356,7 +356,7 @@ export class B3dGamepad extends Component implements GamepadSource {
     const opts: TouchGamepadOptions = {
       deadzone: this.deadzone,
       maxZone: this.maxZone,
-      handleButton: this.onButton,
+      handleButton: this.handleButton,
     }
     // The set of controls to show (undefined = all). A stick implies its travel.
     let want: Set<string> | undefined
