@@ -918,3 +918,13 @@ hot-rebuilds in place → haltija reads it, no reload, console intact).
   exceptions. Filed in UPSTREAM.md (two haltija rows). Until then, the manual recipe:
   `document.querySelector('button.source-menu').click()` then click the `.xin-menu-item` matching
   /refresh/.
+
+## Water: help things float / bob on the surface (Tonio, 2026-07-23)
+
+`b3d-water` should afford keeping things ON the surface — both a **physics** path (buoyancy: a
+float force proportional to submerged depth, so a rigidbody settles at the waterline) and a
+**brute-force** path (sample the wave height at an object's x/z and set its y + a little pitch/roll
+to the local surface normal — no physics engine needed). Same sampling helps **boats move nicely**
+(ride the swell, bank into turns). Exposes a `waterHeightAt(x, z)` / surface-normal query on the
+water so bobbing, boats, and the ambient depth-ramp all read ONE source of truth. Related: the
+demo-utils `spinner` bob is currently hand-rolled per demo — this would replace it.
