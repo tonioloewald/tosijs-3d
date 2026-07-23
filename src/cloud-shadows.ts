@@ -12,6 +12,36 @@ for the cost of one texture sample and **zero raycasts**.
 The texture is repainted only when something changes (a cloud recycles, coverage moves, the
 window recentres on the camera, the sun swings) — the steady state is just the sample.
 
+## Demo
+
+[b3d-clouds](?b3d-clouds.ts) drives this under the hood: set `castShadows` and soft cloud shadows
+drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dClouds, b3dGround, b3dBox } from 'tosijs-3d'
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 55, new BABYLON.Vector3(0, 0, 0), el.scene)
+      cam.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(cam)
+    },
+  },
+  b3dSun({ x: -0.5, y: -1, z: -0.35 }),
+  b3dSkybox({ timeOfDay: 11 }),
+  b3dGround({ width: 160, height: 160, texture: 'checker', textureTiles: 32 }),
+  b3dClouds({ altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
+  ...Array.from({ length: 9 }, (_, i) =>
+    b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: '#7a9b6e' })
+  ),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Geometry-independent
 
 The painter takes abstract **blobs** (`x, z, rx, rz, strength`), not meshes — so the cost is

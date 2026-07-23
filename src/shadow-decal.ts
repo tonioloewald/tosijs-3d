@@ -12,6 +12,37 @@ sharpen with proximity. What it buys is *grounding* — the eye reads "this thin
 spot" — and for soft, high, or numerous casters (clouds, a flock, ambient debris) that reads
 better than a crisp CSM shadow would anyway.
 
+## Demo
+
+**A floating crate, grounded by a soft blob.** No shadow map is involved — just one alpha quad
+`createShadowDecal` drops on the ground beneath it. Drag to orbit; the decal reads the crate's
+position over the floor.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, createShadowDecal } from 'tosijs-3d'
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.3, Math.PI / 3.2, 14, new BABYLON.Vector3(0, 1.5, 0), el.scene)
+      cam.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(cam)
+      // one soft decal, sized to the crate's footprint, laid just above the floor
+      const decal = createShadowDecal(el.scene, { size: 3.2 })
+      decal.position.set(0, 0.02, 0)
+    },
+  },
+  b3dSun(),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 30, height: 30, texture: 'checker', textureTiles: 15 }),
+  b3dBox({ meshName: 'floater', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Two ways to place one
 
 - **`projectShadowDown`** — raycast straight down and lay the decal on whatever surface it hits

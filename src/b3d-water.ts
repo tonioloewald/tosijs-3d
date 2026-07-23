@@ -3,6 +3,36 @@
 
 Water plane with reflections, waves, and underwater fog effect.
 
+## Demo
+
+**A lake with a few crates on the shore.** The sun rakes across the surface; the water reflects the
+sky and the crates. Drag to orbit — dip the camera below the surface and the world tints and dims.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dWater, b3dReflections, b3dGround, b3dBox } from 'tosijs-3d'
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.4, Math.PI / 2.8, 24, new BABYLON.Vector3(0, 0.5, 0), el.scene)
+      cam.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(cam)
+    },
+  },
+  b3dSun(),
+  b3dSkybox({ timeOfDay: 9 }),
+  b3dGround({ y: -0.5, width: 60, height: 60, texture: 'checker', textureTiles: 20, color: '#6b7f5e' }),
+  b3dBox({ meshName: 'crate-a', size: 2, x: -8, y: 0.5, z: -6, color: '#b06a3c' }),
+  b3dBox({ meshName: 'crate-b', size: 1.4, x: -6.5, y: 0.2, z: -8, color: '#8a5a30' }),
+  b3dWater({ waterSize: 60, waveHeight: 0.4, windForce: -4, twoSided: true }),
+  b3dReflections(),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
