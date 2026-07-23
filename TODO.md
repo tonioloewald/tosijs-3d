@@ -959,3 +959,20 @@ camera FRUSTUM ∩ the cloud layer (the slab at `altitude ± thickness/2`): grow
 field to cover the visible footprint, so clouds fill wherever you can see them regardless of zoom.
 Quick stopgap = bigger `spread`/`count` (costs draws); the frustum-fit is the real answer, and it
 pairs with the recycle wrap (wrap into the newly-revealed edge of the frustum footprint).
+
+## Rename on[A-Z]* component METHODS off the `on` prefix (Tonio, 2026-07-23)
+
+The elementCreator treats `on<Event>` as event-handler sugar, so a component METHOD named `onXxxx` is
+shadowed — the transpiler warns, and it can silently misbehave (`<tosi-b3d> defines 'onSceneAddition',
+'onOriginShift'` fired live). Rename them (the `handle<Event>` convention for handler-style ones; a
+non-`on`, non-`handle` verb for subscribe-style ones — `handleSceneAddition` reads wrong for a call
+that REGISTERS a callback):
+
+- [ ] `B3d.onSceneAddition` / `offSceneAddition`, `onOriginShift` / `offOriginShift` — **public API,
+  ~30 call sites across 12 files** (b3d-shadows, b3d-reflections, b3d-water, b3d-terrain, b3d-clouds,
+  b3d-collisions, b3d-destroyable, b3d-launcher, b3d-radar-blip, …). Coordinated rename + verify build.
+  Naming: maybe `watchSceneAdditions`/`unwatch…`, `onSceneAddition`→`whenSceneAdds`? Decide first.
+- [ ] `B3dControllable.onGainFocus` / `onLoseFocus` → `handleGainFocus` / `handleLoseFocus`
+- [ ] `TouchGamepad.onButton` → `handleButton`
+- [x] `B3d.onResize` / `B3dHud.onResize` — already deprecated for this reason
+- Check `b3d-probe`'s `onProfile` (likely a demo config callback, not a shadowed method — verify).
