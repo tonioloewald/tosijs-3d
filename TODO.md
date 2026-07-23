@@ -46,8 +46,8 @@ anything). Fixed everywhere (string `'on'|'off'` enum, or a negative boolean):
 - [x] b3d-star-system `animate`, `showOrbits` → `'on'|'off'`
 - [x] b3d-svg-plane `pointerEvents`, `doubleSided` → `'on'|'off'`
 - [x] **b3d-controller `player` → `player: false`** — the one that slipped through; because
-  tosijs now throws, its ctor died and `<tosi-b3d-controller>` wired NO input in any demo
-  (the "controller does nothing" bug). Fixed 2026-07-23. No default-true booleans remain.
+      tosijs now throws, its ctor died and `<tosi-b3d-controller>` wired NO input in any demo
+      (the "controller does nothing" bug). Fixed 2026-07-23. No default-true booleans remain.
 
 [x] HUD warning block — DONE. `setWarnings([{text, side?}])` on the HUD driver + b3d-hud: shows stacked warning text (#warning) and flashes the threatened-side gauge BORDER red (bottom = PULL UP/ground, etc.). Wired into b3d-aircraft (pullUp → bottom, stall → text). Code HUD (buildFallbackHud) is now the default (fully wired); designer-asset `normalizeHud`/horizon adaptation deferred. Next: weapons exist now (v0.4.0) — drive threat warnings from combat (incoming missile → bearing side); and the radar traces (`setTraces`) still need wiring to live scene targets.
 
@@ -911,8 +911,8 @@ hot-rebuilds in place → haltija reads it, no reload, console intact).
 - **Coding-practices note**: write up the benefits of live-examples as a development/debugging
   methodology (in `../tosijs-coding-practices`) — literate docs that are also the test harness AND
   an agent-drivable repro. Include the workflow (view/edit code → change → refresh) and the
-  gotchas (Refresh re-runs the loaded module, so *source* edits need a full reload; only
-  *example-code* edits take via Refresh).
+  gotchas (Refresh re-runs the loaded module, so _source_ edits need a full reload; only
+  _example-code_ edits take via Refresh).
 - **Haltija affordances**: first-class `hj` verbs (or documented selectors) to toggle edit mode,
   refresh/re-run an example, and set example code programmatically — plus surfacing uncaught
   exceptions. Filed in UPSTREAM.md (two haltija rows). Until then, the manual recipe:
@@ -932,21 +932,30 @@ demo-utils `spinner` bob is currently hand-rolled per demo — this would replac
 ## Clouds & demo camera (Tonio, 2026-07-23)
 
 - [x] **Cloud flicker (z-fighting)** — overlapping opaque LIT blobs z-fight visibly (adjacent blobs
-  shade differently at coincident depths, tie-break flips per frame → flickers like crazy on tilt).
-  Fixed: FLAT shading default (disableLighting + backFaceCulling) so the z-fight is invisible.
+      shade differently at coincident depths, tie-break flips per frame → flickers like crazy on tilt).
+      Fixed: FLAT shading default (disableLighting + backFaceCulling) so the z-fight is invisible.
 - [ ] **Lit clouds WITHOUT flicker** — the flat default is robust but loses the raked-top look. To
-  bring lighting back safely: either merge all blobs into ONE mesh (fixed triangle order →
-  deterministic depth), or give the cloud layer its own renderingGroupId with a STABLE opaque sort
-  (by uniqueId) so ties don't flip. Then re-enable lighting behind an attr.
+      bring lighting back safely: either merge all blobs into ONE mesh (fixed triangle order →
+      deterministic depth), or give the cloud layer its own renderingGroupId with a STABLE opaque sort
+      (by uniqueId) so ties don't flip. Then re-enable lighting behind an attr.
 - [ ] **Clouds should MOVE / be dynamic** — they currently just sit there. Drift the layer with the
-  global WIND (ties to the wind-system TODO) + gentle per-blob wobble/scale breathing. Motion makes
-  even flat clouds read as alive — and it's what makes the sky interesting.
+      global WIND (ties to the wind-system TODO) + gentle per-blob wobble/scale breathing. Motion makes
+      even flat clouds read as alive — and it's what makes the sky interesting.
 - [ ] **Cloud SHADOWS churn** — the projected shadow window recentres on camera DRIFT (`drift >
-  worldSize*0.1`), so an orbiting demo camera constantly triggers throttled repaints and the shadow
-  steps/churns even though the blobs are stationary. Investigate: bigger window / higher drift
-  threshold / don't recentre for a static layer / smooth the recenter. Separate from the flicker.
+worldSize*0.1`), so an orbiting demo camera constantly triggers throttled repaints and the shadow
+      steps/churns even though the blobs are stationary. Investigate: bigger window / higher drift
+      threshold / don't recentre for a static layer / smooth the recenter. Separate from the flicker.
 - [ ] **Demo camera tilt limit — roll out** — `demo-utils.orbitCam` now clamps beta (default: ≥5°
-  above horizontal, ≤89° so not dead top-down) so you can't orbit under the floor. But MANY demos
-  still hand-roll their own ArcRotateCamera in sceneCreated and don't get it — migrate them to
-  `orbitCam`, or (bigger call) apply a default beta clamp in B3d.setActiveCamera for any
-  ArcRotateCamera without limits. "I can see the world from below in almost any demo scene."
+      above horizontal, ≤89° so not dead top-down) so you can't orbit under the floor. But MANY demos
+      still hand-roll their own ArcRotateCamera in sceneCreated and don't get it — migrate them to
+      `orbitCam`, or (bigger call) apply a default beta clamp in B3d.setActiveCamera for any
+      ArcRotateCamera without limits. "I can see the world from below in almost any demo scene."
+
+## Clouds: fill the frame / frustum-aware spread (Tonio, 2026-07-23)
+
+The blob field is a fixed ±`spread` box around the CAMERA, so pulling the camera back leaves the top
+of the frame empty (the field doesn't reach where you're now looking). Base the cloud extent on the
+camera FRUSTUM ∩ the cloud layer (the slab at `altitude ± thickness/2`): grow/reposition the active
+field to cover the visible footprint, so clouds fill wherever you can see them regardless of zoom.
+Quick stopgap = bigger `spread`/`count` (costs draws); the frustum-fit is the real answer, and it
+pairs with the recycle wrap (wrap into the newly-revealed edge of the frustum footprint).

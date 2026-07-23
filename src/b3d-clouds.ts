@@ -455,14 +455,40 @@ export class B3dClouds extends B3dChild {
       const on = i < active
       if (blob.isEnabled() !== on) blob.setEnabled(on)
       if (!on) continue
-      const dx = blob.position.x - eye.x
-      const dz = blob.position.z - eye.z
-      const flat = Math.hypot(dx, dz)
-      if (flat > this.spread) {
-        blob.position.x = eye.x - dx
-        blob.position.z = eye.z - dz
+      // Recycle with HYSTERESIS: only wrap a blob once it's well PAST the edge, and drop it back to
+      // just INSIDE the opposite edge — never right at the boundary.
+      //
+      // ⚠️ The old code reflected across the eye (`eye - dx`), which keeps the SAME distance from
+      // it — so a blob just past `spread` landed just past it on the far side and re-triggered EVERY
+      // frame: a per-frame ping-pong that teleported the handful of boundary blobs back and forth.
+      // Static it looked fine (no blob was past `spread`); the moment the camera moved, a few blobs
+      // crossed the ring and "flickered like crazy". The gap between the wrap threshold (`s + pad`)
+      // and the landing point (`s - inset`) is the hysteresis band that stops any boundary thrash —
+      // and landing at a fixed inset (not a same-distance reflection or a modulo) means even a
+      // camera that jumps far in one frame lands cleanly inside.
+      const s = this.spread
+      const pad = s * 0.08 // must be this far PAST the edge before it recycles
+      const inset = s * 0.05 // and reappears this far INSIDE the opposite edge
+      const wrapAxis = (p: number, e: number): number => {
+        const r = p - e
+        if (r > s + pad) return e - (s - inset) // off the far edge → reappear just inside the near
+        if (r < -(s + pad)) return e + (s - inset)
+        return p
+      }
+      const nx = wrapAxis(blob.position.x, eye.x)
+      const nz = wrapAxis(blob.position.z, eye.z)
+      if (nx !== blob.position.x || nz !== blob.position.z) {
+        blob.position.x = nx
+        blob.position.z = nz
         this._shadowDirty = true
       }
+      const dx = blob.position.x - eye.x
+      const dz = blob.position.z - eye.z
+      // Fade near the field edge so a recycled blob doesn't POP: it's already nearly invisible by
+      // the time it reaches the boundary, wraps while unseen, then fades back up as it drifts inward.
+      // (`visibility` is per-mesh, so it composes with the shared material's `opacity`.)
+      const edgeDist = s - Math.max(Math.abs(dx), Math.abs(dz))
+      blob.visibility = Math.min(1, Math.max(0, edgeDist / (s * 0.35)))
       const dy = blob.position.y - eye.y
       // True WORLD distance to the squashed-ellipsoid surface along the view ray — so the whiteout
       // builds over the same real distance from any direction. The old `hypot(dx, dy/0.45, dz) -
