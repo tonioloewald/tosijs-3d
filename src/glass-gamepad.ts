@@ -79,7 +79,6 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
   border-radius: 8px;
   overflow: hidden;
 }
-/* the 3D scene fills the card; the pad clusters (added after it) pin over the corners */
 .glass-stage tosi-b3d,
 .glass-stage tosi-b3d-gamepad {
   position: absolute;
