@@ -283,7 +283,7 @@ export function spawnProjectile(
     mesh.position.x -= dx
     mesh.position.z -= dz
   }
-  owner.onOriginShift(onShift)
+  owner.addOriginListener(onShift)
 
   // Optional radar signature: a blip that tracks this shell's mesh while it lives.
   const blip =
@@ -303,7 +303,7 @@ export function spawnProjectile(
   const dispose = () => {
     if (!alive) return
     alive = false
-    owner.offOriginShift(onShift)
+    owner.removeOriginListener(onShift)
     if (blip != null) owner.unregisterRadarBlip(blip)
     scene.onBeforeRenderObservable.remove(obs)
     mesh.dispose()

@@ -37,7 +37,7 @@ place-relative = a world-space snapshot with **no** parenting.
 
 The framework rebases the world periodically (`B3d.shiftOrigin`; see CLAUDE.md →
 Floating origin). Anything holding a world position must opt in via
-`registerWorldRoot(node)` / `onOriginShift(cb)` or it drifts on a recenter. The three
+`registerWorldRoot(node)` / `addOriginListener(cb)` or it drifts on a recenter. The three
 mechanics each imply the right bookkeeping:
 
 - **Attached** to a moving carrier → the object FOLLOWS the carrier, so it must NOT be
@@ -55,7 +55,7 @@ mechanics each imply the right bookkeeping:
   re-parents the biped into the car and back on the `interact` action.
 - **XR reference frames** (`xr-frames.ts`) are `TransformNode`s — the attach targets
   for mechanic #1 (world / rig / body / neck / eye / face / hands).
-- **Floating origin** (`registerWorldRoot` / `onOriginShift`) is the world-space
+- **Floating origin** (`registerWorldRoot` / `addOriginListener`) is the world-space
   bookkeeping for #2 / #3.
 - **`buildAxes(scene)`** returns a bare `TransformNode` — the first thing you'd want
   to attach to a frame to tune placement.

@@ -647,14 +647,14 @@ export class B3d extends Component {
     else this._readyQueue.push(cb)
   }
 
-  onSceneAddition(callback: SceneAdditionHandler): void {
+  addSceneListener(callback: SceneAdditionHandler): void {
     this.sceneListeners.push(callback)
     for (const additions of this.pastAdditions) {
       callback(additions)
     }
   }
 
-  offSceneAddition(callback: SceneAdditionHandler): void {
+  removeSceneListener(callback: SceneAdditionHandler): void {
     const idx = this.sceneListeners.indexOf(callback)
     if (idx > -1) {
       this.sceneListeners.splice(idx, 1)
@@ -676,7 +676,7 @@ export class B3d extends Component {
   //
   //  - registerWorldRoot(node): the entity's world position lives ENTIRELY on the
   //    node (inert targets, props, other vehicles). We move the node.
-  //  - onOriginShift(cb): the entity also holds world coordinates in JS (a
+  //  - addOriginListener(cb): the entity also holds world coordinates in JS (a
   //    projectile integrating its own position, remembered target positions, AI
   //    memory). It gets (dx, dz) and fixes ITSELF — node AND JS state. Such an
   //    entity must NOT also registerWorldRoot (that would shift its node twice).
@@ -712,11 +712,11 @@ export class B3d extends Component {
     this._worldRoots.delete(node)
   }
 
-  onOriginShift(callback: (dx: number, dz: number) => void): void {
+  addOriginListener(callback: (dx: number, dz: number) => void): void {
     this._originShiftListeners.push(callback)
   }
 
-  offOriginShift(callback: (dx: number, dz: number) => void): void {
+  removeOriginListener(callback: (dx: number, dz: number) => void): void {
     const idx = this._originShiftListeners.indexOf(callback)
     if (idx > -1) this._originShiftListeners.splice(idx, 1)
   }
@@ -740,7 +740,7 @@ export class B3d extends Component {
    * own tiles by (dx, dz). Shifts: the camera CARRIER (the piloted entity if one is
    * driven — the chase rig re-derives from it each frame, so shifting the rig would
    * be overwritten; else the camera's parent; else the camera), every registered
-   * world root, and every onOriginShift listener (which fixes its own node + JS).
+   * world root, and every addOriginListener listener (which fixes its own node + JS).
    * Skybox/water are viewer/origin-centred and intentionally NOT shifted.
    */
   shiftOrigin(dx: number, dz: number): void {

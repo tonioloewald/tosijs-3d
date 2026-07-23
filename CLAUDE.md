@@ -118,7 +118,7 @@ b3d(
 The core coordination mechanism. `B3d` maintains a listener list:
 
 - Child components call `owner.register({meshes, lights})` when they add content
-- Other components listen via `owner.onSceneAddition(callback)` to react (e.g., reflections adds new meshes to probe render lists, sun adds shadow casters)
+- Other components listen via `owner.addSceneListener(callback)` to react (e.g., reflections adds new meshes to probe render lists, sun adds shadow casters)
 
 ### Floating origin
 
@@ -132,7 +132,7 @@ will drift on a reset:
 - **`b3d.registerWorldRoot(node)`** / `unregisterWorldRoot` — the entity's world
   position lives entirely on the node (inert props, targets, parked vehicles); B3d
   moves the node.
-- **`b3d.onOriginShift((dx,dz) => …)`** / `offOriginShift` — the entity also holds
+- **`b3d.addOriginListener((dx,dz) => …)`** / `removeOriginListener` — the entity also holds
   world coordinates in JS (a projectile integrating its own position, remembered
   target positions, AI memory). It fixes itself (node **and** JS) and must NOT also
   `registerWorldRoot`.

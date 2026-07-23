@@ -356,7 +356,7 @@ export class B3dGamepad extends Component implements GamepadSource {
     const opts: TouchGamepadOptions = {
       deadzone: this.deadzone,
       maxZone: this.maxZone,
-      onButton: this.onButton,
+      handleButton: this.onButton,
     }
     // The set of controls to show (undefined = all). A stick implies its travel.
     let want: Set<string> | undefined

@@ -43,7 +43,7 @@ function makeScene(): BABYLON.Scene {
   return scene
 }
 function makeOwner(scene: BABYLON.Scene): any {
-  return { scene, onOriginShift() {}, offOriginShift() {} }
+  return { scene, addOriginListener() {}, removeOriginListener() {} }
 }
 
 describe('spawnProjectile — the mechanism behind launcher.fire()', () => {

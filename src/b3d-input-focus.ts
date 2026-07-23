@@ -158,7 +158,7 @@ export class B3dInputFocus extends B3dChild {
 
     // Deactivate old focus
     if (this.focusedEntity) {
-      this.focusedEntity.onLoseFocus()
+      this.focusedEntity.handleLoseFocus()
       this.focusedEntity.inputProvider = null
     }
 
@@ -172,7 +172,7 @@ export class B3dInputFocus extends B3dChild {
         this.inputMappedProvider
       )
     }
-    entity.onGainFocus()
+    entity.handleGainFocus()
 
     // Switch camera to follow the new entity
     this.setupCameraForEntity(entity)
@@ -190,7 +190,7 @@ export class B3dInputFocus extends B3dChild {
   releaseFocus(): void {
     const entity = this.focusedEntity
     if (entity == null) return
-    entity.onLoseFocus()
+    entity.handleLoseFocus()
     entity.inputProvider = null
     this.focusedEntity = null
   }

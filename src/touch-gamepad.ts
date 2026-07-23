@@ -29,7 +29,7 @@ precision.
 Touch a button element to set its value to 1 and add an `active` CSS class.
 Release sets it back to 0. Elements with `data-part` values not in the table
 above (e.g. `menu`, `view`) still get the `active` class and fire the optional
-`onButton(part, pressed)` callback.
+`handleButton(part, pressed)` callback.
 
 ## Demo
 
@@ -41,7 +41,7 @@ const { div, pre } = elements
 const pad = gamepadSvg()
 const customBtns = new Set()
 const source = new TouchGamepadSource(pad, {
-  onButton(part, pressed) {
+  handleButton(part, pressed) {
     if (pressed) customBtns.add(part)
     else customBtns.delete(part)
   },
@@ -201,7 +201,7 @@ export type TouchGamepadOptions = {
   deadzone?: number
   maxZone?: number
   /** Handler called when an unmapped data-part element is pressed/released */
-  onButton?: (part: string, pressed: boolean) => void
+  handleButton?: (part: string, pressed: boolean) => void
 }
 
 export class TouchGamepadSource implements GamepadSource {
@@ -220,7 +220,7 @@ export class TouchGamepadSource implements GamepadSource {
   private boundsReady = false
   private deadzone: number
   private maxZone: number
-  private onButton?: (part: string, pressed: boolean) => void
+  private handleButton?: (part: string, pressed: boolean) => void
   private boundPointerDown: (e: PointerEvent) => void
   private boundPointerMove: (e: PointerEvent) => void
   private boundPointerUp: (e: PointerEvent) => void
@@ -229,7 +229,7 @@ export class TouchGamepadSource implements GamepadSource {
     this.svg = svgElement
     this.deadzone = options?.deadzone ?? 0.15
     this.maxZone = options?.maxZone ?? 0.85
-    this.onButton = options?.onButton
+    this.handleButton = options?.handleButton
 
     // Sticks are initialized lazily on first interaction because
     // getBBox() returns zeros until the SVG is in the DOM.
@@ -365,7 +365,7 @@ export class TouchGamepadSource implements GamepadSource {
       ;(this.state as any)[field] = 1
     } else {
       this.customPointers.set(part, pointerId)
-      this.onButton?.(part, true)
+      this.handleButton?.(part, true)
     }
     this.part(part)?.classList.add('active')
   }
@@ -393,7 +393,7 @@ export class TouchGamepadSource implements GamepadSource {
     for (const [part, pid] of this.customPointers) {
       if (pid !== pointerId) continue
       this.customPointers.delete(part)
-      this.onButton?.(part, false)
+      this.handleButton?.(part, false)
       this.part(part)?.classList.remove('active')
       return true
     }

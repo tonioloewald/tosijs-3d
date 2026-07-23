@@ -197,7 +197,7 @@ export class B3dReflections extends B3dChild {
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
     this.owner = owner
     this._callback = this.makeReflectiveCallback.bind(this)
-    owner.onSceneAddition(this._callback)
+    owner.addSceneListener(this._callback)
 
     const attrs = this as any
     this._observer = owner.scene.onBeforeRenderObservable.add(() => {
@@ -217,7 +217,7 @@ export class B3dReflections extends B3dChild {
   sceneDispose() {
     if (this.owner != null) {
       if (this._callback) {
-        this.owner.offSceneAddition(this._callback)
+        this.owner.removeSceneListener(this._callback)
       }
       if (this._observer) {
         this.owner.scene.onBeforeRenderObservable.remove(this._observer)

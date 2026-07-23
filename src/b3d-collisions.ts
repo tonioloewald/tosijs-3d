@@ -238,12 +238,12 @@ export class B3dCollisions extends B3dChild {
   sceneReady(owner: B3d, _scene: BABYLON.Scene) {
     this.owner = owner
     this._callback = this.processAdditions.bind(this)
-    owner.onSceneAddition(this._callback)
+    owner.addSceneListener(this._callback)
   }
 
   sceneDispose() {
     if (this.owner && this._callback) {
-      this.owner.offSceneAddition(this._callback)
+      this.owner.removeSceneListener(this._callback)
     }
     for (const collider of this.colliders) {
       collider.dispose()

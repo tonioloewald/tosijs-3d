@@ -287,7 +287,7 @@ export class B3dClouds extends B3dChild {
       for (const m of scene.meshes) {
         if (m.receiveShadows && m.material) this._shadowMap.attachTo(m.material)
       }
-      owner.onSceneAddition(this._onAddition)
+      owner.addSceneListener(this._onAddition)
       // The Perf Stats panel is the one debug readout that exists everywhere (incl. VR).
       this._removeDebug = owner.addDebugSource({
         name: 'cloud-shadows',
@@ -307,7 +307,7 @@ export class B3dClouds extends B3dChild {
     // Floating origin: blob positions are WORLD coordinates held in JS, so on a terrain rebase
     // they must shift with everything else or the whole sky would jump. (The per-frame recycle
     // would eventually mask it, but not without a visible lurch.)
-    owner.onOriginShift(this._onShift)
+    owner.addOriginListener(this._onShift)
 
     scene.onBeforeCameraRenderObservable.add(this._tick)
 
@@ -341,12 +341,12 @@ export class B3dClouds extends B3dChild {
 
   sceneDispose() {
     this.owner?.scene.onBeforeCameraRenderObservable.removeCallback(this._tick)
-    this.owner?.offOriginShift(this._onShift)
+    this.owner?.removeOriginListener(this._onShift)
     this._removeFogLayer?.()
     this._removeFogLayer = null
     for (const b of this._blobs) b.dispose()
     this._blobs = []
-    this.owner?.offSceneAddition(this._onAddition)
+    this.owner?.removeSceneListener(this._onAddition)
     this._removeDebug?.()
     this._removeDebug = null
     this._shadowMap?.dispose()
@@ -399,7 +399,7 @@ export class B3dClouds extends B3dChild {
     if (this._shadowRepaintAge-- > 0) return
     this._shadowRepaintAge = 10 // frames between checks — shadows are slow-moving
     // Lazy attach sweep: receivers arrive on their own schedule (terrain builds its tile pool
-    // whenever it's ready, GLBs load async) and registration order isn't guaranteed. onSceneAddition
+    // whenever it's ready, GLBs load async) and registration order isn't guaranteed. addSceneListener
     // catches registered arrivals; this is the backstop for anything else — but only when the mesh
     // COUNT changed, so the steady state costs one length compare, not an O(meshes) sweep forever.
     if (scene.meshes.length !== this._lastSweptMeshCount) {

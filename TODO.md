@@ -226,7 +226,7 @@ Consumers, and why each one is a behavioural win rather than a visual one:
 
 ⚠️ **Floating origin**: the field is sampled by WORLD position, so a terrain rebase would slide the
 whole weather system sideways relative to the world unless sampling adds the accumulated origin
-offset back. Same class of bug as anything else holding world coordinates — see `onOriginShift`.
+offset back. Same class of bug as anything else holding world coordinates — see `addOriginListener`.
 
 [ ] **Ambient art direction: authorable textures / SVGs** (Tonio) — the presets currently draw a
 generated soft dot and pick blend/opacity themselves; that's a placeholder, not a decision. Expose
@@ -245,7 +245,7 @@ effect may return (a thing that has flickered twice has earned its retirement).
 [ ] **Decals: footprints, blood drips, bullet holes** (Tonio) — the same garnish discipline, but a
 DIFFERENT beast from ambient, and the differences are the whole design: they ACCUMULATE (ambient is
 fixed-capacity because particles die), they're anchored in WORLD space (so they MUST opt into the
-floating origin — `registerWorldRoot` / `onOriginShift`, or they'll drift off the wall they were
+floating origin — `registerWorldRoot` / `addOriginListener`, or they'll drift off the wall they were
 shot into), and they need a ring buffer with oldest-fades-first eviction rather than a lifetime.
 Should claim from the SAME `ambient-budget` pool — a scene can't afford rain _and_ unbounded
 bullet holes, and only a shared pool can know that. Strongly on the north star: a footprint is a
@@ -317,10 +317,10 @@ All projectiles are **cubes** for now. Combat atoms spec'd in `COMBAT-DESIGN.md`
 - **Floating origin — DONE (2026-07-02).** Generalized: `B3d.shiftOrigin(dx,dz)`
   now moves all world-space roots on a terrain rebase. New entities must opt in:
   **`registerWorldRoot(node)`** (position lives on the node — inert targets/props)
-  or **`onOriginShift((dx,dz)=>…)`** (also holds JS-side world coords — projectiles
+  or **`addOriginListener((dx,dz)=>…)`** (also holds JS-side world coords — projectiles
   integrating position, remembered target positions; fixes node + JS itself, don't
   also registerWorldRoot). So: cube targets → `registerWorldRoot`; projectiles →
-  `onOriginShift`.
+  `addOriginListener`.
 - **Input wiring:** `ControlInput` has `shoot`; need distinct **bomb-release** and
   **missile-fire** actions (extend `ControlInput` / map buttons + a VR control).
 - **View-direction source:** one accessor that returns camera-fwd (flat) or
@@ -404,7 +404,7 @@ faction fill. See `b3d-hud.projectWorldToHud`.
 ### Components (bridges)
 
 [x] `b3d-destroyable` [MVP] — bridges a `CombatWorld` entry to a placeholder cube;
-`.damage(n)`, death outcome + `destroyed` event, floating-origin via onOriginShift.
+`.damage(n)`, death outcome + `destroyed` event, floating-origin via addOriginListener.
 `<tosi-b3d-destroyable>`. (CombatWorld lives on B3d, ticked each frame.)
 [x] `b3d-warhead` [MVP] — DONE (v0.4.0): `detonateWarhead` gathers scene destroyables,
 LOS raycast, AOE falloff, **outward-rippling shockwave** (damage staggered by distance in
@@ -666,7 +666,7 @@ probes, collides, gets its `auto` quality budget, etc. Then REMOVE stuff and
 verify teardown: shadow casters/receivers, reflection render lists, colliders,
 observers, GPU resources all released — no leaks (spawn an enemy → it
 shadows/collides → despawn → nothing left behind). This exercises the
-scene-registration (`register`/`onSceneAddition`) + dispose paths and the
+scene-registration (`register`/`addSceneListener`) + dispose paths and the
 attribute-drain/sceneReady timing that just bit the b3d/terrain demos. Would
 have caught the "notify descendants before their attributes drained" bug.
 

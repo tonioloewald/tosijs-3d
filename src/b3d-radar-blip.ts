@@ -62,7 +62,7 @@ export class B3dRadarBlip extends B3dChild implements RadarBlip {
 
   // When nested in a target, the element whose mesh we track; null = standalone.
   private _host: HTMLElement | null = null
-  // Standalone world position (own x/y/z), kept origin-correct via onOriginShift.
+  // Standalone world position (own x/y/z), kept origin-correct via addOriginListener.
   private _pos: PosLike | null = null
   private _onShift = (dx: number, dz: number) => {
     if (this._pos) {
@@ -112,7 +112,7 @@ export class B3dRadarBlip extends B3dChild implements RadarBlip {
       this._host = parent
     } else {
       this._pos = { x: this.x, y: this.y, z: this.z }
-      owner.onOriginShift(this._onShift)
+      owner.addOriginListener(this._onShift)
     }
     owner.registerRadarBlip(this)
   }
@@ -120,7 +120,7 @@ export class B3dRadarBlip extends B3dChild implements RadarBlip {
   sceneDispose(): void {
     if (this.owner != null) {
       this.owner.unregisterRadarBlip(this)
-      if (this._pos != null) this.owner.offOriginShift(this._onShift)
+      if (this._pos != null) this.owner.removeOriginListener(this._onShift)
     }
     this._host = null
     this._pos = null

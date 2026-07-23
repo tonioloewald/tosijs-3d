@@ -221,7 +221,7 @@ export class B3dSun extends B3dChild {
     )
 
     this._callback = this.shadowCallback.bind(this)
-    owner.onSceneAddition(this._callback)
+    owner.addSceneListener(this._callback)
 
     // Apply shadow settings now. render() also calls this, but render() may
     // never fire again after the generator exists (e.g. a static sun with no
@@ -266,7 +266,7 @@ export class B3dSun extends B3dChild {
       this.interval = 0
     }
     if (this.owner && this._callback) {
-      this.owner.offSceneAddition(this._callback)
+      this.owner.removeSceneListener(this._callback)
     }
     if (this.light != null) {
       this.light.dispose()

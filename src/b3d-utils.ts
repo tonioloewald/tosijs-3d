@@ -229,7 +229,7 @@ position/rotation syncing) and override two hooks:
 
 | Hook | When it runs | What to do |
 |------|--------------|------------|
-| `sceneReady(owner, scene)` | Once, when **both** this element is connected (its attributes are drained and readable) **and** the scene's engine/scene exist. | Build your Babylon content, `owner.register({meshes, lights})`, subscribe to `owner.onSceneAddition(...)`. |
+| `sceneReady(owner, scene)` | Once, when **both** this element is connected (its attributes are drained and readable) **and** the scene's engine/scene exist. | Build your Babylon content, `owner.register({meshes, lights})`, subscribe to `owner.addSceneListener(...)`. |
 | `sceneDispose()` | On disconnect (element removed, or the whole scene torn down). | Dispose meshes/materials, unsubscribe, release references. |
 
 Do **not** override `connectedCallback` / `disconnectedCallback` — the pull-model

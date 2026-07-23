@@ -127,7 +127,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 It participates in the **floating origin**: because `AbstractMesh` treats the
 `x/y/z` attributes as the source of truth for the mesh position, this uses
-`onOriginShift` to shift BOTH the mesh node and its `x/z` attributes on a rebase
+`addOriginListener` to shift BOTH the mesh node and its `x/z` attributes on a rebase
 (NOT `registerWorldRoot`, which would leave the attributes stale so a later render
 would un-shift the mesh).
 
@@ -329,7 +329,7 @@ export class B3dDestroyable extends AbstractMesh {
       attrs.x -= dx
       attrs.z -= dz
     }
-    owner.onOriginShift(this._onShift)
+    owner.addOriginListener(this._onShift)
   }
 
   /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
@@ -350,7 +350,7 @@ export class B3dDestroyable extends AbstractMesh {
     this._behavior?.dispose()
     this._behavior = undefined
     if (this._onShift != null) {
-      this.owner?.offOriginShift(this._onShift)
+      this.owner?.removeOriginListener(this._onShift)
       this._onShift = undefined
     }
     super.sceneDispose()

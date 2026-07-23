@@ -185,7 +185,7 @@ export class B3dWater extends AbstractMesh {
     this.mesh.material = this.waterMaterial
 
     this._callback = this.waterCallback.bind(this)
-    owner.onSceneAddition(this._callback)
+    owner.addSceneListener(this._callback)
 
     // FOLLOW: ride the camera in x/z so the finite plane always surrounds you (an endless sea),
     // while the bump pattern is scrolled back into WORLD space so the ripples stay put instead
@@ -241,7 +241,7 @@ export class B3dWater extends AbstractMesh {
 
   sceneDispose(): void {
     if (this.owner && this._callback) {
-      this.owner.offSceneAddition(this._callback)
+      this.owner.removeSceneListener(this._callback)
     }
     if (this._followTick) {
       this.owner?.scene.unregisterBeforeRender(this._followTick)

@@ -1171,7 +1171,7 @@ export class B3dTerrain extends B3dChild {
     // carrier (the piloted entity when one is driven — NOT the chase rig, which
     // re-derives from it each frame; else the camera's parent; else the camera),
     // every registered world root (targets, props, other vehicles), and every
-    // onOriginShift listener (projectiles etc. that also hold JS-side coordinates).
+    // addOriginListener listener (projectiles etc. that also hold JS-side coordinates).
     // Shifting the piloted entity is what drops the camera's globalPosition back
     // below the reset threshold, so the reset doesn't re-fire.
     this.owner?.shiftOrigin(shiftX, shiftZ)
