@@ -89,10 +89,12 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
   top: 10px;
   left: 12px;
   margin: 0;
+  padding: 4px 8px;
+  background: #222;
+  border-radius: 5px;
   font-family: ui-monospace, monospace;
   font-size: 12px;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   white-space: pre;
   pointer-events: none;
 }
