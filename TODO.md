@@ -804,3 +804,54 @@ ready to consume it:
   amplitude/vowel-openness jaw for placeholders — and (b) **gesture cues** — a `<break>`/`<bookmark>`
   (or computed char-offset) fires a `b3d-biped` animation clip at that moment. Gesture-at-mark is the
   tractable half (no morph targets needed); full facial lip-sync waits on rigs with visemes.
+
+## Demo/doc review feedback — Tonio's manual pass (2026-07-23)
+
+### Bugs (broken — fix first)
+- [ ] **ambient demo crashes the plane on contact with the water surface** ("nice reflection lol") — real gameplay bug in the ambient demo scene.
+- [ ] **b3d-controller demo doesn't work at all** (tested glass + hardware gamepad; the main b3d demo works fine) — the doc-page demo is broken.
+- [ ] **glass-gamepad demo**: overlay styling is unreadable + nothing to actually control.
+- [ ] **cloud-shadows demo: major flickering** (and the clouds don't move — see wind system).
+- [ ] **shadow-decal: projection direction is inconsistent** with the scene light / the actual shadow.
+- [ ] **b3d-water demo (just added): both crates are BELOW water level** — looks wrong; reposition on the shore.
+
+### Global demo principles ("when in doubt", applies broadly)
+- [ ] Default to a **shadow-casting light + a textured/test-pattern GROUND PLANE** (textured planes catch shadows better AND are more interesting technically than a flat colour).
+- [ ] Prefer **nice CDN (Kenney) meshes + textured cubes** over primitives; **never spheres**. Pick a curated set of demo meshes from the CDN.
+- [ ] When a texture is needed, use **svg-texture with the Warhol-esque SVG** (see the svg-texture demo) — for objects AND ground planes.
+- [ ] **Demo goes ABOVE the attributes table** (the doc-ordering rule — enforce it everywhere; loader is one offender).
+- [ ] Include a **non-static object** (moving/rotating) so the dynamics are visible.
+
+### Infrastructure to build (unlocks many of the above)
+- [ ] **"Requires XR" panel + an XR-only scene mode**: if XR is available, place an explicit **Enter XR** widget front-and-centre; otherwise show "Sorry, requires XR". For XR-only demos (frame-panel, xr-frames, passthrough).
+- [ ] **Surface xr-frames in flat 3D** (e.g. accessible via the gear menu) so the frame concepts are inspectable without a headset.
+- [ ] **Foldable diagnostics**: every diagnostic should fold like Perf Stats (`details`/`summary` — make it a **standard widget**, ideally a sub-widget pop-up). **Retire/toggle the nameplates diagnostic** (it's literally atop every demo panel now). Leverage the same widget to make the **library demo picker** less dreadful.
+- [ ] **Global WIND system with turbulence**: non-zero default wind; it tosses aircraft around a little (esp. a hovering aircraft — "flying just like bricks don't" — a hover shouldn't look rock-steady); clouds move with it (feeds cloud-shadows).
+
+### New demos
+- [ ] **mersenne-twister** (worth doing): two side-by-side 256×256 canvases, draw randomly positioned+coloured dots with `Math.random()` vs the Mersenne twister — you quickly see why RNG quality matters even ignoring crypto.
+- [ ] **XR passthrough demo.**
+
+### New features (bigger)
+- [ ] **Working car** (+ ship + submarine) — likely suitable Kenney assets exist.
+
+### Per-demo notes
+- [ ] **library**: interesting lighting + test-pattern ground.
+- [ ] **loader**: demo above the attributes table.
+- [ ] **b3d-light**: boring; textured cube (not a sphere), a nice CDN mesh.
+- [ ] **particles**: textured plane (nice old demo otherwise).
+- [ ] **b3d-shadows**: upgrade the caster (nice mesh > textured cube w/ random orientation > textured cube > cube > sphere); add a **moving/rotating** object so the shadow visibly changes.
+- [ ] **skybox**: textures + no spheres; make the time change **really fast** (≈1 min = 1 day).
+- [ ] **water**: fix cubes-below-water; textures; some motion.
+- [ ] **b3d-fog**: add textures (otherwise nice).
+- [ ] **cloud-shadows**: fix flicker; moving clouds (wind); textured ground; slightly less cover; bigger ground plane.
+- [ ] **shadow-decal**: fix projection direction; textured ground.
+- [ ] **atmosphere**: demo with a fog-thickness picker + hue/saturation sliders.
+- [ ] **ambient-leaves**: demo or link; add a **spawn HEIGHT** attribute (in the main demo they spawn above the treetops).
+- [ ] **b3d-utils / material conventions**: demo loading a cube with the standard (svg) texture, showing each name-suffix tag working, with **floating panels above them** explaining each tag's config; textured ground.
+- [ ] **spatial-transform**: platform a biped can step on → it rises a level → they step off; plus a laterally-travelling platform (needs the Babylon attachment bridge — bigger).
+- [ ] **frame-panel / xr-frames**: a demo showing **all the pins** (XR-only + the "requires XR" panel). xr-frames ≈ the same demo as frame-panel; the XR-only notes apply here more.
+- [ ] **hud (driver) / b3d-hud**: HUD demo = an aircraft defaulted to **cockpit view**; make `b3d-hud` the destination link for the underlying HUD pieces.
+- [ ] **radar / b3d-radar / b3d-radar-blip**: a demo, or **link to a page that has one** (the link-to-a-demo pattern is a good general fix for demo-less pages).
+- [ ] **b3d-input-focus**: **two live scenes side-by-side** (or two `<tosi-b3d>` in one demo) with a simple biped in each, and you control one or the other.
+- [ ] **gamepad/input demos** (keyboard/hardware/xr-gamepad): at least **link to a working demo** (b3d-controller once fixed, or the main b3d demo).
