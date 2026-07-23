@@ -33,18 +33,21 @@ look. **Flat** = check in the browser; **VR** = check in the headset.
 
 See the **Bugs** and **Icons / spatial UI** sections below for the known-broken items still needing a headset (galaxy billboard, terrain recenter, VRAM, XR rig misalignment, VR-only panel, library Exit-VR clip).
 
-## Default-true boolean attrs (silently off; will error once tosijs flags them)
+## Default-true boolean attrs — DONE (tosijs now THROWS at construction on a true default)
 
 tosijs correctly treats an absent boolean attribute as false, so `initAttributes({foo:
-true})` never turns on (killed the trigger — fixed via `disabled`). tosijs will make
-`foo: true` a definition-time error. Convert these (keep positive meaning via a string
-`'on'|'off'` enum, or invert to a negative boolean):
+true})` never turns on. This is **no longer silent** — tosijs now **throws at construction**,
+so a component with a true-default boolean is dead on arrival (its ctor throws before it wires
+anything). Fixed everywhere (string `'on'|'off'` enum, or a negative boolean):
 
-- [x] b3d-trigger `active` → `disabled` (default false = active) — DONE
-- [ ] b3d-black-hole `lensing`, `photonRing`
-- [ ] b3d-shadows `stabilizeCascades`
-- [ ] b3d-star-system `animate`, `showOrbits`
-- [ ] b3d-svg-plane `pointerEvents`, `doubleSided`
+- [x] b3d-trigger `active` → `disabled` (default false = active)
+- [x] b3d-black-hole `lensing`, `photonRing` → `'on'|'off'`
+- [x] b3d-shadows `stabilizeCascades` → `'on'|'off'`
+- [x] b3d-star-system `animate`, `showOrbits` → `'on'|'off'`
+- [x] b3d-svg-plane `pointerEvents`, `doubleSided` → `'on'|'off'`
+- [x] **b3d-controller `player` → `player: false`** — the one that slipped through; because
+  tosijs now throws, its ctor died and `<tosi-b3d-controller>` wired NO input in any demo
+  (the "controller does nothing" bug). Fixed 2026-07-23. No default-true booleans remain.
 
 [x] HUD warning block — DONE. `setWarnings([{text, side?}])` on the HUD driver + b3d-hud: shows stacked warning text (#warning) and flashes the threatened-side gauge BORDER red (bottom = PULL UP/ground, etc.). Wired into b3d-aircraft (pullUp → bottom, stall → text). Code HUD (buildFallbackHud) is now the default (fully wired); designer-asset `normalizeHud`/horizon adaptation deferred. Next: weapons exist now (v0.4.0) — drive threat warnings from combat (incoming missile → bearing side); and the radar traces (`setTraces`) still need wiring to live scene targets.
 
@@ -808,6 +811,7 @@ ready to consume it:
 ## Demo/doc review feedback — Tonio's manual pass (2026-07-23)
 
 ### Bugs (broken — fix first)
+
 - [ ] **ambient demo crashes the plane on contact with the water surface** ("nice reflection lol") — real gameplay bug in the ambient demo scene.
 - [ ] **b3d-controller demo doesn't work at all** (tested glass + hardware gamepad; the main b3d demo works fine) — the doc-page demo is broken.
 - [ ] **glass-gamepad demo**: overlay styling is unreadable + nothing to actually control.
@@ -816,6 +820,7 @@ ready to consume it:
 - [ ] **b3d-water demo (just added): both crates are BELOW water level** — looks wrong; reposition on the shore.
 
 ### Global demo principles ("when in doubt", applies broadly)
+
 - [ ] Default to a **shadow-casting light + a textured/test-pattern GROUND PLANE** (textured planes catch shadows better AND are more interesting technically than a flat colour).
 - [ ] Prefer **nice CDN (Kenney) meshes + textured cubes** over primitives; **never spheres**. Pick a curated set of demo meshes from the CDN.
 - [ ] When a texture is needed, use **svg-texture with the Warhol-esque SVG** (see the svg-texture demo) — for objects AND ground planes.
@@ -823,19 +828,23 @@ ready to consume it:
 - [ ] Include a **non-static object** (moving/rotating) so the dynamics are visible.
 
 ### Infrastructure to build (unlocks many of the above)
+
 - [ ] **"Requires XR" panel + an XR-only scene mode**: if XR is available, place an explicit **Enter XR** widget front-and-centre; otherwise show "Sorry, requires XR". For XR-only demos (frame-panel, xr-frames, passthrough).
 - [ ] **Surface xr-frames in flat 3D** (e.g. accessible via the gear menu) so the frame concepts are inspectable without a headset.
 - [ ] **Foldable diagnostics**: every diagnostic should fold like Perf Stats (`details`/`summary` — make it a **standard widget**, ideally a sub-widget pop-up). **Retire/toggle the nameplates diagnostic** (it's literally atop every demo panel now). Leverage the same widget to make the **library demo picker** less dreadful.
 - [ ] **Global WIND system with turbulence**: non-zero default wind; it tosses aircraft around a little (esp. a hovering aircraft — "flying just like bricks don't" — a hover shouldn't look rock-steady); clouds move with it (feeds cloud-shadows).
 
 ### New demos
+
 - [ ] **mersenne-twister** (worth doing): two side-by-side 256×256 canvases, draw randomly positioned+coloured dots with `Math.random()` vs the Mersenne twister — you quickly see why RNG quality matters even ignoring crypto.
 - [ ] **XR passthrough demo.**
 
 ### New features (bigger)
+
 - [ ] **Working car** (+ ship + submarine) — likely suitable Kenney assets exist.
 
 ### Per-demo notes
+
 - [ ] **library**: interesting lighting + test-pattern ground.
 - [ ] **loader**: demo above the attributes table.
 - [ ] **b3d-light**: boring; textured cube (not a sphere), a nice CDN mesh.
@@ -878,3 +887,34 @@ the license cares about; a demo referencing one model via `assetUrl` is not. Des
   - **One shared engine, multiple views:** Babylon `engine.registerView(canvas, camera)` renders one
     scene to N canvases from a SINGLE context; add/remove views (cheap) + load/dispose meshes as cells
     scroll, cap simultaneous live views to a handful. Only if live hover-preview earns its keep.
+
+## Camera-relative joystick locomotion (Tonio, 2026-07-23)
+
+A convenient way to pull any joystick coordinate as **camera-relative** — transform stick x/y by
+the active camera's yaw into a world direction, instead of raw stick axes. Then the classic
+third-person locomotion falls out: **drag the stick in a screen direction → the biped (or
+whatever) rotates to face that world direction, then moves forward along it.** ("Move where you
+push, relative to where you're looking" — GTA/RDR2 default.)
+
+- Where: the input/mapping layer. Likely a helper `cameraRelative(x, y, camera) → {x, z}` (pure,
+  testable — just a yaw rotation) plus a `cameraRelative` option on the stick→ControlInput mapping,
+  or a movement mode on the controllable. Keep the math pure/unit-tested (like fly-by-wire).
+- Demo (watchable): a biped on a textured ground; stick/WASD turns-to-face + walks in the pushed
+  direction relative to the orbit camera. Good showcase for `b3d-controller` now that it works.
+
+## Live-examples: document the benefits + add haltija affordances (Tonio, 2026-07-23)
+
+The literate + **live** + agent-drivable example system is a genuinely strong debugging surface —
+it's how the `b3d-controller` ctor-throw bug got root-caused (edit source → live example
+hot-rebuilds in place → haltija reads it, no reload, console intact).
+
+- **Coding-practices note**: write up the benefits of live-examples as a development/debugging
+  methodology (in `../tosijs-coding-practices`) — literate docs that are also the test harness AND
+  an agent-drivable repro. Include the workflow (view/edit code → change → refresh) and the
+  gotchas (Refresh re-runs the loaded module, so *source* edits need a full reload; only
+  *example-code* edits take via Refresh).
+- **Haltija affordances**: first-class `hj` verbs (or documented selectors) to toggle edit mode,
+  refresh/re-run an example, and set example code programmatically — plus surfacing uncaught
+  exceptions. Filed in UPSTREAM.md (two haltija rows). Until then, the manual recipe:
+  `document.querySelector('button.source-menu').click()` then click the `.xin-menu-item` matching
+  /refresh/.
