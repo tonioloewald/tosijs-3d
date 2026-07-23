@@ -164,6 +164,11 @@ export class B3dClouds extends B3dChild {
     // harder than a few wisps). 0 ⇒ invisible even with castShadows on.
     shadowStrength: 0.65,
     seed: 1,
+    // Drift (m/s): the layer slides across the sky so clouds aren't a static backdrop. Gentle by
+    // default so it reads as WEATHER, not a frozen image — recycled blobs wrap in from upwind and
+    // fade up. (A future global wind system will drive these; for now they're the local dial.)
+    windX: 4,
+    windZ: 1.5,
   }
 
   declare count: number
@@ -180,6 +185,8 @@ export class B3dClouds extends B3dChild {
   declare castShadows: boolean
   declare shadowStrength: number
   declare seed: number
+  declare windX: number
+  declare windZ: number
 
   /**
    * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
@@ -444,6 +451,8 @@ export class B3dClouds extends B3dChild {
     if (scene == null || cam == null) return
     const eye = cam.globalPosition
     const active = this._applyCoverage()
+    const dt = Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000)
+    const drifting = this.windX !== 0 || this.windZ !== 0
 
     // Recycle: a blob that falls behind wraps to the far side, so an endless cloudscape
     // costs a FIXED number of meshes. No allocation, no growth.
@@ -455,6 +464,13 @@ export class B3dClouds extends B3dChild {
       const on = i < active
       if (blob.isEnabled() !== on) blob.setEnabled(on)
       if (!on) continue
+      // Drift with the wind so the sky is alive, not a still image. The recycle below wraps a blob
+      // once it drifts off-field, and the edge fade hides the wrap. Shadows follow (dirty flag).
+      if (drifting) {
+        blob.position.x += this.windX * dt
+        blob.position.z += this.windZ * dt
+        this._shadowDirty = true
+      }
       // Recycle with HYSTERESIS: only wrap a blob once it's well PAST the edge, and drop it back to
       // just INSIDE the opposite edge — never right at the boundary.
       //
