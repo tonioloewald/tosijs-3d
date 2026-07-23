@@ -95,8 +95,12 @@ export class B3dController extends B3dControllable {
   static initAttributes = {
     ...B3dControllable.initAttributes,
     mapping: 'biped',
-    // player so a wrapping <tosi-b3d-input-focus> (if any) would focus us.
-    player: true,
+    // MUST default false: HTML boolean attributes can't default to true (an absent attribute
+    // is false), and tosijs now THROWS at construction on a true default — which silently broke
+    // this whole component (the ctor threw, so its sceneReady never wired any input). If you
+    // nest a b3dController inside <tosi-b3d-input-focus> and want that manager (not its own
+    // self-wiring) to drive it, set `player` explicitly — same as b3dBiped/b3dAircraft.
+    player: false,
   }
 
   declare mapping: string
