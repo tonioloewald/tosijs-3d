@@ -796,12 +796,27 @@ export class B3d extends Component {
 
   setActiveCamera(
     camera: BABYLON.Camera,
-    options: { attach?: boolean; preventDefault?: boolean } = {}
+    options: {
+      attach?: boolean
+      preventDefault?: boolean
+      clampTilt?: boolean
+    } = {}
   ): void {
-    const { attach = true, preventDefault = false } = options
+    const { attach = true, preventDefault = false, clampTilt = true } = options
     const cnv = this.parts.canvas as HTMLCanvasElement
     if (this.camera != null) {
       this.camera.detachControl()
+    }
+    // Stop an orbit camera dragging BELOW the horizon to view the world from underneath — a
+    // long-standing papercut ("I can see the world from below in almost any demo scene"). beta is
+    // measured from straight-up (0) to straight-down (π); π/2 is level, so a minimum elevation is
+    // an UPPER beta limit. Tighten ONLY (a stricter author/orbitCam limit wins), and skip GAMEPLAY
+    // cameras — chase/cockpit/spectate legitimately look up and down and route through
+    // setGameplayCamera, which passes clampTilt:false.
+    if (clampTilt && camera instanceof BABYLON.ArcRotateCamera) {
+      const cap = Math.PI / 2 - (5 * Math.PI) / 180 // ≥5° above horizontal
+      if (camera.upperBetaLimit == null || camera.upperBetaLimit > cap)
+        camera.upperBetaLimit = cap
     }
     this.camera = camera
     this.scene.activeCamera = camera
@@ -827,10 +842,19 @@ export class B3d extends Component {
    */
   setGameplayCamera(
     camera: BABYLON.Camera,
-    options: { attach?: boolean; preventDefault?: boolean } = {}
+    options: {
+      attach?: boolean
+      preventDefault?: boolean
+      clampTilt?: boolean
+    } = {}
   ): boolean {
     if (this.xrActive) return false
-    this.setActiveCamera(camera, options)
+    // Gameplay cameras look up and down by design — don't clamp their tilt (that's a demo-orbit
+    // default). A caller can still opt in explicitly.
+    this.setActiveCamera(camera, {
+      ...options,
+      clampTilt: options.clampTilt ?? false,
+    })
     return true
   }
 
