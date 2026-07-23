@@ -212,6 +212,8 @@ export class B3dClouds extends B3dChild {
   private _baseColor = new BABYLON.Color3(1, 1, 1)
   /** Whiteout colour, recomputed each frame — white at the cloud top, murk deeper down. */
   private _fogColor = new BABYLON.Color3(1, 1, 1)
+  /** The skybox, so the whiteout can blot the SKY too (scene fog alone can't — it opts out). */
+  private _sky: BABYLON.AbstractMesh | null = null
   private _lastCoverage = -1
   private _tick = () => this._update()
   private _onShift = (dx: number, dz: number) => {
@@ -546,6 +548,24 @@ export class B3dClouds extends B3dChild {
       const cov = Math.min(1, Math.max(0, this.coverage))
       const shade = 1 - 0.8 * frac * (0.35 + 0.65 * cov)
       this._fogColor.copyFrom(this._baseColor).scaleInPlace(shade)
+    }
+
+    // Blot the SKY too. The whiteout is scene fog, but the skybox is infinite-distance and opts
+    // OUT of fog (applyFog=false — obey it and the sky would be white ALWAYS), so without this the
+    // sky shows straight through the whiteout. Fade the skybox by immersion; the fading sky reveals
+    // the scene clear colour, which we tint to the fog colour so what's behind it is white, not
+    // black. (Geometry is already whited out by the scene fog itself.)
+    if (this._sky == null)
+      this._sky = scene.meshes.find((m) => /sky/i.test(m.name)) ?? null
+    if (this._sky != null) {
+      this._sky.visibility = 1 - this._immersion
+      if (this._immersion > 0)
+        scene.clearColor.set(
+          this._fogColor.r,
+          this._fogColor.g,
+          this._fogColor.b,
+          1
+        )
     }
   }
 }
