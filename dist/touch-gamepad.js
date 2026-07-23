@@ -29,7 +29,7 @@ precision.
 Touch a button element to set its value to 1 and add an `active` CSS class.
 Release sets it back to 0. Elements with `data-part` values not in the table
 above (e.g. `menu`, `view`) still get the `active` class and fire the optional
-`onButton(part, pressed)` callback.
+`handleButton(part, pressed)` callback.
 
 ## Demo
 
@@ -41,7 +41,7 @@ const { div, pre } = elements
 const pad = gamepadSvg()
 const customBtns = new Set()
 const source = new TouchGamepadSource(pad, {
-  onButton(part, pressed) {
+  handleButton(part, pressed) {
     if (pressed) customBtns.add(part)
     else customBtns.delete(part)
   },
@@ -165,7 +165,7 @@ export class TouchGamepadSource {
     boundsReady = false;
     deadzone;
     maxZone;
-    onButton;
+    handleButton;
     boundPointerDown;
     boundPointerMove;
     boundPointerUp;
@@ -173,7 +173,7 @@ export class TouchGamepadSource {
         this.svg = svgElement;
         this.deadzone = options?.deadzone ?? 0.15;
         this.maxZone = options?.maxZone ?? 0.85;
-        this.onButton = options?.onButton;
+        this.handleButton = options?.handleButton;
         // Sticks are initialized lazily on first interaction because
         // getBBox() returns zeros until the SVG is in the DOM.
         this.initButtons();
@@ -290,7 +290,7 @@ export class TouchGamepadSource {
         }
         else {
             this.customPointers.set(part, pointerId);
-            this.onButton?.(part, true);
+            this.handleButton?.(part, true);
         }
         this.part(part)?.classList.add('active');
     }
@@ -320,7 +320,7 @@ export class TouchGamepadSource {
             if (pid !== pointerId)
                 continue;
             this.customPointers.delete(part);
-            this.onButton?.(part, false);
+            this.handleButton?.(part, false);
             this.part(part)?.classList.remove('active');
             return true;
         }

@@ -12,16 +12,12 @@ source SVG element using UV coordinates, so interactive SVG UIs work in 3D/XR.
 
 ```js
 import { b3d, b3dSvgPlane, b3dLight } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
     },
   },
   b3dLight({ intensity: 1 }),
@@ -40,6 +36,7 @@ preview.append(scene)
 
 ```js
 import { b3d, b3dSvgPlane, b3dLight, SvgTexture } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { svgElements, tosi, xin } from 'tosijs'
 
 const { svg, g, path, circle, polygon } = svgElements
@@ -142,12 +139,7 @@ setInterval(() => {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
 
       const tex = new SvgTexture({
         scene: el.scene,
@@ -177,6 +169,7 @@ preview.append(scene)
 
 ```js
 import { b3d, b3dLight, SvgTexture } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { svgElements } from 'tosijs'
 
 const { svg, rect, text, g } = svgElements
@@ -225,12 +218,7 @@ function inBtn(sx, sy) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
 
       const tex = new SvgTexture({
         scene: el.scene,

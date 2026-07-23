@@ -14,16 +14,12 @@ Renders SVG content to a Babylon.js texture via an offscreen canvas.
 
 ```js
 import { b3d, b3dLight, SvgTexture } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
 
       const box = BABYLON.MeshBuilder.CreateBox('box', { size: 1.5 }, el.scene)
       box.position.y = 0

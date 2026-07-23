@@ -20,6 +20,17 @@ Death outcome (all optional; default just removes/hides the mesh):
   transfer — a falloff + line-of-sight explosion that ripples through neighbours.
 - `whenDestroyed` callback + a bubbling `destroyed` event — the seam for flipping a linked
   player/vehicle into a *dead* state, spawning loot, swapping a wreck model, etc.
+
+## Example
+
+For a ready-to-click live demo, see [b3d-destroyable](?b3d-destroyable.ts) (a field of cubes you
+shoot). This is the reusable behavior *underneath* it — attach damage to any existing mesh:
+
+```javascript
+import { DestroyableBehavior } from 'tosijs-3d'
+// Give a loaded GLB / biped / vehicle a health pool + death outcome without wrapping it in a
+// <tosi-b3d-destroyable> cube; at 0 hp it runs the same explode / wreck / loot outcomes.
+```
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';

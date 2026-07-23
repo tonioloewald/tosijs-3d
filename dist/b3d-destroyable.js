@@ -16,6 +16,7 @@ reference combat ids that only exist once the targets have mounted).
 
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const grid = []
 for (let i = 0; i < 12; i++) {
@@ -29,9 +30,7 @@ for (let i = 0; i < 6; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 15, new BABYLON.Vector3(0, 0.5, -0.5), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 15, target: [0, 0.5, -0.5] })
       // click a cube → damage it
       el.scene.onPointerDown = (_evt, pick) => {
         if (!pick.hit || !pick.pickedMesh) return
@@ -92,6 +91,7 @@ chain reaction (each drum both `explode`s and fires a `deathBlast`).
 
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const drums = []
 for (let i = 0; i < 48; i++) {
@@ -106,9 +106,7 @@ for (let i = 0; i < 48; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3, 18, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 18, target: [0, 0.5, 0] })
       el.scene.onPointerDown = (_evt, pick) => {
         if (!pick.hit || !pick.pickedMesh) return
         const t = drums.find((d) => d.mesh === pick.pickedMesh)
@@ -129,7 +127,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 It participates in the **floating origin**: because `AbstractMesh` treats the
 `x/y/z` attributes as the source of truth for the mesh position, this uses
-`onOriginShift` to shift BOTH the mesh node and its `x/z` attributes on a rebase
+`addOriginListener` to shift BOTH the mesh node and its `x/z` attributes on a rebase
 (NOT `registerWorldRoot`, which would leave the attributes stale so a later render
 would un-shift the mesh).
 
@@ -291,7 +289,7 @@ export class B3dDestroyable extends AbstractMesh {
             attrs.x -= dx;
             attrs.z -= dz;
         };
-        owner.onOriginShift(this._onShift);
+        owner.addOriginListener(this._onShift);
     }
     /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
     damage(amount) {
@@ -309,7 +307,7 @@ export class B3dDestroyable extends AbstractMesh {
         this._behavior?.dispose();
         this._behavior = undefined;
         if (this._onShift != null) {
-            this.owner?.offOriginShift(this._onShift);
+            this.owner?.removeOriginListener(this._onShift);
             this._onShift = undefined;
         }
         super.sceneDispose();

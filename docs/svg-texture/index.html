@@ -40,16 +40,12 @@ DOM mutations. Great for HUDs, radar displays, instrument panels.</li>
 </ul>
 <h2>Example — SVG on a cube</h2>
 <pre><code class="language-js">import { b3d, b3dLight, SvgTexture } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
 
       const box = BABYLON.MeshBuilder.CreateBox(&#39;box&#39;, { size: 1.5 }, el.scene)
       box.position.y = 0

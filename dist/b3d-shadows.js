@@ -21,6 +21,7 @@ meshes are skipped to keep the shadow map tight.
 
 ```js
 import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dSphere, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const { sun } = tosi({ sun: { timeOfDay: 10 } })
@@ -33,18 +34,12 @@ preview.append(
         slider3d({ label: 'time of day', value: sun.timeOfDay, min: 5, max: 19, step: 0.25 }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2.5, Math.PI / 3, 8,
-          new BABYLON.Vector3(0, 1, 0), el.scene
-        )
-        // Keep the camera >=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2.5, beta: Math.PI / 3, radius: 8,
+          target: [0, 1, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 3
         camera.upperRadiusLimit = 24
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ intensity: 0.3 }),
@@ -204,7 +199,7 @@ export class B3dSun extends B3dChild {
         this.light = light;
         this.shadowGenerator = new BABYLON.CascadedShadowGenerator(resolveBudget(attrs.shadowTextureSize, 'shadowTextureSize'), light);
         this._callback = this.shadowCallback.bind(this);
-        owner.onSceneAddition(this._callback);
+        owner.addSceneListener(this._callback);
         // Apply shadow settings now. render() also calls this, but render() may
         // never fire again after the generator exists (e.g. a static sun with no
         // day/night cycle), so the generator would otherwise keep Babylon's
@@ -240,7 +235,7 @@ export class B3dSun extends B3dChild {
             this.interval = 0;
         }
         if (this.owner && this._callback) {
-            this.owner.offSceneAddition(this._callback);
+            this.owner.removeSceneListener(this._callback);
         }
         if (this.light != null) {
             this.light.dispose();

@@ -18,23 +18,18 @@ work doesn't all pile onto one frame.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dSphere, b3dReflections } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 preview.append(
   b3d(
     {
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 2.8, 6,
-          new BABYLON.Vector3(0, 1, 0), el.scene
-        )
-        // Keep the camera >=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 2.8, radius: 6,
+          target: [0, 1, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 2.5
         camera.upperRadiusLimit = 18
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dSkybox({ timeOfDay: 11, realtimeScale: 0 }),
@@ -181,7 +176,7 @@ export class B3dReflections extends B3dChild {
     sceneReady(owner, _scene) {
         this.owner = owner;
         this._callback = this.makeReflectiveCallback.bind(this);
-        owner.onSceneAddition(this._callback);
+        owner.addSceneListener(this._callback);
         const attrs = this;
         this._observer = owner.scene.onBeforeRenderObservable.add(() => {
             const frame = this._frameCount++;
@@ -200,7 +195,7 @@ export class B3dReflections extends B3dChild {
     sceneDispose() {
         if (this.owner != null) {
             if (this._callback) {
-                this.owner.offSceneAddition(this._callback);
+                this.owner.removeSceneListener(this._callback);
             }
             if (this._observer) {
                 this.owner.scene.onBeforeRenderObservable.remove(this._observer);

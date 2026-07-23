@@ -28,6 +28,7 @@ model, or remove the element to free it.)
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 
@@ -46,14 +47,11 @@ preview.append(
         slider3d({ label: 'time of day', value: demo.time, min: 0, max: 24, step: 0.1 }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 4, 20,
-          new BABYLON.Vector3(0, 1, 0), el.scene
-        )
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 4, radius: 20, target: [0, 1, 0],
+        })
         camera.lowerRadiusLimit = 3
         camera.upperRadiusLimit = 40
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dSun(),

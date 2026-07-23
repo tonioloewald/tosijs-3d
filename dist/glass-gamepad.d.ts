@@ -48,7 +48,7 @@ export declare class B3dGamepad extends Component implements GamepadSource {
         right?: ClusterConfig | false;
         top?: ClusterConfig | false;
     };
-    onButton?: (part: string, pressed: boolean) => void;
+    handleButton?: (part: string, pressed: boolean) => void;
     private sources;
     private built;
     connectedCallback(): void;

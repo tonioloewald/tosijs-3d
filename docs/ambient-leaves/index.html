@@ -46,6 +46,13 @@ in isolation but doesn&#39;t AGREE with the rain or the smoke. The shared <code>
 (TODO) is what makes them all blow the same way — when it lands, drift/sway come from it and this
 per-leaf randomness becomes just the flutter on top.</p>
 </blockquote>
+<h2>See it live</h2>
+<p><code>LeafField</code> is the tumbling-quad renderer that <a href="/b3d-ambient/">b3d-ambient</a> drives — set that
+component up (its demo blows leaves through the scene) and the budget decides the population.</p>
+<pre><code class="language-javascript">import { LeafField } from &#39;tosijs-3d&#39;
+// A LeafField rides the camera and renders whatever population the budget grants. b3d-ambient owns
+// the budget + drain, so prefer &lt;tosi-b3d-ambient&gt; unless you&#39;re wiring your own ambient system.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

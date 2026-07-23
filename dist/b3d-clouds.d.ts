@@ -17,6 +17,8 @@ export declare class B3dClouds extends B3dChild {
         castShadows: boolean;
         shadowStrength: number;
         seed: number;
+        windX: number;
+        windZ: number;
     };
     count: number;
     altitude: number;
@@ -32,6 +34,8 @@ export declare class B3dClouds extends B3dChild {
     castShadows: boolean;
     shadowStrength: number;
     seed: number;
+    windX: number;
+    windZ: number;
     /**
      * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
      * make the enemy lose you. It's why the component exists.
@@ -53,6 +57,8 @@ export declare class B3dClouds extends B3dChild {
     private _baseColor;
     /** Whiteout colour, recomputed each frame — white at the cloud top, murk deeper down. */
     private _fogColor;
+    /** The skybox, so the whiteout can blot the SKY too (scene fog alone can't — it opts out). */
+    private _sky;
     private _lastCoverage;
     private _tick;
     private _onShift;

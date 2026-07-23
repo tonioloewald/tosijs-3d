@@ -38,6 +38,33 @@ encounter&#39;s <em>shape</em> is unit-testable without a 3D engine, and the sam
 the same battle — which is what lets a scenario be replayed (and what lets a GM&#39;s benchmark
 mean anything).</p>
 <p>Offsets are <code>{x, y, z}</code> in the encounter&#39;s local frame: <strong>+y is up, +z is forward</strong>.</p>
+<h2>Demo</h2>
+<p>The functions just return offsets — here a crate is dropped at each slot of a <strong>vee</strong> so you can
+<em>see</em> the shape the pure math produces (the lead ship red, the wings blue). Drag to orbit.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, vee } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
+
+// vee(count, opts) → an array of {x, y, z} offsets. The sim just places a mesh at each.
+const slots = vee(7, { spacing: 3, sweep: 2.5 })
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 30, target: [0, 0, -4] })
+    },
+  },
+  b3dSun(),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 80, height: 80, texture: &#39;checker&#39;, textureTiles: 40 }),
+  ...slots.map((o, i) =&gt;
+    b3dBox({ meshName: `ship-${i}`, size: i === 0 ? 1.7 : 1.2, x: o.x, y: 0.7, z: o.z, color: i === 0 ? &#39;#c85a3a&#39; : &#39;#5aa0c8&#39; })
+  ),
+)
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<p>For reference, the raw call — no scene needed, just offsets:</p>
 <pre><code class="language-javascript">import { ring, vee, escorts } from &#39;tosijs-3d&#39;
 
 // Four escorts in a ring 30 units out, 5 above the leader.

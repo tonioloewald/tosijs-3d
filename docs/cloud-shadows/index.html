@@ -39,6 +39,30 @@ darkening happens per-pixel, it drapes over any topology — hills, valleys, a r
 for the cost of one texture sample and <strong>zero raycasts</strong>.</p>
 <p>The texture is repainted only when something changes (a cloud recycles, coverage moves, the
 window recentres on the camera, the sun swings) — the steady state is just the sample.</p>
+<h2>Demo</h2>
+<p><a href="/b3d-clouds/">b3d-clouds</a> drives this under the hood: set <code>castShadows</code> and soft cloud shadows
+drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dClouds, b3dGround, b3dBox } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 55, target: [0, 0, 0] })
+    },
+  },
+  b3dSun({ x: -0.5, y: -1, z: -0.35 }),
+  b3dSkybox({ timeOfDay: 11 }),
+  b3dGround({ width: 160, height: 160, texture: &#39;checker&#39;, textureTiles: 32 }),
+  b3dClouds({ altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
+  ...Array.from({ length: 9 }, (_, i) =&gt;
+    b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: &#39;#7a9b6e&#39; })
+  ),
+)
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
 <h2>Geometry-independent</h2>
 <p>The painter takes abstract <strong>blobs</strong> (<code>x, z, rx, rz, strength</code>), not meshes — so the cost is
 the same whether a cloud is a squashed sphere or a 5,000-triangle sculpt. When modeled clouds

@@ -5,7 +5,7 @@ export type TouchGamepadOptions = {
     deadzone?: number;
     maxZone?: number;
     /** Handler called when an unmapped data-part element is pressed/released */
-    onButton?: (part: string, pressed: boolean) => void;
+    handleButton?: (part: string, pressed: boolean) => void;
 };
 export declare class TouchGamepadSource implements GamepadSource {
     private svg;
@@ -18,7 +18,7 @@ export declare class TouchGamepadSource implements GamepadSource {
     private boundsReady;
     private deadzone;
     private maxZone;
-    private onButton?;
+    private handleButton?;
     private boundPointerDown;
     private boundPointerMove;
     private boundPointerUp;

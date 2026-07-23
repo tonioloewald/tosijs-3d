@@ -4,6 +4,19 @@
 Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
 consumes a `ControlInput`, and any input source (keyboard, gamepad, XR controllers, AI) produces one.
 
+## Example
+
+A `ControlInput` is just a plain per-frame snapshot — a source produces one, a controllable
+consumes one, and that indirection is why swapping keyboard for gamepad for AI is a new *source*,
+not a rewrite. Start from `emptyInput()` and set what a source drives:
+
+```javascript
+import { emptyInput } from 'tosijs-3d'
+
+// an AI "source" this frame: walk forward, veer left, and fire
+const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
+```
+
 ## ControlInput
 
 | Field | Range | Purpose |

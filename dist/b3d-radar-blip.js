@@ -44,7 +44,7 @@ export class B3dRadarBlip extends B3dChild {
     };
     // When nested in a target, the element whose mesh we track; null = standalone.
     _host = null;
-    // Standalone world position (own x/y/z), kept origin-correct via onOriginShift.
+    // Standalone world position (own x/y/z), kept origin-correct via addOriginListener.
     _pos = null;
     _onShift = (dx, dz) => {
         if (this._pos) {
@@ -88,7 +88,7 @@ export class B3dRadarBlip extends B3dChild {
         }
         else {
             this._pos = { x: this.x, y: this.y, z: this.z };
-            owner.onOriginShift(this._onShift);
+            owner.addOriginListener(this._onShift);
         }
         owner.registerRadarBlip(this);
     }
@@ -96,7 +96,7 @@ export class B3dRadarBlip extends B3dChild {
         if (this.owner != null) {
             this.owner.unregisterRadarBlip(this);
             if (this._pos != null)
-                this.owner.offOriginShift(this._onShift);
+                this.owner.removeOriginListener(this._onShift);
         }
         this._host = null;
         this._pos = null;

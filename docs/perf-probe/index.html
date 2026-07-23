@@ -42,6 +42,14 @@ testable without a canvas (feed it synthetic numbers, assert the tier).</p>
 <p>Re-run only when the benchmark itself changed (<code>PROBE_VERSION</code>), the device changed
 (<code>signature</code>), or the cache is stale (<code>DEFAULT_TTL_MS</code>, 30 days — devices don&#39;t get
 faster; the TTL is just a backstop for browser/driver updates and a bad cold read).</p>
+<h2>Example</h2>
+<p>The pure classifier. <a href="/b3d-probe/">b3d-probe</a> runs the benchmark and stores the result; this core
+just turns measurements into a tier and its budgets:</p>
+<pre><code class="language-javascript">import { classify, budgetsForTier } from &#39;tosijs-3d&#39;
+// measurements → a device TIER (&#39;low&#39; | &#39;medium&#39; | &#39;high&#39; | &#39;hmd&#39;)
+// tier → PerfBudgets (render scale, shadow-map size, terrain detail, …) that components resolve
+// when their attribute is left `auto`.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

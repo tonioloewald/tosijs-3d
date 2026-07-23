@@ -12,6 +12,47 @@ sharpen with proximity. What it buys is *grounding* — the eye reads "this thin
 spot" — and for soft, high, or numerous casters (clouds, a flock, ambient debris) that reads
 better than a crisp CSM shadow would anyway.
 
+## Demo
+
+**A floating crate, grounded by a soft blob.** No shadow map is involved — just one alpha quad
+`createShadowDecal` drops on the ground beneath it. Drag to orbit; the decal reads the crate's
+position over the floor.
+
+```js
+import { b3d, b3dSkybox, b3dBox, createShadowDecal } from 'tosijs-3d'
+import { demoSun, orbitCam, patternGround } from 'demo-utils'
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { radius: 15, beta: Math.PI / 3.2, target: [0, 1.2, 0] })
+      // a soft grounding decal, placed where the SUN projects the floater onto the ground — so it
+      // lines up with the light direction, not just straight down (which read wrong under an angled sun).
+      const decal = createShadowDecal(el.scene, { size: 3.2 })
+      const floater = new BABYLON.Vector3(0, 2.6, 0)
+      const place = () => {
+        const sun = el.scene.lights.find((l) => l.getClassName?.() === 'DirectionalLight')
+        if (!sun) return
+        const d = sun.direction.normalizeToNew() // light travel direction (points down-and-across)
+        const t = floater.y / -d.y
+        decal.position.set(floater.x + d.x * t, 0.02, floater.z + d.z * t)
+        el.scene.onBeforeRenderObservable.removeCallback(place) // place once, then stop
+      }
+      el.scene.onBeforeRenderObservable.add(place)
+    },
+  },
+  demoSun(),
+  b3dSkybox({ timeOfDay: 10 }),
+  patternGround({ size: 30, tiles: 15 }),
+  // `_nocast` so no real CSM shadow competes with the decal — the decal IS the grounding shadow here
+  b3dBox({ meshName: 'floater_nocast', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Two ways to place one
 
 - **`projectShadowDown`** — raycast straight down and lay the decal on whatever surface it hits

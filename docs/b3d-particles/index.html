@@ -36,6 +36,7 @@ Use it for fire, smoke, explosions, thrusters, weapon trails, and more.</p>
 as CSS hex strings. Call <code>burst(count)</code> for one-shot effects like explosions.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, button3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { demo } = tosi({ demo: { emitRate: 80 } })
@@ -68,18 +69,12 @@ const scene = b3d(
       button3d({ label: &#39;Burst&#39;, onClick() { explosion.burst(150) } }),
     ],
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 12,
-        new BABYLON.Vector3(0, 1, 0), el.scene
-      )
-      // Keep the camera &gt;=5deg above the horizon and out of the scene: a bare
-      // ArcRotateCamera tilts under the ground and zooms through everything.
-      camera.lowerBetaLimit = (20 * Math.PI) / 180
-      camera.upperBetaLimit = (85 * Math.PI) / 180
+      const camera = orbitCam(el, {
+        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+        target: [0, 1, 0], maxElevationDeg: 70,
+      })
       camera.lowerRadiusLimit = 4
       camera.upperRadiusLimit = 30
-      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(camera)
     },
   },
   b3dLight({ y: 1, intensity: 0.5 }),

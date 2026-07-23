@@ -264,8 +264,8 @@ export declare class B3d extends Component {
     private _libraries;
     /** Run `cb` when the scene is ready — now if it already is, else on scene-ready. */
     whenReady(cb: () => void): void;
-    onSceneAddition(callback: SceneAdditionHandler): void;
-    offSceneAddition(callback: SceneAdditionHandler): void;
+    addSceneListener(callback: SceneAdditionHandler): void;
+    removeSceneListener(callback: SceneAdditionHandler): void;
     register(additions: SceneAdditions): void;
     private _worldRoots;
     private _originShiftListeners;
@@ -277,8 +277,8 @@ export declare class B3d extends Component {
     private _nameplateScan;
     registerWorldRoot(node: BABYLON.TransformNode): void;
     unregisterWorldRoot(node: BABYLON.TransformNode): void;
-    onOriginShift(callback: (dx: number, dz: number) => void): void;
-    offOriginShift(callback: (dx: number, dz: number) => void): void;
+    addOriginListener(callback: (dx: number, dz: number) => void): void;
+    removeOriginListener(callback: (dx: number, dz: number) => void): void;
     registerRadarBlip(blip: RadarBlip): void;
     unregisterRadarBlip(blip: RadarBlip): void;
     /** Every radar-detectable blip in the scene (targets, own missiles, waypoints). */
@@ -289,7 +289,7 @@ export declare class B3d extends Component {
      * own tiles by (dx, dz). Shifts: the camera CARRIER (the piloted entity if one is
      * driven — the chase rig re-derives from it each frame, so shifting the rig would
      * be overwritten; else the camera's parent; else the camera), every registered
-     * world root, and every onOriginShift listener (which fixes its own node + JS).
+     * world root, and every addOriginListener listener (which fixes its own node + JS).
      * Skybox/water are viewer/origin-centred and intentionally NOT shifted.
      */
     shiftOrigin(dx: number, dz: number): void;

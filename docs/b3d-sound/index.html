@@ -38,6 +38,7 @@ is set, the sound will attempt to play on connect, but may be silenced
 until the user interacts with the page.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround, label3d, button3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, p } = elements
 
@@ -62,18 +63,12 @@ preview.append(
         button3d({ label: &#39;Stop&#39;, onClick: () =&gt; spatialSound.stop() }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 12,
-          BABYLON.Vector3.Zero(), el.scene
-        )
-        // Keep the camera &gt;=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+          target: [0, 0, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 4
         camera.upperRadiusLimit = 36
-        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ y: 1, intensity: 0.8 }),

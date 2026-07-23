@@ -44,6 +44,7 @@ the same controls work on keyboard, touch, and in VR. <strong>Left-drag orbits</
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.</p>
 <pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 // Unique tosi() key per demo — tosi() is a singleton keyed by path, so two demos on the
@@ -71,9 +72,7 @@ const scene = b3d(
       slider3d({ label: &#39;blast radius&#39;, value: s.blastRadius, min: 0.5, max: 8, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3.4, 20, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 20, target: [0, 0.5, 0] })
     },
   },
   b3dLight({ y: 1, intensity: 0.85 }),
@@ -108,6 +107,7 @@ missiles</strong> at the orbiting cube; they bend to chase it and detonate on
 contact. The target <strong>respawns at a fresh altitude</strong> each time you destroy it. Drop
 <code>turnRate</code> and watch them overshoot a hard-turning target.</p>
 <pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 // fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
@@ -130,9 +130,7 @@ const scene = b3d(
       slider3d({ label: &#39;fire rate&#39;, value: s.fireRate, min: 0.5, max: 5, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2.2, Math.PI / 3, 30, new BABYLON.Vector3(0, 4, 0), el.scene)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3, radius: 30, target: [0, 4, 0] })
       let a = 0, baseY = 4
       // Respawn the target on death at a fresh (hittable) altitude.
       const spawn = () =&gt; {

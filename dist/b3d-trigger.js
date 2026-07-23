@@ -13,6 +13,7 @@ for `'enter'` / `'exit'` CustomEvents on the element.
 
 ```js
 import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, emptyInput } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -97,18 +98,12 @@ preview.append(
   b3d(
     {
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 3.2, 22,
-          new BABYLON.Vector3(0, 0, 0), el.scene
-        )
-        // Keep the camera >=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 22,
+          target: [0, 0, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 8
         camera.upperRadiusLimit = 60
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ y: 1, intensity: 0.8 }),

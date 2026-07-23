@@ -37,16 +37,12 @@ tosijs-bound HUDs and instrument panels).</p>
 source SVG element using UV coordinates, so interactive SVG UIs work in 3D/XR.</p>
 <h2>Example — static SVG on a plane</h2>
 <pre><code class="language-js">import { b3d, b3dSvgPlane, b3dLight } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
     },
   },
   b3dLight({ intensity: 1 }),
@@ -62,6 +58,7 @@ preview.append(scene)
 </code></pre>
 <h2>Example — live dynamic SVG (radar display)</h2>
 <pre><code class="language-js">import { b3d, b3dSvgPlane, b3dLight, SvgTexture } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { svgElements, tosi, xin } from &#39;tosijs&#39;
 
 const { svg, g, path, circle, polygon } = svgElements
@@ -164,12 +161,7 @@ setInterval(() =&gt; {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
 
       const tex = new SvgTexture({
         scene: el.scene,
@@ -196,6 +188,7 @@ preview.append(scene)
 </code></pre>
 <h2>Example — dynamic interactive SVG with pointer events</h2>
 <pre><code class="language-js">import { b3d, b3dLight, SvgTexture } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { svgElements } from &#39;tosijs&#39;
 
 const { svg, rect, text, g } = svgElements
@@ -244,12 +237,7 @@ function inBtn(sx, sy) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        &#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 5,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 5, target: [0, 0, 0] })
 
       const tex = new SvgTexture({
         scene: el.scene,

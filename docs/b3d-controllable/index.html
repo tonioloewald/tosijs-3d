@@ -34,11 +34,24 @@
 helicopters, boats, etc.</p>
 <p>Subclasses override <code>applyInput(input, dt)</code> with their specific movement model.
 The base class handles the update loop: poll input → apply input.</p>
+<h2>Example</h2>
+<p>The base class is abstract — you subclass it. A minimal one that yaws to the throttle
+(real subclasses — <a href="/b3d-biped/">b3d-biped</a>, <a href="/b3d-car/">b3d-car</a>,
+<a href="/b3d-aircraft/">b3d-aircraft</a> — put a full movement model here):</p>
+<pre><code class="language-javascript">import { B3dControllable } from &#39;tosijs-3d&#39;
+
+class Spinner extends B3dControllable {
+  applyInput(input, dt) {
+    // input is a ControlInput; act on the fields this entity cares about
+    if (this.meshNode) this.meshNode.rotation.y += input.throttle * dt * 3
+  }
+}
+</code></pre>
 <h2>Key Methods</h2>
 <ul>
 <li><code>applyInput(input, dt)</code> — override with movement/animation logic</li>
 <li><code>getCameraTarget()</code> — returns the node cameras should follow</li>
-<li><code>onGainFocus()</code> / <code>onLoseFocus()</code> — lifecycle hooks for input switching</li>
+<li><code>handleGainFocus()</code> / <code>handleLoseFocus()</code> — lifecycle hooks for input switching</li>
 </ul>
 
   </article>

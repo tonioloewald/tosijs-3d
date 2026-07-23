@@ -8,6 +8,7 @@ and drives it via `ControlInput`.
 
 ```js
 import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, label3d, select3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { elements, tosi } from 'tosijs'
 
 const animations = [
@@ -38,14 +39,11 @@ preview.append(
         slider3d({ label: 'speed', value: bipedDemo.speed, min: 0, max: 2, step: 0.1 }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 3.5, 2,
-          new BABYLON.Vector3(0, 0.5, 0), el.scene
-        )
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 3.5, radius: 2, target: [0, 0.5, 0],
+        })
         camera.lowerRadiusLimit = 1.5
         camera.upperRadiusLimit = 10
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ y: 1, intensity: 0.7 }),

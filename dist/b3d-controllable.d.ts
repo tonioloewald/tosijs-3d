@@ -13,8 +13,8 @@ export declare class B3dControllable extends AbstractMesh {
     sceneDispose(): void;
     applyInput(input: ControlInput, dt: number): void;
     getCameraTarget(): BABYLON.Node | null;
-    onGainFocus(): void;
-    onLoseFocus(): void;
+    handleGainFocus(): void;
+    handleLoseFocus(): void;
     protected _update: () => void;
 }
 //# sourceMappingURL=b3d-controllable.d.ts.map

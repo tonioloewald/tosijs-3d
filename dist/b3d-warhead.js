@@ -22,6 +22,7 @@ in the ⚙ panel.
 
 ```js
 import { b3d, b3dController, b3dWarhead, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const { s } = tosi({ s: { damage: 20, fullRadius: 1.5, blastRadius: 5, los: true } })
@@ -47,9 +48,7 @@ const scene = b3d(
       toggle3d({ label: 'line of sight', value: s.los }),
     ],
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.3, Math.PI / 3, 16, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2.3, beta: Math.PI / 3, radius: 16, target: [0, 0.5, 0] })
       // a wall for line-of-sight blocking
       const wall = BABYLON.MeshBuilder.CreateBox('wall', { width: 6, height: 2.5, depth: 0.4 }, el.scene)
       wall.position.set(0, 1.25, 3.2)

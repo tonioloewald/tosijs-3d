@@ -33,6 +33,12 @@
 <p>Maps a physical gamepad (via <code>navigator.getGamepads()</code>) to a <code>VirtualGamepad</code>.
 Uses the Standard Gamepad layout (axes 0-3, buttons 0-16).</p>
 <p>Configurable deadzone filters stick drift.</p>
+<h2>Example</h2>
+<p>Needs a physical gamepad connected. Maps the Standard Gamepad layout to a <code>VirtualGamepad</code>:</p>
+<pre><code class="language-javascript">import { HardwareGamepadSource } from &#39;tosijs-3d&#39;
+// new HardwareGamepadSource() → .poll() reads navigator.getGamepads() into a VirtualGamepad
+// (sticks, face buttons, triggers), deadzone-filtered. Merged automatically by &lt;tosi-b3d-controller&gt;.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

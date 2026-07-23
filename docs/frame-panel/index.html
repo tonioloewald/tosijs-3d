@@ -40,6 +40,13 @@ itself moves (e.g. <code>body</code> follows your torso), so the panel rides wit
 oriented once to face your head.</p>
 <p>Anchor presets (in the <code>body</code> frame, metres; y is absolute since <code>body</code> sits at
 the floor): <code>waist</code>, <code>left-shoulder</code>, <code>right-shoulder</code>.</p>
+<h2>Example</h2>
+<p>XR-only. Pins an SVG panel to an <a href="/xr-frames/">xr-frame</a> and reveals it as you look toward it.
+The declarative wrapper is <a href="/b3d-panel/"><tosi-b3d-panel></a> — prefer it; this is the imperative version:</p>
+<pre><code class="language-javascript">import { attachFramePanel } from &#39;tosijs-3d&#39;
+// attachFramePanel(frames, { frame: &#39;left-shoulder&#39;, preset, svg }) → a gaze-revealed panel pinned
+// to your shoulder. See &lt;tosi-b3d-panel&gt; for the element form.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

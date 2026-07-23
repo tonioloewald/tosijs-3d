@@ -43,23 +43,18 @@ re-checks run every <code>distanceCheckInterval</code> frames, staggered per-pro
 work doesn&#39;t all pile onto one frame.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, b3dSphere, b3dReflections } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 
 preview.append(
   b3d(
     {
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          &#39;cam&#39;, -Math.PI / 2, Math.PI / 2.8, 6,
-          new BABYLON.Vector3(0, 1, 0), el.scene
-        )
-        // Keep the camera &gt;=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 2.8, radius: 6,
+          target: [0, 1, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 2.5
         camera.upperRadiusLimit = 18
-        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dSkybox({ timeOfDay: 11, realtimeScale: 0 }),

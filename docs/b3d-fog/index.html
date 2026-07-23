@@ -33,6 +33,30 @@
 <p>Adds fog to a scene, useful for atmosphere and hiding distant tile pop-in.
 When <code>syncSkybox</code> is true, the fog color automatically tracks the sibling
 <code>b3dSkybox</code>&#39;s horizon color, so fog matches the sky at any time of day.</p>
+<h2>Demo</h2>
+<p><strong>A colonnade marching into the murk.</strong> <code>syncSkybox</code> matches the fog to the horizon colour, so the
+far crates dissolve into the sky rather than into a flat grey wall. Drag to orbit.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dFog, b3dGround, b3dBox } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 2.7, radius: 9, target: [0, 1, 8] })
+    },
+  },
+  b3dSun(),
+  b3dSkybox({ timeOfDay: 8 }),
+  b3dFog({ syncSkybox: true, start: 6, end: 42 }),
+  b3dGround({ width: 120, height: 120, texture: &#39;checker&#39;, textureTiles: 60 }),
+  ...Array.from({ length: 12 }, (_, i) =&gt;
+    b3dBox({ meshName: `crate-${i}`, size: 1.6, x: i % 2 ? 3 : -3, y: 0.8, z: i * 3.5, color: &#39;#b06a3c&#39; })
+  ),
+)
+preview.append(scene)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
 <h2>Attributes</h2>
 <table>
 <thead>

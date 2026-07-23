@@ -43,35 +43,40 @@ hovering/interacting with receives input (one gamepad no longer drives them all)
 <p><strong>Steer the launcher with A/D (or the left stick), and pull the right trigger (or <code>F</code> /
 the glass B button) to fire</strong> at the cube field. Same controls on keyboard, touch, and
 in VR — because it&#39;s the standard controller, not a demo hack.</p>
-<pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dController, b3dSkybox } from &#39;tosijs-3d&#39;
+import { demoSun, orbitCam, patternGround } from &#39;demo-utils&#39;
 
-const launcher = b3dLauncher({ x: 0, y: 0.6, z: -9, fireRate: 3, damage: 20 })
-const targets = []
-for (let i = 0; i &lt; 24; i++) {
-  targets.push(b3dDestroyable({ x: (i % 6) * 1.6 - 4, y: 0.4, z: Math.floor(i / 6) * 1.6, size: 0.8, capacity: 10, color: &#39;#cc4444&#39; }))
-}
+// A rover we drive around: left stick / WASD → move + turn. The controller merges keyboard,
+// the on-screen glass pad, and any hardware/XR pad, and hands `drive` the result each frame.
+let rover // set in sceneCreated
+const controller = b3dController({
+  mapping: &#39;biped&#39;,
+  drive(input, dt) {
+    if (!rover) return
+    rover.rotation.y += input.turn * dt * 2.4 // turn (A/D · left stick X)
+    const step = input.forward * dt * 7 // drive (W/S · left stick Y)
+    rover.position.x += Math.sin(rover.rotation.y) * step
+    rover.position.z += Math.cos(rover.rotation.y) * step
+  },
+})
 
 const scene = b3d(
   {
-    gamepad: &#39;left_stick,right_trigger&#39;, // glass gamepad shows only what this demo uses
+    gamepad: &#39;left_stick&#39;, // glass gamepad shows only what this demo uses
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3.2, 22, new BABYLON.Vector3(0, 0.5, -2), el.scene)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { radius: 16, beta: Math.PI / 3.4, target: [0, 0.5, 0] })
+      rover = BABYLON.MeshBuilder.CreateBox(&#39;rover&#39;, { width: 1.2, height: 0.7, depth: 1.9 }, el.scene)
+      rover.position.y = 0.5
+      const mat = new BABYLON.StandardMaterial(&#39;rover-mat&#39;, el.scene)
+      mat.diffuseColor = new BABYLON.Color3(0.85, 0.45, 0.2)
+      rover.material = mat
+      el.register?.({ meshes: [rover] }) // cast a shadow on the ground
     },
   },
-  b3dLight({ y: 1, intensity: 0.85 }),
+  demoSun(),
   b3dSkybox({ timeOfDay: 10 }),
-  b3dGround({ width: 40, height: 40, color: &#39;#5a6b52&#39; }),
-  b3dController({
-    mapping: &#39;biped&#39;,
-    drive(input, dt) {
-      launcher.ry += input.turn * dt * 70 // steer the barrel (A/D / left stick)
-      if (input.shoot &gt; 0.5 || input.sprint &gt; 0.5) launcher.fire() // fire (F / B button / right trigger)
-    },
-  }),
-  launcher,
-  ...targets,
+  patternGround({ size: 40 }),
+  controller,
 )
 preview.append(scene)
 </code></pre>

@@ -76,6 +76,13 @@ pushed down-and-back to the pivot the head swings around. Hand frames come from
 the controllers/<code>XRHand</code> joints (sensed) and are added separately.</p>
 <p>The yaw-damping, gaze-reveal and angle math are pure (no Babylon) so they&#39;re unit
 tested in <code>xr-frames.test.ts</code>.</p>
+<h2>Example</h2>
+<p>XR-only (needs an immersive session). Spatial UI parents to a <em>frame</em> — <code>world</code>, <code>rig</code>, <code>body</code>,
+<code>neck</code>, or <code>face</code> — so it stays where it should as you move:</p>
+<pre><code class="language-javascript">import { XrFrames } from &#39;tosijs-3d&#39;
+// XrFrames maintains a TransformNode per frame; parent a panel to `body` and it follows your torso
+// (damped yaw) but not your gaze. See &lt;tosi-b3d-panel&gt; / frame-panel for the assembled spatial UI.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

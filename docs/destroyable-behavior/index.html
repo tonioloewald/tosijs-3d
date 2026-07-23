@@ -49,6 +49,13 @@ transfer — a falloff + line-of-sight explosion that ripples through neighbours
 <li><code>whenDestroyed</code> callback + a bubbling <code>destroyed</code> event — the seam for flipping a linked
 player/vehicle into a <em>dead</em> state, spawning loot, swapping a wreck model, etc.</li>
 </ul>
+<h2>Example</h2>
+<p>For a ready-to-click live demo, see <a href="/b3d-destroyable/">b3d-destroyable</a> (a field of cubes you
+shoot). This is the reusable behavior <em>underneath</em> it — attach damage to any existing mesh:</p>
+<pre><code class="language-javascript">import { DestroyableBehavior } from &#39;tosijs-3d&#39;
+// Give a loaded GLB / biped / vehicle a health pool + death outcome without wrapping it in a
+// &lt;tosi-b3d-destroyable&gt; cube; at 0 hp it runs the same explode / wreck / loot outcomes.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

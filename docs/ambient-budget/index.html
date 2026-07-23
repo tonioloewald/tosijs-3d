@@ -42,6 +42,13 @@ says fidelity is a promise — thin, stuttering rain <em>promises weather and fa
 while no rain at all promises nothing and costs nothing. So every effect declares a <code>min</code> below
 which it is <strong>a lie</strong>, and an effect that can&#39;t be given its <code>min</code> is switched off and its budget
 handed to the survivors. Better honest rain and no motes than two half-truths.</p>
+<h2>Example</h2>
+<p>The pure allocator <a href="/b3d-ambient/">b3d-ambient</a> uses to decide who exists when the frame can&#39;t
+afford everyone — the highest-priority effects keep their share, the rest switch OFF rather than thin:</p>
+<pre><code class="language-javascript">import { allocateAmbient } from &#39;tosijs-3d&#39;
+// allocateAmbient(requests, pool) → how many particles each effect gets this frame; garnish that
+// can&#39;t hit its minimum within budget is dropped, never degraded into a lie.
+</code></pre>
 <h2>Why a shared pool, and not a budget each</h2>
 <p>Effects <strong>compete</strong>. Rain, dust and motes can each be individually &quot;within budget&quot; and still cook
 the frame together. So the device tier vends ONE <code>ambientParticles</code> pool for the whole scene and

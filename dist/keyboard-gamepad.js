@@ -4,6 +4,17 @@
 Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 for responsive analog-feel from digital keys.
 
+## Example
+
+Turns WASD / arrows / mouse into a `VirtualGamepad` — the same spine the hardware pad and XR
+controllers feed, so a keyboard "just works" anywhere a gamepad does:
+
+```javascript
+import { keyboardGamepad } from 'tosijs-3d'
+// keyboardGamepad() → a source whose .poll() yields a VirtualGamepad from the keys below. Usually
+// you don't touch it directly — <tosi-b3d-controller> wires it into the merged input for you.
+```
+
 ## Default Key Map
 
 | VirtualGamepad | Keys |

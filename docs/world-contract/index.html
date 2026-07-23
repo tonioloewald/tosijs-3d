@@ -36,6 +36,19 @@ authority on physical and systemic reality; the driver decides what any of it
 <em>means</em>. These two halves never call each other&#39;s functions — they share a
 serializable <code>WorldState</code>, a stream of best-effort <code>SimulationEvent</code>s, and the
 <code>WorldApi</code> surface below.</p>
+<h2>Example — a driver against the surface</h2>
+<p>The driver only ever touches <code>WorldApi</code>: read state, subscribe to intentional-act events, send
+<em>advisory</em> intents. It never reaches into the sim. (<code>WorldStore</code> is the reference implementation.)</p>
+<pre><code class="language-javascript">import { WorldStore } from &#39;tosijs-3d&#39;
+
+const world = new WorldStore() // any WorldApi implementation
+world.subscribe((event) =&gt; {
+  // events are COMMITMENTS (interacted / picked-up / chose / died) — never proximity
+  if (event.type === &#39;death&#39;) recordConsequence(event.entityId)
+})
+const npc = world.spawn({ kind: &#39;npc&#39;, position: { x: 5, y: 0, z: 0 } })
+world.setIntent(npc, { behavior: &#39;flee&#39; }) // advisory — the sim may be late or ignore it
+</code></pre>
 <h2>Hard rules baked into these types</h2>
 <ul>
 <li><strong>The simulation is narrative-blind.</strong> There is no <code>plot</code>, <code>quest</code>,

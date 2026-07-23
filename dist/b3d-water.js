@@ -3,6 +3,43 @@
 
 Water plane with reflections, waves, and underwater fog effect.
 
+## Demo
+
+**A lake with a few crates on the shore.** The sun rakes across the surface; the water reflects the
+sky and the crates. Drag to orbit — dip the camera below the surface and the world tints and dims.
+
+```js
+import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround } from 'tosijs-3d'
+import { demoSun, orbitCam, spinner } from 'demo-utils'
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { radius: 24, beta: Math.PI / 2.8, target: [0, 0.4, 0] })
+      // crates floating ON the surface (bottom at the water line), bobbing on the swell
+      const a = spinner(el, { x: -5, y: 1.0, z: -3, size: 2, spin: 0.12 })
+      const b = spinner(el, { x: 4.5, y: 0.7, z: 4, size: 1.4, spin: -0.18 })
+      let t = 0
+      el.scene.registerBeforeRender(() => {
+        t += el.scene.getEngine().getDeltaTime() / 1000
+        a.position.y = 1.0 + Math.sin(t * 1.1) * 0.14
+        b.position.y = 0.7 + Math.sin(t * 1.5 + 1) * 0.14
+      })
+    },
+  },
+  demoSun(),
+  b3dSkybox({ timeOfDay: 9 }),
+  // a textured seafloor, visible through the translucent water — gives the surface real depth
+  b3dGround({ y: -1.2, width: 60, height: 60, texture: 'checker', textureTiles: 20, color: '#3a5f6b' }),
+  b3dWater({ waterSize: 60, waveHeight: 0.4, windForce: -4, twoSided: true }),
+  b3dReflections(),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -126,7 +163,7 @@ export class B3dWater extends AbstractMesh {
         this.updateWater();
         this.mesh.material = this.waterMaterial;
         this._callback = this.waterCallback.bind(this);
-        owner.onSceneAddition(this._callback);
+        owner.addSceneListener(this._callback);
         // FOLLOW: ride the camera in x/z so the finite plane always surrounds you (an endless sea),
         // while the bump pattern is scrolled back into WORLD space so the ripples stay put instead
         // of sliding along with the mesh. The plane's y stays where the attr puts it (sea level).
@@ -181,7 +218,7 @@ export class B3dWater extends AbstractMesh {
     }
     sceneDispose() {
         if (this.owner && this._callback) {
-            this.owner.offSceneAddition(this._callback);
+            this.owner.removeSceneListener(this._callback);
         }
         if (this._followTick) {
             this.owner?.scene.unregisterBeforeRender(this._followTick);

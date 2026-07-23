@@ -38,6 +38,15 @@ Babylon texture (svg-texture re-serializes it each update).</p>
 <p><code>loadHud(url)</code> fetches + parses the designed asset (primary); <code>buildFallbackHud()</code>
 constructs a minimal equivalent in code so a HUD still renders if the asset is
 missing.</p>
+<h2>See it live</h2>
+<p>The assembled, animated HUD is <a href="/b3d-hud/"><tosi-b3d-hud></a> — drop it into an aircraft demo. This
+module is the driver underneath: <code>buildFallbackHud()</code> builds the SVG plus a controller whose
+<code>setMeter</code> / <code>setHorizon</code> / <code>setTraces</code> / <code>setWarnings</code> push live values onto it (the projection
+math is pure, in <a href="/hud-math/">hud-math</a>).</p>
+<pre><code class="language-javascript">import { buildFallbackHud } from &#39;tosijs-3d&#39;
+const hud = buildFallbackHud()
+hud.setMeter(&#39;airspeed&#39;, 0.6) // then mount hud&#39;s SVG in an overlay, or use &lt;tosi-b3d-hud&gt;
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

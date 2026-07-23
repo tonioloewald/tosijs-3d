@@ -11,6 +11,7 @@ everything visible.
 
 ```js
 import { b3d, b3dLight, b3dSkybox, b3dGround, b3dSphere, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const { ambient } = tosi({ ambient: { intensity: 0.6 } })
@@ -23,18 +24,12 @@ preview.append(
         slider3d({ label: 'ambient', value: ambient.intensity, min: 0, max: 1.5, step: 0.05 }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2.5, Math.PI / 3, 6,
-          new BABYLON.Vector3(0, 1, 0), el.scene
-        )
-        // Keep the camera >=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2.5, beta: Math.PI / 3, radius: 6,
+          target: [0, 1, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 2.5
         camera.upperRadiusLimit = 18
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ intensity: ambient.intensity }),

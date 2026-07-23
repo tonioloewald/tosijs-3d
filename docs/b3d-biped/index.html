@@ -34,6 +34,7 @@
 and drives it via <code>ControlInput</code>.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, label3d, select3d, slider3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 import { elements, tosi } from &#39;tosijs&#39;
 
 const animations = [
@@ -64,14 +65,11 @@ preview.append(
         slider3d({ label: &#39;speed&#39;, value: bipedDemo.speed, min: 0, max: 2, step: 0.1 }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          &#39;cam&#39;, -Math.PI / 2, Math.PI / 3.5, 2,
-          new BABYLON.Vector3(0, 0.5, 0), el.scene
-        )
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 3.5, radius: 2, target: [0, 0.5, 0],
+        })
         camera.lowerRadiusLimit = 1.5
         camera.upperRadiusLimit = 10
-        camera.attachControl(el.querySelector(&#39;canvas&#39;), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ y: 1, intensity: 0.7 }),

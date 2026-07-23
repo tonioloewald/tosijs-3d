@@ -38,6 +38,13 @@ the scene (enumerates <code>RadarBlip</code>s, supplies the platform pose, plots
 the platform&#39;s forward with the bearing to the contact ≥ <code>coneDot</code>; ±90° → <code>coneDot 0</code>).
 Detected, <strong>lockable</strong> contacts build a lock over <code>lockTime</code> seconds; up to <code>maxLocks</code>
 of the <strong>nearest</strong> ones hold locks at once. Losing detection decays the lock back down.</p>
+<h2>Example</h2>
+<p>The pure, deterministic model — <a href="/b3d-radar/">b3d-radar</a> bridges it to the scene (blips, HUD
+traces, homing-missile locks). Direct use is a <code>Radar</code> you step each tick:</p>
+<pre><code class="language-javascript">import { Radar } from &#39;tosijs-3d&#39;
+// range + a detection cone + lock acquire/decay, seeded and Babylon-free — feed it blip positions
+// each dt and read its tracks / nearest lock. See &lt;tosi-b3d-radar&gt; for the wired-up version.
+</code></pre>
 <h1></h1>
 
   </article>

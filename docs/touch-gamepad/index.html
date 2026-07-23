@@ -82,7 +82,7 @@ precision.</p>
 <p>Touch a button element to set its value to 1 and add an <code>active</code> CSS class.
 Release sets it back to 0. Elements with <code>data-part</code> values not in the table
 above (e.g. <code>menu</code>, <code>view</code>) still get the <code>active</code> class and fire the optional
-<code>onButton(part, pressed)</code> callback.</p>
+<code>handleButton(part, pressed)</code> callback.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { gamepadSvg, TouchGamepadSource } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
@@ -91,7 +91,7 @@ const { div, pre } = elements
 const pad = gamepadSvg()
 const customBtns = new Set()
 const source = new TouchGamepadSource(pad, {
-  onButton(part, pressed) {
+  handleButton(part, pressed) {
     if (pressed) customBtns.add(part)
     else customBtns.delete(part)
   },

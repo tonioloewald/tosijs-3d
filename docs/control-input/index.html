@@ -32,6 +32,15 @@
 <h1>control-input</h1>
 <p>Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
 consumes a <code>ControlInput</code>, and any input source (keyboard, gamepad, XR controllers, AI) produces one.</p>
+<h2>Example</h2>
+<p>A <code>ControlInput</code> is just a plain per-frame snapshot — a source produces one, a controllable
+consumes one, and that indirection is why swapping keyboard for gamepad for AI is a new <em>source</em>,
+not a rewrite. Start from <code>emptyInput()</code> and set what a source drives:</p>
+<pre><code class="language-javascript">import { emptyInput } from &#39;tosijs-3d&#39;
+
+// an AI &quot;source&quot; this frame: walk forward, veer left, and fire
+const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
+</code></pre>
 <h2>ControlInput</h2>
 <table>
 <thead>

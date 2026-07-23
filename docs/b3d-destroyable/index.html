@@ -41,6 +41,7 @@ front grid are independent targets; the <strong>back row is chain-linked</strong
 leftmost cascades the reaction down the line (chains are wired after mount, since they
 reference combat ids that only exist once the targets have mounted).</p>
 <pre><code class="language-js">import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 
 const grid = []
 for (let i = 0; i &lt; 12; i++) {
@@ -54,9 +55,7 @@ for (let i = 0; i &lt; 6; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3.2, 15, new BABYLON.Vector3(0, 0.5, -0.5), el.scene)
-      cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 15, target: [0, 0.5, -0.5] })
       // click a cube → damage it
       el.scene.onPointerDown = (_evt, pick) =&gt; {
         if (!pick.hit || !pick.pickedMesh) return
@@ -111,6 +110,7 @@ express.</li>
 <p><strong>Click any drum</strong> — it explodes, and the blast sets off its neighbours in a spreading
 chain reaction (each drum both <code>explode</code>s and fires a <code>deathBlast</code>).</p>
 <pre><code class="language-js">import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;demo-utils&#39;
 
 const drums = []
 for (let i = 0; i &lt; 48; i++) {
@@ -125,9 +125,7 @@ for (let i = 0; i &lt; 48; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 3, 18, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.querySelector(&#39;canvas&#39;), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 18, target: [0, 0.5, 0] })
       el.scene.onPointerDown = (_evt, pick) =&gt; {
         if (!pick.hit || !pick.pickedMesh) return
         const t = drums.find((d) =&gt; d.mesh === pick.pickedMesh)
@@ -146,7 +144,7 @@ preview.append(scene)
 </code></pre>
 <p>It participates in the <strong>floating origin</strong>: because <code>AbstractMesh</code> treats the
 <code>x/y/z</code> attributes as the source of truth for the mesh position, this uses
-<code>onOriginShift</code> to shift BOTH the mesh node and its <code>x/z</code> attributes on a rebase
+<code>addOriginListener</code> to shift BOTH the mesh node and its <code>x/z</code> attributes on a rebase
 (NOT <code>registerWorldRoot</code>, which would leave the attributes stale so a later render
 would un-shift the mesh).</p>
 <p>Attributes: <code>capacity</code>, <code>armor</code>, <code>regenRate</code>, <code>regenDelay</code>, <code>protectedBy</code>,

@@ -33,6 +33,16 @@
 <p>These conventions apply to all meshes entering the scene — via
 <a href="/b3d-loader/">b3d-loader</a>, <a href="/b3d-library/">b3d-library</a>, or any
 component that calls <code>register()</code>.</p>
+<h2>Example — behaviour from names</h2>
+<p>Material <em>appearance</em> (metallic, roughness, alpha, emissive) comes through glTF automatically.
+<em>Behaviour</em> that can&#39;t be inferred from a material is driven by <strong>name suffixes</strong> on the mesh
+(set in Blender, by a loader, or in code):</p>
+<pre><code class="language-javascript">// glass_mirror        → gets a dynamic reflection probe
+// floor_noshadow      → does not receive shadows
+// lamp_nocast         → does not cast shadows
+// crate_collideBox    → box collider (also _collide / _collideSphere / _collideCylinder / _collideMesh)
+// debug-ignore        → disposed on load (filtered out)
+</code></pre>
 <h2>Property-Based (automatic from Blender materials)</h2>
 <table>
 <thead>
@@ -109,7 +119,7 @@ position/rotation syncing) and override two hooks:</p>
 <tbody><tr>
 <td><code>sceneReady(owner, scene)</code></td>
 <td>Once, when <strong>both</strong> this element is connected (its attributes are drained and readable) <strong>and</strong> the scene&#39;s engine/scene exist.</td>
-<td>Build your Babylon content, <code>owner.register({meshes, lights})</code>, subscribe to <code>owner.onSceneAddition(...)</code>.</td>
+<td>Build your Babylon content, <code>owner.register({meshes, lights})</code>, subscribe to <code>owner.addSceneListener(...)</code>.</td>
 </tr>
 <tr>
 <td><code>sceneDispose()</code></td>

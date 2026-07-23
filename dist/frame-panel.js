@@ -13,6 +13,17 @@ oriented once to face your head.
 
 Anchor presets (in the `body` frame, metres; y is absolute since `body` sits at
 the floor): `waist`, `left-shoulder`, `right-shoulder`.
+
+## Example
+
+XR-only. Pins an SVG panel to an [xr-frame](?xr-frames.ts) and reveals it as you look toward it.
+The declarative wrapper is [<tosi-b3d-panel>](?b3d-panel.ts) — prefer it; this is the imperative version:
+
+```javascript
+import { attachFramePanel } from 'tosijs-3d'
+// attachFramePanel(frames, { frame: 'left-shoulder', preset, svg }) → a gaze-revealed panel pinned
+// to your shoulder. See <tosi-b3d-panel> for the element form.
+```
 */
 /*{ "parent": "Core" }*/
 import * as BABYLON from '@babylonjs/core';

@@ -64,6 +64,13 @@ mapping does on flat — it does in VR, no per-entity XR code.</p>
 <td>left <code>x-button</code>, <code>y-button</code></td>
 </tr>
 </tbody></table>
+<h2>Example</h2>
+<p>XR-only. Adapts live XR controllers to the same <code>VirtualGamepad</code> spine as the keyboard and hardware
+pad, so XR input flows through one path:</p>
+<pre><code class="language-javascript">import { XrGamepadSource } from &#39;tosijs-3d&#39;
+// new XrGamepadSource(...) → .poll() yields a VirtualGamepad from the immersive controllers, merged
+// with the other sources by CompositeInputProvider. Wired automatically inside &lt;tosi-b3d-controller&gt;.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

@@ -57,29 +57,36 @@ the water fills with **rising bubbles and drifting motes** — and it all fades 
 break the surface.
 
 ```js
-import { b3d, b3dAircraft, b3dAmbient, b3dWater, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dAmbient, b3dWater, b3dFog, b3dLibrary, b3dLight, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { demoSun } from 'demo-utils'
 
-const aircraft = b3dAircraft({
+// A submersible scout. The `groundY: -40` is what makes this demo WORK: an aircraft's floor
+// defaults to 0 — which here is EXACTLY the water surface — so by default you hit the waterline
+// and stop, and the underwater life is unreachable. Drop the floor to the real seabed and you can
+// DIVE. Start low and hover so the surface is right there: left trigger down to submerge.
+const scout = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 30, vtolSpeed: 6, maxSpeed: 40,
+  player: true, y: 9, groundY: -40, vtolSpeed: 6, maxSpeed: 30,
 })
 
 const scene = b3d(
   { gamepad: true },
   b3dLight({ y: 1, intensity: 0.6 }),
-  b3dSun({ intensity: 0.9 }),
+  demoSun(),
   b3dSkybox({ timeOfDay: 11 }),
   b3dFog({ start: 200, end: 1200, color: '#bfd9f2' }),
-  b3dGround({ meshName: 'ground_nocast', width: 2000, height: 2000, color: '#6b7f5e', y: -40 }),
+  b3dGround({ meshName: 'ground_nocast', width: 2000, height: 2000, color: '#4a5f3e', y: -40 }),
   b3dWater({ y: 0, width: 2000, height: 2000 }),
   b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
 
-  // Under the surface: bubbles rising, motes hanging in the light.
-  // No `count` — it adapts to the device.
-  b3dAmbient({ preset: 'bubbles', where: 'underwater' }),
-  b3dAmbient({ preset: 'motes', where: 'underwater' }),
+  // Above the surface: dust motes in the air (visible right away). Below it: bubbles rising +
+  // plankton drifting. Both RAMP with depth (the same `band` the fog uses), so diving through the
+  // surface is a smooth handoff — the air empties, the sea fills with life. No `count` — it adapts.
+  b3dAmbient({ preset: 'motes', where: 'above', radius: 12 }),
+  b3dAmbient({ preset: 'bubbles', where: 'underwater', radius: 12 }),
+  b3dAmbient({ preset: 'motes', where: 'underwater', radius: 12, color: '#2c4a58' }),
 
-  inputFocus(gameController(), aircraft),
+  inputFocus(gameController(), scout),
 )
 preview.append(scene)
 ```

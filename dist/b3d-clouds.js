@@ -156,6 +156,11 @@ export class B3dClouds extends B3dChild {
         // harder than a few wisps). 0 ⇒ invisible even with castShadows on.
         shadowStrength: 0.65,
         seed: 1,
+        // Drift (m/s): the layer slides across the sky so clouds aren't a static backdrop. Gentle by
+        // default so it reads as WEATHER, not a frozen image — recycled blobs wrap in from upwind and
+        // fade up. (A future global wind system will drive these; for now they're the local dial.)
+        windX: 4,
+        windZ: 1.5,
     };
     /**
      * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
@@ -180,6 +185,8 @@ export class B3dClouds extends B3dChild {
     _baseColor = new BABYLON.Color3(1, 1, 1);
     /** Whiteout colour, recomputed each frame — white at the cloud top, murk deeper down. */
     _fogColor = new BABYLON.Color3(1, 1, 1);
+    /** The skybox, so the whiteout can blot the SKY too (scene fog alone can't — it opts out). */
+    _sky = null;
     _lastCoverage = -1;
     _tick = () => this._update();
     _onShift = (dx, dz) => {
@@ -204,14 +211,20 @@ export class B3dClouds extends B3dChild {
         const rng = new MersenneTwister(this.seed);
         this._baseColor = BABYLON.Color3.FromHexString(this.color);
         const mat = new BABYLON.StandardMaterial('cloud-mat', scene);
-        // LIT now — the sun rakes the tops and the undersides fall dark, which is what reads as a
-        // cloud rather than a flat decal. `selfIllum` keeps it from going to a grey rock (the old
-        // reason for disableLighting); `coverage` modulates all of this live in _update.
+        // FLAT by default — deliberate, not lazy. A cloud is a CLUMP of overlapping opaque blobs; the
+        // moment they're LIT, adjacent blobs shade differently, so wherever two surfaces coincide in
+        // depth the z-fight becomes VISIBLE and flickers like crazy as you tilt (worse once they
+        // drift). Flat, every blob is the SAME colour, so the z-fight is invisible — no flicker, ever.
+        // Form comes from the projected shadow + the fog whiteout + the silhouette, not per-blob
+        // shading. (A lit-but-stable version needs a single merged mesh or a deterministic opaque
+        // sort so ties don't flip — tracked in TODO. `backFaceCulling` ON for the same reason: a
+        // blob's dark interior must not compete with a neighbour's exterior in the depth buffer.)
         mat.diffuseColor = this._baseColor;
-        mat.emissiveColor = this._baseColor.scale(this.selfIllum);
+        mat.emissiveColor = this._baseColor.clone(); // fully self-lit → flat lit blob, not a grey rock
         mat.specularColor = BABYLON.Color3.Black();
+        mat.disableLighting = true;
         mat.alpha = this.opacity;
-        mat.backFaceCulling = false;
+        mat.backFaceCulling = true;
         this._mat = mat;
         const sizeMul = 0.7 + this.coverage * 0.6; // denser sky → bigger, more-overlapping blobs
         for (let i = 0; i < this.count; i++) {
@@ -239,7 +252,7 @@ export class B3dClouds extends B3dChild {
                 if (m.receiveShadows && m.material)
                     this._shadowMap.attachTo(m.material);
             }
-            owner.onSceneAddition(this._onAddition);
+            owner.addSceneListener(this._onAddition);
             // The Perf Stats panel is the one debug readout that exists everywhere (incl. VR).
             this._removeDebug = owner.addDebugSource({
                 name: 'cloud-shadows',
@@ -257,7 +270,7 @@ export class B3dClouds extends B3dChild {
         // Floating origin: blob positions are WORLD coordinates held in JS, so on a terrain rebase
         // they must shift with everything else or the whole sky would jump. (The per-frame recycle
         // would eventually mask it, but not without a visible lurch.)
-        owner.onOriginShift(this._onShift);
+        owner.addOriginListener(this._onShift);
         scene.onBeforeCameraRenderObservable.add(this._tick);
         // The whiteout is a fog LAYER — the scene composites and smooths it, so it can't fight
         // b3d-fog or the sea, and nothing ever switches fogMode (see atmosphere.ts). The colour is
@@ -286,13 +299,13 @@ export class B3dClouds extends B3dChild {
     }
     sceneDispose() {
         this.owner?.scene.onBeforeCameraRenderObservable.removeCallback(this._tick);
-        this.owner?.offOriginShift(this._onShift);
+        this.owner?.removeOriginListener(this._onShift);
         this._removeFogLayer?.();
         this._removeFogLayer = null;
         for (const b of this._blobs)
             b.dispose();
         this._blobs = [];
-        this.owner?.offSceneAddition(this._onAddition);
+        this.owner?.removeSceneListener(this._onAddition);
         this._removeDebug?.();
         this._removeDebug = null;
         this._shadowMap?.dispose();
@@ -315,12 +328,11 @@ export class B3dClouds extends B3dChild {
         if (cov !== this._lastCoverage && this._mat != null) {
             this._lastCoverage = cov;
             this._shadowDirty = true;
-            // Thicker sky ⇒ darker (storm grey) and less self-lit (dark underbellies). Opacity is NOT
-            // touched — the blobs are solid; coverage changes how MANY and how DARK, not how see-through.
-            const dark = 1 - 0.45 * cov;
-            const illum = Math.min(1, Math.max(0, this.selfIllum * (1.4 - cov)));
+            // Thicker sky ⇒ darker (storm grey). Opacity is NOT touched — the blobs are solid; coverage
+            // changes how MANY and how DARK, not how see-through. Flat model: emissive IS what shows.
+            const dark = 1 - 0.5 * cov;
             this._mat.diffuseColor = this._baseColor.scale(dark);
-            this._mat.emissiveColor = this._baseColor.scale(dark * illum);
+            this._mat.emissiveColor = this._baseColor.scale(dark);
         }
         return active;
     }
@@ -336,7 +348,7 @@ export class B3dClouds extends B3dChild {
             return;
         this._shadowRepaintAge = 10; // frames between checks — shadows are slow-moving
         // Lazy attach sweep: receivers arrive on their own schedule (terrain builds its tile pool
-        // whenever it's ready, GLBs load async) and registration order isn't guaranteed. onSceneAddition
+        // whenever it's ready, GLBs load async) and registration order isn't guaranteed. addSceneListener
         // catches registered arrivals; this is the backstop for anything else — but only when the mesh
         // COUNT changed, so the steady state costs one length compare, not an O(meshes) sweep forever.
         if (scene.meshes.length !== this._lastSweptMeshCount) {
@@ -392,6 +404,8 @@ export class B3dClouds extends B3dChild {
             return;
         const eye = cam.globalPosition;
         const active = this._applyCoverage();
+        const dt = Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000);
+        const drifting = this.windX !== 0 || this.windZ !== 0;
         // Recycle: a blob that falls behind wraps to the far side, so an endless cloudscape
         // costs a FIXED number of meshes. No allocation, no growth.
         let nearest = Infinity;
@@ -404,14 +418,49 @@ export class B3dClouds extends B3dChild {
                 blob.setEnabled(on);
             if (!on)
                 continue;
-            const dx = blob.position.x - eye.x;
-            const dz = blob.position.z - eye.z;
-            const flat = Math.hypot(dx, dz);
-            if (flat > this.spread) {
-                blob.position.x = eye.x - dx;
-                blob.position.z = eye.z - dz;
+            // Drift with the wind so the sky is alive, not a still image. The recycle below wraps a blob
+            // once it drifts off-field, and the edge fade hides the wrap. Shadows follow (dirty flag).
+            if (drifting) {
+                blob.position.x += this.windX * dt;
+                blob.position.z += this.windZ * dt;
                 this._shadowDirty = true;
             }
+            // Recycle with HYSTERESIS: only wrap a blob once it's well PAST the edge, and drop it back to
+            // just INSIDE the opposite edge — never right at the boundary.
+            //
+            // ⚠️ The old code reflected across the eye (`eye - dx`), which keeps the SAME distance from
+            // it — so a blob just past `spread` landed just past it on the far side and re-triggered EVERY
+            // frame: a per-frame ping-pong that teleported the handful of boundary blobs back and forth.
+            // Static it looked fine (no blob was past `spread`); the moment the camera moved, a few blobs
+            // crossed the ring and "flickered like crazy". The gap between the wrap threshold (`s + pad`)
+            // and the landing point (`s - inset`) is the hysteresis band that stops any boundary thrash —
+            // and landing at a fixed inset (not a same-distance reflection or a modulo) means even a
+            // camera that jumps far in one frame lands cleanly inside.
+            const s = this.spread;
+            const pad = s * 0.08; // must be this far PAST the edge before it recycles
+            const inset = s * 0.05; // and reappears this far INSIDE the opposite edge
+            const wrapAxis = (p, e) => {
+                const r = p - e;
+                if (r > s + pad)
+                    return e - (s - inset); // off the far edge → reappear just inside the near
+                if (r < -(s + pad))
+                    return e + (s - inset);
+                return p;
+            };
+            const nx = wrapAxis(blob.position.x, eye.x);
+            const nz = wrapAxis(blob.position.z, eye.z);
+            if (nx !== blob.position.x || nz !== blob.position.z) {
+                blob.position.x = nx;
+                blob.position.z = nz;
+                this._shadowDirty = true;
+            }
+            const dx = blob.position.x - eye.x;
+            const dz = blob.position.z - eye.z;
+            // Fade near the field edge so a recycled blob doesn't POP: it's already nearly invisible by
+            // the time it reaches the boundary, wraps while unseen, then fades back up as it drifts inward.
+            // (`visibility` is per-mesh, so it composes with the shared material's `opacity`.)
+            const edgeDist = s - Math.max(Math.abs(dx), Math.abs(dz));
+            blob.visibility = Math.min(1, Math.max(0, edgeDist / (s * 0.35)));
             const dy = blob.position.y - eye.y;
             // True WORLD distance to the squashed-ellipsoid surface along the view ray — so the whiteout
             // builds over the same real distance from any direction. The old `hypot(dx, dy/0.45, dz) -
@@ -436,7 +485,12 @@ export class B3dClouds extends B3dChild {
         // clamps to 1 for anything nearer, including negative = inside) you STAY white the whole
         // time you're in the cloud, until you come out the far side.
         const startDist = Math.max(1, this.size * this.approach);
-        const fullDist = startDist * 0.3; // total whiteout this far out — well before the surface
+        // Reach FULL immersion well before the surface (0.6·startDist, was 0.3): the scene fog is
+        // temporally smoothed (~0.25s), so at 60 m/s the *visible* whiteout lags the immersion ramp by
+        // ~15 m. Ramping to full earlier means the density has time to build to opaque BEFORE you enter
+        // — otherwise the fog reads as "snapping on right at entry" and, on a fast pass, never fully
+        // settles (distant geometry/shadows show through). Total whiteout is still comfortably close.
+        const fullDist = startDist * 0.6;
         this._immersion = band(nearest, startDist, fullDist);
         // Whiteout COLOUR by vertical depth: white near the cloud top, darkening as you sink. The
         // top of the layer is `altitude + thickness/2`; how far below it you sit (0…thickness) sets
@@ -450,6 +504,18 @@ export class B3dClouds extends B3dChild {
             const cov = Math.min(1, Math.max(0, this.coverage));
             const shade = 1 - 0.8 * frac * (0.35 + 0.65 * cov);
             this._fogColor.copyFrom(this._baseColor).scaleInPlace(shade);
+        }
+        // Blot the SKY too. The whiteout is scene fog, but the skybox is infinite-distance and opts
+        // OUT of fog (applyFog=false — obey it and the sky would be white ALWAYS), so without this the
+        // sky shows straight through the whiteout. Fade the skybox by immersion; the fading sky reveals
+        // the scene clear colour, which we tint to the fog colour so what's behind it is white, not
+        // black. (Geometry is already whited out by the scene fog itself.)
+        if (this._sky == null)
+            this._sky = scene.meshes.find((m) => /sky/i.test(m.name)) ?? null;
+        if (this._sky != null) {
+            this._sky.visibility = 1 - this._immersion;
+            if (this._immersion > 0)
+                scene.clearColor.set(this._fogColor.r, this._fogColor.g, this._fogColor.b, 1);
         }
     }
 }

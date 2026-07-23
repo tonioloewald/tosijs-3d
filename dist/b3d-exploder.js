@@ -20,6 +20,7 @@ until they all leave the camera view.
 
 ```js
 import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh, label3d, button3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 
@@ -49,18 +50,12 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 12,
-        new BABYLON.Vector3(0, 1, 0), el.scene
-      )
-      // Keep the camera >=5deg above the horizon and out of the scene: a bare
-      // ArcRotateCamera tilts under the ground and zooms through everything.
-      camera.lowerBetaLimit = (20 * Math.PI) / 180
-      camera.upperBetaLimit = (85 * Math.PI) / 180
+      const camera = orbitCam(el, {
+        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+        target: [0, 1, 0], maxElevationDeg: 70,
+      })
       camera.lowerRadiusLimit = 4
       camera.upperRadiusLimit = 30
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
       createSphere(BABYLON)
     },
   },

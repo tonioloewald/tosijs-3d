@@ -1,18 +1,33 @@
 {
   "model": "chatterbox",
-  "voices": { "witness": "7c4296be", "guard": "cfb9967c" },
+  "voices": {
+    "witness": "7c4296be",
+    "guard": "cfb9967c"
+  },
   "lines": [
-    { "id": "guard-halt", "voice": "guard",
+    {
+      "id": "guard-halt",
+      "voice": "guard",
       "text": "Hold there. State your business.",
-      "direction": "curt, bored authority, expecting no trouble" },
-    { "id": "witness-weary", "voice": "witness",
+      "direction": "curt, bored authority, expecting no trouble"
+    },
+    {
+      "id": "witness-weary",
+      "voice": "witness",
       "text": "I already told the constable everything I know. Now leave me be.",
-      "direction": "weary and wary, keeping a stranger at arm's length" },
-    { "id": "witness-afraid", "voice": "witness",
+      "direction": "weary and wary, keeping a stranger at arm's length"
+    },
+    {
+      "id": "witness-afraid",
+      "voice": "witness",
       "text": "I already told the constable everything I know. Now leave me be.",
-      "direction": "suddenly frightened, voice dropping to a hush, glancing over the shoulder" },
-    { "id": "guard-suspicious", "voice": "guard",
+      "direction": "suddenly frightened, voice dropping to a hush, glancing over the shoulder"
+    },
+    {
+      "id": "guard-suspicious",
+      "voice": "guard",
       "text": "Everything, is it? Then you won't mind telling it again.",
-      "direction": "quietly suspicious, leaning in, all pretense of boredom gone" }
+      "direction": "openly suspicious now, the bored act dropped \u2014 pressing and level at full voice, an unhurried edge of threat"
+    }
   ]
 }

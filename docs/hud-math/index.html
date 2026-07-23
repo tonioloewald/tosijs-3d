@@ -36,6 +36,17 @@ in the field of view, pin it to the periphery in its bearing direction when it&#
 outside/behind) and the <strong>horizon/pitch-ladder</strong> transform. Plain <code>{x,y,z}</code> /
 quaternion objects (reuses <a href="/spatial-transform/">spatial-transform</a>), so it
 unit-tests headless like <code>fly-by-wire</code>; the SVG HUD renderer consumes the output.</p>
+<h2>Example</h2>
+<p>Pure functions the <a href="/hud/">HUD driver</a> / SVG renderer call — no scene of their own:</p>
+<pre><code class="language-javascript">import { hudTrace, horizonTransform } from &#39;tosijs-3d&#39;
+
+// hudTrace(viewer, targetWorldPos, opts) → where to draw a target on the HUD: it TRACKS the
+// target while it&#39;s in the field of view, and PINS it to the periphery (in its bearing
+// direction) when the target is outside the FOV or behind you — the Manta-style radar trace.
+//
+// horizonTransform(...) places the artificial-horizon line + pitch ladder for the current
+// aircraft attitude. See &lt;tosi-b3d-hud&gt; for the live, assembled HUD.
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

@@ -18,6 +18,17 @@ this file owns only the tumble.
 > in isolation but doesn't AGREE with the rain or the smoke. The shared `wind(x,y,z,t)` field
 > (TODO) is what makes them all blow the same way — when it lands, drift/sway come from it and this
 > per-leaf randomness becomes just the flutter on top.
+
+## See it live
+
+`LeafField` is the tumbling-quad renderer that [b3d-ambient](?b3d-ambient.ts) drives — set that
+component up (its demo blows leaves through the scene) and the budget decides the population.
+
+```javascript
+import { LeafField } from 'tosijs-3d'
+// A LeafField rides the camera and renders whatever population the budget grants. b3d-ambient owns
+// the budget + drain, so prefer <tosi-b3d-ambient> unless you're wiring your own ambient system.
+```
 */
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
