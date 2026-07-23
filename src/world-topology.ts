@@ -67,6 +67,27 @@ export function proximityRung(
 }
 
 /**
+ * The inverse of `proximityRung` for PLACEMENT: a representative sim-private distance for a rung,
+ * so "put the butler at `reach` of the desk" becomes a real offset the sim can lay out. Lands inside
+ * the rung's band (round-trips back through `proximityRung`). `elsewhere` has no distance — that's a
+ * different place, not a rung — so it's excluded from the input type.
+ */
+export function rungNominal(
+  rung: Exclude<Proximity, 'elsewhere'>,
+  extent: Shape['extent'] = 'small'
+): number {
+  const mid: Record<Exclude<Proximity, 'elsewhere'>, number> = {
+    'same-spot': 0.15,
+    contact: 0.6,
+    reach: 1.7,
+    obvious: 5,
+    noticeable: 16,
+    present: 40,
+  }
+  return mid[rung] * EXTENT_SCALE[extent]
+}
+
+/**
  * Cheapest portal path from `from` to `to`, or `null` if unreachable. Portals are **bidirectional**
  * (a door connects two places both ways) and **locked portals are skipped** — the route is what's
  * traversable now, so a locked door makes a place unreachable until it opens (that's the errand's

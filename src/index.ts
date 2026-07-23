@@ -41,7 +41,9 @@ export type {
 export { WorldStore } from './world-store'
 export { WorldView, defaultMeshFactory } from './world-view'
 export type { MeshFactory } from './world-view'
-export { proximityRung, routePortals, containmentPath } from './world-topology'
+export { proximityRung, rungNominal, routePortals, containmentPath } from './world-topology'
+export { runMinSimConformance } from './min-sim-conformance'
+export type { ConformanceHarness, TickableMinSim } from './min-sim-conformance'
 export type {
   WorldState,
   WorldEntity,
