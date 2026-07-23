@@ -23,6 +23,17 @@ the controllers/`XRHand` joints (sensed) and are added separately.
 
 The yaw-damping, gaze-reveal and angle math are pure (no Babylon) so they're unit
 tested in `xr-frames.test.ts`.
+
+## Example
+
+XR-only (needs an immersive session). Spatial UI parents to a *frame* — `world`, `rig`, `body`,
+`neck`, or `face` — so it stays where it should as you move:
+
+```javascript
+import { XrFrames } from 'tosijs-3d'
+// XrFrames maintains a TransformNode per frame; parent a panel to `body` and it follows your torso
+// (damped yaw) but not your gaze. See <tosi-b3d-panel> / frame-panel for the assembled spatial UI.
+```
 */
 /*{ "parent": "Core" }*/
 

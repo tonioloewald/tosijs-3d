@@ -15,6 +15,17 @@ while no rain at all promises nothing and costs nothing. So every effect declare
 which it is **a lie**, and an effect that can't be given its `min` is switched off and its budget
 handed to the survivors. Better honest rain and no motes than two half-truths.
 
+## Example
+
+The pure allocator [b3d-ambient](?b3d-ambient.ts) uses to decide who exists when the frame can't
+afford everyone — the highest-priority effects keep their share, the rest switch OFF rather than thin:
+
+```javascript
+import { allocateAmbient } from 'tosijs-3d'
+// allocateAmbient(requests, pool) → how many particles each effect gets this frame; garnish that
+// can't hit its minimum within budget is dropped, never degraded into a lie.
+```
+
 ## Why a shared pool, and not a budget each
 
 Effects **compete**. Rain, dust and motes can each be individually "within budget" and still cook

@@ -16,6 +16,17 @@ Standard `xr-standard-*` mappings (Quest / oculus-touch layout):
 | `leftBumper`, `rightBumper` | `xr-standard-squeeze` (grip) |
 | `buttonA`, `buttonB` | right `a-button`, `b-button` |
 | `buttonX`, `buttonY` | left `x-button`, `y-button` |
+
+## Example
+
+XR-only. Adapts live XR controllers to the same `VirtualGamepad` spine as the keyboard and hardware
+pad, so XR input flows through one path:
+
+```javascript
+import { XrGamepadSource } from 'tosijs-3d'
+// new XrGamepadSource(...) → .poll() yields a VirtualGamepad from the immersive controllers, merged
+// with the other sources by CompositeInputProvider. Wired automatically inside <tosi-b3d-controller>.
+```
 */
 /*{ "parent": "Input" }*/
 
