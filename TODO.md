@@ -976,3 +976,24 @@ that REGISTERS a callback):
 - [ ] `TouchGamepad.onButton` → `handleButton`
 - [x] `B3d.onResize` / `B3dHud.onResize` — already deprecated for this reason
 - Check `b3d-probe`'s `onProfile` (likely a demo config callback, not a shadowed method — verify).
+
+## Virtual miniatures battle game — recreate (Tonio, 2026-07-23)
+
+Recreate an old game Tonio built: a virtual tabletop-miniatures battle with really nice COMMAND
+mechanics. Scale: a unit = 5–15 figures, 6–15 units/side → ~450/side, ~900 figures total. The
+insight that makes it trivially feasible (and validates the north star): the figures DON'T need
+rich rendering — simple BAKED animations / near-3D-sprites / Quake-style pure vertex animation, LOW
+animation rates, and projected BLOB shadows (not CSM). That's the instanced/VAT regime, one draw
+call for a whole crowd, hundreds–thousands of figures each doing a different thing — even on Quest.
+The value is ALL in the command mechanics (AI/logic), which scale cheaply. Full-skeleton `b3dBiped`
+would NOT scale here and isn't the tool; needed capabilities:
+
+- **Instanced/VAT figure system** — bake a small clip set to a vertex-animation texture, GPU-instance
+  the figures, per-instance clip/frame/phase so a unit reads as alive without unique skeletons. Low
+  update rate. (New capability — the biped-scaling bench idea is the measurement half of this.)
+- **Batched blob shadows** — one soft decal per figure (or an instanced quad), reusing
+  `shadow-decal.ts`; no CSM.
+- **Unit + command layer** — the actual game: formations (we have `formations.ts`), orders, morale,
+  activation — the behavioural richness the whole framework is pointed at (AI-DESIGN.md).
+
+This is arguably the ideal north-star showcase: spend nothing on vertices, everything on agents.
