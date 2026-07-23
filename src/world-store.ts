@@ -10,6 +10,44 @@ queries. A Babylon scene is later a *view* reconciled from this state — the
 store never imports a 3D engine, so it is fully unit-testable and can host a
 headless driver.
 
+## Demo
+
+The store holds state; a [world-view](?world-view.ts) reconciles one mesh per entity from it every
+frame — **data flows one way, `store → meshes`**. Here we spawn a few entities and move one in the
+STORE; its cube follows. The render layer can never desync the sim.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView } from 'tosijs-3d'
+
+const store = new WorldStore()              // a 'player' entity exists at the origin
+store.spawn({ kind: 'npc', position: { x: -3, y: 0.9, z: 1 } })
+const walker = store.spawn({ kind: 'npc', position: { x: 3, y: 0.9, z: -1 } })
+store.spawn({ kind: 'item', position: { x: 0, y: 0.5, z: 3 } })
+
+const scene = b3d(
+  {
+    sceneCreated(el, BABYLON) {
+      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 16, new BABYLON.Vector3(0, 0.5, 0), el.scene)
+      cam.attachControl(el.querySelector('canvas'), true)
+      el.setActiveCamera(cam)
+      new WorldView(el.scene, store)         // capsules for characters, boxes for objects
+      let t = 0
+      el.scene.onBeforeRenderObservable.add(() => {
+        t += el.scene.getEngine().getDeltaTime() / 1000
+        store.moveEntity(walker, { x: Math.cos(t) * 3, y: 0.9, z: Math.sin(t) * 3 })
+      })
+    },
+  },
+  b3dSun(),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 24, height: 24, texture: 'checker', textureTiles: 12 }),
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
 Two method groups make the boundary legible in code:
 
 - **`WorldApi` methods** — what an external driver (e.g. a narrative engine)

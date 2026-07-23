@@ -148,6 +148,20 @@ These conventions apply to all meshes entering the scene — via
 [b3d-loader](?b3d-loader.ts), [b3d-library](?b3d-library.ts), or any
 component that calls `register()`.
 
+## Example — behaviour from names
+
+Material *appearance* (metallic, roughness, alpha, emissive) comes through glTF automatically.
+*Behaviour* that can't be inferred from a material is driven by **name suffixes** on the mesh
+(set in Blender, by a loader, or in code):
+
+```javascript
+// glass_mirror        → gets a dynamic reflection probe
+// floor_noshadow      → does not receive shadows
+// lamp_nocast         → does not cast shadows
+// crate_collideBox    → box collider (also _collide / _collideSphere / _collideCylinder / _collideMesh)
+// debug-ignore        → disposed on load (filtered out)
+```
+
 ## Property-Based (automatic from Blender materials)
 
 | Property | Threshold | Effect |
