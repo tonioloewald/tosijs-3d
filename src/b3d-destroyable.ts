@@ -16,6 +16,7 @@ reference combat ids that only exist once the targets have mounted).
 
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const grid = []
 for (let i = 0; i < 12; i++) {
@@ -29,9 +30,7 @@ for (let i = 0; i < 6; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.2, 15, new BABYLON.Vector3(0, 0.5, -0.5), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 15, target: [0, 0.5, -0.5] })
       // click a cube → damage it
       el.scene.onPointerDown = (_evt, pick) => {
         if (!pick.hit || !pick.pickedMesh) return
@@ -92,6 +91,7 @@ chain reaction (each drum both `explode`s and fires a `deathBlast`).
 
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const drums = []
 for (let i = 0; i < 48; i++) {
@@ -106,9 +106,7 @@ for (let i = 0; i < 48; i++) {
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3, 18, new BABYLON.Vector3(0, 0.5, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 18, target: [0, 0.5, 0] })
       el.scene.onPointerDown = (_evt, pick) => {
         if (!pick.hit || !pick.pickedMesh) return
         const t = drums.find((d) => d.mesh === pick.pickedMesh)

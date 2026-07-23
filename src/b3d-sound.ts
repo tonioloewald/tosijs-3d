@@ -13,6 +13,7 @@ until the user interacts with the page.
 
 ```js
 import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround, label3d, button3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 
@@ -37,18 +38,12 @@ preview.append(
         button3d({ label: 'Stop', onClick: () => spatialSound.stop() }),
       ],
       sceneCreated(el, BABYLON) {
-        const camera = new BABYLON.ArcRotateCamera(
-          'cam', -Math.PI / 2, Math.PI / 3, 12,
-          BABYLON.Vector3.Zero(), el.scene
-        )
-        // Keep the camera >=5deg above the horizon and out of the scene: a bare
-        // ArcRotateCamera tilts under the ground and zooms through everything.
-        camera.lowerBetaLimit = (20 * Math.PI) / 180
-        camera.upperBetaLimit = (85 * Math.PI) / 180
+        const camera = orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+          target: [0, 0, 0], maxElevationDeg: 70,
+        })
         camera.lowerRadiusLimit = 4
         camera.upperRadiusLimit = 36
-        camera.attachControl(el.querySelector('canvas'), true)
-        el.setActiveCamera(camera)
       },
     },
     b3dLight({ y: 1, intensity: 0.8 }),

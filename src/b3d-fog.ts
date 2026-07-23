@@ -12,13 +12,12 @@ far crates dissolve into the sky rather than into a flat grey wall. Drag to orbi
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dFog, b3dGround, b3dBox } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.7, 9, new BABYLON.Vector3(0, 1, 8), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 2.7, radius: 9, target: [0, 1, 8] })
     },
   },
   b3dSun(),

@@ -8,6 +8,7 @@ a `b3dSun` sibling's direction, intensity, and color.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const { sky } = tosi({ sky: { timeOfDay: 17 } })
@@ -19,12 +20,7 @@ const scene = b3d(
       slider3d({ label: 'time of day', value: sky.timeOfDay, min: 0, max: 24, step: 0.5 }),
     ],
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 15,
-        new BABYLON.Vector3(0, 0, 0), el.scene
-      )
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 15, target: [0, 0, 0] })
     },
   },
   b3dSun(),

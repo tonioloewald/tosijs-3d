@@ -11,6 +11,7 @@ as CSS hex strings. Call `burst(count)` for one-shot effects like explosions.
 
 ```js
 import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, button3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({ demo: { emitRate: 80 } })
@@ -43,18 +44,12 @@ const scene = b3d(
       button3d({ label: 'Burst', onClick() { explosion.burst(150) } }),
     ],
     sceneCreated(el, BABYLON) {
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 12,
-        new BABYLON.Vector3(0, 1, 0), el.scene
-      )
-      // Keep the camera >=5deg above the horizon and out of the scene: a bare
-      // ArcRotateCamera tilts under the ground and zooms through everything.
-      camera.lowerBetaLimit = (20 * Math.PI) / 180
-      camera.upperBetaLimit = (85 * Math.PI) / 180
+      const camera = orbitCam(el, {
+        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 12,
+        target: [0, 1, 0], maxElevationDeg: 70,
+      })
       camera.lowerRadiusLimit = 4
       camera.upperRadiusLimit = 30
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
     },
   },
   b3dLight({ y: 1, intensity: 0.5 }),

@@ -25,6 +25,7 @@ keep up even when smart.
 
 ```js
 import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const { s } = tosi({ s: { traverseRate: 2.5, range: 30, fireRate: 2, muzzleSpeed: 24, smart: 0 } })
@@ -42,9 +43,7 @@ const scene = b3d(
       slider3d({ label: 'smart (drop comp)', value: s.smart, min: 0, max: 1, step: 0.05 }),
     ],
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2.2, Math.PI / 3.2, 34, new BABYLON.Vector3(0, 3, 0), el.scene)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3.2, radius: 34, target: [0, 3, 0] })
       let a = 0, target = null, baseY = 4
       const spawn = () => {
         baseY = 3 + Math.random() * 8 // ~3–11m, within the turret's reach

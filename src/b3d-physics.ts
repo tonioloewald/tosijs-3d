@@ -12,6 +12,7 @@ and dispatches a `'physics-ready'` event when initialization completes.
 
 ```js
 import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh, label3d, button3d, toggle3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 
@@ -118,18 +119,12 @@ const scene = b3d(
     ],
     sceneCreated(el, BABYLON) {
       babylon = BABYLON
-      const camera = new BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 3, 14,
-        new BABYLON.Vector3(0, 2, 0), el.scene
-      )
-      // Keep the camera >=5deg above the horizon and out of the scene: a bare
-      // ArcRotateCamera tilts under the ground and zooms through everything.
-      camera.lowerBetaLimit = (20 * Math.PI) / 180
-      camera.upperBetaLimit = (85 * Math.PI) / 180
+      const camera = orbitCam(el, {
+        alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 14,
+        target: [0, 2, 0], maxElevationDeg: 70,
+      })
       camera.lowerRadiusLimit = 5
       camera.upperRadiusLimit = 40
-      camera.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(camera)
       createSphere()
     },
   },

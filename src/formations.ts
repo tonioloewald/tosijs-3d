@@ -19,6 +19,7 @@ The functions just return offsets — here a crate is dropped at each slot of a 
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, vee } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 // vee(count, opts) → an array of {x, y, z} offsets. The sim just places a mesh at each.
 const slots = vee(7, { spacing: 3, sweep: 2.5 })
@@ -26,9 +27,7 @@ const slots = vee(7, { spacing: 3, sweep: 2.5 })
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3, 30, new BABYLON.Vector3(0, 0, -4), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 30, target: [0, 0, -4] })
     },
   },
   b3dSun(),

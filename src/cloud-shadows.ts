@@ -19,13 +19,12 @@ drift across the ground and the crates below. Drag to orbit; watch the dark patc
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dClouds, b3dGround, b3dBox } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      const cam = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 3.4, 55, new BABYLON.Vector3(0, 0, 0), el.scene)
-      cam.attachControl(el.querySelector('canvas'), true)
-      el.setActiveCamera(cam)
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 55, target: [0, 0, 0] })
     },
   },
   b3dSun({ x: -0.5, y: -1, z: -0.35 }),
