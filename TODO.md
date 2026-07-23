@@ -855,3 +855,26 @@ ready to consume it:
 - [ ] **radar / b3d-radar / b3d-radar-blip**: a demo, or **link to a page that has one** (the link-to-a-demo pattern is a good general fix for demo-less pages).
 - [ ] **b3d-input-focus**: **two live scenes side-by-side** (or two `<tosi-b3d>` in one demo) with a simple biped in each, and you control one or the other.
 - [ ] **gamepad/input demos** (keyboard/hardware/xr-gamepad): at least **link to a working demo** (b3d-controller once fixed, or the main b3d demo).
+
+## Local-only asset browser (nice-to-have)
+
+A filterable asset browser for the static-assets library (filter by path/filename, type, …),
+**local-only** to respect the Kenney (and future) license: the browser is a discovery/bulk surface
+the license cares about; a demo referencing one model via `assetUrl` is not. Design:
+
+- **Local-only gating:** a component/page runtime-gated to localhost (`/^localhost$|^127\./.test(location.hostname)`);
+  publicly it renders a "local-only" notice and touches no assets. Clean upgrade (so the page isn't
+  even in the public build/nav/sitemap): a small tosijs-ui doc-metadata flag like `local: true` to
+  exclude a page from the published output — file upstream, not required for v1.
+- **Reads from** the local `../static-assets` tree / its `metadata.json` manifest (works offline).
+- **The 3D grid — the scarce resource is the WebGL CONTEXT, not RAM.** Each `<tosi-b3d>` is its own
+  Babylon Engine = its own WebGL context; browsers cap live contexts at ~8–16 and creating/destroying
+  them is slow + triggers context-loss GC. So **NEVER spin up/discard a b3d-scene per grid cell**
+  (virtual-list would exhaust contexts in a couple of scrolled rows). Two viable shapes:
+  - **(recommended) Thumbnails + a single detail scene:** pre-bake a turntable/hero snapshot per asset
+    (add it to the static-assets Blender pipeline alongside fbx→glb), grid = virtual-list of `<img>`
+    (scales to Kenney's ~4,800 models, instant filter); ONE live `<tosi-b3d>` only on click-to-inspect,
+    disposed on close.
+  - **One shared engine, multiple views:** Babylon `engine.registerView(canvas, camera)` renders one
+    scene to N canvases from a SINGLE context; add/remove views (cheap) + load/dispose meshes as cells
+    scroll, cap simultaneous live views to a handful. Only if live hover-preview earns its keep.
