@@ -72,6 +72,12 @@ export default defineSiteConfig({
   // tosijs-ui docs we disable it. (The in-browser test tab still runs examples.)
   checkExamples: false,
 
+  // Let the live-example editor's "save local" write an in-browser `/*# */` edit back to its source
+  // file. Dev-only + localhost-gated in tosijs-ui's dev server (never on the deployed site). Off by
+  // default — which is why an edit-and-save earlier silently didn't reach `src/`: the write endpoint
+  // is disabled and the client didn't surface the "not enabled" error. On, it persists to the .ts.
+  editableSources: true,
+
   // Hosted on GitHub Pages at the 3d.tosijs.net apex subdomain (CNAME).
   host: 'github-pages',
 
