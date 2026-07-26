@@ -117,18 +117,20 @@ describe('spawnPrefab — production', () => {
 
   test('the prefab receives the context it was called with', () => {
     const { owner } = stubOwner()
-    let seen: PrefabContext | null = null
+    // Capture into an array: a `let ... = null` would be narrowed to `null` by TS
+    // control-flow analysis (it can't see the closure mutation), red-flagging the assertions.
+    const seen: PrefabContext[] = []
     const c: PrefabContext = {
       owner,
       position: { x: 1, y: 2, z: 3 },
       faction: 'hostile',
     }
     spawnPrefab((received) => {
-      seen = received
+      seen.push(received)
       return null
     }, c)
-    expect(seen).toBe(c)
-    expect(seen!.position).toEqual({ x: 1, y: 2, z: 3 })
-    expect(seen!.faction).toBe('hostile')
+    expect(seen[0]).toBe(c)
+    expect(seen[0].position).toEqual({ x: 1, y: 2, z: 3 })
+    expect(seen[0].faction).toBe('hostile')
   })
 })

@@ -60,6 +60,7 @@ Determinism: ids come from a counter and time advances only via `tick()` — no
 `Date.now`/`Math.random` — so the same inputs always produce the same trace.
 */
 /*{ "parent": "World Sim" }*/
+import { proximityRung, routePortals, containmentPath, rungNominal, } from './world-topology';
 const PLAYER_ID = 'player';
 function distance(a, b) {
     const dx = a.x - b.x;
@@ -73,6 +74,16 @@ export class WorldStore {
     nextId = 1;
     /** Per-entity zone membership, so we only emit on a fresh boundary crossing. */
     occupancy = new Map();
+    // --- coordinate-free surface (MinSimApi) ---------------------------------
+    // The place graph + membership + relational movement/choice state. The sim-private GEOMETRY that
+    // powers proximity/schematic stays on `entity.position` (a Vec3) — never crossing the contract.
+    // Additive over the flat Vec3+zones surface during the transition; Vec3 retires at B-SIM-1.
+    places = new Map();
+    portals = new Map();
+    entityPlace = new Map();
+    labels = new Map();
+    steers = new Map();
+    choices = new Map();
     constructor() {
         this.state = {
             now: 0,
@@ -155,6 +166,7 @@ export class WorldStore {
     /** Advance sim-time. The store is the only clock the driver ever sees. */
     tick(deltaSeconds) {
         this.state.now += deltaSeconds;
+        this._resolveSteers(deltaSeconds);
     }
     /** Move an entity, emitting zoneEntered for any newly-entered driver zone. */
     moveEntity(id, position) {
@@ -236,6 +248,233 @@ export class WorldStore {
                 entityId: targetId,
                 killerId,
             });
+        }
+    }
+    // --- MinSimApi: the coordinate-free surface ------------------------------
+    // Topology + a qualitative distance ladder cross the seam; the geometry that computes them
+    // (`entity.position`, a Vec3) never does. The pure maths lives in world-topology.ts.
+    definePlace(place) {
+        this.places.set(place.id, { ...place });
+    }
+    definePortal(portal) {
+        this.portals.set(portal.id, { ...portal });
+    }
+    placeEntity(spec, at) {
+        const id = this.spawn({
+            id: spec.id,
+            kind: spec.kind,
+            position: this._anchorPosition(at),
+            ref: spec.ref,
+        });
+        this.entityPlace.set(id, at.place);
+        this.labels.set(id, spec.label);
+    }
+    /** Set or (with null) clear relational steering — resolved each `tick` (approach/flee/travel). */
+    steer(id, target) {
+        if (target == null)
+            this.steers.delete(id);
+        else
+            this.steers.set(id, { ...target });
+    }
+    /** Move through a portal → change place, land near the new place's origin, emit `placeEntered`. */
+    traverse(id, portal) {
+        const p = this.portals.get(portal);
+        if (p == null || p.locked)
+            return;
+        const here = this.entityPlace.get(id);
+        const dest = p.from === here ? p.to : p.to === here ? p.from : null;
+        if (dest == null)
+            return; // portal isn't adjacent to where the entity actually is
+        this.entityPlace.set(id, dest);
+        const ent = this.state.entities[id];
+        if (ent != null)
+            ent.position = this._placeOrigin(dest);
+        this.emit({
+            type: 'placeEntered',
+            at: this.state.now,
+            entityId: id,
+            placeId: dest,
+        });
+    }
+    presentChoice(choice) {
+        this.choices.set(choice.id, {
+            ...choice,
+            options: choice.options.map((o) => ({ ...o })),
+        });
+    }
+    /**
+     * The player's pick → emits `choiceMade` (mirrors `chooseConversation`). The sim reports the
+     * pick; it NEVER resolves the choice — adjudication is the driver's. Not part of `MinSimApi`
+     * (which is driver-facing: `presentChoice`); this is the player-side act.
+     */
+    chooseOption(choiceId, optionId) {
+        const c = this.choices.get(choiceId);
+        if (c == null || !c.options.some((o) => o.id === optionId))
+            return;
+        this.choices.delete(choiceId);
+        this.emit({ type: 'choiceMade', at: this.state.now, choiceId, optionId });
+    }
+    placeOf(id) {
+        return this.entityPlace.get(id) ?? '';
+    }
+    contentsOf(place) {
+        const out = [];
+        for (const [id, p] of this.entityPlace)
+            if (p === place)
+                out.push(this._placed(id));
+        return out;
+    }
+    portalsOf(place) {
+        return [...this.portals.values()].filter((p) => p.from === place || p.to === place);
+    }
+    route(from, to) {
+        return routePortals([...this.portals.values()], from, to);
+    }
+    proximity(a, b) {
+        if (a === b)
+            return 'same-spot';
+        const pa = this.entityPlace.get(a);
+        const pb = this.entityPlace.get(b);
+        if (pa == null || pb == null || pa !== pb)
+            return 'elsewhere';
+        const ea = this.state.entities[a];
+        const eb = this.state.entities[b];
+        if (ea == null || eb == null)
+            return 'elsewhere';
+        const extent = this.places.get(pa)?.shape.extent ?? 'small';
+        return proximityRung(distance(ea.position, eb.position), extent);
+    }
+    schematic(place, observer) {
+        const p = this.places.get(place);
+        const shape = p?.shape ?? {
+            enclosure: 'open',
+            extent: 'small',
+            dimensionality: 'planar',
+            structure: 'natural',
+        };
+        const obs = observer ?? this.state.playerId;
+        const obsHere = this.entityPlace.get(obs) === place;
+        return {
+            place: {
+                id: place,
+                label: p?.label ?? place,
+                kind: p?.kind ?? 'place',
+                shape,
+            },
+            path: containmentPath(this.places, place),
+            exits: this.portalsOf(place).map((pt) => {
+                const to = pt.from === place ? pt.to : pt.from;
+                return {
+                    portal: pt.id,
+                    label: pt.label,
+                    to,
+                    toLabel: this.places.get(to)?.label ?? to,
+                    locked: pt.locked,
+                };
+            }),
+            // each thing in the place, ranked relative to the observer; if the observer isn't in this
+            // place, its contents read `present` (you can see them, but you're not among them)
+            contents: this.contentsOf(place).map((pe) => ({
+                id: pe.id,
+                kind: pe.kind,
+                label: pe.label,
+                proximity: pe.id === obs
+                    ? 'same-spot'
+                    : obsHere
+                        ? this.proximity(obs, pe.id)
+                        : 'present',
+            })),
+        };
+    }
+    // --- coordinate-free helpers (sim-private geometry) ----------------------
+    _placed(id) {
+        const e = this.state.entities[id];
+        return {
+            id,
+            place: this.entityPlace.get(id) ?? '',
+            kind: e?.kind ?? 'prop',
+            label: this.labels.get(id) ?? id,
+            ref: e?.ref,
+        };
+    }
+    /** A deterministic sim-private origin per place, spread far apart so places never overlap in the
+     * shared internal space (absolute position is irrelevant — proximity is intra-place). */
+    _placeOrigin(place) {
+        let h = 0;
+        for (let i = 0; i < place.length; i++)
+            h = (h * 31 + place.charCodeAt(i)) | 0;
+        return { x: (h % 997) * 1000, y: 0, z: (((h >> 5) % 997) + 997) * 1000 };
+    }
+    /** Turn a relational `Anchor` into a sim-private position: near an entity at a rung, else spread
+     * around the place origin. Golden-angle placement keeps a crowd from stacking on one point. */
+    _anchorPosition(at) {
+        const extent = this.places.get(at.place)?.shape.extent ?? 'small';
+        const n = this.contentsOf(at.place).length;
+        const ang = n * 2.399963; // golden angle → even spread, deterministic in placement order
+        if (at.near != null && this.entityPlace.get(at.near) === at.place) {
+            const near = this.state.entities[at.near];
+            if (near != null) {
+                // `elsewhere` is a different-place fact, not a placement rung — default to `reach`
+                const rung = at.at != null && at.at !== 'elsewhere' ? at.at : 'reach';
+                const d = rungNominal(rung, extent);
+                return {
+                    x: near.position.x + Math.cos(ang) * d,
+                    y: near.position.y,
+                    z: near.position.z + Math.sin(ang) * d,
+                };
+            }
+        }
+        const base = this._placeOrigin(at.place);
+        const r = 1 + n * 0.5;
+        return {
+            x: base.x + Math.cos(ang) * r,
+            y: 0,
+            z: base.z + Math.sin(ang) * r,
+        };
+    }
+    /** Resolve active steers each tick: approach an entity, flee one, or walk toward a place (one
+     * portal hop per tick). Coarse on purpose — the point is that PROXIMITY changes, not kinematics. */
+    _resolveSteers(dt) {
+        const SPEED = 3; // sim units / sec
+        for (const [id, target] of this.steers) {
+            const e = this.state.entities[id];
+            if (e == null)
+                continue;
+            // travel toward a place: hop the next portal on the route until we're there
+            if (target.toPlace != null) {
+                const here = this.entityPlace.get(id);
+                if (here != null && here !== target.toPlace) {
+                    const r = this.route(here, target.toPlace);
+                    if (r != null && r.portals.length > 0) {
+                        this.traverse(id, r.portals[0]);
+                        continue;
+                    }
+                }
+            }
+            // approach / flee an entity in the same internal space
+            let goalId;
+            let flee = false;
+            if (target.fleeFrom != null) {
+                goalId = target.fleeFrom;
+                flee = true;
+            }
+            else if (target.toEntity != null) {
+                goalId = target.toEntity;
+            }
+            const goal = goalId != null ? this.state.entities[goalId] : undefined;
+            if (goal == null)
+                continue;
+            const dx = goal.position.x - e.position.x;
+            const dz = goal.position.z - e.position.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist < 1e-6 && !flee)
+                continue;
+            const step = flee ? SPEED * dt : Math.min(SPEED * dt, dist); // approach: don't overshoot
+            const sign = flee ? -1 : 1;
+            const ux = dist < 1e-6 ? 1 : dx / dist;
+            const uz = dist < 1e-6 ? 0 : dz / dist;
+            e.position.x += ux * step * sign;
+            e.position.z += uz * step * sign;
         }
     }
 }

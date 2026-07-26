@@ -234,8 +234,10 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 **World Simulation (store ↔ driver ↔ view):**
 | File | Purpose |
 | --- | --- |
-| `src/world-contract.ts` | Boundary types: `WorldState`, `SimulationEvent`, `WorldApi` (no logic) |
-| `src/world-store.ts` | Pure, deterministic, Babylon-free reference simulation |
+| `src/world-contract.ts` | Boundary types: `WorldState`, `SimulationEvent`, `WorldApi` (no logic) + the coordinate-free `MinSimApi` §8 (places/portals/proximity ladder/schematic — coordinates never cross) |
+| `src/world-topology.ts` | Pure spatial math behind `MinSimApi`: `proximityRung`/`rungNominal` (distance ↔ adjective, extent-scaled), `routePortals` (cheapest portal path, locked = impassable), `containmentPath`; Babylon-free, unit-tested |
+| `src/min-sim-conformance.ts` | Framework-agnostic shared conformance kit (`runMinSimConformance(makeApi, harness)`) — ships in the library, takes the test harness as an arg; pins `MinSimApi` behaviour identically for this store and a driver's |
+| `src/world-store.ts` | Pure, deterministic, Babylon-free reference simulation (implements `WorldApi` **and** `MinSimApi`) |
 | `src/world-view.ts` | Babylon projection — one mesh per entity, reconciled `store → meshes` |
 | `src/b3d-death.ts` | `<tosi-b3d-death>` — death's exit: explode + wreckage, release input, third-person spectate (orbit/chase), respawn panel; flat + VR |
 | `src/b3d-spawner.ts` | `<tosi-b3d-spawner>` — seeded encounter spawning (ring placement, group death), "same seed, same battles" |

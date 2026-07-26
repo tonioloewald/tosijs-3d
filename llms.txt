@@ -1,4 +1,4 @@
-# tosijs-3d v0.5.0
+# tosijs-3d v0.5.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -141,6 +141,8 @@ Full documentation, with live code examples, is at the links below.
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/mersenne-twister/ — mersenne-twister
   Seeded pseudo-random number generator based on the Mersenne Twister
+- https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
+  is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
@@ -173,6 +175,8 @@ Full documentation, with live code examples, is at the links below.
   The boundary between the **simulation** (tosijs-3d) and an **external driver**
 - https://3d.tosijs.net/world-store/ — world-store
   A pure, Babylon-free, deterministic reference implementation of [[world-contract]].
+- https://3d.tosijs.net/world-topology/ — world-topology
+  The **pure spatial math** behind the coordinate-free `MinSimApi` surface ([world-contract](?world-contract.ts) §8).
 - https://3d.tosijs.net/world-view/ — world-view
   The Babylon **view** of a [[world-store]]. The store is the authoritative,
 - https://3d.tosijs.net/xr-frames/ — xr-frames

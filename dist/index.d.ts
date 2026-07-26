@@ -8,6 +8,9 @@ export type { PerfTier, PerfMeasurements, PerfBudgets, PerfProfile, StoredProfil
 export { WorldStore } from './world-store';
 export { WorldView, defaultMeshFactory } from './world-view';
 export type { MeshFactory } from './world-view';
+export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology';
+export { runMinSimConformance } from './min-sim-conformance';
+export type { ConformanceHarness, TickableMinSim } from './min-sim-conformance';
 export type { WorldState, WorldEntity, EntityComponents, HealthComponent, InventoryEntry, FactionComponent, InteractableComponent, EntityId, EntityKind, EntityIntent, Behavior, Zone, ZoneId, SpawnSpec, SimulationEvent, EventHandler, Unsubscribe, WorldApi, PlaceId, PortalId, ChoiceId, Shape, Proximity, PlaceKind, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, MinSimApi, } from './world-contract';
 export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
 export type { XRStuff, XRParams } from './b3d-utils';

@@ -7,6 +7,8 @@ export { PROBE_VERSION, classify, budgetsForTier, resolveProfile, defaultProfile
 // World simulation (narrative-driver boundary)
 export { WorldStore } from './world-store';
 export { WorldView, defaultMeshFactory } from './world-view';
+export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology';
+export { runMinSimConformance } from './min-sim-conformance';
 // Utilities
 export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
