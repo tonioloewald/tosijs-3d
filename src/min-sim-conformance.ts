@@ -36,7 +36,7 @@ import type {
 export type ConformanceHarness = {
   describe: (name: string, fn: () => void) => void
   test: (name: string, fn: () => void) => void
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   expect: (actual: any) => any
 }
 
@@ -153,7 +153,10 @@ export function runMinSimConformance(
       expect(api.placeOf('player')).toBe('study')
       expect(api.placeOf('butler')).toBe('study')
       expect(api.placeOf('wolf')).toBe('garden')
-      const study = api.contentsOf('study').map((e) => e.id).sort()
+      const study = api
+        .contentsOf('study')
+        .map((e) => e.id)
+        .sort()
       expect(study).toEqual(['butler', 'player'])
       expect(api.contentsOf('garden').map((e) => e.id)).toEqual(['wolf'])
       // labels + kinds survive the round-trip
@@ -165,14 +168,18 @@ export function runMinSimConformance(
     test('portals: portalsOf both endpoints', () => {
       const api = makeApi()
       stage(api)
-      expect(api.portalsOf('study').map((p) => p.id).sort()).toEqual([
-        'door',
-        'window',
-      ])
-      expect(api.portalsOf('garden').map((p) => p.id).sort()).toEqual([
-        'frenchDoors',
-        'window',
-      ])
+      expect(
+        api
+          .portalsOf('study')
+          .map((p) => p.id)
+          .sort()
+      ).toEqual(['door', 'window'])
+      expect(
+        api
+          .portalsOf('garden')
+          .map((p) => p.id)
+          .sort()
+      ).toEqual(['frenchDoors', 'window'])
     })
 
     test('route: cheapest path, bidirectional, LOCKED portal impassable', () => {

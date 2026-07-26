@@ -379,7 +379,8 @@ export class WorldStore implements MinSimApi {
 
   contentsOf(place: PlaceId): PlacedEntity[] {
     const out: PlacedEntity[] = []
-    for (const [id, p] of this.entityPlace) if (p === place) out.push(this._placed(id))
+    for (const [id, p] of this.entityPlace)
+      if (p === place) out.push(this._placed(id))
     return out
   }
 
@@ -419,7 +420,12 @@ export class WorldStore implements MinSimApi {
     const obs = observer ?? this.state.playerId
     const obsHere = this.entityPlace.get(obs) === place
     return {
-      place: { id: place, label: p?.label ?? place, kind: p?.kind ?? 'place', shape },
+      place: {
+        id: place,
+        label: p?.label ?? place,
+        kind: p?.kind ?? 'place',
+        shape,
+      },
       path: containmentPath(this.places, place),
       exits: this.portalsOf(place).map((pt) => {
         const to = pt.from === place ? pt.to : pt.from
@@ -441,8 +447,8 @@ export class WorldStore implements MinSimApi {
           pe.id === obs
             ? 'same-spot'
             : obsHere
-              ? this.proximity(obs, pe.id)
-              : 'present',
+            ? this.proximity(obs, pe.id)
+            : 'present',
       })),
     }
   }
@@ -464,7 +470,8 @@ export class WorldStore implements MinSimApi {
    * shared internal space (absolute position is irrelevant — proximity is intra-place). */
   private _placeOrigin(place: PlaceId): { x: number; y: number; z: number } {
     let h = 0
-    for (let i = 0; i < place.length; i++) h = (h * 31 + place.charCodeAt(i)) | 0
+    for (let i = 0; i < place.length; i++)
+      h = (h * 31 + place.charCodeAt(i)) | 0
     return { x: (h % 997) * 1000, y: 0, z: (((h >> 5) % 997) + 997) * 1000 }
   }
 
@@ -489,7 +496,11 @@ export class WorldStore implements MinSimApi {
     }
     const base = this._placeOrigin(at.place)
     const r = 1 + n * 0.5
-    return { x: base.x + Math.cos(ang) * r, y: 0, z: base.z + Math.sin(ang) * r }
+    return {
+      x: base.x + Math.cos(ang) * r,
+      y: 0,
+      z: base.z + Math.sin(ang) * r,
+    }
   }
 
   /** Resolve active steers each tick: approach an entity, flee one, or walk toward a place (one

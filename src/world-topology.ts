@@ -31,7 +31,14 @@ import { proximityRung, routePortals } from 'tosijs-3d'
 */
 /*{ "parent": "World-Sim" }*/
 
-import type { PlaceId, PortalId, Portal, Place, Proximity, Shape } from './world-contract'
+import type {
+  PlaceId,
+  PortalId,
+  Portal,
+  Place,
+  Proximity,
+  Shape,
+} from './world-contract'
 
 /**
  * How the ladder's bands stretch with a place's `extent`. The numbers are the multiplier on the

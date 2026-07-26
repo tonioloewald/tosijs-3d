@@ -1,9 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import {
-  proximityRung,
-  routePortals,
-  containmentPath,
-} from './world-topology'
+import { proximityRung, routePortals, containmentPath } from './world-topology'
 import type { Place, Portal, PlaceId } from './world-contract'
 
 const portal = (

@@ -29,14 +29,13 @@ The additive `MinSimApi` surface is now implemented and proven, not just typed.
   containmentPath). The store delegates; the numbers are testable without a store or an engine.
 - **`min-sim-conformance.ts` — the shared kit is READY for Ariosto.** Framework-agnostic (imports no
   test runner; takes the harness + a store factory). **Ariosto: run `runMinSimConformance(() => new
-  YourReferenceStore(), { describe, test, expect })` against `place-graph.ts` to prove parity** — "one
-  contract, two stores." It pins contract *behaviour* (membership, routing, the ladder, schematic
+YourReferenceStore(), { describe, test, expect })` against `place-graph.ts` to prove parity** — "one
+  contract, two stores." It pins contract _behaviour_ (membership, routing, the ladder, schematic
   shape, traverse events, steering closes distance), never a coordinate.
 
-Status: `A-CON-2` types are frozen+aligned and now have a *reference implementation + conformance
-harness*. Remaining B-SIM-1: retire the flat `Vec3`/zones once Demo B no longer needs the transition
+Status: `A-CON-2` types are frozen+aligned and now have a _reference implementation + conformance
+harness_. Remaining B-SIM-1: retire the flat `Vec3`/zones once Demo B no longer needs the transition
 surface. 455 tests green, tsc clean.
-
 
 ### 2026-07-24 — reconciled Ariosto's contract-seam resolution
 
@@ -64,7 +63,6 @@ fully in sync — no code changes needed.**
   `world-contract.ts`, additive over the flat `Vec3`+zones surface, and matches §8. Accepted proposals
   hold: `A-CON-2` freezes TYPES ONLY additively (breaks nothing here until `B-SIM-1`); `place-graph.ts`
   stays in Ariosto (one contract, two stores, conformance proves parity).
-
 
 ### 2026-07-20 — after `v0.5.0`
 
