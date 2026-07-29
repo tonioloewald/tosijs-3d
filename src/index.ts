@@ -311,6 +311,15 @@ export {
   type ParsedIconName,
 } from './icon-name'
 
+// Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
+export {
+  flowLayout,
+  type FlowItem,
+  type FlowOptions,
+  type FlowBox,
+  type FlowResult,
+} from './flow-layout'
+
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'
 export { B3dSound, b3dSound } from './b3d-sound'
