@@ -162,6 +162,7 @@ import {
   type Widget3d,
 } from './widgets3d'
 import { SvgTexture } from './svg-texture'
+import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
 import { XrGamepadSource } from './xr-gamepad'
@@ -404,65 +405,56 @@ export class B3d extends Component {
     ':host .babylonVRicon:hover': {
       transform: 'scale(1.1)',
     },
-    // Toolbar groups the gear + Enter VR at top-LEFT (demos pin text overlays
-    // top-right, so the left keeps this clear of them). Flex row so children pack
-    // together and a hidden one leaves no gap.
-    ':host .scene-toolbar': {
+    // Top-LEFT lozenge: one rounded pill holding the two icon buttons (scene
+    // settings + Enter VR) side by side. Demos pin text overlays top-right, so the
+    // left keeps this clear of them. Hidden until at least one button is relevant
+    // (`:has`) so it never flashes as an empty pill while the scene loads. Icon
+    // size is themed via the shared --tosi-icon-size var.
+    ':host .scene-lozenge': {
       position: 'absolute',
       top: '12px',
       left: '12px',
       zIndex: '20',
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '8px',
-    },
-    ':host .enter-vr-button': {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '10px 16px',
-      background: 'rgba(0,0,0,0.55)',
-      color: '#fff',
-      border: '1px solid rgba(255,255,255,0.3)',
-      borderRadius: '8px',
-      font: '600 14px system-ui, sans-serif',
-      cursor: 'pointer',
-      transition: 'background 0.15s, transform 0.125s',
-    },
-    ':host .enter-vr-button[hidden]': {
       display: 'none',
+      alignItems: 'stretch',
+      background: 'rgba(0,0,0,0.55)',
+      border: '1px solid rgba(255,255,255,0.3)',
+      borderRadius: '20px',
+      overflow: 'hidden',
+      '--tosi-icon-size': '20px',
     },
-    ':host .enter-vr-button:hover': {
-      background: 'rgba(0,0,0,0.8)',
-      transform: 'scale(1.05)',
+    ':host .scene-lozenge:has(.lozenge-button:not([hidden]))': {
+      display: 'inline-flex',
     },
-    ':host .scene-panel-gear': {
+    ':host .lozenge-button': {
       width: '40px',
       height: '40px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'rgba(0,0,0,0.55)',
+      padding: '0',
+      background: 'transparent',
+      border: 'none',
       color: '#fff',
-      border: '1px solid rgba(255,255,255,0.3)',
-      borderRadius: '8px',
-      font: '20px system-ui, sans-serif',
       cursor: 'pointer',
-      transition: 'background 0.15s, transform 0.125s',
+      transition: 'background 0.15s',
     },
-    ':host .scene-panel-gear[hidden]': {
+    ':host .lozenge-button:hover': {
+      background: 'rgba(255,255,255,0.15)',
+    },
+    ':host .lozenge-button[hidden]': {
       display: 'none',
     },
-    ':host .scene-panel-gear:hover': {
-      background: 'rgba(0,0,0,0.8)',
-      transform: 'scale(1.05)',
+    // A hairline divider only between two VISIBLE buttons (so a lone button reads
+    // as a clean single-icon pill).
+    ':host .lozenge-button:not([hidden]) + .lozenge-button:not([hidden])': {
+      borderLeft: '1px solid rgba(255,255,255,0.2)',
     },
-    // Toolbar buttons are disabled (dimmed, inert) until the scene has loaded.
-    ':host .scene-toolbar button:disabled': {
+    // Buttons are disabled (dimmed, inert) until the scene has loaded.
+    ':host .lozenge-button:disabled': {
       opacity: '0.4',
       cursor: 'default',
       pointerEvents: 'none',
-      transform: 'none',
     },
     ':host .scene-panel-overlay': {
       position: 'absolute',
@@ -502,15 +494,17 @@ export class B3d extends Component {
   content = [
     div({ class: 'spinner', part: 'spinner' }),
     canvas({ part: 'canvas' }),
-    // Top-left toolbar grouping the gear (scene settings) and the Enter VR button
-    // side by side — so VR availability is obvious, and Enter VR is never a panel
-    // row that could scroll/clip. Each child reveals itself when relevant. (Both
-    // live in the template — appending to the shadow root later doesn't persist.)
+    // Top-left lozenge holding two icon buttons side by side: scene settings
+    // (opens the panel) and Enter VR (the purpose-built xrColor mark) — so VR
+    // availability is obvious and Enter VR is never a panel row that could
+    // scroll/clip. Each button reveals itself when relevant; the lozenge stays
+    // hidden until then. (Both live in the template — appending to the shadow
+    // root later doesn't persist.)
     div(
-      { class: 'scene-toolbar', part: 'sceneToolbar' },
+      { class: 'scene-lozenge', part: 'sceneToolbar' },
       button(
         {
-          class: 'scene-panel-gear',
+          class: 'lozenge-button',
           part: 'scenePanelGear',
           type: 'button',
           title: 'Scene settings',
@@ -518,20 +512,19 @@ export class B3d extends Component {
           // Disabled until the scene finishes loading (reveal() enables it).
           disabled: true,
         },
-        '⚙'
+        svgIcons.settings()
       ),
       button(
         {
-          class: 'enter-vr-button',
+          class: 'lozenge-button',
           part: 'enterVrButton',
           type: 'button',
           hidden: true,
           // Disabled until the scene finishes loading (reveal() enables it).
           disabled: true,
-          // 😎 "put your shades on" = Enter VR; title carries the accessible label.
           title: 'Enter VR',
         },
-        '😎'
+        svgIcons.xrColor()
       )
     ),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
