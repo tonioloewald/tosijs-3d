@@ -37,6 +37,7 @@ const names = [
   'arrowDownRight', // a generator redirect (→ arrowUpRight90r)
 ]
 
+preview.style.overflow = 'auto'
 preview.append(
   div(
     {
