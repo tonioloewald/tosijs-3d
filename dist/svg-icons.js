@@ -74,7 +74,7 @@ name → default fill/stroke/color handling). Add an SVG, rerun, done. Notable
 marks: `tosijs3d` (the brand cube), `xrColor` (the enter-XR/VR affordance, from
 tosijs-ui), and `tosiXr`.
 
-## DOM ‖ 3D — svgIcons vs iconGlyph
+## DOM or 3D — svgIcons vs iconGlyph
 
 The same icons two ways, side by side: `svgIcons` in the DOM (left) and
 `iconGlyph` baked onto an in-scene SVG **texture** (right). The 3D
