@@ -371,9 +371,14 @@ export function iconGlyph(
   // `currentColor` doesn't resolve in a rasterized texture, so bake it to `color`
   // up front. Harmless for hex-coloured multicolour icons; it's what lets a
   // `color` icon that's actually monochrome-via-currentColor (e.g. keyboard) tint.
-  holder.innerHTML = (resolved?.spec ?? FALLBACK).replace(/currentColor/g, color)
+  holder.innerHTML = (resolved?.spec ?? FALLBACK).replace(
+    /currentColor/g,
+    color
+  )
   const src = holder.querySelector('svg') as SVGElement
-  const vb = (src.getAttribute('viewBox') ?? '0 0 24 24').split(/[\s,]+/).map(Number)
+  const vb = (src.getAttribute('viewBox') ?? '0 0 24 24')
+    .split(/[\s,]+/)
+    .map(Number)
   const scale = size / Math.max(vb[2] || 24, vb[3] || 24)
   const classes = new Set(src.classList)
   const g = svgElements.g(

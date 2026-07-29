@@ -1,6 +1,6 @@
 {
   "name": "tosijs-3d",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "main": "./dist/index.js",
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -8,7 +8,8 @@
   "files": [
     "dist",
     "!dist/iife.js",
-    "!dist/iife.js.map"
+    "!dist/iife.js.map",
+    "!dist/hydrate"
   ],
   "repository": {
     "type": "git",

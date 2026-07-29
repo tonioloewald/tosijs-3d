@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Engines/performanceConfigurator.js"],
+  "sourcesContent": [
+    "/** @internal */\nexport class PerformanceConfigurator {\n    /**\n     * @internal\n     */\n    static SetMatrixPrecision(use64bits) {\n        PerformanceConfigurator.MatrixTrackPrecisionChange = false;\n        if (use64bits && !PerformanceConfigurator.MatrixUse64Bits) {\n            if (PerformanceConfigurator.MatrixTrackedMatrices) {\n                for (let m = 0; m < PerformanceConfigurator.MatrixTrackedMatrices.length; ++m) {\n                    const matrix = PerformanceConfigurator.MatrixTrackedMatrices[m];\n                    const values = matrix._m;\n                    matrix._m = new Array(16);\n                    for (let i = 0; i < 16; ++i) {\n                        matrix._m[i] = values[i];\n                    }\n                }\n            }\n        }\n        PerformanceConfigurator.MatrixUse64Bits = use64bits;\n        PerformanceConfigurator.MatrixCurrentType = PerformanceConfigurator.MatrixUse64Bits ? Array : Float32Array;\n        PerformanceConfigurator.MatrixTrackedMatrices = null; // reclaim some memory, as we don't need _TrackedMatrices anymore\n    }\n}\n/** @internal */\nPerformanceConfigurator.MatrixUse64Bits = false;\n/** @internal */\nPerformanceConfigurator.MatrixTrackPrecisionChange = true;\n/** @internal */\nPerformanceConfigurator.MatrixCurrentType = Float32Array;\n/** @internal */\nPerformanceConfigurator.MatrixTrackedMatrices = [];\n//# sourceMappingURL=performanceConfigurator.js.map"
+  ],
+  "mappings": "AACO,MAAM,CAAwB,OAI1B,mBAAkB,CAAC,EAAW,CAEjC,GADA,EAAwB,2BAA6B,GACjD,GAAa,CAAC,EAAwB,iBACtC,GAAI,EAAwB,sBACxB,QAAS,EAAI,EAAG,EAAI,EAAwB,sBAAsB,OAAQ,EAAE,EAAG,CAC3E,IAAM,EAAS,EAAwB,sBAAsB,GACvD,EAAS,EAAO,GACtB,EAAO,GAAS,MAAM,EAAE,EACxB,QAAS,EAAI,EAAG,EAAI,GAAI,EAAE,EACtB,EAAO,GAAG,GAAK,EAAO,IAKtC,EAAwB,gBAAkB,EAC1C,EAAwB,kBAAoB,EAAwB,gBAAkB,MAAQ,aAC9F,EAAwB,sBAAwB,KAExD,CAEA,EAAwB,gBAAkB,GAE1C,EAAwB,2BAA6B,GAErD,EAAwB,kBAAoB,aAE5C,EAAwB,sBAAwB,CAAC",
+  "debugId": "C24A0342EC732EED64756E2164756E21",
+  "names": []
+}

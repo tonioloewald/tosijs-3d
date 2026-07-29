@@ -155,6 +155,7 @@ import '@babylonjs/loaders';
 import { xrControllers } from './gamepad';
 import { panel3d, button3d, label3d, textBlock3d, } from './widgets3d';
 import { SvgTexture } from './svg-texture';
+import { svgIcons } from './svg-icons';
 import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
 import { XrGamepadSource } from './xr-gamepad';
@@ -301,65 +302,65 @@ export class B3d extends Component {
         ':host .babylonVRicon:hover': {
             transform: 'scale(1.1)',
         },
-        // Toolbar groups the gear + Enter VR at top-LEFT (demos pin text overlays
-        // top-right, so the left keeps this clear of them). Flex row so children pack
-        // together and a hidden one leaves no gap.
-        ':host .scene-toolbar': {
+        // Top-LEFT lozenge: one rounded pill holding the two icon buttons (scene
+        // settings + Enter VR) side by side. Demos pin text overlays top-right, so the
+        // left keeps this clear of them. Hidden until at least one button is relevant
+        // (`:has`) so it never flashes as an empty pill while the scene loads. Icon
+        // size is themed via the shared --tosi-icon-size var.
+        ':host .scene-lozenge': {
             position: 'absolute',
             top: '12px',
             left: '12px',
             zIndex: '20',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-        },
-        ':host .enter-vr-button': {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
+            // Visible by default so the toolbar works everywhere (a browser without
+            // :has() — e.g. older Firefox — must NOT lose it).
+            display: 'inline-flex',
+            alignItems: 'stretch',
             background: 'rgba(0,0,0,0.55)',
-            color: '#fff',
             border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '8px',
-            font: '600 14px system-ui, sans-serif',
-            cursor: 'pointer',
-            transition: 'background 0.15s, transform 0.125s',
+            borderRadius: '20px',
+            overflow: 'hidden',
+            '--tosi-icon-size': '20px',
         },
-        ':host .enter-vr-button[hidden]': {
+        // Progressive enhancement: where :has() is supported, hide the pill entirely
+        // while it holds no visible button (no empty-pill flash on load). Where it
+        // isn't, this selector is invalid and dropped — the lozenge stays visible.
+        ':host .scene-lozenge:not(:has(.lozenge-button:not([hidden])))': {
             display: 'none',
         },
-        ':host .enter-vr-button:hover': {
-            background: 'rgba(0,0,0,0.8)',
-            transform: 'scale(1.05)',
-        },
-        ':host .scene-panel-gear': {
-            width: '40px',
+        // Height-uniform, width sizes to content (with a square floor + side padding)
+        // so a non-square icon like the 40×24 xrColor mark gets horizontal room
+        // instead of being cramped in a fixed square.
+        ':host .lozenge-button': {
+            minWidth: '40px',
             height: '40px',
+            boxSizing: 'border-box',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(0,0,0,0.55)',
+            padding: '0 10px',
+            background: 'transparent',
+            border: 'none',
             color: '#fff',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: '8px',
-            font: '20px system-ui, sans-serif',
             cursor: 'pointer',
-            transition: 'background 0.15s, transform 0.125s',
+            transition: 'background 0.15s',
         },
-        ':host .scene-panel-gear[hidden]': {
+        ':host .lozenge-button:hover': {
+            background: 'rgba(255,255,255,0.15)',
+        },
+        ':host .lozenge-button[hidden]': {
             display: 'none',
         },
-        ':host .scene-panel-gear:hover': {
-            background: 'rgba(0,0,0,0.8)',
-            transform: 'scale(1.05)',
+        // A hairline divider only between two VISIBLE buttons (so a lone button reads
+        // as a clean single-icon pill).
+        ':host .lozenge-button:not([hidden]) + .lozenge-button:not([hidden])': {
+            borderLeft: '1px solid rgba(255,255,255,0.2)',
         },
-        // Toolbar buttons are disabled (dimmed, inert) until the scene has loaded.
-        ':host .scene-toolbar button:disabled': {
+        // Buttons are disabled (dimmed, inert) until the scene has loaded.
+        ':host .lozenge-button:disabled': {
             opacity: '0.4',
             cursor: 'default',
             pointerEvents: 'none',
-            transform: 'none',
         },
         ':host .scene-panel-overlay': {
             position: 'absolute',
@@ -398,28 +399,29 @@ export class B3d extends Component {
     content = [
         div({ class: 'spinner', part: 'spinner' }),
         canvas({ part: 'canvas' }),
-        // Top-left toolbar grouping the gear (scene settings) and the Enter VR button
-        // side by side — so VR availability is obvious, and Enter VR is never a panel
-        // row that could scroll/clip. Each child reveals itself when relevant. (Both
-        // live in the template — appending to the shadow root later doesn't persist.)
-        div({ class: 'scene-toolbar', part: 'sceneToolbar' }, button({
-            class: 'scene-panel-gear',
+        // Top-left lozenge holding two icon buttons side by side: scene settings
+        // (opens the panel) and Enter VR (the purpose-built xrColor mark) — so VR
+        // availability is obvious and Enter VR is never a panel row that could
+        // scroll/clip. Each button reveals itself when relevant; the lozenge stays
+        // hidden until then. (Both live in the template — appending to the shadow
+        // root later doesn't persist.)
+        div({ class: 'scene-lozenge', part: 'sceneToolbar' }, button({
+            class: 'lozenge-button',
             part: 'scenePanelGear',
             type: 'button',
             title: 'Scene settings',
             hidden: true,
             // Disabled until the scene finishes loading (reveal() enables it).
             disabled: true,
-        }, '⚙'), button({
-            class: 'enter-vr-button',
+        }, svgIcons.settings()), button({
+            class: 'lozenge-button',
             part: 'enterVrButton',
             type: 'button',
             hidden: true,
             // Disabled until the scene finishes loading (reveal() enables it).
             disabled: true,
-            // 😎 "put your shades on" = Enter VR; title carries the accessible label.
             title: 'Enter VR',
-        }, '😎')),
+        }, svgIcons.xrColor())),
         div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
         slot(),
     ];
@@ -1006,6 +1008,26 @@ export class B3d extends Component {
     recenterXr() {
         this._recenterXr();
     }
+    /**
+     * Capture the current view as a PNG **data URL**. Resolution-independent — it
+     * renders through an offscreen render target at the requested size (default: the
+     * canvas size), so you can grab a large still from a small canvas, and it never
+     * depends on the drawing buffer being preserved. Works in the flat view,
+     * including **in-scene 3D panels** — which is how you eyeball the SVG-texture UI
+     * (the same raster path the VR panels use) without a headset.
+     *
+     * Returns a `data:image/png;base64,…` string (handy from the console or a dev
+     * channel); for a Blob, `await (await fetch(url)).blob()`.
+     */
+    async snapshot(opts = {}) {
+        const cam = this.scene.activeCamera;
+        if (cam == null)
+            throw new Error('snapshot: the scene has no active camera');
+        const canvas = this.engine.getRenderingCanvas();
+        const width = opts.width ?? canvas?.width ?? 1280;
+        const height = opts.height ?? canvas?.height ?? 720;
+        return BABYLON.Tools.CreateScreenshotUsingRenderTargetAsync(this.engine, cam, { width, height });
+    }
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
      * its contents in place. Unified on purpose — see `_perfPanelRows`. */
     _repaintPanels() {
@@ -1422,7 +1444,9 @@ export class B3d extends Component {
         let restoreRaf;
         base.onStateChangedObservable.add((state) => {
             this.xrActive = state === BABYLON.WebXRState.IN_XR;
-            vrButton.textContent = this.xrActive ? 'Exit VR' : '😎';
+            // Keep the xrColor icon as the button face; the title carries the state
+            // (the flat button isn't visible in-session anyway). Setting textContent
+            // here would wipe the icon.
             vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR';
             if (state === BABYLON.WebXRState.IN_XR) {
                 // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
@@ -1976,8 +2000,9 @@ export class B3d extends Component {
         const host = this.parts.scenePanelHost;
         const close = button({ class: 'scene-panel-close', type: 'button', title: 'Close' }, 
         // In a session the flat overlay isn't visible anyway, but keep it playful:
-        // a bug-eyed face for VR, the plain × glyph on flat screens.
-        this.xrActive ? '😳' : '×');
+        // a bug-eyed face for VR, the close icon on flat screens (currentColor
+        // resolves in live DOM — this button is flat-only in practice).
+        this.xrActive ? '😳' : svgIcons.close());
         close.addEventListener('click', (e) => {
             e.stopPropagation();
             this._closeScenePanel();

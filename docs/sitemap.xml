@@ -54,6 +54,7 @@
   <url><loc>https://3d.tosijs.net/control-input/</loc></url>
   <url><loc>https://3d.tosijs.net/destroyable-behavior/</loc></url>
   <url><loc>https://3d.tosijs.net/environment/</loc></url>
+  <url><loc>https://3d.tosijs.net/flow-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/formations/</loc></url>
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/galaxy-data/</loc></url>
@@ -63,6 +64,7 @@
   <url><loc>https://3d.tosijs.net/hardware-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/hud/</loc></url>
   <url><loc>https://3d.tosijs.net/hud-math/</loc></url>
+  <url><loc>https://3d.tosijs.net/icon-name/</loc></url>
   <url><loc>https://3d.tosijs.net/input/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
@@ -75,6 +77,7 @@
   <url><loc>https://3d.tosijs.net/shadow-decal/</loc></url>
   <url><loc>https://3d.tosijs.net/space/</loc></url>
   <url><loc>https://3d.tosijs.net/spatial-transform/</loc></url>
+  <url><loc>https://3d.tosijs.net/svg-icons/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/ui/</loc></url>

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/imageProcessing.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { imageProcessingDeclaration } from \"./ShadersInclude/imageProcessingDeclaration.js\";\nimport { helperFunctions } from \"./ShadersInclude/helperFunctions.js\";\nimport { imageProcessingFunctions } from \"./ShadersInclude/imageProcessingFunctions.js\";\nconst name = \"imageProcessingPixelShader\";\nconst shader = `varying vec2 vUV;uniform sampler2D textureSampler;\n#include<imageProcessingDeclaration>\n#include<helperFunctions>\n#include<imageProcessingFunctions>\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void)\n{vec4 result=texture2D(textureSampler,vUV);result.rgb=max(result.rgb,vec3(0.));\n#ifdef IMAGEPROCESSING\n#ifndef FROMLINEARSPACE\nresult.rgb=toLinearSpace(result.rgb);\n#endif\nresult=applyImageProcessing(result);\n#else\n#ifdef FROMLINEARSPACE\nresult=applyImageProcessing(result);\n#endif\n#endif\ngl_FragColor=result;}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [imageProcessingDeclaration, helperFunctions, imageProcessingFunctions];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const imageProcessingPixelShader = { name, shader };\n//# sourceMappingURL=imageProcessing.fragment.js.map"
+  ],
+  "mappings": "qLAKA,HAAM,LAAO,sBACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,uBAmBf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAA4B,EAAiB,CAAwB,EACvF,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAA6B,CAAE,OAAM,QAAO",
+  "debugId": "CE7151AAD2B0012364756E2164756E21",
+  "names": []
+}

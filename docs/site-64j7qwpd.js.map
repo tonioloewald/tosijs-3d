@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/ShadersInclude/fresnelFunction.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"fresnelFunction\";\nconst shader = `#ifdef FRESNEL\nfloat computeFresnelTerm(vec3 viewDirection,vec3 worldNormal,float bias,float power)\n{float fresnelTerm=pow(bias+abs(dot(viewDirection,worldNormal)),power);return clamp(fresnelTerm,0.,1.);}\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const fresnelFunction = { name, shader };\n//# sourceMappingURL=fresnelFunction.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,kBACP,EAAS;AAAA;AAAA;AAAA;AAAA,EAMf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAAkB,CAAE,OAAM,QAAO",
+  "debugId": "9842225C6BA709F864756E2164756E21",
+  "names": []
+}

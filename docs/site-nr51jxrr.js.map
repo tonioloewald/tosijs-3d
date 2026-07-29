@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/loaders/glTF/2.0/glTFLoader.js"],
+  "sourcesContent": [
+    "export * from \"./glTFLoader.pure.js\";\nimport { RegisterGLTF2Loader } from \"./glTFLoader.pure.js\";\nimport { RegisterGLTFFileLoader } from \"../glTFFileLoader.pure.js\";\nRegisterGLTF2Loader();\n// Auto-register the .gltf/.glb SceneLoader plugin so that importing\n// \"@babylonjs/loaders/glTF/2.0\" restores the pre-9.15 behavior of making\n// SceneLoader able to load glTF 2.0 assets. This registers the version-aware\n// GLTFFileLoader plugin only; it does not pull in the legacy glTF 1.0 loader.\nRegisterGLTFFileLoader();\n//# sourceMappingURL=glTFLoader.js.map"
+  ],
+  "mappings": "gDAGA,EAAoB,EAKpB,EAAuB",
+  "debugId": "3AD41E67199F3C6564756E2164756E21",
+  "names": []
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/rgbdEncode.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { helperFunctions } from \"./ShadersInclude/helperFunctions.js\";\nconst name = \"rgbdEncodePixelShader\";\nconst shader = `varying vec2 vUV;uniform sampler2D textureSampler;\n#include<helperFunctions>\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void) \n{gl_FragColor=toRGBD(texture2D(textureSampler,vUV).rgb);}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [helperFunctions];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const rgbdEncodePixelShader = { name, shader };\n//# sourceMappingURL=rgbdEncode.fragment.js.map"
+  ],
+  "mappings": "uFAGA,HAAM,EAAO,wBACP,EAAS;AAAA;AAAA;AAAA;AAAA,2DAMf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,CAAe,EACjC,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAAwB,CAAE,OAAM,QAAO",
+  "debugId": "F45C3F331811508164756E2164756E21",
+  "names": []
+}

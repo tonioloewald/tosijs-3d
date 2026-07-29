@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/iblVoxelGrid.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"iblVoxelGridPixelShader\";\nconst shader = `var voxel_storage: texture_storage_3d<r8unorm,write>;varying vNormalizedPosition: vec3f;flat varying f_swizzle: i32;@fragment\nfn main(input: FragmentInputs)->FragmentOutputs {var size: vec3f=vec3f(textureDimensions(voxel_storage));var normPos: vec3f=input.vNormalizedPosition.xyz;var outputColor: vec4f=vec4f(0.0,0.0,0.0,1.0);switch (input.f_swizzle) {case 0: {normPos=normPos.zxy; \noutputColor=vec4f(1.0,1.0,0.0,1.0);break;}\ncase 1: {normPos=normPos.yzx;outputColor=vec4f(1.0,1.0,1.0,1.0);break;}\ndefault: {normPos=normPos.xyz;outputColor=vec4f(1.0,1.0,0.0,1.0);break;}}\ntextureStore(voxel_storage,vec3<i32>(i32(normPos.x*size.x),i32(normPos.y*size.y),i32(normPos.z*size.z)),outputColor);fragmentOutputs.color=vec4<f32>(vec3<f32>(normPos),1.);}`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const iblVoxelGridPixelShaderWGSL = { name, shader };\n//# sourceMappingURL=iblVoxelGrid.fragment.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,0BACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA,+KAOf,GAAI,CAAC,EAAY,iBAAiB,GAC9B,EAAY,iBAAiB,GAAQ,EAGlC,IAAM,EAA8B,CAAE,OAAM,QAAO",
+  "debugId": "4CE86302C46CE1D464756E2164756E21",
+  "names": []
+}

@@ -81,7 +81,12 @@ export interface FlowResult {
  */
 export function flowLayout(items: FlowItem[], opts: FlowOptions): FlowResult {
   const { width: W, gap = 0, rowGap = gap, align = 'top' } = opts
-  const boxes: FlowBox[] = items.map(() => ({ x: 0, y: 0, width: 0, height: 0 }))
+  const boxes: FlowBox[] = items.map(() => ({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  }))
 
   let y = 0
   let line: number[] = [] // indices of inline items on the current (open) line
@@ -96,8 +101,8 @@ export function flowLayout(items: FlowItem[], opts: FlowOptions): FlowResult {
         align === 'middle'
           ? y + (lineH - b.height) / 2
           : align === 'bottom'
-            ? y + (lineH - b.height)
-            : y
+          ? y + (lineH - b.height)
+          : y
     }
     y += lineH + rowGap
     line = []

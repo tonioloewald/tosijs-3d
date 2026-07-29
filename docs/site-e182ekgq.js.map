@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/pass.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"passPixelShader\";\nconst shader = `varying vec2 vUV;uniform sampler2D textureSampler;\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void) \n{gl_FragColor=texture2D(textureSampler,vUV);}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\n/** @internal */\nexport const passPixelShader = { name, shader };\n//# sourceMappingURL=pass.fragment.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,kBACP,EAAS;AAAA;AAAA;AAAA,+CAKf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAG9B,IAAM,EAAkB,CAAE,OAAM,QAAO",
+  "debugId": "7D3AE382872AB9CD64756E2164756E21",
+  "names": []
+}

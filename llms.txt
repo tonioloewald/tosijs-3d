@@ -1,4 +1,4 @@
-# tosijs-3d v0.5.1
+# tosijs-3d v0.5.2
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -9,6 +9,13 @@ Declarative 3D/XR framework built on Babylon.js and the tosijs web component fra
 ## Documentation
 
 Full documentation, with live code examples, is at the links below.
+
+Live examples run inline on the shared page by default (not sandboxed):
+each has its own `preview` element, but they share one tosijs module, so
+`tosi()` state singletons are shared across every example on a page. This is
+deliberate (it shows tosi isolation and lets you drive demos via the global
+singleton). Namespace example state with unique top-level keys so examples
+don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 
 ## Pages
 
@@ -115,6 +122,8 @@ Full documentation, with live code examples, is at the links below.
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/effects/ — Effects
 - https://3d.tosijs.net/environment/ — Environment
+- https://3d.tosijs.net/flow-layout/ — flow-layout
+  Pure **flow layout** math — the CSS block + inline-block model, in SVG user
 - https://3d.tosijs.net/formations/ — formations
   Pure, deterministic **placement patterns** — where the members of an encounter stand relative
 - https://3d.tosijs.net/frame-panel/ — frame-panel
@@ -133,6 +142,8 @@ Full documentation, with live code examples, is at the links below.
   Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
 - https://3d.tosijs.net/hud-math/ — hud-math
   Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
+- https://3d.tosijs.net/icon-name/ — icon-name
+  Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/input/ — Input
   Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
 - https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad
@@ -155,6 +166,8 @@ Full documentation, with live code examples, is at the links below.
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/svg-icons/ — svg-icons
+  An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
 - https://3d.tosijs.net/ — tosijs-3d

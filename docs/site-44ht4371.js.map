@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/ShadersInclude/gaussianSplattingFragmentDeclaration.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nimport \"./logDepthFragment.js\";\nimport \"./fogFragment.js\";\nconst name = \"gaussianSplattingFragmentDeclaration\";\nconst shader = `vec4 gaussianColor(vec4 inColor)\n{float A=-dot(vPosition,vPosition);if (A<-4.0) discard;float B=exp(A)*inColor.a;\n#include<logDepthFragment>\nvec3 color=inColor.rgb;\n#ifdef FOG\n#include<fogFragment>\n#endif\nreturn vec4(color,B);}\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const gaussianSplattingFragmentDeclaration = { name, shader };\n//# sourceMappingURL=gaussianSplattingFragmentDeclaration.js.map"
+  ],
+  "mappings": "wCAIA,IAAM,EAAO,uCACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,EAUf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAAuC,CAAE,OAAM,QAAO",
+  "debugId": "C8068102ED9D0CD564756E2164756E21",
+  "names": []
+}

@@ -73,6 +73,11 @@ export { stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasure
 // SVG material system
 export { SvgTexture } from './svg-texture';
 export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane';
+// Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
+export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, } from './svg-icons';
+export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';
+// Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
+export { flowLayout, } from './flow-layout';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';

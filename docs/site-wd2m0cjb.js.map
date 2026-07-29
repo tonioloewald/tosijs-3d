@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/layer.vertex.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"layerVertexShader\";\nconst shader = `attribute position: vec2f;uniform scale: vec2f;uniform offset: vec2f;uniform textureMatrix: mat4x4f;varying vUV: vec2f;const madd: vec2f= vec2f(0.5,0.5);\n#define CUSTOM_VERTEX_DEFINITIONS\n@vertex\nfn main(input : VertexInputs)->FragmentInputs {\n#define CUSTOM_VERTEX_MAIN_BEGIN\nvar shiftedPosition: vec2f=vertexInputs.position*uniforms.scale+uniforms.offset;vertexOutputs.vUV=(uniforms.textureMatrix* vec4f(shiftedPosition*madd+madd,1.0,0.0)).xy;vertexOutputs.position= vec4f(shiftedPosition,0.0,1.0);\n#define CUSTOM_VERTEX_MAIN_END\n}`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const layerVertexShaderWGSL = { name, shader };\n//# sourceMappingURL=layer.vertex.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,oBACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,GASf,GAAI,CAAC,EAAY,iBAAiB,GAC9B,EAAY,iBAAiB,GAAQ,EAGlC,IAAM,EAAwB,CAAE,OAAM,QAAO",
+  "debugId": "282D553155AD5A1664756E2164756E21",
+  "names": []
+}

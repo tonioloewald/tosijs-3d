@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/line.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { clipPlaneFragmentDeclaration } from \"./ShadersInclude/clipPlaneFragmentDeclaration.js\";\nimport { logDepthDeclaration } from \"./ShadersInclude/logDepthDeclaration.js\";\nimport { logDepthFragment } from \"./ShadersInclude/logDepthFragment.js\";\nimport { clipPlaneFragment } from \"./ShadersInclude/clipPlaneFragment.js\";\nconst name = \"linePixelShader\";\nconst shader = `#include<clipPlaneFragmentDeclaration>\nuniform vec4 color;\n#ifdef LOGARITHMICDEPTH\n#extension GL_EXT_frag_depth : enable\n#endif\n#include<logDepthDeclaration>\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void) {\n#define CUSTOM_FRAGMENT_MAIN_BEGIN\n#include<logDepthFragment>\n#include<clipPlaneFragment>\ngl_FragColor=color;\n#define CUSTOM_FRAGMENT_MAIN_END\n}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [clipPlaneFragmentDeclaration, logDepthDeclaration, logDepthFragment, clipPlaneFragment];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const linePixelShader = { name, shader };\n//# sourceMappingURL=line.fragment.js.map"
+  ],
+  "mappings": "oOAMA,HAAM,LAAO,WACP,LAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,GAef,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAA8B,EAAqB,EAAkB,CAAiB,EACxG,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAAkB,CAAE,OAAM,QAAO",
+  "debugId": "37DFF2B99C6E1CD964756E2164756E21",
+  "names": []
+}

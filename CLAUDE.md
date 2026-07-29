@@ -282,6 +282,8 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/svg-texture.ts` | Dynamic SVG → Babylon texture rendering |
 | `src/b3d-svg-plane.ts` | In-scene SVG-based UI planes |
 | `src/widgets3d.ts` / `src/widgets3d-layout.ts` | SVG-native UI widgets (`panel3d`, `slider3d`, …) that work as DOM overlays or in-scene panels; stack layout |
+| `src/flow-layout.ts` | Pure CSS block/inline-block **flow-layout** core (`flowLayout`) — substrate for a first-class SVG UI surface (DOM + 3D texture); Babylon/DOM-free, unit-tested |
+| `src/svg-icons.ts` / `src/icon-name.ts` | `svgIcons.<name>()` icon proxy (→ SVG `ElementCreator`) + `iconGlyph` (texture-safe glyph) over the generated `icon-data.ts` (from `icons/*` via `bun run icons`); `icon-name.ts` is the pure composition-suffix parser |
 | `src/xr-frames.ts` | XR reference frames (`world`/`rig`/`body`/`neck`/`face` + hands) for spatial UI |
 | `src/frame-panel.ts` | `attachFramePanel` — SVG panel pinned to an XR frame, gaze-revealed |
 | `src/b3d-panel.ts` | `<tosi-b3d-panel>` declarative spatial-UI panel component |

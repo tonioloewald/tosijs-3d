@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/oitFinalSimpleBlend.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"oitFinalSimpleBlendPixelShader\";\nconst shader = `precision highp float;uniform sampler2D uFrontColor;void main() {ivec2 fragCoord=ivec2(gl_FragCoord.xy);vec4 frontColor=texelFetch(uFrontColor,fragCoord,0);glFragColor=frontColor;}\n`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\n/** @internal */\nexport const oitFinalSimpleBlendPixelShader = { name, shader };\n//# sourceMappingURL=oitFinalSimpleBlend.fragment.js.map"
+  ],
+  "mappings": "0EAEA,HAAM,EAAO,iCACP,EAAS;AAAA,EAGf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAG9B,IAAM,EAAiC,CAAE,OAAM,QAAO",
+  "debugId": "98D814A634699D2F64756E2164756E21",
+  "names": []
+}

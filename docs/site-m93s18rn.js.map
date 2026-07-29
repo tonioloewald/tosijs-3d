@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Misc/tools.js"],
+  "sourcesContent": [
+    "/**\n * Re-exports pure implementation and applies runtime side effects.\n * Import tools.pure for tree-shakeable, side-effect-free usage.\n */\nexport * from \"./tools.pure.js\";\nimport { RegisterTools } from \"./tools.pure.js\";\nRegisterTools();\n//# sourceMappingURL=tools.js.map"
+  ],
+  "mappings": "wCAMA,EAAc",
+  "debugId": "81217BE1910EAC9F64756E2164756E21",
+  "names": []
+}

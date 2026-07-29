@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/outline.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { clipPlaneFragmentDeclaration } from \"./ShadersInclude/clipPlaneFragmentDeclaration.js\";\nimport { logDepthDeclaration } from \"./ShadersInclude/logDepthDeclaration.js\";\nimport { clipPlaneFragment } from \"./ShadersInclude/clipPlaneFragment.js\";\nimport { logDepthFragment } from \"./ShadersInclude/logDepthFragment.js\";\nconst name = \"outlinePixelShader\";\nconst shader = `#ifdef LOGARITHMICDEPTH\n#extension GL_EXT_frag_depth : enable\n#endif\nuniform vec4 color;\n#ifdef ALPHATEST\nvarying vec2 vUV;uniform sampler2D diffuseSampler;\n#endif\n#include<clipPlaneFragmentDeclaration>\n#include<logDepthDeclaration>\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void) {\n#define CUSTOM_FRAGMENT_MAIN_BEGIN\n#include<clipPlaneFragment>\n#ifdef ALPHATEST\nif (texture2D(diffuseSampler,vUV).a<0.4)\ndiscard;\n#endif\n#include<logDepthFragment>\ngl_FragColor=color;\n#define CUSTOM_FRAGMENT_MAIN_END\n}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [clipPlaneFragmentDeclaration, logDepthDeclaration, clipPlaneFragment, logDepthFragment];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const outlinePixelShader = { name, shader };\n//# sourceMappingURL=outline.fragment.js.map"
+  ],
+  "mappings": "oOAMA,HAAM,LAAO,cACP,LAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,GAsBf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAA8B,EAAqB,EAAmB,CAAgB,EACxG,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAAqB,CAAE,OAAM,QAAO",
+  "debugId": "F278B0B3864917E464756E2164756E21",
+  "names": []
+}

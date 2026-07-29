@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/loaders/glTF/2.0/Extensions/KHR_interactivity/flowGraphGLTFDataProvider.js"],
+  "sourcesContent": [
+    "import { FlowGraphBlock } from \"@babylonjs/core/FlowGraph/flowGraphBlock.js\";\nimport { RichTypeAny } from \"@babylonjs/core/FlowGraph/flowGraphRichTypes.js\";\n/**\n * a glTF-based FlowGraph block that provides arrays with babylon object, based on the glTF tree\n * Can be used, for example, to get animation index from a glTF animation\n */\nexport class FlowGraphGLTFDataProvider extends FlowGraphBlock {\n    constructor(config) {\n        super(config);\n        const glTF = config.glTF;\n        // glTF may be undefined when the block is re-created from serialized data\n        // (e.g. in the Flow Graph Editor) where the live glTF parse tree is unavailable.\n        const animationGroups = glTF?.animations?.map((a) => a._babylonAnimationGroup) || [];\n        this.animationGroups = this.registerDataOutput(\"animationGroups\", RichTypeAny, animationGroups);\n        const nodes = glTF?.nodes?.map((n) => n._babylonTransformNode) || [];\n        this.nodes = this.registerDataOutput(\"nodes\", RichTypeAny, nodes);\n    }\n    getClassName() {\n        return \"FlowGraphGLTFDataProvider\";\n    }\n}\n//# sourceMappingURL=flowGraphGLTFDataProvider.js.map"
+  ],
+  "mappings": "uFAMO,DAAM,UAAkC,CAAe,CAC1D,WAAW,CAAC,EAAQ,CAChB,MAAM,CAAM,EACZ,IAAM,EAAO,EAAO,KAGd,EAAkB,GAAM,YAAY,IAAI,CAAC,IAAM,EAAE,sBAAsB,GAAK,CAAC,EACnF,KAAK,gBAAkB,KAAK,mBAAmB,kBAAmB,EAAa,CAAe,EAC9F,IAAM,EAAQ,GAAM,OAAO,IAAI,CAAC,IAAM,EAAE,qBAAqB,GAAK,CAAC,EACnE,KAAK,MAAQ,KAAK,mBAAmB,QAAS,EAAa,CAAK,EAEpE,YAAY,EAAG,CACX,MAAO,4BAEf",
+  "debugId": "53F1E87F94F7E70064756E2164756E21",
+  "names": []
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../node_modules/@babylonjs/core/Shaders/hdrFiltering.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { helperFunctions } from \"./ShadersInclude/helperFunctions.js\";\nimport { importanceSampling } from \"./ShadersInclude/importanceSampling.js\";\nimport { pbrBRDFFunctions } from \"./ShadersInclude/pbrBRDFFunctions.js\";\nimport { hdrFilteringFunctions } from \"./ShadersInclude/hdrFilteringFunctions.js\";\nconst name = \"hdrFilteringPixelShader\";\nconst shader = `#include<helperFunctions>\n#include<importanceSampling>\n#include<pbrBRDFFunctions>\n#include<hdrFilteringFunctions>\nuniform float alphaG;uniform samplerCube inputTexture;uniform vec2 vFilteringInfo;uniform float hdrScale;varying vec3 direction;void main() {vec3 color=radiance(alphaG,inputTexture,direction,vFilteringInfo);gl_FragColor=vec4(color*hdrScale,1.0);}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [helperFunctions, importanceSampling, pbrBRDFFunctions, hdrFilteringFunctions];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const hdrFilteringPixelShader = { name, shader };\n//# sourceMappingURL=hdrFiltering.fragment.js.map"
+  ],
+  "mappings": "6LAMA,HAAM,LAAO,mBACP,EAAS;AAAA;AAAA;AAAA;AAAA,wPAMf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAAiB,EAAoB,EAAkB,CAAqB,EAC9F,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAA0B,CAAE,OAAM,QAAO",
+  "debugId": "2326D86E5F60E00564756E2164756E21",
+  "names": []
+}

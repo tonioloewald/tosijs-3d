@@ -192,3 +192,7 @@ static/jolt-physics.wasm-compat.js
 .env.*
 *.key
 *resemble*.key
+
+# Doc-site hydrate bundle leaks into dist/ from the tosijs-ui site pipeline;
+# the deployed site uses docs/hydrate.js — dist/hydrate is unused and must not ship.
+dist/hydrate/
