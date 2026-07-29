@@ -320,6 +320,18 @@ export {
   type FlowResult,
 } from './flow-layout'
 
+// Flow `box` — the SVG UI container (paint / resize / scroll) built on flowLayout
+export {
+  box,
+  textBlock,
+  inlineIcon,
+  blockItem,
+  inlineItem,
+  type Box,
+  type BoxChild,
+  type BoxOptions,
+} from './box'
+
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'
 export { B3dSound, b3dSound } from './b3d-sound'
