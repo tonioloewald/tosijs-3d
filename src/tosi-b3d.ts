@@ -426,13 +426,17 @@ export class B3d extends Component {
     ':host .scene-lozenge:has(.lozenge-button:not([hidden]))': {
       display: 'inline-flex',
     },
+    // Height-uniform, width sizes to content (with a square floor + side padding)
+    // so a non-square icon like the 40×24 xrColor mark gets horizontal room
+    // instead of being cramped in a fixed square.
     ':host .lozenge-button': {
-      width: '40px',
+      minWidth: '40px',
       height: '40px',
+      boxSizing: 'border-box',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '0',
+      padding: '0 10px',
       background: 'transparent',
       border: 'none',
       color: '#fff',
