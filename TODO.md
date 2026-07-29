@@ -5,6 +5,10 @@
 Changes made from source-only (tsc + unit tests green) that still need a human/headset
 look. **Flat** = check in the browser; **VR** = check in the headset.
 
+- [ ] **Header logo size** (blocked on tosijs-ui): the `tosiXr` header mark is correct, but
+  tosijs-ui hardwires the doc-browser logo to `LOGO_SIZE = 40` (inline height). Once tosijs-ui
+  ships a logo-size option / CSS var (Tonio is adding it — "a doozy"), bump tosijs-ui and set the
+  size in `site.config.ts`. Until then the size is whatever tosijs-ui picks.
 - [ ] **Trigger** (flat): reload `/b3d-trigger/`; readout should show `target=walker · resolved=true` and `inside=true` on arrival → marker relocates. (Was the razor-thin geometry + target-name/reactive-set; belt-and-suspenders `setAttribute` applied.)
 - [ ] **b3d-panel demo** (flat + VR): the world-anchored `b3d-svg-plane` panel shows in the flat view; the VR-only `<tosi-b3d-panel>` shows only in-session; dual-presence gear panel opens (starts open via `scenePanelOpen`).
 - [ ] **Scene panel** (flat + VR): `scene-panel-open` starts it open; × close button works (😳 in VR); Enter VR button shows 😎.

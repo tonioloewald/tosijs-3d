@@ -415,7 +415,9 @@ export class B3d extends Component {
       top: '12px',
       left: '12px',
       zIndex: '20',
-      display: 'none',
+      // Visible by default so the toolbar works everywhere (a browser without
+      // :has() — e.g. older Firefox — must NOT lose it).
+      display: 'inline-flex',
       alignItems: 'stretch',
       background: 'rgba(0,0,0,0.55)',
       border: '1px solid rgba(255,255,255,0.3)',
@@ -423,8 +425,11 @@ export class B3d extends Component {
       overflow: 'hidden',
       '--tosi-icon-size': '20px',
     },
-    ':host .scene-lozenge:has(.lozenge-button:not([hidden]))': {
-      display: 'inline-flex',
+    // Progressive enhancement: where :has() is supported, hide the pill entirely
+    // while it holds no visible button (no empty-pill flash on load). Where it
+    // isn't, this selector is invalid and dropped — the lozenge stays visible.
+    ':host .scene-lozenge:not(:has(.lozenge-button:not([hidden])))': {
+      display: 'none',
     },
     // Height-uniform, width sizes to content (with a square floor + side padding)
     // so a non-square icon like the 40×24 xrColor mark gets horizontal room
