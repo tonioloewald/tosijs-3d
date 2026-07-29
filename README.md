@@ -1,6 +1,10 @@
 # tosijs-3d
 
-[github](https://github.com/tonioloewald/xinjs-3d/) | [live demo](https://tonioloewald.github.io/xinjs-3d/) | [npm](https://www.npmjs.com/package/tosijs-3d)
+[github](https://github.com/tonioloewald/tosijs-3d/) | [live demo](https://3d.tosijs.net) | [npm](https://www.npmjs.com/package/tosijs-3d)
+
+<div style="text-align: center; margin: 20px">
+  <img style="width: 280px; height: 280px; background: #da1167; border-radius: 40px" alt="tosijs-3d logo" src="https://3d.tosijs.net/favicon.svg">
+</div>
 
 Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
 See the [b3d](?tosi-b3d.ts) page for a live interactive demo.
