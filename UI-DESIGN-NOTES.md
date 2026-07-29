@@ -484,3 +484,23 @@ follow/vehicle camera doesn't re-derive them:
 
 Companion to the `setGameplayCamera` note above — this is the _content_ of a good gameplay camera;
 that's the XR-safe _mechanism_ for switching to one.
+
+## SVG UI surface — four input modalities collapse to two event paths (planned)
+
+The first-class SVG UI surface (the flow `box` + overlay/popup, on `flow-layout.ts`) must serve
+four input modalities without four code paths — they collapse to **two**:
+
+- **Pointer** — mouse, touch, and VR (controller ray → texture UV → box coords) all feed one
+  `handlePointer(kind, x, y)`: hit-test the laid-out children, dispatch, support capture (a pressed
+  key / open popup owns the pointer). This is the routing the panels already use.
+- **Focus-traversal** — a **gamepad user has no pointer**, so the surface needs directional focus
+  navigation: D-pad / stick moves a focus highlight between focusable children, A activates, B backs
+  out. Keyboard Tab/arrows ride the same path.
+
+Key insight: **the layout gives directional nav for free.** `flowLayout` returns a box per child, so
+"the nearest focusable to the right/down of the focused one" is a spatial nearest-neighbour query
+over those boxes — no hand-authored tab order. Focus is also what carries **cross-surface** input (a
+floating keyboard targeting a field on another surface) and the **cascade popup**'s active branch.
+
+So `box`'s event model is designed around BOTH from the start — a pointer path and a focus/traversal
+path sharing one "which child → activate" dispatch. Pointer lands first; focus-nav is the next slice.
