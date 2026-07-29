@@ -1616,7 +1616,9 @@ export class B3d extends Component {
     let restoreRaf: (() => void) | undefined
     base.onStateChangedObservable.add((state) => {
       this.xrActive = state === BABYLON.WebXRState.IN_XR
-      vrButton.textContent = this.xrActive ? 'Exit VR' : '😎'
+      // Keep the xrColor icon as the button face; the title carries the state
+      // (the flat button isn't visible in-session anyway). Setting textContent
+      // here would wipe the icon.
       vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR'
       if (state === BABYLON.WebXRState.IN_XR) {
         // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
@@ -2235,8 +2237,9 @@ export class B3d extends Component {
     const close = button(
       { class: 'scene-panel-close', type: 'button', title: 'Close' },
       // In a session the flat overlay isn't visible anyway, but keep it playful:
-      // a bug-eyed face for VR, the plain × glyph on flat screens.
-      this.xrActive ? '😳' : '×'
+      // a bug-eyed face for VR, the close icon on flat screens (currentColor
+      // resolves in live DOM — this button is flat-only in practice).
+      this.xrActive ? '😳' : svgIcons.close()
     ) as HTMLButtonElement
     close.addEventListener('click', (e) => {
       e.stopPropagation()
