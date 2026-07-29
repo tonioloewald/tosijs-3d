@@ -1190,6 +1190,32 @@ export class B3d extends Component {
     this._recenterXr()
   }
 
+  /**
+   * Capture the current view as a PNG **data URL**. Resolution-independent — it
+   * renders through an offscreen render target at the requested size (default: the
+   * canvas size), so you can grab a large still from a small canvas, and it never
+   * depends on the drawing buffer being preserved. Works in the flat view,
+   * including **in-scene 3D panels** — which is how you eyeball the SVG-texture UI
+   * (the same raster path the VR panels use) without a headset.
+   *
+   * Returns a `data:image/png;base64,…` string (handy from the console or a dev
+   * channel); for a Blob, `await (await fetch(url)).blob()`.
+   */
+  async snapshot(
+    opts: { width?: number; height?: number } = {}
+  ): Promise<string> {
+    const cam = this.scene.activeCamera
+    if (cam == null) throw new Error('snapshot: the scene has no active camera')
+    const canvas = this.engine.getRenderingCanvas()
+    const width = opts.width ?? canvas?.width ?? 1280
+    const height = opts.height ?? canvas?.height ?? 720
+    return BABYLON.Tools.CreateScreenshotUsingRenderTargetAsync(
+      this.engine,
+      cam,
+      { width, height }
+    )
+  }
+
   /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
    * its contents in place. Unified on purpose — see `_perfPanelRows`. */
   private _repaintPanels(): void {
