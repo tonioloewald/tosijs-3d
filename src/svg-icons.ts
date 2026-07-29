@@ -121,6 +121,10 @@ plane.svgElement = sheet
 
 const scene = b3d(
   {
+    // <tosi-b3d> has no intrinsic size — it MUST be given one or it collapses to
+    // zero height and the canvas renders blank (a snapshot() still works, since
+    // that renders offscreen, so size it explicitly for the on-page view).
+    style: 'width:320px;height:300px;display:block;border-radius:8px;overflow:hidden',
     sceneCreated(el) {
       const cam = new el.BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 2.6, 3.2, el.BABYLON.Vector3.Zero(), el.scene
