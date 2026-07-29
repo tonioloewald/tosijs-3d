@@ -245,6 +245,66 @@ export function iconNames(
   return Object.keys(data).filter((name) => data[name].startsWith('<'))
 }
 
+// The default resolution map: generated icon-data with aliases layered under it.
+const DEFAULT_MAP: IconMap = {
+  ...iconAliases,
+  ...(iconData as unknown as IconMap),
+}
+
+/**
+ * A **texture-safe** icon: an `svgElements` `<g>` with EXPLICIT colours baked in
+ * (no `currentColor` / CSS vars), scaled and positioned for embedding directly in
+ * a [[widgets3d]] SVG tree. Those trees rasterize to a Babylon texture in VR,
+ * where `currentColor` and custom properties DON'T resolve — so use this, not
+ * {@link svgIcons}, for in-scene / in-panel glyphs.
+ *
+ * `color` icons keep their baked palette; `stroked`/`filled` icons are tinted to
+ * `color`. Base names only — composition suffixes (rotate/flip/…) stay DOM-only
+ * on {@link svgIcons}; passing one here warns rather than silently mis-rendering.
+ */
+export function iconGlyph(
+  name: string,
+  opts: {
+    color?: string
+    size?: number
+    x?: number
+    y?: number
+    strokeWidth?: number
+  } = {}
+): SVGGElement {
+  const { color = '#000', size = 24, x = 0, y = 0, strokeWidth = 2 } = opts
+  const resolved = resolveToMarkup(DEFAULT_MAP, name)
+  if (!resolved) console.warn(`iconGlyph: unknown icon "${name}"`)
+  if (resolved && Object.keys(resolved.style).length > 0) {
+    console.warn(
+      `iconGlyph("${name}"): composition suffixes aren't applied here — use a base name (or svgIcons for DOM).`
+    )
+  }
+  const holder = elements.div()
+  holder.innerHTML = resolved?.spec ?? FALLBACK
+  const src = holder.querySelector('svg') as SVGElement
+  const vb = (src.getAttribute('viewBox') ?? '0 0 24 24').split(/[\s,]+/).map(Number)
+  const scale = size / Math.max(vb[2] || 24, vb[3] || 24)
+  const classes = new Set(src.classList)
+  const g = svgElements.g(
+    { transform: `translate(${x} ${y}) scale(${scale})` },
+    ...Array.from(src.children)
+  ) as unknown as SVGGElement
+  if (classes.has('color')) {
+    // baked per-path colours — leave them
+  } else if (classes.has('filled')) {
+    g.setAttribute('fill', color)
+    g.setAttribute('stroke', 'none')
+  } else {
+    g.setAttribute('fill', 'none')
+    g.setAttribute('stroke', color)
+    g.setAttribute('stroke-width', String(strokeWidth))
+    g.setAttribute('stroke-linecap', 'round')
+    g.setAttribute('stroke-linejoin', 'round')
+  }
+  return g
+}
+
 /** The default icon proxy, over tosijs-3d's generated icon set. */
 export const svgIcons = createSvgIcons()
 

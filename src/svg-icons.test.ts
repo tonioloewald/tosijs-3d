@@ -123,3 +123,40 @@ describe('svgIcons — the real generated set', () => {
     expect(el.style.transform).toBe('rotate(90deg)')
   })
 })
+
+describe('iconGlyph — texture-safe, explicit-colour glyphs', () => {
+  test('a stroked glyph is tinted via explicit stroke attrs and positioned/scaled', () => {
+    const g = mod.iconGlyph('check', { color: '#fff', size: 20, x: 5, y: 5 })
+    expect(g.tagName.toLowerCase()).toBe('g')
+    expect(g.getAttribute('transform')).toContain('translate(5 5) scale(')
+    expect(g.getAttribute('stroke')).toBe('#fff')
+    expect(g.getAttribute('fill')).toBe('none')
+    expect(g.childNodes.length).toBeGreaterThan(0)
+  })
+
+  test('a filled glyph gets explicit fill, no stroke', () => {
+    const g = mod.iconGlyph('game', { color: '#0f0' })
+    expect(g.getAttribute('fill')).toBe('#0f0')
+    expect(g.getAttribute('stroke')).toBe('none')
+  })
+
+  test('a colour glyph keeps its baked palette (no tint attrs on the group)', () => {
+    const g = mod.iconGlyph('xrColor')
+    expect(g.getAttribute('fill')).toBeNull()
+    expect(g.getAttribute('stroke')).toBeNull()
+    expect(g.querySelector('path')).not.toBeNull()
+  })
+
+  test('an unknown name warns and yields the fallback square', () => {
+    const orig = console.warn
+    const warnings: string[] = []
+    console.warn = (m?: unknown) => warnings.push(String(m))
+    try {
+      const g = mod.iconGlyph('nope')
+      expect(g.querySelector('rect')).not.toBeNull()
+    } finally {
+      console.warn = orig
+    }
+    expect(warnings.some((w) => w.includes('nope'))).toBe(true)
+  })
+})

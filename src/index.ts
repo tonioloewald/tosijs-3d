@@ -298,6 +298,7 @@ export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane'
 export {
   svgIcons,
   createSvgIcons,
+  iconGlyph,
   iconNames,
   iconAliases,
   iconData,
