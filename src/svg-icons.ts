@@ -1,0 +1,237 @@
+/*#
+# svg-icons
+
+An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
+focused icon set. `svgIcons.<name>()` returns an SVG **`ElementCreator`** — so you
+get the full power of the elements factory (props, bindings, event handlers,
+children), not just a static blob. Because it's a real element it works both as a
+flat DOM node **and** — via `.outerHTML` — as markup rasterized into an in-scene
+SVG texture (the VR panels), so one icon set serves both presentations.
+
+## Demo
+
+The whole set, plus a few composed variants (rotate / flip / opacity / a
+generator redirect). `color` sets `currentColor`, which the stroked glyphs follow
+and the baked-color cube ignores.
+
+```js
+import { svgIcons, iconNames } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div } = elements
+
+const tile = (name) =>
+  div(
+    {
+      style:
+        'display:flex;flex-direction:column;align-items:center;gap:6px;width:88px;color:#dfe6ef;font:12px system-ui',
+    },
+    svgIcons[name]({ style: { height: '40px', color: '#5fb0ff' } }),
+    div(name)
+  )
+
+const names = [
+  ...iconNames(),
+  'arrowUpRight90r', // rotate: ↗ → ↘
+  'arrowUpRight0f', // flip H: ↗ → ↖ (a rotation can't produce this)
+  'camera50o', // 50% opacity
+  'arrowDownRight', // a generator redirect (→ arrowUpRight90r)
+]
+
+preview.append(
+  div(
+    {
+      style:
+        'display:flex;flex-wrap:wrap;gap:18px;padding:20px;background:#141821;border-radius:12px',
+    },
+    ...names.map(tile)
+  )
+)
+```
+
+## Composition suffixes
+
+Names carry a **subset** of tosijs-ui's suffix grammar (see [[icon-name]]) — the
+pure style modifiers: rotate/flip/scale/translate/opacity/stroke-width/color.
+Directional redirects baked in by the icon generator resolve too:
+
+```javascript
+svgIcons.arrowUpRight90r() // rotate:  ↗ → ↘
+svgIcons.arrowUpRight0f()  // flip H:  ↗ → ↖  (a rotation can't produce this)
+svgIcons.arrowDownRight()  // generator redirect → arrowUpRight rotated 90°
+svgIcons.camera50o()       // camera at 50% opacity
+svgIcons.xrColor()         // the purpose-built "enter XR / VR" mark
+```
+
+Not implemented (deliberately): `$` stacking and the `spin`/`un`/`check` overlay
+rule-prefixes.
+
+## The set
+
+The artwork lives in `icons/{color,stroked,filled}/*.svg`; `bun run icons`
+regenerates [[icon-data]] via tosijs-ui's `tosijs-make-icons` generator (folder
+name → default fill/stroke/color handling). Add an SVG, rerun, done. Notable
+marks: `tosijs3d` (the brand cube), `xrColor` (the enter-XR/VR affordance, from
+tosijs-ui), and `tosiXr`.
+*/
+
+import { elements, svgElements, varDefault, type ElementPart } from 'tosijs'
+import iconData from './icon-data'
+import { parseStyleSuffixes, mergeIconStyle, type IconStyle } from './icon-name'
+
+export { iconData }
+export type { IconStyle } from './icon-name'
+
+type IconMap = Record<string, string>
+
+const MAX_REDIRECTS = 10
+// Shown (with a warning) when a name resolves to nothing — a plain square.
+const FALLBACK =
+  '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>'
+
+/**
+ * Follow redirect chains and strip style suffixes until we reach real SVG markup,
+ * accumulating the implied style. Returns `null` if the name resolves to nothing.
+ */
+function resolveToMarkup(
+  data: IconMap,
+  name: string
+): { spec: string; style: IconStyle } | null {
+  const style: IconStyle = {}
+  let cur = name
+  for (let i = 0; i < MAX_REDIRECTS; i++) {
+    const entry = data[cur]
+    if (entry && entry.startsWith('<')) return { spec: entry, style }
+    // A trailing suffix run? Peel it off (base may itself be a redirect).
+    const parsed = parseStyleSuffixes(cur)
+    if (parsed) {
+      mergeIconStyle(style, parsed.style)
+      cur = parsed.baseName
+      continue
+    }
+    // A plain redirect (name → another name).
+    if (entry) {
+      cur = entry
+      continue
+    }
+    return null
+  }
+  return null
+}
+
+let iconIdSeq = 0
+
+/**
+ * Build a fresh SVG element from icon markup, merging the caller's element parts
+ * and applying the class-driven color model + any composed style. Mirrors the
+ * shape of tosijs-ui's `makeIcon` (id-uniquify, class-based fill/stroke, size via
+ * the shared `--tosi-icon-*` vars) so our icons theme alongside tosijs-ui's.
+ */
+function buildSvgIcon(
+  spec: string,
+  parts: ElementPart[],
+  style?: IconStyle
+): SVGSVGElement {
+  const holder = elements.div()
+  holder.innerHTML = spec
+  const source = holder.querySelector('svg') as SVGElement
+
+  // Uniquify any internal ids (clipPath/mask/gradient) so repeated instances
+  // don't collide. Generated data is id-free, so this is defensive.
+  const idEls = source.querySelectorAll('[id]')
+  if (idEls.length > 0) {
+    const idMap = new Map<string, string>()
+    for (const el of idEls) {
+      const newId = `b3d_icon_${++iconIdSeq}`
+      idMap.set(el.id, newId)
+      el.id = newId
+    }
+    let inner = source.innerHTML
+    for (const [oldId, newId] of idMap) {
+      const esc = oldId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      inner = inner
+        .replace(new RegExp(`url\\(#${esc}\\)`, 'g'), `url(#${newId})`)
+        .replace(new RegExp(`href="#${esc}"`, 'g'), `href="#${newId}"`)
+    }
+    source.innerHTML = inner
+  }
+
+  const classes = new Set(source.classList)
+  classes.add('tosi-icon')
+  const svg = svgElements.svg(
+    {
+      class: Array.from(classes).join(' '),
+      viewBox: source.getAttribute('viewBox') ?? '0 0 24 24',
+    },
+    ...parts,
+    ...Array.from(source.children)
+  ) as SVGSVGElement
+
+  // Class-driven defaults, but only where the caller (via `parts`) hasn't already
+  // set the property — so an inline `style` in the creator call wins, giving the
+  // element-creator its full expected power.
+  if (!svg.style.height) svg.style.height = varDefault.tosiIconSize('1em')
+  if (classes.has('color')) {
+    // `color` icons (incl. `color filled`, e.g. xrColor) keep their baked-in
+    // per-path fills/strokes — impose no currentColor tint.
+  } else if (classes.has('filled')) {
+    if (!svg.style.stroke) svg.style.stroke = 'none'
+    if (!svg.style.fill) svg.style.fill = 'currentColor'
+  } else if (classes.has('stroked')) {
+    if (!svg.style.stroke)
+      svg.style.stroke = varDefault.tosiIconStroke('currentColor')
+    if (!svg.style.fill) svg.style.fill = varDefault.tosiIconFill('none')
+    if (!svg.style.strokeWidth)
+      svg.style.strokeWidth = varDefault.tosiIconStrokeWidth('2px')
+  } else {
+    // Untyped icon: monochrome, follows currentColor.
+    if (!svg.style.stroke)
+      svg.style.stroke = varDefault.tosiIconStroke('currentColor')
+    if (!svg.style.fill)
+      svg.style.fill = varDefault.tosiIconFill('currentColor')
+  }
+
+  // Composition-suffix styles (from the name) are applied last, so `chevron_f00S`
+  // overrides the class default stroke.
+  if (style) Object.assign(svg.style, style)
+  return svg
+}
+
+/** An SVG icon element creator: call with element parts, get an `<svg>` back. */
+export type SvgIconCreator = (...parts: ElementPart[]) => SVGSVGElement
+
+/**
+ * Build an icon proxy over a specific icon-data map. The default {@link svgIcons}
+ * binds this to tosijs-3d's generated set; pass your own map to make an
+ * independent proxy (this is also how the tests exercise it with a fixture).
+ */
+export function createSvgIcons(
+  data: IconMap = iconData as unknown as IconMap
+): Record<string, SvgIconCreator> {
+  return new Proxy({} as Record<string, SvgIconCreator>, {
+    get(_t, prop: string): SvgIconCreator {
+      return (...parts: ElementPart[]) => {
+        const resolved = resolveToMarkup(data, prop)
+        if (!resolved) {
+          console.warn(`svgIcons: unknown icon "${prop}"`)
+          return buildSvgIcon(FALLBACK, parts)
+        }
+        return buildSvgIcon(resolved.spec, parts, resolved.style)
+      }
+    },
+    has(_t, prop: string): boolean {
+      return typeof prop === 'string' && resolveToMarkup(data, prop) !== null
+    },
+  })
+}
+
+/** Names of the icons with real artwork (excludes pure redirect entries). */
+export function iconNames(
+  data: IconMap = iconData as unknown as IconMap
+): string[] {
+  return Object.keys(data).filter((name) => data[name].startsWith('<'))
+}
+
+/** The default icon proxy, over tosijs-3d's generated icon set. */
+export const svgIcons = createSvgIcons()
+
+/*{ "parent": "UI" }*/

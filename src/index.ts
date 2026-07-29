@@ -294,6 +294,21 @@ export { SvgTexture } from './svg-texture'
 export type { SvgTextureOptions } from './svg-texture'
 export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane'
 
+// Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
+export {
+  svgIcons,
+  createSvgIcons,
+  iconNames,
+  iconData,
+  type SvgIconCreator,
+} from './svg-icons'
+export {
+  parseStyleSuffixes,
+  mergeIconStyle,
+  type IconStyle,
+  type ParsedIconName,
+} from './icon-name'
+
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'
 export { B3dSound, b3dSound } from './b3d-sound'
