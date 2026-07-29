@@ -72,6 +72,88 @@ regenerates [[icon-data]] via tosijs-ui's `tosijs-make-icons` generator (folder
 name → default fill/stroke/color handling). Add an SVG, rerun, done. Notable
 marks: `tosijs3d` (the brand cube), `xrColor` (the enter-XR/VR affordance, from
 tosijs-ui), and `tosiXr`.
+
+## DOM ‖ 3D — svgIcons vs iconGlyph
+
+The same icons two ways, side by side: `svgIcons` in the DOM (left) and
+`iconGlyph` baked onto an in-scene SVG **texture** (right). The 3D
+grid proves the raster path — `currentColor` doesn't resolve there, so `iconGlyph`
+bakes explicit colours (here `#e6e6e6`), while `color` icons keep their palette.
+Orbit the plane; they should match the DOM grid.
+
+```js
+import { b3d, b3dLight, b3dSvgPlane, svgIcons, iconGlyph, iconNames } from 'tosijs-3d'
+import { svgElements, elements } from 'tosijs'
+
+const { svg, rect } = svgElements
+const { div } = elements
+
+const names = iconNames().slice(0, 12)
+const cols = 4
+const cell = 64
+const iconPx = 40
+const rows = Math.ceil(names.length / cols)
+const w = cols * cell
+const h = rows * cell
+
+// 3D side: one SVG sheet of iconGlyphs (explicit colours) → plane texture.
+const sheet = svg(
+  { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
+  rect({ x: 0, y: 0, width: w, height: h, fill: '#141821' }),
+  ...names.map((n, i) =>
+    iconGlyph(n, {
+      color: '#e6e6e6',
+      size: iconPx,
+      x: (i % cols) * cell + (cell - iconPx) / 2,
+      y: Math.floor(i / cols) * cell + (cell - iconPx) / 2,
+    })
+  )
+)
+
+const plane = b3dSvgPlane({
+  width: 2.4,
+  height: (2.4 * h) / w,
+  resolution: 512,
+  materialChannel: 'emissive',
+  pointerEvents: false,
+})
+plane.svgElement = sheet
+
+const scene = b3d(
+  {
+    sceneCreated(el) {
+      const cam = new el.BABYLON.ArcRotateCamera(
+        'cam', -Math.PI / 2, Math.PI / 2.6, 3.2, el.BABYLON.Vector3.Zero(), el.scene
+      )
+      el.setActiveCamera(cam)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+    },
+  },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+// DOM side: the same icons via svgIcons.
+const domGrid = div(
+  {
+    style: `display:grid;grid-template-columns:repeat(${cols},${cell}px);background:#141821;color:#e6e6e6`,
+  },
+  ...names.map((n) =>
+    div(
+      { style: `display:flex;align-items:center;justify-content:center;height:${cell}px` },
+      svgIcons[n]({ style: { height: `${iconPx}px` } })
+    )
+  )
+)
+
+preview.append(
+  div(
+    { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px;background:#0c0e14' },
+    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM (svgIcons)', domGrid),
+    div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture (iconGlyph)', scene)
+  )
+)
+```
 */
 
 import { elements, svgElements, varDefault, type ElementPart } from 'tosijs'
@@ -281,7 +363,10 @@ export function iconGlyph(
     )
   }
   const holder = elements.div()
-  holder.innerHTML = resolved?.spec ?? FALLBACK
+  // `currentColor` doesn't resolve in a rasterized texture, so bake it to `color`
+  // up front. Harmless for hex-coloured multicolour icons; it's what lets a
+  // `color` icon that's actually monochrome-via-currentColor (e.g. keyboard) tint.
+  holder.innerHTML = (resolved?.spec ?? FALLBACK).replace(/currentColor/g, color)
   const src = holder.querySelector('svg') as SVGElement
   const vb = (src.getAttribute('viewBox') ?? '0 0 24 24').split(/[\s,]+/).map(Number)
   const scale = size / Math.max(vb[2] || 24, vb[3] || 24)

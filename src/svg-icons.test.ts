@@ -147,6 +147,14 @@ describe('iconGlyph — texture-safe, explicit-colour glyphs', () => {
     expect(g.querySelector('path')).not.toBeNull()
   })
 
+  test('a currentColor colour-icon (keyboard) is baked to the explicit colour', () => {
+    // keyboard is `color`-class but fill:currentColor, which won't resolve in a
+    // texture raster — iconGlyph must bake it to the requested colour.
+    const g = mod.iconGlyph('keyboard', { color: '#abcdef' })
+    expect(g.outerHTML.toLowerCase()).toContain('#abcdef')
+    expect(g.outerHTML).not.toContain('currentColor')
+  })
+
   test('an unknown name warns and yields the fallback square', () => {
     const orig = console.warn
     const warnings: string[] = []
