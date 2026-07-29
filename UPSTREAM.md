@@ -26,6 +26,8 @@ across four new components).
 
 | `tonioloewald/tosijs-ui` | ✅ **RESOLVED in 1.7.4** — **the doc-browser header logo is now configurable.** Was hard-coded to `icons.tosiUi()` (doc-browser.ts ~L705), so every site showed the generic tosijs-ui glyph regardless of its own brand. 1.7.4 adds a `logo` option (icon name **or** image URL/path/`data:` URI) on `SiteConfig.logo`, `createDocBrowser({ logo })`, and `<tosi-doc-system config>`. We now set `logo: '/favicon.svg'` and removed the `defineIcons({ tosiUi })` override that had been the stopgap. | (fixed upstream) |
 
+| `tonioloewald/tosijs-ui` | **`make-icon-data` strips `fill-rule` from non-`color` icons, breaking compound-path (evenodd) art.** For a `stroked`/`filled` icon the generator runs `replace(/(fill|stroke)(-\w+)?:[^;]+;?/g, '')`, which also removes `fill-rule:evenodd` — so a single compound path that uses evenodd for holes (e.g. a keyboard: body rect + key rects punched out) reverts to `nonzero` and mis-fills. `fill-rule` is fill **topology**, not color, and should survive the strip. **Worked around** by putting the keyboard in `color/` with `fill:currentColor` (the `color` branch preserves `fill-rule`, and currentColor keeps it themeable) — but that's a hack for what should be a `filled` icon. **To file.** | to file |
+
 ## Incoming
 
 `gh issue list -R tonioloewald/tosijs-3d` is empty (open and closed). 0.5.0 closes no incoming

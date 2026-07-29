@@ -115,4 +115,11 @@ describe('svgIcons — the real generated set', () => {
     expect(el.classList.contains('color')).toBe(true)
     expect(el.style.fill).toBe('') // color icons keep per-path fills, root untouched
   })
+
+  test('the moreHorizontal alias resolves to moreVertical rotated 90°', () => {
+    expect('moreHorizontal' in mod.svgIcons).toBe(true)
+    const el = mod.svgIcons.moreHorizontal()
+    expect(el.querySelector('circle')).not.toBeNull() // moreVertical is three dots
+    expect(el.style.transform).toBe('rotate(90deg)')
+  })
 })

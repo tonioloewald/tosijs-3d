@@ -299,6 +299,7 @@ export {
   svgIcons,
   createSvgIcons,
   iconNames,
+  iconAliases,
   iconData,
   type SvgIconCreator,
 } from './svg-icons'

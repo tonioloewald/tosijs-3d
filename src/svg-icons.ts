@@ -200,17 +200,31 @@ function buildSvgIcon(
 export type SvgIconCreator = (...parts: ElementPart[]) => SVGSVGElement
 
 /**
+ * Hand-authored redirects layered on top of the generated set — for aliases the
+ * icon generator can't express (a rotated/flipped variant under a different
+ * name). They're ordinary redirect entries, so they compose with suffixes just
+ * like the generator's own directional redirects, and they survive
+ * `bun run icons` (which only rewrites {@link icon-data}).
+ */
+export const iconAliases: IconMap = {
+  moreHorizontal: 'moreVertical90r',
+}
+
+/**
  * Build an icon proxy over a specific icon-data map. The default {@link svgIcons}
  * binds this to tosijs-3d's generated set; pass your own map to make an
  * independent proxy (this is also how the tests exercise it with a fixture).
+ * `aliases` are merged UNDER the data (real icons win any name clash).
  */
 export function createSvgIcons(
-  data: IconMap = iconData as unknown as IconMap
+  data: IconMap = iconData as unknown as IconMap,
+  aliases: IconMap = iconAliases
 ): Record<string, SvgIconCreator> {
+  const map: IconMap = { ...aliases, ...data }
   return new Proxy({} as Record<string, SvgIconCreator>, {
     get(_t, prop: string): SvgIconCreator {
       return (...parts: ElementPart[]) => {
-        const resolved = resolveToMarkup(data, prop)
+        const resolved = resolveToMarkup(map, prop)
         if (!resolved) {
           console.warn(`svgIcons: unknown icon "${prop}"`)
           return buildSvgIcon(FALLBACK, parts)
@@ -219,7 +233,7 @@ export function createSvgIcons(
       }
     },
     has(_t, prop: string): boolean {
-      return typeof prop === 'string' && resolveToMarkup(data, prop) !== null
+      return typeof prop === 'string' && resolveToMarkup(map, prop) !== null
     },
   })
 }
