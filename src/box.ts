@@ -129,6 +129,57 @@ preview.append(
   readout
 )
 ```
+
+## Resizable — drag to re-wrap, then scroll
+
+Drag the corner grip: `box.resize(w, h)` re-flows — the paragraph re-wraps to the
+new width (so its height changes), and once the content is taller than the box it
+becomes a **scroll region** (spin the wheel). One box: resize, re-flow, scroll.
+
+```js
+import { box, textBlock } from 'tosijs-3d'
+import { svgElements, elements } from 'tosijs'
+
+const { svg, rect } = svgElements
+const { div } = elements
+
+let W = 320
+let H = 170
+const long =
+  'This paragraph re-wraps as the box gets narrower, so its height grows. Shrink the box below the content height and it turns into a scroll region — spin the wheel to scroll. One box: resize, re-flow, and scroll, all in pure SVG.'
+const panel = box(
+  { width: W, height: H, padding: 14, gap: 8, background: '#161a22', border: '#2a3140', radius: 10 },
+  textBlock('Resizable box', { font: { size: 16, weight: 600 }, color: '#e6e6e6' }),
+  textBlock(long, { font: { size: 13 }, color: '#9fb0c3' })
+)
+
+const host = svg({ width: 520, height: 340, style: 'touch-action:none' })
+host.append(panel.el)
+const grip = rect({ width: 16, height: 16, rx: 3, fill: '#5fb0ff', style: 'cursor:nwse-resize' })
+host.append(grip)
+const placeGrip = () => { grip.setAttribute('x', W - 8); grip.setAttribute('y', panel.viewportHeight - 8) }
+placeGrip()
+
+let drag = null
+grip.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, w: W, h: H }; grip.setPointerCapture(e.pointerId); e.preventDefault() })
+grip.addEventListener('pointermove', (e) => {
+  if (!drag) return
+  W = Math.max(140, Math.min(500, drag.w + (e.clientX - drag.x)))
+  H = Math.max(70, Math.min(320, drag.h + (e.clientY - drag.y)))
+  panel.resize(W, H)
+  placeGrip()
+})
+grip.addEventListener('pointerup', () => { drag = null })
+host.addEventListener('wheel', (e) => { panel.scrollBy(e.deltaY); e.preventDefault() })
+
+preview.append(
+  div(
+    { style: 'padding:16px;background:#0c0e14' },
+    host,
+    div({ style: 'color:#8ea;font:12px system-ui;padding-top:8px' }, 'Drag the blue corner grip; spin the wheel to scroll.')
+  )
+)
+```
 */
 /*{ "parent": "UI" }*/
 
