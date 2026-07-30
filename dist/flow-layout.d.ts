@@ -39,4 +39,39 @@ export interface FlowResult {
  * re-runs this on resize (that's the whole point: width in → heights out).
  */
 export declare function flowLayout(items: FlowItem[], opts: FlowOptions): FlowResult;
+/**
+ * **Directional focus navigation** over laid-out boxes — the spatial query that
+ * gives gamepad/keyboard D-pad nav for free (no hand-authored tab order). From
+ * box `fromIndex`, find the nearest eligible box in cardinal direction `dir`
+ * (one of `{dx,dy}` ∈ {±1,0}). "In the direction" means its centre lies ahead on
+ * that axis; among those, the winner minimises *main-axis distance + an off-axis
+ * penalty*, so a roughly-aligned neighbour beats a closer but sideways one.
+ * Returns the chosen index, or `null` if nothing lies that way.
+ */
+export declare function nearestInDirection(boxes: FlowBox[], fromIndex: number, dir: {
+    dx: number;
+    dy: number;
+}, eligible?: (i: number) => boolean): number | null;
+/** Where a popup opens relative to its anchor. `right`/`left` = cascade (submenu). */
+export type PopupSide = 'below' | 'above' | 'right' | 'left';
+/**
+ * Position a popup of `size` relative to `anchor`, **staying inside `bounds`**
+ * (the surface, origin at 0,0). Opens toward `prefer`; if it would overflow on
+ * the primary axis it **flips** to the opposite side, and the cross axis is
+ * **clamped** to the surface. This is what lets a cascade submenu open beside its
+ * parent and flip left near the edge — the popup lives at the surface root, so it
+ * collides with the *surface*, not the anchor's box. Returns the final `{x, y}`
+ * and the side actually used.
+ */
+export declare function placePopup(anchor: FlowBox, size: {
+    width: number;
+    height: number;
+}, bounds: {
+    width: number;
+    height: number;
+}, prefer?: PopupSide): {
+    x: number;
+    y: number;
+    side: PopupSide;
+};
 //# sourceMappingURL=flow-layout.d.ts.map

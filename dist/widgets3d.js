@@ -56,7 +56,7 @@ preview.append(
 ```
 ```test
 import { tosi, updates } from 'tosijs'
-import { panel3d, slider3d, toggle3d, button3d, list3d } from 'tosijs-3d'
+import { panel3d, slider3d, toggle3d, button3d, iconBar3d, list3d } from 'tosijs-3d'
 const { s } = tosi({ s: { v: 0, on: false } })
 
 test('slider reflects an external bound change', async () => {
@@ -92,6 +92,22 @@ test('button fires onClick on release', () => {
   panel.handlePointer('down', 150, 30)
   panel.handlePointer('up', 150, 30)
   expect(clicked).toBe(true)
+})
+
+test('iconBar toggles the icon under the pointer on release', () => {
+  const hits = []
+  const panel = panel3d({ width: 300, height: 100 }, iconBar3d({
+    items: [
+      { icon: 'barChart2', onClick: () => hits.push('perf') },
+      { icon: 'bug', onClick: () => hits.push('bug') },
+    ],
+  }))
+  preview.append(panel)
+  // Buttons are 32px wide from the left padding, 6px gap → 2nd button ~x=50.
+  // padding(12) + button0 spans ~12..44, button1 ~50..82. Click the 2nd.
+  panel.handlePointer('down', 62, 30)
+  panel.handlePointer('up', 62, 30)
+  expect(hits).toEqual(['bug'])
 })
 
 test('list selects the clicked row', () => {
@@ -271,6 +287,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 /*{ "parent": "UI" }*/
 import { svgElements } from 'tosijs';
 import { stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, } from './widgets3d-layout';
+import { iconGlyph } from './svg-icons';
 const { svg, g, rect, text, circle, clipPath } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
 const ROW = 40;
@@ -476,6 +493,93 @@ export function button3d(config) {
                 if (kind === 'up')
                     config.onClick?.();
             }
+        },
+    };
+}
+/**
+ * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
+ * header. Each item is an [[svg-icons|iconGlyph]] (explicit colours, so it
+ * rasterizes onto the in-scene / XR texture the same as it draws flat), sized to
+ * a square button; `active` items get a selected background and an accent
+ * underline. Left-aligned, so the empty right end reads as scroll-drag surface
+ * (via `hitTest`) — important in VR where a precise point is hard.
+ *
+ * Used to reduce a stack of debug sections to one icon apiece: the scene panel
+ * collapses Perf Stats / each debug source to an icon here, and expands the
+ * matching content below the bar when its icon is on.
+ */
+export function iconBar3d(config) {
+    const BS = 32; // button size
+    const GAP = 6;
+    const ICON = 20;
+    const SELECTED = BTN_ACTIVE;
+    const by = (ROW - BS) / 2;
+    // Per-item background + accent underline. The glyph itself bakes its colour at
+    // creation (texture-safe), so state is shown by the background, not the icon.
+    const cells = config.items.map((item) => {
+        const bg = rect({
+            x: 0,
+            y: 0,
+            width: BS,
+            height: BS,
+            rx: 8,
+            ry: 8,
+            fill: item.active ? SELECTED : BTN_BG,
+        });
+        const underline = rect({
+            x: 6,
+            y: BS - 3,
+            width: BS - 12,
+            height: 2,
+            rx: 1,
+            fill: item.active ? ACCENT : 'transparent',
+        });
+        const glyph = iconGlyph(item.icon, {
+            color: TEXT,
+            size: ICON,
+            x: (BS - ICON) / 2,
+            y: (BS - ICON) / 2,
+        });
+        const cell = css(g({ 'data-w3d-icon': item.icon }, bg, glyph, underline), 'cursor:pointer');
+        if (item.title)
+            cell.appendChild(svgElements.title(item.title));
+        return { item, bg, cell };
+    });
+    const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell));
+    const step = BS + GAP;
+    const indexAt = (x) => {
+        const i = Math.floor(x / step);
+        if (i < 0 || i >= cells.length)
+            return -1;
+        // Reject the GAP dead-zone between buttons.
+        return x - i * step <= BS ? i : -1;
+    };
+    const paint = (hover) => {
+        cells.forEach((c, i) => {
+            const base = c.item.active ? SELECTED : BTN_BG;
+            c.bg.setAttribute('fill', i === hover ? BTN_HOVER : base);
+        });
+    };
+    return {
+        el,
+        layout() {
+            cells.forEach((c, i) => {
+                c.cell.setAttribute('transform', `translate(${i * step} ${by})`);
+            });
+            return ROW;
+        },
+        hitTest(x) {
+            return indexAt(x) >= 0;
+        },
+        handle(kind, x) {
+            if (kind === 'leave') {
+                paint(-1);
+                return;
+            }
+            const i = indexAt(x);
+            paint(i);
+            if (kind === 'up' && i >= 0)
+                cells[i].item.onClick?.();
         },
     };
 }

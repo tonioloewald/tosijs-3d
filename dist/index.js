@@ -68,7 +68,7 @@ export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './
 export { B3dCar, b3dCar } from './b3d-car';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft';
 // SVG widgets (DOM-overlay or in-scene panels)
-export { panel3d, label3d, text3d, textBlock3d, button3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
+export { panel3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
 export { stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout';
 // SVG material system
 export { SvgTexture } from './svg-texture';
@@ -77,7 +77,11 @@ export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane';
 export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';
 // Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
-export { flowLayout, } from './flow-layout';
+export { flowLayout, nearestInDirection, placePopup, } from './flow-layout';
+// Flow `box` — the SVG UI container (paint / resize / scroll) built on flowLayout
+export { box, textBlock, inlineIcon, blockItem, inlineItem, button, } from './box';
+// UI surface — content + overlay popups; cascade menus
+export { surface, openMenu, } from './surface';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';

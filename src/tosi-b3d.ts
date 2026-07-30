@@ -157,6 +157,7 @@ import { xrControllers, type TosiXRControllerMap } from './gamepad'
 import {
   panel3d,
   button3d,
+  iconBar3d,
   label3d,
   textBlock3d,
   type Widget3d,
@@ -229,6 +230,9 @@ export type DebugPanelSource = {
   lines: () => string[]
   /** Rendered as buttons. This is how you toggle a profiler on from inside a headset. */
   actions?: Array<{ label: string | (() => string); onClick: () => void }>
+  /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
+   * name — see [[svg-icons]]). Defaults to `'bug'`. */
+  icon?: string
 }
 
 export type SceneAdditionHandler = (additions: SceneAdditions) => void
@@ -1068,7 +1072,10 @@ export class B3d extends Component {
   }
 
   private _statsBaseScale: number | null = null
-  private _statsExpanded = false
+  // Which debug tools (Perf Stats + registered sources) are expanded, by id. Empty
+  // by default — the panel opens with the debug data collapsed to its icon bar, so
+  // a demo's own controls aren't buried under diagnostics you didn't ask to see.
+  private _debugOpen = new Set<string>()
   private _debugSources: DebugPanelSource[] = []
   private _liveDebug: { flat: LiveDebugRow[]; xr: LiveDebugRow[] } = {
     flat: [],
@@ -1222,7 +1229,7 @@ export class B3d extends Component {
   }
 
   /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
-   * its contents in place. Unified on purpose — see `_perfPanelRows`. */
+   * its contents in place. Unified on purpose — see `_panelWidgets`. */
   private _repaintPanels(): void {
     this.refreshScenePanel()
     this._refreshXrPanel()
@@ -1248,46 +1255,55 @@ export class B3d extends Component {
   // prompted this — a readout that only refreshes when you REOPEN the panel is useless:
   // you switch a profiler on, the panel rebuilds instantly with the fresh (all-zero)
   // counters, and then you sit there watching frozen zeros while you fly.
-  private _debugSourceRows(xr: boolean): Widget3d[] {
-    const rows: Widget3d[] = []
-    const bucket: LiveDebugRow[] = []
-    for (const src of this._debugSources) {
-      let lines: string[]
-      try {
-        lines = src.lines()
-      } catch (err) {
-        lines = [`(threw: ${(err as Error)?.message ?? err})`]
-      }
-      // Name as a compact heading, then ONE wrapping block for the body — instead of a
-      // 40px row per line that both wasted vertical space and clipped long lines.
-      rows.push(label3d({ text: src.name, bold: true, compact: true }))
-      const block = textBlock3d({ lines, muted: true })
-      rows.push(block)
-      bucket.push({
-        update: (next) => block.update(next),
-        lines: () => src.lines(),
-      })
-      for (const action of src.actions ?? []) {
-        rows.push(
-          button3d({
-            label:
-              typeof action.label === 'function'
-                ? action.label()
-                : action.label,
-            // A button's own label can change ('Profile tiles' → 'Profiling ON'), and a
-            // button label isn't live text — so this one case does want a rebuild.
-            onClick: () => {
-              action.onClick()
-              this.refreshScenePanel()
-              this._refreshXrPanel()
-            },
-          })
-        )
-      }
+  private _sourceRows(src: DebugPanelSource, bucket: LiveDebugRow[]): Widget3d[] {
+    let lines: string[]
+    try {
+      lines = src.lines()
+    } catch (err) {
+      lines = [`(threw: ${(err as Error)?.message ?? err})`]
     }
-    this._liveDebug[xr ? 'xr' : 'flat'] = bucket
-    this._startLiveDebug()
+    // Name as a compact heading, then ONE wrapping block for the body — instead of a
+    // 40px row per line that both wasted vertical space and clipped long lines.
+    const block = textBlock3d({ lines, muted: true })
+    const rows: Widget3d[] = [
+      label3d({ text: src.name, bold: true, compact: true }),
+      block,
+    ]
+    bucket.push({
+      update: (next) => block.update(next),
+      lines: () => src.lines(),
+    })
+    for (const action of src.actions ?? []) {
+      rows.push(
+        button3d({
+          label:
+            typeof action.label === 'function' ? action.label() : action.label,
+          // A button's own label can change ('Profile tiles' → 'Profiling ON'), and a
+          // button label isn't live text — so this one case does want a rebuild.
+          onClick: () => {
+            action.onClick()
+            this._repaintPanels()
+          },
+        })
+      )
+    }
     return rows
+  }
+
+  // The debug tools the panel's icon bar offers: Perf Stats (when opted in) plus every
+  // registered source, each with the icon its toggle shows. Perf Stats is core, not a
+  // registered source, so it carries a fixed id + icon here; a source picks its own via
+  // `DebugPanelSource.icon` (default `bug`). The icon bar toggles membership in
+  // `_debugOpen`; only open tools render their rows below the bar (see `_panelWidgets`).
+  private _debugTools(): Array<{ id: string; name: string; icon: string }> {
+    const tools: Array<{ id: string; name: string; icon: string }> = []
+    if (perfDebugEnabled() || this.stats) {
+      tools.push({ id: '__perf', name: 'Perf Stats', icon: 'barChart2' })
+    }
+    for (const src of this._debugSources) {
+      tools.push({ id: src.name, name: src.name, icon: src.icon ?? 'bug' })
+    }
+    return tools
   }
 
   // Rewrite the debug lines' text in place. The flat panel is live DOM, so it just shows
@@ -1316,39 +1332,19 @@ export class B3d extends Component {
     }, 400)
   }
 
-  // Perf-stats rows for the scene panel (dual-presence: flat overlay AND the in-VR
-  // panel), so the readout is reachable in a headset too — the reason it lives here
-  // and not in the flat toolbar. Collapsed to a single "Perf Stats" button by default;
-  // tapping it expands the readout (kept out of the way of the demo's own controls).
+  // Perf-stats readout for the scene panel (dual-presence: flat overlay AND the in-VR
+  // panel), so it's reachable in a headset too — the reason it lives here and not in the
+  // flat toolbar. Rendered only when its icon-bar toggle is on; the icon owns the
+  // expand/collapse, so there's no header button here (there used to be, back when the
+  // section was toggled by tapping its own header).
   //
-  // IDENTICAL flat and in XR. It used to render always-expanded with a dead header in the
-  // headset, because the XR panel was built once on entry with no way to rebuild it — so a
-  // collapse toggle there would have done nothing. `_refreshXrPanel` now rewrites the XR
-  // panel's contents in place, so that excuse is gone and the divergence with it: the panel
-  // is ONE ui with two presentations, and a control that exists in one must work in both.
-  private _perfPanelRows(): Widget3d[] {
-    if (!this._statsExpanded) {
-      return [
-        button3d({
-          label: 'Perf Stats ▸',
-          onClick: () => {
-            this._statsExpanded = true
-            this._repaintPanels()
-          },
-        }),
-      ]
-    }
+  // IDENTICAL flat and in XR. `_refreshXrPanel` rewrites the XR panel in place, so a
+  // control that exists in one presentation works in both — the panel is ONE ui with two
+  // presentations.
+  private _perfReadoutRows(): Widget3d[] {
     const s = this.debugState
     const scaled = this._statsBaseScale != null
-    const header = button3d({
-      label: 'Perf Stats ▾',
-      onClick: () => {
-        this._statsExpanded = false
-        this._repaintPanels()
-      },
-    })
     return [
-      header,
       label3d({
         text: `render ${s.renderWidth}×${s.renderHeight}  (css ${s.cssWidth}×${s.cssHeight})`,
         muted: true,
@@ -1379,27 +1375,59 @@ export class B3d extends Component {
             this.engine.setHardwareScalingLevel(this._statsBaseScale)
             this._statsBaseScale = null
           }
-          this.refreshScenePanel()
+          this._repaintPanels()
         },
       }),
     ]
   }
 
-  // The scene panel's widgets: the author's `scenePanel` hook, plus the perf-stats
-  // section when opted in. Both the flat overlay and the XR panel build from this,
-  // and the gear reveals when it's non-empty. `xr` selects the always-expanded,
-  // non-toggleable perf rendering for the headset panel.
+  // The scene panel's widgets: a debug icon-bar (Perf Stats + each registered source,
+  // one icon apiece), the expanded content of whichever debug tools are on, then the
+  // author's `scenePanel` hook. Both the flat overlay and the XR panel build from THIS
+  // one list — that's the "one UI, two presentations" contract, so the icon bar and its
+  // expansion behave identically flat and in a headset. Toggling an icon mutates
+  // `_debugOpen` and rebuilds both panels (a structural change — see `_repaintPanels`).
+  //
+  // The bar comes FIRST: a demo's own controls shouldn't be buried under diagnostics, but
+  // the diagnostics must be one tap away (there's no console in VR). Collapsed by default,
+  // so the panel opens clean; an expanded tool's status still sits ABOVE the author rows.
   private _panelWidgets(xr = false): Widget3d[] {
     const rows = this.scenePanel(this)
-    // Debug sources go FIRST. They're opt-in by construction (nothing registers unless it
-    // wants to be seen), and a diagnostic below the fold is a diagnostic you can't read —
-    // which is exactly how we got stuck: the panel's pick was broken, so the buttons AND
-    // the scrolling were dead, and the readout that would have explained why was parked
-    // underneath a demo's nine sliders. Status before controls.
-    const debug = this._debugSourceRows(xr)
-    return perfDebugEnabled() || this.stats
-      ? [...debug, ...this._perfPanelRows(), ...rows]
-      : [...debug, ...rows]
+    const tools = this._debugTools()
+    if (tools.length === 0) {
+      // No debug tools → nothing to stop, clear this presentation's live bucket.
+      this._liveDebug[xr ? 'xr' : 'flat'] = []
+      return rows
+    }
+    const out: Widget3d[] = [
+      iconBar3d({
+        items: tools.map((t) => ({
+          icon: t.icon,
+          title: t.name,
+          active: this._debugOpen.has(t.id),
+          onClick: () => {
+            if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
+            else this._debugOpen.add(t.id)
+            this._repaintPanels()
+          },
+        })),
+      }),
+    ]
+    // Live text blocks for the OPEN sources are collected here and rewritten in place by
+    // `_startLiveDebug` (a readout that only refreshes on reopen is useless — you'd switch
+    // a profiler on and then watch frozen zeros). Collapsed tools contribute nothing.
+    const bucket: LiveDebugRow[] = []
+    for (const t of tools) {
+      if (!this._debugOpen.has(t.id)) continue
+      if (t.id === '__perf') out.push(...this._perfReadoutRows())
+      else {
+        const src = this._debugSources.find((s) => s.name === t.id)
+        if (src) out.push(...this._sourceRows(src, bucket))
+      }
+    }
+    this._liveDebug[xr ? 'xr' : 'flat'] = bucket
+    this._startLiveDebug()
+    return [...out, ...rows]
   }
 
   // window.requestAnimationFrame stops firing during an immersive XR session (the
@@ -2154,6 +2182,7 @@ export class B3d extends Component {
     // wrong. If `cam` isn't WebXRCamera, we're gazing off the wrong camera entirely.
     this.addDebugSource({
       name: 'Nameplates',
+      icon: 'messageSquare',
       lines: () => {
         const n = this._nameplateList.length
         if (n === 0) return ['none']
@@ -2286,8 +2315,8 @@ export class B3d extends Component {
 
   private _closeScenePanel(): void {
     ;(this.parts.scenePanelHost as HTMLElement).setAttribute('hidden', '')
-    // Perf stats collapse again on next open — kept out of the way by default.
-    this._statsExpanded = false
+    // Debug tools collapse again on next open — kept out of the way by default.
+    this._debugOpen.clear()
   }
 
   /** Rebuild the flat scene panel from the current rows, if it's open.

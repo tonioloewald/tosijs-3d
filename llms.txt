@@ -111,6 +111,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
 - https://3d.tosijs.net/b3d-water/ — b3d-water
   Water plane with reflections, waves, and underwater fog effect.
+- https://3d.tosijs.net/box/ — box
+  The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/combat/ — Combat
@@ -166,6 +168,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/space/ — Space
 - https://3d.tosijs.net/spatial-transform/ — spatial-transform
   Pure, dependency-free transform math for the **spatial attachment mechanics**
+- https://3d.tosijs.net/surface/ — surface
+  The **UI surface** — a root that holds a content [[box]] plus a top **overlay
 - https://3d.tosijs.net/svg-icons/ — svg-icons
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture

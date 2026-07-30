@@ -25,6 +25,9 @@ export type DebugPanelSource = {
         label: string | (() => string);
         onClick: () => void;
     }>;
+    /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
+     * name — see [[svg-icons]]). Defaults to `'bug'`. */
+    icon?: string;
 };
 export type SceneAdditionHandler = (additions: SceneAdditions) => void;
 export type SceneAdditions = {
@@ -352,7 +355,7 @@ export declare class B3d extends Component {
      */
     private _ambientWatchdog;
     private _statsBaseScale;
-    private _statsExpanded;
+    private _debugOpen;
     private _debugSources;
     private _liveDebug;
     private _liveDebugTimer;
@@ -416,12 +419,13 @@ export declare class B3d extends Component {
         height?: number;
     }): Promise<string>;
     /** Repaint BOTH presentations of the panel. The flat one rebuilds; the XR one rewrites
-     * its contents in place. Unified on purpose — see `_perfPanelRows`. */
+     * its contents in place. Unified on purpose — see `_panelWidgets`. */
     private _repaintPanels;
     addDebugSource(source: DebugPanelSource): () => void;
-    private _debugSourceRows;
+    private _sourceRows;
+    private _debugTools;
     private _startLiveDebug;
-    private _perfPanelRows;
+    private _perfReadoutRows;
     private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;

@@ -97,4 +97,80 @@ export function flowLayout(items, opts) {
     const height = items.length > 0 ? Math.max(0, y - rowGap) : 0;
     return { boxes, width: W, height };
 }
+/**
+ * **Directional focus navigation** over laid-out boxes — the spatial query that
+ * gives gamepad/keyboard D-pad nav for free (no hand-authored tab order). From
+ * box `fromIndex`, find the nearest eligible box in cardinal direction `dir`
+ * (one of `{dx,dy}` ∈ {±1,0}). "In the direction" means its centre lies ahead on
+ * that axis; among those, the winner minimises *main-axis distance + an off-axis
+ * penalty*, so a roughly-aligned neighbour beats a closer but sideways one.
+ * Returns the chosen index, or `null` if nothing lies that way.
+ */
+export function nearestInDirection(boxes, fromIndex, dir, eligible = () => true) {
+    const from = boxes[fromIndex];
+    if (!from)
+        return null;
+    const fx = from.x + from.width / 2;
+    const fy = from.y + from.height / 2;
+    const { dx, dy } = dir;
+    let best = null;
+    let bestScore = Infinity;
+    for (let i = 0; i < boxes.length; i++) {
+        if (i === fromIndex || !eligible(i))
+            continue;
+        const b = boxes[i];
+        const cx = b.x + b.width / 2;
+        const cy = b.y + b.height / 2;
+        const along = (cx - fx) * dx + (cy - fy) * dy; // progress in the pressed direction
+        if (along <= 0)
+            continue; // not ahead
+        const off = Math.abs((cx - fx) * dy - (cy - fy) * dx); // perpendicular offset
+        const score = along + off * 2; // penalise sideways candidates
+        if (score < bestScore) {
+            bestScore = score;
+            best = i;
+        }
+    }
+    return best;
+}
+/**
+ * Position a popup of `size` relative to `anchor`, **staying inside `bounds`**
+ * (the surface, origin at 0,0). Opens toward `prefer`; if it would overflow on
+ * the primary axis it **flips** to the opposite side, and the cross axis is
+ * **clamped** to the surface. This is what lets a cascade submenu open beside its
+ * parent and flip left near the edge — the popup lives at the surface root, so it
+ * collides with the *surface*, not the anchor's box. Returns the final `{x, y}`
+ * and the side actually used.
+ */
+export function placePopup(anchor, size, bounds, prefer = 'below') {
+    const fits = {
+        below: anchor.y + anchor.height + size.height <= bounds.height,
+        above: anchor.y - size.height >= 0,
+        right: anchor.x + anchor.width + size.width <= bounds.width,
+        left: anchor.x - size.width >= 0,
+    };
+    const opposite = {
+        below: 'above',
+        above: 'below',
+        right: 'left',
+        left: 'right',
+    };
+    // Flip to the opposite side only if it doesn't fit but the opposite does.
+    const side = !fits[prefer] && fits[opposite[prefer]] ? opposite[prefer] : prefer;
+    let x;
+    let y;
+    if (side === 'below' || side === 'above') {
+        x = anchor.x; // cross axis: align left edges, then clamp
+        y = side === 'below' ? anchor.y + anchor.height : anchor.y - size.height;
+    }
+    else {
+        y = anchor.y; // cross axis: align top edges, then clamp
+        x = side === 'right' ? anchor.x + anchor.width : anchor.x - size.width;
+    }
+    // Clamp both axes into the surface (so an over-tall/over-wide popup still lands
+    // on-surface; it can scroll internally).
+    x = Math.max(0, Math.min(x, bounds.width - size.width));
+    y = Math.max(0, Math.min(y, bounds.height - size.height));
+    return { x, y, side };
+}
 //# sourceMappingURL=flow-layout.js.map

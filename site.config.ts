@@ -96,7 +96,14 @@ export default defineSiteConfig({
   // ESM loader copied into static/ by prebuild. Dynamic `import()` in a
   // classic `<script>` consults the page's importmap, so this works without
   // having to load iife.js as a module.
-  headExtra: `<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script>`,
+  // Two head injections: the jolt importmap, and a project-wide override that drops the
+  // live-example preview inset. tosijs-ui's `tosi-example` is a LIGHT-DOM component whose
+  // `.preview` container carries `padding: var(--spacing)` (~10px breathing room) — sensible
+  // for a widget demo, but here nearly every example is a full-bleed `<tosi-b3d>` scene where
+  // the inset just fences the canvas off from its own rounded border. The extra `tosi-doc-system`
+  // ancestor lifts specificity above the component's own `tosi-example .preview` rule, so this
+  // wins regardless of stylesheet injection order (no `!important` needed).
+  headExtra: `<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>`,
 
   prebuild: async () => {
     await $`cp node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js static/jolt-physics.wasm-compat.js`

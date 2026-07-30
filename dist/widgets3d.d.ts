@@ -72,6 +72,26 @@ export declare function button3d(config: {
     label: string;
     onClick?: () => void;
 }): Widget3d;
+/**
+ * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
+ * header. Each item is an [[svg-icons|iconGlyph]] (explicit colours, so it
+ * rasterizes onto the in-scene / XR texture the same as it draws flat), sized to
+ * a square button; `active` items get a selected background and an accent
+ * underline. Left-aligned, so the empty right end reads as scroll-drag surface
+ * (via `hitTest`) — important in VR where a precise point is hard.
+ *
+ * Used to reduce a stack of debug sections to one icon apiece: the scene panel
+ * collapses Perf Stats / each debug source to an icon here, and expands the
+ * matching content below the bar when its icon is on.
+ */
+export declare function iconBar3d(config: {
+    items: Array<{
+        icon: string;
+        title?: string;
+        active?: boolean;
+        onClick?: () => void;
+    }>;
+}): Widget3d;
 /** A labelled on/off switch bound to a boolean. */
 export declare function toggle3d(config: {
     label: string;

@@ -269,6 +269,7 @@ export {
   text3d,
   textBlock3d,
   button3d,
+  iconBar3d,
   toggle3d,
   slider3d,
   select3d,
