@@ -132,3 +132,43 @@ export function flowLayout(items: FlowItem[], opts: FlowOptions): FlowResult {
   const height = items.length > 0 ? Math.max(0, y - rowGap) : 0
   return { boxes, width: W, height }
 }
+
+/**
+ * **Directional focus navigation** over laid-out boxes — the spatial query that
+ * gives gamepad/keyboard D-pad nav for free (no hand-authored tab order). From
+ * box `fromIndex`, find the nearest eligible box in cardinal direction `dir`
+ * (one of `{dx,dy}` ∈ {±1,0}). "In the direction" means its centre lies ahead on
+ * that axis; among those, the winner minimises *main-axis distance + an off-axis
+ * penalty*, so a roughly-aligned neighbour beats a closer but sideways one.
+ * Returns the chosen index, or `null` if nothing lies that way.
+ */
+export function nearestInDirection(
+  boxes: FlowBox[],
+  fromIndex: number,
+  dir: { dx: number; dy: number },
+  eligible: (i: number) => boolean = () => true
+): number | null {
+  const from = boxes[fromIndex]
+  if (!from) return null
+  const fx = from.x + from.width / 2
+  const fy = from.y + from.height / 2
+  const { dx, dy } = dir
+
+  let best: number | null = null
+  let bestScore = Infinity
+  for (let i = 0; i < boxes.length; i++) {
+    if (i === fromIndex || !eligible(i)) continue
+    const b = boxes[i]
+    const cx = b.x + b.width / 2
+    const cy = b.y + b.height / 2
+    const along = (cx - fx) * dx + (cy - fy) * dy // progress in the pressed direction
+    if (along <= 0) continue // not ahead
+    const off = Math.abs((cx - fx) * dy - (cy - fy) * dx) // perpendicular offset
+    const score = along + off * 2 // penalise sideways candidates
+    if (score < bestScore) {
+      bestScore = score
+      best = i
+    }
+  }
+  return best
+}

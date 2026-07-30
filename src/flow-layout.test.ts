@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'bun:test'
-import { flowLayout, type FlowItem } from './flow-layout'
+import {
+  flowLayout,
+  nearestInDirection,
+  type FlowItem,
+  type FlowBox,
+} from './flow-layout'
 
 const block = (height: number): FlowItem => ({ kind: 'block', height })
 const inline = (width: number, height: number): FlowItem => ({
@@ -99,5 +104,40 @@ describe('flowLayout — mixed', () => {
     expect(wide.boxes[1].y).toBe(0) // both fit on one line
     expect(narrow.boxes[1].y).toBe(32) // second wraps
     expect(narrow.height).toBeGreaterThan(wide.height)
+  })
+})
+
+describe('nearestInDirection — spatial focus nav', () => {
+  // a 2×2 grid: 0 1 / 2 3
+  const grid: FlowBox[] = [
+    { x: 0, y: 0, width: 50, height: 50 }, // 0
+    { x: 60, y: 0, width: 50, height: 50 }, // 1 (right of 0)
+    { x: 0, y: 60, width: 50, height: 50 }, // 2 (below 0)
+    { x: 60, y: 60, width: 50, height: 50 }, // 3 (below 1)
+  ]
+  const R = { dx: 1, dy: 0 }
+  const L = { dx: -1, dy: 0 }
+  const D = { dx: 0, dy: 1 }
+  const U = { dx: 0, dy: -1 }
+
+  test('cardinal neighbours', () => {
+    expect(nearestInDirection(grid, 0, R)).toBe(1)
+    expect(nearestInDirection(grid, 0, D)).toBe(2)
+    expect(nearestInDirection(grid, 3, U)).toBe(1)
+    expect(nearestInDirection(grid, 3, L)).toBe(2)
+  })
+
+  test('null when nothing lies that way', () => {
+    expect(nearestInDirection(grid, 0, L)).toBeNull()
+    expect(nearestInDirection(grid, 0, U)).toBeNull()
+  })
+
+  test('prefers the aligned neighbour over a closer diagonal', () => {
+    // moving right from 0, box 1 (aligned) beats box 3 (diagonal), same distance
+    expect(nearestInDirection(grid, 0, R)).toBe(1)
+  })
+
+  test('honours the eligibility filter (skip 1 → next best right is 3)', () => {
+    expect(nearestInDirection(grid, 0, R, (i) => i !== 1)).toBe(3)
   })
 })

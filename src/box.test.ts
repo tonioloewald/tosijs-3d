@@ -31,7 +31,9 @@ describe('box — structure', () => {
       mod.textBlock('hi')
     )
     expect(b.el.tagName.toLowerCase()).toBe('g')
-    expect(b.el.querySelector('[data-box-bg]')?.getAttribute('fill')).toBe('#111')
+    expect(b.el.querySelector('[data-box-bg]')?.getAttribute('fill')).toBe(
+      '#111'
+    )
     expect(b.el.querySelector('clipPath')).not.toBeNull()
     expect(b.el.querySelector('[data-box-content]')).not.toBeNull()
   })
@@ -93,5 +95,64 @@ describe('box — inline children flow', () => {
     expect(tx(wraps[1])).toBeGreaterThan(tx(wraps[0])) // same row, to the right
     expect(ty(wraps[0])).toBe(ty(wraps[1]))
     expect(wraps[0].querySelector('path,polyline,line,g')).not.toBeNull()
+  })
+})
+
+describe('box — event model', () => {
+  test('focusMove focuses the first focusable, then navigates by direction', () => {
+    let activated = ''
+    const b = mod.box(
+      { width: 300, gap: 10 },
+      mod.button('Alpha', { onActivate: () => (activated = 'Alpha') }),
+      mod.button('Beta', { onActivate: () => (activated = 'Beta') }),
+      mod.button('Gamma', { onActivate: () => (activated = 'Gamma') })
+    )
+    expect(b.focusIndex()).toBe(-1)
+    b.focusMove(1, 0) // first move → first focusable
+    expect(b.focusIndex()).toBe(0)
+    b.focusMove(1, 0) // right → next
+    expect(b.focusIndex()).toBe(1)
+    b.focusActivate()
+    expect(activated).toBe('Beta')
+  })
+
+  test('the focus ring shows on the focused child', () => {
+    const b = mod.box({ width: 300 }, mod.button('X'))
+    const ring = b.el.querySelector('[data-box-focus]')
+    expect(ring?.getAttribute('visibility')).toBe('hidden')
+    b.focusMove(1, 0)
+    expect(ring?.getAttribute('visibility')).toBe('visible')
+  })
+
+  test('pointer down+up over the same child activates it', () => {
+    let hit = false
+    const b = mod.box(
+      { width: 200, padding: 0 },
+      mod.button('Go', { onActivate: () => (hit = true) })
+    )
+    b.handlePointer('down', 15, 15)
+    b.handlePointer('up', 15, 15)
+    expect(hit).toBe(true)
+  })
+
+  test('down on a child then up OUTSIDE it does NOT activate (press capture)', () => {
+    let hit = false
+    const b = mod.box(
+      { width: 200, padding: 0 },
+      mod.button('Go', { onActivate: () => (hit = true) })
+    )
+    b.handlePointer('down', 15, 15) // on the button
+    b.handlePointer('up', 195, 15) // off it
+    expect(hit).toBe(false)
+  })
+
+  test('focus skips non-focusable children (a text block)', () => {
+    const b = mod.box(
+      { width: 200, padding: 0 },
+      mod.textBlock('a label'),
+      mod.button('Go')
+    )
+    b.focusMove(1, 0)
+    expect(b.focusIndex()).toBe(1) // the button, not the text
   })
 })

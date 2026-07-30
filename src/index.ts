@@ -327,9 +327,11 @@ export {
   inlineIcon,
   blockItem,
   inlineItem,
+  button,
   type Box,
   type BoxChild,
   type BoxOptions,
+  type PointerKind,
 } from './box'
 
 // Effects & interaction
