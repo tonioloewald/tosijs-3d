@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/vertexColorMixing.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/vertexColorMixing.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"vertexColorMixing\";\nconst shader = `#if defined(VERTEXCOLOR) || defined(INSTANCESCOLOR) && defined(INSTANCES)\nvertexOutputs.vColor=vec4f(1.0);\n#ifdef VERTEXCOLOR\n#ifdef VERTEXALPHA\nvertexOutputs.vColor*=colorUpdated;\n#else\nvertexOutputs.vColor=vec4f(vertexOutputs.vColor.rgb*colorUpdated.rgb,vertexOutputs.vColor.a);\n#endif\n#endif\n#ifdef INSTANCESCOLOR\nvertexOutputs.vColor*=vertexInputs.instanceColor;\n#endif\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const vertexColorMixingWGSL = { name, shader };\n//# sourceMappingURL=vertexColorMixing.js.map"
   ],

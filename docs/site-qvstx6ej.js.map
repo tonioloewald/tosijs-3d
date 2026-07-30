@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/fresnelFunction.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/fresnelFunction.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"fresnelFunction\";\nconst shader = `#ifdef FRESNEL\nfn computeFresnelTerm(viewDirection: vec3f,worldNormal: vec3f,bias: f32,power: f32)->f32\n{let fresnelTerm: f32=pow(bias+abs(dot(viewDirection,worldNormal)),power);return clamp(fresnelTerm,0.,1.);}\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const fresnelFunctionWGSL = { name, shader };\n//# sourceMappingURL=fresnelFunction.js.map"
   ],

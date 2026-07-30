@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Shaders/ShadersInclude/boundingBoxRendererUboDeclaration.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/boundingBoxRendererUboDeclaration.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"boundingBoxRendererUboDeclaration\";\nconst shader = `#ifdef WEBGL2\nuniform vec4 color;uniform mat4 world;uniform mat4 viewProjection;\n#ifdef MULTIVIEW\nuniform mat4 viewProjectionR;\n#endif\n#else\nlayout(std140,column_major) uniform;uniform BoundingBoxRenderer {vec4 color;mat4 world;mat4 viewProjection;mat4 viewProjectionR;};\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const boundingBoxRendererUboDeclaration = { name, shader };\n//# sourceMappingURL=boundingBoxRendererUboDeclaration.js.map"
   ],

@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Shaders/ShadersInclude/subSurfaceScatteringFunctions.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/subSurfaceScatteringFunctions.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"subSurfaceScatteringFunctions\";\nconst shader = `bool testLightingForSSS(float diffusionProfile)\n{return diffusionProfile<1.;}`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const subSurfaceScatteringFunctions = { name, shader };\n//# sourceMappingURL=subSurfaceScatteringFunctions.js.map"
   ],

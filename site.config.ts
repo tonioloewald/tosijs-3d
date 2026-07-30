@@ -105,22 +105,35 @@ export default defineSiteConfig({
   // wins regardless of stylesheet injection order (no `!important` needed).
   headExtra: `<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>`,
 
-  // Remote access — `bun run tunnel` publishes THIS dev server (not a static copy) at
-  // an authenticated public URL, so the live site, live examples and "save local"
-  // editing all work from a phone, a hotel, or inside a headset. See bin/tunnel.ts.
+  // Remote access — `bun run tunnel` (tosijs-ui's `tosijs-tunnel` bin) publishes THIS
+  // dev server, not a static copy, at an authenticated URL: the live site, live
+  // examples and "save local" editing all work from a phone, a hotel, or a headset.
   //
-  // ONE hostname on purpose. tosijs-ui needs two (`ui.` static + `edit.` tunnel)
-  // because it serves both a deployed copy AND a tunnel; this project's public site is
-  // already GitHub Pages at 3d.tosijs.net, so there is nothing static to preview here —
-  // only the live workspace. Hence no `preview.url` and no `edit.` prefix.
+  // STILL only one hostname — this project's public site is GitHub Pages at
+  // 3d.tosijs.net, so there is no static preview to serve, only the live workspace
+  // (hence no `preview.url`). But it now carries the `.edit.` label, because 1.9.0-rc.1
+  // made that label MEAN something rather than being decoration:
+  //
+  //     <project>.dev.tosijs.net       read-only static preview, shareable
+  //     <project>.edit.dev.tosijs.net  live workspace, session always required
+  //
+  // A bare `3d.dev.tosijs.net` would now advertise "shareable read-only snapshot" for
+  // something that is neither — it is a writable mirror of an uncommitted tree. The
+  // prefix is signage for humans, not routing.
+  //
+  // `requireToken` is left at its rc.1 default of TRUE: no session, nothing at all.
+  // Deliberate — the hostname is not a secret (Let's Encrypt publishes every cert to
+  // public CT logs), so obscurity isn't doing any work here.
   //
   // `remotePort` MUST be unique per project on the box: sshd's `GatewayPorts no` binds
   // it to the box's loopback, and a second project reusing a port means whichever ssh
   // connected first wins while the other silently forwards nothing. tosijs-ui holds
-  // 9787.
+  // 9787. (`localPort` stays at its 8788 default — the dev server's separate
+  // loopback-only tunnel listener, which is what marks a request as remote so writes
+  // always demand a session.)
   preview: {
     host: 'root@212.147.248.15',
-    tunnel: { remotePort: 9788, url: 'https://3d.dev.tosijs.net' },
+    tunnel: { remotePort: 9788, url: 'https://3d.edit.dev.tosijs.net' },
   },
 
   prebuild: async () => {

@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Shaders/ShadersInclude/meshUboDeclaration.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/meshUboDeclaration.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"meshUboDeclaration\";\nconst shader = `#ifdef WEBGL2\nuniform mat4 world;uniform float visibility;\n#else\nlayout(std140,column_major) uniform;uniform Mesh\n{mat4 world;float visibility;};\n#endif\n#define WORLD_UBO\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const meshUboDeclaration = { name, shader };\n//# sourceMappingURL=meshUboDeclaration.js.map"
   ],

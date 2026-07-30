@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/meshUVSpaceRendererFinaliser.vertex.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/meshUVSpaceRendererFinaliser.vertex.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"meshUVSpaceRendererFinaliserVertexShader\";\nconst shader = `attribute position: vec3f;attribute uv: vec2f;uniform worldViewProjection: mat4x4f;varying vUV: vec2f;@vertex\nfn main(input : VertexInputs)->FragmentInputs {vertexOutputs.position=uniforms.worldViewProjection* vec4f(vertexInputs.position,1.0);vertexOutputs.positionvUV=vertexInputs.uv;}\n`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const meshUVSpaceRendererFinaliserVertexShaderWGSL = { name, shader };\n//# sourceMappingURL=meshUVSpaceRendererFinaliser.vertex.js.map"
   ],

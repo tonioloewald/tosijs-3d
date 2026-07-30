@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Misc/precisionDate.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Misc/precisionDate.js"],
   "sourcesContent": [
     "import { IsWindowObjectExist } from \"./domManagement.js\";\n/**\n * Class containing a set of static utilities functions for precision date\n */\nexport class PrecisionDate {\n    /**\n     * Gets either window.performance.now() if supported or Date.now() else\n     */\n    static get Now() {\n        if (IsWindowObjectExist() && window.performance && window.performance.now) {\n            return window.performance.now();\n        }\n        return Date.now();\n    }\n}\n//# sourceMappingURL=precisionDate.js.map"
   ],

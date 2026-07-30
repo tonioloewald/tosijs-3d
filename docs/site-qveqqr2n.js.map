@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/loaders/OBJ/objFileLoader.metadata.js", "../../node_modules/@babylonjs/core/Materials/Textures/texture.js", "../../node_modules/@babylonjs/loaders/OBJ/mtlFileLoader.js", "../../node_modules/@babylonjs/loaders/OBJ/solidParser.js", "../../node_modules/@babylonjs/loaders/OBJ/objFileLoader.pure.js", "../../node_modules/@babylonjs/loaders/OBJ/objFileLoader.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/loaders/OBJ/objFileLoader.metadata.js", "../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Materials/Textures/texture.js", "../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/loaders/OBJ/mtlFileLoader.js", "../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/loaders/OBJ/solidParser.js", "../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/loaders/OBJ/objFileLoader.pure.js", "../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/loaders/OBJ/objFileLoader.js"],
   "sourcesContent": [
     "export const OBJFileLoaderMetadata = {\n    name: \"obj\",\n    extensions: \".obj\",\n};\n//# sourceMappingURL=objFileLoader.metadata.js.map",
     "/**\n * Re-exports pure implementation and applies runtime side effects.\n * Import texture.pure for tree-shakeable, side-effect-free usage.\n */\nexport * from \"./texture.pure.js\";\nimport { RegisterTexture } from \"./texture.pure.js\";\nRegisterTexture();\n//# sourceMappingURL=texture.js.map",

@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/meshUboDeclaration.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/meshUboDeclaration.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"meshUboDeclaration\";\nconst shader = `struct Mesh {world : mat4x4<f32>,\nvisibility : f32,};var<uniform> mesh : Mesh;\n#define WORLD_UBO\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const meshUboDeclarationWGSL = { name, shader };\n//# sourceMappingURL=meshUboDeclaration.js.map"
   ],

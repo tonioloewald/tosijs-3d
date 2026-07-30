@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Misc/typeStore.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Misc/typeStore.js"],
   "sourcesContent": [
     "/** @internal */\n// eslint-disable-next-line @typescript-eslint/naming-convention\nconst RegisteredTypes = {};\n/**\n * @internal\n */\nexport function RegisterClass(className, type) {\n    RegisteredTypes[className] = type;\n}\n/**\n * @internal\n */\nexport function GetClass(fqdn) {\n    return RegisteredTypes[fqdn];\n}\n/**\n * @internal\n */\nexport function GetClassName(obj) {\n    for (const key in RegisteredTypes) {\n        if (obj instanceof RegisteredTypes[key] && !key.includes(\"Abstract\")) {\n            return key;\n        }\n    }\n    return \"Unknown\";\n}\n//# sourceMappingURL=typeStore.js.map"
   ],

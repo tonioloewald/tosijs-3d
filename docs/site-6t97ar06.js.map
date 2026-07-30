@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Misc/uniqueIdGenerator.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Misc/uniqueIdGenerator.js"],
   "sourcesContent": [
     "/**\n * Helper class used to generate session unique ID\n */\nexport class UniqueIdGenerator {\n    /**\n     * Gets an unique (relatively to the current scene) Id\n     */\n    static get UniqueId() {\n        const result = this._UniqueIdCounter;\n        this._UniqueIdCounter++;\n        return result;\n    }\n}\n// Statics\nUniqueIdGenerator._UniqueIdCounter = 1;\n//# sourceMappingURL=uniqueIdGenerator.js.map"
   ],

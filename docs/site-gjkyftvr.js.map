@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/Shaders/ShadersInclude/pointCloudVertex.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/pointCloudVertex.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"pointCloudVertex\";\nconst shader = `#if defined(POINTSIZE) && !defined(WEBGPU)\ngl_PointSize=pointSize;\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const pointCloudVertex = { name, shader };\n//# sourceMappingURL=pointCloudVertex.js.map"
   ],

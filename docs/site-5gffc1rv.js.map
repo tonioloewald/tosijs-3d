@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "sources": ["../../node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/fogVertex.js"],
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/fogVertex.js"],
   "sourcesContent": [
     "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"fogVertex\";\nconst shader = `#ifdef FOG\n#ifdef SCENE_UBO\nvertexOutputs.vFogDistance=(scene.view*worldPos).xyz;\n#else\nvertexOutputs.vFogDistance=(uniforms.view*worldPos).xyz;\n#endif\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const fogVertexWGSL = { name, shader };\n//# sourceMappingURL=fogVertex.js.map"
   ],
