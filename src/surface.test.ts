@@ -72,3 +72,43 @@ describe('surface — cascade menu', () => {
     expect(s.popups.length).toBe(0)
   })
 })
+
+describe('surface — persistent draggable panel', () => {
+  const mk = (o = {}) => {
+    const s = S.surface({ width: 400, height: 400 })
+    const c = B.box({ width: 160, height: 100, background: '#111' })
+    const p = s.openPanel({ x: 40, y: 40 }, c, { title: 'Debug', ...o })
+    return { s, p }
+  }
+
+  test('openPanel adds a persistent panel that an outside press does NOT dismiss', () => {
+    const { s, p } = mk()
+    expect(s.popups.length).toBe(1)
+    expect(p.kind).toBe('panel')
+    s.handlePointer('down', 5, 5) // outside the panel
+    expect(s.popups.length).toBe(1) // still open
+  })
+
+  test('the close × removes the panel', () => {
+    const { s, p } = mk()
+    const cr = p.closeRect!
+    s.handlePointer('down', p.x + cr.x + cr.width / 2, p.y + cr.y + cr.height / 2)
+    expect(s.popups.length).toBe(0)
+  })
+
+  test('dragging the title bar moves the panel', () => {
+    const { s, p } = mk({ draggable: true })
+    s.handlePointer('down', p.x + 20, p.y + 10) // title bar, clear of the ×
+    s.handlePointer('move', p.x + 70, p.y + 40)
+    s.handlePointer('up', p.x + 70, p.y + 40)
+    expect(p.x).toBe(90) // 40 + 50
+    expect(p.y).toBe(70) // 40 + 30
+  })
+
+  test('a drag is clamped so the panel stays on the surface', () => {
+    const { s, p } = mk({ draggable: true })
+    s.handlePointer('down', p.x + 20, p.y + 10)
+    s.handlePointer('move', p.x + 1020, p.y + 10) // way off-right
+    expect(p.x).toBe(240) // clamped: 400 - 160
+  })
+})

@@ -8,11 +8,18 @@ the surface), and stack for **cascade menus**: a submenu opens beside its parent
 item, and the same surface routes the pointer to the top-most popup, dismissing on
 an outside press. Renders in the DOM and on a 3D texture like everything else.
 
-## Cascade menus
+## Menus vs. panels
 
-`openMenu(surface, anchor, items)` opens a menu popup; a `submenu` item opens a
-child popup to its **right** (flipping left near the edge) — the tree stays
-visible, not a push/pop stack. A leaf item selects and closes the whole menu.
+Two popup kinds share the overlay:
+
+- **Menus** — transient cascades. `openMenu(surface, anchor, items)` opens a menu;
+  a `submenu` item opens a child popup to its **right** (flipping left near the
+  edge) — the tree stays visible, not push/pop. A leaf selects and closes the
+  whole cascade; an outside press dismisses it.
+- **Panels** — persistent floating windows. `surface.openPanel(at, box, { title,
+  draggable })` opens a titled panel that **stays until closed** (its × or
+  `closePopup`) and can be **dragged by its title bar** (clamped to the surface).
+  An outside press does NOT dismiss it — ideal for a pinned debug/inspector panel.
 
 ## Demo
 
@@ -40,25 +47,31 @@ const items = [
   },
 ]
 
+const mono = { size: 12, family: 'ui-monospace, monospace' }
+const debugRows = () => box(
+  { width: 150, padding: 10, gap: 3, background: '#0e1116' },
+  textBlock('fps      60', { font: mono, color: '#9fe0a0' }),
+  textBlock('draws   214', { font: mono, color: '#9fb0c3' }),
+  textBlock('tris   128k', { font: mono, color: '#9fb0c3' }),
+  textBlock('mem   84 MB', { font: mono, color: '#9fb0c3' })
+)
+
 const make = () => {
   const s = surface({ width: W, height: H })
-  const trigger = button('Menu  ▾', {
-    onActivate: () => openMenu(s, s.__triggerRect, items, 'below'),
-  })
+  const menuBtn = button('Menu  ▾', { onActivate: () => openMenu(s, s.__triggerRect, items, 'below') })
+  const dbgBtn = button('Debug  ▾', { onActivate: () => s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' }) })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: '#12151c' },
-    textBlock('Cascade menu', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
-    textBlock('Open the menu; "More ▸" cascades a submenu beside it. Click outside to dismiss.', { font: { size: 13 }, color: '#9fb0c3' }),
-    trigger
+    textBlock('Menus + panels', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
+    textBlock('Click Menu to cascade a submenu. Debug opens a persistent panel — drag its bar to move it, hit × to close.', { font: { size: 13 }, color: '#9fb0c3' }),
+    menuBtn,
+    dbgBtn
   )
   s.setContent(panel)
-  // remember the trigger's surface rect so the menu anchors to it
-  const r = panel.childRect(2)
+  const r = panel.childRect(2) // the Menu button
   s.__triggerRect = { x: r.x, y: r.y, width: r.width, height: r.height }
-  // pre-open so the cascade is visible at a glance
-  const top = openMenu(s, s.__triggerRect, items, 'below')
-  const mr = top.box.childRect(2) // the "More" item
-  openMenu(s, { x: top.x + mr.x, y: top.y + mr.y, width: mr.width, height: mr.height }, items[2].submenu, 'right')
+  // pre-open a draggable/closable debug panel so it's visible at a glance
+  s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' })
   return s
 }
 
@@ -122,6 +135,16 @@ export interface Popup {
   x: number
   y: number
   side: PopupSide
+  /** `menu` = transient cascade (outside-press dismisses); `panel` = persistent floating window. */
+  kind: 'menu' | 'panel'
+  /** Draggable by its title bar (panels only). */
+  draggable: boolean
+  /** Title-bar height = the drag zone; 0 for menus. */
+  dragHeight: number
+  /** Close-button hit region in popup-local coords (panels only). */
+  closeRect?: FlowBox
+  /** Close this popup (a menu closes its cascade from here down). */
+  close: () => void
 }
 
 export interface Surface {
@@ -131,9 +154,22 @@ export interface Surface {
   height: number
   /** Set (or replace) the main content box — its pointer gets events when no popup is open. */
   setContent: (b: Box) => void
-  /** Open `popupBox` anchored to `anchor` (surface coords); returns the popup. */
+  /** Open a transient **menu** popup anchored to `anchor` (cascade). */
   openPopup: (anchor: FlowBox, popupBox: Box, side?: PopupSide) => Popup
-  /** Close every popup. */
+  /**
+   * Open a persistent, draggable, closable **panel** (a floating window with a
+   * title bar). `at` is an anchor rect (placed below it) or an absolute `{x,y}`.
+   * It stays until closed via its × or {@link closePopup} — an outside press does
+   * NOT dismiss it.
+   */
+  openPanel: (
+    at: FlowBox | { x: number; y: number },
+    content: Box,
+    opts?: { title?: string; draggable?: boolean; onClose?: () => void }
+  ) => Popup
+  /** Close one popup. */
+  closePopup: (p: Popup) => void
+  /** Close every popup (menus + panels). */
   closeAll: () => void
   /**
    * Route a pointer event (surface coords). With popups open, the top-most one
@@ -147,6 +183,8 @@ export interface Surface {
   [scratch: string]: unknown
 }
 
+const TITLE_H = 30
+
 export function surface(opts: { width: number; height: number }): Surface {
   const { width, height } = opts
   const el = svgElements.g({ 'data-surface': '' }) as unknown as SVGGElement
@@ -154,14 +192,52 @@ export function surface(opts: { width: number; height: number }): Surface {
   const overlay = svgElements.g({ 'data-surface-overlay': '' })
   el.append(contentLayer, overlay)
 
-  const stack: Popup[] = []
+  const menus: Popup[] = [] // transient cascade, dismiss on outside press
+  const panels: Popup[] = [] // persistent floating windows
   let content: Box | null = null
+  // Pointer capture: which popup owns the current press, and whether it's a drag.
+  let cap: { p: Popup; drag: boolean; dx: number; dy: number } | null = null
 
-  const closeFrom = (idx: number): void => {
-    for (let i = stack.length - 1; i >= idx; i--) stack[i].el.remove()
-    stack.length = Math.max(0, idx)
+  const popW = (p: Popup) => p.box.width
+  const popH = (p: Popup) => p.dragHeight + p.box.viewportHeight
+  const inRect = (p: Popup, x: number, y: number) =>
+    x >= p.x && x <= p.x + popW(p) && y >= p.y && y <= p.y + popH(p)
+
+  const setPos = (p: Popup, x: number, y: number): void => {
+    p.x = Math.max(0, Math.min(x, width - popW(p)))
+    p.y = Math.max(0, Math.min(y, height - popH(p)))
+    p.el.setAttribute('transform', `translate(${p.x} ${p.y})`)
   }
-  const closeAll = (): void => closeFrom(0)
+
+  const closeMenusFrom = (idx: number): void => {
+    for (let i = menus.length - 1; i >= idx; i--) menus[i].el.remove()
+    menus.length = Math.max(0, idx)
+  }
+  const removePanel = (p: Popup): void => {
+    const i = panels.indexOf(p)
+    if (i >= 0) {
+      p.el.remove()
+      panels.splice(i, 1)
+    }
+  }
+  const closePopup = (p: Popup): void => {
+    if (p.kind === 'menu') {
+      const i = menus.indexOf(p)
+      if (i >= 0) closeMenusFrom(i)
+    } else removePanel(p)
+  }
+  const closeAll = (): void => {
+    closeMenusFrom(0)
+    for (const p of [...panels]) removePanel(p)
+  }
+  const bringToFront = (p: Popup): void => {
+    const i = panels.indexOf(p)
+    if (i >= 0 && i < panels.length - 1) {
+      panels.splice(i, 1)
+      panels.push(p)
+      overlay.append(p.el)
+    }
+  }
 
   const openPopup = (
     anchor: FlowBox,
@@ -176,41 +252,139 @@ export function surface(opts: { width: number; height: number }): Surface {
     }) as unknown as SVGGElement
     wrap.append(popupBox.el)
     overlay.append(wrap)
-    const p: Popup = { box: popupBox, el: wrap, x: pos.x, y: pos.y, side: pos.side }
-    stack.push(p)
+    const p: Popup = {
+      box: popupBox,
+      el: wrap,
+      x: pos.x,
+      y: pos.y,
+      side: pos.side,
+      kind: 'menu',
+      draggable: false,
+      dragHeight: 0,
+      close: () => closePopup(p),
+    }
+    menus.push(p)
     return p
   }
 
-  // topmost popup whose rect contains (x,y), or -1
-  const popupAt = (x: number, y: number): number => {
-    for (let i = stack.length - 1; i >= 0; i--) {
-      const p = stack[i]
-      if (
-        x >= p.x &&
-        x <= p.x + p.box.width &&
-        y >= p.y &&
-        y <= p.y + p.box.viewportHeight
+  const openPanel = (
+    at: FlowBox | { x: number; y: number },
+    contentBox: Box,
+    o: { title?: string; draggable?: boolean; onClose?: () => void } = {}
+  ): Popup => {
+    const w = contentBox.width
+    const draggable = o.draggable ?? true
+    // chrome: title bar (drag zone + close ×) over the content box.
+    const bar = svgElements.g({ 'data-panel-bar': '' })
+    bar.append(svgElements.rect({ x: 0, y: 0, width: w, height: TITLE_H, fill: '#1c2230' }))
+    bar.append(
+      svgElements.text(
+        { x: 12, y: TITLE_H / 2 + 5, fill: '#e6e6e6', 'font-family': 'system-ui, sans-serif', 'font-size': '14', 'font-weight': '600' },
+        o.title ?? ''
       )
-        return i
+    )
+    const cs = 20
+    const cx = w - cs - 6
+    const cy = (TITLE_H - cs) / 2
+    bar.append(svgElements.rect({ x: cx, y: cy, width: cs, height: cs, rx: 4, fill: 'transparent' }))
+    bar.append(
+      svgElements.path({
+        d: `M${cx + 6} ${cy + 6} L${cx + 14} ${cy + 14} M${cx + 14} ${cy + 6} L${cx + 6} ${cy + 14}`,
+        stroke: '#9fb0c3',
+        'stroke-width': '2',
+        'stroke-linecap': 'round',
+        fill: 'none',
+      })
+    )
+    const panelEl = svgElements.g({ 'data-panel': '' })
+    panelEl.append(bar)
+    const contentWrap = svgElements.g({ transform: `translate(0 ${TITLE_H})` })
+    contentWrap.append(contentBox.el)
+    panelEl.append(contentWrap)
+
+    const size = { width: w, height: TITLE_H + contentBox.viewportHeight }
+    const pos =
+      'width' in at
+        ? placePopup(at, size, { width, height }, 'below')
+        : { x: at.x, y: at.y, side: 'below' as PopupSide }
+    const wrap = svgElements.g({
+      'data-popup': '',
+      transform: `translate(${pos.x} ${pos.y})`,
+    }) as unknown as SVGGElement
+    wrap.append(panelEl)
+    overlay.append(wrap)
+    const p: Popup = {
+      box: contentBox,
+      el: wrap,
+      x: pos.x,
+      y: pos.y,
+      side: pos.side,
+      kind: 'panel',
+      draggable,
+      dragHeight: TITLE_H,
+      closeRect: { x: cx, y: cy, width: cs, height: cs },
+      close: () => {
+        removePanel(p)
+        o.onClose?.()
+      },
     }
-    return -1
+    panels.push(p)
+    return p
   }
 
   const handlePointer = (kind: PointerKind, x: number, y: number): void => {
-    if (stack.length === 0) {
-      content?.handlePointer(kind, x, y)
+    // move / up / leave → the captured popup (or a drag) owns it
+    if (kind !== 'down') {
+      if (cap) {
+        const p = cap.p
+        if (cap.drag) {
+          if (kind === 'move') setPos(p, x - cap.dx, y - cap.dy)
+          else cap = null
+        } else {
+          p.box.handlePointer(kind, x - p.x, y - p.y - p.dragHeight)
+          if (kind === 'up' || kind === 'leave') cap = null
+        }
+      } else {
+        content?.handlePointer(kind, x, y)
+      }
       return
     }
-    const at = popupAt(x, y)
-    if (kind === 'down') {
-      if (at < 0) {
-        closeAll()
+
+    // DOWN — menus (topmost cascade) first
+    for (let i = menus.length - 1; i >= 0; i--) {
+      const p = menus[i]
+      if (inRect(p, x, y)) {
+        closeMenusFrom(i + 1) // clicked a shallower menu → close the deeper cascade
+        cap = { p, drag: false, dx: 0, dy: 0 }
+        p.box.handlePointer('down', x - p.x, y - p.y)
         return
       }
-      if (at < stack.length - 1) closeFrom(at + 1) // clicked a shallower popup → close deeper
     }
-    const top = stack[stack.length - 1]
-    if (top) top.box.handlePointer(kind, x - top.x, y - top.y)
+    if (menus.length) closeMenusFrom(0) // down outside menus → dismiss the cascade
+
+    // panels (topmost); persistent — an outside press does NOT close them
+    for (let i = panels.length - 1; i >= 0; i--) {
+      const p = panels[i]
+      if (!inRect(p, x, y)) continue
+      bringToFront(p)
+      const lx = x - p.x
+      const ly = y - p.y
+      const cr = p.closeRect
+      if (cr && lx >= cr.x && lx <= cr.x + cr.width && ly >= cr.y && ly <= cr.y + cr.height) {
+        p.close()
+        return
+      }
+      if (p.draggable && ly < p.dragHeight) {
+        cap = { p, drag: true, dx: lx, dy: ly }
+        return
+      }
+      cap = { p, drag: false, dx: 0, dy: 0 }
+      p.box.handlePointer('down', lx, ly - p.dragHeight)
+      return
+    }
+
+    cap = null
+    content?.handlePointer('down', x, y)
   }
 
   return {
@@ -223,10 +397,12 @@ export function surface(opts: { width: number; height: number }): Surface {
       content = b
     },
     openPopup,
+    openPanel,
+    closePopup,
     closeAll,
     handlePointer,
     get popups() {
-      return stack
+      return [...panels, ...menus]
     },
   } as Surface
 }
