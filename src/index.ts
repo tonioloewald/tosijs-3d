@@ -314,10 +314,13 @@ export {
 // Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
 export {
   flowLayout,
+  nearestInDirection,
+  placePopup,
   type FlowItem,
   type FlowOptions,
   type FlowBox,
   type FlowResult,
+  type PopupSide,
 } from './flow-layout'
 
 // Flow `box` — the SVG UI container (paint / resize / scroll) built on flowLayout

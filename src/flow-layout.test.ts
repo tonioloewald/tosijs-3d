@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   flowLayout,
   nearestInDirection,
+  placePopup,
   type FlowItem,
   type FlowBox,
 } from './flow-layout'
@@ -139,5 +140,56 @@ describe('nearestInDirection — spatial focus nav', () => {
 
   test('honours the eligibility filter (skip 1 → next best right is 3)', () => {
     expect(nearestInDirection(grid, 0, R, (i) => i !== 1)).toBe(3)
+  })
+})
+
+describe('placePopup — anchored positioning with flip + clamp', () => {
+  const bounds = { width: 300, height: 300 }
+  const size = { width: 100, height: 80 }
+  const anchor = (x: number, y: number): FlowBox => ({ x, y, width: 40, height: 20 })
+
+  test('below: opens under the anchor when it fits', () => {
+    expect(placePopup(anchor(50, 50), size, bounds, 'below')).toEqual({
+      x: 50,
+      y: 70,
+      side: 'below',
+    })
+  })
+
+  test('below flips to above near the bottom edge', () => {
+    expect(placePopup(anchor(50, 250), size, bounds, 'below')).toEqual({
+      x: 50,
+      y: 170,
+      side: 'above',
+    })
+  })
+
+  test('right (cascade) opens beside the anchor when it fits', () => {
+    expect(placePopup(anchor(50, 50), size, bounds, 'right')).toEqual({
+      x: 90,
+      y: 50,
+      side: 'right',
+    })
+  })
+
+  test('right flips to left near the right edge (cascade collision)', () => {
+    expect(placePopup(anchor(250, 50), size, bounds, 'right')).toEqual({
+      x: 150,
+      y: 50,
+      side: 'left',
+    })
+  })
+
+  test('cross axis is clamped into the surface', () => {
+    // below, but the anchor is near the right edge → x clamps so it stays on-surface
+    expect(placePopup(anchor(250, 50), size, bounds, 'below')).toMatchObject({
+      x: 200, // 300 - 100
+      side: 'below',
+    })
+  })
+
+  test('an over-tall popup clamps to the top rather than going off-surface', () => {
+    const tall = { width: 100, height: 400 }
+    expect(placePopup(anchor(50, 50), tall, bounds, 'below').y).toBe(0)
   })
 })

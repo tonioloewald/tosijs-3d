@@ -172,3 +172,53 @@ export function nearestInDirection(
   }
   return best
 }
+
+/** Where a popup opens relative to its anchor. `right`/`left` = cascade (submenu). */
+export type PopupSide = 'below' | 'above' | 'right' | 'left'
+
+/**
+ * Position a popup of `size` relative to `anchor`, **staying inside `bounds`**
+ * (the surface, origin at 0,0). Opens toward `prefer`; if it would overflow on
+ * the primary axis it **flips** to the opposite side, and the cross axis is
+ * **clamped** to the surface. This is what lets a cascade submenu open beside its
+ * parent and flip left near the edge — the popup lives at the surface root, so it
+ * collides with the *surface*, not the anchor's box. Returns the final `{x, y}`
+ * and the side actually used.
+ */
+export function placePopup(
+  anchor: FlowBox,
+  size: { width: number; height: number },
+  bounds: { width: number; height: number },
+  prefer: PopupSide = 'below'
+): { x: number; y: number; side: PopupSide } {
+  const fits = {
+    below: anchor.y + anchor.height + size.height <= bounds.height,
+    above: anchor.y - size.height >= 0,
+    right: anchor.x + anchor.width + size.width <= bounds.width,
+    left: anchor.x - size.width >= 0,
+  }
+  const opposite: Record<PopupSide, PopupSide> = {
+    below: 'above',
+    above: 'below',
+    right: 'left',
+    left: 'right',
+  }
+  // Flip to the opposite side only if it doesn't fit but the opposite does.
+  const side =
+    !fits[prefer] && fits[opposite[prefer]] ? opposite[prefer] : prefer
+
+  let x: number
+  let y: number
+  if (side === 'below' || side === 'above') {
+    x = anchor.x // cross axis: align left edges, then clamp
+    y = side === 'below' ? anchor.y + anchor.height : anchor.y - size.height
+  } else {
+    y = anchor.y // cross axis: align top edges, then clamp
+    x = side === 'right' ? anchor.x + anchor.width : anchor.x - size.width
+  }
+  // Clamp both axes into the surface (so an over-tall/over-wide popup still lands
+  // on-surface; it can scroll internally).
+  x = Math.max(0, Math.min(x, bounds.width - size.width))
+  y = Math.max(0, Math.min(y, bounds.height - size.height))
+  return { x, y, side }
+}
