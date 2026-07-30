@@ -38,6 +38,14 @@ const { div } = elements
 const W = 240
 const H = 210
 
+const readout = div(
+  { style: 'margin:6px 16px 16px;color:#8ea;font:13px system-ui' },
+  'Activate a button: click it, arrow-key + Enter, or click the 3D panel.'
+)
+const act = (label) => () => {
+  readout.textContent = 'Activated: ' + label
+}
+
 const makePanel = () => {
   const p = box(
     { width: W, height: H, padding: 14, gap: 10, background: '#161a22', border: '#2a3140', radius: 12 },
@@ -46,9 +54,9 @@ const makePanel = () => {
       'Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.',
       { font: { size: 13 }, color: '#9fb0c3' }
     ),
-    button('Talk', { onActivate: () => console.log('Talk') }),
-    button('Trade', { onActivate: () => console.log('Trade') }),
-    button('Leave', { onActivate: () => console.log('Leave') })
+    button('Talk', { onActivate: act('Talk') }),
+    button('Trade', { onActivate: act('Trade') }),
+    button('Leave', { onActivate: act('Leave') })
   )
   p.focusMove(1, 0) // focus the first button so the ring shows
   return p
@@ -72,7 +80,9 @@ domSvg.addEventListener('keydown', (e) => {
   else if (e.key === 'Enter' || e.key === ' ') { domPanel.focusActivate(); e.preventDefault() }
 })
 
-// 3D side — the same panel on a plane texture (static; shows the focus ring)
+// 3D side — route each pick's texture-UV → box coords → the box's handlePointer
+// (the same path a VR ray takes). THIS is what makes it clickable in 3D.
+const texPanel = makePanel()
 const plane = b3dSvgPlane({
   width: 2.4,
   height: (2.4 * H) / W,
@@ -80,7 +90,7 @@ const plane = b3dSvgPlane({
   materialChannel: 'emissive',
   pointerEvents: false,
 })
-plane.svgElement = sheet(makePanel())
+plane.svgElement = sheet(texPanel)
 
 const scene = b3d(
   {
@@ -91,6 +101,18 @@ const scene = b3d(
       )
       el.setActiveCamera(cam)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      el.scene.constantlyUpdateMeshUnderPointer = true
+      const T = el.BABYLON.PointerEventTypes
+      el.scene.onPointerObservable.add((pi) => {
+        const kind =
+          pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : ''
+        if (!kind) return
+        const pk = pi.pickInfo
+        if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
+          const uv = pk.getTextureCoordinates()
+          if (uv) texPanel.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
+        }
+      })
     },
   },
   b3dLight({ intensity: 1 }),
@@ -99,10 +121,11 @@ const scene = b3d(
 
 preview.append(
   div(
-    { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px;background:#0c0e14' },
+    { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px 16px 4px;background:#0c0e14' },
     div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM — click / arrow-key + Enter', domSvg),
-    div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture', scene)
-  )
+    div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture — click the buttons', scene)
+  ),
+  readout
 )
 ```
 */
