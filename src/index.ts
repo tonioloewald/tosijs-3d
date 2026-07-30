@@ -333,6 +333,7 @@ export {
   button,
   type Box,
   type BoxChild,
+  type BoxChildState,
   type BoxOptions,
   type PointerKind,
 } from './box'

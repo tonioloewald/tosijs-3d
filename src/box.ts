@@ -153,6 +153,13 @@ import { iconGlyph } from './svg-icons'
  * called with the resolved width so width-dependent children (wrapped text)
  * re-render on resize.
  */
+/** Interaction flags a child can reflect visually (hover/press/focus). */
+export interface BoxChildState {
+  hovered: boolean
+  pressed: boolean
+  focused: boolean
+}
+
 export interface BoxChild {
   el: SVGElement
   kind: 'block' | 'inline'
@@ -162,6 +169,8 @@ export interface BoxChild {
   focusable?: boolean
   /** Called when the child is activated (pointer up-over, or focus + menu/Enter). */
   onActivate?: () => void
+  /** The box calls this when the child's hover/press/focus state changes. */
+  setState?: (state: BoxChildState) => void
 }
 
 /** Pointer phase fed to {@link Box.handlePointer}. */
@@ -251,6 +260,8 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   let laidBoxes: FlowBox[] = []
   let focused = -1
   let downTarget = -1
+  let hoverIdx = -1
+  let pressedIdx = -1
   const isFocusable = (i: number): boolean =>
     i >= 0 &&
     i < children.length &&
@@ -258,6 +269,15 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   const firstFocusable = (): number => {
     for (let i = 0; i < children.length; i++) if (isFocusable(i)) return i
     return -1
+  }
+  // Tell a child its current hover/press/focus so it can restyle (button, etc.).
+  const applyState = (i: number): void => {
+    if (i < 0) return
+    children[i].setState?.({
+      hovered: i === hoverIdx,
+      pressed: i === pressedIdx,
+      focused: i === focused,
+    })
   }
 
   let width = opts.width
@@ -399,24 +419,47 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
     },
     handlePointer(kind: PointerKind, x: number, y: number) {
       if (kind === 'leave') {
+        const p = pressedIdx
+        const h = hoverIdx
+        pressedIdx = -1
+        hoverIdx = -1
         downTarget = -1
+        if (p >= 0) applyState(p)
+        if (h >= 0) applyState(h)
         return
       }
       const hit = hitTest(x, y)
       if (kind === 'down') {
         downTarget = hit
+        if (hit >= 0) {
+          pressedIdx = hit
+          applyState(hit)
+        }
+      } else if (kind === 'move') {
+        if (hit !== hoverIdx) {
+          const old = hoverIdx
+          hoverIdx = hit
+          if (old >= 0) applyState(old)
+          if (hit >= 0) applyState(hit)
+        }
       } else if (kind === 'up') {
+        const p = pressedIdx
+        pressedIdx = -1
+        if (p >= 0) applyState(p)
         // Activate only if up lands on the same child the press started on.
         if (hit >= 0 && hit === downTarget) {
+          const old = focused
           focused = hit
           positionRing()
+          if (old >= 0 && old !== hit) applyState(old)
+          applyState(hit)
           children[hit].onActivate?.()
         }
         downTarget = -1
       }
-      // 'move' — reserved for hover/drag; no-op in this slice.
     },
     focusMove(dx: number, dy: number) {
+      const old = focused
       if (focused < 0) {
         focused = firstFocusable()
       } else {
@@ -430,13 +473,19 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
       }
       if (focused >= 0) ensureVisible(focused)
       positionRing()
+      if (old !== focused) {
+        if (old >= 0) applyState(old)
+        if (focused >= 0) applyState(focused)
+      }
     },
     focusActivate() {
       if (focused >= 0) children[focused].onActivate?.()
     },
     focusBack() {
+      const old = focused
       focused = -1
       positionRing()
+      if (old >= 0) applyState(old)
     },
     focusIndex() {
       return focused
@@ -533,6 +582,8 @@ export function button(
     font?: FontSpec
     color?: string
     background?: string
+    hoverBackground?: string
+    pressBackground?: string
     paddingX?: number
     height?: number
   } = {}
@@ -544,17 +595,20 @@ export function button(
   const height = opts.height ?? Math.round(font.size * 2.2)
   const width = Math.ceil(measureTextWidth(label, font) + 2 * paddingX)
 
-  const el = svgElements.g({ 'data-box-button': '' }) as unknown as SVGGElement
-  el.append(
-    svgElements.rect({
-      x: 0,
-      y: 0,
-      width,
-      height,
-      rx: 6,
-      ry: 6,
-      fill: background,
-    }),
+  const hoverBg = opts.hoverBackground ?? '#38414f'
+  const pressBg = opts.pressBackground ?? '#52627d'
+  const bg = svgElements.rect({
+    x: 0,
+    y: 0,
+    width,
+    height,
+    rx: 6,
+    ry: 6,
+    fill: background,
+  })
+  const el = svgElements.g(
+    { 'data-box-button': '' },
+    bg,
     svgElements.text(
       {
         x: width / 2,
@@ -567,12 +621,18 @@ export function button(
       },
       label
     )
-  )
+  ) as unknown as SVGGElement
   return {
     el,
     kind: 'inline',
     measure: () => ({ width, height }),
     focusable: true,
     onActivate: opts.onActivate,
+    setState: (st) => {
+      bg.setAttribute(
+        'fill',
+        st.pressed ? pressBg : st.hovered || st.focused ? hoverBg : background
+      )
+    },
   }
 }

@@ -156,3 +156,33 @@ describe('box — event model', () => {
     expect(b.focusIndex()).toBe(1) // the button, not the text
   })
 })
+
+describe('box — press/hover/focus feedback', () => {
+  test('a button reflects pressed on pointer down, and restores on up', () => {
+    const b = mod.box(
+      { width: 200, padding: 0 },
+      mod.button('Go', {
+        background: '#111',
+        pressBackground: '#f00',
+        hoverBackground: '#0f0',
+      })
+    )
+    const bg = () => b.el.querySelector('[data-box-button] rect')?.getAttribute('fill')
+    expect(bg()).toBe('#111')
+    b.handlePointer('down', 15, 15)
+    expect(bg()).toBe('#f00') // pressed
+    b.handlePointer('up', 15, 15)
+    expect(bg()).toBe('#0f0') // no longer pressed, but now focused → hover shade
+  })
+
+  test('focus tints the button (hover shade) even without a pointer', () => {
+    const b = mod.box(
+      { width: 200 },
+      mod.button('Go', { background: '#111', hoverBackground: '#0f0' })
+    )
+    const bg = () => b.el.querySelector('[data-box-button] rect')?.getAttribute('fill')
+    expect(bg()).toBe('#111')
+    b.focusMove(1, 0)
+    expect(bg()).toBe('#0f0')
+  })
+})
