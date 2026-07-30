@@ -64,17 +64,18 @@ const make = () => {
 
 const sheet = (s) => svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
 
-// DOM side — clickable
-const domSurface = make()
-const domSvg = sheet(domSurface)
-const toXY = (e) => { const r = domSvg.getBoundingClientRect(); return [((e.clientX-r.left)/r.width)*W, ((e.clientY-r.top)/r.height)*H] }
-domSvg.addEventListener('pointerdown', (e) => domSurface.handlePointer('down', ...toXY(e)))
-domSvg.addEventListener('pointerup', (e) => domSurface.handlePointer('up', ...toXY(e)))
+// ONE surface, shown in the DOM AND handed to the plane. b3dSvgPlane's SvgTexture
+// CLONES the live element each frame, so it stays in the DOM (visible) while the
+// texture mirrors it — a click in either view updates the same surface, in sync.
+const s = make()
+const svgEl = sheet(s)
+const toXY = (e) => { const r = svgEl.getBoundingClientRect(); return [((e.clientX-r.left)/r.width)*W, ((e.clientY-r.top)/r.height)*H] }
+svgEl.addEventListener('pointerdown', (e) => s.handlePointer('down', ...toXY(e)))
+svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...toXY(e)))
 
-// 3D side — route picks → surface.handlePointer
-const texSurface = make()
 const plane = b3dSvgPlane({ width: 2.6, height: (2.6*H)/W, resolution: 640, materialChannel: 'emissive', pointerEvents: false })
-plane.svgElement = sheet(texSurface)
+plane.svgElement = svgEl // the same element the DOM shows — cloned each frame → in sync
+
 const scene = b3d(
   {
     style: 'width:340px;height:300px;display:block;border-radius:8px;overflow:hidden',
@@ -89,7 +90,7 @@ const scene = b3d(
         const pk = pi.pickInfo
         if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
           const uv = pk.getTextureCoordinates()
-          if (uv) texSurface.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
+          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
         }
       })
     },
@@ -101,7 +102,7 @@ const scene = b3d(
 preview.append(
   div(
     { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px 16px 4px;background:#0c0e14' },
-    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM', domSvg),
+    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM — click; the 3D view mirrors it', svgEl),
     div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture — click the items', scene)
   ),
   readout

@@ -64,25 +64,26 @@ const makePanel = () => {
 
 const sheet = (b) => svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b.el)
 
-// DOM side — click, or arrow-key + Enter (the same focusMove/activate a D-pad drives)
-const domPanel = makePanel()
-const domSvg = sheet(domPanel)
-domSvg.setAttribute('tabindex', '0')
+// ONE panel, shown in the DOM AND textured on the plane (SvgTexture clones the
+// live element each frame), so DOM and 3D stay in sync — a click or arrow-key in
+// either view drives the same box.
+const panel = makePanel()
+const svgEl = sheet(panel)
+svgEl.setAttribute('tabindex', '0')
 const toBox = (e) => {
-  const r = domSvg.getBoundingClientRect()
+  const r = svgEl.getBoundingClientRect()
   return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
 }
-domSvg.addEventListener('pointerdown', (e) => domPanel.handlePointer('down', ...toBox(e)))
-domSvg.addEventListener('pointerup', (e) => domPanel.handlePointer('up', ...toBox(e)))
-domSvg.addEventListener('keydown', (e) => {
+svgEl.addEventListener('pointerdown', (e) => panel.handlePointer('down', ...toBox(e)))
+svgEl.addEventListener('pointerup', (e) => panel.handlePointer('up', ...toBox(e)))
+svgEl.addEventListener('keydown', (e) => {
   const m = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
-  if (m[e.key]) { domPanel.focusMove(...m[e.key]); e.preventDefault() }
-  else if (e.key === 'Enter' || e.key === ' ') { domPanel.focusActivate(); e.preventDefault() }
+  if (m[e.key]) { panel.focusMove(...m[e.key]); e.preventDefault() }
+  else if (e.key === 'Enter' || e.key === ' ') { panel.focusActivate(); e.preventDefault() }
 })
 
-// 3D side — route each pick's texture-UV → box coords → the box's handlePointer
-// (the same path a VR ray takes). THIS is what makes it clickable in 3D.
-const texPanel = makePanel()
+// 3D side — route each pick's texture-UV → box coords → the SAME panel's
+// handlePointer (the path a VR ray takes), so the 3D view is clickable and synced.
 const plane = b3dSvgPlane({
   width: 2.4,
   height: (2.4 * H) / W,
@@ -90,7 +91,7 @@ const plane = b3dSvgPlane({
   materialChannel: 'emissive',
   pointerEvents: false,
 })
-plane.svgElement = sheet(texPanel)
+plane.svgElement = svgEl
 
 const scene = b3d(
   {
@@ -110,7 +111,7 @@ const scene = b3d(
         const pk = pi.pickInfo
         if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
           const uv = pk.getTextureCoordinates()
-          if (uv) texPanel.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
+          if (uv) panel.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
         }
       })
     },
@@ -122,7 +123,7 @@ const scene = b3d(
 preview.append(
   div(
     { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px 16px 4px;background:#0c0e14' },
-    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM — click / arrow-key + Enter', domSvg),
+    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM — click / arrow-key; 3D mirrors it', svgEl),
     div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture — click the buttons', scene)
   ),
   readout
