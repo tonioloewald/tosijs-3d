@@ -146,7 +146,12 @@ describe('nearestInDirection — spatial focus nav', () => {
 describe('placePopup — anchored positioning with flip + clamp', () => {
   const bounds = { width: 300, height: 300 }
   const size = { width: 100, height: 80 }
-  const anchor = (x: number, y: number): FlowBox => ({ x, y, width: 40, height: 20 })
+  const anchor = (x: number, y: number): FlowBox => ({
+    x,
+    y,
+    width: 40,
+    height: 20,
+  })
 
   test('below: opens under the anchor when it fits', () => {
     expect(placePopup(anchor(50, 50), size, bounds, 'below')).toEqual({

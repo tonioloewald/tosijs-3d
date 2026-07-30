@@ -276,20 +276,46 @@ export function surface(opts: { width: number; height: number }): Surface {
     const draggable = o.draggable ?? true
     // chrome: title bar (drag zone + close ×) over the content box.
     const bar = svgElements.g({ 'data-panel-bar': '' })
-    bar.append(svgElements.rect({ x: 0, y: 0, width: w, height: TITLE_H, fill: '#1c2230' }))
+    bar.append(
+      svgElements.rect({
+        x: 0,
+        y: 0,
+        width: w,
+        height: TITLE_H,
+        fill: '#1c2230',
+      })
+    )
     bar.append(
       svgElements.text(
-        { x: 12, y: TITLE_H / 2 + 5, fill: '#e6e6e6', 'font-family': 'system-ui, sans-serif', 'font-size': '14', 'font-weight': '600' },
+        {
+          x: 12,
+          y: TITLE_H / 2 + 5,
+          fill: '#e6e6e6',
+          'font-family': 'system-ui, sans-serif',
+          'font-size': '14',
+          'font-weight': '600',
+        },
         o.title ?? ''
       )
     )
     const cs = 20
     const cx = w - cs - 6
     const cy = (TITLE_H - cs) / 2
-    bar.append(svgElements.rect({ x: cx, y: cy, width: cs, height: cs, rx: 4, fill: 'transparent' }))
+    bar.append(
+      svgElements.rect({
+        x: cx,
+        y: cy,
+        width: cs,
+        height: cs,
+        rx: 4,
+        fill: 'transparent',
+      })
+    )
     bar.append(
       svgElements.path({
-        d: `M${cx + 6} ${cy + 6} L${cx + 14} ${cy + 14} M${cx + 14} ${cy + 6} L${cx + 6} ${cy + 14}`,
+        d: `M${cx + 6} ${cy + 6} L${cx + 14} ${cy + 14} M${cx + 14} ${
+          cy + 6
+        } L${cx + 6} ${cy + 14}`,
         stroke: '#9fb0c3',
         'stroke-width': '2',
         'stroke-linecap': 'round',
@@ -370,7 +396,13 @@ export function surface(opts: { width: number; height: number }): Surface {
       const lx = x - p.x
       const ly = y - p.y
       const cr = p.closeRect
-      if (cr && lx >= cr.x && lx <= cr.x + cr.width && ly >= cr.y && ly <= cr.y + cr.height) {
+      if (
+        cr &&
+        lx >= cr.x &&
+        lx <= cr.x + cr.width &&
+        ly >= cr.y &&
+        ly <= cr.y + cr.height
+      ) {
         p.close()
         return
       }
@@ -427,7 +459,6 @@ export function openMenu(
   side: PopupSide = 'below',
   menuWidth = 180
 ): Popup {
-  let popup: Popup
   const rows = items.map((item, i) =>
     button(item.submenu ? item.label + '   ▸' : item.label, {
       block: true,
@@ -438,7 +469,12 @@ export function openMenu(
           if (r)
             openMenu(
               s,
-              { x: popup.x + r.x, y: popup.y + r.y, width: r.width, height: r.height },
+              {
+                x: popup.x + r.x,
+                y: popup.y + r.y,
+                width: r.width,
+                height: r.height,
+              },
               item.submenu,
               'right',
               menuWidth
@@ -461,6 +497,6 @@ export function openMenu(
     },
     ...rows
   )
-  popup = s.openPopup(anchor, menuBox, side)
+  const popup = s.openPopup(anchor, menuBox, side)
   return popup
 }

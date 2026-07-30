@@ -1255,7 +1255,10 @@ export class B3d extends Component {
   // prompted this — a readout that only refreshes when you REOPEN the panel is useless:
   // you switch a profiler on, the panel rebuilds instantly with the fresh (all-zero)
   // counters, and then you sit there watching frozen zeros while you fly.
-  private _sourceRows(src: DebugPanelSource, bucket: LiveDebugRow[]): Widget3d[] {
+  private _sourceRows(
+    src: DebugPanelSource,
+    bucket: LiveDebugRow[]
+  ): Widget3d[] {
     let lines: string[]
     try {
       lines = src.lines()

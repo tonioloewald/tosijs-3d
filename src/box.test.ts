@@ -167,7 +167,8 @@ describe('box — press/hover/focus feedback', () => {
         hoverBackground: '#0f0',
       })
     )
-    const bg = () => b.el.querySelector('[data-box-button] rect')?.getAttribute('fill')
+    const bg = () =>
+      b.el.querySelector('[data-box-button] rect')?.getAttribute('fill')
     expect(bg()).toBe('#111')
     b.handlePointer('down', 15, 15)
     expect(bg()).toBe('#f00') // pressed
@@ -180,7 +181,8 @@ describe('box — press/hover/focus feedback', () => {
       { width: 200 },
       mod.button('Go', { background: '#111', hoverBackground: '#0f0' })
     )
-    const bg = () => b.el.querySelector('[data-box-button] rect')?.getAttribute('fill')
+    const bg = () =>
+      b.el.querySelector('[data-box-button] rect')?.getAttribute('fill')
     expect(bg()).toBe('#111')
     b.focusMove(1, 0)
     expect(bg()).toBe('#0f0')

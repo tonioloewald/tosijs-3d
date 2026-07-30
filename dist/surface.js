@@ -208,12 +208,32 @@ export function surface(opts) {
         const draggable = o.draggable ?? true;
         // chrome: title bar (drag zone + close ×) over the content box.
         const bar = svgElements.g({ 'data-panel-bar': '' });
-        bar.append(svgElements.rect({ x: 0, y: 0, width: w, height: TITLE_H, fill: '#1c2230' }));
-        bar.append(svgElements.text({ x: 12, y: TITLE_H / 2 + 5, fill: '#e6e6e6', 'font-family': 'system-ui, sans-serif', 'font-size': '14', 'font-weight': '600' }, o.title ?? ''));
+        bar.append(svgElements.rect({
+            x: 0,
+            y: 0,
+            width: w,
+            height: TITLE_H,
+            fill: '#1c2230',
+        }));
+        bar.append(svgElements.text({
+            x: 12,
+            y: TITLE_H / 2 + 5,
+            fill: '#e6e6e6',
+            'font-family': 'system-ui, sans-serif',
+            'font-size': '14',
+            'font-weight': '600',
+        }, o.title ?? ''));
         const cs = 20;
         const cx = w - cs - 6;
         const cy = (TITLE_H - cs) / 2;
-        bar.append(svgElements.rect({ x: cx, y: cy, width: cs, height: cs, rx: 4, fill: 'transparent' }));
+        bar.append(svgElements.rect({
+            x: cx,
+            y: cy,
+            width: cs,
+            height: cs,
+            rx: 4,
+            fill: 'transparent',
+        }));
         bar.append(svgElements.path({
             d: `M${cx + 6} ${cy + 6} L${cx + 14} ${cy + 14} M${cx + 14} ${cy + 6} L${cx + 6} ${cy + 14}`,
             stroke: '#9fb0c3',
@@ -297,7 +317,11 @@ export function surface(opts) {
             const lx = x - p.x;
             const ly = y - p.y;
             const cr = p.closeRect;
-            if (cr && lx >= cr.x && lx <= cr.x + cr.width && ly >= cr.y && ly <= cr.y + cr.height) {
+            if (cr &&
+                lx >= cr.x &&
+                lx <= cr.x + cr.width &&
+                ly >= cr.y &&
+                ly <= cr.y + cr.height) {
                 p.close();
                 return;
             }
@@ -337,7 +361,6 @@ export function surface(opts) {
  * right (flipping left near the edge). The parent stays open — the tree is visible.
  */
 export function openMenu(s, anchor, items, side = 'below', menuWidth = 180) {
-    let popup;
     const rows = items.map((item, i) => button(item.submenu ? item.label + '   ▸' : item.label, {
         block: true,
         background: '#232a36',
@@ -345,7 +368,12 @@ export function openMenu(s, anchor, items, side = 'below', menuWidth = 180) {
             if (item.submenu) {
                 const r = popup.box.childRect(i);
                 if (r)
-                    openMenu(s, { x: popup.x + r.x, y: popup.y + r.y, width: r.width, height: r.height }, item.submenu, 'right', menuWidth);
+                    openMenu(s, {
+                        x: popup.x + r.x,
+                        y: popup.y + r.y,
+                        width: r.width,
+                        height: r.height,
+                    }, item.submenu, 'right', menuWidth);
             }
             else {
                 item.onSelect?.(item);
@@ -361,7 +389,7 @@ export function openMenu(s, anchor, items, side = 'below', menuWidth = 180) {
         border: '#2a3140',
         radius: 8,
     }, ...rows);
-    popup = s.openPopup(anchor, menuBox, side);
+    const popup = s.openPopup(anchor, menuBox, side);
     return popup;
 }
 //# sourceMappingURL=surface.js.map

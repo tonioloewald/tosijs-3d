@@ -36,7 +36,10 @@ describe('surface — popups', () => {
 
   test('a down outside all popups dismisses them', () => {
     const s = S.surface({ width: 300, height: 300 })
-    s.openPopup({ x: 20, y: 20, width: 40, height: 20 }, B.box({ width: 100, height: 60 }))
+    s.openPopup(
+      { x: 20, y: 20, width: 40, height: 20 },
+      B.box({ width: 100, height: 60 })
+    )
     s.handlePointer('down', 5, 5) // far from the popup at (20,40)
     expect(s.popups.length).toBe(0)
   })
@@ -92,7 +95,11 @@ describe('surface — persistent draggable panel', () => {
   test('the close × removes the panel', () => {
     const { s, p } = mk()
     const cr = p.closeRect!
-    s.handlePointer('down', p.x + cr.x + cr.width / 2, p.y + cr.y + cr.height / 2)
+    s.handlePointer(
+      'down',
+      p.x + cr.x + cr.width / 2,
+      p.y + cr.y + cr.height / 2
+    )
     expect(s.popups.length).toBe(0)
   })
 
