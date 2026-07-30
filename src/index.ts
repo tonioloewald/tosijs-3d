@@ -338,6 +338,15 @@ export {
   type PointerKind,
 } from './box'
 
+// UI surface — content + overlay popups; cascade menus
+export {
+  surface,
+  openMenu,
+  type Surface,
+  type Popup,
+  type MenuItem,
+} from './surface'
+
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'
 export { B3dSound, b3dSound } from './b3d-sound'

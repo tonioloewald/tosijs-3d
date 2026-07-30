@@ -201,10 +201,17 @@ export interface Box {
   scrollTo: (offset: number) => void
   /** Scroll by a delta (clamped). */
   scrollBy: (delta: number) => void
+  /** Current outer width. */
+  readonly width: number
   /** Laid-out content height (may exceed the viewport). */
   contentHeight: number
   /** Visible height (the scroll viewport). */
   viewportHeight: number
+  /**
+   * A child's rect in the box's OWN local coords (padding-offset, pre-scroll), or
+   * `null`. Used to anchor a cascade submenu to a menu item.
+   */
+  childRect: (i: number) => FlowBox | null
 
   /**
    * Feed a pointer event in box-local coords (mouse, touch, or a VR ray's
@@ -398,11 +405,24 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
 
   return {
     el,
+    get width() {
+      return width
+    },
     get contentHeight() {
       return state.contentHeight
     },
     get viewportHeight() {
       return state.viewportHeight
+    },
+    childRect(i: number) {
+      const b = laidBoxes[i]
+      if (!b) return null
+      return {
+        x: padding + b.x,
+        y: padding + b.y,
+        width: b.width,
+        height: b.height,
+      }
     },
     resize(w: number, h?: number) {
       width = w
@@ -586,6 +606,9 @@ export function button(
     pressBackground?: string
     paddingX?: number
     height?: number
+    /** Full-width stacked row (menu item) instead of a hugging inline pill. */
+    block?: boolean
+    align?: 'left' | 'center'
   } = {}
 ): BoxChild {
   const font: FontSpec = opts.font ?? { size: 14, weight: 600 }
@@ -593,39 +616,55 @@ export function button(
   const background = opts.background ?? '#2a3140'
   const paddingX = opts.paddingX ?? 14
   const height = opts.height ?? Math.round(font.size * 2.2)
-  const width = Math.ceil(measureTextWidth(label, font) + 2 * paddingX)
+  const block = !!opts.block
+  const align = opts.align ?? (block ? 'left' : 'center')
+  const hugWidth = Math.ceil(measureTextWidth(label, font) + 2 * paddingX)
 
   const hoverBg = opts.hoverBackground ?? '#38414f'
   const pressBg = opts.pressBackground ?? '#52627d'
   const bg = svgElements.rect({
     x: 0,
     y: 0,
-    width,
+    width: hugWidth,
     height,
     rx: 6,
     ry: 6,
     fill: background,
   })
+  const txt = svgElements.text(
+    {
+      y: Math.round(height / 2 + font.size * 0.34),
+      fill: color,
+      'font-family': font.family ?? 'system-ui, sans-serif',
+      'font-size': String(font.size),
+      'font-weight': font.weight != null ? String(font.weight) : undefined,
+    },
+    label
+  ) as unknown as SVGTextElement
   const el = svgElements.g(
     { 'data-box-button': '' },
     bg,
-    svgElements.text(
-      {
-        x: width / 2,
-        y: Math.round(height / 2 + font.size * 0.34),
-        'text-anchor': 'middle',
-        fill: color,
-        'font-family': font.family ?? 'system-ui, sans-serif',
-        'font-size': String(font.size),
-        'font-weight': font.weight != null ? String(font.weight) : undefined,
-      },
-      label
-    )
+    txt
   ) as unknown as SVGGElement
+
+  // Size the rect + place the label for a given width.
+  const lay = (w: number): void => {
+    bg.setAttribute('width', String(w))
+    if (align === 'left') {
+      txt.setAttribute('x', String(paddingX))
+      txt.setAttribute('text-anchor', 'start')
+    } else {
+      txt.setAttribute('x', String(w / 2))
+      txt.setAttribute('text-anchor', 'middle')
+    }
+  }
+  lay(hugWidth)
+
   return {
     el,
-    kind: 'inline',
-    measure: () => ({ width, height }),
+    kind: block ? 'block' : 'inline',
+    measure: () => (block ? { height } : { width: hugWidth, height }),
+    paint: block ? (w) => lay(w) : undefined,
     focusable: true,
     onActivate: opts.onActivate,
     setState: (st) => {
