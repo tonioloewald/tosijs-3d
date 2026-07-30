@@ -84,6 +84,10 @@ export { box, textBlock, inlineIcon, blockItem, inlineItem, button, } from './bo
 export { surface, openMenu, } from './surface';
 // Bridge: widgets3d controls (slider/toggle/select/list) inside a box/surface
 export { widgetBox, widgetChild } from './widget-box';
+// Pure text-editing model (code-point aware) for the SVG input field
+export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, } from './text-edit';
+// Pure virtual-keyboard model: layouts, long-press accents, key geometry
+export { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, } from './key-layout';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';

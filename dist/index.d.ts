@@ -88,6 +88,8 @@ export { flowLayout, nearestInDirection, placePopup, type FlowItem, type FlowOpt
 export { box, textBlock, inlineIcon, blockItem, inlineItem, button, type Box, type BoxChild, type BoxChildState, type BoxOptions, type PointerKind, } from './box';
 export { surface, openMenu, type Surface, type Popup, type MenuItem, } from './surface';
 export { widgetBox, widgetChild } from './widget-box';
+export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, type EditState, } from './text-edit';
+export { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, type KeyboardMode, type KeyAction, type KeyDef, type KeyRect, } from './key-layout';
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
 export { B3dTrigger, b3dTrigger } from './b3d-trigger';

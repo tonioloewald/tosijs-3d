@@ -148,6 +148,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/input/ — Input
   Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
+- https://3d.tosijs.net/key-layout/ — key-layout
+  The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
@@ -174,6 +176,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
+- https://3d.tosijs.net/text-edit/ — text-edit
+  The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
 - https://3d.tosijs.net/ — tosijs-3d
   Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
