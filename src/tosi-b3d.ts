@@ -2177,34 +2177,12 @@ export class B3d extends Component {
   // every rendered frame (onBeforeRenderObservable fires in both flat and XR).
   private _setupNameplates(): void {
     const scene = this.scene
-    // Gaze-reveal works flat but reportedly NOT in a session (plates stay visible).
-    // There's no console in a headset, so put the evidence where it can be read:
-    // `updates` is the discriminator — if it doesn't ADVANCE in XR, the reveal
-    // isn't miscomputing, it's never running, and the plate is stuck at birth
-    // visibility. If it advances but `cos` sits high, the head forward vector is
-    // wrong. If `cam` isn't WebXRCamera, we're gazing off the wrong camera entirely.
-    this.addDebugSource({
-      name: 'Nameplates',
-      icon: 'messageSquare',
-      lines: () => {
-        const n = this._nameplateList.length
-        if (n === 0) return ['none']
-        const d = this._nameplateList[0].panel.debug
-        const cam = scene.activeCamera
-        return [
-          `xr=${this.xrActive} cam=${cam?.getClassName() ?? '—'} (gaze: ${
-            d.camera
-          })`,
-          `updates=${d.updates}`,
-          `plates=${n} reveal=${this._nameplateList
-            .map((x) => x.panel.debug.reveal.toFixed(2))
-            .join(' ')}`,
-          `cos=${d.cosine.toFixed(3)} (full≥${Math.cos(
-            40 * (Math.PI / 180)
-          ).toFixed(3)})`,
-        ]
-      },
-    })
+    // A `Nameplates` debug source used to hang here, reporting gaze-reveal internals
+    // (xr/cam/updates/cos) to diagnose plates staying visible inside a session. That's
+    // resolved, so it's gone — scaffolding kept past its bug is just a row competing for
+    // panel space with whatever you're debugging NEXT. The instrumentation it read
+    // (`panel.debug` in frame-panel.ts) is deliberately still there and still live, so
+    // restoring the readout is one `addDebugSource` block if the reveal ever regresses.
     scene.onBeforeRenderObservable.add(() => {
       const cam = scene.activeCamera as BABYLON.TargetCamera | null
       if (cam == null) return
