@@ -26,7 +26,7 @@
     "chokidar": "^4.0.3",
     "eslint": "^10.6.0",
     "globals": "^17.7.0",
-    "haltija": "^1.4.0",
+    "haltija": "^1.6.0",
     "happy-dom": "^20.10.6",
     "jolt-physics": "^1.1.0",
     "prettier": "^2.8.8",
