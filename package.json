@@ -40,7 +40,8 @@
     "build": "bun bin/site.ts --build",
     "tls": "tosijs-dev-certs",
     "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
-    "format": "bun eslint src --fix && bun prettier --write ."
+    "tunnel": "bun bin/tunnel.ts",
+    "format": "bun eslint src bin --fix && bun prettier --write ."
   },
   "peerDependencies": {
     "@babylonjs/core": "^9.0.0",

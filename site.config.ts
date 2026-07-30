@@ -105,6 +105,24 @@ export default defineSiteConfig({
   // wins regardless of stylesheet injection order (no `!important` needed).
   headExtra: `<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>`,
 
+  // Remote access — `bun run tunnel` publishes THIS dev server (not a static copy) at
+  // an authenticated public URL, so the live site, live examples and "save local"
+  // editing all work from a phone, a hotel, or inside a headset. See bin/tunnel.ts.
+  //
+  // ONE hostname on purpose. tosijs-ui needs two (`ui.` static + `edit.` tunnel)
+  // because it serves both a deployed copy AND a tunnel; this project's public site is
+  // already GitHub Pages at 3d.tosijs.net, so there is nothing static to preview here —
+  // only the live workspace. Hence no `preview.url` and no `edit.` prefix.
+  //
+  // `remotePort` MUST be unique per project on the box: sshd's `GatewayPorts no` binds
+  // it to the box's loopback, and a second project reusing a port means whichever ssh
+  // connected first wins while the other silently forwards nothing. tosijs-ui holds
+  // 9787.
+  preview: {
+    host: 'root@212.147.248.15',
+    tunnel: { remotePort: 9788, url: 'https://3d.dev.tosijs.net' },
+  },
+
   prebuild: async () => {
     await $`cp node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js static/jolt-physics.wasm-compat.js`
   },

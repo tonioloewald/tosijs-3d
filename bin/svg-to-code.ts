@@ -188,7 +188,6 @@ function parseNode(xml: string): RawSvgNode {
 
   // Find matching close tag and extract inner content
   const afterOpen = xml.slice(openMatch[0].length)
-  const closeTag = `</${tag}>`
   const closeIdx = findMatchingClose(afterOpen, tag)
   const inner = afterOpen.slice(0, closeIdx).trim()
 
