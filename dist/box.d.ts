@@ -27,6 +27,24 @@ export interface BoxChild {
     onActivate?: () => void;
     /** The box calls this when the child's hover/press/focus state changes. */
     setState?: (state: BoxChildState) => void;
+    /**
+     * Take the pointer **raw**, in child-local coords, instead of the box's
+     * press→activate semantics. For controls that need the whole gesture — a slider
+     * tracks `move` between `down` and `up`, which `onActivate` can't express.
+     *
+     * A child that defines this **captures**: once pressed it keeps receiving `move`
+     * and `up` even when the pointer leaves its rect, so a drag doesn't die the moment
+     * you slip off the track. It also never fires `onActivate` (it owns the gesture),
+     * and is implicitly focusable.
+     */
+    handlePointer?: (kind: PointerKind, x: number, y: number) => void;
+    /**
+     * Whether child-local (x,y) is on the *interactive control* rather than dead row
+     * space. Everything else stays scroll-drag surface — which is what lets you grab
+     * "between" two sliders to scroll, important when pointing with a VR ray. Omit to
+     * treat the whole rect as the control.
+     */
+    hitTest?: (x: number, y: number) => boolean;
 }
 /** Pointer phase fed to {@link Box.handlePointer}. */
 export type PointerKind = 'down' | 'move' | 'up' | 'leave';

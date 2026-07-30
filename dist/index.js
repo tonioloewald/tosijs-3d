@@ -82,6 +82,8 @@ export { flowLayout, nearestInDirection, placePopup, } from './flow-layout';
 export { box, textBlock, inlineIcon, blockItem, inlineItem, button, } from './box';
 // UI surface — content + overlay popups; cascade menus
 export { surface, openMenu, } from './surface';
+// Bridge: widgets3d controls (slider/toggle/select/list) inside a box/surface
+export { widgetBox, widgetChild } from './widget-box';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';

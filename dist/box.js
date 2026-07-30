@@ -216,7 +216,9 @@ export function box(opts, ...children) {
     let pressedIdx = -1;
     const isFocusable = (i) => i >= 0 &&
         i < children.length &&
-        !!(children[i].focusable || children[i].onActivate);
+        !!(children[i].focusable ||
+            children[i].onActivate ||
+            children[i].handlePointer);
     const firstFocusable = () => {
         for (let i = 0; i < children.length; i++)
             if (isFocusable(i))
@@ -322,6 +324,13 @@ export function box(opts, ...children) {
             applyScroll();
         }
     };
+    // (x,y) in box-local screen coords → child-local coords for child `i`.
+    const toChild = (i, x, y) => {
+        const b = laidBoxes[i];
+        if (!b)
+            return { x, y };
+        return { x: x - (padding + b.x), y: y + scroll - (padding + b.y) };
+    };
     // (x,y) in box-local screen coords → the focusable child under it, or -1.
     const hitTest = (x, y) => {
         if (x < 0 || x > width || y < 0 || y > viewportHeight)
@@ -333,8 +342,17 @@ export function box(opts, ...children) {
             const b = laidBoxes[i];
             const bx = padding + b.x;
             const by = padding + b.y;
-            if (x >= bx && x <= bx + b.width && cy >= by && cy <= by + b.height)
+            if (x >= bx && x <= bx + b.width && cy >= by && cy <= by + b.height) {
+                // A child may claim only part of its row as the control; the rest stays
+                // scroll surface (grab "between" two sliders to scroll).
+                const ht = children[i].hitTest;
+                if (ht) {
+                    const p = toChild(i, x, y);
+                    if (!ht(p.x, p.y))
+                        continue;
+                }
                 return i;
+            }
         }
         return -1;
     };
@@ -379,6 +397,9 @@ export function box(opts, ...children) {
             if (kind === 'leave') {
                 const p = pressedIdx;
                 const h = hoverIdx;
+                // Tell a capturing child the gesture ended, or it stays stuck mid-drag.
+                if (p >= 0)
+                    children[p].handlePointer?.('leave', 0, 0);
                 pressedIdx = -1;
                 hoverIdx = -1;
                 downTarget = -1;
@@ -389,6 +410,45 @@ export function box(opts, ...children) {
                 return;
             }
             const hit = hitTest(x, y);
+            // A child taking the pointer RAW owns the whole gesture: once pressed it keeps
+            // move/up even off its own rect (a slider drag must survive slipping off the
+            // track), so route to the captured child rather than to whatever is under the
+            // pointer now.
+            const captured = kind !== 'down' &&
+                downTarget >= 0 &&
+                children[downTarget]?.handlePointer
+                ? downTarget
+                : -1;
+            const raw = captured >= 0
+                ? captured
+                : hit >= 0 && children[hit].handlePointer
+                    ? hit
+                    : -1;
+            if (raw >= 0) {
+                const p = toChild(raw, x, y);
+                children[raw].handlePointer(kind, p.x, p.y);
+                if (kind === 'down') {
+                    downTarget = raw;
+                    pressedIdx = raw;
+                    applyState(raw);
+                }
+                else if (kind === 'up') {
+                    const was = pressedIdx;
+                    pressedIdx = -1;
+                    downTarget = -1;
+                    if (was >= 0)
+                        applyState(was);
+                    // Focus follows the press, as with an activated child — so D-pad
+                    // traversal resumes from where you last touched.
+                    const old = focused;
+                    focused = raw;
+                    positionRing();
+                    if (old >= 0 && old !== raw)
+                        applyState(old);
+                    applyState(raw);
+                }
+                return;
+            }
             if (kind === 'down') {
                 downTarget = hit;
                 if (hit >= 0) {
