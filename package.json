@@ -31,7 +31,7 @@
     "jolt-physics": "^1.1.0",
     "prettier": "^2.8.8",
     "tosijs": "^1.7.8",
-    "tosijs-ui": "1.9.0-rc.1",
+    "tosijs-ui": "1.9.0-rc.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1"
   },
@@ -40,8 +40,8 @@
     "build": "bun bin/site.ts --build",
     "tls": "tosijs-dev-certs",
     "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
-    "tunnel": "bun node_modules/tosijs-ui/bin/tunnel.ts",
-    "deploy": "bun node_modules/tosijs-ui/bin/deploy-preview.ts",
+    "tunnel": "tosijs-tunnel",
+    "deploy": "tosijs-deploy",
     "format": "bun eslint src bin --fix && bun prettier --write ."
   },
   "peerDependencies": {

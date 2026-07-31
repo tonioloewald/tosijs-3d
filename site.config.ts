@@ -128,9 +128,11 @@ export default defineSiteConfig({
   // `remotePort` MUST be unique per project on the box: sshd's `GatewayPorts no` binds
   // it to the box's loopback, and a second project reusing a port means whichever ssh
   // connected first wins while the other silently forwards nothing. tosijs-ui holds
-  // 9787. (`localPort` stays at its 8788 default — the dev server's separate
-  // loopback-only tunnel listener, which is what marks a request as remote so writes
-  // always demand a session.)
+  // 9787. (`localPort` is left unset: since rc.2 it defaults to `PORT + 1` — 8031 for
+  // us — rather than a fixed 8788, so two dev servers can coexist instead of the second
+  // dying on EADDRINUSE. It's the dev server's separate loopback-only tunnel listener,
+  // and arriving on THAT socket is what marks a request as remote, so writes always
+  // demand a session — unforgeable in a way an X-Forwarded-* header is not.)
   preview: {
     host: 'root@212.147.248.15',
     tunnel: { remotePort: 9788, url: 'https://3d.edit.dev.tosijs.net' },
