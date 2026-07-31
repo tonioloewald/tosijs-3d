@@ -89,6 +89,8 @@ export { box, textBlock, inlineIcon, blockItem, inlineItem, button, type Box, ty
 export { surface, openMenu, type Surface, type Popup, type MenuItem, } from './surface';
 export { widgetBox, widgetChild } from './widget-box';
 export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, type EditState, } from './text-edit';
+export { keyboard, inputField } from './keyboard';
+export type { Keyboard, InputField } from './keyboard';
 export { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, type KeyboardMode, type KeyAction, type KeyDef, type KeyRect, } from './key-layout';
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';

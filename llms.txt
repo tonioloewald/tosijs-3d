@@ -150,6 +150,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
 - https://3d.tosijs.net/key-layout/ — key-layout
   The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
+- https://3d.tosijs.net/keyboard/ — keyboard
+  The **on-screen keyboard and text field** — the typing surface for a headset, where
 - https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions

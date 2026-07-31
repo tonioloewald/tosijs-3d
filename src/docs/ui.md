@@ -7,6 +7,7 @@
 - [box](/box/)
 - [flow-layout](/flow-layout/)
 - [key-layout](/key-layout/)
+- [keyboard](/keyboard/)
 - [surface](/surface/)
 - [svg-icons](/svg-icons/)
 - [svg-texture](/svg-texture/)

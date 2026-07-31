@@ -367,6 +367,10 @@ export {
   type EditState,
 } from './text-edit'
 
+// On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
+export { keyboard, inputField } from './keyboard'
+export type { Keyboard, InputField } from './keyboard'
+
 // Pure virtual-keyboard model: layouts, long-press accents, key geometry
 export {
   keyLayout,

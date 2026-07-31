@@ -86,6 +86,8 @@ export { surface, openMenu, } from './surface';
 export { widgetBox, widgetChild } from './widget-box';
 // Pure text-editing model (code-point aware) for the SVG input field
 export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, } from './text-edit';
+// On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
+export { keyboard, inputField } from './keyboard';
 // Pure virtual-keyboard model: layouts, long-press accents, key geometry
 export { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, } from './key-layout';
 // Effects & interaction
