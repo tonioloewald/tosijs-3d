@@ -178,6 +178,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
+- https://3d.tosijs.net/table-layout/ — table-layout
+  The **pure geometry behind a data table** — column widths, and which rows are worth
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
 - https://3d.tosijs.net/ — tosijs-3d

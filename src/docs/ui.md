@@ -11,6 +11,7 @@
 - [surface](/surface/)
 - [svg-icons](/svg-icons/)
 - [svg-texture](/svg-texture/)
+- [table-layout](/table-layout/)
 - [text-edit](/text-edit/)
 - [widget-box](/widget-box/)
 - [widgets3d](/widgets3d/)

@@ -367,6 +367,19 @@ export {
   type EditState,
 } from './text-edit'
 
+// Pure table geometry: column resolution + row virtualization
+export {
+  resolveColumns,
+  visibleRows,
+  contentHeight as tableContentHeight,
+  maxScroll as tableMaxScroll,
+  rowAt,
+  columnAt,
+  type ColumnSpec,
+  type ColumnRect,
+  type RowWindow,
+} from './table-layout'
+
 // On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
 export { keyboard, inputField } from './keyboard'
 export type { Keyboard, InputField } from './keyboard'
