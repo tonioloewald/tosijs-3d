@@ -109,7 +109,7 @@ export class B3dHud extends B3dChild {
         ':host': {
             // Fill the canvas area and centre the square HUD inside it — so the element's
             // OWN resize (which tosijs Component observes) tracks the canvas, and
-            // onResize() can re-measure. No hand-rolled ResizeObserver to tear down.
+            // handleResize() can re-measure. No hand-rolled ResizeObserver to tear down.
             position: 'absolute',
             inset: '0',
             display: 'flex',
@@ -122,7 +122,7 @@ export class B3dHud extends B3dChild {
             zIndex: '15',
         },
         ':host([hidden])': { display: 'none' },
-        // --hud-size is set live (onResize) to `size`% of the canvas's smaller side.
+        // --hud-size is set live (handleResize) to `size`% of the canvas's smaller side.
         ':host svg': {
             width: 'var(--hud-size, 70vmin)',
             height: 'var(--hud-size, 70vmin)',
@@ -241,8 +241,10 @@ export class B3dHud extends B3dChild {
         this._inSceneVisible = visible;
         this._plane?.setEnabled(visible);
     }
-    /** tosijs Component calls this on resize (it owns the observer + teardown). */
-    onResize() {
+    /** tosijs Component calls this on resize (it owns the observer + teardown).
+     * `handleResize`, not `onResize` — the `on<Event>` prefix is reserved for the
+     * elements factory's event sugar and collides with a component callback. */
+    handleResize() {
         this._measure();
     }
     // Size the square HUD to `size`% of the canvas's SMALLER dimension.

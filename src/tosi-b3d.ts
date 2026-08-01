@@ -865,11 +865,15 @@ export class B3d extends Component {
   }
 
   private _resizing = false
-  // How many times onResize has driven engine.resize(). A steady climb every
+  // How many times handleResize has driven engine.resize(). A steady climb every
   // frame (rather than a couple of firings that settle) is the fingerprint of a
   // resize→reflow→resize feedback loop — surfaced in `debugState` / the 📊 overlay.
   _resizeCount = 0
-  onResize() {
+  // `handleResize`, not `onResize`: tosijs reserves the `on<Event>` prefix for the
+  // elements factory's event sugar (`creator({ onResize })` would attach a 'resize'
+  // LISTENER), so a component callback named that way collides with it. tosijs warns
+  // and points here — the same footgun as tosijs#22, now with a migration path.
+  handleResize() {
     if (this.engine && !this._resizing) {
       this._resizing = true
       this.engine.resize()

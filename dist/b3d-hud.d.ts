@@ -71,8 +71,10 @@ export declare class B3dHud extends B3dChild {
     private _buildInScenePlane;
     /** Show/hide the in-scene cockpit HUD plane (independent of the DOM overlay). */
     setInSceneVisible(visible: boolean): void;
-    /** tosijs Component calls this on resize (it owns the observer + teardown). */
-    onResize(): void;
+    /** tosijs Component calls this on resize (it owns the observer + teardown).
+     * `handleResize`, not `onResize` — the `on<Event>` prefix is reserved for the
+     * elements factory's event sugar and collides with a component callback. */
+    handleResize(): void;
     private _measure;
     sceneDispose(): void;
     /** Fill a meter arc (`speed`/`altitude`/`health`/`energy`), level 0..1. */

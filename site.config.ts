@@ -133,21 +133,14 @@ export default defineSiteConfig({
   // dying on EADDRINUSE. It's the dev server's separate loopback-only tunnel listener,
   // and arriving on THAT socket is what marks a request as remote, so writes always
   // demand a session — unforgeable in a way an X-Forwarded-* header is not.)
-  // `localPort` is pinned rather than left to default, because in rc.2 the two halves
-  // disagree about what the default IS: the dev server binds `PORT + 1` (8031 here)
-  // while `tosijs-tunnel` still probes a fixed 8788, so the tunnel correctly refuses to
-  // open and reports "nothing is listening on 8788". Setting it explicitly makes both
-  // sides agree. The two only coincide when PORT is 8787 — i.e. on tosijs-ui itself,
-  // which is why it shipped. Already fixed on tosijs-ui main (one shared
-  // `resolveTunnelLocalPort` instead of two copies), landing in 1.9.0 — drop this line
-  // then. See tosijs-ui#39 (filed by tosijs, which hit it on PORT 8018).
+  // `localPort` is deliberately NOT set: since 1.9.0 both halves resolve it through one
+  // shared `resolveTunnelLocalPort` (tosijs-ui#39), so the dev server's listener and the
+  // tunnel's probe cannot disagree. It had to be pinned on rc.2, where the server used
+  // `PORT + 1` and the bin a hard-coded 8788 — values that coincide only when PORT is
+  // 8787, i.e. on tosijs-ui itself, which is exactly why it shipped.
   preview: {
     host: 'root@212.147.248.15',
-    tunnel: {
-      remotePort: 9788,
-      localPort: 8031,
-      url: 'https://3d.edit.dev.tosijs.net',
-    },
+    tunnel: { remotePort: 9788, url: 'https://3d.edit.dev.tosijs.net' },
   },
 
   prebuild: async () => {

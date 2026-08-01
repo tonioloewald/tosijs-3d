@@ -314,7 +314,7 @@ export declare class B3d extends Component {
     private _update;
     private _resizing;
     _resizeCount: number;
-    onResize(): void;
+    handleResize(): void;
     get debugState(): {
         renderWidth: number | null;
         renderHeight: number | null;
