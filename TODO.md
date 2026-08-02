@@ -473,25 +473,71 @@ the MVP** — the vertical-slice targets are inert cubes.
 
 ## UI
 
+### The first-class SVG UI surface — SHIPPED (2026-08-02), one piece provisional
+
+A container stack that renders identically as a DOM overlay and rasterized onto a plane,
+so one authored UI serves flat and VR. Built bottom-up, each layer pure-and-tested where
+it can be:
+
+[x] `flow-layout` — CSS block/inline flow, `nearestInDirection` (spatial focus nav),
+`placePopup` (flip + clamp). Pure.
+[x] `box` — resizable container: wraps text, becomes a scroll region, one `handlePointer`
+plus focus traversal. `BoxChild.handlePointer` takes the pointer RAW and **captures**,
+which is what lets a slider drag survive leaving its track.
+[x] `surface` — content + overlay: cascade **menus**, and persistent **draggable/closable
+panels**. (This is the "spawned sub-panels instead of cramming one panel" item below —
+the mechanism now exists.)
+[x] `widget-box` — the seam letting `widgets3d` controls live inside a `box`/`surface`.
+They **compose rather than compete**: 94 `slider3d` uses across the doc pages made a
+port a non-starter, and the protocols were already ~90% aligned.
+[x] `keyboard` + `inputField` — the typing surface for a headset (no OS keyboard, no DOM
+`<input>` in a session), with the **press-hold-drag accent picker**. Pure models beneath:
+`key-layout` (layouts, accents, geometry) and `text-edit` (**code-point-correct** — a
+naive slice splits emoji and the keyboard's own accented output).
+[x] `table` + `table-layout` — sticky header, virtualized body (unseen rows cost twice on
+a texture: SVG nodes AND the raster), fixed/flex columns, drag-to-scroll.
+[x] `selection` — state as an **icon**, orthogonal to hover/focus. See UI-DESIGN-NOTES →
+"Show selection with an icon, not with intensity".
+[~] **D-pad traversal (table)** — logic pinned by 11 tests (focus escapes at both ends
+rather than trapping; scrolls itself into view; pointer tap hands focus over). But
+**"feels right on a stick" is UNVERIFIED** — repeat rate, one-row-per-press, and whether
+the ring reads through headset optics are judgement calls needing real hardware.
+[ ] **`box` should delegate focus INTO a child widget.** `table.focusMove` already
+returns `false` at its ends — the "not consumed, pass it on" contract — but `box` doesn't
+consume that yet, so a table inside a box is one focus stop rather than a sub-list.
+[ ] **Migrate the scene panel to `surface()`.** NOT started; `widget-box` was the
+prerequisite and is done. Gated on a VR emulator because it touches the XR pick path
+(`panel3d` hangs `handlePointer`/`scrollBy` off the SVG element as closures — the
+documented untargetable-in-VR trap).
+[ ] Wire `keyboard` to `inputField` focus so a panel can host a field the keyboard
+targets (cross-surface focus — the `xr-frames` floating-keyboard case).
+
+**Two lessons worth keeping** (both cost real time, both now guarded):
+`svgPoint` — map client→SVG coords through `getScreenCTM()`, never
+`getBoundingClientRect` arithmetic; the latter is exactly right at the authored size and
+drifts as the aspect ratio diverges, so it breaks only once maximized. And a ` ```js `
+block in a doc comment **is a live example that runs** — an illustrative snippet becomes
+a broken page.
+
 [x] Based on SVG texture (b3d-svg-plane + SvgTexture)
 [x] Converts pointer actions on surface to SVG (supports hover, active states, enter, exit, and click events, uses rect hull for collision)
 [x] Can be bound normally (live DOM SVG via selector, tosijs bindings update automatically)
 [x] Has a specified update frequency, defaults to 30ms
 [x] Small library of svgUiComponents — `widgets3d` (panel3d container + label/text/button/toggle/slider/list3d), coordinate-routed (panel.handlePointer, no DOM events), works as DOM overlay + in-scene/VR plane
 [x] button (button3d)
-[ ] textInput (textInput3d) — deferred
+[x] textInput — SHIPPED as `inputField` + `keyboard` (see the SVG UI surface section above), not as a `textInput3d` widget: it needs an on-screen keyboard to be usable in a headset, so the field and the keyboard shipped together
 [x] toggle (toggle3d)
 [x] slider (slider3d)
 [ ] meter (meter3d) — deferred
 [x] Hover/leave feedback + per-control hitTest (scroll-drag the dead space of switch/slider rows; important in VR)
-[ ] list3d select modes: (a) buttons [done], (b) single-select / radio (binds `value`), (c) multi-select / checks (binds an array). Reuse the rowBg highlight; multi adds a check glyph (icon)
+[~] list3d select modes: (a) buttons [done], (b) single-select / radio, (c) multi-select / checks. **The convention is settled and implemented** — `selection.ts` (`circle`/`checkCircle` for single, `square`/`checkSquare` for multi) and `table` uses it. Still to do: apply it to `list3d` itself and bind `value` / an array. Note the rowBg highlight is NOT the selection channel — it's hover; see UI-DESIGN-NOTES
 [ ] select3d — composite dropdown built on (b): a collapsed row showing the current value + chevron; tap discloses a single-select list3d, collapses on pick. MUST grow the panel's layout (stackLayout re-flows) rather than a DOM-style absolute popover — a popover won't rasterize into the VR texture
 [ ] Icons: consume tosijs-ui's `./icons` subpath (a clean leaf — only `tosijs` peer + pure icon-data) behind a thin local `icon(name, {fill,size})` wrapper = the single seam to later swap for a standalone icon lib with zero call-site churn. Replace the gear `⚙` glyph; chevron for select3d, check for multi-select, leading icons on buttons
 [ ] SVG-native icon principle (minimise double-implementation): attributes-first (`fill`/`stroke`/`stroke-*`/`width`/`height`/`transform`) as the rasterizable baseline, CSS as a DOM-only override layer, `fill="currentColor"` for theming BUT resolved to an explicit fill before serialize (else icons render black in a texture), stacking via SVG `<g>`/`transform`/`<mask>`. Only animation + `:hover` are irreducibly DOM-vs-VR (handled by the texture re-render / pointer-routing layer, not the icon lib)
 
 ### XR spatial panels (placement / clipping)
 
-[ ] **Spawned sub-panels (popMenu-style) instead of cramming one panel.** Disclosure
+[~] **Spawned sub-panels (popMenu-style) instead of cramming one panel.** The MECHANISM now exists — `surface.openPanel` / `openMenu` give exactly this (cascade menus, persistent panels near the trigger). What remains is adopting it: the scene panel still cannot use it until the `surface()` migration lands, and `select3d` still grows the stack in place. Disclosure
 controls — `select3d` dropdowns, submenus, pickers, confirmations, and eventually the
 perf-stats readout — should open a SEPARATE panel (a child panel spawned near the
 trigger) rather than re-flow the parent panel's layout. This **revises the `select3d`

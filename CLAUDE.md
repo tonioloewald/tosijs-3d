@@ -282,7 +282,16 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/svg-texture.ts` | Dynamic SVG → Babylon texture rendering |
 | `src/b3d-svg-plane.ts` | In-scene SVG-based UI planes |
 | `src/widgets3d.ts` / `src/widgets3d-layout.ts` | SVG-native UI widgets (`panel3d`, `slider3d`, …) that work as DOM overlays or in-scene panels; stack layout |
-| `src/flow-layout.ts` | Pure CSS block/inline-block **flow-layout** core (`flowLayout`) — substrate for a first-class SVG UI surface (DOM + 3D texture); Babylon/DOM-free, unit-tested |
+| `src/flow-layout.ts` | Pure CSS block/inline-block **flow-layout** core (`flowLayout`) + `nearestInDirection` (spatial focus nav) + `placePopup` (flip/clamp); Babylon/DOM-free, unit-tested |
+| `src/box.ts` | The **flow `box`** — resizable SVG container: wraps text, scrolls, pointer + focus-traversal event model. Also `svgPoint` (client→SVG coords via CTM — **use it instead of `getBoundingClientRect` arithmetic**, which breaks under `preserveAspectRatio` letterboxing) |
+| `src/surface.ts` | **UI surface** — content box + overlay layer: cascade **menus** and persistent draggable/closable **panels** |
+| `src/widget-box.ts` | The seam letting `widgets3d` controls live inside a `box`/`surface` (they **compose**, not compete) — `BoxChild.handlePointer` capture is what makes a slider drag survive leaving the track |
+| `src/keyboard.ts` | On-screen **keyboard + `inputField`** (`Widget3d`) — the typing surface for a headset, with press-hold-drag accent picker |
+| `src/key-layout.ts` | Pure keyboard model: per-mode layouts (alpha/alphanumeric/symbols/numpad), long-press accents, key geometry; unit-tested |
+| `src/text-edit.ts` | Pure editing model — **code-point-correct** caret/selection (a naive slice splits emoji and accented chars); unit-tested |
+| `src/table.ts` | **Data table** (`Widget3d`) — sticky header, virtualized body, drag-to-scroll, icon selection, D-pad focus traversal |
+| `src/table-layout.ts` | Pure table geometry: column resolution (fixed/flex, exact-width) + row virtualization window; unit-tested |
+| `src/selection.ts` | Selection state as an **icon** (`circle`/`checkCircle`, `square`/`checkSquare`) — orthogonal to hover/focus, so states never compete for intensity. See UI-DESIGN-NOTES |
 | `src/svg-icons.ts` / `src/icon-name.ts` | `svgIcons.<name>()` icon proxy (→ SVG `ElementCreator`) + `iconGlyph` (texture-safe glyph) over the generated `icon-data.ts` (from `icons/*` via `bun run icons`); `icon-name.ts` is the pure composition-suffix parser |
 | `src/xr-frames.ts` | XR reference frames (`world`/`rig`/`body`/`neck`/`face` + hands) for spatial UI |
 | `src/frame-panel.ts` | `attachFramePanel` — SVG panel pinned to an XR frame, gaze-revealed |

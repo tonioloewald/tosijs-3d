@@ -240,3 +240,38 @@ side:
 - **No contract change for transcripts** — the sim's conversation driver played every line, so it
   logs `{ lineId, speaker, text, audioAsset, at }` itself for the review panel (with audio replay).
   Separate from the chronicle (which records what the conversation _meant_); do not unify them.
+
+## SVG UI substrate — the conversation staging now has parts to be built from (2026-08-02)
+
+Not a contract change and not a version cut (38 commits since `v0.5.2`, none of them
+sim-side), so this is a **status note** rather than a roadmap review. But it closes a gap
+the 2026-07-23 conversation entry left open: that entry specified _what_ tosijs-3d owns
+in the membrane split — balloon panels, barge-in turn-taking, a reviewable transcript —
+without any of it existing yet. It exists now, as generic parts:
+
+| conversation-staging need           | what it's now built from                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| balloon panels                      | `surface.openPanel` — floating, draggable, closable; already placed by `placePopup` (flip near an edge, clamp on-surface) |
+| terse player options                | `box` + `button`, or a list with `selection`'s state icons                                                                |
+| **reviewable transcript**           | `table` — virtualized, so a long conversation stays cheap on a texture; sticky header; drag-to-scroll                     |
+| picking an option without a pointer | focus traversal (`focusMove`/`focusActivate`), D-pad-driven — the case that matters in a headset                          |
+| any of the above **in VR**          | all of it renders identically flat and rasterized to a plane, which was the whole point of building on SVG                |
+
+Two things this changes for the sim lane's estimates:
+
+- **Conversation staging is now mostly assembly, not construction.** The remaining
+  bespoke work is the playback core (timing, audio, barge-in) and the camera/animation
+  staging — not the UI.
+- **The transcript panel is essentially free.** It was specced as a review surface with
+  audio replay; `table` + a per-row activate handler covers the surface, leaving only the
+  replay wiring.
+
+Unchanged: the membrane. Ariosto still owns dialogue content, branches and the chronicle;
+this is staging only. And the transcript stays separate from the chronicle, per that entry
+— one records what was _said_, the other what it _meant_.
+
+One caveat so the estimate isn't read as firmer than it is: the D-pad path is tested but
+**not validated on real hardware**, and the scene panel has **not** migrated to `surface`
+yet (gated on a VR-emulator check — it touches the XR pick path). Neither blocks
+conversation work, but both are between here and "a human can play it, and so can the AI
+player."
