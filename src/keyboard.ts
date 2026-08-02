@@ -34,6 +34,11 @@ which made the accents unreachable by finger.
 outside the key and outside the keyboard entirely (as iOS does) — a spacebar-width
 gesture would only buy you a spacebar of travel.
 
+There is no completion/suggestion strip yet, and the interesting question isn't *whether*
+but *from what*: see CONVERSATION-DESIGN.md → "Keyword dialogue", where the conclusion is
+that a known, relevant word should be **clickable rather than typed**, so typing's
+fallback role points completion at the player's own vocabulary rather than the world's.
+
 ```js
 import { surface, widgetBox, box, textBlock, inputField, keyboard, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'

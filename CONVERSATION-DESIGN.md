@@ -104,3 +104,53 @@ Order, by dependency:
 3. **(c) walk-and-talk last** — _requires the NPC-movement work_ (`B-SIM-2`, the autonomy loop /
    `guidance.ts steerToward`, to pace the player) plus a walk+talk animation blend. It rides on the
    SIM-lane movement work, so it cannot lead.
+
+## Keyword dialogue — the other mode, and what it means for text entry
+
+The staging above assumes **offered options**: the player picks from a short list. There
+is a second, older mode worth keeping in view, because it changes what the keyboard is
+for.
+
+**The Ultima IV model** (used in _Prince of Destruction_): NPCs answer a few universal
+words — name / job / health / bye — plus **words they themselves have used**. A keyword
+in an NPC's line is shown **in red**, and clicking it says it back:
+
+> "I am looking for my **cow**. I think a **wolf** may have killed it."
+
+You can click `wolf`, or type `wolf`, or type `what wolf`. Same result.
+
+Two properties make this worth more than it first looks:
+
+- **The conversation surface is the vocabulary.** You don't hunt through a menu; the
+  words you can say are visible in what was just said to you. New topics enter play by
+  being _mentioned_, which is also how they enter play in a real conversation.
+- **It has a memory dimension.** A word heard from one NPC can be tried on another. That
+  is a player-side inference, not a quest flag — exactly the "systemic, not scripted"
+  texture the north star asks for.
+
+### What this implies for the keyboard
+
+**If a word is known and relevant, it should be CLICKABLE, not typed.** Clicking is
+faster, unambiguous, and needs no keyboard at all — which matters most in a headset.
+
+So typing is the **fallback**, and the fallback's content is _not_ the world's
+vocabulary:
+
+- the **player's own** names (their character, a save, a label) — never in any dictionary
+- a keyword **remembered from elsewhere** and not currently on screen
+- free expression, where the sim's tolerance for unrecognised input is the design
+  question
+
+This corrects an assumption that looked obvious: completing from `world-store`'s entity
+names sounds like the high-value case, and it is nearly the _lowest_, because those words
+are already one tap away. Recency and frequency of what the **player** typed is the
+better first source.
+
+### The tension worth naming before building it
+
+Completing over "every keyword you have heard" would quietly convert a **memory**
+mechanic into a **menu**. Remembering that an innkeeper three towns back mentioned a
+_wolf_ is the interesting part; a dropdown that surfaces it on `w` removes the game.
+
+Not an argument against completion — an argument for choosing its source deliberately.
+Completing the player's own vocabulary is help; completing the world's may be spoilage.

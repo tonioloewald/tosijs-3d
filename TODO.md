@@ -509,6 +509,24 @@ consume that yet, so a table inside a box is one focus stop rather than a sub-li
 prerequisite and is done. Gated on a VR emulator because it touches the XR pick path
 (`panel3d` hangs `handlePointer`/`scrollBy` off the SVG element as closures — the
 documented untargetable-in-VR trap).
+[ ] **Text suggestion seam — `suggest(prefix, context) => string[]`.** Pure and testable
+like the other models, rendered as a strip above the keys, **tap to accept, never
+auto-applied** (silent replacement of correctly-typed words is what makes phone
+autocomplete infuriating — it's a product decision, not a limit). Sources, in the order
+they're likely to earn their place:
+
+1. **What the PLAYER typed before** (recency/frequency) — their character's name, save
+   labels. Never in any dictionary, and the case that actually recurs.
+2. Free text / chat, if it turns out to be a big share of real typing (unmeasured).
+3. `world-store` entity names — deliberately LAST, and possibly never. Tonio's
+   correction: a known, relevant word should be **clickable, not typed** (Ultima IV /
+   Prince of Destruction keyword dialogue — see CONVERSATION-DESIGN.md), so completing
+   the world's vocabulary helps least where it looked most obvious. Worse, completing
+   over "keywords you've heard" converts a MEMORY mechanic into a menu.
+   Swipe-to-type is the same machinery one layer on: path-matching against key centres, and
+   `keyRects` already gives exact geometry. Open-domain English prediction is an explicit
+   NON-goal until something demands it.
+
 [ ] Wire `keyboard` to `inputField` focus so a panel can host a field the keyboard
 targets (cross-surface focus — the `xr-frames` floating-keyboard case).
 
