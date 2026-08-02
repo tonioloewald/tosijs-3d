@@ -58,9 +58,11 @@ because unseen rows are paid for <strong>twice</strong>: once building SVG nodes
 rasterizing the whole sheet to a <code>DynamicTexture</code> on every change. A 500-row inventory
 would otherwise be 500 <code>&lt;g&gt;</code>s in a texture showing twelve.</p>
 <h2>Demo</h2>
-<p>Scroll the body (wheel or drag). Click a row to select it — the state icon is a
-different visual channel from hover, so a row can be hovered <em>and</em> selected and both
-still read.</p>
+<p>Scroll the body by <strong>dragging</strong> it (or the wheel). Click a row to select it. Then click
+into the table and use <strong>arrow keys + Enter</strong> — that&#39;s the D-pad path, and it&#39;s the only
+one that exists in a headset.</p>
+<p>Three independent channels, so a row can be all three at once and each still reads:
+<strong>hover</strong> = background, <strong>selection</strong> = icon, <strong>focus</strong> = ring.</p>
 <pre><code class="language-js">import { surface, widgetBox, box, textBlock, table, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
@@ -121,6 +123,18 @@ svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#3
 // Wheel scrolls too, but DRAGGING the body is the primary gesture — a wheel doesn&#39;t
 // exist on touch and can&#39;t be expressed by a VR ray.
 svgEl.addEventListener(&#39;wheel&#39;, (e) =&gt; { t.scrollBy(e.deltaY); e.preventDefault() }, { passive: false })
+
+// D-pad / keyboard traversal. A gamepad user has no pointer and a headset has no
+// keyboard, so direction + confirm has to be sufficient on its own. Arrow keys stand
+// in for the D-pad here; the same two calls are what a gamepad would drive.
+svgEl.setAttribute(&#39;tabindex&#39;, &#39;0&#39;)
+svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
+  if (e.key === &#39;ArrowDown&#39;) { t.focusMove(1); e.preventDefault() }
+  else if (e.key === &#39;ArrowUp&#39;) { t.focusMove(-1); e.preventDefault() }
+  else if (e.key === &#39;Enter&#39; || e.key === &#39; &#39;) { t.focusActivate(); e.preventDefault() }
+  else if (e.key === &#39;Escape&#39;) { t.focusClear() }
+})
+svgEl.focus()
 
 preview.append(
   div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },

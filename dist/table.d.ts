@@ -12,6 +12,21 @@ export interface Table extends Widget3d {
     readonly selected: string[];
     /** Replace the rows (keeps scroll, drops selections that no longer exist). */
     setRows: (rows: TableRow[]) => void;
+    /** The focused row index, or -1. */
+    readonly focusIndex: number;
+    /**
+     * Move focus one row (`dy` +1 down / -1 up), scrolling it into view.
+     *
+     * Returns **false when the move would leave the table** — at either end, or when
+     * there are no rows. That's the contract that lets focus escape: a host moves on
+     * to the next widget when this says "not mine". Clamping instead is what traps
+     * focus inside a list forever, which is the classic D-pad dead end.
+     */
+    focusMove: (dy: number) => boolean;
+    /** Commit the focused row (A / Enter). Same effect as tapping it. */
+    focusActivate: () => boolean;
+    /** Drop focus (B / the host taking it elsewhere). */
+    focusClear: () => void;
 }
 export declare function table(config: {
     rows: TableRow[];

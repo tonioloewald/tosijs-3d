@@ -220,6 +220,114 @@ describe('table — drag to scroll', () => {
   })
 })
 
+describe('table — D-pad / keyboard traversal', () => {
+  const ring = (t: any) =>
+    t.el.querySelectorAll('[data-tbl="rows"] [data-focus-ring]').length
+
+  test('the first move enters the list and shows a ring', () => {
+    const { t } = mk()
+    expect(t.focusIndex).toBe(-1)
+    expect(ring(t)).toBe(0)
+    expect(t.focusMove(1)).toBe(true)
+    expect(t.focusIndex).toBe(0)
+    expect(ring(t)).toBe(1)
+  })
+
+  test('entering after a scroll lands where you are LOOKING, not at row 0', () => {
+    const { t } = mk()
+    t.scrollBy(ROW_H * 10)
+    t.focusMove(1)
+    expect(t.focusIndex).toBe(10)
+  })
+
+  test('moves row by row', () => {
+    const { t } = mk()
+    t.focusMove(1)
+    t.focusMove(1)
+    t.focusMove(1)
+    expect(t.focusIndex).toBe(2)
+    t.focusMove(-1)
+    expect(t.focusIndex).toBe(1)
+  })
+
+  test('returns FALSE at the ends so focus can escape (no D-pad dead end)', () => {
+    const { t } = mk({ count: 3 })
+    t.focusMove(1) // enter at 0
+    expect(t.focusMove(-1)).toBe(false) // above the top → not consumed
+    expect(t.focusIndex).toBe(0) // and does not wrap or clamp-and-swallow
+    t.focusMove(1)
+    t.focusMove(1) // now at 2, the last row
+    expect(t.focusIndex).toBe(2)
+    expect(t.focusMove(1)).toBe(false) // below the end → not consumed
+  })
+
+  test('an empty table never claims the move', () => {
+    const { t } = mk({ count: 0 })
+    expect(t.focusMove(1)).toBe(false)
+    expect(t.focusIndex).toBe(-1)
+  })
+
+  test('focus scrolls itself into view rather than going off-screen', () => {
+    const { t } = mk()
+    t.focusMove(1) // row 0
+    const visible = () =>
+      [...t.el.querySelectorAll('[data-tbl="rows"] > g')].map((g: any) =>
+        g.getAttribute('data-row')
+      )
+    // walk past the bottom of the viewport
+    for (let i = 0; i < 12; i++) t.focusMove(1)
+    expect(t.focusIndex).toBe(12)
+    expect(visible()).toContain('r12') // the focused row is actually built
+  })
+
+  test('activate commits the focused row — same effect as tapping it', () => {
+    const { t, picked } = mk({ selection: 'multi' })
+    t.focusMove(1)
+    t.focusMove(1) // row 1
+    expect(t.focusActivate()).toBe(true)
+    expect(t.selected).toEqual(['r1'])
+    expect(picked.at(-1)).toEqual(['r1'])
+  })
+
+  test('activate with no focus does nothing', () => {
+    const { t } = mk({ selection: 'single' })
+    expect(t.focusActivate()).toBe(false)
+    expect(t.selected).toEqual([])
+  })
+
+  test('a pointer tap moves focus there, so mouse → D-pad resumes in place', () => {
+    const { t } = mk({ selection: 'single' })
+    t.handle!('up', 40, rowY(2))
+    expect(t.focusIndex).toBe(2)
+    t.focusMove(1)
+    expect(t.focusIndex).toBe(3)
+  })
+
+  test('focusClear removes the ring', () => {
+    const { t } = mk()
+    t.focusMove(1)
+    expect(ring(t)).toBe(1)
+    t.focusClear()
+    expect(t.focusIndex).toBe(-1)
+    expect(ring(t)).toBe(0)
+  })
+
+  test('focus, hover and selection coexist — three channels, all readable', () => {
+    const { t } = mk({ selection: 'multi' })
+    t.focusMove(1) // focus row 0
+    t.focusActivate() // select row 0
+    t.handle!('move', 40, rowY(0)) // hover row 0 as well
+    const row = t.el.querySelector('[data-tbl="rows"] > g') as any
+    expect(t.focusIndex).toBe(0)
+    expect(t.selected).toEqual(['r0'])
+    // ring present (focus), row fill non-transparent (hover), glyph accent (selected)
+    expect(row.querySelector('[data-focus-ring]')).not.toBeNull()
+    expect(row.querySelector('rect').getAttribute('fill')).not.toBe(
+      'transparent'
+    )
+  })
+})
+
 describe('table — hit testing', () => {
   test('a click in the HEADER selects nothing', () => {
     const { t, picked } = mk({ selection: 'single' })

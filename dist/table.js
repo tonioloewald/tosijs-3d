@@ -18,9 +18,12 @@ would otherwise be 500 `<g>`s in a texture showing twelve.
 
 ## Demo
 
-Scroll the body (wheel or drag). Click a row to select it — the state icon is a
-different visual channel from hover, so a row can be hovered *and* selected and both
-still read.
+Scroll the body by **dragging** it (or the wheel). Click a row to select it. Then click
+into the table and use **arrow keys + Enter** — that's the D-pad path, and it's the only
+one that exists in a headset.
+
+Three independent channels, so a row can be all three at once and each still reads:
+**hover** = background, **selection** = icon, **focus** = ring.
 
 ```js
 import { surface, widgetBox, box, textBlock, table, svgPoint } from 'tosijs-3d'
@@ -84,6 +87,18 @@ svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
 // exist on touch and can't be expressed by a VR ray.
 svgEl.addEventListener('wheel', (e) => { t.scrollBy(e.deltaY); e.preventDefault() }, { passive: false })
 
+// D-pad / keyboard traversal. A gamepad user has no pointer and a headset has no
+// keyboard, so direction + confirm has to be sufficient on its own. Arrow keys stand
+// in for the D-pad here; the same two calls are what a gamepad would drive.
+svgEl.setAttribute('tabindex', '0')
+svgEl.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') { t.focusMove(1); e.preventDefault() }
+  else if (e.key === 'ArrowUp') { t.focusMove(-1); e.preventDefault() }
+  else if (e.key === 'Enter' || e.key === ' ') { t.focusActivate(); e.preventDefault() }
+  else if (e.key === 'Escape') { t.focusClear() }
+})
+svgEl.focus()
+
 preview.append(
   div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div({ style: 'flex:1;min-height:0;padding:12px' }, svgEl),
@@ -127,6 +142,8 @@ export function table(config) {
     let cols = [];
     let scroll = 0;
     let hover = -1;
+    /** D-pad / keyboard focus, as a row index; -1 = not focused. */
+    let focused = -1;
     let selected = new Set();
     /** In-flight press: where it started, and whether it has become a scroll. */
     let drag = null;
@@ -207,6 +224,22 @@ export function table(config) {
                     fill: i === hover ? ROW_HOVER : 'transparent',
                 }),
             ];
+            // …and FOCUS is a third channel: an outline. With a D-pad you have to see where
+            // you are BEFORE you commit to toggling it, so focus must read even on a row
+            // that is simultaneously hovered and selected.
+            if (i === focused) {
+                kids.push(rect({
+                    x: 1,
+                    y: y + 1,
+                    width: Math.max(0, width - 2),
+                    height: ROW_H - 2,
+                    rx: 4,
+                    fill: 'none',
+                    stroke: ACCENT,
+                    'stroke-width': 2,
+                    'data-focus-ring': '',
+                }));
+            }
             if (config.selection) {
                 kids.push(iconGlyph(selectionIcon(config.selection, isSel), {
                     size: 16,
@@ -248,6 +281,45 @@ export function table(config) {
         const by = y - (HEAD_H + 2);
         return by >= 0 && by <= BODY_H ? by : null;
     };
+    /**
+     * What a commit on a row does — the ONE definition, shared by a pointer tap and by
+     * D-pad activate. Two copies would drift, and the drift would be silent: a table
+     * that selects differently depending on which input you used.
+     */
+    const commitRow = (row) => {
+        if (config.selection) {
+            const was = selected.has(row.id);
+            selected = applySelection(selected, row.id, config.selection, {
+                allowDeselect: config.allowDeselect,
+            });
+            paintBody();
+            config.onSelect?.([...selected]);
+            // Committing an already-selected row reads as "open it" — the second half of
+            // select-then-activate, without a double-click (a poor fit for a VR ray, and
+            // impossible to express on a D-pad).
+            if (was && selected.has(row.id))
+                config.onActivate?.(row);
+        }
+        else {
+            config.onActivate?.(row);
+        }
+    };
+    /**
+     * Scroll the focused row fully into view. Focus that moves off-screen is the
+     * classic way a D-pad list becomes unusable: the ring is *somewhere*, you just
+     * can't see it, so you press again and overshoot.
+     */
+    const revealFocused = () => {
+        if (focused < 0)
+            return;
+        const top = focused * ROW_H;
+        const bottom = top + ROW_H;
+        if (top < scroll)
+            scroll = top;
+        else if (bottom > scroll + BODY_H)
+            scroll = bottom - BODY_H;
+        scroll = clampScroll(scroll);
+    };
     const api = {
         el,
         get selected() {
@@ -263,6 +335,42 @@ export function table(config) {
             if (next === scroll)
                 return;
             scroll = next;
+            paintBody();
+        },
+        get focusIndex() {
+            return focused;
+        },
+        focusMove(dy) {
+            if (rows.length === 0)
+                return false;
+            // Entering: the first press lands on the top visible row rather than row 0, so
+            // focus appears where you're already looking after a scroll.
+            if (focused < 0) {
+                focused = Math.min(rows.length - 1, Math.max(0, Math.ceil(scroll / ROW_H)));
+                revealFocused();
+                paintBody();
+                return true;
+            }
+            const next = focused + (dy > 0 ? 1 : dy < 0 ? -1 : 0);
+            // Past either end, DON'T clamp — report "not consumed" so the host can move
+            // focus on to the next widget. Clamping is what traps focus in a list forever.
+            if (next < 0 || next >= rows.length)
+                return false;
+            focused = next;
+            revealFocused();
+            paintBody();
+            return true;
+        },
+        focusActivate() {
+            if (focused < 0 || focused >= rows.length)
+                return false;
+            commitRow(rows[focused]);
+            return true;
+        },
+        focusClear() {
+            if (focused === -1)
+                return;
+            focused = -1;
             paintBody();
         },
         setRows(next) {
@@ -328,23 +436,10 @@ export function table(config) {
             }
             drag = null;
             if (kind === 'up' && i >= 0) {
-                const row = rows[i];
-                if (config.selection) {
-                    const was = selected.has(row.id);
-                    selected = applySelection(selected, row.id, config.selection, {
-                        allowDeselect: config.allowDeselect,
-                    });
-                    paintBody();
-                    config.onSelect?.([...selected]);
-                    // A click on an already-selected row reads as "open it" — the second click
-                    // of a select-then-activate, without needing a double-click (which is a
-                    // poor fit for a VR ray).
-                    if (was && selected.has(row.id))
-                        config.onActivate?.(row);
-                }
-                else {
-                    config.onActivate?.(row);
-                }
+                // A pointer tap also moves focus there, so switching from mouse to D-pad
+                // resumes from the row you last touched rather than jumping somewhere else.
+                focused = i;
+                commitRow(rows[i]);
             }
         },
     };
