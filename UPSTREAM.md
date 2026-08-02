@@ -21,7 +21,7 @@ no issue URL is a complaint nobody will ever read.
 | `haltija`  | `hj console` captures `console.*` but not uncaught exceptions                                                                                         | [haltija#9](https://github.com/tonioloewald/haltija/issues/9)     |
 | `haltija`  | No first-class verbs for driving tosijs-ui live examples                                                                                              | [haltija#10](https://github.com/tonioloewald/haltija/issues/10)   |
 
-_Nothing open against `tosijs-ui` — rc.2 cleared the last two._
+| `tosijs-ui` | A spent `?t=` 401s you even when you already hold a valid session — redeem should be skipped, not required | [tosijs-ui#45](https://github.com/tonioloewald/tosijs-ui/issues/45) |
 
 ## Resolved
 
