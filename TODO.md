@@ -502,9 +502,13 @@ a texture: SVG nodes AND the raster), fixed/flex columns, drag-to-scroll.
 rather than trapping; scrolls itself into view; pointer tap hands focus over). But
 **"feels right on a stick" is UNVERIFIED** — repeat rate, one-row-per-press, and whether
 the ring reads through headset optics are judgement calls needing real hardware.
-[ ] **`box` should delegate focus INTO a child widget.** `table.focusMove` already
-returns `false` at its ends — the "not consumed, pass it on" contract — but `box` doesn't
-consume that yet, so a table inside a box is one focus stop rather than a sub-list.
+[x] **`box` delegates focus INTO a child widget.** The escape contract
+(`focusMove(dx, dy) → boolean`, false = "not consumed, pass it on") is now a first-class
+`BoxChild`/`Widget3d` protocol: box hides its whole-child ring, seeds entry with the
+direction of travel, and clears on exit. `keyboard` implements it (per-key ring,
+escapes off the top onto the field) — see UI-DESIGN-NOTES → "Inner focus". Remaining:
+a `table`-as-BoxChild adapter (its standalone `focusMove(dy)` needs the (dx,dy) shape),
+and — as with the table — "feels right on a stick" is unverified on real hardware.
 [ ] **Migrate the scene panel to `surface()`.** NOT started; `widget-box` was the
 prerequisite and is done. Gated on a VR emulator because it touches the XR pick path
 (`panel3d` hangs `handlePointer`/`scrollBy` off the SVG element as closures — the

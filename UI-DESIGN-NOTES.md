@@ -533,3 +533,39 @@ selection icon. They don't collide, precisely because they're on different chann
 
 — agreed with Tonio while designing table/list selection; the icons already existed (`checkCircle`,
 `square`, `checkSquare`), only `circle` had to be added.
+
+## A popup must stay inside its widget's rect (host routes by child rect)
+
+The keyboard's accent strip opened _above_ the held key — which for the top row (qwertyuiop:
+every vowel) placed it outside the keyboard's own rect, drawn over the text field sitting above
+it in the panel. Rendering is unclipped so this LOOKED fine; but the host `box` routes pointers
+by child rect, so the tap on `ö` was delivered to the field, which ate it. Classic silent
+divergence between where something _paints_ and who _owns_ the pixels it painted on.
+
+Fix: the strip stays inside the keyboard — clamped to the top edge, and when clamping would sit
+it on the pressed key itself (top row) it opens **below** the key instead. The general rule: an
+overlay a widget draws for itself must stay inside that widget's bounds, because the routing
+layer doesn't know it exists. (An overlay that genuinely must escape the widget belongs to the
+_surface_'s overlay layer, which owns routing for it — that's what menus/panels do.)
+
+Related fix, same session: a sticky accent strip's origin key now types the plain letter (tap
+`o` again → `o`), instead of the tap being spent purely on dismissal — "nothing happens" on a
+real device read as breakage, not as a spent tap.
+
+## Inner focus: one child, many stops (the escape contract, generalized)
+
+The keyboard is ONE box child but ~35 focus stops, and box-level focus drew one ring around the
+whole keyboard — which is noise, not focus. `table` had already solved this shape standalone
+(focusMove returns false at the ends so the host can move on); that contract is now a first-class
+`BoxChild`/`Widget3d` protocol: `focusMove(dx, dy) → boolean` (false = focus escaped, host moves
+on), `focusActivate`, `focusClear`. The box delegates D-pad moves into a focused child that
+implements it, hides its own ring (the child draws a per-item one), calls `focusMove` once on
+ENTRY with the direction of travel (arriving downward lands on the top row, not wherever focus
+last was), and `focusClear` when focus actually leaves.
+
+One deliberate divergence from table: a pointer tap on the keyboard only RELOCATES an already-
+active focus, it never summons the ring. Typing is a stream of taps; a ring chasing every
+keystroke is noise. On a table, taps are sparse and focus-follows-tap is what makes
+pointer→D-pad handoff seamless — both behaviours serve the same goal at different tap rates.
+
+— from Tonio's on-device keyboard test (drag-selects-text, eaten accent tap, whole-keyboard ring)

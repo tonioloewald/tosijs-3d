@@ -1,4 +1,4 @@
-import { type KeyboardMode, type KeyAction } from './key-layout';
+import { type KeyboardMode, type KeyAction, type KeyRect } from './key-layout';
 import type { Widget3d } from './widgets3d';
 /** A text field driven by the pure edit model. Tap to place the caret. */
 export interface InputField extends Widget3d {
@@ -30,6 +30,19 @@ export declare function inputField(config?: {
 export interface Keyboard extends Widget3d {
     readonly mode: KeyboardMode;
     setMode: (m: KeyboardMode) => void;
+    /** The key D-pad focus is on, or `null` — exposed for tests and debug readouts. */
+    readonly focusedKey: KeyRect | null;
+    /**
+     * Inner focus traversal (the {@link Widget3d} protocol, concrete here): the
+     * keyboard is ONE box child but MANY focus stops. Returns `false` when the move
+     * runs off the edge of the keys, so the host box moves focus on to the next
+     * widget — otherwise the D-pad would be trapped in here forever.
+     */
+    focusMove: (dx: number, dy: number) => boolean;
+    /** Press the focused key (Enter / A). */
+    focusActivate: () => void;
+    /** Drop key focus (the host's focus moved elsewhere). */
+    focusClear: () => void;
 }
 export declare function keyboard(config?: {
     mode?: KeyboardMode;

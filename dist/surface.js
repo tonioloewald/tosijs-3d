@@ -140,6 +140,8 @@ const TITLE_H = 30;
 export function surface(opts) {
     const { width, height } = opts;
     const el = svgElements.g({ 'data-surface': '' });
+    // Dragging (panels, scroll, sliders) must not select the SVG text nodes.
+    el.setAttribute('style', 'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
     const contentLayer = svgElements.g({ 'data-surface-content': '' });
     const overlay = svgElements.g({ 'data-surface-overlay': '' });
     el.append(contentLayer, overlay);

@@ -188,3 +188,93 @@ describe('box — press/hover/focus feedback', () => {
     expect(bg()).toBe('#0f0')
   })
 })
+
+describe('box — inner focus (composite children)', () => {
+  // A fake keyboard-ish child: three focus stops along x, escape off either end.
+  const composite = (calls: string[]) => {
+    let inner = -1
+    const child: import('./box').BoxChild = {
+      el: undefined as any, // filled below — needs the DOM from beforeAll
+      kind: 'block',
+      measure: () => ({ height: 40 }),
+      focusable: true,
+      focusMove: (dx, dy) => {
+        if (inner < 0) {
+          inner = dy < 0 || dx < 0 ? 2 : 0 // seed at the edge you entered from
+          return true
+        }
+        if (dx === 0) return false // one horizontal strip: vertical always escapes
+        const next = inner + (dx > 0 ? 1 : -1)
+        if (next < 0 || next > 2) return false // escaped off an end
+        inner = next
+        return true
+      },
+      focusActivate: () => calls.push(`act:${inner}`),
+      focusClear: () => {
+        inner = -1
+        calls.push('clear')
+      },
+    }
+    return { child, inner: () => inner }
+  }
+  const mkBox = (calls: string[]) => {
+    const c = composite(calls)
+    c.child.el = mod.textBlock('kbd').el
+    const b = mod.box({ width: 200, gap: 10 }, mod.button('Field'), c.child)
+    return { b, c }
+  }
+
+  test('entering a composite child seeds its inner focus and hides the box ring', () => {
+    const calls: string[] = []
+    const { b, c } = mkBox(calls)
+    b.focusMove(0, 1) // → button (first focusable), ring visible
+    const ring = b.el.querySelector('[data-box-focus]')!
+    expect(ring.getAttribute('visibility')).toBe('visible')
+    b.focusMove(0, 1) // → composite, seeded at stop 0
+    expect(b.focusIndex()).toBe(1)
+    expect(c.inner()).toBe(0)
+    // the child draws its own indicator; a ring around the whole child is noise
+    expect(ring.getAttribute('visibility')).toBe('hidden')
+  })
+
+  test('moves are consumed inside until they escape, then the box moves on and clears', () => {
+    const calls: string[] = []
+    const { b, c } = mkBox(calls)
+    b.focusMove(0, 1)
+    b.focusMove(0, 1) // enter composite at 0
+    b.focusMove(1, 0)
+    b.focusMove(1, 0)
+    expect(c.inner()).toBe(2) // walked inside; box focus unmoved
+    expect(b.focusIndex()).toBe(1)
+    b.focusMove(0, -1) // escapes upward → back to the button
+    expect(b.focusIndex()).toBe(0)
+    expect(calls).toContain('clear')
+    expect(c.inner()).toBe(-1)
+    const ring = b.el.querySelector('[data-box-focus]')!
+    expect(ring.getAttribute('visibility')).toBe('visible')
+  })
+
+  test('an escape with nowhere to go leaves inner focus where it was', () => {
+    const calls: string[] = []
+    const { b, c } = mkBox(calls)
+    b.focusMove(0, 1)
+    b.focusMove(0, 1) // enter composite
+    b.focusMove(1, 0)
+    b.focusMove(1, 0) // inner = 2
+    b.focusMove(1, 0) // escape right — but nothing is to the right
+    expect(b.focusIndex()).toBe(1)
+    expect(c.inner()).toBe(2) // not cleared: focus never actually left
+  })
+
+  test('focusActivate delegates to the inner-focused item; focusBack clears it', () => {
+    const calls: string[] = []
+    const { b, c } = mkBox(calls)
+    b.focusMove(0, 1)
+    b.focusMove(0, 1) // enter composite at 0
+    b.focusActivate()
+    expect(calls).toContain('act:0')
+    b.focusBack()
+    expect(b.focusIndex()).toBe(-1)
+    expect(c.inner()).toBe(-1)
+  })
+})

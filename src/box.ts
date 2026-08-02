@@ -252,6 +252,26 @@ export interface BoxChild {
    * treat the whole rect as the control.
    */
   hitTest?: (x: number, y: number) => boolean
+  /**
+   * Inner focus traversal — for a child that manages focus WITHIN itself (a
+   * keyboard's keys, a table's rows). While this child holds the box's focus,
+   * D-pad moves are delegated here. Return `true` if the move landed on something
+   * inside; `false` means focus escaped in that direction and the box moves on to
+   * the next child — the same escape contract as `table.focusMove`, which is what
+   * keeps a D-pad from being trapped inside a composite control forever.
+   *
+   * The box also calls this once on ENTRY (with the direction of travel) so the
+   * child can seed focus at the matching edge — arriving downward should land on
+   * the top row, not wherever focus last was.
+   *
+   * A child with inner focus draws its own focus indicator; the box hides its
+   * whole-child ring (a ring around an entire keyboard says nothing).
+   */
+  focusMove?: (dx: number, dy: number) => boolean
+  /** Activate the inner-focused item (Enter / A). Pairs with `focusMove`. */
+  focusActivate?: () => void
+  /** Drop inner focus — the box's focus left this child. */
+  focusClear?: () => void
 }
 
 /** Pointer phase fed to {@link Box.handlePointer}. */
@@ -325,6 +345,12 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
 
   const clipId = `box_clip_${++boxSeq}`
   const el = svgElements.g({ 'data-box': '' }) as unknown as SVGGElement
+  // Dragging (scroll, slider, spacebar-caret) must not select the text nodes —
+  // SVG text is selectable by default and a drag paints every label blue.
+  el.setAttribute(
+    'style',
+    'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
+  )
   const bgRect = svgElements.rect({ 'data-box-bg': '', rx: radius, ry: radius })
   const clip = svgElements.clipPath({ id: clipId })
   const clipRect = svgElements.rect({ x: 0, y: 0 })
@@ -445,7 +471,9 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   // CONTENT space and it tracks the child through scrolling for free.
   const positionRing = (): void => {
     const b = laidBoxes[focused]
-    if (focused < 0 || !b) {
+    // A child with inner focus draws its own indicator — a box ring around the
+    // whole child (an entire keyboard!) reads as noise, not focus.
+    if (focused < 0 || !b || children[focused].focusMove) {
       focusRing.setAttribute('visibility', 'hidden')
       return
     }
@@ -624,6 +652,14 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
     },
     focusMove(dx: number, dy: number) {
       const old = focused
+      // A focused child with inner traversal gets the move first; only when it
+      // says the focus ESCAPED (returns false) does the box's own focus move on.
+      if (focused >= 0 && children[focused].focusMove) {
+        if (children[focused].focusMove!(dx, dy)) {
+          ensureVisible(focused)
+          return
+        }
+      }
       if (focused < 0) {
         focused = firstFocusable()
       } else {
@@ -635,6 +671,12 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         )
         if (next != null) focused = next
       }
+      if (old !== focused) {
+        // Leaving an inner-focus child clears its indicator; entering one seeds
+        // it at the edge matching the direction of travel.
+        if (old >= 0) children[old].focusClear?.()
+        if (focused >= 0) children[focused].focusMove?.(dx, dy)
+      }
       if (focused >= 0) ensureVisible(focused)
       positionRing()
       if (old !== focused) {
@@ -643,11 +685,15 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
       }
     },
     focusActivate() {
-      if (focused >= 0) children[focused].onActivate?.()
+      if (focused < 0) return
+      const c = children[focused]
+      if (c.focusActivate) c.focusActivate()
+      else c.onActivate?.()
     },
     focusBack() {
       const old = focused
       focused = -1
+      if (old >= 0) children[old].focusClear?.()
       positionRing()
       if (old >= 0) applyState(old)
     },

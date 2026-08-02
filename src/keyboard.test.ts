@@ -343,3 +343,124 @@ describe('inputField', () => {
     expect(f.value).toBe('h')
   })
 })
+
+describe('keyboard — the accent strip stays inside the keyboard rect', () => {
+  // The strip renders fine outside the keyboard's rect, but the HOST routes
+  // pointers by child rect — a strip poking above the keyboard lands on the
+  // neighbouring widget (the text field), which then eats the tap.
+  test('a TOP-row key (all the vowels!) opens its strip BELOW the key', async () => {
+    const { kb } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    const backdrop = strip.querySelector('rect')!
+    expect(Number(backdrop.getAttribute('y'))).toBeGreaterThanOrEqual(
+      o.rect.y + o.rect.height
+    )
+    kb.handle!('up', o.x, o.y)
+  })
+
+  test('a second-row key keeps its strip above, clamped to y ≥ 0', async () => {
+    const { kb } = mk(5)
+    const a = centre('alpha', false, 'a')
+    kb.handle!('down', a.x, a.y)
+    await wait(20)
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    const backdrop = strip.querySelector('rect')!
+    const by = Number(backdrop.getAttribute('y'))
+    expect(by).toBeGreaterThanOrEqual(0)
+    expect(by).toBeLessThan(a.rect.y) // above the key, not over it
+    kb.handle!('up', a.x, a.y)
+  })
+
+  test('tapping the ORIGIN key of a sticky strip types the plain letter', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    kb.handle!('up', o.x, o.y) // lift → sticky strip
+    kb.handle!('down', o.x, o.y) // tap the key you held: the plain character
+    expect(keys).toEqual(['o'])
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    expect(strip.childNodes.length).toBe(0)
+  })
+})
+
+describe('keyboard — D-pad focus traversal', () => {
+  const ring = (kb: any) =>
+    kb.el.querySelector('[data-kb-focus]') as SVGRectElement
+
+  test('entering downward seeds the TOP row (where you arrived from)', () => {
+    const { kb } = mk()
+    expect(kb.focusedKey).toBeNull()
+    expect(kb.focusMove(0, 1)).toBe(true)
+    expect(kb.focusedKey!.y).toBe(0)
+    expect(ring(kb).getAttribute('visibility')).toBe('visible')
+  })
+
+  test('entering upward seeds the BOTTOM row', () => {
+    const { kb } = mk()
+    const rects = L.keyRects(L.keyLayout('alpha', false), {
+      width: W,
+      keyHeight: KH,
+      gap: GAP,
+    })
+    const maxY = Math.max(...rects.map((r) => r.y))
+    kb.focusMove(0, -1)
+    expect(kb.focusedKey!.y).toBe(maxY)
+  })
+
+  test('arrows walk key to key', () => {
+    const { kb } = mk()
+    kb.focusMove(0, 1)
+    const first = kb.focusedKey!
+    expect(kb.focusMove(1, 0)).toBe(true)
+    expect(kb.focusedKey!.x).toBeGreaterThan(first.x)
+    expect(kb.focusMove(0, 1)).toBe(true)
+    expect(kb.focusedKey!.y).toBeGreaterThan(first.y)
+  })
+
+  test('moving off the top ESCAPES (returns false) rather than trapping the D-pad', () => {
+    const { kb } = mk()
+    kb.focusMove(0, 1) // top row
+    expect(kb.focusMove(0, -1)).toBe(false)
+    // not cleared here — the HOST clears when focus actually lands elsewhere
+    expect(kb.focusedKey).not.toBeNull()
+  })
+
+  test('focusActivate presses the focused key; focusClear drops the ring', () => {
+    const { kb, keys } = mk()
+    kb.focusMove(0, 1)
+    const v = kb.focusedKey!.key.value!
+    kb.focusActivate()
+    expect(keys).toEqual([v])
+    kb.focusClear()
+    expect(kb.focusedKey).toBeNull()
+    expect(ring(kb).getAttribute('visibility')).toBe('hidden')
+  })
+
+  test('focus survives a mode switch (relayout repaints the ring, not just the keys)', () => {
+    const { kb } = mk()
+    kb.focusMove(0, 1)
+    kb.setMode('symbols')
+    expect(kb.focusedKey).not.toBeNull()
+    expect(ring(kb).getAttribute('visibility')).toBe('visible')
+  })
+
+  test('a pointer tap RELOCATES active focus, but never summons the ring', () => {
+    const { kb } = mk()
+    // no focus: typing by pointer keeps the ring away (unlike the table — typing
+    // is a stream of taps and a ring chasing every keystroke is noise)
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y)
+    kb.handle!('up', q.x, q.y)
+    expect(kb.focusedKey).toBeNull()
+    // with focus active, a tap moves it — pointer → D-pad resumes from the tap
+    kb.focusMove(0, 1)
+    const p = centre('alpha', false, 's')
+    kb.handle!('down', p.x, p.y)
+    kb.handle!('up', p.x, p.y)
+    expect(kb.focusedKey!.key.value).toBe('s')
+  })
+})

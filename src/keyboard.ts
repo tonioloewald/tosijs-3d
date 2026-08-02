@@ -34,6 +34,12 @@ which made the accents unreachable by finger.
 outside the key and outside the keyboard entirely (as iOS does) — a spacebar-width
 gesture would only buy you a spacebar of travel.
 
+**D-pad / arrow keys** (click the demo once so it has keyboard focus): the keyboard is
+one panel row but MANY focus stops — it implements the inner-focus protocol
+(`focusMove` returns `false` when a move runs off the edge), so arrows walk key to
+key, arriving on the edge you entered from, and **escaping off the top onto the text
+field** rather than trapping the D-pad forever. `Enter` presses the focused key.
+
 There is no completion/suggestion strip yet, and the interesting question isn't *whether*
 but *from what*: see CONVERSATION-DESIGN.md → "Keyword dialogue", where the conclusion is
 that a known, relevant word should be **clickable rather than typed**, so typing's
@@ -64,12 +70,20 @@ s.setContent(
     textBlock('SVG keyboard', { font: { size: 15, weight: 600 }, color: '#e6e6e6' })
   )
 )
-s.openPanel({ x: 8, y: 44 }, widgetBox(
+const panel = widgetBox(
   { width: 364, padding: 8, gap: 8, background: '#0e1116' },
   [field, kb]
-), { title: 'Text entry', draggable: true })
+)
+s.openPanel({ x: 8, y: 44 }, panel, { title: 'Text entry', draggable: true })
 
-const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, tabindex: 0 }, s.el)
+// D-pad traversal — arrows walk the keys, Enter presses, Escape drops focus.
+const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+svgEl.addEventListener('keydown', (e) => {
+  if (dirs[e.key]) { panel.focusMove(...dirs[e.key]); e.preventDefault() }
+  else if (e.key === 'Enter') { panel.focusActivate(); e.preventDefault() }
+  else if (e.key === 'Escape') panel.focusBack()
+})
 const at = (e) => {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
   // container's aspect ratio differs, and a linear map drifts as it's resized.
@@ -105,6 +119,7 @@ import {
   type EditState,
 } from './text-edit'
 import { measureTextWidth, type FontSpec } from './widgets3d-layout'
+import { nearestInDirection } from './flow-layout'
 import type { Widget3d, PointerKind } from './widgets3d'
 
 const { g, rect, text } = svgElements
@@ -287,6 +302,19 @@ export function inputField(
 export interface Keyboard extends Widget3d {
   readonly mode: KeyboardMode
   setMode: (m: KeyboardMode) => void
+  /** The key D-pad focus is on, or `null` — exposed for tests and debug readouts. */
+  readonly focusedKey: KeyRect | null
+  /**
+   * Inner focus traversal (the {@link Widget3d} protocol, concrete here): the
+   * keyboard is ONE box child but MANY focus stops. Returns `false` when the move
+   * runs off the edge of the keys, so the host box moves focus on to the next
+   * widget — otherwise the D-pad would be trapped in here forever.
+   */
+  focusMove: (dx: number, dy: number) => boolean
+  /** Press the focused key (Enter / A). */
+  focusActivate: () => void
+  /** Drop key focus (the host's focus moved elsewhere). */
+  focusClear: () => void
 }
 
 export function keyboard(
@@ -320,8 +348,40 @@ export function keyboard(
   let rects: KeyRect[] = []
 
   const keysLayer = g({ 'data-kb': 'keys' }) as SVGGElement
+  // Focus ring in its own layer, between keys and popup, so repainting the keys
+  // (mode/shift relayout) doesn't throw it away.
+  const focusRing = rect({
+    'data-kb-focus': '',
+    fill: 'none',
+    stroke: ACCENT,
+    'stroke-width': 2,
+    rx: 8,
+    visibility: 'hidden',
+  }) as SVGRectElement
+  const focusLayer = g({ 'data-kb': 'focus' }, focusRing) as SVGGElement
   const popupLayer = g({ 'data-kb': 'popup' }) as SVGGElement
-  const el = g({ 'data-w3d': 'keyboard' }, keysLayer, popupLayer) as SVGGElement
+  const el = g(
+    { 'data-w3d': 'keyboard' },
+    keysLayer,
+    focusLayer,
+    popupLayer
+  ) as SVGGElement
+
+  /** Index into `rects` of the D-pad-focused key; -1 = no key focus. */
+  let focusIdx = -1
+
+  const paintFocus = (): void => {
+    const r = rects[focusIdx]
+    if (!r) {
+      focusRing.setAttribute('visibility', 'hidden')
+      return
+    }
+    focusRing.setAttribute('x', String(r.x - 2))
+    focusRing.setAttribute('y', String(r.y - 2))
+    focusRing.setAttribute('width', String(r.width + 4))
+    focusRing.setAttribute('height', String(r.height + 4))
+    focusRing.setAttribute('visibility', 'visible')
+  }
 
   /**
    * A popup left open after the finger lifted, waiting to be tapped. Distinct from
@@ -401,6 +461,10 @@ export function keyboard(
       gap: GAP,
     })
     paintKeys()
+    // A mode switch can shrink the key count; keep focus on a real key (same
+    // index ≈ same place on the board, which is what a D-pad user expects).
+    if (focusIdx >= rects.length) focusIdx = rects.length - 1
+    paintFocus()
   }
 
   const closePopup = (): void => {
@@ -419,7 +483,18 @@ export function keyboard(
     // Keep it on-surface: centre over the key, then clamp into the keyboard width.
     let x = r.x + r.width / 2 - w / 2
     x = Math.max(0, Math.min(width - w, x))
-    const y = r.y - CH - 10
+    /*
+    The strip must stay INSIDE the keyboard's own rect. It renders fine outside
+    (the layers aren't clipped) but the host box routes pointers by child rect —
+    so a strip that pokes above the keyboard is drawn over the NEIGHBOURING
+    widget, and tapping it feeds the tap to that widget instead. Concretely: the
+    top row is qwertyuiop — every vowel — and its strip landed on the text
+    field, which ate the tap. So: above the key, clamped to the top edge; and if
+    clamping would sit the strip on the pressed key itself (top row), open
+    below the key instead.
+    */
+    let y = Math.max(0, r.y - CH - 10)
+    if (y + CH + 8 > r.y + r.height / 2) y = r.y + r.height + 10
     const cells: SVGRectElement[] = []
     const kids: SVGElement[] = [
       rect({
@@ -531,16 +606,31 @@ export function keyboard(
         // keys behind them stealing the press.
         if (sticky) {
           const i = cellAt(sticky.cells, x, y)
-          if (i >= 0) config.onKey?.(sticky.accents[i])
-          // Tapping anywhere else just dismisses; the tap is spent on dismissing
-          // rather than also typing whatever was under it, which is what a popup
-          // ought to do.
+          if (i >= 0) {
+            config.onKey?.(sticky.accents[i])
+          } else {
+            // Tapping the key that OPENED the strip types its plain character —
+            // you held for the alternatives, changed your mind, and asked for
+            // the base letter. Dismiss-only here read as "nothing happens" on a
+            // real device. Anywhere ELSE the tap is spent on dismissing rather
+            // than also typing whatever was under it, as a popup ought to.
+            const r = keyAt(rects, x, y)
+            if (r === sticky.rect) fireKey(r)
+          }
           closePopup()
           sticky = null
           return
         }
         const r = keyAt(rects, x, y)
         if (!r) return
+        // A tap RELOCATES an active key focus (so switching pointer → D-pad
+        // resumes from where you last touched) but doesn't summon the ring for a
+        // pure pointer user — unlike the table, typing is a stream of taps and a
+        // ring chasing every keystroke is noise.
+        if (focusIdx >= 0) {
+          focusIdx = rects.indexOf(r)
+          paintFocus()
+        }
         press = { rect: r, timer: null, accents: [], pick: -1, cells: [] }
         const alts = r.key.value ? accentsFor(r.key.value) : []
         if (alts.length > 0) {
@@ -647,6 +737,46 @@ export function keyboard(
       }
       closePopup()
       press = null
+    },
+    get focusedKey() {
+      return rects[focusIdx] ?? null
+    },
+    focusMove(dx: number, dy: number) {
+      if (focusIdx < 0) {
+        // Entering: seed focus at the edge matching the direction of travel —
+        // arriving downward (from the field) lands on the top row, not wherever
+        // focus happened to be last.
+        const kbH = keyboardHeight(keyLayout(mode, shift).length, KH, GAP)
+        const ex = dx > 0 ? 0 : dx < 0 ? width : width / 2
+        const ey = dy > 0 ? 0 : dy < 0 ? kbH : kbH / 2
+        let bestD = Infinity
+        for (let i = 0; i < rects.length; i++) {
+          const cx = rects[i].x + rects[i].width / 2 - ex
+          const cy = rects[i].y + rects[i].height / 2 - ey
+          const d = cx * cx + cy * cy
+          if (d < bestD) {
+            bestD = d
+            focusIdx = i
+          }
+        }
+        paintFocus()
+        return focusIdx >= 0
+      }
+      // KeyRects are structurally FlowBoxes, so the box's own D-pad geometry
+      // applies unchanged. Null = ran off the edge → focus escapes to the host.
+      const next = nearestInDirection(rects, focusIdx, { dx, dy })
+      if (next == null) return false
+      focusIdx = next
+      paintFocus()
+      return true
+    },
+    focusActivate() {
+      const r = rects[focusIdx]
+      if (r) fireKey(r)
+    },
+    focusClear() {
+      focusIdx = -1
+      paintFocus()
     },
   }
   return api

@@ -45,6 +45,26 @@ export interface BoxChild {
      * treat the whole rect as the control.
      */
     hitTest?: (x: number, y: number) => boolean;
+    /**
+     * Inner focus traversal — for a child that manages focus WITHIN itself (a
+     * keyboard's keys, a table's rows). While this child holds the box's focus,
+     * D-pad moves are delegated here. Return `true` if the move landed on something
+     * inside; `false` means focus escaped in that direction and the box moves on to
+     * the next child — the same escape contract as `table.focusMove`, which is what
+     * keeps a D-pad from being trapped inside a composite control forever.
+     *
+     * The box also calls this once on ENTRY (with the direction of travel) so the
+     * child can seed focus at the matching edge — arriving downward should land on
+     * the top row, not wherever focus last was.
+     *
+     * A child with inner focus draws its own focus indicator; the box hides its
+     * whole-child ring (a ring around an entire keyboard says nothing).
+     */
+    focusMove?: (dx: number, dy: number) => boolean;
+    /** Activate the inner-focused item (Enter / A). Pairs with `focusMove`. */
+    focusActivate?: () => void;
+    /** Drop inner focus — the box's focus left this child. */
+    focusClear?: () => void;
 }
 /** Pointer phase fed to {@link Box.handlePointer}. */
 export type PointerKind = 'down' | 'move' | 'up' | 'leave';

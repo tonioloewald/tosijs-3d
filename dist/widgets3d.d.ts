@@ -24,6 +24,19 @@ export interface Widget3d {
      * scroll — important in VR where pointing precisely is hard.
      */
     hitTest?(x: number, y: number): boolean;
+    /**
+     * Inner focus traversal, for a widget that is a whole surface of controls
+     * (the keyboard's keys) rather than one control. Same escape contract as
+     * `BoxChild.focusMove` / `table.focusMove`: return `true` if the D-pad move
+     * landed inside, `false` if focus escaped in that direction so the host moves
+     * on. Also called on entry with the direction of travel, to seed focus at the
+     * matching edge. A widget that implements this draws its own focus indicator.
+     */
+    focusMove?(dx: number, dy: number): boolean;
+    /** Activate the inner-focused item (Enter / A). Pairs with `focusMove`. */
+    focusActivate?(): void;
+    /** Drop inner focus — the host's focus left this widget. */
+    focusClear?(): void;
 }
 /**
  * A static caption row. `color` overrides the default text colour (e.g. an

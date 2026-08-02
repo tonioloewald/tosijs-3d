@@ -202,6 +202,9 @@ export function box(opts, ...children) {
     const { padding = 0, gap = 0, background, border, borderWidth = 1, radius = 0, align = 'top', } = opts;
     const clipId = `box_clip_${++boxSeq}`;
     const el = svgElements.g({ 'data-box': '' });
+    // Dragging (scroll, slider, spacebar-caret) must not select the text nodes —
+    // SVG text is selectable by default and a drag paints every label blue.
+    el.setAttribute('style', 'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
     const bgRect = svgElements.rect({ 'data-box-bg': '', rx: radius, ry: radius });
     const clip = svgElements.clipPath({ id: clipId });
     const clipRect = svgElements.rect({ x: 0, y: 0 });
@@ -309,7 +312,9 @@ export function box(opts, ...children) {
     // CONTENT space and it tracks the child through scrolling for free.
     const positionRing = () => {
         const b = laidBoxes[focused];
-        if (focused < 0 || !b) {
+        // A child with inner focus draws its own indicator — a box ring around the
+        // whole child (an entire keyboard!) reads as noise, not focus.
+        if (focused < 0 || !b || children[focused].focusMove) {
             focusRing.setAttribute('visibility', 'hidden');
             return;
         }
@@ -497,6 +502,14 @@ export function box(opts, ...children) {
         },
         focusMove(dx, dy) {
             const old = focused;
+            // A focused child with inner traversal gets the move first; only when it
+            // says the focus ESCAPED (returns false) does the box's own focus move on.
+            if (focused >= 0 && children[focused].focusMove) {
+                if (children[focused].focusMove(dx, dy)) {
+                    ensureVisible(focused);
+                    return;
+                }
+            }
             if (focused < 0) {
                 focused = firstFocusable();
             }
@@ -504,6 +517,14 @@ export function box(opts, ...children) {
                 const next = nearestInDirection(laidBoxes, focused, { dx, dy }, isFocusable);
                 if (next != null)
                     focused = next;
+            }
+            if (old !== focused) {
+                // Leaving an inner-focus child clears its indicator; entering one seeds
+                // it at the edge matching the direction of travel.
+                if (old >= 0)
+                    children[old].focusClear?.();
+                if (focused >= 0)
+                    children[focused].focusMove?.(dx, dy);
             }
             if (focused >= 0)
                 ensureVisible(focused);
@@ -516,12 +537,19 @@ export function box(opts, ...children) {
             }
         },
         focusActivate() {
-            if (focused >= 0)
-                children[focused].onActivate?.();
+            if (focused < 0)
+                return;
+            const c = children[focused];
+            if (c.focusActivate)
+                c.focusActivate();
+            else
+                c.onActivate?.();
         },
         focusBack() {
             const old = focused;
             focused = -1;
+            if (old >= 0)
+                children[old].focusClear?.();
             positionRing();
             if (old >= 0)
                 applyState(old);

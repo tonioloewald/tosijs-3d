@@ -70,6 +70,11 @@ which made the accents unreachable by finger.</p>
 <p><strong>Hold the spacebar and slide</strong> to drag the caret through the text. The drag continues
 outside the key and outside the keyboard entirely (as iOS does) — a spacebar-width
 gesture would only buy you a spacebar of travel.</p>
+<p><strong>D-pad / arrow keys</strong> (click the demo once so it has keyboard focus): the keyboard is
+one panel row but MANY focus stops — it implements the inner-focus protocol
+(<code>focusMove</code> returns <code>false</code> when a move runs off the edge), so arrows walk key to
+key, arriving on the edge you entered from, and <strong>escaping off the top onto the text
+field</strong> rather than trapping the D-pad forever. <code>Enter</code> presses the focused key.</p>
 <p>There is no completion/suggestion strip yet, and the interesting question isn&#39;t <em>whether</em>
 but <em>from what</em>: see CONVERSATION-DESIGN.md → &quot;Keyword dialogue&quot;, where the conclusion is
 that a known, relevant word should be <strong>clickable rather than typed</strong>, so typing&#39;s
@@ -98,12 +103,20 @@ s.setContent(
     textBlock(&#39;SVG keyboard&#39;, { font: { size: 15, weight: 600 }, color: &#39;#e6e6e6&#39; })
   )
 )
-s.openPanel({ x: 8, y: 44 }, widgetBox(
+const panel = widgetBox(
   { width: 364, padding: 8, gap: 8, background: &#39;#0e1116&#39; },
   [field, kb]
-), { title: &#39;Text entry&#39;, draggable: true })
+)
+s.openPanel({ x: 8, y: 44 }, panel, { title: &#39;Text entry&#39;, draggable: true })
 
-const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, tabindex: 0 }, s.el)
+// D-pad traversal — arrows walk the keys, Enter presses, Escape drops focus.
+const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
+  if (dirs[e.key]) { panel.focusMove(...dirs[e.key]); e.preventDefault() }
+  else if (e.key === &#39;Enter&#39;) { panel.focusActivate(); e.preventDefault() }
+  else if (e.key === &#39;Escape&#39;) panel.focusBack()
+})
 const at = (e) =&gt; {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
   // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
