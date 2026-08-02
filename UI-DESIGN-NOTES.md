@@ -504,3 +504,32 @@ floating keyboard targeting a field on another surface) and the **cascade popup*
 
 So `box`'s event model is designed around BOTH from the start — a pointer path and a focus/traversal
 path sharing one "which child → activate" dispatch. Pointer lands first; focus-nav is the next slice.
+
+## Show selection with an icon, not with intensity
+
+Selection state (a chosen row, a ticked option) is drawn as an **explicit mark** — `circle` /
+`checkCircle` for single-select, `square` / `checkSquare` for multi — never as "the selected one is
+brighter".
+
+The reason is channel contention. Hover, focus, pressed, and disabled **all** naturally want the
+same encoding: intensity (contrast, opacity, brightness). Adding selection to that pile means
+tuning five states against each other on one axis, and the result is always fragile — subtly
+different greys that read as "slightly off" rather than as distinct states, and that stop being
+distinguishable the moment anything changes (a theme, a background, a viewing angle).
+
+An icon is a **different channel**, so it is orthogonal: a row can be hovered AND selected AND
+focused at once and all three still read. Nothing has to be finessed against anything else. That
+also means hover/focus keep the full intensity range to themselves rather than each getting a
+sliver of it.
+
+This matters more here than in a flat DOM UI, because our surfaces are also **rasterized onto a 3D
+texture and viewed in a headset**: at texture resolution, off-axis, through headset optics, small
+intensity differences are the first thing to disappear. A glyph survives all of that — it has
+_shape_, not just value.
+
+Corollary: **focus and selection are different states and both must show.** With a D-pad you need
+to see where you are before you commit to toggling it, so the focus ring stays in addition to the
+selection icon. They don't collide, precisely because they're on different channels.
+
+— agreed with Tonio while designing table/list selection; the icons already existed (`checkCircle`,
+`square`, `checkSquare`), only `circle` had to be added.

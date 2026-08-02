@@ -8,6 +8,7 @@
 - [flow-layout](/flow-layout/)
 - [key-layout](/key-layout/)
 - [keyboard](/keyboard/)
+- [selection](/selection/)
 - [surface](/surface/)
 - [svg-icons](/svg-icons/)
 - [svg-texture](/svg-texture/)

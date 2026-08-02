@@ -86,6 +86,8 @@ export { surface, openMenu, } from './surface';
 export { widgetBox, widgetChild } from './widget-box';
 // Pure text-editing model (code-point aware) for the SVG input field
 export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, } from './text-edit';
+// Selection state as an ICON (orthogonal to hover/focus — see UI-DESIGN-NOTES.md)
+export { selectionIcon, applySelection } from './selection';
 // Pure table geometry: column resolution + row virtualization
 export { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, } from './table-layout';
 // On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)

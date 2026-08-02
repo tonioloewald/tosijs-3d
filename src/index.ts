@@ -367,6 +367,9 @@ export {
   type EditState,
 } from './text-edit'
 
+// Selection state as an ICON (orthogonal to hover/focus — see UI-DESIGN-NOTES.md)
+export { selectionIcon, applySelection, type SelectionMode } from './selection'
+
 // Pure table geometry: column resolution + row virtualization
 export {
   resolveColumns,
