@@ -140,4 +140,6 @@ export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export type { WarheadSpec, AoeTarget } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';
 export type { BallisticParams, BallisticState, PredictOptions, } from './ballistics';
+export { table } from './table';
+export type { Table, TableRow } from './table';
 //# sourceMappingURL=index.d.ts.map

@@ -63,11 +63,10 @@ export function selectionIcon(mode, selected) {
  * Pure, so the rule lives in one tested place rather than being re-implemented —
  * slightly differently — in every list and table that has checkboxes.
  */
-export function applySelection(current, id, mode) {
+export function applySelection(current, id, mode, opts = {}) {
     if (mode === 'single') {
-        // Re-picking the selected row keeps it selected rather than clearing: a radio
-        // group with nothing chosen is usually an invalid state, and "I tapped the thing
-        // I already wanted" should not be a way to reach it.
+        if (opts.allowDeselect && current.has(id))
+            return new Set();
         return new Set([id]);
     }
     const next = new Set(current);

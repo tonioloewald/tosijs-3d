@@ -514,3 +514,7 @@ export type {
   BallisticState,
   PredictOptions,
 } from './ballistics'
+
+// Data table (Widget3d): sticky header, virtualized body, icon selection
+export { table } from './table'
+export type { Table, TableRow } from './table'

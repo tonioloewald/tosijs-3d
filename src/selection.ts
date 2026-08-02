@@ -70,12 +70,24 @@ export function selectionIcon(mode: SelectionMode, selected: boolean): string {
 export function applySelection(
   current: ReadonlySet<string>,
   id: string,
-  mode: SelectionMode
+  mode: SelectionMode,
+  opts: {
+    /**
+     * Let a single-select tap on the ALREADY-selected row clear it.
+     *
+     * Default `false`, because an empty radio group is usually a bug — and
+     * "I tapped the thing I already wanted" is a bad way to reach it. But only
+     * *usually*: an optional filter ("show only hostiles" — tapping again means show
+     * everything), a nullable enum, or any choice with a meaningful "none" that isn't
+     * worth its own row all want the opposite. So it's a decision, not a rule.
+     *
+     * Ignored for `multi`, which toggles by definition.
+     */
+    allowDeselect?: boolean
+  } = {}
 ): Set<string> {
   if (mode === 'single') {
-    // Re-picking the selected row keeps it selected rather than clearing: a radio
-    // group with nothing chosen is usually an invalid state, and "I tapped the thing
-    // I already wanted" should not be a way to reach it.
+    if (opts.allowDeselect && current.has(id)) return new Set()
     return new Set([id])
   }
   const next = new Set(current)

@@ -135,4 +135,6 @@ export { Radar, coneDotFromDegrees, isOpposed } from './radar';
 export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';
+// Data table (Widget3d): sticky header, virtualized body, icon selection
+export { table } from './table';
 //# sourceMappingURL=index.js.map

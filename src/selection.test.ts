@@ -26,9 +26,30 @@ describe('applySelection — single', () => {
     expect([...next]).toEqual(['b'])
   })
 
-  test('re-picking the selected row KEEPS it (a radio group needs an answer)', () => {
+  test('by default, re-picking the selected row KEEPS it', () => {
     const next = applySelection(new Set(['a']), 'a', 'single')
     expect([...next]).toEqual(['a'])
+  })
+
+  test('allowDeselect lets a re-pick clear it (optional filters, nullable enums)', () => {
+    const next = applySelection(new Set(['a']), 'a', 'single', {
+      allowDeselect: true,
+    })
+    expect([...next]).toEqual([])
+  })
+
+  test('allowDeselect still SELECTS when picking a different row', () => {
+    const next = applySelection(new Set(['a']), 'b', 'single', {
+      allowDeselect: true,
+    })
+    expect([...next]).toEqual(['b'])
+  })
+
+  test('allowDeselect is ignored for multi (which toggles by definition)', () => {
+    const off = applySelection(new Set(['a']), 'a', 'multi', {
+      allowDeselect: false,
+    })
+    expect([...off]).toEqual([])
   })
 
   test('picking from empty selects', () => {
