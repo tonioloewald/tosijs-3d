@@ -85,7 +85,7 @@ export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane';
 export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, type SvgIconCreator, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, type IconStyle, type ParsedIconName, } from './icon-name';
 export { flowLayout, nearestInDirection, placePopup, type FlowItem, type FlowOptions, type FlowBox, type FlowResult, type PopupSide, } from './flow-layout';
-export { box, textBlock, inlineIcon, blockItem, inlineItem, button, type Box, type BoxChild, type BoxChildState, type BoxOptions, type PointerKind, } from './box';
+export { box, textBlock, inlineIcon, blockItem, inlineItem, button, svgPoint, type Box, type BoxChild, type BoxChildState, type BoxOptions, type PointerKind, } from './box';
 export { surface, openMenu, type Surface, type Popup, type MenuItem, } from './surface';
 export { widgetBox, widgetChild } from './widget-box';
 export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, type EditState, } from './text-edit';

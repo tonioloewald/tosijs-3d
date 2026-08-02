@@ -21,7 +21,7 @@ widgets3d controls living inside a `surface` panel — **drag the title bar** to
 gesture survives the pointer leaving the track.
 
 ```js
-import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d } from 'tosijs-3d'
+import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { svgElements } from 'tosijs'
 
@@ -60,8 +60,10 @@ s.openPanel(
 
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: 'max-width:100%;touch-action:none' }, s.el)
 const at = (e) => {
-  const r = svgEl.getBoundingClientRect()
-  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+  // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
+  // container's aspect ratio differs, and a linear map drifts as it's resized.
+  const p = svgPoint(svgEl, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))

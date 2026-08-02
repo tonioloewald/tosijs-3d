@@ -64,7 +64,7 @@ whole cascade; an outside press dismisses it.</li>
 An outside press does NOT dismiss it — ideal for a pinned debug/inspector panel.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, surface, openMenu } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, surface, openMenu, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -122,7 +122,8 @@ const sheet = (s) =&gt; svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s
 // texture mirrors it — a click in either view updates the same surface, in sync.
 const s = make()
 const svgEl = sheet(s)
-const toXY = (e) =&gt; { const r = svgEl.getBoundingClientRect(); return [((e.clientX-r.left)/r.width)*W, ((e.clientY-r.top)/r.height)*H] }
+// svgPoint, not rect arithmetic — a letterboxed viewBox makes a linear map drift.
+const toXY = (e) =&gt; { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x, p.y] }
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; s.handlePointer(&#39;down&#39;, ...toXY(e)))
 svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...toXY(e)))
 

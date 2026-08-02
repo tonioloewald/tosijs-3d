@@ -61,7 +61,7 @@ would otherwise be 500 <code>&lt;g&gt;</code>s in a texture showing twelve.</p>
 <p>Scroll the body (wheel or drag). Click a row to select it — the state icon is a
 different visual channel from hover, so a row can be hovered <em>and</em> selected and both
 still read.</p>
-<pre><code class="language-js">import { surface, widgetBox, box, textBlock, table } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { surface, widgetBox, box, textBlock, table, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -101,7 +101,7 @@ s.openPanel({ x: 8, y: 46 }, widgetBox({ width: 376, padding: 8, background: &#3
 
 // Scale to whatever room we&#39;re given: a fixed viewBox with width/height 100% means
 // maximizing the example fills the space instead of leaving the panel marooned in a
-// corner. Pointer coords divide out the same scale, so hit-testing is unaffected.
+// corner. Pointer coords go through svgPoint, which handles the letterboxing.
 const svgEl = svg({
   viewBox: `0 0 ${W} ${H}`,
   width: &#39;100%&#39;,
@@ -110,8 +110,10 @@ const svgEl = svg({
   style: &#39;display:block;touch-action:none&#39;,
 }, s.el)
 const at = (e) =&gt; {
-  const r = svgEl.getBoundingClientRect()
-  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+  // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
+  // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
+  const p = svgPoint(svgEl, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))

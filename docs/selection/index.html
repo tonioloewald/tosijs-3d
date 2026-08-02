@@ -67,7 +67,7 @@ glyph has <em>shape</em>, not just value, so it survives.</p>
 <h2>Demo</h2>
 <p>The same four rows under each mode. Click to select — and note that <strong>hover and
 selection never fight</strong>: hover is background intensity, selection is the glyph.</p>
-<pre><code class="language-js">import { selectionIcon, applySelection, iconGlyph } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { selectionIcon, applySelection, iconGlyph, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg, g, rect, text } = svgElements
@@ -122,10 +122,9 @@ const sheet = svg({ width: 380, height: 170, viewBox: &#39;0 0 380 170&#39;, sty
   single.host, multi.host)
 
 const local = (e) =&gt; {
-  const r = sheet.getBoundingClientRect()
-  const sx = (e.clientX - r.left) * (380 / r.width)
-  const sy = (e.clientY - r.top) * (170 / r.height)
-  return [sx, sy]
+  // svgPoint, not rect arithmetic — a letterboxed viewBox makes a linear map drift.
+  const p = svgPoint(sheet, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 sheet.addEventListener(&#39;pointermove&#39;, (e) =&gt; {
   const [x, y] = local(e)

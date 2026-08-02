@@ -68,7 +68,7 @@ land next; the child protocol already carries the hooks they&#39;ll use.</p>
 <h2>Demo — the same box in the DOM and on a 3D texture</h2>
 <p><code>box.el</code> is an SVG <code>&lt;g&gt;</code>; wrap it in an <code>&lt;svg&gt;</code> to show it flat, or hand it to a
 <code>b3dSvgPlane</code> to rasterize it onto a plane. Same object, both surfaces.</p>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -109,8 +109,10 @@ const panel = makePanel()
 const svgEl = sheet(panel)
 svgEl.setAttribute(&#39;tabindex&#39;, &#39;0&#39;)
 const toBox = (e) =&gt; {
-  const r = svgEl.getBoundingClientRect()
-  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+  // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
+  // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
+  const p = svgPoint(svgEl, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; panel.handlePointer(&#39;down&#39;, ...toBox(e)))
 svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; panel.handlePointer(&#39;up&#39;, ...toBox(e)))

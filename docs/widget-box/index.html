@@ -62,7 +62,7 @@ slider.</p>
 <p>widgets3d controls living inside a <code>surface</code> panel — <strong>drag the title bar</strong> to move it,
 × to close. The slider drags properly because <code>BoxChild.handlePointer</code> captures: the
 gesture survives the pointer leaving the track.</p>
-<pre><code class="language-js">import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 import { svgElements } from &#39;tosijs&#39;
 
@@ -101,8 +101,10 @@ s.openPanel(
 
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: &#39;max-width:100%;touch-action:none&#39; }, s.el)
 const at = (e) =&gt; {
-  const r = svgEl.getBoundingClientRect()
-  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+  // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
+  // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
+  const p = svgPoint(svgEl, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))

@@ -23,7 +23,7 @@ different visual channel from hover, so a row can be hovered *and* selected and 
 still read.
 
 ```js
-import { surface, widgetBox, box, textBlock, table } from 'tosijs-3d'
+import { surface, widgetBox, box, textBlock, table, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
@@ -63,7 +63,7 @@ s.openPanel({ x: 8, y: 46 }, widgetBox({ width: 376, padding: 8, background: '#0
 
 // Scale to whatever room we're given: a fixed viewBox with width/height 100% means
 // maximizing the example fills the space instead of leaving the panel marooned in a
-// corner. Pointer coords divide out the same scale, so hit-testing is unaffected.
+// corner. Pointer coords go through svgPoint, which handles the letterboxing.
 const svgEl = svg({
   viewBox: `0 0 ${W} ${H}`,
   width: '100%',
@@ -72,8 +72,10 @@ const svgEl = svg({
   style: 'display:block;touch-action:none',
 }, s.el)
 const at = (e) => {
-  const r = svgEl.getBoundingClientRect()
-  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+  // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
+  // container's aspect ratio differs, and a linear map drifts as it's resized.
+  const p = svgPoint(svgEl, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))

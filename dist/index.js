@@ -79,7 +79,7 @@ export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';
 // Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
 export { flowLayout, nearestInDirection, placePopup, } from './flow-layout';
 // Flow `box` — the SVG UI container (paint / resize / scroll) built on flowLayout
-export { box, textBlock, inlineIcon, blockItem, inlineItem, button, } from './box';
+export { box, textBlock, inlineIcon, blockItem, inlineItem, button, svgPoint, } from './box';
 // UI surface — content + overlay popups; cascade menus
 export { surface, openMenu, } from './surface';
 // Bridge: widgets3d controls (slider/toggle/select/list) inside a box/surface

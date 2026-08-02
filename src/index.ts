@@ -332,6 +332,7 @@ export {
   blockItem,
   inlineItem,
   button,
+  svgPoint,
   type Box,
   type BoxChild,
   type BoxChildState,

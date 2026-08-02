@@ -24,7 +24,7 @@ Two popup kinds share the overlay:
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, surface, openMenu } from 'tosijs-3d'
+import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, surface, openMenu, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
@@ -82,7 +82,8 @@ const sheet = (s) => svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el
 // texture mirrors it — a click in either view updates the same surface, in sync.
 const s = make()
 const svgEl = sheet(s)
-const toXY = (e) => { const r = svgEl.getBoundingClientRect(); return [((e.clientX-r.left)/r.width)*W, ((e.clientY-r.top)/r.height)*H] }
+// svgPoint, not rect arithmetic — a letterboxed viewBox makes a linear map drift.
+const toXY = (e) => { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x, p.y] }
 svgEl.addEventListener('pointerdown', (e) => s.handlePointer('down', ...toXY(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...toXY(e)))
 

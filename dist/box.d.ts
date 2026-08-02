@@ -110,6 +110,32 @@ export declare function textBlock(text: string, opts?: {
     lineHeight?: number;
 }): BoxChild;
 /** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
+/**
+ * Convert a client (mouse/touch) point into an SVG element's own user space.
+ *
+ * **Use this instead of doing the arithmetic off `getBoundingClientRect`.** The
+ * obvious version —
+ *
+ * ```js
+ * const r = svgEl.getBoundingClientRect()
+ * const x = ((e.clientX - r.left) / r.width) * VIEWBOX_W   // WRONG
+ * ```
+ *
+ * — assumes the viewBox is stretched to exactly fill the element. With
+ * `preserveAspectRatio` (the default, `xMidYMid meet`) the content is **letterboxed**:
+ * scaled uniformly and centred, with slack on one axis. The linear map is then off by
+ * that slack, and the error grows as the container's aspect ratio diverges from the
+ * viewBox's — so it looks fine at the authored size and drifts badly once the view is
+ * resized or maximized. The symptom is maddening rather than obvious: clicks land on
+ * the wrong row, and presses on chrome fall through onto the content beneath.
+ *
+ * `getScreenCTM()` already encodes the viewBox, the aspect-ratio fitting and any
+ * ancestor transform, so inverting it is correct by construction at any size.
+ */
+export declare function svgPoint(el: SVGGraphicsElement, clientX: number, clientY: number): {
+    x: number;
+    y: number;
+};
 export declare function inlineIcon(name: string, opts?: {
     size?: number;
     color?: string;

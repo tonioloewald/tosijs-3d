@@ -31,7 +31,7 @@ The same four rows under each mode. Click to select — and note that **hover an
 selection never fight**: hover is background intensity, selection is the glyph.
 
 ```js
-import { selectionIcon, applySelection, iconGlyph } from 'tosijs-3d'
+import { selectionIcon, applySelection, iconGlyph, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg, g, rect, text } = svgElements
@@ -86,10 +86,9 @@ const sheet = svg({ width: 380, height: 170, viewBox: '0 0 380 170', style: 'max
   single.host, multi.host)
 
 const local = (e) => {
-  const r = sheet.getBoundingClientRect()
-  const sx = (e.clientX - r.left) * (380 / r.width)
-  const sy = (e.clientY - r.top) * (170 / r.height)
-  return [sx, sy]
+  // svgPoint, not rect arithmetic — a letterboxed viewBox makes a linear map drift.
+  const p = svgPoint(sheet, e.clientX, e.clientY)
+  return [p.x, p.y]
 }
 sheet.addEventListener('pointermove', (e) => {
   const [x, y] = local(e)
