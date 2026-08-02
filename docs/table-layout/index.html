@@ -57,16 +57,51 @@ stops lining up with the body.</li>
 <li><strong>Rows</strong> — a table you can scroll should only build the rows you can see.
 <code>visibleRows</code> is the window: the slice to draw, plus the offset to draw it at.</li>
 </ul>
-<pre><code class="language-js">import { resolveColumns, visibleRows, rowAt } from &#39;tosijs-3d&#39;
+<h2>Demo</h2>
+<p>Both halves, visualised. Drag the width slider to watch <code>resolveColumns</code> honour the fixed
+columns and split the rest; drag the scroll slider to watch <code>visibleRows</code> window a
+<strong>500-row</strong> table down to the handful that are actually built.</p>
+<pre><code class="language-js">import { resolveColumns, visibleRows, tableMaxScroll } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
 
-const cols = resolveColumns(
-  [{ key: &#39;name&#39;, flex: 1 }, { key: &#39;qty&#39;, width: 60 }, { key: &#39;price&#39;, width: 80 }],
-  { width: 400, gap: 8 }
-)
-// → [{key:&#39;name&#39;, x:0, width:236}, {key:&#39;qty&#39;, x:244, width:60}, {key:&#39;price&#39;, x:312, width:80}]
+const { div, input, label } = elements
+const COLS = [
+  { key: &#39;name&#39;, label: &#39;Item&#39;, flex: 2 },
+  { key: &#39;note&#39;, label: &#39;Note&#39;, flex: 1, minWidth: 60 },
+  { key: &#39;qty&#39;, label: &#39;Qty&#39;, width: 54, align: &#39;right&#39; },
+]
+const ROW_H = 24, VIEW_H = 140, COUNT = 500
+let width = 420, scroll = 0
 
-visibleRows({ scroll: 120, rowHeight: 28, viewportHeight: 100, count: 500 })
-// → { start: 4, end: 12, offsetY: -8 }   ← build 8 rows, not 500
+const cols = div({ style: &#39;position:relative;height:34px;margin-bottom:10px&#39; })
+const rows = div({ style: `position:relative;height:${VIEW_H}px;overflow:hidden;background:#11141b;border-radius:6px` })
+const info = div({ style: &#39;margin-top:8px;color:#8ea;font:12px ui-monospace,monospace&#39; })
+
+const paint = () =&gt; {
+  const laid = resolveColumns(COLS, { width, gap: 8 })
+  cols.style.width = width + &#39;px&#39;
+  cols.replaceChildren(...laid.map((c) =&gt; div({
+    style: `position:absolute;left:${c.x}px;width:${c.width}px;height:30px;background:#2a3140;border-radius:5px;color:#cfe;font:12px system-ui;display:flex;align-items:center;justify-content:center`,
+  }, `${c.label} ${Math.round(c.width)}px`)))
+
+  const win = visibleRows({ scroll, rowHeight: ROW_H, viewportHeight: VIEW_H, count: COUNT })
+  rows.style.width = width + &#39;px&#39;
+  const built = []
+  for (let i = win.start; i &lt; win.end; i++) {
+    built.push(div({
+      style: `position:absolute;top:${win.offsetY + (i - win.start) * ROW_H}px;left:0;right:0;height:${ROW_H - 2}px;background:#1b2130;color:#9fb0c3;font:12px ui-monospace,monospace;display:flex;align-items:center;padding-left:8px`,
+    }, `row ${i}`))
+  }
+  rows.replaceChildren(...built)
+  info.textContent = `built ${win.end - win.start} of ${COUNT} rows · window [${win.start}, ${win.end}) · offsetY ${Math.round(win.offsetY)} · maxScroll ${tableMaxScroll({ count: COUNT, rowHeight: ROW_H, viewportHeight: VIEW_H })}`
+}
+
+const slider = (min, max, val, oninput) =&gt; input({ type: &#39;range&#39;, min, max, value: val, oninput, style: &#39;width:220px;vertical-align:middle&#39; })
+paint()
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14;color:#9ab;font:12px system-ui&#39; },
+  label({}, &#39;width &#39;, slider(180, 560, width, (e) =&gt; { width = +e.target.value; paint() })),
+  label({ style: &#39;margin-left:18px&#39; }, &#39;scroll &#39;, slider(0, COUNT * ROW_H - VIEW_H, 0, (e) =&gt; { scroll = +e.target.value; paint() })),
+  div({ style: &#39;margin-top:14px&#39; }, cols, rows, info)))
 </code></pre>
 <h2>Why virtualize at all</h2>
 <p>A table on a <strong>3D texture</strong> pays twice for rows you can&#39;t see: once building SVG nodes,

@@ -107,13 +107,51 @@ describe('keyboard — shift and mode', () => {
 })
 
 describe('keyboard — press-hold-drag accents', () => {
-  test('hold then release on the key gives the PLAIN character', async () => {
+  // Lifting a finger used to dismiss the strip and type the plain letter, which made
+  // the accents unreachable by touch — you press, the strip appears UNDER your
+  // fingertip where you can't see it, and looking costs you the gesture. Reported
+  // from a real device. It's now sticky: lift to look, tap to choose.
+  test('hold then LIFT leaves the strip up and types nothing', async () => {
     const { kb, keys } = mk(5)
     const o = centre('alpha', false, 'o')
     kb.handle!('down', o.x, o.y)
     await wait(20) // popup opens
-    kb.handle!('up', o.x, o.y) // released off the accent strip (it sits above)
-    expect(keys).toEqual(['o'])
+    kb.handle!('up', o.x, o.y) // lifted without sliding onto an accent
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    expect(strip.childNodes.length).toBeGreaterThan(0) // still open
+    expect(keys).toEqual([]) // and did NOT type the base character
+  })
+
+  test('…and the next tap on the strip picks that accent', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    kb.handle!('up', o.x, o.y) // lift → sticky
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    const cells = Array.from(strip.querySelectorAll('rect')).slice(1)
+    const cell = cells[3] as SVGRectElement // ö
+    const cx =
+      Number(cell.getAttribute('x')) + Number(cell.getAttribute('width')) / 2
+    const cy =
+      Number(cell.getAttribute('y')) + Number(cell.getAttribute('height')) / 2
+    kb.handle!('down', cx, cy)
+    expect(keys).toEqual(['ö'])
+    expect(strip.childNodes.length).toBe(0) // and closes
+  })
+
+  test('a tap OFF a sticky strip dismisses it without typing anything', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20)
+    kb.handle!('up', o.x, o.y)
+    // tap a different key entirely — the tap is spent dismissing, not typing
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y)
+    expect(keys).toEqual([])
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    expect(strip.childNodes.length).toBe(0)
   })
 
   test('hold, slide onto an accent, release → inserts the ACCENT', async () => {
@@ -165,6 +203,95 @@ describe('keyboard — press-hold-drag accents', () => {
     expect(strip.childNodes.length).toBe(0)
     kb.handle!('up', q.x, q.y)
     expect(keys).toEqual(['q'])
+  })
+})
+
+describe('keyboard — spacebar as a caret trackpad', () => {
+  const mkCaret = (holdMs = 5) => {
+    const moves: number[] = []
+    const keys: string[] = []
+    const actions: string[] = []
+    const kb = K.keyboard({
+      holdMs,
+      caretStepPx: 10,
+      onKey: (c) => keys.push(c),
+      onAction: (a) => actions.push(a),
+      onCaretMove: (d) => moves.push(d),
+    })
+    kb.layout(W)
+    return { kb, moves, keys, actions }
+  }
+  const space = () => centre('alpha', false, 'space')
+
+  test('holding space then sliding moves the caret, one step per threshold', async () => {
+    const { kb, moves } = mkCaret()
+    const s = space()
+    kb.handle!('down', s.x, s.y)
+    await wait(20) // hold fires → trackpad mode
+    kb.handle!('move', s.x + 30, s.y) // 3 × 10px
+    expect(moves).toEqual([1, 1, 1])
+    kb.handle!('move', s.x + 10, s.y) // back 20px
+    expect(moves).toEqual([1, 1, 1, -1, -1])
+  })
+
+  test('the drag KEEPS WORKING far outside the key (as iOS does)', async () => {
+    const { kb, moves } = mkCaret()
+    const s = space()
+    kb.handle!('down', s.x, s.y)
+    await wait(20)
+    // way off the spacebar, off the keyboard entirely — a spacebar-width gesture
+    // would otherwise buy only a spacebar of travel
+    kb.handle!('move', s.x + 400, s.y - 300)
+    expect(moves.length).toBe(40)
+    expect(moves.every((d) => d === 1)).toBe(true)
+  })
+
+  test('a caret drag does NOT also type a space', async () => {
+    const { kb, actions, moves } = mkCaret()
+    const s = space()
+    kb.handle!('down', s.x, s.y)
+    await wait(20)
+    kb.handle!('move', s.x + 30, s.y)
+    kb.handle!('up', s.x + 30, s.y)
+    expect(moves.length).toBeGreaterThan(0)
+    expect(actions).toEqual([])
+  })
+
+  test('a quick tap on space still types a space', async () => {
+    const { kb, actions } = mkCaret(500) // long hold; we release well before
+    const s = space()
+    kb.handle!('down', s.x, s.y)
+    kb.handle!('up', s.x, s.y)
+    expect(actions).toEqual(['space'])
+  })
+
+  test('leave ends the drag rather than stranding it', async () => {
+    const { kb, moves } = mkCaret()
+    const s = space()
+    kb.handle!('down', s.x, s.y)
+    await wait(20)
+    kb.handle!('move', s.x + 20, s.y)
+    const before = moves.length
+    kb.handle!('leave', 0, 0)
+    kb.handle!('move', s.x + 200, s.y) // ignored — gesture is over
+    expect(moves.length).toBe(before)
+  })
+
+  test('without an onCaretMove handler, space is just a key', async () => {
+    const moves: number[] = []
+    const actions: string[] = []
+    const kb = K.keyboard({
+      holdMs: 5,
+      onAction: (a) => actions.push(a),
+      onKey: () => {},
+    })
+    kb.layout(W)
+    const s = space()
+    kb.handle!('down', s.x, s.y)
+    await wait(20)
+    kb.handle!('up', s.x, s.y)
+    expect(moves).toEqual([])
+    expect(actions).toEqual(['space'])
   })
 })
 

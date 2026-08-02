@@ -50,12 +50,47 @@
 <code>document</code>. It&#39;s a plain state object plus functions that return a new one, so the
 whole edit surface is unit-testable and behaves identically in a DOM overlay, on a 3D
 texture, and inside a headset (where there is no native input element at all).</p>
-<pre><code class="language-js">import { edit, insert, backspace, moveCaret } from &#39;tosijs-3d&#39;
+<h2>Demo</h2>
+<p>The model, driven by buttons — no field, no keyboard, just state in and state out. The
+seeded value contains an <strong>emoji and an accented character</strong> on purpose: step the caret
+through them and watch it move one <em>code point</em> at a time, and backspace remove the whole
+glyph rather than half a surrogate pair.</p>
+<pre><code class="language-js">import { edit, insert, backspace, deleteForward, moveCaret, selectAll, selectedText } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
 
-let s = edit(&#39;hello&#39;)          // { text: &#39;hello&#39;, caret: 5, anchor: 5 }
-s = insert(s, &#39;!&#39;)             // &#39;hello!&#39;
-s = moveCaret(s, -3)           // caret back three
-s = backspace(s)               // &#39;hel!&#39;  ← deleted the char before the caret
+const { div, button, span } = elements
+let s = edit(&#39;schön 😀 ok&#39;, 5)
+
+const view = div({ style: &#39;font:20px/1.6 ui-monospace,monospace;color:#e6e6e6;background:#11141b;padding:12px 14px;border-radius:8px;white-space:pre;min-height:1.6em&#39; })
+const info = div({ style: &#39;margin-top:8px;color:#8ea;font:12px ui-monospace,monospace&#39; })
+
+const paint = () =&gt; {
+  const chars = Array.from(s.text)
+  const [a, b] = s.caret &lt;= s.anchor ? [s.caret, s.anchor] : [s.anchor, s.caret]
+  view.replaceChildren(
+    span({}, chars.slice(0, a).join(&#39;&#39;)),
+    span({ style: &#39;background:#39c5ff55;outline:1px solid #39c5ff&#39; }, chars.slice(a, b).join(&#39;&#39;)),
+    span({ style: &#39;border-left:2px solid #39c5ff;margin-left:-1px&#39; }, &#39;&#39;),
+    span({}, chars.slice(b).join(&#39;&#39;))
+  )
+  info.textContent = `caret ${s.caret} · anchor ${s.anchor} · ${chars.length} code points (${s.text.length} UTF-16 units)`
+    + (selectedText(s) ? ` · selected &quot;${selectedText(s)}&quot;` : &#39;&#39;)
+}
+const act = (label, fn) =&gt; button({ onclick: () =&gt; { s = fn(s); paint() },
+  style: &#39;font:12px system-ui;padding:5px 10px;margin:0 6px 6px 0;border-radius:6px;border:1px solid #3a4150;background:#20242e;color:#cfe;cursor:pointer&#39; }, label)
+
+paint()
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; },
+  view, info,
+  div({ style: &#39;margin-top:12px&#39; },
+    act(&#39;◀ caret&#39;, (x) =&gt; moveCaret(x, -1)),
+    act(&#39;caret ▶&#39;, (x) =&gt; moveCaret(x, 1)),
+    act(&#39;⇧◀ extend&#39;, (x) =&gt; moveCaret(x, -1, true)),
+    act(&#39;⌫ backspace&#39;, backspace),
+    act(&#39;⌦ delete&#39;, deleteForward),
+    act(&#39;insert &quot;é&quot;&#39;, (x) =&gt; insert(x, &#39;é&#39;)),
+    act(&#39;select all&#39;, selectAll),
+    act(&#39;reset&#39;, () =&gt; edit(&#39;schön 😀 ok&#39;, 5)))))
 </code></pre>
 <h2>Code points, not UTF-16 units</h2>
 <p>Every operation moves and deletes by <strong>code point</strong>, via <code>Array.from</code>. A <code>string</code> in

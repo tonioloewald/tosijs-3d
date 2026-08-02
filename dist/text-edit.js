@@ -6,13 +6,50 @@ The **pure text-editing model** behind the SVG input field — no DOM, no Babylo
 whole edit surface is unit-testable and behaves identically in a DOM overlay, on a 3D
 texture, and inside a headset (where there is no native input element at all).
 
-```js
-import { edit, insert, backspace, moveCaret } from 'tosijs-3d'
+## Demo
 
-let s = edit('hello')          // { text: 'hello', caret: 5, anchor: 5 }
-s = insert(s, '!')             // 'hello!'
-s = moveCaret(s, -3)           // caret back three
-s = backspace(s)               // 'hel!'  ← deleted the char before the caret
+The model, driven by buttons — no field, no keyboard, just state in and state out. The
+seeded value contains an **emoji and an accented character** on purpose: step the caret
+through them and watch it move one *code point* at a time, and backspace remove the whole
+glyph rather than half a surrogate pair.
+
+```js
+import { edit, insert, backspace, deleteForward, moveCaret, selectAll, selectedText } from 'tosijs-3d'
+import { elements } from 'tosijs'
+
+const { div, button, span } = elements
+let s = edit('schön 😀 ok', 5)
+
+const view = div({ style: 'font:20px/1.6 ui-monospace,monospace;color:#e6e6e6;background:#11141b;padding:12px 14px;border-radius:8px;white-space:pre;min-height:1.6em' })
+const info = div({ style: 'margin-top:8px;color:#8ea;font:12px ui-monospace,monospace' })
+
+const paint = () => {
+  const chars = Array.from(s.text)
+  const [a, b] = s.caret <= s.anchor ? [s.caret, s.anchor] : [s.anchor, s.caret]
+  view.replaceChildren(
+    span({}, chars.slice(0, a).join('')),
+    span({ style: 'background:#39c5ff55;outline:1px solid #39c5ff' }, chars.slice(a, b).join('')),
+    span({ style: 'border-left:2px solid #39c5ff;margin-left:-1px' }, ''),
+    span({}, chars.slice(b).join(''))
+  )
+  info.textContent = `caret ${s.caret} · anchor ${s.anchor} · ${chars.length} code points (${s.text.length} UTF-16 units)`
+    + (selectedText(s) ? ` · selected "${selectedText(s)}"` : '')
+}
+const act = (label, fn) => button({ onclick: () => { s = fn(s); paint() },
+  style: 'font:12px system-ui;padding:5px 10px;margin:0 6px 6px 0;border-radius:6px;border:1px solid #3a4150;background:#20242e;color:#cfe;cursor:pointer' }, label)
+
+paint()
+preview.append(div({ style: 'padding:16px;background:#0c0e14' },
+  view, info,
+  div({ style: 'margin-top:12px' },
+    act('◀ caret', (x) => moveCaret(x, -1)),
+    act('caret ▶', (x) => moveCaret(x, 1)),
+    act('⇧◀ extend', (x) => moveCaret(x, -1, true)),
+    act('⌫ backspace', backspace),
+    act('⌦ delete', deleteForward),
+    act('insert "é"', (x) => insert(x, 'é')),
+    act('select all', selectAll),
+    act('reset', () => edit('schön 😀 ok', 5)))))
 ```
 
 ## Code points, not UTF-16 units

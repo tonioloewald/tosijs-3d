@@ -62,8 +62,14 @@ character. The whole press is one gesture — the phone convention.</p>
 key&#39;s own rect, and a hit-test-per-event model would have lost the gesture at the
 first move.</p>
 <h2>Demo</h2>
-<p>Tap the keys. <code>?123</code> switches to symbols, <code>⇧</code> shifts, and holding <code>o</code> (or <code>a</code>, <code>e</code>,
-<code>u</code>…) opens the accent popup — drag onto one and release.</p>
+<p>Tap the keys. <code>?123</code> switches to symbols, <code>⇧</code> shifts.</p>
+<p><strong>Hold <code>o</code></strong> (or <code>a e i n s u y z c</code>) for the accents. Two ways to take one, because
+touch and pointer want different things: <strong>slide onto it and release</strong>, or <strong>lift your
+finger</strong> — the strip stays up and you tap the one you want. Lifting used to dismiss it,
+which made the accents unreachable by finger.</p>
+<p><strong>Hold the spacebar and slide</strong> to drag the caret through the text. The drag continues
+outside the key and outside the keyboard entirely (as iOS does) — a spacebar-width
+gesture would only buy you a spacebar of travel.</p>
 <pre><code class="language-js">import { surface, widgetBox, box, textBlock, inputField, keyboard, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
@@ -76,6 +82,9 @@ const field = inputField({ value: &#39;hold o for ö&#39;, placeholder: &#39;typ
 const kb = keyboard({
   onKey: (ch) =&gt; field.insert(ch),
   onAction: (a) =&gt; field.action(a),
+  // Hold the SPACEBAR and slide to move the caret — and the drag keeps working
+  // outside the key, and outside the keyboard, which is what makes it usable.
+  onCaretMove: (d) =&gt; field.moveCaret(d),
 })
 
 const s = surface({ width: W, height: H })

@@ -82,11 +82,68 @@ to type</strong>: the OS keyboard isn&#39;t reliably available to a WebXR sessio
 convention — and the reason the press-hold-drag gesture exists at all. Keeping the map
 here (rather than in the view) means the popup&#39;s contents are testable and the same in
 both presentations.</p>
-<pre><code class="language-js">import { keyLayout, accentsFor, keyRects } from &#39;tosijs-3d&#39;
+<h2>Demo</h2>
+<p>Every mode, laid out by <code>keyRects</code>. Switch modes, toggle shift, and click a letter with
+alternatives (<code>a c e i n o s u y z</code>) to see what a long-press would offer.</p>
+<pre><code class="language-js">import { keyLayout, keyRects, accentsFor, hasAccents } from &#39;tosijs-3d&#39;
+import { svgElements, elements } from &#39;tosijs&#39;
 
-const rows = keyLayout(&#39;alpha&#39;, false)
-accentsFor(&#39;o&#39;)            // [&#39;ò&#39;,&#39;ó&#39;,&#39;ô&#39;,&#39;ö&#39;,&#39;õ&#39;,&#39;ø&#39;,&#39;œ&#39;]
-keyRects(rows, { width: 320, keyHeight: 40, gap: 4 })  // → [{key,x,y,width,height}]
+const { svg, g, rect, text } = svgElements
+const { div, button } = elements
+
+const W = 380
+const KH = 36
+const GAP = 5
+let mode = &#39;alpha&#39;
+let shift = false
+
+const readout = div(
+  { style: &#39;margin:10px 2px;color:#8ea;font:13px system-ui;min-height:1.4em&#39; },
+  &#39;Click a key with accents (a c e i n o s u y z).&#39;
+)
+const sheet = svg({ width: W, height: 220, viewBox: `0 0 ${W} 220`, style: &#39;max-width:100%&#39; })
+const strip = g()
+
+const showAccents = (ch) =&gt; {
+  const alts = accentsFor(ch)
+  strip.replaceChildren()
+  if (!alts.length) { readout.textContent = `&quot;${ch}&quot; has no alternatives.`; return }
+  readout.textContent = `long-press &quot;${ch}&quot; → ${alts.join(&#39;  &#39;)}`
+}
+
+const paint = () =&gt; {
+  const rows = keyLayout(mode, shift)
+  const rects = keyRects(rows, { width: W, keyHeight: KH, gap: GAP })
+  const kids = rects.map((r) =&gt; {
+    const isAcc = hasAccents(r.key)
+    const cell = g({ style: &#39;cursor:pointer&#39; },
+      rect({ x: r.x, y: r.y, width: r.width, height: r.height, rx: 6,
+             fill: r.key.action ? &#39;#3a3f4a&#39; : isAcc ? &#39;#2f3a4a&#39; : &#39;#2a2f3a&#39; }),
+      text({ x: r.x + r.width / 2, y: r.y + r.height / 2, &#39;text-anchor&#39;: &#39;middle&#39;,
+             &#39;dominant-baseline&#39;: &#39;middle&#39;, &#39;font-size&#39;: r.key.action ? 12 : 15,
+             &#39;font-family&#39;: &#39;system-ui&#39;, fill: isAcc ? &#39;#8ecbff&#39; : &#39;#e6e6e6&#39; }, r.key.label))
+    cell.addEventListener(&#39;pointerdown&#39;, () =&gt; {
+      if (r.key.value) showAccents(r.key.value)
+      else if (r.key.action === &#39;shift&#39;) { shift = !shift; paint() }
+      else if (r.key.action === &#39;mode&#39; &amp;&amp; r.key.mode) { mode = r.key.mode; paint() }
+    })
+    return cell
+  })
+  const h = rows.length * (KH + GAP) - GAP
+  sheet.setAttribute(&#39;height&#39;, h)
+  sheet.setAttribute(&#39;viewBox&#39;, `0 0 ${W} ${h}`)
+  sheet.replaceChildren(...kids, strip)
+}
+paint()
+
+const pick = (label, fn) =&gt; button({ onclick: fn,
+  style: &#39;font:12px system-ui;padding:4px 10px;margin-right:6px;border-radius:6px;border:1px solid #3a4150;background:#20242e;color:#cfe;cursor:pointer&#39; }, label)
+
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; },
+  div({ style: &#39;margin-bottom:10px&#39; },
+    ...[&#39;alpha&#39;,&#39;alphanumeric&#39;,&#39;symbols&#39;,&#39;numpad&#39;].map((m) =&gt; pick(m, () =&gt; { mode = m; shift = false; paint() })),
+    pick(&#39;shift&#39;, () =&gt; { shift = !shift; paint() })),
+  sheet, readout))
 </code></pre>
 
   </article>

@@ -10,6 +10,8 @@ export interface InputField extends Widget3d {
     action: (a: KeyAction) => void;
     /** Replace the value. */
     setValue: (v: string) => void;
+    /** Nudge the caret by `delta` code points — what the spacebar trackpad drives. */
+    moveCaret: (delta: number) => void;
     /** Called whenever the text changes. */
     onChange?: (value: string) => void;
 }
@@ -33,9 +35,18 @@ export declare function keyboard(config?: {
     mode?: KeyboardMode;
     keyHeight?: number;
     gap?: number;
-    /** ms to hold before the accent popup opens. */
+    /** ms to hold before the accent popup opens — and before the spacebar becomes a
+     * caret trackpad. */
     holdMs?: number;
+    /**
+     * Px of travel per caret step once the **spacebar has become a trackpad** (hold
+     * it, then slide). Default 12 — about a character width, so the caret tracks
+     * your finger instead of racing it.
+     */
+    caretStepPx?: number;
     onKey?: (text: string) => void;
     onAction?: (action: KeyAction) => void;
+    /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
+    onCaretMove?: (delta: number) => void;
 }): Keyboard;
 //# sourceMappingURL=keyboard.d.ts.map
