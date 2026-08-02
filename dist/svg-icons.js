@@ -125,7 +125,8 @@ const scene = b3d(
     // <tosi-b3d> has no intrinsic size — it MUST be given one or it collapses to
     // zero height and the canvas renders blank (a snapshot() still works, since
     // that renders offscreen, so size it explicitly for the on-page view).
-    style: 'width:320px;height:300px;display:block;border-radius:8px;overflow:hidden',
+    // Cleaves to its container — see the note in box.ts's demo.
+    style: 'border-radius:8px;overflow:hidden',
     sceneCreated(el) {
       const cam = new el.BABYLON.ArcRotateCamera(
         'cam', -Math.PI / 2, Math.PI / 2.6, 3.2, el.BABYLON.Vector3.Zero(), el.scene
@@ -153,11 +154,16 @@ const domGrid = div(
 
 preview.append(
   div(
-    { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px;background:#0c0e14' },
-    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM (svgIcons)', domGrid),
-    div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture (iconGlyph)', scene)
+    { style: 'display:flex;gap:24px;height:100%;padding:16px;background:#0c0e14;box-sizing:border-box' },
+    div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;min-width:0' }, 'DOM (svgIcons)', domGrid),
+    div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px' }, '3D texture (iconGlyph)', scene)
   )
 )
+```
+```css
+.preview {
+  height: 100%;
+}
 ```
 */
 import { elements, svgElements, varDefault } from 'tosijs';

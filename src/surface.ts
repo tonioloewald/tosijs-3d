@@ -91,7 +91,8 @@ plane.svgElement = svgEl // the same element the DOM shows — cloned each frame
 
 const scene = b3d(
   {
-    style: 'width:340px;height:300px;display:block;border-radius:8px;overflow:hidden',
+    // Cleaves to its container — see the note in box.ts's demo.
+    style: 'border-radius:8px;overflow:hidden',
     sceneCreated(el) {
       const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI/2, Math.PI/2.5, 3.4, el.BABYLON.Vector3.Zero(), el.scene)
       el.setActiveCamera(cam)
@@ -114,12 +115,20 @@ const scene = b3d(
 
 preview.append(
   div(
-    { style: 'display:flex;gap:24px;align-items:flex-start;padding:16px 16px 4px;background:#0c0e14' },
-    div({ style: 'color:#9ab;font:12px system-ui' }, 'DOM — click; the 3D view mirrors it', svgEl),
-    div({ style: 'color:#9ab;font:12px system-ui' }, '3D texture — click the items', scene)
-  ),
-  readout
+    { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
+    div(
+      { style: 'display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px' },
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' }, 'DOM — click; the 3D view mirrors it', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture — click the items', scene)
+    ),
+    readout
+  )
 )
+```
+```css
+.preview {
+  height: 100%;
+}
 ```
 */
 /*{ "parent": "UI" }*/

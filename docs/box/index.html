@@ -133,7 +133,10 @@ plane.svgElement = svgEl
 
 const scene = b3d(
   {
-    style: &#39;width:300px;height:290px;display:block;border-radius:8px;overflow:hidden&#39;,
+    // No fixed size: b3d&#39;s :host is already display:block / height:100%, so it
+    // CLEAVES TO ITS CONTAINER. Pinning it to px means the resize path is never
+    // exercised, which is exactly how resize bugs survive to production.
+    style: &#39;border-radius:8px;overflow:hidden&#39;,
     sceneCreated(el) {
       const cam = new el.BABYLON.ArcRotateCamera(
         &#39;cam&#39;, -Math.PI / 2, Math.PI / 2.5, 3.2, el.BABYLON.Vector3.Zero(), el.scene
@@ -160,12 +163,17 @@ const scene = b3d(
 
 preview.append(
   div(
-    { style: &#39;display:flex;gap:24px;align-items:flex-start;padding:16px 16px 4px;background:#0c0e14&#39; },
-    div({ style: &#39;color:#9ab;font:12px system-ui&#39; }, &#39;DOM — click / arrow-key; 3D mirrors it&#39;, svgEl),
-    div({ style: &#39;color:#9ab;font:12px system-ui&#39; }, &#39;3D texture — click the buttons&#39;, scene)
-  ),
-  readout
+    { style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div(
+      { style: &#39;display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px&#39; },
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px&#39; }, &#39;DOM — click / arrow-key; 3D mirrors it&#39;, svgEl),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D texture — click the buttons&#39;, scene)
+    ),
+    readout
+  )
 )
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
 <h2>Resizable — drag to re-wrap, then scroll</h2>
 <p>Drag the corner grip: <code>box.resize(w, h)</code> re-flows — the paragraph re-wraps to the
