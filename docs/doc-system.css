@@ -15,7 +15,7 @@
   --bar-color: #ee257b66;
   --focus-color: #ee257bb3;
   --placeholder-color: #ee257b66;
-  --brand-text-color: #fdebe9;
+  --brand-text-color: #ffffff;
   --inset-bg: #fce0d3;
   --code-bg: #fdfdfd;
   --link-color: #800a77;
@@ -47,7 +47,7 @@
 
 .darkmode {
   --text-color: #dddddd;
-  --brand-color: #da1167;
+  --brand-color: #f14c93;
   --background: #050505;
   --button-bg: #020202;
   --input-bg: #020202;
@@ -56,7 +56,7 @@
   --bar-color: #da116766;
   --focus-color: #da1167b3;
   --placeholder-color: #da116766;
-  --brand-text-color: #160302;
+  --brand-text-color: #000000;
   --inset-bg: #2c1003;
   --code-bg: #020202;
   --link-color: #f57fed;

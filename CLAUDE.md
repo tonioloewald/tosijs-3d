@@ -89,6 +89,24 @@ Also: `hj --no-launch …` skips the "open Haltija to resume" prompt, and **the 
 idle-exits after several hours** (deliberate — it's a leak guard, and a fresh one picks up
 dependency updates). Don't assume it's still up; check, and restart with `bun start` if not.
 
+**⚠️ Bumping `haltija` in `package.json` does NOT change the channel you're driving.** The
+dev server spawns its own via `bunx haltija@^1.6.1` (tosijs-ui's pin), and **bunx caches
+that resolution** — so the channel can sit several versions behind while `hj where`
+reports it authoritatively and your devDependency is ignored entirely. The symptom is "the
+fix I just upgraded for isn't there", with the version indicator agreeing with you. Force
+it: `HALTIJA_VERSION=haltija@^1.11.2 bun start`, then confirm with `hj where` (it prints
+the **server** version — that's the one that matters). Filed as tosijs-ui#48.
+
+**`hj screenshot --canvas 'tosi-b3d canvas'` works since haltija 1.11.2** and pierces the
+shadow root, so you get the **presented framebuffer** of the real Babylon canvas. Prefer
+it over `b3d.snapshot()` for "what is actually on screen": snapshot renders through an
+RTT, so a layout bug that collapses the canvas still snapshots fine, whereas the canvas
+capture fails with a zero-size error. Keep `snapshot()` for engine-specific needs.
+
+**⚠️ Never `pkill -f haltija`** (or any broad `pkill -f`) — this machine runs concurrent
+sessions in sibling repos, and that pattern matches their scratchpad processes too. Kill
+by PID from `pgrep -fl`, having read what you're about to kill.
+
 Live examples take ~20–30s to mount after a reload even on a healthy, visible tab. Be patient
 before concluding something is broken.
 
