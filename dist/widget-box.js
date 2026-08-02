@@ -14,14 +14,60 @@ an existing panel's rows can be dropped into a floating panel — or a popup, or
 scrolling region — without rewriting them, and without `box` having to grow its own
 slider.
 
-```js
-import { surface, widgetBox, slider3d, toggle3d } from 'tosijs-3d'
+## Demo
 
-const s = surface({ width: 320, height: 240 })
-s.openPanel({ x: 20, y: 20 }, widgetBox({ width: 200 }, [
-  slider3d({ label: 'time', value: 12, min: 0, max: 24 }),
-  toggle3d({ label: 'fog', value: true }),
-]), { title: 'Scene', draggable: true })
+widgets3d controls living inside a `surface` panel — **drag the title bar** to move it,
+× to close. The slider drags properly because `BoxChild.handlePointer` captures: the
+gesture survives the pointer leaving the track.
+
+```js
+import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d } from 'tosijs-3d'
+import { tosi, elements } from 'tosijs'
+import { svgElements } from 'tosijs'
+
+const { svg } = svgElements
+const { div } = elements
+const { wb } = tosi({ wb: { time: 14, fog: true } })
+
+const W = 360
+const H = 280
+
+const readout = div({ style: 'margin:8px 4px;color:#8ea;font:13px system-ui' }, 'time 14.0 · fog on')
+const update = () => {
+  readout.textContent = `time ${Number(wb.time.value).toFixed(1)} · fog ${wb.fog.value ? 'on' : 'off'}`
+}
+wb.time.observe(update)
+wb.fog.observe(update)
+
+const s = surface({ width: W, height: H })
+s.setContent(
+  box(
+    { width: W, height: H, padding: 12, gap: 8, background: '#12151c' },
+    textBlock('widgets3d inside a surface panel', { font: { size: 14, weight: 600 }, color: '#e6e6e6' }),
+    textBlock('The panel is draggable and closable; the controls are ordinary widgets3d.', { font: { size: 12 }, color: '#9fb0c3' })
+  )
+)
+s.openPanel(
+  { x: 14, y: 78 },
+  widgetBox({ width: 300, padding: 10, gap: 4, background: '#0e1116' }, [
+    label3d({ text: 'Scene', bold: true, compact: true }),
+    slider3d({ label: 'time of day', value: wb.time, min: 0, max: 24, step: 0.5 }),
+    toggle3d({ label: 'fog', value: wb.fog }),
+    button3d({ label: 'Reset', onClick: () => { wb.time.value = 14; wb.fog.value = true } }),
+  ]),
+  { title: 'Scene', draggable: true }
+)
+
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: 'max-width:100%;touch-action:none' }, s.el)
+const at = (e) => {
+  const r = svgEl.getBoundingClientRect()
+  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+}
+svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
+svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))
+svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
+
+preview.append(div({ style: 'padding:16px;background:#0c0e14' }, svgEl, readout))
 ```
 
 ## Why an adapter rather than a port

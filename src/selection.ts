@@ -25,19 +25,84 @@ glyph has *shape*, not just value, so it survives.
 
 See UI-DESIGN-NOTES.md → "Show selection with an icon, not with intensity".
 
+## Demo
+
+The same four rows under each mode. Click to select — and note that **hover and
+selection never fight**: hover is background intensity, selection is the glyph.
+
 ```js
-import { selectionIcon, applySelection, inlineIcon } from 'tosijs-3d'
+import { selectionIcon, applySelection, iconGlyph } from 'tosijs-3d'
+import { svgElements, elements } from 'tosijs'
 
-selectionIcon('single', false)  // 'circle'
-selectionIcon('single', true)   // 'checkCircle'
-selectionIcon('multi',  true)   // 'checkSquare'
+const { svg, g, rect, text } = svgElements
+const { div } = elements
 
-// draw it with whichever icon helper the surface already uses
-const cell = inlineIcon(selectionIcon('multi', true), { size: 18, color: '#39c5ff' })
+const ITEMS = ['rifle', 'medkit', 'ration', 'flare']
+const readout = div(
+  { style: 'margin:10px 4px;color:#8ea;font:13px system-ui' },
+  'Nothing selected.'
+)
 
-// and the rule for what a tap does
-applySelection(selected, 'row-3', 'multi')   // toggles
-applySelection(selected, 'row-3', 'single')  // replaces
+const makeList = (mode, x, title) => {
+  let selected = new Set(mode === 'single' ? ['medkit'] : ['medkit', 'flare'])
+  let hover = -1
+  const host = g({ transform: `translate(${x} 0)` })
+  const paint = () => {
+    host.replaceChildren(
+      text({ x: 0, y: 14, 'font-size': 12, 'font-family': 'system-ui', fill: '#9fb0c3' }, title)
+    )
+    ITEMS.forEach((name, i) => {
+      const y = 26 + i * 32
+      const isSel = selected.has(name)
+      host.append(
+        g({},
+          rect({ x: 0, y, width: 170, height: 30, rx: 6, fill: i === hover ? 'rgba(255,255,255,0.13)' : 'transparent' }),
+          iconGlyph(selectionIcon(mode, isSel), { size: 17, color: isSel ? '#39c5ff' : '#9aa0a6', x: 7, y: y + 7 }),
+          text({ x: 34, y: y + 20, 'font-size': 14, 'font-family': 'system-ui', fill: '#f0f0f0' }, name)
+        )
+      )
+    })
+  }
+  paint()
+  return {
+    host,
+    hit: (lx, ly) => {
+      const i = Math.floor((ly - 26) / 32)
+      return lx >= 0 && lx <= 170 && i >= 0 && i < ITEMS.length ? i : -1
+    },
+    move: (i) => { if (i !== hover) { hover = i; paint() } },
+    click: (i) => {
+      if (i < 0) return
+      selected = applySelection(selected, ITEMS[i], mode)
+      paint()
+      readout.textContent = `${title}: ${[...selected].join(', ') || '(none)'}`
+    },
+  }
+}
+
+const single = makeList('single', 0, 'single-select — circle / checkCircle')
+const multi = makeList('multi', 200, 'multi-select — square / checkSquare')
+const sheet = svg({ width: 380, height: 170, viewBox: '0 0 380 170', style: 'max-width:100%' },
+  single.host, multi.host)
+
+const local = (e) => {
+  const r = sheet.getBoundingClientRect()
+  const sx = (e.clientX - r.left) * (380 / r.width)
+  const sy = (e.clientY - r.top) * (170 / r.height)
+  return [sx, sy]
+}
+sheet.addEventListener('pointermove', (e) => {
+  const [x, y] = local(e)
+  single.move(single.hit(x, y))
+  multi.move(multi.hit(x - 200, y))
+})
+sheet.addEventListener('pointerdown', (e) => {
+  const [x, y] = local(e)
+  single.click(single.hit(x, y))
+  multi.click(multi.hit(x - 200, y))
+})
+
+preview.append(div({ style: 'padding:16px;background:#0c0e14' }, sheet, readout))
 ```
 
 Deliberately **name-only, no drawing**: emitting a glyph here would mean importing the

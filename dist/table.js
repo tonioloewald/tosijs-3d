@@ -61,7 +61,16 @@ s.setContent(box({ width: W, height: H, padding: 10, gap: 8, background: '#12151
 s.openPanel({ x: 8, y: 46 }, widgetBox({ width: 376, padding: 8, background: '#0e1116' }, [t]),
   { title: 'Cargo', draggable: true })
 
-const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+// Scale to whatever room we're given: a fixed viewBox with width/height 100% means
+// maximizing the example fills the space instead of leaving the panel marooned in a
+// corner. Pointer coords divide out the same scale, so hit-testing is unaffected.
+const svgEl = svg({
+  viewBox: `0 0 ${W} ${H}`,
+  width: '100%',
+  height: '100%',
+  preserveAspectRatio: 'xMidYMid meet',
+  style: 'display:block;touch-action:none',
+}, s.el)
 const at = (e) => {
   const r = svgEl.getBoundingClientRect()
   return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
@@ -69,9 +78,18 @@ const at = (e) => {
 svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
-svgEl.addEventListener('wheel', (e) => { t.scrollBy(e.deltaY); e.preventDefault() })
+// Wheel scrolls too, but DRAGGING the body is the primary gesture — a wheel doesn't
+// exist on touch and can't be expressed by a VR ray.
+svgEl.addEventListener('wheel', (e) => { t.scrollBy(e.deltaY); e.preventDefault() }, { passive: false })
 
-preview.append(div({ style: 'padding:16px;background:#0c0e14' }, svgEl), readout)
+preview.append(
+  div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
+    div({ style: 'flex:1;min-height:0;padding:12px' }, svgEl),
+    readout)
+)
+```
+```css
+.preview { height: 100%; }
 ```
 */
 /*{ "parent": "UI" }*/
@@ -108,6 +126,10 @@ export function table(config) {
     let scroll = 0;
     let hover = -1;
     let selected = new Set();
+    /** In-flight press: where it started, and whether it has become a scroll. */
+    let drag = null;
+    /** Movement past this many px turns a press into a scroll rather than a click. */
+    const DRAG_SLOP = 4;
     const clipId = `tbl-clip-${seq++}`;
     const clip = clipPath({ id: clipId }, rect({ x: 0, y: 0 }));
     const clipRect = clip.firstChild;
@@ -259,6 +281,7 @@ export function table(config) {
         },
         handle(kind, x, y) {
             if (kind === 'leave') {
+                drag = null;
                 if (hover !== -1) {
                     hover = -1;
                     paintBody();
@@ -269,6 +292,27 @@ export function table(config) {
             const i = by == null
                 ? -1
                 : rowAt(by, { scroll, rowHeight: ROW_H, count: rows.length });
+            // Drag-to-scroll. A wheel is useless on touch and impossible with a VR ray, so
+            // dragging the body IS the scroll gesture — but the same press also has to be
+            // able to select a row. Distinguish by movement: past the threshold it becomes
+            // a scroll and can no longer select, so a slightly shaky tap still selects.
+            if (kind === 'down') {
+                drag = by == null ? null : { y, scroll0: scroll, moved: false };
+                return;
+            }
+            if (kind === 'move' && drag) {
+                const dy = y - drag.y;
+                if (!drag.moved && Math.abs(dy) > DRAG_SLOP)
+                    drag.moved = true;
+                if (drag.moved) {
+                    const next = clampScroll(drag.scroll0 - dy);
+                    if (next !== scroll) {
+                        scroll = next;
+                        paintBody();
+                    }
+                    return;
+                }
+            }
             if (kind === 'move' || kind === 'hover') {
                 if (i !== hover) {
                     hover = i;
@@ -276,6 +320,11 @@ export function table(config) {
                 }
                 return;
             }
+            if (kind === 'up' && drag?.moved) {
+                drag = null; // that press was a scroll, not a click
+                return;
+            }
+            drag = null;
             if (kind === 'up' && i >= 0) {
                 const row = rows[i];
                 if (config.selection) {

@@ -99,7 +99,16 @@ s.setContent(box({ width: W, height: H, padding: 10, gap: 8, background: &#39;#1
 s.openPanel({ x: 8, y: 46 }, widgetBox({ width: 376, padding: 8, background: &#39;#0e1116&#39; }, [t]),
   { title: &#39;Cargo&#39;, draggable: true })
 
-const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+// Scale to whatever room we&#39;re given: a fixed viewBox with width/height 100% means
+// maximizing the example fills the space instead of leaving the panel marooned in a
+// corner. Pointer coords divide out the same scale, so hit-testing is unaffected.
+const svgEl = svg({
+  viewBox: `0 0 ${W} ${H}`,
+  width: &#39;100%&#39;,
+  height: &#39;100%&#39;,
+  preserveAspectRatio: &#39;xMidYMid meet&#39;,
+  style: &#39;display:block;touch-action:none&#39;,
+}, s.el)
 const at = (e) =&gt; {
   const r = svgEl.getBoundingClientRect()
   return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
@@ -107,9 +116,17 @@ const at = (e) =&gt; {
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))
 svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...at(e)))
-svgEl.addEventListener(&#39;wheel&#39;, (e) =&gt; { t.scrollBy(e.deltaY); e.preventDefault() })
+// Wheel scrolls too, but DRAGGING the body is the primary gesture — a wheel doesn&#39;t
+// exist on touch and can&#39;t be expressed by a VR ray.
+svgEl.addEventListener(&#39;wheel&#39;, (e) =&gt; { t.scrollBy(e.deltaY); e.preventDefault() }, { passive: false })
 
-preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, svgEl), readout)
+preview.append(
+  div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div({ style: &#39;flex:1;min-height:0;padding:12px&#39; }, svgEl),
+    readout)
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
 
   </article>

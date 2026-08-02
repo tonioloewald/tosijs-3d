@@ -58,13 +58,57 @@ panels.</li>
 an existing panel&#39;s rows can be dropped into a floating panel — or a popup, or a
 scrolling region — without rewriting them, and without <code>box</code> having to grow its own
 slider.</p>
-<pre><code class="language-js">import { surface, widgetBox, slider3d, toggle3d } from &#39;tosijs-3d&#39;
+<h2>Demo</h2>
+<p>widgets3d controls living inside a <code>surface</code> panel — <strong>drag the title bar</strong> to move it,
+× to close. The slider drags properly because <code>BoxChild.handlePointer</code> captures: the
+gesture survives the pointer leaving the track.</p>
+<pre><code class="language-js">import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d } from &#39;tosijs-3d&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+import { svgElements } from &#39;tosijs&#39;
 
-const s = surface({ width: 320, height: 240 })
-s.openPanel({ x: 20, y: 20 }, widgetBox({ width: 200 }, [
-  slider3d({ label: &#39;time&#39;, value: 12, min: 0, max: 24 }),
-  toggle3d({ label: &#39;fog&#39;, value: true }),
-]), { title: &#39;Scene&#39;, draggable: true })
+const { svg } = svgElements
+const { div } = elements
+const { wb } = tosi({ wb: { time: 14, fog: true } })
+
+const W = 360
+const H = 280
+
+const readout = div({ style: &#39;margin:8px 4px;color:#8ea;font:13px system-ui&#39; }, &#39;time 14.0 · fog on&#39;)
+const update = () =&gt; {
+  readout.textContent = `time ${Number(wb.time.value).toFixed(1)} · fog ${wb.fog.value ? &#39;on&#39; : &#39;off&#39;}`
+}
+wb.time.observe(update)
+wb.fog.observe(update)
+
+const s = surface({ width: W, height: H })
+s.setContent(
+  box(
+    { width: W, height: H, padding: 12, gap: 8, background: &#39;#12151c&#39; },
+    textBlock(&#39;widgets3d inside a surface panel&#39;, { font: { size: 14, weight: 600 }, color: &#39;#e6e6e6&#39; }),
+    textBlock(&#39;The panel is draggable and closable; the controls are ordinary widgets3d.&#39;, { font: { size: 12 }, color: &#39;#9fb0c3&#39; })
+  )
+)
+s.openPanel(
+  { x: 14, y: 78 },
+  widgetBox({ width: 300, padding: 10, gap: 4, background: &#39;#0e1116&#39; }, [
+    label3d({ text: &#39;Scene&#39;, bold: true, compact: true }),
+    slider3d({ label: &#39;time of day&#39;, value: wb.time, min: 0, max: 24, step: 0.5 }),
+    toggle3d({ label: &#39;fog&#39;, value: wb.fog }),
+    button3d({ label: &#39;Reset&#39;, onClick: () =&gt; { wb.time.value = 14; wb.fog.value = true } }),
+  ]),
+  { title: &#39;Scene&#39;, draggable: true }
+)
+
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: &#39;max-width:100%;touch-action:none&#39; }, s.el)
+const at = (e) =&gt; {
+  const r = svgEl.getBoundingClientRect()
+  return [((e.clientX - r.left) / r.width) * W, ((e.clientY - r.top) / r.height) * H]
+}
+svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
+svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))
+svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...at(e)))
+
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, svgEl, readout))
 </code></pre>
 <h2>Why an adapter rather than a port</h2>
 <p>Porting the controls to <code>box</code> would mean rewriting <code>slider3d</code> and friends <strong>and</strong> the

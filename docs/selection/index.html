@@ -64,18 +64,81 @@ rasterized onto a <strong>3D texture</strong> and viewed through headset optics:
 resolution, off-axis, small intensity differences are the first thing to vanish. A
 glyph has <em>shape</em>, not just value, so it survives.</p>
 <p>See UI-DESIGN-NOTES.md → &quot;Show selection with an icon, not with intensity&quot;.</p>
-<pre><code class="language-js">import { selectionIcon, applySelection, inlineIcon } from &#39;tosijs-3d&#39;
+<h2>Demo</h2>
+<p>The same four rows under each mode. Click to select — and note that <strong>hover and
+selection never fight</strong>: hover is background intensity, selection is the glyph.</p>
+<pre><code class="language-js">import { selectionIcon, applySelection, iconGlyph } from &#39;tosijs-3d&#39;
+import { svgElements, elements } from &#39;tosijs&#39;
 
-selectionIcon(&#39;single&#39;, false)  // &#39;circle&#39;
-selectionIcon(&#39;single&#39;, true)   // &#39;checkCircle&#39;
-selectionIcon(&#39;multi&#39;,  true)   // &#39;checkSquare&#39;
+const { svg, g, rect, text } = svgElements
+const { div } = elements
 
-// draw it with whichever icon helper the surface already uses
-const cell = inlineIcon(selectionIcon(&#39;multi&#39;, true), { size: 18, color: &#39;#39c5ff&#39; })
+const ITEMS = [&#39;rifle&#39;, &#39;medkit&#39;, &#39;ration&#39;, &#39;flare&#39;]
+const readout = div(
+  { style: &#39;margin:10px 4px;color:#8ea;font:13px system-ui&#39; },
+  &#39;Nothing selected.&#39;
+)
 
-// and the rule for what a tap does
-applySelection(selected, &#39;row-3&#39;, &#39;multi&#39;)   // toggles
-applySelection(selected, &#39;row-3&#39;, &#39;single&#39;)  // replaces
+const makeList = (mode, x, title) =&gt; {
+  let selected = new Set(mode === &#39;single&#39; ? [&#39;medkit&#39;] : [&#39;medkit&#39;, &#39;flare&#39;])
+  let hover = -1
+  const host = g({ transform: `translate(${x} 0)` })
+  const paint = () =&gt; {
+    host.replaceChildren(
+      text({ x: 0, y: 14, &#39;font-size&#39;: 12, &#39;font-family&#39;: &#39;system-ui&#39;, fill: &#39;#9fb0c3&#39; }, title)
+    )
+    ITEMS.forEach((name, i) =&gt; {
+      const y = 26 + i * 32
+      const isSel = selected.has(name)
+      host.append(
+        g({},
+          rect({ x: 0, y, width: 170, height: 30, rx: 6, fill: i === hover ? &#39;rgba(255,255,255,0.13)&#39; : &#39;transparent&#39; }),
+          iconGlyph(selectionIcon(mode, isSel), { size: 17, color: isSel ? &#39;#39c5ff&#39; : &#39;#9aa0a6&#39;, x: 7, y: y + 7 }),
+          text({ x: 34, y: y + 20, &#39;font-size&#39;: 14, &#39;font-family&#39;: &#39;system-ui&#39;, fill: &#39;#f0f0f0&#39; }, name)
+        )
+      )
+    })
+  }
+  paint()
+  return {
+    host,
+    hit: (lx, ly) =&gt; {
+      const i = Math.floor((ly - 26) / 32)
+      return lx &gt;= 0 &amp;&amp; lx &lt;= 170 &amp;&amp; i &gt;= 0 &amp;&amp; i &lt; ITEMS.length ? i : -1
+    },
+    move: (i) =&gt; { if (i !== hover) { hover = i; paint() } },
+    click: (i) =&gt; {
+      if (i &lt; 0) return
+      selected = applySelection(selected, ITEMS[i], mode)
+      paint()
+      readout.textContent = `${title}: ${[...selected].join(&#39;, &#39;) || &#39;(none)&#39;}`
+    },
+  }
+}
+
+const single = makeList(&#39;single&#39;, 0, &#39;single-select — circle / checkCircle&#39;)
+const multi = makeList(&#39;multi&#39;, 200, &#39;multi-select — square / checkSquare&#39;)
+const sheet = svg({ width: 380, height: 170, viewBox: &#39;0 0 380 170&#39;, style: &#39;max-width:100%&#39; },
+  single.host, multi.host)
+
+const local = (e) =&gt; {
+  const r = sheet.getBoundingClientRect()
+  const sx = (e.clientX - r.left) * (380 / r.width)
+  const sy = (e.clientY - r.top) * (170 / r.height)
+  return [sx, sy]
+}
+sheet.addEventListener(&#39;pointermove&#39;, (e) =&gt; {
+  const [x, y] = local(e)
+  single.move(single.hit(x, y))
+  multi.move(multi.hit(x - 200, y))
+})
+sheet.addEventListener(&#39;pointerdown&#39;, (e) =&gt; {
+  const [x, y] = local(e)
+  single.click(single.hit(x, y))
+  multi.click(multi.hit(x - 200, y))
+})
+
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, sheet, readout))
 </code></pre>
 <p>Deliberately <strong>name-only, no drawing</strong>: emitting a glyph here would mean importing the
 icon layer, which imports tosijs, which needs a DOM — and then this module could no

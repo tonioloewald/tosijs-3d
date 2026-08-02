@@ -173,6 +173,53 @@ describe('table — selection', () => {
   })
 })
 
+describe('table — drag to scroll', () => {
+  // A wheel is useless on touch and impossible with a VR ray, so dragging the body IS
+  // the scroll gesture — and it must not fight selection.
+  const drag = (t: any, fromNth: number, dy: number) => {
+    const y = rowY(fromNth)
+    t.handle('down', 40, y)
+    t.handle('move', 40, y - dy) // dragging UP scrolls DOWN
+    t.handle('up', 40, y - dy)
+  }
+
+  test('dragging the body scrolls it', () => {
+    const { t } = mk({ selection: 'single' })
+    const first = () =>
+      (t.el.querySelector('[data-tbl="rows"] g') as any)?.getAttribute(
+        'data-row'
+      )
+    expect(first()).toBe('r0')
+    drag(t, 1, ROW_H * 3)
+    expect(first()).not.toBe('r0')
+  })
+
+  test('a drag does NOT select the row it started on', () => {
+    const { t, picked } = mk({ selection: 'single' })
+    drag(t, 0, ROW_H * 3)
+    expect(t.selected).toEqual([])
+    expect(picked.length).toBe(0)
+  })
+
+  test('a slightly shaky tap still selects (movement under the slop)', () => {
+    const { t } = mk({ selection: 'single' })
+    const y = rowY(0)
+    t.handle!('down', 40, y)
+    t.handle!('move', 40, y + 2) // under the 4px threshold
+    t.handle!('up', 40, y + 2)
+    expect(t.selected).toEqual(['r0'])
+  })
+
+  test('dragging up past the top clamps rather than overscrolling', () => {
+    const { t } = mk({ selection: 'single' })
+    drag(t, 1, -ROW_H * 10) // drag DOWN while already at the top
+    const first = (
+      t.el.querySelector('[data-tbl="rows"] g') as any
+    )?.getAttribute('data-row')
+    expect(first).toBe('r0')
+  })
+})
+
 describe('table — hit testing', () => {
   test('a click in the HEADER selects nothing', () => {
     const { t, picked } = mk({ selection: 'single' })
