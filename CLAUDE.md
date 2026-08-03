@@ -89,6 +89,11 @@ Also: `hj --no-launch …` skips the "open Haltija to resume" prompt, and **the 
 idle-exits after several hours** (deliberate — it's a leak guard, and a fresh one picks up
 dependency updates). Don't assume it's still up; check, and restart with `bun start` if not.
 
+**⚠️ Never run `bun run build` while the dev server is up.** Both own `docs/` and `dist/`
+(wipe-then-repopulate), so a standalone build races the watcher's rebuild and can kill the
+server silently mid-rebuild, leaving `docs/` half-populated (observed 2026-08-03; filed as
+tosijs-ui#51). Stop the server first, or let the watcher do the building.
+
 **Which haltija channel is running?** The dev server prints it at startup —
 `haltija channel: 1.11.2 (this project's dependency)`. Since tosijs-ui 1.9.4 it prefers
 **your installed `haltija`**, so bumping the devDependency is enough; `HALTIJA_VERSION`

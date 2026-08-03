@@ -12,13 +12,14 @@ no issue URL is a complaint nobody will ever read.
 
 ## Open
 
-| Owner      | Finding                                                                                                                                                         | Issue                                                             |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `tosijs`   | `on*`→event sugar shadows prototype **methods**, not just creator-config keys (narrowed: the warning shipped in 1.6.8, the namespace question stands)           | [tosijs#22](https://github.com/tonioloewald/tosijs/issues/22)     |
-| `tosijs`   | No first-class "semantic parent" accessor — children hand-roll a walk past `<tosi-slot>`                                                                        | [tosijs#16](https://github.com/tonioloewald/tosijs/issues/16)     |
-| `tosijs`   | A wrong-typed write to an `initAttributes` prop is silently discarded (`pointerEvents: false` onto `'on'\|'off'` → stays `'on'`) — cost the lost-pointerup saga | [tosijs#24](https://github.com/tonioloewald/tosijs/issues/24)     |
-| `tjs-lang` | All-caps identifier reassignment rewritten to `const`, shadowing a module-level `let`                                                                           | [tjs-lang#22](https://github.com/tonioloewald/tjs-lang/issues/22) |
-| `haltija`  | Tab selection follows focus, not cwd — commands can land on another project's page                                                                              | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)     |
+| Owner       | Finding                                                                                                                                                         | Issue                                                               |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `tosijs`    | `on*`→event sugar shadows prototype **methods**, not just creator-config keys (narrowed: the warning shipped in 1.6.8, the namespace question stands)           | [tosijs#22](https://github.com/tonioloewald/tosijs/issues/22)       |
+| `tosijs`    | No first-class "semantic parent" accessor — children hand-roll a walk past `<tosi-slot>`                                                                        | [tosijs#16](https://github.com/tonioloewald/tosijs/issues/16)       |
+| `tosijs`    | A wrong-typed write to an `initAttributes` prop is silently discarded (`pointerEvents: false` onto `'on'\|'off'` → stays `'on'`) — cost the lost-pointerup saga | [tosijs#24](https://github.com/tonioloewald/tosijs/issues/24)       |
+| `tjs-lang`  | All-caps identifier reassignment rewritten to `const`, shadowing a module-level `let`                                                                           | [tjs-lang#22](https://github.com/tonioloewald/tjs-lang/issues/22)   |
+| `haltija`   | Tab selection follows focus, not cwd — commands can land on another project's page                                                                              | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)       |
+| `tosijs-ui` | Dev server dies silently when a standalone build runs concurrently (shared docs/dist output tree — needs a lock, or at least a loud death)                      | [tosijs-ui#51](https://github.com/tonioloewald/tosijs-ui/issues/51) |
 
 ## Resolved
 
