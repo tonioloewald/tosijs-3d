@@ -12,6 +12,21 @@ export interface InputField extends Widget3d {
     setValue: (v: string) => void;
     /** Nudge the caret by `delta` code points — what the spacebar trackpad drives. */
     moveCaret: (delta: number) => void;
+    /**
+     * Inner focus traversal (same protocol as the keyboard's). LEFT/RIGHT move the
+     * insertion point and are always consumed; UP/DOWN are not, so focus escapes to
+     * the neighbouring widget.
+     *
+     * Horizontal is consumed even at the ends on purpose: a caret that leaps out of
+     * the field because you pressed left once too often is disorienting, and vertical
+     * already provides a way out — which is the property that matters for not
+     * trapping a D-pad.
+     */
+    focusMove: (dx: number, dy: number) => boolean;
+    /** Show the caret (focus arrived here). */
+    focusEnter: () => void;
+    /** Hide the caret (focus went elsewhere). */
+    focusClear: () => void;
     /** Called whenever the text changes. */
     onChange?: (value: string) => void;
 }

@@ -134,6 +134,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Procedural galaxy generation data and functions. Pure logic — no Babylon.js
 - https://3d.tosijs.net/game-controller/ — game-controller
   Input component that maps keyboard/mouse to a virtual gamepad and optionally
+- https://3d.tosijs.net/gamepad-focus/ — gamepad-focus
+  Drives an SVG UI's **focus traversal** from a [[virtual-gamepad|VirtualGamepad]] — the
 - https://3d.tosijs.net/gamepad-svg/ — gamepad-svg
   Generates a gamepad SVG using tosijs element creators. All colors and stroke
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)

@@ -74,9 +74,25 @@ to type</strong>: the OS keyboard isn&#39;t reliably available to a WebXR sessio
 </tr>
 <tr>
 <td><code>numpad</code></td>
-<td>digits in a 3×4 block — quantities, seeds, coordinates</td>
+<td>digits in a 4×4 grid — quantities, seeds, coordinates (has <code>−</code> and <code>.</code>)</td>
+</tr>
+<tr>
+<td><code>dial</code></td>
+<td>a telephone keypad — <code>*</code> <code>0</code> <code>#</code>, <code>+</code> for international</td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>letters plus <code>@ _ - .</code> and a <strong><code>.com</code></strong> key; the spacebar shrinks</td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>letters plus <code>: / ? &amp; . -</code>; the spacebar shrinks</td>
 </tr>
 </tbody></table>
+<p><strong>A grid pad&#39;s rows must sum to the same unit total.</strong> <code>keyRects</code> scales the widest row
+to fill and centres the others, so one odd row silently resizes the pad around itself —
+which is exactly how <code>numpad</code> shipped misaligned (<code>. 0 ⌫</code> was 3.5 units against digit
+rows of 3). The <code>grid pads align</code> tests assert it rather than trusting it.</p>
 <h2>Long-press accents</h2>
 <p>Holding a letter offers its accented forms (<code>o</code> → <code>ò ó ô ö õ ø œ</code>), the phone
 convention — and the reason the press-hold-drag gesture exists at all. Keeping the map
@@ -141,7 +157,7 @@ const pick = (label, fn) =&gt; button({ onclick: fn,
 
 preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; },
   div({ style: &#39;margin-bottom:10px&#39; },
-    ...[&#39;alpha&#39;,&#39;alphanumeric&#39;,&#39;symbols&#39;,&#39;numpad&#39;].map((m) =&gt; pick(m, () =&gt; { mode = m; shift = false; paint() })),
+    ...[&#39;alpha&#39;,&#39;alphanumeric&#39;,&#39;symbols&#39;,&#39;numpad&#39;,&#39;dial&#39;,&#39;email&#39;,&#39;url&#39;].map((m) =&gt; pick(m, () =&gt; { mode = m; shift = false; paint() })),
     pick(&#39;shift&#39;, () =&gt; { shift = !shift; paint() })),
   sheet, readout))
 </code></pre>
@@ -209,6 +225,7 @@ preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; },
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>

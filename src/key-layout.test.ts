@@ -34,14 +34,13 @@ describe('keyLayout — modes', () => {
     expect(rows[1].map((k) => k.label).join('')).toBe('qwertyuiop')
   })
 
-  test('numpad is a compact digit block, no letters', () => {
+  test('numpad is a digit grid, no letter rows', () => {
     const rows = keyLayout('numpad')
-    expect(rows.map((r) => r.map((k) => k.label).join(''))).toEqual([
-      '123',
-      '456',
-      '789',
-      '.0⌫',
-    ])
+    expect(rows.length).toBe(4)
+    // digits present, and nothing alphabetic beyond the way back to letters
+    const vals = rows.flat().map((k) => k.value).filter(Boolean)
+    for (const d of '0123456789') expect(vals).toContain(d)
+    expect(vals.some((v) => /^[a-z]$/.test(v!))).toBe(false)
   })
 
   test('symbols mode can get back to letters', () => {
@@ -53,12 +52,84 @@ describe('keyLayout — modes', () => {
   })
 
   test('every mode offers backspace', () => {
-    for (const m of ['alpha', 'alphanumeric', 'symbols', 'numpad'] as const) {
+    for (const m of ['alpha', 'alphanumeric', 'symbols', 'numpad', 'dial', 'email', 'url'] as const) {
       const has = keyLayout(m)
         .flat()
         .some((k) => k.action === 'backspace')
       expect(has).toBe(true)
     }
+  })
+})
+
+describe('keyLayout — grid pads align', () => {
+  // keyRects scales the WIDEST row to fill and centres the rest, so ONE odd row
+  // silently resizes the whole pad around itself. That's exactly what went wrong:
+  // numpad's `. 0 ⌫` was 3.5 units against digit rows of 3, so the digits shrank
+  // and nothing lined up. For a grid pad the totals must match.
+  const units = (r: any[]) => r.reduce((n, k) => n + (k.width ?? 1), 0)
+
+  for (const mode of ['numpad', 'dial'] as const) {
+    test(`${mode}: every row sums to the same unit total`, () => {
+      const totals = keyLayout(mode).map(units)
+      expect(new Set(totals).size).toBe(1)
+    })
+
+    test(`${mode}: has backspace AND enter`, () => {
+      const acts = keyLayout(mode).flat().map((k) => k.action)
+      expect(acts).toContain('backspace')
+      expect(acts).toContain('enter')
+    })
+  }
+
+  test('dial carries the phone glyphs * and #', () => {
+    const vals = keyLayout('dial').flat().map((k) => k.value)
+    expect(vals).toContain('*')
+    expect(vals).toContain('#')
+  })
+
+  test('numpad carries a minus and a decimal point (coordinates, not just counts)', () => {
+    const vals = keyLayout('numpad').flat().map((k) => k.value)
+    expect(vals).toContain('-')
+    expect(vals).toContain('.')
+  })
+})
+
+describe('keyLayout — email', () => {
+  const flat = () => keyLayout('email').flat()
+
+  test('promotes @ . - _ onto the main surface', () => {
+    const vals = flat().map((k) => k.value)
+    for (const ch of ['@', '.', '-', '_']) expect(vals).toContain(ch)
+  })
+
+  test('the spacebar SHRINKS — an address has no spaces', () => {
+    const emailSpace = flat().find((k) => k.action === 'space')!
+    const alphaSpace = keyLayout('alpha').flat().find((k) => k.action === 'space')!
+    expect(emailSpace.width!).toBeLessThan(alphaSpace.width!)
+  })
+
+  test('but space still EXISTS — a missing key is its own confusion', () => {
+    expect(flat().some((k) => k.action === 'space')).toBe(true)
+  })
+
+  test('offers .com as one key, and an enter', () => {
+    expect(flat().map((k) => k.value)).toContain('.com')
+    expect(flat().map((k) => k.action)).toContain('enter')
+  })
+})
+
+describe('keyLayout — url', () => {
+  const flat = () => keyLayout('url').flat()
+
+  test('promotes : / ? & . - onto the main surface', () => {
+    const vals = flat().map((k) => k.value)
+    for (const ch of [':', '/', '?', '&', '.', '-']) expect(vals).toContain(ch)
+  })
+
+  test('shrinks the spacebar, like email — a URL has no spaces either', () => {
+    const urlSpace = flat().find((k) => k.action === 'space')!
+    const alphaSpace = keyLayout('alpha').flat().find((k) => k.action === 'space')!
+    expect(urlSpace.width!).toBeLessThan(alphaSpace.width!)
   })
 })
 

@@ -96,6 +96,97 @@ svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
 
 preview.append(div({ style: 'padding:16px;background:#0c0e14' }, svgEl))
 ```
+
+## In VR — the case it exists for
+
+The same keyboard rasterized onto a plane in a 3D scene. Press **Enter VR** (top-left)
+on a headset and type with the controller ray — that path is the whole reason this
+exists, since a WebXR session can't rely on the system keyboard and there is no DOM
+`<input>` inside an immersive scene.
+
+Also wired here: **a hardware/XR gamepad drives focus** via `gamepadFocus` — D-pad walks
+the keys, **menu** (or A) presses. That's the input a VR controller set leaves spare, so
+claiming it doesn't fight locomotion.
+
+```js
+import {
+  b3d, b3dLight, b3dSvgPlane, surface, widgetBox, box, textBlock,
+  inputField, keyboard, gamepadFocus, HardwareGamepadSource,
+} from 'tosijs-3d'
+import { svgElements, elements } from 'tosijs'
+
+const { svg } = svgElements
+const { div } = elements
+const W = 380
+const H = 300
+
+const readout = div({ style: 'margin:8px 4px;color:#8ea;font:13px system-ui' }, 'value: (empty)')
+const field = inputField({
+  placeholder: 'type with the ray, or a gamepad…',
+  onChange: (v) => { readout.textContent = 'value: ' + (v || '(empty)') },
+})
+const kb = keyboard({
+  onKey: (ch) => field.insert(ch),
+  onAction: (a) => field.action(a),
+  onCaretMove: (d) => field.moveCaret(d),
+})
+
+const s = surface({ width: W, height: H })
+s.setContent(box({ width: W, height: H, padding: 12, gap: 8, background: '#12151c' },
+  textBlock('Type in VR', { font: { size: 15, weight: 600 }, color: '#e6e6e6' })))
+const panel = widgetBox({ width: 364, padding: 8, gap: 8, background: '#0e1116' }, [field, kb])
+s.openPanel({ x: 8, y: 44 }, panel, { title: 'Text entry', draggable: true })
+
+// The SAME surface shown flat AND used as the plane's texture (SvgTexture clones it
+// each frame), so the two views can't drift.
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: 'emissive', pointerEvents: false })
+plane.svgElement = svgEl
+
+// A hardware pad drives focus; in a session the XR controllers do the same through
+// XrGamepadSource. D-pad walks keys, menu/A presses.
+const pad = new HardwareGamepadSource()
+gamepadFocus({ poll: () => pad.poll(), target: panel })
+
+const scene = b3d(
+  {
+    style: 'border-radius:8px;overflow:hidden',
+    sceneCreated(el) {
+      const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.4, 3, el.BABYLON.Vector3.Zero(), el.scene)
+      el.setActiveCamera(cam)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      el.scene.constantlyUpdateMeshUnderPointer = true
+      // Mouse AND XR controller picks arrive here identically — texture UV → surface
+      // coords → the same handlePointer the flat overlay calls.
+      const T = el.BABYLON.PointerEventTypes
+      el.scene.onPointerObservable.add((pi) => {
+        const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : pi.type === T.POINTERMOVE ? 'move' : ''
+        if (!kind) return
+        const pk = pi.pickInfo
+        if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
+          const uv = pk.getTextureCoordinates()
+          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
+        } else if (kind === 'move') s.handlePointer('leave', 0, 0)
+      })
+    },
+  },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+preview.append(
+  div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
+    div({ style: 'display:flex;gap:20px;flex:1;min-height:0;padding:14px 14px 4px' },
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' }, 'flat — same surface', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — Enter VR to type with the ray', scene)),
+    readout)
+)
+```
+```css
+.preview {
+  height: 100%;
+}
+```
 */
 /*{ "parent": "UI" }*/
 import { svgElements } from 'tosijs';
@@ -242,6 +333,21 @@ export function inputField(config = {}) {
             focused = true;
             change(editMoveCaret(state, delta));
         },
+        focusMove(dx, dy) {
+            if (dx === 0)
+                return false; // vertical → let focus leave the field
+            focused = true;
+            change(editMoveCaret(state, dx > 0 ? 1 : -1));
+            return true;
+        },
+        focusEnter() {
+            focused = true;
+            paint();
+        },
+        focusClear() {
+            focused = false;
+            paint();
+        },
     };
     void width;
     return api;
@@ -271,6 +377,15 @@ export function keyboard(config = {}) {
     const el = g({ 'data-w3d': 'keyboard' }, keysLayer, focusLayer, popupLayer);
     /** Index into `rects` of the D-pad-focused key; -1 = no key focus. */
     let focusIdx = -1;
+    /** Tint a key while it's held — a key with no down-state feels dead under a finger. */
+    const keyTint = (r, on) => {
+        const i = rects.indexOf(r);
+        const cell = keysLayer.children[i];
+        const bg = cell?.firstChild;
+        if (!bg)
+            return;
+        bg.setAttribute('fill', on ? KEY_DOWN : r.key.action ? KEY_ACTION_BG : KEY_BG);
+    };
     const paintFocus = () => {
         const r = rects[focusIdx];
         if (!r) {
@@ -574,6 +689,8 @@ export function keyboard(config = {}) {
                     clearTimer();
                 return;
             }
+            if (kind === 'up' || kind === 'leave')
+                keyTint(press.rect, false);
             if (kind === 'up' && caretDrag) {
                 // The press became a caret drag, so it does NOT also type a space.
                 clearTimer();
@@ -613,6 +730,14 @@ export function keyboard(config = {}) {
                     }
                 }
                 else if (keyAt(rects, x, y) === press.rect) {
+                    // A tap RELOCATES focus that is already active, so switching pointer →
+                    // D-pad resumes from what you touched. It does NOT summon the ring when
+                    // focus is absent: typing is a stream of taps, and a ring chasing every
+                    // keystroke is noise. Press feedback (keyTint) is what a tap gets instead.
+                    if (focusIdx >= 0) {
+                        focusIdx = rects.indexOf(press.rect);
+                        paintFocus();
+                    }
                     fireKey(press.rect);
                 }
                 press = null;
@@ -654,13 +779,32 @@ export function keyboard(config = {}) {
                 return focusIdx >= 0;
             }
             // KeyRects are structurally FlowBoxes, so the box's own D-pad geometry
-            // applies unchanged. Null = ran off the edge → focus escapes to the host.
+            // applies unchanged. Null = ran off the edge.
             const next = nearestInDirection(rects, focusIdx, { dx, dy });
-            if (next == null)
-                return false;
-            focusIdx = next;
-            paintFocus();
-            return true;
+            if (next != null) {
+                focusIdx = next;
+                paintFocus();
+                return true;
+            }
+            /*
+            Off the LEFT or RIGHT edge → wrap within the row rather than escaping.
+      
+            Vertical escape is the useful one (up from the top row reaches the field), but
+            horizontal escape isn't: rows are ragged, so running off the end of `asdfghjkl`
+            would drop you somewhere arbitrary in a neighbouring row — or out of the
+            keyboard entirely, which is never what you meant by "right". Wrapping keeps a
+            row a closed loop, so holding right walks it and comes back round.
+            */
+            if (dx !== 0) {
+                const row = rects.filter((r) => r.y === rects[focusIdx].y);
+                if (row.length > 1) {
+                    const wrapped = dx > 0 ? row[0] : row[row.length - 1];
+                    focusIdx = rects.indexOf(wrapped);
+                    paintFocus();
+                    return true;
+                }
+            }
+            return false;
         },
         focusActivate() {
             const r = rects[focusIdx];

@@ -91,6 +91,8 @@ export { widgetBox, widgetChild } from './widget-box';
 export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, type EditState, } from './text-edit';
 export { selectionIcon, applySelection, type SelectionMode } from './selection';
 export { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, type ColumnSpec, type ColumnRect, type RowWindow, } from './table-layout';
+export { gamepadFocus, createFocusPulse } from './gamepad-focus';
+export type { FocusTarget, FocusPulse } from './gamepad-focus';
 export { keyboard, inputField } from './keyboard';
 export type { Keyboard, InputField } from './keyboard';
 export { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, type KeyboardMode, type KeyAction, type KeyDef, type KeyRect, } from './key-layout';

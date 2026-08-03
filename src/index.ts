@@ -384,6 +384,10 @@ export {
   type RowWindow,
 } from './table-layout'
 
+// Drive UI focus traversal from a gamepad D-pad (the wire that was missing)
+export { gamepadFocus, createFocusPulse } from './gamepad-focus'
+export type { FocusTarget, FocusPulse } from './gamepad-focus'
+
 // On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
 export { keyboard, inputField } from './keyboard'
 export type { Keyboard, InputField } from './keyboard'

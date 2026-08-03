@@ -129,6 +129,91 @@ svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#3
 
 preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, svgEl))
 </code></pre>
+<h2>In VR — the case it exists for</h2>
+<p>The same keyboard rasterized onto a plane in a 3D scene. Press <strong>Enter VR</strong> (top-left)
+on a headset and type with the controller ray — that path is the whole reason this
+exists, since a WebXR session can&#39;t rely on the system keyboard and there is no DOM
+<code>&lt;input&gt;</code> inside an immersive scene.</p>
+<p>Also wired here: <strong>a hardware/XR gamepad drives focus</strong> via <code>gamepadFocus</code> — D-pad walks
+the keys, <strong>menu</strong> (or A) presses. That&#39;s the input a VR controller set leaves spare, so
+claiming it doesn&#39;t fight locomotion.</p>
+<pre><code class="language-js">import {
+  b3d, b3dLight, b3dSvgPlane, surface, widgetBox, box, textBlock,
+  inputField, keyboard, gamepadFocus, HardwareGamepadSource,
+} from &#39;tosijs-3d&#39;
+import { svgElements, elements } from &#39;tosijs&#39;
+
+const { svg } = svgElements
+const { div } = elements
+const W = 380
+const H = 300
+
+const readout = div({ style: &#39;margin:8px 4px;color:#8ea;font:13px system-ui&#39; }, &#39;value: (empty)&#39;)
+const field = inputField({
+  placeholder: &#39;type with the ray, or a gamepad…&#39;,
+  onChange: (v) =&gt; { readout.textContent = &#39;value: &#39; + (v || &#39;(empty)&#39;) },
+})
+const kb = keyboard({
+  onKey: (ch) =&gt; field.insert(ch),
+  onAction: (a) =&gt; field.action(a),
+  onCaretMove: (d) =&gt; field.moveCaret(d),
+})
+
+const s = surface({ width: W, height: H })
+s.setContent(box({ width: W, height: H, padding: 12, gap: 8, background: &#39;#12151c&#39; },
+  textBlock(&#39;Type in VR&#39;, { font: { size: 15, weight: 600 }, color: &#39;#e6e6e6&#39; })))
+const panel = widgetBox({ width: 364, padding: 8, gap: 8, background: &#39;#0e1116&#39; }, [field, kb])
+s.openPanel({ x: 8, y: 44 }, panel, { title: &#39;Text entry&#39;, draggable: true })
+
+// The SAME surface shown flat AND used as the plane&#39;s texture (SvgTexture clones it
+// each frame), so the two views can&#39;t drift.
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: &#39;emissive&#39;, pointerEvents: false })
+plane.svgElement = svgEl
+
+// A hardware pad drives focus; in a session the XR controllers do the same through
+// XrGamepadSource. D-pad walks keys, menu/A presses.
+const pad = new HardwareGamepadSource()
+gamepadFocus({ poll: () =&gt; pad.poll(), target: panel })
+
+const scene = b3d(
+  {
+    style: &#39;border-radius:8px;overflow:hidden&#39;,
+    sceneCreated(el) {
+      const cam = new el.BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 2.4, 3, el.BABYLON.Vector3.Zero(), el.scene)
+      el.setActiveCamera(cam)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      el.scene.constantlyUpdateMeshUnderPointer = true
+      // Mouse AND XR controller picks arrive here identically — texture UV → surface
+      // coords → the same handlePointer the flat overlay calls.
+      const T = el.BABYLON.PointerEventTypes
+      el.scene.onPointerObservable.add((pi) =&gt; {
+        const kind = pi.type === T.POINTERDOWN ? &#39;down&#39; : pi.type === T.POINTERUP ? &#39;up&#39; : pi.type === T.POINTERMOVE ? &#39;move&#39; : &#39;&#39;
+        if (!kind) return
+        const pk = pi.pickInfo
+        if (pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh) {
+          const uv = pk.getTextureCoordinates()
+          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
+        } else if (kind === &#39;move&#39;) s.handlePointer(&#39;leave&#39;, 0, 0)
+      })
+    },
+  },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+preview.append(
+  div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div({ style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:14px 14px 4px&#39; },
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px&#39; }, &#39;flat — same surface&#39;, svgEl),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D — Enter VR to type with the ray&#39;, scene)),
+    readout)
+)
+</code></pre>
+<pre><code class="language-css">.preview {
+  height: 100%;
+}
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -193,6 +278,7 @@ preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, svgEl))
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
       <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
       <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>

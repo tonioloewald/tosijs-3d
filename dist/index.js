@@ -90,6 +90,8 @@ export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, s
 export { selectionIcon, applySelection } from './selection';
 // Pure table geometry: column resolution + row virtualization
 export { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, } from './table-layout';
+// Drive UI focus traversal from a gamepad D-pad (the wire that was missing)
+export { gamepadFocus, createFocusPulse } from './gamepad-focus';
 // On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
 export { keyboard, inputField } from './keyboard';
 // Pure virtual-keyboard model: layouts, long-press accents, key geometry

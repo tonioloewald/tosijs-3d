@@ -1,5 +1,5 @@
 /** Which key set is showing. */
-export type KeyboardMode = 'alpha' | 'alphanumeric' | 'symbols' | 'numpad';
+export type KeyboardMode = 'alpha' | 'alphanumeric' | 'symbols' | 'numpad' | 'dial' | 'email' | 'url';
 /** A non-inserting key's behaviour. */
 export type KeyAction = 'shift' | 'backspace' | 'space' | 'enter' | 'done' | 'mode';
 /** One key. `value` inserts; `action` does something else. */

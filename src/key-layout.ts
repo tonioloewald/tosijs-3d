@@ -16,7 +16,15 @@ to type**: the OS keyboard isn't reliably available to a WebXR session, and a DO
 | `alpha` | letters, with `shift` |
 | `alphanumeric` | letters plus a digit row |
 | `symbols` | punctuation and symbols |
-| `numpad` | digits in a 3×4 block — quantities, seeds, coordinates |
+| `numpad` | digits in a 4×4 grid — quantities, seeds, coordinates (has `−` and `.`) |
+| `dial` | a telephone keypad — `*` `0` `#`, `+` for international |
+| `email` | letters plus `@ _ - .` and a **`.com`** key; the spacebar shrinks |
+| `url` | letters plus `: / ? & . -`; the spacebar shrinks |
+
+**A grid pad's rows must sum to the same unit total.** `keyRects` scales the widest row
+to fill and centres the others, so one odd row silently resizes the pad around itself —
+which is exactly how `numpad` shipped misaligned (`. 0 ⌫` was 3.5 units against digit
+rows of 3). The `grid pads align` tests assert it rather than trusting it.
 
 ## Long-press accents
 
@@ -87,7 +95,7 @@ const pick = (label, fn) => button({ onclick: fn,
 
 preview.append(div({ style: 'padding:16px;background:#0c0e14' },
   div({ style: 'margin-bottom:10px' },
-    ...['alpha','alphanumeric','symbols','numpad'].map((m) => pick(m, () => { mode = m; shift = false; paint() })),
+    ...['alpha','alphanumeric','symbols','numpad','dial','email','url'].map((m) => pick(m, () => { mode = m; shift = false; paint() })),
     pick('shift', () => { shift = !shift; paint() })),
   sheet, readout))
 ```
@@ -95,7 +103,14 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
 /*{ "parent": "UI" }*/
 
 /** Which key set is showing. */
-export type KeyboardMode = 'alpha' | 'alphanumeric' | 'symbols' | 'numpad'
+export type KeyboardMode =
+  | 'alpha'
+  | 'alphanumeric'
+  | 'symbols'
+  | 'numpad'
+  | 'dial'
+  | 'email'
+  | 'url'
 
 /** A non-inserting key's behaviour. */
 export type KeyAction =
@@ -144,6 +159,15 @@ const toSymbols: KeyDef = {
   mode: 'symbols',
   width: 1.5,
 }
+/** Backspace at plain width — a grid pad needs every cell to be one unit. */
+const BACK1: KeyDef = { label: '⌫', action: 'backspace' }
+/** Enter at plain width — for a grid pad where every cell is one unit. */
+const ENTER1: KeyDef = { label: '⏎', action: 'enter' }
+/** Enter spanning two cells, to square off a pad's last row. */
+const ENTER2: KeyDef = { label: '⏎', action: 'enter', width: 2 }
+/** Back to letters, plain width (the grid pads need a 1-unit version). */
+const toAlpha1: KeyDef = { label: 'ABC', action: 'mode', mode: 'alpha' }
+
 const toAlpha: KeyDef = {
   label: 'ABC',
   action: 'mode',
@@ -159,12 +183,37 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
   const letters = (chars: string): KeyDef[] =>
     row(shift ? chars.toUpperCase() : chars)
 
+  /*
+  EVERY ROW OF A PAD SUMS TO THE SAME UNIT TOTAL.
+
+  `keyRects` scales the WIDEST row to fill the width and centres the others, so a
+  single odd row silently resizes the whole pad around itself. The old numpad had
+  `. 0 ⌫` (1 + 1 + 1.5 = 3.5) against digit rows of 3, so the digits shrank and
+  nothing lined up. Keeping the totals equal is what makes a grid a grid — see the
+  `keyLayout — grid pads align` tests, which assert it rather than trusting it.
+  */
   if (mode === 'numpad') {
+    // Coordinates, quantities, seeds: digits plus sign, point, and a way out.
     return [
-      row('123'),
-      row('456'),
-      row('789'),
-      [{ label: '.', value: '.' }, { label: '0', value: '0' }, BACK],
+      [...row('123'), BACK1], // 4
+      [...row('456'), { label: '−', value: '-' }], // 4
+      [...row('789'), { label: '.', value: '.' }], // 4
+      [toAlpha1, { label: '0', value: '0' }, ENTER2], // 1 + 1 + 2 = 4
+    ]
+  }
+
+  if (mode === 'dial') {
+    // A telephone keypad: * and # where a phone puts them, + for international.
+    return [
+      [...row('123'), BACK1], // 4
+      [...row('456'), { label: '+', value: '+' }], // 4
+      [...row('789'), { label: ',', value: ',' }], // 4 (pause, as dialers use)
+      [
+        { label: '*', value: '*' },
+        { label: '0', value: '0' },
+        { label: '#', value: '#' },
+        ENTER1,
+      ], // 4
     ]
   }
 
@@ -175,6 +224,59 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
       [toAlpha, ...row('-_=+[]{}'), BACK],
       [...row(';:\'",.?/'), ENTER],
       [SPACE, DONE],
+    ]
+  }
+
+  if (mode === 'email') {
+    /*
+    An address bar, not prose: `@ . -` and `_` are promoted onto the main surface
+    where a general layout buries them behind `?123`, and the SPACEBAR SHRINKS — an
+    address has no spaces, so the widest, easiest-to-hit key on the board would be
+    the one key that's almost always a mistake. It keeps a narrow one rather than
+    none, because pasted or trailing input sometimes needs trimming and a missing
+    key is its own confusion.
+    */
+    return [
+      row('1234567890'),
+      letters('qwertyuiop'),
+      letters('asdfghjkl'),
+      [SHIFT, ...letters('zxcvbnm'), BACK],
+      [
+        toSymbols,
+        { label: '@', value: '@' },
+        { label: '_', value: '_' },
+        { label: '-', value: '-' },
+        { label: 'space', action: 'space', width: 2 },
+        { label: '.', value: '.' },
+        { label: '.com', value: '.com', width: 1.5 },
+        ENTER,
+      ],
+    ]
+  }
+
+  if (mode === 'url') {
+    /*
+    An address bar again, different punctuation: `: / . -` and `?` `&` promoted, so a
+    path or a query doesn't send you hunting through `?123` mid-URL. Same shrunken
+    spacebar as `email`, for the same reason — a URL has no spaces, and the widest key
+    on the board should not be the one that's almost always wrong.
+    */
+    return [
+      row('1234567890'),
+      letters('qwertyuiop'),
+      letters('asdfghjkl'),
+      [SHIFT, ...letters('zxcvbnm'), BACK],
+      [
+        toSymbols,
+        { label: ':', value: ':' },
+        { label: '/', value: '/' },
+        { label: '-', value: '-' },
+        { label: 'space', action: 'space', width: 2 },
+        { label: '?', value: '?' },
+        { label: '&', value: '&' },
+        { label: '.', value: '.' },
+        ENTER,
+      ],
     ]
   }
 

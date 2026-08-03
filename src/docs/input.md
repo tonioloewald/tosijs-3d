@@ -8,6 +8,7 @@ Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game
 - [b3d-input-focus](/b3d-input-focus/)
 - [control-input](/control-input/)
 - [game-controller](/game-controller/)
+- [gamepad-focus](/gamepad-focus/)
 - [gamepad-svg](/gamepad-svg/)
 - [glass-gamepad (b3dGamepad)](/glass-gamepad/)
 - [hardware-gamepad](/hardware-gamepad/)
