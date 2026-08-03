@@ -21,7 +21,7 @@ widgets3d controls living inside a `surface` panel — **drag the title bar** to
 gesture survives the pointer leaving the track.
 
 ```js
-import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 import { svgElements } from 'tosijs'
 
@@ -69,7 +69,21 @@ svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e))
 svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
 
-preview.append(div({ style: 'padding:16px;background:#0c0e14' }, svgEl, readout))
+// 3D side — panelScene routes scene picks to the SAME surface, so the slider
+// drags and toggles work identically on the plane (the path a VR ray takes).
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s })
+const scene = b3d({ style: 'border-radius:8px;overflow:hidden', sceneCreated }, b3dLight({ intensity: 1 }), plane)
+
+preview.append(
+  div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
+    div({ style: 'display:flex;gap:20px;flex:1;min-height:0;padding:14px' },
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — same panel, same drags', scene)),
+    readout)
+)
+```
+```css
+.preview { height: 100%; }
 ```
 
 ## Why an adapter rather than a port

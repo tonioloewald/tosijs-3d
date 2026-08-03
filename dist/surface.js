@@ -24,7 +24,7 @@ Two popup kinds share the overlay:
 ## Demo
 
 ```js
-import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, surface, openMenu, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, box, textBlock, button, surface, openMenu, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
@@ -87,29 +87,13 @@ const toXY = (e) => { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p
 svgEl.addEventListener('pointerdown', (e) => s.handlePointer('down', ...toXY(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...toXY(e)))
 
-const plane = b3dSvgPlane({ width: 2.6, height: (2.6*H)/W, resolution: 640, materialChannel: 'emissive', pointerEvents: 'off' })
-plane.svgElement = svgEl // the same element the DOM shows — cloned each frame → in sync
-
+// panelScene: plane + camera + pick routing + camera-yield, packaged.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.6, camera: { radius: 3.4 } })
 const scene = b3d(
   {
     // Cleaves to its container — see the note in box.ts's demo.
     style: 'border-radius:8px;overflow:hidden',
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI/2, Math.PI/2.5, 3.4, el.BABYLON.Vector3.Zero(), el.scene)
-      el.setActiveCamera(cam)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput') // arrows drive the UI, not the orbit
-      const T = el.BABYLON.PointerEventTypes
-      el.scene.onPointerObservable.add((pi) => {
-        const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : ''
-        if (!kind) return
-        const pk = pi.pickInfo
-        if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
-          const uv = pk.getTextureCoordinates()
-          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        }
-      })
-    },
+    sceneCreated,
   },
   b3dLight({ intensity: 1 }),
   plane

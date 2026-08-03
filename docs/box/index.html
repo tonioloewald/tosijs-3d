@@ -68,13 +68,12 @@ land next; the child protocol already carries the hooks they&#39;ll use.</p>
 <h2>Demo — the same box in the DOM and on a 3D texture</h2>
 <p><code>box.el</code> is an SVG <code>&lt;g&gt;</code>; wrap it in an <code>&lt;svg&gt;</code> to show it flat, or hand it to a
 <code>b3dSvgPlane</code> to rasterize it onto a plane. Same object, both surfaces.</p>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, box, textBlock, button, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
 const { div } = elements
 const W = 240
-const H = 210
 
 const readout = div(
   { style: &#39;margin:6px 16px 16px;color:#8ea;font:13px system-ui&#39; },
@@ -85,8 +84,10 @@ const act = (label) =&gt; () =&gt; {
 }
 
 const makePanel = () =&gt; {
+  // No `height` → the box HUGS its content; the svg takes the measured height,
+  // so there&#39;s no dead space below the last button.
   const p = box(
-    { width: W, height: H, padding: 14, gap: 10, background: &#39;#161a22&#39;, border: &#39;#2a3140&#39;, radius: 12 },
+    { width: W, padding: 14, gap: 10, background: &#39;#161a22&#39;, border: &#39;#2a3140&#39;, radius: 12 },
     textBlock(&#39;Flow box&#39;, { font: { size: 18, weight: 600 }, color: &#39;#e6e6e6&#39; }),
     textBlock(
       &#39;Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.&#39;,
@@ -100,13 +101,12 @@ const makePanel = () =&gt; {
   return p
 }
 
-const sheet = (b) =&gt; svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b.el)
-
 // ONE panel, shown in the DOM AND textured on the plane (SvgTexture clones the
 // live element each frame), so DOM and 3D stay in sync — a click or arrow-key in
 // either view drives the same box.
 const panel = makePanel()
-const svgEl = sheet(panel)
+const H = panel.contentHeight
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, panel.el)
 svgEl.setAttribute(&#39;tabindex&#39;, &#39;0&#39;)
 const toBox = (e) =&gt; {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
@@ -122,16 +122,10 @@ svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
   else if (e.key === &#39;Enter&#39; || e.key === &#39; &#39;) { panel.focusActivate(); e.preventDefault() }
 })
 
-// 3D side — route each pick&#39;s texture-UV → box coords → the SAME panel&#39;s
-// handlePointer (the path a VR ray takes), so the 3D view is clickable and synced.
-const plane = b3dSvgPlane({
-  width: 2.4,
-  height: (2.4 * H) / W,
-  resolution: 512,
-  materialChannel: &#39;emissive&#39;,
-  pointerEvents: &#39;off&#39;,
-})
-plane.svgElement = svgEl
+// 3D side — panelScene packages the plane + camera + pick routing (uv → box
+// coords → the SAME panel&#39;s handlePointer, the path a VR ray takes), with the
+// camera yielding during panel presses and off-plane releases ending gestures.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: panel })
 
 const scene = b3d(
   {
@@ -139,26 +133,7 @@ const scene = b3d(
     // CLEAVES TO ITS CONTAINER. Pinning it to px means the resize path is never
     // exercised, which is exactly how resize bugs survive to production.
     style: &#39;border-radius:8px;overflow:hidden&#39;,
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera(
-        &#39;cam&#39;, -Math.PI / 2, Math.PI / 2.5, 3.2, el.BABYLON.Vector3.Zero(), el.scene
-      )
-      el.setActiveCamera(cam)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      cam.inputs.removeByType(&#39;ArcRotateCameraKeyboardMoveInput&#39;) // arrows drive the UI, not the orbit
-      el.scene.constantlyUpdateMeshUnderPointer = true
-      const T = el.BABYLON.PointerEventTypes
-      el.scene.onPointerObservable.add((pi) =&gt; {
-        const kind =
-          pi.type === T.POINTERDOWN ? &#39;down&#39; : pi.type === T.POINTERUP ? &#39;up&#39; : &#39;&#39;
-        if (!kind) return
-        const pk = pi.pickInfo
-        if (pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh) {
-          const uv = pk.getTextureCoordinates()
-          if (uv) panel.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        }
-      })
-    },
+    sceneCreated,
   },
   b3dLight({ intensity: 1 }),
   plane

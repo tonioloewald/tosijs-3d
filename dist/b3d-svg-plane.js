@@ -360,6 +360,22 @@ or implement your own shape-specific point-in-polygon tests.
 | `doubleSided` | `'on'` | Render both faces |
 
 Set the `svgElement` property to a live SVG element for dynamic mode.
+
+## panelScene — dual-presentation in two lines
+
+`panelScene({ svg, target })` packages the common wiring for showing ONE live
+surface flat **and** on a plane: it returns a textured plane plus a
+`sceneCreated` hook that adds an orbit camera and routes scene picks (mouse AND
+XR controller) as uv → viewBox coords → `target.handlePointer(kind, x, y)` —
+with the camera **yielding** during a press on the panel and an off-plane
+release still **ending the gesture** (the capture contracts flat surfaces get
+free from the DOM). The [[box]], [[surface]], [[widget-box]], [[table]] and
+[[keyboard]] docs all use it for their 3D sides:
+
+```js
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
+const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
+```
 */
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
@@ -568,4 +584,84 @@ export class B3dSvgPlane extends AbstractMesh {
 export const b3dSvgPlane = B3dSvgPlane.elementCreator({
     tag: 'tosi-b3d-svg-plane',
 });
+/**
+ * The common **dual-presentation wiring, packaged**: a plane textured from a
+ * live `svg` plus a `sceneCreated` hook that sets up an orbit camera and routes
+ * scene picks — mouse AND XR-controller — as uv → viewBox coords →
+ * `target.handlePointer(kind, x, y)`. The two contracts a flat surface gets for
+ * free from the DOM are restated here (see UI-DESIGN-NOTES → "A scene-picked
+ * surface needs capture semantics"): the **camera yields** while a press is on
+ * the panel (a press on UI is a gesture, not an orbit), and an up landing off
+ * the plane still **ends the gesture** (capture). Grew from four demos copying
+ * the same ~35-line block; going dual-presentation is now two lines:
+ *
+ * ```js
+ * const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
+ * const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
+ * ```
+ *
+ * The svg's viewBox is re-read per event, so an svg that resizes (hugging its
+ * content) keeps mapping correctly. A gesture that must survive the TARGET
+ * rescaling its own plane needs a stable catcher quad on top of this — see the
+ * box doc's resizable demo.
+ */
+export function panelScene(opts) {
+    const width = opts.width ?? 2.4;
+    const vb0 = opts.svg.viewBox?.baseVal;
+    const aspect = vb0 && vb0.width > 0 ? vb0.height / vb0.width : 1;
+    const plane = b3dSvgPlane({
+        width,
+        height: width * aspect,
+        resolution: opts.resolution ?? 640,
+        materialChannel: 'emissive',
+        pointerEvents: 'off',
+    });
+    plane.svgElement = opts.svg;
+    const sceneCreated = (el) => {
+        const canvas = el.scene.getEngine().getRenderingCanvas();
+        const cam = new BABYLON.ArcRotateCamera('panel-cam', opts.camera?.alpha ?? -Math.PI / 2, opts.camera?.beta ?? Math.PI / 2.5, opts.camera?.radius ?? 3.2, BABYLON.Vector3.Zero(), el.scene);
+        el.setActiveCamera(cam);
+        cam.attachControl(canvas, true);
+        // Arrows belong to the UI (D-pad traversal), not the orbit.
+        cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
+        el.scene.constantlyUpdateMeshUnderPointer = true;
+        const T = BABYLON.PointerEventTypes;
+        let panelPress = false;
+        el.scene.onPointerObservable.add((pi) => {
+            const kind = pi.type === T.POINTERDOWN
+                ? 'down'
+                : pi.type === T.POINTERUP
+                    ? 'up'
+                    : pi.type === T.POINTERMOVE
+                        ? 'move'
+                        : '';
+            if (!kind)
+                return;
+            const pk = pi.pickInfo;
+            const onPlane = !!(pk && pk.hit && pk.pickedMesh === plane.mesh);
+            if (onPlane) {
+                const uv = pk.getTextureCoordinates();
+                const vb = opts.svg.viewBox?.baseVal;
+                const w = vb && vb.width > 0 ? vb.width : 1;
+                const h = vb && vb.height > 0 ? vb.height : 1;
+                if (uv)
+                    opts.target.handlePointer(kind, uv.x * w, (1 - uv.y) * h);
+            }
+            if (kind === 'down' && onPlane) {
+                panelPress = true;
+                cam.detachControl();
+            }
+            else if (kind === 'up' && panelPress) {
+                if (!onPlane)
+                    opts.target.handlePointer('leave', 0, 0);
+                panelPress = false;
+                cam.attachControl(canvas, true);
+            }
+            else if (kind === 'move' && !onPlane && !panelPress) {
+                opts.target.handlePointer('leave', 0, 0);
+            }
+        });
+    };
+    return { plane, sceneCreated };
+}
 //# sourceMappingURL=b3d-svg-plane.js.map

@@ -64,7 +64,7 @@ whole cascade; an outside press dismisses it.</li>
 An outside press does NOT dismiss it — ideal for a pinned debug/inspector panel.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, surface, openMenu, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, box, textBlock, button, surface, openMenu, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -127,29 +127,13 @@ const toXY = (e) =&gt; { const p = svgPoint(svgEl, e.clientX, e.clientY); return
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; s.handlePointer(&#39;down&#39;, ...toXY(e)))
 svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...toXY(e)))
 
-const plane = b3dSvgPlane({ width: 2.6, height: (2.6*H)/W, resolution: 640, materialChannel: &#39;emissive&#39;, pointerEvents: &#39;off&#39; })
-plane.svgElement = svgEl // the same element the DOM shows — cloned each frame → in sync
-
+// panelScene: plane + camera + pick routing + camera-yield, packaged.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.6, camera: { radius: 3.4 } })
 const scene = b3d(
   {
     // Cleaves to its container — see the note in box.ts&#39;s demo.
     style: &#39;border-radius:8px;overflow:hidden&#39;,
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI/2, Math.PI/2.5, 3.4, el.BABYLON.Vector3.Zero(), el.scene)
-      el.setActiveCamera(cam)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      cam.inputs.removeByType(&#39;ArcRotateCameraKeyboardMoveInput&#39;) // arrows drive the UI, not the orbit
-      const T = el.BABYLON.PointerEventTypes
-      el.scene.onPointerObservable.add((pi) =&gt; {
-        const kind = pi.type === T.POINTERDOWN ? &#39;down&#39; : pi.type === T.POINTERUP ? &#39;up&#39; : &#39;&#39;
-        if (!kind) return
-        const pk = pi.pickInfo
-        if (pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh) {
-          const uv = pk.getTextureCoordinates()
-          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        }
-      })
-    },
+    sceneCreated,
   },
   b3dLight({ intensity: 1 }),
   plane

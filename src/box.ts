@@ -30,13 +30,12 @@ Helpers build the common ones: `textBlock` (wraps text to the width via
 `b3dSvgPlane` to rasterize it onto a plane. Same object, both surfaces.
 
 ```js
-import { b3d, b3dLight, b3dSvgPlane, box, textBlock, button, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, box, textBlock, button, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
 const { div } = elements
 const W = 240
-const H = 210
 
 const readout = div(
   { style: 'margin:6px 16px 16px;color:#8ea;font:13px system-ui' },
@@ -47,8 +46,10 @@ const act = (label) => () => {
 }
 
 const makePanel = () => {
+  // No `height` → the box HUGS its content; the svg takes the measured height,
+  // so there's no dead space below the last button.
   const p = box(
-    { width: W, height: H, padding: 14, gap: 10, background: '#161a22', border: '#2a3140', radius: 12 },
+    { width: W, padding: 14, gap: 10, background: '#161a22', border: '#2a3140', radius: 12 },
     textBlock('Flow box', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
     textBlock(
       'Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.',
@@ -62,13 +63,12 @@ const makePanel = () => {
   return p
 }
 
-const sheet = (b) => svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b.el)
-
 // ONE panel, shown in the DOM AND textured on the plane (SvgTexture clones the
 // live element each frame), so DOM and 3D stay in sync — a click or arrow-key in
 // either view drives the same box.
 const panel = makePanel()
-const svgEl = sheet(panel)
+const H = panel.contentHeight
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, panel.el)
 svgEl.setAttribute('tabindex', '0')
 const toBox = (e) => {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
@@ -84,16 +84,10 @@ svgEl.addEventListener('keydown', (e) => {
   else if (e.key === 'Enter' || e.key === ' ') { panel.focusActivate(); e.preventDefault() }
 })
 
-// 3D side — route each pick's texture-UV → box coords → the SAME panel's
-// handlePointer (the path a VR ray takes), so the 3D view is clickable and synced.
-const plane = b3dSvgPlane({
-  width: 2.4,
-  height: (2.4 * H) / W,
-  resolution: 512,
-  materialChannel: 'emissive',
-  pointerEvents: 'off',
-})
-plane.svgElement = svgEl
+// 3D side — panelScene packages the plane + camera + pick routing (uv → box
+// coords → the SAME panel's handlePointer, the path a VR ray takes), with the
+// camera yielding during panel presses and off-plane releases ending gestures.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: panel })
 
 const scene = b3d(
   {
@@ -101,26 +95,7 @@ const scene = b3d(
     // CLEAVES TO ITS CONTAINER. Pinning it to px means the resize path is never
     // exercised, which is exactly how resize bugs survive to production.
     style: 'border-radius:8px;overflow:hidden',
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera(
-        'cam', -Math.PI / 2, Math.PI / 2.5, 3.2, el.BABYLON.Vector3.Zero(), el.scene
-      )
-      el.setActiveCamera(cam)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput') // arrows drive the UI, not the orbit
-      el.scene.constantlyUpdateMeshUnderPointer = true
-      const T = el.BABYLON.PointerEventTypes
-      el.scene.onPointerObservable.add((pi) => {
-        const kind =
-          pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : ''
-        if (!kind) return
-        const pk = pi.pickInfo
-        if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
-          const uv = pk.getTextureCoordinates()
-          if (uv) panel.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        }
-      })
-    },
+    sceneCreated,
   },
   b3dLight({ intensity: 1 }),
   plane

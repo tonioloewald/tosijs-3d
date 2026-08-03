@@ -190,7 +190,7 @@ exists, since a WebXR session can&#39;t rely on the system keyboard and there is
 the keys, <strong>menu</strong> (or A) presses. That&#39;s the input a VR controller set leaves spare, so
 claiming it doesn&#39;t fight locomotion.</p>
 <pre><code class="language-js">import {
-  b3d, b3dLight, b3dSvgPlane, surface, widgetBox, box, textBlock,
+  b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock,
   inputField, keyboard, gamepadFocus, HardwareGamepadSource, svgPoint,
 } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
@@ -226,53 +226,15 @@ const at = (e) =&gt; { const p = svgPoint(svgEl, e.clientX, e.clientY); return [
 svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))
 svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...at(e)))
-const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: &#39;emissive&#39;, pointerEvents: &#39;off&#39; })
-plane.svgElement = svgEl
+// panelScene: plane + camera + pick routing + camera-yield, packaged.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.2, resolution: 1024 })
 
+// panelScene restates the two contracts the flat overlay gets free from the
+// DOM: the camera yields during a panel press (a press on UI is a gesture, not
+// an orbit) and an off-plane release still ends the gesture — the lessons of
+// this page&#39;s lost-pointerup saga, packaged (see UI-DESIGN-NOTES).
 const scene = b3d(
-  {
-    style: &#39;border-radius:8px;overflow:hidden&#39;,
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 2.4, 3, el.BABYLON.Vector3.Zero(), el.scene)
-      el.setActiveCamera(cam)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      // Arrows belong to the UI (D-pad traversal), not the orbit — without
-      // this, arrow keys orbit the camera whenever the canvas has focus.
-      cam.inputs.removeByType(&#39;ArcRotateCameraKeyboardMoveInput&#39;)
-      el.scene.constantlyUpdateMeshUnderPointer = true
-      // Mouse AND XR controller picks arrive here identically — texture UV → surface
-      // coords → the same handlePointer the flat overlay calls.
-      const T = el.BABYLON.PointerEventTypes
-      // A press that started ON the panel. Two consequences, both load-bearing:
-      // the camera&#39;s orbit control is detached for the gesture (a press on UI is
-      // a click/drag, not an orbit — otherwise the camera eats the drag, the view
-      // rotates, the up&#39;s pick MISSES the plane, the surface never hears it, and
-      // the pressed key sticks while every later drag just orbits), and an up
-      // that lands off the plane still ENDS the gesture — capture semantics, the
-      // same contract the flat overlay gets from setPointerCapture.
-      let panelPress = false
-      el.scene.onPointerObservable.add((pi) =&gt; {
-        const kind = pi.type === T.POINTERDOWN ? &#39;down&#39; : pi.type === T.POINTERUP ? &#39;up&#39; : pi.type === T.POINTERMOVE ? &#39;move&#39; : &#39;&#39;
-        if (!kind) return
-        const pk = pi.pickInfo
-        const onPlane = pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh
-        if (onPlane) {
-          const uv = pk.getTextureCoordinates()
-          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        }
-        if (kind === &#39;down&#39; &amp;&amp; onPlane) {
-          panelPress = true
-          cam.detachControl()
-        } else if (kind === &#39;up&#39; &amp;&amp; panelPress) {
-          if (!onPlane) s.handlePointer(&#39;leave&#39;, 0, 0)
-          panelPress = false
-          cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-        } else if (kind === &#39;move&#39; &amp;&amp; !onPlane &amp;&amp; !panelPress) {
-          s.handlePointer(&#39;leave&#39;, 0, 0) // hover left the panel; a live gesture is kept
-        }
-      })
-    },
-  },
+  { style: &#39;border-radius:8px;overflow:hidden&#39;, sceneCreated },
   b3dLight({ intensity: 1 }),
   plane
 )

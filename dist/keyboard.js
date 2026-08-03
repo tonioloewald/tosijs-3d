@@ -163,7 +163,7 @@ claiming it doesn't fight locomotion.
 
 ```js
 import {
-  b3d, b3dLight, b3dSvgPlane, surface, widgetBox, box, textBlock,
+  b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock,
   inputField, keyboard, gamepadFocus, HardwareGamepadSource, svgPoint,
 } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
@@ -199,53 +199,15 @@ const at = (e) => { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x
 svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
-const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: 'emissive', pointerEvents: 'off' })
-plane.svgElement = svgEl
+// panelScene: plane + camera + pick routing + camera-yield, packaged.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.2, resolution: 1024 })
 
+// panelScene restates the two contracts the flat overlay gets free from the
+// DOM: the camera yields during a panel press (a press on UI is a gesture, not
+// an orbit) and an off-plane release still ends the gesture — the lessons of
+// this page's lost-pointerup saga, packaged (see UI-DESIGN-NOTES).
 const scene = b3d(
-  {
-    style: 'border-radius:8px;overflow:hidden',
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.4, 3, el.BABYLON.Vector3.Zero(), el.scene)
-      el.setActiveCamera(cam)
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      // Arrows belong to the UI (D-pad traversal), not the orbit — without
-      // this, arrow keys orbit the camera whenever the canvas has focus.
-      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput')
-      el.scene.constantlyUpdateMeshUnderPointer = true
-      // Mouse AND XR controller picks arrive here identically — texture UV → surface
-      // coords → the same handlePointer the flat overlay calls.
-      const T = el.BABYLON.PointerEventTypes
-      // A press that started ON the panel. Two consequences, both load-bearing:
-      // the camera's orbit control is detached for the gesture (a press on UI is
-      // a click/drag, not an orbit — otherwise the camera eats the drag, the view
-      // rotates, the up's pick MISSES the plane, the surface never hears it, and
-      // the pressed key sticks while every later drag just orbits), and an up
-      // that lands off the plane still ENDS the gesture — capture semantics, the
-      // same contract the flat overlay gets from setPointerCapture.
-      let panelPress = false
-      el.scene.onPointerObservable.add((pi) => {
-        const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : pi.type === T.POINTERMOVE ? 'move' : ''
-        if (!kind) return
-        const pk = pi.pickInfo
-        const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
-        if (onPlane) {
-          const uv = pk.getTextureCoordinates()
-          if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        }
-        if (kind === 'down' && onPlane) {
-          panelPress = true
-          cam.detachControl()
-        } else if (kind === 'up' && panelPress) {
-          if (!onPlane) s.handlePointer('leave', 0, 0)
-          panelPress = false
-          cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-        } else if (kind === 'move' && !onPlane && !panelPress) {
-          s.handlePointer('leave', 0, 0) // hover left the panel; a live gesture is kept
-        }
-      })
-    },
-  },
+  { style: 'border-radius:8px;overflow:hidden', sceneCreated },
   b3dLight({ intensity: 1 }),
   plane
 )

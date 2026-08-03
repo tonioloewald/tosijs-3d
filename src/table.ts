@@ -26,7 +26,7 @@ Three independent channels, so a row can be all three at once and each still rea
 **hover** = background, **selection** = icon, **focus** = ring.
 
 ```js
-import { surface, widgetBox, box, textBlock, table, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, table, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
@@ -99,9 +99,16 @@ svgEl.addEventListener('keydown', (e) => {
 })
 svgEl.focus()
 
+// 3D side — the same surface on a plane; drag the body to scroll with the ray
+// path, exactly as a headset would.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s })
+const scene = b3d({ style: 'border-radius:8px;overflow:hidden', sceneCreated }, b3dLight({ intensity: 1 }), plane)
+
 preview.append(
   div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
-    div({ style: 'flex:1;min-height:0;padding:12px' }, svgEl),
+    div({ style: 'display:flex;gap:20px;flex:1;min-height:0;padding:12px' },
+      div({ style: 'flex:1;min-width:0' }, svgEl),
+      div({ style: 'flex:1;min-width:0' }, scene)),
     readout)
 )
 ```

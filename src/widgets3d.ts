@@ -143,7 +143,7 @@ on a flat canvas, and in immersive VR. Press **Enter VR** on a headset to drive
 this exact panel with controllers.
 
 ```js
-import { b3d, b3dLight, b3dSvgPlane, panel3d, label3d, slider3d, toggle3d, list3d } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, panel3d, label3d, slider3d, toggle3d, list3d } from 'tosijs-3d'
 import { tosi } from 'tosijs'
 
 // distinct namespace — tosi() is a singleton keyed by path, so reusing `ui`
@@ -169,47 +169,12 @@ panel.style.right = '8px'
 panel.style.zIndex = '1'
 preview.append(panel)
 
-// pointerEvents:false — we route picks ourselves below (the path proven to work
-// with controllers in immersive VR). This loop is a candidate to fold back into
-// b3dSvgPlane so every plane is VR-interactive without per-demo wiring.
-const plane = b3dSvgPlane({ width: 2.4, height: 2, resolution: 512, pointerEvents: 'off' })
-plane.svgElement = panel
+// panelScene — the fold this comment used to ask for: plane + camera + pick
+// routing (uv → viewBox coords → the panel's handlePointer, mouse AND XR
+// controllers) with camera-yield and capture semantics, packaged.
+const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, resolution: 512, camera: { beta: Math.PI / 2.4, radius: 4 } })
 
-const sceneEl = b3d(
-  {
-    sceneCreated(el) {
-      const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.4, 4, el.BABYLON.Vector3.Zero(), el.scene)
-      el.setActiveCamera(cam)
-      // camera.attachControl is what actually feeds scene.onPointerObservable
-      // (and XR controller picks). Orbit-on-drag is a known rough edge for now.
-      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput') // arrows drive the UI, not the orbit
-      el.scene.constantlyUpdateMeshUnderPointer = true
-
-      // Map each pick's UV → the panel's viewBox coords and route to the panel.
-      // Fed by mouse AND XR controllers, so the same loop works flat and in VR
-      // (confirmed with controllers in an immersive session). Identify the plane
-      // by reference — robust in XR.
-      const T = el.BABYLON.PointerEventTypes
-      let vx = 0
-      let vy = 0
-      el.scene.onPointerObservable.add((pi) => {
-        const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : pi.type === T.POINTERMOVE ? 'move' : ''
-        if (!kind) return
-        const pk = pi.pickInfo
-        const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
-        const uv = onPlane ? pk.getTextureCoordinates() : null
-        if (uv) { vx = uv.x * 280; vy = (1 - uv.y) * 260 }
-        // Route every event; the panel manages press-capture and hover itself.
-        if (kind === 'move' && !uv) panel.handlePointer('leave', 0, 0)
-        else if (kind === 'down' && !uv) return
-        else panel.handlePointer(kind, vx, vy)
-      })
-    },
-  },
-  b3dLight(),
-  plane
-)
+const sceneEl = b3d({ sceneCreated }, b3dLight(), plane)
 preview.append(sceneEl)
 // No manual Enter-VR button needed — b3d offers one automatically whenever an
 // immersive-vr session is supported (suppress it with the `no-xr` attribute).

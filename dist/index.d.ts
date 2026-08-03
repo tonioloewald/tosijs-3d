@@ -81,7 +81,7 @@ export { stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasure
 export type { StackLayout, FontSpec } from './widgets3d-layout';
 export { SvgTexture } from './svg-texture';
 export type { SvgTextureOptions } from './svg-texture';
-export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane';
+export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
 export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, type SvgIconCreator, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, type IconStyle, type ParsedIconName, } from './icon-name';
 export { flowLayout, nearestInDirection, placePopup, type FlowItem, type FlowOptions, type FlowBox, type FlowResult, type PopupSide, } from './flow-layout';

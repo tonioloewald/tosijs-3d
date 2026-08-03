@@ -72,7 +72,7 @@ export { panel3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, s
 export { stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout';
 // SVG material system
 export { SvgTexture } from './svg-texture';
-export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane';
+export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
 export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';

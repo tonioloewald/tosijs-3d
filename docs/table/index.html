@@ -63,7 +63,7 @@ into the table and use <strong>arrow keys + Enter</strong> — that&#39;s the D-
 one that exists in a headset.</p>
 <p>Three independent channels, so a row can be all three at once and each still reads:
 <strong>hover</strong> = background, <strong>selection</strong> = icon, <strong>focus</strong> = ring.</p>
-<pre><code class="language-js">import { surface, widgetBox, box, textBlock, table, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, table, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -136,9 +136,16 @@ svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
 })
 svgEl.focus()
 
+// 3D side — the same surface on a plane; drag the body to scroll with the ray
+// path, exactly as a headset would.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s })
+const scene = b3d({ style: &#39;border-radius:8px;overflow:hidden&#39;, sceneCreated }, b3dLight({ intensity: 1 }), plane)
+
 preview.append(
   div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
-    div({ style: &#39;flex:1;min-height:0;padding:12px&#39; }, svgEl),
+    div({ style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:12px&#39; },
+      div({ style: &#39;flex:1;min-width:0&#39; }, svgEl),
+      div({ style: &#39;flex:1;min-width:0&#39; }, scene)),
     readout)
 )
 </code></pre>

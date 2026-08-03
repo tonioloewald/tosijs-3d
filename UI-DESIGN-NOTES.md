@@ -596,7 +596,9 @@ plane. Two things the flat overlay gets for free must be reproduced by hand:
    once input arrives via picking.
 
 If a third demo needs this, it's time to fold the whole block (pick routing + camera yield +
-capture) into `b3dSvgPlane`/a `surfacePlane` helper instead of copying it.
+capture) into `b3dSvgPlane`/a `surfacePlane` helper instead of copying it. **(Done,
+2026-08-03: `panelScene` in b3d-svg-plane — the fourth copy triggered it. Six demos now use
+it; a demo goes dual-presentation in two lines.)**
 
 — from Tonio's on-device VR keyboard test
 

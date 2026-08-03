@@ -426,6 +426,18 @@ or implement your own shape-specific point-in-polygon tests.</p>
 </tr>
 </tbody></table>
 <p>Set the <code>svgElement</code> property to a live SVG element for dynamic mode.</p>
+<h2>panelScene — dual-presentation in two lines</h2>
+<p><code>panelScene({ svg, target })</code> packages the common wiring for showing ONE live
+surface flat <strong>and</strong> on a plane: it returns a textured plane plus a
+<code>sceneCreated</code> hook that adds an orbit camera and routes scene picks (mouse AND
+XR controller) as uv → viewBox coords → <code>target.handlePointer(kind, x, y)</code> —
+with the camera <strong>yielding</strong> during a press on the panel and an off-plane
+release still <strong>ending the gesture</strong> (the capture contracts flat surfaces get
+free from the DOM). The <a href="/box/" class="wikilink">box</a>, <a href="/surface/" class="wikilink">surface</a>, <a href="/widget-box/" class="wikilink">widget-box</a>, <a href="/table/" class="wikilink">table</a> and
+<a href="/keyboard/" class="wikilink">keyboard</a> docs all use it for their 3D sides:</p>
+<pre><code class="language-js">const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
+const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">

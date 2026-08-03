@@ -293,7 +293,7 @@ export type { StackLayout, FontSpec } from './widgets3d-layout'
 // SVG material system
 export { SvgTexture } from './svg-texture'
 export type { SvgTextureOptions } from './svg-texture'
-export { B3dSvgPlane, b3dSvgPlane } from './b3d-svg-plane'
+export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane'
 
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
 export {

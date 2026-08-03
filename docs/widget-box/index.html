@@ -62,7 +62,7 @@ slider.</p>
 <p>widgets3d controls living inside a <code>surface</code> panel — <strong>drag the title bar</strong> to move it,
 × to close. The slider drags properly because <code>BoxChild.handlePointer</code> captures: the
 gesture survives the pointer leaving the track.</p>
-<pre><code class="language-js">import { surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 import { svgElements } from &#39;tosijs&#39;
 
@@ -110,7 +110,20 @@ svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;d
 svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))
 svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...at(e)))
 
-preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, svgEl, readout))
+// 3D side — panelScene routes scene picks to the SAME surface, so the slider
+// drags and toggles work identically on the plane (the path a VR ray takes).
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s })
+const scene = b3d({ style: &#39;border-radius:8px;overflow:hidden&#39;, sceneCreated }, b3dLight({ intensity: 1 }), plane)
+
+preview.append(
+  div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div({ style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:14px&#39; },
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;DOM&#39;, svgEl),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D — same panel, same drags&#39;, scene)),
+    readout)
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
 </code></pre>
 <h2>Why an adapter rather than a port</h2>
 <p>Porting the controls to <code>box</code> would mean rewriting <code>slider3d</code> and friends <strong>and</strong> the
