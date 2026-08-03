@@ -67,7 +67,7 @@ import { svgElements, elements } from 'tosijs'
 const { svg } = svgElements
 const { div } = elements
 const W = 380
-const H = 360
+const H = 390
 
 // TWO fields, ONE keyboard — the keyboard is an OVERLAY (a closable panel that
 // pops up when a field becomes the receiver), not part of the main UI. The LIT
@@ -92,8 +92,10 @@ const kb = keyboard({
 const kbBox = widgetBox({ width: 364, padding: 8, gap: 8, background: '#0e1116' }, [kb])
 const openKeyboard = () => {
   if (kbPanel) return
-  kbPanel = s.openPanel({ x: 8, y: 148 }, kbBox, {
-    title: 'Keyboard', draggable: true, onClose: () => { kbPanel = null },
+  // Untitled (a keyboard needs no label) and BELOW both fields — an overlay
+  // that covers the field you might tap next is an overlay in the way.
+  kbPanel = s.openPanel({ x: 8, y: 180 }, kbBox, {
+    draggable: true, onClose: () => { kbPanel = null },
   })
 }
 
