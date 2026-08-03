@@ -62,6 +62,12 @@ character. The whole press is one gesture — the phone convention.</p>
 key&#39;s own rect, and a hit-test-per-event model would have lost the gesture at the
 first move.</p>
 <h2>Demo</h2>
+<p><strong>Two fields, one keyboard.</strong> Tap a field and the keyboard pops up as an <strong>overlay
+panel</strong> (close it with ×) — it&#39;s not part of the main UI, exactly as an on-screen
+keyboard shouldn&#39;t be. The <strong>lit caret</strong> marks the RECEIVER — the field the keys land
+in; the other field&#39;s caret stays visible but dim. That&#39;s a deliberate distinction:
+&quot;who has the D-pad focus&quot; and &quot;where text goes&quot; are different facts, so the receiver
+stays lit even while you&#39;re tapping keys.</p>
 <p>Tap the keys. <code>?123</code> switches to symbols, <code>⇧</code> shifts.</p>
 <p><strong>Hold <code>o</code></strong> (or <code>a e i n s u y z c</code>) for the accents. Two ways to take one, because
 touch and pointer want different things: <strong>slide onto it and release</strong>, or <strong>lift your
@@ -72,20 +78,20 @@ outside the key and outside the keyboard entirely (as iOS does) — a spacebar-w
 gesture would only buy you a spacebar of travel.</p>
 <p><strong>D-pad / arrow keys</strong>: the keyboard is one panel row but MANY focus stops — it
 implements the inner-focus protocol (<code>focusMove</code> returns <code>false</code> when a move runs off
-the edge), so the D-pad walks key to key, arriving on the edge you entered from, and
-<strong>escaping off the top onto the text field</strong> rather than trapping focus forever.
-Clicking a key focuses it too (the ring lands where you clicked), and <strong>Space presses
-the focused key</strong> — the action-button convention. A hardware pad works via
-<code>gamepadFocus</code> (menu/A presses); a hardware keyboard also just types: printable keys
-go straight into the field, Backspace deletes, arrows walk/escape, Enter presses.
-(Click the demo once so it has browser keyboard focus. With several demos on the
-page, the one you last touched claims the gamepad.)</p>
+the edge), so the D-pad walks key to key, arriving on the edge you entered from and
+escaping at the edges rather than trapping focus (the VR demo below shows the escape
+onto a sibling field). Clicking a key focuses it too (the ring lands where you
+clicked), and <strong>Space presses the focused key</strong> — the action-button convention. A
+hardware pad works via <code>gamepadFocus</code> (menu/A presses); a hardware keyboard also just
+types: printable keys go straight into the receiver, Backspace deletes, arrows walk,
+Enter presses. (Click the demo once so it has browser keyboard focus. With several
+demos on the page, the one you last touched claims the gamepad.)</p>
 <p>There is no completion/suggestion strip yet, and the interesting question isn&#39;t <em>whether</em>
 but <em>from what</em>: see CONVERSATION-DESIGN.md → &quot;Keyword dialogue&quot;, where the conclusion is
 that a known, relevant word should be <strong>clickable rather than typed</strong>, so typing&#39;s
 fallback role points completion at the player&#39;s own vocabulary rather than the world&#39;s.</p>
 <pre><code class="language-js">import {
-  surface, widgetBox, box, textBlock, inputField, keyboard, svgPoint,
+  surface, widgetBox, widgetChild, box, textBlock, inputField, keyboard, svgPoint,
   gamepadFocus, HardwareGamepadSource,
 } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
@@ -93,58 +99,74 @@ import { svgElements, elements } from &#39;tosijs&#39;
 const { svg } = svgElements
 const { div } = elements
 const W = 380
-const H = 300
+const H = 360
 
-const field = inputField({ value: &#39;hold o for ö&#39;, placeholder: &#39;type something…&#39; })
+// TWO fields, ONE keyboard — the keyboard is an OVERLAY (a closable panel that
+// pops up when a field becomes the receiver), not part of the main UI. The LIT
+// caret shows where text lands; the other field&#39;s caret stays visible but dim.
+let target = null
+let kbPanel = null
+const use = (f) =&gt; {
+  target = f
+  // nameField, not `name` — shadowing window.name in a loose scope fails silently
+  for (const g of [nameField, mottoField]) g.setActive(g === f)
+  openKeyboard()
+}
+const nameField = inputField({ placeholder: &#39;name…&#39;, onFocus: () =&gt; use(nameField) })
+const mottoField = inputField({ value: &#39;hold o for ö&#39;, placeholder: &#39;motto…&#39;, onFocus: () =&gt; use(mottoField) })
 const kb = keyboard({
-  onKey: (ch) =&gt; field.insert(ch),
-  onAction: (a) =&gt; field.action(a),
-  // Hold the SPACEBAR and slide to move the caret — and the drag keeps working
-  // outside the key, and outside the keyboard, which is what makes it usable.
-  onCaretMove: (d) =&gt; field.moveCaret(d),
+  onKey: (ch) =&gt; target?.insert(ch),
+  onAction: (a) =&gt; target?.action(a),
+  // Hold the SPACEBAR and slide to move the caret (a hold that doesn&#39;t move
+  // still types the space — headset triggers are slow).
+  onCaretMove: (d) =&gt; target?.moveCaret(d),
 })
+const kbBox = widgetBox({ width: 364, padding: 8, gap: 8, background: &#39;#0e1116&#39; }, [kb])
+const openKeyboard = () =&gt; {
+  if (kbPanel) return
+  kbPanel = s.openPanel({ x: 8, y: 148 }, kbBox, {
+    title: &#39;Keyboard&#39;, draggable: true, onClose: () =&gt; { kbPanel = null },
+  })
+}
 
 const s = surface({ width: W, height: H })
 s.setContent(
   box(
     { width: W, height: H, padding: 12, gap: 10, background: &#39;#12151c&#39; },
-    textBlock(&#39;SVG keyboard&#39;, { font: { size: 15, weight: 600 }, color: &#39;#e6e6e6&#39; })
+    textBlock(&#39;Two fields, one keyboard&#39;, { font: { size: 15, weight: 600 }, color: &#39;#e6e6e6&#39; }),
+    textBlock(&#39;Tap a field — the keyboard pops up as an overlay (× closes it). The lit caret shows where text lands.&#39;, { font: { size: 12 }, color: &#39;#9fb0c3&#39; }),
+    widgetChild(nameField),
+    widgetChild(mottoField)
   )
 )
-const panel = widgetBox(
-  { width: 364, padding: 8, gap: 8, background: &#39;#0e1116&#39; },
-  [field, kb]
-)
-s.openPanel({ x: 8, y: 44 }, panel, { title: &#39;Text entry&#39;, draggable: true })
 
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, tabindex: 0 }, s.el)
-// Hardware keyboard (click the demo once so it has browser focus):
-// - arrows walk the keys / move the caret; Enter presses; Escape drops focus
-// - printable keys type straight into the field; Backspace deletes
-// - SPACE follows focus: on-screen keyboard focused → it PRESSES the focused
-//   key (action-button convention); field focused → it types a space. Always
-//   preventDefault, or the page scrolls instead.
+// Hardware keyboard (click the demo once so it has browser focus): printable
+// keys type into the receiver, Backspace deletes, arrows walk the on-screen
+// keys, Enter presses, and SPACE follows focus — a focused key is PRESSED
+// (action-button convention), otherwise it types. preventDefault throughout,
+// or the page scrolls.
 const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
 svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
-  const kbHasFocus = panel.focusIndex() === 1 // children: [field, kb]
-  if (dirs[e.key]) { panel.focusMove(...dirs[e.key]); e.preventDefault() }
-  else if (e.key === &#39;Enter&#39;) { panel.focusActivate(); e.preventDefault() }
+  const kbHasFocus = kbPanel &amp;&amp; kbBox.focusIndex() &gt;= 0
+  if (dirs[e.key]) { if (kbPanel) kbBox.focusMove(...dirs[e.key]); e.preventDefault() }
+  else if (e.key === &#39;Enter&#39;) { if (kbPanel) kbBox.focusActivate(); e.preventDefault() }
   else if (e.key === &#39; &#39;) {
-    if (kbHasFocus) panel.focusActivate()
-    else field.insert(&#39; &#39;)
+    if (kbHasFocus) kbBox.focusActivate()
+    else target?.insert(&#39; &#39;)
     e.preventDefault()
   }
-  else if (e.key === &#39;Backspace&#39;) { field.action(&#39;backspace&#39;); e.preventDefault() }
-  else if (e.key === &#39;Escape&#39;) panel.focusBack()
+  else if (e.key === &#39;Backspace&#39;) { target?.action(&#39;backspace&#39;); e.preventDefault() }
+  else if (e.key === &#39;Escape&#39;) kbPanel?.close()
   else if (e.key.length === 1 &amp;&amp; !e.metaKey &amp;&amp; !e.ctrlKey &amp;&amp; !e.altKey) {
-    field.insert(e.key)
+    target?.insert(e.key)
     e.preventDefault()
   }
 })
-// A hardware pad does the same; `claim: svgEl` scopes it — the demo you last
-// clicked owns the pad, so two live demos don&#39;t both react to one press.
+// A hardware pad drives the on-screen keys; `claim: svgEl` scopes it — the
+// demo you last clicked owns the pad, so two live demos don&#39;t both react.
 const pad = new HardwareGamepadSource()
-gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: svgEl })
+gamepadFocus({ poll: () =&gt; pad.poll(), target: kbBox, claim: svgEl })
 const at = (e) =&gt; {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
   // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
@@ -212,6 +234,9 @@ const scene = b3d(
       const cam = new el.BABYLON.ArcRotateCamera(&#39;cam&#39;, -Math.PI / 2, Math.PI / 2.4, 3, el.BABYLON.Vector3.Zero(), el.scene)
       el.setActiveCamera(cam)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      // Arrows belong to the UI (D-pad traversal), not the orbit — without
+      // this, arrow keys orbit the camera whenever the canvas has focus.
+      cam.inputs.removeByType(&#39;ArcRotateCameraKeyboardMoveInput&#39;)
       el.scene.constantlyUpdateMeshUnderPointer = true
       // Mouse AND XR controller picks arrive here identically — texture UV → surface
       // coords → the same handlePointer the flat overlay calls.

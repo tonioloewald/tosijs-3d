@@ -107,6 +107,7 @@ const scene = b3d(
       )
       el.setActiveCamera(cam)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput') // arrows drive the UI, not the orbit
       el.scene.constantlyUpdateMeshUnderPointer = true
       const T = el.BABYLON.PointerEventTypes
       el.scene.onPointerObservable.add((pi) => {

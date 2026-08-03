@@ -183,6 +183,7 @@ const sceneEl = b3d(
       // camera.attachControl is what actually feeds scene.onPointerObservable
       // (and XR controller picks). Orbit-on-drag is a known rough edge for now.
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput') // arrows drive the UI, not the orbit
       el.scene.constantlyUpdateMeshUnderPointer = true
 
       // Map each pick's UV → the panel's viewBox coords and route to the panel.

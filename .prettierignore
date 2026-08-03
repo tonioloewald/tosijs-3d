@@ -7,3 +7,4 @@ node_modules
 *.json
 # copied verbatim from node_modules by site.config.ts prebuild
 static/jolt-physics.wasm-compat.js
+docs.last-good

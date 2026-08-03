@@ -98,6 +98,7 @@ const scene = b3d(
       const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI/2, Math.PI/2.5, 3.4, el.BABYLON.Vector3.Zero(), el.scene)
       el.setActiveCamera(cam)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput') // arrows drive the UI, not the orbit
       const T = el.BABYLON.PointerEventTypes
       el.scene.onPointerObservable.add((pi) => {
         const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : ''

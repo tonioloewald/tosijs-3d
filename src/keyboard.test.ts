@@ -512,13 +512,44 @@ describe('inputField — the caret is the focus indicator', () => {
     expect(caretOf(f).getAttribute('opacity')).toBe('0.35')
   })
 
-  test('the host reflects focus in via setState: bright on focus, dim on leave', () => {
+  test('gaining host focus lights the caret; LOSING it does not dim (still the receiver)', () => {
+    // "Who has the D-pad" and "where text goes" are different facts: tapping
+    // keyboard keys moves box focus to the keyboard while text keeps landing
+    // here, so the receiver's caret must stay lit.
     const f = K.inputField({ value: 'hi' })
     f.layout(200)
     f.setState({ hovered: false, pressed: false, focused: true })
     expect(caretOf(f).getAttribute('opacity')).toBe('1')
     f.setState({ hovered: false, pressed: false, focused: false })
+    expect(caretOf(f).getAttribute('opacity')).toBe('1')
+  })
+
+  test('only setActive(false) dims — the host switching receivers', () => {
+    const f = K.inputField({ value: 'hi' })
+    f.layout(200)
+    f.setActive(true)
+    expect(caretOf(f).getAttribute('opacity')).toBe('1')
+    f.setActive(false)
     expect(caretOf(f).getAttribute('opacity')).toBe('0.35')
+  })
+
+  test('onFocus fires on becoming the receiver — the host hook for exclusivity', () => {
+    let focusA = 0
+    const a = K.inputField({ value: 'a', onFocus: () => focusA++ })
+    const b = K.inputField({ value: 'b' })
+    a.layout(200)
+    b.layout(200)
+    a.handle!('down', 10, 20) // tap → receiver
+    expect(focusA).toBe(1)
+    a.insert('x') // already the receiver — no re-fire
+    expect(focusA).toBe(1)
+    // the host's exclusivity: b activates, host dims a
+    b.setActive(true)
+    a.setActive(false)
+    expect(caretOf(a).getAttribute('opacity')).toBe('0.35')
+    expect(caretOf(b).getAttribute('opacity')).toBe('1')
+    a.setActive(true) // back — refires
+    expect(focusA).toBe(2)
   })
 
   test('a tap brightens it too (standalone use, no host box)', () => {
@@ -627,5 +658,46 @@ describe('keyboard — a lost pointerup cannot wedge the board (self-heal on dow
     expect(keys).toEqual(['q'])
     const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
     expect(strip.childNodes.length).toBe(0)
+  })
+})
+
+describe('keyboard — a slow space tap is still a space', () => {
+  test('hold past the timer, move NOTHING, release → types space (headset triggers are slow)', async () => {
+    const moves: number[] = []
+    const actions: string[] = []
+    const kb = K.keyboard({
+      holdMs: 5,
+      caretStepPx: 10,
+      onKey: () => {},
+      onAction: (a) => actions.push(a),
+      onCaretMove: (d) => moves.push(d),
+    })
+    kb.layout(W)
+    const sp = centre('alpha', false, 'space')
+    kb.handle!('down', sp.x, sp.y)
+    await wait(20) // trackpad mode engaged
+    kb.handle!('up', sp.x, sp.y) // …but the caret never moved: it was a tap
+    expect(moves).toEqual([])
+    expect(actions).toEqual(['space'])
+  })
+
+  test('…but a drag that DID move the caret still types nothing', async () => {
+    const moves: number[] = []
+    const actions: string[] = []
+    const kb = K.keyboard({
+      holdMs: 5,
+      caretStepPx: 10,
+      onKey: () => {},
+      onAction: (a) => actions.push(a),
+      onCaretMove: (d) => moves.push(d),
+    })
+    kb.layout(W)
+    const sp = centre('alpha', false, 'space')
+    kb.handle!('down', sp.x, sp.y)
+    await wait(20)
+    kb.handle!('move', sp.x + 30, sp.y)
+    kb.handle!('up', sp.x + 30, sp.y)
+    expect(moves.length).toBeGreaterThan(0)
+    expect(actions).toEqual([])
   })
 })

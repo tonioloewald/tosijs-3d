@@ -23,6 +23,13 @@ first move.
 
 ## Demo
 
+**Two fields, one keyboard.** Tap a field and the keyboard pops up as an **overlay
+panel** (close it with ×) — it's not part of the main UI, exactly as an on-screen
+keyboard shouldn't be. The **lit caret** marks the RECEIVER — the field the keys land
+in; the other field's caret stays visible but dim. That's a deliberate distinction:
+"who has the D-pad focus" and "where text goes" are different facts, so the receiver
+stays lit even while you're tapping keys.
+
 Tap the keys. `?123` switches to symbols, `⇧` shifts.
 
 **Hold `o`** (or `a e i n s u y z c`) for the accents. Two ways to take one, because
@@ -36,14 +43,14 @@ gesture would only buy you a spacebar of travel.
 
 **D-pad / arrow keys**: the keyboard is one panel row but MANY focus stops — it
 implements the inner-focus protocol (`focusMove` returns `false` when a move runs off
-the edge), so the D-pad walks key to key, arriving on the edge you entered from, and
-**escaping off the top onto the text field** rather than trapping focus forever.
-Clicking a key focuses it too (the ring lands where you clicked), and **Space presses
-the focused key** — the action-button convention. A hardware pad works via
-`gamepadFocus` (menu/A presses); a hardware keyboard also just types: printable keys
-go straight into the field, Backspace deletes, arrows walk/escape, Enter presses.
-(Click the demo once so it has browser keyboard focus. With several demos on the
-page, the one you last touched claims the gamepad.)
+the edge), so the D-pad walks key to key, arriving on the edge you entered from and
+escaping at the edges rather than trapping focus (the VR demo below shows the escape
+onto a sibling field). Clicking a key focuses it too (the ring lands where you
+clicked), and **Space presses the focused key** — the action-button convention. A
+hardware pad works via `gamepadFocus` (menu/A presses); a hardware keyboard also just
+types: printable keys go straight into the receiver, Backspace deletes, arrows walk,
+Enter presses. (Click the demo once so it has browser keyboard focus. With several
+demos on the page, the one you last touched claims the gamepad.)
 
 There is no completion/suggestion strip yet, and the interesting question isn't *whether*
 but *from what*: see CONVERSATION-DESIGN.md → "Keyword dialogue", where the conclusion is
@@ -52,7 +59,7 @@ fallback role points completion at the player's own vocabulary rather than the w
 
 ```js
 import {
-  surface, widgetBox, box, textBlock, inputField, keyboard, svgPoint,
+  surface, widgetBox, widgetChild, box, textBlock, inputField, keyboard, svgPoint,
   gamepadFocus, HardwareGamepadSource,
 } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
@@ -60,58 +67,74 @@ import { svgElements, elements } from 'tosijs'
 const { svg } = svgElements
 const { div } = elements
 const W = 380
-const H = 300
+const H = 360
 
-const field = inputField({ value: 'hold o for ö', placeholder: 'type something…' })
+// TWO fields, ONE keyboard — the keyboard is an OVERLAY (a closable panel that
+// pops up when a field becomes the receiver), not part of the main UI. The LIT
+// caret shows where text lands; the other field's caret stays visible but dim.
+let target = null
+let kbPanel = null
+const use = (f) => {
+  target = f
+  // nameField, not `name` — shadowing window.name in a loose scope fails silently
+  for (const g of [nameField, mottoField]) g.setActive(g === f)
+  openKeyboard()
+}
+const nameField = inputField({ placeholder: 'name…', onFocus: () => use(nameField) })
+const mottoField = inputField({ value: 'hold o for ö', placeholder: 'motto…', onFocus: () => use(mottoField) })
 const kb = keyboard({
-  onKey: (ch) => field.insert(ch),
-  onAction: (a) => field.action(a),
-  // Hold the SPACEBAR and slide to move the caret — and the drag keeps working
-  // outside the key, and outside the keyboard, which is what makes it usable.
-  onCaretMove: (d) => field.moveCaret(d),
+  onKey: (ch) => target?.insert(ch),
+  onAction: (a) => target?.action(a),
+  // Hold the SPACEBAR and slide to move the caret (a hold that doesn't move
+  // still types the space — headset triggers are slow).
+  onCaretMove: (d) => target?.moveCaret(d),
 })
+const kbBox = widgetBox({ width: 364, padding: 8, gap: 8, background: '#0e1116' }, [kb])
+const openKeyboard = () => {
+  if (kbPanel) return
+  kbPanel = s.openPanel({ x: 8, y: 148 }, kbBox, {
+    title: 'Keyboard', draggable: true, onClose: () => { kbPanel = null },
+  })
+}
 
 const s = surface({ width: W, height: H })
 s.setContent(
   box(
     { width: W, height: H, padding: 12, gap: 10, background: '#12151c' },
-    textBlock('SVG keyboard', { font: { size: 15, weight: 600 }, color: '#e6e6e6' })
+    textBlock('Two fields, one keyboard', { font: { size: 15, weight: 600 }, color: '#e6e6e6' }),
+    textBlock('Tap a field — the keyboard pops up as an overlay (× closes it). The lit caret shows where text lands.', { font: { size: 12 }, color: '#9fb0c3' }),
+    widgetChild(nameField),
+    widgetChild(mottoField)
   )
 )
-const panel = widgetBox(
-  { width: 364, padding: 8, gap: 8, background: '#0e1116' },
-  [field, kb]
-)
-s.openPanel({ x: 8, y: 44 }, panel, { title: 'Text entry', draggable: true })
 
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, tabindex: 0 }, s.el)
-// Hardware keyboard (click the demo once so it has browser focus):
-// - arrows walk the keys / move the caret; Enter presses; Escape drops focus
-// - printable keys type straight into the field; Backspace deletes
-// - SPACE follows focus: on-screen keyboard focused → it PRESSES the focused
-//   key (action-button convention); field focused → it types a space. Always
-//   preventDefault, or the page scrolls instead.
+// Hardware keyboard (click the demo once so it has browser focus): printable
+// keys type into the receiver, Backspace deletes, arrows walk the on-screen
+// keys, Enter presses, and SPACE follows focus — a focused key is PRESSED
+// (action-button convention), otherwise it types. preventDefault throughout,
+// or the page scrolls.
 const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
 svgEl.addEventListener('keydown', (e) => {
-  const kbHasFocus = panel.focusIndex() === 1 // children: [field, kb]
-  if (dirs[e.key]) { panel.focusMove(...dirs[e.key]); e.preventDefault() }
-  else if (e.key === 'Enter') { panel.focusActivate(); e.preventDefault() }
+  const kbHasFocus = kbPanel && kbBox.focusIndex() >= 0
+  if (dirs[e.key]) { if (kbPanel) kbBox.focusMove(...dirs[e.key]); e.preventDefault() }
+  else if (e.key === 'Enter') { if (kbPanel) kbBox.focusActivate(); e.preventDefault() }
   else if (e.key === ' ') {
-    if (kbHasFocus) panel.focusActivate()
-    else field.insert(' ')
+    if (kbHasFocus) kbBox.focusActivate()
+    else target?.insert(' ')
     e.preventDefault()
   }
-  else if (e.key === 'Backspace') { field.action('backspace'); e.preventDefault() }
-  else if (e.key === 'Escape') panel.focusBack()
+  else if (e.key === 'Backspace') { target?.action('backspace'); e.preventDefault() }
+  else if (e.key === 'Escape') kbPanel?.close()
   else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    field.insert(e.key)
+    target?.insert(e.key)
     e.preventDefault()
   }
 })
-// A hardware pad does the same; `claim: svgEl` scopes it — the demo you last
-// clicked owns the pad, so two live demos don't both react to one press.
+// A hardware pad drives the on-screen keys; `claim: svgEl` scopes it — the
+// demo you last clicked owns the pad, so two live demos don't both react.
 const pad = new HardwareGamepadSource()
-gamepadFocus({ poll: () => pad.poll(), target: panel, claim: svgEl })
+gamepadFocus({ poll: () => pad.poll(), target: kbBox, claim: svgEl })
 const at = (e) => {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
   // container's aspect ratio differs, and a linear map drifts as it's resized.
@@ -184,6 +207,9 @@ const scene = b3d(
       const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.4, 3, el.BABYLON.Vector3.Zero(), el.scene)
       el.setActiveCamera(cam)
       cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      // Arrows belong to the UI (D-pad traversal), not the orbit — without
+      // this, arrow keys orbit the camera whenever the canvas has focus.
+      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput')
       el.scene.constantlyUpdateMeshUnderPointer = true
       // Mouse AND XR controller picks arrive here identically — texture UV → surface
       // coords → the same handlePointer the flat overlay calls.
@@ -274,6 +300,16 @@ export function inputField(config = {}) {
     let state = edit(config.value ?? '');
     let width = 0;
     let focused = false;
+    const activate = () => {
+        if (focused)
+            return;
+        focused = true;
+        paintRef();
+        config.onFocus?.();
+    };
+    // paint() is defined below; route through a ref so activate can be declared
+    // here beside the state it guards.
+    let paintRef = () => { };
     const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: FIELD_BG });
     const label = text({
         x: PAD,
@@ -328,6 +364,7 @@ export function inputField(config = {}) {
         // unrecoverable" rather than "focus is elsewhere".
         caret.setAttribute('opacity', focused ? '1' : '0.35');
     };
+    paintRef = paint;
     const change = (next) => {
         const before = state.text;
         state = next;
@@ -365,16 +402,16 @@ export function inputField(config = {}) {
         },
         handle(kind, x) {
             if (kind === 'down') {
-                focused = true;
+                activate();
                 change(moveTo(state, indexAtX(x)));
             }
         },
         insert(str) {
-            focused = true;
+            activate();
             change(editInsert(state, str));
         },
         action(a) {
-            focused = true;
+            activate();
             if (a === 'backspace')
                 change(editBackspace(state));
             else if (a === 'space')
@@ -387,26 +424,38 @@ export function inputField(config = {}) {
             change(edit(v));
         },
         moveCaret(delta) {
-            focused = true;
+            activate();
             change(editMoveCaret(state, delta));
         },
         focusMove(dx, _dy) {
             if (dx === 0)
                 return false; // vertical → let focus leave the field
-            focused = true;
+            activate();
             change(editMoveCaret(state, dx > 0 ? 1 : -1));
             return true;
         },
         focusClear() {
-            focused = false;
-            paint();
+            // D-pad focus moved on — but the text still lands HERE, so the caret
+            // stays lit. Only `setActive(false)` (the host activating another field)
+            // dims it: "who has the D-pad" and "where text goes" are different facts.
+        },
+        setActive(v) {
+            if (v)
+                activate();
+            else {
+                focused = false;
+                paint();
+            }
+        },
+        get active() {
+            return focused;
         },
         setState(s) {
-            // The BOX is the focus authority: it reflects focus in on every change,
-            // which is what makes the caret recoverable — the field's own tap sets
-            // `focused` too, but only the host knows when focus comes BACK.
-            focused = s.focused;
-            paint();
+            // Gaining the host's focus makes this the receiver; LOSING it doesn't
+            // un-receive (tapping keyboard keys moves box focus to the keyboard while
+            // the text keeps landing here).
+            if (s.focused)
+                activate();
         },
     };
     void width;
@@ -496,18 +545,6 @@ export function keyboard(config = {}) {
         const cell = keysLayer.children[i];
         const bg = cell?.firstChild;
         bg?.setAttribute('fill', on ? ACCENT : KEY_ACTION_BG);
-    };
-    /** Index of the accent cell under (x,y), or -1. */
-    const cellAt = (cells, x, y) => {
-        for (let i = 0; i < cells.length; i++) {
-            const cx = Number(cells[i].getAttribute('x'));
-            const cy = Number(cells[i].getAttribute('y'));
-            const w = Number(cells[i].getAttribute('width'));
-            const h = Number(cells[i].getAttribute('height'));
-            if (x >= cx && x <= cx + w && y >= cy && y <= cy + h)
-                return i;
-        }
-        return -1;
     };
     // The in-flight press. `accents` is non-empty once the popup is open.
     let press = null;
@@ -743,8 +780,22 @@ export function keyboard(config = {}) {
                 // does — otherwise the accents would be sitting there un-tappable, with the
                 // keys behind them stealing the press.
                 if (sticky) {
-                    const i = cellAt(sticky.cells, x, y);
-                    if (i >= 0) {
+                    /*
+                    Same GENEROUS mapping as the slide gesture (band + x index), not
+                    strict cell containment: the strip's cells have 2px gaps and edge
+                    pixels, and a strict test let a tap that was visually ON the strip
+                    fall through to the KEY BEHIND it — routine with a ray, where a
+                    "click on ö" registering as the key under the strip reads as madness.
+                    */
+                    const first = sticky.cells[0];
+                    const sx = Number(first.getAttribute('x'));
+                    const sy = Number(first.getAttribute('y'));
+                    const sh = Number(first.getAttribute('height'));
+                    const SLACK = 10;
+                    const CW = 32;
+                    const inBand = y >= sy - SLACK && y <= sy + sh + SLACK;
+                    const i = inBand ? Math.floor((x - sx) / CW) : -1;
+                    if (i >= 0 && i < sticky.accents.length) {
                         config.onKey?.(sticky.accents[i]);
                     }
                     else {
@@ -802,7 +853,7 @@ export function keyboard(config = {}) {
                     */
                     press.timer = setTimeout(() => {
                         if (press) {
-                            caretDrag = { lastX: x, accum: 0 };
+                            caretDrag = { lastX: x, accum: 0, moved: false };
                             spaceHint(true);
                         }
                     }, HOLD);
@@ -820,6 +871,7 @@ export function keyboard(config = {}) {
                     const dir = caretDrag.accum > 0 ? 1 : -1;
                     config.onCaretMove?.(dir);
                     caretDrag.accum -= dir * CARET_STEP;
+                    caretDrag.moved = true;
                 }
                 return;
             }
@@ -835,11 +887,21 @@ export function keyboard(config = {}) {
             if (kind === 'up' || kind === 'leave')
                 keyTint(press.rect, false);
             if (kind === 'up' && caretDrag) {
-                // The press became a caret drag, so it does NOT also type a space.
                 clearTimer();
                 endPressVis();
                 spaceHint(false);
+                /*
+                A drag that MOVED the caret does not also type a space. But a hold that
+                never moved it is just a SLOW TAP — and on a headset trigger, an
+                ordinary press routinely outlasts the hold timer, so treating it as "a
+                drag that went nowhere: type nothing" made the spacebar feel broken
+                (space appearing only sometimes, reported from device). No movement, no
+                drag — the space types.
+                */
+                const wasTap = !caretDrag.moved && press && keyAt(rects, x, y) === press.rect;
                 caretDrag = null;
+                if (wasTap && press)
+                    fireKey(press.rect);
                 press = null;
                 return;
             }

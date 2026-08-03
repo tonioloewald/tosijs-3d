@@ -23,14 +23,22 @@ export interface InputField extends Widget3d {
      * trapping a D-pad.
      */
     focusMove: (dx: number, dy: number) => boolean;
-    /** Dim the caret (focus went elsewhere). */
+    /** D-pad focus left (the `Widget3d` protocol). Does NOT dim the caret — see
+     * `setActive`: being the keyboard's target outlives holding the D-pad focus. */
     focusClear: () => void;
     /**
-     * The host's focus state, reflected in (the `Widget3d` protocol). The caret is
-     * this field's focus indicator — bright while the panel's focus is here, DIM
-     * (never hidden) otherwise, so with two fields on a panel you can see both
-     * carets and which one is live.
+     * Whether this field is the RECEIVER — the one the keyboard's output lands in.
+     * The caret is the receiver indicator: bright when active, dim (never hidden)
+     * when not, so with two fields you can see both carets and which one is live.
+     * Activation is one-way from inside (tapping/typing turns it ON); only the
+     * host turns it off, by activating another field — which is why the caret
+     * stays lit while you're tapping keys on the KEYBOARD (box focus is there,
+     * but the text still lands here).
      */
+    setActive: (active: boolean) => void;
+    /** The receiver state — `true` while this field's caret is lit. */
+    readonly active: boolean;
+    /** Host focus reflection (the `Widget3d` protocol): gaining focus activates. */
     setState: (state: {
         hovered: boolean;
         pressed: boolean;
@@ -46,6 +54,10 @@ export declare function inputField(config?: {
     height?: number;
     onChange?: (value: string) => void;
     onEnter?: (value: string) => void;
+    /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
+     * — the host's hook for exclusivity (dim the others) and for summoning the
+     * keyboard overlay. */
+    onFocus?: () => void;
 }): InputField;
 /**
  * The on-screen keyboard. Emits `onKey(text)` for inserting keys and `onAction()`
