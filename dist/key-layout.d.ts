@@ -36,6 +36,15 @@ export declare function hasAccents(key: KeyDef): boolean;
  * Place every key. Rows are laid out in key units then scaled so the WIDEST row fills
  * the given width; narrower rows are centred, which is what makes a staggered
  * qwerty look right instead of left-ragged.
+ *
+ * A multi-unit key ABSORBS the gaps it spans (`width: 2` = two units PLUS the gap
+ * between them), so a row's rendered width depends only on its unit total, never on
+ * how many keys carry those units — equal units ⇒ equal width ⇒ columns that
+ * actually align. Without this, numpad's double-wide enter left its row a gap short
+ * and the whole grid drifted off-column.
+ *
+ * Write the SAME `KeyDef` object into vertically-adjacent rows to span them (a
+ * numpad's tall enter): contiguous, column-aligned repeats merge into one tall rect.
  */
 export declare function keyRects(rows: KeyDef[][], opts: {
     width: number;

@@ -16,7 +16,7 @@ to type**: the OS keyboard isn't reliably available to a WebXR session, and a DO
 | `alpha` | letters, with `shift` |
 | `alphanumeric` | letters plus a digit row |
 | `symbols` | punctuation and symbols |
-| `numpad` | digits in a 4×4 grid — quantities, seeds, coordinates (has `−` and `.`) |
+| `numpad` | the classic pad — `− 0 .` under the digits, tall enter; field-driven, no way out (like `dial`) |
 | `dial` | a telephone keypad — `*` `0` `#`, `+` for international |
 | `email` | letters plus `@ _ - .` and a **`.com`** key; the spacebar shrinks |
 | `url` | letters plus `: / ? & . -`; the spacebar shrinks |
@@ -24,7 +24,11 @@ to type**: the OS keyboard isn't reliably available to a WebXR session, and a DO
 **A grid pad's rows must sum to the same unit total.** `keyRects` scales the widest row
 to fill and centres the others, so one odd row silently resizes the pad around itself —
 which is exactly how `numpad` shipped misaligned (`. 0 ⌫` was 3.5 units against digit
-rows of 3). The `grid pads align` tests assert it rather than trusting it.
+rows of 3). The `grid pads align` tests assert it rather than trusting it. (Key COUNT
+per row no longer matters: a multi-unit key absorbs the gaps it spans, so equal units
+render equal widths. And a key spanning ROWS is the same `KeyDef` object written into
+each row it covers — `keyRects` merges the vertical repeats into one tall rect, which
+is how the numpad's enter works.)
 
 ## Long-press accents
 
@@ -95,8 +99,7 @@ const pick = (label, fn) => button({ onclick: fn,
 
 preview.append(div({ style: 'padding:16px;background:#0c0e14' },
   div({ style: 'margin-bottom:10px' },
-    ...['alpha','alphanumeric','symbols','numpad','dial','email','url'].map((m) => pick(m, () => { mode = m; shift = false; paint() })),
-    pick('shift', () => { shift = !shift; paint() })),
+    ...['alpha','alphanumeric','symbols','numpad','dial','email','url'].map((m) => pick(m, () => { mode = m; shift = false; paint() }))),
   sheet, readout))
 ```
 */
@@ -117,10 +120,6 @@ const toSymbols = {
 const BACK1 = { label: '⌫', action: 'backspace' };
 /** Enter at plain width — for a grid pad where every cell is one unit. */
 const ENTER1 = { label: '⏎', action: 'enter' };
-/** Enter spanning two cells, to square off a pad's last row. */
-const ENTER2 = { label: '⏎', action: 'enter', width: 2 };
-/** Back to letters, plain width (the grid pads need a 1-unit version). */
-const toAlpha1 = { label: 'ABC', action: 'mode', mode: 'alpha' };
 const toAlpha = {
     label: 'ABC',
     action: 'mode',
@@ -143,12 +142,28 @@ export function keyLayout(mode, shift = false) {
     `keyLayout — grid pads align` tests, which assert it rather than trusting it.
     */
     if (mode === 'numpad') {
-        // Coordinates, quantities, seeds: digits plus sign, point, and a way out.
+        /*
+        The classic pad: digits phone-style (123 on top), sign and point flanking the
+        zero, backspace top-right, and a TALL enter spanning the last three rows —
+        the same KeyDef written into each row it covers; `keyRects` merges
+        vertically-contiguous repeats into one tall key.
+    
+        Deliberately NO way out (like `dial`): a numeric field dictates a numeric
+        pad, the iOS convention. The old ABC key was a one-way door — alpha has no
+        key back to numpad — so a stray tap stranded you in letters. Mode is the
+        host's call (`config.mode` / `setMode`), not the pad's.
+        */
+        const enter = { label: '⏎', action: 'enter' };
         return [
             [...row('123'), BACK1], // 4
-            [...row('456'), { label: '−', value: '-' }], // 4
-            [...row('789'), { label: '.', value: '.' }], // 4
-            [toAlpha1, { label: '0', value: '0' }, ENTER2], // 1 + 1 + 2 = 4
+            [...row('456'), enter], // 4
+            [...row('789'), enter], // 4
+            [
+                { label: '−', value: '-' },
+                { label: '0', value: '0' },
+                { label: '.', value: '.' },
+                enter,
+            ], // 4
         ];
     }
     if (mode === 'dial') {
@@ -270,6 +285,15 @@ export function hasAccents(key) {
  * Place every key. Rows are laid out in key units then scaled so the WIDEST row fills
  * the given width; narrower rows are centred, which is what makes a staggered
  * qwerty look right instead of left-ragged.
+ *
+ * A multi-unit key ABSORBS the gaps it spans (`width: 2` = two units PLUS the gap
+ * between them), so a row's rendered width depends only on its unit total, never on
+ * how many keys carry those units — equal units ⇒ equal width ⇒ columns that
+ * actually align. Without this, numpad's double-wide enter left its row a gap short
+ * and the whole grid drifted off-column.
+ *
+ * Write the SAME `KeyDef` object into vertically-adjacent rows to span them (a
+ * numpad's tall enter): contiguous, column-aligned repeats merge into one tall rect.
  */
 export function keyRects(rows, opts) {
     const gap = opts.gap ?? 4;
@@ -277,20 +301,32 @@ export function keyRects(rows, opts) {
     const widest = rows.reduce((m, r) => Math.max(m, units(r)), 0);
     if (widest === 0)
         return [];
-    // Solve for the unit width that makes the widest row exactly fill `width`,
-    // accounting for the gaps between its keys.
-    const widestRow = rows.find((r) => units(r) === widest);
-    const gapsInWidest = Math.max(0, widestRow.length - 1) * gap;
-    const unit = (opts.width - gapsInWidest) / widest;
+    // Solve for the unit width that makes a `widest`-unit row exactly fill `width`.
+    // Gap absorption makes this independent of that row's key count: any row of U
+    // units spans U·unit + (U−1)·gap.
+    const unit = (opts.width - (widest - 1) * gap) / widest;
     const out = [];
+    const spans = new Map();
     rows.forEach((r, ri) => {
-        const rowGaps = Math.max(0, r.length - 1) * gap;
-        const rowWidth = units(r) * unit + rowGaps;
+        const rowWidth = units(r) * unit + (units(r) - 1) * gap;
         let x = (opts.width - rowWidth) / 2; // centre narrower rows
         const y = ri * (opts.keyHeight + gap);
         for (const key of r) {
-            const w = (key.width ?? 1) * unit;
-            out.push({ key, x, y, width: w, height: opts.keyHeight });
+            const wu = key.width ?? 1;
+            const w = wu * unit + (wu - 1) * gap;
+            // The same def, directly below its previous placement → grow that rect
+            // downward instead of emitting a new one (the vertical-span convention).
+            const prev = spans.get(key);
+            if (prev &&
+                Math.abs(prev.x - x) < 0.01 &&
+                Math.abs(prev.y + prev.height + gap - y) < 0.01) {
+                prev.height += gap + opts.keyHeight;
+                x += w + gap;
+                continue;
+            }
+            const rect = { key, x, y, width: w, height: opts.keyHeight };
+            spans.set(key, rect);
+            out.push(rect);
             x += w + gap;
         }
     });

@@ -90,3 +90,166 @@ describe('createFocusPulse — what it deliberately ignores', () => {
     expect(r.moves.length).toBe(2)
   })
 })
+
+describe('gamepadFocus — claim (one pad, several UIs)', () => {
+  // These need a DOM (window listener, Element.contains); the pulse tests above
+  // deliberately do not.
+  const dom = async () => {
+    const { Window } = await import('happy-dom')
+    const win = new Window() as any
+    const g = globalThis as any
+    g.window ??= win
+    for (const k of Object.getOwnPropertyNames(win)) {
+      try {
+        g[k] ??= win[k]
+      } catch {
+        /* off-document getters */
+      }
+    }
+    return (globalThis as any).window
+  }
+
+  const pump = () => {
+    let cbs: Array<() => void> = []
+    return {
+      raf: (cb: () => void) => (cbs.push(cb), cbs.length),
+      cancel: () => {},
+      step: () => {
+        const run = cbs
+        cbs = []
+        run.forEach((f) => f())
+      },
+    }
+  }
+
+  const target = () => {
+    const moves: Array<{ dx: number; dy: number }> = []
+    return {
+      moves,
+      t: {
+        focusMove: (dx: number, dy: number) => moves.push({ dx, dy }),
+        focusActivate: () => {},
+        focusBack: () => {},
+      },
+    }
+  }
+
+  const press = () => pad({ dpadRight: true })
+  const idle = () => pad()
+
+  test('unclaimed: every instance responds (a lone UI needs no wiring)', async () => {
+    const win = await dom()
+    const { gamepadFocus } = await import('./gamepad-focus')
+    const doc = win.document
+    const elA = doc.createElement('div')
+    const elB = doc.createElement('div')
+    doc.body.append(elA, elB)
+    let state = idle()
+    const A = target()
+    const B = target()
+    const p = pump()
+    const stopA = gamepadFocus({
+      poll: () => state,
+      target: A.t,
+      claim: elA,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+    const stopB = gamepadFocus({
+      poll: () => state,
+      target: B.t,
+      claim: elB,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+    state = press()
+    p.step()
+    expect(A.moves.length).toBe(1)
+    expect(B.moves.length).toBe(1)
+    stopA()
+    stopB()
+    elA.remove()
+    elB.remove()
+  })
+
+  test('a pointerdown inside one claim routes the pad THERE only — and moves with the pointer', async () => {
+    const win = await dom()
+    const { gamepadFocus } = await import('./gamepad-focus')
+    const doc = win.document
+    const elA = doc.createElement('div')
+    const elB = doc.createElement('div')
+    doc.body.append(elA, elB)
+    let state = idle()
+    const A = target()
+    const B = target()
+    const p = pump()
+    const stopA = gamepadFocus({
+      poll: () => state,
+      target: A.t,
+      claim: elA,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+    const stopB = gamepadFocus({
+      poll: () => state,
+      target: B.t,
+      claim: elB,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+
+    elA.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
+    state = press()
+    p.step()
+    expect(A.moves.length).toBe(1)
+    expect(B.moves.length).toBe(0) // B ran its pulse but did not apply it
+
+    // release, claim B, press again — the pad follows the pointer
+    state = idle()
+    p.step()
+    elB.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
+    state = press()
+    p.step()
+    expect(A.moves.length).toBe(1)
+    expect(B.moves.length).toBe(1)
+    stopA()
+    stopB()
+    elA.remove()
+    elB.remove()
+  })
+
+  test('stopping the claimed instance releases the claim', async () => {
+    const win = await dom()
+    const { gamepadFocus } = await import('./gamepad-focus')
+    const doc = win.document
+    const elA = doc.createElement('div')
+    const elB = doc.createElement('div')
+    doc.body.append(elA, elB)
+    let state = idle()
+    const A = target()
+    const B = target()
+    const p = pump()
+    const stopA = gamepadFocus({
+      poll: () => state,
+      target: A.t,
+      claim: elA,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+    const stopB = gamepadFocus({
+      poll: () => state,
+      target: B.t,
+      claim: elB,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+    elA.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
+    stopA() // the claimed one goes away
+    state = press()
+    p.step()
+    expect(B.moves.length).toBe(1) // unclaimed again — B responds
+    stopB()
+    elA.remove()
+    elB.remove()
+  })
+})

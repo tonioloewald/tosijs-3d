@@ -464,3 +464,20 @@ describe('keyboard — D-pad focus traversal', () => {
     expect(kb.focusedKey!.key.value).toBe('s')
   })
 })
+
+describe('keyboard — a ray’s micro-moves must not pick an accent', () => {
+  test('jitter ON the held key, release in place → sticky strip, nothing typed', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20) // strip opens
+    // a VR ray or fingertip always drifts a few px — still on the key itself
+    kb.handle!('move', o.x + 2, o.y + 1)
+    kb.handle!('up', o.x + 2, o.y + 1)
+    // the old x-only pick read this as "slid onto an accent" and typed ê-style
+    // surprises; in-the-strip is a y test too
+    expect(keys).toEqual([])
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    expect(strip.childNodes.length).toBeGreaterThan(0) // sticky, tappable
+  })
+})

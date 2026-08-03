@@ -30,10 +30,16 @@ export declare function createFocusPulse(opts?: {
 /**
  * Poll a gamepad each animation frame and drive `target`'s focus. Returns a stop
  * function; call it when the UI closes or the driver should hand over.
+ *
+ * Pass `claim` (the UI's root element) when the page may hold several gamepad-driven
+ * UIs: a pointerdown inside `claim` routes the pad here until another instance is
+ * claimed. Omit it for a lone UI.
  */
 export declare function gamepadFocus(opts: {
     poll: () => VirtualGamepad;
     target: FocusTarget;
+    /** Root element that claims the pad when the pointer goes down inside it. */
+    claim?: Element;
     repeatDelayMs?: number;
     repeatRateMs?: number;
     /** Override the frame pump (tests, or an XR session's own rAF). */

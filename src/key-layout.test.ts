@@ -37,13 +37,27 @@ describe('keyLayout — modes', () => {
   test('numpad is a digit grid, no letter rows', () => {
     const rows = keyLayout('numpad')
     expect(rows.length).toBe(4)
-    // digits present, and nothing alphabetic beyond the way back to letters
     const vals = rows
       .flat()
       .map((k) => k.value)
       .filter(Boolean)
     for (const d of '0123456789') expect(vals).toContain(d)
     expect(vals.some((v) => /^[a-z]$/.test(v!))).toBe(false)
+  })
+
+  test('numpad is field-driven: NO mode key (the old ABC was a one-way door)', () => {
+    // Alpha has no key back to numpad, so an ABC key stranded you in letters.
+    // Like dial: the host picks the mode, the pad offers no exit.
+    const modeKeys = keyLayout('numpad')
+      .flat()
+      .filter((k) => k.action === 'mode')
+    expect(modeKeys).toEqual([])
+  })
+
+  test('numpad bottom row is − 0 . (sign and point flank the zero)', () => {
+    const rows = keyLayout('numpad')
+    const bottom = rows[3].filter((k) => k.value).map((k) => k.value)
+    expect(bottom).toEqual(['-', '0', '.'])
   })
 
   test('symbols mode can get back to letters', () => {
@@ -197,7 +211,7 @@ describe('keyRects — geometry', () => {
     expect(300 - right).toBeCloseTo(left, 5) // equal margins
   })
 
-  test('a wide key is proportionally wider', () => {
+  test('a wide key spans its units AND the gaps between them', () => {
     const rects = keyRects(keyLayout('alpha'), {
       width: 300,
       keyHeight: 40,
@@ -205,7 +219,32 @@ describe('keyRects — geometry', () => {
     })
     const shift = rects.find((r) => r.key.action === 'shift')!
     const z = rects.find((r) => r.key.value === 'z')!
-    expect(shift.width).toBeCloseTo(z.width * 1.5, 5)
+    // 1.5 units absorb half the gap they straddle — which is what makes a row's
+    // width depend only on its unit total, so equal-unit rows align as columns.
+    expect(shift.width).toBeCloseTo(z.width * 1.5 + 4 * 0.5, 5)
+  })
+
+  test('equal-unit rows render equal widths even with different key counts', () => {
+    // THE double-wide-enter bug: numpad's old last row had 3 keys (1+1+2 units)
+    // against 4-key digit rows — same units, one fewer gap, so the row came up a
+    // gap short and the grid drifted off-column.
+    const rows = [
+      [{ label: 'a' }, { label: 'b' }, { label: 'c' }, { label: 'd' }],
+      [{ label: 'e' }, { label: 'f' }, { label: 'g', width: 2 }],
+    ]
+    const rects = keyRects(rows, { width: 300, keyHeight: 40, gap: 4 })
+    const rowWidth = (y: number) => {
+      const r = rects.filter((k) => k.y === y)
+      return (
+        Math.max(...r.map((k) => k.x + k.width)) -
+        Math.min(...r.map((k) => k.x))
+      )
+    }
+    expect(rowWidth(44)).toBeCloseTo(rowWidth(0), 5)
+    // and the double-wide key ends exactly where column 4 ends
+    const d = rects.find((r) => r.key.label === 'd')!
+    const g = rects.find((r) => r.key.label === 'g')!
+    expect(g.x + g.width).toBeCloseTo(d.x + d.width, 5)
   })
 
   test('rows stack by keyHeight + gap', () => {
@@ -242,5 +281,56 @@ describe('keyboardHeight', () => {
   test('rows plus the gaps between them', () => {
     expect(keyboardHeight(4, 40, 4)).toBe(172) // 4*40 + 3*4
     expect(keyboardHeight(0, 40)).toBe(0)
+  })
+})
+
+describe('keyRects — vertical spans (the numpad tall enter)', () => {
+  test('the same KeyDef in contiguous rows merges into ONE tall rect', () => {
+    const rects = keyRects(keyLayout('numpad'), {
+      width: 300,
+      keyHeight: 40,
+      gap: 4,
+    })
+    const enters = rects.filter((r) => r.key.action === 'enter')
+    expect(enters.length).toBe(1)
+    // spans rows 2–4: three key heights plus the two gaps between them
+    expect(enters[0].height).toBeCloseTo(3 * 40 + 2 * 4, 5)
+    expect(enters[0].y).toBeCloseTo(44, 5) // starts at row 2
+  })
+
+  test('numpad columns align: each column shares one x across all rows', () => {
+    const rects = keyRects(keyLayout('numpad'), {
+      width: 300,
+      keyHeight: 40,
+      gap: 4,
+    })
+    const colX = (labels: string[]) =>
+      labels.map((l) => rects.find((r) => r.key.label === l)!.x)
+    for (const col of [
+      ['1', '4', '7', '−'],
+      ['2', '5', '8', '0'],
+      ['3', '6', '9', '.'],
+    ]) {
+      const xs = colX(col)
+      for (const x of xs) expect(x).toBeCloseTo(xs[0], 5)
+    }
+    // the tall enter shares the backspace column
+    const back = rects.find((r) => r.key.action === 'backspace')!
+    const enter = rects.find((r) => r.key.action === 'enter')!
+    expect(enter.x).toBeCloseTo(back.x, 5)
+  })
+
+  test('keyAt hits a tall key anywhere along its whole height', () => {
+    const rects = keyRects(keyLayout('numpad'), {
+      width: 300,
+      keyHeight: 40,
+      gap: 4,
+    })
+    const enter = rects.find((r) => r.key.action === 'enter')!
+    const cx = enter.x + enter.width / 2
+    expect(keyAt(rects, cx, enter.y + 5)?.key.action).toBe('enter')
+    expect(keyAt(rects, cx, enter.y + enter.height - 5)?.key.action).toBe(
+      'enter'
+    )
   })
 })

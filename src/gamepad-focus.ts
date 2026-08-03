@@ -13,10 +13,18 @@ the other, so a gamepad could light up the on-screen pad and still not touch the
 import { gamepadFocus, HardwareGamepadSource } from 'tosijs-3d'
 
 const pad = new HardwareGamepadSource()
-const stop = gamepadFocus({ poll: () => pad.poll(), target: panel })
+const stop = gamepadFocus({ poll: () => pad.poll(), target: panel, claim: panelRootEl })
 // …later
 stop()
 ```
+
+## One pad, several UIs — `claim`
+
+With more than one gamepad-driven UI live on a page (two doc demos, say), a single
+D-pad press would drive them all. Pass `claim` (the UI's root element) and the pad
+follows the pointer: **the surface you last pressed in owns the pad** until another
+claims it. Until anything is claimed every instance responds, so a lone UI needs no
+wiring — the same last-touched rule `B3d` uses for scene input focus.
 
 ## Which controls, and why those
 
@@ -121,13 +129,28 @@ export function createFocusPulse(
   }
 }
 
+/*
+One pad, several UIs: with more than one live demo (or panel) on a page, a single
+D-pad press would drive them ALL — the same problem `B3d` solves for keyboards with
+scene input focus, so the same solution: the surface the pointer last went DOWN in
+claims the pad. Until anything claims, every instance responds — a lone UI just
+works with zero wiring.
+*/
+let claimed: object | null = null
+
 /**
  * Poll a gamepad each animation frame and drive `target`'s focus. Returns a stop
  * function; call it when the UI closes or the driver should hand over.
+ *
+ * Pass `claim` (the UI's root element) when the page may hold several gamepad-driven
+ * UIs: a pointerdown inside `claim` routes the pad here until another instance is
+ * claimed. Omit it for a lone UI.
  */
 export function gamepadFocus(opts: {
   poll: () => VirtualGamepad
   target: FocusTarget
+  /** Root element that claims the pad when the pointer goes down inside it. */
+  claim?: Element
   repeatDelayMs?: number
   repeatRateMs?: number
   /** Override the frame pump (tests, or an XR session's own rAF). */
@@ -138,15 +161,27 @@ export function gamepadFocus(opts: {
   const raf =
     opts.raf ?? ((cb: () => void) => requestAnimationFrame(() => cb()))
   const cancel = opts.cancel ?? ((id: number) => cancelAnimationFrame(id))
+  const token = {}
+  let onDown: ((e: Event) => void) | null = null
+  if (opts.claim) {
+    onDown = (e: Event) => {
+      if (opts.claim!.contains(e.target as Node)) claimed = token
+    }
+    window.addEventListener('pointerdown', onDown, true)
+  }
   let id = 0
   let stopped = false
 
   const tick = (): void => {
     if (stopped) return
+    // Always RUN the pulse (it holds the edge/repeat state — skipping it would
+    // burst stale presses on activation); only APPLY it when active.
     const p = pulse(opts.poll(), performance.now())
-    for (const m of p.moves) opts.target.focusMove(m.dx, m.dy)
-    if (p.activate) opts.target.focusActivate()
-    if (p.back) opts.target.focusBack?.()
+    if (claimed === null || claimed === token) {
+      for (const m of p.moves) opts.target.focusMove(m.dx, m.dy)
+      if (p.activate) opts.target.focusActivate()
+      if (p.back) opts.target.focusBack?.()
+    }
     id = raf(tick)
   }
   id = raf(tick)
@@ -154,5 +189,7 @@ export function gamepadFocus(opts: {
   return () => {
     stopped = true
     cancel(id)
+    if (onDown) window.removeEventListener('pointerdown', onDown, true)
+    if (claimed === token) claimed = null
   }
 }

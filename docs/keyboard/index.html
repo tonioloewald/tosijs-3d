@@ -70,16 +70,21 @@ which made the accents unreachable by finger.</p>
 <p><strong>Hold the spacebar and slide</strong> to drag the caret through the text. The drag continues
 outside the key and outside the keyboard entirely (as iOS does) — a spacebar-width
 gesture would only buy you a spacebar of travel.</p>
-<p><strong>D-pad / arrow keys</strong> (click the demo once so it has keyboard focus): the keyboard is
-one panel row but MANY focus stops — it implements the inner-focus protocol
-(<code>focusMove</code> returns <code>false</code> when a move runs off the edge), so arrows walk key to
-key, arriving on the edge you entered from, and <strong>escaping off the top onto the text
-field</strong> rather than trapping the D-pad forever. <code>Enter</code> presses the focused key.</p>
+<p><strong>D-pad / arrow keys</strong>: the keyboard is one panel row but MANY focus stops — it
+implements the inner-focus protocol (<code>focusMove</code> returns <code>false</code> when a move runs off
+the edge), so the D-pad walks key to key, arriving on the edge you entered from, and
+<strong>escaping off the top onto the text field</strong> rather than trapping focus forever. A
+hardware pad works via <code>gamepadFocus</code> (menu/A presses); arrow keys + Enter do the same
+(click the demo once so it has browser keyboard focus). <strong>Click a demo first</strong> to aim
+the pad at it — with several demos on the page, the one you last touched claims it.</p>
 <p>There is no completion/suggestion strip yet, and the interesting question isn&#39;t <em>whether</em>
 but <em>from what</em>: see CONVERSATION-DESIGN.md → &quot;Keyword dialogue&quot;, where the conclusion is
 that a known, relevant word should be <strong>clickable rather than typed</strong>, so typing&#39;s
 fallback role points completion at the player&#39;s own vocabulary rather than the world&#39;s.</p>
-<pre><code class="language-js">import { surface, widgetBox, box, textBlock, inputField, keyboard, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import {
+  surface, widgetBox, box, textBlock, inputField, keyboard, svgPoint,
+  gamepadFocus, HardwareGamepadSource,
+} from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -117,6 +122,10 @@ svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
   else if (e.key === &#39;Enter&#39;) { panel.focusActivate(); e.preventDefault() }
   else if (e.key === &#39;Escape&#39;) panel.focusBack()
 })
+// A hardware pad does the same; `claim: svgEl` scopes it — the demo you last
+// clicked owns the pad, so two live demos don&#39;t both react to one press.
+const pad = new HardwareGamepadSource()
+gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: svgEl })
 const at = (e) =&gt; {
   // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
   // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
@@ -139,7 +148,7 @@ the keys, <strong>menu</strong> (or A) presses. That&#39;s the input a VR contro
 claiming it doesn&#39;t fight locomotion.</p>
 <pre><code class="language-js">import {
   b3d, b3dLight, b3dSvgPlane, surface, widgetBox, box, textBlock,
-  inputField, keyboard, gamepadFocus, HardwareGamepadSource,
+  inputField, keyboard, gamepadFocus, HardwareGamepadSource, svgPoint,
 } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
@@ -166,15 +175,16 @@ const panel = widgetBox({ width: 364, padding: 8, gap: 8, background: &#39;#0e11
 s.openPanel({ x: 8, y: 44 }, panel, { title: &#39;Text entry&#39;, draggable: true })
 
 // The SAME surface shown flat AND used as the plane&#39;s texture (SvgTexture clones it
-// each frame), so the two views can&#39;t drift.
+// each frame), so the two views can&#39;t drift — but sameness only covers RENDERING;
+// input must be wired per presentation, so the flat copy gets its own pointer
+// listeners (through svgPoint, as ever) alongside the scene-pick route below.
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
+const at = (e) =&gt; { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x, p.y] }
+svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { s.handlePointer(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
+svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; s.handlePointer(&#39;move&#39;, ...at(e)))
+svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#39;, ...at(e)))
 const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: &#39;emissive&#39;, pointerEvents: false })
 plane.svgElement = svgEl
-
-// A hardware pad drives focus; in a session the XR controllers do the same through
-// XrGamepadSource. D-pad walks keys, menu/A presses.
-const pad = new HardwareGamepadSource()
-gamepadFocus({ poll: () =&gt; pad.poll(), target: panel })
 
 const scene = b3d(
   {
@@ -202,13 +212,19 @@ const scene = b3d(
   plane
 )
 
-preview.append(
-  div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
-    div({ style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:14px 14px 4px&#39; },
-      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px&#39; }, &#39;flat — same surface&#39;, svgEl),
-      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D — Enter VR to type with the ray&#39;, scene)),
-    readout)
-)
+const wrap = div({ style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+  div({ style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:14px 14px 4px&#39; },
+    div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px&#39; }, &#39;flat — same surface&#39;, svgEl),
+    div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D — Enter VR to type with the ray&#39;, scene)),
+  readout)
+preview.append(wrap)
+
+// A hardware pad drives focus; in a session the XR controllers do the same through
+// XrGamepadSource. D-pad walks keys, menu/A presses. `claim: wrap` scopes the pad
+// to this demo — click it first; the other keyboard demo on this page claims the
+// same pad for itself when you click that one.
+const pad = new HardwareGamepadSource()
+gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: wrap })
 </code></pre>
 <pre><code class="language-css">.preview {
   height: 100%;

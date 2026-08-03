@@ -55,10 +55,16 @@ the other, so a gamepad could light up the on-screen pad and still not touch the
 <pre><code class="language-js">import { gamepadFocus, HardwareGamepadSource } from &#39;tosijs-3d&#39;
 
 const pad = new HardwareGamepadSource()
-const stop = gamepadFocus({ poll: () =&gt; pad.poll(), target: panel })
+const stop = gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: panelRootEl })
 // …later
 stop()
 </code></pre>
+<h2>One pad, several UIs — <code>claim</code></h2>
+<p>With more than one gamepad-driven UI live on a page (two doc demos, say), a single
+D-pad press would drive them all. Pass <code>claim</code> (the UI&#39;s root element) and the pad
+follows the pointer: <strong>the surface you last pressed in owns the pad</strong> until another
+claims it. Until anything is claimed every instance responds, so a lone UI needs no
+wiring — the same last-touched rule <code>B3d</code> uses for scene input focus.</p>
 <h2>Which controls, and why those</h2>
 <p>The <strong>D-pad</strong> and the <strong>menu</strong> button, deliberately: per the control conventions those
 are the inputs a VR controller set doesn&#39;t otherwise spend, so a UI can claim them
