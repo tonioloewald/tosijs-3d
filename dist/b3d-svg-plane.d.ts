@@ -58,12 +58,24 @@ export declare const b3dSvgPlane: import("tosijs").ElementCreator<B3dSvgPlane>;
  * The common **dual-presentation wiring, packaged**: a plane textured from a
  * live `svg` plus a `sceneCreated` hook that sets up an orbit camera and routes
  * scene picks — mouse AND XR-controller — as uv → viewBox coords →
- * `target.handlePointer(kind, x, y)`. The two contracts a flat surface gets for
- * free from the DOM are restated here (see UI-DESIGN-NOTES → "A scene-picked
- * surface needs capture semantics"): the **camera yields** while a press is on
- * the panel (a press on UI is a gesture, not an orbit), and an up landing off
- * the plane still **ends the gesture** (capture). Grew from four demos copying
- * the same ~35-line block; going dual-presentation is now two lines:
+ * `target.handlePointer(kind, x, y)`.
+ *
+ * **One consistent gesture contract, every demo** (this used to be bespoke
+ * per demo, so lessons didn't transfer):
+ *
+ * - A down on the plane that the UI **claims** (the `claim` predicate; default:
+ *   every panel press) detaches the orbit camera — a press on UI is a gesture,
+ *   not an orbit. Dragging the background always orbits.
+ * - A claimed gesture's moves and release are collected on an invisible
+ *   **catcher quad** via the event's **pick ray** — NOT the visual mesh and NOT
+ *   `scene.pointerX/pointerY`. The visual mesh may move or rescale under the
+ *   pointer (a resize grip!), and a gesture must never sample the thing it is
+ *   changing; screen coordinates don't exist meaningfully for an XR controller
+ *   ray, which is exactly why bespoke screen-coordinate code worked flat and
+ *   died in the headset. Coordinates map through the plane's world matrix
+ *   **captured at the down**, so the whole gesture shares one stable frame.
+ * - A release off the plane still ends the gesture (`leave`) — the capture
+ *   contract flat surfaces get free from `setPointerCapture`.
  *
  * ```js
  * const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
@@ -71,9 +83,7 @@ export declare const b3dSvgPlane: import("tosijs").ElementCreator<B3dSvgPlane>;
  * ```
  *
  * The svg's viewBox is re-read per event, so an svg that resizes (hugging its
- * content) keeps mapping correctly. A gesture that must survive the TARGET
- * rescaling its own plane needs a stable catcher quad on top of this — see the
- * box doc's resizable demo.
+ * content) keeps mapping correctly.
  */
 export declare function panelScene(opts: {
     /** The live svg shown flat — the SAME element becomes the plane's texture. */
@@ -82,6 +92,12 @@ export declare function panelScene(opts: {
     target: {
         handlePointer: (kind: 'down' | 'move' | 'up' | 'leave', x: number, y: number) => void;
     };
+    /**
+     * Given viewBox coords of a down on the plane: does the UI claim the gesture
+     * (camera yields, moves ride the catcher)? Default: every panel press is UI.
+     * A resize grip passes its hit-test here so panel-body drags still orbit.
+     */
+    claim?: (x: number, y: number) => boolean;
     /** World width of the plane; height follows the svg's aspect. Default 2.4. */
     width?: number;
     /** Texture resolution. Default 640. */

@@ -627,3 +627,31 @@ listeners showed the up's true target in one probe, after days of plausible theo
 above it).
 
 — diagnosed with Tonio's console tape + live-page event taps, 2026-08-03
+
+## One gesture contract, owned by the library — and screen coordinates don't exist in VR
+
+Tonio's review of the dual-presentation demos caught bespoke drift red-handed: the flow box
+didn't orbit but its buttons worked in VR; the resizable box orbited but its grip was dead in
+VR. Two causes, both now owned by `panelScene` instead of per-demo code:
+
+1. **Screen coordinates don't exist in a headset.** The resizable demo's catcher picked via
+   `scene.pointerX/pointerY` — a screen concept. Flat, that's the mouse; in an immersive
+   session there is no meaningful screen point, so the catcher never hit and resize was dead.
+   The rule: gesture collection goes through the event's **pick ray** (`pickInfo.ray`), which
+   is the mouse ray flat and the controller ray in XR — one code path, both worlds.
+2. **Orbit-vs-UI is a POLICY and must be explicit.** Two demos shipped two accidental
+   policies (any-press-claims vs grip-only-claims). `panelScene` now takes a `claim(x, y)`
+   predicate — default: every panel press is UI (drag the background to orbit); a resize grip
+   passes its hit-test so inert panel body still orbits. Different behaviour is now a stated
+   choice, not an accident of which demo you copied from.
+
+The catcher quad generalized into `panelScene` too: every claimed gesture samples a frozen
+gesture-start frame (the plane's world matrix at the down), so a target that moves or rescales
+its own plane mid-gesture — resize! — stays stable, and the whole thing works flat and in VR
+identically. Also fixed alongside: `b3dSvgPlane` now routes the texture's alpha to the mesh
+(`opacityTexture`), so a panel's rounded corners sit on transparency instead of writing checks
+an opaque black substrate couldn't cash.
+
+— Tonio's cross-demo VR review, 2026-08-03; the factoring critique ("good behaviour lessons
+from one demo don't make it across demos") is the durable point: interaction contracts belong
+in the library, demos only choose policies.

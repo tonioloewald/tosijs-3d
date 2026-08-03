@@ -470,6 +470,10 @@ export class B3dSvgPlane extends AbstractMesh {
         if (!this._svgTexture)
             return;
         const tex = this._svgTexture.texture;
+        // The texture's alpha drives the PLANE's alpha — a transparent svg region
+        // (outside a panel's rounded corners, say) must be transparent on the mesh,
+        // not an opaque black substrate that the corners are drawn over.
+        mat.opacityTexture = tex;
         if (channel === 'emissive') {
             mat.emissiveTexture = tex;
             mat.diffuseColor = BABYLON.Color3.Black();
@@ -588,12 +592,24 @@ export const b3dSvgPlane = B3dSvgPlane.elementCreator({
  * The common **dual-presentation wiring, packaged**: a plane textured from a
  * live `svg` plus a `sceneCreated` hook that sets up an orbit camera and routes
  * scene picks — mouse AND XR-controller — as uv → viewBox coords →
- * `target.handlePointer(kind, x, y)`. The two contracts a flat surface gets for
- * free from the DOM are restated here (see UI-DESIGN-NOTES → "A scene-picked
- * surface needs capture semantics"): the **camera yields** while a press is on
- * the panel (a press on UI is a gesture, not an orbit), and an up landing off
- * the plane still **ends the gesture** (capture). Grew from four demos copying
- * the same ~35-line block; going dual-presentation is now two lines:
+ * `target.handlePointer(kind, x, y)`.
+ *
+ * **One consistent gesture contract, every demo** (this used to be bespoke
+ * per demo, so lessons didn't transfer):
+ *
+ * - A down on the plane that the UI **claims** (the `claim` predicate; default:
+ *   every panel press) detaches the orbit camera — a press on UI is a gesture,
+ *   not an orbit. Dragging the background always orbits.
+ * - A claimed gesture's moves and release are collected on an invisible
+ *   **catcher quad** via the event's **pick ray** — NOT the visual mesh and NOT
+ *   `scene.pointerX/pointerY`. The visual mesh may move or rescale under the
+ *   pointer (a resize grip!), and a gesture must never sample the thing it is
+ *   changing; screen coordinates don't exist meaningfully for an XR controller
+ *   ray, which is exactly why bespoke screen-coordinate code worked flat and
+ *   died in the headset. Coordinates map through the plane's world matrix
+ *   **captured at the down**, so the whole gesture shares one stable frame.
+ * - A release off the plane still ends the gesture (`leave`) — the capture
+ *   contract flat surfaces get free from `setPointerCapture`.
  *
  * ```js
  * const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
@@ -601,22 +617,28 @@ export const b3dSvgPlane = B3dSvgPlane.elementCreator({
  * ```
  *
  * The svg's viewBox is re-read per event, so an svg that resizes (hugging its
- * content) keeps mapping correctly. A gesture that must survive the TARGET
- * rescaling its own plane needs a stable catcher quad on top of this — see the
- * box doc's resizable demo.
+ * content) keeps mapping correctly.
  */
 export function panelScene(opts) {
     const width = opts.width ?? 2.4;
     const vb0 = opts.svg.viewBox?.baseVal;
     const aspect = vb0 && vb0.width > 0 ? vb0.height / vb0.width : 1;
+    const planeH = width * aspect;
     const plane = b3dSvgPlane({
         width,
-        height: width * aspect,
+        height: planeH,
         resolution: opts.resolution ?? 640,
         materialChannel: 'emissive',
         pointerEvents: 'off',
     });
     plane.svgElement = opts.svg;
+    const viewBox = () => {
+        const vb = opts.svg.viewBox?.baseVal;
+        return {
+            w: vb && vb.width > 0 ? vb.width : 1,
+            h: vb && vb.height > 0 ? vb.height : 1,
+        };
+    };
     const sceneCreated = (el) => {
         const canvas = el.scene.getEngine().getRenderingCanvas();
         const cam = new BABYLON.ArcRotateCamera('panel-cam', opts.camera?.alpha ?? -Math.PI / 2, opts.camera?.beta ?? Math.PI / 2.5, opts.camera?.radius ?? 3.2, BABYLON.Vector3.Zero(), el.scene);
@@ -625,8 +647,13 @@ export function panelScene(opts) {
         // Arrows belong to the UI (D-pad traversal), not the orbit.
         cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput');
         el.scene.constantlyUpdateMeshUnderPointer = true;
+        // The catcher: co-planar with the plane, 3x its size, pickable only while
+        // a gesture is live. See the doc comment for why it exists.
+        const catcher = BABYLON.MeshBuilder.CreatePlane('panel-catcher', { width: width * 3, height: planeH * 3 }, el.scene);
+        catcher.visibility = 0;
+        catcher.isPickable = false;
+        let gesture = null;
         const T = BABYLON.PointerEventTypes;
-        let panelPress = false;
         el.scene.onPointerObservable.add((pi) => {
             const kind = pi.type === T.POINTERDOWN
                 ? 'down'
@@ -638,28 +665,58 @@ export function panelScene(opts) {
             if (!kind)
                 return;
             const pk = pi.pickInfo;
+            if (gesture && (kind === 'move' || kind === 'up')) {
+                // Ray → catcher → the gesture-start frame. pickInfo.ray is the mouse
+                // ray flat and the controller ray in XR — one code path for both.
+                const ray = pk?.ray;
+                const hit = ray ? ray.intersectsMesh(catcher) : null;
+                if (hit && hit.hit && hit.pickedPoint) {
+                    const local = BABYLON.Vector3.TransformCoordinates(hit.pickedPoint, gesture.inv);
+                    opts.target.handlePointer(kind, (local.x / width + 0.5) * gesture.vbW, (0.5 - local.y / planeH) * gesture.vbH);
+                }
+                else if (kind === 'up') {
+                    opts.target.handlePointer('leave', 0, 0);
+                }
+                if (kind === 'up') {
+                    gesture = null;
+                    catcher.isPickable = false;
+                    cam.attachControl(canvas, true);
+                }
+                return;
+            }
             const onPlane = !!(pk && pk.hit && pk.pickedMesh === plane.mesh);
+            let sx = 0;
+            let sy = 0;
             if (onPlane) {
                 const uv = pk.getTextureCoordinates();
-                const vb = opts.svg.viewBox?.baseVal;
-                const w = vb && vb.width > 0 ? vb.width : 1;
-                const h = vb && vb.height > 0 ? vb.height : 1;
-                if (uv)
-                    opts.target.handlePointer(kind, uv.x * w, (1 - uv.y) * h);
+                const vb = viewBox();
+                if (uv) {
+                    sx = uv.x * vb.w;
+                    sy = (1 - uv.y) * vb.h;
+                }
             }
-            if (kind === 'down' && onPlane) {
-                panelPress = true;
+            if (kind === 'down' && onPlane && (opts.claim?.(sx, sy) ?? true)) {
+                const vb = viewBox();
+                const mesh = plane.mesh;
+                mesh.computeWorldMatrix(true);
+                gesture = {
+                    vbW: vb.w,
+                    vbH: vb.h,
+                    inv: mesh.getWorldMatrix().clone().invert(),
+                };
+                // Park the catcher on the plane's CURRENT pose — the gesture samples
+                // this frozen frame even if the target then moves/rescales the mesh.
+                catcher.position.copyFrom(mesh.absolutePosition);
+                if (mesh.rotationQuaternion)
+                    catcher.rotationQuaternion = mesh.rotationQuaternion.clone();
+                catcher.computeWorldMatrix(true);
+                catcher.isPickable = true;
                 cam.detachControl();
             }
-            else if (kind === 'up' && panelPress) {
-                if (!onPlane)
-                    opts.target.handlePointer('leave', 0, 0);
-                panelPress = false;
-                cam.attachControl(canvas, true);
-            }
-            else if (kind === 'move' && !onPlane && !panelPress) {
+            if (onPlane)
+                opts.target.handlePointer(kind, sx, sy);
+            else if (kind === 'move')
                 opts.target.handlePointer('leave', 0, 0);
-            }
         });
     };
     return { plane, sceneCreated };
