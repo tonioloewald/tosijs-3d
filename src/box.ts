@@ -150,7 +150,9 @@ than the box it becomes a **scroll region** (spin the wheel, flat). One
 **coordinate-based** drag handler serves both presentations — mouse events and
 scene picks feed the same `(kind, x, y)` path a VR ray takes. On the 3D side,
 dragging the grip resizes and dragging anywhere ELSE still orbits the camera: the
-camera only yields while the gesture is genuinely the box's.
+camera only yields while the gesture is genuinely the box's. And the PLANE resizes
+with the box — the mesh rescales (anchored top-left) so the panel is the whole
+surface, not a patch on a dead slab.
 
 ```js
 import { b3d, b3dLight, b3dSvgPlane, box, textBlock, iconGlyph, svgPoint } from 'tosijs-3d'
@@ -159,8 +161,13 @@ import { svgElements, elements } from 'tosijs'
 const { svg, rect, g } = svgElements
 const { div } = elements
 
-const VW = 380
-const VH = 250
+// Reference size — the plane's world dimensions correspond to a VW×VH box at
+// scale 1; the mesh rescales as the box resizes, so the plane IS the box (no
+// dead texture area around a shrinking panel).
+const VW = 320
+const VH = 170
+const PW = 2.4
+const PH = (PW * VH) / VW
 let W = 320
 let H = 170
 const long =
@@ -171,7 +178,7 @@ const panel = box(
   textBlock(long, { font: { size: 13 }, color: '#9fb0c3' })
 )
 
-const svgEl = svg({ viewBox: `0 0 ${VW} ${VH}`, width: VW, height: VH, style: 'touch-action:none' })
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: 'touch-action:none' })
 svgEl.append(panel.el)
 // The grip lives INSIDE the corner — the affordance is part of the box, not a
 // wart on it. An invisible pad gives it a finger-sized hit area; the visible
@@ -183,9 +190,25 @@ const grip = g(
   iconGlyph('resize', { color: '#5fb0ff', size: 14, x: 3, y: 3 })
 )
 svgEl.append(grip)
-const placeGrip = () =>
-  grip.setAttribute('transform', `translate(${W - GRIP - 2} ${panel.viewportHeight - GRIP - 2})`)
-placeGrip()
+// The svg HUGS the box (flat and as the texture) and the MESH rescales to
+// match, anchored at its top-left like the flat copy. Anchoring also makes the
+// uv → box mapping invariant while the mesh changes under a mid-drag pointer,
+// which is what keeps the 3D gesture stable.
+const applySize = () => {
+  const vh = panel.viewportHeight
+  grip.setAttribute('transform', `translate(${W - GRIP - 2} ${vh - GRIP - 2})`)
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${vh}`)
+  svgEl.setAttribute('width', W)
+  svgEl.setAttribute('height', vh)
+  if (plane.mesh) {
+    const sx = W / VW
+    const sy = vh / VH
+    plane.mesh.scaling.x = sx
+    plane.mesh.scaling.y = sy
+    plane.mesh.position.x = ((sx - 1) * PW) / 2
+    plane.mesh.position.y = ((1 - sy) * PH) / 2
+  }
+}
 
 // ONE coordinate-based handler. The flat listeners AND the scene picks feed it,
 // so the 3D plane resizes with the same code — nothing here is DOM-event-bound.
@@ -196,10 +219,10 @@ const overGrip = (x, y) =>
 const handle = (kind, x, y) => {
   if (kind === 'down' && overGrip(x, y)) drag = { x, y, w: W, h: H }
   else if (kind === 'move' && drag) {
-    W = Math.max(140, Math.min(VW - 10, drag.w + (x - drag.x)))
-    H = Math.max(70, Math.min(VH - 10, drag.h + (y - drag.y)))
+    W = Math.max(140, Math.min(400, drag.w + (x - drag.x)))
+    H = Math.max(70, Math.min(260, drag.h + (y - drag.y)))
     panel.resize(W, H)
-    placeGrip()
+    applySize()
   } else if (kind === 'up' || kind === 'leave') drag = null
 }
 
@@ -210,8 +233,9 @@ svgEl.addEventListener('pointerup', (e) => handle('up', ...at(e)))
 svgEl.addEventListener('wheel', (e) => { panel.scrollBy(e.deltaY); e.preventDefault() })
 
 // 3D side — the SAME svg is the plane's texture, and picks route uv → handle.
-const plane = b3dSvgPlane({ width: 2.6, height: (2.6 * VH) / VW, resolution: 640, materialChannel: 'emissive', pointerEvents: 'off' })
+const plane = b3dSvgPlane({ width: PW, height: PH, resolution: 640, materialChannel: 'emissive', pointerEvents: 'off' })
 plane.svgElement = svgEl
+applySize()
 
 const scene = b3d(
   {
@@ -234,8 +258,10 @@ const scene = b3d(
         const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
         let sx = 0, sy = 0
         if (onPlane) {
+          // Map against the CURRENT box size — the viewBox hugs the box, so uv
+          // spans exactly W × viewportHeight.
           const uv = pk.getTextureCoordinates()
-          if (uv) { sx = uv.x * VW; sy = (1 - uv.y) * VH }
+          if (uv) { sx = uv.x * W; sy = (1 - uv.y) * panel.viewportHeight }
         }
         if (kind === 'down' && onPlane && overGrip(sx, sy)) {
           resizing = true
@@ -261,7 +287,13 @@ preview.append(
     { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div(
       { style: 'display:flex;gap:20px;flex:1;min-height:0;padding:14px' },
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' }, 'DOM — drag the grip; wheel scrolls', svgEl),
+      div(
+        { style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' },
+        'DOM — drag the grip; wheel scrolls',
+        // FIXED footprint at the max clamp — the svg resizes INSIDE it, so the
+        // page layout (and the 3D scene beside it) never moves during a drag.
+        div({ style: 'width:400px;height:260px' }, svgEl)
+      ),
       div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — drag the grip to resize; drag elsewhere to orbit', scene)
     )
   )
