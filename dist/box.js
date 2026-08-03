@@ -142,31 +142,37 @@ preview.append(
 .preview { height: 100%; }
 ```
 
-## Resizable — drag to re-wrap, then scroll
+## Resizable — drag to re-wrap, then scroll (flat AND in 3D)
 
-Drag the corner grip: `box.resize(w, h)` re-flows — the paragraph re-wraps to the
-new width (so its height changes), and once the content is taller than the box it
-becomes a **scroll region** (spin the wheel). One box: resize, re-flow, scroll.
+Drag the corner grip — in the DOM **or on the 3D plane**: `box.resize(w, h)`
+re-flows, the paragraph re-wraps to the new width, and once the content is taller
+than the box it becomes a **scroll region** (spin the wheel, flat). One
+**coordinate-based** drag handler serves both presentations — mouse events and
+scene picks feed the same `(kind, x, y)` path a VR ray takes. On the 3D side,
+dragging the grip resizes and dragging anywhere ELSE still orbits the camera: the
+camera only yields while the gesture is genuinely the box's.
 
 ```js
-import { box, textBlock, iconGlyph } from 'tosijs-3d'
+import { b3d, b3dLight, b3dSvgPlane, box, textBlock, iconGlyph, svgPoint } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
 const { svg, rect, g } = svgElements
 const { div } = elements
 
+const VW = 380
+const VH = 250
 let W = 320
 let H = 170
 const long =
-  'This paragraph re-wraps as the box gets narrower, so its height grows. Shrink the box below the content height and it turns into a scroll region — spin the wheel to scroll. One box: resize, re-flow, and scroll, all in pure SVG.'
+  'This paragraph re-wraps as the box gets narrower, so its height grows. Shrink the box below the content height and it turns into a scroll region — spin the wheel (flat) to scroll. One box: resize, re-flow, and scroll, in the DOM and on the plane.'
 const panel = box(
   { width: W, height: H, padding: 14, gap: 8, background: '#161a22', border: '#2a3140', radius: 10 },
   textBlock('Resizable box', { font: { size: 16, weight: 600 }, color: '#e6e6e6' }),
   textBlock(long, { font: { size: 13 }, color: '#9fb0c3' })
 )
 
-const host = svg({ width: 520, height: 340, style: 'touch-action:none' })
-host.append(panel.el)
+const svgEl = svg({ viewBox: `0 0 ${VW} ${VH}`, width: VW, height: VH, style: 'touch-action:none' })
+svgEl.append(panel.el)
 // The grip lives INSIDE the corner — the affordance is part of the box, not a
 // wart on it. An invisible pad gives it a finger-sized hit area; the visible
 // part is the resize glyph (the same icon set the rest of the UI draws from).
@@ -176,30 +182,93 @@ const grip = g(
   rect({ width: GRIP, height: GRIP, fill: '#fff', 'fill-opacity': 0, 'pointer-events': 'all' }),
   iconGlyph('resize', { color: '#5fb0ff', size: 14, x: 3, y: 3 })
 )
-host.append(grip)
+svgEl.append(grip)
 const placeGrip = () =>
   grip.setAttribute('transform', `translate(${W - GRIP - 2} ${panel.viewportHeight - GRIP - 2})`)
 placeGrip()
 
+// ONE coordinate-based handler. The flat listeners AND the scene picks feed it,
+// so the 3D plane resizes with the same code — nothing here is DOM-event-bound.
 let drag = null
-grip.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, w: W, h: H }; grip.setPointerCapture(e.pointerId); e.preventDefault() })
-grip.addEventListener('pointermove', (e) => {
-  if (!drag) return
-  W = Math.max(140, Math.min(500, drag.w + (e.clientX - drag.x)))
-  H = Math.max(70, Math.min(320, drag.h + (e.clientY - drag.y)))
-  panel.resize(W, H)
-  placeGrip()
-})
-grip.addEventListener('pointerup', () => { drag = null })
-host.addEventListener('wheel', (e) => { panel.scrollBy(e.deltaY); e.preventDefault() })
+const overGrip = (x, y) =>
+  x >= W - GRIP - 2 && x <= W - 2 &&
+  y >= panel.viewportHeight - GRIP - 2 && y <= panel.viewportHeight - 2
+const handle = (kind, x, y) => {
+  if (kind === 'down' && overGrip(x, y)) drag = { x, y, w: W, h: H }
+  else if (kind === 'move' && drag) {
+    W = Math.max(140, Math.min(VW - 10, drag.w + (x - drag.x)))
+    H = Math.max(70, Math.min(VH - 10, drag.h + (y - drag.y)))
+    panel.resize(W, H)
+    placeGrip()
+  } else if (kind === 'up' || kind === 'leave') drag = null
+}
+
+const at = (e) => { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x, p.y] }
+svgEl.addEventListener('pointerdown', (e) => { handle('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
+svgEl.addEventListener('pointermove', (e) => handle('move', ...at(e)))
+svgEl.addEventListener('pointerup', (e) => handle('up', ...at(e)))
+svgEl.addEventListener('wheel', (e) => { panel.scrollBy(e.deltaY); e.preventDefault() })
+
+// 3D side — the SAME svg is the plane's texture, and picks route uv → handle.
+const plane = b3dSvgPlane({ width: 2.6, height: (2.6 * VH) / VW, resolution: 640, materialChannel: 'emissive', pointerEvents: 'off' })
+plane.svgElement = svgEl
+
+const scene = b3d(
+  {
+    style: 'border-radius:8px;overflow:hidden',
+    sceneCreated(el) {
+      const cam = new el.BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.5, 3.2, el.BABYLON.Vector3.Zero(), el.scene)
+      el.setActiveCamera(cam)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+      cam.inputs.removeByType('ArcRotateCameraKeyboardMoveInput')
+      el.scene.constantlyUpdateMeshUnderPointer = true
+      const T = el.BABYLON.PointerEventTypes
+      // The camera yields ONLY while the gesture is the box's (a grip drag) —
+      // dragging the rest of the plane still orbits. Same capture rules as the
+      // keyboard demo: an up that lands off the plane still ends the gesture.
+      let resizing = false
+      el.scene.onPointerObservable.add((pi) => {
+        const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : pi.type === T.POINTERMOVE ? 'move' : ''
+        if (!kind) return
+        const pk = pi.pickInfo
+        const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
+        let sx = 0, sy = 0
+        if (onPlane) {
+          const uv = pk.getTextureCoordinates()
+          if (uv) { sx = uv.x * VW; sy = (1 - uv.y) * VH }
+        }
+        if (kind === 'down' && onPlane && overGrip(sx, sy)) {
+          resizing = true
+          cam.detachControl()
+        }
+        // handle() itself ignores a down that isn't on the grip, so every
+        // on-plane event routes — moves feed a live drag, the rest are inert.
+        if (onPlane) handle(kind, sx, sy)
+        if (kind === 'up' && resizing) {
+          if (!onPlane) handle('leave', 0, 0)
+          resizing = false
+          cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+        }
+      })
+    },
+  },
+  b3dLight({ intensity: 1 }),
+  plane
+)
 
 preview.append(
   div(
-    { style: 'padding:16px;background:#0c0e14' },
-    host,
-    div({ style: 'color:#8ea;font:12px system-ui;padding-top:8px' }, 'Drag the blue corner grip; spin the wheel to scroll.')
+    { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
+    div(
+      { style: 'display:flex;gap:20px;flex:1;min-height:0;padding:14px' },
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' }, 'DOM — drag the grip; wheel scrolls', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — drag the grip to resize; drag elsewhere to orbit', scene)
+    )
   )
 )
+```
+```css
+.preview { height: 100%; }
 ```
 */
 /*{ "parent": "UI" }*/
