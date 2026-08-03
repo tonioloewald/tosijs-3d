@@ -252,7 +252,7 @@ const scene = b3d(
 
 const wrap = div({ style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
   div({ style: 'display:flex;gap:20px;flex:1;min-height:0;padding:14px 14px 4px' },
-    div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' }, 'flat — same surface', svgEl),
+    div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'flat — same surface', svgEl),
     div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D — Enter VR to type with the ray', scene)),
   readout)
 preview.append(wrap)

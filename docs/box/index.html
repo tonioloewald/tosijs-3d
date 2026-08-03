@@ -169,7 +169,7 @@ preview.append(
     { style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
     div(
       { style: &#39;display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px&#39; },
-      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px&#39; }, &#39;DOM — click / arrow-key; 3D mirrors it&#39;, svgEl),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;DOM — click / arrow-key; 3D mirrors it&#39;, svgEl),
       div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D texture — click the buttons&#39;, scene)
     ),
     readout
@@ -185,9 +185,12 @@ than the box it becomes a <strong>scroll region</strong> (spin the wheel, flat).
 <strong>coordinate-based</strong> drag handler serves both presentations — mouse events and
 scene picks feed the same <code>(kind, x, y)</code> path a VR ray takes. On the 3D side,
 dragging the grip resizes and dragging anywhere ELSE still orbits the camera: the
-camera only yields while the gesture is genuinely the box&#39;s. And the PLANE resizes
+camera only yields while the gesture is genuinely the box&#39;s. The PLANE resizes
 with the box — the mesh rescales (anchored top-left) so the panel is the whole
-surface, not a patch on a dead slab.</p>
+surface, not a patch on a dead slab. And because the visual mesh rescales under
+the pointer, the drag itself is collected by an invisible <strong>stable catcher quad</strong>
+(pickable only mid-gesture): the resizing thing can never be its own pick target,
+or growing fails outright and shrinking jitters.</p>
 <pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, box, textBlock, iconGlyph, svgPoint } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
@@ -280,13 +283,36 @@ const scene = b3d(
       cam.inputs.removeByType(&#39;ArcRotateCameraKeyboardMoveInput&#39;)
       el.scene.constantlyUpdateMeshUnderPointer = true
       const T = el.BABYLON.PointerEventTypes
+      // A STABLE CATCHER QUAD collects the drag. The visual mesh RESCALES under
+      // the pointer, so it cannot be the drag&#39;s own pick target: growing, the
+      // pointer starts outside the small mesh (no picks → no moves → can&#39;t
+      // grow at all); shrinking, the edge recedes under the pointer
+      // (intermittent picks → jerk). While a drag is live, an invisible
+      // fixed-frame plane is the pick target instead — every move samples
+      // CONSTANT geometry, and the gesture keeps working far outside the box
+      // (the same reason the spacebar caret-drag works outside the spacebar).
+      const catcher = el.BABYLON.MeshBuilder.CreatePlane(&#39;drag-catcher&#39;, { width: PW * 3, height: PH * 3 }, el.scene)
+      catcher.visibility = 0
+      catcher.isPickable = false
+      // Catcher world point → box coords: constants, immune to the mesh scaling.
+      const catcherToBox = (p) =&gt; [ (p.x + PW / 2) * (VW / PW), (PH / 2 - p.y) * (VH / PH) ]
       // The camera yields ONLY while the gesture is the box&#39;s (a grip drag) —
-      // dragging the rest of the plane still orbits. Same capture rules as the
-      // keyboard demo: an up that lands off the plane still ends the gesture.
+      // dragging the rest of the plane still orbits.
       let resizing = false
       el.scene.onPointerObservable.add((pi) =&gt; {
         const kind = pi.type === T.POINTERDOWN ? &#39;down&#39; : pi.type === T.POINTERUP ? &#39;up&#39; : pi.type === T.POINTERMOVE ? &#39;move&#39; : &#39;&#39;
         if (!kind) return
+        if (resizing &amp;&amp; (kind === &#39;move&#39; || kind === &#39;up&#39;)) {
+          const pk2 = el.scene.pick(el.scene.pointerX, el.scene.pointerY, (m) =&gt; m === catcher)
+          if (pk2 &amp;&amp; pk2.hit &amp;&amp; pk2.pickedPoint) handle(kind, ...catcherToBox(pk2.pickedPoint))
+          else if (kind === &#39;up&#39;) handle(&#39;leave&#39;, 0, 0)
+          if (kind === &#39;up&#39;) {
+            resizing = false
+            catcher.isPickable = false
+            cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+          }
+          return
+        }
         const pk = pi.pickInfo
         const onPlane = pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh
         let sx = 0, sy = 0
@@ -298,16 +324,12 @@ const scene = b3d(
         }
         if (kind === &#39;down&#39; &amp;&amp; onPlane &amp;&amp; overGrip(sx, sy)) {
           resizing = true
+          catcher.isPickable = true
           cam.detachControl()
         }
         // handle() itself ignores a down that isn&#39;t on the grip, so every
-        // on-plane event routes — moves feed a live drag, the rest are inert.
+        // on-plane event routes — hover and inert taps stay cheap.
         if (onPlane) handle(kind, sx, sy)
-        if (kind === &#39;up&#39; &amp;&amp; resizing) {
-          if (!onPlane) handle(&#39;leave&#39;, 0, 0)
-          resizing = false
-          cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
-        }
       })
     },
   },
@@ -321,7 +343,7 @@ preview.append(
     div(
       { style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:14px&#39; },
       div(
-        { style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px&#39; },
+        { style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; },
         &#39;DOM — drag the grip; wheel scrolls&#39;,
         // FIXED footprint at the max clamp — the svg resizes INSIDE it, so the
         // page layout (and the 3D scene beside it) never moves during a drag.

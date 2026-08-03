@@ -120,7 +120,7 @@ preview.append(
     { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div(
       { style: 'display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px' },
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px' }, 'DOM — click; the 3D view mirrors it', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM — click; the 3D view mirrors it', svgEl),
       div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture — click the items', scene)
     ),
     readout
