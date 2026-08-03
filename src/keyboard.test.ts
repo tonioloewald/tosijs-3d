@@ -481,3 +481,19 @@ describe('keyboard — a ray’s micro-moves must not pick an accent', () => {
     expect(strip.childNodes.length).toBeGreaterThan(0) // sticky, tappable
   })
 })
+
+describe('keyboard — hold-capable keys carry a discoverability hint', () => {
+  test('every accent-capable key gets a faint ▾ (a c e i n o s u y z)', () => {
+    const { kb } = mk()
+    const hints = Array.from(kb.el.querySelectorAll('[data-kb-hint="▾"]'))
+    expect(hints.length).toBe(10)
+  })
+
+  test('the spacebar hints ↔ only when the caret drag is actually wired', () => {
+    const { kb } = mk() // no onCaretMove
+    expect(kb.el.querySelectorAll('[data-kb-hint="↔"]').length).toBe(0)
+    const kb2 = K.keyboard({ onKey: () => {}, onCaretMove: () => {} })
+    kb2.layout(W)
+    expect(kb2.el.querySelectorAll('[data-kb-hint="↔"]').length).toBe(1)
+  })
+})

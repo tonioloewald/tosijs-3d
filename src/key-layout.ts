@@ -251,21 +251,27 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
     none, because pasted or trailing input sometimes needs trimming and a missing
     key is its own confusion.
     */
+    /*
+    The bottom row must stay INSIDE the 10-unit grid the letter rows set: the
+    widest row fixes the unit size for the whole board, so a 10.5-unit bottom
+    row silently shrank EVERY key (and url's 11-unit row shrank further still —
+    the two keyboards visibly disagreed). Mode key at 1 unit, spacebar at 1.5.
+    */
     return [
       row('1234567890'),
       letters('qwertyuiop'),
       letters('asdfghjkl'),
       [SHIFT, ...letters('zxcvbnm'), BACK],
       [
-        toSymbols,
+        { ...toSymbols, width: 1 },
         { label: '@', value: '@' },
         { label: '_', value: '_' },
         { label: '-', value: '-' },
-        { label: 'space', action: 'space', width: 2 },
+        { label: 'space', action: 'space', width: 1.5 },
         { label: '.', value: '.' },
         { label: '.com', value: '.com', width: 1.5 },
         ENTER,
-      ],
+      ], // 9.5 — narrower than the letter rows, centred
     ]
   }
 
@@ -276,22 +282,24 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
     spacebar as `email`, for the same reason — a URL has no spaces, and the widest key
     on the board should not be the one that's almost always wrong.
     */
+    // Same 10-unit discipline as `email` (see the comment there): six promoted
+    // keys fit only with the mode key at 1 unit and the spacebar at 1.5.
     return [
       row('1234567890'),
       letters('qwertyuiop'),
       letters('asdfghjkl'),
       [SHIFT, ...letters('zxcvbnm'), BACK],
       [
-        toSymbols,
+        { ...toSymbols, width: 1 },
         { label: ':', value: ':' },
         { label: '/', value: '/' },
         { label: '-', value: '-' },
-        { label: 'space', action: 'space', width: 2 },
+        { label: 'space', action: 'space', width: 1.5 },
         { label: '?', value: '?' },
         { label: '&', value: '&' },
         { label: '.', value: '.' },
         ENTER,
-      ],
+      ], // exactly 10 — matches the letter rows
     ]
   }
 

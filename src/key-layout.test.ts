@@ -334,3 +334,18 @@ describe('keyRects — vertical spans (the numpad tall enter)', () => {
     )
   })
 })
+
+describe('keyLayout — the alpha-family boards share one key size', () => {
+  // Key size is set by the WIDEST row in units, so a bottom row that spills
+  // past the 10-unit letter grid silently shrinks every key on the board —
+  // email's was 10.5 and url's 11, which is why the two keyboards visibly
+  // disagreed with each other (and with alpha).
+  const units = (r: any[]) => r.reduce((n, k) => n + (k.width ?? 1), 0)
+
+  for (const m of ['alpha', 'alphanumeric', 'email', 'url'] as const) {
+    test(`${m}: no row exceeds the 10-unit letter grid`, () => {
+      const widest = Math.max(...keyLayout(m).map(units))
+      expect(widest).toBe(10)
+    })
+  }
+})

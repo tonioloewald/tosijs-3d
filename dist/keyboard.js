@@ -466,7 +466,36 @@ export function keyboard(config = {}) {
                 fill: TEXT,
             });
             lbl.textContent = r.key.label;
-            keysLayer.append(g({ 'data-key': r.key.label }, bg, lbl));
+            const cell = g({ 'data-key': r.key.label }, bg, lbl);
+            /*
+            Discoverability signifier: hold-capable keys carry a faint glyph in the
+            corner — ▾ for a long-press accent strip, ↔ for the spacebar's
+            hold-to-drag caret. Without it the gestures are pure folklore: nothing
+            distinguishes `o` from `q`, and nothing at all suggests holding SPACE.
+            Faint on purpose — it should read at a glance you aim at it, not add
+            noise to the whole board. (`spaceHint`'s accent tint while the trackpad
+            is ACTIVE is separate — this is the invitation, that's the confirmation.)
+            */
+            const hint = r.key.value && accentsFor(r.key.value).length > 0
+                ? '▾'
+                : r.key.action === 'space' && config.onCaretMove
+                    ? '↔'
+                    : '';
+            if (hint) {
+                const h = text({
+                    'data-kb-hint': hint,
+                    x: r.x + r.width - 7,
+                    y: r.y + r.height - 6,
+                    'text-anchor': 'middle',
+                    'font-size': 9,
+                    'font-family': FONT_FAMILY,
+                    fill: TEXT,
+                    opacity: 0.35,
+                });
+                h.textContent = hint;
+                cell.append(h);
+            }
+            keysLayer.append(cell);
         }
     };
     const relayout = () => {
