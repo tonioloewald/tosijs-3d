@@ -380,6 +380,17 @@ export interface Widget3d {
    */
   hitTest?(x: number, y: number): boolean
   /**
+   * The host container reflects hover/press/focus into the widget so it can
+   * restyle — an input field brightens its caret while it holds the panel's
+   * focus and dims it when focus moves on (with two fields on a panel, the
+   * caret IS the focus indicator).
+   */
+  setState?(state: {
+    hovered: boolean
+    pressed: boolean
+    focused: boolean
+  }): void
+  /**
    * Inner focus traversal, for a widget that is a whole surface of controls
    * (the keyboard's keys) rather than one control. Same escape contract as
    * `BoxChild.focusMove` / `table.focusMove`: return `true` if the D-pad move

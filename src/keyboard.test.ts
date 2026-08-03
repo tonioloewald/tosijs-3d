@@ -448,16 +448,20 @@ describe('keyboard — D-pad focus traversal', () => {
     expect(ring(kb).getAttribute('visibility')).toBe('visible')
   })
 
-  test('a pointer tap RELOCATES active focus, but never summons the ring', () => {
+  test('focus follows a pointer tap — click a key, then Space/D-pad act on it', () => {
     const { kb } = mk()
-    // no focus: typing by pointer keeps the ring away (unlike the table — typing
-    // is a stream of taps and a ring chasing every keystroke is noise)
+    // Shipped as relocate-only first (no ring for pointer typists), but on a
+    // real device the missing ring read as "focus is broken" and orphaned the
+    // click-then-Space flow. Focus follows the press, as the table does.
     const q = centre('alpha', false, 'q')
     kb.handle!('down', q.x, q.y)
     kb.handle!('up', q.x, q.y)
-    expect(kb.focusedKey).toBeNull()
-    // with focus active, a tap moves it — pointer → D-pad resumes from the tap
-    kb.focusMove(0, 1)
+    expect(kb.focusedKey!.key.value).toBe('q')
+    expect(
+      (kb.el.querySelector('[data-kb-focus]') as SVGRectElement).getAttribute(
+        'visibility'
+      )
+    ).toBe('visible')
     const p = centre('alpha', false, 's')
     kb.handle!('down', p.x, p.y)
     kb.handle!('up', p.x, p.y)
@@ -495,5 +499,32 @@ describe('keyboard — hold-capable keys carry a discoverability hint', () => {
     const kb2 = K.keyboard({ onKey: () => {}, onCaretMove: () => {} })
     kb2.layout(W)
     expect(kb2.el.querySelectorAll('[data-kb-hint="↔"]').length).toBe(1)
+  })
+})
+
+describe('inputField — the caret is the focus indicator', () => {
+  const caretOf = (f: any) =>
+    (f.el as SVGGElement).querySelectorAll('rect')[1] as SVGRectElement
+
+  test('unfocused: dim but VISIBLE — hidden read as unrecoverable on device', () => {
+    const f = K.inputField({ value: 'hi' })
+    f.layout(200)
+    expect(caretOf(f).getAttribute('opacity')).toBe('0.35')
+  })
+
+  test('the host reflects focus in via setState: bright on focus, dim on leave', () => {
+    const f = K.inputField({ value: 'hi' })
+    f.layout(200)
+    f.setState({ hovered: false, pressed: false, focused: true })
+    expect(caretOf(f).getAttribute('opacity')).toBe('1')
+    f.setState({ hovered: false, pressed: false, focused: false })
+    expect(caretOf(f).getAttribute('opacity')).toBe('0.35')
+  })
+
+  test('a tap brightens it too (standalone use, no host box)', () => {
+    const f = K.inputField({ value: 'hi' })
+    f.layout(200)
+    f.handle!('down', 10, 20)
+    expect(caretOf(f).getAttribute('opacity')).toBe('1')
   })
 })

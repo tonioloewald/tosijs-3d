@@ -111,6 +111,7 @@ export function widgetChild(w: Widget3d): BoxChild {
     focusable: w.handle != null,
     handlePointer: w.handle ? (kind, x, y) => w.handle!(kind, x, y) : undefined,
     hitTest: w.hitTest ? (x, y) => w.hitTest!(x, y) : undefined,
+    setState: w.setState ? (s) => w.setState!(s) : undefined,
     // Inner focus (a keyboard's per-key traversal) passes straight through — the
     // protocols are identical by design.
     focusMove: w.focusMove ? (dx, dy) => w.focusMove!(dx, dy) : undefined,

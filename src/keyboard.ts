@@ -37,10 +37,13 @@ gesture would only buy you a spacebar of travel.
 **D-pad / arrow keys**: the keyboard is one panel row but MANY focus stops — it
 implements the inner-focus protocol (`focusMove` returns `false` when a move runs off
 the edge), so the D-pad walks key to key, arriving on the edge you entered from, and
-**escaping off the top onto the text field** rather than trapping focus forever. A
-hardware pad works via `gamepadFocus` (menu/A presses); arrow keys + Enter do the same
-(click the demo once so it has browser keyboard focus). **Click a demo first** to aim
-the pad at it — with several demos on the page, the one you last touched claims it.
+**escaping off the top onto the text field** rather than trapping focus forever.
+Clicking a key focuses it too (the ring lands where you clicked), and **Space presses
+the focused key** — the action-button convention. A hardware pad works via
+`gamepadFocus` (menu/A presses); a hardware keyboard also just types: printable keys
+go straight into the field, Backspace deletes, arrows walk/escape, Enter presses.
+(Click the demo once so it has browser keyboard focus. With several demos on the
+page, the one you last touched claims the gamepad.)
 
 There is no completion/suggestion strip yet, and the interesting question isn't *whether*
 but *from what*: see CONVERSATION-DESIGN.md → "Keyword dialogue", where the conclusion is
@@ -82,12 +85,28 @@ const panel = widgetBox(
 s.openPanel({ x: 8, y: 44 }, panel, { title: 'Text entry', draggable: true })
 
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, tabindex: 0 }, s.el)
-// D-pad traversal — arrows walk the keys, Enter presses, Escape drops focus.
+// Hardware keyboard (click the demo once so it has browser focus):
+// - arrows walk the keys / move the caret; Enter presses; Escape drops focus
+// - printable keys type straight into the field; Backspace deletes
+// - SPACE follows focus: on-screen keyboard focused → it PRESSES the focused
+//   key (action-button convention); field focused → it types a space. Always
+//   preventDefault, or the page scrolls instead.
 const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
 svgEl.addEventListener('keydown', (e) => {
+  const kbHasFocus = panel.focusIndex() === 1 // children: [field, kb]
   if (dirs[e.key]) { panel.focusMove(...dirs[e.key]); e.preventDefault() }
   else if (e.key === 'Enter') { panel.focusActivate(); e.preventDefault() }
+  else if (e.key === ' ') {
+    if (kbHasFocus) panel.focusActivate()
+    else field.insert(' ')
+    e.preventDefault()
+  }
+  else if (e.key === 'Backspace') { field.action('backspace'); e.preventDefault() }
   else if (e.key === 'Escape') panel.focusBack()
+  else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    field.insert(e.key)
+    e.preventDefault()
+  }
 })
 // A hardware pad does the same; `claim: svgEl` scopes it — the demo you last
 // clicked owns the pad, so two live demos don't both react to one press.
@@ -271,10 +290,19 @@ export interface InputField extends Widget3d {
    * trapping a D-pad.
    */
   focusMove: (dx: number, dy: number) => boolean
-  /** Show the caret (focus arrived here). */
-  focusEnter: () => void
-  /** Hide the caret (focus went elsewhere). */
+  /** Dim the caret (focus went elsewhere). */
   focusClear: () => void
+  /**
+   * The host's focus state, reflected in (the `Widget3d` protocol). The caret is
+   * this field's focus indicator — bright while the panel's focus is here, DIM
+   * (never hidden) otherwise, so with two fields on a panel you can see both
+   * carets and which one is live.
+   */
+  setState: (state: {
+    hovered: boolean
+    pressed: boolean
+    focused: boolean
+  }) => void
   /** Called whenever the text changes. */
   onChange?: (value: string) => void
 }
@@ -348,7 +376,10 @@ export function inputField(
     label.textContent = empty ? config.placeholder ?? '' : state.text
     label.setAttribute('fill', empty ? MUTED : TEXT)
     caret.setAttribute('x', String(caretX()))
-    caret.setAttribute('opacity', focused ? '1' : '0')
+    // Always visible, DIM when unfocused: with two fields on a panel the caret
+    // is the focus indicator, and a vanished caret reads as "focus is lost and
+    // unrecoverable" rather than "focus is elsewhere".
+    caret.setAttribute('opacity', focused ? '1' : '0.35')
   }
 
   const change = (next: EditState): void => {
@@ -418,12 +449,15 @@ export function inputField(
       change(editMoveCaret(state, dx > 0 ? 1 : -1))
       return true
     },
-    focusEnter() {
-      focused = true
-      paint()
-    },
     focusClear() {
       focused = false
+      paint()
+    },
+    setState(s) {
+      // The BOX is the focus authority: it reflects focus in on every change,
+      // which is what makes the caret recoverable — the field's own tap sets
+      // `focused` too, but only the host knows when focus comes BACK.
+      focused = s.focused
       paint()
     },
   }
@@ -617,13 +651,13 @@ export function keyboard(
       if (hint) {
         const h = text({
           'data-kb-hint': hint,
-          x: r.x + r.width - 7,
+          x: r.x + r.width - 8,
           y: r.y + r.height - 6,
           'text-anchor': 'middle',
-          'font-size': 9,
+          'font-size': 12,
           'font-family': FONT_FAMILY,
           fill: TEXT,
-          opacity: 0.35,
+          opacity: 0.5,
         })
         h.textContent = hint
         cell.append(h)
@@ -812,14 +846,13 @@ export function keyboard(
         }
         const r = keyAt(rects, x, y)
         if (!r) return
-        // A tap RELOCATES an active key focus (so switching pointer → D-pad
-        // resumes from where you last touched) but doesn't summon the ring for a
-        // pure pointer user — unlike the table, typing is a stream of taps and a
-        // ring chasing every keystroke is noise.
-        if (focusIdx >= 0) {
-          focusIdx = rects.indexOf(r)
-          paintFocus()
-        }
+        // Focus follows the press, as the table does: the ring lands where you
+        // clicked, so Space/Enter or a D-pad can immediately act on it. (First
+        // shipped as relocate-only to keep rings out of pointer typing, but on
+        // a real device the missing ring read as "focus is broken", and it
+        // orphaned the click-then-Space flow — visible beats quiet.)
+        focusIdx = rects.indexOf(r)
+        paintFocus()
         press = { rect: r, timer: null, accents: [], pick: -1, cells: [] }
         const alts = r.key.value ? accentsFor(r.key.value) : []
         if (alts.length > 0) {

@@ -563,9 +563,18 @@ implements it, hides its own ring (the child draws a per-item one), calls `focus
 ENTRY with the direction of travel (arriving downward lands on the top row, not wherever focus
 last was), and `focusClear` when focus actually leaves.
 
-One deliberate divergence from table: a pointer tap on the keyboard only RELOCATES an already-
-active focus, it never summons the ring. Typing is a stream of taps; a ring chasing every
-keystroke is noise. On a table, taps are sparse and focus-follows-tap is what makes
-pointer→D-pad handoff seamless — both behaviours serve the same goal at different tap rates.
+We first shipped a divergence from table here — a tap only RELOCATED an already-active focus,
+never summoning the ring, on the theory that typing is a stream of taps and a chasing ring is
+noise. **Device testing reversed it**: the missing ring read as "focus is broken", and it
+orphaned the click-then-Space flow (click a key, press Space to press it — the action-button
+convention). Focus now follows the press everywhere, as the table does. Lesson: an invisible
+state that the user is expected to act on isn't quiet, it's broken — quietness only works for
+states nothing acts on.
+
+Related, same session: the field's caret is its focus indicator, so it must be **dim when
+unfocused, never hidden** — a vanished caret reads as "focus is lost and unrecoverable" rather
+than "focus is elsewhere" (with two fields on a panel, dim-vs-bright is also what tells you
+which one is live). And the host box reflects focus INTO widgets via `setState` — the widget's
+own taps can only ever turn its focus ON; only the host knows when focus comes back.
 
 — from Tonio's on-device keyboard test (drag-selects-text, eaten accent tap, whole-keyboard ring)

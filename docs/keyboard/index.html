@@ -73,10 +73,13 @@ gesture would only buy you a spacebar of travel.</p>
 <p><strong>D-pad / arrow keys</strong>: the keyboard is one panel row but MANY focus stops — it
 implements the inner-focus protocol (<code>focusMove</code> returns <code>false</code> when a move runs off
 the edge), so the D-pad walks key to key, arriving on the edge you entered from, and
-<strong>escaping off the top onto the text field</strong> rather than trapping focus forever. A
-hardware pad works via <code>gamepadFocus</code> (menu/A presses); arrow keys + Enter do the same
-(click the demo once so it has browser keyboard focus). <strong>Click a demo first</strong> to aim
-the pad at it — with several demos on the page, the one you last touched claims it.</p>
+<strong>escaping off the top onto the text field</strong> rather than trapping focus forever.
+Clicking a key focuses it too (the ring lands where you clicked), and <strong>Space presses
+the focused key</strong> — the action-button convention. A hardware pad works via
+<code>gamepadFocus</code> (menu/A presses); a hardware keyboard also just types: printable keys
+go straight into the field, Backspace deletes, arrows walk/escape, Enter presses.
+(Click the demo once so it has browser keyboard focus. With several demos on the
+page, the one you last touched claims the gamepad.)</p>
 <p>There is no completion/suggestion strip yet, and the interesting question isn&#39;t <em>whether</em>
 but <em>from what</em>: see CONVERSATION-DESIGN.md → &quot;Keyword dialogue&quot;, where the conclusion is
 that a known, relevant word should be <strong>clickable rather than typed</strong>, so typing&#39;s
@@ -115,12 +118,28 @@ const panel = widgetBox(
 s.openPanel({ x: 8, y: 44 }, panel, { title: &#39;Text entry&#39;, draggable: true })
 
 const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, tabindex: 0 }, s.el)
-// D-pad traversal — arrows walk the keys, Enter presses, Escape drops focus.
+// Hardware keyboard (click the demo once so it has browser focus):
+// - arrows walk the keys / move the caret; Enter presses; Escape drops focus
+// - printable keys type straight into the field; Backspace deletes
+// - SPACE follows focus: on-screen keyboard focused → it PRESSES the focused
+//   key (action-button convention); field focused → it types a space. Always
+//   preventDefault, or the page scrolls instead.
 const dirs = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
 svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
+  const kbHasFocus = panel.focusIndex() === 1 // children: [field, kb]
   if (dirs[e.key]) { panel.focusMove(...dirs[e.key]); e.preventDefault() }
   else if (e.key === &#39;Enter&#39;) { panel.focusActivate(); e.preventDefault() }
+  else if (e.key === &#39; &#39;) {
+    if (kbHasFocus) panel.focusActivate()
+    else field.insert(&#39; &#39;)
+    e.preventDefault()
+  }
+  else if (e.key === &#39;Backspace&#39;) { field.action(&#39;backspace&#39;); e.preventDefault() }
   else if (e.key === &#39;Escape&#39;) panel.focusBack()
+  else if (e.key.length === 1 &amp;&amp; !e.metaKey &amp;&amp; !e.ctrlKey &amp;&amp; !e.altKey) {
+    field.insert(e.key)
+    e.preventDefault()
+  }
 })
 // A hardware pad does the same; `claim: svgEl` scopes it — the demo you last
 // clicked owns the pad, so two live demos don&#39;t both react to one press.

@@ -23,10 +23,19 @@ export interface InputField extends Widget3d {
      * trapping a D-pad.
      */
     focusMove: (dx: number, dy: number) => boolean;
-    /** Show the caret (focus arrived here). */
-    focusEnter: () => void;
-    /** Hide the caret (focus went elsewhere). */
+    /** Dim the caret (focus went elsewhere). */
     focusClear: () => void;
+    /**
+     * The host's focus state, reflected in (the `Widget3d` protocol). The caret is
+     * this field's focus indicator — bright while the panel's focus is here, DIM
+     * (never hidden) otherwise, so with two fields on a panel you can see both
+     * carets and which one is live.
+     */
+    setState: (state: {
+        hovered: boolean;
+        pressed: boolean;
+        focused: boolean;
+    }) => void;
     /** Called whenever the text changes. */
     onChange?: (value: string) => void;
 }
