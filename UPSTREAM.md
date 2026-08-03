@@ -12,13 +12,12 @@ no issue URL is a complaint nobody will ever read.
 
 ## Open
 
-| Owner       | Finding                                                                                                                                               | Issue                                                               |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `tosijs-ui` | Spawned haltija channel is bunx-pinned to `^1.6.1`, so adopters silently run a stale one and their own devDependency is ignored                       | [tosijs-ui#48](https://github.com/tonioloewald/tosijs-ui/issues/48) |
-| `tosijs`    | `on*`→event sugar shadows prototype **methods**, not just creator-config keys (narrowed: the warning shipped in 1.6.8, the namespace question stands) | [tosijs#22](https://github.com/tonioloewald/tosijs/issues/22)       |
-| `tosijs`    | No first-class "semantic parent" accessor — children hand-roll a walk past `<tosi-slot>`                                                              | [tosijs#16](https://github.com/tonioloewald/tosijs/issues/16)       |
-| `tjs-lang`  | All-caps identifier reassignment rewritten to `const`, shadowing a module-level `let`                                                                 | [tjs-lang#22](https://github.com/tonioloewald/tjs-lang/issues/22)   |
-| `haltija`   | Tab selection follows focus, not cwd — commands can land on another project's page                                                                    | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)       |
+| Owner      | Finding                                                                                                                                               | Issue                                                             |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `tosijs`   | `on*`→event sugar shadows prototype **methods**, not just creator-config keys (narrowed: the warning shipped in 1.6.8, the namespace question stands) | [tosijs#22](https://github.com/tonioloewald/tosijs/issues/22)     |
+| `tosijs`   | No first-class "semantic parent" accessor — children hand-roll a walk past `<tosi-slot>`                                                              | [tosijs#16](https://github.com/tonioloewald/tosijs/issues/16)     |
+| `tjs-lang` | All-caps identifier reassignment rewritten to `const`, shadowing a module-level `let`                                                                 | [tjs-lang#22](https://github.com/tonioloewald/tjs-lang/issues/22) |
+| `haltija`  | Tab selection follows focus, not cwd — commands can land on another project's page                                                                    | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)     |
 
 ## Resolved
 
@@ -27,6 +26,7 @@ no issue URL is a complaint nobody will ever read.
 | `haltija`   | `hj console` captured `console.*` but not uncaught exceptions                                                      | haltija **1.11.0** (verified: same-origin throws carry message + stack)                             | [haltija#9](https://github.com/tonioloewald/haltija/issues/9)       |
 | `haltija`   | No first-class verbs for driving tosijs-ui live examples                                                           | haltija **1.11.x**                                                                                  | [haltija#10](https://github.com/tonioloewald/haltija/issues/10)     |
 | `haltija`   | `screenshot --canvas` couldn't reach a canvas inside a shadow root — where every component-based renderer keeps it | haltija **1.11.2** (all four selector forms + the schematic now pierce)                             | [haltija#15](https://github.com/tonioloewald/haltija/issues/15)     |
+| `tosijs-ui` | Spawned haltija channel was bunx-pinned, ignoring the project's own dependency                                     | tosijs-ui **1.9.4** (prefers your installed haltija; prints which channel it used)                  | [tosijs-ui#48](https://github.com/tonioloewald/tosijs-ui/issues/48) |
 | `tosijs-ui` | Dev server SEGVd at the 8h idle timeout instead of exiting                                                         | tosijs-ui **1.9.3** (one `shutdown()`; no `stop()` before `exit` — also filed as oven-sh/bun#36788) | [tosijs-ui#47](https://github.com/tonioloewald/tosijs-ui/issues/47) |
 | `tosijs-ui` | A spent `?t=` 401'd a request already holding a valid session                                                      | tosijs-ui **1.9.3**                                                                                 | [tosijs-ui#45](https://github.com/tonioloewald/tosijs-ui/issues/45) |
 | `tosijs-ui` | `tosijs-tunnel`/`tosijs-deploy` shipped without a shebang — the shell ran the TS as sh                             | tosijs-ui **1.9.0-rc.2** (added to every shipped bin)                                               | [tosijs-ui#35](https://github.com/tonioloewald/tosijs-ui/issues/35) |

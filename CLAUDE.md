@@ -89,13 +89,12 @@ Also: `hj --no-launch …` skips the "open Haltija to resume" prompt, and **the 
 idle-exits after several hours** (deliberate — it's a leak guard, and a fresh one picks up
 dependency updates). Don't assume it's still up; check, and restart with `bun start` if not.
 
-**⚠️ Bumping `haltija` in `package.json` does NOT change the channel you're driving.** The
-dev server spawns its own via `bunx haltija@^1.6.1` (tosijs-ui's pin), and **bunx caches
-that resolution** — so the channel can sit several versions behind while `hj where`
-reports it authoritatively and your devDependency is ignored entirely. The symptom is "the
-fix I just upgraded for isn't there", with the version indicator agreeing with you. Force
-it: `HALTIJA_VERSION=haltija@^1.11.2 bun start`, then confirm with `hj where` (it prints
-the **server** version — that's the one that matters). Filed as tosijs-ui#48.
+**Which haltija channel is running?** The dev server prints it at startup —
+`haltija channel: 1.11.2 (this project's dependency)`. Since tosijs-ui 1.9.4 it prefers
+**your installed `haltija`**, so bumping the devDependency is enough; `HALTIJA_VERSION`
+still overrides if you want a beta. Before 1.9.4 it spawned its own via a bunx-cached
+`^1.6.1`, so an upgrade silently did nothing while `hj where` corroborated the wrong
+version — that was tosijs-ui#48, and the startup line is the fix that matters.
 
 **`hj screenshot --canvas 'tosi-b3d canvas'` works since haltija 1.11.2** and pierces the
 shadow root, so you get the **presented framebuffer** of the real Babylon canvas. Prefer
