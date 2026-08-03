@@ -64,10 +64,15 @@ function rasterizeSvg(xml, ctx, w, h, img, callback) {
         ctx.drawImage(img, 0, 0, w, h);
         ctx.restore();
         URL.revokeObjectURL(url);
-        callback();
+        callback(true);
     };
     img.onerror = () => {
+        // The callback MUST still fire: the caller holds a busy latch, and
+        // swallowing the error here left it set forever — one bad rasterize froze
+        // the texture for the rest of the session while the sim underneath kept
+        // working (on device: "the 3D keyboard types but the plane never shows it").
         URL.revokeObjectURL(url);
+        callback(false);
     };
     img.src = url;
 }
@@ -120,16 +125,21 @@ export class SvgTexture {
         // for a full re-rasterize + texImage2D upload on every interval.
         if (xml === this._lastXml)
             return;
-        this._lastXml = xml;
         this._rendering = true;
         // DynamicTexture types this as Babylon's abstract ICanvasRenderingContext,
         // but in browsers it's the real CanvasRenderingContext2D — rasterizeSvg
         // needs the full surface API (drawImage, save, restore).
         const ctx = dt.getContext();
         const res = this._resolution;
-        rasterizeSvg(xml, ctx, res, res, this._img, () => {
+        rasterizeSvg(xml, ctx, res, res, this._img, (ok) => {
+            // Release the latch on BOTH outcomes, and commit `_lastXml` only on
+            // success — so a failed frame is retried on the next tick instead of
+            // being remembered as done.
             this._rendering = false;
-            dt.update(false);
+            if (ok) {
+                this._lastXml = xml;
+                dt.update(false);
+            }
         });
     }
     /** Render an arbitrary SVG string to the texture. */
@@ -142,8 +152,9 @@ export class SvgTexture {
         // needs the full surface API (drawImage, save, restore).
         const ctx = dt.getContext();
         const res = this._resolution;
-        rasterizeSvg(svgString, ctx, res, res, this._img, () => {
-            dt.update(false);
+        rasterizeSvg(svgString, ctx, res, res, this._img, (ok) => {
+            if (ok)
+                dt.update(false);
         });
     }
     dispose() {

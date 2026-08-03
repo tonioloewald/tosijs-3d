@@ -528,3 +528,51 @@ describe('inputField — the caret is the focus indicator', () => {
     expect(caretOf(f).getAttribute('opacity')).toBe('1')
   })
 })
+
+describe('keyboard — pressed keys visibly press', () => {
+  // On the flat overlay a click has ambient confirmation; on a textured plane
+  // in 3D it may have none — a keyboard whose keys don't press reads as DEAD
+  // even while it types perfectly (reported from device).
+  const bgOf = (kb: any, label: string) => {
+    const cell = Array.from(
+      kb.el.querySelectorAll('[data-key]') as NodeListOf<SVGGElement>
+    ).find((c) => c.getAttribute('data-key') === label)!
+    return (cell.firstChild as SVGRectElement).getAttribute('fill')
+  }
+
+  test('down tints the key, up restores it', () => {
+    const { kb } = mk()
+    const idle = bgOf(kb, 'q')
+    const p = centre('alpha', false, 'q')
+    kb.handle!('down', p.x, p.y)
+    const pressed = bgOf(kb, 'q')
+    expect(pressed).not.toBe(idle)
+    kb.handle!('up', p.x, p.y)
+    expect(bgOf(kb, 'q')).toBe(idle)
+  })
+
+  test('a cancelled gesture (leave) restores the tint too', () => {
+    const { kb } = mk()
+    const idle = bgOf(kb, 'q')
+    const p = centre('alpha', false, 'q')
+    kb.handle!('down', p.x, p.y)
+    kb.handle!('leave', 0, 0)
+    expect(bgOf(kb, 'q')).toBe(idle)
+  })
+
+  test('a mode-switching key restores cleanly despite the relayout it causes', () => {
+    const { kb } = mk()
+    const p = centre('alpha', false, '?123')
+    kb.handle!('down', p.x, p.y)
+    kb.handle!('up', p.x, p.y)
+    expect(kb.mode).toBe('symbols')
+    // every painted key wears its resting fill — nothing kept the pressed tint
+    const cells = Array.from(
+      kb.el.querySelectorAll('[data-key]') as NodeListOf<SVGGElement>
+    )
+    const downTint = cells.some(
+      (c) => (c.firstChild as SVGRectElement).getAttribute('fill') === '#3a4150'
+    )
+    expect(downTint).toBe(false)
+  })
+})

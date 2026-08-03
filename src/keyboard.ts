@@ -597,6 +597,31 @@ export function keyboard(
   /** Live spacebar-as-trackpad gesture: where it last was, and sub-step travel. */
   let caretDrag: { lastX: number; accum: number } | null = null
 
+  /** The key currently pressed-tinted, as an index into `rects`; -1 = none. */
+  let pressedVis = -1
+
+  /*
+  Pressed-key feedback. On the FLAT overlay a click has ambient confirmation
+  (the OS cursor, the field updating in your focal area) — but on a textured
+  plane in 3D the field may be small, cropped, or outside where you're looking,
+  and a keyboard whose keys don't visibly press reads as a DEAD keyboard even
+  while it's typing perfectly (reported from device, and the session's typing
+  was sitting in the field the whole time).
+  */
+  const pressVis = (i: number, on: boolean): void => {
+    const r = rects[i]
+    const cell = keysLayer.children[i] as SVGGElement | undefined
+    const bg = cell?.firstChild as SVGRectElement | undefined
+    if (r && bg) bg.setAttribute('fill', on ? KEY_DOWN : keyFill(r))
+  }
+
+  const endPressVis = (): void => {
+    if (pressedVis >= 0) {
+      pressVis(pressedVis, false)
+      pressedVis = -1
+    }
+  }
+
   /** Tint the spacebar while it's acting as a trackpad, so the mode is visible. */
   const spaceHint = (on: boolean): void => {
     const i = rects.findIndex((r) => r.key.action === 'space')
@@ -873,6 +898,8 @@ export function keyboard(
         focusIdx = rects.indexOf(r)
         paintFocus()
         press = { rect: r, timer: null, accents: [], pick: -1, cells: [] }
+        pressedVis = rects.indexOf(r)
+        pressVis(pressedVis, true)
         const alts = r.key.value ? accentsFor(r.key.value) : []
         if (alts.length > 0) {
           press.timer = setTimeout(() => {
@@ -930,6 +957,7 @@ export function keyboard(
       if (kind === 'up' && caretDrag) {
         // The press became a caret drag, so it does NOT also type a space.
         clearTimer()
+        endPressVis()
         spaceHint(false)
         caretDrag = null
         press = null
@@ -937,6 +965,9 @@ export function keyboard(
       }
       if (kind === 'up') {
         clearTimer()
+        // Restore BEFORE fireKey — a shift/mode key relayouts, which rebuilds
+        // the cells this index points into.
+        endPressVis()
         if (press.accents.length > 0) {
           if (press.pick >= 0) {
             // Slid onto an accent and released — the mouse/VR-ray gesture.
@@ -981,6 +1012,7 @@ export function keyboard(
       // host took the capture away). End the caret drag too, or the spacebar stays
       // tinted and the next press resumes a gesture the user abandoned.
       clearTimer()
+      endPressVis()
       if (caretDrag) {
         spaceHint(false)
         caretDrag = null
