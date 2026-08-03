@@ -149,10 +149,10 @@ new width (so its height changes), and once the content is taller than the box i
 becomes a **scroll region** (spin the wheel). One box: resize, re-flow, scroll.
 
 ```js
-import { box, textBlock } from 'tosijs-3d'
+import { box, textBlock, iconGlyph } from 'tosijs-3d'
 import { svgElements, elements } from 'tosijs'
 
-const { svg, rect } = svgElements
+const { svg, rect, g } = svgElements
 const { div } = elements
 
 let W = 320
@@ -167,9 +167,18 @@ const panel = box(
 
 const host = svg({ width: 520, height: 340, style: 'touch-action:none' })
 host.append(panel.el)
-const grip = rect({ width: 16, height: 16, rx: 3, fill: '#5fb0ff', style: 'cursor:nwse-resize' })
+// The grip lives INSIDE the corner — the affordance is part of the box, not a
+// wart on it. An invisible pad gives it a finger-sized hit area; the visible
+// part is the resize glyph (the same icon set the rest of the UI draws from).
+const GRIP = 20
+const grip = g(
+  { style: 'cursor:nwse-resize' },
+  rect({ width: GRIP, height: GRIP, fill: '#fff', 'fill-opacity': 0, 'pointer-events': 'all' }),
+  iconGlyph('resize', { color: '#5fb0ff', size: 14, x: 3, y: 3 })
+)
 host.append(grip)
-const placeGrip = () => { grip.setAttribute('x', W - 8); grip.setAttribute('y', panel.viewportHeight - 8) }
+const placeGrip = () =>
+  grip.setAttribute('transform', `translate(${W - GRIP - 2} ${panel.viewportHeight - GRIP - 2})`)
 placeGrip()
 
 let drag = null

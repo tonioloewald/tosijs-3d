@@ -182,10 +182,10 @@ preview.append(
 <p>Drag the corner grip: <code>box.resize(w, h)</code> re-flows — the paragraph re-wraps to the
 new width (so its height changes), and once the content is taller than the box it
 becomes a <strong>scroll region</strong> (spin the wheel). One box: resize, re-flow, scroll.</p>
-<pre><code class="language-js">import { box, textBlock } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { box, textBlock, iconGlyph } from &#39;tosijs-3d&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 
-const { svg, rect } = svgElements
+const { svg, rect, g } = svgElements
 const { div } = elements
 
 let W = 320
@@ -200,9 +200,18 @@ const panel = box(
 
 const host = svg({ width: 520, height: 340, style: &#39;touch-action:none&#39; })
 host.append(panel.el)
-const grip = rect({ width: 16, height: 16, rx: 3, fill: &#39;#5fb0ff&#39;, style: &#39;cursor:nwse-resize&#39; })
+// The grip lives INSIDE the corner — the affordance is part of the box, not a
+// wart on it. An invisible pad gives it a finger-sized hit area; the visible
+// part is the resize glyph (the same icon set the rest of the UI draws from).
+const GRIP = 20
+const grip = g(
+  { style: &#39;cursor:nwse-resize&#39; },
+  rect({ width: GRIP, height: GRIP, fill: &#39;#fff&#39;, &#39;fill-opacity&#39;: 0, &#39;pointer-events&#39;: &#39;all&#39; }),
+  iconGlyph(&#39;resize&#39;, { color: &#39;#5fb0ff&#39;, size: 14, x: 3, y: 3 })
+)
 host.append(grip)
-const placeGrip = () =&gt; { grip.setAttribute(&#39;x&#39;, W - 8); grip.setAttribute(&#39;y&#39;, panel.viewportHeight - 8) }
+const placeGrip = () =&gt;
+  grip.setAttribute(&#39;transform&#39;, `translate(${W - GRIP - 2} ${panel.viewportHeight - GRIP - 2})`)
 placeGrip()
 
 let drag = null
