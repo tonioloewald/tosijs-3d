@@ -582,6 +582,17 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         if (h >= 0) applyState(h)
         return
       }
+      // SELF-HEAL: a down while a press is still outstanding means the previous
+      // up never arrived (scene-picked input can lose one). Tell the stale child
+      // its gesture is over and reset, then process this down normally — a lost
+      // up must cost nothing, not wedge the box in a phantom capture.
+      if (kind === 'down' && downTarget >= 0) {
+        children[downTarget].handlePointer?.('leave', 0, 0)
+        const was = pressedIdx
+        pressedIdx = -1
+        downTarget = -1
+        if (was >= 0) applyState(was)
+      }
       const hit = hitTest(x, y)
       // A child taking the pointer RAW owns the whole gesture: once pressed it keeps
       // move/up even off its own rect (a slider drag must survive slipping off the

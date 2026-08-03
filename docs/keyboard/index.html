@@ -229,6 +229,9 @@ const scene = b3d(
         if (!kind) return
         const pk = pi.pickInfo
         const onPlane = pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh
+        // Diagnostic tape for the lost-pointerup investigation — visible via
+        // the console (haltija reads it). Cheap; remove once the loss is found.
+        if (kind !== &#39;move&#39;) console.debug(&#39;[kb3d]&#39;, kind, &#39;onPlane=&#39; + !!onPlane, &#39;press=&#39; + panelPress)
         if (onPlane) {
           const uv = pk.getTextureCoordinates()
           if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)

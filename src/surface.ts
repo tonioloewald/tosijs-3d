@@ -391,6 +391,14 @@ export function surface(opts: { width: number; height: number }): Surface {
       return
     }
 
+    // SELF-HEAL: a down while a capture is outstanding means the previous up
+    // never arrived (scene-picked input can lose one). End the stale gesture
+    // properly before processing this down as a fresh press.
+    if (cap) {
+      if (!cap.drag) cap.p.box.handlePointer('leave', 0, 0)
+      cap = null
+    }
+
     // DOWN — menus (topmost cascade) first
     for (let i = menus.length - 1; i >= 0; i--) {
       const p = menus[i]

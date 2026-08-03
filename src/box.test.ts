@@ -278,3 +278,30 @@ describe('box — inner focus (composite children)', () => {
     expect(c.inner()).toBe(-1)
   })
 })
+
+describe('box — a lost up cannot wedge the box (self-heal on down)', () => {
+  test('a stale press is told "leave" and the new down proceeds normally', () => {
+    const events: string[] = []
+    const raw: import('./box').BoxChild = {
+      el: undefined as any,
+      kind: 'block',
+      measure: () => ({ height: 30 }),
+      handlePointer: (kind) => events.push(kind),
+    }
+    raw.el = mod.textBlock('slider').el
+    let clicked = 0
+    const b = mod.box(
+      { width: 200, gap: 8 },
+      raw,
+      mod.button('Go', { onActivate: () => clicked++ })
+    )
+    b.handlePointer('down', 100, 10) // press the raw child; the up is LOST
+    expect(events).toEqual(['down'])
+    // next click on the button: the stale capture must not swallow it
+    const r = b.childRect(1)!
+    b.handlePointer('down', 15, r.y + 5)
+    b.handlePointer('up', 15, r.y + 5)
+    expect(events).toContain('leave') // stale child was closed out
+    expect(clicked).toBe(1)
+  })
+})

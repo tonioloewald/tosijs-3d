@@ -576,3 +576,56 @@ describe('keyboard — pressed keys visibly press', () => {
     expect(downTint).toBe(false)
   })
 })
+
+describe('keyboard — a lost pointerup cannot wedge the board (self-heal on down)', () => {
+  test('an orphaned press: the NEXT down flushes it and works normally', () => {
+    const { kb, keys } = mk()
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y) // up never arrives (lost by the scene pick path)
+    const w = centre('alpha', false, 'w')
+    kb.handle!('down', w.x, w.y)
+    kb.handle!('up', w.x, w.y)
+    expect(keys).toEqual(['w']) // not eaten, not doubled
+    // and no key is left wearing the pressed tint
+    const stuck = Array.from(
+      kb.el.querySelectorAll('[data-key]') as NodeListOf<SVGGElement>
+    ).some(
+      (c) => (c.firstChild as SVGRectElement).getAttribute('fill') === '#3a4150'
+    )
+    expect(stuck).toBe(false)
+  })
+
+  test('an orphaned SPACE press that became a caret drag does NOT eat the next click', async () => {
+    // The mystifying "first click dead, second works": the orphaned drag made
+    // the next up read as "end of caret drag: type nothing".
+    const moves: number[] = []
+    const keys: string[] = []
+    const kb = K.keyboard({
+      holdMs: 5,
+      onKey: (c) => keys.push(c),
+      onAction: () => {},
+      onCaretMove: (d) => moves.push(d),
+    })
+    kb.layout(W)
+    const sp = centre('alpha', false, 'space')
+    kb.handle!('down', sp.x, sp.y)
+    await wait(20) // hold fires → caret-drag mode; the up is then LOST
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y)
+    kb.handle!('up', q.x, q.y)
+    expect(keys).toEqual(['q']) // the click types; it is not spent ending the drag
+  })
+
+  test('an orphaned accent hold: next down clears the abandoned strip', async () => {
+    const { kb, keys } = mk(5)
+    const o = centre('alpha', false, 'o')
+    kb.handle!('down', o.x, o.y)
+    await wait(20) // strip opens mid-press; the up is LOST (never sticky)
+    const q = centre('alpha', false, 'q')
+    kb.handle!('down', q.x, q.y)
+    kb.handle!('up', q.x, q.y)
+    expect(keys).toEqual(['q'])
+    const strip = kb.el.querySelector('[data-kb="popup"]') as SVGGElement
+    expect(strip.childNodes.length).toBe(0)
+  })
+})

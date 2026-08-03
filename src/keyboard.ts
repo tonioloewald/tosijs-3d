@@ -201,6 +201,9 @@ const scene = b3d(
         if (!kind) return
         const pk = pi.pickInfo
         const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
+        // Diagnostic tape for the lost-pointerup investigation — visible via
+        // the console (haltija reads it). Cheap; remove once the loss is found.
+        if (kind !== 'move') console.debug('[kb3d]', kind, 'onPlane=' + !!onPlane, 'press=' + panelPress)
         if (onPlane) {
           const uv = pk.getTextureCoordinates()
           if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
@@ -868,6 +871,25 @@ export function keyboard(
     },
     handle(kind: PointerKind, x: number, y: number) {
       if (kind === 'down') {
+        /*
+        SELF-HEAL FIRST: a fresh down while a gesture is still "live" means the
+        previous up never arrived (observed with scene-picked input — a lost up
+        left a key tinted, and worse, an orphaned SPACE press had become a caret
+        drag, so the NEXT click's up read as "end of drag: type nothing" — the
+        mystifying first-click-dead). Flush the stale gesture and process this
+        down normally, so a lost up costs nothing rather than wedging the board.
+        (`sticky` is not stale state — it is deliberately waiting for this tap.)
+        */
+        if (press || caretDrag) {
+          clearTimer()
+          endPressVis()
+          if (caretDrag) {
+            spaceHint(false)
+            caretDrag = null
+          }
+          closePopup()
+          press = null
+        }
         // A strip left open by a lifted finger takes the next tap, before any key
         // does — otherwise the accents would be sitting there un-tappable, with the
         // keys behind them stealing the press.
