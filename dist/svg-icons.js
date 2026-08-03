@@ -116,7 +116,7 @@ const plane = b3dSvgPlane({
   height: (2.4 * h) / w,
   resolution: 512,
   materialChannel: 'emissive',
-  pointerEvents: false,
+  pointerEvents: 'off',
 })
 plane.svgElement = sheet
 

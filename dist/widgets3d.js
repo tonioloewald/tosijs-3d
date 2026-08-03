@@ -172,7 +172,7 @@ preview.append(panel)
 // pointerEvents:false — we route picks ourselves below (the path proven to work
 // with controllers in immersive VR). This loop is a candidate to fold back into
 // b3dSvgPlane so every plane is VR-interactive without per-demo wiring.
-const plane = b3dSvgPlane({ width: 2.4, height: 2, resolution: 512, pointerEvents: false })
+const plane = b3dSvgPlane({ width: 2.4, height: 2, resolution: 512, pointerEvents: 'off' })
 plane.svgElement = panel
 
 const sceneEl = b3d(

@@ -91,7 +91,7 @@ const plane = b3dSvgPlane({
   height: (2.4 * H) / W,
   resolution: 512,
   materialChannel: 'emissive',
-  pointerEvents: false,
+  pointerEvents: 'off',
 })
 plane.svgElement = svgEl
 

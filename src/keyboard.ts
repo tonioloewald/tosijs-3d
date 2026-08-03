@@ -174,7 +174,7 @@ const at = (e) => { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x
 svgEl.addEventListener('pointerdown', (e) => { s.handlePointer('down', ...at(e)); svgEl.setPointerCapture(e.pointerId) })
 svgEl.addEventListener('pointermove', (e) => s.handlePointer('move', ...at(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...at(e)))
-const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: 'emissive', pointerEvents: false })
+const plane = b3dSvgPlane({ width: 2.2, height: (2.2 * H) / W, resolution: 1024, materialChannel: 'emissive', pointerEvents: 'off' })
 plane.svgElement = svgEl
 
 const scene = b3d(
@@ -201,9 +201,6 @@ const scene = b3d(
         if (!kind) return
         const pk = pi.pickInfo
         const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
-        // Diagnostic tape for the lost-pointerup investigation — visible via
-        // the console (haltija reads it). Cheap; remove once the loss is found.
-        if (kind !== 'move') console.debug('[kb3d]', kind, 'onPlane=' + !!onPlane, 'press=' + panelPress)
         if (onPlane) {
           const uv = pk.getTextureCoordinates()
           if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)

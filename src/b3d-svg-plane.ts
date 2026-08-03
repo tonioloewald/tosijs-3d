@@ -365,6 +365,9 @@ Set the `svgElement` property to a live SVG element for dynamic mode.
 
 import * as BABYLON from '@babylonjs/core'
 import { AbstractMesh, isOff } from './b3d-utils'
+
+/** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
+const SYNTHETIC_POINTER_ID = 0x53b3
 import { SvgTexture } from './svg-texture'
 import type { B3d } from './tosi-b3d'
 
@@ -591,7 +594,16 @@ export class B3dSvgPlane extends AbstractMesh {
         cancelable: true,
         clientX,
         clientY,
-        pointerId: (nativeEvt as any).pointerId ?? 1,
+        /*
+        A SYNTHETIC id, deliberately NOT the physical pointer's. Forwarding the
+        real id let any listener's `setPointerCapture(e.pointerId)` capture the
+        PHYSICAL mouse/ray to the SVG — after which the browser rerouted every
+        real move/up away from the canvas, Babylon saw downs with no ups, and
+        the whole pointer pipeline wedged (the lost-pointerup saga: stuck keys,
+        stale picks one click behind, first-click-dead). A capture on this id
+        throws NotFoundError instead — loud, and it can't steal the real stream.
+        */
+        pointerId: SYNTHETIC_POINTER_ID,
         pointerType: (nativeEvt as any).pointerType ?? 'mouse',
         buttons: nativeEvt.buttons,
       })

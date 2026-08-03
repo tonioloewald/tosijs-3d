@@ -599,3 +599,29 @@ If a third demo needs this, it's time to fold the whole block (pick routing + ca
 capture) into `b3dSvgPlane`/a `surfacePlane` helper instead of copying it.
 
 — from Tonio's on-device VR keyboard test
+
+## Coda: the lost-pointerup saga — root cause found
+
+The chain, in full, because each link is a lesson:
+
+1. The VR keyboard demo wrote `pointerEvents: false` — but the attribute is `'on' | 'off'`
+   (per the no-default-true-boolean rule), and **tosijs silently discards a wrong-typed
+   write** (filed as tosijs#24). Pick→DOM event forwarding stayed ON while everyone
+   believed it off.
+2. The forwarded events carried **the physical mouse's `pointerId`**, and bubbled into the
+   flat demo's listeners — whose standard `svgEl.setPointerCapture(e.pointerId)` then
+   captured the REAL mouse to the flat SVG mirror. From that moment the browser rerouted
+   every real move/up away from the canvas: Babylon saw downs and no ups.
+3. Downstream, one lost up wedged every routing layer (stuck tints, phantom captures, an
+   orphaned space-press eating the next click) — now moot, but the self-healing it forced
+   (down-flushes-stale-gesture at keyboard/box/surface) stays: it converts ANY future lost
+   up into a free recovery.
+
+Durable rules extracted: **synthetic events must never carry a real pointer's id** (a
+capture on them can hijack the physical stream — b3dSvgPlane now uses a reserved id);
+**"off" must be verified, not assumed** (read the prop back when a flag guards routing);
+and debugging order — when clicks vanish, tape the DOM layer FIRST (window-capture
+listeners showed the up's true target in one probe, after days of plausible theories
+above it).
+
+— diagnosed with Tonio's console tape + live-page event taps, 2026-08-03

@@ -87,7 +87,7 @@ const toXY = (e) => { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p
 svgEl.addEventListener('pointerdown', (e) => s.handlePointer('down', ...toXY(e)))
 svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...toXY(e)))
 
-const plane = b3dSvgPlane({ width: 2.6, height: (2.6*H)/W, resolution: 640, materialChannel: 'emissive', pointerEvents: false })
+const plane = b3dSvgPlane({ width: 2.6, height: (2.6*H)/W, resolution: 640, materialChannel: 'emissive', pointerEvents: 'off' })
 plane.svgElement = svgEl // the same element the DOM shows — cloned each frame → in sync
 
 const scene = b3d(
