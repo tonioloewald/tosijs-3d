@@ -73,12 +73,14 @@ const DIRS = [
  *
  * Exported so the ramp can be tested without a gamepad, a clock, or a DOM.
  */
-export function createFocusPulse(opts: {
-  /** ms a direction must be held before it starts repeating. Default 400. */
-  repeatDelayMs?: number
-  /** ms between repeats once started. Default 90. */
-  repeatRateMs?: number
-} = {}) {
+export function createFocusPulse(
+  opts: {
+    /** ms a direction must be held before it starts repeating. Default 400. */
+    repeatDelayMs?: number
+    /** ms between repeats once started. Default 90. */
+    repeatRateMs?: number
+  } = {}
+) {
   const DELAY = opts.repeatDelayMs ?? 400
   const RATE = opts.repeatRateMs ?? 90
   // Per-direction: when it went down, and when it last fired.

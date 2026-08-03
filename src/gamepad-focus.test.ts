@@ -3,7 +3,7 @@ import { createFocusPulse } from './gamepad-focus'
 import { emptyGamepad } from './virtual-gamepad'
 
 const pad = (over: Record<string, unknown> = {}) =>
-  ({ ...emptyGamepad(), ...over }) as any
+  ({ ...emptyGamepad(), ...over } as any)
 
 describe('createFocusPulse — edge detection', () => {
   test('a press fires once, not every frame it is held', () => {

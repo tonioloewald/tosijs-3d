@@ -396,7 +396,7 @@ export function inputField(
       focused = true
       change(editMoveCaret(state, delta))
     },
-    focusMove(dx: number, dy: number) {
+    focusMove(dx: number, _dy: number) {
       if (dx === 0) return false // vertical → let focus leave the field
       focused = true
       change(editMoveCaret(state, dx > 0 ? 1 : -1))

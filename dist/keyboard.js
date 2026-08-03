@@ -333,7 +333,7 @@ export function inputField(config = {}) {
             focused = true;
             change(editMoveCaret(state, delta));
         },
-        focusMove(dx, dy) {
+        focusMove(dx, _dy) {
             if (dx === 0)
                 return false; // vertical → let focus leave the field
             focused = true;

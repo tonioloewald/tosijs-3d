@@ -38,7 +38,10 @@ describe('keyLayout — modes', () => {
     const rows = keyLayout('numpad')
     expect(rows.length).toBe(4)
     // digits present, and nothing alphabetic beyond the way back to letters
-    const vals = rows.flat().map((k) => k.value).filter(Boolean)
+    const vals = rows
+      .flat()
+      .map((k) => k.value)
+      .filter(Boolean)
     for (const d of '0123456789') expect(vals).toContain(d)
     expect(vals.some((v) => /^[a-z]$/.test(v!))).toBe(false)
   })
@@ -52,7 +55,15 @@ describe('keyLayout — modes', () => {
   })
 
   test('every mode offers backspace', () => {
-    for (const m of ['alpha', 'alphanumeric', 'symbols', 'numpad', 'dial', 'email', 'url'] as const) {
+    for (const m of [
+      'alpha',
+      'alphanumeric',
+      'symbols',
+      'numpad',
+      'dial',
+      'email',
+      'url',
+    ] as const) {
       const has = keyLayout(m)
         .flat()
         .some((k) => k.action === 'backspace')
@@ -75,20 +86,26 @@ describe('keyLayout — grid pads align', () => {
     })
 
     test(`${mode}: has backspace AND enter`, () => {
-      const acts = keyLayout(mode).flat().map((k) => k.action)
+      const acts = keyLayout(mode)
+        .flat()
+        .map((k) => k.action)
       expect(acts).toContain('backspace')
       expect(acts).toContain('enter')
     })
   }
 
   test('dial carries the phone glyphs * and #', () => {
-    const vals = keyLayout('dial').flat().map((k) => k.value)
+    const vals = keyLayout('dial')
+      .flat()
+      .map((k) => k.value)
     expect(vals).toContain('*')
     expect(vals).toContain('#')
   })
 
   test('numpad carries a minus and a decimal point (coordinates, not just counts)', () => {
-    const vals = keyLayout('numpad').flat().map((k) => k.value)
+    const vals = keyLayout('numpad')
+      .flat()
+      .map((k) => k.value)
     expect(vals).toContain('-')
     expect(vals).toContain('.')
   })
@@ -104,7 +121,9 @@ describe('keyLayout — email', () => {
 
   test('the spacebar SHRINKS — an address has no spaces', () => {
     const emailSpace = flat().find((k) => k.action === 'space')!
-    const alphaSpace = keyLayout('alpha').flat().find((k) => k.action === 'space')!
+    const alphaSpace = keyLayout('alpha')
+      .flat()
+      .find((k) => k.action === 'space')!
     expect(emailSpace.width!).toBeLessThan(alphaSpace.width!)
   })
 
@@ -128,7 +147,9 @@ describe('keyLayout — url', () => {
 
   test('shrinks the spacebar, like email — a URL has no spaces either', () => {
     const urlSpace = flat().find((k) => k.action === 'space')!
-    const alphaSpace = keyLayout('alpha').flat().find((k) => k.action === 'space')!
+    const alphaSpace = keyLayout('alpha')
+      .flat()
+      .find((k) => k.action === 'space')!
     expect(urlSpace.width!).toBeLessThan(alphaSpace.width!)
   })
 })
