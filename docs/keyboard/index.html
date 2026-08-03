@@ -216,14 +216,33 @@ const scene = b3d(
       // Mouse AND XR controller picks arrive here identically — texture UV → surface
       // coords → the same handlePointer the flat overlay calls.
       const T = el.BABYLON.PointerEventTypes
+      // A press that started ON the panel. Two consequences, both load-bearing:
+      // the camera&#39;s orbit control is detached for the gesture (a press on UI is
+      // a click/drag, not an orbit — otherwise the camera eats the drag, the view
+      // rotates, the up&#39;s pick MISSES the plane, the surface never hears it, and
+      // the pressed key sticks while every later drag just orbits), and an up
+      // that lands off the plane still ENDS the gesture — capture semantics, the
+      // same contract the flat overlay gets from setPointerCapture.
+      let panelPress = false
       el.scene.onPointerObservable.add((pi) =&gt; {
         const kind = pi.type === T.POINTERDOWN ? &#39;down&#39; : pi.type === T.POINTERUP ? &#39;up&#39; : pi.type === T.POINTERMOVE ? &#39;move&#39; : &#39;&#39;
         if (!kind) return
         const pk = pi.pickInfo
-        if (pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh) {
+        const onPlane = pk &amp;&amp; pk.hit &amp;&amp; pk.pickedMesh === plane.mesh
+        if (onPlane) {
           const uv = pk.getTextureCoordinates()
           if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        } else if (kind === &#39;move&#39;) s.handlePointer(&#39;leave&#39;, 0, 0)
+        }
+        if (kind === &#39;down&#39; &amp;&amp; onPlane) {
+          panelPress = true
+          cam.detachControl()
+        } else if (kind === &#39;up&#39; &amp;&amp; panelPress) {
+          if (!onPlane) s.handlePointer(&#39;leave&#39;, 0, 0)
+          panelPress = false
+          cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+        } else if (kind === &#39;move&#39; &amp;&amp; !onPlane &amp;&amp; !panelPress) {
+          s.handlePointer(&#39;leave&#39;, 0, 0) // hover left the panel; a live gesture is kept
+        }
       })
     },
   },

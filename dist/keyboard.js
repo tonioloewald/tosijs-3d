@@ -188,14 +188,33 @@ const scene = b3d(
       // Mouse AND XR controller picks arrive here identically — texture UV → surface
       // coords → the same handlePointer the flat overlay calls.
       const T = el.BABYLON.PointerEventTypes
+      // A press that started ON the panel. Two consequences, both load-bearing:
+      // the camera's orbit control is detached for the gesture (a press on UI is
+      // a click/drag, not an orbit — otherwise the camera eats the drag, the view
+      // rotates, the up's pick MISSES the plane, the surface never hears it, and
+      // the pressed key sticks while every later drag just orbits), and an up
+      // that lands off the plane still ENDS the gesture — capture semantics, the
+      // same contract the flat overlay gets from setPointerCapture.
+      let panelPress = false
       el.scene.onPointerObservable.add((pi) => {
         const kind = pi.type === T.POINTERDOWN ? 'down' : pi.type === T.POINTERUP ? 'up' : pi.type === T.POINTERMOVE ? 'move' : ''
         if (!kind) return
         const pk = pi.pickInfo
-        if (pk && pk.hit && pk.pickedMesh === plane.mesh) {
+        const onPlane = pk && pk.hit && pk.pickedMesh === plane.mesh
+        if (onPlane) {
           const uv = pk.getTextureCoordinates()
           if (uv) s.handlePointer(kind, uv.x * W, (1 - uv.y) * H)
-        } else if (kind === 'move') s.handlePointer('leave', 0, 0)
+        }
+        if (kind === 'down' && onPlane) {
+          panelPress = true
+          cam.detachControl()
+        } else if (kind === 'up' && panelPress) {
+          if (!onPlane) s.handlePointer('leave', 0, 0)
+          panelPress = false
+          cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+        } else if (kind === 'move' && !onPlane && !panelPress) {
+          s.handlePointer('leave', 0, 0) // hover left the panel; a live gesture is kept
+        }
       })
     },
   },

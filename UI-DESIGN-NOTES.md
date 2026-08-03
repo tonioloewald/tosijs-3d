@@ -578,3 +578,24 @@ which one is live). And the host box reflects focus INTO widgets via `setState` 
 own taps can only ever turn its focus ON; only the host knows when focus comes back.
 
 — from Tonio's on-device keyboard test (drag-selects-text, eaten accent tap, whole-keyboard ring)
+
+## A scene-picked surface needs capture semantics — and the camera must yield
+
+Routing scene picks (texture UV → `surface.handlePointer`) is not enough to host UI on a
+plane. Two things the flat overlay gets for free must be reproduced by hand:
+
+1. **The camera yields during a UI press.** With an orbit camera attached, a press on the
+   panel starts BOTH a UI gesture and an orbit — the view rotates out from under the pointer,
+   the up's pick misses the plane, and the surface never hears the release. Detach the camera
+   control on a panel-press, reattach on release. (Symptom on device: "click a key and it
+   just orbits, key stays stuck".)
+2. **An up that lands off the plane still ends the gesture.** The flat overlay gets this from
+   `setPointerCapture`; the scene path must send `leave`/`up` itself or the pressed child is
+   captured forever. Same family as `BoxChild.handlePointer` capture and the accent strip's
+   stay-in-rect rule: every pointer contract the DOM gives you for free has to be restated
+   once input arrives via picking.
+
+If a third demo needs this, it's time to fold the whole block (pick routing + camera yield +
+capture) into `b3dSvgPlane`/a `surfacePlane` helper instead of copying it.
+
+— from Tonio's on-device VR keyboard test
