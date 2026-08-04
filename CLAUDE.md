@@ -242,6 +242,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/control-input.ts` | `ControlInput` interface, `InputProvider`, `CompositeInputProvider` |
 | `src/b3d-controllable.ts` | Base class for input-driven entities (biped, car, aircraft) |
 | `src/b3d-controller.ts` | `<tosi-b3d-controller>` / `b3dController()` — casual bodyless controllable; self-wires the full input stack, hands merged input to a `drive(input, dt)` callback |
+| `src/gamepad-focus.ts` | `gamepadFocus` — D-pad/menu → `focusMove`/`focusActivate` on a box/surface (edge-triggered + typematic repeat, pure `createFocusPulse`); `claim` scopes one pad to the last-touched UI |
 | `src/b3d-input-focus.ts` | Input routing and vehicle enter/exit mechanics |
 | `src/virtual-gamepad.ts` | `VirtualGamepad` — unified gamepad abstraction (sticks, buttons, triggers) |
 | `src/keyboard-gamepad.ts` | Keyboard/mouse → VirtualGamepad mapping |
