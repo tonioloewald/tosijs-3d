@@ -253,3 +253,54 @@ describe('gamepadFocus — claim (one pad, several UIs)', () => {
     elB.remove()
   })
 })
+
+describe('gamepadFocus — a claimless instance is not starved forever', () => {
+  test('clicking OUTSIDE the claimed element releases the pad to everyone', async () => {
+    const win = await (async () => {
+      const { Window } = await import('happy-dom')
+      const w = new Window() as any
+      const g = globalThis as any
+      g.window ??= w
+      return (globalThis as any).window
+    })()
+    const { gamepadFocus } = await import('./gamepad-focus')
+    const doc = win.document
+    const elA = doc.createElement('div')
+    const outside = doc.createElement('div')
+    doc.body.append(elA, outside)
+    let state = pad()
+    const moved: string[] = []
+    const t = (name: string) => ({
+      focusMove: () => moved.push(name),
+      focusActivate: () => {},
+    })
+    let cbs: Array<() => void> = []
+    const p = {
+      raf: (cb: () => void) => (cbs.push(cb), cbs.length),
+      cancel: () => {},
+      step: () => {
+        const run = cbs
+        cbs = []
+        run.forEach((f) => f())
+      },
+    }
+    const stopA = gamepadFocus({ poll: () => state, target: t('A'), claim: elA, raf: p.raf, cancel: p.cancel })
+    const stopB = gamepadFocus({ poll: () => state, target: t('B'), raf: p.raf, cancel: p.cancel }) // NO claim
+    elA.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
+    state = pad({ dpadRight: true })
+    p.step()
+    expect(moved).toEqual(['A']) // A claimed: B silent (correct while claimed)
+    state = pad()
+    p.step()
+    // rc.1-rc.3: B was starved FOREVER here — it registers no claim element, so
+    // no click could ever route the pad back. Now a press outside A releases.
+    outside.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
+    state = pad({ dpadRight: true })
+    p.step()
+    expect(moved).toContain('B')
+    stopA()
+    stopB()
+    elA.remove()
+    outside.remove()
+  })
+})

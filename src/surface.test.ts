@@ -160,3 +160,32 @@ describe('surface — a menu leaf select must not destroy persistent panels (rc.
     expect(s.popups).toEqual([])
   })
 })
+
+describe('surface — interactiveAt', () => {
+  test('popups count wholesale; content delegates to the box', async () => {
+    const S = await import('./surface')
+    const B = await import('./box')
+    const s = S.surface({ width: 300, height: 260 })
+    s.setContent(
+      B.box(
+        { width: 300, height: 260, padding: 10, gap: 8 },
+        B.textBlock('static prose'),
+        B.button('Go')
+      )
+    )
+    const btn = s.popups.length ? null : null
+    // content: prose no, button yes
+    expect(s.interactiveAt(15, 15)).toBe(false)
+    const content = (s as any) // button position via the content box
+    void content
+    // a panel claims anywhere in its rect (title bar drags, × closes)
+    const p = s.openPanel(
+      { x: 150, y: 100 },
+      B.box({ width: 100, padding: 8 }, B.textBlock('panel prose'))
+    )
+    expect(s.interactiveAt(160, 110)).toBe(true)
+    s.closePopup(p)
+    expect(s.interactiveAt(160, 110)).toBe(false)
+    void btn
+  })
+})

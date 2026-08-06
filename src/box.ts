@@ -379,6 +379,14 @@ export interface Box {
    * child activates it; a pressed child captures until `up`.
    */
   handlePointer: (kind: PointerKind, x: number, y: number) => void
+  /**
+   * Is (x, y) over an INTERACTIVE child (vs static text / dead space)? Hosts
+   * use it to decide gesture policy — `panelScene`'s default claim asks this,
+   * so pressing a button claims the gesture while pressing prose orbits the
+   * camera (Tonio's cross-demo report: which parts orbit must not depend on
+   * which demo you're in).
+   */
+  interactiveAt: (x: number, y: number) => boolean
   /** Move focus to the nearest focusable child in a cardinal direction (D-pad). */
   focusMove: (dx: number, dy: number) => void
   /** Activate the focused child (menu button / Enter). */
@@ -663,6 +671,17 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         children[downTarget]?.handlePointer
           ? downTarget
           : -1
+      // Hover bookkeeping runs for EVERY un-captured move — the raw-child path
+      // below returns early, and skipping this left the previous child wearing
+      // its hover tint forever (in VR that highlight IS the pointer feedback).
+      // During a captured drag hover is frozen deliberately: the gesture owns
+      // the pointer, and flicking highlights under a drag reads as noise.
+      if (kind === 'move' && captured < 0 && hit !== hoverIdx) {
+        const old = hoverIdx
+        hoverIdx = hit
+        if (old >= 0) applyState(old)
+        if (hit >= 0) applyState(hit)
+      }
       const raw =
         captured >= 0
           ? captured
@@ -697,13 +716,6 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
           pressedIdx = hit
           applyState(hit)
         }
-      } else if (kind === 'move') {
-        if (hit !== hoverIdx) {
-          const old = hoverIdx
-          hoverIdx = hit
-          if (old >= 0) applyState(old)
-          if (hit >= 0) applyState(hit)
-        }
       } else if (kind === 'up') {
         const p = pressedIdx
         pressedIdx = -1
@@ -719,6 +731,9 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
         }
         downTarget = -1
       }
+    },
+    interactiveAt(x: number, y: number) {
+      return hitTest(x, y) >= 0
     },
     focusMove(dx: number, dy: number) {
       const old = focused

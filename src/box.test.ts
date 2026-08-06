@@ -305,3 +305,39 @@ describe('box — a lost up cannot wedge the box (self-heal on down)', () => {
     expect(clicked).toBe(1)
   })
 })
+
+describe('box — interactiveAt (the gesture-policy hit test)', () => {
+  test('true over a button, false over prose and dead space', () => {
+    const b = mod.box(
+      { width: 200, padding: 10, gap: 8 },
+      mod.textBlock('a paragraph of static prose'),
+      mod.button('Go')
+    )
+    const btn = b.childRect(1)!
+    expect(b.interactiveAt(btn.x + 5, btn.y + 5)).toBe(true)
+    const txt = b.childRect(0)!
+    expect(b.interactiveAt(txt.x + 5, txt.y + 5)).toBe(false)
+    expect(b.interactiveAt(199, 1)).toBe(false) // padding / dead space
+  })
+})
+
+describe('box — hover is maintained across raw children (the VR feedback fix)', () => {
+  test('moving off a raw child clears its hover state', () => {
+    const states: boolean[] = []
+    const raw: import('./box').BoxChild = {
+      el: undefined as any,
+      kind: 'block',
+      measure: () => ({ height: 30 }),
+      handlePointer: () => {},
+      setState: (s) => states.push(s.hovered),
+    }
+    raw.el = mod.textBlock('slider').el
+    const b = mod.box({ width: 200, gap: 8 }, raw, mod.button('Go'))
+    b.handlePointer('move', 100, 10) // over the raw child → hovered
+    expect(states[states.length - 1]).toBe(true)
+    const btn = b.childRect(1)!
+    b.handlePointer('move', 100, btn.y + 5) // moved onto the button
+    // the raw child was told it is no longer hovered — rc.1 left it stuck
+    expect(states[states.length - 1]).toBe(false)
+  })
+})

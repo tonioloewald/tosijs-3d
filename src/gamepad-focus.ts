@@ -167,6 +167,12 @@ export function gamepadFocus(opts: {
   if (opts.claim) {
     onDown = (e: Event) => {
       if (opts.claim!.contains(e.target as Node)) claimed = token
+      // A press OUTSIDE our claim releases it (owner-only, so instances don't
+      // race). Without this, an instance created WITHOUT `claim` on the same
+      // page was starved forever: it registers no claim element, so no click
+      // could ever route the pad back to it. Click-away → unclaimed → every
+      // instance responds again, which is also the lone-UI default.
+      else if (claimed === token) claimed = null
     }
     window.addEventListener('pointerdown', onDown, true)
   }

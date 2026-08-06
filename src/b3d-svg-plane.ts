@@ -676,11 +676,15 @@ export function panelScene(opts: {
       x: number,
       y: number
     ) => void
+    /** If present (box/surface have it), the DEFAULT claim policy asks it. */
+    interactiveAt?: (x: number, y: number) => boolean
   }
   /**
    * Given viewBox coords of a down on the plane: does the UI claim the gesture
-   * (camera yields, moves ride the catcher)? Default: every panel press is UI.
-   * A resize grip passes its hit-test here so panel-body drags still orbit.
+   * (camera yields, moves ride the catcher)? Default: ask the target's
+   * `interactiveAt` — a press on a button/panel claims, a press on static
+   * prose orbits — falling back to claim-everything for targets without it.
+   * A resize grip passes its own hit-test here instead.
    */
   claim?: (x: number, y: number) => boolean
   /** World width of the plane; height follows the svg's aspect. Default 2.4. */
@@ -788,7 +792,11 @@ export function panelScene(opts: {
           sy = (1 - uv.y) * vb.h
         }
       }
-      if (kind === 'down' && onPlane && (opts.claim?.(sx, sy) ?? true)) {
+      const claims =
+        opts.claim ??
+        opts.target.interactiveAt?.bind(opts.target) ??
+        (() => true)
+      if (kind === 'down' && onPlane && claims(sx, sy)) {
         const vb = viewBox()
         const mesh = plane.mesh!
         mesh.computeWorldMatrix(true)
