@@ -147,7 +147,7 @@ let claimed: object | null = null
  * UIs: a pointerdown inside `claim` routes the pad here until another instance is
  * claimed. Omit it for a lone UI.
  */
-export function gamepadFocus(opts: {
+export interface GamepadFocusOptions {
   poll: () => VirtualGamepad
   target: FocusTarget
   /** Root element that claims the pad when the pointer goes down inside it. */
@@ -157,7 +157,9 @@ export function gamepadFocus(opts: {
   /** Override the frame pump (tests, or an XR session's own rAF). */
   raf?: (cb: () => void) => number
   cancel?: (id: number) => void
-}): () => void {
+}
+
+export function gamepadFocus(opts: GamepadFocusOptions): () => void {
   const pulse = createFocusPulse(opts)
   const raf =
     opts.raf ?? ((cb: () => void) => requestAnimationFrame(() => cb()))

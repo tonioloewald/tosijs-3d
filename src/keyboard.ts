@@ -335,20 +335,20 @@ export interface InputField extends Widget3d {
   onChange?: (value: string) => void
 }
 
-export function inputField(
-  config: {
-    value?: string
-    placeholder?: string
-    fontSize?: number
-    height?: number
-    onChange?: (value: string) => void
-    onEnter?: (value: string) => void
-    /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
-     * — the host's hook for exclusivity (dim the others) and for summoning the
-     * keyboard overlay. */
-    onFocus?: () => void
-  } = {}
-): InputField {
+export interface InputFieldOptions {
+  value?: string
+  placeholder?: string
+  fontSize?: number
+  height?: number
+  onChange?: (value: string) => void
+  onEnter?: (value: string) => void
+  /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
+   * — the host's hook for exclusivity (dim the others) and for summoning the
+   * keyboard overlay. */
+  onFocus?: () => void
+}
+
+export function inputField(config: InputFieldOptions = {}): InputField {
   const H = config.height ?? 40
   const SIZE = config.fontSize ?? 16
   const PAD = 10
@@ -540,26 +540,26 @@ export interface Keyboard extends Widget3d {
   focusClear: () => void
 }
 
-export function keyboard(
-  config: {
-    mode?: KeyboardMode
-    keyHeight?: number
-    gap?: number
-    /** ms to hold before the accent popup opens — and before the spacebar becomes a
-     * caret trackpad. */
-    holdMs?: number
-    /**
-     * Px of travel per caret step once the **spacebar has become a trackpad** (hold
-     * it, then slide). Default 12 — about a character width, so the caret tracks
-     * your finger instead of racing it.
-     */
-    caretStepPx?: number
-    onKey?: (text: string) => void
-    onAction?: (action: KeyAction) => void
-    /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
-    onCaretMove?: (delta: number) => void
-  } = {}
-): Keyboard {
+export interface KeyboardOptions {
+  mode?: KeyboardMode
+  keyHeight?: number
+  gap?: number
+  /** ms to hold before the accent popup opens — and before the spacebar becomes a
+   * caret trackpad. */
+  holdMs?: number
+  /**
+   * Px of travel per caret step once the **spacebar has become a trackpad** (hold
+   * it, then slide). Default 12 — about a character width, so the caret tracks
+   * your finger instead of racing it.
+   */
+  caretStepPx?: number
+  onKey?: (text: string) => void
+  onAction?: (action: KeyAction) => void
+  /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
+  onCaretMove?: (delta: number) => void
+}
+
+export function keyboard(config: KeyboardOptions = {}): Keyboard {
   const KH = config.keyHeight ?? 38
   const GAP = config.gap ?? 5
   const HOLD = config.holdMs ?? 350

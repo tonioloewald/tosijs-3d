@@ -9,6 +9,14 @@ DOM **and** on a 3D texture, so we don't reinvent HTML on a plane).
 
 The model, deliberately just HTML's flow — no flexbox, no bidi, no kerning:
 
+Beyond the flow itself, two spatial helpers live here (same purity): 
+**`nearestInDirection`** — given laid-out boxes, the best next focus target in a
+cardinal direction (the D-pad geometry `box.focusMove` and the keyboard's inner
+traversal use), and **`placePopup`** — position a popup near its anchor,
+**flipping** to the other side rather than overflowing and clamping into the
+surface (what lets a cascade submenu open beside its parent and flip near an
+edge).
+
 - a **block** takes the full content width and a known height; blocks stack
   top-to-bottom.
 - an **inline** item has a known width × height; inline items flow left-to-right

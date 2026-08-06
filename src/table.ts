@@ -182,7 +182,7 @@ export interface Table extends Widget3d {
   focusClear: () => void
 }
 
-export function table(config: {
+export interface TableOptions {
   rows: TableRow[]
   columns: ColumnSpec[]
   /** Body height in px (the header sits above it). */
@@ -197,7 +197,9 @@ export function table(config: {
   onSelect?: (ids: string[]) => void
   /** Row activated (a second click / Enter) — distinct from selecting it. */
   onActivate?: (row: TableRow) => void
-}): Table {
+}
+
+export function table(config: TableOptions): Table {
   const ROW_H = config.rowHeight ?? 28
   const HEAD_H = config.headerHeight ?? 26
   const BODY_H = config.height ?? 180

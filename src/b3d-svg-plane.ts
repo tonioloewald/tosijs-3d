@@ -769,7 +769,7 @@ export function panelGesture(
   return { active, actions }
 }
 
-export function panelScene(opts: {
+export interface PanelSceneOptions {
   /** The live svg shown flat — the SAME element becomes the plane's texture. */
   svg: SVGSVGElement
   /** Where events land: a `surface`, `box`, or anything with `handlePointer`. */
@@ -802,7 +802,12 @@ export function panelScene(opts: {
   updateInterval?: number
   /** Orbit camera placement overrides. */
   camera?: { alpha?: number; beta?: number; radius?: number }
-}): { plane: B3dSvgPlane; sceneCreated: (el: B3d) => void } {
+}
+
+export function panelScene(opts: PanelSceneOptions): {
+  plane: B3dSvgPlane
+  sceneCreated: (el: B3d) => void
+} {
   const width = opts.width ?? 2.4
   const vb0 = opts.svg.viewBox?.baseVal
   const aspect = vb0 && vb0.width > 0 ? vb0.height / vb0.width : 1

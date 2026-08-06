@@ -294,6 +294,12 @@ export type { StackLayout, FontSpec } from './widgets3d-layout'
 export { SvgTexture } from './svg-texture'
 export type { SvgTextureOptions } from './svg-texture'
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane'
+export type {
+  PanelSceneOptions,
+  PanelGestureEvent,
+  PanelGestureAction,
+} from './b3d-svg-plane'
+export { panelGesture, uvToViewBox, planeLocalToViewBox } from './b3d-svg-plane'
 
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
 export {
@@ -441,8 +447,17 @@ export type { Surface, Popup, MenuItem } from './surface'
 export type { EditState } from './text-edit'
 export type { SelectionMode } from './selection'
 export type { ColumnSpec, ColumnRect, RowWindow } from './table-layout'
-export type { FocusTarget, FocusPulse } from './gamepad-focus'
-export type { Keyboard, InputField } from './keyboard'
+export type {
+  FocusTarget,
+  FocusPulse,
+  GamepadFocusOptions,
+} from './gamepad-focus'
+export type {
+  Keyboard,
+  InputField,
+  KeyboardOptions,
+  InputFieldOptions,
+} from './keyboard'
 export type { KeyboardMode, KeyAction, KeyDef, KeyRect } from './key-layout'
 
 // Effects & interaction
@@ -560,4 +575,4 @@ export type {
 } from './ballistics'
 
 // Data table types (the value lives at ui.table)
-export type { Table, TableRow } from './table'
+export type { Table, TableRow, TableOptions } from './table'

@@ -91,6 +91,10 @@ controller ray. No peer-dependency changes.
 
 ### Changed
 
+- **⚠️ `B3d.onResize()` / `B3dHud.onResize()` → `handleResize()`.** The `on*`
+  prefix is reserved for the element-creator's event-listener sugar (see the
+  CLAUDE.md footgun note), so the public method was renamed. A consumer calling
+  `b3d.onResize()` from 0.5.x must call `handleResize()`.
 - **`b3dSvgPlane`** routes the texture's alpha to the mesh (`opacityTexture`) —
   transparent svg regions (outside rounded corners) are transparent on the plane,
   not an opaque black substrate.
