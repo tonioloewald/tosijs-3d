@@ -666,6 +666,98 @@ export const b3dSvgPlane = B3dSvgPlane.elementCreator({
  * The svg's viewBox is re-read per event, so an svg that resizes (hugging its
  * content) keeps mapping correctly.
  */
+// ---------------------------------------------------------------------------
+// The panelScene gesture contract, as PURE data-in/actions-out functions — the
+// review found the release's headline interaction feature shipped with zero
+// coverage, and the fix is this repo's standard move: isolate the computation
+// (mapping math + the claim/route/begin/end policy) from Babylon so it can be
+// pinned by unit tests, and keep the scene shell thin.
+// ---------------------------------------------------------------------------
+
+/** uv (Babylon, origin bottom-left) → viewBox coords (origin top-left). */
+export function uvToViewBox(
+  uv: { x: number; y: number },
+  vbW: number,
+  vbH: number
+): { x: number; y: number } {
+  return { x: uv.x * vbW, y: (1 - uv.y) * vbH }
+}
+
+/**
+ * A point in the GESTURE-START plane frame (world point already transformed by
+ * the frozen inverse world matrix) → viewBox coords. The plane is `planeW` ×
+ * `planeH` world units centred on its origin; viewBox y grows downward.
+ */
+export function planeLocalToViewBox(
+  local: { x: number; y: number },
+  planeW: number,
+  planeH: number,
+  vbW: number,
+  vbH: number
+): { x: number; y: number } {
+  return {
+    x: (local.x / planeW + 0.5) * vbW,
+    y: (0.5 - local.y / planeH) * vbH,
+  }
+}
+
+/** One pointer event, reduced to what the gesture policy needs. */
+export interface PanelGestureEvent {
+  kind: 'down' | 'move' | 'up'
+  /** The pick landed on the panel plane (with `x`/`y` in viewBox coords). */
+  onPlane: boolean
+  x?: number
+  y?: number
+  /** While a gesture is ACTIVE: the ray∩catcher point in gesture-start viewBox
+   * coords, or null if the ray missed the catcher entirely. */
+  catcher?: { x: number; y: number } | null
+  /** For a down on the plane: does the claim policy take it? */
+  claims?: boolean
+}
+
+export type PanelGestureAction =
+  | { do: 'route'; kind: 'down' | 'move' | 'up' | 'leave'; x: number; y: number }
+  | { do: 'begin' } // freeze the frame, enable the catcher, camera yields
+  | { do: 'end' } // catcher off, camera resumes
+
+/**
+ * The gesture policy, pure: `active` is the only state; the shell executes the
+ * returned actions in order. Pinned behaviours (each burned us on device):
+ * routed moves/ups ride the catcher (never the live mesh, never screen
+ * coordinates); an up that missed the catcher still ends the gesture with
+ * `leave`; an unclaimed press routes but never yields the camera; a move
+ * off-plane with no gesture is a hover `leave`.
+ */
+export function panelGesture(
+  active: boolean,
+  ev: PanelGestureEvent
+): { active: boolean; actions: PanelGestureAction[] } {
+  const actions: PanelGestureAction[] = []
+  if (active && (ev.kind === 'move' || ev.kind === 'up')) {
+    if (ev.catcher) {
+      actions.push({ do: 'route', kind: ev.kind, x: ev.catcher.x, y: ev.catcher.y })
+    } else if (ev.kind === 'up') {
+      actions.push({ do: 'route', kind: 'leave', x: 0, y: 0 })
+    }
+    if (ev.kind === 'up') {
+      actions.push({ do: 'end' })
+      return { active: false, actions }
+    }
+    return { active: true, actions }
+  }
+  if (ev.onPlane) {
+    if (ev.kind === 'down' && ev.claims) {
+      actions.push({ do: 'begin' })
+      actions.push({ do: 'route', kind: 'down', x: ev.x!, y: ev.y! })
+      return { active: true, actions }
+    }
+    actions.push({ do: 'route', kind: ev.kind, x: ev.x!, y: ev.y! })
+    return { active, actions }
+  }
+  if (ev.kind === 'move') actions.push({ do: 'route', kind: 'leave', x: 0, y: 0 })
+  return { active, actions }
+}
+
 export function panelScene(opts: {
   /** The live svg shown flat — the SAME element becomes the plane's texture. */
   svg: SVGSVGElement
@@ -743,6 +835,11 @@ export function panelScene(opts: {
     let gesture: { vbW: number; vbH: number; inv: BABYLON.Matrix } | null = null
 
     const T = BABYLON.PointerEventTypes
+    const claims =
+      opts.claim ??
+      opts.target.interactiveAt?.bind(opts.target) ??
+      (() => true)
+    let active = false
     el.scene.onPointerObservable.add((pi) => {
       const kind =
         pi.type === T.POINTERDOWN
@@ -755,68 +852,79 @@ export function panelScene(opts: {
       if (!kind) return
       const pk = pi.pickInfo
 
-      if (gesture && (kind === 'move' || kind === 'up')) {
+      // Assemble the pure event: pick data → viewBox coords (the policy itself
+      // is panelGesture — pure and unit-tested; this shell only touches Babylon).
+      const ev: PanelGestureEvent = { kind, onPlane: false }
+      if (active && (kind === 'move' || kind === 'up')) {
         // Ray → catcher → the gesture-start frame. pickInfo.ray is the mouse
         // ray flat and the controller ray in XR — one code path for both.
         const ray = pk?.ray
         const hit = ray ? ray.intersectsMesh(catcher) : null
-        if (hit && hit.hit && hit.pickedPoint) {
+        if (hit && hit.hit && hit.pickedPoint && gesture) {
           const local = BABYLON.Vector3.TransformCoordinates(
             hit.pickedPoint,
             gesture.inv
           )
-          opts.target.handlePointer(
-            kind,
-            (local.x / width + 0.5) * gesture.vbW,
-            (0.5 - local.y / planeH) * gesture.vbH
+          ev.catcher = planeLocalToViewBox(
+            local,
+            width,
+            planeH,
+            gesture.vbW,
+            gesture.vbH
           )
-        } else if (kind === 'up') {
-          opts.target.handlePointer('leave', 0, 0)
+        } else {
+          ev.catcher = null
         }
-        if (kind === 'up') {
-          gesture = null
-          catcher.isPickable = false
-          cam.attachControl(canvas, true)
+      } else {
+        const onPlane = !!(pk && pk.hit && pk.pickedMesh === plane.mesh)
+        ev.onPlane = onPlane
+        if (onPlane) {
+          const uv = pk!.getTextureCoordinates()
+          const vb = viewBox()
+          if (uv) {
+            const p = uvToViewBox(uv, vb.w, vb.h)
+            ev.x = p.x
+            ev.y = p.y
+          } else {
+            ev.x = 0
+            ev.y = 0
+          }
         }
-        return
+        if (kind === 'down' && onPlane) ev.claims = claims(ev.x!, ev.y!)
       }
 
-      const onPlane = !!(pk && pk.hit && pk.pickedMesh === plane.mesh)
-      let sx = 0
-      let sy = 0
-      if (onPlane) {
-        const uv = pk!.getTextureCoordinates()
-        const vb = viewBox()
-        if (uv) {
-          sx = uv.x * vb.w
-          sy = (1 - uv.y) * vb.h
-        }
+      const step = panelGesture(active, ev)
+      active = step.active
+      for (const a of step.actions) {
+        if (a.do === 'route') opts.target.handlePointer(a.kind, a.x, a.y)
+        else if (a.do === 'begin') beginGesture()
+        else endGesture()
       }
-      const claims =
-        opts.claim ??
-        opts.target.interactiveAt?.bind(opts.target) ??
-        (() => true)
-      if (kind === 'down' && onPlane && claims(sx, sy)) {
-        const vb = viewBox()
-        const mesh = plane.mesh!
-        mesh.computeWorldMatrix(true)
-        gesture = {
-          vbW: vb.w,
-          vbH: vb.h,
-          inv: mesh.getWorldMatrix().clone().invert(),
-        }
-        // Park the catcher on the plane's CURRENT pose — the gesture samples
-        // this frozen frame even if the target then moves/rescales the mesh.
-        catcher.position.copyFrom(mesh.absolutePosition)
-        if (mesh.rotationQuaternion)
-          catcher.rotationQuaternion = mesh.rotationQuaternion.clone()
-        catcher.computeWorldMatrix(true)
-        catcher.isPickable = true
-        cam.detachControl()
-      }
-      if (onPlane) opts.target.handlePointer(kind, sx, sy)
-      else if (kind === 'move') opts.target.handlePointer('leave', 0, 0)
     })
+
+    const endGesture = (): void => {
+      gesture = null
+      catcher.isPickable = false
+      cam.attachControl(canvas, true)
+    }
+    const beginGesture = (): void => {
+      const vb = viewBox()
+      const mesh = plane.mesh!
+      mesh.computeWorldMatrix(true)
+      gesture = {
+        vbW: vb.w,
+        vbH: vb.h,
+        inv: mesh.getWorldMatrix().clone().invert(),
+      }
+      // Park the catcher on the plane's CURRENT pose — the gesture samples
+      // this frozen frame even if the target then moves/rescales the mesh.
+      catcher.position.copyFrom(mesh.absolutePosition)
+      if (mesh.rotationQuaternion)
+        catcher.rotationQuaternion = mesh.rotationQuaternion.clone()
+      catcher.computeWorldMatrix(true)
+      catcher.isPickable = true
+      cam.detachControl()
+    }
   }
   return { plane, sceneCreated }
 }
