@@ -140,17 +140,15 @@ export default defineSiteConfig({
   // 8787, i.e. on tosijs-ui itself, which is exactly why it shipped.
   // The deploy/tunnel HOST comes from the environment, not the repo: this is a
   // public repository, and a committed `user@ip` means any fork running
-  // `bun run tunnel` opens outbound SSH to a stranger's box (review finding).
-  // Unset → tunnel/deploy simply aren't configured; the error you get names
-  // the variable. (Set it in your shell profile: TOSIJS_DEPLOY_HOST=user@host.)
-  ...(process.env.TOSIJS_DEPLOY_HOST
-    ? {
-        preview: {
-          host: process.env.TOSIJS_DEPLOY_HOST,
-          tunnel: { remotePort: 9788, url: 'https://3d.edit.dev.tosijs.net' },
-        },
-      }
-    : {}),
+  // `bun run tunnel` opens outbound SSH to a stranger's box (0.6.0 review
+  // finding). The tunnel/deploy bins already resolve
+  // `--host ?? PREVIEW_HOST ?? preview.host`, so we commit everything EXCEPT
+  // the host and set `PREVIEW_HOST=user@box` in the shell. (The v0.6.0 gate
+  // caught the first version of this fix inventing its own variable — use the
+  // one upstream already reads.)
+  preview: {
+    tunnel: { remotePort: 9788, url: 'https://3d.edit.dev.tosijs.net' },
+  },
 
   prebuild: async () => {
     await $`cp node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js static/jolt-physics.wasm-compat.js`

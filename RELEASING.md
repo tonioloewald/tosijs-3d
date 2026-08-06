@@ -11,6 +11,9 @@ same source. Both are produced by `bun run build` and are committed to `main`.
 - `bun install` up to date.
 - Publishing rights to the `tosijs-3d` npm package (for the publish step, which is
   done manually — see step 8).
+- Optional: `PREVIEW_HOST=user@box` in your shell for `bun run tunnel`/`deploy` —
+  the host is deliberately NOT committed (public repo); unset simply means those
+  scripts are unconfigured.
 
 > **`dist/`, `docs/`, and `llms.txt` are generated build artifacts, committed to
 > `main`.** They are regenerated deterministically by the release build (step 4) and
@@ -75,6 +78,14 @@ and confirm each is mentioned in `CLAUDE.md`.
    bun test
    bun format         # ESLint --fix + Prettier; re-run build if it changes anything
    ```
+
+5a. **Review gate** — for a minor/major: run the nine-lens pre-release review
+(`/pre-release-review`) at **full** depth on the first rc, and a **fast**-depth
+gate over `<last-rc>..HEAD` before tagging the final. Tag only on GO /
+GO_WITH_FOLLOWUPS — and file every follow-up before moving on (BLOCK means fix
+and re-gate). The bump + changelog may sit committed "awaiting gate"; the TAG
+waits. (For step 3b's map-drift check on a final-after-rcs, diff against the
+last **stable** tag, not the last rc.)
 
 6. **Commit** the version bump + rebuilt `dist/` + `docs/`:
 

@@ -14,6 +14,42 @@ copy-pasted across ~7 demos); a full NullEngine integration test of panelScene's
 shell (the policy + math are pure-tested); synthetic-pointerId + iconBar3d direct tests;
 table paintHeader cell() nit; the ui-surface extraction seam decision.
 
+**From the 0.6.0 FINAL gate (fast depth, GO_WITH_FOLLOWUPS — leads unless marked):**
+[ ] [correctness] gamepad-focus click-away release re-enables one-press-drives-all when
+TWO claimed UIs coexist and the user clicks the background — keep a registry of live
+claim roots; release only when the press is inside none; pin claim/release in tests
+(new tests only cover createFocusPulse).
+[ ] [correctness] surface.interactiveAt should return true while a menu cascade is open
+anywhere (dismissing IS a UI interaction; currently the camera orbits during dismissal).
+[ ] [efficiency] SvgTexture idle poll clones+serializes every 30ms per panel — push a
+dirty flag from box/surface/table (interim: back off to 250ms after N no-change ticks);
+also cap/back off the failed-rasterize retry loop.
+[ ] [dryness] finish NO_SELECT_STYLE (widgets3d/gamepad-svg/glass-gamepad still inline
+it — and glass-gamepad dropped tap-highlight; consolidation fixes that free); extract a
+shared happy-dom shim (src/test-dom.ts — the beforeAll block is copied in 11 test files
+and has drifted); move panelGesture + mappings into src/panel-gesture.ts (the name the
+test already uses).
+[ ] [docs] /b3d-svg-plane/'s panelScene section still describes the pre-interactiveAt
+claim default; document the claim policy, pure gesture API, updateInterval.
+[ ] [coverage] w3d-theme variable-PRESENT path (all tests read fallbacks); the shell's
+claim-resolution line + updateInterval passthrough; assert \_warnedFailure fires once
+(also silences the warn noise in test output).
+[ ] [dx] w3d-theme "at startup is fine" is defeated by ESM hoisting — make the snapshot
+lazy or fix the doc to "before tosijs-3d is imported"; w3dTheme has a doc page but no
+export (export as ui.theme or mark internal); decide onResize alias vs accepted hard
+break (changelog entry exists).
+[ ] [ops] root@ip remains in git history through the rc tags — verify the box doesn't
+depend on address secrecy (key-only auth, non-root deploy user); record the decision.
+[ ] [upstream to file] tunnel.ts no-host error should name PREVIEW_HOST (deploy-preview
+already does) and stop recommending a committed host first; SiteConfig.checkExamples
+should accept contextKeys (then re-enable example checking here — currently OFF for the
+whole site); tosijs-make-icons could source glyphs from tosijs-ui's set (ends the
+resize.svg hand-copy). Record getCssVar-fallback-gap in UPSTREAM.md "Not filed".
+[ ] [practices repo] deployment.md still prescribes committing preview.host — replace
+with the PREVIEW_HOST pattern (done in THIS repo; the shared doc still teaches the leak);
+reconcile review.md's "before the version bump" phrasing with the practiced
+bump-awaiting-gate flow.
+
 **Confirmed (priority):**
 
 [ ] **[coverage]** `panelScene`'s gesture contract (claim / catcher quad / frozen-frame

@@ -173,11 +173,8 @@ describe('surface — interactiveAt', () => {
         B.button('Go')
       )
     )
-    const btn = s.popups.length ? null : null
-    // content: prose no, button yes
+    // content: prose reads static
     expect(s.interactiveAt(15, 15)).toBe(false)
-    const content = s as any // button position via the content box
-    void content
     // a panel claims anywhere in its rect (title bar drags, × closes)
     const p = s.openPanel(
       { x: 150, y: 100 },
@@ -186,6 +183,5 @@ describe('surface — interactiveAt', () => {
     expect(s.interactiveAt(160, 110)).toBe(true)
     s.closePopup(p)
     expect(s.interactiveAt(160, 110)).toBe(false)
-    void btn
   })
 })

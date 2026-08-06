@@ -308,6 +308,7 @@ types stay top-level. Bare common nouns don't leak from the barrel.
 | `src/svg-texture.ts`                           | Dynamic SVG → Babylon texture rendering                                                                                                                                                                                                                                 |
 | `src/b3d-svg-plane.ts`                         | In-scene SVG-based UI planes                                                                                                                                                                                                                                            |
 | `src/widgets3d.ts` / `src/widgets3d-layout.ts` | SVG-native UI widgets (`panel3d`, `slider3d`, …) that work as DOM overlays or in-scene panels; stack layout                                                                                                                                                             |
+| `src/w3d-theme.ts`                             | The ONE module that reads the `--w3d-*` theme variables (resolved once at load — texture rasterization can't see the page cascade, so literals are deliberately baked)                                                                                                  |
 | `src/flow-layout.ts`                           | Pure CSS block/inline-block **flow-layout** core (`flowLayout`) + `nearestInDirection` (spatial focus nav) + `placePopup` (flip/clamp); Babylon/DOM-free, unit-tested                                                                                                   |
 | `src/box.ts`                                   | The **flow `box`** — resizable SVG container: wraps text, scrolls, pointer + focus-traversal event model. Also `svgPoint` (client→SVG coords via CTM — **use it instead of `getBoundingClientRect` arithmetic**, which breaks under `preserveAspectRatio` letterboxing) |
 | `src/surface.ts`                               | **UI surface** — content box + overlay layer: cascade **menus** and persistent draggable/closable **panels**                                                                                                                                                            |
@@ -443,6 +444,12 @@ So **whenever you find a performance-sensitive default, make it `auto` instead o
 
 ### Styling — use tosijs's CSS facilities, never hand-roll it
 
+> **The one exception: SVG rasterized onto 3D textures.** `svg-texture` serializes the SVG
+> to a standalone Image, where the page's CSS custom properties do NOT cascade — a literal
+> `var(--w3d-text)` resolves against nothing and paints black. `w3d-theme` therefore
+> deliberately resolves the `--w3d-*` variables ONCE at load and bakes literals. Don't
+> "fix" it onto `vars`/`getCssVar`; that's the mechanical cleanup this note exists to stop.
+
 tosijs ships a whole optimized, typed CSS/variable library. **Do not** hand-roll `document.createElement('style')`, manual `id`-uniqueness/dedup, or CSS-as-string templates — reach for the built-ins, which are deduped, updatable/bindable, type-checked, and test-covered.
 
 **Why it matters — the whole philosophy.** The facilities exist to make styling DRY, efficient, low-footprint, and _browser-native_. The principles:
@@ -477,7 +484,7 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.
 
-Run `bun test` to exercise the full pure-model suite (48 files, ~740 tests, ~1s as of 2026-08 — no excuse to skip it). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, and the SVG UI surface: `box`, `flow-layout`, `surface`, `widget-box`, `keyboard`/`key-layout`/`text-edit`, `table`/`table-layout`, `selection`, `gamepad-focus`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
+Run `bun test` to exercise the full pure-model suite (51 files, ~760 tests, ~1s as of 2026-08 — no excuse to skip it). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, and the SVG UI surface: `box`, `flow-layout`, `surface`, `widget-box`, `keyboard`/`key-layout`/`text-edit`, `table`/`table-layout`, `selection`, `gamepad-focus`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
 
 ## Demo & Docs
 
