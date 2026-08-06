@@ -4,47 +4,10 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.6.0-rc.3
+## 0.6.0
 
-### ⚠️ Changed (breaking vs rc.1/rc.2 only — never in a stable release)
-
-- **The SVG UI surface's value exports moved into the `ui.*` namespace**:
-  `ui.box`, `ui.surface`, `ui.table`, `ui.keyboard`, `ui.inputField`,
-  `ui.widgetBox`, the text-edit model (`ui.edit`, `ui.insert`, …), the pure
-  layout/geometry helpers, `ui.gamepadFocus`, `ui.svgPoint`, and friends. The
-  family's names are common nouns; exporting them bare from the barrel collided
-  with consumer vocabulary. Types are unchanged and stay top-level
-  (`Box`, `Table`, `Widget3d`, `EditState`, …). Migration:
-  `import { ui } from 'tosijs-3d'` and destructure —
-  `const { box, textBlock, button } = ui`.
-
-## 0.6.0-rc.2
-
-The nine-lens pre-release review of rc.1 returned BLOCK; this rc fixes the three
-gating findings (all adversarially confirmed):
-
-### Fixed
-
-- **`table.focusMove` now has the inner-focus protocol's `(dx, dy)` shape.**
-  rc.1 declared `focusMove(dy)` while every host (`box`, `widgetChild`,
-  `gamepadFocus`) calls `(dx, dy)` — the protocol's dx landed in the dy
-  parameter, so a table hosted in a panel consumed D-pad UP/DOWN without moving
-  (focus hard-trapped) and LEFT/RIGHT moved rows. Horizontal moves now escape to
-  the host; regression tests cover both the shape and the hosted-in-a-widgetBox
-  traversal.
-- **A menu leaf select no longer destroys persistent panels.** `openMenu`'s leaf
-  handler called `closeAll()`, contradicting `openPanel`'s "stays until closed"
-  contract. `Surface` gains **`closeMenus()`** (cascade only), which the leaf
-  handler now uses; regression tests pin a panel surviving a leaf select.
-
-### Changed
-
-- RELEASING.md gains the prerelease path (rc → `npm publish --tag next`, dist-tag
-  recovery), CLAUDE.md's test-suite figures updated (48 files / ~740 tests), and
-  the remaining review findings are filed in TODO.md → "v0.6.0-rc.1 review
-  follow-ups".
-
-## 0.6.0-rc.1
+Cut as rc.1 → rc.3 (each reviewed; rc consumers see the per-rc sections in git
+history), finalized after the nine-lens review's follow-up fixes landed.
 
 The **SVG UI surface** release: a first-class, VR-ready UI substrate — container,
 overlay, widgets seam, table, keyboard — plus the interaction contracts that make
@@ -91,10 +54,6 @@ controller ray. No peer-dependency changes.
 
 ### Changed
 
-- **⚠️ `B3d.onResize()` / `B3dHud.onResize()` → `handleResize()`.** The `on*`
-  prefix is reserved for the element-creator's event-listener sugar (see the
-  CLAUDE.md footgun note), so the public method was renamed. A consumer calling
-  `b3d.onResize()` from 0.5.x must call `handleResize()`.
 - **`b3dSvgPlane`** routes the texture's alpha to the mesh (`opacityTexture`) —
   transparent svg regions (outside rounded corners) are transparent on the plane,
   not an opaque black substrate.
@@ -120,6 +79,41 @@ controller ray. No peer-dependency changes.
   the click (ring on the tapped key); Space presses the focused key.
 - Arrow keys no longer orbit demo cameras (`ArcRotateCameraKeyboardMoveInput`
   removed — arrows drive the UI).
+
+### Added (post-rc, from the review follow-ups)
+
+- **`ui.*` namespace** — the SVG UI family's value exports live on one
+  container (`ui.box`, `ui.table`, `ui.keyboard`, …): common nouns don't leak
+  from the barrel. Types stay top-level. Migration from any rc:
+  `import { ui } from 'tosijs-3d'` and destructure.
+- `Box.interactiveAt` / `Surface.interactiveAt`, and `panelScene`'s **default
+  claim policy** asks them — pressing a button/panel claims the gesture,
+  pressing static prose orbits the camera, consistently across every demo.
+- `panelGesture` + `uvToViewBox` + `planeLocalToViewBox` exported pure (the
+  gesture contract is unit-pinned); named option types (`TableOptions`,
+  `KeyboardOptions`, `InputFieldOptions`, `PanelSceneOptions`,
+  `GamepadFocusOptions`); `panelScene` takes `updateInterval`; `w3dTheme`
+  (one place reads the `--w3d-*` variables).
+
+### Fixed (post-rc)
+
+- `table.focusMove` speaks the protocol's `(dx, dy)` (rc.1 trapped D-pad focus
+  in a hosted table); menu leaf-select no longer destroys persistent panels
+  (`Surface.closeMenus`).
+- box hover no longer sticks on raw children; a claimless `gamepadFocus`
+  instance is no longer starved (click-away releases the claim).
+- Table scrolling within the window is transform-only and hover restyles
+  surgically (the virtualized body no longer rebuilds per drag-move);
+  `textBlock` caches its wrap per width.
+- `SvgTexture` warns once per instance when rasterizes fail (self-healing had
+  made it silent); deploy/tunnel host reads `TOSIJS_DEPLOY_HOST` instead of a
+  committed address.
+
+### ⚠️ Changed
+
+- **`B3d.onResize()` / `B3dHud.onResize()` → `handleResize()`** (the `on*`
+  prefix is reserved by the element-creator's listener sugar). A 0.5.x
+  consumer calling `onResize()` must call `handleResize()`.
 
 ## 0.5.2
 
