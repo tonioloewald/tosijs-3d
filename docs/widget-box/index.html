@@ -62,7 +62,17 @@ slider.</p>
 <p>widgets3d controls living inside a <code>surface</code> panel — <strong>drag the title bar</strong> to move it,
 × to close. The slider drags properly because <code>BoxChild.handlePointer</code> captures: the
 gesture survives the pointer leaving the track.</p>
-<pre><code class="language-js">import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import {
+  b3d,
+  b3dLight,
+  panelScene,
+  slider3d,
+  toggle3d,
+  button3d,
+  label3d,
+  ui,
+} from &#39;tosijs-3d&#39;
+const { surface, widgetBox, box, textBlock, svgPoint } = ui
 import { tosi, elements } from &#39;tosijs&#39;
 import { svgElements } from &#39;tosijs&#39;
 

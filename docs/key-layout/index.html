@@ -105,7 +105,8 @@ both presentations.</p>
 <h2>Demo</h2>
 <p>Every mode, laid out by <code>keyRects</code>. Switch modes, toggle shift, and click a letter with
 alternatives (<code>a c e i n o s u y z</code>) to see what a long-press would offer.</p>
-<pre><code class="language-js">import { keyLayout, keyRects, accentsFor, hasAccents } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { ui } from &#39;tosijs-3d&#39;
+const { keyLayout, keyRects, accentsFor, hasAccents } = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg, g, rect, text } = svgElements

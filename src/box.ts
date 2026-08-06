@@ -30,7 +30,8 @@ Helpers build the common ones: `textBlock` (wraps text to the width via
 `b3dSvgPlane` to rasterize it onto a plane. Same object, both surfaces.
 
 ```js
-import { b3d, b3dLight, panelScene, box, textBlock, button, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
+const { box, textBlock, button, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
@@ -133,7 +134,8 @@ the pointer, the drag itself is collected by an invisible **stable catcher quad*
 or growing fails outright and shrinking jitters.
 
 ```js
-import { b3d, b3dLight, panelScene, box, textBlock, iconGlyph, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, iconGlyph, ui } from 'tosijs-3d'
+const { box, textBlock, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg, rect, g } = svgElements

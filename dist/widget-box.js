@@ -21,7 +21,17 @@ widgets3d controls living inside a `surface` panel — **drag the title bar** to
 gesture survives the pointer leaving the track.
 
 ```js
-import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, slider3d, toggle3d, button3d, label3d, svgPoint } from 'tosijs-3d'
+import {
+  b3d,
+  b3dLight,
+  panelScene,
+  slider3d,
+  toggle3d,
+  button3d,
+  label3d,
+  ui,
+} from 'tosijs-3d'
+const { surface, widgetBox, box, textBlock, svgPoint } = ui
 import { tosi, elements } from 'tosijs'
 import { svgElements } from 'tosijs'
 

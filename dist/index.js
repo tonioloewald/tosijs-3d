@@ -76,26 +76,80 @@ export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
 export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';
-// Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
-export { flowLayout, nearestInDirection, placePopup, } from './flow-layout';
-// Flow `box` — the SVG UI container (paint / resize / scroll) built on flowLayout
-export { box, textBlock, inlineIcon, blockItem, inlineItem, button, svgPoint, } from './box';
-// UI surface — content + overlay popups; cascade menus
-export { surface, openMenu, } from './surface';
-// Bridge: widgets3d controls (slider/toggle/select/list) inside a box/surface
-export { widgetBox, widgetChild } from './widget-box';
-// Pure text-editing model (code-point aware) for the SVG input field
-export { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, } from './text-edit';
-// Selection state as an ICON (orthogonal to hover/focus — see UI-DESIGN-NOTES.md)
-export { selectionIcon, applySelection } from './selection';
-// Pure table geometry: column resolution + row virtualization
-export { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, } from './table-layout';
-// Drive UI focus traversal from a gamepad D-pad (the wire that was missing)
-export { gamepadFocus, createFocusPulse } from './gamepad-focus';
-// On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
-export { keyboard, inputField } from './keyboard';
-// Pure virtual-keyboard model: layouts, long-press accents, key geometry
-export { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, } from './key-layout';
+// ---------------------------------------------------------------------------
+// The SVG UI surface, namespaced as `ui.*` — `ui.box`, `ui.table`, `ui.keyboard`.
+// These are COMMON NOUNS (box, table, button, edit, insert…); exporting them
+// bare from a library barrel collides with every consumer's own vocabulary, so
+// the family lives in one container and the top level stays clean. Types stay
+// top-level (PascalCase — no pollution, and types can't live on a const).
+// Decided at the 0.6.0 rc gate — see UI-DESIGN-NOTES.
+// ---------------------------------------------------------------------------
+import { flowLayout, nearestInDirection, placePopup } from './flow-layout';
+import { box, textBlock, inlineIcon, blockItem, inlineItem, button, svgPoint, } from './box';
+import { surface, openMenu } from './surface';
+import { widgetBox, widgetChild } from './widget-box';
+import { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, selectedText, selectionRange, hasSelection, length as editLength, } from './text-edit';
+import { selectionIcon, applySelection } from './selection';
+import { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, } from './table-layout';
+import { gamepadFocus, createFocusPulse } from './gamepad-focus';
+import { keyboard, inputField } from './keyboard';
+import { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, } from './key-layout';
+import { table } from './table';
+export const ui = {
+    // flow-layout core (pure)
+    flowLayout,
+    nearestInDirection,
+    placePopup,
+    // box — the flow container (paint / resize / scroll)
+    box,
+    textBlock,
+    inlineIcon,
+    blockItem,
+    inlineItem,
+    button,
+    svgPoint,
+    // surface — content + overlay popups; cascade menus + persistent panels
+    surface,
+    openMenu,
+    // widgets3d controls inside a box/surface
+    widgetBox,
+    widgetChild,
+    // data table + its pure geometry
+    table,
+    resolveColumns,
+    visibleRows,
+    tableContentHeight,
+    tableMaxScroll,
+    rowAt,
+    columnAt,
+    // on-screen keyboard + input field, and the pure keyboard model
+    keyboard,
+    inputField,
+    keyLayout,
+    accentsFor,
+    hasAccents,
+    keyRects,
+    keyboardHeight,
+    keyAt,
+    // pure text-editing model (code-point aware)
+    edit,
+    insert,
+    backspace,
+    deleteForward,
+    moveCaret,
+    moveTo,
+    selectAll,
+    selectedText,
+    selectionRange,
+    hasSelection,
+    editLength,
+    // selection-as-icon
+    selectionIcon,
+    applySelection,
+    // gamepad D-pad → focus traversal
+    gamepadFocus,
+    createFocusPulse,
+};
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
@@ -137,6 +191,4 @@ export { Radar, coneDotFromDegrees, isOpposed } from './radar';
 export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';
-// Data table (Widget3d): sticky header, virtualized body, icon selection
-export { table } from './table';
 //# sourceMappingURL=index.js.map

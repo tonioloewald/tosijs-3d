@@ -655,3 +655,14 @@ an opaque black substrate couldn't cash.
 — Tonio's cross-demo VR review, 2026-08-03; the factoring critique ("good behaviour lessons
 from one demo don't make it across demos") is the durable point: interaction contracts belong
 in the library, demos only choose policies.
+
+## The SVG UI family is namespaced: `ui.box`, `ui.table`, `ui.keyboard`
+
+The surface's exports are common nouns (`box`, `table`, `button`, `edit`, `insert`…), and a
+library barrel exporting bare common nouns collides with every consumer's own vocabulary.
+Tonio's call at the 0.6.0 rc gate: put the family in ONE container named `ui` — the noun
+stays simple (`ui.table` reads as well as `table`), the top level stays clean, and the
+whole surface has one discoverable home. Types stay top-level (PascalCase doesn't pollute,
+and types can't live on a const). The rc window made the rename free; after final it would
+have been a breaking change. Demos import `ui` and destructure, so their bodies read
+unchanged.

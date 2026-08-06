@@ -10,7 +10,8 @@ Everything either side of it already existed: `box`/`surface` expose
 the other, so a gamepad could light up the on-screen pad and still not touch the UI.
 
 ```js
-import { gamepadFocus, HardwareGamepadSource } from 'tosijs-3d'
+import { HardwareGamepadSource, ui } from 'tosijs-3d'
+const { gamepadFocus } = ui
 
 const pad = new HardwareGamepadSource()
 const stop = gamepadFocus({ poll: () => pad.poll(), target: panel, claim: panelRootEl })

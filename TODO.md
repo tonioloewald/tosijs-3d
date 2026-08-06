@@ -49,10 +49,11 @@ on first failure.
 CHANGELOG ⚠️ entry — add one; consider a one-release deprecated alias.
 [ ] [dx] CLAUDE.md's on\*-callback warning is unscoped now that plain factories use
 onFoo freely — add a scoping sentence (components: never; factories: fine).
-[ ] [dx] **Decide before 0.6.0 final:** the Babylon-free SVG UI ships bare generic names
-(`button`, `box`, `table`, `surface`, `keyboard`, `edit`, …) behind four Babylon peer
-ranges — bless deliberately or alias (editLength-style), and record the extraction seam
-(own package / tosijs-ui home; b3d bridges stay) here + UI-DESIGN-NOTES.
+[x] [dx] **Bare generic exports → the `ui.*` namespace** (Tonio's call at the rc gate):
+`ui.box`, `ui.table`, `ui.keyboard`, … — names stay simple, top level stays clean.
+Types remain top-level (PascalCase). Done in rc.3. Still open from the same finding:
+record the extraction seam (own package / tosijs-ui home; b3d bridges stay) here +
+UI-DESIGN-NOTES when it's decided.
 [ ] [dx, nit] Export option types (TableConfig, KeyboardOptions, InputFieldOptions,
 PanelSceneOptions, GamepadFocusOptions).
 [ ] [blast-radius] site.config.ts commits `root@<ip>` as tunnel/deploy host in a public

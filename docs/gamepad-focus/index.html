@@ -52,7 +52,8 @@ missing wire between &quot;the D-pad registers&quot; and &quot;the D-pad moves t
 <code>focusMove</code> / <code>focusActivate</code> / <code>focusBack</code>, and <code>HardwareGamepadSource</code> /
 <code>XrGamepadSource</code> produce a <code>VirtualGamepad</code> each frame. Nothing polled one and called
 the other, so a gamepad could light up the on-screen pad and still not touch the UI.</p>
-<pre><code class="language-js">import { gamepadFocus, HardwareGamepadSource } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { HardwareGamepadSource, ui } from &#39;tosijs-3d&#39;
+const { gamepadFocus } = ui
 
 const pad = new HardwareGamepadSource()
 const stop = gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: panelRootEl })

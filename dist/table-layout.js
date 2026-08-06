@@ -20,7 +20,8 @@ columns and split the rest; drag the scroll slider to watch `visibleRows` window
 **500-row** table down to the handful that are actually built.
 
 ```js
-import { resolveColumns, visibleRows, tableMaxScroll } from 'tosijs-3d'
+import { ui } from 'tosijs-3d'
+const { resolveColumns, visibleRows, tableMaxScroll } = ui
 import { elements } from 'tosijs'
 
 const { div, input, label } = elements

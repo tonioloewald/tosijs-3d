@@ -23,7 +23,8 @@ bumping a panel's texture from 384→512px never re-flows it.
 ## Example
 
 ```javascript
-import { flowLayout } from 'tosijs-3d'
+import { ui } from 'tosijs-3d'
+const { flowLayout } = ui
 
 // three inline chips then a full-width block, in a 200-wide box:
 const { boxes, height } = flowLayout(

@@ -24,7 +24,8 @@ Two popup kinds share the overlay:
 ## Demo
 
 ```js
-import { b3d, b3dLight, panelScene, box, textBlock, button, surface, openMenu, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
+const { box, textBlock, button, surface, openMenu, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements

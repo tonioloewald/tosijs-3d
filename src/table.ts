@@ -26,7 +26,8 @@ Three independent channels, so a row can be all three at once and each still rea
 **hover** = background, **selection** = icon, **focus** = ring.
 
 ```js
-import { b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock, table, svgPoint } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
+const { surface, widgetBox, box, textBlock, table, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements

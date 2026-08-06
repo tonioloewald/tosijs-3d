@@ -61,7 +61,8 @@ stops lining up with the body.</li>
 <p>Both halves, visualised. Drag the width slider to watch <code>resolveColumns</code> honour the fixed
 columns and split the rest; drag the scroll slider to watch <code>visibleRows</code> window a
 <strong>500-row</strong> table down to the handful that are actually built.</p>
-<pre><code class="language-js">import { resolveColumns, visibleRows, tableMaxScroll } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { ui } from &#39;tosijs-3d&#39;
+const { resolveColumns, visibleRows, tableMaxScroll } = ui
 import { elements } from &#39;tosijs&#39;
 
 const { div, input, label } = elements

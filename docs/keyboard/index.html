@@ -90,10 +90,18 @@ demos on the page, the one you last touched claims the gamepad.)</p>
 but <em>from what</em>: see CONVERSATION-DESIGN.md → &quot;Keyword dialogue&quot;, where the conclusion is
 that a known, relevant word should be <strong>clickable rather than typed</strong>, so typing&#39;s
 fallback role points completion at the player&#39;s own vocabulary rather than the world&#39;s.</p>
-<pre><code class="language-js">import {
-  surface, widgetBox, widgetChild, box, textBlock, inputField, keyboard, svgPoint,
-  gamepadFocus, HardwareGamepadSource,
-} from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { HardwareGamepadSource, ui } from &#39;tosijs-3d&#39;
+const {
+  surface,
+  widgetBox,
+  widgetChild,
+  box,
+  textBlock,
+  inputField,
+  keyboard,
+  svgPoint,
+  gamepadFocus,
+} = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -189,10 +197,17 @@ exists, since a WebXR session can&#39;t rely on the system keyboard and there is
 <p>Also wired here: <strong>a hardware/XR gamepad drives focus</strong> via <code>gamepadFocus</code> — D-pad walks
 the keys, <strong>menu</strong> (or A) presses. That&#39;s the input a VR controller set leaves spare, so
 claiming it doesn&#39;t fight locomotion.</p>
-<pre><code class="language-js">import {
-  b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock,
-  inputField, keyboard, gamepadFocus, HardwareGamepadSource, svgPoint,
-} from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, HardwareGamepadSource, ui } from &#39;tosijs-3d&#39;
+const {
+  surface,
+  widgetBox,
+  box,
+  textBlock,
+  inputField,
+  keyboard,
+  gamepadFocus,
+  svgPoint,
+} = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements

@@ -68,7 +68,8 @@ land next; the child protocol already carries the hooks they&#39;ll use.</p>
 <h2>Demo — the same box in the DOM and on a 3D texture</h2>
 <p><code>box.el</code> is an SVG <code>&lt;g&gt;</code>; wrap it in an <code>&lt;svg&gt;</code> to show it flat, or hand it to a
 <code>b3dSvgPlane</code> to rasterize it onto a plane. Same object, both surfaces.</p>
-<pre><code class="language-js">import { b3d, b3dLight, panelScene, box, textBlock, button, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, ui } from &#39;tosijs-3d&#39;
+const { box, textBlock, button, svgPoint } = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg } = svgElements
@@ -166,7 +167,8 @@ surface, not a patch on a dead slab. And because the visual mesh rescales under
 the pointer, the drag itself is collected by an invisible <strong>stable catcher quad</strong>
 (pickable only mid-gesture): the resizing thing can never be its own pick target,
 or growing fails outright and shrinking jitters.</p>
-<pre><code class="language-js">import { b3d, b3dLight, panelScene, box, textBlock, iconGlyph, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, iconGlyph, ui } from &#39;tosijs-3d&#39;
+const { box, textBlock, svgPoint } = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg, rect, g } = svgElements

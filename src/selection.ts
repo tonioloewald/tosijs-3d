@@ -31,7 +31,8 @@ The same four rows under each mode. Click to select — and note that **hover an
 selection never fight**: hover is background intensity, selection is the glyph.
 
 ```js
-import { selectionIcon, applySelection, iconGlyph, svgPoint } from 'tosijs-3d'
+import { iconGlyph, ui } from 'tosijs-3d'
+const { selectionIcon, applySelection, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg, g, rect, text } = svgElements

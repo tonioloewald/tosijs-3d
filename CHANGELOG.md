@@ -4,6 +4,20 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.6.0-rc.3
+
+### ⚠️ Changed (breaking vs rc.1/rc.2 only — never in a stable release)
+
+- **The SVG UI surface's value exports moved into the `ui.*` namespace**:
+  `ui.box`, `ui.surface`, `ui.table`, `ui.keyboard`, `ui.inputField`,
+  `ui.widgetBox`, the text-edit model (`ui.edit`, `ui.insert`, …), the pure
+  layout/geometry helpers, `ui.gamepadFocus`, `ui.svgPoint`, and friends. The
+  family's names are common nouns; exporting them bare from the barrel collided
+  with consumer vocabulary. Types are unchanged and stay top-level
+  (`Box`, `Table`, `Widget3d`, `EditState`, …). Migration:
+  `import { ui } from 'tosijs-3d'` and destructure —
+  `const { box, textBlock, button } = ui`.
+
 ## 0.6.0-rc.2
 
 The nine-lens pre-release review of rc.1 returned BLOCK; this rc fixes the three

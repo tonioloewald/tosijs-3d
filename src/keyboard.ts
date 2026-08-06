@@ -58,10 +58,18 @@ that a known, relevant word should be **clickable rather than typed**, so typing
 fallback role points completion at the player's own vocabulary rather than the world's.
 
 ```js
-import {
-  surface, widgetBox, widgetChild, box, textBlock, inputField, keyboard, svgPoint,
-  gamepadFocus, HardwareGamepadSource,
-} from 'tosijs-3d'
+import { HardwareGamepadSource, ui } from 'tosijs-3d'
+const {
+  surface,
+  widgetBox,
+  widgetChild,
+  box,
+  textBlock,
+  inputField,
+  keyboard,
+  svgPoint,
+  gamepadFocus,
+} = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements
@@ -162,10 +170,17 @@ the keys, **menu** (or A) presses. That's the input a VR controller set leaves s
 claiming it doesn't fight locomotion.
 
 ```js
-import {
-  b3d, b3dLight, panelScene, surface, widgetBox, box, textBlock,
-  inputField, keyboard, gamepadFocus, HardwareGamepadSource, svgPoint,
-} from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, HardwareGamepadSource, ui } from 'tosijs-3d'
+const {
+  surface,
+  widgetBox,
+  box,
+  textBlock,
+  inputField,
+  keyboard,
+  gamepadFocus,
+  svgPoint,
+} = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg } = svgElements

@@ -67,7 +67,8 @@ glyph has <em>shape</em>, not just value, so it survives.</p>
 <h2>Demo</h2>
 <p>The same four rows under each mode. Click to select — and note that <strong>hover and
 selection never fight</strong>: hover is background intensity, selection is the glyph.</p>
-<pre><code class="language-js">import { selectionIcon, applySelection, iconGlyph, svgPoint } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { iconGlyph, ui } from &#39;tosijs-3d&#39;
+const { selectionIcon, applySelection, svgPoint } = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
 const { svg, g, rect, text } = svgElements

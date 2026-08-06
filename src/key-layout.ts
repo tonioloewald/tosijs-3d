@@ -43,7 +43,8 @@ Every mode, laid out by `keyRects`. Switch modes, toggle shift, and click a lett
 alternatives (`a c e i n o s u y z`) to see what a long-press would offer.
 
 ```js
-import { keyLayout, keyRects, accentsFor, hasAccents } from 'tosijs-3d'
+import { ui } from 'tosijs-3d'
+const { keyLayout, keyRects, accentsFor, hasAccents } = ui
 import { svgElements, elements } from 'tosijs'
 
 const { svg, g, rect, text } = svgElements

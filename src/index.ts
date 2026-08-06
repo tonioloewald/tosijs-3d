@@ -312,20 +312,16 @@ export {
   type ParsedIconName,
 } from './icon-name'
 
-// Pure flow-layout core (block/inline-block) — substrate for the SVG UI surface
-export {
-  flowLayout,
-  nearestInDirection,
-  placePopup,
-  type FlowItem,
-  type FlowOptions,
-  type FlowBox,
-  type FlowResult,
-  type PopupSide,
-} from './flow-layout'
-
-// Flow `box` — the SVG UI container (paint / resize / scroll) built on flowLayout
-export {
+// ---------------------------------------------------------------------------
+// The SVG UI surface, namespaced as `ui.*` — `ui.box`, `ui.table`, `ui.keyboard`.
+// These are COMMON NOUNS (box, table, button, edit, insert…); exporting them
+// bare from a library barrel collides with every consumer's own vocabulary, so
+// the family lives in one container and the top level stays clean. Types stay
+// top-level (PascalCase — no pollution, and types can't live on a const).
+// Decided at the 0.6.0 rc gate — see UI-DESIGN-NOTES.
+// ---------------------------------------------------------------------------
+import { flowLayout, nearestInDirection, placePopup } from './flow-layout'
+import {
   box,
   textBlock,
   inlineIcon,
@@ -333,27 +329,10 @@ export {
   inlineItem,
   button,
   svgPoint,
-  type Box,
-  type BoxChild,
-  type BoxChildState,
-  type BoxOptions,
-  type PointerKind,
 } from './box'
-
-// UI surface — content + overlay popups; cascade menus
-export {
-  surface,
-  openMenu,
-  type Surface,
-  type Popup,
-  type MenuItem,
-} from './surface'
-
-// Bridge: widgets3d controls (slider/toggle/select/list) inside a box/surface
-export { widgetBox, widgetChild } from './widget-box'
-
-// Pure text-editing model (code-point aware) for the SVG input field
-export {
+import { surface, openMenu } from './surface'
+import { widgetBox, widgetChild } from './widget-box'
+import {
   edit,
   insert,
   backspace,
@@ -365,46 +344,106 @@ export {
   selectionRange,
   hasSelection,
   length as editLength,
-  type EditState,
 } from './text-edit'
-
-// Selection state as an ICON (orthogonal to hover/focus — see UI-DESIGN-NOTES.md)
-export { selectionIcon, applySelection, type SelectionMode } from './selection'
-
-// Pure table geometry: column resolution + row virtualization
-export {
+import { selectionIcon, applySelection } from './selection'
+import {
   resolveColumns,
   visibleRows,
   contentHeight as tableContentHeight,
   maxScroll as tableMaxScroll,
   rowAt,
   columnAt,
-  type ColumnSpec,
-  type ColumnRect,
-  type RowWindow,
 } from './table-layout'
-
-// Drive UI focus traversal from a gamepad D-pad (the wire that was missing)
-export { gamepadFocus, createFocusPulse } from './gamepad-focus'
-export type { FocusTarget, FocusPulse } from './gamepad-focus'
-
-// On-screen keyboard + text field (Widget3d — drops into a widgetBox/surface panel)
-export { keyboard, inputField } from './keyboard'
-export type { Keyboard, InputField } from './keyboard'
-
-// Pure virtual-keyboard model: layouts, long-press accents, key geometry
-export {
+import { gamepadFocus, createFocusPulse } from './gamepad-focus'
+import { keyboard, inputField } from './keyboard'
+import {
   keyLayout,
   accentsFor,
   hasAccents,
   keyRects,
   keyboardHeight,
   keyAt,
-  type KeyboardMode,
-  type KeyAction,
-  type KeyDef,
-  type KeyRect,
 } from './key-layout'
+import { table } from './table'
+
+export const ui = {
+  // flow-layout core (pure)
+  flowLayout,
+  nearestInDirection,
+  placePopup,
+  // box — the flow container (paint / resize / scroll)
+  box,
+  textBlock,
+  inlineIcon,
+  blockItem,
+  inlineItem,
+  button,
+  svgPoint,
+  // surface — content + overlay popups; cascade menus + persistent panels
+  surface,
+  openMenu,
+  // widgets3d controls inside a box/surface
+  widgetBox,
+  widgetChild,
+  // data table + its pure geometry
+  table,
+  resolveColumns,
+  visibleRows,
+  tableContentHeight,
+  tableMaxScroll,
+  rowAt,
+  columnAt,
+  // on-screen keyboard + input field, and the pure keyboard model
+  keyboard,
+  inputField,
+  keyLayout,
+  accentsFor,
+  hasAccents,
+  keyRects,
+  keyboardHeight,
+  keyAt,
+  // pure text-editing model (code-point aware)
+  edit,
+  insert,
+  backspace,
+  deleteForward,
+  moveCaret,
+  moveTo,
+  selectAll,
+  selectedText,
+  selectionRange,
+  hasSelection,
+  editLength,
+  // selection-as-icon
+  selectionIcon,
+  applySelection,
+  // gamepad D-pad → focus traversal
+  gamepadFocus,
+  createFocusPulse,
+}
+
+// Types for the ui.* family (top-level — PascalCase, no namespace pollution)
+export type {
+  FlowItem,
+  FlowOptions,
+  FlowBox,
+  FlowResult,
+  PopupSide,
+} from './flow-layout'
+export type {
+  Box,
+  BoxChild,
+  BoxChildState,
+  BoxOptions,
+  PointerKind,
+} from './box'
+export type { Surface, Popup, MenuItem } from './surface'
+export type { EditState } from './text-edit'
+export type { SelectionMode } from './selection'
+export type { ColumnSpec, ColumnRect, RowWindow } from './table-layout'
+export type { FocusTarget, FocusPulse } from './gamepad-focus'
+export type { Keyboard, InputField } from './keyboard'
+export type { KeyboardMode, KeyAction, KeyDef, KeyRect } from './key-layout'
 
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'
@@ -520,6 +559,5 @@ export type {
   PredictOptions,
 } from './ballistics'
 
-// Data table (Widget3d): sticky header, virtualized body, icon selection
-export { table } from './table'
+// Data table types (the value lives at ui.table)
 export type { Table, TableRow } from './table'

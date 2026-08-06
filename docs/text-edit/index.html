@@ -55,7 +55,8 @@ texture, and inside a headset (where there is no native input element at all).</
 seeded value contains an <strong>emoji and an accented character</strong> on purpose: step the caret
 through them and watch it move one <em>code point</em> at a time, and backspace remove the whole
 glyph rather than half a surrogate pair.</p>
-<pre><code class="language-js">import { edit, insert, backspace, deleteForward, moveCaret, selectAll, selectedText } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { ui } from &#39;tosijs-3d&#39;
+const { edit, insert, backspace, deleteForward, moveCaret, selectAll, selectedText } = ui
 import { elements } from &#39;tosijs&#39;
 
 const { div, button, span } = elements

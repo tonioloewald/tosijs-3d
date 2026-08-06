@@ -64,7 +64,8 @@ and <strong>wrap</strong> to the next line when they&#39;d overflow the width.</
 space), NOT rasterized texture pixels — so a layout is resolution-independent and
 bumping a panel&#39;s texture from 384→512px never re-flows it.</p>
 <h2>Example</h2>
-<pre><code class="language-javascript">import { flowLayout } from &#39;tosijs-3d&#39;
+<pre><code class="language-javascript">import { ui } from &#39;tosijs-3d&#39;
+const { flowLayout } = ui
 
 // three inline chips then a full-width block, in a 200-wide box:
 const { boxes, height } = flowLayout(

@@ -14,7 +14,8 @@ through them and watch it move one *code point* at a time, and backspace remove 
 glyph rather than half a surrogate pair.
 
 ```js
-import { edit, insert, backspace, deleteForward, moveCaret, selectAll, selectedText } from 'tosijs-3d'
+import { ui } from 'tosijs-3d'
+const { edit, insert, backspace, deleteForward, moveCaret, selectAll, selectedText } = ui
 import { elements } from 'tosijs'
 
 const { div, button, span } = elements
