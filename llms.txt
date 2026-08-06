@@ -197,6 +197,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/vehicles/ — Vehicles
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
+- https://3d.tosijs.net/w3d-theme/ — w3d-theme
+  The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 - https://3d.tosijs.net/widget-box/ — widget-box
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d

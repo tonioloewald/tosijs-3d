@@ -253,24 +253,19 @@ import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, } from './key-l
 import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit';
 import { measureTextWidth } from './widgets3d-layout';
 import { nearestInDirection } from './flow-layout';
+import { w3dTheme } from './w3d-theme';
 const { g, rect, text } = svgElements;
-const cssVar = (name, fallback) => {
-    if (typeof document === 'undefined')
-        return fallback;
-    const v = getComputedStyle(document.documentElement)
-        .getPropertyValue(name)
-        .trim();
-    return v || fallback;
-};
-const TEXT = cssVar('--w3d-text', '#f0f0f0');
-const MUTED = cssVar('--w3d-muted', '#9aa0a6');
-const ACCENT = cssVar('--w3d-accent', '#39c5ff');
-const KEY_BG = cssVar('--w3d-button-bg', '#2a2f3a');
-const KEY_ACTION_BG = cssVar('--w3d-track', '#3a3f4a');
-const KEY_DOWN = cssVar('--w3d-button-active', '#3a4150');
-const FIELD_BG = cssVar('--w3d-row-bg', 'rgba(255,255,255,0.05)');
-const PANEL_BG = cssVar('--w3d-panel-bg', 'rgba(20,22,28,0.94)');
-const FONT_FAMILY = cssVar('--w3d-font-family', 'system-ui, sans-serif');
+// Theme reads live in ONE module (w3d-theme) — see the review-caught
+// triplication; the local names keep this file's paint code readable.
+const TEXT = w3dTheme.text;
+const MUTED = w3dTheme.muted;
+const ACCENT = w3dTheme.accent;
+const KEY_BG = w3dTheme.buttonBg;
+const KEY_ACTION_BG = w3dTheme.track;
+const KEY_DOWN = w3dTheme.buttonActive;
+const FIELD_BG = w3dTheme.rowBg;
+const PANEL_BG = w3dTheme.panelBg;
+const FONT_FAMILY = w3dTheme.fontFamily;
 export function inputField(config = {}) {
     const H = config.height ?? 40;
     const SIZE = config.fontSize ?? 16;
@@ -503,13 +498,17 @@ export function keyboard(config = {}) {
     while it's typing perfectly (reported from device, and the session's typing
     was sitting in the field the whole time).
     */
-    const pressVis = (i, on) => {
+    // ONE primitive writes a key's fill (`null` = its resting color); the tint
+    // policies below are one-liners over it — the review found three sibling
+    // helpers each re-deriving the cell/bg lookup.
+    const setKeyFill = (i, fill) => {
         const r = rects[i];
         const cell = keysLayer.children[i];
         const bg = cell?.firstChild;
         if (r && bg)
-            bg.setAttribute('fill', on ? KEY_DOWN : keyFill(r));
+            bg.setAttribute('fill', fill ?? keyFill(r));
     };
+    const pressVis = (i, on) => setKeyFill(i, on ? KEY_DOWN : null);
     const endPressVis = () => {
         if (pressedVis >= 0) {
             pressVis(pressedVis, false);
@@ -519,11 +518,8 @@ export function keyboard(config = {}) {
     /** Tint the spacebar while it's acting as a trackpad, so the mode is visible. */
     const spaceHint = (on) => {
         const i = rects.findIndex((r) => r.key.action === 'space');
-        if (i < 0)
-            return;
-        const cell = keysLayer.children[i];
-        const bg = cell?.firstChild;
-        bg?.setAttribute('fill', on ? ACCENT : KEY_ACTION_BG);
+        if (i >= 0)
+            setKeyFill(i, on ? ACCENT : null);
     };
     // The in-flight press. `accents` is non-empty once the popup is open.
     let press = null;
@@ -665,25 +661,32 @@ export function keyboard(config = {}) {
         }
     };
     /** Highlight the accent under the pointer (the drag half of press-hold-drag). */
+    /*
+    The accent-strip hit mapping, in ONE place — band-with-slack + x index, not
+    strict cell containment (2px cell gaps + edge pixels let visually-on-strip
+    taps fall through to the key behind; a VR ray hits this constantly). The
+    review caught two drifted copies of this claiming to be "the same mapping"
+    (SLACK 8 vs 10) — the slack is now one constant, generous side.
+    */
+    const ACCENT_SLACK = 10;
+    const accentIndexAt = (cells, count, x, y) => {
+        if (cells.length === 0)
+            return -1;
+        const CW = 32;
+        const x0 = Number(cells[0].getAttribute('x'));
+        const y0 = Number(cells[0].getAttribute('y'));
+        const ch = Number(cells[0].getAttribute('height'));
+        if (y < y0 - ACCENT_SLACK || y > y0 + ch + ACCENT_SLACK)
+            return -1;
+        const i = Math.floor((x - x0) / CW);
+        return i >= 0 && i < count ? i : -1;
+    };
     const trackPopup = (x, y) => {
         if (!press || press.accents.length === 0)
             return;
-        const CW = 32;
-        const first = press.cells[0];
-        const x0 = Number(first.getAttribute('x'));
-        const y0 = Number(first.getAttribute('y'));
-        const ch = Number(first.getAttribute('height'));
-        /*
-        Only a pointer actually IN the strip (plus a little slack) is picking. The
-        old x-only test read "hovering the HELD KEY" as a pick — fine with a mouse
-        (no move events during a plain press), but a VR ray or fingertip always
-        jitters a few px, so pick got set while you were still on the key and
-        releasing in place inserted a near-random accent instead of going sticky.
-        */
-        const SLACK = 8;
-        const inBand = y >= y0 - SLACK && y <= y0 + ch + SLACK;
-        const i = Math.floor((x - x0) / CW);
-        const pick = inBand && i >= 0 && i < press.accents.length ? i : -1;
+        // In-the-strip only (band + slack): an x-only test read "hovering the HELD
+        // KEY" as a pick, so ray jitter picked accents you never chose.
+        const pick = accentIndexAt(press.cells, press.accents.length, x, y);
         if (pick === press.pick)
             return;
         press.pick = pick;
@@ -766,15 +769,8 @@ export function keyboard(config = {}) {
                     fall through to the KEY BEHIND it — routine with a ray, where a
                     "click on ö" registering as the key under the strip reads as madness.
                     */
-                    const first = sticky.cells[0];
-                    const sx = Number(first.getAttribute('x'));
-                    const sy = Number(first.getAttribute('y'));
-                    const sh = Number(first.getAttribute('height'));
-                    const SLACK = 10;
-                    const CW = 32;
-                    const inBand = y >= sy - SLACK && y <= sy + sh + SLACK;
-                    const i = inBand ? Math.floor((x - sx) / CW) : -1;
-                    if (i >= 0 && i < sticky.accents.length) {
+                    const i = accentIndexAt(sticky.cells, sticky.accents.length, x, y);
+                    if (i >= 0) {
                         config.onKey?.(sticky.accents[i]);
                     }
                     else {

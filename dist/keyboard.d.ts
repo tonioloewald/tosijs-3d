@@ -47,7 +47,7 @@ export interface InputField extends Widget3d {
     /** Called whenever the text changes. */
     onChange?: (value: string) => void;
 }
-export declare function inputField(config?: {
+export interface InputFieldOptions {
     value?: string;
     placeholder?: string;
     fontSize?: number;
@@ -58,7 +58,8 @@ export declare function inputField(config?: {
      * — the host's hook for exclusivity (dim the others) and for summoning the
      * keyboard overlay. */
     onFocus?: () => void;
-}): InputField;
+}
+export declare function inputField(config?: InputFieldOptions): InputField;
 /**
  * The on-screen keyboard. Emits `onKey(text)` for inserting keys and `onAction()`
  * for the rest; it owns its own `mode` and `shift` state.
@@ -80,7 +81,7 @@ export interface Keyboard extends Widget3d {
     /** Drop key focus (the host's focus moved elsewhere). */
     focusClear: () => void;
 }
-export declare function keyboard(config?: {
+export interface KeyboardOptions {
     mode?: KeyboardMode;
     keyHeight?: number;
     gap?: number;
@@ -97,5 +98,6 @@ export declare function keyboard(config?: {
     onAction?: (action: KeyAction) => void;
     /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
     onCaretMove?: (delta: number) => void;
-}): Keyboard;
+}
+export declare function keyboard(config?: KeyboardOptions): Keyboard;
 //# sourceMappingURL=keyboard.d.ts.map

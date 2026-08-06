@@ -15,6 +15,7 @@
 - [table](/table/)
 - [table-layout](/table-layout/)
 - [text-edit](/text-edit/)
+- [w3d-theme](/w3d-theme/)
 - [widget-box](/widget-box/)
 - [widgets3d](/widgets3d/)
 - [widgets3d-layout](/widgets3d-layout/)

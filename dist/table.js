@@ -122,21 +122,15 @@ import { svgElements } from 'tosijs';
 import { resolveColumns, visibleRows, maxScroll, rowAt, } from './table-layout';
 import { selectionIcon, applySelection } from './selection';
 import { iconGlyph } from './svg-icons';
+import { w3dTheme } from './w3d-theme';
 const { g, rect, text, clipPath } = svgElements;
-const cssVar = (name, fallback) => {
-    if (typeof document === 'undefined')
-        return fallback;
-    const v = getComputedStyle(document.documentElement)
-        .getPropertyValue(name)
-        .trim();
-    return v || fallback;
-};
-const TEXT = cssVar('--w3d-text', '#f0f0f0');
-const MUTED = cssVar('--w3d-muted', '#9aa0a6');
-const ACCENT = cssVar('--w3d-accent', '#39c5ff');
-const ROW_HOVER = cssVar('--w3d-row-hover', 'rgba(255,255,255,0.13)');
-const HEADER_BG = cssVar('--w3d-track', '#3a3f4a');
-const FONT_FAMILY = cssVar('--w3d-font-family', 'system-ui, sans-serif');
+// Theme reads live in ONE module (w3d-theme); local names for paint brevity.
+const TEXT = w3dTheme.text;
+const MUTED = w3dTheme.muted;
+const ACCENT = w3dTheme.accent;
+const ROW_HOVER = w3dTheme.rowHover;
+const HEADER_BG = w3dTheme.track;
+const FONT_FAMILY = w3dTheme.fontFamily;
 let seq = 0;
 export function table(config) {
     const ROW_H = config.rowHeight ?? 28;
@@ -207,6 +201,40 @@ export function table(config) {
             headLayer.append(t);
         }
     };
+    // The window paintBody last BUILT, plus the per-row background rects — what
+    // the surgical paths below restyle without a rebuild.
+    let built = null;
+    let rowBgs = [];
+    /**
+     * Scroll moved and NOTHING else: if the visible window is unchanged, the
+     * scroll really is just a transform (as the comment at bodyInner promises —
+     * the review caught paintBody rebuilding every row on every drag-scroll
+     * move, contradicting it); a window shift rebuilds.
+     */
+    const paintScrolled = () => {
+        const win = visibleRows({
+            scroll,
+            rowHeight: ROW_H,
+            viewportHeight: BODY_H,
+            count: rows.length,
+        });
+        if (built && built.start === win.start && built.end === win.end) {
+            bodyInner.setAttribute('transform', `translate(0 ${win.offsetY})`);
+            return;
+        }
+        paintBody();
+    };
+    /** Hover moved and NOTHING else: restyle the two affected row backgrounds. */
+    const paintHover = (prev) => {
+        if (!built)
+            return paintBody();
+        for (const i of [prev, hover]) {
+            const bg = i >= 0 ? rowBgs[i - built.start] : undefined;
+            if (i >= 0 && !bg && i >= built.start && i < built.end)
+                return paintBody();
+            bg?.setAttribute('fill', i === hover ? ROW_HOVER : 'transparent');
+        }
+    };
     const paintBody = () => {
         const win = visibleRows({
             scroll,
@@ -214,24 +242,26 @@ export function table(config) {
             viewportHeight: BODY_H,
             count: rows.length,
         });
+        built = { start: win.start, end: win.end };
+        rowBgs = [];
         bodyInner.replaceChildren();
         bodyInner.setAttribute('transform', `translate(0 ${win.offsetY})`);
         for (let i = win.start; i < win.end; i++) {
             const row = rows[i];
             const y = (i - win.start) * ROW_H;
             const isSel = selected.has(row.id);
-            const kids = [
-                rect({
-                    x: 0,
-                    y,
-                    width,
-                    height: ROW_H,
-                    rx: 4,
-                    // Hover is intensity; selection is the icon. Different channels, so a row
-                    // can be both at once without either being finessed against the other.
-                    fill: i === hover ? ROW_HOVER : 'transparent',
-                }),
-            ];
+            const bg = rect({
+                x: 0,
+                y,
+                width,
+                height: ROW_H,
+                rx: 4,
+                // Hover is intensity; selection is the icon. Different channels, so a row
+                // can be both at once without either being finessed against the other.
+                fill: i === hover ? ROW_HOVER : 'transparent',
+            });
+            rowBgs.push(bg);
+            const kids = [bg];
             // …and FOCUS is a third channel: an outline. With a D-pad you have to see where
             // you are BEFORE you commit to toggling it, so focus must read even on a row
             // that is simultaneously hovered and selected.
@@ -343,7 +373,7 @@ export function table(config) {
             if (next === scroll)
                 return;
             scroll = next;
-            paintBody();
+            paintScrolled();
         },
         get focusIndex() {
             return focused;
@@ -408,8 +438,9 @@ export function table(config) {
             if (kind === 'leave') {
                 drag = null;
                 if (hover !== -1) {
+                    const prev = hover;
                     hover = -1;
-                    paintBody();
+                    paintHover(prev);
                 }
                 return;
             }
@@ -433,15 +464,16 @@ export function table(config) {
                     const next = clampScroll(drag.scroll0 - dy);
                     if (next !== scroll) {
                         scroll = next;
-                        paintBody();
+                        paintScrolled();
                     }
                     return;
                 }
             }
             if (kind === 'move' || kind === 'hover') {
                 if (i !== hover) {
+                    const prev = hover;
                     hover = i;
-                    paintBody();
+                    paintHover(prev);
                 }
                 return;
             }

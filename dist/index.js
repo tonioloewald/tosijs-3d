@@ -73,6 +73,7 @@ export { stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasure
 // SVG material system
 export { SvgTexture } from './svg-texture';
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
+export { panelGesture, uvToViewBox, planeLocalToViewBox } from './b3d-svg-plane';
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
 export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';

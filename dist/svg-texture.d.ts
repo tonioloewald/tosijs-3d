@@ -20,6 +20,7 @@ export declare class SvgTexture {
     private _rendering;
     private _img;
     private _lastXml;
+    private _warnedFailure;
     constructor(options: SvgTextureOptions);
     /** Manually trigger a re-render from the live SVG element. */
     render(): void;

@@ -43,6 +43,12 @@ export interface Surface {
     }) => Popup;
     /** Close one popup. */
     closePopup: (p: Popup) => void;
+    /**
+     * Is (x, y) over something interactive? Any popup counts wholesale (panels
+     * drag by their bar and close by their ×); otherwise the content box is
+     * asked. `panelScene`'s default claim uses this — see Box.interactiveAt.
+     */
+    interactiveAt: (x: number, y: number) => boolean;
     /** Close every popup (menus + panels). */
     closeAll: () => void;
     /**

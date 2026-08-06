@@ -52,6 +52,13 @@ discipline as <a href="/widgets3d-layout/" class="wikilink">widgets3d-layout</a>
 the first-class SVG UI surface (a resizable, scrollable <code>box</code> that lives in the
 DOM <strong>and</strong> on a 3D texture, so we don&#39;t reinvent HTML on a plane).</p>
 <p>The model, deliberately just HTML&#39;s flow — no flexbox, no bidi, no kerning:</p>
+<p>Beyond the flow itself, two spatial helpers live here (same purity): 
+<strong><code>nearestInDirection</code></strong> — given laid-out boxes, the best next focus target in a
+cardinal direction (the D-pad geometry <code>box.focusMove</code> and the keyboard&#39;s inner
+traversal use), and <strong><code>placePopup</code></strong> — position a popup near its anchor,
+<strong>flipping</strong> to the other side rather than overflowing and clamping into the
+surface (what lets a cascade submenu open beside its parent and flip near an
+edge).</p>
 <ul>
 <li>a <strong>block</strong> takes the full content width and a known height; blocks stack
 top-to-bottom.</li>
@@ -187,6 +194,7 @@ const { boxes, height } = flowLayout(
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>

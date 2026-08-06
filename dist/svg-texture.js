@@ -85,6 +85,7 @@ export class SvgTexture {
     _rendering = false;
     _img = new Image();
     _lastXml = '';
+    _warnedFailure = false;
     constructor(options) {
         const { scene, resolution = 512, url, element, updateInterval = 30, } = options;
         this._resolution = resolution;
@@ -139,6 +140,14 @@ export class SvgTexture {
             if (ok) {
                 this._lastXml = xml;
                 dt.update(false);
+            }
+            else if (!this._warnedFailure) {
+                // Once per instance: self-healing made failure SILENT, and a
+                // permanently-bad SVG (malformed markup, CSP-blocked blob) becomes an
+                // invisible retry loop with a frozen texture and no clue why.
+                this._warnedFailure = true;
+                console.warn('SvgTexture: rasterize failed (will retry each tick). ' +
+                    'The SVG may be malformed or blob: URLs blocked by CSP.');
             }
         });
     }

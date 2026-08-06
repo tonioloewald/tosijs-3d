@@ -35,7 +35,7 @@ export declare function createFocusPulse(opts?: {
  * UIs: a pointerdown inside `claim` routes the pad here until another instance is
  * claimed. Omit it for a lone UI.
  */
-export declare function gamepadFocus(opts: {
+export interface GamepadFocusOptions {
     poll: () => VirtualGamepad;
     target: FocusTarget;
     /** Root element that claims the pad when the pointer goes down inside it. */
@@ -45,5 +45,6 @@ export declare function gamepadFocus(opts: {
     /** Override the frame pump (tests, or an XR session's own rAF). */
     raf?: (cb: () => void) => number;
     cancel?: (id: number) => void;
-}): () => void;
+}
+export declare function gamepadFocus(opts: GamepadFocusOptions): () => void;
 //# sourceMappingURL=gamepad-focus.d.ts.map

@@ -256,6 +256,8 @@ import { svgElements } from 'tosijs';
 import { flowLayout, nearestInDirection, } from './flow-layout';
 import { measureTextWrap, measureTextWidth, clampScroll, } from './widgets3d-layout';
 import { iconGlyph } from './svg-icons';
+/** Inline style every drag-driven SVG surface wears (box, surface, panel3d). */
+export const NO_SELECT_STYLE = 'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent';
 let boxSeq = 0;
 export function box(opts, ...children) {
     const { padding = 0, gap = 0, background, border, borderWidth = 1, radius = 0, align = 'top', } = opts;
@@ -263,7 +265,7 @@ export function box(opts, ...children) {
     const el = svgElements.g({ 'data-box': '' });
     // Dragging (scroll, slider, spacebar-caret) must not select the text nodes —
     // SVG text is selectable by default and a drag paints every label blue.
-    el.setAttribute('style', 'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
+    el.setAttribute('style', NO_SELECT_STYLE);
     const bgRect = svgElements.rect({ 'data-box-bg': '', rx: radius, ry: radius });
     const clip = svgElements.clipPath({ id: clipId });
     const clipRect = svgElements.rect({ x: 0, y: 0 });
@@ -506,6 +508,19 @@ export function box(opts, ...children) {
                 children[downTarget]?.handlePointer
                 ? downTarget
                 : -1;
+            // Hover bookkeeping runs for EVERY un-captured move — the raw-child path
+            // below returns early, and skipping this left the previous child wearing
+            // its hover tint forever (in VR that highlight IS the pointer feedback).
+            // During a captured drag hover is frozen deliberately: the gesture owns
+            // the pointer, and flicking highlights under a drag reads as noise.
+            if (kind === 'move' && captured < 0 && hit !== hoverIdx) {
+                const old = hoverIdx;
+                hoverIdx = hit;
+                if (old >= 0)
+                    applyState(old);
+                if (hit >= 0)
+                    applyState(hit);
+            }
             const raw = captured >= 0
                 ? captured
                 : hit >= 0 && children[hit].handlePointer
@@ -543,16 +558,6 @@ export function box(opts, ...children) {
                     applyState(hit);
                 }
             }
-            else if (kind === 'move') {
-                if (hit !== hoverIdx) {
-                    const old = hoverIdx;
-                    hoverIdx = hit;
-                    if (old >= 0)
-                        applyState(old);
-                    if (hit >= 0)
-                        applyState(hit);
-                }
-            }
             else if (kind === 'up') {
                 const p = pressedIdx;
                 pressedIdx = -1;
@@ -570,6 +575,9 @@ export function box(opts, ...children) {
                 }
                 downTarget = -1;
             }
+        },
+        interactiveAt(x, y) {
+            return hitTest(x, y) >= 0;
         },
         focusMove(dx, dy) {
             const old = focused;
@@ -647,8 +655,20 @@ export function textBlock(text, opts = {}) {
         'font-weight': font.weight != null ? String(font.weight) : undefined,
         'font-style': font.style,
     });
+    // One-entry wrap cache keyed by width: the box measures then paints at the
+    // SAME width every relayout, so the naive version ran the glyph measurer
+    // twice per frame — at pointer frequency during a resize drag.
+    let wrapW = -1;
+    let wrapLines = [];
+    const wrap = (width) => {
+        if (width !== wrapW) {
+            wrapW = width;
+            wrapLines = measureTextWrap(text, width, font);
+        }
+        return wrapLines;
+    };
     const render = (width) => {
-        const lines = measureTextWrap(text, width, font);
+        const lines = wrap(width);
         el.textContent = '';
         lines.forEach((line, i) => {
             el.append(svgElements.tspan({ x: 0, y: i * lineHeight + Math.round(font.size * 0.82) }, line));
@@ -659,12 +679,11 @@ export function textBlock(text, opts = {}) {
         el,
         kind: 'block',
         measure: (w) => ({
-            height: measureTextWrap(text, w, font).length * lineHeight,
+            height: wrap(w).length * lineHeight,
         }),
         paint: render,
     };
 }
-/** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
 /**
  * Convert a client (mouse/touch) point into an SVG element's own user space.
  *
@@ -699,6 +718,7 @@ export function svgPoint(el, clientX, clientY) {
     const p = pt.matrixTransform(ctm.inverse());
     return { x: p.x, y: p.y };
 }
+/** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
 export function inlineIcon(name, opts = {}) {
     const size = opts.size ?? 24;
     const el = iconGlyph(name, {

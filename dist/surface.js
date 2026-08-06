@@ -121,13 +121,13 @@ preview.append(
 /*{ "parent": "UI" }*/
 import { svgElements } from 'tosijs';
 import { placePopup } from './flow-layout';
-import { box, button } from './box';
+import { box, button, NO_SELECT_STYLE } from './box';
 const TITLE_H = 30;
 export function surface(opts) {
     const { width, height } = opts;
     const el = svgElements.g({ 'data-surface': '' });
     // Dragging (panels, scroll, sliders) must not select the SVG text nodes.
-    el.setAttribute('style', 'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent');
+    el.setAttribute('style', NO_SELECT_STYLE);
     const contentLayer = svgElements.g({ 'data-surface-content': '' });
     const overlay = svgElements.g({ 'data-surface-overlay': '' });
     el.append(contentLayer, overlay);
@@ -356,6 +356,12 @@ export function surface(opts) {
         closePopup,
         closeAll,
         closeMenus: () => closeMenusFrom(0),
+        interactiveAt(x, y) {
+            for (const p of [...menus, ...panels])
+                if (inRect(p, x, y))
+                    return true;
+            return content?.interactiveAt(x, y) ?? false;
+        },
         handlePointer,
         get popups() {
             return [...panels, ...menus];

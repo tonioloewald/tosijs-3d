@@ -33,7 +33,7 @@ export interface Table extends Widget3d {
     /** Drop focus (B / the host taking it elsewhere). */
     focusClear: () => void;
 }
-export declare function table(config: {
+export interface TableOptions {
     rows: TableRow[];
     columns: ColumnSpec[];
     /** Body height in px (the header sits above it). */
@@ -48,5 +48,6 @@ export declare function table(config: {
     onSelect?: (ids: string[]) => void;
     /** Row activated (a second click / Enter) — distinct from selecting it. */
     onActivate?: (row: TableRow) => void;
-}): Table;
+}
+export declare function table(config: TableOptions): Table;
 //# sourceMappingURL=table.d.ts.map

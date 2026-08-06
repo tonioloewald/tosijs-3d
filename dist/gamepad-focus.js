@@ -111,14 +111,6 @@ claims the pad. Until anything claims, every instance responds — a lone UI jus
 works with zero wiring.
 */
 let claimed = null;
-/**
- * Poll a gamepad each animation frame and drive `target`'s focus. Returns a stop
- * function; call it when the UI closes or the driver should hand over.
- *
- * Pass `claim` (the UI's root element) when the page may hold several gamepad-driven
- * UIs: a pointerdown inside `claim` routes the pad here until another instance is
- * claimed. Omit it for a lone UI.
- */
 export function gamepadFocus(opts) {
     const pulse = createFocusPulse(opts);
     const raf = opts.raf ?? ((cb) => requestAnimationFrame(() => cb()));
@@ -129,6 +121,13 @@ export function gamepadFocus(opts) {
         onDown = (e) => {
             if (opts.claim.contains(e.target))
                 claimed = token;
+            // A press OUTSIDE our claim releases it (owner-only, so instances don't
+            // race). Without this, an instance created WITHOUT `claim` on the same
+            // page was starved forever: it registers no claim element, so no click
+            // could ever route the pad back to it. Click-away → unclaimed → every
+            // instance responds again, which is also the lone-UI default.
+            else if (claimed === token)
+                claimed = null;
         };
         window.addEventListener('pointerdown', onDown, true);
     }

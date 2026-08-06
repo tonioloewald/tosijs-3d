@@ -253,6 +253,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 /*{ "parent": "UI" }*/
 import { svgElements } from 'tosijs';
 import { stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, } from './widgets3d-layout';
+import { w3dTheme } from './w3d-theme';
 import { iconGlyph } from './svg-icons';
 const { svg, g, rect, text, circle, clipPath } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
@@ -260,36 +261,23 @@ const ROW = 40;
 const PAD_X = 12;
 const PAD_Y = 8;
 const GAP = 8;
-// Widget styling is driven by `--w3d-*` CSS variables with the values below as
-// sensible defaults. We RESOLVE them to concrete values in JS (one
-// getComputedStyle read at load) rather than emitting live `var(...)` refs,
-// because these SVGs render two ways: as a flat DOM overlay AND rasterized to a
-// Babylon texture (svg-texture serializes the SVG to a standalone Image — the
-// page's CSS custom properties do NOT cascade into that isolated render). Baking
-// the resolved value makes a theme apply identically flat and in-scene/XR.
-// (Trade-off: a theme is read once at load, so set the vars in CSS before the
-// bundle loads — it isn't live-reactive to later JS changes.)
-const _rootStyle = typeof document !== 'undefined'
-    ? getComputedStyle(document.documentElement)
-    : null;
-const cssVar = (name, fallback) => {
-    const v = _rootStyle?.getPropertyValue(name).trim();
-    return v ? v : fallback;
-};
-const FONT = parseFloat(cssVar('--w3d-font-size', '16')) || 16;
-const FONT_FAMILY = cssVar('--w3d-font-family', 'system-ui, sans-serif');
-const TEXT = cssVar('--w3d-text', '#f0f0f0');
-const MUTED = cssVar('--w3d-muted', '#9aa0a6');
-const HEADING_WEIGHT = cssVar('--w3d-heading-weight', '700');
-const TEXT_WEIGHT = cssVar('--w3d-text-weight', '400');
-const PANEL_BG = cssVar('--w3d-panel-bg', 'rgba(20,22,28,0.94)');
-const BTN_BG = cssVar('--w3d-button-bg', '#2a2f3a');
-const BTN_HOVER = cssVar('--w3d-button-hover', '#333b49');
-const BTN_ACTIVE = cssVar('--w3d-button-active', '#3a4150');
-const TRACK = cssVar('--w3d-track', '#3a3f4a');
-const ACCENT = cssVar('--w3d-accent', '#39c5ff');
-const ROW_BG = cssVar('--w3d-row-bg', 'rgba(255,255,255,0.05)');
-const ROW_HOVER = cssVar('--w3d-row-hover', 'rgba(255,255,255,0.13)');
+// Widget styling comes from the `--w3d-*` CSS variables, resolved ONCE at load
+// in w3d-theme (the full rationale — texture rasterization can't see the page's
+// custom properties — lives there). Local names keep the paint code brief.
+const FONT = w3dTheme.fontSize;
+const FONT_FAMILY = w3dTheme.fontFamily;
+const TEXT = w3dTheme.text;
+const MUTED = w3dTheme.muted;
+const HEADING_WEIGHT = w3dTheme.headingWeight;
+const TEXT_WEIGHT = w3dTheme.textWeight;
+const PANEL_BG = w3dTheme.panelBg;
+const BTN_BG = w3dTheme.buttonBg;
+const BTN_HOVER = w3dTheme.buttonHover;
+const BTN_ACTIVE = w3dTheme.buttonActive;
+const TRACK = w3dTheme.track;
+const ACCENT = w3dTheme.accent;
+const ROW_BG = w3dTheme.rowBg;
+const ROW_HOVER = w3dTheme.rowHover;
 // Compact line height for stacked text (text3d / textBlock3d) — a fraction of a full
 // interactive ROW, which is what buys the vertical space back on text-heavy panels.
 const LINE_H = Math.round(FONT * 1.35);

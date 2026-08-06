@@ -68,6 +68,8 @@ export interface BoxChild {
 }
 /** Pointer phase fed to {@link Box.handlePointer}. */
 export type PointerKind = 'down' | 'move' | 'up' | 'leave';
+/** Inline style every drag-driven SVG surface wears (box, surface, panel3d). */
+export declare const NO_SELECT_STYLE = "user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent";
 export interface BoxOptions {
     /** Outer width in layout units. */
     width: number;
@@ -109,6 +111,14 @@ export interface Box {
      * child activates it; a pressed child captures until `up`.
      */
     handlePointer: (kind: PointerKind, x: number, y: number) => void;
+    /**
+     * Is (x, y) over an INTERACTIVE child (vs static text / dead space)? Hosts
+     * use it to decide gesture policy — `panelScene`'s default claim asks this,
+     * so pressing a button claims the gesture while pressing prose orbits the
+     * camera (Tonio's cross-demo report: which parts orbit must not depend on
+     * which demo you're in).
+     */
+    interactiveAt: (x: number, y: number) => boolean;
     /** Move focus to the nearest focusable child in a cardinal direction (D-pad). */
     focusMove: (dx: number, dy: number) => void;
     /** Activate the focused child (menu button / Enter). */
@@ -129,7 +139,6 @@ export declare function textBlock(text: string, opts?: {
     color?: string;
     lineHeight?: number;
 }): BoxChild;
-/** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
 /**
  * Convert a client (mouse/touch) point into an SVG element's own user space.
  *
@@ -156,6 +165,7 @@ export declare function svgPoint(el: SVGGraphicsElement, clientX: number, client
     x: number;
     y: number;
 };
+/** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
 export declare function inlineIcon(name: string, opts?: {
     size?: number;
     color?: string;

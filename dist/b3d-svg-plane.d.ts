@@ -85,30 +85,99 @@ export declare const b3dSvgPlane: import("tosijs").ElementCreator<B3dSvgPlane>;
  * The svg's viewBox is re-read per event, so an svg that resizes (hugging its
  * content) keeps mapping correctly.
  */
-export declare function panelScene(opts: {
+/** uv (Babylon, origin bottom-left) → viewBox coords (origin top-left). */
+export declare function uvToViewBox(uv: {
+    x: number;
+    y: number;
+}, vbW: number, vbH: number): {
+    x: number;
+    y: number;
+};
+/**
+ * A point in the GESTURE-START plane frame (world point already transformed by
+ * the frozen inverse world matrix) → viewBox coords. The plane is `planeW` ×
+ * `planeH` world units centred on its origin; viewBox y grows downward.
+ */
+export declare function planeLocalToViewBox(local: {
+    x: number;
+    y: number;
+}, planeW: number, planeH: number, vbW: number, vbH: number): {
+    x: number;
+    y: number;
+};
+/** One pointer event, reduced to what the gesture policy needs. */
+export interface PanelGestureEvent {
+    kind: 'down' | 'move' | 'up';
+    /** The pick landed on the panel plane (with `x`/`y` in viewBox coords). */
+    onPlane: boolean;
+    x?: number;
+    y?: number;
+    /** While a gesture is ACTIVE: the ray∩catcher point in gesture-start viewBox
+     * coords, or null if the ray missed the catcher entirely. */
+    catcher?: {
+        x: number;
+        y: number;
+    } | null;
+    /** For a down on the plane: does the claim policy take it? */
+    claims?: boolean;
+}
+export type PanelGestureAction = {
+    do: 'route';
+    kind: 'down' | 'move' | 'up' | 'leave';
+    x: number;
+    y: number;
+} | {
+    do: 'begin';
+} | {
+    do: 'end';
+};
+/**
+ * The gesture policy, pure: `active` is the only state; the shell executes the
+ * returned actions in order. Pinned behaviours (each burned us on device):
+ * routed moves/ups ride the catcher (never the live mesh, never screen
+ * coordinates); an up that missed the catcher still ends the gesture with
+ * `leave`; an unclaimed press routes but never yields the camera; a move
+ * off-plane with no gesture is a hover `leave`.
+ */
+export declare function panelGesture(active: boolean, ev: PanelGestureEvent): {
+    active: boolean;
+    actions: PanelGestureAction[];
+};
+export interface PanelSceneOptions {
     /** The live svg shown flat — the SAME element becomes the plane's texture. */
     svg: SVGSVGElement;
     /** Where events land: a `surface`, `box`, or anything with `handlePointer`. */
     target: {
         handlePointer: (kind: 'down' | 'move' | 'up' | 'leave', x: number, y: number) => void;
+        /** If present (box/surface have it), the DEFAULT claim policy asks it. */
+        interactiveAt?: (x: number, y: number) => boolean;
     };
     /**
      * Given viewBox coords of a down on the plane: does the UI claim the gesture
-     * (camera yields, moves ride the catcher)? Default: every panel press is UI.
-     * A resize grip passes its hit-test here so panel-body drags still orbit.
+     * (camera yields, moves ride the catcher)? Default: ask the target's
+     * `interactiveAt` — a press on a button/panel claims, a press on static
+     * prose orbits — falling back to claim-everything for targets without it.
+     * A resize grip passes its own hit-test here instead.
      */
     claim?: (x: number, y: number) => boolean;
     /** World width of the plane; height follows the svg's aspect. Default 2.4. */
     width?: number;
     /** Texture resolution. Default 640. */
     resolution?: number;
+    /**
+     * Ms between texture re-render checks (each is a clone + serialize, with the
+     * rasterize skipped when nothing changed). Default 30 — interaction-crisp;
+     * pass slower for panels that mostly sit still.
+     */
+    updateInterval?: number;
     /** Orbit camera placement overrides. */
     camera?: {
         alpha?: number;
         beta?: number;
         radius?: number;
     };
-}): {
+}
+export declare function panelScene(opts: PanelSceneOptions): {
     plane: B3dSvgPlane;
     sceneCreated: (el: B3d) => void;
 };
