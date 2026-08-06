@@ -815,8 +815,21 @@ export function textBlock(
     'font-style': font.style,
   }) as unknown as SVGTextElement
 
+  // One-entry wrap cache keyed by width: the box measures then paints at the
+  // SAME width every relayout, so the naive version ran the glyph measurer
+  // twice per frame — at pointer frequency during a resize drag.
+  let wrapW = -1
+  let wrapLines: string[] = []
+  const wrap = (width: number): string[] => {
+    if (width !== wrapW) {
+      wrapW = width
+      wrapLines = measureTextWrap(text, width, font)
+    }
+    return wrapLines
+  }
+
   const render = (width: number): number => {
-    const lines = measureTextWrap(text, width, font)
+    const lines = wrap(width)
     el.textContent = ''
     lines.forEach((line, i) => {
       el.append(
@@ -833,7 +846,7 @@ export function textBlock(
     el,
     kind: 'block',
     measure: (w) => ({
-      height: measureTextWrap(text, w, font).length * lineHeight,
+      height: wrap(w).length * lineHeight,
     }),
     paint: render,
   }

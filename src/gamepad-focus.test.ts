@@ -284,8 +284,19 @@ describe('gamepadFocus — a claimless instance is not starved forever', () => {
         run.forEach((f) => f())
       },
     }
-    const stopA = gamepadFocus({ poll: () => state, target: t('A'), claim: elA, raf: p.raf, cancel: p.cancel })
-    const stopB = gamepadFocus({ poll: () => state, target: t('B'), raf: p.raf, cancel: p.cancel }) // NO claim
+    const stopA = gamepadFocus({
+      poll: () => state,
+      target: t('A'),
+      claim: elA,
+      raf: p.raf,
+      cancel: p.cancel,
+    })
+    const stopB = gamepadFocus({
+      poll: () => state,
+      target: t('B'),
+      raf: p.raf,
+      cancel: p.cancel,
+    }) // NO claim
     elA.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
     state = pad({ dpadRight: true })
     p.step()

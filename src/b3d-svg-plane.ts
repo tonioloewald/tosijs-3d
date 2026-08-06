@@ -716,7 +716,12 @@ export interface PanelGestureEvent {
 }
 
 export type PanelGestureAction =
-  | { do: 'route'; kind: 'down' | 'move' | 'up' | 'leave'; x: number; y: number }
+  | {
+      do: 'route'
+      kind: 'down' | 'move' | 'up' | 'leave'
+      x: number
+      y: number
+    }
   | { do: 'begin' } // freeze the frame, enable the catcher, camera yields
   | { do: 'end' } // catcher off, camera resumes
 
@@ -735,7 +740,12 @@ export function panelGesture(
   const actions: PanelGestureAction[] = []
   if (active && (ev.kind === 'move' || ev.kind === 'up')) {
     if (ev.catcher) {
-      actions.push({ do: 'route', kind: ev.kind, x: ev.catcher.x, y: ev.catcher.y })
+      actions.push({
+        do: 'route',
+        kind: ev.kind,
+        x: ev.catcher.x,
+        y: ev.catcher.y,
+      })
     } else if (ev.kind === 'up') {
       actions.push({ do: 'route', kind: 'leave', x: 0, y: 0 })
     }
@@ -754,7 +764,8 @@ export function panelGesture(
     actions.push({ do: 'route', kind: ev.kind, x: ev.x!, y: ev.y! })
     return { active, actions }
   }
-  if (ev.kind === 'move') actions.push({ do: 'route', kind: 'leave', x: 0, y: 0 })
+  if (ev.kind === 'move')
+    actions.push({ do: 'route', kind: 'leave', x: 0, y: 0 })
   return { active, actions }
 }
 
@@ -783,6 +794,12 @@ export function panelScene(opts: {
   width?: number
   /** Texture resolution. Default 640. */
   resolution?: number
+  /**
+   * Ms between texture re-render checks (each is a clone + serialize, with the
+   * rasterize skipped when nothing changed). Default 30 — interaction-crisp;
+   * pass slower for panels that mostly sit still.
+   */
+  updateInterval?: number
   /** Orbit camera placement overrides. */
   camera?: { alpha?: number; beta?: number; radius?: number }
 }): { plane: B3dSvgPlane; sceneCreated: (el: B3d) => void } {
@@ -794,6 +811,7 @@ export function panelScene(opts: {
     width,
     height: planeH,
     resolution: opts.resolution ?? 640,
+    updateInterval: opts.updateInterval ?? 30,
     materialChannel: 'emissive',
     pointerEvents: 'off',
   }) as B3dSvgPlane
@@ -836,9 +854,7 @@ export function panelScene(opts: {
 
     const T = BABYLON.PointerEventTypes
     const claims =
-      opts.claim ??
-      opts.target.interactiveAt?.bind(opts.target) ??
-      (() => true)
+      opts.claim ?? opts.target.interactiveAt?.bind(opts.target) ?? (() => true)
     let active = false
     el.scene.onPointerObservable.add((pi) => {
       const kind =

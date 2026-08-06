@@ -150,7 +150,9 @@ describe('widgetChild — the full Widget3d protocol passes through', () => {
       el: document.createElementNS('http://www.w3.org/2000/svg', 'g'),
       layout: () => 30,
       handle: () => {},
-      focusMove: (dx: number, dy: number) => (calls.push(`move:${dx},${dy}`), true),
+      focusMove: (dx: number, dy: number) => (
+        calls.push(`move:${dx},${dy}`), true
+      ),
       focusActivate: () => calls.push('activate'),
       focusClear: () => calls.push('clear'),
       setState: (s: any) => calls.push(`state:${s.focused}`),

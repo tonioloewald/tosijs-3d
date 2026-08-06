@@ -119,7 +119,11 @@ describe('panelGesture — the active gesture rides the catcher', () => {
   })
 
   test('a move whose ray missed the catcher routes nothing (gesture holds)', () => {
-    const r = panelGesture(true, { kind: 'move', onPlane: false, catcher: null })
+    const r = panelGesture(true, {
+      kind: 'move',
+      onPlane: false,
+      catcher: null,
+    })
     expect(r.active).toBe(true)
     expect(r.actions).toEqual([])
   })

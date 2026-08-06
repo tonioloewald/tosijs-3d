@@ -399,3 +399,32 @@ describe('table — the inner-focus protocol shape (the rc.1 blocker)', () => {
     expect(t.focusIndex).toBe(first)
   })
 })
+
+describe('table — scroll within the window is transform-only (the promised behavior)', () => {
+  test('a small scroll keeps the built rows; only the transform moves', () => {
+    const { t } = mk({ count: 200 })
+    const inner = () => t.el.querySelector('[data-tbl="rows"]') as SVGGElement
+    t.scrollBy(1000) // settle mid-list
+    const before = Array.from(inner().children)
+    const tf = inner().getAttribute('transform')
+    t.scrollBy(3) // window unchanged (< ROW_H, same start/end)
+    expect(Array.from(inner().children)).toEqual(before) // SAME nodes
+    expect(inner().getAttribute('transform')).not.toBe(tf)
+    t.scrollBy(ROW_H * 3) // window shifted → rebuild
+    expect(Array.from(inner().children)).not.toEqual(before)
+  })
+
+  test('hover restyles the two affected backgrounds without a rebuild', () => {
+    const { t } = mk({ count: 50 })
+    const inner = () => t.el.querySelector('[data-tbl="rows"]') as SVGGElement
+    t.handle!('move', 20, rowY(1))
+    const nodes = Array.from(inner().children)
+    const bg1 = nodes[1].querySelector('rect')!
+    expect(bg1.getAttribute('fill')).not.toBe('transparent')
+    t.handle!('move', 20, rowY(3))
+    expect(Array.from(inner().children)).toEqual(nodes) // no rebuild
+    expect(bg1.getAttribute('fill')).toBe('transparent')
+    const bg3 = nodes[3].querySelector('rect')!
+    expect(bg3.getAttribute('fill')).not.toBe('transparent')
+  })
+})
