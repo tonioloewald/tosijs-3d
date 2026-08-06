@@ -196,4 +196,5 @@ static/jolt-physics.wasm-compat.js
 # Doc-site hydrate bundle leaks into dist/ from the tosijs-ui site pipeline;
 # the deployed site uses docs/hydrate.js — dist/hydrate is unused and must not ship.
 dist/hydrate/
+# build-backup ritual — retire when tosijs-ui#51 (concurrent-build lock) ships
 docs.last-good

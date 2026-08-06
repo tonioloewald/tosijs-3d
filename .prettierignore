@@ -7,4 +7,5 @@ node_modules
 *.json
 # copied verbatim from node_modules by site.config.ts prebuild
 static/jolt-physics.wasm-compat.js
+# retire with tosijs-ui#51
 docs.last-good

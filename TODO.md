@@ -2,9 +2,17 @@
 
 ## v0.6.0-rc.1 review follow-ups (nine-lens, 2026-08-06)
 
-The three gating items (table.focusMove protocol shape, menu-leaf closeAll, RELEASING.md
-prerelease path) were fixed in rc.2. These ride behind it — CONFIRMED items first, then
-unverified leads (sanity-check each against the code before acting).
+**STATUS (0.6.0 final):** the three rc.2 gating items AND nearly this whole list shipped —
+confirmed majors (panelScene contract coverage via the pure panelGesture extraction,
+SvgTexture latch tests, w3d-theme), the verified correctness/efficiency leads
+(interactiveAt claim default, raw-child hover, gamepadFocus claim release, transform-only
+table scroll + surgical hover, textBlock cache, updateInterval), docs/dx (flow-layout page,
+onResize ⚠️, on\* scoping, option types, rasterize warn, provenance), blast radius
+(TOSIJS_DEPLOY_HOST, bun.lockb), upstream (#52/#53 filed; #34/#36 verified + closed), and
+the practices-repo entries. **Still open:** `wireSvgPointer` (flat-side wiring still
+copy-pasted across ~7 demos); a full NullEngine integration test of panelScene's Babylon
+shell (the policy + math are pure-tested); synthetic-pointerId + iconBar3d direct tests;
+table paintHeader cell() nit; the ui-surface extraction seam decision.
 
 **Confirmed (priority):**
 

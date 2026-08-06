@@ -20,6 +20,8 @@ no issue URL is a complaint nobody will ever read.
 | `tjs-lang`  | All-caps identifier reassignment rewritten to `const`, shadowing a module-level `let`                                                                           | [tjs-lang#22](https://github.com/tonioloewald/tjs-lang/issues/22)   |
 | `haltija`   | Tab selection follows focus, not cwd — commands can land on another project's page                                                                              | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)       |
 | `tosijs-ui` | Dev server dies silently when a standalone build runs concurrently (shared docs/dist output tree — needs a lock, or at least a loud death)                      | [tosijs-ui#51](https://github.com/tonioloewald/tosijs-ui/issues/51) |
+| `tosijs-ui` | `tosi-example` has no full-bleed/preview-sizing option — consumers pay a specificity hack + per-demo `.preview` css fences coupled to internal class names      | [tosijs-ui#52](https://github.com/tonioloewald/tosijs-ui/issues/52) |
+| `tosijs-ui` | Live-example scope: a demo's `const name` silently collides with `window.name` (same family as tjs-lang#22)                                                     | [tosijs-ui#53](https://github.com/tonioloewald/tosijs-ui/issues/53) |
 
 ## Resolved
 

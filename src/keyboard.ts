@@ -84,7 +84,7 @@ let target = null
 let kbPanel = null
 const use = (f) => {
   target = f
-  // nameField, not `name` — shadowing window.name in a loose scope fails silently
+  // nameField, not `name` — shadowing window.name in a loose scope fails silently (tosijs-ui#53)
   for (const g of [nameField, mottoField]) g.setActive(g === f)
   openKeyboard()
 }

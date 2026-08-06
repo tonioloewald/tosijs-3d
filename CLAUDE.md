@@ -45,7 +45,7 @@ not just the current state:
 
 Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 
-- **Dev server**: `bun start` (formats code, then runs HTTPS dev server on port 8030 with file watching)
+- **Dev server**: `bun start` (formats code, then runs HTTPS dev server on port 8030 with file watching). Because it runs `bun format && …`, **"the server won't start" can mean "lint failed"** — read the format output before debugging the server.
 - **Build**: `bun run build` (runs `bun bin/site.ts --build`: doc-site build + library `tsc -p tsconfig.build.json`, exits)
 - **Format**: `bun format` (ESLint fix + Prettier)
 - **Run tests**: `bun test` (Bun's native test runner, test files use `*.test.ts` pattern)
