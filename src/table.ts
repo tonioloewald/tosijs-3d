@@ -92,8 +92,8 @@ svgEl.addEventListener('wheel', (e) => { t.scrollBy(e.deltaY); e.preventDefault(
 // in for the D-pad here; the same two calls are what a gamepad would drive.
 svgEl.setAttribute('tabindex', '0')
 svgEl.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowDown') { t.focusMove(1); e.preventDefault() }
-  else if (e.key === 'ArrowUp') { t.focusMove(-1); e.preventDefault() }
+  if (e.key === 'ArrowDown') { t.focusMove(0, 1); e.preventDefault() }
+  else if (e.key === 'ArrowUp') { t.focusMove(0, -1); e.preventDefault() }
   else if (e.key === 'Enter' || e.key === ' ') { t.focusActivate(); e.preventDefault() }
   else if (e.key === 'Escape') { t.focusClear() }
 })
@@ -167,14 +167,19 @@ export interface Table extends Widget3d {
   /** The focused row index, or -1. */
   readonly focusIndex: number
   /**
-   * Move focus one row (`dy` +1 down / -1 up), scrolling it into view.
+   * Move focus one row (`dy` +1 down / -1 up), scrolling it into view. The
+   * signature is the INNER-FOCUS PROTOCOL's `(dx, dy)` — the shape every host
+   * calls (`box.focusMove`, `widgetChild`, `gamepadFocus`) — so a table hosted
+   * in a panel traverses correctly. A pure-horizontal move is not consumed
+   * (a row list has no columns to walk).
    *
-   * Returns **false when the move would leave the table** — at either end, or when
-   * there are no rows. That's the contract that lets focus escape: a host moves on
-   * to the next widget when this says "not mine". Clamping instead is what traps
-   * focus inside a list forever, which is the classic D-pad dead end.
+   * Returns **false when the move would leave the table** — at either end,
+   * horizontally, or when there are no rows. That's the contract that lets
+   * focus escape: a host moves on to the next widget when this says "not
+   * mine". Clamping instead is what traps focus inside a list forever, which
+   * is the classic D-pad dead end.
    */
-  focusMove: (dy: number) => boolean
+  focusMove: (dx: number, dy: number) => boolean
   /** Commit the focused row (A / Enter). Same effect as tapping it. */
   focusActivate: () => boolean
   /** Drop focus (B / the host taking it elsewhere). */
@@ -446,8 +451,14 @@ export function table(config: {
     get focusIndex() {
       return focused
     },
-    focusMove(dy: number) {
+    focusMove(dx: number, dy: number) {
       if (rows.length === 0) return false
+      // Horizontal isn't ours: a row list has no columns, so LEFT/RIGHT escape
+      // to the host rather than being eaten. (This arg order bug shipped in
+      // rc.1 as focusMove(dy) — the protocol's dx landed in dy, trapping D-pad
+      // focus vertically. The signature is the protocol's now; caught by the
+      // pre-release review.)
+      if (dy === 0) return false
       // Entering: the first press lands on the top visible row rather than row 0, so
       // focus appears where you're already looking after a scroll.
       if (focused < 0) {

@@ -129,8 +129,8 @@ svgEl.addEventListener(&#39;wheel&#39;, (e) =&gt; { t.scrollBy(e.deltaY); e.prev
 // in for the D-pad here; the same two calls are what a gamepad would drive.
 svgEl.setAttribute(&#39;tabindex&#39;, &#39;0&#39;)
 svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
-  if (e.key === &#39;ArrowDown&#39;) { t.focusMove(1); e.preventDefault() }
-  else if (e.key === &#39;ArrowUp&#39;) { t.focusMove(-1); e.preventDefault() }
+  if (e.key === &#39;ArrowDown&#39;) { t.focusMove(0, 1); e.preventDefault() }
+  else if (e.key === &#39;ArrowUp&#39;) { t.focusMove(0, -1); e.preventDefault() }
   else if (e.key === &#39;Enter&#39; || e.key === &#39; &#39;) { t.focusActivate(); e.preventDefault() }
   else if (e.key === &#39;Escape&#39;) { t.focusClear() }
 })

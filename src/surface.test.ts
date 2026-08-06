@@ -119,3 +119,44 @@ describe('surface — persistent draggable panel', () => {
     expect(p.x).toBe(240) // clamped: 400 - 160
   })
 })
+
+describe('surface — a menu leaf select must not destroy persistent panels (rc.1 review)', () => {
+  test('leaf select closes the cascade; an open panel survives', async () => {
+    const S = await import('./surface')
+    const B = await import('./box')
+    const s = S.surface({ width: 300, height: 260 })
+    s.setContent(B.box({ width: 300, height: 260 }, B.textBlock('bg')))
+    // a persistent panel, per openPanel's "stays until closed" contract
+    const panel = s.openPanel(
+      { x: 120, y: 40 },
+      B.box({ width: 120, padding: 8 }, B.textBlock('debug'))
+    )
+    let selected = ''
+    const menu = S.openMenu(s, { x: 10, y: 10, width: 60, height: 20 }, [
+      { label: 'Talk', onSelect: () => (selected = 'Talk') },
+    ])
+    // press the leaf item (menu box coords: first row)
+    const r = menu.box.childRect(0)!
+    s.handlePointer('down', menu.x + r.x + 4, menu.y + r.y + 4)
+    s.handlePointer('up', menu.x + r.x + 4, menu.y + r.y + 4)
+    expect(selected).toBe('Talk')
+    expect(s.popups).toContain(panel) // the panel SURVIVED
+    expect(s.popups.length).toBe(1) // and the menu closed
+  })
+
+  test('closeMenus closes cascades only; closeAll still closes everything', async () => {
+    const S = await import('./surface')
+    const B = await import('./box')
+    const s = S.surface({ width: 300, height: 260 })
+    s.setContent(B.box({ width: 300, height: 260 }, B.textBlock('bg')))
+    const panel = s.openPanel(
+      { x: 120, y: 40 },
+      B.box({ width: 120, padding: 8 }, B.textBlock('debug'))
+    )
+    S.openMenu(s, { x: 10, y: 10, width: 60, height: 20 }, [{ label: 'A' }])
+    s.closeMenus()
+    expect(s.popups).toEqual([panel])
+    s.closeAll()
+    expect(s.popups).toEqual([])
+  })
+})

@@ -228,7 +228,7 @@ describe('table — D-pad / keyboard traversal', () => {
     const { t } = mk()
     expect(t.focusIndex).toBe(-1)
     expect(ring(t)).toBe(0)
-    expect(t.focusMove(1)).toBe(true)
+    expect(t.focusMove(0, 1)).toBe(true)
     expect(t.focusIndex).toBe(0)
     expect(ring(t)).toBe(1)
   })
@@ -236,54 +236,54 @@ describe('table — D-pad / keyboard traversal', () => {
   test('entering after a scroll lands where you are LOOKING, not at row 0', () => {
     const { t } = mk()
     t.scrollBy(ROW_H * 10)
-    t.focusMove(1)
+    t.focusMove(0, 1)
     expect(t.focusIndex).toBe(10)
   })
 
   test('moves row by row', () => {
     const { t } = mk()
-    t.focusMove(1)
-    t.focusMove(1)
-    t.focusMove(1)
+    t.focusMove(0, 1)
+    t.focusMove(0, 1)
+    t.focusMove(0, 1)
     expect(t.focusIndex).toBe(2)
-    t.focusMove(-1)
+    t.focusMove(0, -1)
     expect(t.focusIndex).toBe(1)
   })
 
   test('returns FALSE at the ends so focus can escape (no D-pad dead end)', () => {
     const { t } = mk({ count: 3 })
-    t.focusMove(1) // enter at 0
-    expect(t.focusMove(-1)).toBe(false) // above the top → not consumed
+    t.focusMove(0, 1) // enter at 0
+    expect(t.focusMove(0, -1)).toBe(false) // above the top → not consumed
     expect(t.focusIndex).toBe(0) // and does not wrap or clamp-and-swallow
-    t.focusMove(1)
-    t.focusMove(1) // now at 2, the last row
+    t.focusMove(0, 1)
+    t.focusMove(0, 1) // now at 2, the last row
     expect(t.focusIndex).toBe(2)
-    expect(t.focusMove(1)).toBe(false) // below the end → not consumed
+    expect(t.focusMove(0, 1)).toBe(false) // below the end → not consumed
   })
 
   test('an empty table never claims the move', () => {
     const { t } = mk({ count: 0 })
-    expect(t.focusMove(1)).toBe(false)
+    expect(t.focusMove(0, 1)).toBe(false)
     expect(t.focusIndex).toBe(-1)
   })
 
   test('focus scrolls itself into view rather than going off-screen', () => {
     const { t } = mk()
-    t.focusMove(1) // row 0
+    t.focusMove(0, 1) // row 0
     const visible = () =>
       [...t.el.querySelectorAll('[data-tbl="rows"] > g')].map((g: any) =>
         g.getAttribute('data-row')
       )
     // walk past the bottom of the viewport
-    for (let i = 0; i < 12; i++) t.focusMove(1)
+    for (let i = 0; i < 12; i++) t.focusMove(0, 1)
     expect(t.focusIndex).toBe(12)
     expect(visible()).toContain('r12') // the focused row is actually built
   })
 
   test('activate commits the focused row — same effect as tapping it', () => {
     const { t, picked } = mk({ selection: 'multi' })
-    t.focusMove(1)
-    t.focusMove(1) // row 1
+    t.focusMove(0, 1)
+    t.focusMove(0, 1) // row 1
     expect(t.focusActivate()).toBe(true)
     expect(t.selected).toEqual(['r1'])
     expect(picked.at(-1)).toEqual(['r1'])
@@ -299,13 +299,13 @@ describe('table — D-pad / keyboard traversal', () => {
     const { t } = mk({ selection: 'single' })
     t.handle!('up', 40, rowY(2))
     expect(t.focusIndex).toBe(2)
-    t.focusMove(1)
+    t.focusMove(0, 1)
     expect(t.focusIndex).toBe(3)
   })
 
   test('focusClear removes the ring', () => {
     const { t } = mk()
-    t.focusMove(1)
+    t.focusMove(0, 1)
     expect(ring(t)).toBe(1)
     t.focusClear()
     expect(t.focusIndex).toBe(-1)
@@ -314,7 +314,7 @@ describe('table — D-pad / keyboard traversal', () => {
 
   test('focus, hover and selection coexist — three channels, all readable', () => {
     const { t } = mk({ selection: 'multi' })
-    t.focusMove(1) // focus row 0
+    t.focusMove(0, 1) // focus row 0
     t.focusActivate() // select row 0
     t.handle!('move', 40, rowY(0)) // hover row 0 as well
     const row = t.el.querySelector('[data-tbl="rows"] > g') as any
@@ -366,5 +366,36 @@ describe('table — setRows', () => {
     t.scrollBy(5000)
     t.setRows(makeRows(3))
     expect(builtRows(t)).toBe(3)
+  })
+})
+
+describe('table — the inner-focus protocol shape (the rc.1 blocker)', () => {
+  // rc.1 shipped focusMove(dy) while every host calls (dx, dy): the protocol's
+  // dx landed in the dy parameter, so D-pad DOWN (0, 1) read as dy=0 —
+  // consumed without moving, focus hard-trapped — and LEFT/RIGHT moved rows.
+  test('vertical moves walk rows; horizontal is NOT consumed (escapes to the host)', () => {
+    const { t } = mk({ count: 5 })
+    expect(t.focusMove(0, 1)).toBe(true) // enter
+    const at = t.focusIndex
+    expect(t.focusMove(0, 1)).toBe(true)
+    expect(t.focusIndex).toBe(at + 1)
+    expect(t.focusMove(1, 0)).toBe(false) // horizontal escapes
+    expect(t.focusIndex).toBe(at + 1) // and did not move a row
+    expect(t.focusMove(-1, 0)).toBe(false)
+  })
+
+  test('hosted in a widgetBox, box.focusMove(0, ±1) traverses the rows', async () => {
+    // The shipped configuration: the demo hosts the table in a widgetBox. This
+    // is the exact path that was dead in rc.1.
+    const { widgetBox } = await import('./widget-box')
+    const { t } = mk({ count: 5 })
+    const b = widgetBox({ width: W, padding: 0 }, [t as any])
+    b.focusMove(0, 1) // box focus → the table child (entry delegates inward)
+    const first = t.focusIndex
+    expect(first).toBeGreaterThanOrEqual(0)
+    b.focusMove(0, 1) // delegated: next row
+    expect(t.focusIndex).toBe(first + 1)
+    b.focusMove(0, -1)
+    expect(t.focusIndex).toBe(first)
   })
 })

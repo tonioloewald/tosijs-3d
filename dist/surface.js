@@ -354,6 +354,7 @@ export function surface(opts) {
         openPanel,
         closePopup,
         closeAll,
+        closeMenus: () => closeMenusFrom(0),
         handlePointer,
         get popups() {
             return [...panels, ...menus];
@@ -382,7 +383,8 @@ export function openMenu(s, anchor, items, side = 'below', menuWidth = 180) {
             }
             else {
                 item.onSelect?.(item);
-                s.closeAll();
+                // Menus only — a leaf select must not take persistent panels with it.
+                s.closeMenus();
             }
         },
     }));

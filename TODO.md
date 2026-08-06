@@ -1,5 +1,76 @@
 # TODO
 
+## v0.6.0-rc.1 review follow-ups (nine-lens, 2026-08-06)
+
+The three gating items (table.focusMove protocol shape, menu-leaf closeAll, RELEASING.md
+prerelease path) were fixed in rc.2. These ride behind it — CONFIRMED items first, then
+unverified leads (sanity-check each against the code before acting).
+
+**Confirmed (priority):**
+
+[ ] **[coverage]** `panelScene`'s gesture contract (claim / catcher quad / frozen-frame
+math) has zero automated coverage despite four fix-commits. NullEngine test (pattern:
+world-view / aircraft-rig tests): full claimed gesture — down → frozen-frame move →
+off-plane up ⇒ `leave`, camera re-attached. Extract uv→viewBox + frozen-frame→viewBox
+into pure tested functions.
+[ ] **[coverage]** SvgTexture busy-latch regression test: after a failed rasterize,
+`_rendering` false, `_lastXml` NOT committed, next tick retries and commits on success
+(drive `_img` onload/onerror under happy-dom).
+[ ] **[dryness]** w3d theme block (cssVar + `--w3d-*` reads with re-typed fallbacks)
+triplicated across widgets3d/keyboard/table — extract `src/w3d-theme.ts`. Keep the
+load-time JS-resolve approach (`varDefault` would break the rasterize path).
+
+**Unverified leads:**
+
+[ ] [correctness] box raw-child routing may leave a stale hover highlight (box.ts
+handlePointer raw path skips hover bookkeeping) — in VR the highlight is the feedback.
+[ ] [correctness] `gamepadFocus` without `claim` is starved forever once any instance
+claims — add a mixed two-instance test; maybe unclaimed should mean "background share".
+[ ] [efficiency] table paintBody rebuilds visible-row DOM per drag-scroll move + hover
+change, contradicting its transform-only-scroll comment — make surgical or fix comment.
+[ ] [efficiency] panelScene hardwires the 30ms SvgTexture poll — pass `updateInterval`
+through; longer-term a MutationObserver dirty flag.
+[ ] [efficiency] textBlock wraps twice per relayout (measure + paint, same width) —
+one-entry cache keyed by width.
+[ ] [dryness] keyboard key-fill helpers (keyTint/pressVis/spaceHint) → one setKeyFill;
+accent-strip hit mapping duplicated between trackPopup and sticky-tap (SLACK already
+drifted 8 vs 10) → one pure accentIndexAt.
+[ ] [dryness] Flat-side pointer wiring copy-pasted across ~7 demos with drift — export a
+`wireSvgPointer` sibling of panelScene.
+[ ] [dryness, nits] table paintHeader re-does cell() arithmetic; svgPoint lives in box.ts
+(generic — move; fix the orphaned inlineIcon JSDoc above it); user-select style string
+duplicated box/surface.
+[ ] [docs] /flow-layout/ page doesn't mention `nearestInDirection` / `placePopup`.
+[ ] [coverage] synthetic-pointerId fix untested (forwarded events carry
+SYNTHETIC_POINTER_ID); `isOff` untested; Widget3d protocol additions + iconBar3d untested.
+[ ] [dx] SvgTexture failed-rasterize recovery is silent — one console.warn per instance
+on first failure.
+[ ] [dx] onResize→handleResize rename (public on B3d/B3dHud in 0.5.2 dist) has no
+CHANGELOG ⚠️ entry — add one; consider a one-release deprecated alias.
+[ ] [dx] CLAUDE.md's on\*-callback warning is unscoped now that plain factories use
+onFoo freely — add a scoping sentence (components: never; factories: fine).
+[ ] [dx] **Decide before 0.6.0 final:** the Babylon-free SVG UI ships bare generic names
+(`button`, `box`, `table`, `surface`, `keyboard`, `edit`, …) behind four Babylon peer
+ranges — bless deliberately or alias (editLength-style), and record the extraction seam
+(own package / tosijs-ui home; b3d bridges stay) here + UI-DESIGN-NOTES.
+[ ] [dx, nit] Export option types (TableConfig, KeyboardOptions, InputFieldOptions,
+PanelSceneOptions, GamepadFocusOptions).
+[ ] [blast-radius] site.config.ts commits `root@<ip>` as tunnel/deploy host in a public
+repo — resolve from env (TOSIJS_DEPLOY_HOST) with a clear absent-var error; non-root
+user. If the tosijs-ui schema can't express it, file that upstream.
+[ ] [blast-radius, nit] icons/stroked/resize.svg copied from tosijs-ui — note provenance.
+[ ] [practices] delete stale `bun.lockb` (canonical bun.lock exists).
+[ ] [ecosystem, to FILE upstream after sanity-check, then mirror in UPSTREAM.md]:
+tosi-example full-bleed option (we pay a specificity hack + per-demo css fences);
+live-example loose scope lets `const name` shadow window.name (keyboard.ts renamed
+around it); UPSTREAM.md ledger drift (#34/#36 recorded Resolved but open on GitHub —
+verify against 1.9.4, close or move back); env-sourced deploy host (see above).
+[ ] [practices, shared KB → ../tosijs-coding-practices]: web-components.md entry for the
+tosijs#24 silent-discard trap (the 'on'|'off' migration corollary); releasing.md already
+covers rc tagging (project RELEASING.md now restates it); never silence format/lint in
+verification pipelines (a silenced failure shipped, commit 81328438); promote the
+no-broad-pkill rule from this repo's CLAUDE.md to shared development.md.
+
 ## Needs validation (built without a headset — spot-check next session)
 
 Changes made from source-only (tsc + unit tests green) that still need a human/headset

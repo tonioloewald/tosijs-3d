@@ -46,6 +46,12 @@ export interface Surface {
     /** Close every popup (menus + panels). */
     closeAll: () => void;
     /**
+     * Close the open menu cascade only — panels survive. This is what a menu
+     * leaf-select uses: `closeAll` there destroyed persistent panels, breaking
+     * openPanel's "stays until closed" contract (caught by the rc.1 review).
+     */
+    closeMenus: () => void;
+    /**
      * Route a pointer event (surface coords). With popups open, the top-most one
      * captures and a `down` outside all of them dismisses; otherwise the content box
      * gets it.

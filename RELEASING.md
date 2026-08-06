@@ -98,6 +98,31 @@ and confirm each is mentioned in `CLAUDE.md`.
 
    Confirm afterwards: `npm view tosijs-3d version`.
 
+   ### ⚠️ Prereleases (`-rc.N`, `-beta.N`)
+
+   A bare `npm publish` sets npm's **`latest`** dist-tag — every plain
+   `npm i tosijs-3d` would then install the rc. For any `X.Y.Z-rc.N` version:
+
+   ```sh
+   npm publish --tag next          # rc installs via `npm i tosijs-3d@next` only
+   ```
+
+   Tag format matches the release tags with the prerelease suffix
+   (`v0.6.0-rc.1`). Mark the GitHub release as a prerelease if you cut one
+   (`gh release create vX.Y.Z-rc.N --prerelease`). The final release then
+   publishes normally — its bare `npm publish` takes `latest` and supersedes
+   the rc. If a bare publish of an rc ever happens by accident, repoint the
+   tag rather than unpublishing:
+
+   ```sh
+   npm dist-tag add tosijs-3d@<last-stable> latest
+   npm dist-tag add tosijs-3d@<rc-version> next
+   ```
+
+   (Shared process: `tosijs-coding-practices/practices/releasing.md` §
+   prerelease tagging — this section is the project-local restatement at the
+   load-bearing step.)
+
 9. **Push** `main` + tags (Claude waits for an explicit nudge before any push):
    ```sh
    git push && git push --tags

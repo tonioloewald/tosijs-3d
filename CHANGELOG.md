@@ -4,6 +4,32 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.6.0-rc.2
+
+The nine-lens pre-release review of rc.1 returned BLOCK; this rc fixes the three
+gating findings (all adversarially confirmed):
+
+### Fixed
+
+- **`table.focusMove` now has the inner-focus protocol's `(dx, dy)` shape.**
+  rc.1 declared `focusMove(dy)` while every host (`box`, `widgetChild`,
+  `gamepadFocus`) calls `(dx, dy)` — the protocol's dx landed in the dy
+  parameter, so a table hosted in a panel consumed D-pad UP/DOWN without moving
+  (focus hard-trapped) and LEFT/RIGHT moved rows. Horizontal moves now escape to
+  the host; regression tests cover both the shape and the hosted-in-a-widgetBox
+  traversal.
+- **A menu leaf select no longer destroys persistent panels.** `openMenu`'s leaf
+  handler called `closeAll()`, contradicting `openPanel`'s "stays until closed"
+  contract. `Surface` gains **`closeMenus()`** (cascade only), which the leaf
+  handler now uses; regression tests pin a panel surviving a leaf select.
+
+### Changed
+
+- RELEASING.md gains the prerelease path (rc → `npm publish --tag next`, dist-tag
+  recovery), CLAUDE.md's test-suite figures updated (48 files / ~740 tests), and
+  the remaining review findings are filed in TODO.md → "v0.6.0-rc.1 review
+  follow-ups".
+
 ## 0.6.0-rc.1
 
 The **SVG UI surface** release: a first-class, VR-ready UI substrate — container,

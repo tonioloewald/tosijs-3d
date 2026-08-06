@@ -92,8 +92,8 @@ svgEl.addEventListener('wheel', (e) => { t.scrollBy(e.deltaY); e.preventDefault(
 // in for the D-pad here; the same two calls are what a gamepad would drive.
 svgEl.setAttribute('tabindex', '0')
 svgEl.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowDown') { t.focusMove(1); e.preventDefault() }
-  else if (e.key === 'ArrowUp') { t.focusMove(-1); e.preventDefault() }
+  if (e.key === 'ArrowDown') { t.focusMove(0, 1); e.preventDefault() }
+  else if (e.key === 'ArrowUp') { t.focusMove(0, -1); e.preventDefault() }
   else if (e.key === 'Enter' || e.key === ' ') { t.focusActivate(); e.preventDefault() }
   else if (e.key === 'Escape') { t.focusClear() }
 })
@@ -347,8 +347,15 @@ export function table(config) {
         get focusIndex() {
             return focused;
         },
-        focusMove(dy) {
+        focusMove(dx, dy) {
             if (rows.length === 0)
+                return false;
+            // Horizontal isn't ours: a row list has no columns, so LEFT/RIGHT escape
+            // to the host rather than being eaten. (This arg order bug shipped in
+            // rc.1 as focusMove(dy) — the protocol's dx landed in dy, trapping D-pad
+            // focus vertically. The signature is the protocol's now; caught by the
+            // pre-release review.)
+            if (dy === 0)
                 return false;
             // Entering: the first press lands on the top visible row rather than row 0, so
             // focus appears where you're already looking after a scroll.

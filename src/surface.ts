@@ -167,6 +167,12 @@ export interface Surface {
   /** Close every popup (menus + panels). */
   closeAll: () => void
   /**
+   * Close the open menu cascade only — panels survive. This is what a menu
+   * leaf-select uses: `closeAll` there destroyed persistent panels, breaking
+   * openPanel's "stays until closed" contract (caught by the rc.1 review).
+   */
+  closeMenus: () => void
+  /**
    * Route a pointer event (surface coords). With popups open, the top-most one
    * captures and a `down` outside all of them dismisses; otherwise the content box
    * gets it.
@@ -440,6 +446,7 @@ export function surface(opts: { width: number; height: number }): Surface {
     openPanel,
     closePopup,
     closeAll,
+    closeMenus: () => closeMenusFrom(0),
     handlePointer,
     get popups() {
       return [...panels, ...menus]
@@ -489,7 +496,8 @@ export function openMenu(
             )
         } else {
           item.onSelect?.(item)
-          s.closeAll()
+          // Menus only — a leaf select must not take persistent panels with it.
+          s.closeMenus()
         }
       },
     })
