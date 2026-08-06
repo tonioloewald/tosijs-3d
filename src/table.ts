@@ -131,22 +131,17 @@ import {
 import { selectionIcon, applySelection, type SelectionMode } from './selection'
 import { iconGlyph } from './svg-icons'
 import type { Widget3d, PointerKind } from './widgets3d'
+import { w3dTheme } from './w3d-theme'
 
 const { g, rect, text, clipPath } = svgElements
 
-const cssVar = (name: string, fallback: string): string => {
-  if (typeof document === 'undefined') return fallback
-  const v = getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim()
-  return v || fallback
-}
-const TEXT = cssVar('--w3d-text', '#f0f0f0')
-const MUTED = cssVar('--w3d-muted', '#9aa0a6')
-const ACCENT = cssVar('--w3d-accent', '#39c5ff')
-const ROW_HOVER = cssVar('--w3d-row-hover', 'rgba(255,255,255,0.13)')
-const HEADER_BG = cssVar('--w3d-track', '#3a3f4a')
-const FONT_FAMILY = cssVar('--w3d-font-family', 'system-ui, sans-serif')
+// Theme reads live in ONE module (w3d-theme); local names for paint brevity.
+const TEXT = w3dTheme.text
+const MUTED = w3dTheme.muted
+const ACCENT = w3dTheme.accent
+const ROW_HOVER = w3dTheme.rowHover
+const HEADER_BG = w3dTheme.track
+const FONT_FAMILY = w3dTheme.fontFamily
 
 let seq = 0
 

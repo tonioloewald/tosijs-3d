@@ -336,6 +336,10 @@ export interface BoxChild {
 /** Pointer phase fed to {@link Box.handlePointer}. */
 export type PointerKind = 'down' | 'move' | 'up' | 'leave'
 
+/** Inline style every drag-driven SVG surface wears (box, surface, panel3d). */
+export const NO_SELECT_STYLE =
+  'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
+
 export interface BoxOptions {
   /** Outer width in layout units. */
   width: number
@@ -414,10 +418,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
   const el = svgElements.g({ 'data-box': '' }) as unknown as SVGGElement
   // Dragging (scroll, slider, spacebar-caret) must not select the text nodes —
   // SVG text is selectable by default and a drag paints every label blue.
-  el.setAttribute(
-    'style',
-    'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
-  )
+  el.setAttribute('style', NO_SELECT_STYLE)
   const bgRect = svgElements.rect({ 'data-box-bg': '', rx: radius, ry: radius })
   const clip = svgElements.clipPath({ id: clipId })
   const clipRect = svgElements.rect({ x: 0, y: 0 })
@@ -838,7 +839,6 @@ export function textBlock(
   }
 }
 
-/** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
 /**
  * Convert a client (mouse/touch) point into an SVG element's own user space.
  *
@@ -878,6 +878,7 @@ export function svgPoint(
   return { x: p.x, y: p.y }
 }
 
+/** An **inline icon** — an `iconGlyph` sized `size×size`, tinted `color`. */
 export function inlineIcon(
   name: string,
   opts: { size?: number; color?: string } = {}

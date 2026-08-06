@@ -122,7 +122,7 @@ preview.append(
 
 import { svgElements } from 'tosijs'
 import { placePopup, type FlowBox, type PopupSide } from './flow-layout'
-import { box, button, type Box, type PointerKind } from './box'
+import { box, button, NO_SELECT_STYLE, type Box, type PointerKind } from './box'
 
 /** A live popup on a {@link Surface}. */
 export interface Popup {
@@ -197,10 +197,7 @@ export function surface(opts: { width: number; height: number }): Surface {
   const { width, height } = opts
   const el = svgElements.g({ 'data-surface': '' }) as unknown as SVGGElement
   // Dragging (panels, scroll, sliders) must not select the SVG text nodes.
-  el.setAttribute(
-    'style',
-    'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent'
-  )
+  el.setAttribute('style', NO_SELECT_STYLE)
   const contentLayer = svgElements.g({ 'data-surface-content': '' })
   const overlay = svgElements.g({ 'data-surface-overlay': '' })
   el.append(contentLayer, overlay)
