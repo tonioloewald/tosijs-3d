@@ -175,7 +175,23 @@ export class B3dInputFocus extends B3dChild {
         // For bipeds, let them handle their own camera via cameraType attribute
         // For other entities, set up a follow camera on the entity's camera target
         if ('setupFollowCamera' in entity) {
-            // Biped handles its own camera
+            /*
+            Self-managed entity (aircraft, biped) — but "it manages its own camera"
+            had an ordering HOLE (manta-recon, issue #1): the aircraft defers camera
+            creation until both mesh AND inputProvider exist, so when focus adoption
+            lands AFTER a fast mesh load, its setupMesh saw inputProvider == null and
+            skipped — and we early-returned. Nobody made the camera; the player flew
+            blind on default-camera. Nudge entities that use the deferral pattern
+            (they expose `chaseCamera`); setupFollowCamera is idempotent (guards its
+            own chaseCamera / missing target), so calling from both sides is safe and
+            whichever side runs LAST completes the setup. Bipeds are left alone —
+            their setupFollowCamera has XR side effects and runs off the player
+            attribute, not focus adoption.
+            */
+            const e = entity;
+            if ('chaseCamera' in e && e.chaseCamera == null && e.getCameraTarget()) {
+                e.setupFollowCamera();
+            }
             return;
         }
         if (!this.owner)

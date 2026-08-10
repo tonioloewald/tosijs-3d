@@ -116,6 +116,20 @@ covers rc tagging (project RELEASING.md now restates it); never silence format/l
 verification pipelines (a silenced failure shipped, commit 81328438); promote the
 no-broad-pkill rule from this repo's CLAUDE.md to shared development.md.
 
+## Underwater/submarine regime (manta-recon is the named adopter — issue #3)
+
+Manta prototypes in-game first, then we upstream the proven shape
+(adopters-before-abstraction). What already works at 0.6.0: b3dWater's underwater fog +
+sun dimming + bubbles preset read convincingly at y = -15; the aircraft flies fine below
+the plane. The gaps, per the issue:
+
+[ ] Water is a FLOOR, not a boundary — the ground raycast sees the water mesh, so a
+descending aircraft aquaplanes at groundClearance instead of submerging. Likely: exclude
+water meshes from the raycast behind a `submarine`/`waterY` attr; seabed stays the floor.
+[ ] Medium-aware drag/speed-cap in fly-by-wire (original Manta: thrust identical, drag
+0.1 vs 1.0) — two configs lerped on a y-band, like b3dWater's fogTransition.
+[ ] Surface-crossing event (aircraft or water) for splash/wake VFX, audio, camera cues.
+
 ## Needs validation (built without a headset — spot-check next session)
 
 Changes made from source-only (tsc + unit tests green) that still need a human/headset

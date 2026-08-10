@@ -188,6 +188,23 @@ export function flyByWireStep(
   ) {
     state.speed = cfg.vtolSpeed
   }
+
+  /*
+  HELD THRUST ALWAYS MAKES PROGRESS from a stall. At full nose-up,
+  diveBoost·sin(pitch) can exceed lift·accel, so speed re-clamped to 0 every
+  frame with the throttle held — a craft frozen mid-air until the pilot
+  guessed "level the nose first" (manta-recon, issue #2; scripted inputs found
+  it, an aggressive pull-up on a real stick reproduces it). Below vtolSpeed
+  the net gain is floored at a fraction of the thrust term: a nose-high
+  climb-out LABORS (quarter thrust) instead of freezing, and grinds toward
+  vtolSpeed where normal physics resume. The zoom-climb stall itself is
+  untouched — release the throttle and you can still bleed to the hang; that's
+  the deliberate "hard way into high-altitude hover".
+  */
+  if (lift > 1e-3 && speed0 < cfg.vtolSpeed) {
+    const minGain = 0.25 * t * lift * cfg.accel * dt
+    if (state.speed < speed0 + minGain) state.speed = speed0 + minGain
+  }
 }
 
 /**

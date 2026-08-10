@@ -55,4 +55,7 @@ no issue URL is a complaint nobody will ever read.
 
 ## Incoming
 
-`gh issue list -R tonioloewald/tosijs-3d` is empty (open and closed) — re-verified at the 0.6.0 review (2026-08-06). Nothing filed against us.
+First consumer issues arrived 2026-08-10 from **manta-recon** (the first external
+adopter): #1 (focus/camera ordering hole — fixed in 0.6.1), #2 (fly-by-wire zero-speed
+deadlock — fixed in 0.6.1), #3 (underwater regime tracking — Manta prototypes first;
+mirrored in TODO.md).

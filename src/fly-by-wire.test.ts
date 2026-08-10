@@ -286,3 +286,42 @@ describe('velocity chase', () => {
     expect(v.z).toBeCloseTo(3, 1)
   })
 })
+
+describe('zero-speed deadlock above the ceiling (manta-recon #2)', () => {
+  // Pitch-induced decay (diveBoost·sin(maxPitch) ≈ 11.5/s with CFG) exceeds
+  // thrust at lift 0.8 (9.6/s), so speed re-clamped to 0 every frame with the
+  // throttle HELD — a craft frozen mid-air, forever. Observed live in Manta.
+  test('held throttle always escapes a zero-speed stall — never a freeze', () => {
+    const cfg = { ...CFG, hoverCeiling: 30 }
+    const s = state({ speed: 0, pitch: 35 * DEG })
+    for (let i = 0; i < 300; i++)
+      flyByWireStep(
+        s,
+        { pitch: 1, roll: 0, lift: 0.8 },
+        s.speed,
+        100,
+        cfg,
+        DT,
+        false
+      )
+    expect(s.speed).toBeGreaterThan(1) // laboring nose-high climb-out, not a hang
+  })
+
+  test('…but releasing everything still stalls — the zoom-climb hover stays reachable', () => {
+    // The stall itself is DELIBERATE ("the hard way into high-altitude hover");
+    // only the frozen-while-throttled terminal state is a bug.
+    const cfg = { ...CFG, hoverCeiling: 30 }
+    const s = state({ speed: 20, pitch: 35 * DEG })
+    for (let i = 0; i < 300; i++)
+      flyByWireStep(
+        s,
+        { pitch: 1, roll: 0, lift: 0 },
+        s.speed,
+        100,
+        cfg,
+        DT,
+        false
+      )
+    expect(s.speed).toBe(0)
+  })
+})
