@@ -14,25 +14,36 @@ import * as BABYLON from '@babylonjs/core'
  * means downstream frames stay clean.
  */
 /**
- * THE canonical model frame — defined here, once (issues #5/#6, manta-recon).
+ * THE canonical model frame — defined here, once (issues #5/#6, manta-recon;
+ * chain corrected 2026-08-12 against real known-orientation content).
  *
- * Content convention: authored **Blender-default** (−Y forward, +Z up, all
- * transforms applied). Through the exporter (front → glTF +Z) and Babylon's
- * LH read, that content arrives facing engine **−Z**; the collapse yaws it π
- * so **content-front lands on the wrapper's +Z** — the engine's forward. One
- * mapping, one place: never fix orientation per-asset or per-call-site.
+ * Content convention: authored **Blender-default in the model's LOCAL frame**
+ * (nose toward local −Y, up local +Z). The exporter maps Blender −Y → glTF
+ * +Z, and the library/url paths read node-local data RAW — there is **no
+ * per-node handedness flip** (the z-flip lives only on the `__root__` this
+ * collapse discards) — so correctly-authored content arrives with its nose
+ * already on **local +Z = engine forward**. The collapse therefore applies
+ * **no rotation**: it only CLEANS.
  *
- * The collapse also:
+ * (Issue #6's original chain assumed a per-node z-flip and prescribed a yaw
+ * π here; Tonio's −Y-authored scout — nose gear at local +0.40Z — disproved
+ * it empirically. The real-content test in model-frame.test.ts pins the
+ * mapping against test-3.glb so narrative can never override measurement
+ * again.)
+ *
+ * The collapse:
  * - **strips handedness mirrors**: Babylon's glTF `__root__` carries
  *   scale (1,1,−1) + yaw 180° (net X-mirror, determinant −1). A control node
  *   with a negative-determinant frame flips chirality for everything computed
  *   through it — inverted pitch, chase camera on the nose side (issue #5).
  *   Scale signs are dropped (magnitudes kept).
- * - drops the node's authored junk rotation/position (scene-layout leftovers).
+ * - drops the node's SCENE transform (position + scenic rotation — dressing;
+ *   the authoring truth is the local frame).
  *
  * The returned wrapper — what flight systems and cameras control — is
- * identity: unit rotation, unit scale, det +1. Legacy +Y-forward content will
- * face backwards through this collapse: re-export it, don't rotate it.
+ * identity: unit rotation, unit scale, det +1. A model that flies backwards
+ * is authored nose-toward-local-+Y: fix its LOCAL frame in Blender
+ * (edit-mode 180° about Z), never rotate in the scene or the code.
  */
 export function canonicalize(
   clone: BABYLON.TransformNode,
@@ -41,13 +52,8 @@ export function canonicalize(
 ): BABYLON.TransformNode {
   const wrapper = new BABYLON.TransformNode(name, scene)
   clone.parent = wrapper
-  // Content-front (engine −Z after the LH read) → wrapper +Z.
-  clone.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-    Math.PI,
-    0,
-    0
-  )
-  clone.rotation.set(0, Math.PI, 0)
+  clone.rotationQuaternion = BABYLON.Quaternion.Identity()
+  clone.rotation.set(0, 0, 0)
   clone.position.set(0, 0, 0)
   // Strip mirror signs (the __root__ handedness flip); keep magnitudes.
   clone.scaling.set(

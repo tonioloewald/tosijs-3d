@@ -418,9 +418,21 @@ into the data). A
 **`.model` suffix declares a library file's intended exports** (`scout.model` lists and
 instantiates as `scout`; files declaring any `.model` nodes list ONLY those). The single
 content→engine mapping lives in `model-transform.canonicalize` (content-front → engine +Z,
-`__root__` handedness mirror stripped, junk transforms dropped) and BOTH load paths (library
-`canonical: true` and `url:`) collapse through it. Never fix orientation per-asset: a model
-that flies backwards is authored against the old +Y convention and needs re-export.
+`__root__` handedness mirror stripped, scene transforms dropped) and BOTH load paths (library
+`canonical: true` and `url:`) collapse through it. **The chain, verified empirically
+(2026-08-11):** Blender local −Y → exporter → glTF +Z → Babylon reads node-local data RAW
+(no per-node handedness flip — that lives only on the discarded `__root__`), so
+correctly-authored content arrives nose-on-local-+Z and `canonicalize` applies **no
+rotation** — it only cleans. (Issue #6's chain analysis prescribed a yaw π here; real
+content disproved it — `model-frame.test.ts` pins the mapping against test-3.glb's scout so
+narrative can't override measurement again.) Never fix orientation per-asset: a model that
+flies backwards is authored nose-toward-local-+Y and needs its LOCAL frame fixed in Blender
+(edit-mode 180° about Z).
+
+**Vehicle node convention:** a vehicle's root-node origin is its **on-ground stance** point
+(origin at ground contact → `y = terrainHeight` parks it correctly). An aircraft adds a
+**centre-of-gravity node** as the next node up — flight dynamics pivot about the CoG, ground
+placement uses the root. (Engine-side CoG-pivot support: TODO.)
 
 ### Component Pattern
 

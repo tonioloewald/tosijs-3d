@@ -95,15 +95,15 @@ describe('canonicalize (wrapper)', () => {
     expect(wrap.scaling.x).toBeCloseTo(1)
     expect(wrap.rotationQuaternion).toBeNull()
     /*
-    THE canonical mapping (issues #5/#6): Blender-default content (−Y forward,
-    all transforms applied) arrives facing engine −Z through the exporter + LH
-    read; the collapse yaws it π so CONTENT-FRONT lands on the wrapper's +Z.
-    Concretely: the model node's local −Z axis is the content front, and it
-    must land on wrapper +Z.
+    THE canonical mapping (issues #5/#6, corrected against real content):
+    Blender-default content (nose local −Y) maps through the exporter to glTF
+    +Z, and node-local data is read RAW — no per-node flip — so the model
+    node's local +Z axis IS the content front. The collapse applies no
+    rotation; content-front stays on the wrapper's +Z.
     */
     root.computeWorldMatrix(true)
     const contentFront = new BABYLON.Vector3()
-    root.getDirectionToRef(new BABYLON.Vector3(0, 0, -1), contentFront)
+    root.getDirectionToRef(new BABYLON.Vector3(0, 0, 1), contentFront)
     contentFront.normalize()
     expect(contentFront.x).toBeCloseTo(0)
     expect(contentFront.y).toBeCloseTo(0)
@@ -146,7 +146,7 @@ describe('canonicalize (wrapper)', () => {
       const n = new BABYLON.TransformNode(name, scene)
       const probe = new BABYLON.TransformNode(name + '-probe', scene)
       probe.parent = n
-      probe.position.set(0, 0, -1) // content front (Blender-default authored)
+      probe.position.set(0, 0, 1) // content front (Blender −Y ⇒ raw local +Z)
       return { n, probe }
     }
     const lib = mkContent('lib')
