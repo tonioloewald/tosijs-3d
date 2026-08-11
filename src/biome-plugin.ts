@@ -125,10 +125,10 @@ export const MANTA_PALETTE: number[][] = [
   // flat, at ANY temperature. These are DUST colours (the slope override
   // supplies the exposed rock, itself Mars↔Moon tinted in this band):
   // cold→warm = Moon (light grey dust) → … → Mars (grey-yellow/red dust).
-  [0.68, 0.68, 0.7],
-  [0.6, 0.57, 0.53],
-  [0.65, 0.54, 0.42],
-  [0.71, 0.52, 0.36],
+  [0.56, 0.56, 0.58],
+  [0.5, 0.47, 0.44],
+  [0.6, 0.46, 0.34],
+  [0.66, 0.4, 0.27],
   // dry row (v = ¼):    ice          barren rock   dune          beach
   [0.75, 0.8, 0.88],
   [0.45, 0.41, 0.37],
@@ -161,10 +161,10 @@ export const MANTA_PALETTE: number[][] = [
  */
 export const MANTA_PALETTE_B: number[][] = [
   // dead row: dust drifts — moon grey ↔ darker; mars dust ↔ redder
-  [0.6, 0.6, 0.63],
-  [0.55, 0.52, 0.49],
-  [0.6, 0.48, 0.36],
-  [0.62, 0.42, 0.28],
+  [0.48, 0.48, 0.51],
+  [0.44, 0.42, 0.4],
+  [0.54, 0.4, 0.29],
+  [0.58, 0.34, 0.22],
   // dry row: subtle banding on dune/beach only
   [0.75, 0.8, 0.88],
   [0.45, 0.41, 0.37],
@@ -417,6 +417,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // mantaAxes: |altitude| lapse (peaks at sea level, cools both ways) +
         // fBm axis noise — noise feeds the INPUTS, never the classification.
         float tN = bioFbm(wp.xz * biomeNoise.x) * biomeNoise.y;
+        // Moisture noise scales with AVAILABLE moisture: an airless world has
+        // no damp patches, so mapMoisture 0 is EXACTLY the dead row (moon
+        // grey when cold — never phantom ice). Just above zero, cold regions
+        // grow polar ice naturally: Mars with ice caps, which is correct.
         float mN = bioFbm(wp.xz * biomeNoise.z + 71.3) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN;
         if (planetary) {
@@ -427,12 +431,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           temperature += biomeWater.z * cos(latW);
         }
         bool underwater = altitude < 0.0;
+        // The MOISTURE GATE: on an airless world there is no sea at all —
+        // below "sea level" is just lower dead land. Everything oceanic
+        // (marine-row saturation here; surf + photic below) scales with it.
+        float mGate = smoothstep(0.0, 0.25, biomeCfg.w);
         // Land occupies the dead→wet rows (v ≤ ¾); the marine row (v = 1) is
         // the sea's alone, so a soaking-wet coast blends TOWARD the beach/sand
         // boundary rather than classifying as seafloor.
-        float moisture = underwater
-          ? 1.0
-          : clamp(biomeCfg.w + mN, 0.0, 1.0) * 0.75;
+        float landM = clamp(biomeCfg.w + mN * mGate, 0.0, 1.0) * 0.75;
+        float moisture = underwater ? mix(landM, 1.0, mGate) : landM;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
         float dith = bioSimplex3(wp * biomeDither.x) * biomeDither.y;
         // Within-biome variation: medium-frequency patches select between each
@@ -446,9 +453,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // bottom — wet sand here (rock on slopes via the cliff override),
           // so coral/kelp never start at the waterline itself. The band edge
           // wobbles with the same dither as every other boundary.
-          float surf = 1.0 - smoothstep(biomeSurf.x * 0.4, biomeSurf.x, -altitude + dith * 12.0);
+          float surf = (1.0 - smoothstep(biomeSurf.x * 0.4, biomeSurf.x, -altitude + dith * 12.0)) * mGate;
           if (biomeSurf.x > 0.0) biome = mix(biome, vec3(0.6, 0.54, 0.42), surf);
-          float light = bioPhotic(-altitude, biomeWater.x, biomeWater.y);
+          float light = mix(1.0, bioPhotic(-altitude, biomeWater.x, biomeWater.y), mGate);
           biome = mix(vec3(${SEDIMENT_COLOR.join(', ')}), biome, light);
         }
         // Detail breakup: one high-frequency + one slower octave of LOW-

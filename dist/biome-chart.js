@@ -163,7 +163,16 @@ export function mantaAxes(worldY, cfg, tNoise = 0, mNoise = 0) {
     // a soaking coast blends toward the beach/sand boundary, never into
     // seafloor cells. mNoise only textures the terrestrial side.
     const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-    const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.75;
+    // mNoise scales with AVAILABLE moisture: an airless world has no damp
+    // patches, so mapMoisture 0 is EXACTLY the dead row — no phantom ice, ever
+    // (ice is frozen WATER; it belongs to cold-with-some-moisture). Just above
+    // zero, cold regions grow polar ice naturally.
+    const g = clamp01(cfg.mapMoisture / 0.25);
+    const mGate = g * g * (3 - 2 * g);
+    const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75;
+    // The gate also owns the OCEAN: airless worlds have no sea, so "underwater"
+    // saturation itself fades out — below sea level is just lower dead land.
+    const moisture = underwater ? landM + (1 - landM) * mGate : landM;
     return { temperature, moisture };
 }
 /** Planetary front-end — INTERFACE ONLY (design doc step 7): radial altitude,
@@ -180,7 +189,10 @@ export function planetaryAxes(p, cfg, tNoise = 0, mNoise = 0, latWarpNoise = 0) 
         tNoise;
     const underwater = altitude < 0;
     const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-    const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.75;
+    const g = clamp01(cfg.mapMoisture / 0.25);
+    const mGate = g * g * (3 - 2 * g);
+    const landM = clamp01(cfg.mapMoisture + mNoise * mGate) * 0.75;
+    const moisture = underwater ? landM + (1 - landM) * mGate : landM;
     return { temperature, moisture, latitude };
 }
 /** Axes → clamped chart coordinates (u = temperature, v = moisture, 0..1). */

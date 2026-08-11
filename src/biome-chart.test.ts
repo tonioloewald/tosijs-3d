@@ -160,3 +160,38 @@ describe('surfFactor — the swash band (coral must not start at the waterline)'
     expect(surfFactor(1, 0)).toBe(0)
   })
 })
+
+describe('the dead band is moisture-gated, never temperature-gated', () => {
+  test('moisture 0 is EXACTLY dead — noise cannot resurrect it', () => {
+    const dead = { ...CFG, mapMoisture: 0 }
+    // even a large positive moisture-noise sample adds nothing at zero
+    expect(mantaAxes(10, dead, 0, 0.3).moisture).toBe(0)
+    // cold at zero moisture is MOON, not ice: same moisture, colder temp only
+    const cold = mantaAxes(10, { ...dead, baseTemperature: 0.1 })
+    expect(cold.moisture).toBe(0)
+  })
+
+  test('just above zero, noise returns gradually (polar ice can emerge)', () => {
+    const nearly = { ...CFG, mapMoisture: 0.1 }
+    const withNoise = mantaAxes(10, nearly, 0, 0.3)
+    const without = mantaAxes(10, nearly, 0, 0)
+    expect(withNoise.moisture).toBeGreaterThan(without.moisture)
+    // but the noise is attenuated vs full-moisture conditions
+    const wet = { ...CFG, mapMoisture: 0.6 }
+    const wetGain =
+      mantaAxes(10, wet, 0, 0.3).moisture - mantaAxes(10, wet, 0, 0).moisture
+    const dryGain = withNoise.moisture - without.moisture
+    expect(dryGain).toBeLessThan(wetGain)
+  })
+})
+
+describe('the moisture gate owns the OCEAN too — airless worlds have no sea', () => {
+  test('below "sea level" at moisture 0 is just lower dead land', () => {
+    const dead = { ...CFG, mapMoisture: 0 }
+    expect(mantaAxes(-20, dead).moisture).toBe(0) // NOT marine-saturated
+  })
+
+  test('with real moisture, underwater still saturates fully', () => {
+    expect(mantaAxes(-20, CFG).moisture).toBe(1) // mapMoisture 0.45 ≥ gate
+  })
+})
