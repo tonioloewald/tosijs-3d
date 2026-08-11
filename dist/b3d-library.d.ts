@@ -1,6 +1,26 @@
 import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
+/**
+ * The `.model` naming convention, pure (unit-tested): a node named
+ * `<name>.model` declares itself an INTENDED EXPORT of the library file.
+ *
+ * A working Blender file is full of things that are not deliverables —
+ * collections, rig helpers, boolean cutters, reference geometry — and a
+ * library that lists everything makes the consumer (and the library demo)
+ * wade through construction junk. Appending `.model` to the things you MEAN
+ * to publish makes the export list an authoring decision:
+ *
+ * - when a file declares ANY `.model` nodes, only those are listed — under
+ *   their clean names (`scout.model` lists as `scout`);
+ * - a file with none keeps the legacy behaviour (everything listed) so
+ *   existing content doesn't go dark;
+ * - `instantiate('scout')` resolves to `scout.model` (exact match wins).
+ */
+export declare function modelExportNames(names: string[]): string[];
+/** Resolve a requested name against the `.model` convention: exact match
+ * first, then `<name>.model`. Returns the node name to look up. */
+export declare function resolveModelName(names: string[], requested: string): string;
 export interface InstantiateOptions {
     x?: number;
     y?: number;
@@ -28,6 +48,9 @@ export declare class B3dLibrary extends B3dChild {
     private loadGeneration;
     constructor();
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /** Every node (meshes AND transform nodes — a multi-part model's top node is
+     * usually a TransformNode) eligible for listing. */
+    private _allNodes;
     getNames(): string[];
     getRootNames(): string[];
     getHierarchy(): {

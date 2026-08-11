@@ -397,6 +397,15 @@ Name suffixes on meshes/lights control **behavioral** properties that can't be i
 
 Underscore-separated variants also work (e.g., `_collide_box`).
 
+**Model authoring & the canonical frame (issues #5/#6, decided 2026-08-11):** content is
+authored **Blender-default** — model faces **−Y**, up **+Z**, all transforms applied — and a
+**`.model` suffix declares a library file's intended exports** (`scout.model` lists and
+instantiates as `scout`; files declaring any `.model` nodes list ONLY those). The single
+content→engine mapping lives in `model-transform.canonicalize` (content-front → engine +Z,
+`__root__` handedness mirror stripped, junk transforms dropped) and BOTH load paths (library
+`canonical: true` and `url:`) collapse through it. Never fix orientation per-asset: a model
+that flies backwards is authored against the old +Y convention and needs re-export.
+
 ### Component Pattern
 
 All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. **Scene children extend `B3dChild`** (or `AbstractMesh`, which extends it and adds position/rotation syncing) rather than `Component` directly — see [Child Lifecycle](#child-lifecycle--the-b3dchild-pull-model). Non-scene UI/utility elements (`b3d-panel`, `b3d-probe`) stay on plain `Component`.

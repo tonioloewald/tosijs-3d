@@ -167,7 +167,7 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
-| `url` | `''` | GLB model URL (direct load) |
+| `url` | `''` | GLB model URL (direct load — collapsed through the same canonical frame as a library load: author Blender-default, facing −Y, transforms applied) |
 | `library` | `''` | Library type to source mesh from |
 | `meshName` | `''` | Node name to instantiate from library |
 | `enterable` | `false` | Whether a biped can enter |
@@ -225,6 +225,7 @@ faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
+import { canonicalize } from './model-transform'
 import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
 import { aircraftMapping } from './virtual-gamepad'
@@ -995,8 +996,17 @@ export class B3dAircraft extends B3dControllable {
         )
       }
       const root = entries.rootNodes[0] as BABYLON.Mesh
-      this.setupMesh(root, owner)
-      this.meshesToDispose = entries.rootNodes
+      /*
+      Collapse through THE canonical frame (model-transform.canonicalize) —
+      identical to the library's `canonical: true` path. Handing `__root__`
+      straight to setupMesh gave the flight system a negative-determinant
+      control node (glTF handedness mirror): inverted pitch, chase camera on
+      the nose side, mirrored model (manta-recon, issue #5). Both load paths
+      now produce the same identity-frame control node.
+      */
+      const control = canonicalize(root, scene, `aircraft-${this.instanceId}`)
+      this.setupMesh(control, owner)
+      this.meshesToDispose = [control as unknown as BABYLON.Mesh]
     })
   }
 

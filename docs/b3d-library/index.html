@@ -167,12 +167,34 @@ preview.append(
 <h2>API</h2>
 <ul>
 <li><code>ready: Promise&lt;void&gt;</code> — resolves when the GLB has loaded</li>
-<li><code>getNames(): string[]</code> — list all mesh names (excluding <code>__root__</code> and <code>-ignore</code>)</li>
-<li><code>getRootNames(): string[]</code> — list only top-level mesh names (direct children of root)</li>
-<li><code>getHierarchy(): {name, children, isMesh}[]</code> — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure</li>
-<li><code>instantiate(name, options?): Node | null</code> — clone a named node (mesh or transform, with children) into the scene</li>
-<li><code>clearInstances(): void</code> — dispose all previously instantiated clones</li>
-<li>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent? }</code></li>
+</ul>
+<h2>Authoring conventions (Blender)</h2>
+<ul>
+<li><p><strong>Axes: Blender defaults</strong> — model faces <strong>−Y</strong>, up is <strong>+Z</strong>, and <strong>apply
+all transforms</strong> before export. The engine defines the one mapping from that
+convention to its own frame in <code>canonicalize</code> (content-front → engine +Z);
+never fix orientation per-asset — a model that flies backwards needs
+re-exporting, not rotating.</p>
+</li>
+<li><p><strong>Exports: append <code>.model</code></strong> to each node you intend to publish
+(<code>scout.model</code>). Once a file declares any, ONLY those are listed — under
+their clean names (<code>getNames()</code> → <code>&#39;scout&#39;</code>, <code>instantiate(&#39;scout&#39;)</code> works) —
+so collections, rig helpers and boolean cutters stay out of the catalog. A
+file with no <code>.model</code> nodes lists everything (legacy behaviour).</p>
+</li>
+<li><p><code>getNames(): string[]</code> — declared <code>.model</code> exports under clean names (or all
+mesh/transform-node names when none are declared; <code>__root__</code>/<code>-ignore</code> always excluded)</p>
+</li>
+<li><p><code>getRootNames(): string[]</code> — same, top-level nodes only</p>
+</li>
+<li><p><code>getHierarchy(): {name, children, isMesh}[]</code> — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure</p>
+</li>
+<li><p><code>instantiate(name, options?): Node | null</code> — clone a named node (mesh or transform, with children) into the scene</p>
+</li>
+<li><p><code>clearInstances(): void</code> — dispose all previously instantiated clones</p>
+</li>
+<li><p>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent? }</code></p>
+</li>
 </ul>
 
   </article>

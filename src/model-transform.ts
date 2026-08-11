@@ -14,30 +14,47 @@ import * as BABYLON from '@babylonjs/core'
  * means downstream frames stay clean.
  */
 /**
- * Wrap a spawned model in a CLEAN control node: an identity, unit-scale
- * TransformNode whose +Z is the model's nose and +Y its up. The model (any
- * hierarchy, skinned or not — nothing is baked) hangs underneath, re-oriented so
- * its current forward/up land on the wrapper's +Z/+Y, keeping its own scale. So
- * the returned node — what the flight system and camera control — has a collapsed,
- * canonical frame: forward/up come out unit, no `__root__` flip or scale to fight.
- * The model's current world forward/up (measured before wrapping) define the nose.
+ * THE canonical model frame — defined here, once (issues #5/#6, manta-recon).
+ *
+ * Content convention: authored **Blender-default** (−Y forward, +Z up, all
+ * transforms applied). Through the exporter (front → glTF +Z) and Babylon's
+ * LH read, that content arrives facing engine **−Z**; the collapse yaws it π
+ * so **content-front lands on the wrapper's +Z** — the engine's forward. One
+ * mapping, one place: never fix orientation per-asset or per-call-site.
+ *
+ * The collapse also:
+ * - **strips handedness mirrors**: Babylon's glTF `__root__` carries
+ *   scale (1,1,−1) + yaw 180° (net X-mirror, determinant −1). A control node
+ *   with a negative-determinant frame flips chirality for everything computed
+ *   through it — inverted pitch, chase camera on the nose side (issue #5).
+ *   Scale signs are dropped (magnitudes kept).
+ * - drops the node's authored junk rotation/position (scene-layout leftovers).
+ *
+ * The returned wrapper — what flight systems and cameras control — is
+ * identity: unit rotation, unit scale, det +1. Legacy +Y-forward content will
+ * face backwards through this collapse: re-export it, don't rotate it.
  */
 export function canonicalize(
   clone: BABYLON.TransformNode,
   scene: BABYLON.Scene,
   name: string
 ): BABYLON.TransformNode {
-  // The model's nose sits on the node's LOCAL +Z and its top on LOCAL +Y (that's
-  // why the clone's world `forward` already reads as the nose). So all we do is
-  // drop the model's junk rotation (the glTF source's leftover orientation) and
-  // re-parent it under a clean wrapper at identity — its nose lands on the
-  // wrapper's +Z, up on +Y. The model keeps its own scale; the wrapper (the
-  // control node) is unit-scale and clean.
   const wrapper = new BABYLON.TransformNode(name, scene)
   clone.parent = wrapper
-  clone.rotationQuaternion = BABYLON.Quaternion.Identity()
-  clone.rotation.set(0, 0, 0)
+  // Content-front (engine −Z after the LH read) → wrapper +Z.
+  clone.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+    Math.PI,
+    0,
+    0
+  )
+  clone.rotation.set(0, Math.PI, 0)
   clone.position.set(0, 0, 0)
+  // Strip mirror signs (the __root__ handedness flip); keep magnitudes.
+  clone.scaling.set(
+    Math.abs(clone.scaling.x),
+    Math.abs(clone.scaling.y),
+    Math.abs(clone.scaling.z)
+  )
   return wrapper
 }
 

@@ -115,8 +115,22 @@ tosi-b3d { width: 100%; height: 100%; }
 ## API
 
 - `ready: Promise<void>` — resolves when the GLB has loaded
-- `getNames(): string[]` — list all mesh names (excluding `__root__` and `-ignore`)
-- `getRootNames(): string[]` — list only top-level mesh names (direct children of root)
+## Authoring conventions (Blender)
+
+- **Axes: Blender defaults** — model faces **−Y**, up is **+Z**, and **apply
+  all transforms** before export. The engine defines the one mapping from that
+  convention to its own frame in `canonicalize` (content-front → engine +Z);
+  never fix orientation per-asset — a model that flies backwards needs
+  re-exporting, not rotating.
+- **Exports: append `.model`** to each node you intend to publish
+  (`scout.model`). Once a file declares any, ONLY those are listed — under
+  their clean names (`getNames()` → `'scout'`, `instantiate('scout')` works) —
+  so collections, rig helpers and boolean cutters stay out of the catalog. A
+  file with no `.model` nodes lists everything (legacy behaviour).
+
+- `getNames(): string[]` — declared `.model` exports under clean names (or all
+  mesh/transform-node names when none are declared; `__root__`/`-ignore` always excluded)
+- `getRootNames(): string[]` — same, top-level nodes only
 - `getHierarchy(): {name, children, isMesh}[]` — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure
 - `instantiate(name, options?): Node | null` — clone a named node (mesh or transform, with children) into the scene
 - `clearInstances(): void` — dispose all previously instantiated clones
@@ -128,6 +142,37 @@ import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { canonicalize } from './model-transform'
+
+/**
+ * The `.model` naming convention, pure (unit-tested): a node named
+ * `<name>.model` declares itself an INTENDED EXPORT of the library file.
+ *
+ * A working Blender file is full of things that are not deliverables —
+ * collections, rig helpers, boolean cutters, reference geometry — and a
+ * library that lists everything makes the consumer (and the library demo)
+ * wade through construction junk. Appending `.model` to the things you MEAN
+ * to publish makes the export list an authoring decision:
+ *
+ * - when a file declares ANY `.model` nodes, only those are listed — under
+ *   their clean names (`scout.model` lists as `scout`);
+ * - a file with none keeps the legacy behaviour (everything listed) so
+ *   existing content doesn't go dark;
+ * - `instantiate('scout')` resolves to `scout.model` (exact match wins).
+ */
+export function modelExportNames(names: string[]): string[] {
+  const models = names.filter((n) => n.endsWith('.model'))
+  if (models.length === 0) return names.filter((n) => !n.endsWith('.model'))
+  return models.map((n) => n.slice(0, -'.model'.length))
+}
+
+/** Resolve a requested name against the `.model` convention: exact match
+ * first, then `<name>.model`. Returns the node name to look up. */
+export function resolveModelName(names: string[], requested: string): string {
+  if (names.includes(requested)) return requested
+  const suffixed = `${requested}.model`
+  if (names.includes(suffixed)) return suffixed
+  return requested
+}
 
 export interface InstantiateOptions {
   x?: number
@@ -192,24 +237,27 @@ export class B3dLibrary extends B3dChild {
     )
   }
 
-  getNames(): string[] {
+  /** Every node (meshes AND transform nodes — a multi-part model's top node is
+   * usually a TransformNode) eligible for listing. */
+  private _allNodes(): BABYLON.Node[] {
     if (!this.container) return []
-    return this.container.meshes
-      .filter((m) => m.name !== '__root__' && !m.name.includes('-ignore'))
-      .map((m) => m.name)
+    return [...this.container.meshes, ...this.container.transformNodes].filter(
+      (n) => n.name !== '__root__' && !n.name.includes('-ignore')
+    )
+  }
+
+  getNames(): string[] {
+    return modelExportNames(this._allNodes().map((n) => n.name))
   }
 
   getRootNames(): string[] {
     if (!this.container) return []
     const root = this.container.meshes.find((m) => m.name === '__root__')
-    return this.container.meshes
-      .filter(
-        (m) =>
-          m.name !== '__root__' &&
-          !m.name.includes('-ignore') &&
-          (m.parent === root || m.parent == null)
-      )
-      .map((m) => m.name)
+    return modelExportNames(
+      this._allNodes()
+        .filter((n) => n.parent === root || n.parent == null)
+        .map((n) => n.name)
+    )
   }
 
   getHierarchy(): { name: string; children: any[]; isMesh: boolean }[] {
@@ -256,9 +304,17 @@ export class B3dLibrary extends B3dChild {
   ): BABYLON.Node | null {
     if (!this.container || !this.owner) return null
 
+    // `.model` convention: `instantiate('scout')` finds a node named
+    // `scout.model` (the file's declared export) — or an exact match.
+    const resolved = resolveModelName(
+      [...this.container.meshes, ...this.container.transformNodes].map(
+        (n) => n.name
+      ),
+      name
+    )
     const source: BABYLON.Node | undefined =
-      this.container.meshes.find((m) => m.name === name) ??
-      this.container.transformNodes.find((n) => n.name === name)
+      this.container.meshes.find((m) => m.name === resolved) ??
+      this.container.transformNodes.find((n) => n.name === resolved)
     if (!source) {
       console.error(`b3d-library: no node named "${name}"`)
       return null
