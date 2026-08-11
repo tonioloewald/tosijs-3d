@@ -131,6 +131,20 @@ import type { B3d } from './tosi-b3d'
 const DOWN = { x: 0, y: -1, z: 0 }
 
 /**
+ * The cloud-icon layout: one row per blob, biggest first. `t` is the offset
+ * along the cluster's spine (lead radii), `u` the lift off the shared base
+ * (lead half-heights), `s` the size ratio. Rows 0–1 are the body (both
+ * bottom-aligned, the second a touch higher), row 2 is the cap that straddles
+ * them, row 3 strings the cloud out sideways.
+ */
+const CLOUD_LAYOUT = [
+  { t: -0.5, u: 0, s: 1 },
+  { t: 0.45, u: 0.35, s: 0.78 },
+  { t: -0.05, u: 1.15, s: 0.6 },
+  { t: 0.95, u: 0.2, s: 0.52 },
+]
+
+/**
  * The base cloud form: a sphere TAPERED along its local Z into an egg (fat at
  * one end, narrow at the other), then squashed flat by the per-blob scaling.
  * A plain ellipsoid reads as a balloon from every angle; an egg has a nose and
@@ -245,7 +259,7 @@ export class B3dClouds extends B3dChild {
   /** Per-blob offset from its cluster anchor (index-aligned with `_blobs`). */
   private _offsets: { x: number; y: number; z: number }[] = []
 
-/** Projected cloud-shadow texture (cloud-shadows.ts), when castShadows is on. */
+  /** Projected cloud-shadow texture (cloud-shadows.ts), when castShadows is on. */
   private _shadowMap: CloudShadowMap | null = null
   /** Something moved (recycle, coverage, sun, window) — repaint on the next throttled beat. */
   private _shadowDirty = true
@@ -312,20 +326,47 @@ export class B3dClouds extends B3dChild {
     this._offsets = []
     let made = 0
     while (made < this.count) {
-      const members = Math.min(this.count - made, 2 + Math.floor(rng.random() * 3))
+      const members = Math.min(
+        this.count - made,
+        2 + Math.floor(rng.random() * 3)
+      )
       const a = rng.random() * Math.PI * 2
       const r = Math.sqrt(rng.random()) * this.spread // sqrt → even area density
       const anchor = {
         x: Math.cos(a) * r,
-        y: this.altitude + (rng.random() - 0.5) * this.thickness,
+        // The cloud BASE (condensation level). Jittered far less than the
+        // layer thickness so bases roughly line up across the field — the
+        // remaining `thickness` shows up as varying cloud HEIGHT instead.
+        y:
+          this.altitude -
+          this.thickness * 0.35 +
+          (rng.random() - 0.5) * this.thickness * 0.3,
         z: Math.sin(a) * r,
         first: made,
         count: members,
       }
-      // The cluster's own scale: one big lead blob, the rest smaller and
-      // tucked in close enough to fuse into a single silhouette.
+      // Layout, not jitter (Tonio's sketch): SIZE RANK drives position. The
+      // biggest sits low on one side, the second slightly higher on the
+      // other, the smallest rides ON TOP straddling the pair — the classic
+      // cloud-icon silhouette — and a 4th extends it into a bulbous string.
+      // `stack` slides the same table from a wide icon toward a vertical
+      // tower, so one rule gives both cumulus and building thunderhead.
+      //
+      // BOTTOMS ALIGN. Cloud bases form at the condensation level, so they're
+      // flat and shared: every body blob is placed by its BASE (y = base +
+      // its own half-height), never by its centre, and `u` lifts a blob off
+      // that base in lead half-heights. Size differences then push the TOPS
+      // around, which is exactly how a cumulus field reads.
       const lead = this.size * (0.75 + rng.random() * 0.5) * sizeMul
+      const stack = rng.random() * rng.random() // biased to the icon shape
+      const hMul = 1 - 0.8 * stack
+      const vMul = 1 + 3 * stack
+      const spine = rng.random() * Math.PI * 2
+      const cos = Math.cos(spine)
+      const sin = Math.sin(spine)
+      const leadHalf = lead * 0.45
       for (let k = 0; k < members; k++) {
+        const L = CLOUD_LAYOUT[Math.min(k, CLOUD_LAYOUT.length - 1)]
         const blob = makeEggMesh(`cloud-${made}`, scene)
         blob.material = mat
         // ⚠️ NOT pickable. A cloud between the controller and a panel — or between a missile and
@@ -333,18 +374,18 @@ export class B3dClouds extends B3dChild {
         // below; picking must stay off regardless.)
         blob.isPickable = false
         blob.receiveShadows = false
-        const sc = lead * (k === 0 ? 1 : 0.55 + rng.random() * 0.35)
+        const sc = lead * L.s * (0.92 + rng.random() * 0.16)
         blob.scaling.set(sc, sc * 0.45, sc)
-        blob.rotation.y = rng.random() * Math.PI * 2 // eggs point every which way
-        // Offsets ride the LEAD size so members always overlap it.
-        const off =
-          k === 0
-            ? { x: 0, y: 0, z: 0 }
-            : {
-                x: (rng.random() - 0.5) * lead * 1.5,
-                y: (rng.random() - 0.5) * lead * 0.35,
-                z: (rng.random() - 0.5) * lead * 1.5,
-              }
+        // Eggs roughly follow the spine (a shared long axis reads as ONE
+        // cloud), with enough jitter that they aren't stamped.
+        blob.rotation.y = spine + (rng.random() - 0.5) * 1.2
+        const along = L.t * lead * hMul + (rng.random() - 0.5) * lead * 0.12
+        const off = {
+          // relative to the cluster's BASE, not its centre
+          x: cos * along,
+          y: sc * 0.45 + L.u * leadHalf * vMul,
+          z: sin * along,
+        }
         this._offsets.push(off)
         blob.position.set(anchor.x + off.x, anchor.y + off.y, anchor.z + off.z)
         this._blobs.push(blob)
@@ -437,7 +478,6 @@ export class B3dClouds extends B3dChild {
     this._sun = null
   }
 
-
   /** Apply the `coverage` weather dial: how many blobs are active, how opaque, how dark, and
    * how much they still self-illuminate. Live — cheap enough to run when coverage moves. */
   private _applyCoverage(): number {
@@ -458,7 +498,9 @@ export class B3dClouds extends B3dChild {
   /** Repaint the projected shadow texture when something changed (a blob recycled, coverage or
    * the sun moved, the window drifted off the camera) — throttled, so the steady state costs
    * nothing but the per-pixel sample the receiving materials already do. */
-  private _updateShadows(eye: BABYLON.Vector3, active: number): void {
+  // (no `active` param any more — clusters gate visibility, so the paint
+  // loop reads each blob's enabled flag instead of a pool prefix.)
+  private _updateShadows(eye: BABYLON.Vector3): void {
     const map = this._shadowMap
     const scene = this.owner?.scene
     if (map == null || scene == null) return
@@ -530,7 +572,9 @@ export class B3dClouds extends B3dChild {
     // cloud vanishing would read as a bug, not as weather.
     const activeClusters = Math.max(
       1,
-      Math.round(this._clusters.length * (active / Math.max(1, this._blobs.length)))
+      Math.round(
+        this._clusters.length * (active / Math.max(1, this._blobs.length))
+      )
     )
     const onCluster = new Uint8Array(this._blobs.length)
     for (let c = 0; c < this._clusters.length && c < activeClusters; c++) {
@@ -609,7 +653,7 @@ export class B3dClouds extends B3dChild {
       if (d < nearest) nearest = d
     }
 
-    this._updateShadows(eye, active)
+    this._updateShadows(eye)
 
     // WHITEOUT ON APPROACH — and TOTAL BEFORE ENTRY.
     //
