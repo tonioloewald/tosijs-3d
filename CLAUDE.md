@@ -90,6 +90,13 @@ Also: `hj --no-launch …` skips the "open Haltija to resume" prompt, and **the 
 idle-exits after several hours** (deliberate — it's a leak guard, and a fresh one picks up
 dependency updates). Don't assume it's still up; check, and restart with `bun start` if not.
 
+**⚠️ Never commit `docs/` from a feature push while the dev server is up.** The server
+wipes-then-repopulates `docs/` on every rebuild; a `git add -A` that lands inside the wipe
+window commits the site as ~2,500 DELETIONS — and Pages serves main `/docs`, so the push
+takes 3d.tosijs.net down (happened 2026-08-11). Feature commits use
+`git add -A -- ':!docs'`; `docs/` is committed only at releases or deliberate site fixes,
+with the server STOPPED and after a clean `bun run build`.
+
 **⚠️ Never run `bun run build` while the dev server is up.** Both own `docs/` and `dist/`
 (wipe-then-repopulate), so a standalone build races the watcher's rebuild and can kill the
 server silently mid-rebuild, leaving `docs/` half-populated (observed 2026-08-03; filed as
