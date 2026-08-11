@@ -34,7 +34,10 @@ beach) — so every spec transition is on screen at once: the marine column
 under the water, the beach at the shoreline, forest/steppe/dune bands by
 moisture, snow on the high tops, slope-override cliffs on the risers.
 
-Two sliders make the CHART's behaviour visible, not just the picture:
+Three sliders make the CHART's behaviour visible, not just the picture:
+**sea level** drives the water plane AND the classifier's `seaLevel` together —
+drag it and the water *forces* the shoreline transition up and down the
+terrain (beach chases the waterline, drowned slopes turn seagrass);
 **climate** (base temperature) — drag it cold and the beach→…→ice run
 collapses until ice meets the waterline, exactly as the spec asks, emergent
 from the lapse; **map moisture** — sweep forest → steppe → dune on the same
@@ -57,6 +60,12 @@ const SHOWCASE = {
   grossAmplitude: 60,
   fineScale: 0.06,
   fineAmplitude: 4,
+  // THE WATERLINE IS AN INPUT. Terrain noise maps to 0..amplitude, so without
+  // an offset the whole field floats above the water plane and no shoreline
+  // exists to classify. −12 puts the beach-profile shelf just BELOW sea level
+  // (tidal shallows), cliff regions in shallow sea before their walls, and a
+  // mesa step right at the shore — the water line cuts through all of it.
+  baseHeight: -12,
 }
 const terrain = b3dTerrain({ biome: 'on', ...SHOWCASE })
 // LOCALIZED slope profiles (Photoshop-levels for terrain): sea cliffs in one
@@ -69,6 +78,8 @@ terrain.grossFilter = blendProfiles(
   profileField(87, 0.0028)
 )
 terrain.regenerate()
+
+const water = b3dWater({ y: 0, twoSided: true })
 
 const scene = b3d(
   {
@@ -87,6 +98,13 @@ const scene = b3d(
         label3d({ text: 'Climate', bold: true, compact: true }),
         bind('temperature', 'baseTemperature', 0, 1, 0.01),
         bind('map moisture', 'mapMoisture', 0, 1, 0.01),
+        // ONE slider drives the water plane AND the classifier's seaLevel —
+        // drag it and watch the water FORCE the shoreline transition up and
+        // down the same terrain: beach chases the waterline, shallows become
+        // reef, drowned forests become seagrass. The two values must always
+        // agree; this slider is the demonstration of why.
+        slider3d({ label: 'sea level', value: 0, min: -12, max: 20, step: 0.5,
+          onChange: (v) => { p.seaLevel = v; water.y = v } }),
         label3d({ text: 'Chart', bold: true, compact: true }),
         bind('lapse rate', 'lapseRate', 0, 0.02, 0.0005),
         bind('dither amount', 'ditherAmp', 0, 0.15, 0.005),
@@ -100,7 +118,7 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 10 }),
   b3dLight({ intensity: 0.4 }),
   terrain,
-  b3dWater({ y: 0, twoSided: true })
+  water
 )
 
 preview.append(scene)
