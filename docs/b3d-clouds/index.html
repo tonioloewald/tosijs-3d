@@ -66,7 +66,7 @@ const aircraft = b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
   player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
 })
-const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
+const clouds = b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: &#39;readout&#39; })
 
 const scene = b3d(
@@ -99,6 +99,10 @@ preview.append(scene, readout)
 </code></pre>
 <h2>How it works</h2>
 <ul>
+<li><strong>Clouds are CLUSTERS of eggs.</strong> Each cloud is 2–4 overlapping tapered-egg blobs of
+different sizes and yaws around one anchor, so the silhouette has structure instead of
+reading as a bag of bubbles — fewer clouds, better shapes. The anchor drifts and wraps as
+a unit (<code>count</code> is still the blob POOL; clusters are carved out of it).</li>
 <li><strong>A fixed number of blobs, recycled.</strong> <code>count</code> soft spheres are scattered (seeded) in a
 disc around you. Fly far enough and a blob that falls behind <strong>wraps to the far side</strong> —
 so an endless cloudscape costs a fixed, tier-friendly number of meshes and never
@@ -138,6 +142,11 @@ darkened by <code>shadowStrength</code> × <code>coverage</code>, repainted only
 </tr>
 </thead>
 <tbody><tr>
+<td><code>model</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>GLB whose mesh is the cloud LOBE (normalized to the blob radius, bottom-aligned). Empty = the procedural lobe</td>
+</tr>
+<tr>
 <td><code>count</code></td>
 <td><code>36</code></td>
 <td>Blob POOL size (fixed — they recycle, they don&#39;t grow). <code>coverage</code> decides how many are active</td>
@@ -265,6 +274,7 @@ darkened by <code>shadowStrength</code> × <code>coverage</code>, repainted only
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -70,10 +70,11 @@ const posDisplay = span({ class: 'pos-display' })
 // Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
 // with v size 200), so it's already above the hover ceiling → in FLIGHT mode:
 // right trigger = forward throttle, pull back to climb, turn stick banks.
-const aircraft = b3dAircraft({
+const plane = () => b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
 })
+const focus = inputFocus(gameController(), plane())
 
 const scene = b3d(
   {
@@ -111,7 +112,7 @@ const scene = b3d(
   terrain,
   // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.
-  b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
+  b3dClouds({ model: '/cloud.glb', altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
   // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
   // never runs out from under you and never flickers), while the ripples stay anchored in world
@@ -119,10 +120,10 @@ const scene = b3d(
   b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
-  inputFocus(
-    gameController(),
-    aircraft,
-  ),
+  // Death's exit: crash into a hillside and you get the wreck, spectate, and a
+  // respawn panel instead of being welded to the wreck forever.
+  b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
+  focus,
 )
 
 // Only a readout stays as a flat overlay — the tweakable settings all live in the
@@ -371,6 +372,29 @@ export class B3dTerrain extends B3dChild {
     };
     owner = null;
     grossFilter = new PiecewiseLinearFilter();
+    /**
+     * LOCAL volcanism field — `(x, z) => 0..1`, sampled per tile vertex in
+     * origin-stable world coordinates and carried to the biome shader in the
+     * colour buffer's (visually inert) alpha channel. Where it's > 0 the biome
+     * plugin runs its volcanism ladder at that LOCAL intensity, independent of
+     * the global `volcanism` dial — "THIS island is volcanic". A radial ramp
+     * gives a caldera gradient: pools at the centre, glowing seams around
+     * them, cold voronoi at the fringe. Compose seeded noise or authored
+     * shapes exactly like slope-profile weight fields. Set it, then
+     * `regenerate()`.
+     */
+    provinceField = null;
+    /**
+     * Authored landform override — `(x, z, h) => h'`, applied AFTER the
+     * profiles/amplitude pipeline in origin-stable coordinates. Where it
+     * leaves `h` untouched the noise terrain shows through; where it doesn't,
+     * the authored shape wins — a volcano cone, an impact crater, a building
+     * pad. Pair with [[landform]]'s factories, which return a landform and its
+     * matching `provinceField` together. Set it, then `regenerate()` — which
+     * is also how a runtime EXPLOSION stamps a glowing crater: compose the new
+     * crater in, regenerate.
+     */
+    landform = null;
     detailFilter = new PiecewiseLinearFilter();
     noise;
     noiseSeed = NaN; // last seed the noise was built with (for re-seeding)
@@ -436,6 +460,7 @@ export class B3dTerrain extends B3dChild {
         // this closure is the per-vertex hot path.
         const grossAt = grossFilter.evaluateAt?.bind(grossFilter);
         const detailAt = detailFilter.evaluateAt?.bind(detailFilter);
+        const landform = this.landform;
         return (wx, wz) => {
             const ax = wx + offX;
             const az = wz + offZ;
@@ -446,10 +471,14 @@ export class B3dTerrain extends B3dChild {
             const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3);
             const g = gross * 0.5 + 0.5;
             const d = detail * 0.5 + 0.5;
-            return ((grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
+            const h = (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
                 (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
                     detailAmp +
-                baseHeight);
+                baseHeight;
+            // Authored landforms (landform.ts) override the noise LOCALLY — the
+            // hook sees origin-stable coords and the noise height, and normals
+            // difference the hooked field, so lighting follows the landform free.
+            return landform ? landform(ax, az, h) : h;
         };
     }
     pool = [];
@@ -966,8 +995,12 @@ export class B3dTerrain extends B3dChild {
             normals[s * 3 + 1] = normals[parent * 3 + 1];
             normals[s * 3 + 2] = normals[parent * 3 + 2];
         }
-        // 3. Debug: tint the whole tile one hashed colour so the tile layout (and any
-        //    seam that survives) is obvious. White = off, so it's a no-op tint.
+        // 3. Debug tint (rgb) + PROVINCE field (alpha). White rgb = no-op tint.
+        //    The alpha channel is a free per-vertex data lane: PBR multiplies
+        //    albedo by vColor.rgb only, so alpha is invisible to shading — the
+        //    biome plugin reads it as a LOCAL volcanism field (inverted: 1 = none,
+        //    so untouched buffers mean no province). Sampling is origin-stable
+        //    (world + originOffset), so provinces survive floating-origin resets.
         const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind);
         if (colors) {
             let cr = 1;
@@ -982,11 +1015,23 @@ export class B3dTerrain extends B3dChild {
                 cg = 0.3 + 0.65 * (((hh >>> 8) & 255) / 255);
                 cb = 0.3 + 0.65 * (((hh >>> 16) & 255) / 255);
             }
+            const field = this.provinceField;
             for (let v = 0; v < colors.length / 4; v++) {
                 colors[v * 4] = cr;
                 colors[v * 4 + 1] = cg;
                 colors[v * 4 + 2] = cb;
                 colors[v * 4 + 3] = 1;
+            }
+            if (field) {
+                const offX = this.originOffsetX;
+                const offZ = this.originOffsetZ;
+                for (let v = 0; v < tpl.gridCount; v++) {
+                    const p = field(positions[v * 3] + cell.cx + offX, positions[v * 3 + 2] + cell.cz + offZ);
+                    colors[v * 4 + 3] = 1 - (p <= 0 ? 0 : p >= 1 ? 1 : p);
+                }
+                for (let p = 0; p < tpl.perim.length; p++) {
+                    colors[(tpl.gridCount + p) * 4 + 3] = colors[tpl.perim[p] * 4 + 3];
+                }
             }
         }
         // Everything above is arithmetic on plain floats; everything below hands buffers to

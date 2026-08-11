@@ -156,7 +156,9 @@ export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, 
 export type { BiomeChartConfig } from './biome-chart';
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile';
 export type { LocalizedFilter } from './slope-profile';
-export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, } from './biome-plugin';
+export { volcano, impactCrater, pad, composeLandforms, mergeProvinces, } from './landform';
+export type { AuthoredLandform, VolcanoOptions, CraterOptions, PadOptions, } from './landform';
+export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin';
 export type { BiomeParams } from './biome-plugin';
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
@@ -200,6 +202,7 @@ export { B3dRadar, b3dRadar } from './b3d-radar';
 export { Radar, coneDotFromDegrees, isOpposed } from './radar';
 export type { RadarContact, RadarTrack, RadarParams } from './radar';
 export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
+export { canonicalize, normalizeScale, findCenterOfGravity, applyCenterOfGravity, } from './model-transform';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export type { WarheadSpec, AoeTarget } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';

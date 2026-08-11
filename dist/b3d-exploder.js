@@ -90,6 +90,7 @@ preview.append(
 */
 /*{ "parent": "Effects" }*/
 import * as BABYLON from '@babylonjs/core';
+import { sceneDelta } from './b3d-utils';
 /**
  * Shatter a mesh into fragments and animate them flying apart.
  * The original mesh is hidden (or disposed). Fragments are automatically
@@ -303,7 +304,7 @@ export function explodeMesh(mesh, scene, options = {}) {
             cleanup();
             return;
         }
-        const dt = scene.getEngine().getDeltaTime() * 0.001;
+        const dt = sceneDelta(scene);
         for (const frag of fragments) {
             // Physics engine handles movement; we only handle fade
             if (!usePhysics) {

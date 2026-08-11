@@ -88,7 +88,8 @@ from the lapse; <strong>map moisture</strong> — sweep forest → steppe → du
 terrain. Drag to orbit.</p>
 <pre><code class="language-js">import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
-  mesaProfile, beachProfile, cliffProfile, blendProfiles, profileField,
+  toggle3d, mesaProfile, beachProfile, cliffProfile, blendProfiles,
+  profileField, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, volcano,
 } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;demo-utils&#39;
 
@@ -127,6 +128,14 @@ terrain.grossFilter = blendProfiles(
   beachProfile(),
   profileField(87, 0.0028)
 )
+// An AUTHORED VOLCANO (landform.ts): the factory returns a matched pair —
+// the cone landform (forced through the noise, C1-blended at its footprint)
+// and the province that makes it glow: molten caldera, glowing seams down
+// the upper flanks, cold voronoi below, living biome beyond. Same move with
+// impactCrater() stamps a glowing crater at a detonation point.
+const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 26, baseLevel: 5 })
+terrain.landform = vesuvius.landform
+terrain.provinceField = vesuvius.province
 terrain.regenerate()
 
 const water = b3dWater({ y: 0, twoSided: true, waterSize: 1200 })
@@ -166,6 +175,10 @@ const scene = b3d(
         bind(&#39;surf depth&#39;, &#39;surfDepth&#39;, 0, 8, 0.25),
         bind(&#39;volcanism&#39;, &#39;volcanism&#39;, 0, 1, 0.01),
         bind(&#39;volcanic scale&#39;, &#39;volcanicScale&#39;, 0.02, 0.3, 0.005),
+        bind(&#39;glow animation&#39;, &#39;glowAnimation&#39;, 0, 2, 0.05),
+        // same ladder, different chemistry: molten WATER on a frozen world
+        toggle3d({ label: &#39;cryovolcanic&#39;, value: false,
+          onChange: (v) =&gt; { p.volcanicPalette = v ? CRYOVOLCANIC_PALETTE : LAVA_PALETTE } }),
       ]
     },
   },
@@ -245,6 +258,7 @@ growth visibly stops exactly where the light dies. Coherence for free.</li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link current" href="../biome-chart/" aria-current="page">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

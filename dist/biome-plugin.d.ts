@@ -79,17 +79,39 @@ export interface BiomeParams {
     /**
      * VOLCANISM — the second override world, orthogonal to climate (a tropical
      * island can be volcanic). 0 = none; up to 1 = volcanic provinces cover the
-     * map. Where active: flats turn basalt with Worley-cell LAVA VEINS glowing
-     * between the plates (pooling is a horizontal phenomenon), verticals turn
-     * obsidian/basalt, vegetation and dust give way. Underwater the veins go
-     * dark (chilled crust). Provinces come from a low-frequency mask, so
-     * volcanism localizes exactly like slope profiles do.
+     * map. Inside a province the look climbs an intensity LADDER (stage 1..3):
+     * near-black basalt with dark-brown Worley seams → dark-brown rock with
+     * GLOWING seams → patchy open lava. Horizontals ride `1 + 2·volcanism` up
+     * the ladder; verticals lag ONE stage behind (lava pools flat — cliff faces
+     * drain and crust over): at the midpoint cliffs are dark voronoi'd basalt
+     * while flats seam-glow; at the extreme cliffs seam-glow while flats run
+     * molten. Water pushes the ladder down half a stage and MUTES the glow
+     * with depth (smouldering veins under shallow water) — never cancels it.
+     * Provinces come from a low-frequency mask, so volcanism localizes exactly
+     * like slope profiles.
      */
     volcanism: number;
     /** Worley cell frequency for the lava plates (1/m). */
     volcanicScale: number;
     /** Vein width, 0..1 of cell spacing. */
     veinWidth: number;
+    /**
+     * The seven volcanic colours, in ladder order — [rock stage 1 (near-black
+     * basalt), rock stage 2 (dark brown), cold vein, ember seam, molten seam,
+     * pool crust-edge, pool bright]. Defaults are LAVA; swap in
+     * `CRYOVOLCANIC_PALETTE` (pale ice rock, teal veins, glowing blue-white
+     * melt) for frozen worlds with molten-water cryovolcanism — same ladder,
+     * same animation, different chemistry. Glow intensity is baked into the
+     * values (they may exceed 1).
+     */
+    volcanicPalette: number[][];
+    /**
+     * Subtle live-lava animation: molten seams and pools shimmer with a slow,
+     * spatially-phased pulse + drifting 3D-noise churn (never a global blink),
+     * and pool edges creep as crust breaks and reforms. 0 = static, 1 = the
+     * intended subtle motion; >1 exaggerates.
+     */
+    glowAnimation: number;
     /**
      * How much vegetation CLINGS to cliff faces in fecund (warm + wet) climates
      * — dither-driven pockets of the local biome breaking through the rock, the
@@ -99,6 +121,12 @@ export interface BiomeParams {
     cliffCling: number;
 }
 export declare const defaultBiomeParams: () => BiomeParams;
+/** Molten-rock volcanism (the default `volcanicPalette`). Ladder order:
+ * rock1, rock2, cold vein, ember, molten, pool edge, pool bright. */
+export declare const LAVA_PALETTE: number[][];
+/** Cryovolcanism: frozen worlds venting molten WATER — pale green-white ice
+ * for rock, teal voronoi veins, blue-white glowing melt. Same ladder. */
+export declare const CRYOVOLCANIC_PALETTE: number[][];
 /**
  * The flat-colour Whittaker chart, 4 cols (u: cold → warm) × **4 rows** (v:
  * dry land → wet land → marine), row-major from the dry row — organized so
@@ -133,6 +161,7 @@ export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
      * to their `palette` entry don't vary. */
     paletteB: number[][];
     private _isEnabled;
+    private _t0;
     constructor(material: BABYLON.Material);
     get isEnabled(): boolean;
     set isEnabled(enabled: boolean);

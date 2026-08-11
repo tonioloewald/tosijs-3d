@@ -248,6 +248,14 @@ export declare class B3d extends Component {
     scenePanel: (host: B3d) => Widget3d[];
     bodyPanels: (host: B3d) => FramePanelSpec[];
     private lastRender;
+    /** Seconds of wall clock since the previous rendered frame (clamped to
+  
+     * 100ms so a backgrounded tab can't teleport the sim). Use this — NOT
+  
+     * `engine.getDeltaTime()` — for anything advancing state inside a scene
+  
+     * observer; see the note in `_update`. */
+    frameDelta: number;
     private sceneListeners;
     private pastAdditions;
     private _sceneReady;

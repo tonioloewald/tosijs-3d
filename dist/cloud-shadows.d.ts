@@ -28,7 +28,6 @@ export interface CloudShadowBlob {
      * Stamped instead of the soft ellipse; `strength` becomes its opacity. */
     sprite?: CanvasImageSource;
 }
-/** One top-down shadow texture for a whole cloud field, shared by every receiving material. */
 export declare class CloudShadowMap {
     readonly texture: BABYLON.DynamicTexture;
     readonly resolution: number;

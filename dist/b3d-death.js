@@ -101,7 +101,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
+import { B3dChild, sceneDelta } from './b3d-utils';
 import { spawnPrefab } from './prefab';
 import { explosionFx } from './b3d-warhead';
 import { panel3d, label3d, button3d } from './widgets3d';
@@ -207,18 +207,31 @@ export class B3dDeath extends B3dChild {
             ? node.getAbsolutePosition().clone()
             : scene.activeCamera?.globalPosition.clone() ?? BABYLON.Vector3.Zero();
         // 1. The bang, and something that goes on burning while you look at it.
+        //
+        // COSMETICS CANNOT BLOCK THE EXIT. This component exists so death isn't a
+        // dead end; if the spectacle throws, the release-focus / spectate / panel
+        // steps below MUST still run. (Real case, 2026-08-11: charring the wreck
+        // cloned a material carrying an unregistered plugin, Babylon threw, and
+        // the player was left welded to a burning wreck with no panel — the exact
+        // failure this component was written to prevent, reintroduced through its
+        // own fireworks.)
         if (this.wreckage !== 'off') {
-            explosionFx(scene, at, this.blastRadius);
-            if (this.remains != null) {
-                this._remains = spawnPrefab(this.remains, {
-                    owner: this.owner,
-                    position: { x: at.x, y: at.y, z: at.z },
-                    velocity: entity?.velocity ?? undefined,
-                    source: entity,
-                });
+            try {
+                explosionFx(scene, at, this.blastRadius);
+                if (this.remains != null) {
+                    this._remains = spawnPrefab(this.remains, {
+                        owner: this.owner,
+                        position: { x: at.x, y: at.y, z: at.z },
+                        velocity: entity?.velocity ?? undefined,
+                        source: entity,
+                    });
+                }
+                else {
+                    this._burn(scene, node, at);
+                }
             }
-            else {
-                this._burn(scene, node, at);
+            catch (err) {
+                console.warn('b3d-death: wreckage FX failed (exit continues)', err);
             }
         }
         // 2. Stop driving the corpse. THE bug this component exists to fix.
@@ -228,42 +241,46 @@ export class B3dDeath extends B3dChild {
         //    building the orbit rig entirely. In VR you keep your head where it is and the Respawn
         //    panel comes to you (pinned to the rig — see _showPanel).
         this._prevCam = scene.activeCamera;
-        let cam;
-        let orbit = null;
-        if (this.spectate === 'chase') {
-            // A held third-person shot of the WRECK: behind and above it, looking at it. Positioned from
-            // the wreck, NOT from the dead aircraft's chase camera — that camera's globalPosition
-            // collapses onto the wreck at the crash frame (its follow pivot updates AFTER the crash
-            // event fires), which put the camera inside the wreck looking at itself. This is reliable.
-            const fwd = node?.forward.clone() ?? new BABYLON.Vector3(0, 0, 1);
-            fwd.y = 0;
-            if (fwd.lengthSquared() < 1e-4)
-                fwd.set(0, 0, 1);
-            fwd.normalize();
-            const pos = at.subtract(fwd.scale(this.orbitRadius * 0.7));
-            pos.y = at.y + this.orbitHeight;
-            const fc = new BABYLON.FreeCamera('death-chase', pos, scene);
-            fc.setTarget(at);
-            cam = fc;
-        }
-        else {
-            orbit = new BABYLON.ArcRotateCamera('death-orbit', -Math.PI / 2, Math.PI / 2.6, this.orbitRadius, at.add(new BABYLON.Vector3(0, this.orbitHeight * 0.35, 0)), scene);
-            orbit.lowerRadiusLimit = orbit.upperRadiusLimit = this.orbitRadius;
-            cam = orbit;
-        }
-        if (this.owner.setGameplayCamera(cam)) {
-            this._orbitCam = cam;
-            if (orbit != null) {
-                // Slow. This is a moment, not a ride.
-                this._obs = scene.onBeforeRenderObservable.add(() => {
-                    orbit.alpha +=
-                        this.orbitSpeed * DEG * (scene.getEngine().getDeltaTime() / 1000);
-                });
+        try {
+            let cam;
+            let orbit = null;
+            if (this.spectate === 'chase') {
+                // A held third-person shot of the WRECK: behind and above it, looking at it. Positioned from
+                // the wreck, NOT from the dead aircraft's chase camera — that camera's globalPosition
+                // collapses onto the wreck at the crash frame (its follow pivot updates AFTER the crash
+                // event fires), which put the camera inside the wreck looking at itself. This is reliable.
+                const fwd = node?.forward.clone() ?? new BABYLON.Vector3(0, 0, 1);
+                fwd.y = 0;
+                if (fwd.lengthSquared() < 1e-4)
+                    fwd.set(0, 0, 1);
+                fwd.normalize();
+                const pos = at.subtract(fwd.scale(this.orbitRadius * 0.7));
+                pos.y = at.y + this.orbitHeight;
+                const fc = new BABYLON.FreeCamera('death-chase', pos, scene);
+                fc.setTarget(at);
+                cam = fc;
+            }
+            else {
+                orbit = new BABYLON.ArcRotateCamera('death-orbit', -Math.PI / 2, Math.PI / 2.6, this.orbitRadius, at.add(new BABYLON.Vector3(0, this.orbitHeight * 0.35, 0)), scene);
+                orbit.lowerRadiusLimit = orbit.upperRadiusLimit = this.orbitRadius;
+                cam = orbit;
+            }
+            if (this.owner.setGameplayCamera(cam)) {
+                this._orbitCam = cam;
+                if (orbit != null) {
+                    // Slow. This is a moment, not a ride.
+                    this._obs = scene.onBeforeRenderObservable.add(() => {
+                        orbit.alpha += this.orbitSpeed * DEG * sceneDelta(scene);
+                    });
+                }
+            }
+            else {
+                cam.dispose(); // XR: no flat camera needed
+                this._prevCam = null;
             }
         }
-        else {
-            cam.dispose(); // XR: no flat camera needed
-            this._prevCam = null;
+        catch (err) {
+            console.warn('b3d-death: spectate camera failed (exit continues)', err);
         }
         // 4. A beat to watch it burn, THEN the panel. Offering a menu over a fireball reads
         //    as a bug report rather than a death.

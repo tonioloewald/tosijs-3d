@@ -107,7 +107,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff } from './b3d-utils';
+import { AbstractMesh, isOff, sceneDelta } from './b3d-utils';
 import { resolveAoe } from './warhead';
 // Seconds for the blast to expand from the centre to its full radius — shared by the
 // boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.
@@ -220,7 +220,7 @@ export function explosionFx(scene, center, blastRadius) {
     const peak = Math.max(1, blastRadius);
     let t = 0;
     const obs = scene.onBeforeRenderObservable.add(() => {
-        t += scene.getEngine().getDeltaTime() / 1000;
+        t += sceneDelta(scene);
         const k = t / BOOM_DURATION;
         if (k >= 1) {
             s.dispose();

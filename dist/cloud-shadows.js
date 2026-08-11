@@ -30,7 +30,7 @@ const scene = b3d(
   b3dSun({ x: -0.5, y: -1, z: -0.35 }),
   b3dSkybox({ timeOfDay: 11 }),
   b3dGround({ width: 160, height: 160, texture: 'checker', textureTiles: 32 }),
-  b3dClouds({ altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
+  b3dClouds({ model: '/cloud.glb', altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
   ...Array.from({ length: 9 }, (_, i) =>
     b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: '#7a9b6e' })
   ),
@@ -164,6 +164,13 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
     }
 }
 /** One top-down shadow texture for a whole cloud field, shared by every receiving material. */
+// Babylon can only re-instantiate a material plugin during `Material.clone()`
+// if it's in the plugin registry — otherwise the clone path dereferences an
+// UNDEFINED registry and throws (`Cannot read properties of undefined
+// (reading 'CloudShadowPlugin')`). That aborted b3d-death's wreck-charring
+// mid-sequence, so the player kept input focus and never got a respawn panel:
+// a cosmetic clone took the whole death exit down with it (2026-08-11).
+BABYLON.RegisterMaterialPlugin('CloudShadowPlugin', (material) => new CloudShadowPlugin(material));
 export class CloudShadowMap {
     texture;
     resolution;

@@ -90,6 +90,10 @@ const scene = b3d(
           items,
           onSelect: (it) =&gt; {
             const placed = lib.instantiate(it.name)
+            // Animated models come alive on spawn: loop their first group
+            // (the scout opens its cockpit — see &quot;Animations travel with the
+            // instance&quot; below).
+            placed?.metadata?.animationGroups?.[0]?.start(true)
             // Rest the spawn on the ground rather than at the origin (where it may
             // float or clip depending on the GLB).
             if (placed) placeOnSurface(placed)
@@ -170,36 +174,57 @@ preview.append(
 </ul>
 <h2>Authoring conventions (Blender)</h2>
 <ul>
-<li><p><strong>Axes: Blender defaults</strong> — model faces <strong>−Y</strong>, up is <strong>+Z</strong>, and <strong>apply
-all transforms</strong> before export. The engine defines the one mapping from that
-convention to its own frame in <code>canonicalize</code> (content-front → engine +Z);
-never fix orientation per-asset — a model that flies backwards needs
-re-exporting, not rotating.</p>
-</li>
-<li><p><strong>Exports: append <code>.model</code></strong> to each node you intend to publish
+<li><strong>Axes: Blender defaults, in the model&#39;s LOCAL frame</strong> — the nose faces
+<strong>local −Y</strong>, up is <strong>local +Z</strong>. The convention lives in the object&#39;s own
+coordinate system: the collapse (<code>canonicalize</code>) DISCARDS the object&#39;s
+scene transform, so scene placement — position, scenic rotation — is
+irrelevant and needn&#39;t be tidied. (Corollary: do NOT &quot;apply all transforms&quot;
+on a model inside a scene file; that bakes the scenic rotation into the
+data and corrupts the local frame. Apply-all is right only for dedicated
+single-model files where the object sits at identity.) The engine defines
+the one mapping from local-frame convention to engine frame (content-front
+→ engine +Z); never fix orientation per-asset — a model that flies
+backwards needs its LOCAL frame fixed in Blender (edit-mode 180° about Z),
+not a rotation in the scene or the code.</li>
+<li><strong>Origin: a vehicle&#39;s root-node origin is centred and grounded</strong> — its
+on-ground stance point (between the wheels/gear), so <code>y = terrainHeight</code>
+parks it. Where the craft <strong>pivots in flight</strong> is declared by a child node
+with the <strong><code>_centerOfGravity</code> suffix</strong> (an empty at the mass centre):
+aircraft rotate about the CoG while ground placement keeps the stance
+origin — one model conveys both how it flies and how it plants.</li>
+<li><strong>Exports: append <code>.model</code></strong> to each node you intend to publish
 (<code>scout.model</code>). Once a file declares any, ONLY those are listed — under
 their clean names (<code>getNames()</code> → <code>&#39;scout&#39;</code>, <code>instantiate(&#39;scout&#39;)</code> works) —
 so collections, rig helpers and boolean cutters stay out of the catalog. A
-file with no <code>.model</code> nodes lists everything (legacy behaviour).</p>
-</li>
-<li><p><strong><code>.model</code> is orthogonal to the behaviour suffixes</strong>: every suffix check
+file with no <code>.model</code> nodes lists everything (legacy behaviour).</li>
+<li><strong><code>.model</code> is orthogonal to the behaviour suffixes</strong>: every suffix check
 (<code>_collideMesh</code>, <code>_noshadow</code>, <code>_mirror</code>, <code>-ignore</code>, …) runs on the name with
 <code>.model</code> stripped, so <code>Hull_collideMesh.model</code> exports AND gets its
-collider — you never trade one convention for the other.</p>
-</li>
-<li><p><code>getNames(): string[]</code> — declared <code>.model</code> exports under clean names (or all
-mesh/transform-node names when none are declared; <code>__root__</code>/<code>-ignore</code> always excluded)</p>
-</li>
-<li><p><code>getRootNames(): string[]</code> — same, top-level nodes only</p>
-</li>
-<li><p><code>getHierarchy(): {name, children, isMesh}[]</code> — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure</p>
-</li>
-<li><p><code>instantiate(name, options?): Node | null</code> — clone a named node (mesh or transform, with children) into the scene</p>
-</li>
-<li><p><code>clearInstances(): void</code> — dispose all previously instantiated clones</p>
-</li>
-<li><p>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent? }</code></p>
-</li>
+collider — you never trade one convention for the other.</li>
+</ul>
+<h2>Animations travel with the instance</h2>
+<p>If the source model carries <strong>AnimationGroups</strong> (the scout&#39;s <code>Cockpit Open</code>
+and gear-retract animations in <code>test-3.glb</code>), <code>instantiate</code> clones them
+<strong>retargeted onto the instance</strong> — <code>node.clone()</code> alone would leave them on
+the container, animating the original nobody can see. They land on
+<code>instance.metadata.animationGroups</code>, named <code>&lt;group&gt;::&lt;instance&gt;</code> so multiple
+instances animate independently:</p>
+<pre><code class="language-js">const scout = lib.instantiate(&#39;scout&#39;, { canonical: true })
+const cockpit = scout.metadata.animationGroups
+  .find((g) =&gt; g.name.startsWith(&#39;Cockpit Open&#39;))
+cockpit.start(false) // one shot; .start(true) loops
+</code></pre>
+<p>Only groups whose targets all live inside the model&#39;s subtree travel — the
+scene&#39;s ambient animations stay behind. Pass <code>animations: false</code> to skip;
+<code>clearInstances()</code> disposes the clones with their instance.</p>
+<ul>
+<li><code>getNames(): string[]</code> — declared <code>.model</code> exports under clean names (or all
+mesh/transform-node names when none are declared; <code>__root__</code>/<code>-ignore</code> always excluded)</li>
+<li><code>getRootNames(): string[]</code> — same, top-level nodes only</li>
+<li><code>getHierarchy(): {name, children, isMesh}[]</code> — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure</li>
+<li><code>instantiate(name, options?): Node | null</code> — clone a named node (mesh or transform, with children) into the scene</li>
+<li><code>clearInstances(): void</code> — dispose all previously instantiated clones</li>
+<li>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent? }</code></li>
 </ul>
 
   </article>
@@ -258,6 +283,7 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

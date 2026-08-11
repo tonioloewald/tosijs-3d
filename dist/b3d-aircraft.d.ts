@@ -89,6 +89,10 @@ export declare class B3dAircraft extends B3dControllable {
     private _chaseLookPitch;
     private meshesToDispose;
     private _lastGroundDist;
+    private _groundNormal;
+    private _worldVel;
+    private _prevPos;
+    private _prevPosValid;
     private _ray;
     private _ownMeshes;
     private groundClearance;
@@ -104,7 +108,11 @@ export declare class B3dAircraft extends B3dControllable {
     /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
      * spawned at the belly (or the nose in a climb) never detonates on us. */
     private ownMeshes;
-    /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
+    /** World nose direction (unit) and a muzzle point `ahead` metres in front.
+     * Computed through the WORLD matrix, never node.position: with a
+     * _centerOfGravity pivot the rendered airframe swings about the CoG under
+     * attitude, and position alone points at the stance origin — shots would
+     * spawn beside/behind the visible plane in a turn. */
     private muzzle;
     /** Fire one cannon shell forward, inheriting the airframe's velocity. */
     fireGuns(): void;

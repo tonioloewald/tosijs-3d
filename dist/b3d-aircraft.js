@@ -86,7 +86,7 @@ const scene = b3d(
   b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   // Fly UP into the cloud layer — the whiteout is fog (stereo-safe) and reads insideCloud.
-  b3dClouds({ altitude: 120, thickness: 40, size: 60, coverage: 0.45, castShadows: true, seed: 4 }),
+  b3dClouds({ model: '/cloud.glb', altitude: 120, thickness: 40, size: 60, coverage: 0.45, castShadows: true, seed: 4 }),
   b3dHud({}),
   // A nav waypoint far ahead: a positional blip (no mesh), always detectable (profile -1).
   b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
@@ -223,7 +223,7 @@ faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
-import { canonicalize } from './model-transform';
+import { canonicalize, applyCenterOfGravity } from './model-transform';
 import { B3dControllable } from './b3d-controllable';
 import { aircraftMapping } from './virtual-gamepad';
 import { flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
@@ -378,6 +378,15 @@ export class B3dAircraft extends B3dControllable {
     // Ray and own-mesh set are reused too — the whole path was allocating a Ray,
     // Set, and a child-mesh array three times a frame.
     _lastGroundDist = Infinity;
+    _groundNormal = new BABYLON.Vector3(0, 1, 0);
+    // TRUE world velocity, tracked from frame displacement. this.velocity is
+    // only the hover/ground integrator and reads ZERO in wing-borne flight
+    // (the fbw path moves the node directly) — weapons inheriting it left
+    // bombs hanging motionless in mid-air. Displacement also captures climb;
+    // origin-shift frames are rejected by the sanity cap.
+    _worldVel = new BABYLON.Vector3();
+    _prevPos = new BABYLON.Vector3();
+    _prevPosValid = false;
     _ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 500);
     _ownMeshes = null;
     // Derived from the model's geometry in setupMesh so the body rests on the
@@ -393,6 +402,16 @@ export class B3dAircraft extends B3dControllable {
         const attrs = this;
         const node = this.meshNode;
         const vel = this.velocity;
+        if (dt > 0) {
+            const wx = (node.position.x - this._prevPos.x) / dt;
+            const wy = (node.position.y - this._prevPos.y) / dt;
+            const wz = (node.position.z - this._prevPos.z) / dt;
+            const cap = (attrs.maxSpeed || 60) * 3;
+            if (this._prevPosValid && Math.hypot(wx, wy, wz) <= cap)
+                this._worldVel.copyFromFloats(wx, wy, wz);
+        }
+        this._prevPos.copyFrom(node.position);
+        this._prevPosValid = true;
         // Camera toggle on the view button (edge-detected so a held press fires once)
         const viewPressed = input.view > 0.5;
         if (viewPressed && !this.viewWasPressed) {
@@ -525,6 +544,33 @@ export class B3dAircraft extends B3dControllable {
                 this._pushRadarToHud(node);
             }
         }
+        // === Impact sweep along the velocity ===
+        // The downward ground ray can't see a cliff WALL ahead — flying into a
+        // steep face, it reports the valley floor far below and you sail through
+        // the mountain (Tonio, terrain demo). Sweep this frame's travel along
+        // the velocity: a hit inside it is an impact (steep surface or real
+        // speed ⇒ crash). Grounded taxiing skips it (shallow constant contact).
+        const sweepSpeed = Math.hypot(vel.x, vel.y, vel.z);
+        if (!this.crashed &&
+            !this.grounded &&
+            this._hasFlown &&
+            sweepSpeed > 1e-3 &&
+            this.owner != null) {
+            this._ray.origin.copyFrom(node.position);
+            this._ray.direction.copyFromFloats(vel.x / sweepSpeed, vel.y / sweepSpeed, vel.z / sweepSpeed);
+            this._ray.length = sweepSpeed * dt + 1.5;
+            const own = this.ownMeshes();
+            const wallHit = this.owner.scene.pickWithRay(this._ray, (m) => m.isPickable &&
+                m.isEnabled() &&
+                !own.has(m) &&
+                !m.name.includes('__root__'));
+            if (wallHit?.hit) {
+                const n = wallHit.getNormal(true);
+                if (n == null || n.y < 0.85 || sweepSpeed > attrs.crashSpeed) {
+                    this.crash();
+                }
+            }
+        }
         // === Apply velocity to position ===
         node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt);
         // Service ceiling: can't climb past it. Cap altitude and bleed the climb.
@@ -547,9 +593,19 @@ export class B3dAircraft extends B3dControllable {
             // wobble (lift a metre, tip, settle back) would otherwise register a first-contact
             // "impact" and explode you on the pad — the "crashed on takeoff, never got to fly"
             // report. `_hasFlown` arms the check only after you clear a takeoff margin.
+            // Three ways a first contact is a crash: fast vertical impact,
+            // inverted/steep bank, or FLYING INTO A SLOPE — level flight into a
+            // hillside has little vertical speed but plenty of total speed against
+            // a steep surface (normal.y < ~0.85 ≈ >30°). Without the slope term
+            // you'd "land" on the hillside and sit there stuck (Tonio, terrain
+            // demo). Water stays a plane (normal up), so gentle water touches
+            // still count as landings.
+            const impactSpeed = Math.hypot(vel.x, vel.y, vel.z);
             if (this._hasFlown &&
                 !wasGrounded &&
-                (vel.y < -attrs.crashSpeed || node.up.y < 0.5)) {
+                (vel.y < -attrs.crashSpeed ||
+                    node.up.y < 0.5 ||
+                    (this._groundNormal.y < 0.85 && impactSpeed > attrs.crashSpeed))) {
                 this.crash();
             }
             node.position.y += this.groundClearance - groundDist;
@@ -668,11 +724,16 @@ export class B3dAircraft extends B3dControllable {
         }
         return this._ownMeshes ?? new Set();
     }
-    /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
+    /** World nose direction (unit) and a muzzle point `ahead` metres in front.
+     * Computed through the WORLD matrix, never node.position: with a
+     * _centerOfGravity pivot the rendered airframe swings about the CoG under
+     * attitude, and position alone points at the stance origin — shots would
+     * spawn beside/behind the visible plane in a turn. */
     muzzle(ahead, drop = 0) {
         const node = this.meshNode;
         node.getDirectionToRef(LOCAL_Z, this._fwd);
-        return new BABYLON.Vector3(node.position.x + this._fwd.x * ahead, node.position.y + this._fwd.y * ahead - drop, node.position.z + this._fwd.z * ahead);
+        node.computeWorldMatrix(true);
+        return BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(0, -drop, ahead), node.getWorldMatrix());
     }
     /** Fire one cannon shell forward, inheriting the airframe's velocity. */
     fireGuns() {
@@ -685,7 +746,7 @@ export class B3dAircraft extends B3dControllable {
         const ignore = (m) => this.ownMeshes().has(m);
         spawnProjectile(this.owner, {
             origin,
-            velocity: this.velocity.add(dir.scale(attrs.gunSpeed)),
+            velocity: this._worldVel.add(dir.scale(attrs.gunSpeed)),
             warhead: this.gunWarhead,
             params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.001, mass: 2 },
             radius: 0.08,
@@ -704,7 +765,7 @@ export class B3dAircraft extends B3dControllable {
         this._bombCd = 0.6;
         spawnProjectile(this.owner, {
             origin: this.muzzle(0, 1.2), // clear of the belly
-            velocity: this.velocity.clone(),
+            velocity: this._worldVel.clone(),
             warhead: { damage: attrs.bombDamage, fullRadius: 2, blastRadius: 6 },
             params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.002, mass: 4 },
             radius: 0.25,
@@ -751,9 +812,9 @@ export class B3dAircraft extends B3dControllable {
                 // Inherit the airframe's world velocity so the missile doesn't drop behind,
                 // then thrust up to cruise.
                 inheritVelocity: {
-                    x: this.velocity.x,
-                    y: this.velocity.y,
-                    z: this.velocity.z,
+                    x: this._worldVel.x,
+                    y: this._worldVel.y,
+                    z: this._worldVel.z,
                 },
                 accel: attrs.missileAccel,
                 boostTime: attrs.missileBoost,
@@ -763,7 +824,7 @@ export class B3dAircraft extends B3dControllable {
             // No lock — fire it straight ahead as an unguided rocket.
             spawnProjectile(this.owner, {
                 origin,
-                velocity: this.velocity.add(dir.scale(attrs.missileSpeed)),
+                velocity: this._worldVel.add(dir.scale(attrs.missileSpeed)),
                 warhead: spec,
                 params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
                 radius: 0.18,
@@ -848,7 +909,17 @@ export class B3dAircraft extends B3dControllable {
             m.isEnabled() &&
             !own.has(m) &&
             !m.name.includes('__root__'));
-        return hit?.hit ? hit.distance : Infinity;
+        if (hit?.hit) {
+            // Surface normal for the slope-impact crash test (up if unavailable).
+            const n = hit.getNormal(true);
+            if (n)
+                this._groundNormal.copyFrom(n);
+            else
+                this._groundNormal.copyFromFloats(0, 1, 0);
+            return hit.distance;
+        }
+        this._groundNormal.copyFromFloats(0, 1, 0);
+        return Infinity;
     }
     updatePullUp(node, groundDist) {
         // Warn if projected altitude in PULL_UP_SECONDS is below 10m
@@ -931,6 +1002,11 @@ export class B3dAircraft extends B3dControllable {
     setupMesh(root, owner) {
         this.meshNode = root;
         this._ownMeshes = null; // rebuild the raycast exclusion set for the new model
+        // Vehicle node convention: root origin = on-ground stance point; a
+        // `_centerOfGravity` marker child says where the craft PIVOTS in flight.
+        // With one declared, attitude changes rotate about the CoG while
+        // `position` keeps meaning the stance point (parking is unchanged).
+        applyCenterOfGravity(root);
         if (root instanceof BABYLON.Mesh) {
             this.mesh = root;
             root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2);

@@ -101,7 +101,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff } from './b3d-utils';
+import { AbstractMesh, isOff, sceneDelta } from './b3d-utils';
 import { ballisticAim } from './ballistics';
 import { spawnProjectile } from './b3d-launcher';
 import { steerToward, gNormalize, gSub } from './guidance';
@@ -172,7 +172,7 @@ export class B3dTurret extends AbstractMesh {
         this._barrelMat.diffuseColor = BABYLON.Color3.FromHexString(this.idleColor);
         this._barrel.material = this._barrelMat;
         this._tick = scene.onBeforeRenderObservable.add(() => {
-            const dt = scene.getEngine().getDeltaTime() / 1000;
+            const dt = sceneDelta(scene);
             if (this._cooldown > 0)
                 this._cooldown -= dt;
             this._update(dt);

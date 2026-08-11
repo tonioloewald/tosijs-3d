@@ -70,7 +70,7 @@ const scene = b3d(
   b3dSun({ x: -0.5, y: -1, z: -0.35 }),
   b3dSkybox({ timeOfDay: 11 }),
   b3dGround({ width: 160, height: 160, texture: &#39;checker&#39;, textureTiles: 32 }),
-  b3dClouds({ altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
+  b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
   ...Array.from({ length: 9 }, (_, i) =&gt;
     b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: &#39;#7a9b6e&#39; })
   ),
@@ -148,6 +148,7 @@ projected along the light before stamping), so the shader stays a plain straight
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

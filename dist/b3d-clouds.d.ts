@@ -4,6 +4,7 @@ import type { B3d } from './tosi-b3d';
 export declare class B3dClouds extends B3dChild {
     static initAttributes: {
         count: number;
+        model: string;
         altitude: number;
         thickness: number;
         spread: number;
@@ -21,6 +22,7 @@ export declare class B3dClouds extends B3dChild {
         windZ: number;
     };
     count: number;
+    model: string;
     altitude: number;
     thickness: number;
     spread: number;
@@ -42,6 +44,10 @@ export declare class B3dClouds extends B3dChild {
      */
     get insideCloud(): number;
     private _blobs;
+    /** Cloud clusters: the anchor that drifts/wraps + which pool blobs it owns. */
+    private _clusters;
+    /** Per-blob offset from its cluster anchor (index-aligned with `_blobs`). */
+    private _offsets;
     /** Projected cloud-shadow texture (cloud-shadows.ts), when castShadows is on. */
     private _shadowMap;
     /** Something moved (recycle, coverage, sun, window) — repaint on the next throttled beat. */
@@ -66,8 +72,12 @@ export declare class B3dClouds extends B3dChild {
      * that declare themselves receivers. */
     private _onAddition;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /** The authored lobe (hidden template) + how to normalize it. */
+    private _lobeSource;
+    private _lobeScale;
+    private _lobeBottom;
+    private _buildClouds;
     sceneDispose(): void;
-    private _placeRandom;
     /** Apply the `coverage` weather dial: how many blobs are active, how opaque, how dark, and
      * how much they still self-illuminate. Live — cheap enough to run when coverage moves. */
     private _applyCoverage;

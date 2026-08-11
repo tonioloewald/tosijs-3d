@@ -53,7 +53,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span, p } = elements
 
@@ -114,10 +114,11 @@ const posDisplay = span({ class: &#39;pos-display&#39; })
 // Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
 // with v size 200), so it&#39;s already above the hover ceiling → in FLIGHT mode:
 // right trigger = forward throttle, pull back to climb, turn stick banks.
-const aircraft = b3dAircraft({
+const plane = () =&gt; b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
   player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
 })
+const focus = inputFocus(gameController(), plane())
 
 const scene = b3d(
   {
@@ -155,7 +156,7 @@ const scene = b3d(
   terrain,
   // A cloud layer over the peaks — origin-shift aware, so it doesn&#39;t lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.
-  b3dClouds({ altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
+  b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 280, thickness: 60, spread: 1600, size: 90, coverage: 0.4, castShadows: true, seed: 9 }),
   // A sea at height 0. The terrain now straddles 0 (center above), so the valleys flood into
   // fjords and islands. Big AND `follow`: the plane snaps to a coarse grid under the camera (so it
   // never runs out from under you and never flickers), while the ripples stay anchored in world
@@ -163,10 +164,10 @@ const scene = b3d(
   b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
-  inputFocus(
-    gameController(),
-    aircraft,
-  ),
+  // Death&#39;s exit: crash into a hillside and you get the wreck, spectate, and a
+  // respawn panel instead of being welded to the wreck forever.
+  b3dDeath({ title: &#39;DOWN&#39;, spectate: &#39;chase&#39;, respawn() { focus.appendChild(plane()) } }),
+  focus,
 )
 
 // Only a readout stays as a flat overlay — the tweakable settings all live in the
@@ -492,6 +493,7 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

@@ -303,6 +303,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-particles.ts` | Particle effect system |
 | `src/b3d-sound.ts` | Positional 3D audio |
 | `src/b3d-terrain.ts` | Terrain generation (+ `biome="on"` — the procedural biome shader on its material) |
+| `src/landform.ts` | Authored landforms FORCED through the terrain noise (b3d-terrain's `landform` hook): `volcano`/`impactCrater` return a matched height shape + volcanism `province`, `pad` claims flat ground for cities/bases; `composeLandforms`/`mergeProvinces` chain them. Pure, unit-tested |
 | `src/slope-profile.ts` | Levels-adjustment terrain profiles (cliff/beach/rolling/mesa/terrace) + `blendProfiles` localization over seeded `profileField`s — Dover→Brighton transitions; terrain's sampler honours `evaluateAt(t, x, z)` |
 | `src/biome-chart.ts` | Pure biome-classification model (TERRAIN-SHADER-DESIGN.md): chart axes (Manta + planetary-stub front-ends), cell blend, slope + photic overrides; unit-tested |
 | `src/biome-plugin.ts` | `BiomePlugin`/`attachBiomePlugin` — the GLSL mirror as a MaterialPlugin (flat-colour chart, fBm axis noise, edgeDither, cliff mask, photic cutoff sharing water's fog curve) |

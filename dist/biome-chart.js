@@ -48,7 +48,8 @@ terrain. Drag to orbit.
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
-  mesaProfile, beachProfile, cliffProfile, blendProfiles, profileField,
+  toggle3d, mesaProfile, beachProfile, cliffProfile, blendProfiles,
+  profileField, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, volcano,
 } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 
@@ -87,6 +88,14 @@ terrain.grossFilter = blendProfiles(
   beachProfile(),
   profileField(87, 0.0028)
 )
+// An AUTHORED VOLCANO (landform.ts): the factory returns a matched pair —
+// the cone landform (forced through the noise, C1-blended at its footprint)
+// and the province that makes it glow: molten caldera, glowing seams down
+// the upper flanks, cold voronoi below, living biome beyond. Same move with
+// impactCrater() stamps a glowing crater at a detonation point.
+const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 26, baseLevel: 5 })
+terrain.landform = vesuvius.landform
+terrain.provinceField = vesuvius.province
 terrain.regenerate()
 
 const water = b3dWater({ y: 0, twoSided: true, waterSize: 1200 })
@@ -126,6 +135,10 @@ const scene = b3d(
         bind('surf depth', 'surfDepth', 0, 8, 0.25),
         bind('volcanism', 'volcanism', 0, 1, 0.01),
         bind('volcanic scale', 'volcanicScale', 0.02, 0.3, 0.005),
+        bind('glow animation', 'glowAnimation', 0, 2, 0.05),
+        // same ladder, different chemistry: molten WATER on a frozen world
+        toggle3d({ label: 'cryovolcanic', value: false,
+          onChange: (v) => { p.volcanicPalette = v ? CRYOVOLCANIC_PALETTE : LAVA_PALETTE } }),
       ]
     },
   },

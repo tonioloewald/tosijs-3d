@@ -130,7 +130,7 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { B3dChild, isOff } from './b3d-utils';
+import { B3dChild, isOff, sceneDelta } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 // 2D noise for disk turbulence (simple hash-based)
 function hash(x, y) {
@@ -223,7 +223,7 @@ export class B3dBlackHole extends B3dChild {
     update() {
         if (this.rootNode == null || this.owner == null)
             return;
-        const dt = this.owner.scene.getEngine().getDeltaTime() / 1000;
+        const dt = sceneDelta(this.owner.scene);
         this._time += dt;
         // Lensed disk: vertical ring that rotates on Y to face camera
         if (this.lensedDiskMesh && this.owner.scene.activeCamera) {

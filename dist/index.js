@@ -155,7 +155,8 @@ export const ui = {
 export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, } from './biome-chart';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile';
-export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, } from './biome-plugin';
+export { volcano, impactCrater, pad, composeLandforms, mergeProvinces, } from './landform';
+export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
@@ -195,6 +196,7 @@ export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip';
 export { B3dRadar, b3dRadar } from './b3d-radar';
 export { Radar, coneDotFromDegrees, isOpposed } from './radar';
 export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance';
+export { canonicalize, normalizeScale, findCenterOfGravity, applyCenterOfGravity, } from './model-transform';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';
 //# sourceMappingURL=index.js.map

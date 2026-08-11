@@ -28,6 +28,19 @@ export declare const isOff: (v: unknown) => boolean;
  * rather than an accident of `includes()`-based matching (clone names like
  * `scout.model_instance_0` are covered too).
  */
+/**
+ * THE frame delta for anything ticking inside a scene observer (seconds).
+ *
+ * Babylon's `engine.getDeltaTime()` measures the engine's rAF TICK, but scene
+ * observers only fire when `scene.render()` runs — and `<tosi-b3d>` throttles
+ * rendering to its `frameRate`. Trusting getDeltaTime there advances too
+ * little time per frame: at frameRate 60 on a 120Hz display everything runs
+ * at HALF speed, at the default 30 a QUARTER. B3d publishes the real
+ * inter-render delta on `scene.metadata.b3dFrameDelta`; this reads it, with
+ * the raw engine delta as a fallback for scenes B3d doesn't drive (tests,
+ * standalone Babylon).
+ */
+export declare const sceneDelta: (scene: BABYLON.Scene) => number;
 export declare const conventionName: (name: string) => string;
 /**
  * Vertical gap, in world units, between a node's origin and the bottom of its

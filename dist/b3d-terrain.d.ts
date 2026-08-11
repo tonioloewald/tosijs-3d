@@ -42,6 +42,29 @@ export declare class B3dTerrain extends B3dChild {
     };
     owner: B3d | null;
     grossFilter: GradientFilter;
+    /**
+     * LOCAL volcanism field — `(x, z) => 0..1`, sampled per tile vertex in
+     * origin-stable world coordinates and carried to the biome shader in the
+     * colour buffer's (visually inert) alpha channel. Where it's > 0 the biome
+     * plugin runs its volcanism ladder at that LOCAL intensity, independent of
+     * the global `volcanism` dial — "THIS island is volcanic". A radial ramp
+     * gives a caldera gradient: pools at the centre, glowing seams around
+     * them, cold voronoi at the fringe. Compose seeded noise or authored
+     * shapes exactly like slope-profile weight fields. Set it, then
+     * `regenerate()`.
+     */
+    provinceField: ((x: number, z: number) => number) | null;
+    /**
+     * Authored landform override — `(x, z, h) => h'`, applied AFTER the
+     * profiles/amplitude pipeline in origin-stable coordinates. Where it
+     * leaves `h` untouched the noise terrain shows through; where it doesn't,
+     * the authored shape wins — a volcano cone, an impact crater, a building
+     * pad. Pair with [[landform]]'s factories, which return a landform and its
+     * matching `provinceField` together. Set it, then `regenerate()` — which
+     * is also how a runtime EXPLOSION stamps a glowing crater: compose the new
+     * crater in, regenerate.
+     */
+    landform: ((x: number, z: number, h: number) => number) | null;
     detailFilter: GradientFilter;
     private noise;
     private noiseSeed;

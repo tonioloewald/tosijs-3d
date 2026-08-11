@@ -140,7 +140,7 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { B3dChild, isOff } from './b3d-utils';
+import { B3dChild, isOff, sceneDelta } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { generateGalaxy, generateStarSystem, } from './galaxy-data';
 import { PerlinNoise } from './perlin-noise';
@@ -530,7 +530,7 @@ export class B3dStarSystem extends B3dChild {
             return;
         const attrs = this;
         if (!isOff(attrs.animate) && this.systemData.planets.length > 0) {
-            const dt = this.owner.scene.getEngine().getDeltaTime() / 1000;
+            const dt = sceneDelta(this.owner.scene);
             this.time += dt;
             const scale = attrs.scale;
             const orbitScale = attrs.orbitScale;

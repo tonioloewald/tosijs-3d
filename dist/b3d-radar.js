@@ -28,7 +28,7 @@ one: `maxLocks: 1`, `alignment: 'hostile'` (so it only locks the player).
 #*/
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, semanticParent } from './b3d-utils';
+import { B3dChild, semanticParent, sceneDelta } from './b3d-utils';
 import { Radar, coneDotFromDegrees, isOpposed } from './radar';
 const LOCAL_Z = new BABYLON.Vector3(0, 0, 1);
 export class B3dRadar extends B3dChild {
@@ -78,7 +78,7 @@ export class B3dRadar extends B3dChild {
         if (this._radar == null || this.owner == null)
             return;
         const scene = this.owner.scene;
-        const dt = scene.getEngine().getDeltaTime() / 1000;
+        const dt = sceneDelta(scene);
         if (dt <= 0)
             return;
         this._acc += dt;
