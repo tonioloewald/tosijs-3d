@@ -28,7 +28,7 @@ const aircraft = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
 })
-const clouds = b3dClouds({ altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
+const clouds = b3dClouds({ model: '/cloud.glb', altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: 'readout' })
 
 const scene = b3d(
@@ -100,6 +100,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 | Attribute | Default | Description |
 |-----------|---------|-------------|
+| `model` | `''` | GLB whose mesh is the cloud LOBE (normalized to the blob radius, bottom-aligned). Empty = the procedural lobe |
 | `count` | `36` | Blob POOL size (fixed — they recycle, they don't grow). `coverage` decides how many are active |
 | `altitude` | `140` | Centre height of the layer |
 | `thickness` | `36` | Vertical spread of the layer |
@@ -200,6 +201,11 @@ function makeEggMesh(
 export class B3dClouds extends B3dChild {
   static initAttributes = {
     count: 36,
+    // Authored lobe mesh (GLB). Its geometry replaces the procedural lobe —
+    // model the cloud shape you want instead of tuning a deformer. Bottom of
+    // the model = bottom of the cloud (bases align); it's normalized to the
+    // blob radius on load, so authoring scale doesn't matter. Empty = procedural.
+    model: '',
     altitude: 140,
     thickness: 36,
     spread: 1200,
@@ -243,6 +249,7 @@ export class B3dClouds extends B3dChild {
   }
 
   declare count: number
+  declare model: string
   declare altitude: number
   declare thickness: number
   declare spread: number
@@ -316,6 +323,54 @@ export class B3dClouds extends B3dChild {
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
+    // An authored lobe (`model`) loads first — the blob build needs its
+    // geometry — then everything downstream is identical. No model: build now.
+    if (this.model) {
+      BABYLON.SceneLoader.LoadAssetContainerAsync('', this.model, scene).then(
+        (container) => {
+          if (this.owner == null) return // torn down mid-load
+          const src = container.meshes.find(
+            (m) => m.getTotalVertices?.() > 0
+          ) as BABYLON.Mesh | undefined
+          if (src != null) {
+            src.setEnabled(false)
+            src.parent = null
+            src.position.setAll(0)
+            src.rotationQuaternion = null
+            src.rotation.setAll(0)
+            src.scaling.setAll(1)
+            src.computeWorldMatrix(true)
+            const bb = src.getBoundingInfo().boundingBox
+            // Normalize: radius 1 in XZ, bottom at y = 0, so a blob's `scaling`
+            // means the same thing whatever scale the model was authored at.
+            const r = Math.max(
+              Math.abs(bb.minimum.x),
+              Math.abs(bb.maximum.x),
+              Math.abs(bb.minimum.z),
+              Math.abs(bb.maximum.z)
+            )
+            this._lobeSource = src
+            this._lobeScale = r > 0 ? 1 / r : 1
+            this._lobeBottom = bb.minimum.y * this._lobeScale
+          } else {
+            console.warn(
+              `b3d-clouds: no mesh in "${this.model}" — using the procedural lobe`
+            )
+          }
+          this._buildClouds(owner, scene)
+        }
+      )
+      return
+    }
+    this._buildClouds(owner, scene)
+  }
+
+  /** The authored lobe (hidden template) + how to normalize it. */
+  private _lobeSource: BABYLON.Mesh | null = null
+  private _lobeScale = 1
+  private _lobeBottom = 0
+
+  private _buildClouds(owner: B3d, scene: BABYLON.Scene) {
     const rng = new MersenneTwister(this.seed)
     this._baseColor = BABYLON.Color3.FromHexString(this.color)
     const mat = new BABYLON.StandardMaterial('cloud-mat', scene)
@@ -387,7 +442,11 @@ export class B3dClouds extends B3dChild {
       const leadHalf = lead * 0.45
       for (let k = 0; k < members; k++) {
         const L = CLOUD_LAYOUT[Math.min(k, CLOUD_LAYOUT.length - 1)]
-        const blob = makeEggMesh(`cloud-${made}`, scene)
+        const blob =
+          this._lobeSource != null
+            ? (this._lobeSource.clone(`cloud-${made}`, null)! as BABYLON.Mesh)
+            : makeEggMesh(`cloud-${made}`, scene)
+        blob.setEnabled(true)
         blob.material = mat
         // ⚠️ NOT pickable. A cloud between the controller and a panel — or between a missile and
         // its target — silently breaks picking and swept collision. (Shadow CASTING is opt-in
@@ -395,7 +454,12 @@ export class B3dClouds extends B3dChild {
         blob.isPickable = false
         blob.receiveShadows = false
         const sc = lead * L.s * (0.92 + rng.random() * 0.16)
-        blob.scaling.set(sc, sc * 0.45, sc)
+        // An authored lobe carries its OWN proportions (it was modelled as a
+        // cloud); only normalize it to the blob radius. The procedural one is
+        // a sphere, so it needs the flattening.
+        const authored = this._lobeSource != null
+        if (authored) blob.scaling.setAll(sc * this._lobeScale)
+        else blob.scaling.set(sc, sc * 0.45, sc)
         // Eggs roughly follow the spine (a shared long axis reads as ONE
         // cloud), with enough jitter that they aren't stamped.
         blob.rotation.y = spine + (rng.random() - 0.5) * 1.2
@@ -403,7 +467,12 @@ export class B3dClouds extends B3dChild {
         const off = {
           // relative to the cluster's BASE, not its centre
           x: cos * along,
-          y: sc * 0.45 * LOBE_BOTTOM + L.u * leadHalf * vMul,
+          // lift the lobe so its BOTTOM sits on the cluster base
+          y:
+            (authored
+              ? -this._lobeBottom * sc * this._lobeScale
+              : sc * 0.45 * LOBE_BOTTOM) +
+            L.u * leadHalf * vMul,
           z: sin * along,
         }
         this._offsets.push(off)

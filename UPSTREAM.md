@@ -12,16 +12,16 @@ no issue URL is a complaint nobody will ever read.
 
 ## Open
 
-| Owner       | Finding                                                                                                                                                         | Issue                                                               |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `tosijs`    | `on*`→event sugar shadows prototype **methods**, not just creator-config keys (narrowed: the warning shipped in 1.6.8, the namespace question stands)           | [tosijs#22](https://github.com/tonioloewald/tosijs/issues/22)       |
-| `tosijs`    | No first-class "semantic parent" accessor — children hand-roll a walk past `<tosi-slot>`                                                                        | [tosijs#16](https://github.com/tonioloewald/tosijs/issues/16)       |
-| `tosijs`    | A wrong-typed write to an `initAttributes` prop is silently discarded (`pointerEvents: false` onto `'on'\|'off'` → stays `'on'`) — cost the lost-pointerup saga | [tosijs#24](https://github.com/tonioloewald/tosijs/issues/24)       |
-| `haltija`   | Tab selection follows focus, not cwd — commands can land on another project's page                                                                              | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)       |
-| `tosijs-ui` | Dev server dies silently when a standalone build runs concurrently (shared docs/dist output tree — needs a lock, or at least a loud death)                      | [tosijs-ui#51](https://github.com/tonioloewald/tosijs-ui/issues/51) |
-| `tosijs-ui` | `tosi-example` has no full-bleed/preview-sizing option — consumers pay a specificity hack + per-demo `.preview` css fences coupled to internal class names      | [tosijs-ui#52](https://github.com/tonioloewald/tosijs-ui/issues/52) |
+| Owner       | Finding                                                                                                                                                                                | Issue                                                               |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `tosijs`    | `on*`→event sugar shadows prototype **methods**, not just creator-config keys (narrowed: the warning shipped in 1.6.8, the namespace question stands)                                  | [tosijs#22](https://github.com/tonioloewald/tosijs/issues/22)       |
+| `tosijs`    | No first-class "semantic parent" accessor — children hand-roll a walk past `<tosi-slot>`                                                                                               | [tosijs#16](https://github.com/tonioloewald/tosijs/issues/16)       |
+| `tosijs`    | A wrong-typed write to an `initAttributes` prop is silently discarded (`pointerEvents: false` onto `'on'\|'off'` → stays `'on'`) — cost the lost-pointerup saga                        | [tosijs#24](https://github.com/tonioloewald/tosijs/issues/24)       |
+| `haltija`   | Tab selection follows focus, not cwd — commands can land on another project's page                                                                                                     | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)       |
+| `tosijs-ui` | Dev server dies silently when a standalone build runs concurrently (shared docs/dist output tree — needs a lock, or at least a loud death)                                             | [tosijs-ui#51](https://github.com/tonioloewald/tosijs-ui/issues/51) |
+| `tosijs-ui` | `tosi-example` has no full-bleed/preview-sizing option — consumers pay a specificity hack + per-demo `.preview` css fences coupled to internal class names                             | [tosijs-ui#52](https://github.com/tonioloewald/tosijs-ui/issues/52) |
 | `tosijs-ui` | `devServer` inherits Bun.serve's 10s `idleTimeout` — a multi-MB bundle fetched from ANOTHER DEVICE on the LAN is cut off mid-transfer (page loads, then stalls); invisible on loopback | [tosijs-ui#63](https://github.com/tonioloewald/tosijs-ui/issues/63) |
-| `tosijs-ui` | Live-example scope: a demo's `const name` silently collides with `window.name` (same family as tjs-lang#22)                                                     | [tosijs-ui#53](https://github.com/tonioloewald/tosijs-ui/issues/53) |
+| `tosijs-ui` | Live-example scope: a demo's `const name` silently collides with `window.name` (same family as tjs-lang#22)                                                                            | [tosijs-ui#53](https://github.com/tonioloewald/tosijs-ui/issues/53) |
 
 ## Resolved
 

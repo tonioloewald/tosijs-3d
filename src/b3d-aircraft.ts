@@ -86,7 +86,7 @@ const scene = b3d(
   b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   // Fly UP into the cloud layer — the whiteout is fog (stereo-safe) and reads insideCloud.
-  b3dClouds({ altitude: 120, thickness: 40, size: 60, coverage: 0.45, castShadows: true, seed: 4 }),
+  b3dClouds({ model: '/cloud.glb', altitude: 120, thickness: 40, size: 60, coverage: 0.45, castShadows: true, seed: 4 }),
   b3dHud({}),
   // A nav waypoint far ahead: a positional blip (no mesh), always detectable (profile -1).
   b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 25, z: 300 }),
