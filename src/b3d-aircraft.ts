@@ -611,6 +611,44 @@ export class B3dAircraft extends B3dControllable {
       }
     }
 
+    // === Impact sweep along the velocity ===
+    // The downward ground ray can't see a cliff WALL ahead — flying into a
+    // steep face, it reports the valley floor far below and you sail through
+    // the mountain (Tonio, terrain demo). Sweep this frame's travel along
+    // the velocity: a hit inside it is an impact (steep surface or real
+    // speed ⇒ crash). Grounded taxiing skips it (shallow constant contact).
+    const sweepSpeed = Math.hypot(vel.x, vel.y, vel.z)
+    if (
+      !this.crashed &&
+      !this.grounded &&
+      this._hasFlown &&
+      sweepSpeed > 1e-3 &&
+      this.owner != null
+    ) {
+      this._ray.origin.copyFrom(node.position)
+      this._ray.direction.copyFromFloats(
+        vel.x / sweepSpeed,
+        vel.y / sweepSpeed,
+        vel.z / sweepSpeed
+      )
+      this._ray.length = sweepSpeed * dt + 1.5
+      const own = this.ownMeshes()
+      const wallHit = this.owner.scene.pickWithRay(
+        this._ray,
+        (m) =>
+          m.isPickable &&
+          m.isEnabled() &&
+          !own.has(m) &&
+          !m.name.includes('__root__')
+      )
+      if (wallHit?.hit) {
+        const n = wallHit.getNormal(true)
+        if (n == null || n.y < 0.85 || sweepSpeed > attrs.crashSpeed) {
+          this.crash()
+        }
+      }
+    }
+
     // === Apply velocity to position ===
     node.position.addInPlaceFromFloats(vel.x * dt, vel.y * dt, vel.z * dt)
 
