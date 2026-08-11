@@ -264,13 +264,14 @@ document.body.append(b3d({}, terrain))
 ```
 */
 /*{ "parent": "Environment" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild, isOff } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
 import { buildTileField, tileFieldScratchSize, desiredCellsInto, } from './terrain-grid';
 import { resolveBudget } from './b3d-quality';
+import { attachBiomePlugin } from './biome-plugin';
 // Pack (level, gx, gz) into a single number for Map/Set keys. Floating-origin
 // rebasing keeps gx/gz within a few hundred of the origin, so a linear pack with a
 // generous ±2^20 range is collision-free with enormous margin — and, unlike a
@@ -307,6 +308,10 @@ export class B3dTerrain extends B3dChild {
         },
     };
     static initAttributes = {
+        // Procedural biome shader (TERRAIN-SHADER-DESIGN.md) — flat-colour chart
+        // classification on the terrain material; tune live via `.biomePlugin`.
+        biome: 'off',
+        biomeSeaLevel: 0,
         seed: 12345,
         surfaceType: 'cylinder',
         majorRadius: 100,
@@ -533,8 +538,17 @@ export class B3dTerrain extends B3dChild {
         mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
         mat.backFaceCulling = false;
         mat.wireframe = this.wireframe;
+        if (!isOff(this.biome)) {
+            // One shader spans seafloor → beach → mountain; sea level comes from the
+            // attr (keep it equal to the sibling b3d-water's y).
+            this.biomePlugin = attachBiomePlugin(mat, {
+                seaLevel: this.biomeSeaLevel ?? 0,
+            });
+        }
         return mat;
     }
+    /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
+    biomePlugin = null;
     createPool() {
         const attrs = this;
         // auto (0) → resolve from the device tier; explicit value wins. Cache it: the

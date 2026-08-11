@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import type { GradientFilter } from './gradient-filter';
+import { BiomePlugin } from './biome-plugin';
 export declare class B3dTerrain extends B3dChild {
     static styleSpec: {
         ':host': {
@@ -9,6 +10,8 @@ export declare class B3dTerrain extends B3dChild {
         };
     };
     static initAttributes: {
+        biome: "on" | "off";
+        biomeSeaLevel: number;
         seed: number;
         surfaceType: string;
         majorRadius: number;
@@ -97,6 +100,8 @@ export declare class B3dTerrain extends B3dChild {
     sceneDispose(): void;
     private createSampler;
     private createMaterial;
+    /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
+    biomePlugin: BiomePlugin | null;
     private createPool;
     private static buildTileTemplate;
     private update;

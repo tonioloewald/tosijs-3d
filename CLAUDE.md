@@ -25,21 +25,22 @@ This file is the map; the reasoning lives in the root design docs. **Read the re
 before (re)designing in its area** — they hold the decisions and the rejected alternatives,
 not just the current state:
 
-| Doc                      | What it holds                                                                                                                                                                                                        |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `TODO.md`                | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.                                                                                                                  |
-| `COMBAT-DESIGN.md`       | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model                                                                                                                           |
-| `AI-DESIGN.md`           | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds                                                                                                               |
-| `CONVERSATION-DESIGN.md` | MVP conversation — one playback core, three stagings (face-to-face / comms / walk-and-talk); balloon panels, barge-in turn-taking, voiced-terse options, sim-side transcript; never freeze the player                |
-| `SPATIAL-DESIGN.md`      | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math                                                                                                              |
-| `PERF-DESIGN.md`         | Acceleration — measure the movable/immovable split first; batch-buffer kernels; workers (send the recipe, transfer the result); where wasm pays and where it's a pure loss                                           |
-| `PLATFORM.md`            | Where this runs — why we stay on the web and DON'T abstract the renderer (WKWebView has full JIT; Babylon Native has no DOM); Tauri = flat only, XR lives on the open web; input is the visionOS risk, not rendering |
-| `UI-DESIGN-NOTES.md`     | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                                                                                                                                |
-| `RELEASING.md`           | Release checklist (run steps 1–7; stop before `npm publish`)                                                                                                                                                         |
-| `CHANGELOG.md`           | Per-version Added/Changed/Fixed, with a **⚠️ Breaking** block for any peer-dependency range change                                                                                                                   |
-| `UPSTREAM.md`            | Ecosystem debt to file as issues on `tosijs`/`tosijs-ui`/`tjs-lang` (file, don't fix) — recurring footguns we work around                                                                                            |
-| `ARIOSTO-SIM.md`         | Our side of the Ariosto × tosijs-3d roadmap's SIM lane — reviewed on every version cut; the shared roadmap lives in `../ariosto/notes/roadmap.md`                                                                    |
-| `llms.txt`               | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                                                                       |
+| Doc                        | What it holds                                                                                                                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TODO.md`                  | The live worklist — open bugs, "needs a headset to validate" items, in-flight designs. Check first.                                                                                                                  |
+| `COMBAT-DESIGN.md`         | Combat spec — composition-of-simple-atoms, the `smart` dial, damage/warhead/guidance model                                                                                                                           |
+| `AI-DESIGN.md`             | NPC/AI design — "artificial stupidity" (invest in the LOW end of the skill dial), scenario playgrounds                                                                                                               |
+| `CONVERSATION-DESIGN.md`   | MVP conversation — one playback core, three stagings (face-to-face / comms / walk-and-talk); balloon panels, barge-in turn-taking, voiced-terse options, sim-side transcript; never freeze the player                |
+| `SPATIAL-DESIGN.md`        | Spatial attachment — attach / place-relative / transition (riding an elevator), the pure transform math                                                                                                              |
+| `TERRAIN-SHADER-DESIGN.md` | Procedural terrain/planet shader — Whittaker biome picker over computed axes, one shader seafloor→mountain, world-space everywhere; Manta first, planets as interface-only stub                                      |
+| `PERF-DESIGN.md`           | Acceleration — measure the movable/immovable split first; batch-buffer kernels; workers (send the recipe, transfer the result); where wasm pays and where it's a pure loss                                           |
+| `PLATFORM.md`              | Where this runs — why we stay on the web and DON'T abstract the renderer (WKWebView has full JIT; Babylon Native has no DOM); Tauri = flat only, XR lives on the open web; input is the visionOS risk, not rendering |
+| `UI-DESIGN-NOTES.md`       | Running log of UI/XR UX decisions, tradeoffs, and lessons — append to it as you learn                                                                                                                                |
+| `RELEASING.md`             | Release checklist (run steps 1–7; stop before `npm publish`)                                                                                                                                                         |
+| `CHANGELOG.md`             | Per-version Added/Changed/Fixed, with a **⚠️ Breaking** block for any peer-dependency range change                                                                                                                   |
+| `UPSTREAM.md`              | Ecosystem debt to file as issues on `tosijs`/`tosijs-ui`/`tjs-lang` (file, don't fix) — recurring footguns we work around                                                                                            |
+| `ARIOSTO-SIM.md`           | Our side of the Ariosto × tosijs-3d roadmap's SIM lane — reviewed on every version cut; the shared roadmap lives in `../ariosto/notes/roadmap.md`                                                                    |
+| `llms.txt`                 | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                                                                       |
 
 ## Build & Development Commands
 
@@ -293,7 +294,9 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/ambient-budget.ts` | Pure ambient-budget allocator (`allocateAmbient`/`fillWeight`/`ratchetPool`), unit-tested |
 | `src/b3d-particles.ts` | Particle effect system |
 | `src/b3d-sound.ts` | Positional 3D audio |
-| `src/b3d-terrain.ts` | Terrain generation |
+| `src/b3d-terrain.ts` | Terrain generation (+ `biome="on"` — the procedural biome shader on its material) |
+| `src/biome-chart.ts` | Pure biome-classification model (TERRAIN-SHADER-DESIGN.md): chart axes (Manta + planetary-stub front-ends), cell blend, slope + photic overrides; unit-tested |
+| `src/biome-plugin.ts` | `BiomePlugin`/`attachBiomePlugin` — the GLSL mirror as a MaterialPlugin (flat-colour chart, fBm axis noise, edgeDither, cliff mask, photic cutoff sharing water's fog curve) |
 | `src/b3d-planet.ts` | Procedural planet rendering |
 | `src/b3d-star.ts` / `b3d-star-system.ts` | Star and star system rendering |
 | `src/b3d-galaxy.ts` / `galaxy-data.ts` | Galaxy visualization |

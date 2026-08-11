@@ -460,6 +460,24 @@ export type {
 } from './keyboard'
 export type { KeyboardMode, KeyAction, KeyDef, KeyRect } from './key-layout'
 
+// Procedural biome shader (TERRAIN-SHADER-DESIGN.md): pure chart model + plugin
+export {
+  mantaAxes,
+  planetaryAxes,
+  chartUV,
+  cellBlend,
+  slopeMask,
+  photicFactor,
+} from './biome-chart'
+export type { BiomeChartConfig } from './biome-chart'
+export {
+  BiomePlugin,
+  attachBiomePlugin,
+  defaultBiomeParams,
+  MANTA_PALETTE,
+} from './biome-plugin'
+export type { BiomeParams } from './biome-plugin'
+
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles'
 export { B3dSound, b3dSound } from './b3d-sound'

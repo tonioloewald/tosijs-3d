@@ -13,4 +13,6 @@
 - [b3d-sound](/b3d-sound/)
 - [b3d-terrain](/b3d-terrain/)
 - [b3d-water](/b3d-water/)
+- [biome-chart](/biome-chart/)
+- [biome-plugin](/biome-plugin/)
 <!-- /toc -->

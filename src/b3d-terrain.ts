@@ -265,7 +265,7 @@ document.body.append(b3d({}, terrain))
 */
 /*{ "parent": "Environment" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild, isOff } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
@@ -281,6 +281,7 @@ import {
   type QuadtreeConfig,
 } from './terrain-grid'
 import { resolveBudget } from './b3d-quality'
+import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
 
 // A pooled tile mesh and the quadtree cell it currently renders (null = free).
 type PoolTile = {
@@ -356,6 +357,10 @@ export class B3dTerrain extends B3dChild {
   }
 
   static initAttributes = {
+    // Procedural biome shader (TERRAIN-SHADER-DESIGN.md) — flat-colour chart
+    // classification on the terrain material; tune live via `.biomePlugin`.
+    biome: 'off' as 'on' | 'off',
+    biomeSeaLevel: 0,
     seed: 12345,
     surfaceType: 'cylinder',
     majorRadius: 100,
@@ -608,8 +613,18 @@ export class B3dTerrain extends B3dChild {
     mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
     mat.backFaceCulling = false
     mat.wireframe = (this as any).wireframe
+    if (!isOff((this as any).biome)) {
+      // One shader spans seafloor → beach → mountain; sea level comes from the
+      // attr (keep it equal to the sibling b3d-water's y).
+      this.biomePlugin = attachBiomePlugin(mat, {
+        seaLevel: (this as any).biomeSeaLevel ?? 0,
+      })
+    }
     return mat
   }
+
+  /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
+  biomePlugin: BiomePlugin | null = null
 
   private createPool() {
     const attrs = this as any

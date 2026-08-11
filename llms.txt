@@ -111,6 +111,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **explosion** — the scene-side bridge to the pure AOE math in `warhead.ts` (see
 - https://3d.tosijs.net/b3d-water/ — b3d-water
   Water plane with reflections, waves, and underwater fog effect.
+- https://3d.tosijs.net/biome-chart/ — biome-chart
+  The **pure biome-classification model** under the procedural terrain shader
+- https://3d.tosijs.net/biome-plugin/ — biome-plugin
+  The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
