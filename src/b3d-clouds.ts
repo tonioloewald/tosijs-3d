@@ -63,6 +63,10 @@ tosi-b3d { width: 100%; height: 100%; }
 
 ## How it works
 
+- **Clouds are CLUSTERS of eggs.** Each cloud is 2–4 overlapping tapered-egg blobs of
+  different sizes and yaws around one anchor, so the silhouette has structure instead of
+  reading as a bag of bubbles — fewer clouds, better shapes. The anchor drifts and wraps as
+  a unit (`count` is still the blob POOL; clusters are carved out of it).
 - **A fixed number of blobs, recycled.** `count` soft spheres are scattered (seeded) in a
   disc around you. Fly far enough and a blob that falls behind **wraps to the far side** —
   so an endless cloudscape costs a fixed, tier-friendly number of meshes and never
@@ -125,6 +129,39 @@ import {
 import type { B3d } from './tosi-b3d'
 
 const DOWN = { x: 0, y: -1, z: 0 }
+
+/**
+ * The base cloud form: a sphere TAPERED along its local Z into an egg (fat at
+ * one end, narrow at the other), then squashed flat by the per-blob scaling.
+ * A plain ellipsoid reads as a balloon from every angle; an egg has a nose and
+ * a tail, so a cluster of them at different yaws makes a silhouette with
+ * structure instead of a bag of bubbles. Geometry is deformed once at build —
+ * no per-frame cost, and every blob shares the same low-poly budget.
+ */
+function makeEggMesh(
+  name: string,
+  scene: BABYLON.Scene,
+  bias = 0.42
+): BABYLON.Mesh {
+  const m = BABYLON.MeshBuilder.CreateSphere(
+    name,
+    { diameter: 2, segments: 7 },
+    scene
+  )
+  const pos = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+  for (let i = 0; i < pos.length; i += 3) {
+    // taper radially by position along the long axis: 1+bias at the fat end,
+    // 1-bias at the narrow one
+    const k = 1 + bias * pos[i + 2]
+    pos[i] *= k
+    pos[i + 1] *= k
+  }
+  m.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos)
+  const normals = m.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+  BABYLON.VertexData.ComputeNormals(pos, m.getIndices()!, normals)
+  m.updateVerticesData(BABYLON.VertexBuffer.NormalKind, normals)
+  return m
+}
 
 export class B3dClouds extends B3dChild {
   static initAttributes = {
@@ -197,7 +234,18 @@ export class B3dClouds extends B3dChild {
   }
 
   private _blobs: BABYLON.Mesh[] = []
-  /** Projected cloud-shadow texture (cloud-shadows.ts), when castShadows is on. */
+  /** Cloud clusters: the anchor that drifts/wraps + which pool blobs it owns. */
+  private _clusters: {
+    x: number
+    y: number
+    z: number
+    first: number
+    count: number
+  }[] = []
+  /** Per-blob offset from its cluster anchor (index-aligned with `_blobs`). */
+  private _offsets: { x: number; y: number; z: number }[] = []
+
+/** Projected cloud-shadow texture (cloud-shadows.ts), when castShadows is on. */
   private _shadowMap: CloudShadowMap | null = null
   /** Something moved (recycle, coverage, sun, window) — repaint on the next throttled beat. */
   private _shadowDirty = true
@@ -254,20 +302,55 @@ export class B3dClouds extends B3dChild {
     this._mat = mat
 
     const sizeMul = 0.7 + this.coverage * 0.6 // denser sky → bigger, more-overlapping blobs
-    for (let i = 0; i < this.count; i++) {
-      const blob = BABYLON.MeshBuilder.CreateSphere(
-        `cloud-${i}`,
-        { diameter: 2, segments: 6 }, // low-poly: it's a blob behind alpha, nobody counts facets
-        scene
-      )
-      blob.material = mat
-      // ⚠️ NOT pickable. A cloud between the controller and a panel — or between a missile and
-      // its target — silently breaks picking and swept collision. (Shadow CASTING is opt-in
-      // below; picking must stay off regardless.)
-      blob.isPickable = false
-      blob.receiveShadows = false
-      this._placeRandom(blob, rng, { x: 0, z: 0 }, sizeMul)
-      this._blobs.push(blob)
+    // CLUSTERS, not loose blobs. Each cloud is 2–4 overlapping eggs of
+    // different sizes at different yaws around one anchor: fewer, better
+    // clouds. The anchor is what drifts and wraps — wrapping members
+    // individually would be fatal, because the wrap assigns an ABSOLUTE
+    // coordinate, so every member would land on the same x and the cloud
+    // would collapse into a line.
+    this._clusters = []
+    this._offsets = []
+    let made = 0
+    while (made < this.count) {
+      const members = Math.min(this.count - made, 2 + Math.floor(rng.random() * 3))
+      const a = rng.random() * Math.PI * 2
+      const r = Math.sqrt(rng.random()) * this.spread // sqrt → even area density
+      const anchor = {
+        x: Math.cos(a) * r,
+        y: this.altitude + (rng.random() - 0.5) * this.thickness,
+        z: Math.sin(a) * r,
+        first: made,
+        count: members,
+      }
+      // The cluster's own scale: one big lead blob, the rest smaller and
+      // tucked in close enough to fuse into a single silhouette.
+      const lead = this.size * (0.75 + rng.random() * 0.5) * sizeMul
+      for (let k = 0; k < members; k++) {
+        const blob = makeEggMesh(`cloud-${made}`, scene)
+        blob.material = mat
+        // ⚠️ NOT pickable. A cloud between the controller and a panel — or between a missile and
+        // its target — silently breaks picking and swept collision. (Shadow CASTING is opt-in
+        // below; picking must stay off regardless.)
+        blob.isPickable = false
+        blob.receiveShadows = false
+        const sc = lead * (k === 0 ? 1 : 0.55 + rng.random() * 0.35)
+        blob.scaling.set(sc, sc * 0.45, sc)
+        blob.rotation.y = rng.random() * Math.PI * 2 // eggs point every which way
+        // Offsets ride the LEAD size so members always overlap it.
+        const off =
+          k === 0
+            ? { x: 0, y: 0, z: 0 }
+            : {
+                x: (rng.random() - 0.5) * lead * 1.5,
+                y: (rng.random() - 0.5) * lead * 0.35,
+                z: (rng.random() - 0.5) * lead * 1.5,
+              }
+        this._offsets.push(off)
+        blob.position.set(anchor.x + off.x, anchor.y + off.y, anchor.z + off.z)
+        this._blobs.push(blob)
+        made++
+      }
+      this._clusters.push(anchor)
     }
 
     // Shadow casting is opt-in and does NOT go through the shadow map (a cloud at altitude is
@@ -354,23 +437,6 @@ export class B3dClouds extends B3dChild {
     this._sun = null
   }
 
-  private _placeRandom(
-    blob: BABYLON.Mesh,
-    rng: MersenneTwister,
-    centre: { x: number; z: number },
-    sizeMul = 1
-  ): void {
-    const a = rng.random() * Math.PI * 2
-    const r = Math.sqrt(rng.random()) * this.spread // sqrt → even area density, not a clump
-    const s = this.size * (0.6 + rng.random() * 0.8) * sizeMul
-    blob.position.set(
-      centre.x + Math.cos(a) * r,
-      this.altitude + (rng.random() - 0.5) * this.thickness,
-      centre.z + Math.sin(a) * r
-    )
-    // Squash them: clouds are wider than they are tall, and a sphere reads as a balloon.
-    blob.scaling.set(s, s * 0.45, s)
-  }
 
   /** Apply the `coverage` weather dial: how many blobs are active, how opaque, how dark, and
    * how much they still self-illuminate. Live — cheap enough to run when coverage moves. */
@@ -432,8 +498,9 @@ export class B3dClouds extends B3dChild {
     map.setSun(sun, 0)
     map.layerTop = this.altitude + this.thickness / 2
     const blobs: CloudShadowBlob[] = []
-    for (let i = 0; i < active && i < this._blobs.length; i++) {
+    for (let i = 0; i < this._blobs.length; i++) {
       const b = this._blobs[i]
+      if (!b.isEnabled()) continue // clusters gate visibility now, not the index
       const at = projectShadowXZ(b.position.x, b.position.y, b.position.z, sun)
       // Footprint a touch wider than the blob — a shadow spreads.
       blobs.push({
@@ -459,20 +526,55 @@ export class B3dClouds extends B3dChild {
     // Recycle: a blob that falls behind wraps to the far side, so an endless cloudscape
     // costs a FIXED number of meshes. No allocation, no growth.
     let nearest = Infinity
-    for (let i = 0; i < this._blobs.length; i++) {
-      const blob = this._blobs[i]
-      // `coverage` gates how many of the pool are in the sky — the rest sit disabled (no draw,
-      // no whiteout contribution) so "virtually no clouds" really is a near-empty sky.
-      const on = i < active
-      if (blob.isEnabled() !== on) blob.setEnabled(on)
-      if (!on) continue
-      // Drift with the wind so the sky is alive, not a still image. The recycle below wraps a blob
-      // once it drifts off-field, and the edge fade hides the wrap. Shadows follow (dirty flag).
+    // `coverage` gates whole CLOUDS (clusters), not individual blobs — half a
+    // cloud vanishing would read as a bug, not as weather.
+    const activeClusters = Math.max(
+      1,
+      Math.round(this._clusters.length * (active / Math.max(1, this._blobs.length)))
+    )
+    const onCluster = new Uint8Array(this._blobs.length)
+    for (let c = 0; c < this._clusters.length && c < activeClusters; c++) {
+      const cl = this._clusters[c]
+      for (let k = 0; k < cl.count; k++) onCluster[cl.first + k] = 1
+    }
+    // Drift + wrap the ANCHORS (see the build note: wrapping members
+    // individually assigns them all the same coordinate and flattens the
+    // cloud), then members follow by their fixed offsets.
+    const sWrap = this.spread
+    const padW = sWrap * 0.08
+    const insetW = sWrap * 0.05
+    const wrapAnchor = (p: number, e: number): number => {
+      const r = p - e
+      if (r > sWrap + padW) return e - (sWrap - insetW)
+      if (r < -(sWrap + padW)) return e + (sWrap - insetW)
+      return p
+    }
+    for (const cl of this._clusters) {
       if (drifting) {
-        blob.position.x += this.windX * dt
-        blob.position.z += this.windZ * dt
+        cl.x += this.windX * dt
+        cl.z += this.windZ * dt
         this._shadowDirty = true
       }
+      const ax = wrapAnchor(cl.x, eye.x)
+      const az = wrapAnchor(cl.z, eye.z)
+      if (ax !== cl.x || az !== cl.z) {
+        cl.x = ax
+        cl.z = az
+        this._shadowDirty = true
+      }
+      for (let k = 0; k < cl.count; k++) {
+        const idx = cl.first + k
+        const blob = this._blobs[idx]
+        const off = this._offsets[idx]
+        if (blob == null || off == null) continue
+        blob.position.set(cl.x + off.x, cl.y + off.y, cl.z + off.z)
+      }
+    }
+    for (let i = 0; i < this._blobs.length; i++) {
+      const blob = this._blobs[i]
+      const on = onCluster[i] === 1
+      if (blob.isEnabled() !== on) blob.setEnabled(on)
+      if (!on) continue
       // Recycle with HYSTERESIS: only wrap a blob once it's well PAST the edge, and drop it back to
       // just INSIDE the opposite edge — never right at the boundary.
       //
@@ -485,21 +587,6 @@ export class B3dClouds extends B3dChild {
       // and landing at a fixed inset (not a same-distance reflection or a modulo) means even a
       // camera that jumps far in one frame lands cleanly inside.
       const s = this.spread
-      const pad = s * 0.08 // must be this far PAST the edge before it recycles
-      const inset = s * 0.05 // and reappears this far INSIDE the opposite edge
-      const wrapAxis = (p: number, e: number): number => {
-        const r = p - e
-        if (r > s + pad) return e - (s - inset) // off the far edge → reappear just inside the near
-        if (r < -(s + pad)) return e + (s - inset)
-        return p
-      }
-      const nx = wrapAxis(blob.position.x, eye.x)
-      const nz = wrapAxis(blob.position.z, eye.z)
-      if (nx !== blob.position.x || nz !== blob.position.z) {
-        blob.position.x = nx
-        blob.position.z = nz
-        this._shadowDirty = true
-      }
       const dx = blob.position.x - eye.x
       const dz = blob.position.z - eye.z
       // Fade near the field edge so a recycled blob doesn't POP: it's already nearly invisible by
