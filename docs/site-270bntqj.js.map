@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/FlowGraph/flowGraphRichTypes.js"],
+  "sourcesContent": [
+    "/**\n * Re-exports pure implementation and applies runtime side effects.\n * Import flowGraphRichTypes.pure for tree-shakeable, side-effect-free usage.\n */\nexport * from \"./flowGraphRichTypes.pure.js\";\nimport { RegisterFlowGraphRichTypes } from \"./flowGraphRichTypes.pure.js\";\nRegisterFlowGraphRichTypes();\n//# sourceMappingURL=flowGraphRichTypes.js.map"
+  ],
+  "mappings": "wCAMA,EAA2B",
+  "debugId": "C9DD19CB662F6DE264756E2164756E21",
+  "names": []
+}

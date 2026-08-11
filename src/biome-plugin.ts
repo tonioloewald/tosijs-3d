@@ -335,6 +335,39 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         vec3 n = h * h * h * h * vec3(dot(a, bioHash2(i)), dot(b, bioHash2(i + o)), dot(c, bioHash2(i + 1.0)));
         return dot(n, vec3(70.0));
       }
+      // --- 3D value-gradient noise for the ALBEDO-VISIBLE layers -----------
+      // Everything used to sample wp.xz, which is Y-constant: cliff faces got
+      // vertical streaks. Dither/variation/detail now sample the full world
+      // position, so vertical rock carries texture like everything else. The
+      // classification fBm stays 2D deliberately — climate is a MAP (and the
+      // altitude term already varies it vertically); 4 upgraded evals ≈ the
+      // budgeted cost, to be confirmed on-device in the design's step 6 pass.
+      vec3 bioHash3(vec3 p) {
+        p = vec3(
+          dot(p, vec3(127.1, 311.7, 74.7)),
+          dot(p, vec3(269.5, 183.3, 246.1)),
+          dot(p, vec3(113.5, 271.9, 124.6))
+        );
+        return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+      }
+      float bioSimplex3(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        vec3 u = f * f * (3.0 - 2.0 * f);
+        return 1.3 * mix(
+          mix(
+            mix(dot(bioHash3(i), f), dot(bioHash3(i + vec3(1.0, 0.0, 0.0)), f - vec3(1.0, 0.0, 0.0)), u.x),
+            mix(dot(bioHash3(i + vec3(0.0, 1.0, 0.0)), f - vec3(0.0, 1.0, 0.0)), dot(bioHash3(i + vec3(1.0, 1.0, 0.0)), f - vec3(1.0, 1.0, 0.0)), u.x),
+            u.y
+          ),
+          mix(
+            mix(dot(bioHash3(i + vec3(0.0, 0.0, 1.0)), f - vec3(0.0, 0.0, 1.0)), dot(bioHash3(i + vec3(1.0, 0.0, 1.0)), f - vec3(1.0, 0.0, 1.0)), u.x),
+            mix(dot(bioHash3(i + vec3(0.0, 1.0, 1.0)), f - vec3(0.0, 1.0, 1.0)), dot(bioHash3(i + vec3(1.0, 1.0, 1.0)), f - vec3(1.0, 1.0, 1.0)), u.x),
+            u.y
+          ),
+          u.z
+        );
+      }
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
         // after profiling on mid-range mobile Safari.
@@ -401,10 +434,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           ? 1.0
           : clamp(biomeCfg.w + mN, 0.0, 1.0) * 0.75;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
-        float dith = bioSimplex(wp.xz * biomeDither.x) * biomeDither.y;
+        float dith = bioSimplex3(wp * biomeDither.x) * biomeDither.y;
         // Within-biome variation: medium-frequency patches select between each
         // cell's A/B colours (coral pink ↔ orange, kelp olive ↔ brown).
-        float varN = 0.5 + 0.5 * bioSimplex(wp.xz * biomeNoise.x * 3.1 + 31.7);
+        float varN = 0.5 + 0.5 * bioSimplex3(wp * (biomeNoise.x * 3.1) + 31.7);
         vec3 biome = bioChartColour(temperature + dith, moisture + dith, varN);
         // photic cutoff: growth colour dies to bare sediment exactly where the
         // shared water fog curve kills the light.
@@ -423,8 +456,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // surface, and the extra frequency also visually breaks any residual
         // shading banding on steep faces.
         if (biomePlanetB.w > 0.0) {
-          float det = 0.7 * bioSimplex(wp.xz * biomePlanetB.z)
-                    + 0.3 * bioSimplex(wp.xz * biomePlanetB.z * 0.13 + 5.7);
+          float det = 0.7 * bioSimplex3(wp * biomePlanetB.z)
+                    + 0.3 * bioSimplex3(wp * (biomePlanetB.z * 0.13) + 5.7);
           biome *= 1.0 + biomePlanetB.w * det;
         }
         // slope override OUTSIDE the chart: cliffs at any altitude/depth; cave

@@ -1,0 +1,519 @@
+/*#
+# b3d-launcher
+
+Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
+`ballistics.ts` integrator + the pure `resource.ts` ammo pool to Babylon (see
+COMBAT-DESIGN.md). Each shot is a small mesh flown by `ballisticStep` (gravity +
+drag), swept-collision raycast every frame from its previous point to its new one,
+and on impact it fires a [warhead](?b3d-warhead.ts) (`detonateWarhead`) — so a
+direct hit or a near miss both do AOE damage to whatever's in blast range. Ammo is a
+`Resource` (finite, optionally recharging); `fireRate` gates the cadence.
+
+## Demo
+
+**Steer the gun with A/D (left stick), hold the right trigger (or `F` / the glass B
+button) to fire** a stream of shells — the [standard controller](?b3d-controller.ts), so
+the same controls work on keyboard, touch, and in VR. **Left-drag orbits** the view.
+Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
+chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.
+
+```js
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
+import { tosi } from 'tosijs'
+
+// Unique tosi() key per demo — tosi() is a singleton keyed by path, so two demos on the
+// same page both using `s` would clobber each other (the missile demo's `s` has no
+// muzzleSpeed → the gun bound to undefined → NaN velocity → invisible shells).
+const { launcherGun: s } = tosi({ launcherGun: { muzzleSpeed: 30, fireRate: 5, drag: 0.01, damage: 20, blastRadius: 3 } })
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: -8, muzzleSpeed: s.muzzleSpeed })
+
+// A wide, shallow field so steering the gun left/right sweeps across it.
+const targets = []
+for (let i = 0; i < 24; i++) {
+  targets.push(b3dDestroyable({ x: (i % 8) * 1.5 - 5.25, y: 0.4, z: Math.floor(i / 8) * 1.6, size: 0.8, capacity: 10, color: '#cc4444' }))
+}
+
+const scene = b3d(
+  {
+    gamepad: 'left_stick,right_trigger',
+    scenePanelOpen: true,
+    scenePanel: () => [
+      label3d({ text: 'Launcher', bold: true }),
+      slider3d({ label: 'muzzle speed', value: s.muzzleSpeed, min: 8, max: 50, step: 1 }),
+      slider3d({ label: 'fire rate', value: s.fireRate, min: 1, max: 12, step: 1 }),
+      slider3d({ label: 'drag', value: s.drag, min: 0, max: 0.05, step: 0.002 }),
+      slider3d({ label: 'damage', value: s.damage, min: 1, max: 60, step: 1 }),
+      slider3d({ label: 'blast radius', value: s.blastRadius, min: 0.5, max: 8, step: 0.5 }),
+    ],
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 20, target: [0, 0.5, 0] })
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 40, height: 40, color: '#5a6b52' }),
+  b3dController({
+    mapping: 'biped',
+    drive(input, dt) {
+      launcher.ry += input.turn * dt * 70 // steer azimuth (A/D · stick · VR)
+      if (input.shoot > 0.5 || input.sprint > 0.5) {
+        launcher.muzzleSpeed = s.muzzleSpeed.value
+        launcher.fireRate = s.fireRate.value
+        launcher.drag = s.drag.value
+        launcher.damage = s.damage.value
+        launcher.blastRadius = s.blastRadius.value
+        launcher.fire() // fire where the barrel points (right trigger · F · glass button)
+      }
+    },
+  }),
+  launcher,
+  ...targets,
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
+## Guided missiles
+
+`fireAt(targetMesh)` launches a **homing** missile instead of a dumb shell — it leads
+the target and curves onto it (pure `interceptLead` + `steerToward`), holding
+`missileSpeed`, turning within `turnRate`. **Hold the right trigger (or `F`) to loose
+missiles** at the orbiting cube; they bend to chase it and detonate on
+contact. The target **respawns at a fresh altitude** each time you destroy it. Drop
+`turnRate` and watch them overshoot a hard-turning target.
+
+```js
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { orbitCam } from 'demo-utils'
+import { tosi } from 'tosijs'
+
+// fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
+// air at once, chasing the target together before it's destroyed.
+// Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
+const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
+
+// Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
+const state = { target: null }
+
+const scene = b3d(
+  {
+    gamepad: 'right_trigger',
+    scenePanelOpen: true,
+    scenePanel: () => [
+      label3d({ text: 'Missile', bold: true }),
+      slider3d({ label: 'missile speed', value: s.missileSpeed, min: 8, max: 40, step: 1 }),
+      slider3d({ label: 'turn rate', value: s.turnRate, min: 0.5, max: 8, step: 0.25 }),
+      slider3d({ label: 'fire rate', value: s.fireRate, min: 0.5, max: 5, step: 0.5 }),
+    ],
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3, radius: 30, target: [0, 4, 0] })
+      let a = 0, baseY = 4
+      // Respawn the target on death at a fresh (hittable) altitude.
+      const spawn = () => {
+        baseY = 3 + Math.random() * 7 // ~3–10m: high enough to lead, low enough to reach
+        const t = b3dDestroyable({ meshName: 'drone', x: 12, y: baseY, z: 0, size: 1.4, capacity: 40, color: '#3388dd', explode: 'on' })
+        el.appendChild(t)
+        return t
+      }
+      state.target = spawn()
+      el.addEventListener('destroyed', () => {
+        const dead = state.target; state.target = null
+        if (dead) dead.remove()
+        setTimeout(() => { state.target = spawn() }, 400)
+      })
+      el.scene.onBeforeRenderObservable.add(() => {
+        a += el.scene.getEngine().getDeltaTime() / 1000
+        const t = state.target
+        if (!t || t.dead || !t.mesh) return
+        t.x = Math.cos(a * 0.7) * 12
+        t.z = Math.sin(a * 0.7) * 12
+        t.y = baseY + Math.sin(a * 1.5) * 1.2
+      })
+    },
+  },
+  b3dLight({ y: 1, intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 10 }),
+  b3dGround({ width: 50, height: 50, color: '#5a6b52' }),
+  b3dController({
+    mapping: 'biped',
+    drive(input) {
+      const t = state.target
+      if ((input.shoot > 0.5 || input.sprint > 0.5) && t && !t.dead && t.mesh) {
+        launcher.missileSpeed = s.missileSpeed.value
+        launcher.turnRate = s.turnRate.value
+        launcher.fireRate = s.fireRate.value
+        launcher.fireAt(t.mesh) // launch a homing missile (F · glass button · XR trigger)
+      }
+    },
+  }),
+  launcher,
+)
+preview.append(scene)
+```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
+## Attributes
+
+| Attribute | Default | Description |
+|-----------|---------|-------------|
+| `muzzleSpeed` | `30` | Launch speed (units/sec) along the fire direction |
+| `fireRate` | `5` | Max shots per second (cadence gate) |
+| `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
+| `turnRate` | `3` | Guided-missile agility (rad/sec) |
+| `ammo` | `40` | Magazine capacity (a `Resource`) |
+| `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
+| `reloadDelay` | `1` | Seconds after firing before reload resumes |
+| `gravity` | `-9.81` | Vertical acceleration on the shell |
+| `drag` | `0.01` | Quadratic drag coefficient (0 = vacuum) |
+| `mass` | `1` | Shell mass (higher flies flatter/further under drag) |
+| `projRadius` | `0.12` | Shell visual radius |
+| `projColor` | `'#ffdd55'` | Shell emissive colour |
+| `maxLifetime` | `6` | Seconds before an un-impacted shell self-disposes |
+| `damage` | `20` | Warhead full damage (see b3d-warhead) |
+| `fullRadius` | `1` | Warhead full-damage radius |
+| `blastRadius` | `3` | Warhead falloff radius |
+| `los` | `'on'` | Warhead line-of-sight gating |
+| `x`,`y`,`z` | `0` | Launcher position (muzzle offset forward from here) |
+*/
+/*{ "parent": "Combat" }*/
+import * as BABYLON from '@babylonjs/core';
+import { AbstractMesh, isOff } from './b3d-utils';
+/** A guided missile always cruises at least this much FASTER than the platform that
+ * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
+ * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
+const MIN_CLOSING_SPEED = 70;
+import { ballisticStep } from './ballistics';
+import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance';
+import { makeResource, drain, regenTick, isEmpty, } from './resource';
+import { detonateWarhead } from './b3d-warhead';
+/**
+ * Spawn one ballistic shell into the scene and fly it under `params` until it hits
+ * something pickable (then it detonates its `warhead` at the impact point) or its
+ * lifetime runs out. Integrates its own position in JS, so it fixes BOTH the mesh and
+ * that position on a floating-origin shift. Returns a handle to force-dispose it.
+ * Reusable by launchers, turrets, and (as an unguided bomb) gravity-only drops.
+ */
+export function spawnProjectile(owner, opts) {
+    const scene = owner.scene;
+    const r = opts.radius ?? 0.12;
+    const mesh = BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: r * 2, segments: 6 }, scene);
+    mesh.position.copyFrom(opts.origin);
+    mesh.isPickable = false; // never picks itself / occludes a blast's line of sight
+    const mat = new BABYLON.StandardMaterial('projectile-mat', scene);
+    mat.emissiveColor = BABYLON.Color3.FromHexString(opts.color ?? '#ffdd55');
+    mat.disableLighting = true;
+    mesh.material = mat;
+    const state = {
+        pos: { x: opts.origin.x, y: opts.origin.y, z: opts.origin.z },
+        vel: { x: opts.velocity.x, y: opts.velocity.y, z: opts.velocity.z },
+    };
+    const maxLife = opts.maxLifetime ?? 6;
+    let alive = true;
+    let life = 0;
+    const onShift = (dx, dz) => {
+        state.pos.x -= dx;
+        state.pos.z -= dz;
+        mesh.position.x -= dx;
+        mesh.position.z -= dz;
+    };
+    owner.addOriginListener(onShift);
+    // Optional radar signature: a blip that tracks this shell's mesh while it lives.
+    const blip = opts.radar != null
+        ? {
+            radarProfile: opts.radar.profile,
+            faction: opts.radar.faction,
+            radarPosition: () => alive
+                ? { x: mesh.position.x, y: mesh.position.y, z: mesh.position.z }
+                : null,
+            radarMesh: () => (alive ? mesh : null),
+        }
+        : null;
+    if (blip != null)
+        owner.registerRadarBlip(blip);
+    const dispose = () => {
+        if (!alive)
+            return;
+        alive = false;
+        owner.removeOriginListener(onShift);
+        if (blip != null)
+            owner.unregisterRadarBlip(blip);
+        scene.onBeforeRenderObservable.remove(obs);
+        mesh.dispose();
+        mat.dispose();
+    };
+    const obs = scene.onBeforeRenderObservable.add(() => {
+        if (!alive)
+            return;
+        const dt = scene.getEngine().getDeltaTime() / 1000;
+        life += dt;
+        opts.guide?.(state, dt); // home/steer before integrating
+        const fromX = state.pos.x;
+        const fromY = state.pos.y;
+        const fromZ = state.pos.z;
+        ballisticStep(state, opts.params, dt);
+        // Swept collision: cast the segment we just traversed so a fast shell can't
+        // tunnel through a thin target between frames.
+        const from = new BABYLON.Vector3(fromX, fromY, fromZ);
+        const seg = new BABYLON.Vector3(state.pos.x - fromX, state.pos.y - fromY, state.pos.z - fromZ);
+        const len = seg.length();
+        if (len > 1e-4) {
+            const ray = new BABYLON.Ray(from, seg.scale(1 / len), len);
+            const hit = scene.pickWithRay(ray, (m) => m.isPickable && m !== mesh && (opts.ignore == null || !opts.ignore(m)));
+            if (hit != null && hit.hit && hit.pickedPoint != null) {
+                detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true);
+                opts.onImpact?.(hit.pickedPoint);
+                dispose();
+                return;
+            }
+        }
+        mesh.position.set(state.pos.x, state.pos.y, state.pos.z);
+        if (life >= maxLife || state.pos.y < -100)
+            dispose();
+    });
+    return { dispose };
+}
+/**
+ * Spawn a **guided missile** that homes on `target`: each frame it leads the target
+ * (`interceptLead`) and turns its velocity toward that lead point within `turnRate`,
+ * holding `speed` constant — a seeker built from the pure guidance model. Detonates
+ * its warhead on impact like any projectile. Reuses `spawnProjectile` (swept
+ * collision, floating-origin fix, lifetime) via its `guide` hook.
+ */
+export function spawnMissile(owner, opts) {
+    const target = opts.target;
+    const toTarget = () => target.absolutePosition.subtract(opts.origin);
+    const dir0 = gNormalize((opts.direction ?? toTarget()));
+    const accel = opts.accel ?? 0;
+    const inherit = opts.inheritVelocity ?? { x: 0, y: 0, z: 0 };
+    const inheritSpeed = Math.hypot(inherit.x, inherit.y, inherit.z);
+    // CRUISE must outrun the LAUNCHER, not just be a fixed number: a missile whose cruise
+    // is barely above the airframe's speed crawls off the rail and drops behind once it
+    // starts steering (it looked fine parked, wrong at speed). Guarantee a closing margin.
+    const cruise = Math.max(opts.speed, inheritSpeed + MIN_CLOSING_SPEED);
+    // Launch velocity: inherit the platform's motion + a real forward kick (a fraction of
+    // cruise) so it visibly separates immediately; then the guide thrusts up to cruise.
+    // With no accel, launch straight at cruise (legacy).
+    const boostTime = opts.boostTime ?? 0.45;
+    let elapsed = 0;
+    const launchKick = accel > 0 ? Math.max(10, cruise * 0.2) : cruise;
+    const launchVel = accel > 0
+        ? {
+            x: inherit.x + dir0.x * launchKick,
+            y: inherit.y + dir0.y * launchKick,
+            z: inherit.z + dir0.z * launchKick,
+        }
+        : { x: dir0.x * cruise, y: dir0.y * cruise, z: dir0.z * cruise };
+    let last = null;
+    return spawnProjectile(owner, {
+        origin: opts.origin,
+        velocity: new BABYLON.Vector3(launchVel.x, launchVel.y, launchVel.z),
+        warhead: opts.warhead,
+        params: opts.params ?? {
+            gravity: { x: 0, y: 0, z: 0 },
+            dragCoeff: 0,
+            mass: 1,
+        },
+        radius: opts.radius,
+        color: opts.color ?? '#ff6644',
+        maxLifetime: opts.maxLifetime ?? 8,
+        useLos: opts.useLos,
+        onImpact: opts.onImpact,
+        ignore: opts.ignore,
+        radar: opts.radar,
+        guide: (state, dt) => {
+            elapsed += dt;
+            // THRUST first, and unconditionally — a motor burns whether or not there's a
+            // target, and (crucially) whether or not the seeker wants to turn.
+            // ramp the current speed toward cruise; steerToward below preserves the magnitude.
+            if (accel > 0) {
+                const cur = Math.hypot(state.vel.x, state.vel.y, state.vel.z);
+                const step = accel * dt;
+                const spd = Math.abs(cruise - cur) <= step
+                    ? cruise
+                    : cur + Math.sign(cruise - cur) * step;
+                if (cur > 1e-6) {
+                    const s = spd / cur;
+                    state.vel.x *= s;
+                    state.vel.y *= s;
+                    state.vel.z *= s;
+                }
+                else {
+                    state.vel.x = dir0.x * spd;
+                    state.vel.y = dir0.y * spd;
+                    state.vel.z = dir0.z * spd;
+                }
+            }
+            if (target.isDisposed())
+                return; // lost lock — coast straight
+            const tp = target.absolutePosition;
+            const tPos = { x: tp.x, y: tp.y, z: tp.z };
+            const tVel = last != null && dt > 1e-5
+                ? {
+                    x: (tPos.x - last.x) / dt,
+                    y: (tPos.y - last.y) / dt,
+                    z: (tPos.z - last.z) / dt,
+                }
+                : { x: 0, y: 0, z: 0 };
+            last = tPos;
+            const desired = interceptLead(state.pos, cruise, tPos, tVel) ??
+                gNormalize(gSub(tPos, state.pos));
+            // BOOST: the seeker steers throughout, but its authority ramps in as the motor
+            // brings the round up to speed — so it leaves the rail accelerating essentially
+            // straight, and is fully agile by burnout. (Thrust itself, above, is
+            // unconditional: a motor burns whether or not the seeker wants to turn.)
+            const authority = boostAuthority(elapsed, boostTime);
+            const v = steerToward(state.vel, desired, opts.turnRate * authority, dt);
+            state.vel.x = v.x;
+            state.vel.y = v.y;
+            state.vel.z = v.z;
+        },
+    });
+}
+export class B3dLauncher extends AbstractMesh {
+    static initAttributes = {
+        ...AbstractMesh.initAttributes,
+        meshName: 'launcher',
+        muzzleSpeed: 30,
+        fireRate: 5, // shots per second
+        ammo: 40, // magazine capacity
+        reloadRate: 8, // ammo regenerated per second (0 = no reload)
+        reloadDelay: 1, // seconds after firing before reload resumes
+        gravity: -9.81,
+        drag: 0.01,
+        mass: 1,
+        missileSpeed: 22, // cruise speed of a guided shot (fireAt)
+        turnRate: 3, // guided-missile agility (rad/sec)
+        projRadius: 0.12,
+        projColor: '#ffdd55',
+        maxLifetime: 6,
+        damage: 20,
+        fullRadius: 1,
+        blastRadius: 3,
+        los: 'on',
+    };
+    _ammoPool;
+    _cooldown = 0;
+    _tick;
+    get warheadSpec() {
+        return {
+            damage: this.damage,
+            fullRadius: this.fullRadius,
+            blastRadius: this.blastRadius,
+        };
+    }
+    get ballisticParams() {
+        return {
+            gravity: { x: 0, y: this.gravity, z: 0 },
+            dragCoeff: this.drag,
+            mass: this.mass,
+        };
+    }
+    /** Ammo currently in the magazine. */
+    get ammoRemaining() {
+        return this._ammoPool?.value ?? 0;
+    }
+    sceneReady(owner, scene) {
+        super.sceneReady(owner, scene);
+        const attrs = this;
+        // A short barrel so the launcher's orientation (its fire direction) is visible.
+        this.mesh = BABYLON.MeshBuilder.CreateBox(this.meshName, { width: 0.25, height: 0.25, depth: 0.9 }, scene);
+        const mat = new BABYLON.StandardMaterial(`${this.meshName}-mat`, scene);
+        mat.diffuseColor = new BABYLON.Color3(0.3, 0.32, 0.36);
+        this.mesh.material = mat;
+        this.mesh.position.set(attrs.x, attrs.y, attrs.z);
+        this._ammoPool = makeResource({
+            max: this.ammo,
+            regenRate: this.reloadRate,
+            regenDelay: this.reloadDelay,
+        });
+        this._tick = scene.onBeforeRenderObservable.add(() => {
+            const dt = scene.getEngine().getDeltaTime() / 1000;
+            if (this._cooldown > 0)
+                this._cooldown -= dt;
+            regenTick(this._ammoPool, dt);
+        });
+    }
+    /** World-space muzzle point (barrel tip, in front of the launcher). */
+    muzzle() {
+        if (this.mesh == null) {
+            const a = this;
+            return new BABYLON.Vector3(a.x, a.y, a.z);
+        }
+        const fwd = this.mesh.getDirection(BABYLON.Axis.Z).normalize();
+        return this.mesh.absolutePosition.add(fwd.scale(0.55));
+    }
+    /** The launcher's current forward (its default fire direction). */
+    forward() {
+        return this.mesh != null
+            ? this.mesh.getDirection(BABYLON.Axis.Z).normalize()
+            : new BABYLON.Vector3(0, 0, 1);
+    }
+    /**
+     * Fire one shell in `direction` (defaults to the launcher's forward), from
+     * `origin` (defaults to the muzzle). Returns false — firing nothing — when the
+     * fire-rate cooldown hasn't elapsed or the magazine is empty.
+     */
+    fire(direction, origin) {
+        if (this.owner == null)
+            return false;
+        if (this._cooldown > 0 || isEmpty(this._ammoPool))
+            return false;
+        drain(this._ammoPool, 1);
+        this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0;
+        const dir = (direction ?? this.forward()).normalizeToNew();
+        spawnProjectile(this.owner, {
+            origin: origin ?? this.muzzle(),
+            velocity: dir.scale(this.muzzleSpeed),
+            warhead: this.warheadSpec,
+            params: this.ballisticParams,
+            radius: this.projRadius,
+            color: this.projColor,
+            maxLifetime: this.maxLifetime,
+            useLos: !isOff(this.los),
+            ignore: (m) => m === this.mesh, // never detonate on our own barrel
+        });
+        return true;
+    }
+    /**
+     * Fire one GUIDED shell that homes on `target` (subject to the same fire-rate +
+     * ammo gate as `fire`). Launches along `direction` (default: the launcher's
+     * forward) then curves onto the target. Returns false if it couldn't fire.
+     */
+    fireAt(target, direction) {
+        if (this.owner == null)
+            return false;
+        if (this._cooldown > 0 || isEmpty(this._ammoPool))
+            return false;
+        drain(this._ammoPool, 1);
+        this._cooldown = this.fireRate > 0 ? 1 / this.fireRate : 0;
+        spawnMissile(this.owner, {
+            origin: this.muzzle(),
+            target,
+            speed: this.missileSpeed,
+            turnRate: this.turnRate,
+            warhead: this.warheadSpec,
+            direction: direction ?? this.forward(),
+            radius: this.projRadius,
+            maxLifetime: this.maxLifetime + 4, // missiles loiter a bit longer
+            useLos: !isOff(this.los),
+        });
+        return true;
+    }
+    sceneDispose() {
+        if (this._tick != null) {
+            this.owner?.scene.onBeforeRenderObservable.remove(this._tick);
+            this._tick = undefined;
+        }
+        super.sceneDispose();
+    }
+}
+export const b3dLauncher = B3dLauncher.elementCreator({
+    tag: 'tosi-b3d-launcher',
+});
+//# sourceMappingURL=b3d-launcher.js.map

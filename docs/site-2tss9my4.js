@@ -1,0 +1,5 @@
+import{$r as K,as as E}from"./site-fk6vvnk0.js";import{du as J}from"./site-037v9pkv.js";import{ku as z}from"./site-5mc4escc.js";import{sE as I}from"./site-tvqrtn5a.js";class L extends J{constructor(q){super(q);this.config=q,this._inputCases=new Map,this.case=this.registerDataInput("case",z,NaN),this.default=this.registerDataInput("default",z),this.value=this.registerDataOutput("value",z);let v=this.config.cases||[];for(let b of v){if(b=E(b),this.config.treatCasesAsIntegers){if(b=b|0,this._inputCases.has(b))return}this._inputCases.set(b,this.registerDataInput(`in_${b}`,z))}}_updateOutputs(q){let v=this.case.getValue(q),b;if(K(v))b=this._getOutputValueForCase(E(v),q);if(!b)b=this.default.getValue(q);this.value.setValue(b,q)}_getOutputValueForCase(q,v){return this._inputCases.get(q)?.getValue(v)}getClassName(){return"FlowGraphDataSwitchBlock"}}var H=!1;function O(){if(H)return;H=!0,I("FlowGraphDataSwitchBlock",L)}O();
+export{L as un,O as vn};
+
+//# debugId=977BCB20507F5F4664756E2164756E21
+//# sourceMappingURL=site-2tss9my4.js.map

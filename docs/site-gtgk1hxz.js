@@ -1,0 +1,5 @@
+function Z(q){return Math.floor(q/8)}function _(q){return 1<<q%8}class V{constructor(q){this.size=q,this._byteArray=new Uint8Array(Math.ceil(this.size/8))}get(q){if(q>=this.size)throw RangeError("Bit index out of range");let E=Z(q),H=_(q);return(this._byteArray[E]&H)!==0}set(q,E){if(q>=this.size)throw RangeError("Bit index out of range");let H=Z(q),K=_(q);if(E)this._byteArray[H]|=K;else this._byteArray[H]&=~K}}function z(q){let E=[],H=q.length/3;for(let w=0;w<H;w++)E.push([q[w*3],q[w*3+1],q[w*3+2]]);let K=new Map;for(let w=0;w<E.length;w++){let N=E[w];for(let J of N){let O=K.get(J);if(!O)K.set(J,O=[]);O.push(w)}}let P=new V(H),W=[],$=(w)=>{let N=[w];while(N.length>0){let J=N.pop();if(P.get(J))continue;P.set(J,!0),W.push(E[J]);for(let O of E[J]){let X=K.get(O);if(!X)return;for(let Y of X)if(!P.get(Y))N.push(Y)}}};for(let w=0;w<H;w++)if(!P.get(w))$(w);let Q=0;for(let w of W)q[Q++]=w[0],q[Q++]=w[1],q[Q++]=w[2]}
+export{V as $B,z as aC};
+
+//# debugId=A88B239156A8FEC664756E2164756E21
+//# sourceMappingURL=site-gtgk1hxz.js.map
