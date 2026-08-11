@@ -594,6 +594,12 @@ export {
   gLen,
   gNormalize,
 } from './guidance'
+export {
+  canonicalize,
+  normalizeScale,
+  findCenterOfGravity,
+  applyCenterOfGravity,
+} from './model-transform'
 export { aoeFalloff, resolveAoe, dist3 } from './warhead'
 export type { WarheadSpec, AoeTarget } from './warhead'
 export { ballisticStep, predictPath, ballisticAim } from './ballistics'
