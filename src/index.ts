@@ -488,6 +488,14 @@ export {
   composeLandforms,
   mergeProvinces,
 } from './landform'
+// Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
+export { latticeHash, latticePoint, extractChunk } from './sdf-lattice'
+export type {
+  SdfField,
+  LatticeConfig,
+  ChunkSpec,
+  ExtractedMesh,
+} from './sdf-lattice'
 export type {
   AuthoredLandform,
   VolcanoOptions,

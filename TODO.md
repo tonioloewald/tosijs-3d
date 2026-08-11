@@ -597,50 +597,41 @@ the MVP** — the vertical-slice targets are inert cubes.
 
 ## 0.7.0 — the terrain system (the minor this is being held for)
 
-v0.6.2 shipped the *shading* and *shaping* halves (biome ladder, provinces,
+v0.6.2 shipped the _shading_ and _shaping_ halves (biome ladder, provinces,
 `landform`). The three pieces below finish the system, and they share one
 theme: they all want to act **per terrain tile**, not per fragment.
 
 [ ] **Tunnel patches** — a province-like field (authored the way `volcano()` is)
-    that punches HOLES in the terrain. The hard part: `landform` is a
-    heightfield hook (`y = f(x, z)`), so it cannot express an overhang or a
-    bore — this needs real geometry surgery on the affected tiles.
-    Load-bearing details to design around:
-    - the tile pool shares ONE index buffer (`tileTemplate.allIndices`) across
-      every tile; a holed tile needs its own indices, so the pool must allow
-      per-tile index buffers for the few tiles a bore crosses (and give them
-      back on recycle).
-    - the bore walls are new geometry with their own normals/UVs — decide
-      whether they're part of the tile or a separate stitched mesh.
-    - collision + the aircraft's ground ray both assume "terrain is a
-      heightfield below you"; a tunnel breaks that assumption for anything
-      that raycasts down.
-    - LOD: what happens to a hole at a coarser tile level (fill it? force the
-      fine level near a portal?).
+that punches HOLES in the terrain. The hard part: `landform` is a
+heightfield hook (`y = f(x, z)`), so it cannot express an overhang or a
+bore — this needs real geometry surgery on the affected tiles.
+Load-bearing details to design around: - the tile pool shares ONE index buffer (`tileTemplate.allIndices`) across
+every tile; a holed tile needs its own indices, so the pool must allow
+per-tile index buffers for the few tiles a bore crosses (and give them
+back on recycle). - the bore walls are new geometry with their own normals/UVs — decide
+whether they're part of the tile or a separate stitched mesh. - collision + the aircraft's ground ray both assume "terrain is a
+heightfield below you"; a tunnel breaks that assumption for anything
+that raycasts down. - LOD: what happens to a hole at a coarser tile level (fill it? force the
+fine level near a portal?).
 
 [ ] **Terrain decorators** — scatter meshes (rocks, trees, grass) over terrain
-    under a BUDGET. Precedents to reuse rather than reinvent:
-    [ambient-budget](src/ambient-budget.ts)'s allocator (competes for one pool,
-    switches OFF rather than thinning into a lie), [b3d-library](src/b3d-library.ts)
-    for the source meshes, [prefab](src/prefab.ts) for naming. Design notes:
-    - placement from a density FIELD `(x, z) => 0..1` composed the same way
-      `provinceField` and slope profiles are — and it should read the biome
-      (no trees on the dead band, kelp only below the surf line).
-    - thin instances for count; the budget decides how many, the device tier
-      decides the budget.
-    - they live and die with their TILE (spawn on fill, release on recycle), so
-      the floating origin comes for free.
+under a BUDGET. Precedents to reuse rather than reinvent:
+[ambient-budget](src/ambient-budget.ts)'s allocator (competes for one pool,
+switches OFF rather than thinning into a lie), [b3d-library](src/b3d-library.ts)
+for the source meshes, [prefab](src/prefab.ts) for naming. Design notes: - placement from a density FIELD `(x, z) => 0..1` composed the same way
+`provinceField` and slope profiles are — and it should read the biome
+(no trees on the dead band, kelp only below the surf line). - thin instances for count; the budget decides how many, the device tier
+decides the budget. - they live and die with their TILE (spawn on fill, release on recycle), so
+the floating origin comes for free.
 
 [ ] **Tile patches** — swap authored tiles into the terrain lattice: city
-    grids, building interiors. This is the "[unified tile substrate](memory)"
-    idea made real — heightfield terrain and modular authored content meeting
-    at the tile level. The composition Tonio described: `pad()` a plateau with
-    a landform, then lay a grid of city tiles on it, so a city is
-    (flat ground) + (tile set) rather than a bespoke mesh.
-    - the patch owns those tile slots: the streamer must place authored tiles
-      instead of generating them, and blend the seam at the patch edge.
-    - interiors imply the tile is a VOLUME, not a surface — same tension the
-      tunnels raise, so design the two together.
+grids, building interiors. This is the "[unified tile substrate](memory)"
+idea made real — heightfield terrain and modular authored content meeting
+at the tile level. The composition Tonio described: `pad()` a plateau with
+a landform, then lay a grid of city tiles on it, so a city is
+(flat ground) + (tile set) rather than a bespoke mesh. - the patch owns those tile slots: the streamer must place authored tiles
+instead of generating them, and blend the seam at the patch edge. - interiors imply the tile is a VOLUME, not a surface — same tension the
+tunnels raise, so design the two together.
 
 ## Asset Management
 

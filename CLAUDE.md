@@ -349,6 +349,7 @@ types stay top-level. Bare common nouns don't leak from the barrel.
 | `src/gradient-filter.ts` | Gradient-based color mapping |
 | `src/surface-sampler.ts` | Surface point sampling |
 | `src/terrain-grid.ts` | Pure LOD terrain-tile grid math (placement/sampling/culling), unit-tested |
+| `src/sdf-lattice.ts` | Pure SDF extraction substrate for volumetric patches (tunnels/caverns): ONE global hash-jittered lattice + surface nets, so chunks weld bit-identically — cross-tile/cross-LOD seams are unrepresentable, not stitched. Unit-tested (incl. the chunk-weld proof) |
 | `src/model-transform.ts` | Babylon-only model frame helpers (`canonicalize`, scale-bake) for spawned models |
 | `src/spatial-transform.ts` | Pure transform math for spatial attachment (`SPATIAL-DESIGN.md`) — vector/quaternion ops, compose ↔ relative, unit-tested |
 | `src/asset-url.ts` | `assetUrl()` — resolve a logical asset path to a hosted URL (retargetable CDN base, see `static-assets` memory) |
@@ -528,7 +529,7 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.
 
-Run `bun test` to exercise the full pure-model suite (51 files, ~760 tests, ~1s as of 2026-08 — no excuse to skip it). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, and the SVG UI surface: `box`, `flow-layout`, `surface`, `widget-box`, `keyboard`/`key-layout`/`text-edit`, `table`/`table-layout`, `selection`, `gamepad-focus`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
+Run `bun test` to exercise the full pure-model suite (51 files, ~760 tests, ~1s as of 2026-08 — no excuse to skip it). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `sdf-lattice`, `landform`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, and the SVG UI surface: `box`, `flow-layout`, `surface`, `widget-box`, `keyboard`/`key-layout`/`text-edit`, `table`/`table-layout`, `selection`, `gamepad-focus`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
 
 ## Demo & Docs
 
