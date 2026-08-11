@@ -32,6 +32,8 @@ const planet = b3dPlanet({
   seed: 42,
   radius: 50,
   subdivisions: 64,
+  biome: 'on', // the biome shader's planetary front-end — radial altitude, insolation
+
   grossScale: demo.grossScale,
   detailScale: demo.detailScale,
   grossAmplitude: demo.grossAmplitude,
@@ -135,7 +137,8 @@ tosi-b3d {
 /*{ "parent": "Space" }*/
 
 import { Color } from 'tosijs'
-import { B3dChild } from './b3d-utils'
+import { isOff, B3dChild } from './b3d-utils'
+import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { PerlinNoise } from './perlin-noise'
@@ -168,6 +171,10 @@ export class B3dPlanet extends B3dChild {
   }
 
   static initAttributes = {
+    // Biome shader (TERRAIN-SHADER-DESIGN.md) with the PLANETARY front-end:
+    // radial altitude around the planet centre, radial-up slope, insolation.
+    // seaRadius auto-derives from the `ocean` percentile.
+    biome: 'off' as 'on' | 'off',
     seed: 12345,
     radius: 50,
     subdivisions: 64,
@@ -192,6 +199,8 @@ export class B3dPlanet extends B3dChild {
   private planetMesh: BABYLON.Mesh | null = null
   private atmosphereMesh: BABYLON.Mesh | null = null
   private oceanMesh: BABYLON.Mesh | null = null
+  /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
+  biomePlugin: BiomePlugin | null = null
   private ringMesh: BABYLON.Mesh | null = null
   private rootNode: BABYLON.TransformNode | null = null
   private registered = false
@@ -323,6 +332,26 @@ export class B3dPlanet extends B3dChild {
     mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
     mat.backFaceCulling = false
     mat.wireframe = attrs.wireframe
+    if (!isOff(attrs.biome)) {
+      // Planetary front-end: seaRadius = the same percentile the ocean sphere
+      // uses, so the classifier's coastline IS the visible waterline. Noise
+      // frequencies scale to planet-sized relief. Caveat: world-space noise
+      // crawls if the planet SPINS — fine for a static planet; a rotating one
+      // wants object-space sampling (a step-5 concern with triplanar).
+      const seaRadius =
+        attrs.ocean > 0
+          ? attrs.radius + this.heightPercentile(attrs.ocean)
+          : 0.001
+      this.biomePlugin = attachBiomePlugin(mat, {
+        seaRadius,
+        lapseRate: 0.06,
+        tNoiseScale: 0.05,
+        mNoiseScale: 0.07,
+        ditherScale: 0.6,
+        detailNoiseScale: 1.2,
+        surfDepth: 0.6,
+      })
+    }
     mesh.material = mat
     mesh.parent = this.rootNode
 

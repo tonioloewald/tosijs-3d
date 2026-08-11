@@ -143,6 +143,16 @@ stub in step 7. Planets inherit a battle-tested shader later; Manta ships first.
   → polar gradient, one shader. Still deliberately absent: moisture fields,
   rain shadow, parameter blocks — and planetary noise still samples planar
   world-XZ (fine for the stub; triplanar in step 5 fixes the poles properly).
+- **2026-08-11 (later still)** — the flat-colour classifier grew well beyond
+  step 1 while remaining ONE shader: 4×5 chart (dead row: Mars↔Moon by
+  temperature at zero moisture; the moisture gate owns the ocean apparatus),
+  surf band, fecund cliff cling, per-cell A/B colour variation
+  (coral pink↔orange), 3D-sampled albedo noise (no cliff streaks), smoothed
+  normals for cliff faces, localized slope profiles, and a VOLCANIC override
+  (Worley-cell basalt plates, mostly-cooled lava veins with live channels,
+  obsidian verticals, low-frequency provinces — orthogonal to climate, so a
+  volcanic tropical island is one material). b3d-terrain AND b3d-planet main
+  demos run biome="on".
 - Steps 2 (array atlas), 4 (stochastic tiling), 5 (triplanar), 6 (mobile
   profiling) — not started; step 2 is next and needs the Blender-addon array
   emit from the content side.

@@ -43,6 +43,9 @@ export const defaultBiomeParams = () => ({
     detailNoiseAmp: 0.1,
     cliffCling: 0.55,
     surfDepth: 3,
+    volcanism: 0,
+    volcanicScale: 0.09,
+    veinWidth: 0.06,
 });
 /**
  * The flat-colour Whittaker chart, 4 cols (u: cold → warm) × **4 rows** (v:
@@ -165,7 +168,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, cliffCling
                 { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
                 { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
-                { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, unused ×3
+                { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, volcanism, volcanicScale, veinWidth
                 { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 },
                 { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 },
             ],
@@ -192,7 +195,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniformBuffer.updateFloat4('biomeWater', p.underwaterFog, p.underwaterMurk, p.insolation, p.cliffCling);
         uniformBuffer.updateFloat4('biomePlanet', p.planetCenter.x, p.planetCenter.y, p.planetCenter.z, p.seaRadius);
         uniformBuffer.updateFloat4('biomePlanetB', p.latWarpScale, p.latWarpAmp, p.detailNoiseScale, p.detailNoiseAmp);
-        uniformBuffer.updateFloat4('biomeSurf', p.surfDepth, 0, 0, 0);
+        uniformBuffer.updateFloat4('biomeSurf', p.surfDepth, p.volcanism, p.volcanicScale, p.veinWidth);
         const pack = (src) => {
             const flat = new Float32Array(20 * 4);
             for (let i = 0; i < 20; i++) {
@@ -262,6 +265,30 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           ),
           u.z
         );
+      }
+      // Worley/cellular noise for the volcanic plates: F1 = distance to the
+      // nearest cell point, F2 the second — F2−F1 → 0 exactly on the borders
+      // between plates, which is where the lava veins live.
+      vec2 bioCellHash(vec2 c) {
+        return fract(sin(vec2(
+          dot(c, vec2(127.1, 311.7)),
+          dot(c, vec2(269.5, 183.3))
+        )) * 43758.5453);
+      }
+      vec2 bioWorley(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        float F1 = 8.0;
+        float F2 = 8.0;
+        for (int y = -1; y <= 1; y++) {
+          for (int x = -1; x <= 1; x++) {
+            vec2 g = vec2(float(x), float(y));
+            float d = length(g + bioCellHash(i + g) - f);
+            if (d < F1) { F2 = F1; F1 = d; }
+            else if (d < F2) { F2 = d; }
+          }
+        }
+        return vec2(F1, F2);
       }
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
@@ -386,6 +413,30 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
           biome = mix(biome, cliffCol, cliff);
+          // --- VOLCANISM: the override that outranks climate ---------------
+          if (biomeSurf.y > 0.0) {
+            // Provinces from a low-frequency mask; the volcanism param slides
+            // the threshold, so 1.0 approaches everywhere and 0.3 gives
+            // scattered volcanic zones inside an otherwise living landscape.
+            float vn = 0.5 + 0.5 * bioSimplex(wp.xz * 0.006 + 3.3);
+            float volc = smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn);
+            if (volc > 0.0) {
+              vec2 wF = bioWorley(wp.xz * biomeSurf.z);
+              float vein = 1.0 - smoothstep(0.0, max(biomeSurf.w, 1e-3), wF.y - wF.x);
+              float flatness = 1.0 - cliff;
+              // basalt plates on the flats, obsidian on the verticals
+              vec3 volcGround = mix(vec3(0.05, 0.05, 0.08), vec3(0.13, 0.125, 0.13), flatness);
+              // MOST veins are cooled crust — only some run live. A slow mask
+              // picks the live channels; the rest keep a faint ember seam, so
+              // the field reads "lava under rock", not "lava planet".
+              float live = smoothstep(0.55, 0.72, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
+              float glow = vein * flatness * (underwater ? 0.05 : 1.0);
+              vec3 ember = mix(volcGround, vec3(0.35, 0.08, 0.02), glow);
+              vec3 molten = mix(volcGround, vec3(1.0, 0.32, 0.04) * 1.6, glow * (0.75 + dith * 4.0));
+              vec3 volcCol = mix(ember, molten, live);
+              biome = mix(biome, volcCol, volc);
+            }
+          }
         #endif
         diffuseColor = biome;
       }

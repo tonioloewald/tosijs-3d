@@ -32,6 +32,7 @@ const { demo } = tosi({
 // the coarse edge just past the fog. Larger radius so the cylinder doesn't repeat.
 const terrain = b3dTerrain({
   seed: demo.seed,
+  biome: 'on', // biome-shaded — see /biome-chart/ for the full showcase
   surfaceType: 'cylinder',
   radius: 1000,
   cylinderHeight: 1000,

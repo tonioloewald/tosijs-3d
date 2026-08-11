@@ -122,6 +122,8 @@ const scene = b3d(
         bind('cliff start', 'cliffStart', 0.3, 0.95, 0.01),
         bind('cliff cling', 'cliffCling', 0, 1, 0.01),
         bind('surf depth', 'surfDepth', 0, 8, 0.25),
+        bind('volcanism', 'volcanism', 0, 1, 0.01),
+        bind('volcanic scale', 'volcanicScale', 0.02, 0.3, 0.005),
       ]
     },
   },

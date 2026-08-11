@@ -50,6 +50,20 @@ export interface BiomeParams {
      */
     surfDepth: number;
     /**
+     * VOLCANISM — the second override world, orthogonal to climate (a tropical
+     * island can be volcanic). 0 = none; up to 1 = volcanic provinces cover the
+     * map. Where active: flats turn basalt with Worley-cell LAVA VEINS glowing
+     * between the plates (pooling is a horizontal phenomenon), verticals turn
+     * obsidian/basalt, vegetation and dust give way. Underwater the veins go
+     * dark (chilled crust). Provinces come from a low-frequency mask, so
+     * volcanism localizes exactly like slope profiles do.
+     */
+    volcanism: number;
+    /** Worley cell frequency for the lava plates (1/m). */
+    volcanicScale: number;
+    /** Vein width, 0..1 of cell spacing. */
+    veinWidth: number;
+    /**
      * How much vegetation CLINGS to cliff faces in fecund (warm + wet) climates
      * — dither-driven pockets of the local biome breaking through the rock, the
      * way plants colonize cliff-sides anywhere life is rampant. 0 = always bare

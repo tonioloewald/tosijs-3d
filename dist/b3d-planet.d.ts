@@ -1,4 +1,5 @@
 import { B3dChild } from './b3d-utils';
+import { BiomePlugin } from './biome-plugin';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import type { GradientFilter } from './gradient-filter';
@@ -9,6 +10,7 @@ export declare class B3dPlanet extends B3dChild {
         };
     };
     static initAttributes: {
+        biome: "on" | "off";
         seed: number;
         radius: number;
         subdivisions: number;
@@ -31,6 +33,8 @@ export declare class B3dPlanet extends B3dChild {
     private planetMesh;
     private atmosphereMesh;
     private oceanMesh;
+    /** Live-tunable biome shader parameters (biome="on") — see biome-plugin. */
+    biomePlugin: BiomePlugin | null;
     private ringMesh;
     private rootNode;
     private registered;
