@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/gaussianSplattingUboDeclaration.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nimport \"./sceneUboDeclaration.js\";\nimport \"./meshUboDeclaration.js\";\nconst name = \"gaussianSplattingUboDeclaration\";\nconst shader = `#include<sceneUboDeclaration>\n#include<meshUboDeclaration>\nattribute vec3 position;attribute vec4 splatIndex0;attribute vec4 splatIndex1;attribute vec4 splatIndex2;attribute vec4 splatIndex3;\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const gaussianSplattingUboDeclaration = { name, shader };\n//# sourceMappingURL=gaussianSplattingUboDeclaration.js.map"
+  ],
+  "mappings": "wCAIA,IAAM,EAAO,kCACP,EAAS;AAAA;AAAA;AAAA,EAKf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAAkC,CAAE,OAAM,QAAO",
+  "debugId": "1A72309D2203797264756E2164756E21",
+  "names": []
+}

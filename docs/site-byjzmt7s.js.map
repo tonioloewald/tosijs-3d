@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Maths/math.color.js"],
+  "sourcesContent": [
+    "/**\n * Re-exports pure implementation and applies runtime side effects.\n * Import math.color.pure for tree-shakeable, side-effect-free usage.\n */\nexport * from \"./math.color.pure.js\";\nimport { RegisterMathColor } from \"./math.color.pure.js\";\nRegisterMathColor();\n//# sourceMappingURL=math.color.js.map"
+  ],
+  "mappings": "wCAMA,EAAkB",
+  "debugId": "8B2D7CAE3F7835F264756E2164756E21",
+  "names": []
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/gaussianSplattingFragmentDeclaration.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nimport \"./logDepthFragment.js\";\nimport \"./fogFragment.js\";\nconst name = \"gaussianSplattingFragmentDeclaration\";\nconst shader = `fn gaussianColor(inColor: vec4f,inPosition: vec2f)->vec4f\n{var A : f32=-dot(inPosition,inPosition);if (A>-4.0)\n{var B: f32=exp(A)*inColor.a;\n#include<logDepthFragment>\nvar color: vec3f=inColor.rgb;\n#ifdef FOG\n#include<fogFragment>\n#endif\nreturn vec4f(color,B);} else {return vec4f(0.0);}}\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const gaussianSplattingFragmentDeclarationWGSL = { name, shader };\n//# sourceMappingURL=gaussianSplattingFragmentDeclaration.js.map"
+  ],
+  "mappings": "wCAIA,IAAM,EAAO,uCACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,EAWf,GAAI,CAAC,EAAY,yBAAyB,GACtC,EAAY,yBAAyB,GAAQ,EAG1C,IAAM,EAA2C,CAAE,OAAM,QAAO",
+  "debugId": "C4B3E9D48842529064756E2164756E21",
+  "names": []
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/fluidRenderingParticleDepth.vertex.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"fluidRenderingParticleDepthVertexShader\";\nconst shader = `attribute position: vec3f;attribute offset: vec2f;uniform view: mat4x4f;uniform projection: mat4x4f;uniform size: vec2f;varying uv: vec2f;varying viewPos: vec3f;varying sphereRadius: f32;\n#ifdef FLUIDRENDERING_VELOCITY\nattribute velocity: vec3f;varying velocityNorm: f32;\n#endif\n@vertex\nfn main(input: VertexInputs)->FragmentInputs {var cornerPos: vec3f=vec3f(\nvec2f(vertexInputs.offset.x-0.5,vertexInputs.offset.y-0.5)*uniforms.size,\n0.0\n);vertexOutputs.viewPos=(uniforms.view*vec4f(vertexInputs.position,1.0)).xyz;vertexOutputs.position=uniforms.projection*vec4f(vertexOutputs.viewPos+cornerPos,1.0);vertexOutputs.uv=vertexInputs.offset;vertexOutputs.sphereRadius=uniforms.size.x/2.0;\n#ifdef FLUIDRENDERING_VELOCITY\nvertexOutputs.velocityNorm=length(velocity);\n#endif\n}\n`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const fluidRenderingParticleDepthVertexShaderWGSL = { name, shader };\n//# sourceMappingURL=fluidRenderingParticleDepth.vertex.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,0CACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,EAef,GAAI,CAAC,EAAY,iBAAiB,GAC9B,EAAY,iBAAiB,GAAQ,EAGlC,IAAM,EAA8C,CAAE,OAAM,QAAO",
+  "debugId": "F1010713F1EA8B5764756E2164756E21",
+  "names": []
+}
