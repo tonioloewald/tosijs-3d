@@ -118,10 +118,12 @@ export function latticePoint(
  * per sign-changing cell, at the centroid of its edge crossings; one quad per
  * sign-changing lattice edge).
  *
- * Surface nets rather than marching cubes because the dual vertex placement is
- * what lets a jittered lattice work at all, it produces far fewer triangles for
- * the same silhouette, and every vertex is shared by its neighbours — the exact
- * properties a streaming terrain wants.
+ * **Surface nets, decided — not a placeholder.** Dual vertex placement is what
+ * lets a jittered lattice work at all, it yields far fewer triangles for the
+ * same silhouette, and every vertex is shared by its neighbours: exactly what a
+ * streaming terrain wants. Marching tetrahedra was evaluated and set aside
+ * (2026-08-12) — too many disadvantages, chiefly the triangle explosion. Don't
+ * reopen this without a new reason.
  */
 export function extractChunk(
   field: SdfField,

@@ -490,6 +490,13 @@ export {
 } from './landform'
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice'
+export {
+  terrainDensity,
+  composePatches,
+  circleFootprint,
+  marginBlend,
+} from './patch-field'
+export type { PatchField, Footprint } from './patch-field'
 export type {
   SdfField,
   LatticeConfig,

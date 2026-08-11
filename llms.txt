@@ -168,6 +168,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Seeded pseudo-random number generator based on the Mersenne Twister
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
+- https://3d.tosijs.net/patch-field/ — patch-field
+  terrain's HEIGHT, a patch post-filters its DENSITY — one dimension up, so it can
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
