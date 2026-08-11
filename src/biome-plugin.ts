@@ -62,6 +62,12 @@ export interface BiomeParams {
   detailNoiseScale: number
   detailNoiseAmp: number
   /**
+   * Surf/swash band depth (m): wave action bares the bottom this far below
+   * the waterline — wet sand (rock on slopes), with coral/kelp establishing
+   * only BELOW it. The beach → rock → coral sequence; 0 disables.
+   */
+  surfDepth: number
+  /**
    * How much vegetation CLINGS to cliff faces in fecund (warm + wet) climates
    * — dither-driven pockets of the local biome breaking through the rock, the
    * way plants colonize cliff-sides anywhere life is rampant. 0 = always bare
@@ -93,6 +99,7 @@ export const defaultBiomeParams = (): BiomeParams => ({
   detailNoiseScale: 0.55,
   detailNoiseAmp: 0.1,
   cliffCling: 0.55,
+  surfDepth: 3,
 })
 
 /**
@@ -214,6 +221,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, cliffCling
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
+        { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, unused ×3
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 16 } as any,
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 16 } as any,
       ],
@@ -224,6 +232,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeWater;
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
+        uniform vec4 biomeSurf;
         uniform vec4 biomePalette[16];
         uniform vec4 biomePaletteB[16];
       #endif`,
@@ -275,6 +284,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.detailNoiseScale,
       p.detailNoiseAmp
     )
+    uniformBuffer.updateFloat4('biomeSurf', p.surfDepth, 0, 0, 0)
     const pack = (src: number[][]) => {
       const flat = new Float32Array(16 * 4)
       for (let i = 0; i < 16; i++) {
@@ -386,6 +396,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // photic cutoff: growth colour dies to bare sediment exactly where the
         // shared water fog curve kills the light.
         if (underwater) {
+          // Surf/swash band FIRST: wave action bares the first metres of
+          // bottom — wet sand here (rock on slopes via the cliff override),
+          // so coral/kelp never start at the waterline itself. The band edge
+          // wobbles with the same dither as every other boundary.
+          float surf = 1.0 - smoothstep(biomeSurf.x * 0.4, biomeSurf.x, -altitude + dith * 12.0);
+          if (biomeSurf.x > 0.0) biome = mix(biome, vec3(0.6, 0.54, 0.42), surf);
           float light = bioPhotic(-altitude, biomeWater.x, biomeWater.y);
           biome = mix(vec3(${SEDIMENT_COLOR.join(', ')}), biome, light);
         }

@@ -56,6 +56,14 @@ export declare function cellBlend(u: number, v: number, cols: number, rows: numb
  */
 export declare function slopeMask(normalUp: number, cliffStart?: number, cliffFull?: number): number;
 /**
+ * Surf/swash factor — 1 in the wave-scoured band just below the waterline,
+ * easing to 0 by `surfDepth`. Wave action bares the bottom there: wet sand on
+ * the flat (rock on slopes, via the slope override), and coral/kelp only
+ * establish BELOW it — the beach → rock → coral sequence, so growth never
+ * starts at the waterline itself.
+ */
+export declare function surfFactor(depth: number, surfDepth?: number): number;
+/**
  * Photic light factor — 1 at the surface, → 0 where light dies. THE SAME
  * curve as b3d-water's underwater fog (EXP2 with depth-thickening density:
  * `underwaterFog + underwaterMurk · depth/30`), so growth stops exactly where

@@ -143,3 +143,20 @@ describe('photicFactor — shares the underwater-fog curve', () => {
     expect(photicFactor(d)).toBeCloseTo(Math.exp(-((density * d) ** 2)))
   })
 })
+
+describe('surfFactor — the swash band (coral must not start at the waterline)', () => {
+  test('full in the shallows, gone by surfDepth, absent above water', async () => {
+    const { surfFactor } = await import('./biome-chart')
+    expect(surfFactor(-1)).toBe(0) // above water — the beach handles it
+    expect(surfFactor(0.5, 3)).toBe(1) // scoured swash: bare wet sand/rock
+    expect(surfFactor(3.2, 3)).toBe(0) // below the band: coral/kelp may grow
+    const mid = surfFactor(2, 3)
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(1)
+  })
+
+  test('surfDepth 0 disables the band', async () => {
+    const { surfFactor } = await import('./biome-chart')
+    expect(surfFactor(1, 0)).toBe(0)
+  })
+})

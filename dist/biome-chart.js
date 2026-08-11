@@ -121,6 +121,7 @@ const scene = b3d(
         bind('dither scale', 'ditherScale', 0.05, 1.5, 0.01),
         bind('cliff start', 'cliffStart', 0.3, 0.95, 0.01),
         bind('cliff cling', 'cliffCling', 0, 1, 0.01),
+        bind('surf depth', 'surfDepth', 0, 8, 0.25),
       ]
     },
   },
@@ -220,6 +221,22 @@ export function slopeMask(normalUp, cliffStart = 0.7, cliffFull = 0.4) {
     if (normalUp <= cliffFull)
         return 1;
     return smooth((cliffStart - normalUp) / (cliffStart - cliffFull));
+}
+/**
+ * Surf/swash factor — 1 in the wave-scoured band just below the waterline,
+ * easing to 0 by `surfDepth`. Wave action bares the bottom there: wet sand on
+ * the flat (rock on slopes, via the slope override), and coral/kelp only
+ * establish BELOW it — the beach → rock → coral sequence, so growth never
+ * starts at the waterline itself.
+ */
+export function surfFactor(depth, surfDepth = 3) {
+    if (depth <= 0)
+        return 0;
+    if (surfDepth <= 0)
+        return 0;
+    const t = (depth - surfDepth * 0.4) / (surfDepth * 0.6);
+    const c = t < 0 ? 0 : t > 1 ? 1 : t;
+    return 1 - c * c * (3 - 2 * c);
 }
 /**
  * Photic light factor — 1 at the surface, → 0 where light dies. THE SAME

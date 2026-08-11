@@ -44,6 +44,12 @@ export interface BiomeParams {
     detailNoiseScale: number;
     detailNoiseAmp: number;
     /**
+     * Surf/swash band depth (m): wave action bares the bottom this far below
+     * the waterline — wet sand (rock on slopes), with coral/kelp establishing
+     * only BELOW it. The beach → rock → coral sequence; 0 disables.
+     */
+    surfDepth: number;
+    /**
      * How much vegetation CLINGS to cliff faces in fecund (warm + wet) climates
      * — dither-driven pockets of the local biome breaking through the rock, the
      * way plants colonize cliff-sides anywhere life is rampant. 0 = always bare
