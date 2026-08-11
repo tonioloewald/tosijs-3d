@@ -49,6 +49,10 @@ const scene = b3d(
           items,
           onSelect: (it) => {
             const placed = lib.instantiate(it.name)
+            // Animated models come alive on spawn: loop their first group
+            // (the scout opens its cockpit — see "Animations travel with the
+            // instance" below).
+            placed?.metadata?.animationGroups?.[0]?.start(true)
             // Rest the spawn on the ground rather than at the origin (where it may
             // float or clip depending on the GLB).
             if (placed) placeOnSurface(placed)
@@ -132,6 +136,26 @@ tosi-b3d { width: 100%; height: 100%; }
   `.model` stripped, so `Hull_collideMesh.model` exports AND gets its
   collider — you never trade one convention for the other.
 
+## Animations travel with the instance
+
+If the source model carries **AnimationGroups** (the scout's `Cockpit Open`
+and gear-retract animations in `test-3.glb`), `instantiate` clones them
+**retargeted onto the instance** — `node.clone()` alone would leave them on
+the container, animating the original nobody can see. They land on
+`instance.metadata.animationGroups`, named `<group>::<instance>` so multiple
+instances animate independently:
+
+```js
+const scout = lib.instantiate('scout', { canonical: true })
+const cockpit = scout.metadata.animationGroups
+  .find((g) => g.name.startsWith('Cockpit Open'))
+cockpit.start(false) // one shot; .start(true) loops
+```
+
+Only groups whose targets all live inside the model's subtree travel — the
+scene's ambient animations stay behind. Pass `animations: false` to skip;
+`clearInstances()` disposes the clones with their instance.
+
 - `getNames(): string[]` — declared `.model` exports under clean names (or all
   mesh/transform-node names when none are declared; `__root__`/`-ignore` always excluded)
 - `getRootNames(): string[]` — same, top-level nodes only
@@ -178,7 +202,51 @@ export function resolveModelName(names: string[], requested: string): string {
   return requested
 }
 
+/**
+ * Retarget a container's AnimationGroups onto a CLONED subtree.
+ *
+ * `node.clone()` copies the hierarchy but NOT the animation groups — those
+ * live on the AssetContainer, targeting the ORIGINAL nodes, so a library-
+ * instantiated model's animations play silently against meshes nobody can
+ * see. This walks the source and clone trees in parallel (clone preserves
+ * child order and names), builds the source→clone map, and clones every
+ * group whose targets ALL live inside the subtree — the scout's "Cockpit
+ * Open" travels with a scout instance; the scene's ambient animations don't.
+ *
+ * Exported for reuse (and tested against the real test-3.glb).
+ */
+export function cloneNodeAnimations(
+  container: BABYLON.AssetContainer,
+  source: BABYLON.Node,
+  clone: BABYLON.Node,
+  instanceName: string
+): BABYLON.AnimationGroup[] {
+  const map = new Map<unknown, BABYLON.Node>()
+  const walk = (a: BABYLON.Node, b: BABYLON.Node) => {
+    map.set(a, b)
+    const ak = a.getChildren()
+    const bk = b.getChildren()
+    for (let i = 0; i < Math.min(ak.length, bk.length); i++) walk(ak[i], bk[i])
+  }
+  walk(source, clone)
+  const out: BABYLON.AnimationGroup[] = []
+  for (const g of container.animationGroups) {
+    const targets = g.targetedAnimations.map((t) => t.target)
+    if (targets.length === 0) continue
+    if (!targets.every((t) => map.has(t))) continue // not (all) ours
+    out.push(
+      g.clone(`${g.name}::${instanceName}`, (old) => map.get(old) ?? old)
+    )
+  }
+  return out
+}
+
 export interface InstantiateOptions {
+  /** Clone the model's AnimationGroups onto the instance (default true).
+   * The clones land on `instance.metadata.animationGroups` — e.g.
+   * `node.metadata.animationGroups.find(g => g.name.startsWith('Cockpit'))
+   * .start()`. Disposed with the instance by `clearInstances`. */
+  animations?: boolean
   x?: number
   y?: number
   z?: number
@@ -298,6 +366,12 @@ export class B3dLibrary extends B3dChild {
 
   clearInstances(): void {
     for (const instance of this.instances) {
+      // Animation-group clones aren't node children — dispose them explicitly
+      // or they keep animating disposed meshes.
+      const groups = (instance as any).metadata?.animationGroups as
+        | BABYLON.AnimationGroup[]
+        | undefined
+      groups?.forEach((g) => g.dispose())
       instance.dispose()
     }
     this.instances = []
@@ -339,6 +413,21 @@ export class B3dLibrary extends B3dChild {
     if (options.canonical && clone instanceof BABYLON.TransformNode) {
       clone.name = `${name}_mesh`
       result = canonicalize(clone, this.owner.scene, `${name}_instance_${i}`)
+    }
+
+    // Animations: retarget the container's groups onto the clone (see
+    // cloneNodeAnimations — node.clone() alone leaves them behind).
+    if (options.animations !== false) {
+      const groups = cloneNodeAnimations(
+        this.container,
+        source,
+        clone,
+        `${name}_instance_${i}`
+      )
+      if (groups.length > 0) {
+        const meta = ((result as any).metadata ??= {})
+        meta.animationGroups = groups
+      }
     }
 
     if (result instanceof BABYLON.TransformNode) {
