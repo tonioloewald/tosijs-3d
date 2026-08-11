@@ -77,18 +77,51 @@ export const MANTA_PALETTE = [
     [0.46, 0.51, 0.35],
     [0.16, 0.37, 0.19],
     [0.8, 0.72, 0.55],
-    // marine row (v = 1): bottom muck  barren silt   coral         sand
+    // marine row (v = 1): bottom muck  kelp bed      coral         sand
+    // (no "barren" cell — the photic fade to sediment already bares the
+    // seafloor wherever light dies, at any temperature)
     [0.14, 0.13, 0.11],
-    [0.27, 0.26, 0.22],
-    [0.66, 0.4, 0.42],
+    [0.16, 0.26, 0.15],
+    [0.78, 0.42, 0.5],
     [0.76, 0.68, 0.54],
+];
+/**
+ * The VARIATION palette — a second colour per cell, mixed by medium-frequency
+ * noise so a biome shifts hue in patches instead of being one flat paint:
+ * coral dithers pink ↔ orange, kelp olive ↔ brown, sand banded. Cells equal
+ * to their `MANTA_PALETTE` entry get no variation; most don't need any.
+ */
+export const MANTA_PALETTE_B = [
+    // dry row: subtle banding on dune/beach only
+    [0.75, 0.8, 0.88],
+    [0.45, 0.41, 0.37],
+    [0.68, 0.55, 0.38],
+    [0.74, 0.66, 0.46],
+    // med row: unchanged
+    [0.8, 0.86, 0.92],
+    [0.55, 0.58, 0.47],
+    [0.62, 0.6, 0.38],
+    [0.79, 0.7, 0.52],
+    // wet row: forest varies deep ↔ lighter green
+    [0.92, 0.94, 0.97],
+    [0.46, 0.51, 0.35],
+    [0.22, 0.44, 0.22],
+    [0.8, 0.72, 0.55],
+    // marine row: muck unchanged · kelp olive ↔ brown · coral pink ↔ ORANGE · sand banded
+    [0.14, 0.13, 0.11],
+    [0.27, 0.26, 0.13],
+    [0.85, 0.52, 0.3],
+    [0.72, 0.63, 0.48],
 ];
 const CLIFF_COLOR = [0.38, 0.35, 0.33];
 const SEDIMENT_COLOR = [0.32, 0.33, 0.3];
 export class BiomePlugin extends BABYLON.MaterialPluginBase {
     params = defaultBiomeParams();
-    /** 12 rgb triples, row-major over the 4×3 chart. Replace to re-theme. */
+    /** 16 rgb triples, row-major over the 4×4 chart. Replace to re-theme. */
     palette = MANTA_PALETTE;
+    /** Per-cell variation colours (mixed by medium-frequency noise); cells equal
+     * to their `palette` entry don't vary. */
+    paletteB = MANTA_PALETTE_B;
     _isEnabled = false;
     constructor(material) {
         super(material, 'Biome', 210, { BIOME: false });
@@ -119,6 +152,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
                 { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
                 { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 16 },
+                { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 16 },
             ],
             fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -128,6 +162,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
         uniform vec4 biomePalette[16];
+        uniform vec4 biomePaletteB[16];
       #endif`,
         };
     }
@@ -141,15 +176,19 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniformBuffer.updateFloat4('biomeWater', p.underwaterFog, p.underwaterMurk, p.insolation, p.cliffCling);
         uniformBuffer.updateFloat4('biomePlanet', p.planetCenter.x, p.planetCenter.y, p.planetCenter.z, p.seaRadius);
         uniformBuffer.updateFloat4('biomePlanetB', p.latWarpScale, p.latWarpAmp, p.detailNoiseScale, p.detailNoiseAmp);
-        const flat = new Float32Array(16 * 4);
-        for (let i = 0; i < 16; i++) {
-            const c = this.palette[i] ?? [1, 0, 1];
-            flat[i * 4] = c[0];
-            flat[i * 4 + 1] = c[1];
-            flat[i * 4 + 2] = c[2];
-            flat[i * 4 + 3] = 1;
-        }
-        uniformBuffer.updateFloatArray('biomePalette', flat);
+        const pack = (src) => {
+            const flat = new Float32Array(16 * 4);
+            for (let i = 0; i < 16; i++) {
+                const c = src[i] ?? [1, 0, 1];
+                flat[i * 4] = c[0];
+                flat[i * 4 + 1] = c[1];
+                flat[i * 4 + 2] = c[2];
+                flat[i * 4 + 3] = 1;
+            }
+            return flat;
+        };
+        uniformBuffer.updateFloatArray('biomePalette', pack(this.palette));
+        uniformBuffer.updateFloatArray('biomePaletteB', pack(this.paletteB));
     }
     getCustomCode(shaderType) {
         if (shaderType !== 'fragment')
@@ -189,9 +228,11 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         float d = density * depth;
         return exp(-d * d);
       }
-      vec3 bioChartColour(float u, float v) {
+      vec3 bioChartColour(float u, float v, float varN) {
         // cellBlend, unrolled for the 4x4 chart: smoothstepped bilinear over
-        // the 2x2 neighbourhood. Band centres are pure; edges ease.
+        // the 2x2 neighbourhood. Band centres are pure; edges ease. Each tap
+        // mixes its cell's A/B colours by varN — within-biome hue patches
+        // (coral pink ↔ orange) with zero extra structure.
         float fu = clamp(u, 0.0, 1.0) * 3.0;
         float fv = clamp(v, 0.0, 1.0) * 3.0;
         float c0 = min(2.0, floor(fu));
@@ -199,12 +240,11 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         float tu = smoothstep(0.0, 1.0, fu - c0);
         float tv = smoothstep(0.0, 1.0, fv - r0);
         int i00 = int(r0) * 4 + int(c0);
-        vec3 col = mix(
-          mix(biomePalette[i00].rgb, biomePalette[i00 + 1].rgb, tu),
-          mix(biomePalette[i00 + 4].rgb, biomePalette[i00 + 5].rgb, tu),
-          tv
-        );
-        return col;
+        vec3 c00 = mix(biomePalette[i00].rgb, biomePaletteB[i00].rgb, varN);
+        vec3 c01 = mix(biomePalette[i00 + 1].rgb, biomePaletteB[i00 + 1].rgb, varN);
+        vec3 c10 = mix(biomePalette[i00 + 4].rgb, biomePaletteB[i00 + 4].rgb, varN);
+        vec3 c11 = mix(biomePalette[i00 + 5].rgb, biomePaletteB[i00 + 5].rgb, varN);
+        return mix(mix(c00, c01, tu), mix(c10, c11, tu), tv);
       }
       #endif`,
             CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `#ifdef BIOME
@@ -240,7 +280,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           : clamp(biomeCfg.w + mN, 0.0, 1.0) * 0.667;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
         float dith = bioSimplex(wp.xz * biomeDither.x) * biomeDither.y;
-        vec3 biome = bioChartColour(temperature + dith, moisture + dith);
+        // Within-biome variation: medium-frequency patches select between each
+        // cell's A/B colours (coral pink ↔ orange, kelp olive ↔ brown).
+        float varN = 0.5 + 0.5 * bioSimplex(wp.xz * biomeNoise.x * 3.1 + 31.7);
+        vec3 biome = bioChartColour(temperature + dith, moisture + dith, varN);
         // photic cutoff: growth colour dies to bare sediment exactly where the
         // shared water fog curve kills the light.
         if (underwater) {

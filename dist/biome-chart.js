@@ -60,6 +60,14 @@ const SHOWCASE = {
   grossAmplitude: 60,
   fineScale: 0.06,
   fineAmplitude: 4,
+  // Calm streaming for an ORBITING camera: bigger tiles + an explicit pool +
+  // budget mean the whole vista stays resident and LOD boundaries sit further
+  // out, so orbiting doesn't churn tiles at the view's edge (the streamer
+  // follows the camera's world position, which swings on every orbit drag).
+  tileSize: 16,
+  lodLevels: 4,
+  poolSize: 160,
+  fillBudget: 12,
   // THE WATERLINE IS AN INPUT. Terrain noise maps to 0..amplitude, so without
   // an offset the whole field floats above the water plane and no shoreline
   // exists to classify. −12 puts the beach-profile shelf just BELOW sea level
@@ -85,7 +93,9 @@ const scene = b3d(
   {
     style: 'border-radius:8px;overflow:hidden',
     sceneCreated(el) {
-      orbitCam(el, { alpha: -Math.PI / 2.4, beta: Math.PI / 3.1, radius: 150, target: [0, 6, 0] })
+      // Higher, tighter orbit: the camera's XZ swing (what the streamer
+      // tracks) stays small, so dragging doesn't relocate the stream centre.
+      orbitCam(el, { alpha: -Math.PI / 2.4, beta: Math.PI / 3.6, radius: 110, target: [0, 4, 0] })
     },
     scenePanel() {
       const p = terrain.biomePlugin?.params

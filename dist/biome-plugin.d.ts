@@ -71,10 +71,20 @@ export declare const defaultBiomeParams: () => BiomeParams;
  * peak), so the shoreline is beach in every climate that's warm enough.
  */
 export declare const MANTA_PALETTE: number[][];
+/**
+ * The VARIATION palette — a second colour per cell, mixed by medium-frequency
+ * noise so a biome shifts hue in patches instead of being one flat paint:
+ * coral dithers pink ↔ orange, kelp olive ↔ brown, sand banded. Cells equal
+ * to their `MANTA_PALETTE` entry get no variation; most don't need any.
+ */
+export declare const MANTA_PALETTE_B: number[][];
 export declare class BiomePlugin extends BABYLON.MaterialPluginBase {
     params: BiomeParams;
-    /** 12 rgb triples, row-major over the 4×3 chart. Replace to re-theme. */
+    /** 16 rgb triples, row-major over the 4×4 chart. Replace to re-theme. */
     palette: number[][];
+    /** Per-cell variation colours (mixed by medium-frequency noise); cells equal
+     * to their `palette` entry don't vary. */
+    paletteB: number[][];
     private _isEnabled;
     constructor(material: BABYLON.Material);
     get isEnabled(): boolean;
