@@ -621,6 +621,11 @@ crash probe showed crashed:false) but then feels like being welded there. Decide
 escape: verify VTOL throttle-up genuinely lifts off a slope (ground clamp may be
 re-snapping), and/or steepen the landing gate so slopes > ~15 deg can't be "landed
 on" at all. Ask: does full throttle free you when stuck?
+[ ] Terrain self-shadowing — SHELVED (Tonio, 2026-08-11): the plane casts onto terrain
+fine; terrain-on-terrain at kilometre extents likely needs screen-space shadows or
+similar, not bigger CSM buffers. Revisit with the M5 Max budget in mind.
+[ ] Aircraft stuck after gentle slope contact registers as a LANDING (probe showed
+crashed:false) — verify VTOL throttle-up escapes a slope, else steepen the landing gate.
 [ ] Volcanism garnish: ambient STEAM over volcanic provinces (b3d-ambient family — budgeted
 billboard wisps rising off live seams/pools, denser where water meets lava) and a subtle
 heat-shimmer/refraction effect over open lava. Design note: query the same province +
