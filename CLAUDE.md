@@ -411,7 +411,10 @@ Underscore-separated variants also work (e.g., `_collide_box`).
 | `.model` | Declares a **library export** (see b3d-library) — and is **invisible to every suffix check** via `conventionName()`: `Hull_collideMesh.model` exports AND gets its collider. Never parse behaviour suffixes off a raw name; run them on `conventionName(name)`. |
 
 **Model authoring & the canonical frame (issues #5/#6, decided 2026-08-11):** content is
-authored **Blender-default** — model faces **−Y**, up **+Z**, all transforms applied — and a
+authored **Blender-default in the model's LOCAL frame** — nose faces **local −Y**, up
+**local +Z**; the object's SCENE transform is scenic dressing and the collapse discards it
+(so never "apply all transforms" on models inside scene files — that bakes scenic rotation
+into the data). A
 **`.model` suffix declares a library file's intended exports** (`scout.model` lists and
 instantiates as `scout`; files declaring any `.model` nodes list ONLY those). The single
 content→engine mapping lives in `model-transform.canonicalize` (content-front → engine +Z,

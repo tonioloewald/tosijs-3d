@@ -121,11 +121,18 @@ tosi-b3d { width: 100%; height: 100%; }
 - `ready: Promise<void>` — resolves when the GLB has loaded
 ## Authoring conventions (Blender)
 
-- **Axes: Blender defaults** — model faces **−Y**, up is **+Z**, and **apply
-  all transforms** before export. The engine defines the one mapping from that
-  convention to its own frame in `canonicalize` (content-front → engine +Z);
-  never fix orientation per-asset — a model that flies backwards needs
-  re-exporting, not rotating.
+- **Axes: Blender defaults, in the model's LOCAL frame** — the nose faces
+  **local −Y**, up is **local +Z**. The convention lives in the object's own
+  coordinate system: the collapse (`canonicalize`) DISCARDS the object's
+  scene transform, so scene placement — position, scenic rotation — is
+  irrelevant and needn't be tidied. (Corollary: do NOT "apply all transforms"
+  on a model inside a scene file; that bakes the scenic rotation into the
+  data and corrupts the local frame. Apply-all is right only for dedicated
+  single-model files where the object sits at identity.) The engine defines
+  the one mapping from local-frame convention to engine frame (content-front
+  → engine +Z); never fix orientation per-asset — a model that flies
+  backwards needs its LOCAL frame fixed in Blender (edit-mode 180° about Z),
+  not a rotation in the scene or the code.
 - **Exports: append `.model`** to each node you intend to publish
   (`scout.model`). Once a file declares any, ONLY those are listed — under
   their clean names (`getNames()` → `'scout'`, `instantiate('scout')` works) —
