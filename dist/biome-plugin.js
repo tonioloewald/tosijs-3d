@@ -34,6 +34,11 @@ export const defaultBiomeParams = () => ({
     cliffFull: 0.4,
     underwaterFog: 0.12,
     underwaterMurk: 0.08,
+    seaRadius: 0,
+    planetCenter: { x: 0, y: 0, z: 0 },
+    insolation: 0.35,
+    latWarpScale: 0.02,
+    latWarpAmp: 0.12,
 });
 /**
  * The flat-colour Whittaker chart, 4 cols (u: cold → warm) × 3 rows (v: dry →
@@ -91,7 +96,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomeCfg', size: 4, type: 'vec4' }, // seaLevel, baseTemp, lapse, mapMoisture
                 { name: 'biomeNoise', size: 4, type: 'vec4' }, // tScale, tAmp, mScale, mAmp
                 { name: 'biomeDither', size: 4, type: 'vec4' }, // ditherScale, ditherAmp, cliffStart, cliffFull
-                { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, unused, unused
+                { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, unused
+                { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
+                { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, unused, unused
                 { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 12 },
             ],
             fragment: `#ifdef BIOME
@@ -99,6 +106,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeNoise;
         uniform vec4 biomeDither;
         uniform vec4 biomeWater;
+        uniform vec4 biomePlanet;
+        uniform vec4 biomePlanetB;
         uniform vec4 biomePalette[12];
       #endif`,
         };
@@ -110,7 +119,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniformBuffer.updateFloat4('biomeCfg', p.seaLevel, p.baseTemperature, p.lapseRate, p.mapMoisture);
         uniformBuffer.updateFloat4('biomeNoise', p.tNoiseScale, p.tNoiseAmp, p.mNoiseScale, p.mNoiseAmp);
         uniformBuffer.updateFloat4('biomeDither', p.ditherScale, p.ditherAmp, p.cliffStart, p.cliffFull);
-        uniformBuffer.updateFloat4('biomeWater', p.underwaterFog, p.underwaterMurk, 0, 0);
+        uniformBuffer.updateFloat4('biomeWater', p.underwaterFog, p.underwaterMurk, p.insolation, 0);
+        uniformBuffer.updateFloat4('biomePlanet', p.planetCenter.x, p.planetCenter.y, p.planetCenter.z, p.seaRadius);
+        uniformBuffer.updateFloat4('biomePlanetB', p.latWarpScale, p.latWarpAmp, 0, 0);
         const flat = new Float32Array(12 * 4);
         for (let i = 0; i < 12; i++) {
             const c = this.palette[i] ?? [1, 0, 1];
@@ -181,12 +192,26 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       {
         // World-space throughout (highp): seams are impossible by construction.
         vec3 wp = vPositionW;
-        float altitude = wp.y - biomeCfg.x;
+        // The two front-ends share everything but the AXES (biome-chart.ts):
+        // flat = worldY − seaLevel with world-up; planetary (seaRadius > 0) =
+        // RADIAL altitude with radial up + insolation over warped latitude.
+        bool planetary = biomePlanet.w > 0.0;
+        vec3 rel = wp - biomePlanet.xyz;
+        float r = length(rel);
+        vec3 up = planetary ? rel / max(r, 1e-5) : vec3(0.0, 1.0, 0.0);
+        float altitude = planetary ? (r - biomePlanet.w) : (wp.y - biomeCfg.x);
         // mantaAxes: |altitude| lapse (peaks at sea level, cools both ways) +
         // fBm axis noise — noise feeds the INPUTS, never the classification.
         float tN = bioFbm(wp.xz * biomeNoise.x) * biomeNoise.y;
         float mN = bioFbm(wp.xz * biomeNoise.z + 71.3) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN;
+        if (planetary) {
+          // planetaryAxes: insolation over asin latitude, latWarp BEFORE the
+          // temperature calc — banding wobbles instead of painting on.
+          float lat = asin(clamp(rel.y / max(r, 1e-5), -1.0, 1.0));
+          float latW = lat + bioSimplex(rel.xz * biomePlanetB.x) * biomePlanetB.y;
+          temperature += biomeWater.z * cos(latW);
+        }
         bool underwater = altitude < 0.0;
         float moisture = underwater ? 1.0 : biomeCfg.w + mN;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
@@ -201,7 +226,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // slope override OUTSIDE the chart: cliffs at any altitude/depth; cave
         // walls classify as cliffs automatically.
         #ifdef NORMAL
-          float cliff = bioSlopeMask(dot(normalize(vNormalW), vec3(0.0, 1.0, 0.0)), biomeDither.z, biomeDither.w);
+          // Slope vs the front-end's UP — world-up flat, RADIAL on a planet
+          // (a mountainside near the pole is a cliff, not a "wall").
+          float cliff = bioSlopeMask(dot(normalize(vNormalW), up), biomeDither.z, biomeDither.w);
           biome = mix(biome, vec3(${CLIFF_COLOR.join(', ')}), cliff);
         #endif
         diffuseColor = biome;

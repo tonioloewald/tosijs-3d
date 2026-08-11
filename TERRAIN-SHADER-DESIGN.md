@@ -135,6 +135,14 @@ stub in step 7. Planets inherit a battle-tested shader later; Manta ships first.
   fog/shadows/lighting compose), `b3d-terrain` gains `biome="on"`. Planetary
   axes are the stub + tests (radial altitude, asin-latitude, insolation
   signature) — interface only, per the scope guard.
+- **2026-08-11 (later)** — the planetary front-end is promoted from stub to
+  working GLSL, at exactly the stub's surface and nothing more: `seaRadius > 0`
+  on `BiomeParams` switches the picker to radial altitude, RADIAL-up slope,
+  and insolation over latWarped asin-latitude. Verified on a displaced
+  icosphere (headless WebGL2): abyssal basins → shelf → shoreline → continents
+  → polar gradient, one shader. Still deliberately absent: moisture fields,
+  rain shadow, parameter blocks — and planetary noise still samples planar
+  world-XZ (fine for the stub; triplanar in step 5 fixes the poles properly).
 - Steps 2 (array atlas), 4 (stochastic tiling), 5 (triplanar), 6 (mobile
   profiling) — not started; step 2 is next and needs the Blender-addon array
   emit from the content side.

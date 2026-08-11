@@ -19,7 +19,10 @@ pinned here by unit tests, one function per shader expression.
   doc's scope guard. Altitude is **radial** (`length(p) − seaRadius`), latitude
   is `asin(y/|p|)` from 3D position (never lat/long UVs), insolation warms the
   equator. It exists so the picker's interface is proven against a second
-  caller; nothing more until Manta's seafloor needs it.
+  caller; nothing more until Manta's seafloor needs it. (The GLSL side of
+  this interface IS live: `BiomeParams.seaRadius > 0` switches
+  [[biome-plugin]] to radial altitude + radial-up slope + insolation — a
+  displaced icosphere classifies as a planet with one param.)
 
 ## Demo — one shader, seafloor → beach → mountain
 

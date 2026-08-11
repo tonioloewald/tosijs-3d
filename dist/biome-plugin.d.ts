@@ -19,6 +19,23 @@ export interface BiomeParams {
     /** Photic curve — MUST match the sibling b3d-water's fog attrs. */
     underwaterFog: number;
     underwaterMurk: number;
+    /**
+     * PLANETARY front-end (design step 7, promoted to GLSL): set `seaRadius > 0`
+     * to switch the picker to radial altitude (`length(p − center) − seaRadius`),
+     * radial-up slope, and insolation over asin-latitude with latWarp. 0 = flat
+     * (Manta) front-end. Same chart, same overrides — only the axes change.
+     */
+    seaRadius: number;
+    planetCenter: {
+        x: number;
+        y: number;
+        z: number;
+    };
+    /** Equator-to-pole temperature swing (chart units). */
+    insolation: number;
+    /** Low-frequency latitude domain-warp (gulf-stream wobble). */
+    latWarpScale: number;
+    latWarpAmp: number;
 }
 export declare const defaultBiomeParams: () => BiomeParams;
 /**
