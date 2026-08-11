@@ -54,7 +54,9 @@ export interface VolcanoOptions {
   baseLevel?: number
   /** Caldera radius (m). Default `radius * 0.22`. */
   craterRadius?: number
-  /** Caldera depth (m) below the rim. Default `height * 0.5`. */
+  /** Caldera depth (m) below the rim — the lava pool sits at rim − depth,
+   * so a smaller value holds the melt higher in the bowl. Default
+   * `height * 0.35`. */
   craterDepth?: number
   /** How much the flanks suppress the underlying noise (0..1). Default 0.7. */
   flatten?: number
@@ -78,7 +80,7 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     height,
     baseLevel = 0,
     craterRadius = radius * 0.22,
-    craterDepth = height * 0.5,
+    craterDepth = height * 0.35,
     flatten = 0.7,
     glow = 1,
   } = opts
