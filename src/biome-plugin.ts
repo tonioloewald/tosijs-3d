@@ -97,17 +97,29 @@ export interface BiomeParams {
   /**
    * VOLCANISM — the second override world, orthogonal to climate (a tropical
    * island can be volcanic). 0 = none; up to 1 = volcanic provinces cover the
-   * map. Where active: flats turn basalt with Worley-cell LAVA VEINS glowing
-   * between the plates (pooling is a horizontal phenomenon), verticals turn
-   * obsidian/basalt, vegetation and dust give way. Underwater the veins go
-   * dark (chilled crust). Provinces come from a low-frequency mask, so
-   * volcanism localizes exactly like slope profiles do.
+   * map. Inside a province the look climbs an intensity LADDER (stage 1..3):
+   * near-black basalt with dark-brown Worley seams → dark-brown rock with
+   * GLOWING seams → patchy open lava. Horizontals ride `1 + 2·volcanism` up
+   * the ladder; verticals lag ONE stage behind (lava pools flat — cliff faces
+   * drain and crust over): at the midpoint cliffs are dark voronoi'd basalt
+   * while flats seam-glow; at the extreme cliffs seam-glow while flats run
+   * molten. Water pushes the ladder down half a stage and MUTES the glow
+   * with depth (smouldering veins under shallow water) — never cancels it.
+   * Provinces come from a low-frequency mask, so volcanism localizes exactly
+   * like slope profiles.
    */
   volcanism: number
   /** Worley cell frequency for the lava plates (1/m). */
   volcanicScale: number
   /** Vein width, 0..1 of cell spacing. */
   veinWidth: number
+  /**
+   * Subtle live-lava animation: molten seams and pools shimmer with a slow,
+   * spatially-phased pulse + drifting 3D-noise churn (never a global blink),
+   * and pool edges creep as crust breaks and reforms. 0 = static, 1 = the
+   * intended subtle motion; >1 exaggerates.
+   */
+  glowAnimation: number
   /**
    * How much vegetation CLINGS to cliff faces in fecund (warm + wet) climates
    * — dither-driven pockets of the local biome breaking through the rock, the
@@ -150,6 +162,7 @@ export const defaultBiomeParams = (): BiomeParams => ({
   volcanism: 0,
   volcanicScale: 0.09,
   veinWidth: 0.06,
+  glowAnimation: 1,
 })
 
 /**
@@ -248,6 +261,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
    * to their `palette` entry don't vary. */
   paletteB: number[][] = MANTA_PALETTE_B
   private _isEnabled = false
+  private _t0 = performance.now()
 
   constructor(material: BABYLON.Material) {
     super(material, 'Biome', 210, { BIOME: false })
@@ -281,12 +295,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeCfg', size: 4, type: 'vec4' }, // seaLevel, baseTemp, lapse, mapMoisture
         { name: 'biomeNoise', size: 4, type: 'vec4' }, // tScale, tAmp, mScale, mAmp
         { name: 'biomeDither', size: 4, type: 'vec4' }, // ditherScale, ditherAmp, cliffStart, cliffFull
-        { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, unused, cliffCling
+        { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, glowAnimation, cliffCling
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
         { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, volcanism, volcanicScale, veinWidth
         { name: 'biomePlanetC', size: 4, type: 'vec4' }, // equatorTemp, temperateTemp, poleTemp, slopeExaggeration
-        { name: 'biomePlanetD', size: 4, type: 'vec4' }, // rainShadow, windAzimuth, moistureDryHeight, unused
+        { name: 'biomePlanetD', size: 4, type: 'vec4' }, // rainShadow, windAzimuth, moistureDryHeight, animTime
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
       ],
@@ -334,7 +348,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       'biomeWater',
       p.underwaterFog,
       p.underwaterMurk,
-      0,
+      p.glowAnimation,
       p.cliffCling
     )
     uniformBuffer.updateFloat4(
@@ -344,12 +358,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.poleTemp,
       p.slopeExaggeration
     )
+    // .w is the lava-animation clock — wrapped so the shader float never
+    // loses precision on a long-running page (the motion is periodic-ish
+    // noise, so the wrap seam is invisible)
     uniformBuffer.updateFloat4(
       'biomePlanetD',
       p.rainShadow,
       p.windAzimuth,
       p.moistureDryHeight,
-      0
+      ((performance.now() - this._t0) / 1000) % 3600
     )
     uniformBuffer.updateFloat4(
       'biomePlanet',
@@ -611,6 +628,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // cliff-sides wherever life is rampant (underwater too: photic
           // growth on rock walls, dying to bare stone with the light). Cold
           // or dry faces stay bare; the pockets keep it from looking painted.
+          float cliffRaw = cliff; // geometric slope, pre-fecundity (volcanism wants it)
           float fecund = clamp(temperature, 0.0, 1.0) * clamp(moisture * 1.5, 0.0, 1.0);
           float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
@@ -625,17 +643,47 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             if (volc > 0.0) {
               vec2 wF = bioWorley(wp.xz * biomeSurf.z);
               float vein = 1.0 - smoothstep(0.0, max(biomeSurf.w, 1e-3), wF.y - wF.x);
-              float flatness = 1.0 - cliff;
-              // basalt plates on the flats, obsidian on the verticals
-              vec3 volcGround = mix(vec3(0.05, 0.05, 0.08), vec3(0.13, 0.125, 0.13), flatness);
-              // MOST veins are cooled crust — only some run live. A slow mask
-              // picks the live channels; the rest keep a faint ember seam, so
-              // the field reads "lava under rock", not "lava planet".
+              // The intensity LADDER (stage 1..3): 1 = near-black basalt with
+              // DARK-BROWN voronoi seams; 2 = dark-brown rock with GLOWING
+              // seams; 3 = patchy open lava. Horizontals climb 1 + 2·volcanism
+              // up the ladder; verticals lag ONE full stage behind (lava pools
+              // flat — cliff faces drain and crust over). Midpoint: cliffs
+              // stage 1, flats stage 2. Extreme: cliffs stage 2, flats stage 3.
+              // Water pushes volcanism DOWN half a stage (chilled crust:
+              // pools revert to seams, seams toward cold voronoi) and MUTES
+              // the glow rather than cancelling it — veins keep smouldering
+              // under shallow water, dimming with depth. sub ramps over the
+              // first couple of metres so the waterline isn't a hard seam.
+              float sub = clamp(-altitude * 0.5, 0.0, 1.0);
+              float stage = clamp(1.0 + 2.0 * biomeSurf.y - cliffRaw - 0.5 * sub, 1.0, 3.0);
+              float t12 = clamp(stage - 1.0, 0.0, 1.0);
+              float t23 = clamp(stage - 2.0, 0.0, 1.0);
+              float damp = mix(1.0, mix(0.5, 0.15, clamp(-altitude / 15.0, 0.0, 1.0)), sub);
+              // Subtle life in the glow: a slow spatially-phased pulse + a
+              // 3D-noise churn drifting through time — shimmer, never a
+              // global blink. glowAnimation (biomeWater.z) dials it; 0 = still.
+              float tAnim = biomePlanetD.w;
+              float churn = bioSimplex3(vec3(wp.xz * 0.05, tAnim * 0.11));
+              float pulse = 1.0 + biomeWater.z * (0.10 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.18 * churn);
+              // stage 1 → 2: base rock warms near-black basalt → dark brown
+              vec3 volcGround = mix(vec3(0.045, 0.045, 0.07), vec3(0.16, 0.10, 0.06), t12);
+              // stage 1: seams are COLD dark brown; they hand over as glow rises
+              vec3 base = mix(volcGround, vec3(0.12, 0.07, 0.045), vein * (1.0 - t12));
+              // stage 2: seams glow — MOST are cooled ember, a slow mask picks
+              // the live molten channels, so the field reads "lava under
+              // rock", not "lava planet".
               float live = smoothstep(0.55, 0.72, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
-              float glow = vein * flatness * (underwater ? 0.05 : 1.0);
-              vec3 ember = mix(volcGround, vec3(0.35, 0.08, 0.02), glow);
-              vec3 molten = mix(volcGround, vec3(1.0, 0.32, 0.04) * 1.6, glow * (0.75 + dith * 4.0));
+              float glow = vein * t12 * damp;
+              vec3 ember = mix(base, vec3(0.35, 0.08, 0.02), glow);
+              vec3 molten = mix(base, vec3(1.0, 0.32, 0.04) * 1.6 * pulse, glow * (0.75 + dith * 4.0));
               vec3 volcCol = mix(ember, molten, live);
+              // stage 2 → 3: seams give way to PATCHY open lava — broad soft
+              // pools whose edges creep with the churn (crust breaking and
+              // reforming); crusted rock between keeps its glowing seams.
+              // (lavaPatch, not patch — 'patch' is a GLSL reserved word)
+              float lavaPatch = smoothstep(0.35, 0.7, 0.5 + 0.5 * bioSimplex(wp.xz * 0.018 + 5.7) + 0.08 * churn * biomeWater.z);
+              vec3 pool = mix(vec3(0.5, 0.12, 0.02), vec3(1.0, 0.36, 0.05) * 1.7 * pulse, clamp(0.55 + dith * 5.0 + 0.25 * churn, 0.0, 1.0));
+              volcCol = mix(volcCol, pool, t23 * lavaPatch * damp);
               biome = mix(biome, volcCol, volc);
             }
           }

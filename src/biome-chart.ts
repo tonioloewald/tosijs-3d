@@ -126,6 +126,7 @@ const scene = b3d(
         bind('surf depth', 'surfDepth', 0, 8, 0.25),
         bind('volcanism', 'volcanism', 0, 1, 0.01),
         bind('volcanic scale', 'volcanicScale', 0.02, 0.3, 0.005),
+        bind('glow animation', 'glowAnimation', 0, 2, 0.05),
       ]
     },
   },

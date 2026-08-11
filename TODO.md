@@ -609,6 +609,10 @@ anchor to the CoG marker; `b3d-car` could use it for weight-transfer feel someda
 Validate against the updated scout once its CoG empty lands in test-3.glb.
 [ ] Aircraft: auto gear retract/extend using the model's gear AnimationGroups (scout has
 them as of test-3.glb) — retract on takeoff past a height/speed gate, extend on approach.
+[ ] Volcanism garnish: ambient STEAM over volcanic provinces (b3d-ambient family — budgeted
+billboard wisps rising off live seams/pools, denser where water meets lava) and a subtle
+heat-shimmer/refraction effect over open lava. Design note: query the same province +
+stage math the shader uses so the garnish lands exactly on the glow.
 
 ## UI
 
