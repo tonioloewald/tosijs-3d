@@ -182,10 +182,10 @@ export const LAVA_PALETTE: number[][] = [
   [0.045, 0.045, 0.07], // stage-1 rock: near-black basalt
   [0.16, 0.1, 0.06], // stage-2 rock: dark brown
   [0.12, 0.07, 0.045], // cold vein: dark brown voronoi
-  [0.35, 0.08, 0.02], // ember seam
-  [1.6, 0.512, 0.064], // molten seam (glow > 1)
-  [0.5, 0.12, 0.02], // pool crust edge
-  [1.7, 0.612, 0.085], // pool bright (glow > 1)
+  [0.35, 0.08, 0.02], // ember seam: deep red
+  [1.7, 0.85, 0.1], // molten seam: orange-yellow (glow > 1)
+  [0.55, 0.14, 0.02], // pool crust edge: red-orange
+  [1.9, 1.45, 0.3], // pool bright: ALMOST YELLOW — the hottest thing on screen
 ]
 
 /** Cryovolcanism: frozen worlds venting molten WATER — pale green-white ice
@@ -733,11 +733,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // first couple of metres so the waterline isn't a hard seam.
               float sub = clamp(-altitude * 0.5, 0.0, 1.0);
               float stage = clamp(1.0 + 2.0 * vEff - cliffRaw - 0.5 * sub, 1.0, 3.0);
-              // Veins WIDEN as the ladder climbs (~4x by stage 3), so pools
-              // read as veins fattening until they merge — one continuous
-              // process, not two patterns swapping.
+              // Veins WIDEN as the ladder climbs — gently through stage 2
+              // (2x), then steeply through the molten transition (6x by
+              // stage 3), so pools read as veins fattening until they MERGE
+              // — one continuous process, not two patterns swapping.
               vec2 wF = bioWorley(wp.xz * biomeSurf.z);
-              float vw = max(biomeSurf.w, 1e-3) * (1.0 + 1.5 * (stage - 1.0));
+              float vw = max(biomeSurf.w, 1e-3)
+                * (1.0 + clamp(stage - 1.0, 0.0, 1.0) + 4.0 * clamp(stage - 2.0, 0.0, 1.0));
               float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
               float t12 = clamp(stage - 1.0, 0.0, 1.0);
               float t23 = clamp(stage - 2.0, 0.0, 1.0);

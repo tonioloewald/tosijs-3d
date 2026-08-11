@@ -17,7 +17,7 @@ describe('volcano — the classic cone that fades in as an override', () => {
     expect(v.landform(300, 200, 17.3)).toBe(17.3)
   })
 
-  test('the rim is the summit; the caldera sinks below it', () => {
+  test('the rim is the summit; the caldera floor is FLAT below it', () => {
     const vent = v.landform(100, -50, FLAT)
     const rim = v.landform(100 + 60 * 0.22, -50, FLAT) // d = craterRadius
     const flank = v.landform(130, -50, FLAT)
@@ -25,6 +25,9 @@ describe('volcano — the classic cone that fades in as an override', () => {
     expect(rim).toBeGreaterThan(flank) // rim above the flank
     expect(rim).toBeGreaterThan(FLAT + 20) // a real edifice
     expect(vent).toBeGreaterThan(FLAT) // caldera floor still elevated
+    // a basin, not a funnel: full crater depth holds across the inner floor
+    const floorMid = v.landform(100 + 60 * 0.22 * 0.5, -50, FLAT)
+    expect(Math.abs(floorMid - vent)).toBeLessThan(1.5)
   })
 
   test('flanks blend the noise toward baseLevel (edifice dominates)', () => {
@@ -40,10 +43,12 @@ describe('volcano — the classic cone that fades in as an override', () => {
     const mid = v.province(125, -50)
     expect(mid).toBeGreaterThan(0)
     expect(mid).toBeLessThan(1)
-    // pools (intensity > ~0.75 → ladder stage 2.5+) must NOT extend past
-    // ~1.2 crater radii — the molten look stays inside the crater
+    // pools (intensity > ~0.75 → ladder stage 2.5+) live ONLY on the flat
+    // caldera floor; the wall and rim are seam-level, the flank colder
     const cr = 60 * 0.22
-    expect(v.province(100 + cr * 1.25, -50)).toBeLessThan(0.65)
+    expect(v.province(100 + cr * 0.5, -50)).toBeCloseTo(1) // floor
+    expect(v.province(100 + cr * 0.9, -50)).toBeLessThan(0.75) // wall
+    expect(v.province(100 + cr, -50)).toBeLessThanOrEqual(0.5) // rim
     expect(v.province(100 + cr * 2.5, -50)).toBeLessThan(0.45)
   })
 })

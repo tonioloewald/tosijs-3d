@@ -87,10 +87,14 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     const dz = z - cz
     const d = Math.sqrt(dx * dx + dz * dz)
     if (d >= radius) return h
-    const dome = smooth(1 - d / radius)
+    // The edifice profile holds its RIM value across the crater interior
+    // (dc clamp), so the caldera floor is genuinely level — a basin, not a
+    // funnel; the pool needs somewhere flat to sit. The crater term then
+    // sinks a flat floor (full depth out to ~0.55 crater radii, wall to rim).
+    const dc = Math.max(d, craterRadius)
+    const dome = smooth(1 - dc / radius)
     const cone = Math.pow(dome, 1.6)
-    // caldera: sinks inside craterRadius, leaving the rim as the summit
-    const crater = smooth(1 - d / craterRadius)
+    const crater = smooth((craterRadius - d) / (craterRadius * 0.45))
     const based = h + (baseLevel - h) * dome * clamp01(flatten)
     return based + height * cone - craterDepth * crater
   }
@@ -98,14 +102,17 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     const dx = x - cx
     const dz = z - cz
     const d = Math.sqrt(dx * dx + dz * dz)
-    // Two-part falloff so the LADDER lands where a volcano keeps it: full
-    // intensity (pools) confined to the caldera, a fast shoulder drop to
-    // seam-level just past the rim, then a long low tail (cold voronoi)
-    // down the flank. One smoothstep held pools too far outside the crater.
+    // The ladder lands where a volcano keeps it: full intensity (pools)
+    // ONLY on the flat caldera floor; the crater WALL and rim drop to half
+    // (glowing seams — crusted, never open lava, so the rim can't read as
+    // molten even where smoothed shading normals under-report steepness);
+    // outside, a long low tail (cold voronoi) down the flank.
+    const floorR = craterRadius * 0.55
+    if (d <= floorR) return glow
+    const wall = smooth(1 - (d - floorR) / (craterRadius - floorR))
     const past = Math.max(0, d - craterRadius)
-    const core = smooth(1 - past / (craterRadius * 0.5))
     const tail = smooth(1 - past / (radius * 0.4))
-    return glow * (0.5 * tail + 0.5 * core * core)
+    return glow * (0.5 + 0.5 * wall) * tail
   }
   return { landform, province }
 }
