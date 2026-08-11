@@ -173,3 +173,87 @@ describe('canonicalize (wrapper)', () => {
     expect(pUrl.x).toBeCloseTo(pLib.x)
   })
 })
+
+import { findCenterOfGravity, applyCenterOfGravity } from './model-transform'
+
+describe('the _centerOfGravity marker (vehicle node convention)', () => {
+  const build = (markerName: string) => {
+    const wrap = new BABYLON.TransformNode('craft', scene)
+    const hull = BABYLON.MeshBuilder.CreateBox(
+      'Hull_collide',
+      { size: 1 },
+      scene
+    )
+    hull.parent = wrap
+    hull.position.set(0, 0.5, 0)
+    const cog = new BABYLON.TransformNode(markerName, scene)
+    cog.parent = wrap
+    cog.position.set(0, 0.6, 0.1)
+    return { wrap, cog }
+  }
+
+  test('found by suffix — both spellings, and composed with .model', () => {
+    for (const name of [
+      'CoG_centerOfGravity',
+      'cog_center_of_gravity',
+      'CoG_centerOfGravity.model',
+    ]) {
+      const { wrap, cog } = build(name)
+      expect(findCenterOfGravity(wrap)).toBe(cog)
+      wrap.dispose()
+    }
+    const { wrap } = build('just_a_node')
+    expect(findCenterOfGravity(wrap)).toBeNull()
+    wrap.dispose()
+  })
+
+  test('rotation pivots about the CoG; the stance origin swings', () => {
+    const { wrap, cog } = build('CoG_centerOfGravity')
+    expect(applyCenterOfGravity(wrap)).toBe(cog)
+    wrap.position.set(10, 2, -5)
+    wrap.computeWorldMatrix(true)
+    cog.computeWorldMatrix(true)
+    const cogBefore = cog.getAbsolutePosition().clone()
+
+    // pitch the craft hard nose-down
+    wrap.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      0,
+      Math.PI / 2,
+      0
+    )
+    wrap.computeWorldMatrix(true)
+    cog.computeWorldMatrix(true)
+    // the CoG is the FIXED point of the rotation
+    expect(
+      BABYLON.Vector3.Distance(cog.getAbsolutePosition(), cogBefore)
+    ).toBeLessThan(1e-4)
+    // ...while the stance origin swung away from `position`
+    const origin = BABYLON.Vector3.TransformCoordinates(
+      BABYLON.Vector3.Zero(),
+      wrap.getWorldMatrix()
+    )
+    expect(BABYLON.Vector3.Distance(origin, wrap.position)).toBeGreaterThan(0.1)
+    wrap.dispose()
+  })
+
+  test('level attitude: the pivot is inert — parking is unchanged', () => {
+    const { wrap } = build('CoG_centerOfGravity')
+    applyCenterOfGravity(wrap)
+    wrap.position.set(3, 1.25, 7) // y = terrainHeight parks the stance point
+    wrap.computeWorldMatrix(true)
+    const origin = BABYLON.Vector3.TransformCoordinates(
+      BABYLON.Vector3.Zero(),
+      wrap.getWorldMatrix()
+    )
+    expect(origin.x).toBeCloseTo(3)
+    expect(origin.y).toBeCloseTo(1.25)
+    expect(origin.z).toBeCloseTo(7)
+    wrap.dispose()
+  })
+
+  test('no marker → no-op', () => {
+    const { wrap } = build('plain')
+    expect(applyCenterOfGravity(wrap)).toBeNull()
+    wrap.dispose()
+  })
+})

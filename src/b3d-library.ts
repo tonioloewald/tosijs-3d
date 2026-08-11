@@ -133,10 +133,12 @@ tosi-b3d { width: 100%; height: 100%; }
   → engine +Z); never fix orientation per-asset — a model that flies
   backwards needs its LOCAL frame fixed in Blender (edit-mode 180° about Z),
   not a rotation in the scene or the code.
-- **Origin: a vehicle's root-node origin is its on-ground stance point** —
-  origin at ground contact (between the wheels/gear), so `y = terrainHeight`
-  parks it. An aircraft adds a **centre-of-gravity node** as the next node
-  up: flight dynamics pivot about the CoG, ground placement uses the root.
+- **Origin: a vehicle's root-node origin is centred and grounded** — its
+  on-ground stance point (between the wheels/gear), so `y = terrainHeight`
+  parks it. Where the craft **pivots in flight** is declared by a child node
+  with the **`_centerOfGravity` suffix** (an empty at the mass centre):
+  aircraft rotate about the CoG while ground placement keeps the stance
+  origin — one model conveys both how it flies and how it plants.
 - **Exports: append `.model`** to each node you intend to publish
   (`scout.model`). Once a file declares any, ONLY those are listed — under
   their clean names (`getNames()` → `'scout'`, `instantiate('scout')` works) —

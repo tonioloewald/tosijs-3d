@@ -225,7 +225,7 @@ faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
-import { canonicalize } from './model-transform'
+import { canonicalize, applyCenterOfGravity } from './model-transform'
 import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
 import { aircraftMapping } from './virtual-gamepad'
@@ -1053,6 +1053,11 @@ export class B3dAircraft extends B3dControllable {
   private setupMesh(root: BABYLON.TransformNode, owner: B3d) {
     this.meshNode = root
     this._ownMeshes = null // rebuild the raycast exclusion set for the new model
+    // Vehicle node convention: root origin = on-ground stance point; a
+    // `_centerOfGravity` marker child says where the craft PIVOTS in flight.
+    // With one declared, attitude changes rotate about the CoG while
+    // `position` keeps meaning the stance point (parking is unchanged).
+    applyCenterOfGravity(root)
     if (root instanceof BABYLON.Mesh) {
       this.mesh = root
       root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2)

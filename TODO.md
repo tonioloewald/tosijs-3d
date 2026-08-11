@@ -600,13 +600,13 @@ the MVP** — the vertical-slice targets are inert cubes.
 [x] b3d-library: LoadAssetContainer-based parts catalog with type registry and hierarchical mesh picker
 [ ] Tile map component consuming libraries by type
 [ ] Decorator component (place library items on terrain)
-[ ] **Centre-of-gravity node convention — engine support.** Convention (2026-08-11): a
-vehicle's root origin is its on-ground stance point; an aircraft's next node up is its
-CoG. Engine side: `b3d-aircraft` should pivot flight dynamics about the CoG node when
-present (rotation about CoG, not the ground-stance origin — affects pitch/roll feel and
-chase-camera anchor), fall back to the derived bounding centre otherwise. Ground
-placement (`placeOnSurface`/spawn) keeps using the root — with a ground-stance origin,
-`boundingBottomOffset` clearance becomes exact rather than derived.
+[x] **Centre-of-gravity node convention — engine support** (2026-08-11). Root origin =
+centred + grounded stance point; a `_centerOfGravity`-suffixed child declares the flight
+pivot. `model-transform.findCenterOfGravity`/`applyCenterOfGravity`;
+`b3d-aircraft.setupMesh` sets the control-node pivot (level attitude ⇒ inert, parking
+unchanged; no marker ⇒ prior behaviour). Unit-tested. Follow-ups: chase camera could
+anchor to the CoG marker; `b3d-car` could use it for weight-transfer feel someday.
+Validate against the updated scout once its CoG empty lands in test-3.glb.
 [ ] Aircraft: auto gear retract/extend using the model's gear AnimationGroups (scout has
 them as of test-3.glb) — retract on takeoff past a height/speed gate, extend on approach.
 

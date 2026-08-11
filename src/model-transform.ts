@@ -82,3 +82,56 @@ export function normalizeScale(mesh: BABYLON.Mesh): BABYLON.Mesh {
   mesh.position.copyFrom(p)
   return mesh
 }
+
+/**
+ * Find a model's **centre-of-gravity marker** — a descendant whose name
+ * carries the `_centerOfGravity` suffix (underscore variant
+ * `_center_of_gravity` works too, and it composes with `.model` like every
+ * behaviour suffix). The vehicle node convention: the ROOT origin is the
+ * on-ground stance point (centred, grounded — `y = terrainHeight` parks it);
+ * the CoG marker says where the craft pivots in flight. Returns null when the
+ * model doesn't declare one.
+ */
+export function findCenterOfGravity(
+  root: BABYLON.TransformNode
+): BABYLON.TransformNode | null {
+  const match = (n: { name: string }) => {
+    // mirrors conventionName (b3d-utils) — inlined so this module stays
+    // dependency-free for headless tests
+    const lower = n.name.split('.model').join('').toLowerCase()
+    return (
+      lower.includes('_centerofgravity') || lower.includes('_center_of_gravity')
+    )
+  }
+  return (
+    (root
+      .getDescendants(false)
+      .find((n) => n instanceof BABYLON.TransformNode && match(n)) as
+      | BABYLON.TransformNode
+      | undefined) ?? null
+  )
+}
+
+/**
+ * Make `control` (a canonicalized vehicle wrapper) **pivot about the model's
+ * declared centre of gravity** while its position keeps meaning the root's
+ * on-ground stance point. With level attitude the pivot is inert — parking
+ * (`y = terrainHeight`) is unchanged; under pitch/roll the craft rotates
+ * about the CoG and the stance origin swings, which is the physically-honest
+ * motion. No marker → no-op. Returns the marker node (or null) so callers
+ * can expose it (debug, camera anchoring).
+ */
+export function applyCenterOfGravity(
+  control: BABYLON.TransformNode
+): BABYLON.TransformNode | null {
+  const cog = findCenterOfGravity(control)
+  if (!cog) return null
+  control.computeWorldMatrix(true)
+  cog.computeWorldMatrix(true)
+  const local = BABYLON.Vector3.TransformCoordinates(
+    cog.getAbsolutePosition(),
+    BABYLON.Matrix.Invert(control.getWorldMatrix())
+  )
+  control.setPivotPoint(local)
+  return cog
+}

@@ -405,6 +405,7 @@ Name suffixes on meshes/lights control **behavioral** properties that can't be i
 | `_collide` / `_collideSphere` | Sphere collider                         |
 | `_collideBox`                 | Box collider                            |
 | `_collideCylinder`            | Cylinder collider                       |
+| `_centerOfGravity`            | Marks the vehicle's flight pivot point  |
 | `_collideMesh`                | Mesh collider (exact shape)             |
 
 Underscore-separated variants also work (e.g., `_collide_box`).
@@ -430,10 +431,14 @@ narrative can't override measurement again.) Never fix orientation per-asset: a 
 flies backwards is authored nose-toward-local-+Y and needs its LOCAL frame fixed in Blender
 (edit-mode 180° about Z).
 
-**Vehicle node convention:** a vehicle's root-node origin is its **on-ground stance** point
-(origin at ground contact → `y = terrainHeight` parks it correctly). An aircraft adds a
-**centre-of-gravity node** as the next node up — flight dynamics pivot about the CoG, ground
-placement uses the root. (Engine-side CoG-pivot support: TODO.)
+**Vehicle node convention:** a vehicle's root-node origin is **centred and grounded** — its
+on-ground stance point (`y = terrainHeight` parks it correctly). Where the craft **pivots in
+flight** is declared by a child node with the **`_centerOfGravity` suffix** (underscore
+variant works; composes with `.model` like every behaviour suffix). Engine side:
+`model-transform.findCenterOfGravity`/`applyCenterOfGravity` — `b3d-aircraft.setupMesh` sets
+the control node's pivot to the marker, so attitude changes rotate about the CoG while
+`position` keeps meaning the stance point (level attitude ⇒ the pivot is inert, parking
+unchanged). No marker → no pivot, prior behaviour. The scout is being updated to carry both.
 
 ### Component Pattern
 
