@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>box — tosijs-3d</title>
+  <meta name="description" content="The flow box — the first-class SVG UI container built on [[flow-layout]]. A box paints its children (blocks + inline items + wrapped text) to an SVG &lt;g&gt;" />
+  <link rel="canonical" href="https://3d.tosijs.net/box/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="box — tosijs-3d" />
+  <meta property="og:description" content="The flow box — the first-class SVG UI container built on [[flow-layout]]. A box paints its children (blocks + inline items + wrapped text) to an SVG &lt;g&gt;" />
+  <meta property="og:url" content="https://3d.tosijs.net/box/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"box","description":"The flow box — the first-class SVG UI container built on [[flow-layout]]. A box paints its children (blocks + inline items + wrapped text) to an SVG \u003cg>","url":"https://3d.tosijs.net/box/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>box</h1>
+<p>The <strong>flow <code>box</code></strong> — the first-class SVG UI container built on <a href="/flow-layout/" class="wikilink">flow-layout</a>. A
+<code>box</code> paints its children (blocks + inline items + wrapped text) to an SVG <code>&lt;g&gt;</code>,
+gives itself a background / border, <strong>resizes</strong> (re-flowing text and inline wrap),
+and becomes a <strong>scroll region</strong> when its content outgrows a fixed height. It
+renders identically as a DOM node and — via <code>.el.outerHTML</code> — on a 3D texture
+(<a href="/svg-icons/" class="wikilink">iconGlyph</a> children bake explicit colours for exactly that), so one
+surface serves flat and VR.</p>
+<p>This is layout + paint + scroll. The <strong>event model</strong> (one <code>handlePointer</code> +
+focus-traversal for gamepad nav — see UI-DESIGN-NOTES) and the overlay/popup layer
+land next; the child protocol already carries the hooks they&#39;ll use.</p>
+<h2>Children</h2>
+<p>A <code>BoxChild</code> is <code>{ el, kind, measure, paint? }</code>:</p>
+<ul>
+<li><strong>block</strong> — fills the content width, <code>measure(width) → { height }</code>, stacks.</li>
+<li><strong>inline</strong> — <code>measure() → { width, height }</code>, flows left-to-right and wraps.</li>
+</ul>
+<p>Helpers build the common ones: <code>textBlock</code> (wraps text to the width via
+<a href="/widgets3d-layout/" class="wikilink">widgets3d-layout</a>&#39;s real glyph measurer), <code>inlineIcon</code> (an <code>iconGlyph</code>), and
+<code>blockItem</code> / <code>inlineItem</code> to drop in any SVG element at a known size.</p>
+<h2>Demo — the same box in the DOM and on a 3D texture</h2>
+<p><code>box.el</code> is an SVG <code>&lt;g&gt;</code>; wrap it in an <code>&lt;svg&gt;</code> to show it flat, or hand it to a
+<code>b3dSvgPlane</code> to rasterize it onto a plane. Same object, both surfaces.</p>
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, ui } from &#39;tosijs-3d&#39;
+const { box, textBlock, button, svgPoint } = ui
+import { svgElements, elements } from &#39;tosijs&#39;
+
+const { svg } = svgElements
+const { div } = elements
+const W = 240
+
+const readout = div(
+  { style: &#39;margin:6px 16px 16px;color:#8ea;font:13px system-ui&#39; },
+  &#39;Activate a button: click it, arrow-key + Enter, or click the 3D panel.&#39;
+)
+const act = (label) =&gt; () =&gt; {
+  readout.textContent = &#39;Activated: &#39; + label
+}
+
+const makePanel = () =&gt; {
+  // No `height` → the box HUGS its content; the svg takes the measured height,
+  // so there&#39;s no dead space below the last button.
+  const p = box(
+    { width: W, padding: 14, gap: 10, background: &#39;#161a22&#39;, border: &#39;#2a3140&#39;, radius: 12 },
+    textBlock(&#39;Flow box&#39;, { font: { size: 18, weight: 600 }, color: &#39;#e6e6e6&#39; }),
+    textBlock(
+      &#39;Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.&#39;,
+      { font: { size: 13 }, color: &#39;#9fb0c3&#39; }
+    ),
+    button(&#39;Talk&#39;, { onActivate: act(&#39;Talk&#39;) }),
+    button(&#39;Trade&#39;, { onActivate: act(&#39;Trade&#39;) }),
+    button(&#39;Leave&#39;, { onActivate: act(&#39;Leave&#39;) })
+  )
+  p.focusMove(1, 0) // focus the first button so the ring shows
+  return p
+}
+
+// ONE panel, shown in the DOM AND textured on the plane (SvgTexture clones the
+// live element each frame), so DOM and 3D stay in sync — a click or arrow-key in
+// either view drives the same box.
+const panel = makePanel()
+const H = panel.contentHeight
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, panel.el)
+svgEl.setAttribute(&#39;tabindex&#39;, &#39;0&#39;)
+const toBox = (e) =&gt; {
+  // svgPoint, not rect arithmetic: the viewBox is letterboxed when the
+  // container&#39;s aspect ratio differs, and a linear map drifts as it&#39;s resized.
+  const p = svgPoint(svgEl, e.clientX, e.clientY)
+  return [p.x, p.y]
+}
+svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; panel.handlePointer(&#39;down&#39;, ...toBox(e)))
+svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; panel.handlePointer(&#39;up&#39;, ...toBox(e)))
+svgEl.addEventListener(&#39;keydown&#39;, (e) =&gt; {
+  const m = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+  if (m[e.key]) { panel.focusMove(...m[e.key]); e.preventDefault() }
+  else if (e.key === &#39;Enter&#39; || e.key === &#39; &#39;) { panel.focusActivate(); e.preventDefault() }
+})
+
+// 3D side — panelScene packages the plane + camera + pick routing (uv → box
+// coords → the SAME panel&#39;s handlePointer, the path a VR ray takes), with the
+// camera yielding during panel presses and off-plane releases ending gestures.
+const { plane, sceneCreated } = panelScene({ svg: svgEl, target: panel })
+
+const scene = b3d(
+  {
+    // No fixed size: b3d&#39;s :host is already display:block / height:100%, so it
+    // CLEAVES TO ITS CONTAINER. Pinning it to px means the resize path is never
+    // exercised, which is exactly how resize bugs survive to production.
+    style: &#39;border-radius:8px;overflow:hidden&#39;,
+    sceneCreated,
+  },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+preview.append(
+  div(
+    { style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div(
+      { style: &#39;display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px&#39; },
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;DOM — click / arrow-key; 3D mirrors it&#39;, svgEl),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D texture — click the buttons&#39;, scene)
+    ),
+    readout
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+<h2>Resizable — drag to re-wrap, then scroll (flat AND in 3D)</h2>
+<p>Drag the corner grip — in the DOM <strong>or on the 3D plane</strong>: <code>box.resize(w, h)</code>
+re-flows, the paragraph re-wraps to the new width, and once the content is taller
+than the box it becomes a <strong>scroll region</strong> (spin the wheel, flat). One
+<strong>coordinate-based</strong> drag handler serves both presentations — mouse events and
+scene picks feed the same <code>(kind, x, y)</code> path a VR ray takes. On the 3D side,
+dragging the grip resizes and dragging anywhere ELSE still orbits the camera: the
+camera only yields while the gesture is genuinely the box&#39;s. The PLANE resizes
+with the box — the mesh rescales (anchored top-left) so the panel is the whole
+surface, not a patch on a dead slab. And because the visual mesh rescales under
+the pointer, the drag itself is collected by an invisible <strong>stable catcher quad</strong>
+(pickable only mid-gesture): the resizing thing can never be its own pick target,
+or growing fails outright and shrinking jitters.</p>
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, iconGlyph, ui } from &#39;tosijs-3d&#39;
+const { box, textBlock, svgPoint } = ui
+import { svgElements, elements } from &#39;tosijs&#39;
+
+const { svg, rect, g } = svgElements
+const { div } = elements
+
+// Reference size — the plane&#39;s world dimensions correspond to a VW×VH box at
+// scale 1; the mesh rescales as the box resizes, so the plane IS the box (no
+// dead texture area around a shrinking panel).
+const VW = 320
+const VH = 170
+const PW = 2.4
+const PH = (PW * VH) / VW
+let W = 320
+let H = 170
+const long =
+  &#39;This paragraph re-wraps as the box gets narrower, so its height grows. Shrink the box below the content height and it turns into a scroll region — spin the wheel (flat) to scroll. One box: resize, re-flow, and scroll, in the DOM and on the plane.&#39;
+const panel = box(
+  { width: W, height: H, padding: 14, gap: 8, background: &#39;#161a22&#39;, border: &#39;#2a3140&#39;, radius: 10 },
+  textBlock(&#39;Resizable box&#39;, { font: { size: 16, weight: 600 }, color: &#39;#e6e6e6&#39; }),
+  textBlock(long, { font: { size: 13 }, color: &#39;#9fb0c3&#39; })
+)
+
+const svgEl = svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H, style: &#39;touch-action:none&#39; })
+svgEl.append(panel.el)
+// The grip lives INSIDE the corner — the affordance is part of the box, not a
+// wart on it. An invisible pad gives it a finger-sized hit area; the visible
+// part is the resize glyph (the same icon set the rest of the UI draws from).
+const GRIP = 20
+const grip = g(
+  { style: &#39;cursor:nwse-resize&#39; },
+  rect({ width: GRIP, height: GRIP, fill: &#39;#fff&#39;, &#39;fill-opacity&#39;: 0, &#39;pointer-events&#39;: &#39;all&#39; }),
+  iconGlyph(&#39;resize&#39;, { color: &#39;#5fb0ff&#39;, size: 14, x: 3, y: 3 })
+)
+svgEl.append(grip)
+// The svg HUGS the box (flat and as the texture) and the MESH rescales to
+// match, anchored at its top-left like the flat copy. Anchoring also makes the
+// uv → box mapping invariant while the mesh changes under a mid-drag pointer,
+// which is what keeps the 3D gesture stable.
+const applySize = () =&gt; {
+  const vh = panel.viewportHeight
+  grip.setAttribute(&#39;transform&#39;, `translate(${W - GRIP - 2} ${vh - GRIP - 2})`)
+  svgEl.setAttribute(&#39;viewBox&#39;, `0 0 ${W} ${vh}`)
+  svgEl.setAttribute(&#39;width&#39;, W)
+  svgEl.setAttribute(&#39;height&#39;, vh)
+  if (plane.mesh) {
+    const sx = W / VW
+    const sy = vh / VH
+    plane.mesh.scaling.x = sx
+    plane.mesh.scaling.y = sy
+    plane.mesh.position.x = ((sx - 1) * PW) / 2
+    plane.mesh.position.y = ((1 - sy) * PH) / 2
+  }
+}
+
+// ONE coordinate-based handler. The flat listeners AND the scene picks feed it,
+// so the 3D plane resizes with the same code — nothing here is DOM-event-bound.
+let drag = null
+const overGrip = (x, y) =&gt;
+  x &gt;= W - GRIP - 2 &amp;&amp; x &lt;= W - 2 &amp;&amp;
+  y &gt;= panel.viewportHeight - GRIP - 2 &amp;&amp; y &lt;= panel.viewportHeight - 2
+const handle = (kind, x, y) =&gt; {
+  if (kind === &#39;down&#39; &amp;&amp; overGrip(x, y)) drag = { x, y, w: W, h: H }
+  else if (kind === &#39;move&#39; &amp;&amp; drag) {
+    W = Math.max(140, Math.min(400, drag.w + (x - drag.x)))
+    H = Math.max(70, Math.min(260, drag.h + (y - drag.y)))
+    panel.resize(W, H)
+    applySize()
+  } else if (kind === &#39;up&#39; || kind === &#39;leave&#39;) drag = null
+}
+
+const at = (e) =&gt; { const p = svgPoint(svgEl, e.clientX, e.clientY); return [p.x, p.y] }
+svgEl.addEventListener(&#39;pointerdown&#39;, (e) =&gt; { handle(&#39;down&#39;, ...at(e)); svgEl.setPointerCapture(e.pointerId) })
+svgEl.addEventListener(&#39;pointermove&#39;, (e) =&gt; handle(&#39;move&#39;, ...at(e)))
+svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; handle(&#39;up&#39;, ...at(e)))
+svgEl.addEventListener(&#39;wheel&#39;, (e) =&gt; { panel.scrollBy(e.deltaY); e.preventDefault() })
+
+// panelScene with a CLAIM predicate: only a grip press is the box&#39;s gesture —
+// dragging the panel body still orbits — and the claimed drag rides
+// panelScene&#39;s built-in catcher: stable coordinates in the gesture-start
+// frame, collected via the pick RAY, so the same drag works with a mouse flat
+// AND a controller ray in VR (screen coordinates don&#39;t exist in a headset).
+const { plane, sceneCreated } = panelScene({
+  svg: svgEl,
+  target: { handlePointer: handle },
+  claim: overGrip,
+  width: PW,
+})
+applySize()
+const scene = b3d(
+  { style: &#39;border-radius:8px;overflow:hidden&#39;, sceneCreated },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+preview.append(
+  div(
+    { style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div(
+      { style: &#39;display:flex;gap:20px;flex:1;min-height:0;padding:14px&#39; },
+      div(
+        { style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; },
+        &#39;DOM — drag the grip; wheel scrolls&#39;,
+        // FIXED footprint at the max clamp — the svg resizes INSIDE it, so the
+        // page layout (and the 3D scene beside it) never moves during a drag.
+        div({ style: &#39;width:400px;height:260px&#39; }, svgEl)
+      ),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D — drag the grip to resize; drag elsewhere to orbit&#39;, scene)
+    )
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; }
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link current" href="../box/" aria-current="page">box</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

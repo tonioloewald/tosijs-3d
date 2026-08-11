@@ -27,11 +27,12 @@ pinned here by unit tests, one function per shader expression.
 ## Demo — one shader, bottom muck → coral → beach → forest → snow
 
 Flat-colour chart cells (build-order step 1: validate the mapping before any
-texture). The terrain mixes tall **plateaus** (a `plateauFilter` on the gross
-noise — steep risers, gentle tops) with rolling relief through the waterline,
-so every transition in the spec is on screen at once: the marine column under
-the water, the beach at the shoreline, forest/steppe/dune bands by moisture,
-snow-capped plateau tops, and slope-override cliffs on the risers.
+texture). The terrain uses **localized [[slope-profile]]s** — sea cliffs in
+one region, mid-level mesas in another, smooth beach plain in a third, with
+continuous transitions between (cliffs of Dover walking down into Brighton
+beach) — so every spec transition is on screen at once: the marine column
+under the water, the beach at the shoreline, forest/steppe/dune bands by
+moisture, snow on the high tops, slope-override cliffs on the risers.
 
 Two sliders make the CHART's behaviour visible, not just the picture:
 **climate** (base temperature) — drag it cold and the beach→…→ice run
@@ -40,26 +41,33 @@ from the lapse; **map moisture** — sweep forest → steppe → dune on the sam
 terrain. Drag to orbit.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, plateauFilter, slider3d, label3d } from 'tosijs-3d'
+import {
+  b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
+  mesaProfile, beachProfile, cliffProfile, blendProfiles, profileField,
+} from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 
 // PINNED showcase vista — seed + scales chosen so this exact terrain shows
-// every spec transition at once (plateau snow, forest bands, beach, marine
-// column, cliff risers). Change DELIBERATELY, with the page open: the demo is
-// the test. (Pinning a seed beats a fixed mesh: same reproducible vista, but
-// the streaming/LOD path stays exercised instead of silently frozen.)
+// every spec transition at once. Change DELIBERATELY, with the page open: the
+// demo is the test. (Pinning a seed beats a fixed mesh: same reproducible
+// vista, but the streaming/LOD path stays exercised instead of frozen.)
 const SHOWCASE = {
   seed: 11,
   grossScale: 0.009,
   grossAmplitude: 60,
   fineScale: 0.06,
   fineAmplitude: 4,
-  plateauSteps: 4,
 }
 const terrain = b3dTerrain({ biome: 'on', ...SHOWCASE })
-// Tall plateaus: quantize the gross field — steep risers (cliff override
-// territory) with gentle tops, dropping through sea level into basins.
-terrain.grossFilter = plateauFilter(SHOWCASE.plateauSteps)
+// LOCALIZED slope profiles (Photoshop-levels for terrain): sea cliffs in one
+// region, MID-LEVEL mesas in another, smooth beach/coastal plain in a third —
+// continuous transitions between regions (the Dover→Brighton move). Nested
+// blends stay position-aware; the fields are seeded and deterministic.
+terrain.grossFilter = blendProfiles(
+  blendProfiles(cliffProfile(0.4, 0.1), mesaProfile(5), profileField(21, 0.0035)),
+  beachProfile(),
+  profileField(87, 0.0028)
+)
 terrain.regenerate()
 
 const scene = b3d(

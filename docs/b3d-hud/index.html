@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>b3d-hud — tosijs-3d</title>
+  <meta name="description" content="A drop-in aircraft HUD: mounts the hud SVG as an additive, translucent overlay centred over the scene and exposes setMeter / setHorizon / setTraces to" />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-hud/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-hud — tosijs-3d" />
+  <meta property="og:description" content="A drop-in aircraft HUD: mounts the hud SVG as an additive, translucent overlay centred over the scene and exposes setMeter / setHorizon / setTraces to" />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-hud/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-hud","description":"A drop-in aircraft HUD: mounts the hud SVG as an additive, translucent overlay centred over the scene and exposes setMeter / setHorizon / setTraces to","url":"https://3d.tosijs.net/b3d-hud/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>b3d-hud</h1>
+<p>A drop-in aircraft HUD: mounts the <a href="../hud/">hud</a> SVG as an <strong>additive, translucent</strong>
+overlay centred over the scene and exposes <code>setMeter</code> / <code>setHorizon</code> / <code>setTraces</code> to
+drive it each frame. The heavy lifting is the pure <a href="../hud-math/">hud-math</a> (radar
+projection + horizon) and the <code>hud</code> driver; this component just handles mounting and
+lifecycle. Wire it to a <a href="../b3d-aircraft/">b3d-aircraft</a>&#39;s state + the scene&#39;s targets.</p>
+<p><strong>In-scene / cockpit mode.</strong> <code>attachInScene(parent, opts)</code> rasterizes the SAME live
+HUD SVG onto a plane in the 3D scene (via <a href="../svg-texture/">svg-texture</a>) — so the HUD
+shows in a <strong>3D cockpit and in VR</strong>, where a DOM overlay is invisible. <code>b3d-aircraft</code>
+mounts it on the canopy automatically (banks with the airframe, not head-locked) and
+shows it in the cockpit view; <code>setInSceneVisible(bool)</code> toggles it.</p>
+<h2>Demo</h2>
+<p>Scrub the meters and attitude in the ⚙ panel; the radar traces orbit a fixed viewer,
+tracking inside the ring when in the field of view and pinning to the periphery when
+they swing out or behind.</p>
+<pre><code class="language-js">import { b3d, b3dHud, b3dSkybox, label3d, slider3d, select3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { s } = tosi({ s: { speed: 0.62, altitude: 0.4, health: 0.9, energy: 0.7, pitch: 0, roll: 0, warn: &#39;none&#39; } })
+const hud = b3dHud({})
+
+// A warning maps to a text line + the arc side that flashes red.
+const warnMap = {
+  &#39;none&#39;: [],
+  &#39;PULL UP&#39;: [{ text: &#39;PULL UP&#39;, side: &#39;bottom&#39; }],
+  &#39;MISSILE right&#39;: [{ text: &#39;MISSILE&#39;, side: &#39;right&#39; }],
+  &#39;MISSILE left&#39;: [{ text: &#39;MISSILE&#39;, side: &#39;left&#39; }],
+  &#39;STALL&#39;: [{ text: &#39;STALL&#39;, side: &#39;top&#39; }],
+}
+
+const scene = b3d(
+  {
+    scenePanelOpen: true,
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;HUD&#39;, bold: true }),
+      slider3d({ label: &#39;speed (red)&#39;, value: s.speed, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: &#39;altitude (blue)&#39;, value: s.altitude, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: &#39;health (green)&#39;, value: s.health, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: &#39;energy (yellow)&#39;, value: s.energy, min: 0, max: 1, step: 0.01 }),
+      slider3d({ label: &#39;pitch&#39;, value: s.pitch, min: -90, max: 90, step: 1 }),
+      slider3d({ label: &#39;roll&#39;, value: s.roll, min: -90, max: 90, step: 1 }),
+      select3d({ label: &#39;warning&#39;, value: s.warn, options: Object.keys(warnMap), onChange: (v) =&gt; hud.setWarnings(warnMap[v] || []) }),
+    ],
+  },
+  b3dSkybox({ timeOfDay: 9 }),
+  hud,
+)
+preview.append(scene)
+
+const apply = () =&gt; {
+  hud.setMeter(&#39;speed&#39;, s.speed.value)
+  hud.setMeter(&#39;altitude&#39;, s.altitude.value)
+  hud.setMeter(&#39;health&#39;, s.health.value)
+  hud.setMeter(&#39;energy&#39;, s.energy.value)
+  hud.setHorizon(s.pitch.value, s.roll.value, s.pitch.value)
+  hud.setWarnings(warnMap[s.warn.value] || [])
+}
+for (const k of [&#39;speed&#39;, &#39;altitude&#39;, &#39;health&#39;, &#39;energy&#39;, &#39;pitch&#39;, &#39;roll&#39;, &#39;warn&#39;]) s[k].observe(apply)
+apply()
+
+// Radar traces orbiting a fixed viewer at the origin (facing +Z).
+const viewer = { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0, w: 1 } }
+const kinds = [&#39;hostile&#39;, &#39;friendly&#39;, &#39;neutral&#39;, &#39;waypoint&#39;]
+let t = 0
+setInterval(() =&gt; {
+  t += 0.03
+  const traces = kinds.map((kind, i) =&gt; ({
+    kind,
+    pos: { x: Math.sin(t + i * 1.6) * 34, y: Math.sin(t * 0.7 + i) * 12, z: Math.cos(t + i * 1.6) * 34 },
+  }))
+  // track inside the ring (radius 84), pin OUTSIDE the gauges (pinRadius 116)
+  hud.setTraces(traces, viewer, { fovH: Math.PI / 2, fovV: Math.PI / 2, radius: 84, pinRadius: 116 })
+}, 32)
+</code></pre>
+<pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>url</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Empty = the built-in code HUD (fully wired); set to a designer SVG to load one</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>70</code></td>
+<td>HUD height as a % of the canvas&#39;s smaller dimension</td>
+</tr>
+<tr>
+<td><code>pxPerDeg</code></td>
+<td><code>8</code></td>
+<td>Pitch-ladder pixels per degree</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link current" href="../b3d-hud/" aria-current="page">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

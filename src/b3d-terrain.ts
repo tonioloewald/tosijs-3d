@@ -472,15 +472,27 @@ export class B3dTerrain extends B3dChild {
     // rest so it costs nothing per sample.
     const baseHeight = attrs.baseHeight + (attrs.center ? -grossAmp / 2 : 0)
 
+    // Position-aware profiles (slope-profile.ts): a filter with `evaluateAt`
+    // localizes across the terrain — mesas HERE, rolling hills THERE (the
+    // Dover→Brighton blend). Coordinates are ORIGIN-STABLE (wx + offX), so a
+    // floating-origin reset can't teleport a region boundary. Hoisted checks:
+    // this closure is the per-vertex hot path.
+    const grossAt = (grossFilter as any).evaluateAt?.bind(grossFilter)
+    const detailAt = (detailFilter as any).evaluateAt?.bind(detailFilter)
     return (wx: number, wz: number): number => {
-      const u = worldU + (wx + offX) / circumU
-      const v = worldV + (wz + offZ) / circumV
+      const ax = wx + offX
+      const az = wz + offZ
+      const u = worldU + ax / circumU
+      const v = worldV + az / circumV
       const p = sampler.sample(u, v)
       const gross = noise.fractal(p.x * gScale, p.y * gScale, p.z * gScale, 4)
       const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3)
+      const g = gross * 0.5 + 0.5
+      const d = detail * 0.5 + 0.5
       return (
-        grossFilter.evaluate(gross * 0.5 + 0.5) * grossAmp +
-        detailFilter.evaluate(detail * 0.5 + 0.5) * detailAmp +
+        (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
+        (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
+          detailAmp +
         baseHeight
       )
     }

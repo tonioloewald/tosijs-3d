@@ -470,6 +470,17 @@ export {
   photicFactor,
 } from './biome-chart'
 export type { BiomeChartConfig } from './biome-chart'
+// Slope profiles — levels adjustments for terrain, localizable across regions
+export {
+  cliffProfile,
+  beachProfile,
+  rollingProfile,
+  mesaProfile,
+  terraceProfile,
+  blendProfiles,
+  profileField,
+} from './slope-profile'
+export type { LocalizedFilter } from './slope-profile'
 export {
   BiomePlugin,
   attachBiomePlugin,

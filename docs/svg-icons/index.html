@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>svg-icons — tosijs-3d</title>
+  <meta name="description" content="An icon proxy in the style of tosijs-ui&#39;s icons, over tosijs-3d&#39;s own focused icon set. svgIcons.&lt;name&gt;() returns an SVG ElementCreator — so you get the full…" />
+  <link rel="canonical" href="https://3d.tosijs.net/svg-icons/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="svg-icons — tosijs-3d" />
+  <meta property="og:description" content="An icon proxy in the style of tosijs-ui&#39;s icons, over tosijs-3d&#39;s own focused icon set. svgIcons.&lt;name&gt;() returns an SVG ElementCreator — so you get the full…" />
+  <meta property="og:url" content="https://3d.tosijs.net/svg-icons/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"svg-icons","description":"An icon proxy in the style of tosijs-ui's icons, over tosijs-3d's own focused icon set. svgIcons.\u003cname>() returns an SVG ElementCreator — so you get the full…","url":"https://3d.tosijs.net/svg-icons/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>svg-icons</h1>
+<p>An <strong>icon proxy</strong> in the style of tosijs-ui&#39;s <code>icons</code>, over tosijs-3d&#39;s own
+focused icon set. <code>svgIcons.&lt;name&gt;()</code> returns an SVG <strong><code>ElementCreator</code></strong> — so you
+get the full power of the elements factory (props, bindings, event handlers,
+children), not just a static blob. Because it&#39;s a real element it works both as a
+flat DOM node <strong>and</strong> — via <code>.outerHTML</code> — as markup rasterized into an in-scene
+SVG texture (the VR panels), so one icon set serves both presentations.</p>
+<h2>Demo</h2>
+<p>The whole set, plus a few composed variants (rotate / flip / opacity / a
+generator redirect). <code>color</code> sets <code>currentColor</code>, which the stroked glyphs follow
+and the baked-color cube ignores.</p>
+<pre><code class="language-js">import { svgIcons, iconNames } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div } = elements
+
+const tile = (name) =&gt;
+  div(
+    {
+      style:
+        &#39;display:flex;flex-direction:column;align-items:center;gap:6px;width:88px;color:#dfe6ef;font:12px system-ui&#39;,
+    },
+    svgIcons[name]({ style: { height: &#39;40px&#39;, color: &#39;#5fb0ff&#39; } }),
+    div(name)
+  )
+
+const names = [
+  ...iconNames(),
+  &#39;arrowUpRight90r&#39;, // rotate: ↗ → ↘
+  &#39;arrowUpRight0f&#39;, // flip H: ↗ → ↖ (a rotation can&#39;t produce this)
+  &#39;camera50o&#39;, // 50% opacity
+  &#39;arrowDownRight&#39;, // a generator redirect (→ arrowUpRight90r)
+]
+
+preview.style.overflow = &#39;auto&#39;
+preview.append(
+  div(
+    {
+      style:
+        &#39;display:flex;flex-wrap:wrap;gap:18px;padding:20px;background:#141821;border-radius:12px&#39;,
+    },
+    ...names.map(tile)
+  )
+)
+</code></pre>
+<h2>Composition suffixes</h2>
+<p>Names carry a <strong>subset</strong> of tosijs-ui&#39;s suffix grammar (see <a href="/icon-name/" class="wikilink">icon-name</a>) — the
+pure style modifiers: rotate/flip/scale/translate/opacity/stroke-width/color.
+Directional redirects baked in by the icon generator resolve too:</p>
+<pre><code class="language-javascript">svgIcons.arrowUpRight90r() // rotate:  ↗ → ↘
+svgIcons.arrowUpRight0f()  // flip H:  ↗ → ↖  (a rotation can&#39;t produce this)
+svgIcons.arrowDownRight()  // generator redirect → arrowUpRight rotated 90°
+svgIcons.camera50o()       // camera at 50% opacity
+svgIcons.xrColor()         // the purpose-built &quot;enter XR / VR&quot; mark
+</code></pre>
+<p>Not implemented (deliberately): <code>$</code> stacking and the <code>spin</code>/<code>un</code>/<code>check</code> overlay
+rule-prefixes.</p>
+<h2>The set</h2>
+<p>The artwork lives in <code>icons/{color,stroked,filled}/*.svg</code>; <code>bun run icons</code>
+regenerates <a href="/icon-data/" class="wikilink">icon-data</a> via tosijs-ui&#39;s <code>tosijs-make-icons</code> generator (folder
+name → default fill/stroke/color handling). Add an SVG, rerun, done. Notable
+marks: <code>tosijs3d</code> (the brand cube), <code>xrColor</code> (the enter-XR/VR affordance, from
+tosijs-ui), and <code>tosiXr</code>.</p>
+<h2>DOM or 3D — svgIcons vs iconGlyph</h2>
+<p>The same icons two ways, side by side: <code>svgIcons</code> in the DOM (left) and
+<code>iconGlyph</code> baked onto an in-scene SVG <strong>texture</strong> (right). The 3D
+grid proves the raster path — <code>currentColor</code> doesn&#39;t resolve there, so <code>iconGlyph</code>
+bakes explicit colours (here <code>#e6e6e6</code>), while <code>color</code> icons keep their palette.
+Orbit the plane; they should match the DOM grid.</p>
+<pre><code class="language-js">import { b3d, b3dLight, b3dSvgPlane, svgIcons, iconGlyph, iconNames } from &#39;tosijs-3d&#39;
+import { svgElements, elements } from &#39;tosijs&#39;
+
+const { svg, rect } = svgElements
+const { div } = elements
+
+const names = iconNames().slice(0, 12)
+const cols = 4
+const cell = 64
+const iconPx = 40
+const rows = Math.ceil(names.length / cols)
+const w = cols * cell
+const h = rows * cell
+
+// 3D side: one SVG sheet of iconGlyphs (explicit colours) → plane texture.
+const sheet = svg(
+  { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
+  rect({ x: 0, y: 0, width: w, height: h, fill: &#39;#141821&#39; }),
+  ...names.map((n, i) =&gt;
+    iconGlyph(n, {
+      color: &#39;#e6e6e6&#39;,
+      size: iconPx,
+      x: (i % cols) * cell + (cell - iconPx) / 2,
+      y: Math.floor(i / cols) * cell + (cell - iconPx) / 2,
+    })
+  )
+)
+
+const plane = b3dSvgPlane({
+  width: 2.4,
+  height: (2.4 * h) / w,
+  resolution: 512,
+  materialChannel: &#39;emissive&#39;,
+  pointerEvents: &#39;off&#39;,
+})
+plane.svgElement = sheet
+
+const scene = b3d(
+  {
+    // &lt;tosi-b3d&gt; has no intrinsic size — it MUST be given one or it collapses to
+    // zero height and the canvas renders blank (a snapshot() still works, since
+    // that renders offscreen, so size it explicitly for the on-page view).
+    // Cleaves to its container — see the note in box.ts&#39;s demo.
+    style: &#39;border-radius:8px;overflow:hidden&#39;,
+    sceneCreated(el) {
+      const cam = new el.BABYLON.ArcRotateCamera(
+        &#39;cam&#39;, -Math.PI / 2, Math.PI / 2.6, 3.2, el.BABYLON.Vector3.Zero(), el.scene
+      )
+      el.setActiveCamera(cam)
+      cam.attachControl(el.scene.getEngine().getRenderingCanvas(), true)
+    },
+  },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+// DOM side: the same icons via svgIcons.
+const domGrid = div(
+  {
+    style: `display:grid;grid-template-columns:repeat(${cols},${cell}px);background:#141821;color:#e6e6e6`,
+  },
+  ...names.map((n) =&gt;
+    div(
+      { style: `display:flex;align-items:center;justify-content:center;height:${cell}px` },
+      svgIcons[n]({ style: { height: `${iconPx}px` } })
+    )
+  )
+)
+
+preview.append(
+  div(
+    { style: &#39;display:flex;gap:24px;height:100%;padding:16px;background:#0c0e14;box-sizing:border-box&#39; },
+    div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;min-width:0&#39; }, &#39;DOM (svgIcons)&#39;, domGrid),
+    div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:220px&#39; }, &#39;3D texture (iconGlyph)&#39;, scene)
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview {
+  height: 100%;
+}
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link current" href="../svg-icons/" aria-current="page">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

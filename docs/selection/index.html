@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>selection — tosijs-3d</title>
+  <meta name="description" content="The selection-state glyph: circle / checkCircle for single-select (radio), square / checkSquare for multi-select (checkbox)." />
+  <link rel="canonical" href="https://3d.tosijs.net/selection/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="selection — tosijs-3d" />
+  <meta property="og:description" content="The selection-state glyph: circle / checkCircle for single-select (radio), square / checkSquare for multi-select (checkbox)." />
+  <meta property="og:url" content="https://3d.tosijs.net/selection/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"selection","description":"The selection-state glyph: circle / checkCircle for single-select (radio), square / checkSquare for multi-select (checkbox).","url":"https://3d.tosijs.net/selection/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>selection</h1>
+<p>The <strong>selection-state glyph</strong>: <code>circle</code> / <code>checkCircle</code> for single-select (radio),
+<code>square</code> / <code>checkSquare</code> for multi-select (checkbox). Used by lists and
+<a href="/table-layout/" class="wikilink">tables</a>, and by anything else that needs to show <em>chosen</em> separately
+from <em>hovered</em>.</p>
+<h2>Why an icon rather than a highlight</h2>
+<p>Hover, focus, pressed and disabled all naturally want the same encoding — <strong>intensity</strong>
+(contrast, opacity, brightness). Piling selection onto that axis means tuning five
+states against each other, and the result is fragile: subtly different greys that read
+as &quot;slightly off&quot; rather than as distinct states, and that stop being distinguishable
+the moment a theme, a background or a viewing angle changes.</p>
+<p>An icon is a <strong>different channel</strong>, so it&#39;s orthogonal — a row can be hovered <em>and</em>
+selected <em>and</em> focused at once and all three still read, with nothing finessed against
+anything else.</p>
+<p>That matters more here than in a flat DOM UI, because these surfaces are also
+rasterized onto a <strong>3D texture</strong> and viewed through headset optics: at texture
+resolution, off-axis, small intensity differences are the first thing to vanish. A
+glyph has <em>shape</em>, not just value, so it survives.</p>
+<p>See UI-DESIGN-NOTES.md → &quot;Show selection with an icon, not with intensity&quot;.</p>
+<h2>Demo</h2>
+<p>The same four rows under each mode. Click to select — and note that <strong>hover and
+selection never fight</strong>: hover is background intensity, selection is the glyph.</p>
+<pre><code class="language-js">import { iconGlyph, ui } from &#39;tosijs-3d&#39;
+const { selectionIcon, applySelection, svgPoint } = ui
+import { svgElements, elements } from &#39;tosijs&#39;
+
+const { svg, g, rect, text } = svgElements
+const { div } = elements
+
+const ITEMS = [&#39;rifle&#39;, &#39;medkit&#39;, &#39;ration&#39;, &#39;flare&#39;]
+const readout = div(
+  { style: &#39;margin:10px 4px;color:#8ea;font:13px system-ui&#39; },
+  &#39;Nothing selected.&#39;
+)
+
+const makeList = (mode, x, title) =&gt; {
+  let selected = new Set(mode === &#39;single&#39; ? [&#39;medkit&#39;] : [&#39;medkit&#39;, &#39;flare&#39;])
+  let hover = -1
+  const host = g({ transform: `translate(${x} 0)` })
+  const paint = () =&gt; {
+    host.replaceChildren(
+      text({ x: 0, y: 14, &#39;font-size&#39;: 12, &#39;font-family&#39;: &#39;system-ui&#39;, fill: &#39;#9fb0c3&#39; }, title)
+    )
+    ITEMS.forEach((name, i) =&gt; {
+      const y = 26 + i * 32
+      const isSel = selected.has(name)
+      host.append(
+        g({},
+          rect({ x: 0, y, width: 170, height: 30, rx: 6, fill: i === hover ? &#39;rgba(255,255,255,0.13)&#39; : &#39;transparent&#39; }),
+          iconGlyph(selectionIcon(mode, isSel), { size: 17, color: isSel ? &#39;#39c5ff&#39; : &#39;#9aa0a6&#39;, x: 7, y: y + 7 }),
+          text({ x: 34, y: y + 20, &#39;font-size&#39;: 14, &#39;font-family&#39;: &#39;system-ui&#39;, fill: &#39;#f0f0f0&#39; }, name)
+        )
+      )
+    })
+  }
+  paint()
+  return {
+    host,
+    hit: (lx, ly) =&gt; {
+      const i = Math.floor((ly - 26) / 32)
+      return lx &gt;= 0 &amp;&amp; lx &lt;= 170 &amp;&amp; i &gt;= 0 &amp;&amp; i &lt; ITEMS.length ? i : -1
+    },
+    move: (i) =&gt; { if (i !== hover) { hover = i; paint() } },
+    click: (i) =&gt; {
+      if (i &lt; 0) return
+      selected = applySelection(selected, ITEMS[i], mode)
+      paint()
+      readout.textContent = `${title}: ${[...selected].join(&#39;, &#39;) || &#39;(none)&#39;}`
+    },
+  }
+}
+
+const single = makeList(&#39;single&#39;, 0, &#39;single-select — circle / checkCircle&#39;)
+const multi = makeList(&#39;multi&#39;, 200, &#39;multi-select — square / checkSquare&#39;)
+const sheet = svg({ width: 380, height: 170, viewBox: &#39;0 0 380 170&#39;, style: &#39;max-width:100%&#39; },
+  single.host, multi.host)
+
+const local = (e) =&gt; {
+  // svgPoint, not rect arithmetic — a letterboxed viewBox makes a linear map drift.
+  const p = svgPoint(sheet, e.clientX, e.clientY)
+  return [p.x, p.y]
+}
+sheet.addEventListener(&#39;pointermove&#39;, (e) =&gt; {
+  const [x, y] = local(e)
+  single.move(single.hit(x, y))
+  multi.move(multi.hit(x - 200, y))
+})
+sheet.addEventListener(&#39;pointerdown&#39;, (e) =&gt; {
+  const [x, y] = local(e)
+  single.click(single.hit(x, y))
+  multi.click(multi.hit(x - 200, y))
+})
+
+preview.append(div({ style: &#39;padding:16px;background:#0c0e14&#39; }, sheet, readout))
+</code></pre>
+<p>Deliberately <strong>name-only, no drawing</strong>: emitting a glyph here would mean importing the
+icon layer, which imports tosijs, which needs a DOM — and then this module could no
+longer be unit-tested without one. The names are the part worth pinning; the caller
+already has an icon helper.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link current" href="../selection/" aria-current="page">selection</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>
