@@ -20,6 +20,7 @@ no issue URL is a complaint nobody will ever read.
 | `haltija`   | Tab selection follows focus, not cwd — commands can land on another project's page                                                                              | [haltija#2](https://github.com/tonioloewald/haltija/issues/2)       |
 | `tosijs-ui` | Dev server dies silently when a standalone build runs concurrently (shared docs/dist output tree — needs a lock, or at least a loud death)                      | [tosijs-ui#51](https://github.com/tonioloewald/tosijs-ui/issues/51) |
 | `tosijs-ui` | `tosi-example` has no full-bleed/preview-sizing option — consumers pay a specificity hack + per-demo `.preview` css fences coupled to internal class names      | [tosijs-ui#52](https://github.com/tonioloewald/tosijs-ui/issues/52) |
+| `tosijs-ui` | `devServer` inherits Bun.serve's 10s `idleTimeout` — a multi-MB bundle fetched from ANOTHER DEVICE on the LAN is cut off mid-transfer (page loads, then stalls); invisible on loopback | [tosijs-ui#63](https://github.com/tonioloewald/tosijs-ui/issues/63) |
 | `tosijs-ui` | Live-example scope: a demo's `const name` silently collides with `window.name` (same family as tjs-lang#22)                                                     | [tosijs-ui#53](https://github.com/tonioloewald/tosijs-ui/issues/53) |
 
 ## Resolved

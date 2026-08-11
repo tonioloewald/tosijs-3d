@@ -144,31 +144,51 @@ const CLOUD_LAYOUT = [
   { t: 0.95, u: 0.2, s: 0.52 },
 ]
 
+/** Fraction of the lobe's radius that sits BELOW its equator after the
+ * underside is flattened — the base-alignment math needs it. */
+const LOBE_BOTTOM = 0.32
+
 /**
- * The base cloud form: a sphere TAPERED along its local Z into an egg (fat at
- * one end, narrow at the other), then squashed flat by the per-blob scaling.
- * A plain ellipsoid reads as a balloon from every angle; an egg has a nose and
- * a tail, so a cluster of them at different yaws makes a silhouette with
- * structure instead of a bag of bubbles. Geometry is deformed once at build —
- * no per-frame cost, and every blob shares the same low-poly budget.
+ * The base cloud form — a cloud LOBE, not a balloon. Three deformations on a
+ * cheap sphere, all baked once at build (no per-frame cost):
+ *
+ * 1. **Flat underside.** Cumulus condense at a level, so a lobe is domed on
+ *    top and flat beneath. Vertices below the equator are squashed toward it.
+ * 2. **Egg taper** along local Z — a nose and a tail, so a cluster of them at
+ *    different yaws has structure instead of symmetry.
+ * 3. **Lumps.** Low-frequency bumps around the dome break the ellipse
+ *    silhouette into something cauliflower-ish; without them a squashed
+ *    sphere reads as a lozenge no matter how it's scaled (which is exactly
+ *    what the first cut looked like).
  */
 function makeEggMesh(
   name: string,
   scene: BABYLON.Scene,
-  bias = 0.42
+  bias = 0.3
 ): BABYLON.Mesh {
   const m = BABYLON.MeshBuilder.CreateSphere(
     name,
-    { diameter: 2, segments: 7 },
+    { diameter: 2, segments: 12 }, // enough rows for the lumps to show
     scene
   )
   const pos = m.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
   for (let i = 0; i < pos.length; i += 3) {
-    // taper radially by position along the long axis: 1+bias at the fat end,
-    // 1-bias at the narrow one
-    const k = 1 + bias * pos[i + 2]
-    pos[i] *= k
-    pos[i + 1] *= k
+    const x = pos[i]
+    const y = pos[i + 1]
+    const z = pos[i + 2]
+    // lumps: a few bumps around the vertical axis, strongest over the dome
+    // and fading to nothing at the flat base
+    const theta = Math.atan2(z, x)
+    const up = Math.max(0, y)
+    const lump =
+      1 +
+      up * (0.11 * Math.sin(3 * theta + 0.7) + 0.07 * Math.sin(5 * theta + 2.1))
+    // egg taper along Z (fat end at +Z)
+    const taper = 1 + bias * z
+    pos[i] = x * taper * lump
+    pos[i + 2] = z * lump
+    // flat underside
+    pos[i + 1] = (y < 0 ? y * LOBE_BOTTOM : y * (1 + 0.12 * lump)) * taper
   }
   m.updateVerticesData(BABYLON.VertexBuffer.PositionKind, pos)
   const normals = m.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
@@ -383,7 +403,7 @@ export class B3dClouds extends B3dChild {
         const off = {
           // relative to the cluster's BASE, not its centre
           x: cos * along,
-          y: sc * 0.45 + L.u * leadHalf * vMul,
+          y: sc * 0.45 * LOBE_BOTTOM + L.u * leadHalf * vMul,
           z: sin * along,
         }
         this._offsets.push(off)
