@@ -98,8 +98,14 @@ export function volcano(opts: VolcanoOptions): AuthoredLandform {
     const dx = x - cx
     const dz = z - cz
     const d = Math.sqrt(dx * dx + dz * dz)
-    // full intensity across the caldera, fading out by ~2/3 of the flank
-    return glow * smooth(1 - Math.max(0, d - craterRadius) / (radius * 0.45))
+    // Two-part falloff so the LADDER lands where a volcano keeps it: full
+    // intensity (pools) confined to the caldera, a fast shoulder drop to
+    // seam-level just past the rim, then a long low tail (cold voronoi)
+    // down the flank. One smoothstep held pools too far outside the crater.
+    const past = Math.max(0, d - craterRadius)
+    const core = smooth(1 - past / (craterRadius * 0.5))
+    const tail = smooth(1 - past / (radius * 0.4))
+    return glow * (0.5 * tail + 0.5 * core * core)
   }
   return { landform, province }
 }

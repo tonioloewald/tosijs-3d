@@ -34,12 +34,17 @@ describe('volcano — the classic cone that fades in as an override', () => {
     expect(Math.abs(a - b)).toBeLessThan(20 * 0.6)
   })
 
-  test('province: molten at the vent, dead by the footprint', () => {
+  test('province: molten confined to the caldera, dead by the footprint', () => {
     expect(v.province(100, -50)).toBeCloseTo(1)
     expect(v.province(160, -50)).toBe(0)
     const mid = v.province(125, -50)
     expect(mid).toBeGreaterThan(0)
     expect(mid).toBeLessThan(1)
+    // pools (intensity > ~0.75 → ladder stage 2.5+) must NOT extend past
+    // ~1.2 crater radii — the molten look stays inside the crater
+    const cr = 60 * 0.22
+    expect(v.province(100 + cr * 1.25, -50)).toBeLessThan(0.65)
+    expect(v.province(100 + cr * 2.5, -50)).toBeLessThan(0.45)
   })
 })
 
