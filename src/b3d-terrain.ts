@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -70,10 +70,11 @@ const posDisplay = span({ class: 'pos-display' })
 // Fly the terrain in the VTOL aircraft. It spawns high (well above the ~210 peaks
 // with v size 200), so it's already above the hover ceiling → in FLIGHT mode:
 // right trigger = forward throttle, pull back to climb, turn stick banks.
-const aircraft = b3dAircraft({
+const plane = () => b3dAircraft({
   library: 'vehicles', meshName: 'scout',
   player: true, y: 400, vtolSpeed: 6, maxSpeed: 50,
 })
+const focus = inputFocus(gameController(), plane())
 
 const scene = b3d(
   {
@@ -119,10 +120,10 @@ const scene = b3d(
   b3dWater({ y: 0, waterSize: 8000, follow: true, twoSided: true }),
   // Cockpit HUD (speed / altitude / horizon). Cockpit view only by default.
   b3dHud({}),
-  inputFocus(
-    gameController(),
-    aircraft,
-  ),
+  // Death's exit: crash into a hillside and you get the wreck, spectate, and a
+  // respawn panel instead of being welded to the wreck forever.
+  b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
+  focus,
 )
 
 // Only a readout stays as a flat overlay — the tweakable settings all live in the

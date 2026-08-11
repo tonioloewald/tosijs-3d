@@ -424,6 +424,7 @@ export class B3dAircraft extends B3dControllable {
   // Ray and own-mesh set are reused too — the whole path was allocating a Ray,
   // Set, and a child-mesh array three times a frame.
   private _lastGroundDist = Infinity
+  private _groundNormal = new BABYLON.Vector3(0, 1, 0)
   private _ray = new BABYLON.Ray(
     BABYLON.Vector3.Zero(),
     BABYLON.Vector3.Down(),
@@ -633,10 +634,20 @@ export class B3dAircraft extends B3dControllable {
       // wobble (lift a metre, tip, settle back) would otherwise register a first-contact
       // "impact" and explode you on the pad — the "crashed on takeoff, never got to fly"
       // report. `_hasFlown` arms the check only after you clear a takeoff margin.
+      // Three ways a first contact is a crash: fast vertical impact,
+      // inverted/steep bank, or FLYING INTO A SLOPE — level flight into a
+      // hillside has little vertical speed but plenty of total speed against
+      // a steep surface (normal.y < ~0.85 ≈ >30°). Without the slope term
+      // you'd "land" on the hillside and sit there stuck (Tonio, terrain
+      // demo). Water stays a plane (normal up), so gentle water touches
+      // still count as landings.
+      const impactSpeed = Math.hypot(vel.x, vel.y, vel.z)
       if (
         this._hasFlown &&
         !wasGrounded &&
-        (vel.y < -attrs.crashSpeed || node.up.y < 0.5)
+        (vel.y < -attrs.crashSpeed ||
+          node.up.y < 0.5 ||
+          (this._groundNormal.y < 0.85 && impactSpeed > attrs.crashSpeed))
       ) {
         this.crash()
       }
@@ -771,14 +782,18 @@ export class B3dAircraft extends B3dControllable {
     return this._ownMeshes ?? new Set()
   }
 
-  /** World nose direction (unit) and a muzzle point `ahead` metres in front. */
+  /** World nose direction (unit) and a muzzle point `ahead` metres in front.
+   * Computed through the WORLD matrix, never node.position: with a
+   * _centerOfGravity pivot the rendered airframe swings about the CoG under
+   * attitude, and position alone points at the stance origin — shots would
+   * spawn beside/behind the visible plane in a turn. */
   private muzzle(ahead: number, drop = 0): BABYLON.Vector3 {
     const node = this.meshNode!
     node.getDirectionToRef(LOCAL_Z, this._fwd)
-    return new BABYLON.Vector3(
-      node.position.x + this._fwd.x * ahead,
-      node.position.y + this._fwd.y * ahead - drop,
-      node.position.z + this._fwd.z * ahead
+    node.computeWorldMatrix(true)
+    return BABYLON.Vector3.TransformCoordinates(
+      new BABYLON.Vector3(0, -drop, ahead),
+      node.getWorldMatrix()
     )
   }
 
@@ -962,7 +977,15 @@ export class B3dAircraft extends B3dControllable {
         !own.has(m) &&
         !m.name.includes('__root__')
     )
-    return hit?.hit ? hit.distance : Infinity
+    if (hit?.hit) {
+      // Surface normal for the slope-impact crash test (up if unavailable).
+      const n = hit.getNormal(true)
+      if (n) this._groundNormal.copyFrom(n)
+      else this._groundNormal.copyFromFloats(0, 1, 0)
+      return hit.distance
+    }
+    this._groundNormal.copyFromFloats(0, 1, 0)
+    return Infinity
   }
 
   private updatePullUp(node: BABYLON.TransformNode, groundDist: number) {
