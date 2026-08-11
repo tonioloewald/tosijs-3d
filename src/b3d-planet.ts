@@ -156,7 +156,7 @@ tosi-b3d {
 /*{ "parent": "Space" }*/
 
 import { Color } from 'tosijs'
-import { isOff, B3dChild } from './b3d-utils'
+import { isOff, B3dChild, sceneDelta } from './b3d-utils'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
@@ -262,7 +262,7 @@ export class B3dPlanet extends B3dChild {
     const attrs = this as any
     const speed: number = attrs.rotationSpeed
     if (speed > 0) {
-      const dt = this.owner!.scene.getEngine().getDeltaTime() / 1000
+      const dt = sceneDelta(this.owner!.scene)
       this.rootNode.rotation.y += speed * dt
     }
   }

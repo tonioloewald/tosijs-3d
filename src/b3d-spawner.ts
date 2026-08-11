@@ -128,7 +128,7 @@ vocabulary anywhere in the sim.
 */
 /*{ "parent": "World Sim" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild, sceneDelta } from './b3d-utils'
 import { MersenneTwister } from './mersenne-twister'
 import { spawnPrefab, type Prefab } from './prefab'
 import type { B3d } from './tosi-b3d'
@@ -187,7 +187,7 @@ export class B3dSpawner extends B3dChild {
     if (owner == null || this.disabled) return
     this._prune()
 
-    const dt = owner.scene.getEngine().getDeltaTime() / 1000
+    const dt = sceneDelta(owner.scene)
     this._since += dt
     if (this._since < this.interval) return
     if (this._groups.length >= this.maxAlive) return

@@ -638,6 +638,16 @@ export class B3d extends Component {
   }
 
   private lastRender = 0
+
+  /** Seconds of wall clock since the previous rendered frame (clamped to
+
+   * 100ms so a backgrounded tab can't teleport the sim). Use this — NOT
+
+   * `engine.getDeltaTime()` — for anything advancing state inside a scene
+
+   * observer; see the note in `_update`. */
+
+  frameDelta = 1 / 60
   private sceneListeners: SceneAdditionHandler[] = []
   private pastAdditions: SceneAdditions[] = []
   private _sceneReady = false
@@ -856,6 +866,23 @@ export class B3d extends Component {
         this.xrActive ||
         now - this.lastRender >= 1000 / (this as any).frameRate
       ) {
+        // THE authoritative frame delta — wall clock between actual renders.
+        // Babylon's getDeltaTime() measures the engine's rAF TICK, not the
+        // gap between scene.render() calls, so anything ticking in a scene
+        // observer (which only fires on render) that trusts it advances too
+        // little time whenever the render throttle bites: at frameRate 60 on
+        // a 120Hz display everything runs at HALF speed, at the default 30 a
+        // QUARTER (measured 2026-08-11 — dropped bombs inherited half the
+        // aircraft's velocity and sagged behind). jolt-plugin hit this and
+        // worked around it locally; this is the shared fix.
+        this.frameDelta =
+          this.lastRender > 0
+            ? Math.min((now - this.lastRender) / 1000, 0.1)
+            : 1 / ((this as any).frameRate || 60)
+        // Also published on the scene so owner-less helpers (explosionFx,
+        // spawnProjectile, the exploder) can read it via `sceneDelta`.
+        if (this.scene.metadata == null) this.scene.metadata = {}
+        this.scene.metadata.b3dFrameDelta = this.frameDelta
         this.lastRender = now
         if (this.scene.activeCamera !== undefined) {
           this.scene.render()

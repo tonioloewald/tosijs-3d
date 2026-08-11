@@ -780,6 +780,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
   }
 }
 
+// Registered so `Material.clone()` can re-instantiate it (see the note in
+// cloud-shadows.ts — an unregistered plugin makes cloning THROW).
+BABYLON.RegisterMaterialPlugin(
+  'BiomePlugin',
+  (material) => new BiomePlugin(material)
+)
+
 /**
  * Attach (or retrieve) the biome plugin on a material — for authored tiles or
  * any mesh that should classify like the terrain. `b3d-terrain biome="on"`

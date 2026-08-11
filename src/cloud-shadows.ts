@@ -218,6 +218,18 @@ class CloudShadowPlugin extends BABYLON.MaterialPluginBase {
 }
 
 /** One top-down shadow texture for a whole cloud field, shared by every receiving material. */
+
+// Babylon can only re-instantiate a material plugin during `Material.clone()`
+// if it's in the plugin registry — otherwise the clone path dereferences an
+// UNDEFINED registry and throws (`Cannot read properties of undefined
+// (reading 'CloudShadowPlugin')`). That aborted b3d-death's wreck-charring
+// mid-sequence, so the player kept input focus and never got a respawn panel:
+// a cosmetic clone took the whole death exit down with it (2026-08-11).
+BABYLON.RegisterMaterialPlugin(
+  'CloudShadowPlugin',
+  (material) => new CloudShadowPlugin(material)
+)
+
 export class CloudShadowMap {
   readonly texture: BABYLON.DynamicTexture
   readonly resolution: number

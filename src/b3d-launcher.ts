@@ -183,7 +183,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff } from './b3d-utils'
+import { AbstractMesh, isOff, sceneDelta } from './b3d-utils'
 import type { B3d, RadarFaction } from './tosi-b3d'
 
 /** A guided missile always cruises at least this much FASTER than the platform that
@@ -312,7 +312,7 @@ export function spawnProjectile(
 
   const obs = scene.onBeforeRenderObservable.add(() => {
     if (!alive) return
-    const dt = scene.getEngine().getDeltaTime() / 1000
+    const dt = sceneDelta(scene)
     life += dt
     opts.guide?.(state, dt) // home/steer before integrating
     const fromX = state.pos.x
@@ -595,7 +595,7 @@ export class B3dLauncher extends AbstractMesh {
     })
 
     this._tick = scene.onBeforeRenderObservable.add(() => {
-      const dt = scene.getEngine().getDeltaTime() / 1000
+      const dt = sceneDelta(scene)
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
     })

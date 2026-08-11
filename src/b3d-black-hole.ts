@@ -131,7 +131,7 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { B3dChild, isOff } from './b3d-utils'
+import { B3dChild, isOff, sceneDelta } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
@@ -251,7 +251,7 @@ export class B3dBlackHole extends B3dChild {
 
   private update() {
     if (this.rootNode == null || this.owner == null) return
-    const dt = this.owner.scene.getEngine().getDeltaTime() / 1000
+    const dt = sceneDelta(this.owner.scene)
     this._time += dt
 
     // Lensed disk: vertical ring that rotates on Y to face camera

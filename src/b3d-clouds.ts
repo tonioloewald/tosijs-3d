@@ -114,7 +114,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild } from './b3d-utils'
+import { B3dChild, sceneDelta } from './b3d-utils'
 import { MersenneTwister } from './mersenne-twister'
 import { band } from './atmosphere'
 import {
@@ -453,7 +453,7 @@ export class B3dClouds extends B3dChild {
     if (scene == null || cam == null) return
     const eye = cam.globalPosition
     const active = this._applyCoverage()
-    const dt = Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000)
+    const dt = sceneDelta(scene)
     const drifting = this.windX !== 0 || this.windZ !== 0
 
     // Recycle: a blob that falls behind wraps to the far side, so an endless cloudscape

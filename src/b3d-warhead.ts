@@ -107,7 +107,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff } from './b3d-utils'
+import { AbstractMesh, isOff, sceneDelta } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead'
 import type { B3dDestroyable } from './b3d-destroyable'
@@ -260,7 +260,7 @@ export function explosionFx(
   const peak = Math.max(1, blastRadius)
   let t = 0
   const obs = scene.onBeforeRenderObservable.add(() => {
-    t += scene.getEngine().getDeltaTime() / 1000
+    t += sceneDelta(scene)
     const k = t / BOOM_DURATION
     if (k >= 1) {
       s.dispose()

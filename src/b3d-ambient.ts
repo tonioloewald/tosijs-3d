@@ -126,7 +126,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild } from './b3d-utils'
+import { B3dChild, sceneDelta } from './b3d-utils'
 import { band } from './atmosphere'
 import { fillWeight } from './ambient-budget'
 import { LeafField } from './ambient-leaves'
@@ -614,7 +614,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
       leaves.setWind(this.windX, this.windZ)
       const cap = this._budgetCapacity()
       const share = this._granted / Math.max(1, cap)
-      const dt = (scene.getEngine().getDeltaTime() ?? 16) / 1000
+      const dt = sceneDelta(scene)
       leaves.update(dt, cap * Math.min(1, share) * this._intensity)
       return
     }

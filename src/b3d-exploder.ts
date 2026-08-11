@@ -91,6 +91,7 @@ preview.append(
 /*{ "parent": "Effects" }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { sceneDelta } from './b3d-utils'
 
 export interface ExplodeOptions {
   /** Number of fragments to create (default: 20) */
@@ -412,7 +413,7 @@ export function explodeMesh(
       return
     }
 
-    const dt = scene.getEngine().getDeltaTime() * 0.001
+    const dt = sceneDelta(scene)
 
     for (const frag of fragments) {
       // Physics engine handles movement; we only handle fade
