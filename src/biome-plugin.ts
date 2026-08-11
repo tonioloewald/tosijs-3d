@@ -121,17 +121,25 @@ export const defaultBiomeParams = (): BiomeParams => ({
  * peak), so the shoreline is beach in every climate that's warm enough.
  */
 export const MANTA_PALETTE: number[][] = [
-  // dry row (v = 0):    ice          barren rock   dune          beach
+  // DEAD row (v = 0) — absolute zero moisture: complete barren even on the
+  // flat, at ANY temperature. These are DUST colours (the slope override
+  // supplies the exposed rock, itself Mars↔Moon tinted in this band):
+  // cold→warm = Moon (light grey dust) → … → Mars (grey-yellow/red dust).
+  [0.68, 0.68, 0.7],
+  [0.6, 0.57, 0.53],
+  [0.65, 0.54, 0.42],
+  [0.71, 0.52, 0.36],
+  // dry row (v = ¼):    ice          barren rock   dune          beach
   [0.75, 0.8, 0.88],
   [0.45, 0.41, 0.37],
   [0.73, 0.6, 0.4],
   [0.78, 0.69, 0.5],
-  // med row (v = ⅓):    ice          lichen        steppe        beach
+  // med row (v = ½):    ice          lichen        steppe        beach
   [0.8, 0.86, 0.92],
   [0.55, 0.58, 0.47],
   [0.62, 0.6, 0.38],
   [0.79, 0.7, 0.52],
-  // wet row (v = ⅔):    snow         scrub         forest        beach
+  // wet row (v = ¾):    snow         scrub         forest        beach
   [0.92, 0.94, 0.97],
   [0.46, 0.51, 0.35],
   [0.16, 0.37, 0.19],
@@ -152,6 +160,11 @@ export const MANTA_PALETTE: number[][] = [
  * to their `MANTA_PALETTE` entry get no variation; most don't need any.
  */
 export const MANTA_PALETTE_B: number[][] = [
+  // dead row: dust drifts — moon grey ↔ darker; mars dust ↔ redder
+  [0.6, 0.6, 0.63],
+  [0.55, 0.52, 0.49],
+  [0.6, 0.48, 0.36],
+  [0.62, 0.42, 0.28],
   // dry row: subtle banding on dune/beach only
   [0.75, 0.8, 0.88],
   [0.45, 0.41, 0.37],
@@ -179,7 +192,7 @@ const SEDIMENT_COLOR: [number, number, number] = [0.32, 0.33, 0.3]
 
 export class BiomePlugin extends BABYLON.MaterialPluginBase {
   params: BiomeParams = defaultBiomeParams()
-  /** 16 rgb triples, row-major over the 4×4 chart. Replace to re-theme. */
+  /** 20 rgb triples, row-major over the 4×5 chart (dead→dry→med→wet→marine). */
   palette: number[][] = MANTA_PALETTE
   /** Per-cell variation colours (mixed by medium-frequency noise); cells equal
    * to their `palette` entry don't vary. */
@@ -222,8 +235,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
         { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, unused ×3
-        { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 16 } as any,
-        { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 16 } as any,
+        { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
+        { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -233,8 +246,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
         uniform vec4 biomeSurf;
-        uniform vec4 biomePalette[16];
-        uniform vec4 biomePaletteB[16];
+        uniform vec4 biomePalette[20];
+        uniform vec4 biomePaletteB[20];
       #endif`,
     }
   }
@@ -286,8 +299,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
     )
     uniformBuffer.updateFloat4('biomeSurf', p.surfDepth, 0, 0, 0)
     const pack = (src: number[][]) => {
-      const flat = new Float32Array(16 * 4)
-      for (let i = 0; i < 16; i++) {
+      const flat = new Float32Array(20 * 4)
+      for (let i = 0; i < 20; i++) {
         const c = src[i] ?? [1, 0, 1]
         flat[i * 4] = c[0]
         flat[i * 4 + 1] = c[1]
@@ -338,14 +351,14 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         return exp(-d * d);
       }
       vec3 bioChartColour(float u, float v, float varN) {
-        // cellBlend, unrolled for the 4x4 chart: smoothstepped bilinear over
+        // cellBlend, unrolled for the 4x5 chart: smoothstepped bilinear over
         // the 2x2 neighbourhood. Band centres are pure; edges ease. Each tap
         // mixes its cell's A/B colours by varN — within-biome hue patches
         // (coral pink ↔ orange) with zero extra structure.
         float fu = clamp(u, 0.0, 1.0) * 3.0;
-        float fv = clamp(v, 0.0, 1.0) * 3.0;
+        float fv = clamp(v, 0.0, 1.0) * 4.0;
         float c0 = min(2.0, floor(fu));
-        float r0 = min(2.0, floor(fv));
+        float r0 = min(3.0, floor(fv));
         float tu = smoothstep(0.0, 1.0, fu - c0);
         float tv = smoothstep(0.0, 1.0, fv - r0);
         int i00 = int(r0) * 4 + int(c0);
@@ -381,12 +394,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           temperature += biomeWater.z * cos(latW);
         }
         bool underwater = altitude < 0.0;
-        // Land occupies the dry→wet rows (v ≤ ⅔); the marine row (v = 1) is
+        // Land occupies the dead→wet rows (v ≤ ¾); the marine row (v = 1) is
         // the sea's alone, so a soaking-wet coast blends TOWARD the beach/sand
         // boundary rather than classifying as seafloor.
         float moisture = underwater
           ? 1.0
-          : clamp(biomeCfg.w + mN, 0.0, 1.0) * 0.667;
+          : clamp(biomeCfg.w + mN, 0.0, 1.0) * 0.75;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
         float dith = bioSimplex(wp.xz * biomeDither.x) * biomeDither.y;
         // Within-biome variation: medium-frequency patches select between each
@@ -423,6 +436,14 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // organically like the biome bands instead of tracing a clean
           // contour — one dither, every edge, zero extra noise evals.
           float cliff = bioSlopeMask(dot(normalize(vNormalW), up) + dith, biomeDither.z, biomeDither.w);
+          // In the DEAD band the exposed rock itself changes world: warm dead
+          // = Mars red rock, cold dead = Moon dark grey — the dust (chart row)
+          // and the rock (slope override) tell the same story.
+          float deadness = 1.0 - smoothstep(0.02, 0.2, moisture);
+          vec3 deadRock = mix(vec3(0.3, 0.3, 0.33), vec3(0.5, 0.3, 0.22), clamp(temperature, 0.0, 1.0));
+          vec3 cliffCol = mix(vec3(${CLIFF_COLOR.join(
+            ', '
+          )}), deadRock, deadness);
           // Fecund cliffs grow: in warm+wet climates the local biome breaks
           // through the rock in dither-driven pockets — plants clinging to
           // cliff-sides wherever life is rampant (underwater too: photic
@@ -431,7 +452,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float fecund = clamp(temperature, 0.0, 1.0) * clamp(moisture * 1.5, 0.0, 1.0);
           float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
-          biome = mix(biome, vec3(${CLIFF_COLOR.join(', ')}), cliff);
+          biome = mix(biome, cliffCol, cliff);
         #endif
         diffuseColor = biome;
       }

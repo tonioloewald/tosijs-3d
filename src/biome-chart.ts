@@ -87,7 +87,7 @@ terrain.grossFilter = blendProfiles(
 )
 terrain.regenerate()
 
-const water = b3dWater({ y: 0, twoSided: true })
+const water = b3dWater({ y: 0, twoSided: true, waterSize: 1200 })
 
 const scene = b3d(
   {
@@ -179,11 +179,11 @@ export function mantaAxes(
     cfg.baseTemperature - cfg.lapseRate * Math.abs(altitude) + tNoise
   const underwater = altitude < 0
   // Underwater the column is saturated (the marine row, v = 1, is the sea's
-  // alone); LAND spans the dry→wet rows, so its moisture compresses to ≤ ⅔ —
+  // alone); LAND spans the dry→wet rows, so its moisture compresses to ≤ ¾ (the dead→wet rows of the 4×5 chart) —
   // a soaking coast blends toward the beach/sand boundary, never into
   // seafloor cells. mNoise only textures the terrestrial side.
   const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
-  const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.667
+  const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.75
   return { temperature, moisture }
 }
 
@@ -211,7 +211,7 @@ export function planetaryAxes(
     tNoise
   const underwater = altitude < 0
   const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
-  const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.667
+  const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.75
   return { temperature, moisture, latitude }
 }
 
