@@ -609,13 +609,18 @@ anchor to the CoG marker; `b3d-car` could use it for weight-transfer feel someda
 Validate against the updated scout once its CoG empty lands in test-3.glb.
 [ ] Aircraft: auto gear retract/extend using the model's gear AnimationGroups (scout has
 them as of test-3.glb) — retract on takeoff past a height/speed gate, extend on approach.
-[ ] **Terrain shadows (Tonio, terrain demo 2026-08-11): terrain doesn't self-shadow and
-the aircraft casts no shadow on it.** Tiles set receiveShadows and register with the
-scene once; suspects: (a) the demo's `b3dSun({ activeDistance: 80 })` gates which
-casters join the CSM — tiles/aircraft outside 80m of the sun's follow point never
-cast; (b) library-instantiated aircraft meshes may never be registered as casters at
-all (check the b3d-library register path); (c) CSM frustum vs a 400m-high flight
-ceiling. Diagnose with the Perf Stats debug panel + a minimal scene before tuning.
+[ ] **Terrain self-shadowing (Tonio, terrain demo 2026-08-11).** NARROWED live: the
+aircraft DOES cast onto terrain (library meshes register as casters fine); what's
+missing is terrain-on-terrain — tiles are receivers but apparently never join the
+caster list (or activeDistance 80 excludes them). Check the sun's scene-registration
+path for tile meshes; mind the CSM cost of 160 tiles as casters (maybe casters =
+only the N nearest tiles).
+[ ] **Aircraft stuck after a gentle slope contact.** A sub-crash-speed, roughly-level
+first contact on a hillside registers as a LANDING (correct per predicate — Tonio's
+crash probe showed crashed:false) but then feels like being welded there. Decide the
+escape: verify VTOL throttle-up genuinely lifts off a slope (ground clamp may be
+re-snapping), and/or steepen the landing gate so slopes > ~15 deg can't be "landed
+on" at all. Ask: does full throttle free you when stuck?
 [ ] Volcanism garnish: ambient STEAM over volcanic provinces (b3d-ambient family — budgeted
 billboard wisps rising off live seams/pools, denser where water meets lava) and a subtle
 heat-shimmer/refraction effect over open lava. Design note: query the same province +
