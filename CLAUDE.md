@@ -401,6 +401,8 @@ Name suffixes on meshes/lights control **behavioral** properties that can't be i
 
 Underscore-separated variants also work (e.g., `_collide_box`).
 
+| `.model` | Declares a **library export** (see b3d-library) — and is **invisible to every suffix check** via `conventionName()`: `Hull_collideMesh.model` exports AND gets its collider. Never parse behaviour suffixes off a raw name; run them on `conventionName(name)`. |
+
 **Model authoring & the canonical frame (issues #5/#6, decided 2026-08-11):** content is
 authored **Blender-default** — model faces **−Y**, up **+Z**, all transforms applied — and a
 **`.model` suffix declares a library file's intended exports** (`scout.model` lists and

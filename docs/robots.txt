@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://3d.tosijs.net/sitemap.xml

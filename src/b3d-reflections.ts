@@ -69,6 +69,7 @@ tosi-b3d { width: 100%; height: 100%; }
 
 import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
+import { conventionName } from './b3d-utils'
 import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
@@ -163,7 +164,10 @@ export class B3dReflections extends B3dChild {
     if (meshes == null) return
 
     for (const mesh of meshes) {
-      if (mesh.name.includes('_mirror') || mesh.name.includes('-mirror')) {
+      if (
+        conventionName(mesh.name).includes('_mirror') ||
+        conventionName(mesh.name).includes('-mirror')
+      ) {
         this.createProbe(mesh)
       } else {
         this.nonMirrorMeshes.push(mesh)

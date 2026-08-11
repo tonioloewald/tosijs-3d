@@ -51,6 +51,18 @@ export const isOff = (v: unknown): boolean =>
   v === 'off' || v === false || v === 'false'
 
 /**
+ * A node name with the `.model` EXPORT marker removed — what every naming-
+ * convention suffix check (`_collideMesh`, `_noshadow`, `_mirror`, `-ignore`,
+ * …) runs against. `.model` declares a library export (see b3d-library) and
+ * is ORTHOGONAL to behaviour suffixes: `Hull_collideMesh.model` both exports
+ * AND gets its collider. Stripping it here makes that a stated guarantee
+ * rather than an accident of `includes()`-based matching (clone names like
+ * `scout.model_instance_0` are covered too).
+ */
+export const conventionName = (name: string): string =>
+  name.split('.model').join('')
+
+/**
  * World-space Y of the bottom of a node's combined geometry (the node itself
  * plus every descendant mesh). Returns null if there's no renderable geometry.
  */

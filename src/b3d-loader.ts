@@ -92,7 +92,12 @@ document.body.append(
 
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
-import { applyMaterialConventions, B3dChild, isOff } from './b3d-utils'
+import {
+  conventionName,
+  applyMaterialConventions,
+  B3dChild,
+  isOff,
+} from './b3d-utils'
 import { DestroyableBehavior } from './destroyable-behavior'
 import type { CombatEvent, ChainLink } from './destroyable'
 
@@ -154,17 +159,17 @@ export class B3dLoader extends B3dChild {
         this.lights = lights
 
         for (const mesh of meshes) {
-          if (mesh.name.includes('-ignore')) {
+          if (conventionName(mesh.name).includes('-ignore')) {
             mesh.dispose()
           }
         }
         for (const node of transformNodes) {
-          if (node.name.includes('-ignore')) {
+          if (conventionName(node.name).includes('-ignore')) {
             node.dispose()
           }
         }
         for (const light of lights) {
-          if (light.name.includes('-ignore')) {
+          if (conventionName(light.name).includes('-ignore')) {
             light.dispose()
           } else if (
             light instanceof BABYLON.PointLight ||

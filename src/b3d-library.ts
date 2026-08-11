@@ -127,6 +127,10 @@ tosi-b3d { width: 100%; height: 100%; }
   their clean names (`getNames()` → `'scout'`, `instantiate('scout')` works) —
   so collections, rig helpers and boolean cutters stay out of the catalog. A
   file with no `.model` nodes lists everything (legacy behaviour).
+- **`.model` is orthogonal to the behaviour suffixes**: every suffix check
+  (`_collideMesh`, `_noshadow`, `_mirror`, `-ignore`, …) runs on the name with
+  `.model` stripped, so `Hull_collideMesh.model` exports AND gets its
+  collider — you never trade one convention for the other.
 
 - `getNames(): string[]` — declared `.model` exports under clean names (or all
   mesh/transform-node names when none are declared; `__root__`/`-ignore` always excluded)
@@ -138,7 +142,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Core" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild, conventionName } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { canonicalize } from './model-transform'
@@ -242,7 +246,8 @@ export class B3dLibrary extends B3dChild {
   private _allNodes(): BABYLON.Node[] {
     if (!this.container) return []
     return [...this.container.meshes, ...this.container.transformNodes].filter(
-      (n) => n.name !== '__root__' && !n.name.includes('-ignore')
+      (n) =>
+        n.name !== '__root__' && !conventionName(n.name).includes('-ignore')
     )
   }
 
@@ -276,7 +281,7 @@ export class B3dLibrary extends B3dChild {
           (n) =>
             n.parent === parent &&
             n.name !== '__root__' &&
-            !n.name.includes('-ignore')
+            !conventionName(n.name).includes('-ignore')
         )
         .map((n) => {
           const isMesh = n instanceof BABYLON.AbstractMesh

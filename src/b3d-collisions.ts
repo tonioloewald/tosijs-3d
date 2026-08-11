@@ -36,6 +36,7 @@ document.body.append(
 
 import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
+import { conventionName } from './b3d-utils'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dCollisions extends B3dChild {
@@ -120,7 +121,9 @@ export class B3dCollisions extends B3dChild {
   private getCollideType(
     name: string
   ): 'mesh' | 'sphere' | 'box' | 'cylinder' | null {
-    const lower = name.toLowerCase()
+    // `.model` (the library-export marker) is invisible to suffix parsing —
+    // Hull_collideMesh.model exports AND collides.
+    const lower = conventionName(name).toLowerCase()
     if (lower.includes('_collidemesh') || lower.includes('_collide_mesh'))
       return 'mesh'
     if (lower.includes('_collidesphere') || lower.includes('_collide_sphere'))

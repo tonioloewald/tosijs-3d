@@ -1,5 +1,0 @@
-import{du as L}from"./site-037v9pkv.js";import{ku as q,pu as z}from"./site-5mc4escc.js";import{mE as K,qE as j}from"./site-dv3zxg3q.js";import{sE as J}from"./site-tvqrtn5a.js";class M extends L{constructor(b){super(b);this.sourceSystem=this.registerDataInput("sourceSystem",q),this.destinationSystem=this.registerDataInput("destinationSystem",q),this.inputCoordinates=this.registerDataInput("inputCoordinates",z),this.outputCoordinates=this.registerDataOutput("outputCoordinates",z)}_updateOutputs(b){let O=this.sourceSystem.getValue(b),P=this.destinationSystem.getValue(b),Q=this.inputCoordinates.getValue(b),U=O.getWorldMatrix(),X=P.getWorldMatrix(),A=j.Matrix[0].copyFrom(X);A.invert();let E=j.Matrix[1];A.multiplyToRef(U,E);let Y=this.outputCoordinates.getValue(b);K.TransformCoordinatesToRef(Q,E,Y)}getClassName(){return"FlowGraphTransformCoordinatesSystemBlock"}}var H=!1;function N(){if(H)return;H=!0,J("FlowGraphTransformCoordinatesSystemBlock",M)}N();
-export{M as Qo,N as Ro};
-
-//# debugId=42DCC1F59274C07364756E2164756E21
-//# sourceMappingURL=site-7q9mtq00.js.map

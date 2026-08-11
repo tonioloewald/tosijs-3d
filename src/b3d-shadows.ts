@@ -83,7 +83,7 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { actualMeshes, B3dChild, isOff } from './b3d-utils'
+import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils'
 import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
@@ -128,14 +128,15 @@ export class B3dSun extends B3dChild {
     if (meshes == null) return
     for (const mesh of actualMeshes(meshes)) {
       if (
-        !mesh.name.includes('_nocast') &&
+        !conventionName(mesh.name).includes('_nocast') &&
         !mesh.name.includes('-nocast') &&
         !this.shadowCasters.includes(mesh)
       ) {
         this.shadowCasters.push(mesh)
       }
       mesh.receiveShadows =
-        !mesh.name.includes('_noshadow') && !mesh.name.includes('-noshadow')
+        !conventionName(mesh.name).includes('_noshadow') &&
+        !conventionName(mesh.name).includes('-noshadow')
     }
   }
 

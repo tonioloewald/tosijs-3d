@@ -37,3 +37,32 @@ describe('isOff', () => {
     expect(isOff(0)).toBe(false) // numeric zero is NOT an off switch
   })
 })
+
+describe('conventionName — .model is invisible to suffix parsing', () => {
+  let conventionName: typeof import('./b3d-utils').conventionName
+  beforeAll(async () => {
+    conventionName = (await import('./b3d-utils')).conventionName
+  })
+
+  test('a plain export marker strips clean', () => {
+    expect(conventionName('scout.model')).toBe('scout')
+  })
+
+  test('an export that ALSO carries a behaviour suffix keeps the suffix', () => {
+    // The guarantee Tonio asked for: .model is orthogonal to conventions —
+    // Hull_collideMesh.model exports AND collides.
+    expect(conventionName('Hull_collideMesh.model')).toBe('Hull_collideMesh')
+    expect(conventionName('wall_noshadow.model')).toBe('wall_noshadow')
+    expect(conventionName('lake_mirror.model')).toBe('lake_mirror')
+    expect(conventionName('ref-ignore.model')).toBe('ref-ignore')
+  })
+
+  test('clone names are covered (.model mid-name)', () => {
+    expect(conventionName('scout.model_instance_0')).toBe('scout_instance_0')
+  })
+
+  test('names without the marker pass through untouched', () => {
+    expect(conventionName('Hull_collideMesh')).toBe('Hull_collideMesh')
+    expect(conventionName('modelling-table')).toBe('modelling-table') // no dot — not the marker
+  })
+})
