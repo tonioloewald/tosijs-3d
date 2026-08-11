@@ -276,6 +276,7 @@ import type { SurfaceSampler } from './surface-sampler'
 import {
   buildTileField,
   tileFieldScratchSize,
+  tileFieldSampleCount,
   desiredCellsInto,
   type DesiredCell,
   type QuadtreeConfig,
@@ -361,6 +362,9 @@ export class B3dTerrain extends B3dChild {
     // classification on the terrain material; tune live via `.biomePlugin`.
     biome: 'off' as 'on' | 'off',
     biomeSeaLevel: 0,
+    // 0..1: normals see a tent-filtered height (positions stay crisp) — cliff
+    // faces shade smoothly instead of zigzag-banding. 0 restores pre-0.7 look.
+    normalSmoothing: 0.6,
     seed: 12345,
     surfaceType: 'cylinder',
     majorRadius: 100,
@@ -1058,7 +1062,10 @@ export class B3dTerrain extends B3dChild {
       tileSize,
       this._fieldScratch!,
       positions,
-      normals
+      normals,
+      // Shading-only smoothing of the normals' height field — kills the
+      // cliff-face zigzag (sub-cell profile risers alias the ±e differences).
+      (this as any).normalSmoothing
     )
 
     const tField = now()
@@ -1130,7 +1137,7 @@ export class B3dTerrain extends B3dChild {
       // each. (It used to be 5 per vertex: the height plus 4 for the ±e gradient. That
       // was the redundancy the padded grid removed, and this count must track it or
       // nsPerSample lies by ~4.3×.)
-      prof.samples += tileFieldScratchSize(subdivisions)
+      prof.samples += tileFieldSampleCount(subdivisions)
       prof.frameTiles++
       prof.frameMs += tEnd - t0
     }

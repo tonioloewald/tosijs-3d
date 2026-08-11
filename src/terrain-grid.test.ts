@@ -8,6 +8,7 @@ import { describe, test, expect } from 'bun:test'
 import {
   buildTileField,
   tileFieldScratchSize,
+  tileFieldSampleCount,
   lodTileSize,
   tileCenter,
   vertexLocal,
@@ -382,13 +383,15 @@ describe('buildTileField — the padded grid IS the ±e gradient, computed once'
       new Float32Array(VERTS * VERTS * 3),
       new Float32Array(VERTS * VERTS * 3)
     )
-    expect(calls).toBe(tileFieldScratchSize(SUBS)) // (subs+3)^2, sampled once each
+    expect(calls).toBe(tileFieldSampleCount(SUBS)) // (subs+5)^2, sampled once each
 
-    // The old algorithm sampled 5× per vertex. The saving is (subs+1)²·5 / (subs+3)²,
-    // which RISES with tile density — 3.8× at subs 12, 4.3× at subs 24, → 5× in the
-    // limit. So the denser the tile (i.e. the more it costs), the more this saves.
+    // The old algorithm sampled 5× per vertex. The saving is (subs+1)²·5 / (subs+5)²,
+    // which RISES with tile density — → 5× in the limit. (The two-ring pad for
+    // normal smoothing cost one ring of samples vs the original.)
     const before = VERTS * VERTS * 5
-    expect(before / calls).toBeGreaterThan(3.5)
+    // 2.9× at subs 12 with the two-ring pad; rises with density (4.1× at 24,
+    // → 5× in the limit) — the ratio threshold tracks the SMALL test tile.
+    expect(before / calls).toBeGreaterThan(2.5)
   })
 
   test('normals are unit length, and point UP out of the terrain', () => {
@@ -418,5 +421,52 @@ describe('buildTileField — the padded grid IS the ±e gradient, computed once'
         )
       }
     }
+  })
+})
+
+describe('buildTileField — normalSmoothing (the cliff-face zigzag fix)', () => {
+  // A knife-edge step narrower than a grid cell: adjacent columns' central
+  // differences alternate between seeing and missing the wall.
+  const SUBS = 12
+  const TILE = 24
+  const step = (wx: number) => (wx > 0.3 ? 10 : 0)
+  const build = (smoothing: number) => {
+    const scratch = new Float64Array(tileFieldScratchSize(SUBS))
+    const verts = SUBS + 1
+    const positions = new Float32Array(verts * verts * 3)
+    const normals = new Float32Array(verts * verts * 3)
+    buildTileField(
+      step,
+      0,
+      0,
+      SUBS,
+      TILE,
+      scratch,
+      positions,
+      normals,
+      smoothing
+    )
+    return { positions, normals }
+  }
+
+  test('positions are IDENTICAL — smoothing never touches the silhouette', () => {
+    const sharp = build(0)
+    const soft = build(1)
+    expect(Array.from(soft.positions)).toEqual(Array.from(sharp.positions))
+  })
+
+  test('smoothing softens the shading across the step', () => {
+    const sharp = build(0)
+    const soft = build(0.8)
+    // steepest normal (smallest ny) near the wall gets LESS steep with smoothing
+    const minNy = (n: Float32Array) => {
+      let m = 1
+      for (let i = 1; i < n.length; i += 3) m = Math.min(m, n[i])
+      return m
+    }
+    expect(minNy(soft.normals)).toBeGreaterThan(minNy(sharp.normals))
+    // and 0 remains exactly the classic result
+    const again = build(0)
+    expect(Array.from(again.normals)).toEqual(Array.from(sharp.normals))
   })
 })

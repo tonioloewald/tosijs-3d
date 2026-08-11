@@ -54,6 +54,13 @@ export interface BiomeParams {
   /** Low-frequency latitude domain-warp (gulf-stream wobble). */
   latWarpScale: number
   latWarpAmp: number
+  /**
+   * Detail breakup: high-frequency, LOW-contrast brightness noise layered on
+   * the albedo (plus a slower octave for mid-distance), so flat-colour bands
+   * read as surface rather than paint. The design doc's `detailBreakup`.
+   */
+  detailNoiseScale: number
+  detailNoiseAmp: number
 }
 
 export const defaultBiomeParams = (): BiomeParams => ({
@@ -76,6 +83,8 @@ export const defaultBiomeParams = (): BiomeParams => ({
   insolation: 0.35,
   latWarpScale: 0.02,
   latWarpAmp: 0.12,
+  detailNoiseScale: 0.55,
+  detailNoiseAmp: 0.1,
 })
 
 /**
@@ -162,7 +171,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeDither', size: 4, type: 'vec4' }, // ditherScale, ditherAmp, cliffStart, cliffFull
         { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, unused
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
-        { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, unused, unused
+        { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 16 } as any,
       ],
       fragment: `#ifdef BIOME
@@ -219,8 +228,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       'biomePlanetB',
       p.latWarpScale,
       p.latWarpAmp,
-      0,
-      0
+      p.detailNoiseScale,
+      p.detailNoiseAmp
     )
     const flat = new Float32Array(16 * 4)
     for (let i = 0; i < 16; i++) {
@@ -327,6 +336,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         if (underwater) {
           float light = bioPhotic(-altitude, biomeWater.x, biomeWater.y);
           biome = mix(vec3(${SEDIMENT_COLOR.join(', ')}), biome, light);
+        }
+        // Detail breakup: one high-frequency + one slower octave of LOW-
+        // contrast brightness variation on the albedo — flat bands read as
+        // surface, and the extra frequency also visually breaks any residual
+        // shading banding on steep faces.
+        if (biomePlanetB.w > 0.0) {
+          float det = 0.7 * bioSimplex(wp.xz * biomePlanetB.z)
+                    + 0.3 * bioSimplex(wp.xz * biomePlanetB.z * 0.13 + 5.7);
+          biome *= 1.0 + biomePlanetB.w * det;
         }
         // slope override OUTSIDE the chart: cliffs at any altitude/depth; cave
         // walls classify as cliffs automatically.

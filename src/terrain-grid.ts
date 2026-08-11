@@ -213,8 +213,17 @@ export function desiredCellsInto(
  * need. Allocate once per subdivision count and reuse it for every tile; the streamer
  * builds tiles every frame, so this must not allocate.
  */
+/** Noise samples per tile build — the padded grid, sampled once each.
+ * TWO rings beyond each edge: ring 1 for the normal differences, ring 2 so
+ * the low-passed normalSmoothing field is itself defined at ring 1.
+ * (+5 = subdivisions+1 verts + 2 rings per side.) */
+export const tileFieldSampleCount = (subdivisions: number): number =>
+  (subdivisions + 5) * (subdivisions + 5)
+
+/** Scratch floats per tile build: the sampled grid PLUS the low-passed copy
+ * the normals difference when smoothing is on. */
 export const tileFieldScratchSize = (subdivisions: number): number =>
-  (subdivisions + 3) * (subdivisions + 3)
+  tileFieldSampleCount(subdivisions) * 2
 
 /**
  * Build one tile's heightfield + normals into caller-owned buffers. **Pure**: it knows
@@ -252,37 +261,68 @@ export function buildTileField(
   // Babylon's getVerticesData hands back a FloatArray (Float32Array | number[]); this
   // module stays Babylon-free, so accept both rather than lie with a cast.
   positions: Float32Array | number[],
-  normals: Float32Array | number[]
+  normals: Float32Array | number[],
+  /**
+   * 0..1 — how much the NORMALS see a low-passed (tent-filtered) height field.
+   * Positions always keep the crisp heights, so the silhouette is untouched;
+   * only the SHADING softens. This kills the cliff-face zigzag: a profile
+   * riser narrower than a grid cell makes adjacent vertices' central
+   * differences alternate between seeing and missing the wall — sawtooth
+   * banding down the face. 0 = classic sharp normals.
+   */
+  normalSmoothing = 0
 ): void {
   const verts = subdivisions + 1
-  const P = verts + 2 // padded side: one ring beyond each edge
+  const P = verts + 4 // padded side: TWO rings beyond each edge
+  const N = P * P
   const e = tileSize / subdivisions // finite-difference step === vertex spacing
 
-  // 1. Heights over the padded grid, indices -1 … subdivisions+1 on both axes.
+  // 1. Heights over the padded grid, indices -2 … subdivisions+2 on both axes.
   for (let jz = 0; jz < P; jz++) {
-    const wz = cz + vertexLocal(jz - 1, subdivisions, tileSize, true)
+    const wz = cz + vertexLocal(jz - 2, subdivisions, tileSize, true)
     for (let jx = 0; jx < P; jx++) {
-      const wx = cx + vertexLocal(jx - 1, subdivisions, tileSize)
+      const wx = cx + vertexLocal(jx - 2, subdivisions, tileSize)
       scratch[jz * P + jx] = heightAt(wx, wz)
     }
   }
+
+  // 1b. The normals' height field: crisp, or blended toward a 5-tap tent.
+  // Written into the scratch's second half — same padded indexing, defined on
+  // ring 1 (its own neighbours live on ring 2), no allocation.
+  const k = normalSmoothing < 0 ? 0 : normalSmoothing > 1 ? 1 : normalSmoothing
+  if (k > 0) {
+    for (let jz = 1; jz < P - 1; jz++) {
+      for (let jx = 1; jx < P - 1; jx++) {
+        const j = jz * P + jx
+        const tent =
+          (4 * scratch[j] +
+            scratch[j - 1] +
+            scratch[j + 1] +
+            scratch[j - P] +
+            scratch[j + P]) /
+          8
+        scratch[N + j] = scratch[j] + (tent - scratch[j]) * k
+      }
+    }
+  }
+  const H = k > 0 ? N : 0 // offset of the field the normals difference
 
   // 2. Positions + analytic normals, differencing the neighbours we just sampled.
   const ny = 2 * e
   for (let iz = 0; iz < verts; iz++) {
     const localZ = vertexLocal(iz, subdivisions, tileSize, true)
     for (let ix = 0; ix < verts; ix++) {
-      const j = (iz + 1) * P + (ix + 1)
-      const nx = scratch[j - 1] - scratch[j + 1] // h(wx-e) − h(wx+e)
+      const j = (iz + 2) * P + (ix + 2)
+      const nx = scratch[H + j - 1] - scratch[H + j + 1] // h(wx-e) − h(wx+e)
       // localZ is FLIPPED, so the iz+1 neighbour lies at wz − e (not wz + e): the row
       // BELOW in the scratch grid is the one at wz − e. Get this backwards and every
       // normal's z is mirrored — the terrain lights from the wrong side.
-      const nz = scratch[j + P] - scratch[j - P] // h(wz-e) − h(wz+e)
+      const nz = scratch[H + j + P] - scratch[H + j - P] // h(wz-e) − h(wz+e)
       const inv = 1 / Math.hypot(nx, ny, nz)
 
       const v = iz * verts + ix
       positions[v * 3] = vertexLocal(ix, subdivisions, tileSize)
-      positions[v * 3 + 1] = scratch[j]
+      positions[v * 3 + 1] = scratch[j] // CRISP height — silhouette untouched
       positions[v * 3 + 2] = localZ
       normals[v * 3] = nx * inv
       normals[v * 3 + 1] = ny * inv
