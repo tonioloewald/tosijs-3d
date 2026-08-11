@@ -425,6 +425,14 @@ export class B3dAircraft extends B3dControllable {
   // Set, and a child-mesh array three times a frame.
   private _lastGroundDist = Infinity
   private _groundNormal = new BABYLON.Vector3(0, 1, 0)
+  // TRUE world velocity, tracked from frame displacement. this.velocity is
+  // only the hover/ground integrator and reads ZERO in wing-borne flight
+  // (the fbw path moves the node directly) — weapons inheriting it left
+  // bombs hanging motionless in mid-air. Displacement also captures climb;
+  // origin-shift frames are rejected by the sanity cap.
+  private _worldVel = new BABYLON.Vector3()
+  private _prevPos = new BABYLON.Vector3()
+  private _prevPosValid = false
   private _ray = new BABYLON.Ray(
     BABYLON.Vector3.Zero(),
     BABYLON.Vector3.Down(),
@@ -445,6 +453,16 @@ export class B3dAircraft extends B3dControllable {
     const attrs = this as any
     const node = this.meshNode
     const vel = this.velocity
+    if (dt > 0) {
+      const wx = (node.position.x - this._prevPos.x) / dt
+      const wy = (node.position.y - this._prevPos.y) / dt
+      const wz = (node.position.z - this._prevPos.z) / dt
+      const cap = ((attrs.maxSpeed as number) || 60) * 3
+      if (this._prevPosValid && Math.hypot(wx, wy, wz) <= cap)
+        this._worldVel.copyFromFloats(wx, wy, wz)
+    }
+    this._prevPos.copyFrom(node.position)
+    this._prevPosValid = true
 
     // Camera toggle on the view button (edge-detected so a held press fires once)
     const viewPressed = input.view > 0.5
@@ -845,7 +863,7 @@ export class B3dAircraft extends B3dControllable {
     const ignore = (m: BABYLON.AbstractMesh) => this.ownMeshes().has(m)
     spawnProjectile(this.owner, {
       origin,
-      velocity: this.velocity.add(dir.scale(attrs.gunSpeed)),
+      velocity: this._worldVel.add(dir.scale(attrs.gunSpeed)),
       warhead: this.gunWarhead,
       params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.001, mass: 2 },
       radius: 0.08,
@@ -864,7 +882,7 @@ export class B3dAircraft extends B3dControllable {
     this._bombCd = 0.6
     spawnProjectile(this.owner, {
       origin: this.muzzle(0, 1.2), // clear of the belly
-      velocity: this.velocity.clone(),
+      velocity: this._worldVel.clone(),
       warhead: { damage: attrs.bombDamage, fullRadius: 2, blastRadius: 6 },
       params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.002, mass: 4 },
       radius: 0.25,
@@ -912,9 +930,9 @@ export class B3dAircraft extends B3dControllable {
         // Inherit the airframe's world velocity so the missile doesn't drop behind,
         // then thrust up to cruise.
         inheritVelocity: {
-          x: this.velocity.x,
-          y: this.velocity.y,
-          z: this.velocity.z,
+          x: this._worldVel.x,
+          y: this._worldVel.y,
+          z: this._worldVel.z,
         },
         accel: attrs.missileAccel,
         boostTime: attrs.missileBoost,
@@ -923,7 +941,7 @@ export class B3dAircraft extends B3dControllable {
       // No lock — fire it straight ahead as an unguided rocket.
       spawnProjectile(this.owner, {
         origin,
-        velocity: this.velocity.add(dir.scale(attrs.missileSpeed)),
+        velocity: this._worldVel.add(dir.scale(attrs.missileSpeed)),
         warhead: spec,
         params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
         radius: 0.18,
