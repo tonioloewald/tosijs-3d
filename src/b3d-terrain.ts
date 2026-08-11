@@ -422,6 +422,19 @@ export class B3dTerrain extends B3dChild {
 
   owner: B3d | null = null
   grossFilter: GradientFilter = new PiecewiseLinearFilter()
+
+  /**
+   * LOCAL volcanism field — `(x, z) => 0..1`, sampled per tile vertex in
+   * origin-stable world coordinates and carried to the biome shader in the
+   * colour buffer's (visually inert) alpha channel. Where it's > 0 the biome
+   * plugin runs its volcanism ladder at that LOCAL intensity, independent of
+   * the global `volcanism` dial — "THIS island is volcanic". A radial ramp
+   * gives a caldera gradient: pools at the centre, glowing seams around
+   * them, cold voronoi at the fringe. Compose seeded noise or authored
+   * shapes exactly like slope-profile weight fields. Set it, then
+   * `regenerate()`.
+   */
+  provinceField: ((x: number, z: number) => number) | null = null
   detailFilter: GradientFilter = new PiecewiseLinearFilter()
 
   private noise!: PerlinNoise
@@ -1098,8 +1111,12 @@ export class B3dTerrain extends B3dChild {
       normals[s * 3 + 2] = normals[parent * 3 + 2]
     }
 
-    // 3. Debug: tint the whole tile one hashed colour so the tile layout (and any
-    //    seam that survives) is obvious. White = off, so it's a no-op tint.
+    // 3. Debug tint (rgb) + PROVINCE field (alpha). White rgb = no-op tint.
+    //    The alpha channel is a free per-vertex data lane: PBR multiplies
+    //    albedo by vColor.rgb only, so alpha is invisible to shading — the
+    //    biome plugin reads it as a LOCAL volcanism field (inverted: 1 = none,
+    //    so untouched buffers mean no province). Sampling is origin-stable
+    //    (world + originOffset), so provinces survive floating-origin resets.
     const colors = mesh.getVerticesData(BABYLON.VertexBuffer.ColorKind)
     if (colors) {
       let cr = 1
@@ -1115,11 +1132,26 @@ export class B3dTerrain extends B3dChild {
         cg = 0.3 + 0.65 * (((hh >>> 8) & 255) / 255)
         cb = 0.3 + 0.65 * (((hh >>> 16) & 255) / 255)
       }
+      const field = this.provinceField
       for (let v = 0; v < colors.length / 4; v++) {
         colors[v * 4] = cr
         colors[v * 4 + 1] = cg
         colors[v * 4 + 2] = cb
         colors[v * 4 + 3] = 1
+      }
+      if (field) {
+        const offX = this.originOffsetX
+        const offZ = this.originOffsetZ
+        for (let v = 0; v < tpl.gridCount; v++) {
+          const p = field(
+            positions[v * 3] + cell.cx + offX,
+            positions[v * 3 + 2] + cell.cz + offZ
+          )
+          colors[v * 4 + 3] = 1 - (p <= 0 ? 0 : p >= 1 ? 1 : p)
+        }
+        for (let p = 0; p < tpl.perim.length; p++) {
+          colors[(tpl.gridCount + p) * 4 + 3] = colors[tpl.perim[p] * 4 + 3]
+        }
       }
     }
 

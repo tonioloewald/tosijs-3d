@@ -486,6 +486,8 @@ export {
   attachBiomePlugin,
   defaultBiomeParams,
   MANTA_PALETTE,
+  LAVA_PALETTE,
+  CRYOVOLCANIC_PALETTE,
 } from './biome-plugin'
 export type { BiomeParams } from './biome-plugin'
 

@@ -48,7 +48,8 @@ terrain. Drag to orbit.
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
-  mesaProfile, beachProfile, cliffProfile, blendProfiles, profileField,
+  toggle3d, mesaProfile, beachProfile, cliffProfile, blendProfiles,
+  profileField, LAVA_PALETTE, CRYOVOLCANIC_PALETTE,
 } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 
@@ -87,6 +88,15 @@ terrain.grossFilter = blendProfiles(
   beachProfile(),
   profileField(87, 0.0028)
 )
+// A LOCAL volcanic province, independent of the global volcanism dial: an
+// authored radial caldera near the camera. The ramp IS the intensity, so it
+// self-demonstrates the ladder — molten pools at the centre, glowing seams
+// around them, cold dark voronoi at the fringe, fading into living biome.
+terrain.provinceField = (x, z) => {
+  const dx = x - 45
+  const dz = z + 25
+  return Math.max(0, 1 - Math.sqrt(dx * dx + dz * dz) / 60)
+}
 terrain.regenerate()
 
 const water = b3dWater({ y: 0, twoSided: true, waterSize: 1200 })
@@ -127,6 +137,9 @@ const scene = b3d(
         bind('volcanism', 'volcanism', 0, 1, 0.01),
         bind('volcanic scale', 'volcanicScale', 0.02, 0.3, 0.005),
         bind('glow animation', 'glowAnimation', 0, 2, 0.05),
+        // same ladder, different chemistry: molten WATER on a frozen world
+        toggle3d({ label: 'cryovolcanic', value: false,
+          onChange: (v) => { p.volcanicPalette = v ? CRYOVOLCANIC_PALETTE : LAVA_PALETTE } }),
       ]
     },
   },

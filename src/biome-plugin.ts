@@ -114,6 +114,16 @@ export interface BiomeParams {
   /** Vein width, 0..1 of cell spacing. */
   veinWidth: number
   /**
+   * The seven volcanic colours, in ladder order — [rock stage 1 (near-black
+   * basalt), rock stage 2 (dark brown), cold vein, ember seam, molten seam,
+   * pool crust-edge, pool bright]. Defaults are LAVA; swap in
+   * `CRYOVOLCANIC_PALETTE` (pale ice rock, teal veins, glowing blue-white
+   * melt) for frozen worlds with molten-water cryovolcanism — same ladder,
+   * same animation, different chemistry. Glow intensity is baked into the
+   * values (they may exceed 1).
+   */
+  volcanicPalette: number[][]
+  /**
    * Subtle live-lava animation: molten seams and pools shimmer with a slow,
    * spatially-phased pulse + drifting 3D-noise churn (never a global blink),
    * and pool edges creep as crust breaks and reforms. 0 = static, 1 = the
@@ -163,7 +173,32 @@ export const defaultBiomeParams = (): BiomeParams => ({
   volcanicScale: 0.09,
   veinWidth: 0.06,
   glowAnimation: 1,
+  volcanicPalette: LAVA_PALETTE.map((c) => [...c]),
 })
+
+/** Molten-rock volcanism (the default `volcanicPalette`). Ladder order:
+ * rock1, rock2, cold vein, ember, molten, pool edge, pool bright. */
+export const LAVA_PALETTE: number[][] = [
+  [0.045, 0.045, 0.07], // stage-1 rock: near-black basalt
+  [0.16, 0.1, 0.06], // stage-2 rock: dark brown
+  [0.12, 0.07, 0.045], // cold vein: dark brown voronoi
+  [0.35, 0.08, 0.02], // ember seam
+  [1.6, 0.512, 0.064], // molten seam (glow > 1)
+  [0.5, 0.12, 0.02], // pool crust edge
+  [1.7, 0.612, 0.085], // pool bright (glow > 1)
+]
+
+/** Cryovolcanism: frozen worlds venting molten WATER — pale green-white ice
+ * for rock, teal voronoi veins, blue-white glowing melt. Same ladder. */
+export const CRYOVOLCANIC_PALETTE: number[][] = [
+  [0.09, 0.12, 0.13], // stage-1 rock: dark dirty ice
+  [0.5, 0.58, 0.55], // stage-2 rock: pale green-white ice
+  [0.1, 0.2, 0.22], // cold vein: deep teal
+  [0.1, 0.4, 0.45], // ember seam: dim cyan
+  [0.5, 1.45, 1.6], // molten seam: glowing blue-white
+  [0.14, 0.45, 0.5], // pool crust edge
+  [0.75, 1.6, 1.7], // pool bright
+]
 
 /**
  * The flat-colour Whittaker chart, 4 cols (u: cold → warm) × **4 rows** (v:
@@ -303,6 +338,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomePlanetD', size: 4, type: 'vec4' }, // rainShadow, windAzimuth, moistureDryHeight, animTime
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
+        { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 } as any,
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -316,6 +352,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePlanetD;
         uniform vec4 biomePalette[20];
         uniform vec4 biomePaletteB[20];
+        uniform vec4 biomeVolcPal[7];
       #endif`,
     }
   }
@@ -402,12 +439,40 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
     }
     uniformBuffer.updateFloatArray('biomePalette', pack(this.palette))
     uniformBuffer.updateFloatArray('biomePaletteB', pack(this.paletteB))
+    const vp = this.params.volcanicPalette ?? LAVA_PALETTE
+    const vflat = new Float32Array(7 * 4)
+    for (let i = 0; i < 7; i++) {
+      const c = vp[i] ?? LAVA_PALETTE[i]
+      vflat[i * 4] = c[0]
+      vflat[i * 4 + 1] = c[1]
+      vflat[i * 4 + 2] = c[2]
+      vflat[i * 4 + 3] = 1
+    }
+    uniformBuffer.updateFloatArray('biomeVolcPal', vflat)
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
+    if (shaderType === 'vertex') {
+      // The LOCAL-province channel rides the colour buffer's alpha, but
+      // Babylon's vertexColorMixing include copies only color.rgb into vColor
+      // unless VERTEXALPHA is defined — and VERTEXALPHA would flip the whole
+      // mesh onto the alpha-blend path. So we read the raw attribute here and
+      // carry it on our own varying (1 = none, matching the buffer encoding).
+      return {
+        CUSTOM_VERTEX_DEFINITIONS: `#if defined(BIOME) && defined(VERTEXCOLOR)
+          varying float vBiomeProvince;
+        #endif`,
+        CUSTOM_VERTEX_MAIN_END: `#if defined(BIOME) && defined(VERTEXCOLOR)
+          vBiomeProvince = color.a;
+        #endif`,
+      }
+    }
     if (shaderType !== 'fragment') return null
     return {
-      CUSTOM_FRAGMENT_DEFINITIONS: `#ifdef BIOME
+      CUSTOM_FRAGMENT_DEFINITIONS: `#if defined(BIOME) && defined(VERTEXCOLOR)
+        varying float vBiomeProvince;
+      #endif
+      #ifdef BIOME
       // --- compact 2D simplex (IQ-style hash gradient) — world-space, highp ---
       vec2 bioHash2(vec2 p) {
         p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -634,15 +699,27 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
           biome = mix(biome, cliffCol, cliff);
           // --- VOLCANISM: the override that outranks climate ---------------
-          if (biomeSurf.y > 0.0) {
-            // Provinces from a low-frequency mask; the volcanism param slides
-            // the threshold, so 1.0 approaches everywhere and 0.3 gives
-            // scattered volcanic zones inside an otherwise living landscape.
+          // LOCAL provinces: terrain tiles carry a per-vertex volcanism field
+          // in the colour buffer's alpha (inverted — 1 = none), written by
+          // b3d-terrain's provinceField. Where present it runs the ladder at
+          // that local intensity, independent of the global dial: THIS island
+          // is volcanic. Meshes without vertex colours (planets) skip it.
+          float provLocal = 0.0;
+          #ifdef VERTEXCOLOR
+            provLocal = 1.0 - vBiomeProvince;
+          #endif
+          if (biomeSurf.y > 0.0 || provLocal > 0.0) {
+            // Global provinces from a low-frequency mask; the volcanism param
+            // slides the threshold, so 1.0 approaches everywhere and 0.3
+            // gives scattered volcanic zones in a living landscape. The local
+            // field ORs in as its own mask at its own intensity.
             float vn = 0.5 + 0.5 * bioSimplex(wp.xz * 0.006 + 3.3);
-            float volc = smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn);
+            float volcG = biomeSurf.y > 0.0
+              ? smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn)
+              : 0.0;
+            float volc = max(volcG, smoothstep(0.02, 0.3, provLocal));
+            float vEff = max(biomeSurf.y, provLocal);
             if (volc > 0.0) {
-              vec2 wF = bioWorley(wp.xz * biomeSurf.z);
-              float vein = 1.0 - smoothstep(0.0, max(biomeSurf.w, 1e-3), wF.y - wF.x);
               // The intensity LADDER (stage 1..3): 1 = near-black basalt with
               // DARK-BROWN voronoi seams; 2 = dark-brown rock with GLOWING
               // seams; 3 = patchy open lava. Horizontals climb 1 + 2·volcanism
@@ -655,7 +732,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // under shallow water, dimming with depth. sub ramps over the
               // first couple of metres so the waterline isn't a hard seam.
               float sub = clamp(-altitude * 0.5, 0.0, 1.0);
-              float stage = clamp(1.0 + 2.0 * biomeSurf.y - cliffRaw - 0.5 * sub, 1.0, 3.0);
+              float stage = clamp(1.0 + 2.0 * vEff - cliffRaw - 0.5 * sub, 1.0, 3.0);
+              // Veins WIDEN as the ladder climbs (~4x by stage 3), so pools
+              // read as veins fattening until they merge — one continuous
+              // process, not two patterns swapping.
+              vec2 wF = bioWorley(wp.xz * biomeSurf.z);
+              float vw = max(biomeSurf.w, 1e-3) * (1.0 + 1.5 * (stage - 1.0));
+              float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
               float t12 = clamp(stage - 1.0, 0.0, 1.0);
               float t23 = clamp(stage - 2.0, 0.0, 1.0);
               float damp = mix(1.0, mix(0.5, 0.15, clamp(-altitude / 15.0, 0.0, 1.0)), sub);
@@ -666,23 +749,23 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               float churn = bioSimplex3(vec3(wp.xz * 0.05, tAnim * 0.11));
               float pulse = 1.0 + biomeWater.z * (0.10 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.18 * churn);
               // stage 1 → 2: base rock warms near-black basalt → dark brown
-              vec3 volcGround = mix(vec3(0.045, 0.045, 0.07), vec3(0.16, 0.10, 0.06), t12);
+              vec3 volcGround = mix(biomeVolcPal[0].rgb, biomeVolcPal[1].rgb, t12);
               // stage 1: seams are COLD dark brown; they hand over as glow rises
-              vec3 base = mix(volcGround, vec3(0.12, 0.07, 0.045), vein * (1.0 - t12));
+              vec3 base = mix(volcGround, biomeVolcPal[2].rgb, vein * (1.0 - t12));
               // stage 2: seams glow — MOST are cooled ember, a slow mask picks
               // the live molten channels, so the field reads "lava under
               // rock", not "lava planet".
               float live = smoothstep(0.55, 0.72, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
               float glow = vein * t12 * damp;
-              vec3 ember = mix(base, vec3(0.35, 0.08, 0.02), glow);
-              vec3 molten = mix(base, vec3(1.0, 0.32, 0.04) * 1.6 * pulse, glow * (0.75 + dith * 4.0));
+              vec3 ember = mix(base, biomeVolcPal[3].rgb, glow);
+              vec3 molten = mix(base, biomeVolcPal[4].rgb * pulse, glow * (0.75 + dith * 4.0));
               vec3 volcCol = mix(ember, molten, live);
               // stage 2 → 3: seams give way to PATCHY open lava — broad soft
               // pools whose edges creep with the churn (crust breaking and
               // reforming); crusted rock between keeps its glowing seams.
               // (lavaPatch, not patch — 'patch' is a GLSL reserved word)
               float lavaPatch = smoothstep(0.35, 0.7, 0.5 + 0.5 * bioSimplex(wp.xz * 0.018 + 5.7) + 0.08 * churn * biomeWater.z);
-              vec3 pool = mix(vec3(0.5, 0.12, 0.02), vec3(1.0, 0.36, 0.05) * 1.7 * pulse, clamp(0.55 + dith * 5.0 + 0.25 * churn, 0.0, 1.0));
+              vec3 pool = mix(biomeVolcPal[5].rgb, biomeVolcPal[6].rgb * pulse, clamp(0.55 + dith * 5.0 + 0.25 * churn, 0.0, 1.0));
               volcCol = mix(volcCol, pool, t23 * lavaPatch * damp);
               biome = mix(biome, volcCol, volc);
             }
