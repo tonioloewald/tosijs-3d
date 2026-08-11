@@ -61,6 +61,13 @@ export interface BiomeParams {
    */
   detailNoiseScale: number
   detailNoiseAmp: number
+  /**
+   * How much vegetation CLINGS to cliff faces in fecund (warm + wet) climates
+   * — dither-driven pockets of the local biome breaking through the rock, the
+   * way plants colonize cliff-sides anywhere life is rampant. 0 = always bare
+   * rock; cold or dry climates stay bare regardless.
+   */
+  cliffCling: number
 }
 
 export const defaultBiomeParams = (): BiomeParams => ({
@@ -85,6 +92,7 @@ export const defaultBiomeParams = (): BiomeParams => ({
   latWarpAmp: 0.12,
   detailNoiseScale: 0.55,
   detailNoiseAmp: 0.1,
+  cliffCling: 0.55,
 })
 
 /**
@@ -169,7 +177,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeCfg', size: 4, type: 'vec4' }, // seaLevel, baseTemp, lapse, mapMoisture
         { name: 'biomeNoise', size: 4, type: 'vec4' }, // tScale, tAmp, mScale, mAmp
         { name: 'biomeDither', size: 4, type: 'vec4' }, // ditherScale, ditherAmp, cliffStart, cliffFull
-        { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, unused
+        { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, cliffCling
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 16 } as any,
@@ -215,7 +223,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.underwaterFog,
       p.underwaterMurk,
       p.insolation,
-      0
+      p.cliffCling
     )
     uniformBuffer.updateFloat4(
       'biomePlanet',
@@ -350,8 +358,19 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // walls classify as cliffs automatically.
         #ifdef NORMAL
           // Slope vs the front-end's UP — world-up flat, RADIAL on a planet
-          // (a mountainside near the pole is a cliff, not a "wall").
-          float cliff = bioSlopeMask(dot(normalize(vNormalW), up), biomeDither.z, biomeDither.w);
+          // (a mountainside near the pole is a cliff, not a "wall"). The SAME
+          // edgeDither perturbs the slope INPUT, so the cliff line breaks up
+          // organically like the biome bands instead of tracing a clean
+          // contour — one dither, every edge, zero extra noise evals.
+          float cliff = bioSlopeMask(dot(normalize(vNormalW), up) + dith, biomeDither.z, biomeDither.w);
+          // Fecund cliffs grow: in warm+wet climates the local biome breaks
+          // through the rock in dither-driven pockets — plants clinging to
+          // cliff-sides wherever life is rampant (underwater too: photic
+          // growth on rock walls, dying to bare stone with the light). Cold
+          // or dry faces stay bare; the pockets keep it from looking painted.
+          float fecund = clamp(temperature, 0.0, 1.0) * clamp(moisture * 1.5, 0.0, 1.0);
+          float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
+          cliff *= 1.0 - biomeWater.w * fecund * pocket;
           biome = mix(biome, vec3(${CLIFF_COLOR.join(', ')}), cliff);
         #endif
         diffuseColor = biome;

@@ -90,7 +90,9 @@ const scene = b3d(
         label3d({ text: 'Chart', bold: true, compact: true }),
         bind('lapse rate', 'lapseRate', 0, 0.02, 0.0005),
         bind('dither amount', 'ditherAmp', 0, 0.15, 0.005),
+        bind('dither scale', 'ditherScale', 0.05, 1.5, 0.01),
         bind('cliff start', 'cliffStart', 0.3, 0.95, 0.01),
+        bind('cliff cling', 'cliffCling', 0, 1, 0.01),
       ]
     },
   },
