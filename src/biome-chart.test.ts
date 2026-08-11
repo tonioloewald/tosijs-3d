@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import {
+  latitudeTemperature,
   mantaAxes,
   planetaryAxes,
   chartUV,
@@ -45,7 +46,13 @@ describe('mantaAxes — the implemented front-end', () => {
 })
 
 describe('planetaryAxes — interface stub (design step 7)', () => {
-  const P = { ...CFG, seaLevel: 100, insolation: 0.3 }
+  const P = {
+    ...CFG,
+    seaLevel: 100,
+    equatorTemp: 0.85,
+    temperateTemp: 0.5,
+    poleTemp: 0.1,
+  }
 
   test('altitude is RADIAL: length(p) − seaRadius', () => {
     const onSea = planetaryAxes({ x: 100, y: 0, z: 0 }, P)
@@ -67,6 +74,23 @@ describe('planetaryAxes — interface stub (design step 7)', () => {
     const warped = planetaryAxes({ x: 100, y: 0, z: 0 }, P, 0, 0, 0.5)
     expect(warped.temperature).toBeLessThan(straight.temperature) // pushed poleward
     expect(warped.latitude).toBe(straight.latitude) // reported latitude unwarped
+  })
+})
+
+describe('latitudeTemperature — the three-point curve authors think in', () => {
+  test('hits the three anchors and interpolates between', () => {
+    expect(latitudeTemperature(0, 0.9, 0.5, 0.1)).toBeCloseTo(0.9)
+    expect(latitudeTemperature(Math.PI / 4, 0.9, 0.5, 0.1)).toBeCloseTo(0.5)
+    expect(latitudeTemperature(Math.PI / 2, 0.9, 0.5, 0.1)).toBeCloseTo(0.1)
+    expect(latitudeTemperature(-Math.PI / 2, 0.9, 0.5, 0.1)).toBeCloseTo(0.1) // hemispheres symmetric
+    const mid = latitudeTemperature(Math.PI / 8, 0.9, 0.5, 0.1)
+    expect(mid).toBeGreaterThan(0.5)
+    expect(mid).toBeLessThan(0.9)
+  })
+
+  test('a non-monotone climate is expressible (warm temperate, cold equator)', () => {
+    // three anchors, not a formula — authors can pick anything
+    expect(latitudeTemperature(Math.PI / 4, 0.3, 0.8, 0.1)).toBeCloseTo(0.8)
   })
 })
 

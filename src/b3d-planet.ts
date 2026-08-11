@@ -57,6 +57,25 @@ const scene = b3d(
       slider3d({ label: 'atmosphere', value: demo.atmosphere, min: 0, max: 0.2, step: 0.01 }),
       slider3d({ label: 'ocean', value: demo.ocean, min: 0, max: 1, step: 0.05 }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
+      // The biome climate, in the terms you think in: temperature at the
+      // equator, the temperate zone, and the pole — plus moisture and the
+      // rain-shadow strength. All live (bindForSubMesh reads each frame).
+      label3d({ text: 'Climate' }),
+      ...(planet.biomePlugin
+        ? (() => {
+            const p = planet.biomePlugin.params
+            const bind = (label, key, min, max, step) =>
+              slider3d({ label, value: p[key], min, max, step, onChange: (v) => { p[key] = v } })
+            return [
+              bind('equator temp', 'equatorTemp', 0, 1, 0.01),
+              bind('temperate temp', 'temperateTemp', 0, 1, 0.01),
+              bind('pole temp', 'poleTemp', 0, 1, 0.01),
+              bind('moisture', 'mapMoisture', 0, 1, 0.01),
+              bind('rain shadow', 'rainShadow', 0, 0.6, 0.01),
+              bind('volcanism', 'volcanism', 0, 1, 0.01),
+            ]
+          })()
+        : []),
     ],
     sceneCreated(el, BABYLON) {
       const camera = new BABYLON.ArcRotateCamera(
@@ -350,6 +369,13 @@ export class B3dPlanet extends B3dChild {
         ditherScale: 0.6,
         detailNoiseScale: 1.2,
         surfDepth: 0.6,
+        // Planet-scale contours are gentle — exaggerate slope deviation so
+        // steep flanks still read as rock at this radius.
+        slopeExaggeration: 6,
+        // moisture dries over roughly the relief height: coasts wet,
+        // highlands dry (the rough proximity-to-water estimate)
+        moistureDryHeight: Math.max(2, attrs.grossAmplitude * 1.2),
+        rainShadow: 0.3,
       })
     }
     mesh.material = mat

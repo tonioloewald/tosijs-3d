@@ -1,5 +1,0 @@
-import{Ut as D}from"./site-2z5azex9.js";import{ku as z}from"./site-5mc4escc.js";import{sE as v}from"./site-tvqrtn5a.js";class H extends D{constructor(b){super(b);this.sound=this.registerDataInput("sound",z)}_execute(b,J){let m=this.sound.getValue(b);if(!m){this._reportError(b,"No sound provided"),this.out._activateSignal(b);return}m.stop(),this.out._activateSignal(b)}getClassName(){return"FlowGraphStopSoundBlock"}}var q=!1;function I(){if(q)return;q=!0,v("FlowGraphStopSoundBlock",H)}I();
-export{H as Lm,I as Mm};
-
-//# debugId=B824EB56791CBE0664756E2164756E21
-//# sourceMappingURL=site-f7nmhx2b.js.map

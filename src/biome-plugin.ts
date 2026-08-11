@@ -44,13 +44,40 @@ export interface BiomeParams {
   /**
    * PLANETARY front-end (design step 7, promoted to GLSL): set `seaRadius > 0`
    * to switch the picker to radial altitude (`length(p − center) − seaRadius`),
-   * radial-up slope, and insolation over asin-latitude with latWarp. 0 = flat
-   * (Manta) front-end. Same chart, same overrides — only the axes change.
+   * radial-up slope, and the latitude temperature curve. 0 = flat (Manta)
+   * front-end. Same chart, same overrides — only the axes change.
    */
   seaRadius: number
   planetCenter: { x: number; y: number; z: number }
-  /** Equator-to-pole temperature swing (chart units). */
-  insolation: number
+  /** Sea-level temperature AT THE EQUATOR (chart units) — with temperateTemp
+   * and poleTemp this is the three-point latitude curve authors actually
+   * think in, replacing an abstract insolation swing. */
+  equatorTemp: number
+  /** Sea-level temperature at 45° latitude. */
+  temperateTemp: number
+  /** Sea-level temperature at the poles. */
+  poleTemp: number
+  /**
+   * Orographic rain shadow, rough estimate: windward slopes (facing the wind)
+   * read wetter, leeward drier, by this much (moisture units). No upstream
+   * terrain sampling — the surface normal vs the wind is the classic cheap
+   * approximation and it produces believable wet/dry flanks.
+   */
+  rainShadow: number
+  /** Wind direction (radians, around world Y) the rain shadow uses. */
+  windAzimuth: number
+  /**
+   * Moisture-vs-altitude drying (m): the rough proximity-to-water estimate —
+   * map moisture decays with height above sea level over this scale, so
+   * coasts are wet and highlands dry. Planetary front-end only.
+   */
+  moistureDryHeight: number
+  /**
+   * Multiplies slope DEVIATION before the cliff test — planet-scale contours
+   * are far gentler than terrain, so raw normals never read as cliffs.
+   * 1 = flat-terrain behaviour; a small planet wants ~4–8.
+   */
+  slopeExaggeration: number
   /** Low-frequency latitude domain-warp (gulf-stream wobble). */
   latWarpScale: number
   latWarpAmp: number
@@ -107,7 +134,13 @@ export const defaultBiomeParams = (): BiomeParams => ({
   underwaterMurk: 0.08,
   seaRadius: 0,
   planetCenter: { x: 0, y: 0, z: 0 },
-  insolation: 0.35,
+  equatorTemp: 0.85,
+  temperateTemp: 0.55,
+  poleTemp: 0.05,
+  rainShadow: 0.25,
+  windAzimuth: 0.8,
+  moistureDryHeight: 8,
+  slopeExaggeration: 1,
   latWarpScale: 0.02,
   latWarpAmp: 0.12,
   detailNoiseScale: 0.55,
@@ -248,10 +281,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeCfg', size: 4, type: 'vec4' }, // seaLevel, baseTemp, lapse, mapMoisture
         { name: 'biomeNoise', size: 4, type: 'vec4' }, // tScale, tAmp, mScale, mAmp
         { name: 'biomeDither', size: 4, type: 'vec4' }, // ditherScale, ditherAmp, cliffStart, cliffFull
-        { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, cliffCling
+        { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, unused, cliffCling
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
         { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, volcanism, volcanicScale, veinWidth
+        { name: 'biomePlanetC', size: 4, type: 'vec4' }, // equatorTemp, temperateTemp, poleTemp, slopeExaggeration
+        { name: 'biomePlanetD', size: 4, type: 'vec4' }, // rainShadow, windAzimuth, moistureDryHeight, unused
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
       ],
@@ -263,6 +298,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
         uniform vec4 biomeSurf;
+        uniform vec4 biomePlanetC;
+        uniform vec4 biomePlanetD;
         uniform vec4 biomePalette[20];
         uniform vec4 biomePaletteB[20];
       #endif`,
@@ -297,8 +334,22 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       'biomeWater',
       p.underwaterFog,
       p.underwaterMurk,
-      p.insolation,
+      0,
       p.cliffCling
+    )
+    uniformBuffer.updateFloat4(
+      'biomePlanetC',
+      p.equatorTemp,
+      p.temperateTemp,
+      p.poleTemp,
+      p.slopeExaggeration
+    )
+    uniformBuffer.updateFloat4(
+      'biomePlanetD',
+      p.rainShadow,
+      p.windAzimuth,
+      p.moistureDryHeight,
+      0
     )
     uniformBuffer.updateFloat4(
       'biomePlanet',
@@ -470,22 +521,42 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         // grow polar ice naturally: Mars with ice caps, which is correct.
         float mN = bioFbm(wp.xz * biomeNoise.z + 71.3) * biomeNoise.w;
         float temperature = biomeCfg.y - biomeCfg.z * abs(altitude) + tN;
+        float effMapM = biomeCfg.w;
         if (planetary) {
-          // planetaryAxes: insolation over asin latitude, latWarp BEFORE the
-          // temperature calc — banding wobbles instead of painting on.
+          // The three-point latitude curve authors think in: equator →
+          // temperate (45°) → pole, over latWarped asin latitude (the warp
+          // runs BEFORE the calc, so banding wobbles instead of painting on).
           float lat = asin(clamp(rel.y / max(r, 1e-5), -1.0, 1.0));
           float latW = lat + bioSimplex(rel.xz * biomePlanetB.x) * biomePlanetB.y;
-          temperature += biomeWater.z * cos(latW);
+          float alat = clamp(abs(latW) / 1.5707963, 0.0, 1.0);
+          float latT = alat < 0.5
+            ? mix(biomePlanetC.x, biomePlanetC.y, alat * 2.0)
+            : mix(biomePlanetC.y, biomePlanetC.z, alat * 2.0 - 1.0);
+          temperature = latT - biomeCfg.z * abs(altitude) + tN;
+          // ROUGH moisture estimate: proximity to water (map moisture dries
+          // with altitude — coasts wet, highlands dry) + orographic rain
+          // shadow (windward slopes wet, leeward dry, off the surface normal
+          // — the classic no-upstream-sampling approximation).
+          float dry = exp(-max(altitude, 0.0) / max(biomePlanetD.z, 1e-3));
+          float oro = 0.0;
+          #ifdef NORMAL
+            vec3 wind = vec3(cos(biomePlanetD.y), 0.0, sin(biomePlanetD.y));
+            oro = biomePlanetD.x * dot(normalize(vNormalW), -wind);
+          #endif
+          effMapM = clamp(biomeCfg.w * dry + oro, 0.0, 1.0);
         }
         bool underwater = altitude < 0.0;
         // The MOISTURE GATE: on an airless world there is no sea at all —
         // below "sea level" is just lower dead land. Everything oceanic
         // (marine-row saturation here; surf + photic below) scales with it.
+        // The gate reads the SCENE moisture (aliveness), not the local
+        // estimate — a dry highland on a living planet still belongs to a
+        // world with oceans.
         float mGate = smoothstep(0.0, 0.25, biomeCfg.w);
         // Land occupies the dead→wet rows (v ≤ ¾); the marine row (v = 1) is
         // the sea's alone, so a soaking-wet coast blends TOWARD the beach/sand
         // boundary rather than classifying as seafloor.
-        float landM = clamp(biomeCfg.w + mN * mGate, 0.0, 1.0) * 0.75;
+        float landM = clamp(effMapM + mN * mGate, 0.0, 1.0) * 0.75;
         float moisture = underwater ? mix(landM, 1.0, mGate) : landM;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
         float dith = bioSimplex3(wp * biomeDither.x) * biomeDither.y;
@@ -522,7 +593,11 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // edgeDither perturbs the slope INPUT, so the cliff line breaks up
           // organically like the biome bands instead of tracing a clean
           // contour — one dither, every edge, zero extra noise evals.
-          float cliff = bioSlopeMask(dot(normalize(vNormalW), up) + dith, biomeDither.z, biomeDither.w);
+          // slopeExaggeration scales the DEVIATION from up before the cliff
+          // test — planet-scale contours are gentle, so raw normals would
+          // never read as cliffs at planetary radii.
+          float cosUp = 1.0 - (1.0 - dot(normalize(vNormalW), up)) * biomePlanetC.w;
+          float cliff = bioSlopeMask(cosUp + dith, biomeDither.z, biomeDither.w);
           // In the DEAD band the exposed rock itself changes world: warm dead
           // = Mars red rock, cold dead = Moon dark grey — the dust (chart row)
           // and the rock (slope override) tell the same story.

@@ -9,7 +9,7 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
@@ -55,6 +55,15 @@ const terrain = b3dTerrain({
   wireframe: demo.wireframe,
   debugColor: demo.debugColor,
 })
+// LOCALIZED slope profiles give the terrain regional character: mesas in one
+// province, rolling country in another, sea-cliff coasts in a third — with
+// continuous transitions between (see /slope-profile/).
+terrain.grossFilter = blendProfiles(
+  blendProfiles(mesaProfile(5), cliffProfile(0.45, 0.12), profileField(demo.seed + 7, 0.003)),
+  rollingProfile(0.4),
+  profileField(demo.seed + 13, 0.0024)
+)
+terrain.regenerate()
 
 const posDisplay = span({ class: 'pos-display' })
 

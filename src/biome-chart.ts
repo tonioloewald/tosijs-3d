@@ -15,14 +15,16 @@ pinned here by unit tests, one function per shader expression.
   reef → shelf → abyssal, warm → cold) and the temperature lapse keeps running
   below sea level; above water, moisture is a map constant. The beach is where
   the terrestrial chart meets the marine edge at sea level.
-- **Planetary front-end** (`planetaryAxes`) — interface only, per the design
-  doc's scope guard. Altitude is **radial** (`length(p) − seaRadius`), latitude
-  is `asin(y/|p|)` from 3D position (never lat/long UVs), insolation warms the
-  equator. It exists so the picker's interface is proven against a second
-  caller; nothing more until Manta's seafloor needs it. (The GLSL side of
-  this interface IS live: `BiomeParams.seaRadius > 0` switches
-  [[biome-plugin]] to radial altitude + radial-up slope + insolation — a
-  displaced icosphere classifies as a planet with one param.)
+- **Planetary front-end** (`planetaryAxes`) — live in both the pure model and
+  the GLSL (`BiomeParams.seaRadius > 0`). Altitude is **radial**
+  (`length(p) − seaRadius`), latitude is `asin(y/|p|)` from 3D position (never
+  lat/long UVs), and sea-level temperature follows the **three-point latitude
+  curve** authors think in (`latitudeTemperature`: equator / temperate / pole).
+  The shader adds the rough moisture estimate — map moisture **dries with
+  altitude** (proximity-to-water proxy) plus an **orographic rain-shadow**
+  term off the surface normal vs the wind — and `slopeExaggeration` so
+  planet-gentle contours still read as cliffs. `b3dPlanet({ biome: 'on' })`
+  wires it, with the climate on the demo's ⚙ panel.
 
 ## Demo — one shader, bottom muck → coral → beach → forest → snow
 
@@ -198,14 +200,32 @@ export function mantaAxes(
   return { temperature, moisture }
 }
 
-/** Planetary front-end — INTERFACE ONLY (design doc step 7): radial altitude,
- * asin latitude from 3D position, cosine insolation. `latWarpNoise` domain-
- * warps latitude BEFORE the temperature calc (gulf-stream wobble). */
+/**
+ * The latitude → sea-level temperature curve, in the terms authors think in:
+ * temperature at the equator, at 45°, and at the pole — piecewise-linear over
+ * |latitude|. Feed it the latWARPED latitude so climate bands wobble.
+ */
+export function latitudeTemperature(
+  latitude: number,
+  equatorTemp: number,
+  temperateTemp: number,
+  poleTemp: number
+): number {
+  const a = Math.min(1, Math.abs(latitude) / (Math.PI / 2))
+  return a < 0.5
+    ? equatorTemp + (temperateTemp - equatorTemp) * (a * 2)
+    : temperateTemp + (poleTemp - temperateTemp) * (a * 2 - 1)
+}
+
+/** Planetary front-end: radial altitude, asin latitude from 3D position, the
+ * three-point latitude temperature curve. `latWarpNoise` domain-warps
+ * latitude BEFORE the temperature calc (gulf-stream wobble). */
 export function planetaryAxes(
   p: { x: number; y: number; z: number },
   cfg: BiomeChartConfig & {
-    /** Insolation strength — equator-to-pole temperature swing (chart units). */
-    insolation: number
+    equatorTemp: number
+    temperateTemp: number
+    poleTemp: number
   },
   tNoise = 0,
   mNoise = 0,
@@ -216,9 +236,13 @@ export function planetaryAxes(
   const latitude = r > 0 ? Math.asin(p.y / r) : 0
   const warped = latitude + latWarpNoise
   const temperature =
-    cfg.baseTemperature -
+    latitudeTemperature(
+      warped,
+      cfg.equatorTemp,
+      cfg.temperateTemp,
+      cfg.poleTemp
+    ) -
     cfg.lapseRate * Math.abs(altitude) + // radial |altitude| — same both-ways lapse
-    cfg.insolation * Math.cos(warped) +
     tNoise
   const underwater = altitude < 0
   const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
