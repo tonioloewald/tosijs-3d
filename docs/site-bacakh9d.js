@@ -1,5 +1,0 @@
-import{Ut as D}from"./site-2z5azex9.js";import{nu as C}from"./site-5mc4escc.js";import{sE as z}from"./site-tvqrtn5a.js";import{tF as A}from"./site-s01bmp72.js";class m extends D{constructor(b){super(b);this.config=b,this.condition=this.registerDataInput("condition",C),this.executionFlow=this._registerSignalOutput("executionFlow"),this.completed=this._registerSignalOutput("completed"),this._unregisterSignalOutput("out")}_execute(b,I){let q=this.condition.getValue(b);if(this.config?.doWhile&&!q)this.executionFlow._activateSignal(b);let v=0;while(q){if(this.executionFlow._activateSignal(b),++v,v>=m.MaxLoopCount){A.Warn("FlowGraphWhileLoopBlock: Max loop count reached. Breaking.");break}q=this.condition.getValue(b)}this.completed._activateSignal(b)}getClassName(){return"FlowGraphWhileLoopBlock"}}m.MaxLoopCount=1000;var y=!1;function H(){if(y)return;y=!0,z("FlowGraphWhileLoopBlock",m)}H();
-export{m as Io,H as Jo};
-
-//# debugId=C1B8D8A514F89D0264756E2164756E21
-//# sourceMappingURL=site-bacakh9d.js.map

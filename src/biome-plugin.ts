@@ -79,28 +79,44 @@ export const defaultBiomeParams = (): BiomeParams => ({
 })
 
 /**
- * The flat-colour Whittaker chart, 4 cols (u: cold → warm) × 3 rows (v: dry →
- * wet), row-major — organized so ecological neighbours are chart neighbours.
- * The wet row IS the marine column read warm→cold with depth:
- * abyssal → shelf → reef at the warm end; the beach emerges where the
- * terrestrial rows meet the wet edge at sea level.
+ * The flat-colour Whittaker chart, 4 cols (u: cold → warm) × **4 rows** (v:
+ * dry land → wet land → marine), row-major from the dry row — organized so
+ * ecological neighbours are chart neighbours. Tonio's transition spec, which
+ * this layout encodes:
+ *
+ * - wet:    bottom muck → barren → coral → beach → forest → scrub → snow
+ *   (the marine row + the wet-land row, joined at the beach — altitude reads
+ *   the chart because the lapse maps altitude to temperature)
+ * - medium: beach → steppe → lichen → ice
+ * - dry:    beach → dune → barren rock → ice
+ * - really cold: sea-level temperature starts at the cold end, so the
+ *   beach→…→ice run COLLAPSES and ice meets the waterline — emergent from
+ *   the lapse, not special-cased.
+ *
+ * Every land row ends in beach at the warm end (sea level = the temperature
+ * peak), so the shoreline is beach in every climate that's warm enough.
  */
 export const MANTA_PALETTE: number[][] = [
-  // dry row (v = 0):   polar rock   cold steppe   dry grass     sand desert
-  [0.42, 0.42, 0.46],
-  [0.55, 0.5, 0.4],
-  [0.62, 0.58, 0.38],
-  [0.78, 0.68, 0.45],
-  // mid row (v = .5):  tundra       shrubland     grassland     savanna
-  [0.5, 0.52, 0.45],
-  [0.42, 0.52, 0.32],
-  [0.35, 0.55, 0.28],
-  [0.6, 0.58, 0.3],
-  // wet row (v = 1):   abyssal      shelf         seagrass      reef
-  [0.09, 0.12, 0.2],
-  [0.16, 0.28, 0.34],
-  [0.2, 0.42, 0.38],
-  [0.75, 0.66, 0.5],
+  // dry row (v = 0):    ice          barren rock   dune          beach
+  [0.75, 0.8, 0.88],
+  [0.45, 0.41, 0.37],
+  [0.73, 0.6, 0.4],
+  [0.78, 0.69, 0.5],
+  // med row (v = ⅓):    ice          lichen        steppe        beach
+  [0.8, 0.86, 0.92],
+  [0.55, 0.58, 0.47],
+  [0.62, 0.6, 0.38],
+  [0.79, 0.7, 0.52],
+  // wet row (v = ⅔):    snow         scrub         forest        beach
+  [0.92, 0.94, 0.97],
+  [0.46, 0.51, 0.35],
+  [0.16, 0.37, 0.19],
+  [0.8, 0.72, 0.55],
+  // marine row (v = 1): bottom muck  barren silt   coral         sand
+  [0.14, 0.13, 0.11],
+  [0.27, 0.26, 0.22],
+  [0.66, 0.4, 0.42],
+  [0.76, 0.68, 0.54],
 ]
 
 const CLIFF_COLOR: [number, number, number] = [0.38, 0.35, 0.33]
@@ -147,7 +163,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomeWater', size: 4, type: 'vec4' }, // fog, murk, insolation, unused
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, unused, unused
-        { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 12 } as any,
+        { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 16 } as any,
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -156,7 +172,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomeWater;
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
-        uniform vec4 biomePalette[12];
+        uniform vec4 biomePalette[16];
       #endif`,
     }
   }
@@ -206,8 +222,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       0,
       0
     )
-    const flat = new Float32Array(12 * 4)
-    for (let i = 0; i < 12; i++) {
+    const flat = new Float32Array(16 * 4)
+    for (let i = 0; i < 16; i++) {
       const c = this.palette[i] ?? [1, 0, 1]
       flat[i * 4] = c[0]
       flat[i * 4 + 1] = c[1]
@@ -255,12 +271,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         return exp(-d * d);
       }
       vec3 bioChartColour(float u, float v) {
-        // cellBlend, unrolled for the 4x3 chart: smoothstepped bilinear over
+        // cellBlend, unrolled for the 4x4 chart: smoothstepped bilinear over
         // the 2x2 neighbourhood. Band centres are pure; edges ease.
         float fu = clamp(u, 0.0, 1.0) * 3.0;
-        float fv = clamp(v, 0.0, 1.0) * 2.0;
+        float fv = clamp(v, 0.0, 1.0) * 3.0;
         float c0 = min(2.0, floor(fu));
-        float r0 = min(1.0, floor(fv));
+        float r0 = min(2.0, floor(fv));
         float tu = smoothstep(0.0, 1.0, fu - c0);
         float tv = smoothstep(0.0, 1.0, fv - r0);
         int i00 = int(r0) * 4 + int(c0);
@@ -297,7 +313,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           temperature += biomeWater.z * cos(latW);
         }
         bool underwater = altitude < 0.0;
-        float moisture = underwater ? 1.0 : biomeCfg.w + mN;
+        // Land occupies the dry→wet rows (v ≤ ⅔); the marine row (v = 1) is
+        // the sea's alone, so a soaking-wet coast blends TOWARD the beach/sand
+        // boundary rather than classifying as seafloor.
+        float moisture = underwater
+          ? 1.0
+          : clamp(biomeCfg.w + mN, 0.0, 1.0) * 0.667;
         // edgeDither moves the crossfade inputs (organic borders, not contours)
         float dith = bioSimplex(wp.xz * biomeDither.x) * biomeDither.y;
         vec3 biome = bioChartColour(temperature + dith, moisture + dith);

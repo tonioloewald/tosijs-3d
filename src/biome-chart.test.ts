@@ -28,16 +28,19 @@ describe('mantaAxes — the implemented front-end', () => {
     expect(abyss.temperature).toBeCloseTo(peak.temperature) // symmetric lapse
   })
 
-  test('underwater saturates moisture (the wet-column gradient)', () => {
+  test('underwater saturates moisture; LAND compresses to the dry→wet rows (≤ ⅔)', () => {
+    // The marine row (v = 1) is the sea's alone — a soaking-wet coast blends
+    // toward the beach/sand boundary, never into seafloor cells.
     expect(mantaAxes(-5, CFG).moisture).toBe(1)
-    expect(mantaAxes(5, CFG).moisture).toBeCloseTo(CFG.mapMoisture)
+    expect(mantaAxes(5, CFG).moisture).toBeCloseTo(CFG.mapMoisture * 0.667)
+    expect(mantaAxes(5, { ...CFG, mapMoisture: 1 }).moisture).toBeCloseTo(0.667)
   })
 
-  test('noise feeds the INPUTS', () => {
+  test('noise feeds the INPUTS (moisture noise inside the land compression)', () => {
     const base = mantaAxes(10, CFG)
     const noisy = mantaAxes(10, CFG, 0.1, -0.2)
     expect(noisy.temperature).toBeCloseTo(base.temperature + 0.1)
-    expect(noisy.moisture).toBeCloseTo(base.moisture - 0.2)
+    expect(noisy.moisture).toBeCloseTo((CFG.mapMoisture - 0.2) * 0.667)
   })
 })
 
@@ -47,7 +50,7 @@ describe('planetaryAxes — interface stub (design step 7)', () => {
   test('altitude is RADIAL: length(p) − seaRadius', () => {
     const onSea = planetaryAxes({ x: 100, y: 0, z: 0 }, P)
     const above = planetaryAxes({ x: 110, y: 0, z: 0 }, P)
-    expect(onSea.moisture).toBeCloseTo(P.mapMoisture) // r = seaRadius → altitude 0
+    expect(onSea.moisture).toBeCloseTo(P.mapMoisture * 0.667) // r = seaRadius → altitude 0, land side
     expect(above.temperature).toBeLessThan(onSea.temperature)
   })
 

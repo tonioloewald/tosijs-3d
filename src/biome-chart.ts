@@ -24,43 +24,63 @@ pinned here by unit tests, one function per shader expression.
   [[biome-plugin]] to radial altitude + radial-up slope + insolation — a
   displaced icosphere classifies as a planet with one param.)
 
-## Demo — one shader, seafloor → beach → mountain
+## Demo — one shader, bottom muck → coral → beach → forest → snow
 
 Flat-colour chart cells (build-order step 1: validate the mapping before any
-texture). Terrain amplitude carries the surface through sea level, so the
-marine wet-edge gradient (abyssal → shelf → reef), the emergent beach, the
-grass/savanna mid-band, and the slope-override cliffs are all one material —
-drag to orbit. Tune the chart live from the ⚙ panel.
+texture). The terrain mixes tall **plateaus** (a `plateauFilter` on the gross
+noise — steep risers, gentle tops) with rolling relief through the waterline,
+so every transition in the spec is on screen at once: the marine column under
+the water, the beach at the shoreline, forest/steppe/dune bands by moisture,
+snow-capped plateau tops, and slope-override cliffs on the risers.
+
+Two sliders make the CHART's behaviour visible, not just the picture:
+**climate** (base temperature) — drag it cold and the beach→…→ice run
+collapses until ice meets the waterline, exactly as the spec asks, emergent
+from the lapse; **map moisture** — sweep forest → steppe → dune on the same
+terrain. Drag to orbit.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, plateauFilter, slider3d, label3d } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 
-const terrain = b3dTerrain({
-  seed: 7,
-  biome: 'on',
-  grossScale: 0.012,
-  grossAmplitude: 26,
-  fineScale: 0.08,
-  fineAmplitude: 3,
-})
+// PINNED showcase vista — seed + scales chosen so this exact terrain shows
+// every spec transition at once (plateau snow, forest bands, beach, marine
+// column, cliff risers). Change DELIBERATELY, with the page open: the demo is
+// the test. (Pinning a seed beats a fixed mesh: same reproducible vista, but
+// the streaming/LOD path stays exercised instead of silently frozen.)
+const SHOWCASE = {
+  seed: 11,
+  grossScale: 0.009,
+  grossAmplitude: 60,
+  fineScale: 0.06,
+  fineAmplitude: 4,
+  plateauSteps: 4,
+}
+const terrain = b3dTerrain({ biome: 'on', ...SHOWCASE })
+// Tall plateaus: quantize the gross field — steep risers (cliff override
+// territory) with gentle tops, dropping through sea level into basins.
+terrain.grossFilter = plateauFilter(SHOWCASE.plateauSteps)
+terrain.regenerate()
 
 const scene = b3d(
   {
     style: 'border-radius:8px;overflow:hidden',
     sceneCreated(el) {
-      orbitCam(el, { alpha: -Math.PI / 2.6, beta: Math.PI / 3.4, radius: 120, target: [0, 0, 0] })
+      orbitCam(el, { alpha: -Math.PI / 2.4, beta: Math.PI / 3.1, radius: 150, target: [0, 6, 0] })
     },
     scenePanel() {
       const p = terrain.biomePlugin?.params
       if (!p) return []
       const bind = (label, key, min, max, step) =>
-        slider3d({ label, value: p[key], min, max, step, onInput: (v) => { p[key] = v } })
+        // onChange, not onInput — slider3d's callback name (a wrong option is
+        // silently ignored in an untyped demo; found live by Tonio)
+        slider3d({ label, value: p[key], min, max, step, onChange: (v) => { p[key] = v } })
       return [
-        label3d({ text: 'Biome chart', bold: true, compact: true }),
-        bind('base temperature', 'baseTemperature', 0, 1, 0.01),
-        bind('lapse rate', 'lapseRate', 0, 0.02, 0.0005),
+        label3d({ text: 'Climate', bold: true, compact: true }),
+        bind('temperature', 'baseTemperature', 0, 1, 0.01),
         bind('map moisture', 'mapMoisture', 0, 1, 0.01),
+        label3d({ text: 'Chart', bold: true, compact: true }),
+        bind('lapse rate', 'lapseRate', 0, 0.02, 0.0005),
         bind('dither amount', 'ditherAmp', 0, 0.15, 0.005),
         bind('cliff start', 'cliffStart', 0.3, 0.95, 0.01),
       ]
@@ -119,9 +139,12 @@ export function mantaAxes(
   const temperature =
     cfg.baseTemperature - cfg.lapseRate * Math.abs(altitude) + tNoise
   const underwater = altitude < 0
-  // Underwater the column is saturated — the marine gradient lives on the
-  // chart's wet edge; mNoise only textures the terrestrial side.
-  const moisture = underwater ? 1.0 : cfg.mapMoisture + mNoise
+  // Underwater the column is saturated (the marine row, v = 1, is the sea's
+  // alone); LAND spans the dry→wet rows, so its moisture compresses to ≤ ⅔ —
+  // a soaking coast blends toward the beach/sand boundary, never into
+  // seafloor cells. mNoise only textures the terrestrial side.
+  const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
+  const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.667
   return { temperature, moisture }
 }
 
@@ -148,7 +171,8 @@ export function planetaryAxes(
     cfg.insolation * Math.cos(warped) +
     tNoise
   const underwater = altitude < 0
-  const moisture = underwater ? 1.0 : cfg.mapMoisture + mNoise
+  const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
+  const moisture = underwater ? 1.0 : clamp01(cfg.mapMoisture + mNoise) * 0.667
   return { temperature, moisture, latitude }
 }
 
