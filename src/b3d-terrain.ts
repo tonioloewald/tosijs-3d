@@ -97,7 +97,7 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 10, realtimeScale: 0 }),
   b3dLight({ intensity: 0.5 }),
   b3dFog({ syncSkybox: true, start: 1000, end: 4000 }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   terrain,
   // A cloud layer over the peaks — origin-shift aware, so it doesn't lurch when the terrain
   // rebases the world under you. Fly down into it and the world whites out.

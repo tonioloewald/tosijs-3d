@@ -84,7 +84,7 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 10 }),
   b3dFog({ start: 200, end: 1200, color: '#cfe0f2' }),
   b3dGround({ meshName: 'ground_nocast', width: 900, height: 900, color: '#7d9b6e' }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   // Fly UP into the cloud layer — the whiteout is fog (stereo-safe) and reads insideCloud.
   b3dClouds({ altitude: 120, thickness: 40, size: 60, coverage: 0.45, castShadows: true, seed: 4 }),
   b3dHud({}),

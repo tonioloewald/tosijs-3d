@@ -38,7 +38,7 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 10 }),
   b3dFog({ start: 400, end: 3000, color: '#bfd9f2' }),
   b3dGround({ meshName: 'ground_nocast', width: 4000, height: 4000, color: '#6b7f5e' }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   clouds,
   inputFocus(gameController(), aircraft),
 )

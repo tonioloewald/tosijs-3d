@@ -77,7 +77,7 @@ const scene = b3d(
   b3dFog({ start: 200, end: 1200, color: '#bfd9f2' }),
   b3dGround({ meshName: 'ground_nocast', width: 2000, height: 2000, color: '#4a5f3e', y: -40 }),
   b3dWater({ y: 0, width: 2000, height: 2000 }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
 
   // Above the surface: dust motes in the air (visible right away). Below it: bubbles rising +
   // plankton drifting. Both RAMP with depth (the same `band` the fog uses), so diving through the

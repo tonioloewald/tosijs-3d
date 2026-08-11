@@ -16,7 +16,7 @@ import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface, label3
 import { elements } from 'tosijs'
 const { div, p } = elements
 
-const lib = b3dLibrary({ url: '/test-2.glb', type: 'scene' })
+const lib = b3dLibrary({ url: '/test-3.glb', type: 'scene' })
 
 function isInsertable(node) {
   return node.isMesh || node.children.some(c => c.isMesh)

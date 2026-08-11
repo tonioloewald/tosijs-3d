@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/logDepthVertex.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"logDepthVertex\";\nconst shader = `#ifdef LOGARITHMICDEPTH\nvertexOutputs.vFragmentDepth=1.0+vertexOutputs.position.w;vertexOutputs.position.z=log2(max(0.000001,vertexOutputs.vFragmentDepth))*uniforms.logarithmicDepthConstant;\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const logDepthVertexWGSL = { name, shader };\n//# sourceMappingURL=logDepthVertex.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,iBACP,EAAS;AAAA;AAAA;AAAA,EAKf,GAAI,CAAC,EAAY,yBAAyB,GACtC,EAAY,yBAAyB,GAAQ,EAG1C,IAAM,EAAqB,CAAE,OAAM,QAAO",
+  "debugId": "D5A1EA1F1AB0ED7B64756E2164756E21",
+  "names": []
+}

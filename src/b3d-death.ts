@@ -53,7 +53,7 @@ const scene = b3d(
   b3dSun({ intensity: 0.9 }),
   b3dSkybox({ timeOfDay: 9 }),
   b3dGround({ meshName: 'ground_nocast', width: 600, height: 600, color: '#6b7f5e' }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   b3dDeath({
     title: 'DOWN',
     respawn() {

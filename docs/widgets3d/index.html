@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>widgets3d — tosijs-3d</title>
+  <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
+  <link rel="canonical" href="https://3d.tosijs.net/widgets3d/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="widgets3d — tosijs-3d" />
+  <meta property="og:description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
+  <meta property="og:url" content="https://3d.tosijs.net/widgets3d/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"widgets3d","description":"A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs's svgElements proxy, the same way [[gamepad-svg]] is).","url":"https://3d.tosijs.net/widgets3d/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>widgets3d</h1>
+<p>A small collection of <strong>SVG-native</strong> UI widgets with element-creator ergonomics
+(built on tosijs&#39;s <code>svgElements</code> proxy, the same way <a href="/gamepad-svg/" class="wikilink">gamepad-svg</a> is). They
+render to SVG — not HTML — so the <em>same</em> widget works both as a DOM overlay on a
+flat screen and inside a 3D scene on a <code>b3dSvgPlane</code> (where the panel is
+serialized to a texture; HTML-in-<code>&lt;foreignObject&gt;</code> doesn&#39;t rasterize reliably).</p>
+<h2>Layout protocol</h2>
+<p>You build a <code>panel3d</code> container and hand it widgets. The container gives each
+widget its content <strong>width</strong>; each widget lays itself out and returns the
+<strong>height</strong> it needs. The container stacks them and, if the stack overflows,
+becomes scrollable (wheel + drag). Every widget defaults to ~40px tall.</p>
+<h2>Binding</h2>
+<p>A widget&#39;s <code>value</code> may be a plain value <em>or</em> a tosijs reactive proxy (e.g.
+<code>sky.timeOfDay</code>). When it&#39;s a proxy the widget reads/writes it and re-renders on
+external change, so a <code>slider3d</code> and a native bound <code>&lt;input&gt;</code> stay in sync.</p>
+<p>The example below has a <strong>Test</strong> tab: those assertions run in the doc system&#39;s
+in-browser harness (real DOM + real pointer events) — coverage <code>bun test</code> can&#39;t
+reach, since tosijs needs a DOM.</p>
+<pre><code class="language-js">import { tosi, elements } from &#39;tosijs&#39;
+import {
+  panel3d, label3d, slider3d, toggle3d, button3d, text3d, list3d,
+} from &#39;tosijs-3d&#39;
+
+const { ui } = tosi({ ui: { time: 8, fog: true } })
+const { div, label, input } = elements
+
+const panel = panel3d(
+  { width: 340, height: 320 },
+  label3d({ text: &#39;Scene settings&#39; }),
+  slider3d({ label: &#39;time of day&#39;, value: ui.time, min: 0, max: 24, step: 0.5 }),
+  toggle3d({ label: &#39;fog&#39;, value: ui.fog }),
+  button3d({ label: &#39;Reset&#39;, onClick: () =&gt; { ui.time.value = 8; ui.fog.value = true } }),
+  text3d({ text: &#39;Drag the slider — the native control below is bound to the same value.&#39; }),
+  list3d({
+    items: [{ label: &#39;Talk&#39; }, { label: &#39;Trade&#39; }, { label: &#39;Leave&#39; }],
+    onSelect: (item) =&gt; console.log(&#39;picked&#39;, item.label),
+  })
+)
+
+preview.append(
+  div(
+    { style: &#39;display:flex; gap:24px; padding:16px; background:#11131a; align-items:flex-start&#39; },
+    panel,
+    label(&#39;native, same binding &#39;, input({ type: &#39;range&#39;, min: 0, max: 24, step: 0.5, bindValue: ui.time }))
+  )
+)
+</code></pre>
+<pre><code class="language-test">import { tosi, updates } from &#39;tosijs&#39;
+import { panel3d, slider3d, toggle3d, button3d, iconBar3d, list3d } from &#39;tosijs-3d&#39;
+const { s } = tosi({ s: { v: 0, on: false } })
+
+test(&#39;slider reflects an external bound change&#39;, async () =&gt; {
+  s.v = 0
+  const panel = panel3d({ width: 300, height: 100 }, slider3d({ value: s.v, min: 0, max: 100 }))
+  preview.append(panel)
+  const knob = panel.querySelector(&#39;[data-w3d=&quot;slider&quot;] circle&#39;)
+  const before = Number(knob.getAttribute(&#39;cx&#39;))
+  s.v = 100 // a tosijs leaf is a boxed proxy — write through .value
+  await updates() // let tosijs flush its update queue before asserting
+  expect(Number(knob.getAttribute(&#39;cx&#39;))).toBeGreaterThan(before)
+})
+
+// Widgets are coordinate-routed (no DOM events), so drive panel.handlePointer
+// with viewBox coords — the same entry point the overlay and the in-scene/VR
+// host both call. A down+up at a point = a click there.
+test(&#39;toggle flips its bound value when the switch is clicked&#39;, async () =&gt; {
+  s.on = false
+  const panel = panel3d({ width: 300, height: 100 }, toggle3d({ label: &#39;sound&#39;, value: s.on }))
+  preview.append(panel)
+  // The switch is right-aligned (only it is interactive — the label area is
+  // scroll surface), so click near the right edge, not the row centre.
+  panel.handlePointer(&#39;down&#39;, 255, 30)
+  panel.handlePointer(&#39;up&#39;, 255, 30)
+  await updates()
+  expect(s.on.value).toBe(true)
+})
+
+test(&#39;button fires onClick on release&#39;, () =&gt; {
+  let clicked = false
+  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: &#39;Go&#39;, onClick: () =&gt; { clicked = true } }))
+  preview.append(panel)
+  panel.handlePointer(&#39;down&#39;, 150, 30)
+  panel.handlePointer(&#39;up&#39;, 150, 30)
+  expect(clicked).toBe(true)
+})
+
+test(&#39;iconBar toggles the icon under the pointer on release&#39;, () =&gt; {
+  const hits = []
+  const panel = panel3d({ width: 300, height: 100 }, iconBar3d({
+    items: [
+      { icon: &#39;barChart2&#39;, onClick: () =&gt; hits.push(&#39;perf&#39;) },
+      { icon: &#39;bug&#39;, onClick: () =&gt; hits.push(&#39;bug&#39;) },
+    ],
+  }))
+  preview.append(panel)
+  // Buttons are 32px wide from the left padding, 6px gap → 2nd button ~x=50.
+  // padding(12) + button0 spans ~12..44, button1 ~50..82. Click the 2nd.
+  panel.handlePointer(&#39;down&#39;, 62, 30)
+  panel.handlePointer(&#39;up&#39;, 62, 30)
+  expect(hits).toEqual([&#39;bug&#39;])
+})
+
+test(&#39;list selects the clicked row&#39;, () =&gt; {
+  const picks = []
+  const panel = panel3d({ width: 300, height: 200 }, list3d({
+    items: [{ label: &#39;A&#39; }, { label: &#39;B&#39; }],
+    onSelect: (item) =&gt; picks.push(item.label),
+  }))
+  preview.append(panel)
+  // The second 40px row: viewBox y = padding(12) + ~58 lands in row B.
+  panel.handlePointer(&#39;down&#39;, 150, 70)
+  panel.handlePointer(&#39;up&#39;, 150, 70)
+  expect(picks).toEqual([&#39;B&#39;])
+})
+
+test(&#39;panel clips when its content overflows&#39;, () =&gt; {
+  const rows = Array.from({ length: 12 }, (_, i) =&gt; button3d({ label: &#39;row &#39; + i }))
+  const panel = panel3d({ width: 300, height: 120 }, ...rows)
+  preview.append(panel)
+  expect(panel.querySelector(&#39;g[clip-path]&#39;)).toBeTruthy()
+})
+</code></pre>
+<h2>In a 3D scene</h2>
+<p>The same panel rendered onto a <code>b3dSvgPlane</code>, interactive <strong>the way VR needs
+it</strong>. Because the panel exposes <code>handlePointer</code>, <code>b3dSvgPlane</code> routes each pick&#39;s
+texture UV → the panel&#39;s viewBox coords and lets the panel hit-test and capture
+in its own SVG coordinate space — no DOM events, no <code>elementFromPoint</code>, no
+<code>clientX</code>. That same path is fed by mouse, touch, <strong>and XR controllers</strong> (through
+the scene&#39;s pointer observable), so the identical panel works as a DOM overlay,
+on a flat canvas, and in immersive VR. Press <strong>Enter VR</strong> on a headset to drive
+this exact panel with controllers.</p>
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, panel3d, label3d, slider3d, toggle3d, list3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+// distinct namespace — tosi() is a singleton keyed by path, so reusing `ui`
+// here would collide with the first example&#39;s `ui`.
+const { hud } = tosi({ hud: { hue: 200, glow: true } })
+
+const HUES = { Warm: 30, Cool: 210, Lime: 90, Magenta: 320, Gold: 50 }
+const panel = panel3d(
+  // sized so the list overflows — scrolling is always part of the demo.
+  { width: 280, height: 260 },
+  label3d({ text: &#39;In-scene panel&#39; }),
+  slider3d({ label: &#39;hue&#39;, value: hud.hue, min: 0, max: 360, step: 1 }),
+  toggle3d({ label: &#39;glow&#39;, value: hud.glow }),
+  // independent of the slider while debugging — just logs which row was picked.
+  list3d({ items: Object.keys(HUES).map((label) =&gt; ({ label })), onSelect: (i) =&gt; console.log(&#39;list picked:&#39;, i.label) })
+)
+// Show it as a DOM overlay too (top-right) — the SAME panel object, so you can
+// compare the in-DOM and on-plane surfaces side by side. It&#39;s also the texture
+// source for the plane (b3dSvgPlane clones it each frame).
+panel.style.position = &#39;absolute&#39;
+panel.style.top = &#39;8px&#39;
+panel.style.right = &#39;8px&#39;
+panel.style.zIndex = &#39;1&#39;
+preview.append(panel)
+
+// panelScene — the fold this comment used to ask for: plane + camera + pick
+// routing (uv → viewBox coords → the panel&#39;s handlePointer, mouse AND XR
+// controllers) with camera-yield and capture semantics, packaged.
+const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, resolution: 512, camera: { beta: Math.PI / 2.4, radius: 4 } })
+
+const sceneEl = b3d({ sceneCreated }, b3dLight(), plane)
+preview.append(sceneEl)
+// No manual Enter-VR button needed — b3d offers one automatically whenever an
+// immersive-vr session is supported (suppress it with the `no-xr` attribute).
+</code></pre>
+<h2>Dual-presence scene panel</h2>
+<p>The same widgets, authored once, drive a panel that has a presence <strong>both in the
+DOM and in the scene</strong>. Pass <code>b3d</code> a <code>scenePanel</code> hook returning the widgets:
+on a flat screen a <strong>gear icon</strong> (top-right) toggles them as a DOM overlay; in
+immersive VR the identical panel floats above the viewer with an <strong>Exit VR</strong>
+button prepended (you can&#39;t click a DOM button inside a headset). Both surfaces
+bind to the same reactive values, so they stay in sync.</p>
+<p>Click the gear to raise/lower and spin the cube — then try it in VR.</p>
+<pre><code class="language-js">import { b3d, b3dLight, b3dBox, label3d, toggle3d, slider3d } from &#39;tosijs-3d&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { cfg } = tosi({ cfg: { spin: true, height: 1 } })
+
+const cube = b3dBox({ meshName: &#39;cube&#39;, size: 1, y: 1, color: &#39;#39c5ff&#39; })
+
+// b3dBox is an AbstractMesh: it drives mesh.rotationQuaternion from its rx/ry/rz,
+// and a mesh WITH a rotationQuaternion ignores its euler `rotation`. So nudging
+// cube.mesh.rotation does nothing — set the quaternion directly. Tumble on two
+// axes so a single-colour cube under flat lighting clearly reads as spinning.
+let spin = 0
+const sceneEl = b3d(
+  {
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;Scene settings&#39; }),
+      toggle3d({ label: &#39;spin&#39;, value: cfg.spin }),
+      slider3d({ label: &#39;height&#39;, value: cfg.height, min: 0, max: 3, step: 0.1 }),
+    ],
+    update(el, BABYLON) {
+      if (!cube.mesh) return
+      cube.mesh.position.y = cfg.height.value
+      if (cfg.spin.value) {
+        spin += 0.02
+        cube.mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(spin, spin * 0.6, 0)
+      }
+    },
+  },
+  b3dLight(),
+  cube
+)
+preview.append(sceneEl)
+</code></pre>
+<h2>Theming</h2>
+<p>Widget colours, font, and weights are driven by <code>--w3d-*</code> CSS variables with
+sensible defaults. Set them on <code>:root</code> (or any ancestor of the flat overlay)
+<strong>before the bundle loads</strong> — they&#39;re resolved once to concrete values so a theme
+applies identically to the flat DOM overlay and the rasterized in-scene / XR
+texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so live
+<code>var()</code> would only theme the flat overlay). Per-widget options (<code>label3d</code>&#39;s
+<code>color</code> / <code>bold</code>) override the variables.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Controls</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--w3d-text</code></td>
+<td><code>#f0f0f0</code></td>
+<td>Primary text/label colour</td>
+</tr>
+<tr>
+<td><code>--w3d-muted</code></td>
+<td><code>#9aa0a6</code></td>
+<td>Muted/secondary text</td>
+</tr>
+<tr>
+<td><code>--w3d-heading-weight</code></td>
+<td><code>700</code></td>
+<td>Weight of <code>bold</code> labels/headings</td>
+</tr>
+<tr>
+<td><code>--w3d-text-weight</code></td>
+<td><code>400</code></td>
+<td>Weight of normal text</td>
+</tr>
+<tr>
+<td><code>--w3d-font-size</code></td>
+<td><code>16</code></td>
+<td>Base font size (px)</td>
+</tr>
+<tr>
+<td><code>--w3d-font-family</code></td>
+<td><code>system-ui, sans-serif</code></td>
+<td>Font family</td>
+</tr>
+<tr>
+<td><code>--w3d-accent</code></td>
+<td><code>#39c5ff</code></td>
+<td>Slider fill / active accent</td>
+</tr>
+<tr>
+<td><code>--w3d-track</code></td>
+<td><code>#3a3f4a</code></td>
+<td>Slider/toggle track</td>
+</tr>
+<tr>
+<td><code>--w3d-panel-bg</code></td>
+<td><code>rgba(20,22,28,0.94)</code></td>
+<td>Panel background</td>
+</tr>
+<tr>
+<td><code>--w3d-button-bg</code> / <code>--w3d-button-hover</code> / <code>--w3d-button-active</code></td>
+<td>greys</td>
+<td>Button states</td>
+</tr>
+<tr>
+<td><code>--w3d-row-bg</code> / <code>--w3d-row-hover</code></td>
+<td>subtle whites</td>
+<td>Row background / hover</td>
+</tr>
+</tbody></table>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link current" href="../widgets3d/" aria-current="page">widgets3d</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

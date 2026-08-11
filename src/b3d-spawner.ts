@@ -71,7 +71,7 @@ const scene = b3d(
   b3dSun({ intensity: 0.9 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dGround({ meshName: 'ground_nocast', width: 6000, height: 6000, color: '#6b7f5e' }),
-  b3dLibrary({ url: '/test-2.glb', type: 'vehicles' }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   b3dHud({}),
   // Two groups at a time, seeded — the same battles in the same places, every run.
   b3dSpawner({
