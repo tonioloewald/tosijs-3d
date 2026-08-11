@@ -482,6 +482,19 @@ export {
 } from './slope-profile'
 export type { LocalizedFilter } from './slope-profile'
 export {
+  volcano,
+  impactCrater,
+  pad,
+  composeLandforms,
+  mergeProvinces,
+} from './landform'
+export type {
+  AuthoredLandform,
+  VolcanoOptions,
+  CraterOptions,
+  PadOptions,
+} from './landform'
+export {
   BiomePlugin,
   attachBiomePlugin,
   defaultBiomeParams,

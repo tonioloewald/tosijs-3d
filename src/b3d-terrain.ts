@@ -435,6 +435,18 @@ export class B3dTerrain extends B3dChild {
    * `regenerate()`.
    */
   provinceField: ((x: number, z: number) => number) | null = null
+
+  /**
+   * Authored landform override — `(x, z, h) => h'`, applied AFTER the
+   * profiles/amplitude pipeline in origin-stable coordinates. Where it
+   * leaves `h` untouched the noise terrain shows through; where it doesn't,
+   * the authored shape wins — a volcano cone, an impact crater, a building
+   * pad. Pair with [[landform]]'s factories, which return a landform and its
+   * matching `provinceField` together. Set it, then `regenerate()` — which
+   * is also how a runtime EXPLOSION stamps a glowing crater: compose the new
+   * crater in, regenerate.
+   */
+  landform: ((x: number, z: number, h: number) => number) | null = null
   detailFilter: GradientFilter = new PiecewiseLinearFilter()
 
   private noise!: PerlinNoise
@@ -506,6 +518,7 @@ export class B3dTerrain extends B3dChild {
     // this closure is the per-vertex hot path.
     const grossAt = (grossFilter as any).evaluateAt?.bind(grossFilter)
     const detailAt = (detailFilter as any).evaluateAt?.bind(detailFilter)
+    const landform = this.landform
     return (wx: number, wz: number): number => {
       const ax = wx + offX
       const az = wz + offZ
@@ -516,12 +529,15 @@ export class B3dTerrain extends B3dChild {
       const detail = noise.fractal(p.x * dScale, p.y * dScale, p.z * dScale, 3)
       const g = gross * 0.5 + 0.5
       const d = detail * 0.5 + 0.5
-      return (
+      const h =
         (grossAt ? grossAt(g, ax, az) : grossFilter.evaluate(g)) * grossAmp +
         (detailAt ? detailAt(d, ax, az) : detailFilter.evaluate(d)) *
           detailAmp +
         baseHeight
-      )
+      // Authored landforms (landform.ts) override the noise LOCALLY — the
+      // hook sees origin-stable coords and the noise height, and normals
+      // difference the hooked field, so lighting follows the landform free.
+      return landform ? landform(ax, az, h) : h
     }
   }
   private pool: PoolTile[] = []

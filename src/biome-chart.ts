@@ -49,7 +49,7 @@ terrain. Drag to orbit.
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dWater, slider3d, label3d,
   toggle3d, mesaProfile, beachProfile, cliffProfile, blendProfiles,
-  profileField, LAVA_PALETTE, CRYOVOLCANIC_PALETTE,
+  profileField, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, volcano,
 } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 
@@ -88,15 +88,14 @@ terrain.grossFilter = blendProfiles(
   beachProfile(),
   profileField(87, 0.0028)
 )
-// A LOCAL volcanic province, independent of the global volcanism dial: an
-// authored radial caldera near the camera. The ramp IS the intensity, so it
-// self-demonstrates the ladder — molten pools at the centre, glowing seams
-// around them, cold dark voronoi at the fringe, fading into living biome.
-terrain.provinceField = (x, z) => {
-  const dx = x - 45
-  const dz = z + 25
-  return Math.max(0, 1 - Math.sqrt(dx * dx + dz * dz) / 60)
-}
+// An AUTHORED VOLCANO (landform.ts): the factory returns a matched pair —
+// the cone landform (forced through the noise, C1-blended at its footprint)
+// and the province that makes it glow: molten caldera, glowing seams down
+// the upper flanks, cold voronoi below, living biome beyond. Same move with
+// impactCrater() stamps a glowing crater at a detonation point.
+const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 26, baseLevel: 5 })
+terrain.landform = vesuvius.landform
+terrain.provinceField = vesuvius.province
 terrain.regenerate()
 
 const water = b3dWater({ y: 0, twoSided: true, waterSize: 1200 })
