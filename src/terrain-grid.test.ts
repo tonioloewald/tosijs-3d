@@ -545,3 +545,121 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
     expect((interior.length - skirt.length) / 6).toBe(12)
   })
 })
+
+import { naturalLevel, patchResident } from './terrain-grid'
+
+describe('refine regions — forcing fine tiles where a patch needs them', () => {
+  const cfg = {
+    baseTileSize: 16,
+    levels: 5,
+    splitFactor: 2,
+    maxReach: 2000,
+    omniRadius: 100,
+  }
+
+  // A quadtree covers ground exactly once; a refine region must not break that.
+  const coversOnce = (
+    cells: ReturnType<typeof desiredCells>,
+    x: number,
+    z: number
+  ) =>
+    cells.filter(
+      (c) =>
+        x >= c.cx - c.tileSize / 2 &&
+        x < c.cx + c.tileSize / 2 &&
+        z >= c.cz - c.tileSize / 2 &&
+        z < c.cz + c.tileSize / 2
+    ).length
+
+  test('a distant region gets FINE tiles it would never get from distance alone', () => {
+    const far = { x: 1200, z: 0 }
+    const plain = desiredCells(0, 0, cfg)
+    const atFarPlain = plain.find(
+      (c) =>
+        Math.abs(c.cx - far.x) < c.tileSize &&
+        Math.abs(c.cz - far.z) < c.tileSize
+    )!
+    expect(atFarPlain.level).toBeGreaterThan(0) // coarse out there, as it should be
+
+    const refined = desiredCells(0, 0, {
+      ...cfg,
+      refine: [
+        { minX: far.x - 30, maxX: far.x + 30, minZ: -30, maxZ: 30, level: 0 },
+      ],
+    })
+    const fine = refined.filter(
+      (c) =>
+        c.level === 0 &&
+        Math.abs(c.cx - far.x) < 60 &&
+        Math.abs(c.cz - far.z) < 60
+    )
+    expect(fine.length).toBeGreaterThan(4) // the footprint is resolved
+  })
+
+  test('the quadtree invariant holds: still exactly one tile per patch of ground', () => {
+    const refined = desiredCells(0, 0, {
+      ...cfg,
+      refine: [{ minX: 570, maxX: 630, minZ: -30, maxZ: 30, level: 0 }],
+    })
+    for (const [x, z] of [
+      [600, 0], // inside the region
+      [660, 0], // just outside it
+      [0, 0], // under the camera
+      [-400, 250], // unrelated ground
+    ]) {
+      expect(coversOnce(refined, x, z)).toBe(1)
+    }
+  })
+
+  test('cost is bounded by AREA, not distance — the same footprint twice as far costs the same', () => {
+    const count = (cx: number) =>
+      desiredCells(0, 0, {
+        ...cfg,
+        refine: [
+          { minX: cx - 30, maxX: cx + 30, minZ: -30, maxZ: 30, level: 0 },
+        ],
+      }).filter((c) => c.level === 0 && Math.abs(c.cx - cx) < 60).length
+    expect(count(1600)).toBe(count(800))
+  })
+
+  test('no refine ⇒ byte-for-byte the old behaviour', () => {
+    expect(desiredCells(0, 0, { ...cfg, refine: [] })).toEqual(
+      desiredCells(0, 0, cfg)
+    )
+  })
+})
+
+describe('patch residency — a bore must not outlive its ground', () => {
+  const cfg = {
+    baseTileSize: 16,
+    levels: 5,
+    splitFactor: 2,
+    maxReach: 1000,
+    omniRadius: 100,
+  }
+
+  test('naturalLevel coarsens with distance and saturates at the top', () => {
+    expect(naturalLevel(0, cfg)).toBe(0)
+    // level 0 owns everything inside splitFactor × baseTileSize (2 × 16 = 32m),
+    // so 20m is still finest and 40m is not — the boundary, pinned
+    expect(naturalLevel(20, cfg)).toBe(0)
+    expect(naturalLevel(40, cfg)).toBeGreaterThan(0)
+    expect(naturalLevel(1e6, cfg)).toBe(cfg.levels - 1)
+    let prev = -1
+    for (let d = 0; d < 3000; d += 25) {
+      const l = naturalLevel(d, cfg)
+      expect(l).toBeGreaterThanOrEqual(prev) // monotone: never finer further out
+      prev = l
+    }
+  })
+
+  test('resident when the ground is at least as fine as the patch wants', () => {
+    expect(patchResident(10, 0, 0, 0, 0, cfg)).toBe(true) // right here
+    expect(patchResident(600, 0, 0, 0, 0, cfg)).toBe(false) // ground is coarse there
+    expect(patchResident(600, 0, 4, 0, 0, cfg)).toBe(true) // …unless it tolerates coarse
+  })
+
+  test('never resident beyond the terrain’s own reach (no floating tunnels)', () => {
+    expect(patchResident(cfg.maxReach + 1, 0, 4, 0, 0, cfg)).toBe(false)
+  })
+})

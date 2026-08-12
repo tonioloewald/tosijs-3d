@@ -111,6 +111,23 @@ export interface QuadtreeConfig {
   /** Unit facing/travel direction; beyond omniRadius, cells ahead outrank those
    * behind. Omit for undirected (everything omni). */
   interest?: { x: number; z: number }
+  /**
+   * Regions that must be resolved FINER than distance alone would choose —
+   * volumetric patches (a bore mouth needs fine tiles to cut a clean hole in).
+   * Cost is bounded by the region's AREA, not its distance: a 60 m footprint is
+   * a handful of fine tiles wherever it sits, so this can't blow up the tile
+   * count the way a distance-based override would.
+   */
+  refine?: RefineRegion[]
+}
+
+/** A world-XZ box that must be tiled at `level` or finer (0 = finest). */
+export interface RefineRegion {
+  minX: number
+  maxX: number
+  minZ: number
+  maxZ: number
+  level: number
 }
 
 /**
@@ -186,7 +203,24 @@ export function desiredCellsInto(
     const ndz = Math.max(0, Math.abs(cz - camZ) - ts / 2)
     if (Math.hypot(ndx, ndz) > reach) return
     const dist = Math.hypot(cx - camX, cz - camZ)
-    if (level > 0 && dist < cfg.splitFactor * ts) {
+    // A refine region forces descent even where distance says "coarse is fine".
+    let forced = false
+    if (cfg.refine != null && level > 0) {
+      const half = ts / 2
+      for (const r of cfg.refine) {
+        if (
+          level > r.level &&
+          cx + half > r.minX &&
+          cx - half < r.maxX &&
+          cz + half > r.minZ &&
+          cz - half < r.maxZ
+        ) {
+          forced = true
+          break
+        }
+      }
+    }
+    if (level > 0 && (forced || dist < cfg.splitFactor * ts)) {
       descend(2 * gx, 2 * gz, level - 1)
       descend(2 * gx + 1, 2 * gz, level - 1)
       descend(2 * gx, 2 * gz + 1, level - 1)
@@ -388,4 +422,44 @@ export function tileIndexPlan(
     out.push(tpl.allIndices[i])
   }
   return out
+}
+
+/**
+ * The LOD level the quadtree would naturally use at `dist` from the camera —
+ * i.e. how coarse the ground over there is about to be.
+ *
+ * This is what decides whether a volumetric patch is worth resolving at all:
+ * if the terrain around a bore is coarser than the patch's own detail level,
+ * SEAL it — mask nothing, extract no walls, let the ground close over the
+ * tunnel. Beyond that distance the hole is sub-pixel, and its wall chunks
+ * would be paying full price to be invisible. (It also dodges an aliasing
+ * mismatch the plan flags: coarse tiles band-limit their noise, an SDF never
+ * does.)
+ */
+export function naturalLevel(dist: number, cfg: QuadtreeConfig): number {
+  const top = Math.max(0, cfg.levels - 1)
+  for (let level = 0; level < top; level++) {
+    const ts = cfg.baseTileSize * Math.pow(2, level)
+    if (dist < cfg.splitFactor * ts) return level
+  }
+  return top
+}
+
+/**
+ * Is a patch worth resolving from here? True when the surrounding terrain is
+ * at least as fine as the patch's `detailLevel`. Ref-count patch residency off
+ * this — don't let a patch own tiles, or a bore outlives the ground it's cut
+ * into and you get a tunnel floating in the air.
+ */
+export function patchResident(
+  patchCenterX: number,
+  patchCenterZ: number,
+  detailLevel: number,
+  camX: number,
+  camZ: number,
+  cfg: QuadtreeConfig
+): boolean {
+  const dist = Math.hypot(patchCenterX - camX, patchCenterZ - camZ)
+  if (dist > cfg.maxReach) return false
+  return naturalLevel(dist, cfg) <= detailLevel
 }

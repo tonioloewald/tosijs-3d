@@ -287,6 +287,7 @@ import type { SurfaceSampler } from './surface-sampler'
 import {
   buildTileField,
   tileIndexPlan,
+  patchResident,
   tileFieldScratchSize,
   tileFieldSampleCount,
   desiredCellsInto,
@@ -465,6 +466,24 @@ export class B3dTerrain extends B3dChild {
    * opens the roof, the patch supplies the walls beneath it.
    */
   patchMask: ((x: number, z: number) => boolean) | null = null
+
+  /**
+   * Footprints of the volumetric patches cut into this terrain, in LOGICAL
+   * world coordinates (origin-stable — they're rebased into render space each
+   * frame, so a floating-origin reset can't move a tunnel).
+   *
+   * Each forces its ground to `level` or finer while it's near enough to be
+   * worth resolving, and is otherwise ignored — the ground simply seals over
+   * it. Patches never OWN tiles: they ride the same per-frame `desiredCells`
+   * diff the pool does, so a bore can't outlive the ground it's cut into.
+   */
+  patches: {
+    minX: number
+    maxX: number
+    minZ: number
+    maxZ: number
+    level: number
+  }[] = []
   detailFilter: GradientFilter = new PiecewiseLinearFilter()
 
   private noise!: PerlinNoise
@@ -891,6 +910,37 @@ export class B3dTerrain extends B3dChild {
       interest:
         il > 1e-3
           ? { x: this.interestX / il, z: this.interestZ / il }
+          : undefined,
+      // Volumetric patches force fine tiles in their own footprint (a bore
+      // mouth needs resolvable ground to cut a hole in), but only while the
+      // surrounding terrain is fine enough to be worth it — `patchResident`
+      // seals a distant tunnel rather than paying for invisible detail.
+      refine:
+        this.patches.length > 0
+          ? this.patches
+              .filter((p) =>
+                patchResident(
+                  (p.minX + p.maxX) / 2,
+                  (p.minZ + p.maxZ) / 2,
+                  p.level,
+                  camX,
+                  camZ,
+                  {
+                    baseTileSize,
+                    levels: Math.max(1, attrs.lodLevels),
+                    splitFactor: attrs.splitFactor,
+                    maxReach: reach,
+                    omniRadius: reach * 0.4,
+                  }
+                )
+              )
+              .map((p) => ({
+                minX: p.minX - this.originOffsetX,
+                maxX: p.maxX - this.originOffsetX,
+                minZ: p.minZ - this.originOffsetZ,
+                maxZ: p.maxZ - this.originOffsetZ,
+                level: p.level,
+              }))
           : undefined,
     }
   }
