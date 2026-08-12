@@ -122,6 +122,62 @@ verification is a guess wearing a test's clothing, which is worse than no test.
 Where that gets expensive, verify at fine resolution only along routes the
 topology declares (which is a thin subset of the map), and leave the bulk coarse.
 
+## Locks, and why bypassing one must not break the story
+
+> **Tonio, 2026-08-12:** *"Not all locks need be geometric or absolute. Players
+> bypassing locks should be a feature not a bug… the way most games handle locks
+> is the story beyond the lock is disabled until the lock is opened even if you
+> walk around the locked door or drill through it. This is narrative vandalism."*
+
+A lock is a **deterrent with a price**, never a switch that suspends the world
+behind it. Three rules follow, and they're binding on both sides of the
+sim/driver boundary:
+
+**1. A lock never gates simulation.** The places beyond a locked portal are
+simulated exactly as they would be if the door stood open — NPCs there keep
+doing what they were doing, fires burn, cargo rots. This is the same principle
+`world-contract.ts` already states as *the driver is never load-bearing*: the
+sim is a complete sandbox and narrative is advisory. A lock that disabled the
+far side would make the sim depend on the story, which is the dependency this
+architecture exists to forbid.
+
+**2. Locked means EXPENSIVE, not impassable.** `Portal.locked` is a routing and
+cost fact — an NPC without the key shouldn't *plan* through it — but it says
+nothing about whether a player can get there. A lock is any obstacle with a
+price: a door needing a key, a guarded hall, a rubble choke, a pressure
+hazard, a fight. `Portal.cost` already carries the currency.
+
+**3. However you got in, the world knows HOW — and that's the interesting
+part.** Entry through the door, around it via a side passage, or through a wall
+you drilled are three different *events*, not one boolean. The event stream
+records the means (it already only records commitments — intentional acts), so a
+driver can react to a breach: alarms, a changed reception, the guard captain
+noticing the hole. Reacting is richer than refusing, and it costs the sim
+nothing to make available.
+
+### Bypass is the pipeline, not an exception
+
+This is where the voxel map earns its place. A player drilling through a wall is
+**an edit to the voxel map** — the same operation the compiler performs, at
+runtime, in one chunk. Re-run the clearance fill over the touched region and the
+connectivity that falls out includes the new hole. So:
+
+- **Authored portals carry meaning** — labels, kinds, `locked`, intent.
+- **Live connectivity is DERIVED from the voxel map** — including passages
+  nobody authored.
+
+A breach therefore appears to the sim as a real portal (unlabelled, agent-
+clearance known) rather than as a special case somebody remembered to handle.
+Nothing needs to detect "the player cheated"; there was no cheat, only a new
+edge in the graph. And because connectivity is agent-relative, a hole drilled
+big enough to walk through but not to fly through is *automatically* exactly
+that fact, for every system that asks.
+
+The one thing the compiler owes the designer here: when it generates a lock, it
+should usually also generate — or at least not preclude — an alternative. A lock
+whose only outcome is "come back with the key" is the failure mode above wearing
+level design's clothes.
+
 ## Stage 3 — the voxel map
 
 **Sparse, chunked, integer-addressed.** Only carved cells are stored, so a 2 km

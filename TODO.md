@@ -618,6 +618,15 @@ connects — or fail naming the narrowest point. Every declared portal traversab
 place reachable — the cave the sim believes in and the cave you can fly through must not
 diverge. Shafts are enormous or gently sloped, never narrow pipes; nothing regular
 except the door necks.
+[ ] **Locks must not gate simulation** (TUNNEL-DESIGN.md → "Locks, and why bypassing one
+must not break the story"). Concretely, once the voxel/topology work lands: (a) live
+connectivity DERIVED from the voxel map, so a player-drilled hole is just a new edge —
+not a special case; (b) the event stream records the MEANS of entry (through the portal
+/ around it / through a wall), because a driver reacting to a breach beats refusing it;
+(c) audit that nothing anywhere gates updates on `Portal.locked` — locked is a routing
+and cost fact only. Tonio calls the usual game handling "narrative vandalism" and he's
+right: it makes the sim depend on the story, which is the dependency world-contract
+exists to forbid.
 [ ] **Tunnel patches** — a province-like field (authored the way `volcano()` is)
 that punches HOLES in the terrain. The hard part: `landform` is a
 heightfield hook (`y = f(x, z)`), so it cannot express an overhang or a
