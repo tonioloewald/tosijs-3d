@@ -6,13 +6,87 @@ base entrance. Where [[landform]] shapes the heightfield and [[patch-field]]
 carves the density, this is the scene-side component that makes the carve
 *visible*: it cuts the hole in the tiles above and extracts the walls beneath.
 
+## Demo — fly into the hole
+
+A shaft bored straight down through a hill, and a lava tube running out of its
+foot. Fly in: the tiles above are cut away, the walls beneath are extracted
+from the same field, and the heightfield rules that would normally shove you
+back into daylight are suspended while you're inside (see *Flying into it*).
+
 ```js
-const tube = b3dPatch({
-  minX: -30, maxX: 30, minZ: -30, maxZ: 30, minY: -25, maxY: 12,
-  spacing: 1.5, jitter: 0.3,
-  field: (x, y, z, d) => Math.max(d, 6 - Math.hypot(x, z)), // a shaft
+import {
+  b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dPatch, b3dAircraft,
+  b3dLibrary, b3dDeath, gameController, inputFocus,
+  composePatches, marginBlend, circleFootprint, label3d, slider3d,
+} from 'tosijs-3d'
+
+const terrain = b3dTerrain({
+  biome: 'on', seed: 4, grossScale: 0.02, grossAmplitude: 90,
+  fineScale: 0.08, fineAmplitude: 3, tileSize: 12, lodLevels: 4,
+  poolSize: 200, baseHeight: -10,
 })
+
+// The carve, in LOGICAL world coordinates. A vertical shaft unioned with a
+// horizontal tube — `max` is union on this convention (negative = solid), and
+// marginBlend keeps each one inside its own footprint so the rim converges
+// onto the ground instead of tearing at it.
+const shaft = marginBlend(
+  (x, y, z, d) => Math.max(d, 9 - Math.hypot(x, z)),
+  circleFootprint(0, 0, 26), 8, 0.3
+)
+const tube = marginBlend(
+  (x, y, z, d) => Math.max(d, 7 - Math.hypot(y + 26, z)),
+  (x, z) => Math.max(Math.abs(z) - 26, x - 90),  // a corridor heading +X
+  8, 0.3
+)
+
+const patch = b3dPatch({
+  minX: -30, maxX: 95, minZ: -30, maxZ: 30, minY: -60, maxY: 40,
+  spacing: 2, jitter: 0.3, level: 2, chunkCells: 8,
+})
+patch.field = composePatches(shaft, tube)
+
+const plane = () => b3dAircraft({
+  library: 'vehicles', meshName: 'scout',
+  player: true, y: 120, vtolSpeed: 6, maxSpeed: 40,
+})
+const focus = inputFocus(gameController(), plane())
+
+preview.append(b3d(
+  {
+    frameRate: 60,
+    gamepad: true,
+    scenePanel: () => [
+      label3d({ text: 'Patch' }),
+      slider3d({ label: 'wall detail (m)', value: patch.spacing, min: 1, max: 4, step: 0.5,
+        onChange: (v) => { patch.spacing = v } }),
+    ],
+  },
+  b3dSun({ activeDistance: 120 }),
+  b3dSkybox({ timeOfDay: 11, realtimeScale: 0 }),
+  b3dLight({ intensity: 0.55 }),
+  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
+  terrain,
+  patch,
+  b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
+  focus,
+))
 ```
+```css
+tosi-b3d { width: 100%; height: 100%; }
+```
+
+## Flying into it
+
+A bore breaks the assumption every flight system makes — *terrain is a
+heightfield below me* — so the patch publishes a **cavity predicate**
+(`B3d.addCavity`) and anything that navigates by that rule asks before
+applying it. In [[b3d-aircraft]] that suspends two things while you're inside:
+the flat `groundY` floor (whose −20 m reading would otherwise clamp you up
+through the tunnel roof and back into daylight) and the PULL UP warning, since
+ground 3 m below is the *point* of flying through a bore, and a warning that's
+always on is one nobody reads when it matters.
+
 
 ## What it does per frame
 
@@ -114,6 +188,7 @@ export class B3dPatch extends B3dChild {
     }
     if (this.material == null) this.material = this._wallMaterial(scene)
     this._register()
+    owner.addCavity(this._cavity)
     this._obs = scene.onBeforeRenderObservable.add(() => this._update(owner))
   }
 
@@ -176,6 +251,32 @@ export class B3dPatch extends B3dChild {
       attachBiomePlugin(m, { ...terrainPlugin.params, interior: 1 })
     }
     return m
+  }
+
+  /**
+   * "Is this world point inside my open volume?" — the escape hatch every
+   * heightfield assumption needs (ground clamp, ground-plane floor, pull-up
+   * warning, landing gate). Takes RENDER coordinates, since that's where
+   * everything flying around lives, and converts inward: patches are authored
+   * logically so a rebase can't move them.
+   *
+   * Bound once as a field, not a method, so add/removeCavity see the SAME
+   * function identity — a method reference would be a fresh closure each time
+   * and could never be removed.
+   */
+  private _cavity = (x: number, y: number, z: number): boolean => {
+    if (!this._resident || this._height == null) return false
+    const t = this._terrain as any
+    const lx = x + (t?.originOffsetX ?? 0)
+    const lz = z + (t?.originOffsetZ ?? 0)
+    if (lx < this.minX || lx > this.maxX || lz < this.minZ || lz > this.maxZ) {
+      return false
+    }
+    if (y < this.minY || y > this.maxY) return false
+    // Air INSIDE the ground: the density says open, the heightfield says we're
+    // under the surface. Above the surface is just sky, and no flight rule
+    // needs suspending there.
+    return this._density(lx, y, lz) > 0 && y < this._height(lx, lz)
   }
 
   private _density(x: number, y: number, z: number): number {
@@ -316,6 +417,7 @@ export class B3dPatch extends B3dChild {
       this.owner?.scene.onBeforeRenderObservable.remove(this._obs)
       this._obs = null
     }
+    this.owner?.removeCavity(this._cavity)
     this._releaseChunks()
     const terrain = this._terrain
     if (terrain != null) {

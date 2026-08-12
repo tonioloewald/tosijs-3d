@@ -425,6 +425,9 @@ export class B3dAircraft extends B3dControllable {
   // Set, and a child-mesh array three times a frame.
   private _lastGroundDist = Infinity
   private _groundNormal = new BABYLON.Vector3(0, 1, 0)
+  /** True while the airframe is in open air INSIDE the ground (a bore/cavern):
+   * heightfield assumptions are suspended for the frame. */
+  private _inCavity = false
   // TRUE world velocity, tracked from frame displacement. this.velocity is
   // only the hover/ground integrator and reads ZERO in wing-borne flight
   // (the fbw path moves the node directly) — weapons inheriting it left
@@ -680,6 +683,14 @@ export class B3dAircraft extends B3dControllable {
     // wheels — kill the downward bounce and apply rolling resistance so you can
     // land, roll to a stop, and accelerate to take off again. (First cut — tune
     // GROUND_FRICTION / GROUND_TOUCH; the model's own ground tweaks are separate.)
+    // Inside a cavity (a bore, a cavern) the heightfield rules are suspended —
+    // see groundDistance. Computed once per frame, before anything consults it.
+    this._inCavity =
+      this.owner?.insideCavity(
+        node.position.x,
+        node.position.y,
+        node.position.z
+      ) ?? false
     const groundDist = this.groundDistance(node) // the ONE raycast this frame
     this._lastGroundDist = groundDist
     const wasGrounded = this.grounded
@@ -991,6 +1002,11 @@ export class B3dAircraft extends B3dControllable {
    * any terrain collider the raycast hits and the configured ground plane. */
   private groundDistance(node: BABYLON.TransformNode): number {
     const terrain = this.raycastGround(node)
+    // INSIDE a cavity the flat `groundY` floor is a lie: fly into a bore whose
+    // floor is 20m down and the plane term reads −20, so the clamp shoves you
+    // up through the tunnel roof and back into daylight. Underground, only the
+    // ray — the actual surface under you — gets a vote.
+    if (this._inCavity) return terrain
     const plane = node.position.y - ((this as any).groundY ?? 0)
     return Math.min(terrain, plane)
   }
@@ -1045,6 +1061,13 @@ export class B3dAircraft extends B3dControllable {
   }
 
   private updatePullUp(node: BABYLON.TransformNode, groundDist: number) {
+    // No PULL UP inside a tunnel: the ground being 3m below is the POINT of
+    // flying through a bore, and a warning that's always on is a warning
+    // nobody reads when it matters.
+    if (this._inCavity) {
+      this.pullUp = false
+      return
+    }
     // Warn if projected altitude in PULL_UP_SECONDS is below 10m
     const futureY =
       groundDist < Infinity
