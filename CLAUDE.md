@@ -349,6 +349,7 @@ types stay top-level. Bare common nouns don't leak from the barrel.
 | `src/gradient-filter.ts` | Gradient-based color mapping |
 | `src/surface-sampler.ts` | Surface point sampling |
 | `src/terrain-grid.ts` | Pure LOD terrain-tile grid math (placement/sampling/culling), unit-tested |
+| `src/b3d-patch.ts` | `<tosi-b3d-patch>` — the volumetric patch in a scene: registers its footprint + derived mask with the terrain, extracts wall chunks under a ms budget, releases them when the ground coarsens (residency, never ownership) |
 | `src/patch-field.ts` | `landform`'s VOLUMETRIC sibling — `(x,y,z,d) => d'` patches that carve (bores/caverns), `terrainDensity` from the hooked height sampler, `marginBlend` so a rim converges onto the heightfield (tucked below it) instead of being stitched. Pure, unit-tested |
 | `src/sdf-lattice.ts` | Pure SDF extraction substrate for volumetric patches (tunnels/caverns): ONE global hash-jittered lattice + surface nets, so chunks weld bit-identically — cross-tile/cross-LOD seams are unrepresentable, not stitched. Unit-tested (incl. the chunk-weld proof) |
 | `src/model-transform.ts` | Babylon-only model frame helpers (`canonicalize`, scale-bake) for spawned models |

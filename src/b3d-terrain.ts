@@ -512,6 +512,26 @@ export class B3dTerrain extends B3dChild {
    * Rebuilt per tile build (24×/frame at worst — nothing), so a slider change or an origin
    * shift is always picked up.
    */
+  /**
+   * The terrain's own height sampler, in LOGICAL world coordinates
+   * (origin-stable — pass the same coordinates a patch is authored in and a
+   * floating-origin reset can't move the answer).
+   *
+   * This is the function a volumetric patch must build its base density from:
+   * it is the hooked, landform-composed height the TILES are built from, so a
+   * bore's mouth lands on the ground that's actually there rather than on raw
+   * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
+   * after changing attributes or profiles.
+   */
+  heightSampler(): (x: number, z: number) => number {
+    const fn = this.makeHeightFn()
+    const offX = this.originOffsetX
+    const offZ = this.originOffsetZ
+    // makeHeightFn takes RENDER coordinates and adds the offset internally,
+    // so undo that here: callers think in logical world space.
+    return (x, z) => fn(x - offX, z - offZ)
+  }
+
   private makeHeightFn(): (wx: number, wz: number) => number {
     const attrs = this as any
     const sampler = this.sampler
