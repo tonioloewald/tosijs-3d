@@ -601,6 +601,17 @@ v0.6.2 shipped the _shading_ and _shaping_ halves (biome ladder, provinces,
 `landform`). The three pieces below finish the system, and they share one
 theme: they all want to act **per terrain tile**, not per fragment.
 
+[ ] **Voxel map + topology compiler** (TUNNEL-DESIGN.md — the decided architecture).
+Build from a voxel map; render topology INTO it. Order: (1) sparse chunked voxel store
+keyed on sdf-lattice's global lattice, occupancy as a scalar not a boolean; (2) a
+PatchField that trilinearly interpolates + low-passes it (voxel resolution and lattice
+spacing stay independent — coarse voxels, fine extraction); (3) the topology→voxel
+renderer: places as noise-displaced blobs, portals as grade-budgeted routed spines with
+breathing radii, a locked portal as a deliberately REGULAR neck where a door mounts;
+(4) flood-fill VERIFICATION that every declared portal is traversable and every place
+reachable — the cave the sim believes in and the cave you can fly through must not
+diverge. Shafts are enormous or gently sloped, never narrow pipes; nothing regular
+except the door necks.
 [ ] **Tunnel patches** — a province-like field (authored the way `volcano()` is)
 that punches HOLES in the terrain. The hard part: `landform` is a
 heightfield hook (`y = f(x, z)`), so it cannot express an overhang or a
