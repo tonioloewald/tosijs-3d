@@ -664,6 +664,18 @@ fine; terrain-on-terrain at kilometre extents likely needs screen-space shadows 
 similar, not bigger CSM buffers. Revisit with the M5 Max budget in mind.
 [ ] Aircraft stuck after gentle slope contact registers as a LANDING (probe showed
 crashed:false) — verify VTOL throttle-up escapes a slope, else steepen the landing gate.
+[ ] **Tile pop-in is too visible** (Tonio, 2026-08-12, flying the patch demo). Big tiles +
+more LOD levels + a bigger pool push the rings out, but that's tuning, not a fix. The
+real options, in order of honesty: (a) blend between levels over a band rather than
+switching (needs the two heights, so sample the parent level too — the sampler is pure
+and origin-stable, so this is affordable); (b) fade a new tile in over ~200ms
+(cheap, hides the switch rather than removing it); (c) hysteresis on the split
+distance so a hovering camera can't oscillate across a boundary. Measure first: a
+constant pop while flying STRAIGHT is (a)/(b); a pop while circling is (c).
+[ ] Waypoints beyond a radar blip: `faction: 'waypoint'` already puts a marker on the
+HUD, which is how the patch demo makes its bore findable. A first-class waypoint would
+add distance/altitude readout and an off-screen edge arrow — worth it once there's more
+than one thing worth flying to.
 [ ] Procedural stalactites/stalagmites for cave interiors — the biome shader already
 handles cave walls (interior=1 shades them as rock at any slope), so this is garnish, not
 classification: instanced cones/spikes seeded from the SDF surface where the ceiling is

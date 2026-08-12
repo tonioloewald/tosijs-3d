@@ -16,40 +16,53 @@ back into daylight are suspended while you're inside (see *Flying into it*).
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dPatch, b3dAircraft,
-  b3dLibrary, b3dDeath, gameController, inputFocus,
+  b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
+  gameController, inputFocus,
   composePatches, marginBlend, circleFootprint, label3d, slider3d,
 } from 'tosijs-3d'
 
+// SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
+// (grossScale is 1/wavelength — 0.006 ≈ 170m hills. Small numbers = big land.)
+// Streaming: big tiles + 5 LOD levels + a generous pool push the LOD rings far
+// enough out that they aren't changing in your face.
 const terrain = b3dTerrain({
-  biome: 'on', seed: 4, grossScale: 0.02, grossAmplitude: 90,
-  fineScale: 0.08, fineAmplitude: 3, tileSize: 12, lodLevels: 4,
-  poolSize: 200, baseHeight: -10,
+  biome: 'on', seed: 4,
+  grossScale: 0.006, grossAmplitude: 130,
+  fineScale: 0.03, fineAmplitude: 5,
+  tileSize: 32, lodLevels: 5, poolSize: 260, fillBudget: 16,
+  baseHeight: -20,
 })
 
 // The carve, in LOGICAL world coordinates. A vertical shaft unioned with a
 // horizontal tube — `max` is union on this convention (negative = solid), and
-// marginBlend keeps each one inside its own footprint so the rim converges
-// onto the ground instead of tearing at it.
+// marginBlend keeps each inside its own footprint so the rim converges onto
+// the ground instead of tearing at it.
 const shaft = marginBlend(
-  (x, y, z, d) => Math.max(d, 9 - Math.hypot(x, z)),
-  circleFootprint(0, 0, 26), 8, 0.3
+  (x, y, z, d) => Math.max(d, 16 - Math.hypot(x, z)),
+  circleFootprint(0, 0, 46), 12, 0.4
 )
 const tube = marginBlend(
-  (x, y, z, d) => Math.max(d, 7 - Math.hypot(y + 26, z)),
-  (x, z) => Math.max(Math.abs(z) - 26, x - 90),  // a corridor heading +X
-  8, 0.3
+  (x, y, z, d) => Math.max(d, 12 - Math.hypot(y + 45, z)),
+  (x, z) => Math.max(Math.abs(z) - 46, x - 170), // a corridor heading +X
+  12, 0.4
 )
 
 const patch = b3dPatch({
-  minX: -30, maxX: 95, minZ: -30, maxZ: 30, minY: -60, maxY: 40,
-  spacing: 2, jitter: 0.3, level: 2, chunkCells: 8,
+  minX: -50, maxX: 180, minZ: -50, maxZ: 50, minY: -110, maxY: 60,
+  spacing: 3, jitter: 0.3, level: 2, chunkCells: 8,
 })
 patch.field = composePatches(shaft, tube)
 
-const plane = () => b3dAircraft({
-  library: 'vehicles', meshName: 'scout',
-  player: true, y: 120, vtolSpeed: 6, maxSpeed: 40,
-})
+// You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
+// radar contact with faction 'waypoint') puts a marker on the HUD, because
+// "fly around until you spot a hole" is not a way to find a hole.
+const plane = () => b3dAircraft(
+  {
+    library: 'vehicles', meshName: 'scout',
+    player: true, x: 0, y: 150, z: -420, vtolSpeed: 6, maxSpeed: 55,
+  },
+  b3dRadar({ range: 1200, coneDeg: 100, lockTime: 1.2, maxLocks: 2 }),
+)
 const focus = inputFocus(gameController(), plane())
 
 preview.append(b3d(
@@ -58,16 +71,20 @@ preview.append(b3d(
     gamepad: true,
     scenePanel: () => [
       label3d({ text: 'Patch' }),
-      slider3d({ label: 'wall detail (m)', value: patch.spacing, min: 1, max: 4, step: 0.5,
+      slider3d({ label: 'wall detail (m)', value: patch.spacing, min: 1.5, max: 6, step: 0.5,
         onChange: (v) => { patch.spacing = v } }),
     ],
   },
-  b3dSun({ activeDistance: 120 }),
+  b3dSun({ activeDistance: 200 }),
   b3dSkybox({ timeOfDay: 11, realtimeScale: 0 }),
   b3dLight({ intensity: 0.55 }),
   b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
   terrain,
   patch,
+  // The HUD lives in COCKPIT view (press the view button / V). Without a
+  // <tosi-b3d-hud> in the scene there is no HUD at all, in any view.
+  b3dHud({}),
+  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 20, z: 0 }),
   b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
   focus,
 ))
