@@ -608,8 +608,14 @@ PatchField that trilinearly interpolates + low-passes it (voxel resolution and l
 spacing stay independent — coarse voxels, fine extraction); (3) the topology→voxel
 renderer: places as noise-displaced blobs, portals as grade-budgeted routed spines with
 breathing radii, a locked portal as a deliberately REGULAR neck where a door mounts;
-(4) flood-fill VERIFICATION that every declared portal is traversable and every place
-reachable — the cave the sim believes in and the cave you can fly through must not
+(4) CLEARANCE-BASED verification: distance-transform the voxels, flood-fill only cells
+whose clearance >= the agent's radius, per agent profile (foot ~0.4m, scout ~4m) — "not
+every hole serves a flyer" (Tonio). Voxel edge must be <= HALF the smallest clearance
+being certified or the fill is a guess in a test's clothing. Portals then carry a
+clearance beside `locked`, so Ariosto routes per agent (walkable-but-unflyable is
+gameplay, not a bug), and the compiler can widen a route until a declared requirement
+connects — or fail naming the narrowest point. Every declared portal traversable, every
+place reachable — the cave the sim believes in and the cave you can fly through must not
 diverge. Shafts are enormous or gently sloped, never narrow pipes; nothing regular
 except the door necks.
 [ ] **Tunnel patches** — a province-like field (authored the way `volcano()` is)

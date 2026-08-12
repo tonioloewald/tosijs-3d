@@ -80,12 +80,47 @@ surface to the next:
 along it, and junctions are smooth-min unions. Combined with the extraction
 lattice's own hash jitter, no straight cylinder survives to the surface.
 
-**Then verify.** Compile, flood-fill the voxel map, and assert that every
-declared portal is actually traversable and every place reachable. This is the
-tunnel equivalent of the chunk-weld proof: *the cave the sim believes in and the
-cave you can fly through cannot diverge*, because divergence fails a test rather
-than surprising a player an hour in. A passage the compiler failed to open is a
-build error, not a mystery.
+**Then verify — per AGENT, not in the abstract.** Compile, then flood-fill the
+voxel map and assert that every declared portal is traversable and every place
+reachable. This is the tunnel equivalent of the chunk-weld proof: *the cave the
+sim believes in and the cave you can fly through cannot diverge*, because
+divergence fails a test rather than surprising a player an hour in.
+
+But "connected" is not a property of the cave alone (Tonio, 2026-08-12: *"if
+you're flying not every hole is going to serve"*). A crack a walker squeezes
+through is a wall to the scout. So connectivity is computed in the agent's
+configuration space:
+
+1. **Clearance field.** Distance-transform the voxel map: every open cell gets
+   its distance to the nearest solid. Cheap on a sparse grid, and reusable —
+   every agent class reads the same field.
+2. **Erode, then fill.** Flood-fill only cells whose clearance ≥ the agent's
+   radius. That is exactly "which holes serve *me*".
+3. **Per profile.** `foot` (0.4 m), `scout` (~4 m), whatever a capital ship is —
+   each yields its own connectivity, from one compile.
+
+Two consequences worth designing for rather than discovering:
+
+- **A portal carries a clearance, not just `locked`.** Ariosto can then route
+  per agent: the same map says a passage is walkable and un-flyable, which is a
+  *gameplay* fact (land, go on foot) rather than a bug. It sits naturally
+  beside `Portal.cost`.
+- **The compiler can widen to satisfy a declaration.** "The scout must reach the
+  great hall" becomes a constraint: raise that route's radius until the eroded
+  fill connects, or fail the build with the narrowest point named. That is what
+  makes purpose-driven authoring — *two entrances, three caverns, flyable* —
+  actually enforceable.
+
+### Resolution is load-bearing
+
+A flood fill is only as honest as its grid. A 4 m voxel cannot certify a 4 m
+gap: partial occupancy at the cell scale is exactly where the answer lives.
+
+**Rule: the voxel edge must be ≤ half the smallest clearance you intend to
+certify** — certify the 4 m scout on ≤ 2 m voxels. Coarser than that and the
+verification is a guess wearing a test's clothing, which is worse than no test.
+Where that gets expensive, verify at fine resolution only along routes the
+topology declares (which is a thin subset of the map), and leave the bulk coarse.
 
 ## Stage 3 — the voxel map
 
