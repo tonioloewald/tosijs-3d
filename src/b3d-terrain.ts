@@ -600,7 +600,9 @@ export class B3dTerrain extends B3dChild {
   private pool: PoolTile[] = []
   private _resolvedSubs = 0 // hiResSubdivisions after auto-resolution (pool is sized to it)
   private tileTemplate: TileTemplate | null = null
-  private material!: BABYLON.StandardMaterial
+  /** The tiles' material. Read it to MATCH a patch's walls to the ground
+   * they're cut into (see `b3d-patch`); mutating it changes every tile. */
+  material!: BABYLON.StandardMaterial
   private registered = false
   // Reusable scratch for the per-frame streamer — cleared and refilled each frame
   // rather than reallocated, so streaming produces (almost) no garbage. `_desired`

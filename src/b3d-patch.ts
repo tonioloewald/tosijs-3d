@@ -47,6 +47,7 @@ import { B3dChild } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { extractChunk, type LatticeConfig } from './sdf-lattice'
 import { terrainDensity, type PatchField } from './patch-field'
+import { attachBiomePlugin } from './biome-plugin'
 import { patchResident } from './terrain-grid'
 import type { B3dTerrain } from './b3d-terrain'
 
@@ -111,12 +112,7 @@ export class B3dPatch extends B3dChild {
       )
       return
     }
-    if (this.material == null) {
-      const m = new BABYLON.StandardMaterial('patch-wall', scene)
-      m.diffuseColor = new BABYLON.Color3(0.19, 0.17, 0.16)
-      m.specularColor = BABYLON.Color3.Black()
-      this.material = m
-    }
+    if (this.material == null) this.material = this._wallMaterial(scene)
     this._register()
     this._obs = scene.onBeforeRenderObservable.add(() => this._update(owner))
   }
@@ -154,6 +150,32 @@ export class B3dPatch extends B3dChild {
       // depth the extraction could resolve anyway.
       return this._density(x, h - this.spacing, z) > 0
     }
+  }
+
+  /**
+   * Walls shade with the SAME biome shader as the ground they're cut into.
+   * World-space classification is mesh-agnostic, so a wall is simply steep
+   * terrain and lands in the cliff/rock path for free — but two things are
+   * not free:
+   *
+   * - the plugin lives per-material, so walls need their own instance
+   *   carrying the terrain's parameters (matched when the walls are built);
+   * - `interior: 1`, so a level cavern FLOOR shades as rock rather than
+   *   growing whatever the chart grows on the ground overhead.
+   *
+   * Flooding is deliberately NOT overridden here: whether an interior is
+   * submerged is the world's business (`waterTable` / `noWater`), and a cave
+   * below the water line genuinely is a flooded cave.
+   */
+  private _wallMaterial(scene: BABYLON.Scene): BABYLON.Material {
+    const m = new BABYLON.StandardMaterial('patch-wall', scene)
+    m.specularColor = BABYLON.Color3.Black()
+    m.diffuseColor = new BABYLON.Color3(0.19, 0.17, 0.16)
+    const terrainPlugin = (this._terrain as any)?.biomePlugin
+    if (terrainPlugin != null) {
+      attachBiomePlugin(m, { ...terrainPlugin.params, interior: 1 })
+    }
+    return m
   }
 
   private _density(x: number, y: number, z: number): number {

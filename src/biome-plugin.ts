@@ -124,6 +124,32 @@ export interface BiomeParams {
    */
   volcanicPalette: number[][]
   /**
+   * INTERIOR surface (a tunnel wall, a cavern ceiling): 1 = rock seen from
+   * inside the ground, so it shades as rock whatever its slope — a cavern
+   * FLOOR is level, and the chart would otherwise grow on it whatever the
+   * surface overhead grows.
+   *
+   * It does NOT mean "dry". Whether an interior floods is decided by
+   * `waterTable`, because a cave below the water line genuinely is a flooded
+   * cave — kelp on the walls of a sea cave is right, not a bug.
+   */
+  interior: number
+  /**
+   * Height of the WATER TABLE — interiors below it are flooded and classify
+   * as submerged. This is not sea level: inland groundwater typically sits
+   * ABOVE it, which is why a hillside tunnel can flood while its mouth is
+   * well above the shore. Set it per world (or per region, by driving it
+   * from a field) rather than assuming the sea decides.
+   */
+  waterTable: number
+  /**
+   * A world with **no liquid water at all**: interiors never flood however
+   * deep they go. Dry worlds — the Moon, a drained ice world, a sealed
+   * station — need this stated, not inferred from a height, because "no water"
+   * is a property of the world and "deep" is only a coordinate.
+   */
+  noWater: number
+  /**
    * Subtle live-lava animation: molten seams and pools shimmer with a slow,
    * spatially-phased pulse + drifting 3D-noise churn (never a global blink),
    * and pool edges creep as crust breaks and reforms. 0 = static, 1 = the
@@ -173,6 +199,9 @@ export const defaultBiomeParams = (): BiomeParams => ({
   volcanicScale: 0.09,
   veinWidth: 0.06,
   glowAnimation: 1,
+  interior: 0,
+  waterTable: 0,
+  noWater: 0,
   volcanicPalette: LAVA_PALETTE.map((c) => [...c]),
 })
 
@@ -339,6 +368,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 } as any,
         { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 } as any,
+        { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, spare
       ],
       fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -353,6 +383,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePalette[20];
         uniform vec4 biomePaletteB[20];
         uniform vec4 biomeVolcPal[7];
+        uniform vec4 biomeExtra;
       #endif`,
     }
   }
@@ -449,6 +480,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       vflat[i * 4 + 3] = 1
     }
     uniformBuffer.updateFloatArray('biomeVolcPal', vflat)
+    uniformBuffer.updateFloat4(
+      'biomeExtra',
+      p.interior,
+      p.waterTable,
+      p.noWater,
+      0
+    )
   }
 
   getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -627,7 +665,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           #endif
           effMapM = clamp(biomeCfg.w * dry + oro, 0.0, 1.0);
         }
-        bool underwater = altitude < 0.0;
+        // Submerged? OUTSIDE, the sea surface decides (altitude < 0). INSIDE
+        // the ground, the WATER TABLE does — which is usually HIGHER than sea
+        // level inland, so a hillside tunnel can flood while its mouth sits
+        // well above the shore. A flooded cave classifying as submerged is
+        // correct, not a bug: that's what a sea cave IS. noWater is the only
+        // thing that makes an interior dry at any depth, and it's a property
+        // of the world, stated — never inferred from a coordinate.
+        bool flooded = biomeExtra.z < 0.5 && wp.y < biomeExtra.y;
+        bool underwater = biomeExtra.x > 0.5 ? flooded : altitude < 0.0;
         // The MOISTURE GATE: on an airless world there is no sea at all —
         // below "sea level" is just lower dead land. Everything oceanic
         // (marine-row saturation here; surf + photic below) scales with it.
@@ -697,6 +743,9 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float fecund = clamp(temperature, 0.0, 1.0) * clamp(moisture * 1.5, 0.0, 1.0);
           float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
+          // Interior surfaces are rock whatever their slope — a cavern FLOOR
+          // is level, and the chart would happily grow grass on it.
+          if (biomeExtra.x > 0.5) cliff = 1.0;
           biome = mix(biome, cliffCol, cliff);
           // --- VOLCANISM: the override that outranks climate ---------------
           // LOCAL provinces: terrain tiles carry a per-vertex volcanism field

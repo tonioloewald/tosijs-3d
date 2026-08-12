@@ -664,6 +664,14 @@ fine; terrain-on-terrain at kilometre extents likely needs screen-space shadows 
 similar, not bigger CSM buffers. Revisit with the M5 Max budget in mind.
 [ ] Aircraft stuck after gentle slope contact registers as a LANDING (probe showed
 crashed:false) — verify VTOL throttle-up escapes a slope, else steepen the landing gate.
+[ ] Procedural stalactites/stalagmites for cave interiors — the biome shader already
+handles cave walls (interior=1 shades them as rock at any slope), so this is garnish, not
+classification: instanced cones/spikes seeded from the SDF surface where the ceiling is
+steep-enough-and-overhead, budgeted like b3d-ambient. Tonio raised it 2026-08-12.
+[ ] Water table as a FIELD, not a constant: `waterTable` is currently one height per
+world. Inland groundwater follows the land (roughly a smoothed, damped copy of the
+terrain), so a per-region field would let one valley's caves flood while a highland
+tunnel stays dry. Same idiom as provinceField/profileField.
 [ ] Volcanism garnish: ambient STEAM over volcanic provinces (b3d-ambient family — budgeted
 billboard wisps rising off live seams/pools, denser where water meets lava) and a subtle
 heat-shimmer/refraction effect over open lava. Design note: query the same province +
