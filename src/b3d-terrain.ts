@@ -286,6 +286,7 @@ import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler'
 import type { SurfaceSampler } from './surface-sampler'
 import {
   buildTileField,
+  tileIndexPlan,
   tileFieldScratchSize,
   tileFieldSampleCount,
   desiredCellsInto,
@@ -299,6 +300,10 @@ import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
 type PoolTile = {
   mesh: BABYLON.Mesh
   cell: DesiredCell | null
+  /** True while this tile draws its OWN index buffer (a patch cut a hole in
+   * it). Pooled tiles are reused anywhere, so this must be released when the
+   * tile is next filled somewhere without a hole — see `generateTileMesh`. */
+  masked?: boolean
 }
 
 // Pack (level, gx, gz) into a single number for Map/Set keys. Floating-origin
@@ -448,6 +453,18 @@ export class B3dTerrain extends B3dChild {
    * crater in, regenerate.
    */
   landform: ((x: number, z: number, h: number) => number) | null = null
+
+  /**
+   * Volumetric patch mask — `(x, z) => true` where the terrain SURFACE is cut
+   * away (a bore mouth, a cavern opening). Queried per tile fill in
+   * origin-stable world coordinates, at that tile's own LOD: pooled tiles have
+   * no stable identity and the same ground is different cells at different
+   * levels, so a stored cell list would be wrong the moment anything streamed.
+   *
+   * Pair it with a [[patch-field]] density carving the same volume — the mask
+   * opens the roof, the patch supplies the walls beneath it.
+   */
+  patchMask: ((x: number, z: number) => boolean) | null = null
   detailFilter: GradientFilter = new PiecewiseLinearFilter()
 
   private noise!: PerlinNoise
@@ -1175,6 +1192,34 @@ export class B3dTerrain extends B3dChild {
     // Everything above is arithmetic on plain floats; everything below hands buffers to
     // the GPU. That's the line a worker could be drawn along, so it's the line we time.
     const tSkirt = now()
+
+    // Patch holes: a tile the mask cuts draws its OWN index list; every other
+    // tile keeps the shared template. The `else if` is the release path — a
+    // pooled tile that once had a hole MUST go back to the template when it's
+    // reused elsewhere, or it renders a hole in ground that has none (and it
+    // would look like a streaming glitch, not a mask bug).
+    if (this.patchMask != null || tile.masked) {
+      const offX2 = this.originOffsetX
+      const offZ2 = this.originOffsetZ
+      const mask = this.patchMask
+      const plan = tileIndexPlan(
+        tpl,
+        mask == null
+          ? null
+          : (v) =>
+              mask(
+                positions[v * 3] + cell.cx + offX2,
+                positions[v * 3 + 2] + cell.cz + offZ2
+              )
+      )
+      if (plan != null) {
+        mesh.setIndices(plan, null, true)
+        tile.masked = true
+      } else if (tile.masked) {
+        mesh.setIndices(tpl.allIndices, null, true)
+        tile.masked = false
+      }
+    }
 
     if (colors) mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors)
     mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions)

@@ -330,3 +330,62 @@ export function buildTileField(
     }
   }
 }
+
+/**
+ * The index list a tile should DRAW, given which of its grid vertices a
+ * volumetric patch has masked away — or `null` for "use the shared template",
+ * which is the answer for the overwhelming majority of tiles.
+ *
+ * Returning `null` rather than a copy of the template is the point: it's what
+ * lets the caller tell "this tile needs its own buffer" from "this tile is
+ * ordinary", and therefore what makes the RELEASE path expressible — a pooled
+ * tile that once had a hole must go back to the template when it's reused
+ * somewhere else, or it renders a hole in ground that has none.
+ *
+ * A quad is dropped when ANY of its four corners is masked, so the hole comes
+ * out slightly LARGER than the mask. That's deliberate: the patch's rim is
+ * tucked just below the terrain surface (see `patch-field.marginBlend`), so an
+ * over-large hole is hidden by the bore's own geometry, while an under-large
+ * one would leave tile triangles poking through the tunnel wall.
+ *
+ * The skirt ring is kept whole — it's what hides the LOD seam at the tile's
+ * edge, and a patch in the middle of a tile has no business disturbing it.
+ */
+export function tileIndexPlan(
+  tpl: {
+    gridCount: number
+    gridIndices: number[]
+    allIndices: number[]
+  },
+  isMasked: ((vertex: number) => boolean) | null
+): number[] | null {
+  if (isMasked == null) return null
+  const masked = new Uint8Array(tpl.gridCount)
+  let any = false
+  for (let v = 0; v < tpl.gridCount; v++) {
+    if (isMasked(v)) {
+      masked[v] = 1
+      any = true
+    }
+  }
+  if (!any) return null // touched by a patch's bounds, but nothing to cut
+  const out: number[] = []
+  const g = tpl.gridIndices
+  for (let i = 0; i < g.length; i += 6) {
+    // one quad = two triangles over corners {a, b, c, d} = g[i], g[i+2], g[i+1], g[i+5]
+    if (
+      masked[g[i]] ||
+      masked[g[i + 1]] ||
+      masked[g[i + 2]] ||
+      masked[g[i + 5]]
+    ) {
+      continue
+    }
+    for (let k = 0; k < 6; k++) out.push(g[i + k])
+  }
+  // …then the skirt, untouched (allIndices = gridIndices ++ skirtIndices)
+  for (let i = g.length; i < tpl.allIndices.length; i++) {
+    out.push(tpl.allIndices[i])
+  }
+  return out
+}

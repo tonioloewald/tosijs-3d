@@ -470,3 +470,78 @@ describe('buildTileField — normalSmoothing (the cliff-face zigzag fix)', () =>
     expect(Array.from(again.normals)).toEqual(Array.from(sharp.normals))
   })
 })
+
+import { tileIndexPlan } from './terrain-grid'
+
+/*
+The mask is a PREDICATE queried per fill, never a stored cell list: pooled
+tiles have no stable identity, and the same ground is different cells at
+different LOD levels. These tests pin the geometry contract; the component
+side is three lines whose only job is to honour a `null` (= use the template,
+i.e. RELEASE the override).
+*/
+describe('tileIndexPlan — holes in a pooled tile', () => {
+  // A 4×4 tile: 25 grid vertices, then the skirt ring.
+  const n = 4
+  const vps = n + 1
+  const gi = (ix: number, iz: number) => iz * vps + ix
+  const gridIndices: number[] = []
+  for (let iz = 0; iz < n; iz++) {
+    for (let ix = 0; ix < n; ix++) {
+      const a = gi(ix, iz)
+      const b = gi(ix + 1, iz)
+      const c = gi(ix, iz + 1)
+      const d = gi(ix + 1, iz + 1)
+      gridIndices.push(a, c, b, b, c, d)
+    }
+  }
+  const skirt = [100, 101, 102, 102, 101, 103] // stand-in ring triangles
+  const tpl = {
+    gridCount: vps * vps,
+    gridIndices,
+    allIndices: [...gridIndices, ...skirt],
+  }
+
+  test('no mask ⇒ null (use the shared template — the common case)', () => {
+    expect(tileIndexPlan(tpl, null)).toBeNull()
+  })
+
+  test('a mask that hits nothing ⇒ null, so no buffer is allocated', () => {
+    expect(tileIndexPlan(tpl, () => false)).toBeNull()
+  })
+
+  test('a masked vertex removes every quad TOUCHING it, not just the ones it centres', () => {
+    const target = gi(2, 2)
+    const plan = tileIndexPlan(tpl, (v) => v === target)!
+    expect(plan).not.toBeNull()
+    // the 4 quads around an interior vertex are gone: 16 quads − 4 = 12
+    const quadsLeft = (plan.length - skirt.length) / 6
+    expect(quadsLeft).toBe(12)
+    // and the masked vertex appears in no remaining grid triangle
+    const gridPart = plan.slice(0, plan.length - skirt.length)
+    expect(gridPart.includes(target)).toBe(false)
+  })
+
+  test('the skirt ring always survives — it hides the LOD seam', () => {
+    const all = tileIndexPlan(tpl, () => true)!
+    expect(all).toEqual(skirt) // every quad cut, ring intact
+    const some = tileIndexPlan(tpl, (v) => v === gi(1, 1))!
+    expect(some.slice(-skirt.length)).toEqual(skirt)
+  })
+
+  test('output is always well-formed: whole triangles, in-range vertices', () => {
+    const plan = tileIndexPlan(tpl, (v) => v % 7 === 0)!
+    expect(plan.length % 3).toBe(0)
+    for (const v of plan.slice(0, plan.length - skirt.length)) {
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThan(tpl.gridCount)
+    }
+  })
+
+  test('an edge-vertex mask cuts fewer quads than an interior one', () => {
+    const corner = tileIndexPlan(tpl, (v) => v === gi(0, 0))!
+    const interior = tileIndexPlan(tpl, (v) => v === gi(2, 2))!
+    expect((corner.length - skirt.length) / 6).toBe(15) // 1 quad touches a corner
+    expect((interior.length - skirt.length) / 6).toBe(12)
+  })
+})
