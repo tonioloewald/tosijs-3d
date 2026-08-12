@@ -47,6 +47,48 @@ describe('modelExportNames', () => {
   test('empty in, empty out', () => {
     expect(modelExportNames([])).toEqual([])
   })
+
+  /*
+  Behaviour suffixes are ANNOTATIONS, not identity. A consumer should never
+  have to type a collider shape to spawn a thing — and if they did, renaming
+  `_collideBox` to `_collideMesh` in Blender would silently break their code.
+  (Reported by Tonio, 2026-08-12: getNames() leaked the suffix.)
+  */
+  test('the base mesh keeps its suffixes OUT of the public name', () => {
+    expect(
+      modelExportNames(['Hull_collideMesh.model', 'rock_collide_box.model'])
+    ).toEqual(['Hull', 'rock'])
+    expect(modelExportNames(['pad_noshadow.model'])).toEqual(['pad'])
+    expect(modelExportNames(['glass_mirror.model'])).toEqual(['glass'])
+    expect(modelExportNames(['scout_centerOfGravity.model'])).toEqual(['scout'])
+  })
+
+  test('suffix matching is case-insensitive and repeats', () => {
+    expect(modelExportNames(['Hull_CollideMesh.model'])).toEqual(['Hull'])
+    expect(modelExportNames(['Hull_collideMesh_noshadow.model'])).toEqual([
+      'Hull',
+    ])
+  })
+
+  test('annotated siblings that share a public name are listed ONCE', () => {
+    expect(
+      modelExportNames(['tree_collideBox.model', 'tree_noshadow.model'])
+    ).toEqual(['tree'])
+  })
+
+  test('legacy (no .model) lists public names too', () => {
+    expect(modelExportNames(['rock_collideMesh', 'tree'])).toEqual([
+      'rock',
+      'tree',
+    ])
+  })
+
+  test('a name that merely CONTAINS a suffix word is untouched', () => {
+    expect(modelExportNames(['mirror.model', 'collide.model'])).toEqual([
+      'mirror',
+      'collide',
+    ])
+  })
 })
 
 describe('resolveModelName', () => {
@@ -63,5 +105,20 @@ describe('resolveModelName', () => {
 
   test('unknown names pass through (the caller reports the miss)', () => {
     expect(resolveModelName(['a'], 'nope')).toBe('nope')
+  })
+
+  test('a PUBLIC name resolves to its annotated node', () => {
+    expect(resolveModelName(['Hull_collideMesh.model'], 'Hull')).toBe(
+      'Hull_collideMesh.model'
+    )
+    expect(resolveModelName(['rock_collide_box'], 'rock')).toBe(
+      'rock_collide_box'
+    )
+  })
+
+  test('a declared .model export beats a stray node with the same public name', () => {
+    expect(
+      resolveModelName(['tree_noshadow', 'tree_collideMesh.model'], 'tree')
+    ).toBe('tree_collideMesh.model')
   })
 })

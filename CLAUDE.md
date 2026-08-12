@@ -415,6 +415,8 @@ Underscore-separated variants also work (e.g., `_collide_box`).
 
 | `.model` | Declares a **library export** (see b3d-library) — and is **invisible to every suffix check** via `conventionName()`: `Hull_collideMesh.model` exports AND gets its collider. Never parse behaviour suffixes off a raw name; run them on `conventionName(name)`. |
 
+**Public vs convention names.** `conventionName(name)` drops `.model` (use it for suffix checks); **`publicName(name)`** drops `.model` AND the behaviour suffixes — that's what `getNames()` lists and what `instantiate()` resolves, so `Hull_collideMesh.model` is publicly `Hull`. Suffixes are instructions to the engine, not identity: never let one reach a consumer's API call.
+
 **Model authoring & the canonical frame (issues #5/#6, decided 2026-08-11):** content is
 authored **Blender-default in the model's LOCAL frame** — nose faces **local −Y**, up
 **local +Z**; the object's SCENE transform is scenic dressing and the collapse discards it

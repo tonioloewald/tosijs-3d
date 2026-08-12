@@ -148,6 +148,11 @@ tosi-b3d { width: 100%; height: 100%; }
   (`_collideMesh`, `_noshadow`, `_mirror`, `-ignore`, …) runs on the name with
   `.model` stripped, so `Hull_collideMesh.model` exports AND gets its
   collider — you never trade one convention for the other.
+- **Suffixes never reach the consumer.** `getNames()` lists PUBLIC names, with
+  `.model` *and* the behaviour suffixes stripped: `Hull_collideMesh.model` is
+  simply `Hull`, and `instantiate('Hull')` finds it. Annotations say what the
+  engine should DO with a node, not what the thing IS — so changing a
+  collider in Blender can't break a consumer's spawn call.
 
 ## Animations travel with the instance
 
@@ -179,7 +184,7 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 */
 /*{ "parent": "Core" }*/
 
-import { B3dChild, conventionName } from './b3d-utils'
+import { B3dChild, conventionName, publicName } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { canonicalize } from './model-transform'
@@ -201,18 +206,29 @@ import { canonicalize } from './model-transform'
  * - `instantiate('scout')` resolves to `scout.model` (exact match wins).
  */
 export function modelExportNames(names: string[]): string[] {
+  // Names are PUBLIC names: `.model` and the behaviour suffixes both come off,
+  // so `Hull_collideMesh.model` lists as `Hull`. A consumer should never have
+  // to type a collider annotation to spawn a thing (Tonio, 2026-08-12), and
+  // dedupe because two annotated nodes can share one public name.
   const models = names.filter((n) => n.endsWith('.model'))
-  if (models.length === 0) return names.filter((n) => !n.endsWith('.model'))
-  return models.map((n) => n.slice(0, -'.model'.length))
+  const source = models.length === 0 ? names : models
+  return [...new Set(source.map(publicName))]
 }
 
 /** Resolve a requested name against the `.model` convention: exact match
  * first, then `<name>.model`. Returns the node name to look up. */
 export function resolveModelName(names: string[], requested: string): string {
-  if (names.includes(requested)) return requested
+  if (names.includes(requested)) return requested // exact wins
   const suffixed = `${requested}.model`
   if (names.includes(suffixed)) return suffixed
-  return requested
+  // …then the PUBLIC name: `Hull` finds `Hull_collideMesh.model`. Declared
+  // exports are preferred, so an annotated `.model` node beats a stray node
+  // that happens to clean to the same name.
+  const declared = names.filter((n) => n.endsWith('.model'))
+  const match =
+    declared.find((n) => publicName(n) === requested) ??
+    names.find((n) => publicName(n) === requested)
+  return match ?? requested
 }
 
 /**

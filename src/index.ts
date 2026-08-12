@@ -95,6 +95,7 @@ export {
   actualMeshes,
   enterXR,
   applyMaterialConventions,
+  publicName,
   placeOnSurface,
   boundingBottomOffset,
 } from './b3d-utils'
