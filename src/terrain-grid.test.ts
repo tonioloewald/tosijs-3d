@@ -495,11 +495,30 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
       gridIndices.push(a, c, b, b, c, d)
     }
   }
-  const skirt = [100, 101, 102, 102, 101, 103] // stand-in ring triangles
+  // A real perimeter loop, so the skirt behaves the way the template's does.
+  const perim: number[] = []
+  for (let ix = 0; ix < n; ix++) perim.push(gi(ix, 0))
+  for (let iz = 0; iz < n; iz++) perim.push(gi(n, iz))
+  for (let ix = n; ix > 0; ix--) perim.push(gi(ix, n))
+  for (let iz = n; iz > 0; iz--) perim.push(gi(0, iz))
+  const skirtIndices: number[] = []
+  for (let p = 0; p < perim.length; p++) {
+    const pn = (p + 1) % perim.length
+    skirtIndices.push(
+      perim[p],
+      vps * vps + p,
+      perim[pn],
+      perim[pn],
+      vps * vps + p,
+      vps * vps + pn
+    )
+  }
+  const skirt = skirtIndices
   const tpl = {
     gridCount: vps * vps,
+    perim,
     gridIndices,
-    allIndices: [...gridIndices, ...skirt],
+    allIndices: [...gridIndices, ...skirtIndices],
   }
 
   test('no mask ⇒ null (use the shared template — the common case)', () => {
@@ -522,11 +541,33 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
     expect(gridPart.includes(target)).toBe(false)
   })
 
-  test('the skirt ring always survives — it hides the LOD seam', () => {
-    const all = tileIndexPlan(tpl, () => true)!
-    expect(all).toEqual(skirt) // every quad cut, ring intact
-    const some = tileIndexPlan(tpl, (v) => v === gi(1, 1))!
-    expect(some.slice(-skirt.length)).toEqual(skirt)
+  test('the skirt survives where the ground does — an INTERIOR hole keeps it whole', () => {
+    const some = tileIndexPlan(tpl, (v) => v === gi(2, 2))!
+    expect(some.slice(-skirt.length)).toEqual(skirt) // hole nowhere near the edge
+  })
+
+  /*
+  A bore landing on a tile boundary is the NORMAL case (tile corners sit on a
+  grid; so do authored features), and Tonio saw the result immediately: four
+  tiles meeting at the shaft, each dropping its skirt straight down through the
+  open hole — curtains hanging in mid-air inside the bore. A skirt hides the
+  LOD seam only while it's buried in ground; carve the ground away and it's
+  just geometry in the void.
+  */
+  test('a skirt whose GROUND was carved away goes with it', () => {
+    const edgeVertex = gi(0, 2) // on the tile's own edge — a bore at the seam
+    const plan = tileIndexPlan(tpl, (v) => v === edgeVertex)!
+    const skirtPart = plan.slice(plan.length - (plan.length % 6 === 0 ? 0 : 0))
+    // the two skirt quads that hang off this perimeter vertex are gone
+    expect(plan.length).toBeLessThan(
+      tileIndexPlan(tpl, (v) => v === gi(2, 2))!.length + skirt.length
+    )
+    expect(plan.includes(edgeVertex)).toBe(false) // nothing references it at all
+    expect(skirtPart).toBeDefined()
+  })
+
+  test('everything masked ⇒ nothing at all, not a floating ring', () => {
+    expect(tileIndexPlan(tpl, () => true)!).toEqual([])
   })
 
   test('output is always well-formed: whole triangles, in-range vertices', () => {
@@ -538,11 +579,18 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
     }
   })
 
-  test('an edge-vertex mask cuts fewer quads than an interior one', () => {
-    const corner = tileIndexPlan(tpl, (v) => v === gi(0, 0))!
-    const interior = tileIndexPlan(tpl, (v) => v === gi(2, 2))!
-    expect((corner.length - skirt.length) / 6).toBe(15) // 1 quad touches a corner
-    expect((interior.length - skirt.length) / 6).toBe(12)
+  test('an edge-vertex mask cuts fewer GRID quads than an interior one', () => {
+    // (an edge mask also takes skirt quads with it now — see the skirt test —
+    // so compare the grid portion, which is what this is about)
+    const gridQuads = (plan: number[]) => {
+      let n = 0
+      for (let i = 0; i < plan.length; i += 6) {
+        if (plan[i + 1] < tpl.gridCount) n++ // skirt quads reference skirt verts
+      }
+      return n
+    }
+    expect(gridQuads(tileIndexPlan(tpl, (v) => v === gi(0, 0))!)).toBe(15)
+    expect(gridQuads(tileIndexPlan(tpl, (v) => v === gi(2, 2))!)).toBe(12)
   })
 })
 

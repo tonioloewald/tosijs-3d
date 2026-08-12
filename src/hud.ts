@@ -81,6 +81,16 @@ export type HudController = {
   setTraces(points: HudTracePoint[]): void
   /** Show warning lines (the `#warning` text) and flash any threat-side arc red. */
   setWarnings(warnings: HudWarning[]): void
+  /**
+   * Show or hide the artificial horizon + pitch ladder.
+   *
+   * It's the one element that LIES outside the cockpit: from a chase camera
+   * the view isn't on the aircraft's attitude, so a horizon drawn level with
+   * the airframe contradicts the horizon you can see out the window. The
+   * meters, radar traces and warnings are all still true from any viewpoint,
+   * so they stay.
+   */
+  setHorizonVisible(visible: boolean): void
 }
 
 const SVGNS = 'http://www.w3.org/2000/svg'
@@ -197,6 +207,15 @@ export function createHudController(
 
   const ladder = el.querySelector('#horizon-ladder') as SVGGElement | null
   const horizonG = el.querySelector('#horizon') as SVGGElement | null
+  let horizonVisible = true
+  const setHorizonVisible = (visible: boolean) => {
+    if (visible === horizonVisible) return
+    horizonVisible = visible
+    const display = visible ? '' : 'none'
+    if (horizonG != null) horizonG.style.display = display
+    if (ladder != null) ladder.style.display = display
+    for (const l of ladders ?? []) l.style.display = display
+  }
   // Three copies of the ladder (cloned once): the 10°-level nearest the current
   // pitch, one above, one below — each labelled with its own multiple of 10.
   let ladders: SVGGElement[] | null = null
@@ -310,7 +329,7 @@ export function createHudController(
     )
   }
 
-  return { el, setMeter, setHorizon, setTraces, setWarnings }
+  return { el, setMeter, setHorizon, setTraces, setWarnings, setHorizonVisible }
 }
 
 const { svg, g, path, rect, circle, text, defs } = svgElements

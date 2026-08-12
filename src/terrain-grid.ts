@@ -382,12 +382,20 @@ export function buildTileField(
  * over-large hole is hidden by the bore's own geometry, while an under-large
  * one would leave tile triangles poking through the tunnel wall.
  *
- * The skirt ring is kept whole — it's what hides the LOD seam at the tile's
- * edge, and a patch in the middle of a tile has no business disturbing it.
+ * The skirt ring is kept EXCEPT where the hole eats it. A skirt hangs straight
+ * down from the tile's perimeter to hide the LOD seam — which is invisible
+ * while it's buried in solid ground, and a curtain hanging in mid-air the
+ * moment the ground beneath it has been carved away. When a bore lands on a
+ * tile boundary (four tiles meeting at a shaft is the normal case, not a
+ * pathological one — tile corners are on a grid and so are authored features),
+ * those tiles' skirts drop straight through the open bore. So a skirt quad
+ * goes when either of its perimeter vertices is masked, and the rest of the
+ * ring stays.
  */
 export function tileIndexPlan(
   tpl: {
     gridCount: number
+    perim: number[]
     gridIndices: number[]
     allIndices: number[]
   },
@@ -417,9 +425,23 @@ export function tileIndexPlan(
     }
     for (let k = 0; k < 6; k++) out.push(g[i + k])
   }
-  // …then the skirt, untouched (allIndices = gridIndices ++ skirtIndices)
-  for (let i = g.length; i < tpl.allIndices.length; i++) {
-    out.push(tpl.allIndices[i])
+  // …then the skirt, minus any quad whose ground has been carved out from
+  // under it. Rebuilt from `perim` rather than sliced out of `allIndices`, so
+  // the two can't drift apart if the template's layout ever changes.
+  const pc = tpl.perim.length
+  for (let p = 0; p < pc; p++) {
+    const pn = (p + 1) % pc
+    const ga = tpl.perim[p]
+    const gb = tpl.perim[pn]
+    if (masked[ga] || masked[gb]) continue
+    out.push(
+      ga,
+      tpl.gridCount + p,
+      gb,
+      gb,
+      tpl.gridCount + p,
+      tpl.gridCount + pn
+    )
   }
   return out
 }

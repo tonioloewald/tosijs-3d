@@ -22,7 +22,8 @@ const MAX_ALT = 300     // the aircraft's ceiling (its `ceiling`, default 300)
 
 // A FACTORY — so a respawn is a genuinely new aircraft (with its radar), not a reset. The sim
 // really emits a death and a spawn, which is the stream a narrative driver reads (see b3d-death).
-// The HUD stays in the COCKPIT view only (hudChase defaults false); the chase view is clean.
+// The HUD shows in BOTH views: in-scene on the canopy in cockpit, flat overlay in chase
+// (minus the artificial horizon, which only tells the truth from inside the aircraft).
 const plane = () => b3dAircraft(
   { library: 'vehicles', meshName: 'scout', player: true, y: 0, vtolSpeed: 6, maxSpeed: 55 },
   b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }),
@@ -178,7 +179,7 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
-| `hudChase` | `false` | Show the flat DOM HUD overlay in chase view (cockpit uses the in-scene HUD) |
+| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
 | `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |
@@ -284,6 +285,7 @@ type HudSink = {
   setMeter(name: string, level: number): void
   setHorizon(pitch: number, roll: number, angle?: number): void
   setVisible(visible: boolean): void
+  setHorizonVisible?(visible: boolean): void
   setWarnings(warnings: Array<{ text: string; side?: string }>): void
   /** World positions + the eye; the HUD projects them onto its own quad. */
   setTraces?(
@@ -316,7 +318,8 @@ export class B3dAircraft extends B3dControllable {
     // a linked HUD's altitude gauge.
     ceiling: 300,
     // Show the HUD in the chase view too (default: cockpit view only).
-    hudChase: false,
+    // Chase view shows the HUD MINUS the horizon; set to hide it entirely.
+    hudChaseOff: false,
     // In-cockpit HUD plane placement (see b3d-hud attachInScene): its size in metres
     // and how far ahead of the pilot's eye it floats. Tune to taste per airframe.
     hudSize: 0.7,
@@ -400,7 +403,7 @@ export class B3dAircraft extends B3dControllable {
   private fbw: FlyByWireState = { heading: 0, pitch: 0, bank: 0, speed: 0 }
   private fbwSeeded = false
   declare ceiling: number
-  declare hudChase: boolean
+  declare hudChaseOff: boolean
   declare reticle: string
   declare reticleRange: number
   // undefined = not yet resolved; null = no HUD / not the player.
@@ -535,7 +538,18 @@ export class B3dAircraft extends B3dControllable {
     const fwdSpeed = Math.hypot(vel.x, vel.z)
     // Reuse last frame's post-move ground distance (refined after the move below).
     // One frame stale, but so is `grounded`, and regime selection is tolerant.
-    const heightAboveGround = this._lastGroundDist - this.groundClearance
+    //
+    // INSIDE A TUNNEL, clearance stops meaning what it means outside. The
+    // regime uses height-above-ground to know you're taking off or landing —
+    // but in a bore you are DELIBERATELY three metres off the floor at speed,
+    // and letting that read as "about to land" drops you out of wing-borne
+    // flight in the one place you most need control. So underground the
+    // regime is decided by SPEED alone: report a clearance that can't trip the
+    // hover threshold, and let the floor still govern the clamp and the
+    // landing gate (which run on the real distance below).
+    const heightAboveGround = this._inCavity
+      ? Number.POSITIVE_INFINITY
+      : this._lastGroundDist - this.groundClearance
     flyByWireStep(
       this.fbw,
       cmd,
@@ -607,8 +621,15 @@ export class B3dAircraft extends B3dControllable {
       // chase view only when `hud-chase` opts in.
       const inCockpit = this.cameraView === 'cockpit'
       this._hud.setInSceneVisible?.(inCockpit)
-      const showHud = inCockpit || attrs.hudChase
-      this._hud.setVisible(!inCockpit && attrs.hudChase)
+      // The HUD is useful from ANY view — speed, altitude, radar, warnings are
+      // true wherever the camera is. The horizon is the exception: outside the
+      // cockpit it contradicts the real horizon behind the aircraft, so it's
+      // dropped in chase and the rest stays. (`hudChase: false` still forces
+      // the old cockpit-only behaviour for anyone who wants a clean chase.)
+      const chaseHud = !attrs.hudChaseOff
+      const showHud = inCockpit || chaseHud
+      this._hud.setVisible(!inCockpit && chaseHud)
+      this._hud.setHorizonVisible?.(inCockpit)
       if (showHud) {
         const RAD = 180 / Math.PI
         this._hud.setMeter(

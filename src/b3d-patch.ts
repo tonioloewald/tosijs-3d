@@ -18,7 +18,7 @@ import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dPatch, b3dAircraft,
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
-  composePatches, marginBlend, circleFootprint, label3d, slider3d,
+  composePatches, circleFootprint, label3d, slider3d,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -27,31 +27,39 @@ import {
 // enough out that they aren't changing in your face.
 const terrain = b3dTerrain({
   biome: 'on', seed: 4,
-  grossScale: 0.006, grossAmplitude: 130,
-  fineScale: 0.03, fineAmplitude: 5,
-  tileSize: 32, lodLevels: 5, poolSize: 260, fillBudget: 16,
-  baseHeight: -20,
+  // SCALE: grossScale is 1/wavelength, so SMALL numbers make BIG land —
+  // 0.004 ≈ 250m hills, 340m of relief, and 7 LOD levels so the horizon is
+  // kilometres away instead of a few hundred metres.
+  grossScale: 0.004, grossAmplitude: 340,
+  fineScale: 0.02, fineAmplitude: 10,
+  // ⚠️ THE WORLD WRAPS. surfaceType maps the noise onto a cylinder, so terrain
+  // REPEATS every 2π·radius metres — the default radius of 200 gives a ~1.3km
+  // tile, obvious within seconds at flying speed. The mapping is arc-length
+  // preserving, so pushing the radius out moves the seam beyond the horizon
+  // WITHOUT changing feature size.
+  radius: 40000, cylinderHeight: 40000,
+  tileSize: 48, lodLevels: 7, poolSize: 300, fillBudget: 16,
+  baseHeight: -60,
 })
 
-// The carve, in LOGICAL world coordinates. A vertical shaft unioned with a
-// horizontal tube — `max` is union on this convention (negative = solid), and
-// marginBlend keeps each inside its own footprint so the rim converges onto
-// the ground instead of tearing at it.
-const shaft = marginBlend(
-  (x, y, z, d) => Math.max(d, 16 - Math.hypot(x, z)),
-  circleFootprint(0, 0, 46), 12, 0.4
-)
-const tube = marginBlend(
-  (x, y, z, d) => Math.max(d, 12 - Math.hypot(y + 45, z)),
-  (x, z) => Math.max(Math.abs(z) - 46, x - 170), // a corridor heading +X
-  12, 0.4
-)
+// The carve is written against `d` = DEPTH BELOW THE GROUND (0 at the surface,
+// negative in the rock), so it follows the hillside — no plateau flattened
+// underneath to give the mouth a known height. `max` is union here.
+const shaft = (x, y, z, d) =>
+  Math.max(d, Math.min(18 - Math.hypot(x, z), d + 130))   // down 130m
+const tube = (x, y, z, d) =>
+  Math.max(d, Math.min(13 - Math.hypot(d + 95, z), 150 - x)) // adit at ~95m depth
 
 const patch = b3dPatch({
-  minX: -50, maxX: 180, minZ: -50, maxZ: 50, minY: -110, maxY: 60,
-  spacing: 3, jitter: 0.3, level: 2, chunkCells: 8,
+  minX: -60, maxX: 170, minZ: -60, maxZ: 60,
+  depth: 150, rise: 12,
+  spacing: 3, jitter: 0.3, level: 4, chunkCells: 8,
 })
 patch.field = composePatches(shaft, tube)
+// Where the patch OWNS the ground: only the mouth breaks the surface, so only
+// the mouth needs the tiles to step aside. The adit stays underground, where
+// there is no tile to argue with.
+patch.footprint = circleFootprint(0, 0, 34)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because
@@ -59,7 +67,7 @@ patch.field = composePatches(shaft, tube)
 const plane = () => b3dAircraft(
   {
     library: 'vehicles', meshName: 'scout',
-    player: true, x: 0, y: 150, z: -420, vtolSpeed: 6, maxSpeed: 55,
+    player: true, x: 0, y: 320, z: -900, vtolSpeed: 6, maxSpeed: 55,
   },
   b3dRadar({ range: 1200, coneDeg: 100, lockTime: 1.2, maxLocks: 2 }),
 )
@@ -152,8 +160,12 @@ export class B3dPatch extends B3dChild {
     maxX: 32,
     minZ: -32,
     maxZ: 32,
-    minY: -32,
-    maxY: 32,
+    /** How far BELOW the ground the carve reaches (m). Y bounds are derived
+     * from the terrain, so a bore follows the hillside instead of needing a
+     * plateau flattened under it. */
+    depth: 60,
+    /** How far above the ground to extract (m) — enough to close the rim. */
+    rise: 8,
     /** Lattice spacing (m). Finer = smoother walls and far more triangles. */
     spacing: 1.5,
     /** Vertex jitter, fraction of spacing. 0 for architectural cavities. */
@@ -170,8 +182,8 @@ export class B3dPatch extends B3dChild {
   declare maxX: number
   declare minZ: number
   declare maxZ: number
-  declare minY: number
-  declare maxY: number
+  declare depth: number
+  declare rise: number
   declare spacing: number
   declare jitter: number
   declare seed: number
@@ -179,9 +191,29 @@ export class B3dPatch extends B3dChild {
   declare buildMs: number
   declare chunkCells: number
 
-  /** The carve, in LOGICAL world coordinates: `(x, y, z, d) => d'`, negative
-   * inside solid. Compose with `composePatches` / `marginBlend`. */
+  /**
+   * The carve: `(x, y, z, d) => d'`, negative inside solid. `d` arrives as
+   * **depth below the ground** (0 at the surface, negative in the rock), so a
+   * carve written against it FOLLOWS the terrain — no plateau needs flattening
+   * under a bore to give it a known mouth height.
+   */
   field: PatchField | null = null
+
+  /**
+   * Where this patch OWNS the ground: signed distance in XZ, negative inside.
+   * Inside it the tiles step aside entirely and the patch supplies both the
+   * ground and the walls, from one field.
+   *
+   * That total handover is the point. Cutting only the bore mouth leaves the
+   * tiles and the extraction both drawing the ground around it — two surfaces
+   * a few centimetres apart, which is z-fighting you can see from a kilometre
+   * up. One surface per patch of ground, always. Defaults to the XZ bounds.
+   */
+  footprint: ((x: number, z: number) => number) | null = null
+
+  /** Derived from the terrain over the footprint (see `depth`/`rise`). */
+  private _minY = 0
+  private _maxY = 0
 
   /** Material for the walls; a plain rock-ish default if unset. */
   material: BABYLON.Material | null = null
@@ -232,15 +264,12 @@ export class B3dPatch extends B3dChild {
       if (x < this.minX || x > this.maxX || z < this.minZ || z > this.maxZ) {
         return false
       }
-      const h = this._height?.(x, z)
-      if (h == null) return false
-      // Cut where there is air a PROBE-DEPTH below the ground — not merely at
-      // it. `marginBlend`'s tuck deliberately puts the patch surface a hair
-      // under the terrain, so sampling exactly at ground level reads as air
-      // across the whole footprint and would cut a crater instead of a mouth.
-      // One lattice spacing down is both the natural scale and the smallest
-      // depth the extraction could resolve anyway.
-      return this._density(x, h - this.spacing, z) > 0
+      // Inside the footprint the tiles step aside COMPLETELY — the patch
+      // supplies the ground here as well as the walls, from one field, so
+      // there is exactly one surface. (Cutting only the bore mouth leaves both
+      // meshes drawing the surrounding ground: coincident sheets, and the
+      // z-fighting is visible from the air.)
+      return this._footprintAt(x, z) < 0
     }
   }
 
@@ -289,14 +318,24 @@ export class B3dPatch extends B3dChild {
     if (lx < this.minX || lx > this.maxX || lz < this.minZ || lz > this.maxZ) {
       return false
     }
-    if (y < this.minY || y > this.maxY) return false
+    if (y < this._minY || y > this._maxY) return false
     // Air INSIDE the ground: the density says open, the heightfield says we're
     // under the surface. Above the surface is just sky, and no flight rule
     // needs suspending there.
     return this._density(lx, y, lz) > 0 && y < this._height(lx, lz)
   }
 
+  private _footprintAt(x: number, z: number): number {
+    if (this.footprint != null) return this.footprint(x, z)
+    // default: the bounds box, as a signed distance
+    const dx = Math.max(this.minX - x, x - this.maxX)
+    const dz = Math.max(this.minZ - z, z - this.maxZ)
+    return Math.max(dx, dz)
+  }
+
   private _density(x: number, y: number, z: number): number {
+    // `d` IS depth below the ground (0 at the surface), which is what makes a
+    // carve terrain-relative rather than pinned to an absolute height.
     const base = this._height == null ? y : y - this._height(x, z)
     return this.field ? this.field(x, y, z, base) : base
   }
@@ -334,20 +373,51 @@ export class B3dPatch extends B3dChild {
     if (resident !== this._resident) {
       this._resident = resident
       if (!resident) this._releaseChunks()
-      else this._planChunks()
+      else {
+        this._measureY()
+        this._planChunks()
+      }
     }
     if (resident) this._extractSome(owner)
   }
 
   /** Enumerate the chunks this patch's bounds cover, nearest-first is not worth
    * it at these sizes — a patch is a handful of chunks, not a world. */
+  /** Sample the ground over the footprint to find the Y range worth
+   * extracting. Absolute Y bounds would have to be re-authored every time the
+   * terrain seed changed, and a bore on a hillside spans more height than one
+   * on a plain. */
+  private _measureY() {
+    const h = this._height
+    if (h == null) return
+    let lo = Infinity
+    let hi = -Infinity
+    const N = 12
+    for (let i = 0; i <= N; i++) {
+      for (let j = 0; j <= N; j++) {
+        const x = this.minX + ((this.maxX - this.minX) * i) / N
+        const z = this.minZ + ((this.maxZ - this.minZ) * j) / N
+        if (this._footprintAt(x, z) > this.spacing * 2) continue
+        const y = h(x, z)
+        if (y < lo) lo = y
+        if (y > hi) hi = y
+      }
+    }
+    if (!Number.isFinite(lo)) {
+      lo = 0
+      hi = 0
+    }
+    this._minY = lo - this.depth
+    this._maxY = hi + this.rise
+  }
+
   private _planChunks() {
     const L = this.spacing
     const n = Math.max(2, Math.floor(this.chunkCells))
     const c0x = Math.floor(this.minX / L / n)
     const c1x = Math.floor(this.maxX / L / n)
-    const c0y = Math.floor(this.minY / L / n)
-    const c1y = Math.floor(this.maxY / L / n)
+    const c0y = Math.floor(this._minY / L / n)
+    const c1y = Math.floor(this._maxY / L / n)
     const c0z = Math.floor(this.minZ / L / n)
     const c1z = Math.floor(this.maxZ / L / n)
     this._pending = []
@@ -385,8 +455,24 @@ export class B3dPatch extends B3dChild {
       seed: this.seed,
     }
     const base = terrainDensity(this._height ?? (() => 0))
-    const field = (x: number, y: number, z: number) =>
-      this.field ? this.field(x, y, z, base(x, y, z)) : base(x, y, z)
+    // OUTSIDE the footprint the tiles still own the ground, so the extraction
+    // must not draw it a second time: feeding the carve a bottomless-solid
+    // base publishes ONLY the carved volume, whose boundary out there is the
+    // tunnel wall (it's underground — the terrain surface isn't). Inside the
+    // footprint the tiles have stepped aside, so the full composed field runs
+    // and supplies ground and walls together.
+    //
+    // Skipping this is what put a second copy of the hillside a few
+    // centimetres under the first: z-fighting visible from a kilometre up.
+    const SOLID = -1e9
+    const field = (x: number, y: number, z: number) => {
+      if (this.field == null) {
+        return this._footprintAt(x, z) < 0 ? base(x, y, z) : SOLID
+      }
+      return this._footprintAt(x, z) < 0
+        ? this.field(x, y, z, base(x, y, z))
+        : this.field(x, y, z, SOLID)
+    }
     const mesh = extractChunk(
       field,
       { ix: ix * n, iy: iy * n, iz: iz * n, nx: n, ny: n, nz: n },
