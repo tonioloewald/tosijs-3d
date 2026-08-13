@@ -23,6 +23,7 @@ const input = { ...emptyInput(), forward: 1, turn: -0.5, shoot: 1 }
 |-------|-------|---------|
 | `forward` | -1..1 | Forward/backward movement |
 | `strafe` | -1..1 | Left/right strafe |
+| `lookX`,`lookY` | -1..1 | Camera look — swings the view, springs back on release |
 | `turn` | -1..1 | Turning |
 | `pitch` | -1..1 | Pitch (aircraft) |
 | `throttle` | 0..1 | Continuous throttle |
@@ -54,6 +55,11 @@ buttons use max.
 export interface ControlInput {
   forward: number // -1..1
   strafe: number // -1..1
+  /** Camera look, −1..1. Not the craft's controls: it swings the view around
+   * the vehicle (chase) or turns the pilot's head (cockpit), and springs back
+   * to centre when released. */
+  lookX: number
+  lookY: number
   turn: number // -1..1
   pitch: number // -1..1 (aircraft)
   throttle: number // 0..1 (continuous throttle)
@@ -79,6 +85,8 @@ export function emptyInput(): ControlInput {
   return {
     forward: 0,
     strafe: 0,
+    lookX: 0,
+    lookY: 0,
     turn: 0,
     pitch: 0,
     throttle: 0,
@@ -126,6 +134,8 @@ export class CompositeInputProvider implements InputProvider {
       // Axes: max-abs (preserve sign of whichever is larger)
       result.forward = maxAbs(result.forward, input.forward)
       result.strafe = maxAbs(result.strafe, input.strafe)
+      result.lookX = maxAbs(result.lookX, input.lookX)
+      result.lookY = maxAbs(result.lookY, input.lookY)
       result.turn = maxAbs(result.turn, input.turn)
       result.pitch = maxAbs(result.pitch, input.pitch)
       result.lift = maxAbs(result.lift, input.lift)

@@ -370,7 +370,12 @@ export function aircraftMapping(
     // stick convention. Without this, pulling back drops the nose.
     input.pitch = -pad.leftStickY
     input.turn = pad.leftStickX // bank → turn
-    input.strafe = pad.rightStickX // aux roll
+    // RIGHT STICK IS THE CAMERA, not a control surface. Aux roll on the right
+    // stick was near-useless (the left stick already banks, and bank-to-turn
+    // means a second roll axis fights it); swinging the view is what a pilot
+    // actually reaches for. Springs back to centre — see b3d-aircraft.
+    input.lookX = pad.rightStickX
+    input.lookY = pad.rightStickY
     // Trigger axis is the VTOL controller's dual-purpose lift: + (right trigger) =
     // climb when hovering / speed-up when flying; − (left trigger) = descend / slow
     // down. The flight model integrates it per-regime (no detents — direct rate).
@@ -380,7 +385,7 @@ export function aircraftMapping(
     // it's reachable on an XR controller / hardware pad without a view button).
     input.view = Math.max(pad.view, pad.buttonY)
     input.interact = pad.buttonX
-    input.cameraZoom = pad.rightStickY
+    input.cameraZoom = 0 // (was right-stick Y; that axis is LOOK now)
 
     // Weapons (the combat slice): guns held, missile + bomb edge-fired. Button choice
     // is XR-driven — Y is taken for `view` and X for `menu` (XR controllers overload
@@ -402,11 +407,11 @@ export function aircraftMappingDescriptor(
     labels: {
       leftStickY: 'pitch',
       leftStickX: 'turn',
-      rightStickX: 'roll',
+      rightStickX: 'look',
       rightTrigger: 'up / faster',
       leftTrigger: 'down / slower',
       buttonX: 'interact',
-      rightStickY: 'camera',
+      rightStickY: 'look up/down',
       rightBumper: 'guns',
       buttonA: 'guns',
       buttonB: 'bomb',

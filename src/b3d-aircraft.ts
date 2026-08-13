@@ -176,6 +176,9 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
+| `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
+| `lookRate` | `150` | Look slew rate (degrees/sec at full stick) |
+| `lookReturn` | `4` | How fast the view springs back to centre when released |
 | `autoGear` | `'on'` | Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`) |
 | `gearAltitude` | `40` | Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis) |
 | `gearTime` | `2.5` | Seconds for a full gear cycle |
@@ -213,6 +216,17 @@ Shells inherit the airframe's velocity, so your own motion leads the shot. Any
 
 `fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
 an AI pilot). Set `weapons="off"` to disarm.
+
+## The right stick is the CAMERA
+
+It swings the view and **springs back** when you let go: in chase it orbits the
+aircraft, in the cockpit it turns the pilot's head. Held, it slews; released,
+it returns — so you can glance at what you're about to hit without leaving the
+camera somewhere awkward, and without a second control to re-centre.
+
+It used to be an aux roll axis, which was near-useless: the left stick already
+banks, and bank-to-turn means a second roll input fights it. Looking around is
+what the spare stick is actually for.
 
 ## Landing gear, found by name
 
@@ -378,6 +392,13 @@ export class B3dAircraft extends B3dControllable {
     gearVolume: 0.6,
     /** Seconds for a full gear cycle. */
     gearTime: 2.5,
+    /** How far the LOOK stick can swing the view (degrees each way). */
+    lookRange: 120,
+    /** Look slew rate (degrees/sec at full deflection). */
+    lookRate: 150,
+    /** How fast the view springs back to centre when the stick is released
+     * (fraction of the remaining offset per second). */
+    lookReturn: 4,
     // Height above ground above which the trigger is forward thrust regardless of
     // speed (take off vertically, then fly) AND the brake can't stall you below
     // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
@@ -470,7 +491,11 @@ export class B3dAircraft extends B3dControllable {
   // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
   // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
   private _chasePivot: BABYLON.TransformNode | null = null
-  private _chaseLookPitch = 0 // fixed look-down angle of the chase camera
+  private _chaseLookPitch = 0
+  /** Where the LOOK stick has swung the view (radians), and how fast it
+   * springs back when released. */
+  private _lookYaw = 0
+  private _lookPitch = 0 // fixed look-down angle of the chase camera
   private meshesToDispose: BABYLON.Node[] = []
   // Ground sampling is ONE raycast per frame, taken after the move and cached: the
   // pre-move regime height reuses last frame's value (one-frame stale, like the
@@ -556,10 +581,13 @@ export class B3dAircraft extends B3dControllable {
     // that lands banked settles flat.
     const cmd = {
       pitch: this.grounded ? 0 : input.pitch,
-      // Left stick X is the primary turn (banks → turns); right stick X adds roll.
+      // Left stick X banks, and bank turns you. `strafe` is still summed in so
+      // an ALTERNATIVE mapping can offer a dedicated roll axis — but the
+      // aircraft preset no longer puts one on the right stick, which now looks
+      // around instead.
       roll: this.grounded
         ? 0
-        : Math.max(-1, Math.min(1, input.turn + input.strafe)),
+        : Math.max(-1, Math.min(1, input.turn + (input.strafe ?? 0))),
       lift: input.lift, // trigger axis: + up/faster, − down/slower
     }
     const cfg: FlyByWireConfig = {
@@ -829,6 +857,38 @@ export class B3dAircraft extends B3dControllable {
     // level (steady); the Manta bank goes in the camera's own quaternion (a parented FreeCamera
     // ignores parent-roll and upVector for the view). It re-derives from the airframe each frame,
     // so a floating-origin rebase is absorbed for free — deliberately NOT origin-registered.
+    // LOOK: the right stick swings the view and SPRINGS BACK when released, so
+    // you can glance at what you're about to hit without leaving the camera
+    // somewhere awkward. Held, it's a slew; released, it returns — which is
+    // why it's integrated rather than mapped straight to an angle.
+    {
+      const attrs2 = this as any
+      const range = (attrs2.lookRange * Math.PI) / 180
+      const rate = (attrs2.lookRate * Math.PI) / 180
+      const lx = input.lookX ?? 0
+      const ly = input.lookY ?? 0
+      const active = Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08
+      if (active) {
+        const yaw = this._lookYaw + lx * rate * dt
+        const pitch = this._lookPitch + ly * rate * dt
+        this._lookYaw = yaw < -range ? -range : yaw > range ? range : yaw
+        const pr = range * 0.5
+        this._lookPitch = pitch < -pr ? -pr : pitch > pr ? pr : pitch
+      } else {
+        const k = Math.exp(-attrs2.lookReturn * dt) // frame-rate independent
+        this._lookYaw *= k
+        this._lookPitch *= k
+        if (Math.abs(this._lookYaw) < 1e-4) this._lookYaw = 0
+        if (Math.abs(this._lookPitch) < 1e-4) this._lookPitch = 0
+      }
+    }
+
+    // COCKPIT: the same look turns the pilot's HEAD — the camera is parented to
+    // the airframe, so a local rotation is exactly "look left without turning".
+    if (this.cockpitCamera != null) {
+      this.cockpitCamera.rotation.set(this._lookPitch, this._lookYaw, 0)
+    }
+
     if (this._chasePivot != null) {
       node.computeWorldMatrix(true) // refresh: position moved since the attitude pass
       this._chasePivot.position.copyFrom(node.absolutePosition)
@@ -836,7 +896,7 @@ export class B3dAircraft extends B3dControllable {
         this._chasePivot.rotationQuaternion = new BABYLON.Quaternion()
       }
       BABYLON.Quaternion.RotationYawPitchRollToRef(
-        this.fbw.heading,
+        this.fbw.heading + this._lookYaw, // ORBIT the aircraft with the stick
         0,
         0,
         this._chasePivot.rotationQuaternion
@@ -844,7 +904,7 @@ export class B3dAircraft extends B3dControllable {
       if (this.chaseCamera?.rotationQuaternion != null) {
         BABYLON.Quaternion.RotationYawPitchRollToRef(
           0,
-          this._chaseLookPitch,
+          this._chaseLookPitch + this._lookPitch,
           -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
           this.chaseCamera.rotationQuaternion
         )
