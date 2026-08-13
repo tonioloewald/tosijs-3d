@@ -493,3 +493,45 @@ describe('throttle is a SETTING, not a speed (Tonio, 2026-08-13)', () => {
     expect(s.throttle).toBeLessThan(1) // …and pulled back down
   })
 })
+
+describe('recovery after a climb bleeds you off (Tonio, 2026-08-13)', () => {
+  test('a set lever claws back from a near-stall — even with the trigger released', () => {
+    // The reported failure: throttle set to ~60%, climb until speed collapses,
+    // level out, and nothing happens. The regime blend scales plane thrust
+    // away below vtolSpeed, and with a LEVER the trigger is at 0 — so the old
+    // floor (keyed to the trigger) never fired.
+    const s = state({ speed: 2, throttle: 0.6 }) // fell below vtolSpeed
+    for (let i = 0; i < 2000; i++)
+      flyByWireStep(s, NO_INPUT, s.speed, 100, CFG, DT, false)
+    expect(s.speed).toBeGreaterThan(CFG.vtolSpeed) // climbed back out
+  })
+
+  test('no lever set ⇒ no free thrust (a dead stick still stalls)', () => {
+    const s = state({ speed: 2, throttle: 0 })
+    for (let i = 0; i < 600; i++)
+      flyByWireStep(s, NO_INPUT, s.speed, 100, CFG, DT, false)
+    expect(s.speed).toBeLessThan(CFG.vtolSpeed)
+  })
+
+  test('level flight recovers the equilibrium the lever asks for', () => {
+    const s = state({ speed: 40, throttle: 0.6 })
+    const settle = () => {
+      for (let i = 0; i < 4000; i++)
+        flyByWireStep(s, NO_INPUT, s.speed, 0, CFG, DT, false)
+      return s.speed
+    }
+    const level = settle()
+    for (let i = 0; i < 600; i++)
+      flyByWireStep(
+        s,
+        { pitch: 0.35, roll: 0, lift: 0 },
+        s.speed,
+        0,
+        CFG,
+        DT,
+        false
+      )
+    expect(s.speed).toBeLessThan(level) // the climb costs
+    expect(settle()).toBeCloseTo(level, 0) // …and levelling out gets it back
+  })
+})

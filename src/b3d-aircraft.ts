@@ -676,8 +676,12 @@ export class B3dAircraft extends B3dControllable {
     // Read-only flight state for the HUD / XR rig.
     this.airspeed = this.fbw.speed
     this.altitude = node.position.y
-    this.throttleLevel =
-      attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0
+    // 0..100% spans the WHOLE envelope, afterburner included. Dividing by
+    // maxSpeed made the meter read 134% in a cruise the aircraft is perfectly
+    // happy in — so "it went to maximum" was the gauge pegging, not the
+    // aircraft misbehaving (Tonio, 2026-08-13).
+    const topSpeed = Math.max(attrs.maxSpeed, attrs.afterburnerSpeed)
+    this.throttleLevel = topSpeed > 0 ? this.fbw.speed / topSpeed : 0
     // "In VTOL" = slow (below vtolSpeed), regardless of altitude — above the hover
     // ceiling you can be stalled but the thrust still goes forward.
     this.vtolActive = attrs.vtolSpeed > 0 && fwdSpeed < attrs.vtolSpeed
@@ -723,7 +727,9 @@ export class B3dAircraft extends B3dControllable {
         const RAD = 180 / Math.PI
         this._hud.setMeter(
           'speed',
-          attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0
+          Math.max(attrs.maxSpeed, attrs.afterburnerSpeed) > 0
+            ? this.fbw.speed / Math.max(attrs.maxSpeed, attrs.afterburnerSpeed)
+            : 0
         )
         this._hud.setMeter('altitude', this.altitude / attrs.ceiling)
         // Nose-up should slide the horizon down — flip here if it reads inverted.

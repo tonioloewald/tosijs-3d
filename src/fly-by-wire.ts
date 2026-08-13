@@ -291,8 +291,23 @@ export function flyByWireStep(
   untouched — release the throttle and you can still bleed to the hang; that's
   the deliberate "hard way into high-altitude hover".
   */
-  if (lift > 1e-3 && speed0 < cfg.vtolSpeed) {
-    const minGain = 0.25 * t * lift * cfg.accel * dt
+  /*
+  …and the floor follows the LEVER, not the trigger.
+
+  With a throttle setting, `lift` is zero whenever the pilot isn't actively
+  moving the lever — so a craft that lost speed in a climb and fell below
+  vtolSpeed had thrust scaled away by the regime blend AND no floor to save
+  it, and levelling out did nothing: it just sat there with 60% throttle set
+  (Tonio: "when I level out speed doesn't recover"). Keying the floor to the
+  setting means an aircraft with power dialled in always claws back.
+  */
+  const held = Math.max(lift > 0 ? lift : 0, setting)
+  if (held > 1e-3 && speed0 < cfg.vtolSpeed) {
+    // …still scaled by the regime: in a FULL hover the trigger is vertical and
+    // fore/aft belongs to the lean, so a set lever must not creep you forward.
+    // Above the hover ceiling the regime is plane regardless of speed, which
+    // is exactly where the near-stall recovery is needed.
+    const minGain = 0.25 * t * held * cfg.accel * dt
     if (state.speed < speed0 + minGain) state.speed = speed0 + minGain
   }
 }
