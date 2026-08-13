@@ -176,6 +176,11 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
+| `autoGear` | `'on'` | Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`) |
+| `gearAltitude` | `40` | Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis) |
+| `gearTime` | `2.5` | Seconds for a full gear cycle |
+| `gearSound` | `''` | Optional URL played spatially at the airframe on each gear transition |
+| `gearVolume` | `0.6` | Volume for `gearSound` |
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
@@ -208,6 +213,26 @@ Shells inherit the airframe's velocity, so your own motion leads the shot. Any
 
 `fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
 an AI pilot). Set `weapons="off"` to disarm.
+
+## Landing gear, found by name
+
+If the model carries AnimationGroups whose names mention **gear** and
+**retract** (the scout's `Main Gear (L) Retract`, `Nose Gear Retract`, …), the
+aircraft finds them and runs them with height above ground — up on climb-out,
+down on approach, with hysteresis so a bumpy approach doesn't cycle them.
+Nothing to wire: it's convention over configuration, and a model without such
+animations simply has no gear to work.
+
+The animation is **scrubbed, not played** — a normalised position is advanced
+each frame and pushed with `goToFrame`. Playing the group looked simpler and
+failed: glTF animations arrive with a cyclic loop mode, so a group told to stop
+at the end can snap back to frame 0 (the gear cycles, then vanishes), and
+reversing via `start(from > to)` is unreliable. Scrubbing also means an
+interrupted cycle turns around from wherever it got to, and the SAME animation
+serves both directions — there's no second one to author or keep in sync.
+
+`gearSound` plays spatially at the airframe on each transition;
+`setGear(up)` and `gearUp` are public for an AI pilot or a key bind.
 
 ## API (read-only properties for HUD binding)
 
@@ -337,6 +362,22 @@ export class B3dAircraft extends B3dControllable {
     reverseSpeed: 5,
     /** How fast the trigger moves the throttle lever (setting/sec). */
     throttleRate: 0.8,
+    /**
+     * AUTO LANDING GEAR. `'on'` finds the model's gear-retract AnimationGroups
+     * by name and runs them with height above ground: up on climb-out, down on
+     * approach. `'off'` leaves the gear to you (call `setGear`).
+     */
+    autoGear: 'on' as 'on' | 'off',
+    /** Height above ground (m) at which the gear retracts. It extends again at
+     * 60% of this — hysteresis, so a bumpy approach doesn't cycle it. */
+    gearAltitude: 40,
+    /** Optional sound for the gear cycle (URL). Played spatially at the
+     * airframe, once per transition. */
+    gearSound: '',
+    /** Volume for `gearSound`. */
+    gearVolume: 0.6,
+    /** Seconds for a full gear cycle. */
+    gearTime: 2.5,
     // Height above ground above which the trigger is forward thrust regardless of
     // speed (take off vertically, then fly) AND the brake can't stall you below
     // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
@@ -777,6 +818,8 @@ export class B3dAircraft extends B3dControllable {
     // Read-only flight state (airspeed/altitude/throttle/vtol) is set in the
     // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
     this.altitude = node.position.y
+    this._updateGear(groundDist)
+    this._scrubGear(dt)
     this.updatePullUp(node, groundDist)
 
     // Drive the chase pivot LAST — after position is integrated AND ground-clamped, so it uses
@@ -1039,6 +1082,115 @@ export class B3dAircraft extends B3dControllable {
     return best
   }
 
+  /** The model's gear-retract animations, found by name (see `_findGear`). */
+  private _gearGroups: BABYLON.AnimationGroup[] = []
+  /** true = retracted (or retracting). Starts DOWN: you spawn on the ground. */
+  private _gearUp = false
+  private _gearSound: BABYLON.Sound | null = null
+  /** 0 = down, 1 = up — scrubbed toward `_gearTarget`. */
+  private _gearPos = 0
+  private _gearTarget = 0
+
+  /**
+   * Find the gear animations on a freshly-loaded model, by NAME.
+   *
+   * Convention over configuration: a group whose name mentions "gear" and
+   * "retract" (or "up") is a landing-gear animation, so the scout's
+   * "Main Gear (L) Retract" / "Nose Gear Retract" are picked up with no
+   * authoring beyond what's already in the GLB. Library instances carry their
+   * groups on `metadata.animationGroups` (renamed per instance), so several
+   * aircraft each animate their own gear.
+   */
+  private _findGear(node: BABYLON.Node): void {
+    const groups: BABYLON.AnimationGroup[] =
+      (node.metadata?.animationGroups as BABYLON.AnimationGroup[]) ?? []
+    this._gearGroups = groups.filter((g) => {
+      const n = g.name.toLowerCase()
+      return n.includes('gear') && (n.includes('retract') || n.includes('up'))
+    })
+    // Started-then-paused so `goToFrame` has an effect: we never let the group
+    // PLAY. See `setGear` for why.
+    for (const g of this._gearGroups) {
+      g.start(false)
+      g.pause()
+      g.goToFrame(g.from) // gear DOWN is frame 0, by the same convention
+    }
+    this._gearPos = 0
+    this._gearTarget = 0
+  }
+
+  /**
+   * Raise or lower the gear. Public so an AI pilot, a cutscene or a key bind
+   * can call it; `autoGear` drives it from altitude otherwise.
+   */
+  setGear(up: boolean): void {
+    if (up === this._gearUp || this._gearGroups.length === 0) return
+    this._gearUp = up
+    this._gearTarget = up ? 1 : 0
+    this._playGearSound()
+  }
+
+  /**
+   * The gear is SCRUBBED, not played.
+   *
+   * Letting the AnimationGroup play itself looked obvious and doesn't work:
+   * glTF animations arrive with a cyclic loop mode, so a group told to stop at
+   * the end can snap back to frame 0 — the gear cycles and then vanishes
+   * (exactly what Tonio saw) — and reverse playback via `start(from > to)` is
+   * unreliable across Babylon versions. Advancing a normalised position and
+   * calling `goToFrame` sidesteps all of it: no loop mode, no end-of-group
+   * behaviour, no second animation to author for the reverse, and an
+   * interrupted cycle simply turns around from wherever it had got to.
+   */
+  private _scrubGear(dt: number): void {
+    if (this._gearGroups.length === 0) return
+    const target = this._gearTarget
+    if (this._gearPos === target) return
+    const step = dt / Math.max(0.1, (this as any).gearTime)
+    this._gearPos =
+      target > this._gearPos
+        ? Math.min(target, this._gearPos + step)
+        : Math.max(target, this._gearPos - step)
+    for (const g of this._gearGroups) {
+      g.goToFrame(g.from + (g.to - g.from) * this._gearPos)
+    }
+  }
+
+  /** True while the gear is up (or on its way). */
+  get gearUp(): boolean {
+    return this._gearUp
+  }
+
+  private _playGearSound(): void {
+    const attrs = this as any
+    if (!attrs.gearSound || this.owner == null) return
+    if (this._gearSound == null) {
+      this._gearSound = new BABYLON.Sound(
+        'gear',
+        attrs.gearSound,
+        this.owner.scene,
+        null,
+        { spatialSound: true, volume: attrs.gearVolume, autoplay: false }
+      )
+      if (this.meshNode instanceof BABYLON.AbstractMesh) {
+        this._gearSound.attachToMesh(this.meshNode)
+      }
+    }
+    this._gearSound.play()
+  }
+
+  /** Drive the gear from height above ground, with hysteresis so a bumpy
+   * approach or a hill passing underneath doesn't cycle it. */
+  private _updateGear(groundDist: number): void {
+    if (this._gearGroups.length === 0) return
+    if (isOff((this as any).autoGear)) return
+    const up = Math.max(1, (this as any).gearAltitude)
+    const down = up * 0.6
+    const agl = groundDist - this.groundClearance
+    if (!this._gearUp && agl > up) this.setGear(true)
+    else if (this._gearUp && agl < down) this.setGear(false)
+  }
+
   /** Distance from the aircraft origin down to the nearest ground: the lower of
    * any terrain collider the raycast hits and the configured ground plane. */
   private groundDistance(node: BABYLON.TransformNode): number {
@@ -1148,6 +1300,15 @@ export class B3dAircraft extends B3dControllable {
       now produce the same identity-frame control node.
       */
       const control = canonicalize(root, scene, `aircraft-${this.instanceId}`)
+      // Expose the container's AnimationGroups where the library path puts
+      // them, so gear detection (and anything else reading them) works the
+      // same whichever way the model was loaded.
+      if (container.animationGroups.length > 0) {
+        control.metadata = {
+          ...(control.metadata ?? {}),
+          animationGroups: container.animationGroups,
+        }
+      }
       this.setupMesh(control, owner)
       this.meshesToDispose = [control as unknown as BABYLON.Mesh]
     })
@@ -1201,6 +1362,7 @@ export class B3dAircraft extends B3dControllable {
     // With one declared, attitude changes rotate about the CoG while
     // `position` keeps meaning the stance point (parking is unchanged).
     applyCenterOfGravity(root)
+    this._findGear(root)
     if (root instanceof BABYLON.Mesh) {
       this.mesh = root
       root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2)
