@@ -1212,10 +1212,25 @@ export class B3dTerrain extends B3dChild {
     // 2. Skirt vertices: same XZ as their parent perimeter vertex, dropped
     //    straight down; normal copied from the parent (analytic → matches the
     //    neighbour), so the vertical band reads as ground, not a wall.
-    const skirtDepth = Math.max(
-      attrs.grossAmplitude + attrs.detailAmplitude + 2,
-      tileSize * 0.15
-    )
+    // Depth from THIS TILE'S OWN RELIEF, not the world's amplitude. A skirt
+    // only has to cover the height a neighbouring coarser tile can differ by
+    // at this seam, which is bounded by how much the ground moves across a
+    // tile — never by how tall the whole world is.
+    //
+    // The old `grossAmplitude + detailAmplitude` gave a 340m world 344m
+    // skirts: a curtain hanging from every tile edge, straight down through
+    // anything below. Fly into a tunnel 150m under the surface and you hit
+    // one — it even looks like terrain, because it IS terrain, edge-on
+    // (Tonio hit exactly this, and reported it as an unexplained wall).
+    let hMin = Infinity
+    let hMax = -Infinity
+    for (let v = 0; v < tpl.gridCount; v++) {
+      const h = positions[v * 3 + 1]
+      if (h < hMin) hMin = h
+      if (h > hMax) hMax = h
+    }
+    const relief = Number.isFinite(hMax - hMin) ? hMax - hMin : 0
+    const skirtDepth = Math.max(relief * 1.5, tileSize * 0.15) + 2
     for (let p = 0; p < tpl.perim.length; p++) {
       const parent = tpl.perim[p]
       const s = tpl.gridCount + p

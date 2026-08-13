@@ -702,6 +702,21 @@ constant pop while flying STRAIGHT is (a)/(b); a pop while circling is (c).
 HUD, which is how the patch demo makes its bore findable. A first-class waypoint would
 add distance/altitude readout and an off-screen edge arrow — worth it once there's more
 than one thing worth flying to.
+[ ] **Cave lighting** (Tonio, 2026-08-13 — flying the bore): interiors are near-black, so
+a tunnel is unnavigable rather than atmospheric. Three pieces, cheapest first:
+(a) a togglable LANDING/SEARCH LIGHT on the aircraft (a spot parented to the airframe —
+the obvious one, and it makes the cave readable from any angle);
+(b) LUMINOUS materials — the biome shader already has an emissive path for lava, so a
+`glow` term keyed to the interior flag would give bioluminescent/mineral walls without
+new lights; (c) small local point lights placed by the patch (or later by the topology
+compiler at places), budgeted like b3d-ambient — Babylon caps lights per material, so
+this needs a nearest-N policy rather than "one per chamber".
+[ ] **The mouth SEAM is ugly and abrupt** (same flight): the tile hole is quantised to
+quads while the walls stop at the ground plane, so the lip is a stair-step. Options: let
+walls extend slightly ABOVE the local surface to form a rock lip that covers the tile
+edge; or blend the mask over a band instead of a hard cut; or force finer tiles right at
+the mouth (the refine machinery is already there — this is a smaller `level` on a small
+footprint around the opening).
 [ ] Procedural stalactites/stalagmites for cave interiors — the biome shader already
 handles cave walls (interior=1 shades them as rock at any slope), so this is garnish, not
 classification: instanced cones/spikes seeded from the SDF surface where the ceiling is
