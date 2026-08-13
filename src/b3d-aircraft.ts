@@ -335,6 +335,8 @@ export class B3dAircraft extends B3dControllable {
     vtolSpeed: 6,
     /** How fast the craft may back up in hover (units/s). */
     reverseSpeed: 5,
+    /** How fast the trigger moves the throttle lever (setting/sec). */
+    throttleRate: 0.8,
     // Height above ground above which the trigger is forward thrust regardless of
     // speed (take off vertically, then fly) AND the brake can't stall you below
     // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
@@ -538,6 +540,11 @@ export class B3dAircraft extends B3dControllable {
       // sheds speed to a stop, and the throttle half stays purely vertical —
       // so slowing down never fights altitude.
       hoverBrake: attrs.acceleration * 1.5,
+      // Plane mode: the trigger moves a THROTTLE LEVER and speed settles where
+      // thrust meets drag, so a climb costs speed and a dive gives it back
+      // without touching the setting. Past idle the trigger is an airbrake.
+      throttleRate: attrs.throttleRate,
+      brakeAccel: attrs.acceleration * 1.2,
       reverseSpeed: attrs.reverseSpeed,
       climbRate: attrs.maxSpeed * 0.3,
       offLevelSink: attrs.maxSpeed * 0.12,

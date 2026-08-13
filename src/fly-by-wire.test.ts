@@ -189,16 +189,55 @@ describe('afterburner & cruise', () => {
     expect(s.speed).toBeLessThanOrEqual(CFG.afterburnerSpeed + 1e-6)
   })
 
-  test('releasing in afterburner bleeds back down to the normal max', () => {
-    const s = state({ speed: CFG.afterburnerSpeed })
-    run(s, NO_INPUT, CFG.afterburnerSpeed, 600)
-    expect(s.speed).toBeCloseTo(CFG.maxSpeed, 0)
+  /*
+  THESE TWO CHANGED DELIBERATELY (2026-08-13). They encoded the trigger as a
+  SPEED SETPOINT: hold it for maxSpeed, release and taper back. A throttle is
+  a lever — releasing the trigger leaves it where it was, and speed settles
+  where thrust balances drag. Tonio: "the set point should be a THROTTLE
+  setting not a speed."
+  */
+  test('releasing the trigger HOLDS the throttle setting (a lever, not a spring)', () => {
+    const s = state({ speed: 30, throttle: 0.5 })
+    for (let i = 0; i < 600; i++)
+      flyByWireStep(s, NO_INPUT, s.speed, 0, CFG, DT, false)
+    expect(s.throttle).toBeCloseTo(0.5, 5) // untouched
+    // …and speed has settled at that setting's equilibrium, not decayed to 0
+    expect(s.speed).toBeGreaterThan(5)
   })
 
-  test('releasing at/below the normal max holds steady (no taper down)', () => {
-    const s = state({ speed: 35 })
-    run(s, NO_INPUT, 35, 300)
-    expect(s.speed).toBeCloseTo(35, 5)
+  test('full throttle settles at the top speed, from either side', () => {
+    // forwardSpeed must track the state, or the craft sits in HOVER regime
+    // (where the plane thrust term is scaled away) and nothing happens.
+    const settle = (start: number) => {
+      const s = state({ speed: start, throttle: 1 })
+      for (let i = 0; i < 4000; i++)
+        flyByWireStep(s, NO_INPUT, s.speed, 0, CFG, DT, false)
+      return s.speed
+    }
+    expect(settle(20)).toBeCloseTo(CFG.afterburnerSpeed, 0) // accelerates up to it
+    expect(settle(CFG.afterburnerSpeed * 1.5)).toBeCloseTo(
+      CFG.afterburnerSpeed,
+      0
+    ) // and drag brings it back down to the same place
+  })
+
+  test('a coasting aircraft DECAYS by drag — speed is no longer self-sustaining', () => {
+    // Replaces "releasing holds speed steady". With a throttle lever, speed at
+    // idle is not preserved: drag takes it, which is why a climb costs you
+    // speed and a dive gives it back. Set the lever where you want to cruise.
+    const idle = state({ speed: 35, throttle: 0 })
+    for (let i = 0; i < 300; i++)
+      flyByWireStep(idle, NO_INPUT, idle.speed, 0, CFG, DT, false)
+    expect(idle.speed).toBeLessThan(35)
+
+    // …and a lever set for 35 HOLDS 35: equilibrium, not memory.
+    const cruise = state({
+      speed: 35,
+      throttle: (35 / CFG.afterburnerSpeed) ** 2,
+    })
+    for (let i = 0; i < 600; i++)
+      flyByWireStep(cruise, NO_INPUT, cruise.speed, 0, CFG, DT, false)
+    expect(cruise.speed).toBeCloseTo(35, 0)
   })
 })
 
@@ -379,5 +418,78 @@ describe('hover: stopping must not fight altitude (Tonio, 2026-08-13)', () => {
         false
       )
     expect(s.speed).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('throttle is a SETTING, not a speed (Tonio, 2026-08-13)', () => {
+  const fly = (s: FlyByWireState, cmd: typeof NO_INPUT, n: number) => {
+    for (let i = 0; i < n; i++)
+      flyByWireStep(s, cmd, s.speed, 0, CFG, DT, false)
+    return s.speed
+  }
+  const CRUISE = { pitch: 0, roll: 0, lift: 0 }
+  const CLIMB = { pitch: 0.35, roll: 0, lift: 0 } // + pitch command = nose UP
+
+  test('a shallow climb settles at a NEW lower speed instead of stalling', () => {
+    // start already flying: from a standstill the craft is in HOVER regime,
+    // where the plane thrust term is scaled away (that's the VTOL's job)
+    const s = state({ speed: 30, throttle: 0.6 })
+    const level = fly(s, CRUISE, 3000)
+    expect(level).toBeGreaterThan(10) // settled somewhere sensible
+
+    const climbing = fly(s, CLIMB, 1500)
+    expect(climbing).toBeLessThan(level) // the climb costs speed…
+    expect(climbing).toBeGreaterThan(1) // …but does NOT stall to nothing
+    // and it's an equilibrium: holding the climb keeps it there
+    const stillClimbing = fly(s, CLIMB, 1500)
+    expect(stillClimbing).toBeCloseTo(climbing, 0)
+  })
+
+  test('dropping the nose returns you to the speed you had — lever untouched', () => {
+    const s = state({ speed: 30, throttle: 0.6 })
+    const level = fly(s, CRUISE, 3000)
+    fly(s, CLIMB, 1200) // bleed some off in a climb
+    const recovered = fly(s, CRUISE, 3000) // nose back down, same lever
+    expect(recovered).toBeCloseTo(level, 0)
+    expect(s.throttle).toBeCloseTo(0.6, 5) // nothing touched the setting
+  })
+
+  test('the equilibrium tracks the LEVER: more throttle, more speed', () => {
+    const at = (throttle: number) => {
+      const s = state({ speed: 30, throttle })
+      return fly(s, CRUISE, 4000)
+    }
+    const low = at(0.3)
+    const mid = at(0.6)
+    const high = at(1)
+    expect(low).toBeLessThan(mid)
+    expect(mid).toBeLessThan(high)
+    expect(high).toBeCloseTo(CFG.afterburnerSpeed, 0)
+  })
+
+  test('the trigger MOVES the lever rather than being the speed', () => {
+    const s = state({ speed: 20, throttle: 0.2 })
+    for (let i = 0; i < 60; i++)
+      flyByWireStep(
+        s,
+        { pitch: 0, roll: 0, lift: 1 },
+        s.speed,
+        0,
+        CFG,
+        DT,
+        false
+      )
+    expect(s.throttle).toBeGreaterThan(0.2) // pushed up…
+    for (let i = 0; i < 30; i++)
+      flyByWireStep(
+        s,
+        { pitch: 0, roll: 0, lift: -1 },
+        s.speed,
+        0,
+        CFG,
+        DT,
+        false
+      )
+    expect(s.throttle).toBeLessThan(1) // …and pulled back down
   })
 })

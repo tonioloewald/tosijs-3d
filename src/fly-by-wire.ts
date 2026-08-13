@@ -26,6 +26,14 @@ export interface FlyByWireConfig {
   /** Hard speed ceiling while the throttle is held past the normal max (the
    * afterburner range, maxSpeed → afterburnerSpeed). ≤ maxSpeed disables it. */
   afterburnerSpeed: number
+  /**
+   * How fast the trigger moves the THROTTLE LEVER (setting per second at full
+   * deflection). Low = a deliberate lever you set and leave; high = feels
+   * like a direct speed control again.
+   */
+  throttleRate?: number
+  /** Airbrake authority (units/s²) once the throttle lever is at idle. */
+  brakeAccel?: number
   /** Rate (1/s) afterburner speed bleeds back to maxSpeed once the throttle is
    * released. Speed at or below the normal max just holds — it never tapers down. */
   afterburnerTaper: number
@@ -92,6 +100,17 @@ export interface FlyByWireState {
   bank: number
   /** Commanded forward airspeed (scalar, ≥ 0). */
   speed: number
+  /**
+   * THROTTLE SETTING, 0..1 — a lever position that persists, not a speed.
+   *
+   * The trigger moves it; speed then settles wherever thrust balances drag
+   * and the climb. That's the difference between "the trigger IS the speed"
+   * (what this used to be) and an aircraft: at a fixed throttle, easing into
+   * a shallow climb settles you at a NEW, lower speed instead of stalling,
+   * and dropping the nose again returns you to the speed you had — because
+   * nothing about the power setting changed.
+   */
+  throttle?: number
 }
 
 export interface Vec3 {
@@ -173,11 +192,37 @@ export function flyByWireStep(
   // bleeds back down to it; at or below the normal max, speed just holds steady
   // (no taper to a stop). Drone: lean on forward-pitch, and bleed to a hover when
   // you let go. diveBoost (nose-down → faster) applies in both regimes.
-  state.speed += t * lift * cfg.accel * dt
-  if (Math.abs(lift) < 1e-3 && state.speed > cfg.maxSpeed) {
-    state.speed +=
-      t * (cfg.maxSpeed - state.speed) * Math.min(1, cfg.afterburnerTaper * dt)
-  }
+  /*
+  PLANE REGIME: thrust vs drag vs gravity, with the trigger moving a LEVER.
+
+  The old model added the trigger straight to speed and clamped at maxSpeed,
+  which made the trigger a speed setpoint: hold it and you got exactly
+  maxSpeed regardless of attitude, release it and you kept whatever you had.
+  A climb then bled speed with no way back short of re-holding the trigger.
+
+  Now: the trigger integrates a throttle SETTING, and speed integrates toward
+  where thrust balances quadratic drag. Level flight at full throttle settles
+  at `afterburnerSpeed`; the equilibrium falls as you climb (the gravity term
+  below) and rises as you dive, so a shallow climb finds a new steady speed
+  and lowering the nose returns to the old one — with the lever untouched.
+  */
+  const throttleRate = cfg.throttleRate ?? 0.8
+  const setting = clamp((state.throttle ?? 0) + lift * throttleRate * dt, 0, 1)
+  state.throttle = setting
+  const topSpeed = Math.max(cfg.maxSpeed, cfg.afterburnerSpeed)
+  // drag chosen so full throttle balances at topSpeed: k = accel / topSpeed²
+  const dragK = topSpeed > 0 ? cfg.accel / (topSpeed * topSpeed) : 0
+  // AIRBRAKE: once the lever is at idle, further back-pressure is a brake
+  // rather than a no-op. Without it a lever-based throttle leaves you with
+  // only drag to slow you — realistic for a clean airframe, useless for a
+  // pilot who wants to come down NOW, and it silently removed the ability to
+  // decelerate into a hover.
+  const airbrake =
+    setting <= 1e-6 && lift < 0 ? -lift * (cfg.brakeAccel ?? cfg.accel) : 0
+  state.speed +=
+    t *
+    (cfg.accel * setting - dragK * state.speed * state.speed - airbrake) *
+    dt
   // DRONE FORE/AFT IS THE LEAN, AND IT IS SYMMETRIC. Nose down accelerates,
   // nose UP decelerates and — past zero — walks you backwards. This used to be
   // `max(0, -pitch)`: leaning back did nothing, so a hovering craft had no way
