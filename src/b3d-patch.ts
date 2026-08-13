@@ -51,7 +51,10 @@ const terrain = b3dTerrain({
 // in an aircraft, and it's the shape a walking game wants, not a flying one.
 // 60m across at the mouth: the scout is ~3m, so it's twenty craft-widths and
 // reads as a cave rather than a drainpipe.
-const MOUTH = { x: -140, y: 120, z: 0 } // out in the open air, upwind of the hill
+// The tube STARTS in open air and runs into the rising hillside, so the mouth
+// is wherever the ground climbs through it — an opening that must exist,
+// rather than one you hope you placed at the right height.
+const MOUTH = { x: -140, y: 120, z: 0 }
 const HALL = { x: 240, y: 60, z: 0 } // deep inside, and lower
 const cave = warp(
   roughen(
@@ -108,7 +111,7 @@ preview.append(b3d(
   // The HUD lives in COCKPIT view (press the view button / V). Without a
   // <tosi-b3d-hud> in the scene there is no HUD at all, in any view.
   b3dHud({}),
-  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: -140, y: 120, z: 0 }),
+  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: -30, y: 95, z: 30 }),
   b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
   focus,
 ))
@@ -466,6 +469,45 @@ export class B3dPatch extends B3dChild {
     }
   }
 
+  /**
+   * Can this chunk possibly contain a surface? Sample its corners and centre:
+   * if every sample agrees on sign AND the nearest is further away than the
+   * chunk's own half-diagonal, the surface cannot reach inside it.
+   *
+   * Without this a patch extracts its whole bounding box — 2400 chunks for the
+   * demo's cave, almost all of them solid rock or open sky, each costing a
+   * full sample grid of terrain-height evaluations. The field isn't a strict
+   * distance function (it's built from max/min compositions plus noise), so
+   * the half-diagonal test is used conservatively: it only ever skips chunks
+   * the surface would have to travel further than that to enter.
+   */
+  private _chunkCouldHaveSurface(
+    field: (x: number, y: number, z: number) => number,
+    ox: number,
+    oy: number,
+    oz: number,
+    size: number
+  ): boolean {
+    const half = size / 2
+    const cx = ox + half
+    const cy = oy + half
+    const cz = oz + half
+    let allNeg = true
+    let allPos = true
+    let nearest = Infinity
+    for (let k = 0; k < 9; k++) {
+      const x = k === 8 ? cx : ox + (k & 1) * size
+      const y = k === 8 ? cy : oy + ((k >> 1) & 1) * size
+      const z = k === 8 ? cz : oz + ((k >> 2) & 1) * size
+      const v = field(x, y, z)
+      if (v < 0) allPos = false
+      else allNeg = false
+      nearest = Math.min(nearest, Math.abs(v))
+    }
+    if (!allNeg && !allPos) return true // a sign change: definitely a surface
+    return nearest <= half * Math.sqrt(3)
+  }
+
   private _extractOne(owner: B3d, ix: number, iy: number, iz: number) {
     const n = Math.max(2, Math.floor(this.chunkCells))
     const lattice: LatticeConfig = {
@@ -494,6 +536,20 @@ export class B3dPatch extends B3dChild {
     // own hole is the mouth.
     const clip = (x: number, y: number, z: number) =>
       height == null || y < height(x, z)
+    const key0 = `${ix},${iy},${iz}`
+    const size = n * this.spacing
+    if (
+      !this._chunkCouldHaveSurface(
+        field,
+        ix * n * this.spacing,
+        iy * n * this.spacing,
+        iz * n * this.spacing,
+        size
+      )
+    ) {
+      this._chunks.set(key0, null as unknown as BABYLON.Mesh) // remember the miss
+      return
+    }
     const mesh = extractChunk(
       field,
       { ix: ix * n, iy: iy * n, iz: iz * n, nx: n, ny: n, nz: n },
