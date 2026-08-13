@@ -751,6 +751,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // entrance. The ramp arrives per-vertex (depth below the surface,
           // written at extraction), so the transition happens over metres of
           // tunnel instead of at one triangle.
+          // The per-vertex channel, read ONCE and used twice: as the local
+          // volcanism province on terrain tiles, and as the interior ramp on
+          // patch walls. Declared here because the interior ramp (just below)
+          // is its first use — it used to live down in the volcanism block,
+          // which compiled fine until something above it needed the value.
+          float provLocal = 0.0;
+          #ifdef VERTEXCOLOR
+            provLocal = 1.0 - vBiomeProvince;
+          #endif
           cliff = max(cliff, biomeExtra.x * provLocal);
           biome = mix(biome, cliffCol, cliff);
           // --- VOLCANISM: the override that outranks climate ---------------
@@ -759,10 +768,6 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // b3d-terrain's provinceField. Where present it runs the ladder at
           // that local intensity, independent of the global dial: THIS island
           // is volcanic. Meshes without vertex colours (planets) skip it.
-          float provLocal = 0.0;
-          #ifdef VERTEXCOLOR
-            provLocal = 1.0 - vBiomeProvince;
-          #endif
           if (biomeSurf.y > 0.0 || provLocal > 0.0) {
             // Global provinces from a low-frequency mask; the volcanism param
             // slides the threshold, so 1.0 approaches everywhere and 0.3
