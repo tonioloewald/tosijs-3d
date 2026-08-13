@@ -48,13 +48,6 @@ export interface FlyByWireConfig {
   /** Plane-mode throttle authority: speed change per full trigger (units/s²·s). */
   accel: number
   /**
-   * Drone-mode throttle authority (units/s² per full trigger). In hover the
-   * PLANE throttle term is scaled by the regime blend, so at full drone it
-   * contributes nothing — the trigger went dead exactly where a VTOL needs it
-   * most. This is its hover counterpart.
-   */
-  hoverAccel: number
-  /**
    * How fast the craft may travel BACKWARDS in hover (units/s, ≥ 0). Holding
    * the brake in a hover should slow you to a stop and then walk you gently
    * backwards — that's the manoeuvre for backing out of somewhere you flew
@@ -180,21 +173,31 @@ export function flyByWireStep(
     state.speed +=
       t * (cfg.maxSpeed - state.speed) * Math.min(1, cfg.afterburnerTaper * dt)
   }
-  state.speed += (1 - t) * Math.max(0, -pitch) * cfg.leanAccel * dt
-  // DRONE THROTTLE. The plane term above is scaled by `t`, so in a full hover
-  // (t = 0) the trigger had no authority at all: you could neither stop
-  // deliberately nor back up, only wait for hoverDamp to bleed you out. Here
-  // the trigger works in hover, both ways.
-  state.speed += (1 - t) * lift * cfg.hoverAccel * dt
+  // DRONE FORE/AFT IS THE LEAN, AND IT IS SYMMETRIC. Nose down accelerates,
+  // nose UP decelerates and — past zero — walks you backwards. This used to be
+  // `max(0, -pitch)`: leaning back did nothing, so a hovering craft had no way
+  // to stop on purpose, only to wait out hoverDamp.
+  //
+  // Deliberately NOT the trigger. In hover the trigger is VERTICAL, so
+  // braking with it means descending, and stopping becomes a fight with
+  // altitude (Tonio: "can't throttle down to stationary without climbing").
+  // Pitch is free in a hover; it's the control a drone actually uses.
+  state.speed += (1 - t) * -pitch * cfg.leanAccel * dt
   state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt
   state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt)
   // Reverse is a HOVER-ONLY privilege, and it fades out as the craft becomes a
   // plane: at t = 0 you may back up to `reverseSpeed`, by t = 1 the floor is
   // zero. (hoverDamp is symmetric about zero, so a released trigger drifts a
   // reversing craft back to rest by itself.)
+  // `?? 0` is load-bearing, not defensive noise: a config without reverseSpeed
+  // made this bound NaN, and `v < NaN` is false, so the clamp silently stopped
+  // clamping and speed ran negative in PLANE mode. The explicit zero avoids
+  // -0, which `toBe(0)` rejects and which would leak a negative zero into
+  // anything comparing signs. Both caught by the zoom-climb stall test.
+  const reverseRoom = (1 - t) * Math.max(0, cfg.reverseSpeed ?? 0)
   state.speed = clamp(
     state.speed,
-    -(1 - t) * Math.max(0, cfg.reverseSpeed),
+    reverseRoom > 0 ? -reverseRoom : 0,
     Math.max(cfg.maxSpeed, cfg.afterburnerSpeed)
   )
 

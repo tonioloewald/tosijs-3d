@@ -192,6 +192,9 @@ export class B3dPatch extends B3dChild {
     seed: 1,
     /** Resolve only while the surrounding terrain is this LOD or finer. */
     level: 1,
+    /** Metres below the surface over which walls fade from hillside
+     * shading to full interior rock. */
+    interiorDepth: 30,
     /** Extraction budget per frame (ms). */
     buildMs: 4,
     /** Cells per chunk along each axis. */
@@ -207,6 +210,7 @@ export class B3dPatch extends B3dChild {
   declare jitter: number
   declare seed: number
   declare level: number
+  declare interiorDepth: number
   declare buildMs: number
   declare chunkCells: number
 
@@ -534,8 +538,17 @@ export class B3dPatch extends B3dChild {
     // `interior: 1`, so any ground it drew shaded as rock beside biome-shaded
     // tiles). Underground there is no tile to disagree with, and the tiles'
     // own hole is the mouth.
+    // A MARGIN, not just "below". A cell straddling the ground contains the
+    // terrain isosurface, and its dual vertex lands wherever the crossings
+    // average to — often a little UNDER the surface, which passed a bare
+    // `y < height` test. So the patch extracted scraps of the terrain surface
+    // and shaded them as interior rock: speckles of wall colour scattered over
+    // the hillside, and stray vertical quad-pairs you can fly into and crash
+    // on (Tonio, both). Excluding a full cell's depth keeps the terrain
+    // surface entirely on the tiles' side of the line.
+    const surfaceMargin = this.spacing * 1.5
     const clip = (x: number, y: number, z: number) =>
-      height == null || y < height(x, z)
+      height == null || y < height(x, z) - surfaceMargin
     const key0 = `${ix},${iy},${iz}`
     const size = n * this.spacing
     if (
@@ -569,6 +582,26 @@ export class B3dPatch extends B3dChild {
     vd.positions = mesh.positions
     vd.normals = mesh.normals
     vd.indices = mesh.indices
+    // How INTERIOR each vertex is: 0 at the surface, 1 once it's `interiorDepth`
+    // underground. Carried in the colour channel the biome plugin already
+    // reads, so a cave mouth blends from hillside to rock over metres rather
+    // than snapping at the threshold.
+    if (height != null) {
+      const colors = new Float32Array(mesh.vertexCount * 4)
+      const fade = Math.max(1e-3, this.interiorDepth)
+      for (let v = 0; v < mesh.vertexCount; v++) {
+        const x = mesh.positions[v * 3]
+        const y = mesh.positions[v * 3 + 1]
+        const z = mesh.positions[v * 3 + 2]
+        const below = height(x, z) - y
+        const interior = below <= 0 ? 0 : below >= fade ? 1 : below / fade
+        colors[v * 4] = 1
+        colors[v * 4 + 1] = 1
+        colors[v * 4 + 2] = 1
+        colors[v * 4 + 3] = 1 - interior // the plugin reads 1 − alpha
+      }
+      vd.colors = colors
+    }
     vd.applyToMesh(m)
     m.material = this.material
     m.position.set(

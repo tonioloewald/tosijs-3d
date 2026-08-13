@@ -528,9 +528,8 @@ export class B3dAircraft extends B3dControllable {
       // gets you over vtolSpeed and into forward flight quickly (shallow, not a dive).
       leanAccel: attrs.acceleration * 2,
       hoverDamp: HOVER_DAMP,
-      // The trigger keeps its authority in hover (it's scaled away in the
-      // plane term), and the brake can walk you backwards — slowly.
-      hoverAccel: attrs.acceleration * 1.2,
+      // Hover fore/aft is the LEAN (nose up slows you and then backs you up);
+      // the trigger stays purely vertical, so stopping never fights altitude.
       reverseSpeed: attrs.reverseSpeed,
       climbRate: attrs.maxSpeed * 0.3,
       offLevelSink: attrs.maxSpeed * 0.12,

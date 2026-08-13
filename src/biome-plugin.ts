@@ -743,9 +743,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float fecund = clamp(temperature, 0.0, 1.0) * clamp(moisture * 1.5, 0.0, 1.0);
           float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
-          // Interior surfaces are rock whatever their slope — a cavern FLOOR
-          // is level, and the chart would happily grow grass on it.
-          if (biomeExtra.x > 0.5) cliff = 1.0;
+          // Interior surfaces shade as rock whatever their slope (a cavern
+          // FLOOR is level, and the chart would happily grow grass on it) —
+          // but as a RAMP, not a switch. At a cave mouth the walls are still
+          // half-outside: lit, weathered, continuous with the hillside. Snapping
+          // to rock exactly at the threshold draws a hard ring around every
+          // entrance. The ramp arrives per-vertex (depth below the surface,
+          // written at extraction), so the transition happens over metres of
+          // tunnel instead of at one triangle.
+          cliff = max(cliff, biomeExtra.x * provLocal);
           biome = mix(biome, cliffCol, cliff);
           // --- VOLCANISM: the override that outranks climate ---------------
           // LOCAL provinces: terrain tiles carry a per-vertex volcanism field
