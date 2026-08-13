@@ -375,7 +375,9 @@ export function aircraftMapping(
     // means a second roll axis fights it); swinging the view is what a pilot
     // actually reaches for. Springs back to centre — see b3d-aircraft.
     input.lookX = pad.rightStickX
-    input.lookY = pad.rightStickY
+    // Negated to match the left stick's convention (up = positive), so
+    // positive lookY means "look from ABOVE" in both views.
+    input.lookY = -pad.rightStickY
     // Trigger axis is the VTOL controller's dual-purpose lift: + (right trigger) =
     // climb when hovering / speed-up when flying; − (left trigger) = descend / slow
     // down. The flight model integrates it per-regime (no detents — direct rate).

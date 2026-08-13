@@ -886,7 +886,7 @@ export class B3dAircraft extends B3dControllable {
     // COCKPIT: the same look turns the pilot's HEAD — the camera is parented to
     // the airframe, so a local rotation is exactly "look left without turning".
     if (this.cockpitCamera != null) {
-      this.cockpitCamera.rotation.set(this._lookPitch, this._lookYaw, 0)
+      this.cockpitCamera.rotation.set(-this._lookPitch, this._lookYaw, 0)
     }
 
     if (this._chasePivot != null) {
@@ -895,16 +895,27 @@ export class B3dAircraft extends B3dControllable {
       if (this._chasePivot.rotationQuaternion == null) {
         this._chasePivot.rotationQuaternion = new BABYLON.Quaternion()
       }
+      /*
+      ORBIT, not tilt. Both look axes go on the PIVOT, so the camera swings
+      around the aircraft on an arc — push up and it rises and looks DOWN at
+      the target, which is what "move the camera around the target" means.
+
+      It keeps aiming at the aircraft for free: the camera sits at a fixed
+      local offset behind and above the pivot, so its local aim is constant no
+      matter how the pivot is rotated. Putting the pitch on the CAMERA instead
+      (what this did first) only tilted the view off the target — the camera
+      stayed exactly where it was.
+      */
       BABYLON.Quaternion.RotationYawPitchRollToRef(
-        this.fbw.heading + this._lookYaw, // ORBIT the aircraft with the stick
-        0,
+        this.fbw.heading + this._lookYaw,
+        this._lookPitch,
         0,
         this._chasePivot.rotationQuaternion
       )
       if (this.chaseCamera?.rotationQuaternion != null) {
         BABYLON.Quaternion.RotationYawPitchRollToRef(
           0,
-          this._chaseLookPitch + this._lookPitch,
+          this._chaseLookPitch, // aim only — the ORBIT lives on the pivot
           -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
           this.chaseCamera.rotationQuaternion
         )
