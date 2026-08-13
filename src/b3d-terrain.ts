@@ -16,11 +16,21 @@ const { div, span, p } = elements
 const { demo } = tosi({
   demo: {
     seed: 42,
+    /*
+    AMPLITUDES INTERACT WITH horizScale. The scales are divided by it, so at
+    horizScale 8 a grossScale of 0.015 means ~530m features — and 3.5m of
+    amplitude across 530m is a plain, not a landscape. Tonio's 3.5/16 came
+    from a session where h-size was doing different work; carried over
+    verbatim they flattened the demo.
+
+    What survives from that tuning is the SHAPE of the mix: big gross
+    features, and a detail layer pulling real weight rather than a token 5%.
+    */
     grossScale: 0.015,
     detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 3.5,
-    detailAmplitude: 16,
+    grossAmplitude: 180,
+    detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
   },
@@ -422,8 +432,8 @@ export class B3dTerrain extends B3dChild {
     grossScale: 0.015,
     detailScale: 0.09,
     horizScale: 1,
-    grossAmplitude: 3.5,
-    detailAmplitude: 16,
+    grossAmplitude: 8,
+    detailAmplitude: 3,
     // Flat vertical offset of the whole heightfield (metres). Default 0 = heightfield sits on 0.
     baseHeight: 0,
     // Auto-centre the heightfield on 0 (offset by -grossAmplitude/2), so it straddles 0 whatever
