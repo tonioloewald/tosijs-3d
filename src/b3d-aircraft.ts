@@ -333,6 +333,8 @@ export class B3dAircraft extends B3dControllable {
     // up/down) and above which it flies like a plane (triggers = throttle). Set
     // to 0 for a pure aeroplane with no hover regime.
     vtolSpeed: 6,
+    /** How fast the craft may back up in hover (units/s). */
+    reverseSpeed: 5,
     // Height above ground above which the trigger is forward thrust regardless of
     // speed (take off vertically, then fly) AND the brake can't stall you below
     // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
@@ -526,6 +528,10 @@ export class B3dAircraft extends B3dControllable {
       // gets you over vtolSpeed and into forward flight quickly (shallow, not a dive).
       leanAccel: attrs.acceleration * 2,
       hoverDamp: HOVER_DAMP,
+      // The trigger keeps its authority in hover (it's scaled away in the
+      // plane term), and the brake can walk you backwards — slowly.
+      hoverAccel: attrs.acceleration * 1.2,
+      reverseSpeed: attrs.reverseSpeed,
       climbRate: attrs.maxSpeed * 0.3,
       offLevelSink: attrs.maxSpeed * 0.12,
       diveBoost: attrs.maxSpeed * 0.4,

@@ -18,8 +18,8 @@ import {
   b3d, b3dSun, b3dSkybox, b3dLight, b3dTerrain, b3dPatch, b3dAircraft,
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
-  composePatches, circleFootprint, label3d, slider3d,
-  applyCarve, sphere, tube, smoothUnion, roughen, warp, shaft,
+  label3d, slider3d,
+  applyCarve, sphere, tube, smoothUnion, roughen, warp,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -46,39 +46,36 @@ const terrain = b3dTerrain({
   baseHeight: -60,
 })
 
-// The carve, from [[carve]]'s vocabulary. Two rules Tonio set: shafts are
-// ENORMOUS or gently sloped (never narrow pipes), and nothing reads as regular
-// geometry. `warp` bends the space so the adit meanders and the hall isn't a
-// sphere; `roughen` gives the walls rock texture; `smoothUnion` fillets the
-// junction so the passage FLARES into the chamber instead of poking into it.
-const HALL = { x: 210, y: -95, z: 0 }
+// A cave you FLY INTO, not a chimney you drop down. The entrance is a
+// near-horizontal mouth driven into a hillside — a vertical shaft is horrific
+// in an aircraft, and it's the shape a walking game wants, not a flying one.
+// 60m across at the mouth: the scout is ~3m, so it's twenty craft-widths and
+// reads as a cave rather than a drainpipe.
+const MOUTH = { x: -140, y: 120, z: 0 } // out in the open air, upwind of the hill
+const HALL = { x: 240, y: 60, z: 0 } // deep inside, and lower
 const cave = warp(
   roughen(
     smoothUnion(
-      26,
-      sphere(HALL, 70),                                     // the great hall
-      tube([{ x: 20, y: -70, z: 0 }, { x: 120, y: -84, z: 30 }, HALL], 26), // the adit — ~9 craft-widths across
+      34,
+      // the run in: mouth → a bend → the hall, descending gently the whole way
+      tube(
+        [MOUTH, { x: 20, y: 96, z: 40 }, { x: 150, y: 74, z: 10 }, HALL],
+        [30, 26, 24, 34]
+      ),
+      sphere(HALL, 78), // the great hall
+      sphere({ x: 120, y: 82, z: 60 }, 40), // a side chamber off the bend
     ),
-    { amp: 4.5, scale: 0.02, octaves: 3, seed: 7 },
+    { amp: 5, scale: 0.016, octaves: 3, seed: 7 }
   ),
-  { amp: 12, scale: 0.006, octaves: 2, seed: 3 },
+  { amp: 14, scale: 0.005, octaves: 2, seed: 3 }
 )
 
-// The shaft is written in DEPTH (0 = the ground), so it follows the hillside —
-// 26m across and leaning as it descends, which is the "enormous, and not a
-// plumb line" version rather than a drainpipe.
-const bore = shaft(0, 0, 40, 150, { x: 55, y: 0, z: 0 })
-
 const patch = b3dPatch({
-  minX: -80, maxX: 290, minZ: -90, maxZ: 90,
-  depth: 190, rise: 14,
-  spacing: 3, jitter: 0.3, level: 4, chunkCells: 8,
+  minX: -190, maxX: 340, minZ: -120, maxZ: 130,
+  depth: 220, rise: 20,
+  spacing: 3.5, jitter: 0.3, level: 4, chunkCells: 8,
 })
-patch.field = composePatches(bore, applyCarve(cave))
-// Where the patch OWNS the ground: only the mouth breaks the surface, so only
-// the mouth needs the tiles to step aside. The adit stays underground, where
-// there is no tile to argue with.
-patch.footprint = circleFootprint(0, 0, 56)
+patch.field = applyCarve(cave)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because
@@ -86,7 +83,7 @@ patch.footprint = circleFootprint(0, 0, 56)
 const plane = () => b3dAircraft(
   {
     library: 'vehicles', meshName: 'scout',
-    player: true, x: 0, y: 320, z: -900, vtolSpeed: 6, maxSpeed: 55,
+    player: true, x: -520, y: 140, z: 0, ry: 90, vtolSpeed: 6, maxSpeed: 55,
   },
   b3dRadar({ range: 1200, coneDeg: 100, lockTime: 1.2, maxLocks: 2 }),
 )
@@ -111,7 +108,7 @@ preview.append(b3d(
   // The HUD lives in COCKPIT view (press the view button / V). Without a
   // <tosi-b3d-hud> in the scene there is no HUD at all, in any view.
   b3dHud({}),
-  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 20, z: 0 }),
+  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: -140, y: 120, z: 0 }),
   b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
   focus,
 ))
@@ -283,12 +280,15 @@ export class B3dPatch extends B3dChild {
       if (x < this.minX || x > this.maxX || z < this.minZ || z > this.maxZ) {
         return false
       }
-      // Inside the footprint the tiles step aside COMPLETELY — the patch
-      // supplies the ground here as well as the walls, from one field, so
-      // there is exactly one surface. (Cutting only the bore mouth leaves both
-      // meshes drawing the surrounding ground: coincident sheets, and the
-      // z-fighting is visible from the air.)
-      return this._footprintAt(x, z) < 0
+      // Cut where the CARVE opens the surface — not the whole footprint. A
+      // footprint mask can only ever make a crater, and the entrance that
+      // matters for a flying game is a mouth in a HILLSIDE, which breaks a
+      // steep face rather than the roof. Probing a little under the ground
+      // (rather than at it) keeps the rim from unzipping across the whole
+      // footprint.
+      const h = this._height?.(x, z)
+      if (h == null) return false
+      return this._density(x, h - this.spacing * 0.5, z) > 0
     }
   }
 
@@ -485,8 +485,15 @@ export class B3dPatch extends B3dChild {
     // up out of the ground"). Clipping the extraction leaves an open edge
     // instead, tucked under the tiles' own hole.
     const height = this._height
+    // The patch draws ONLY what is underground. Letting it also supply the
+    // ground inside a footprint was the source of two faults at once: a
+    // geometric shelf (tile hole 56m, bore 40m — the annulus between them was
+    // patch-drawn), and a graphical mismatch (the whole patch material is
+    // `interior: 1`, so any ground it drew shaded as rock beside biome-shaded
+    // tiles). Underground there is no tile to disagree with, and the tiles'
+    // own hole is the mouth.
     const clip = (x: number, y: number, z: number) =>
-      this._footprintAt(x, z) < 0 || (height != null && y < height(x, z))
+      height == null || y < height(x, z)
     const mesh = extractChunk(
       field,
       { ix: ix * n, iy: iy * n, iz: iz * n, nx: n, ny: n, nz: n },

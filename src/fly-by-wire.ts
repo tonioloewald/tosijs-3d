@@ -47,6 +47,21 @@ export interface FlyByWireConfig {
   bankTurnRate: number
   /** Plane-mode throttle authority: speed change per full trigger (units/s²·s). */
   accel: number
+  /**
+   * Drone-mode throttle authority (units/s² per full trigger). In hover the
+   * PLANE throttle term is scaled by the regime blend, so at full drone it
+   * contributes nothing — the trigger went dead exactly where a VTOL needs it
+   * most. This is its hover counterpart.
+   */
+  hoverAccel: number
+  /**
+   * How fast the craft may travel BACKWARDS in hover (units/s, ≥ 0). Holding
+   * the brake in a hover should slow you to a stop and then walk you gently
+   * backwards — that's the manoeuvre for backing out of somewhere you flew
+   * into. Plane mode is never allowed below zero (that isn't a slow reverse,
+   * it's flying tail-first).
+   */
+  reverseSpeed: number
   /** Drone-mode lean: forward speed gained per full forward-pitch (units/s). */
   leanAccel: number
   /** Drone-mode hover bleed: how fast forward speed decays to a stop (1/s). */
@@ -166,11 +181,20 @@ export function flyByWireStep(
       t * (cfg.maxSpeed - state.speed) * Math.min(1, cfg.afterburnerTaper * dt)
   }
   state.speed += (1 - t) * Math.max(0, -pitch) * cfg.leanAccel * dt
+  // DRONE THROTTLE. The plane term above is scaled by `t`, so in a full hover
+  // (t = 0) the trigger had no authority at all: you could neither stop
+  // deliberately nor back up, only wait for hoverDamp to bleed you out. Here
+  // the trigger works in hover, both ways.
+  state.speed += (1 - t) * lift * cfg.hoverAccel * dt
   state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt
   state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt)
+  // Reverse is a HOVER-ONLY privilege, and it fades out as the craft becomes a
+  // plane: at t = 0 you may back up to `reverseSpeed`, by t = 1 the floor is
+  // zero. (hoverDamp is symmetric about zero, so a released trigger drifts a
+  // reversing craft back to rest by itself.)
   state.speed = clamp(
     state.speed,
-    0,
+    -(1 - t) * Math.max(0, cfg.reverseSpeed),
     Math.max(cfg.maxSpeed, cfg.afterburnerSpeed)
   )
 
