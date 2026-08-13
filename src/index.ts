@@ -486,6 +486,7 @@ export {
   volcano,
   impactCrater,
   pad,
+  gulley,
   composeLandforms,
   mergeProvinces,
 } from './landform'
@@ -526,6 +527,7 @@ export type {
   VolcanoOptions,
   CraterOptions,
   PadOptions,
+  GulleyOptions,
 } from './landform'
 export {
   BiomePlugin,

@@ -186,12 +186,12 @@ level design's clothes.
 > structural rather than a matter of tuning.
 
 An arbitrary heightfield meets an extracted tube at whatever angle the hill
-happens to have. Where the tube runs *nearly parallel* to the ground — which
+happens to have. Where the tube runs _nearly parallel_ to the ground — which
 it does constantly, because both are shaped by the same landscape — it breaks
 the surface repeatedly in a rash of small openings, each with its own seam,
 each collecting the tile skirts that hang below it. Every fix aimed at the
 boundary (a bigger rim collar, a flange, a probe depth) improves one crossing
-and creates another somewhere else, because the *conditioning* is the problem:
+and creates another somewhere else, because the _conditioning_ is the problem:
 two surfaces meeting at a grazing angle have no well-defined boundary to
 reconcile.
 
@@ -204,7 +204,7 @@ exactly what it is.
 
 The general rule this is an instance of: **where a tunnel must meet the
 surface, author the surface.** Interiors can be arbitrary — underground there
-is no tile to disagree with — but every *transition* wants a landform placed
+is no tile to disagree with — but every _transition_ wants a landform placed
 deliberately, not discovered. The topology compiler should therefore emit a
 landform per entrance portal, not only a carve.
 
