@@ -116,46 +116,79 @@ ending in a near-vertical face, so the mouth is a circle meeting a plane
 rather than a tube grazing an arbitrary hillside. These pin the properties
 the mating depends on.
 */
-describe('gulley — friendly geometry for a tunnel mouth', () => {
-  const hill = (x: number) => 100 + x * 0.35 // ground rises toward +x
-  const g = gulley({
+describe('gulley — a FORCING function, not a cut', () => {
+  const opts = {
     x: 0,
     z: 0,
-    heading: Math.PI, // gulley runs out toward −x; the hill is toward +x
+    heading: Math.PI, // runs out toward −x
     width: 60,
     length: 260,
     floorY: 70,
-    rampFraction: 0.6,
-  })
+    cliffHeight: 45,
+    faceRun: 18,
+    fade: 0.35,
+    wallFade: 36,
+  }
+  const g = gulley(opts)
 
-  test('the floor is CUT DOWN to floorY at the face', () => {
-    expect(g(0, 0, hill(0))).toBeCloseTo(70)
-    expect(g(-20, 0, hill(-20))).toBeLessThan(hill(-20)) // still trenched
-  })
+  /*
+  The whole point: the geometry a tunnel mouth meets must be KNOWN before the
+  author places it. A `min(h, floor)` cut only lowers ground that was already
+  high — on a hill you get a channel, in a hollow you get nothing — so the
+  entrance ends up at the mercy of the seed. These tests run the same gulley
+  over three very different landscapes and demand the same result.
+  */
+  const HILL = (x: number) => 140 + x * 0.3
+  const HOLLOW = () => 20 // well BELOW the floor
+  const FLAT = () => 70
 
-  test('BEHIND the face the hill is untouched — that is the wall', () => {
-    const behind = g(20, 0, hill(20))
-    expect(behind).toBe(hill(20))
-    // …so there's a real step between the face and the floor just outside it
-    expect(behind - g(-1, 0, hill(-1))).toBeGreaterThan(20)
-  })
-
-  test('it climbs back to the natural ground, so the far end is not a second cliff', () => {
-    const far = g(-250, 0, hill(-250))
-    expect(Math.abs(far - hill(-250))).toBeLessThan(1)
-  })
-
-  test('outside the channel width, terrain is exactly unchanged', () => {
-    for (const z of [70, -70, 200]) {
-      expect(g(-100, z, hill(-100))).toBe(hill(-100))
+  test('the floor is floorY at the face whatever the terrain was doing', () => {
+    for (const ground of [HILL, HOLLOW, FLAT]) {
+      expect(g(0, 0, ground(0))).toBeCloseTo(70, 5)
+      expect(g(-100, 0, ground(-100))).toBeCloseTo(70, 5)
     }
   })
 
-  test('the walls ease rather than being a razor edge', () => {
-    const floor = g(-60, 0, hill(-60))
-    const edge = g(-60, 35, hill(-60)) // just outside the half-width
-    const out = g(-60, 62, hill(-60))
-    expect(floor).toBeLessThan(edge)
-    expect(edge).toBeLessThan(out + 1e-9)
+  test('the CLIFF is cliffHeight above the floor, hill or hollow', () => {
+    for (const ground of [HILL, HOLLOW, FLAT]) {
+      // fully into the hill, past the face run
+      expect(g(18, 0, ground(18))).toBeCloseTo(70 + 45, 5)
+      // halfway up the face
+      const mid = g(9, 0, ground(9))
+      expect(mid).toBeGreaterThan(70)
+      expect(mid).toBeLessThan(70 + 45)
+    }
+  })
+
+  test('a hollow is FILLED, not ignored — the failure the first version had', () => {
+    expect(g(-80, 0, HOLLOW())).toBeCloseTo(70, 5) // raised 50m to the floor
+  })
+
+  test('grade lifts the floor going outward, predictably', () => {
+    const sloped = gulley({ ...opts, grade: 0.1 })
+    expect(sloped(-100, 0, HILL(-100))).toBeCloseTo(70 + 10, 5)
+  })
+
+  test('it fades to the natural surface sideways and at the far end', () => {
+    expect(g(-100, 200, HILL(-100))).toBe(HILL(-100)) // well outside
+    expect(g(-259, 0, HILL(-259))).toBeCloseTo(HILL(-259), 0) // the far end
+  })
+
+  test('past the crest fade and beyond the mouth, terrain is exactly untouched', () => {
+    // the crest blends over `crestFade` (3 × faceRun = 54m) INTO the hill, so
+    // "untouched" starts beyond that — checked at 100m in
+    expect(g(100, 0, HILL(100))).toBe(HILL(100))
+    expect(g(-300, 0, HILL(-300))).toBe(HILL(-300))
+  })
+
+  test('the transition is continuous — no step to fall off', () => {
+    let maxJump = 0
+    let prev = g(-300, 0, HILL(-300))
+    for (let x = -300; x <= 40; x += 0.5) {
+      const v = g(x, 0, HILL(x))
+      maxJump = Math.max(maxJump, Math.abs(v - prev))
+      prev = v
+    }
+    expect(maxJump).toBeLessThan(2.5) // the cliff is a RAMP over faceRun, not a wall
   })
 })

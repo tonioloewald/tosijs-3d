@@ -210,63 +210,102 @@ export interface GulleyOptions {
   /** Direction the gulley runs OUT from the face (radians, world XZ). The
    * tunnel drives the opposite way, into the hill. */
   heading: number
-  /** Floor width (m). */
+  /** Floor width (m) — forced flat across this. */
   width: number
-  /** How far the gulley runs out from the face before rejoining the hill. */
+  /** How far the gulley runs out from the face. */
   length: number
-  /** Floor height at the face (m). The tunnel mouth sits just above it. */
+  /** Floor height at the face (m). ABSOLUTE, not a cut: the floor is this
+   * height whether the natural ground was a hill or a hollow. */
   floorY: number
-  /** How much of `length` is spent climbing back to the natural ground
-   * (0..1). Small = the gulley stays deep and ends abruptly. */
-  rampFraction?: number
+  /** Height of the forced cliff behind the face (m above the floor). This is
+   * what the tunnel mouth is cut into, so it's the number that decides
+   * whether the mouth has room. */
+  cliffHeight?: number
+  /** Distance over which the cliff rises, going INTO the hill (m). Small =
+   * near-vertical. */
+  faceRun?: number
+  /** Floor grade going outward (m per m) — 0 is flat, positive climbs out. */
+  grade?: number
+  /** Fraction of `length` spent fading back to natural terrain (0..1). */
+  fade?: number
+  /** Lateral distance over which the forced floor fades to natural (m). */
+  wallFade?: number
+  /** Distance PAST the cliff top over which forcing fades back to the natural
+   * surface (m). Too small and the crest is a step you fall off. */
+  crestFade?: number
 }
 
 /**
- * A GULLEY ending in a near-vertical face — the "friendly geometry to mate
- * with" that makes a tunnel mouth tractable.
+ * A GULLEY: a **height-field FORCING FUNCTION** ending in a predictable cliff
+ * — the "friendly geometry to mate with" that makes a tunnel mouth tractable.
  *
- * The problem it solves: booleaning an arbitrary heightfield against an
- * extracted tube means the two surfaces meet at whatever grazing angle the
- * hillside happens to have, and where the tube skims just under the ground it
- * breaks the surface repeatedly — a rash of small holes, each with its own
- * seam, each with tile skirts hanging into it. No amount of rim-collaring or
- * flanging fixes a boundary that pathological, because the geometry itself is
- * ill-conditioned.
+ * The distinction that matters, and that the first version got wrong: this
+ * FORCES the height rather than cutting it. `min(h, floor)` only lowers ground
+ * that was already high, so on a hillside you get a channel and in a hollow
+ * you get nothing — the entrance is at the mercy of whatever terrain the seed
+ * produced, which is precisely the unpredictability we were trying to escape.
+ * Here the floor is `floorY` and the cliff is `cliffHeight` **whatever the
+ * natural ground was doing**, so a tunnel author knows the geometry their
+ * mouth will meet before they place it.
  *
- * So shape the ground to suit instead. This cuts a flat-floored channel
- * leading to a wall, and the tunnel starts in that wall: the mouth is then a
- * circle meeting a plane, roughly perpendicular — the best-conditioned
- * intersection available — and the approach is a corridor you can fly down.
- * The player reads it as an excavated entrance, which is what it is.
+ * The shape, along the axis:
  *
- * Returns a landform only; pair it with a carve that starts at the face and
- * drives INTO the hill (heading + π).
+ * ```
+ *      into the hill  |  the face  |        the gulley floor        | ambient
+ *   ─────────────────╮|            |                                |
+ *    natural terrain  ╲  cliffHeight                                 ╱
+ *                      ╲___________|________________________________╱
+ *                       ↑ faceRun    floorY, grading out over length
+ * ```
+ *
+ * Forcing fades to the natural surface at the sides (`wallFade`) and at the
+ * outer end (`fade`), so the channel joins the landscape instead of ending in
+ * a second cliff. Everything outside is untouched, exactly.
  */
 export function gulley(
   opts: GulleyOptions
 ): (x: number, z: number, h: number) => number {
   const { x: fx, z: fz, heading, width, length, floorY } = opts
-  const ramp = Math.min(0.95, Math.max(0.05, opts.rampFraction ?? 0.6))
+  const cliffHeight = opts.cliffHeight ?? 45
+  const faceRun = Math.max(1e-3, opts.faceRun ?? 18)
+  const grade = opts.grade ?? 0
+  const fade = Math.min(0.9, Math.max(0.05, opts.fade ?? 0.35))
+  const wallFade = Math.max(1e-3, opts.wallFade ?? width * 0.6)
+  const crestFade = Math.max(1e-3, opts.crestFade ?? faceRun * 3)
   const cos = Math.cos(heading)
   const sin = Math.sin(heading)
   const halfW = width / 2
+  const fadeStart = length * (1 - fade)
   return (x, z, h) => {
     const dx = x - fx
     const dz = z - fz
     const along = dx * cos + dz * sin // + = outward from the face
-    const lateral = -dx * sin + dz * cos
-    if (along < 0 || along > length) return h // behind the face, or past the end
-    const absL = Math.abs(lateral)
-    if (absL > halfW * 2) return h
-    // Floor climbs back to the natural ground over the ramp section, so the
-    // gulley opens onto the hillside instead of ending in a second cliff.
-    const t = Math.min(1, along / (length * ramp))
-    const floor = floorY + (h - floorY) * smooth(t)
-    // Lateral walls: full depth across the floor, easing out over another
-    // half-width so the channel has sides rather than a razor edge.
-    const side = 1 - smooth((absL - halfW) / halfW)
-    const cut = Math.min(h, floor)
-    return h + (cut - h) * (absL <= halfW ? 1 : Math.max(0, side))
+    const lateral = Math.abs(-dx * sin + dz * cos)
+    // Authority fades INTO the hill as well, over `crestFade` beyond the top
+    // of the face. Without it the forced cliff-top met natural ground at full
+    // authority and simply snapped — a 30m step at the crest, which is a
+    // cliff you fall off rather than a rim you fly over.
+    if (along < -faceRun - crestFade || along > length) return h
+    if (lateral > halfW + wallFade) return h
+
+    // The FORCED profile — a function of position only, never of `h`.
+    const forced =
+      along >= 0
+        ? floorY + grade * along
+        : floorY + cliffHeight * smooth(Math.min(1, -along / faceRun))
+
+    // Authority: full across the floor and along the run, fading laterally to
+    // the natural surface and easing out at the far end.
+    const lateralW =
+      lateral <= halfW ? 1 : 1 - smooth((lateral - halfW) / wallFade)
+    const alongW =
+      along < -faceRun
+        ? 1 - smooth((-along - faceRun) / crestFade) // over the crest, into the hill
+        : along <= fadeStart
+        ? 1
+        : 1 - smooth((along - fadeStart) / (length - fadeStart))
+    const w = lateralW * alongW
+    return h + (forced - h) * w
   }
 }
 

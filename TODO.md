@@ -717,6 +717,12 @@ walls extend slightly ABOVE the local surface to form a rock lip that covers the
 edge; or blend the mask over a band instead of a hard cut; or force finer tiles right at
 the mouth (the refine machinery is already there — this is a smaller `level` on a small
 footprint around the opening).
+[ ] **`grossScale`/`detailScale` are wavelengths in disguise** (Tonio, 2026-08-13): they're
+1/metres, so every useful value is squashed against zero — he found 0.015 on a slider whose
+MINIMUM was 0.005, i.e. the good range is the bottom 5% of the control, and 0.1 (the old
+default) is already too fine to read as landscape. Proposal: add `featureSize`/`detailSize`
+in METRES as the authoring front (scale = 1/size), keep the raw scales as advanced
+overrides, and make the demo sliders logarithmic. Nobody thinks in reciprocal metres.
 [ ] Procedural stalactites/stalagmites for cave interiors — the biome shader already
 handles cave walls (interior=1 shades them as rock at any slope), so this is garnish, not
 classification: instanced cones/spikes seeded from the SDF surface where the ceiling is

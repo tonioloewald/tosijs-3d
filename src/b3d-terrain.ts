@@ -16,11 +16,11 @@ const { div, span, p } = elements
 const { demo } = tosi({
   demo: {
     seed: 42,
-    grossScale: 0.03,
-    detailScale: 0.15,
+    grossScale: 0.015,
+    detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 200,
-    detailAmplitude: 10,
+    grossAmplitude: 3.5,
+    detailAmplitude: 16,
     wireframe: false,
     debugColor: false,
   },
@@ -410,11 +410,20 @@ export class B3dTerrain extends B3dChild {
     fillBudget: 0,
     splitFactor: 2,
     reach: 0,
-    grossScale: 0.1,
-    detailScale: 0.5,
+    /*
+    SCALE IS A WAVELENGTH IN DISGUISE. These are 1/metres, so the useful range
+    is squashed against zero — Tonio landed on 0.015 by dragging a slider whose
+    minimum was 0.005, i.e. the good values live in the bottom 5% of the
+    control. Worse, the old defaults (0.1 / 0.5 = 10m and 2m features) with a
+    large gross amplitude give smooth, rounded, evenly-sized lumps: homogenous
+    pudding. What reads as landscape is BIG gross features carrying SMALL gross
+    amplitude, with the detail layer doing most of the vertical work.
+    */
+    grossScale: 0.015,
+    detailScale: 0.09,
     horizScale: 1,
-    grossAmplitude: 8,
-    detailAmplitude: 2,
+    grossAmplitude: 3.5,
+    detailAmplitude: 16,
     // Flat vertical offset of the whole heightfield (metres). Default 0 = heightfield sits on 0.
     baseHeight: 0,
     // Auto-centre the heightfield on 0 (offset by -grossAmplitude/2), so it straddles 0 whatever
