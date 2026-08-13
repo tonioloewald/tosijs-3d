@@ -491,6 +491,21 @@ export {
 } from './landform'
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice'
+export {
+  applyCarve,
+  sphere,
+  capsule,
+  tube,
+  box,
+  union,
+  smoothUnion,
+  subtract,
+  intersect,
+  roughen,
+  warp,
+  shaft,
+} from './carve'
+export type { Carve, NoiseOptions } from './carve'
 export { B3dPatch, b3dPatch } from './b3d-patch'
 export {
   terrainDensity,

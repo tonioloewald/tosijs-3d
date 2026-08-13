@@ -19,6 +19,7 @@ import {
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
   composePatches, circleFootprint, label3d, slider3d,
+  applyCarve, sphere, tube, smoothUnion, roughen, warp, shaft,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -42,24 +43,39 @@ const terrain = b3dTerrain({
   baseHeight: -60,
 })
 
-// The carve is written against `d` = DEPTH BELOW THE GROUND (0 at the surface,
-// negative in the rock), so it follows the hillside — no plateau flattened
-// underneath to give the mouth a known height. `max` is union here.
-const shaft = (x, y, z, d) =>
-  Math.max(d, Math.min(18 - Math.hypot(x, z), d + 130))   // down 130m
-const tube = (x, y, z, d) =>
-  Math.max(d, Math.min(13 - Math.hypot(d + 95, z), 150 - x)) // adit at ~95m depth
+// The carve, from [[carve]]'s vocabulary. Two rules Tonio set: shafts are
+// ENORMOUS or gently sloped (never narrow pipes), and nothing reads as regular
+// geometry. `warp` bends the space so the adit meanders and the hall isn't a
+// sphere; `roughen` gives the walls rock texture; `smoothUnion` fillets the
+// junction so the passage FLARES into the chamber instead of poking into it.
+const HALL = { x: 210, y: -95, z: 0 }
+const cave = warp(
+  roughen(
+    smoothUnion(
+      26,
+      sphere(HALL, 52),                                     // the great hall
+      tube([{ x: 20, y: -70, z: 0 }, { x: 120, y: -84, z: 30 }, HALL], 17), // the adit
+    ),
+    { amp: 4.5, scale: 0.02, octaves: 3, seed: 7 },
+  ),
+  { amp: 12, scale: 0.006, octaves: 2, seed: 3 },
+)
+
+// The shaft is written in DEPTH (0 = the ground), so it follows the hillside —
+// 26m across and leaning as it descends, which is the "enormous, and not a
+// plumb line" version rather than a drainpipe.
+const bore = shaft(0, 0, 26, 150, { x: 40, y: 0, z: 0 })
 
 const patch = b3dPatch({
-  minX: -60, maxX: 170, minZ: -60, maxZ: 60,
-  depth: 150, rise: 12,
+  minX: -80, maxX: 290, minZ: -90, maxZ: 90,
+  depth: 190, rise: 14,
   spacing: 3, jitter: 0.3, level: 4, chunkCells: 8,
 })
-patch.field = composePatches(shaft, tube)
+patch.field = composePatches(bore, applyCarve(cave))
 // Where the patch OWNS the ground: only the mouth breaks the surface, so only
 // the mouth needs the tiles to step aside. The adit stays underground, where
 // there is no tile to argue with.
-patch.footprint = circleFootprint(0, 0, 34)
+patch.footprint = circleFootprint(0, 0, 42)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because

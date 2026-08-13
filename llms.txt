@@ -119,6 +119,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
+- https://3d.tosijs.net/carve/ — carve
+  Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/combat/ — Combat

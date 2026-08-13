@@ -5,14 +5,14 @@ Companion to `SPATIAL-DESIGN.md` (attachment) and `TERRAIN-SHADER-DESIGN.md` (su
 
 > **The decision (Tonio, 2026-08-12): build from a VOXEL MAP, and have a
 > topology → voxel-map renderer.** The voxel map is the intermediate
-> representation everything downstream consumes; topology compiles *into* it,
+> representation everything downstream consumes; topology compiles _into_ it,
 > and a level designer can author or edit it directly.
 
 ## Why this shape
 
 Three requirements arrived together and they pull in different directions:
 
-- **Ariosto wants topology.** Outside → *locked door* → big cavern → … The
+- **Ariosto wants topology.** Outside → _locked door_ → big cavern → … The
   narrative engine reasons about places and passages, never coordinates
   (`world-contract.ts` §8 already says so: `Place`, `Portal { locked, cost }`,
   and coordinates never cross the boundary).
@@ -33,7 +33,7 @@ A single pipeline satisfies all three, because each stage is a lowering:
 ```
 
 The voxel map is the **source of truth for geometry**; the topology graph is the
-source of truth for *meaning*. Neither is derived from the other at runtime —
+source of truth for _meaning_. Neither is derived from the other at runtime —
 the compiler runs once, offline or at load, and both artifacts ship.
 
 ## Stage 1 — topology (what Ariosto sees)
@@ -82,12 +82,12 @@ lattice's own hash jitter, no straight cylinder survives to the surface.
 
 **Then verify — per AGENT, not in the abstract.** Compile, then flood-fill the
 voxel map and assert that every declared portal is traversable and every place
-reachable. This is the tunnel equivalent of the chunk-weld proof: *the cave the
-sim believes in and the cave you can fly through cannot diverge*, because
+reachable. This is the tunnel equivalent of the chunk-weld proof: _the cave the
+sim believes in and the cave you can fly through cannot diverge_, because
 divergence fails a test rather than surprising a player an hour in.
 
-But "connected" is not a property of the cave alone (Tonio, 2026-08-12: *"if
-you're flying not every hole is going to serve"*). A crack a walker squeezes
+But "connected" is not a property of the cave alone (Tonio, 2026-08-12: _"if
+you're flying not every hole is going to serve"_). A crack a walker squeezes
 through is a wall to the scout. So connectivity is computed in the agent's
 configuration space:
 
@@ -95,7 +95,7 @@ configuration space:
    its distance to the nearest solid. Cheap on a sparse grid, and reusable —
    every agent class reads the same field.
 2. **Erode, then fill.** Flood-fill only cells whose clearance ≥ the agent's
-   radius. That is exactly "which holes serve *me*".
+   radius. That is exactly "which holes serve _me_".
 3. **Per profile.** `foot` (0.4 m), `scout` (~4 m), whatever a capital ship is —
    each yields its own connectivity, from one compile.
 
@@ -103,12 +103,12 @@ Two consequences worth designing for rather than discovering:
 
 - **A portal carries a clearance, not just `locked`.** Ariosto can then route
   per agent: the same map says a passage is walkable and un-flyable, which is a
-  *gameplay* fact (land, go on foot) rather than a bug. It sits naturally
+  _gameplay_ fact (land, go on foot) rather than a bug. It sits naturally
   beside `Portal.cost`.
 - **The compiler can widen to satisfy a declaration.** "The scout must reach the
   great hall" becomes a constraint: raise that route's radius until the eroded
   fill connects, or fail the build with the narrowest point named. That is what
-  makes purpose-driven authoring — *two entrances, three caverns, flyable* —
+  makes purpose-driven authoring — _two entrances, three caverns, flyable_ —
   actually enforceable.
 
 ### Resolution is load-bearing
@@ -124,10 +124,10 @@ topology declares (which is a thin subset of the map), and leave the bulk coarse
 
 ## Locks, and why bypassing one must not break the story
 
-> **Tonio, 2026-08-12:** *"Not all locks need be geometric or absolute. Players
+> **Tonio, 2026-08-12:** _"Not all locks need be geometric or absolute. Players
 > bypassing locks should be a feature not a bug… the way most games handle locks
 > is the story beyond the lock is disabled until the lock is opened even if you
-> walk around the locked door or drill through it. This is narrative vandalism."*
+> walk around the locked door or drill through it. This is narrative vandalism."_
 
 A lock is a **deterrent with a price**, never a switch that suspends the world
 behind it. Three rules follow, and they're binding on both sides of the
@@ -136,20 +136,20 @@ sim/driver boundary:
 **1. A lock never gates simulation.** The places beyond a locked portal are
 simulated exactly as they would be if the door stood open — NPCs there keep
 doing what they were doing, fires burn, cargo rots. This is the same principle
-`world-contract.ts` already states as *the driver is never load-bearing*: the
+`world-contract.ts` already states as _the driver is never load-bearing_: the
 sim is a complete sandbox and narrative is advisory. A lock that disabled the
 far side would make the sim depend on the story, which is the dependency this
 architecture exists to forbid.
 
 **2. Locked means EXPENSIVE, not impassable.** `Portal.locked` is a routing and
-cost fact — an NPC without the key shouldn't *plan* through it — but it says
+cost fact — an NPC without the key shouldn't _plan_ through it — but it says
 nothing about whether a player can get there. A lock is any obstacle with a
 price: a door needing a key, a guarded hall, a rubble choke, a pressure
 hazard, a fight. `Portal.cost` already carries the currency.
 
 **3. However you got in, the world knows HOW — and that's the interesting
 part.** Entry through the door, around it via a side passage, or through a wall
-you drilled are three different *events*, not one boolean. The event stream
+you drilled are three different _events_, not one boolean. The event stream
 records the means (it already only records commitments — intentional acts), so a
 driver can react to a breach: alarms, a changed reception, the guard captain
 noticing the hole. Reacting is richer than refusing, and it costs the sim
@@ -170,7 +170,7 @@ A breach therefore appears to the sim as a real portal (unlabelled, agent-
 clearance known) rather than as a special case somebody remembered to handle.
 Nothing needs to detect "the player cheated"; there was no cheat, only a new
 edge in the graph. And because connectivity is agent-relative, a hole drilled
-big enough to walk through but not to fly through is *automatically* exactly
+big enough to walk through but not to fly through is _automatically_ exactly
 that fact, for every system that asks.
 
 The one thing the compiler owes the designer here: when it generates a lock, it
@@ -202,16 +202,16 @@ while extraction is fine, because the interpolated field is smooth between cells
 
 ## What exists today
 
-| Piece | State |
-| --- | --- |
-| `sdf-lattice` | **done** — global lattice, surface nets, chunk-weld proof |
-| `patch-field` | **done** — density composition, `marginBlend` rim convergence |
-| `b3d-patch` | **done** — residency, budgeted extraction, cavity predicate, footprint ownership |
-| `world-contract` / `world-topology` | **done** — `Place`/`Portal`, routing, locked edges |
-| voxel map (sparse store + sampler) | **to build** — stage 3/4 |
-| topology → voxel compiler | **to build** — stage 2, incl. grade-budgeted routing |
-| connectivity verification | **to build** — flood fill vs the declared graph |
-| voxel editor / blockout import | **later** — the level-design front end |
+| Piece                               | State                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------- |
+| `sdf-lattice`                       | **done** — global lattice, surface nets, chunk-weld proof                        |
+| `patch-field`                       | **done** — density composition, `marginBlend` rim convergence                    |
+| `b3d-patch`                         | **done** — residency, budgeted extraction, cavity predicate, footprint ownership |
+| `world-contract` / `world-topology` | **done** — `Place`/`Portal`, routing, locked edges                               |
+| voxel map (sparse store + sampler)  | **to build** — stage 3/4                                                         |
+| topology → voxel compiler           | **to build** — stage 2, incl. grade-budgeted routing                             |
+| connectivity verification           | **to build** — flood fill vs the declared graph                                  |
+| voxel editor / blockout import      | **later** — the level-design front end                                           |
 
 ## Open questions
 
@@ -225,4 +225,4 @@ while extraction is fine, because the interpolated field is smooth between cells
   it" — but it needs proving with a cavern that breaches a hillside.
 - **Streaming a large complex.** `b3d-patch` currently treats a patch as
   all-or-nothing resident. A multi-kilometre system wants per-chunk residency
-  driven by which *place* you're in — which the topology already knows.
+  driven by which _place_ you're in — which the topology already knows.

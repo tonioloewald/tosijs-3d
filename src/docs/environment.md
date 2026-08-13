@@ -16,6 +16,7 @@
 - [b3d-water](/b3d-water/)
 - [biome-chart](/biome-chart/)
 - [biome-plugin](/biome-plugin/)
+- [carve](/carve/)
 - [landform](/landform/)
 - [patch-field](/patch-field/)
 - [sdf-lattice](/sdf-lattice/)
