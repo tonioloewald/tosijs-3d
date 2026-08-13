@@ -74,9 +74,14 @@ terrain.landform = composeLandforms(
     cliffHeight: 60, faceRun: 16, fade: 0.4,
   }),
   cover({
-    x: FACE.x, z: FACE.z,
+    // START PAST THE CLIFF, not at it. Beginning the cover at the face means
+    // it raises the ground the gulley just cut down — the composition runs
+    // gulley then cover, so cover wins, the floor goes back to +70 and the
+    // mouth ends up buried 44m under the hill. (That is exactly what
+    // happened: "no visible tunnel", with the carve intact underneath.)
+    x: FACE.x + 60, z: FACE.z,
     heading: 0, // over the tunnel, into the hill
-    width: 180, length: 420,
+    width: 180, length: 380,
     minHeight: FLOOR + 70, // tunnel ceiling (~FLOOR+45) plus rock above it
   })
 )
