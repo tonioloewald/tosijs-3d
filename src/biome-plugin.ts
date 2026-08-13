@@ -768,7 +768,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // b3d-terrain's provinceField. Where present it runs the ladder at
           // that local intensity, independent of the global dial: THIS island
           // is volcanic. Meshes without vertex colours (planets) skip it.
-          if (biomeSurf.y > 0.0 || provLocal > 0.0) {
+          // The per-vertex channel means DIFFERENT THINGS on different meshes:
+          // a local volcanic province on terrain tiles, the interior ramp on
+          // patch walls. Volcanism must only read the former, or a cave mouth
+          // shades as a full-intensity volcano — which is exactly what
+          // happened: black basalt and glowing lava inside an ordinary cave.
+          float provVolc = biomeExtra.x > 0.5 ? 0.0 : provLocal;
+          if (biomeSurf.y > 0.0 || provVolc > 0.0) {
             // Global provinces from a low-frequency mask; the volcanism param
             // slides the threshold, so 1.0 approaches everywhere and 0.3
             // gives scattered volcanic zones in a living landscape. The local
@@ -777,8 +783,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             float volcG = biomeSurf.y > 0.0
               ? smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn)
               : 0.0;
-            float volc = max(volcG, smoothstep(0.02, 0.3, provLocal));
-            float vEff = max(biomeSurf.y, provLocal);
+            float volc = max(volcG, smoothstep(0.02, 0.3, provVolc));
+            float vEff = max(biomeSurf.y, provVolc);
             if (volc > 0.0) {
               // The intensity LADDER (stage 1..3): 1 = near-black basalt with
               // DARK-BROWN voronoi seams; 2 = dark-brown rock with GLOWING

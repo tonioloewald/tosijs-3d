@@ -1230,7 +1230,12 @@ export class B3dTerrain extends B3dChild {
       if (h > hMax) hMax = h
     }
     const relief = Number.isFinite(hMax - hMin) ? hMax - hMin : 0
-    const skirtDepth = Math.max(relief * 1.5, tileSize * 0.15) + 2
+    // ×3, not ×1.5: the neighbour across a seam may be a COARSER tile, whose
+    // relief over the same ground is larger than this tile's — too short a
+    // skirt and the seam opens into a visible crack running away to the
+    // horizon (which is what ×1.5 gave). Still ~90m rather than the 344m the
+    // world-amplitude formula produced, so it no longer hangs into tunnels.
+    const skirtDepth = Math.max(relief * 3, tileSize * 0.5) + 2
     for (let p = 0; p < tpl.perim.length; p++) {
       const parent = tpl.perim[p]
       const s = tpl.gridCount + p

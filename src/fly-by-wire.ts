@@ -55,6 +55,11 @@ export interface FlyByWireConfig {
    * it's flying tail-first).
    */
   reverseSpeed: number
+  /**
+   * Hover braking authority (units/s² per full brake). Only the trigger's
+   * negative half uses it — see the note in `flyByWireStep`.
+   */
+  hoverBrake: number
   /** Drone-mode lean: forward speed gained per full forward-pitch (units/s). */
   leanAccel: number
   /** Drone-mode hover bleed: how fast forward speed decays to a stop (1/s). */
@@ -183,6 +188,19 @@ export function flyByWireStep(
   // altitude (Tonio: "can't throttle down to stationary without climbing").
   // Pitch is free in a hover; it's the control a drone actually uses.
   state.speed += (1 - t) * -pitch * cfg.leanAccel * dt
+  // HOVER BRAKE — the trigger's NEGATIVE half only. Pull the brake in a hover
+  // and you shed speed toward a stop; the positive half stays purely vertical,
+  // because a throttle that also accelerated would make stopping a fight with
+  // altitude (which is exactly what the previous symmetric version did).
+  //
+  // It's drag, not reverse thrust: it decays speed toward zero and stops
+  // there, from either direction. Backing up is the LEAN's job (nose up), so
+  // the two controls stay independent — one shedding, one reversing.
+  const brake = (1 - t) * Math.max(0, -lift) * (cfg.hoverBrake ?? 0) * dt
+  if (brake > 0) {
+    if (state.speed > 0) state.speed = Math.max(0, state.speed - brake)
+    else if (state.speed < 0) state.speed = Math.min(0, state.speed + brake)
+  }
   state.speed -= (1 - t) * cfg.hoverDamp * state.speed * dt
   state.speed -= cfg.diveBoost * Math.sin(state.pitch) * Math.min(1, dt)
   // Reverse is a HOVER-ONLY privilege, and it fades out as the craft becomes a

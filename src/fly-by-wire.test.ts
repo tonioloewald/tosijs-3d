@@ -325,3 +325,59 @@ describe('zero-speed deadlock above the ceiling (manta-recon #2)', () => {
     expect(s.speed).toBe(0)
   })
 })
+
+describe('hover: stopping must not fight altitude (Tonio, 2026-08-13)', () => {
+  const CFG_H = {
+    ...CFG,
+    hoverBrake: 24,
+    reverseSpeed: 5,
+    hoverCeiling: 0, // no ceiling gate: this is about the hover itself
+  }
+
+  test('the brake alone slows a hovering craft to a STOP', () => {
+    const s = state({ speed: 8 })
+    for (let i = 0; i < 200; i++)
+      flyByWireStep(s, { pitch: 0, roll: 0, lift: -1 }, 2, 5, CFG_H, DT, false)
+    expect(s.speed).toBe(0) // stationary, and it stays there
+  })
+
+  test('the brake does NOT reverse you — that is the lean’s job', () => {
+    const s = state({ speed: 8 })
+    for (let i = 0; i < 400; i++)
+      flyByWireStep(s, { pitch: 0, roll: 0, lift: -1 }, 2, 5, CFG_H, DT, false)
+    expect(s.speed).toBe(0)
+  })
+
+  test('nose UP walks you backwards, bounded by reverseSpeed', () => {
+    const s = state({ speed: 0 })
+    for (let i = 0; i < 400; i++)
+      flyByWireStep(s, { pitch: 1, roll: 0, lift: 0 }, 1, 5, CFG_H, DT, false)
+    expect(s.speed).toBeLessThan(-0.5) // going backwards
+    expect(s.speed).toBeGreaterThanOrEqual(-CFG_H.reverseSpeed - 1e-6)
+  })
+
+  test('the throttle half never adds speed in a FULL hover (stopping ≠ altitude)', () => {
+    // forwardSpeed 0 = genuinely hovering. The regime is a BLEND, so at a
+    // walking pace a sliver of plane-throttle applies by design — that's the
+    // transition working, not the hover leaking.
+    const s = state({ speed: 0 })
+    for (let i = 0; i < 100; i++)
+      flyByWireStep(s, { pitch: 0, roll: 0, lift: 1 }, 0, 5, CFG_H, DT, false)
+    expect(s.speed).toBe(0) // it climbs; it does not creep forward
+  })
+
+  test('a PLANE still never goes below zero', () => {
+    const s = state({ speed: 30 })
+    for (let i = 0; i < 600; i++)
+      flyByWireStep(
+        s,
+        { pitch: 0, roll: 0, lift: -1 },
+        30,
+        200,
+        CFG_H,
+        DT,
+        false
+      )
+    expect(s.speed).toBeGreaterThanOrEqual(0)
+  })
+})
