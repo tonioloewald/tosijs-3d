@@ -1,6 +1,23 @@
 /*#
 # b3d-patch
 
+> ## ⚠️ EXPERIMENTAL — work in progress (paused 2026-08-13)
+>
+> The underground half works: extraction welds across chunks, walls stream and
+> shade, and you can fly through a tunnel. **Entrances do not.** Making an
+> SDF tube meet an arbitrary heightfield produces a boundary with no good
+> conditioning — where the two run nearly parallel the tube surfaces
+> repeatedly, each opening bringing its own seam and its own tile skirts — and
+> the fixes tried against it (rim collar, flange, probe depth, mask from the
+> carve, mask from a footprint) each improved one crossing and broke another.
+>
+> The promising direction, and where to resume: **author the surface where a
+> tunnel meets it** — [[landform]]'s `gulley` (a forced channel ending in a
+> predictable cliff) plus `cover` (forced ground over the run, so the tube
+> surfaces exactly once). Both are built and unit-tested; what's unfinished is
+> making the mouth itself read cleanly. Don't rely on this component in a
+> scene you care about yet.
+
 **A volumetric patch cut into the terrain** — a bore, a lava tube, a cavern, a
 base entrance. Where [[landform]] shapes the heightfield and [[patch-field]]
 carves the density, this is the scene-side component that makes the carve

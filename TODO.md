@@ -601,6 +601,16 @@ v0.6.2 shipped the _shading_ and _shaping_ halves (biome ladder, provinces,
 `landform`). The three pieces below finish the system, and they share one
 theme: they all want to act **per terrain tile**, not per fragment.
 
+[ ] **Tunnel ENTRANCES — paused, experimental** (2026-08-13). Interiors work; the
+mouth doesn't, and the reason is conditioning rather than tuning: an SDF tube meeting an
+arbitrary heightfield has no well-defined boundary where the two run nearly parallel, so
+every boundary-side fix (rim collar, flange, probe depth, carve-derived mask, footprint
+mask) traded one bad crossing for another. Tonio called it: stop spiralling, mark it WIP.
+Resume from the DIRECTION that was working — author the surface where a tunnel meets it:
+`landform.gulley` (forced channel + predictable cliff) and `landform.cover` (forced ground
+over the run so the tube surfaces exactly once). Both are built and tested; what's left is
+making the mouth read cleanly, ideally with the mouth cut as part of the LANDFORM rather
+than discovered from the carve.
 [ ] **Voxel map + topology compiler** (TUNNEL-DESIGN.md — the decided architecture).
 Build from a voxel map; render topology INTO it. Order: (1) sparse chunked voxel store
 keyed on sdf-lattice's global lattice, occupancy as a scalar not a boolean; (2) a

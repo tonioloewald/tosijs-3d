@@ -15,21 +15,18 @@ const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
-    seed: 42,
-    /*
-    AMPLITUDES INTERACT WITH horizScale. The scales are divided by it, so at
-    horizScale 8 a grossScale of 0.015 means ~530m features — and 3.5m of
-    amplitude across 530m is a plain, not a landscape. Tonio's 3.5/16 came
-    from a session where h-size was doing different work; carried over
-    verbatim they flattened the demo.
-
-    What survives from that tuning is the SHAPE of the mix: big gross
-    features, and a detail layer pulling real weight rather than a token 5%.
-    */
+    seed: 111,
+    // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
+    // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
+    // of amplitude across 530m is a plain, not a landscape.
+    // (⚠️ line comments ONLY in a doc demo: a block comment's closing
+    // delimiter ends the enclosing doc comment and truncates the demo —
+    // which is exactly how v-size ended up undefined and this went flat.
+    // Writing the delimiter even inside a line comment does it too.)
     grossScale: 0.015,
     detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 180,
+    grossAmplitude: 250,
     detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
