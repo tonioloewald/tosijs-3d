@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import {
+  composeLandforms,
   volcano,
   impactCrater,
   pad,
@@ -190,5 +191,64 @@ describe('gulley — a FORCING function, not a cut', () => {
       prev = v
     }
     expect(maxJump).toBeLessThan(2.5) // the cliff is a RAMP over faceRun, not a wall
+  })
+})
+
+import { cover } from './landform'
+
+/*
+`cover` is the half the first gulley missed: shaping ground in FRONT of the
+face does nothing about the ground OVER the run, so the tunnel resurfaces
+wherever the natural terrain dips — the glancing blow, reappearing 200m in.
+*/
+describe('cover — the tunnel stays buried', () => {
+  const c = cover({
+    x: 0,
+    z: 0,
+    heading: 0, // corridor runs toward +x
+    width: 120,
+    length: 400,
+    minHeight: 140,
+    fade: 60,
+  })
+
+  test('ground below the minimum is RAISED to it', () => {
+    expect(c(100, 0, 20)).toBeCloseTo(140, 5)
+    expect(c(100, 0, 138)).toBeCloseTo(140, 5)
+  })
+
+  test('ground already high enough is untouched — exactly', () => {
+    expect(c(100, 0, 200)).toBe(200)
+    expect(c(100, 0, 140)).toBe(140)
+  })
+
+  test('outside the corridor nothing is raised', () => {
+    expect(c(100, 300, 20)).toBe(20) // way off to the side
+    expect(c(-50, 0, 20)).toBe(20) // behind the start
+    expect(c(500, 0, 20)).toBe(20) // past the end
+  })
+
+  test('it eases at the sides and the far end — a ridge, not a wall', () => {
+    const middle = c(100, 0, 20)
+    const edge = c(100, 90, 20) // in the lateral fade
+    expect(edge).toBeLessThan(middle)
+    expect(edge).toBeGreaterThan(20)
+    const nearEnd = c(380, 0, 20)
+    expect(nearEnd).toBeLessThan(middle)
+  })
+
+  test('composes with gulley: floor forced DOWN in front, roof forced UP over', () => {
+    const g = gulley({
+      x: 0,
+      z: 0,
+      heading: Math.PI,
+      width: 90,
+      length: 300,
+      floorY: 70,
+      cliffHeight: 60,
+    })
+    const both = composeLandforms(g, c)
+    expect(both(-100, 0, 200)).toBeCloseTo(70, 5) // in the gulley: cut to the floor
+    expect(both(200, 0, 20)).toBeCloseTo(140, 5) // over the tunnel: raised
   })
 })

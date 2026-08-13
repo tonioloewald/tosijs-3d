@@ -309,6 +309,64 @@ export function gulley(
   }
 }
 
+export interface CoverOptions {
+  /** Start of the corridor (usually the gulley's face). */
+  x: number
+  z: number
+  /** Direction the corridor runs (radians) — the way the tunnel drives. */
+  heading: number
+  /** Corridor width (m). */
+  width: number
+  /** How far along the heading the cover extends (m). */
+  length: number
+  /** The ground is forced to AT LEAST this height over the corridor (m). */
+  minHeight: number
+  /** Lateral distance over which the forcing fades out (m). */
+  fade?: number
+}
+
+/**
+ * COVER — force the ground ABOVE a tunnel to be high enough that the tunnel
+ * stays buried.
+ *
+ * This is the other half of making an entrance predictable, and the half the
+ * first gulley missed: shaping the ground in FRONT of the face does nothing
+ * about the ground OVER the run. Where the natural terrain dips below the
+ * tunnel's roof, the tube surfaces — a glancing blow that opens a hole
+ * nobody authored, complete with its own seam and its own tile skirts hanging
+ * into the tunnel. That is exactly the pathology the gulley was adopted to
+ * escape, reappearing 200m further in.
+ *
+ * `minHeight` should be the tunnel's ceiling plus a few metres of rock, so
+ * the tube meets the surface EXACTLY ONCE — at the face, where the geometry
+ * is conditioned for it. Raising ground is visually safe: it reads as the
+ * hill the tunnel goes through.
+ */
+export function cover(
+  opts: CoverOptions
+): (x: number, z: number, h: number) => number {
+  const { x: sx, z: sz, heading, width, length, minHeight } = opts
+  const fade = Math.max(1e-3, opts.fade ?? width * 0.7)
+  const cos = Math.cos(heading)
+  const sin = Math.sin(heading)
+  const halfW = width / 2
+  return (x, z, h) => {
+    if (h >= minHeight) return h // already deep enough: nothing to do
+    const dx = x - sx
+    const dz = z - sz
+    const along = dx * cos + dz * sin
+    if (along < 0 || along > length) return h
+    const lateral = Math.abs(-dx * sin + dz * cos)
+    if (lateral > halfW + fade) return h
+    // Ease at both ends of the corridor as well as the sides, so the raised
+    // ground is a ridge the tunnel runs under — not a wall across the map.
+    const lateralW = lateral <= halfW ? 1 : 1 - smooth((lateral - halfW) / fade)
+    const endW = 1 - smooth((along - length * 0.75) / (length * 0.25))
+    const w = lateralW * Math.max(0, Math.min(1, endW))
+    return h + (minHeight - h) * w
+  }
+}
+
 /** Chain landforms left → right (each sees the previous result). */
 export function composeLandforms(
   ...fns: Array<(x: number, z: number, h: number) => number>

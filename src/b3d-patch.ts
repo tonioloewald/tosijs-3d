@@ -19,7 +19,8 @@ import {
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
   label3d, slider3d,
-  applyCarve, sphere, tube, smoothUnion, roughen, warp, gulley,
+  applyCarve, sphere, tube, smoothUnion, roughen, warp, gulley, cover,
+  composeLandforms,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -42,7 +43,11 @@ const terrain = b3dTerrain({
   tileSize: 48, lodLevels: 7, poolSize: 300, fillBudget: 16,
   // 340m of relief on the default 0.004/m lapse freezes everything above
   // ~180m — the whole world renders white. Scale it to the amplitude.
-  biomeLapseRate: 0.0015,
+  // Snow needs the peaks to actually reach the chart's cold end. With ~140m
+  // of relief that takes a STEEP lapse: 0.004 puts valleys at 0.59 (temperate)
+  // and summits at 0.10 (snow). 0.0015 was calibrated for a 340m world and
+  // left the peaks at 0.45 — pleasant, and permanently snowless.
+  biomeLapseRate: 0.004,
   baseHeight: -60,
 })
 
@@ -55,11 +60,26 @@ const terrain = b3dTerrain({
 // hanging into it).
 const FACE = { x: 60, z: 0 } // where the cliff stands
 const FLOOR = 70 // gulley floor height at the face
-terrain.landform = gulley({
-  x: FACE.x, z: FACE.z,
-  heading: Math.PI, // the gulley runs out toward −x; you fly in along it
-  width: 90, length: 320, floorY: FLOOR, rampFraction: 0.55,
-})
+// Two forcings, and BOTH are needed. The gulley shapes the ground in FRONT
+// of the face; `cover` forces the ground OVER the run to stay above the
+// tunnel's ceiling, so the tube meets the surface exactly ONCE — at the face,
+// where the geometry is conditioned for it. Without cover the tunnel surfaces
+// again wherever the natural ground dips, which is the glancing-blow
+// pathology reappearing 200m in.
+terrain.landform = composeLandforms(
+  gulley({
+    x: FACE.x, z: FACE.z,
+    heading: Math.PI, // the gulley runs out toward −x; you fly in along it
+    width: 90, length: 320, floorY: FLOOR,
+    cliffHeight: 60, faceRun: 16, fade: 0.4,
+  }),
+  cover({
+    x: FACE.x, z: FACE.z,
+    heading: 0, // over the tunnel, into the hill
+    width: 180, length: 420,
+    minHeight: FLOOR + 70, // tunnel ceiling (~FLOOR+45) plus rock above it
+  })
+)
 
 // The tunnel drives INTO the hill from the face (+x), staying underground the
 // whole way — it never has to break the surface again.
