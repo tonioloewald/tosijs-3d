@@ -53,6 +53,18 @@ export interface LatticeConfig {
   jitter?: number
   /** Varies the jitter pattern; same seed ⇒ same lattice, forever. */
   seed?: number
+  /**
+   * Only give a cell a vertex when this passes (world coords of the cell's
+   * centre). Quads referencing a missing vertex are dropped, so the mesh ends
+   * with an OPEN EDGE at the boundary rather than being closed off by a wall.
+   *
+   * That distinction is the whole point. Clipping by making the FIELD solid
+   * outside a region puts a surface at the boundary — air on one side, rock on
+   * the other, so you get a cylindrical wall standing where you wanted
+   * nothing. Clipping the extraction instead simply stops producing geometry,
+   * which is what "the tiles own the ground out here" actually means.
+   */
+  clip?: (x: number, y: number, z: number) => boolean
 }
 
 /** A cell range on the global lattice: `n*` cells starting at index `i*`. */
@@ -217,6 +229,7 @@ export function extractChunk(
         const vx = sx / n
         const vy = sy / n
         const vz = sz / n
+        if (cfg.clip != null && !cfg.clip(vx, vy, vz)) continue // open edge, not a wall
         cellVert[cIndex(a, b, c)] = positions.length / 3
         positions.push(vx, vy, vz)
         // Gradient normal — smooth across chunk boundaries because it depends

@@ -379,6 +379,13 @@ export class B3dTerrain extends B3dChild {
     // classification on the terrain material; tune live via `.biomePlugin`.
     biome: 'off' as 'on' | 'off',
     biomeSeaLevel: 0,
+    // 0 = the biome default (0.004/m). MUST be scaled to `grossAmplitude`:
+    // the lapse converts height to temperature, so a 340m world on the small-
+    // world default reads 0.72 − 340×0.004 ≈ 0 at the peaks and renders as
+    // snow everywhere (found on the patch demo). Rule of thumb: pick it so the
+    // highest ground lands near the temperature you want up there —
+    // 0.5 / amplitude gives temperate valleys and cold summits.
+    biomeLapseRate: 0,
     // 0..1: normals see a tent-filtered height (positions stay crisp) — cliff
     // faces shade smoothly instead of zigzag-banding. 0 restores pre-0.7 look.
     normalSmoothing: 0.6,
@@ -732,6 +739,9 @@ export class B3dTerrain extends B3dChild {
       // attr (keep it equal to the sibling b3d-water's y).
       this.biomePlugin = attachBiomePlugin(mat, {
         seaLevel: (this as any).biomeSeaLevel ?? 0,
+        ...((this as any).biomeLapseRate > 0
+          ? { lapseRate: (this as any).biomeLapseRate }
+          : {}),
       })
     }
     return mat

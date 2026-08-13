@@ -40,6 +40,9 @@ const terrain = b3dTerrain({
   // WITHOUT changing feature size.
   radius: 40000, cylinderHeight: 40000,
   tileSize: 48, lodLevels: 7, poolSize: 300, fillBudget: 16,
+  // 340m of relief on the default 0.004/m lapse freezes everything above
+  // ~180m — the whole world renders white. Scale it to the amplitude.
+  biomeLapseRate: 0.0015,
   baseHeight: -60,
 })
 
@@ -53,8 +56,8 @@ const cave = warp(
   roughen(
     smoothUnion(
       26,
-      sphere(HALL, 52),                                     // the great hall
-      tube([{ x: 20, y: -70, z: 0 }, { x: 120, y: -84, z: 30 }, HALL], 17), // the adit
+      sphere(HALL, 70),                                     // the great hall
+      tube([{ x: 20, y: -70, z: 0 }, { x: 120, y: -84, z: 30 }, HALL], 26), // the adit — ~9 craft-widths across
     ),
     { amp: 4.5, scale: 0.02, octaves: 3, seed: 7 },
   ),
@@ -64,7 +67,7 @@ const cave = warp(
 // The shaft is written in DEPTH (0 = the ground), so it follows the hillside —
 // 26m across and leaning as it descends, which is the "enormous, and not a
 // plumb line" version rather than a drainpipe.
-const bore = shaft(0, 0, 26, 150, { x: 40, y: 0, z: 0 })
+const bore = shaft(0, 0, 40, 150, { x: 55, y: 0, z: 0 })
 
 const patch = b3dPatch({
   minX: -80, maxX: 290, minZ: -90, maxZ: 90,
@@ -75,7 +78,7 @@ patch.field = composePatches(bore, applyCarve(cave))
 // Where the patch OWNS the ground: only the mouth breaks the surface, so only
 // the mouth needs the tiles to step aside. The adit stays underground, where
 // there is no tile to argue with.
-patch.footprint = circleFootprint(0, 0, 42)
+patch.footprint = circleFootprint(0, 0, 56)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because
@@ -471,28 +474,23 @@ export class B3dPatch extends B3dChild {
       seed: this.seed,
     }
     const base = terrainDensity(this._height ?? (() => 0))
-    // OUTSIDE the footprint the tiles still own the ground, so the extraction
-    // must not draw it a second time: feeding the carve a bottomless-solid
-    // base publishes ONLY the carved volume, whose boundary out there is the
-    // tunnel wall (it's underground — the terrain surface isn't). Inside the
-    // footprint the tiles have stepped aside, so the full composed field runs
-    // and supplies ground and walls together.
-    //
-    // Skipping this is what put a second copy of the hillside a few
-    // centimetres under the first: z-fighting visible from a kilometre up.
-    const SOLID = -1e9
-    const field = (x: number, y: number, z: number) => {
-      if (this.field == null) {
-        return this._footprintAt(x, z) < 0 ? base(x, y, z) : SOLID
-      }
-      return this._footprintAt(x, z) < 0
-        ? this.field(x, y, z, base(x, y, z))
-        : this.field(x, y, z, SOLID)
-    }
+    const field = (x: number, y: number, z: number) =>
+      this.field ? this.field(x, y, z, base(x, y, z)) : base(x, y, z)
+    // WHERE we're allowed to produce geometry. Above ground and outside the
+    // footprint the tiles own the surface, so we must draw nothing there —
+    // and "nothing" has to mean an absent cell, not a solid field. Forcing the
+    // field solid outside put air on one side of the footprint boundary and
+    // rock on the other, which is a surface: a cylindrical wall standing up out
+    // of the hillside exactly at the footprint radius (Tonio: "the pipe pokes
+    // up out of the ground"). Clipping the extraction leaves an open edge
+    // instead, tucked under the tiles' own hole.
+    const height = this._height
+    const clip = (x: number, y: number, z: number) =>
+      this._footprintAt(x, z) < 0 || (height != null && y < height(x, z))
     const mesh = extractChunk(
       field,
       { ix: ix * n, iy: iy * n, iz: iz * n, nx: n, ny: n, nz: n },
-      lattice
+      { ...lattice, clip }
     )
     const key = `${ix},${iy},${iz}`
     if (mesh.triangleCount === 0) {
