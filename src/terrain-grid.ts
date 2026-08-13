@@ -399,7 +399,11 @@ export function tileIndexPlan(
     gridIndices: number[]
     allIndices: number[]
   },
-  isMasked: ((vertex: number) => boolean) | null
+  isMasked: ((vertex: number) => boolean) | null,
+  /** Filled with 1 for each RIM vertex — masked, but touching unmasked ground.
+   * The caller drops those vertices to make a collar folding into the hole
+   * (see `tileIndexPlan`'s note on the rim). */
+  rimOut?: Uint8Array
 ): number[] | null {
   if (isMasked == null) return null
   const masked = new Uint8Array(tpl.gridCount)
@@ -411,6 +415,31 @@ export function tileIndexPlan(
     }
   }
   if (!any) return null // touched by a patch's bounds, but nothing to cut
+
+  /*
+  THE RIM COLLAR. A hole cut cleanly at the grid leaves the terrain's edge
+  hanging in space, and the tunnel below starts wherever its own surface is —
+  so you see daylight between them (Tonio: "visible gap between tunnel start
+  and hole in ground", with the fix: skirt down from the hole edge, and flange
+  the tunnel out to meet it).
+
+  A masked vertex TOUCHING unmasked ground keeps its quads instead of losing
+  them; the caller then drops that vertex, so the terrain folds down into the
+  hole as a collar rather than stopping at a cliff edge. Only the first ring
+  survives — everything deeper is genuinely gone.
+  */
+  const rim = rimOut ?? new Uint8Array(tpl.gridCount)
+  rim.fill(0)
+  const g0 = tpl.gridIndices
+  for (let i = 0; i < g0.length; i += 6) {
+    const corners = [g0[i], g0[i + 1], g0[i + 2], g0[i + 5]]
+    let m = 0
+    for (const c of corners) if (masked[c]) m++
+    if (m === 0 || m === 4) continue // wholly outside or wholly inside the hole
+    for (const c of corners) if (masked[c]) rim[c] = 1
+  }
+  // A rim vertex is dropped, not removed: its quads stay so the collar exists.
+  for (let v = 0; v < tpl.gridCount; v++) if (rim[v]) masked[v] = 0
   const out: number[] = []
   const g = tpl.gridIndices
   for (let i = 0; i < g.length; i += 6) {

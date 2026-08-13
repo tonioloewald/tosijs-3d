@@ -19,7 +19,7 @@ import {
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
   label3d, slider3d,
-  applyCarve, sphere, tube, smoothUnion, roughen, warp,
+  applyCarve, sphere, tube, smoothUnion, roughen, warp, flange,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -78,7 +78,11 @@ const patch = b3dPatch({
   depth: 220, rise: 20,
   spacing: 3.5, jitter: 0.3, level: 4, chunkCells: 8,
 })
-patch.field = applyCarve(cave)
+// Flange the mouth: the tunnel splays out over the last 40m below the
+// surface while the terrain's own rim folds down to meet it, so the two
+// overlap rather than meeting exactly — a grid-cut hole and an SDF tube can
+// never agree on a boundary, so each hides the other's excess.
+patch.field = flange(applyCarve(cave), 40, 22)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because
@@ -455,6 +459,30 @@ export class B3dPatch extends B3dChild {
           }
         }
       }
+    }
+    // NEAREST FIRST. Extraction is budgeted, so the order is what you SEE:
+    // in index order the walls arrive in whatever direction the loop ran,
+    // which is why they popped in ahead of the aircraft rather than around
+    // it. Sorted by distance to the camera, the chunk you're about to fly
+    // into is built first and the far ones fill in behind.
+    const cam = this.owner?.scene.activeCamera
+    if (cam != null) {
+      const t = this._terrain as any
+      const cx = cam.globalPosition.x + (t?.originOffsetX ?? 0)
+      const cy = cam.globalPosition.y
+      const cz = cam.globalPosition.z + (t?.originOffsetZ ?? 0)
+      const step = n * L
+      this._pending.sort((a, b) => {
+        const da =
+          (a.ix * step - cx) ** 2 +
+          (a.iy * step - cy) ** 2 +
+          (a.iz * step - cz) ** 2
+        const db =
+          (b.ix * step - cx) ** 2 +
+          (b.iy * step - cy) ** 2 +
+          (b.iz * step - cz) ** 2
+        return da - db
+      })
     }
   }
 

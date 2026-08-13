@@ -220,6 +220,34 @@ export function warp(carve: Carve, opts: NoiseOptions): Carve {
 }
 
 /**
+ * FLANGE — widen a depth-relative carve as it nears the surface, so a tunnel
+ * mouth splays outward instead of arriving as a pipe end.
+ *
+ * This is the tunnel half of making a mouth work: the terrain's hole folds a
+ * collar DOWN into the opening (b3d-terrain's `rimCollar`) while the tunnel
+ * flares UP to meet it, so the two OVERLAP. A grid-cut hole and an
+ * SDF-extracted tube can never agree on a boundary exactly — one is quantised
+ * to quads, the other to a lattice — so the only robust answer is for each to
+ * hide the other's excess.
+ *
+ * `over` is how many metres below the surface the flare is spent; `extra` is
+ * how much wider it gets at the top.
+ */
+export function flange(
+  carve: (x: number, y: number, z: number, d: number) => number,
+  over = 30,
+  extra = 18
+): (x: number, y: number, z: number, d: number) => number {
+  const span = Math.max(1e-3, over)
+  return (x, y, z, d) => {
+    const base = carve(x, y, z, d)
+    // depth 0 at the surface → full flare; `over` metres down → none
+    const t = 1 - Math.min(1, Math.max(0, -d) / span)
+    return base + extra * t * t
+  }
+}
+
+/**
  * A vertical shaft from the surface down. Written in DEPTH — `0` is the
  * ground, positive numbers go down — because a shaft follows the hillside it's
  * sunk into (see `b3d-patch`, whose `d` is depth below ground).

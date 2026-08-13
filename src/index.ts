@@ -499,6 +499,7 @@ export {
   box,
   union,
   smoothUnion,
+  flange,
   subtract,
   intersect,
   roughen,

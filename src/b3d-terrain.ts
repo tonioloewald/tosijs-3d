@@ -604,6 +604,10 @@ export class B3dTerrain extends B3dChild {
       return landform ? landform(ax, az, h) : h
     }
   }
+  /** Metres the hole's rim folds down into a patch opening (see the collar
+   * note in `terrain-grid.tileIndexPlan`). */
+  rimCollar = 12
+  private _rimScratch?: Uint8Array
   private pool: PoolTile[] = []
   private _resolvedSubs = 0 // hiResSubdivisions after auto-resolution (pool is sized to it)
   private tileTemplate: TileTemplate | null = null
@@ -628,8 +632,21 @@ export class B3dTerrain extends B3dChild {
   private interestZ = 0
 
   // Conceptual position on the surface (u,v in [0,1))
-  private worldU = 0
-  private worldV = 0
+  /**
+   * Where this terrain sits in the sampler's (u, v) domain.
+   *
+   * ⚠️ `worldV = 0` puts the world ON A MIRROR PLANE. `CylinderSampler`
+   * deliberately reflects v (`if (vr > 0.5) vr = 1 - vr`, "symmetric
+   * hemispheres"), so v and −v sample the SAME point: the terrain either side
+   * of z = 0 is a mirror image, with a seam running away to the horizon.
+   * Invisible in a small demo sitting at the origin, glaring the moment you
+   * fly along it (Tonio spotted it as "the terrain sampling mirror").
+   *
+   * Default is 0.25 — a quarter turn away from both mirror planes (v = 0 and
+   * v = 0.5), which is the furthest you can get from either.
+   */
+  worldU = 0
+  worldV = 0.25
 
   // Accumulated render-space offset from origin resets
   private originOffsetX = 0
@@ -1304,6 +1321,8 @@ export class B3dTerrain extends B3dChild {
       const offX2 = this.originOffsetX
       const offZ2 = this.originOffsetZ
       const mask = this.patchMask
+      const rim =
+        this._rimScratch ?? (this._rimScratch = new Uint8Array(tpl.gridCount))
       const plan = tileIndexPlan(
         tpl,
         mask == null
@@ -1312,8 +1331,20 @@ export class B3dTerrain extends B3dChild {
               mask(
                 positions[v * 3] + cell.cx + offX2,
                 positions[v * 3 + 2] + cell.cz + offZ2
-              )
+              ),
+        rim
       )
+      if (plan != null) {
+        // Fold the hole's edge DOWN into it: a collar of terrain, so the
+        // ground doesn't stop at a cliff edge with daylight under it. The
+        // tunnel below flares up to meet this, and the two overlap instead of
+        // meeting exactly — which is the only way a grid-cut hole and an
+        // SDF-extracted tube can ever agree on a boundary.
+        const drop = Math.max(4, this.rimCollar)
+        for (let v = 0; v < tpl.gridCount; v++) {
+          if (rim[v]) positions[v * 3 + 1] -= drop
+        }
+      }
       if (plan != null) {
         mesh.setIndices(plan, null, true)
         tile.masked = true
