@@ -107,3 +107,55 @@ describe('composition', () => {
     expect(both(0, 0)).toBe(0.9)
   })
 })
+
+import { gulley } from './landform'
+
+/*
+The gulley exists to make a tunnel mouth TRACTABLE: a flat-floored channel
+ending in a near-vertical face, so the mouth is a circle meeting a plane
+rather than a tube grazing an arbitrary hillside. These pin the properties
+the mating depends on.
+*/
+describe('gulley — friendly geometry for a tunnel mouth', () => {
+  const hill = (x: number) => 100 + x * 0.35 // ground rises toward +x
+  const g = gulley({
+    x: 0,
+    z: 0,
+    heading: Math.PI, // gulley runs out toward −x; the hill is toward +x
+    width: 60,
+    length: 260,
+    floorY: 70,
+    rampFraction: 0.6,
+  })
+
+  test('the floor is CUT DOWN to floorY at the face', () => {
+    expect(g(0, 0, hill(0))).toBeCloseTo(70)
+    expect(g(-20, 0, hill(-20))).toBeLessThan(hill(-20)) // still trenched
+  })
+
+  test('BEHIND the face the hill is untouched — that is the wall', () => {
+    const behind = g(20, 0, hill(20))
+    expect(behind).toBe(hill(20))
+    // …so there's a real step between the face and the floor just outside it
+    expect(behind - g(-1, 0, hill(-1))).toBeGreaterThan(20)
+  })
+
+  test('it climbs back to the natural ground, so the far end is not a second cliff', () => {
+    const far = g(-250, 0, hill(-250))
+    expect(Math.abs(far - hill(-250))).toBeLessThan(1)
+  })
+
+  test('outside the channel width, terrain is exactly unchanged', () => {
+    for (const z of [70, -70, 200]) {
+      expect(g(-100, z, hill(-100))).toBe(hill(-100))
+    }
+  })
+
+  test('the walls ease rather than being a razor edge', () => {
+    const floor = g(-60, 0, hill(-60))
+    const edge = g(-60, 35, hill(-60)) // just outside the half-width
+    const out = g(-60, 62, hill(-60))
+    expect(floor).toBeLessThan(edge)
+    expect(edge).toBeLessThan(out + 1e-9)
+  })
+})

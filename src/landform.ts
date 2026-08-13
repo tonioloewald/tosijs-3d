@@ -203,6 +203,73 @@ export function pad(
   }
 }
 
+export interface GulleyOptions {
+  /** The FACE: where the cliff stands and the tunnel mouth sits. */
+  x: number
+  z: number
+  /** Direction the gulley runs OUT from the face (radians, world XZ). The
+   * tunnel drives the opposite way, into the hill. */
+  heading: number
+  /** Floor width (m). */
+  width: number
+  /** How far the gulley runs out from the face before rejoining the hill. */
+  length: number
+  /** Floor height at the face (m). The tunnel mouth sits just above it. */
+  floorY: number
+  /** How much of `length` is spent climbing back to the natural ground
+   * (0..1). Small = the gulley stays deep and ends abruptly. */
+  rampFraction?: number
+}
+
+/**
+ * A GULLEY ending in a near-vertical face — the "friendly geometry to mate
+ * with" that makes a tunnel mouth tractable.
+ *
+ * The problem it solves: booleaning an arbitrary heightfield against an
+ * extracted tube means the two surfaces meet at whatever grazing angle the
+ * hillside happens to have, and where the tube skims just under the ground it
+ * breaks the surface repeatedly — a rash of small holes, each with its own
+ * seam, each with tile skirts hanging into it. No amount of rim-collaring or
+ * flanging fixes a boundary that pathological, because the geometry itself is
+ * ill-conditioned.
+ *
+ * So shape the ground to suit instead. This cuts a flat-floored channel
+ * leading to a wall, and the tunnel starts in that wall: the mouth is then a
+ * circle meeting a plane, roughly perpendicular — the best-conditioned
+ * intersection available — and the approach is a corridor you can fly down.
+ * The player reads it as an excavated entrance, which is what it is.
+ *
+ * Returns a landform only; pair it with a carve that starts at the face and
+ * drives INTO the hill (heading + π).
+ */
+export function gulley(
+  opts: GulleyOptions
+): (x: number, z: number, h: number) => number {
+  const { x: fx, z: fz, heading, width, length, floorY } = opts
+  const ramp = Math.min(0.95, Math.max(0.05, opts.rampFraction ?? 0.6))
+  const cos = Math.cos(heading)
+  const sin = Math.sin(heading)
+  const halfW = width / 2
+  return (x, z, h) => {
+    const dx = x - fx
+    const dz = z - fz
+    const along = dx * cos + dz * sin // + = outward from the face
+    const lateral = -dx * sin + dz * cos
+    if (along < 0 || along > length) return h // behind the face, or past the end
+    const absL = Math.abs(lateral)
+    if (absL > halfW * 2) return h
+    // Floor climbs back to the natural ground over the ramp section, so the
+    // gulley opens onto the hillside instead of ending in a second cliff.
+    const t = Math.min(1, along / (length * ramp))
+    const floor = floorY + (h - floorY) * smooth(t)
+    // Lateral walls: full depth across the floor, easing out over another
+    // half-width so the channel has sides rather than a razor edge.
+    const side = 1 - smooth((absL - halfW) / halfW)
+    const cut = Math.min(h, floor)
+    return h + (cut - h) * (absL <= halfW ? 1 : Math.max(0, side))
+  }
+}
+
 /** Chain landforms left → right (each sees the previous result). */
 export function composeLandforms(
   ...fns: Array<(x: number, z: number, h: number) => number>

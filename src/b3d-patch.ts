@@ -19,7 +19,7 @@ import {
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
   label3d, slider3d,
-  applyCarve, sphere, tube, smoothUnion, roughen, warp, flange,
+  applyCarve, sphere, tube, smoothUnion, roughen, warp, gulley,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -46,43 +46,47 @@ const terrain = b3dTerrain({
   baseHeight: -60,
 })
 
-// A cave you FLY INTO, not a chimney you drop down. The entrance is a
-// near-horizontal mouth driven into a hillside — a vertical shaft is horrific
-// in an aircraft, and it's the shape a walking game wants, not a flying one.
-// 60m across at the mouth: the scout is ~3m, so it's twenty craft-widths and
-// reads as a cave rather than a drainpipe.
-// The tube STARTS in open air and runs into the rising hillside, so the mouth
-// is wherever the ground climbs through it — an opening that must exist,
-// rather than one you hope you placed at the right height.
-const MOUTH = { x: -140, y: 120, z: 0 }
-const HALL = { x: 240, y: 60, z: 0 } // deep inside, and lower
+// SHAPE THE GROUND TO SUIT THE TUNNEL, rather than booleaning a tube against
+// whatever hillside happens to be there. A `gulley` landform cuts a
+// flat-floored channel ending in a near-vertical FACE, and the tunnel starts
+// in that face — so the mouth is a circle meeting a plane, roughly
+// perpendicular, instead of a tube grazing a slope and breaking the surface
+// in a dozen places (each of which needs its own seam, and gets tile skirts
+// hanging into it).
+const FACE = { x: 60, z: 0 } // where the cliff stands
+const FLOOR = 70 // gulley floor height at the face
+terrain.landform = gulley({
+  x: FACE.x, z: FACE.z,
+  heading: Math.PI, // the gulley runs out toward −x; you fly in along it
+  width: 90, length: 320, floorY: FLOOR, rampFraction: 0.55,
+})
+
+// The tunnel drives INTO the hill from the face (+x), staying underground the
+// whole way — it never has to break the surface again.
+const MOUTH = { x: FACE.x - 6, y: FLOOR + 26, z: 0 }
+const HALL = { x: 330, y: FLOOR - 10, z: 40 }
 const cave = warp(
   roughen(
     smoothUnion(
       34,
-      // the run in: mouth → a bend → the hall, descending gently the whole way
       tube(
-        [MOUTH, { x: 20, y: 96, z: 40 }, { x: 150, y: 74, z: 10 }, HALL],
-        [30, 26, 24, 34]
+        [MOUTH, { x: 150, y: FLOOR + 20, z: 10 }, { x: 250, y: FLOOR + 4, z: 30 }, HALL],
+        [26, 24, 26, 34]
       ),
-      sphere(HALL, 78), // the great hall
-      sphere({ x: 120, y: 82, z: 60 }, 40), // a side chamber off the bend
+      sphere(HALL, 74),
+      sphere({ x: 195, y: FLOOR + 34, z: -50 }, 38), // a side chamber
     ),
-    { amp: 5, scale: 0.016, octaves: 3, seed: 7 }
+    { amp: 4, scale: 0.018, octaves: 3, seed: 7 }
   ),
-  { amp: 14, scale: 0.005, octaves: 2, seed: 3 }
+  { amp: 10, scale: 0.006, octaves: 2, seed: 3 }
 )
 
 const patch = b3dPatch({
-  minX: -190, maxX: 340, minZ: -120, maxZ: 130,
-  depth: 220, rise: 20,
+  minX: 0, maxX: 420, minZ: -140, maxZ: 150,
+  depth: 150, rise: 40,
   spacing: 3.5, jitter: 0.3, level: 4, chunkCells: 8,
 })
-// Flange the mouth: the tunnel splays out over the last 40m below the
-// surface while the terrain's own rim folds down to meet it, so the two
-// overlap rather than meeting exactly — a grid-cut hole and an SDF tube can
-// never agree on a boundary, so each hides the other's excess.
-patch.field = flange(applyCarve(cave), 40, 22)
+patch.field = applyCarve(cave)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because
@@ -115,7 +119,7 @@ preview.append(b3d(
   // The HUD lives in COCKPIT view (press the view button / V). Without a
   // <tosi-b3d-hud> in the scene there is no HUD at all, in any view.
   b3dHud({}),
-  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: -30, y: 95, z: 30 }),
+  b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 54, y: 96, z: 0 }),
   b3dDeath({ title: 'DOWN', spectate: 'chase', respawn() { focus.appendChild(plane()) } }),
   focus,
 ))

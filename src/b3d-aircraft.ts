@@ -176,7 +176,7 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
-| `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
+| `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 | `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
@@ -339,7 +339,13 @@ export class B3dAircraft extends B3dControllable {
     // speed (take off vertically, then fly) AND the brake can't stall you below
     // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
     // vertical landing. 0 = altitude gate off (regime is speed-only).
-    hoverCeiling: 50,
+    // 50m put the hover regime out of reach in normal flight over broken
+    // ground: you had to descend into a valley before the brake could stall
+    // you, which reads as "the brake doesn't work" (Tonio diagnosed it as
+    // altitude-driven). 140m keeps the intent — you can't decelerate into a
+    // hover from cruise ALTITUDE — while making hovering reachable wherever
+    // you'd actually want it.
+    hoverCeiling: 140,
     // Assumed ground-plane height (used as a floor in addition to any terrain
     // colliders the downward raycast hits).
     groundY: 0,

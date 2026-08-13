@@ -178,6 +178,36 @@ should usually also generate — or at least not preclude — an alternative. A 
 whose only outcome is "come back with the key" is the failure mode above wearing
 level design's clothes.
 
+## Entrances: shape the ground, don't boolean it
+
+> **Learned the hard way, 2026-08-13.** The plan said to cut the mouth by
+> masking tiles where the carve breaks the surface, then reconcile the seam
+> (rim tuck, margin blend). We built that. It doesn't work, and the reason is
+> structural rather than a matter of tuning.
+
+An arbitrary heightfield meets an extracted tube at whatever angle the hill
+happens to have. Where the tube runs *nearly parallel* to the ground — which
+it does constantly, because both are shaped by the same landscape — it breaks
+the surface repeatedly in a rash of small openings, each with its own seam,
+each collecting the tile skirts that hang below it. Every fix aimed at the
+boundary (a bigger rim collar, a flange, a probe depth) improves one crossing
+and creates another somewhere else, because the *conditioning* is the problem:
+two surfaces meeting at a grazing angle have no well-defined boundary to
+reconcile.
+
+**So shape the ground to suit the tunnel.** `landform.gulley` cuts a
+flat-floored channel ending in a near-vertical FACE, and the tunnel starts in
+that face. The mouth becomes a circle meeting a plane, roughly perpendicular —
+the best-conditioned intersection available — and the approach is a corridor
+you fly down. The player reads it as an excavated entrance, because that's
+exactly what it is.
+
+The general rule this is an instance of: **where a tunnel must meet the
+surface, author the surface.** Interiors can be arbitrary — underground there
+is no tile to disagree with — but every *transition* wants a landform placed
+deliberately, not discovered. The topology compiler should therefore emit a
+landform per entrance portal, not only a carve.
+
 ## Stage 3 — the voxel map
 
 **Sparse, chunked, integer-addressed.** Only carved cells are stored, so a 2 km
