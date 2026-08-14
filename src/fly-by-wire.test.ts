@@ -10,6 +10,7 @@ import {
   targetVelocity,
   chaseVelocity,
   regime,
+  equilibriumSpeed,
   type FlyByWireConfig,
   type FlyByWireState,
 } from './fly-by-wire'
@@ -162,10 +163,11 @@ describe('regime split (drone ↔ plane)', () => {
     expect(tv.y).toBeGreaterThan(5) // it climbed instead
   })
 
-  test('plane mode: trigger IS throttle', () => {
-    const s = state({ speed: 30 })
-    run(s, { pitch: 0, roll: 0, lift: 1 }, 30, 30) // fast → plane
-    expect(s.speed).toBeGreaterThan(30) // sped up
+  test('plane mode: the trigger raises the throttle LEVER', () => {
+    const s = state({ speed: 30, throttle: 0.4 })
+    run(s, { pitch: 0, roll: 0, lift: 1 }, 30, 240) // fast → plane
+    expect(s.throttle).toBeGreaterThan(0.4) // the lever moved…
+    expect(s.speed).toBeGreaterThan(30) // …and speed follows it
   })
 
   test('plane mode: left trigger slows you down', () => {
@@ -214,11 +216,9 @@ describe('afterburner & cruise', () => {
         flyByWireStep(s, NO_INPUT, s.speed, 0, CFG, DT, false)
       return s.speed
     }
-    expect(settle(20)).toBeCloseTo(CFG.afterburnerSpeed, 0) // accelerates up to it
-    expect(settle(CFG.afterburnerSpeed * 1.5)).toBeCloseTo(
-      CFG.afterburnerSpeed,
-      0
-    ) // and drag brings it back down to the same place
+    // full LEVER is MILITARY thrust — the fastest you can just leave it
+    expect(settle(20)).toBeCloseTo(CFG.maxSpeed, 0)
+    expect(settle(CFG.maxSpeed * 1.5)).toBeCloseTo(CFG.maxSpeed, 0)
   })
 
   test('a coasting aircraft DECAYS by drag — speed is no longer self-sustaining', () => {
@@ -231,9 +231,11 @@ describe('afterburner & cruise', () => {
     expect(idle.speed).toBeLessThan(35)
 
     // …and a lever set for 35 HOLDS 35: equilibrium, not memory.
+    // the lever that holds 35 is (35/maxSpeed)² — military is the reference
+    // now, not afterburner
     const cruise = state({
       speed: 35,
-      throttle: (35 / CFG.afterburnerSpeed) ** 2,
+      throttle: (35 / CFG.maxSpeed) ** 2,
     })
     for (let i = 0; i < 600; i++)
       flyByWireStep(cruise, NO_INPUT, cruise.speed, 0, CFG, DT, false)
@@ -464,7 +466,7 @@ describe('throttle is a SETTING, not a speed (Tonio, 2026-08-13)', () => {
     const high = at(1)
     expect(low).toBeLessThan(mid)
     expect(mid).toBeLessThan(high)
-    expect(high).toBeCloseTo(CFG.afterburnerSpeed, 0)
+    expect(high).toBeCloseTo(CFG.maxSpeed, 0) // full lever = military
   })
 
   test('the trigger MOVES the lever rather than being the speed', () => {

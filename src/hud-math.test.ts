@@ -233,3 +233,47 @@ describe('lockFillOpacity — a trace solidifies as the radar builds a lock', ()
     expect(lockFillOpacity(5)).toBe(0.5) // clamped, not 2.5
   })
 })
+
+import { arcDashArray } from './hud-math'
+
+/*
+One path, several spans: the trick the meter marks use, generalised. A single
+arc can carry a fill, a set-point notch and a ground reference without four
+copies of the geometry to keep aligned — so the maths has to be right, because
+a malformed dasharray fails silently (it just draws something plausible).
+*/
+describe('arcDashArray — many bars on one arc', () => {
+  const nums = (s: string) => s.split(' ').map(Number)
+
+  test('a single span lights exactly that range', () => {
+    const d = nums(arcDashArray([[0.25, 0.5]], 1000))
+    expect(d).toEqual([0, 250, 250, 500]) // lead-in gap, dash, trailing gap
+  })
+
+  test('the leading zero makes the FIRST entry a gap, not a dash', () => {
+    expect(nums(arcDashArray([[0.5, 0.6]], 1000))[0]).toBe(0)
+  })
+
+  test('several spans coexist on one path', () => {
+    const d = nums(arcDashArray([[0, 0.1], [0.4, 0.5], [0.9, 1]], 1000))
+    // 0 | dash 100 | gap 300 | dash 100 | gap 400 | dash 100 | gap 0
+    expect(d).toEqual([0, 0, 100, 300, 100, 400, 100, 0])
+    // dashes (odd indices after the lead) sum to the lit total
+    expect(d[2] + d[4] + d[6]).toBe(300)
+  })
+
+  test('overlapping spans MERGE rather than corrupting the array', () => {
+    const d = nums(arcDashArray([[0.2, 0.5], [0.4, 0.7]], 1000))
+    expect(d).toEqual([0, 200, 500, 300]) // one 0.2→0.7 dash
+  })
+
+  test('out-of-order and out-of-range input is tolerated', () => {
+    expect(nums(arcDashArray([[0.6, 0.3]], 1000))).toEqual([0, 300, 300, 400])
+    expect(nums(arcDashArray([[-1, 2]], 1000))).toEqual([0, 0, 1000, 0])
+  })
+
+  test('empty or degenerate spans light nothing', () => {
+    expect(nums(arcDashArray([], 1000))).toEqual([0, 1000])
+    expect(nums(arcDashArray([[0.5, 0.5]], 1000))).toEqual([0, 1000])
+  })
+})

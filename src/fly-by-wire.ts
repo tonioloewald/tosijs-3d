@@ -32,6 +32,9 @@ export interface FlyByWireConfig {
    * like a direct speed control again.
    */
   throttleRate?: number
+  /** Trigger deflection past which AFTERBURNER lights, with the lever already
+   * at military. Held only — releasing drops you back to military thrust. */
+  afterburnerDetent?: number
   /** Airbrake authority (units/s²) once the throttle lever is at idle. */
   brakeAccel?: number
   /** Rate (1/s) afterburner speed bleeds back to maxSpeed once the throttle is
@@ -111,6 +114,9 @@ export interface FlyByWireState {
    * nothing about the power setting changed.
    */
   throttle?: number
+  /** 0..1 reheat, live — nonzero only while the trigger is held past the
+   * detent at full lever. Read it to light an afterburner effect. */
+  afterburner?: number
 }
 
 export interface Vec3 {
@@ -209,9 +215,28 @@ export function flyByWireStep(
   const throttleRate = cfg.throttleRate ?? 0.8
   const setting = clamp((state.throttle ?? 0) + lift * throttleRate * dt, 0, 1)
   state.throttle = setting
-  const topSpeed = Math.max(cfg.maxSpeed, cfg.afterburnerSpeed)
-  // drag chosen so full throttle balances at topSpeed: k = accel / topSpeed²
-  const dragK = topSpeed > 0 ? cfg.accel / (topSpeed * topSpeed) : 0
+
+  /*
+  THE LEVER TOPS OUT AT MILITARY THRUST; AFTERBURNER IS HELD, NOT PARKED.
+
+  Full lever settles at `maxSpeed` — military power, the fastest you can just
+  leave it. Afterburner is what you get for holding the trigger PAST a detent,
+  and it stops the moment you let go, so you sink back to military speed
+  instead of cruising in reheat forever. That's how the real control works,
+  and it removes the oddity Tonio hit: a resting setting that quietly kept
+  accelerating past the aircraft's advertised top speed.
+  */
+  const dragK = cfg.maxSpeed > 0 ? cfg.accel / (cfg.maxSpeed * cfg.maxSpeed) : 0
+  const detent = cfg.afterburnerDetent ?? 0.9
+  const reheat =
+    setting >= 0.999 && lift > detent
+      ? (lift - detent) / Math.max(1e-3, 1 - detent)
+      : 0
+  state.afterburner = reheat
+  // Extra thrust sized so full reheat balances exactly at afterburnerSpeed.
+  const abRatio =
+    cfg.maxSpeed > 0 ? cfg.afterburnerSpeed / cfg.maxSpeed : 1
+  const reheatAccel = cfg.accel * Math.max(0, abRatio * abRatio - 1)
   // AIRBRAKE: once the lever is at idle, further back-pressure is a brake
   // rather than a no-op. Without it a lever-based throttle leaves you with
   // only drag to slow you — realistic for a clean airframe, useless for a
@@ -221,7 +246,10 @@ export function flyByWireStep(
     setting <= 1e-6 && lift < 0 ? -lift * (cfg.brakeAccel ?? cfg.accel) : 0
   state.speed +=
     t *
-    (cfg.accel * setting - dragK * state.speed * state.speed - airbrake) *
+    (cfg.accel * setting +
+      reheatAccel * reheat -
+      dragK * state.speed * state.speed -
+      airbrake) *
     dt
   // DRONE FORE/AFT IS THE LEAN, AND IT IS SYMMETRIC. Nose down accelerates,
   // nose UP decelerates and — past zero — walks you backwards. This used to be
@@ -354,4 +382,24 @@ export function chaseVelocity(
   vel.x += (target.x - vel.x) * c
   vel.y += (target.y - vel.y) * c
   vel.z += (target.z - vel.z) * c
+}
+
+/**
+ * The speed this configuration will SETTLE at: where thrust balances drag in
+ * level flight. This is what a throttle lever actually commands, and what the
+ * HUD should mark — with a lever, the needle is always travelling toward this
+ * rather than sitting on it, and a gauge that doesn't show it looks broken.
+ */
+export function equilibriumSpeed(
+  cfg: FlyByWireConfig,
+  throttle: number,
+  afterburner = 0
+): number {
+  if (cfg.maxSpeed <= 0 || cfg.accel <= 0) return 0
+  const dragK = cfg.accel / (cfg.maxSpeed * cfg.maxSpeed)
+  const abRatio = cfg.afterburnerSpeed / cfg.maxSpeed
+  const reheatAccel = cfg.accel * Math.max(0, abRatio * abRatio - 1)
+  const thrust =
+    cfg.accel * clamp(throttle, 0, 1) + reheatAccel * clamp(afterburner, 0, 1)
+  return Math.sqrt(Math.max(0, thrust / dragK))
 }

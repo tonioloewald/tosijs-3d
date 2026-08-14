@@ -127,6 +127,7 @@ export {
   glassUV,
   hudPointFromUV,
   lockFillOpacity,
+  arcDashArray,
 } from './hud-math'
 export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math'
 // HUD driver (meters / horizon / radar traces over the HUD SVG)

@@ -184,6 +184,7 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `gearTime` | `2.5` | Seconds for a full gear cycle |
 | `gearSound` | `''` | Optional URL played spatially at the airframe on each gear transition |
 | `gearVolume` | `0.6` | Volume for `gearSound` |
+| `afterburnerSpeed` (behaviour) | — | Reached only while the trigger is HELD past the detent at full lever; release and you settle back to `maxSpeed` (military) |
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
@@ -216,6 +217,21 @@ Shells inherit the airframe's velocity, so your own motion leads the shot. Any
 
 `fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
 an AI pilot). Set `weapons="off"` to disarm.
+
+## The throttle is a LEVER, and the HUD marks where it's taking you
+
+Full lever = **military** thrust, the fastest speed you can simply leave set.
+**Afterburner is held, not parked**: it lights only while the trigger is past
+a detent with the lever already at full, and letting go settles you back to
+military speed rather than cruising in reheat.
+
+Because a lever commands an *equilibrium*, the needle is always travelling
+toward a number rather than sitting on one — which looks like a fault if the
+gauge doesn't show the target. The HUD therefore marks it (`setMeterMarks`),
+and the same mechanism marks **sea level** on the altimeter when you drop
+below it and **the ground beneath you** when that's higher: an altimeter reads
+height above datum, which is the wrong number exactly when terrain is the
+thing about to hit you.
 
 ## The right stick is the CAMERA
 
@@ -270,6 +286,7 @@ import { B3dControllable } from './b3d-controllable'
 import type { ControlInput } from './control-input'
 import { aircraftMapping } from './virtual-gamepad'
 import {
+  equilibriumSpeed,
   flyByWireStep,
   targetVelocity,
   chaseVelocity,
@@ -325,6 +342,7 @@ type HudSink = {
   setHorizon(pitch: number, roll: number, angle?: number): void
   setVisible(visible: boolean): void
   setHorizonVisible?(visible: boolean): void
+  setMeterMarks?(name: string, levels: number[]): void
   setWarnings(warnings: Array<{ text: string; side?: string }>): void
   /** World positions + the eye; the HUD projects them onto its own quad. */
   setTraces?(
@@ -732,6 +750,26 @@ export class B3dAircraft extends B3dControllable {
             : 0
         )
         this._hud.setMeter('altitude', this.altitude / attrs.ceiling)
+        // REFERENCE MARKS — what a bare fill can't say.
+        //
+        // speed: with a throttle lever the needle is always TRAVELLING toward
+        // an equilibrium, so mark where it's going; without it, speed rising
+        // after you release the trigger reads as a fault rather than as the
+        // aircraft doing what you asked (Tonio).
+        //
+        // altitude: sea level once you're below it, and the GROUND beneath you
+        // whenever that's above sea level — the altimeter reads height above
+        // datum, which is the wrong number precisely when terrain is the thing
+        // about to hit you.
+        this._hud.setMeterMarks?.('speed', [
+          equilibriumSpeed(cfg, this.fbw.throttle ?? 0, this.fbw.afterburner ?? 0) /
+            topSpeed,
+        ])
+        const altMarks: number[] = []
+        const groundY = node.position.y - this._lastGroundDist
+        if (groundY > 0) altMarks.push(groundY / attrs.ceiling)
+        if (this.altitude < 0) altMarks.push(0)
+        this._hud.setMeterMarks?.('altitude', altMarks)
         // Nose-up should slide the horizon down — flip here if it reads inverted.
         this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD)
         // Warnings on the graphical HUD: PULL UP flashes the bottom arc (ground

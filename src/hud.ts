@@ -27,7 +27,9 @@ hud.setMeter('airspeed', 0.6) // then mount hud's SVG in an overlay, or use <tos
 /*{ "parent": "Core" }*/
 
 import { svgElements } from 'tosijs'
-import { sideFromD, lockFillOpacity, type Side } from './hud-math'
+import { sideFromD, lockFillOpacity, type Side,
+  arcDashArray,
+} from './hud-math'
 import type { Vec3 } from './spatial-transform'
 
 export type { Side } from './hud-math'
@@ -91,6 +93,20 @@ export type HudController = {
    * so they stay.
    */
   setHorizonVisible(visible: boolean): void
+  /**
+   * REFERENCE MARKS on a meter — a notch at a level, drawn on the meter's own
+   * arc so it can't drift out of alignment with the fill.
+   *
+   * What a bare fill can't say: with a throttle LEVER your speed is heading
+   * TOWARD an equilibrium rather than sitting at one, and a needle with no
+   * target looks like it's misbehaving (Tonio watched speed climb after
+   * releasing the trigger and read it as a fault). A notch answers "where is
+   * this going?" Same trick serves the altimeter: sea level when you're below
+   * it, and the ground beneath you when that's higher.
+   *
+   * Levels are in the same 0..1 space as `setMeter`. Pass `[]` to clear.
+   */
+  setMeterMarks(name: MeterName, levels: number[]): void
 }
 
 const SVGNS = 'http://www.w3.org/2000/svg'
@@ -172,6 +188,8 @@ export const HUD_PIN_RADIUS = 116
 const CENTER = HUD_CENTER // HUD viewBox centre
 const PATH_LEN = 1000 // matches pathLength="1000" on the meter arcs
 
+
+
 export type HudControllerOptions = {
   /**
    * Pixels per degree of pitch. Also the copy spacing: the three ladder copies are
@@ -203,6 +221,39 @@ export function createHudController(
       // Vertical arcs fill from the path start (which is the bottom): bottom→top.
       p.setAttribute('stroke-dasharray', `${on} ${PATH_LEN}`)
     }
+  }
+
+  // Marks are CLONES of the meter path, so they follow the same arc geometry
+  // by construction — no second set of coordinates to keep in sync when the
+  // HUD art changes. Each carries a single short dash at its level.
+  const markPaths = new Map<string, SVGPathElement[]>()
+  const MARK_LEN = 14 // path units out of PATH_LEN
+  const setMeterMarks = (name: MeterName, levels: number[]) => {
+    const p = el.querySelector(`#meter-${name}`) as SVGPathElement | null
+    if (p == null) return
+    const list = markPaths.get(name) ?? []
+    while (list.length < levels.length) {
+      const clone = p.cloneNode(false) as SVGPathElement
+      clone.removeAttribute('id')
+      clone.setAttribute('data-mark', name)
+      clone.setAttribute('opacity', '0.85')
+      p.parentNode?.insertBefore(clone, p.nextSibling)
+      list.push(clone)
+    }
+    while (list.length > levels.length) list.pop()?.remove()
+    markPaths.set(name, list)
+    const horizontal = p.getAttribute('data-axis') === 'h'
+    const half = MARK_LEN / PATH_LEN / 2
+    levels.forEach((level, i) => {
+      // A horizontal arc fills middle-out, so a level's EDGE is where its fill
+      // would reach; a vertical arc is a straight run from the start.
+      const t = clamp01(level)
+      const pos = horizontal ? 0.5 + t / 2 : t
+      list[i].setAttribute(
+        'stroke-dasharray',
+        arcDashArray([[pos - half, pos + half]])
+      )
+    })
   }
 
   const ladder = el.querySelector('#horizon-ladder') as SVGGElement | null
@@ -329,7 +380,15 @@ export function createHudController(
     )
   }
 
-  return { el, setMeter, setHorizon, setTraces, setWarnings, setHorizonVisible }
+  return {
+    el,
+    setMeter,
+    setMeterMarks,
+    setHorizon,
+    setTraces,
+    setWarnings,
+    setHorizonVisible,
+  }
 }
 
 const { svg, g, path, rect, circle, text, defs } = svgElements

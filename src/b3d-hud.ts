@@ -198,6 +198,7 @@ export class B3dHud extends B3dChild {
       // Replay anything set before the async asset resolved.
       for (const [k, v] of this._meters) c.setMeter(k, v)
       if (this._horizon) c.setHorizon(...this._horizon)
+      for (const [n, l] of this._marks) c.setMeterMarks?.(n, l)
       c.setHorizonVisible(this._horizonVisible)
       if (this._warnings) c.setWarnings(this._warnings)
       if (this._inSceneParent != null) this._buildInScenePlane()
@@ -310,6 +311,14 @@ export class B3dHud extends B3dChild {
     this._meters.set(name, level)
     this.controller?.setMeter(name, level)
   }
+
+  /** Reference marks (notches) on a meter — see `hud.setMeterMarks`. */
+  setMeterMarks(name: MeterName, levels: number[]): void {
+    this._marks.set(name, levels)
+    this.controller?.setMeterMarks?.(name, levels)
+  }
+
+  private _marks = new Map<MeterName, number[]>()
 
   /** Drive the horizon: pitch/roll in degrees, optional centre AoA number. */
   setHorizon(pitchDeg: number, rollDeg: number, angle?: number): void {
