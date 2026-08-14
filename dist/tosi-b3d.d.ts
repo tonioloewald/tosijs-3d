@@ -359,6 +359,25 @@ export declare class B3d extends Component {
     private _qualityOff;
     private static _probeStarted;
     private _setupQuality;
+    /**
+     * Run the device probe once the scene has actually settled.
+     *
+     * It used to go out on `setTimeout(…, 0)`, described as "deferred" — but a 0 ms
+     * timeout defers by ONE TASK, so the benchmark ran inside the host scene's
+     * heaviest moment: terrain building, shaders compiling, GLBs parsing. The probe
+     * times GPU and CPU work against a fixed reference, so contention inflates every
+     * measurement, and `classify()` puts anything scoring below 0.6 — under ~1.67×
+     * the medium baseline — in the LOW tier. The result is then cached for 30 days.
+     *
+     * So the machine most able to show the engine off got the most conservative
+     * budgets, because it loads the biggest scene and therefore contends the most,
+     * and it stayed that way for a month. (tosijs-3d#11, reported on an M5 Max
+     * holding 120fps.) Measuring an idle machine is the entire point of measuring.
+     *
+     * A spin-up sequence would let us measure a KNOWN workload during load instead
+     * of waiting for quiet — see TODO.md. This is the fix that doesn't need one.
+     */
+    private _probeWhenIdle;
     private _applyHardwareScaling;
     private _ambient;
     /** Shrunk by the watchdog, never grown. See `ratchetPool` — and TODO: reclaiming budget in
@@ -367,8 +386,32 @@ export declare class B3d extends Component {
     private _ambientSampleMs;
     private _ambientBadSamples;
     private _ambientCooldownMs;
-    /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`. */
+    /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`.
+     * A FLOOR, not the whole rule: `sceneBusy` holds the countdown while assets are
+     * still landing, so this is the quiet time required AFTER loading finishes. */
     private _ambientWarmupMs;
+    /**
+     * Is the scene still building itself? Any frame-rate judgement taken while this
+     * is true says nothing about the hardware.
+     *
+     * A fixed timer can't answer this: a streaming world loads for longer than any
+     * number you'd pick, and a trivial scene settles sooner. `getWaitingItemsCount`
+     * is what `reveal()` already trusts for exactly this question, and terrain
+     * publishes its own settle state, so this asks THEM rather than the clock.
+     * (tosijs-3d#11, manta-recon: ambient was shed during the loading screen and
+     * ratcheted to zero for the session, on hardware that then ran fine.)
+     */
+    get sceneBusy(): boolean;
+    /**
+     * The ambient pool multiplier the watchdog has ratcheted down (1 = untouched,
+     * 0 = garnish shed for the session).
+     *
+     * Settable because the watchdog's verdict is one-way by design, and a game may
+     * legitimately know better — "that was the loading screen, try again". Manta
+     * was reaching into two privates to say exactly that (#11).
+     */
+    get ambientPoolScale(): number;
+    set ambientPoolScale(scale: number);
     /** An ambient effect joins the scene's pool. Returns its unregister. */
     registerAmbient(effect: AmbientEffect): () => void;
     /** Divide the pool and tell everyone what they got (0 = switch off). */

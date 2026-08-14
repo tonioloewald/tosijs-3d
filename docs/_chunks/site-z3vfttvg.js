@@ -1,0 +1,5 @@
+import{bs as J}from"./site-mwjhmfjj.js";import{ku as I}from"./site-v2rprchq.js";import{sE as H}from"./site-c9kedmgh.js";class K extends J{constructor(m){super(m);this.sound=this.registerDataInput("sound",I)}_preparePendingTasks(m){let q=this.sound.getValue(m);if(!q){this._reportError(m,"No sound provided for sound-ended event");return}let z=q.onEndedObservable.add(()=>{this._execute(m)});m._setExecutionVariable(this,"_soundEndedObserver",z),m._setExecutionVariable(this,"_subscribedSound",q)}_executeEvent(m,q){return!0}_cancelPendingTasks(m){let q=m._getExecutionVariable(this,"_soundEndedObserver",null),z=m._getExecutionVariable(this,"_subscribedSound",null);if(q&&z)z.onEndedObservable.remove(q);m._setExecutionVariable(this,"_soundEndedObserver",null),m._setExecutionVariable(this,"_subscribedSound",null)}getClassName(){return"FlowGraphSoundEndedEventBlock"}}var D=!1;function L(){if(D)return;D=!0,H("FlowGraphSoundEndedEventBlock",K)}L();
+export{K as Rm,L as Sm};
+
+//# debugId=7FFF3ABC7DEDE67764756E2164756E21
+//# sourceMappingURL=site-z3vfttvg.js.map

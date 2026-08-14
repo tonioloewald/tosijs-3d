@@ -6,6 +6,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.0
 
+> **Beta builds cut from this section** (tarballs, not npm releases — see
+> `RELEASING.md`'s tagged-but-unpublished window):
+>
+> - **0.7.0-beta.1** (2026-08-14) — everything below, including the four
+>   manta-recon issues fixed that day: #9 (crashed aircraft eats input) and the
+>   `b3d-death` latching bug behind it, #10 (`aircraftMapping` ignored its
+>   config), #11 (probe and ambient watchdog measuring during load), #12 (the sky
+>   ignored the water you were under).
+
 **Aircraft that fly like aircraft, and the substrate for volumetric terrain.**
 No peer-dependency changes, but this is a **behaviour** release: the throttle,
 the right stick and the on-screen gamepad all work differently, and one

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/clipPlaneFragmentDeclaration.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"clipPlaneFragmentDeclaration\";\nconst shader = `#ifdef CLIPPLANE\nvarying float fClipDistance;\n#endif\n#ifdef CLIPPLANE2\nvarying float fClipDistance2;\n#endif\n#ifdef CLIPPLANE3\nvarying float fClipDistance3;\n#endif\n#ifdef CLIPPLANE4\nvarying float fClipDistance4;\n#endif\n#ifdef CLIPPLANE5\nvarying float fClipDistance5;\n#endif\n#ifdef CLIPPLANE6\nvarying float fClipDistance6;\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const clipPlaneFragmentDeclaration = { name, shader };\n//# sourceMappingURL=clipPlaneFragmentDeclaration.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,+BACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,EAoBf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAA+B,CAAE,OAAM,QAAO",
+  "debugId": "182EF9EF1E9B4F6364756E2164756E21",
+  "names": []
+}

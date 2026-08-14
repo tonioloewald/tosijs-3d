@@ -1,0 +1,5 @@
+import{Vr as H}from"./site-cg7jrefc.js";import{bs as J}from"./site-mwjhmfjj.js";import{lu as C,nu as A}from"./site-v2rprchq.js";class N extends J{constructor(q){super(q);this.key=this.registerDataInput("key",C),this.keyCode=this.registerDataOutput("keyCode",C),this.keyValue=this.registerDataOutput("keyValue",C),this.shiftKey=this.registerDataOutput("shiftKey",A),this.ctrlKey=this.registerDataOutput("ctrlKey",A),this.altKey=this.registerDataOutput("altKey",A),this.metaKey=this.registerDataOutput("metaKey",A),this.commandOrCtrl=this.registerDataOutput("commandOrCtrl",A)}_executeEvent(q,L){let z=L.event,D=this.key.getValue(q);if(D&&D!==z.code)return!0;return this.keyCode.setValue(z.code,q),this.keyValue.setValue(z.key,q),this.shiftKey.setValue(z.shiftKey,q),this.ctrlKey.setValue(z.ctrlKey,q),this.altKey.setValue(z.altKey,q),this.metaKey.setValue(z.metaKey,q),this.commandOrCtrl.setValue(H?z.metaKey:z.ctrlKey,q),this._execute(q),!this.config?.stopPropagation}_preparePendingTasks(q){}_cancelPendingTasks(q){}}
+export{N as En};
+
+//# debugId=9845F902A411A6CE64756E2164756E21
+//# sourceMappingURL=site-04bvvapf.js.map

@@ -302,13 +302,17 @@ export const carMappingDescriptor = {
         leftBumper: 'nitro',
     },
 };
-export function aircraftMapping(_config) {
+export function aircraftMapping(config) {
+    const pitchSign = config?.invertPitch ? 1 : -1;
+    const rollSign = config?.invertRoll ? -1 : 1;
+    const cameraYSign = config?.invertCameraY ? 1 : -1;
     return (pad) => {
         const input = emptyInput();
         // Inverted on purpose — pull back (stick toward you) = nose UP, classic flight
-        // stick convention. Without this, pulling back drops the nose.
-        input.pitch = -pad.leftStickY;
-        input.turn = pad.leftStickX; // bank → turn
+        // stick convention. Without this, pulling back drops the nose. `invertPitch`
+        // flips it for projects that want the arcade convention.
+        input.pitch = pitchSign * pad.leftStickY;
+        input.turn = rollSign * pad.leftStickX; // bank → turn
         // RIGHT STICK IS THE CAMERA, not a control surface. Aux roll on the right
         // stick was near-useless (the left stick already banks, and bank-to-turn
         // means a second roll axis fights it); swinging the view is what a pilot
@@ -316,7 +320,7 @@ export function aircraftMapping(_config) {
         input.lookX = pad.rightStickX;
         // Negated to match the left stick's convention (up = positive), so
         // positive lookY means "look from ABOVE" in both views.
-        input.lookY = -pad.rightStickY;
+        input.lookY = cameraYSign * pad.rightStickY;
         // Trigger axis is the VTOL controller's dual-purpose lift: + (right trigger) =
         // climb when hovering / speed-up when flying; − (left trigger) = descend / slow
         // down. The flight model integrates it per-regime (no detents — direct rate).

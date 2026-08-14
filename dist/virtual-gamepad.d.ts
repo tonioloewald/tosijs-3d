@@ -43,8 +43,28 @@ export interface ThrottleDetentConfig {
     /** How fast the throttle moves (full range per second). Default 1.5 */
     rate: number;
 }
-export declare function aircraftMapping(_config?: Partial<ThrottleDetentConfig>): InputMapping;
-export declare function aircraftMappingDescriptor(config?: Partial<ThrottleDetentConfig>): InputMappingDescriptor;
+/**
+ * Preferences that change what an axis MEANS, which is the mapping's job and
+ * nobody else's.
+ *
+ * `invertPitch` is the one nearly every project eventually wants: we ship the
+ * flight-stick convention (pull back = nose up) and a large slice of players
+ * expect the arcade one. Without this knob the natural place to implement it is
+ * `entity.inputProvider` — which is per-entity and per-consumer, so the keyboard
+ * ends up inverted and the glass gamepad doesn't, from a setting that was meant
+ * to be global. That happened (tosijs-3d#10, reported by manta-recon); the
+ * mapping is the only layer every source passes through.
+ */
+export interface AircraftMappingConfig extends Partial<ThrottleDetentConfig> {
+    /** Push forward = nose up (arcade), instead of the flight-stick convention. */
+    invertPitch?: boolean;
+    /** Reverse the bank/turn axis. */
+    invertRoll?: boolean;
+    /** Reverse the look/camera pitch axis. */
+    invertCameraY?: boolean;
+}
+export declare function aircraftMapping(config?: AircraftMappingConfig): InputMapping;
+export declare function aircraftMappingDescriptor(config?: AircraftMappingConfig): InputMappingDescriptor;
 export declare class MappedInputProvider implements InputProvider {
     private sources;
     mapping: InputMapping;

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Engines/WebGPU/webgpuPerfCounter.js"],
+  "sourcesContent": [
+    "import { PerfCounter } from \"../../Misc/perfCounter.js\";\n/**\n * Class used to define a WebGPU performance counter\n */\nexport class WebGPUPerfCounter {\n    constructor() {\n        this._gpuTimeInFrameId = -1;\n        /**\n         * The GPU time in nanoseconds spent in the last frame\n         */\n        this.counter = new PerfCounter();\n    }\n    /**\n     * @internal\n     */\n    _addDuration(currentFrameId, duration) {\n        if (currentFrameId < this._gpuTimeInFrameId) {\n            return;\n        }\n        if (this._gpuTimeInFrameId !== currentFrameId) {\n            this.counter._fetchResult();\n            this.counter.fetchNewFrame();\n            this.counter.addCount(duration, false);\n            this._gpuTimeInFrameId = currentFrameId;\n        }\n        else {\n            this.counter.addCount(duration, false);\n        }\n    }\n}\n//# sourceMappingURL=webgpuPerfCounter.js.map"
+  ],
+  "mappings": "wCAIO,MAAM,CAAkB,CAC3B,WAAW,EAAG,CACV,KAAK,kBAAoB,GAIzB,KAAK,QAAU,IAAI,EAKvB,YAAY,CAAC,EAAgB,EAAU,CACnC,GAAI,EAAiB,KAAK,kBACtB,OAEJ,GAAI,KAAK,oBAAsB,EAC3B,KAAK,QAAQ,aAAa,EAC1B,KAAK,QAAQ,cAAc,EAC3B,KAAK,QAAQ,SAAS,EAAU,EAAK,EACrC,KAAK,kBAAoB,EAGzB,UAAK,QAAQ,SAAS,EAAU,EAAK,EAGjD",
+  "debugId": "4D1DA3802C5D399364756E2164756E21",
+  "names": []
+}

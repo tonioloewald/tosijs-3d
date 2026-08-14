@@ -279,7 +279,11 @@ export async function runProbe(opts = {}) {
         signature,
         measurements,
         hints,
-        measuredAt: Date.now(),
+        // Backdate a contended measurement to just inside its TTL, so it survives
+        // this session (no re-probing on every scene) and expires by the next one.
+        measuredAt: opts.measuredWhileBusy
+            ? Date.now() - (ttlMs - 5 * 60 * 1000)
+            : Date.now(),
     });
     const profile = resolveProfile(measurements, { cached: false, hints });
     setPerfProfile(profile);

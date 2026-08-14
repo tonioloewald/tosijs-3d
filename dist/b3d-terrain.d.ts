@@ -189,6 +189,18 @@ export declare class B3dTerrain extends B3dChild {
     private createPool;
     private static buildTileTemplate;
     private update;
+    /** Desired tiles not yet built when the last fill pass ran out of budget.
+     * >0 means the ground is still coming in. */
+    private _fillBacklog;
+    /**
+     * Is the terrain still streaming in tiles it wants?
+     *
+     * Published because a frame rate measured while the ground is still building
+     * says nothing about the hardware — `<tosi-b3d>`'s `sceneBusy` asks this
+     * before letting the ambient watchdog or the device probe judge anything
+     * (tosijs-3d#11).
+     */
+    get busy(): boolean;
     private coarsestTileSize;
     /** Build the quadtree config from attributes + a facing/travel interest. */
     private buildConfig;

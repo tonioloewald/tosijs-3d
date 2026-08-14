@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Materials/standardMaterial.js"],
+  "sourcesContent": [
+    "/**\n * Re-exports pure implementation and applies runtime side effects.\n * Import standardMaterial.pure for tree-shakeable, side-effect-free usage.\n */\nexport * from \"./standardMaterial.pure.js\";\nimport { RegisterStandardMaterial } from \"./standardMaterial.pure.js\";\nRegisterStandardMaterial();\n//# sourceMappingURL=standardMaterial.js.map"
+  ],
+  "mappings": "uCAMA,EAAyB",
+  "debugId": "0D44DE4253ED3A0964756E2164756E21",
+  "names": []
+}

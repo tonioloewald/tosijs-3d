@@ -17,6 +17,13 @@ export declare function hydrateProfileFromCache(): boolean;
 export declare function runProbe(opts?: {
     force?: boolean;
     ttlDays?: number;
+    /**
+     * The caller couldn't get a quiet moment and measured anyway. The profile is
+     * still applied — a measured guess beats the safe default — but it is cached
+     * with a SHORT life so the next visit re-measures instead of living with a
+     * verdict taken under contention for a month. See `_probeWhenIdle`.
+     */
+    measuredWhileBusy?: boolean;
 }): Promise<PerfProfile>;
 /** `<tosi-b3d-probe>` — a thin element wrapper around `runProbe` for declarative
  * use. It fires a `profile` event when done; the measurement itself mounts nothing. */

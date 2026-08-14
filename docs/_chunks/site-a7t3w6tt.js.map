@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/morphTargetsVertexGlobal.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"morphTargetsVertexGlobal\";\nconst shader = `#ifdef MORPHTARGETS\n#ifdef MORPHTARGETS_TEXTURE\nfloat vertexID;\n#endif\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const morphTargetsVertexGlobal = { name, shader };\n//# sourceMappingURL=morphTargetsVertexGlobal.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,2BACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA,EAOf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAA2B,CAAE,OAAM,QAAO",
+  "debugId": "9A3CF96C4E8DD6CA64756E2164756E21",
+  "names": []
+}

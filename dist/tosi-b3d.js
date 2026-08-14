@@ -826,17 +826,53 @@ export class B3d extends Component {
         // default until the probe caches for next time.
         if (q === 'auto' && !hydrated && !B3d._probeStarted) {
             B3d._probeStarted = true;
-            setTimeout(() => {
-                runProbe().catch(() => {
-                    /* probing is best-effort — never let it break the host scene */
-                });
-            }, 0);
+            this._probeWhenIdle();
         }
         this._applyHardwareScaling(this.xrActive);
         this._qualityOff = onQualityChange(() => {
             this._applyHardwareScaling(this.xrActive);
             this._reallocAmbient(); // a new tier is a new pool
         });
+    }
+    /**
+     * Run the device probe once the scene has actually settled.
+     *
+     * It used to go out on `setTimeout(…, 0)`, described as "deferred" — but a 0 ms
+     * timeout defers by ONE TASK, so the benchmark ran inside the host scene's
+     * heaviest moment: terrain building, shaders compiling, GLBs parsing. The probe
+     * times GPU and CPU work against a fixed reference, so contention inflates every
+     * measurement, and `classify()` puts anything scoring below 0.6 — under ~1.67×
+     * the medium baseline — in the LOW tier. The result is then cached for 30 days.
+     *
+     * So the machine most able to show the engine off got the most conservative
+     * budgets, because it loads the biggest scene and therefore contends the most,
+     * and it stayed that way for a month. (tosijs-3d#11, reported on an M5 Max
+     * holding 120fps.) Measuring an idle machine is the entire point of measuring.
+     *
+     * A spin-up sequence would let us measure a KNOWN workload during load instead
+     * of waiting for quiet — see TODO.md. This is the fix that doesn't need one.
+     */
+    _probeWhenIdle() {
+        const start = Date.now();
+        let quietFrames = 0;
+        const tick = () => {
+            if (this.engine == null || this.scene == null)
+                return; // scene went away
+            // Give up waiting after 30s and measure anyway: a scene that streams
+            // forever (an endless world) would otherwise never probe at all, and a
+            // stale default is worse than a slightly noisy measurement.
+            const timedOut = Date.now() - start > 30000;
+            quietFrames = this.sceneBusy ? 0 : quietFrames + 1;
+            // ~1s of consecutive settled frames — one quiet frame mid-load proves nothing.
+            if (quietFrames < 60 && !timedOut) {
+                requestAnimationFrame(tick);
+                return;
+            }
+            runProbe({ measuredWhileBusy: timedOut }).catch(() => {
+                /* probing is best-effort — never let it break the host scene */
+            });
+        };
+        requestAnimationFrame(tick);
     }
     _applyHardwareScaling(xr) {
         if (this.engine == null)
@@ -855,8 +891,53 @@ export class B3d extends Component {
     _ambientSampleMs = 0;
     _ambientBadSamples = 0;
     _ambientCooldownMs = 0;
-    /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`. */
-    _ambientWarmupMs = 10000;
+    /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`.
+     * A FLOOR, not the whole rule: `sceneBusy` holds the countdown while assets are
+     * still landing, so this is the quiet time required AFTER loading finishes. */
+    _ambientWarmupMs = 4000;
+    /**
+     * Is the scene still building itself? Any frame-rate judgement taken while this
+     * is true says nothing about the hardware.
+     *
+     * A fixed timer can't answer this: a streaming world loads for longer than any
+     * number you'd pick, and a trivial scene settles sooner. `getWaitingItemsCount`
+     * is what `reveal()` already trusts for exactly this question, and terrain
+     * publishes its own settle state, so this asks THEM rather than the clock.
+     * (tosijs-3d#11, manta-recon: ambient was shed during the loading screen and
+     * ratcheted to zero for the session, on hardware that then ran fine.)
+     */
+    get sceneBusy() {
+        if (this.scene == null)
+            return true;
+        if (this.scene.getWaitingItemsCount() > 0)
+            return true;
+        // Terrain streams in AFTER the asset loader has gone quiet, so
+        // getWaitingItemsCount alone would call a half-built world "settled".
+        for (const t of this.querySelectorAll('tosi-b3d-terrain')) {
+            if (t.busy)
+                return true;
+        }
+        return false;
+    }
+    /**
+     * The ambient pool multiplier the watchdog has ratcheted down (1 = untouched,
+     * 0 = garnish shed for the session).
+     *
+     * Settable because the watchdog's verdict is one-way by design, and a game may
+     * legitimately know better — "that was the loading screen, try again". Manta
+     * was reaching into two privates to say exactly that (#11).
+     */
+    get ambientPoolScale() {
+        return this._ambientPoolScale;
+    }
+    set ambientPoolScale(scale) {
+        const next = Math.max(0, Math.min(1, scale));
+        if (next === this._ambientPoolScale)
+            return;
+        this._ambientPoolScale = next;
+        this._ambientBadSamples = 0;
+        this._reallocAmbient();
+    }
     /** An ambient effect joins the scene's pool. Returns its unregister. */
     registerAmbient(effect) {
         if (this._ambient.length === 0) {
@@ -915,6 +996,13 @@ export class B3d extends Component {
         // garbage for reasons that have nothing to do with ambient: shaders compiling, textures
         // uploading, GLBs landing. Judged during that, a ONE-WAY ratchet would shed the garnish
         // for the whole session over a hitch that was already over. Grace period first.
+        // Still building? Then the frame rate is about the LOADING, not the hardware,
+        // and a one-way ratchet must not act on it. The clock only runs once the
+        // scene is quiet — so `_ambientWarmupMs` means "settled for this long".
+        if (this.sceneBusy) {
+            this._ambientBadSamples = 0;
+            return;
+        }
         if (this._ambientWarmupMs > 0) {
             this._ambientWarmupMs -= dt;
             this._ambientBadSamples = 0;

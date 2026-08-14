@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/mrtFragmentDeclaration.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"mrtFragmentDeclaration\";\nconst shader = `#if defined(WEBGL2) || defined(WEBGPU) || defined(NATIVE)\nlayout(location=0) out vec4 glFragData[{X}];\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const mrtFragmentDeclaration = { name, shader };\n//# sourceMappingURL=mrtFragmentDeclaration.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,yBACP,EAAS;AAAA;AAAA;AAAA,EAKf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAAyB,CAAE,OAAM,QAAO",
+  "debugId": "C6569BAA20AA096F64756E2164756E21",
+  "names": []
+}

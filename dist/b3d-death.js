@@ -151,6 +151,7 @@ export class B3dDeath extends B3dChild {
         return this._dying;
     }
     _dying = false;
+    _warnedNoWayBack = false;
     _wreck = null;
     _remains = [];
     _orbitCam = null;
@@ -180,10 +181,34 @@ export class B3dDeath extends B3dChild {
             null);
     }
     _handleDeath(e) {
-        if (this._dying)
-            return;
         const focus = this.focusManager;
         const driven = focus?.focused ?? null;
+        if (this._dying) {
+            /*
+            ALREADY DEAD — unless something ELSE just died, which means the game got
+            back on its feet without us.
+      
+            `_dying` is only cleared by `resume()`, which only the panel's Respawn
+            button calls — and that button doesn't exist unless a `respawn` callback
+            was supplied. So a scene that respawns by its own route (a `crash`
+            listener appending a fresh entity, which is a documented pattern) leaves
+            this component latched at `_dying = true` forever, and every later death
+            is swallowed by this guard: no panel, no release, welded to the wreck.
+            That is the exact failure this component exists to prevent, reintroduced
+            one level up. (Found by manta-recon crashing a respawned aircraft, 0.7.0.)
+      
+            So: a death from an entity that ISN'T the wreck we're already holding is
+            proof the run moved on. Tear down and handle it as a new death.
+            */
+            const wreck = this._wreck;
+            const target = e.target;
+            if (wreck == null || target == null)
+                return;
+            if (target === wreck || target.contains?.(wreck))
+                return;
+            console.warn('b3d-death: a new death arrived while still dying — the run respawned without calling resume() (no `respawn` callback?). Recovering.');
+            this.resume();
+        }
         // Only OUR death matters. A cube exploding across the map is not a game-over.
         if (driven == null || !e.target?.contains?.(driven)) {
             if (e.target !== driven)
@@ -350,6 +375,15 @@ export class B3dDeath extends B3dChild {
     _showPanel() {
         if (!this._dying || this.owner == null)
             return;
+        if (this.respawn == null &&
+            this.choices == null &&
+            !this._warnedNoWayBack) {
+            this._warnedNoWayBack = true;
+            // The panel says "no way back" on purpose — only the game knows how to
+            // respawn. But in the console it's worth saying that this latches the
+            // death state until something calls `resume()`.
+            console.warn('b3d-death: no `respawn` callback and no `choices`, so the panel offers no way out. Set `deathEl.respawn = () => …` (it is a function, so it cannot be an HTML attribute).');
+        }
         const rows = this.choices
             ? this.choices()
             : [

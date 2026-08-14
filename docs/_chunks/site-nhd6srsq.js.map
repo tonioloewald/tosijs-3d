@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Compat/compatibilityOptions.js"],
+  "sourcesContent": [
+    "/**\n * Defines if the system should use OpenGL convention for UVs when creating geometry or loading .babylon files (false by default)\n */\n// eslint-disable-next-line @typescript-eslint/naming-convention\nexport let useOpenGLOrientationForUV = false;\n/**\n * Sets whether to use OpenGL convention for UVs\n * @param value the new value\n */\n// eslint-disable-next-line @typescript-eslint/naming-convention\nexport function setOpenGLOrientationForUV(value) {\n    useOpenGLOrientationForUV = value;\n}\n/**\n * Options used to control default behaviors regarding compatibility support\n * @deprecated please use named exports\n */\nexport const CompatibilityOptions = {\n    /* eslint-disable @typescript-eslint/naming-convention */\n    get UseOpenGLOrientationForUV() {\n        return useOpenGLOrientationForUV;\n    },\n    set UseOpenGLOrientationForUV(value) {\n        useOpenGLOrientationForUV = value;\n    },\n    /* eslint-enable @typescript-eslint/naming-convention */\n};\n//# sourceMappingURL=compatibilityOptions.js.map"
+  ],
+  "mappings": "AAIO,IAAI,EAA4B,GAMhC,SAAS,CAAyB,CAAC,EAAO,CAC7C,EAA4B,EAMzB,IAAM,EAAuB,IAE5B,0BAAyB,EAAG,CAC5B,OAAO,MAEP,0BAAyB,CAAC,EAAO,CACjC,EAA4B,EAGpC",
+  "debugId": "E413E2CD42BE6F6764756E2164756E21",
+  "names": []
+}
