@@ -114,7 +114,7 @@ describe('composition', () => {
       [-10, 3, 2],
       [14, 0, 0],
     ] as const) {
-      expect(soft(...p)).toBe(hard(...p))
+      expect(soft(p[0], p[1], p[2])).toBe(hard(p[0], p[1], p[2]))
     }
   })
 

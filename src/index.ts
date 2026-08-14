@@ -98,6 +98,7 @@ export {
   publicName,
   placeOnSurface,
   boundingBottomOffset,
+  sceneDelta,
 } from './b3d-utils'
 export type { XRStuff, XRParams } from './b3d-utils'
 
@@ -494,12 +495,20 @@ export {
 } from './landform'
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice'
-export {
+/*
+The CARVE family lives in a container for the same reason the `ui` family does
+(see the note above): `box`, `sphere`, `tube`, `union` are COMMON NOUNS, and a
+library barrel that exports them bare collides with every consumer's own
+vocabulary. `box` was the sharp end — a second one here would have shadowed
+`ui.box`, which is exactly the collision the 0.6.0 rc gate namespaced `ui` to
+prevent. Caught by the 0.7.0 gate while the window was still free.
+*/
+import {
   applyCarve,
   sphere,
   capsule,
   tube,
-  box,
+  box as carveBox,
   union,
   smoothUnion,
   flange,
@@ -509,7 +518,22 @@ export {
   warp,
   shaft,
 } from './carve'
-export type { Carve, NoiseOptions } from './carve'
+export const carve = {
+  applyCarve,
+  sphere,
+  capsule,
+  tube,
+  box: carveBox,
+  union,
+  smoothUnion,
+  flange,
+  subtract,
+  intersect,
+  roughen,
+  warp,
+  shaft,
+}
+export type { Carve, NoiseOptions, Vec3Like } from './carve'
 export { B3dPatch, b3dPatch } from './b3d-patch'
 export {
   terrainDensity,

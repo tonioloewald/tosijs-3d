@@ -24,7 +24,7 @@ acceleration/turn-rate prediction later.) Drop the traverse rate to watch it str
 keep up even when smart.
 
 ```js
-import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d , sceneDelta} from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
@@ -63,7 +63,7 @@ const scene = b3d(
         turret.fireRate = s.fireRate.value
         turret.muzzleSpeed = s.muzzleSpeed.value
         turret.smart = s.smart.value
-        a += el.scene.getEngine().getDeltaTime() / 1000
+        a += sceneDelta(el.scene)
         if (!target || target.dead || !target.mesh) return
         target.x = Math.cos(a * 0.6) * 12
         target.z = Math.sin(a * 0.6) * 12

@@ -7,9 +7,28 @@ versions may carry breaking peer-dependency changes — each is called out in a
 ## 0.7.0-rc.1
 
 **Aircraft that fly like aircraft, and the substrate for volumetric terrain.**
-Additive — no API removals, no peer-dependency changes — but the aircraft's
-throttle and camera behave differently enough to be worth reading before you
-upgrade a scene that tuned around the old feel.
+No peer-dependency changes, but this is a **behaviour** release: the throttle,
+the right stick and the on-screen gamepad all work differently, and one
+attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
+that was tuned around the old feel.
+
+### ⚠️ Breaking
+
+- **`hudChase` → `hudChaseOff`, with the polarity inverted.** The old attribute
+  is gone (no alias — HTML boolean semantics can't express a default-true flag,
+  which is why the negative name exists). It shipped in 0.6.2's `dist`, and
+  because tosijs props end in an index signature a stale `hudChase` **compiles
+  and is silently ignored**, so this will not error for you.
+  - `hudChase: true` → delete it; the chase HUD is now the default.
+  - `hudChase: false` → `hudChaseOff: true`.
+  - Chase view now shows the HUD **without the artificial horizon** (which
+    only tells the truth from inside the cockpit).
+- **The glass gamepad hides itself** once a mouse, keyboard or hardware pad is
+  used, returning after `idleSeconds` (10) of silence. Touch doesn't count.
+  Set `fade="off"` to keep it visible — worth knowing if you screenshot or
+  demo on a desktop.
+- **The right stick is the camera**, not aux roll. `strafe` still sums into
+  roll, so a custom mapping can restore a dedicated roll axis.
 
 ### Added
 
@@ -69,23 +88,8 @@ upgrade a scene that tuned around the old feel.
 
 ### Fixed
 
-- **`canonicalize` applied a spurious 180° yaw**, flying correctly-authored
-  (Blender −Y-forward) models backwards. Pinned against real content now.
-- **Everything ticking in a scene observer ran at half or quarter speed** —
-  `getDeltaTime()` is the rAF tick, not the inter-render gap. B3d publishes
-  `frameDelta`; 14 call sites use it.
-- **Weapons inherited a phantom velocity** (the aircraft's `velocity` field is
-  the hover integrator and reads zero in wing-borne flight), and muzzles now
-  transform through the world matrix so shots leave the visible airframe.
-- **Flying into a cliff face passed through it** — a downward ray can't see a
-  wall ahead; airborne frames now sweep along the velocity.
-- **Death could strand you in the wreck**: an unregistered material plugin
-  made `Material.clone()` throw mid-sequence, so focus was never released.
-  Plugins are registered and death's exit is shielded from cosmetic failures.
 - **Tile skirts hung 344m through tunnels** — depth came from world amplitude
   rather than the tile's own relief.
-- `getNames()` leaked behaviour suffixes (`Hull_collideMesh.model` listed as
-  `Hull_collideMesh`); `publicName()` is what consumers see.
 - `_centerOfGravity` markers, cave shading (`interior` as a depth ramp,
   flooding by `waterTable`, `noWater`), volcanism confined to its caldera.
 

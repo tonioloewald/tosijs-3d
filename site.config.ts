@@ -146,7 +146,13 @@ export default defineSiteConfig({
   // the host and set `PREVIEW_HOST=user@box` in the shell. (The v0.6.0 gate
   // caught the first version of this fix inventing its own variable — use the
   // one upstream already reads.)
+  // `host` is deliberately absent (see above) but upstream types it as
+  // REQUIRED, so the root typecheck goes red on an otherwise clean tree —
+  // which is how a genuinely red `tsc -p tsconfig.json` got normalised and
+  // stopped being read. Take it from the env, empty when unset: same runtime
+  // behaviour (the bins fall back to PREVIEW_HOST), honest types.
   preview: {
+    host: process.env.PREVIEW_HOST ?? '',
     tunnel: { remotePort: 9788, url: 'https://3d.edit.dev.tosijs.net' },
   },
 

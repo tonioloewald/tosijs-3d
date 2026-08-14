@@ -79,6 +79,11 @@ and confirm each is mentioned in `CLAUDE.md`.
    bun format         # ESLint --fix + Prettier; re-run build if it changes anything
    ```
 
+5a0. **Re-check `UPSTREAM.md`'s Open rows** — `gh issue view` each one. Upstream
+issues get fixed while we're not looking, and a stale Open row is worse than no
+row: it asserts a workaround is still needed. (`tosijs-ui#63` sat in Open for a
+release after being closed.)
+
 5a. **Review gate** — for a minor/major: run the nine-lens pre-release review
 (`/pre-release-review`) at **full** depth on the first rc, and a **fast**-depth
 gate over `<last-rc>..HEAD` before tagging the final. Tag only on GO /
@@ -86,6 +91,14 @@ GO_WITH_FOLLOWUPS — and file every follow-up before moving on (BLOCK means fix
 and re-gate). The bump + changelog may sit committed "awaiting gate"; the TAG
 waits. (For step 3b's map-drift check on a final-after-rcs, diff against the
 last **stable** tag, not the last rc.)
+
+> **The rc may be tagged BEFORE the gate when a consumer is waiting.** Getting
+> a release candidate into an adopter's hands buys feedback the review can't
+> produce (manta-recon found things no lens would), and an rc is explicitly a
+> "this may change" artifact — that's what the `next` dist-tag means. When you
+> do it in this order, say so in the rc notes, and treat the gate's findings as
+> blocking the FINAL, not the rc. The rule that stays hard: **the final tag
+> waits for GO.**
 
 6. **Commit** the version bump + rebuilt `dist/` + `docs/`:
 

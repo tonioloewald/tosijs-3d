@@ -217,13 +217,22 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `tileBuildMs` | `auto` | **Milliseconds of tile building allowed per frame** — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile's cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (`auto` = device tier) |
 | `splitFactor` | `2` | LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize` |
 | `reach` | `0` | Terrain radius (0 = auto from the coarsest tile) |
-| `grossScale` | `0.1` | Gross noise frequency (per render unit) |
-| `detailScale` | `0.5` | Detail noise frequency (per render unit) |
+| `grossScale` | `0.015` | Gross noise frequency — a RECIPROCAL wavelength, so SMALL numbers make BIG landforms (0.015 ≈ 65m features before `horizScale`) |
+| `detailScale` | `0.09` | Detail noise frequency, same units |
 | `horizScale` | `1` | Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change) |
 | `debugColor` | `false` | Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout |
 | `profile` | `false` | Debug: time tile building and report it on `debugState` (see below). Off = zero cost |
-| `grossAmplitude` | `8` | Gross height multiplier |
-| `detailAmplitude` | `2` | Detail height multiplier |
+| `grossAmplitude` | `8` | Gross height multiplier. ⚠️ Meaningless on its own: it's spread over `grossScale`/`horizScale`, so the same number is a mountain range at one scale and a plain at another |
+| `detailAmplitude` | `3` | Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail |
+| `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
+| `biomeLapseRate` | `0` (auto) | Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
+| `normalSmoothing` | `0.6` | Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag |
+| `patchMask` (property) | `null` | `(x,z) => boolean` — cut the surface away for a volumetric patch. See [b3d-patch](?b3d-patch.ts) (experimental) |
+| `patches` (property) | `[]` | Footprints that force finer tiles while resident (used by `b3d-patch`) |
+| `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
+| `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
+| `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
+| `worldU` / `worldV` | `0` / `0.25` | Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both |
 | `baseHeight` | `0` | Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea |
 | `originResetThreshold` | `500` | Distance before origin rebase |
 | `maxTravelDistance` | `5000` | Distance before firing recenter-needed event |

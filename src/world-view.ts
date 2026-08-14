@@ -18,7 +18,8 @@ so a scene is visible with zero assets; pass your own `factory` to swap in
 
 ```js
 import {
-  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView,
+  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView,,
+  sceneDelta
 } from 'tosijs-3d'
 
 // A stand-in "director" sets up a scene by writing to the store.
@@ -47,7 +48,7 @@ preview.append(
         new WorldView(el.scene, store)
       },
       update(el) {
-        const dt = el.scene.getEngine().getDeltaTime() / 1000
+        const dt = sceneDelta(el.scene)
         store.tick(dt)
         // WASD writes the player's position back into the store.
         const p = { ...store.getState().entities.player.position }

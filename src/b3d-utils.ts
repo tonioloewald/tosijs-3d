@@ -85,6 +85,8 @@ export const conventionName = (name: string): string =>
  * `_collide`. Lower-case; matching is case-insensitive.
  */
 const BEHAVIOUR_SUFFIXES = [
+  // hyphen forms too: the framework documents `-ignore`, and authors mix
+  // separators (the collision code already matches both).
   'centerofgravity',
   'center_of_gravity',
   'collidemesh',
@@ -99,6 +101,7 @@ const BEHAVIOUR_SUFFIXES = [
   'noshadow',
   'nocast',
   'mirror',
+  'ignore',
 ]
 
 /**

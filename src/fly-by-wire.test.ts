@@ -17,6 +17,8 @@ import {
 
 const DEG = Math.PI / 180
 const CFG: FlyByWireConfig = {
+  reverseSpeed: 5,
+  hoverBrake: 24,
   maxSpeed: 50,
   afterburnerSpeed: 75,
   afterburnerTaper: 0.6,
