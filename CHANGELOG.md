@@ -146,6 +146,12 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **A guided missile consumed the caller's `guide` hook** (#13), so a game could
+  give medium behaviour — water drag, a depth floor — to a dumb shell but not to
+  a missile. The seeker is now a named function the caller's hook composes with,
+  and the caller runs **last** so it can constrain what homing asked for: the
+  seeker wants to go fast, the water says no. `MissileOpts.guide` is new.
+
 - **The sky ignored the water you were under** (#12, manta-recon: _"can't see
   anything underwater except for the skybox"_). A skybox is built
   `applyFog = false` with `infiniteDistance = true` — right in air, where a long
