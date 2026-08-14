@@ -256,12 +256,12 @@ water meshes from the raycast behind a `submarine`/`waterY` attr; seabed stays t
 Changes made from source-only (tsc + unit tests green) that still need a human/headset
 look. **Flat** = check in the browser; **VR** = check in the headset.
 
-- [ ] **Flat — crashed aircraft releases input** (issue #9, fixed 0.7.0, unverified live).
-      `crash()` now releases input focus when nothing else handles the crash event
-      (deferred a tick; skipped when a `<tosi-b3d-death>` is present, since death owns
-      the aftermath). Verified by construction and typecheck only — the crash path has
-      no headless coverage. Crash with and without a `<tosi-b3d-death>` and confirm the
-      controls come back in the first case and death still owns them in the second.
+- [x] **Flat — crashed aircraft releases input** (issue #9, fixed 0.7.0) — CONFIRMED
+      by manta-recon 2026-08-14 on https://3d.tosijs.net/crash-test.html: case A
+      halts with the no-death-element message, case B explodes → panel → a
+      controllable respawn, and a SECOND crash of the respawned aircraft now
+      behaves like the first (that third crash found the b3d-death latching bug,
+      fixed the same day).
 
 - [ ] **Header logo size** (blocked on tosijs-ui): the `tosiXr` header mark is correct, but
       tosijs-ui hardwires the doc-browser logo to `LOGO_SIZE = 40` (inline height). Once tosijs-ui
