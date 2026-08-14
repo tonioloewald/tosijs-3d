@@ -18,8 +18,7 @@ so a scene is visible with zero assets; pass your own `factory` to swap in
 
 ```js
 import {
-  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView,,
-  sceneDelta
+  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta,
 } from 'tosijs-3d'
 
 // A stand-in "director" sets up a scene by writing to the store.

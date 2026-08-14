@@ -18,7 +18,7 @@ Shells arc under gravity and blast the wide cube field — a direct hit kills, a
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.
 
 ```js
-import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d , sceneDelta} from 'tosijs-3d'
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 

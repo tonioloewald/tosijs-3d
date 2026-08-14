@@ -29,14 +29,31 @@ that was tuned around the old feel.
   demo on a desktop.
 - **The right stick is the camera**, not aux roll. `strafe` still sums into
   roll, so a custom mapping can restore a dedicated roll axis.
+- **`carve` is a NAMESPACE, not 13 bare exports.** `0.7.0-rc.1` (published as
+  `next`) exported `applyCarve`, `sphere`, `capsule`, `tube`, `box`, `union`,
+  `smoothUnion`, `flange`, `subtract`, `intersect`, `roughen`, `warp` and
+  `shaft` at top level; they now live on `carve.*`. Anyone on the rc gets a
+  link error, which is the intended loud failure — `box` in particular
+  shadowed the UI container of the same name.
+  - `import { sphere, tube } from 'tosijs-3d'` → `import { carve } from
+'tosijs-3d'`, then `carve.sphere(…)`, `carve.tube(…)`.
+  - Types stay top-level: `Carve`, `NoiseOptions`, `Vec3Like`.
+- **`getNames()` returns different strings.** Behaviour suffixes no longer
+  leak into the public name, so `Hull_collideMesh.model` lists as `Hull` and
+  `instantiate('Hull')` resolves it (fixes #7, reported by manta-recon).
+  Exact and `.model` matches still win first, so existing calls that used the
+  raw name keep working — but code that PARSED the returned string, or
+  compared it to an authored name with its suffix, needs updating.
 
 ### Added
 
-- **[carve](https://3d.tosijs.net/carve/)** — the cave vocabulary: `sphere`,
-  `capsule`, `tube`, `box`, `smoothUnion` (fillets a junction so a passage
-  flares into a chamber), `subtract`, `intersect`, plus the two perturbations
-  that stop a carve looking carved: `roughen` (texture the wall, silhouette
-  stays) and `warp` (bend the space so nothing reads as a primitive).
+- **[carve](https://3d.tosijs.net/carve/)** — the cave vocabulary, exported as
+  the **`carve.*`** namespace (see ⚠️ Breaking): `carve.sphere`,
+  `carve.capsule`, `carve.tube`, `carve.box`, `carve.smoothUnion` (fillets a
+  junction so a passage flares into a chamber), `carve.subtract`,
+  `carve.intersect`, plus the two perturbations that stop a carve looking
+  carved: `carve.roughen` (texture the wall, silhouette stays) and
+  `carve.warp` (bend the space so nothing reads as a primitive).
 - **[sdf-lattice](https://3d.tosijs.net/sdf-lattice/)** — surface-nets
   extraction over ONE global hash-jittered lattice, so chunks weld
   bit-identically and cross-tile/cross-LOD seams are unrepresentable rather
@@ -63,6 +80,12 @@ that was tuned around the old feel.
   and the ground beneath you.
 - **`equilibriumSpeed(cfg, throttle, afterburner)`** — where a lever will
   settle.
+- **`sceneDelta(scene)` is now actually exported.** 0.6.2 announced it and
+  shipped it unreachable — `dist/index.d.ts` had no such symbol — so anyone
+  following those notes hit a link error. It's the correct frame delta for
+  anything ticking inside a scene observer (see 0.6.2's note on
+  `getDeltaTime`), and the six doc demos that still taught the broken idiom
+  now use it.
 
 ### Changed
 
@@ -87,6 +110,14 @@ that was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **A crashed aircraft no longer eats all input** (#9). A wreck keeps input
+  focus and ignores it, so with no `<tosi-b3d-death>` in the scene the player
+  held a dead controller — which reads as broken controls rather than as
+  dying. The crash now releases focus if nothing else handled the event.
+- **`recenter()` reset `worldV` to 0**, which is the `CylinderSampler` mirror
+  plane — undoing the new default and putting a seam through the world, hours
+  into a session where nobody would connect the two.
 
 - **Tile skirts hung 344m through tunnels** — depth came from world amplitude
   rather than the tile's own relief.

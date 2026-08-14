@@ -313,6 +313,10 @@ import {
 import { resolveBudget } from './b3d-quality'
 import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
 
+/** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
+ * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
+const MIRROR_SAFE_V = 0.25
+
 // A pooled tile mesh and the quadtree cell it currently renders (null = free).
 type PoolTile = {
   mesh: BABYLON.Mesh
@@ -671,7 +675,7 @@ export class B3dTerrain extends B3dChild {
    * v = 0.5), which is the furthest you can get from either.
    */
   worldU = 0
-  worldV = 0.25
+  worldV = MIRROR_SAFE_V
 
   // Accumulated render-space offset from origin resets
   private originOffsetX = 0
@@ -1480,7 +1484,11 @@ export class B3dTerrain extends B3dChild {
   // Reset sample origin — call after a visual discontinuity
   recenter() {
     this.worldU = 0
-    this.worldV = 0
+    // NOT 0 — that is the mirror plane. Resetting to a bare zero silently
+    // undid the default and put the world back on the seam, which is the
+    // failure the default exists to prevent (and it would only show up after
+    // a recenter, i.e. hours into a session).
+    this.worldV = MIRROR_SAFE_V
     this.originOffsetX = 0
     this.originOffsetZ = 0
     this.clearPool()

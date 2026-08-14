@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus , sceneDelta} from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div } = elements
 
@@ -1334,6 +1334,29 @@ export class B3dAircraft extends B3dControllable {
     this.velocity.setAll(0)
     // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
     this.dispatchEvent(new CustomEvent('crash', { bubbles: true }))
+
+    /*
+    NOBODY LISTENING? THEN LET GO OF THE CONTROLS. (issue #9)
+
+    A wreck keeps input focus, and `applyInput` returns early while crashed —
+    so with no <tosi-b3d-death> in the scene the player is left holding a
+    controller that does nothing, which reads as "the controls are broken"
+    rather than "you died". The event fires either way; this only covers the
+    case where nothing acted on it.
+
+    Deferred a tick so a listener that mounts the death UI (or respawns) wins:
+    if `crashed` has been cleared by then, someone handled it and we do
+    nothing.
+    */
+    setTimeout(() => {
+      if (!this.crashed || this.owner == null) return
+      const death = this.owner.querySelector('tosi-b3d-death')
+      if (death != null) return // death owns the aftermath, including focus
+      const focus = this.owner.querySelector('tosi-b3d-input-focus') as {
+        releaseFocus?: () => void
+      } | null
+      focus?.releaseFocus?.()
+    }, 0)
   }
 
   /** Raycast downward to find distance to ground. Returns Infinity if no hit.
