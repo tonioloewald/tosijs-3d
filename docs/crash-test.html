@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>issue #9 — crashed aircraft &amp; input focus</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #e8eef2;
+        --dim: #93a4b0;
+        --ok: #6ee7a8;
+        --warn: #ffcf6b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #0d1117;
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      header {
+        padding: 12px 16px;
+        border-bottom: 1px solid #263241;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 0 0 4px;
+      }
+      header p {
+        margin: 0;
+        color: var(--dim);
+        font-size: 13px;
+      }
+      .cases {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1px;
+        background: #263241;
+      }
+      @media (min-width: 900px) {
+        .cases {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      section {
+        background: #0d1117;
+        padding: 12px;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 0 0 2px;
+      }
+      .sub {
+        color: var(--dim);
+        font-size: 12px;
+        margin: 0 0 8px;
+      }
+      tosi-b3d {
+        display: block;
+        width: 100%;
+        height: 46vh;
+        min-height: 300px;
+        background: #000;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .log {
+        margin-top: 8px;
+        height: 132px;
+        overflow: auto;
+        background: #060a0f;
+        border: 1px solid #1e2836;
+        border-radius: 6px;
+        padding: 8px;
+        font:
+          12px/1.45 ui-monospace,
+          Menlo,
+          monospace;
+        color: var(--dim);
+        white-space: pre-wrap;
+      }
+      .log b {
+        color: var(--ok);
+        font-weight: 600;
+      }
+      .log i {
+        color: var(--warn);
+        font-style: normal;
+      }
+      .keys {
+        padding: 10px 16px 22px;
+        color: var(--dim);
+        font-size: 13px;
+        border-top: 1px solid #263241;
+      }
+      .keys kbd {
+        background: #1b2431;
+        border: 1px solid #2c3949;
+        border-radius: 4px;
+        padding: 1px 5px;
+        color: var(--ink);
+        font-size: 12px;
+      }
+      .keys ol {
+        margin: 6px 0 0;
+        padding-left: 20px;
+      }
+      .keys li {
+        margin: 3px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>issue #9 — a crashed aircraft and input focus</h1>
+      <p>
+        Standalone page: no doc system, no live-example hydration — just the
+        library. Click a scene to give it input focus, fly, then crash.
+      </p>
+    </header>
+
+    <div class="cases">
+      <section>
+        <h2>A — no &lt;tosi-b3d-death&gt; (the reported bug)</h2>
+        <p class="sub">
+          Expected after the fix: <b>CRASHED</b> on the HUD, a warning naming
+          the missing death element, and focus released. The plane stays wrecked
+          — nothing here respawns it.
+        </p>
+        <tosi-b3d id="sceneA" gamepad>
+          <tosi-b3d-light y="1" intensity="0.6"></tosi-b3d-light>
+          <tosi-b3d-sun intensity="0.9"></tosi-b3d-sun>
+          <tosi-b3d-skybox time-of-day="10"></tosi-b3d-skybox>
+          <tosi-b3d-ground
+            mesh-name="ground_nocast"
+            width="4000"
+            height="4000"
+            color="#6b7f5e"
+            texture="checker"
+            texture-tiles="80"
+          ></tosi-b3d-ground>
+          <tosi-b3d-library url="/test-3.glb" type="vehicles"></tosi-b3d-library>
+          <tosi-b3d-input-focus>
+            <tosi-game-controller></tosi-game-controller>
+            <tosi-b3d-aircraft
+              id="planeA"
+              library="vehicles"
+              mesh-name="scout"
+              player
+              y="60"
+              vtol-speed="6"
+              max-speed="60"
+            ></tosi-b3d-aircraft>
+          </tosi-b3d-input-focus>
+        </tosi-b3d>
+        <div class="log" id="logA">waiting for the scene…</div>
+      </section>
+
+      <section>
+        <h2>B — with &lt;tosi-b3d-death&gt; (must not regress)</h2>
+        <p class="sub">
+          Expected: the <b>DOWN</b> panel and a held chase shot, then a working
+          respawn. Death owns the aftermath — the fix skips releasing focus
+          entirely when it is present.
+        </p>
+        <tosi-b3d id="sceneB" gamepad>
+          <tosi-b3d-light y="1" intensity="0.6"></tosi-b3d-light>
+          <tosi-b3d-sun intensity="0.9"></tosi-b3d-sun>
+          <tosi-b3d-skybox time-of-day="10"></tosi-b3d-skybox>
+          <tosi-b3d-ground
+            mesh-name="ground_nocast"
+            width="4000"
+            height="4000"
+            color="#6b7f5e"
+            texture="checker"
+            texture-tiles="80"
+          ></tosi-b3d-ground>
+          <tosi-b3d-library url="/test-3.glb" type="vehicles"></tosi-b3d-library>
+          <tosi-b3d-input-focus id="focusB">
+            <tosi-game-controller></tosi-game-controller>
+            <tosi-b3d-aircraft
+              library="vehicles"
+              mesh-name="scout"
+              player
+              y="60"
+              vtol-speed="6"
+              max-speed="60"
+            ></tosi-b3d-aircraft>
+          </tosi-b3d-input-focus>
+          <tosi-b3d-death title="DOWN" spectate="chase"></tosi-b3d-death>
+        </tosi-b3d>
+        <div class="log" id="logB">waiting for the scene…</div>
+      </section>
+    </div>
+
+    <div class="keys">
+      <strong>Controls</strong> — <kbd>W</kbd>/<kbd>S</kbd> throttle,
+      <kbd>A</kbd>/<kbd>D</kbd> roll, <kbd>Q</kbd>/<kbd>R</kbd> vertical
+      thrust, arrow keys look. Click a scene first: input goes to whichever one
+      the pointer last touched.
+      <ol>
+        <li>Take off and get a few hundred metres up.</li>
+        <li>
+          Point the nose down and hold throttle — a crash needs more than 8 m/s
+          of vertical impact, so a gentle descent lands instead.
+        </li>
+        <li>Read the log under that scene.</li>
+      </ol>
+    </div>
+
+    <script src="/iife.js"></script>
+    <script>
+      // Everything the test needs is on the page: an iOS Safari console is
+      // painful to reach, and the console warning IS half of what #9 asked for.
+      const line = (el, msg, cls) => {
+        const t = new Date().toLocaleTimeString()
+        el.innerHTML += `\n${t}  ${cls ? `<${cls}>${msg}</${cls}>` : msg}`
+        el.scrollTop = el.scrollHeight
+      }
+
+      const logA = document.getElementById('logA')
+      const logB = document.getElementById('logB')
+      logA.textContent = 'scene A: loading…'
+      logB.textContent = 'scene B: loading…'
+
+      // Mirror console.warn into whichever log is relevant — the crash warning
+      // is emitted by the library, not by this page.
+      const warn = console.warn.bind(console)
+      console.warn = (...args) => {
+        warn(...args)
+        const msg = args.map(String).join(' ')
+        if (msg.includes('crashed with no')) {
+          line(logA, 'console.warn: ' + msg, 'i')
+        }
+      }
+
+      const focusOf = (scene) => scene.querySelector('tosi-b3d-input-focus')
+
+      const watch = (sceneId, log, label) => {
+        const scene = document.getElementById(sceneId)
+        scene.addEventListener('crash', () => {
+          line(log, `CRASH — ${label}`, 'b')
+          // Report focus on the next tick and again shortly after, so the
+          // before/after of the release (and any respawn adoption) both show.
+          const report = (when) => {
+            const f = focusOf(scene)
+            const held = f && f.focused
+            line(
+              log,
+              `${when}: input focus = ${held ? held.tagName.toLowerCase() + (held.crashed ? ' (the wreck)' : ' — flyable') : 'released (nobody)'}`
+            )
+          }
+          setTimeout(() => report('immediately after crash'), 0)
+          setTimeout(() => report('2s later'), 2000)
+        })
+      }
+
+      watch('sceneA', logA, 'no death element in this scene')
+      watch('sceneB', logB, 'death element present')
+
+      // Scene B respawns, which is the case that would break if focus were
+      // released AFTER the crash event instead of before it.
+      const focusB = document.getElementById('focusB')
+      document.getElementById('sceneB').addEventListener('crash', () => {
+        setTimeout(() => {
+          const plane = document.createElement('tosi-b3d-aircraft')
+          plane.setAttribute('library', 'vehicles')
+          plane.setAttribute('mesh-name', 'scout')
+          plane.setAttribute('player', '')
+          plane.setAttribute('y', '60')
+          focusB.appendChild(plane)
+          line(logB, 'respawned a fresh aircraft — can it be flown?', 'b')
+        }, 3000)
+      })
+
+      // Say when each scene is actually up; "nothing happens" is otherwise
+      // indistinguishable from "still loading a 2.5 MB bundle".
+      const ready = (id, log, label) => {
+        const scene = document.getElementById(id)
+        const t = setInterval(() => {
+          if (scene.scene) {
+            clearInterval(t)
+            line(log, `${label} ready — click it, then fly.`, 'b')
+          }
+        }, 400)
+        setTimeout(() => clearInterval(t), 60000)
+      }
+      ready('sceneA', logA, 'scene A')
+      ready('sceneB', logB, 'scene B')
+    </script>
+  </body>
+</html>
