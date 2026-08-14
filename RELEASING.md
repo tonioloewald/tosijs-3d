@@ -124,6 +124,23 @@ last **stable** tag, not the last rc.)
    git tag -a vX.Y.Z -m "vX.Y.Z"
    ```
 
+   **The tag is not the artifact until step 8 runs.** Publishing happens from a
+   specific machine, so a tag can sit unpublished for days while work continues
+   on `main` (0.7.0 did). While that window is open:
+
+   - Keep landing work normally — there is nothing to protect yet.
+   - The version's CHANGELOG section stays **editable**. The freeze rule binds on
+     PUBLICATION, not on tagging: once a version exists under any dist-tag its
+     notes must describe that tarball, but an unpublished section is still a
+     draft of what will ship.
+   - **Re-point the tag at HEAD immediately before publishing**
+     (`git tag -f -a vX.Y.Z … && git push --force origin vX.Y.Z`), or the
+     published tarball won't match the tag. This is safe precisely because
+     nothing has been published under it; it stops being safe the moment step 8
+     runs.
+   - If something breaking lands in that window, say so — the section may now be
+     titled for a smaller bump than it deserves.
+
 8. **Publish to npm** — **manual, done by a human** (not automated here):
 
    ```sh
