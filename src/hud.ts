@@ -187,6 +187,9 @@ export const HUD_RING_RADIUS = 84
 export const HUD_PIN_RADIUS = 116
 const CENTER = HUD_CENTER // HUD viewBox centre
 const PATH_LEN = 1000 // matches pathLength="1000" on the meter arcs
+/** Reference marks are white: distinct from every meter colour, and reads as
+ * a datum rather than as part of the fill. */
+const MARK_COLOUR = '#ffffff'
 
 
 
@@ -236,7 +239,12 @@ export function createHudController(
       const clone = p.cloneNode(false) as SVGPathElement
       clone.removeAttribute('id')
       clone.setAttribute('data-mark', name)
-      clone.setAttribute('opacity', '0.85')
+      // A mark must READ AS A DIFFERENT THING from the fill, not as more of
+      // it: white and fully opaque against the meter's own colour, so a glance
+      // separates "where I am" from "where I'm going" without reading values.
+      clone.setAttribute('stroke', MARK_COLOUR)
+      clone.setAttribute('opacity', '1')
+      clone.style.opacity = '1' // beat any inherited style on the source arc
       p.parentNode?.insertBefore(clone, p.nextSibling)
       list.push(clone)
     }
