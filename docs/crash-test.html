@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -20,10 +20,7 @@
         margin: 0;
         background: #0d1117;
         color: var(--ink);
-        font:
-          15px/1.5 system-ui,
-          -apple-system,
-          sans-serif;
+        font: 15px/1.5 system-ui, -apple-system, sans-serif;
       }
       header {
         padding: 12px 16px;
@@ -79,10 +76,7 @@
         border: 1px solid #1e2836;
         border-radius: 6px;
         padding: 8px;
-        font:
-          12px/1.45 ui-monospace,
-          Menlo,
-          monospace;
+        font: 12px/1.45 ui-monospace, Menlo, monospace;
         color: var(--dim);
         white-space: pre-wrap;
       }
@@ -146,7 +140,10 @@
             texture="checker"
             texture-tiles="80"
           ></tosi-b3d-ground>
-          <tosi-b3d-library url="/test-3.glb" type="vehicles"></tosi-b3d-library>
+          <tosi-b3d-library
+            url="/test-3.glb"
+            type="vehicles"
+          ></tosi-b3d-library>
           <tosi-b3d-input-focus>
             <tosi-game-controller></tosi-game-controller>
             <tosi-b3d-aircraft
@@ -166,9 +163,9 @@
       <section>
         <h2>B — with &lt;tosi-b3d-death&gt; (must not regress)</h2>
         <p class="sub">
-          Expected: the <b>DOWN</b> panel and a held chase shot, then a working
-          respawn. Death owns the aftermath — the fix skips releasing focus
-          entirely when it is present.
+          Expected: the <b>DOWN</b> panel and a held chase shot, then Respawn
+          gives you a fresh aircraft. <b>Crash that one too</b> — a second death
+          must behave exactly like the first.
         </p>
         <tosi-b3d id="sceneB" gamepad>
           <tosi-b3d-light y="1" intensity="0.6"></tosi-b3d-light>
@@ -182,7 +179,10 @@
             texture="checker"
             texture-tiles="80"
           ></tosi-b3d-ground>
-          <tosi-b3d-library url="/test-3.glb" type="vehicles"></tosi-b3d-library>
+          <tosi-b3d-library
+            url="/test-3.glb"
+            type="vehicles"
+          ></tosi-b3d-library>
           <tosi-b3d-input-focus id="focusB">
             <tosi-game-controller></tosi-game-controller>
             <tosi-b3d-aircraft
@@ -202,9 +202,9 @@
 
     <div class="keys">
       <strong>Controls</strong> — <kbd>W</kbd>/<kbd>S</kbd> throttle,
-      <kbd>A</kbd>/<kbd>D</kbd> roll, <kbd>Q</kbd>/<kbd>R</kbd> vertical
-      thrust, arrow keys look. Click a scene first: input goes to whichever one
-      the pointer last touched.
+      <kbd>A</kbd>/<kbd>D</kbd> roll, <kbd>Q</kbd>/<kbd>R</kbd> vertical thrust,
+      arrow keys look. Click a scene first: input goes to whichever one the
+      pointer last touched.
       <ol>
         <li>Take off and get a few hundred metres up.</li>
         <li>
@@ -239,6 +239,9 @@
         if (msg.includes('crashed with no')) {
           line(logA, 'console.warn: ' + msg, 'i')
         }
+        if (msg.includes('b3d-death:')) {
+          line(logB, 'console.warn: ' + msg, 'i')
+        }
       }
 
       const focusOf = (scene) => scene.querySelector('tosi-b3d-input-focus')
@@ -254,7 +257,12 @@
             const held = f && f.focused
             line(
               log,
-              `${when}: input focus = ${held ? held.tagName.toLowerCase() + (held.crashed ? ' (the wreck)' : ' — flyable') : 'released (nobody)'}`
+              `${when}: input focus = ${
+                held
+                  ? held.tagName.toLowerCase() +
+                    (held.crashed ? ' (the wreck)' : ' — flyable')
+                  : 'released (nobody)'
+              }`
             )
           }
           setTimeout(() => report('immediately after crash'), 0)
@@ -265,20 +273,28 @@
       watch('sceneA', logA, 'no death element in this scene')
       watch('sceneB', logB, 'death element present')
 
-      // Scene B respawns, which is the case that would break if focus were
-      // released AFTER the crash event instead of before it.
+      // Scene B respawns THROUGH the death panel — `respawn` is a function, so
+      // it can't be an HTML attribute and has to be assigned here.
+      //
+      // The first version of this page raced a 3s timer against the panel
+      // instead, which is what made the second crash fail: the panel offered no
+      // Respawn button (no callback), so `resume()` never ran, b3d-death stayed
+      // latched at `_dying`, and it swallowed every death after the first.
       const focusB = document.getElementById('focusB')
-      document.getElementById('sceneB').addEventListener('crash', () => {
-        setTimeout(() => {
-          const plane = document.createElement('tosi-b3d-aircraft')
-          plane.setAttribute('library', 'vehicles')
-          plane.setAttribute('mesh-name', 'scout')
-          plane.setAttribute('player', '')
-          plane.setAttribute('y', '60')
-          focusB.appendChild(plane)
-          line(logB, 'respawned a fresh aircraft — can it be flown?', 'b')
-        }, 3000)
-      })
+      const deathB = document.querySelector('#sceneB tosi-b3d-death')
+      deathB.respawn = () => {
+        const plane = document.createElement('tosi-b3d-aircraft')
+        plane.setAttribute('library', 'vehicles')
+        plane.setAttribute('mesh-name', 'scout')
+        plane.setAttribute('player', '')
+        plane.setAttribute('y', '60')
+        focusB.appendChild(plane)
+        line(
+          logB,
+          'respawned a fresh aircraft — fly it, then crash it AGAIN.',
+          'b'
+        )
+      }
 
       // Say when each scene is actually up; "nothing happens" is otherwise
       // indistinguishable from "still loading a 2.5 MB bundle".

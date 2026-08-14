@@ -120,6 +120,17 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **`b3d-death` latched after the first death if the game respawned by its own
+  route.** `_dying` is cleared only by `resume()`, which only the panel's
+  Respawn button calls — and that button doesn't exist without a `respawn`
+  callback. So a scene that respawns from its own `crash` listener (a
+  documented pattern) left the component stuck, and it then swallowed every
+  later death: no panel, no focus release, welded to the wreck. That is the
+  exact failure this component exists to prevent, one level up. A death from an
+  entity that isn't the wreck it's holding now tears down and handles the new
+  one, and a panel built with no way out says so in the console. (Found by
+  manta-recon crashing a respawned aircraft.)
+
 - **`Foo_ignore` was half-honoured**: the loader disposed only the hyphen form
   while `publicName` stripped only the underscore one, so an underscore-form
   node survived the load AND collapsed to `Foo` — colliding with a real `Foo`,
