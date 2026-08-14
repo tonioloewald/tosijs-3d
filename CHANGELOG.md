@@ -98,6 +98,12 @@ that was tuned around the old feel.
 
 ### Changed
 
+- **tosijs-ui devDependency → ^1.9.8**, for serve-time gzip on the dev server:
+  it was sending the 10.7 MB bundle uncompressed even to clients asking for
+  gzip, so over a thin link a doc page showed its pre-rendered HTML and then
+  never hydrated — the bundle never finished arriving. 2.56 MB now. Doc-site
+  tooling only; nothing in the published library changes.
+
 - **⚠️ The aircraft throttle is a LEVER, not a speed setpoint.** It commands
   an equilibrium: a climb settles at a new lower speed instead of stalling,
   and lowering the nose returns you to the speed you had, untouched. Full
