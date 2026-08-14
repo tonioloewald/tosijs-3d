@@ -17,5 +17,12 @@
     "types": [
       "bun-types" // add Bun global
     ]
-  }
+  },
+  // EMITTED OUTPUT IS NOT SOURCE. With no `exclude`, tsc's default `**/*` pulls in
+  // dist/ and docs/ — which the dev server WIPES AND REPOPULATES on every rebuild,
+  // so `bun run typecheck` fails with "file not found" if it happens to run inside
+  // that window. That made the release gate flaky in exactly the situation it
+  // matters (a dev server up while you check your work). node_modules is already
+  // excluded by default; these are not.
+  "exclude": ["node_modules", "dist", "docs"]
 }

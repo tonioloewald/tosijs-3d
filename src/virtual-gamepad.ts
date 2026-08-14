@@ -360,16 +360,39 @@ export interface ThrottleDetentConfig {
   rate: number
 }
 
-export function aircraftMapping(
-  _config?: Partial<ThrottleDetentConfig>
-): InputMapping {
+/**
+ * Preferences that change what an axis MEANS, which is the mapping's job and
+ * nobody else's.
+ *
+ * `invertPitch` is the one nearly every project eventually wants: we ship the
+ * flight-stick convention (pull back = nose up) and a large slice of players
+ * expect the arcade one. Without this knob the natural place to implement it is
+ * `entity.inputProvider` — which is per-entity and per-consumer, so the keyboard
+ * ends up inverted and the glass gamepad doesn't, from a setting that was meant
+ * to be global. That happened (tosijs-3d#10, reported by manta-recon); the
+ * mapping is the only layer every source passes through.
+ */
+export interface AircraftMappingConfig extends Partial<ThrottleDetentConfig> {
+  /** Push forward = nose up (arcade), instead of the flight-stick convention. */
+  invertPitch?: boolean
+  /** Reverse the bank/turn axis. */
+  invertRoll?: boolean
+  /** Reverse the look/camera pitch axis. */
+  invertCameraY?: boolean
+}
+
+export function aircraftMapping(config?: AircraftMappingConfig): InputMapping {
+  const pitchSign = config?.invertPitch ? 1 : -1
+  const rollSign = config?.invertRoll ? -1 : 1
+  const cameraYSign = config?.invertCameraY ? 1 : -1
   return (pad: VirtualGamepad): ControlInput => {
     const input = emptyInput()
 
     // Inverted on purpose — pull back (stick toward you) = nose UP, classic flight
-    // stick convention. Without this, pulling back drops the nose.
-    input.pitch = -pad.leftStickY
-    input.turn = pad.leftStickX // bank → turn
+    // stick convention. Without this, pulling back drops the nose. `invertPitch`
+    // flips it for projects that want the arcade convention.
+    input.pitch = pitchSign * pad.leftStickY
+    input.turn = rollSign * pad.leftStickX // bank → turn
     // RIGHT STICK IS THE CAMERA, not a control surface. Aux roll on the right
     // stick was near-useless (the left stick already banks, and bank-to-turn
     // means a second roll axis fights it); swinging the view is what a pilot
@@ -377,7 +400,7 @@ export function aircraftMapping(
     input.lookX = pad.rightStickX
     // Negated to match the left stick's convention (up = positive), so
     // positive lookY means "look from ABOVE" in both views.
-    input.lookY = -pad.rightStickY
+    input.lookY = cameraYSign * pad.rightStickY
     // Trigger axis is the VTOL controller's dual-purpose lift: + (right trigger) =
     // climb when hovering / speed-up when flying; − (left trigger) = descend / slow
     // down. The flight model integrates it per-regime (no detents — direct rate).
@@ -402,7 +425,7 @@ export function aircraftMapping(
 }
 
 export function aircraftMappingDescriptor(
-  config?: Partial<ThrottleDetentConfig>
+  config?: AircraftMappingConfig
 ): InputMappingDescriptor {
   return {
     map: aircraftMapping(config),

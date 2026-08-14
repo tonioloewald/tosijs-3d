@@ -251,6 +251,37 @@ water meshes from the raycast behind a `submarine`/`waterY` attr; seabed stays t
 0.1 vs 1.0) — two configs lerped on a y-band, like b3dWater's fogTransition.
 [ ] Surface-crossing event (aircraft or water) for splash/wake VFX, audio, camera cues.
 
+## Spin-up sequence — the loading screen that MEASURES (idea, 2026-08-14)
+
+An optional, lightweight, snazzy intro that plays while content streams in. Three
+jobs from one thing, which is why it's worth building rather than bolting a
+spinner on:
+
+1. **A controlled workload to benchmark against.** The device probe's whole
+   problem (#11) is that it measures whatever the machine happens to be doing —
+   it fires at `setTimeout(0)` and lands inside terrain build + shader compile,
+   so a fast machine measures slow and the verdict caches for 30 days. A spin-up
+   sequence is a **known, fixed-cost scene we author**: the contention is ours
+   and it's the same on every device, so the numbers mean something. Measuring
+   _during_ load stops being a mistake and becomes the design.
+2. **Branding.** The first thing anyone sees, and right now it's a black canvas.
+3. **Progress.** `getWaitingItemsCount()` and the terrain's own settle state are
+   already there — the sequence is the natural place to show them, and a scene
+   that says what it's waiting for is a scene that doesn't read as broken.
+
+Design notes to keep in mind when it's built:
+
+- **Optional and skippable** — never a gate on a scene that loads fast, and
+  never a fixed minimum duration that makes a quick load feel slow.
+- The measurement only means something if the sequence's cost is **identical
+  across devices** — no adaptive detail in the spin-up itself, or the benchmark
+  measures the adaptation.
+- It should scale its own workload deliberately (a few known-cost passes) so one
+  sequence can separate a Quest from a workstation without a separate probe
+  engine at all.
+- Ties into the tier-recovery question: a device that loads a second scene has a
+  second spin-up, which is a natural re-measurement point.
+
 ## Needs validation (built without a headset — spot-check next session)
 
 Changes made from source-only (tsc + unit tests green) that still need a human/headset

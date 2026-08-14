@@ -291,7 +291,17 @@ async function runBattery(): Promise<PerfMeasurements> {
  * repeatedly (cache + version + TTL gate the actual benchmark).
  */
 export async function runProbe(
-  opts: { force?: boolean; ttlDays?: number } = {}
+  opts: {
+    force?: boolean
+    ttlDays?: number
+    /**
+     * The caller couldn't get a quiet moment and measured anyway. The profile is
+     * still applied — a measured guess beats the safe default — but it is cached
+     * with a SHORT life so the next visit re-measures instead of living with a
+     * verdict taken under contention for a month. See `_probeWhenIdle`.
+     */
+    measuredWhileBusy?: boolean
+  } = {}
 ): Promise<PerfProfile> {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return getPerfProfile()
@@ -325,7 +335,11 @@ export async function runProbe(
     signature,
     measurements,
     hints,
-    measuredAt: Date.now(),
+    // Backdate a contended measurement to just inside its TTL, so it survives
+    // this session (no re-probing on every scene) and expires by the next one.
+    measuredAt: opts.measuredWhileBusy
+      ? Date.now() - (ttlMs - 5 * 60 * 1000)
+      : Date.now(),
   })
   const profile = resolveProfile(measurements, { cached: false, hints })
   setPerfProfile(profile)

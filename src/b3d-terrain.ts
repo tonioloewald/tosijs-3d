@@ -937,6 +937,22 @@ export class B3dTerrain extends B3dChild {
     this.endProfileFrame(budget)
   }
 
+  /** Desired tiles not yet built when the last fill pass ran out of budget.
+   * >0 means the ground is still coming in. */
+  private _fillBacklog = 0
+
+  /**
+   * Is the terrain still streaming in tiles it wants?
+   *
+   * Published because a frame rate measured while the ground is still building
+   * says nothing about the hardware — `<tosi-b3d>`'s `sceneBusy` asks this
+   * before letting the ambient watchdog or the device probe judge anything
+   * (tosijs-3d#11).
+   */
+  get busy(): boolean {
+    return this._fillBacklog > 0
+  }
+
   private coarsestTileSize(): number {
     const attrs = this as any
     const hs = attrs.horizScale || 1
@@ -1201,6 +1217,10 @@ export class B3dTerrain extends B3dChild {
       built++
       budget--
     }
+
+    // What we wanted and didn't get to. `busy` reads this: a frame rate measured
+    // while the ground is still arriving is a measurement of the LOADING.
+    this._fillBacklog = Math.max(0, blanks.length - built)
   }
 
   // --- Height sampling ---

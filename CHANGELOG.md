@@ -48,6 +48,17 @@ that was tuned around the old feel.
 
 ### Added
 
+- **`b3d.sceneBusy`** and **`terrain.busy`** — is the world still building? Any
+  frame-rate judgement taken while these are true is a measurement of the loading,
+  not of the device.
+- **`b3d.ambientPoolScale` is now readable AND settable**, so a game can say "that
+  was the loading screen, try again" instead of reaching into two privates (#11).
+- **`aircraftMapping` honours its config** — it accepted one and had zero
+  references to it. `AircraftMappingConfig` adds `invertPitch` (the arcade pitch
+  convention), `invertRoll` and `invertCameraY`. Meaning belongs in the mapping:
+  every source passes through it, so one setting can't leave the keyboard inverted
+  and the glass gamepad not (#10, manta-recon).
+
 - **The pure flight model is exported**: `flyByWireStep`, `regime`,
   `targetVelocity`, `chaseVelocity`, **`equilibriumSpeed`** and the
   `FlyByWireConfig`/`Command`/`State` types. `equilibriumSpeed` is what the
@@ -125,6 +136,22 @@ that was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **The device probe measured the machine while it was still loading, then cached
+  the verdict for 30 days** (#11, manta-recon). It went out on `setTimeout(…, 0)`
+  — one task, not one idle moment — so the benchmark ran during terrain build and
+  shader compile. It times work against a fixed reference and calls anything under
+  ~1.67× the medium baseline **low**, so the machine that loads the biggest scene
+  contends the most and tiers worst: an M5 Max holding 120fps was being given
+  low-tier budgets for terrain, shadows, reflections and ambient at once. It now
+  waits for ~1s of settled frames (`sceneBusy`), gives up after 30s, and caches a
+  measurement it had to take under load with a short life so the next visit
+  re-measures.
+- **Ambient was shed during the loading screen and never came back** (#11). The
+  watchdog's 10s warmup was a fixed timer where the question is "has the scene
+  settled" — a streaming world loads for longer, so the one-way ratchet fired on
+  frames that said nothing about the hardware and ambient stayed at zero for the
+  session. The warmup clock now runs only while the scene is quiet.
 
 - **`b3d-death` latched after the first death if the game respawned by its own
   route.** `_dying` is cleared only by `resume()`, which only the panel's
