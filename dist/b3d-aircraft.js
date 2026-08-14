@@ -22,7 +22,8 @@ const MAX_ALT = 300     // the aircraft's ceiling (its `ceiling`, default 300)
 
 // A FACTORY — so a respawn is a genuinely new aircraft (with its radar), not a reset. The sim
 // really emits a death and a spawn, which is the stream a narrative driver reads (see b3d-death).
-// The HUD stays in the COCKPIT view only (hudChase defaults false); the chase view is clean.
+// The HUD shows in BOTH views: in-scene on the canopy in cockpit, flat overlay in chase
+// (minus the artificial horizon, which only tells the truth from inside the aircraft).
 const plane = () => b3dAircraft(
   { library: 'vehicles', meshName: 'scout', player: true, y: 0, vtolSpeed: 6, maxSpeed: 55 },
   b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }),
@@ -175,10 +176,19 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
-| `hoverCeiling` | `50` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
+| `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
+| `lookRate` | `150` | Look slew rate (degrees/sec at full stick) |
+| `lookReturn` | `4` | How fast the view springs back to centre when released |
+| `autoGear` | `'on'` | Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`) |
+| `gearAltitude` | `40` | Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis) |
+| `gearTime` | `2.5` | Seconds for a full gear cycle |
+| `gearSound` | `''` | Optional URL played spatially at the airframe on each gear transition |
+| `gearVolume` | `0.6` | Volume for `gearSound` |
+| `afterburnerSpeed` (behaviour) | — | Reached only while the trigger is HELD past the detent at full lever; release and you settle back to `maxSpeed` (military) |
+| `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
-| `hudChase` | `false` | Show the flat DOM HUD overlay in chase view (cockpit uses the in-scene HUD) |
+| `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
 | `hudForward` | `1.6` | How far ahead of the pilot's eye the HUD floats (metres) |
 | `weapons` | `'on'` | `'off'` disarms all weapons |
@@ -208,6 +218,52 @@ Shells inherit the airframe's velocity, so your own motion leads the shot. Any
 `fireGuns()`, `dropBomb()`, and `fireMissile()` are also callable directly (e.g. for
 an AI pilot). Set `weapons="off"` to disarm.
 
+## The throttle is a LEVER, and the HUD marks where it's taking you
+
+Full lever = **military** thrust, the fastest speed you can simply leave set.
+**Afterburner is held, not parked**: it lights only while the trigger is past
+a detent with the lever already at full, and letting go settles you back to
+military speed rather than cruising in reheat.
+
+Because a lever commands an *equilibrium*, the needle is always travelling
+toward a number rather than sitting on one — which looks like a fault if the
+gauge doesn't show the target. The HUD therefore marks it (`setMeterMarks`),
+and the same mechanism marks **sea level** on the altimeter when you drop
+below it and **the ground beneath you** when that's higher: an altimeter reads
+height above datum, which is the wrong number exactly when terrain is the
+thing about to hit you.
+
+## The right stick is the CAMERA
+
+It swings the view and **springs back** when you let go: in chase it orbits the
+aircraft, in the cockpit it turns the pilot's head. Held, it slews; released,
+it returns — so you can glance at what you're about to hit without leaving the
+camera somewhere awkward, and without a second control to re-centre.
+
+It used to be an aux roll axis, which was near-useless: the left stick already
+banks, and bank-to-turn means a second roll input fights it. Looking around is
+what the spare stick is actually for.
+
+## Landing gear, found by name
+
+If the model carries AnimationGroups whose names mention **gear** and
+**retract** (the scout's `Main Gear (L) Retract`, `Nose Gear Retract`, …), the
+aircraft finds them and runs them with height above ground — up on climb-out,
+down on approach, with hysteresis so a bumpy approach doesn't cycle them.
+Nothing to wire: it's convention over configuration, and a model without such
+animations simply has no gear to work.
+
+The animation is **scrubbed, not played** — a normalised position is advanced
+each frame and pushed with `goToFrame`. Playing the group looked simpler and
+failed: glTF animations arrive with a cyclic loop mode, so a group told to stop
+at the end can snap back to frame 0 (the gear cycles, then vanishes), and
+reversing via `start(from > to)` is unreliable. Scrubbing also means an
+interrupted cycle turns around from wherever it got to, and the SAME animation
+serves both directions — there's no second one to author or keep in sync.
+
+`gearSound` plays spatially at the airframe on each transition;
+`setGear(up)` and `gearUp` are public for an AI pilot or a key bind.
+
 ## API (read-only properties for HUD binding)
 
 - `airspeed: number` — current forward speed (m/s)
@@ -226,7 +282,7 @@ import * as BABYLON from '@babylonjs/core';
 import { canonicalize, applyCenterOfGravity } from './model-transform';
 import { B3dControllable } from './b3d-controllable';
 import { aircraftMapping } from './virtual-gamepad';
-import { flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
+import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
 import { placeOnSurface, boundingBottomOffset, isOff } from './b3d-utils';
 import { spawnProjectile, spawnMissile } from './b3d-launcher';
 // Small gap kept between the model's belly and the ground.
@@ -278,7 +334,8 @@ export class B3dAircraft extends B3dControllable {
         // a linked HUD's altitude gauge.
         ceiling: 300,
         // Show the HUD in the chase view too (default: cockpit view only).
-        hudChase: false,
+        // Chase view shows the HUD MINUS the horizon; set to hide it entirely.
+        hudChaseOff: false,
         // In-cockpit HUD plane placement (see b3d-hud attachInScene): its size in metres
         // and how far ahead of the pilot's eye it floats. Tune to taste per airframe.
         hudSize: 0.7,
@@ -292,11 +349,44 @@ export class B3dAircraft extends B3dControllable {
         // up/down) and above which it flies like a plane (triggers = throttle). Set
         // to 0 for a pure aeroplane with no hover regime.
         vtolSpeed: 6,
+        /** How fast the craft may back up in hover (units/s). */
+        reverseSpeed: 5,
+        /** How fast the trigger moves the throttle lever (setting/sec). */
+        throttleRate: 0.8,
+        /**
+         * AUTO LANDING GEAR. `'on'` finds the model's gear-retract AnimationGroups
+         * by name and runs them with height above ground: up on climb-out, down on
+         * approach. `'off'` leaves the gear to you (call `setGear`).
+         */
+        autoGear: 'on',
+        /** Height above ground (m) at which the gear retracts. It extends again at
+         * 60% of this — hysteresis, so a bumpy approach doesn't cycle it. */
+        gearAltitude: 40,
+        /** Optional sound for the gear cycle (URL). Played spatially at the
+         * airframe, once per transition. */
+        gearSound: '',
+        /** Volume for `gearSound`. */
+        gearVolume: 0.6,
+        /** Seconds for a full gear cycle. */
+        gearTime: 2.5,
+        /** How far the LOOK stick can swing the view (degrees each way). */
+        lookRange: 120,
+        /** Look slew rate (degrees/sec at full deflection). */
+        lookRate: 150,
+        /** How fast the view springs back to centre when the stick is released
+         * (fraction of the remaining offset per second). */
+        lookReturn: 4,
         // Height above ground above which the trigger is forward thrust regardless of
         // speed (take off vertically, then fly) AND the brake can't stall you below
         // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
         // vertical landing. 0 = altitude gate off (regime is speed-only).
-        hoverCeiling: 50,
+        // 50m put the hover regime out of reach in normal flight over broken
+        // ground: you had to descend into a valley before the brake could stall
+        // you, which reads as "the brake doesn't work" (Tonio diagnosed it as
+        // altitude-driven). 140m keeps the intent — you can't decelerate into a
+        // hover from cruise ALTITUDE — while making hovering reachable wherever
+        // you'd actually want it.
+        hoverCeiling: 140,
         // Assumed ground-plane height (used as a floor in addition to any terrain
         // colliders the downward raycast hits).
         groundY: 0,
@@ -370,7 +460,11 @@ export class B3dAircraft extends B3dControllable {
     // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
     // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
     _chasePivot = null;
-    _chaseLookPitch = 0; // fixed look-down angle of the chase camera
+    _chaseLookPitch = 0;
+    /** Where the LOOK stick has swung the view (radians), and how fast it
+     * springs back when released. */
+    _lookYaw = 0;
+    _lookPitch = 0; // fixed look-down angle of the chase camera
     meshesToDispose = [];
     // Ground sampling is ONE raycast per frame, taken after the move and cached: the
     // pre-move regime height reuses last frame's value (one-frame stale, like the
@@ -379,6 +473,9 @@ export class B3dAircraft extends B3dControllable {
     // Set, and a child-mesh array three times a frame.
     _lastGroundDist = Infinity;
     _groundNormal = new BABYLON.Vector3(0, 1, 0);
+    /** True while the airframe is in open air INSIDE the ground (a bore/cavern):
+     * heightfield assumptions are suspended for the frame. */
+    _inCavity = false;
     // TRUE world velocity, tracked from frame displacement. this.velocity is
     // only the hover/ground integrator and reads ZERO in wing-borne flight
     // (the fbw path moves the node directly) — weapons inheriting it left
@@ -444,10 +541,13 @@ export class B3dAircraft extends B3dControllable {
         // that lands banked settles flat.
         const cmd = {
             pitch: this.grounded ? 0 : input.pitch,
-            // Left stick X is the primary turn (banks → turns); right stick X adds roll.
+            // Left stick X banks, and bank turns you. `strafe` is still summed in so
+            // an ALTERNATIVE mapping can offer a dedicated roll axis — but the
+            // aircraft preset no longer puts one on the right stick, which now looks
+            // around instead.
             roll: this.grounded
                 ? 0
-                : Math.max(-1, Math.min(1, input.turn + input.strafe)),
+                : Math.max(-1, Math.min(1, input.turn + (input.strafe ?? 0))),
             lift: input.lift, // trigger axis: + up/faster, − down/slower
         };
         const cfg = {
@@ -465,6 +565,16 @@ export class B3dAircraft extends B3dControllable {
             // gets you over vtolSpeed and into forward flight quickly (shallow, not a dive).
             leanAccel: attrs.acceleration * 2,
             hoverDamp: HOVER_DAMP,
+            // Hover: the LEAN reverses you (nose up), the brake half of the trigger
+            // sheds speed to a stop, and the throttle half stays purely vertical —
+            // so slowing down never fights altitude.
+            hoverBrake: attrs.acceleration * 1.5,
+            // Plane mode: the trigger moves a THROTTLE LEVER and speed settles where
+            // thrust meets drag, so a climb costs speed and a dive gives it back
+            // without touching the setting. Past idle the trigger is an airbrake.
+            throttleRate: attrs.throttleRate,
+            brakeAccel: attrs.acceleration * 1.2,
+            reverseSpeed: attrs.reverseSpeed,
             climbRate: attrs.maxSpeed * 0.3,
             offLevelSink: attrs.maxSpeed * 0.12,
             diveBoost: attrs.maxSpeed * 0.4,
@@ -476,7 +586,18 @@ export class B3dAircraft extends B3dControllable {
         const fwdSpeed = Math.hypot(vel.x, vel.z);
         // Reuse last frame's post-move ground distance (refined after the move below).
         // One frame stale, but so is `grounded`, and regime selection is tolerant.
-        const heightAboveGround = this._lastGroundDist - this.groundClearance;
+        //
+        // INSIDE A TUNNEL, clearance stops meaning what it means outside. The
+        // regime uses height-above-ground to know you're taking off or landing —
+        // but in a bore you are DELIBERATELY three metres off the floor at speed,
+        // and letting that read as "about to land" drops you out of wing-borne
+        // flight in the one place you most need control. So underground the
+        // regime is decided by SPEED alone: report a clearance that can't trip the
+        // hover threshold, and let the floor still govern the clamp and the
+        // landing gate (which run on the real distance below).
+        const heightAboveGround = this._inCavity
+            ? Number.POSITIVE_INFINITY
+            : this._lastGroundDist - this.groundClearance;
         flyByWireStep(this.fbw, cmd, fwdSpeed, heightAboveGround, cfg, dt, this.grounded);
         // Realise the attitude as a quaternion. Babylon's +pitch(X) drops the nose
         // and +roll(Z) banks left, so negate both (our state: +pitch = nose up,
@@ -492,8 +613,12 @@ export class B3dAircraft extends B3dControllable {
         // Read-only flight state for the HUD / XR rig.
         this.airspeed = this.fbw.speed;
         this.altitude = node.position.y;
-        this.throttleLevel =
-            attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0;
+        // 0..100% spans the WHOLE envelope, afterburner included. Dividing by
+        // maxSpeed made the meter read 134% in a cruise the aircraft is perfectly
+        // happy in — so "it went to maximum" was the gauge pegging, not the
+        // aircraft misbehaving (Tonio, 2026-08-13).
+        const topSpeed = Math.max(attrs.maxSpeed, attrs.afterburnerSpeed);
+        this.throttleLevel = topSpeed > 0 ? this.fbw.speed / topSpeed : 0;
         // "In VTOL" = slow (below vtolSpeed), regardless of altitude — above the hover
         // ceiling you can be stalled but the thrust still goes forward.
         this.vtolActive = attrs.vtolSpeed > 0 && fwdSpeed < attrs.vtolSpeed;
@@ -521,12 +646,42 @@ export class B3dAircraft extends B3dControllable {
             // chase view only when `hud-chase` opts in.
             const inCockpit = this.cameraView === 'cockpit';
             this._hud.setInSceneVisible?.(inCockpit);
-            const showHud = inCockpit || attrs.hudChase;
-            this._hud.setVisible(!inCockpit && attrs.hudChase);
+            // The HUD is useful from ANY view — speed, altitude, radar, warnings are
+            // true wherever the camera is. The horizon is the exception: outside the
+            // cockpit it contradicts the real horizon behind the aircraft, so it's
+            // dropped in chase and the rest stays. (`hudChase: false` still forces
+            // the old cockpit-only behaviour for anyone who wants a clean chase.)
+            const chaseHud = !attrs.hudChaseOff;
+            const showHud = inCockpit || chaseHud;
+            this._hud.setVisible(!inCockpit && chaseHud);
+            this._hud.setHorizonVisible?.(inCockpit);
             if (showHud) {
                 const RAD = 180 / Math.PI;
-                this._hud.setMeter('speed', attrs.maxSpeed > 0 ? this.fbw.speed / attrs.maxSpeed : 0);
+                this._hud.setMeter('speed', Math.max(attrs.maxSpeed, attrs.afterburnerSpeed) > 0
+                    ? this.fbw.speed / Math.max(attrs.maxSpeed, attrs.afterburnerSpeed)
+                    : 0);
                 this._hud.setMeter('altitude', this.altitude / attrs.ceiling);
+                // REFERENCE MARKS — what a bare fill can't say.
+                //
+                // speed: with a throttle lever the needle is always TRAVELLING toward
+                // an equilibrium, so mark where it's going; without it, speed rising
+                // after you release the trigger reads as a fault rather than as the
+                // aircraft doing what you asked (Tonio).
+                //
+                // altitude: sea level once you're below it, and the GROUND beneath you
+                // whenever that's above sea level — the altimeter reads height above
+                // datum, which is the wrong number precisely when terrain is the thing
+                // about to hit you.
+                this._hud.setMeterMarks?.('speed', [
+                    equilibriumSpeed(cfg, this.fbw.throttle ?? 0, this.fbw.afterburner ?? 0) / topSpeed,
+                ]);
+                const altMarks = [];
+                const groundY = node.position.y - this._lastGroundDist;
+                if (groundY > 0)
+                    altMarks.push(groundY / attrs.ceiling);
+                if (this.altitude < 0)
+                    altMarks.push(0);
+                this._hud.setMeterMarks?.('altitude', altMarks);
                 // Nose-up should slide the horizon down — flip here if it reads inverted.
                 this._hud.setHorizon(this.fbw.pitch * RAD, this.fbw.bank * RAD);
                 // Warnings on the graphical HUD: PULL UP flashes the bottom arc (ground
@@ -583,6 +738,10 @@ export class B3dAircraft extends B3dControllable {
         // wheels — kill the downward bounce and apply rolling resistance so you can
         // land, roll to a stop, and accelerate to take off again. (First cut — tune
         // GROUND_FRICTION / GROUND_TOUCH; the model's own ground tweaks are separate.)
+        // Inside a cavity (a bore, a cavern) the heightfield rules are suspended —
+        // see groundDistance. Computed once per frame, before anything consults it.
+        this._inCavity =
+            this.owner?.insideCavity(node.position.x, node.position.y, node.position.z) ?? false;
         const groundDist = this.groundDistance(node); // the ONE raycast this frame
         this._lastGroundDist = groundDist;
         const wasGrounded = this.grounded;
@@ -626,6 +785,8 @@ export class B3dAircraft extends B3dControllable {
         // Read-only flight state (airspeed/altitude/throttle/vtol) is set in the
         // fly-by-wire block above. Just refresh the ground-proximity pull-up warning.
         this.altitude = node.position.y;
+        this._updateGear(groundDist);
+        this._scrubGear(dt);
         this.updatePullUp(node, groundDist);
         // Drive the chase pivot LAST — after position is integrated AND ground-clamped, so it uses
         // THIS frame's final position. (Sampling it earlier, before the move, left the chase a frame
@@ -634,15 +795,60 @@ export class B3dAircraft extends B3dControllable {
         // level (steady); the Manta bank goes in the camera's own quaternion (a parented FreeCamera
         // ignores parent-roll and upVector for the view). It re-derives from the airframe each frame,
         // so a floating-origin rebase is absorbed for free — deliberately NOT origin-registered.
+        // LOOK: the right stick swings the view and SPRINGS BACK when released, so
+        // you can glance at what you're about to hit without leaving the camera
+        // somewhere awkward. Held, it's a slew; released, it returns — which is
+        // why it's integrated rather than mapped straight to an angle.
+        {
+            const attrs2 = this;
+            const range = (attrs2.lookRange * Math.PI) / 180;
+            const rate = (attrs2.lookRate * Math.PI) / 180;
+            const lx = input.lookX ?? 0;
+            const ly = input.lookY ?? 0;
+            const active = Math.abs(lx) > 0.08 || Math.abs(ly) > 0.08;
+            if (active) {
+                const yaw = this._lookYaw + lx * rate * dt;
+                const pitch = this._lookPitch + ly * rate * dt;
+                this._lookYaw = yaw < -range ? -range : yaw > range ? range : yaw;
+                const pr = range * 0.5;
+                this._lookPitch = pitch < -pr ? -pr : pitch > pr ? pr : pitch;
+            }
+            else {
+                const k = Math.exp(-attrs2.lookReturn * dt); // frame-rate independent
+                this._lookYaw *= k;
+                this._lookPitch *= k;
+                if (Math.abs(this._lookYaw) < 1e-4)
+                    this._lookYaw = 0;
+                if (Math.abs(this._lookPitch) < 1e-4)
+                    this._lookPitch = 0;
+            }
+        }
+        // COCKPIT: the same look turns the pilot's HEAD — the camera is parented to
+        // the airframe, so a local rotation is exactly "look left without turning".
+        if (this.cockpitCamera != null) {
+            this.cockpitCamera.rotation.set(-this._lookPitch, this._lookYaw, 0);
+        }
         if (this._chasePivot != null) {
             node.computeWorldMatrix(true); // refresh: position moved since the attitude pass
             this._chasePivot.position.copyFrom(node.absolutePosition);
             if (this._chasePivot.rotationQuaternion == null) {
                 this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
             }
-            BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading, 0, 0, this._chasePivot.rotationQuaternion);
+            /*
+            ORBIT, not tilt. Both look axes go on the PIVOT, so the camera swings
+            around the aircraft on an arc — push up and it rises and looks DOWN at
+            the target, which is what "move the camera around the target" means.
+      
+            It keeps aiming at the aircraft for free: the camera sits at a fixed
+            local offset behind and above the pivot, so its local aim is constant no
+            matter how the pivot is rotated. Putting the pitch on the CAMERA instead
+            (what this did first) only tilted the view off the target — the camera
+            stayed exactly where it was.
+            */
+            BABYLON.Quaternion.RotationYawPitchRollToRef(this.fbw.heading + this._lookYaw, this._lookPitch, 0, this._chasePivot.rotationQuaternion);
             if (this.chaseCamera?.rotationQuaternion != null) {
-                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
+                BABYLON.Quaternion.RotationYawPitchRollToRef(0, this._chaseLookPitch, // aim only — the ORBIT lives on the pivot
+                -this.fbw.bank * CHASE_BANK_FOLLOW, // airframe roll sign convention
                 this.chaseCamera.rotationQuaternion);
             }
         }
@@ -865,10 +1071,119 @@ export class B3dAircraft extends B3dControllable {
         }
         return best;
     }
+    /** The model's gear-retract animations, found by name (see `_findGear`). */
+    _gearGroups = [];
+    /** true = retracted (or retracting). Starts DOWN: you spawn on the ground. */
+    _gearUp = false;
+    _gearSound = null;
+    /** 0 = down, 1 = up — scrubbed toward `_gearTarget`. */
+    _gearPos = 0;
+    _gearTarget = 0;
+    /**
+     * Find the gear animations on a freshly-loaded model, by NAME.
+     *
+     * Convention over configuration: a group whose name mentions "gear" and
+     * "retract" (or "up") is a landing-gear animation, so the scout's
+     * "Main Gear (L) Retract" / "Nose Gear Retract" are picked up with no
+     * authoring beyond what's already in the GLB. Library instances carry their
+     * groups on `metadata.animationGroups` (renamed per instance), so several
+     * aircraft each animate their own gear.
+     */
+    _findGear(node) {
+        const groups = node.metadata?.animationGroups ?? [];
+        this._gearGroups = groups.filter((g) => {
+            const n = g.name.toLowerCase();
+            return n.includes('gear') && (n.includes('retract') || n.includes('up'));
+        });
+        // Started-then-paused so `goToFrame` has an effect: we never let the group
+        // PLAY. See `setGear` for why.
+        for (const g of this._gearGroups) {
+            g.start(false);
+            g.pause();
+            g.goToFrame(g.from); // gear DOWN is frame 0, by the same convention
+        }
+        this._gearPos = 0;
+        this._gearTarget = 0;
+    }
+    /**
+     * Raise or lower the gear. Public so an AI pilot, a cutscene or a key bind
+     * can call it; `autoGear` drives it from altitude otherwise.
+     */
+    setGear(up) {
+        if (up === this._gearUp || this._gearGroups.length === 0)
+            return;
+        this._gearUp = up;
+        this._gearTarget = up ? 1 : 0;
+        this._playGearSound();
+    }
+    /**
+     * The gear is SCRUBBED, not played.
+     *
+     * Letting the AnimationGroup play itself looked obvious and doesn't work:
+     * glTF animations arrive with a cyclic loop mode, so a group told to stop at
+     * the end can snap back to frame 0 — the gear cycles and then vanishes
+     * (exactly what Tonio saw) — and reverse playback via `start(from > to)` is
+     * unreliable across Babylon versions. Advancing a normalised position and
+     * calling `goToFrame` sidesteps all of it: no loop mode, no end-of-group
+     * behaviour, no second animation to author for the reverse, and an
+     * interrupted cycle simply turns around from wherever it had got to.
+     */
+    _scrubGear(dt) {
+        if (this._gearGroups.length === 0)
+            return;
+        const target = this._gearTarget;
+        if (this._gearPos === target)
+            return;
+        const step = dt / Math.max(0.1, this.gearTime);
+        this._gearPos =
+            target > this._gearPos
+                ? Math.min(target, this._gearPos + step)
+                : Math.max(target, this._gearPos - step);
+        for (const g of this._gearGroups) {
+            g.goToFrame(g.from + (g.to - g.from) * this._gearPos);
+        }
+    }
+    /** True while the gear is up (or on its way). */
+    get gearUp() {
+        return this._gearUp;
+    }
+    _playGearSound() {
+        const attrs = this;
+        if (!attrs.gearSound || this.owner == null)
+            return;
+        if (this._gearSound == null) {
+            this._gearSound = new BABYLON.Sound('gear', attrs.gearSound, this.owner.scene, null, { spatialSound: true, volume: attrs.gearVolume, autoplay: false });
+            if (this.meshNode instanceof BABYLON.AbstractMesh) {
+                this._gearSound.attachToMesh(this.meshNode);
+            }
+        }
+        this._gearSound.play();
+    }
+    /** Drive the gear from height above ground, with hysteresis so a bumpy
+     * approach or a hill passing underneath doesn't cycle it. */
+    _updateGear(groundDist) {
+        if (this._gearGroups.length === 0)
+            return;
+        if (isOff(this.autoGear))
+            return;
+        const up = Math.max(1, this.gearAltitude);
+        const down = up * 0.6;
+        const agl = groundDist - this.groundClearance;
+        if (!this._gearUp && agl > up)
+            this.setGear(true);
+        else if (this._gearUp && agl < down)
+            this.setGear(false);
+    }
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */
     groundDistance(node) {
         const terrain = this.raycastGround(node);
+        // INSIDE a cavity the flat `groundY` floor is a lie: fly into a bore whose
+        // floor is 20m down and the plane term reads −20, so the clamp shoves you
+        // up through the tunnel roof and back into daylight. Underground, only the
+        // ray — the actual surface under you — gets a vote.
+        if (this._inCavity)
+            return terrain;
         const plane = node.position.y - (this.groundY ?? 0);
         return Math.min(terrain, plane);
     }
@@ -922,6 +1237,13 @@ export class B3dAircraft extends B3dControllable {
         return Infinity;
     }
     updatePullUp(node, groundDist) {
+        // No PULL UP inside a tunnel: the ground being 3m below is the POINT of
+        // flying through a bore, and a warning that's always on is a warning
+        // nobody reads when it matters.
+        if (this._inCavity) {
+            this.pullUp = false;
+            return;
+        }
         // Warn if projected altitude in PULL_UP_SECONDS is below 10m
         const futureY = groundDist < Infinity
             ? groundDist + this.velocity.y * PULL_UP_SECONDS
@@ -956,6 +1278,15 @@ export class B3dAircraft extends B3dControllable {
             now produce the same identity-frame control node.
             */
             const control = canonicalize(root, scene, `aircraft-${this.instanceId}`);
+            // Expose the container's AnimationGroups where the library path puts
+            // them, so gear detection (and anything else reading them) works the
+            // same whichever way the model was loaded.
+            if (container.animationGroups.length > 0) {
+                control.metadata = {
+                    ...(control.metadata ?? {}),
+                    animationGroups: container.animationGroups,
+                };
+            }
             this.setupMesh(control, owner);
             this.meshesToDispose = [control];
         });
@@ -1007,6 +1338,7 @@ export class B3dAircraft extends B3dControllable {
         // With one declared, attitude changes rotate about the CoG while
         // `position` keeps meaning the stance point (parking is unchanged).
         applyCenterOfGravity(root);
+        this._findGear(root);
         if (root instanceof BABYLON.Mesh) {
             this.mesh = root;
             root.ellipsoid = new BABYLON.Vector3(1, 0.5, 2);

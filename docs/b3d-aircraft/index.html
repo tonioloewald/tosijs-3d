@@ -63,7 +63,8 @@ const MAX_ALT = 300     // the aircraft&#39;s ceiling (its `ceiling`, default 30
 
 // A FACTORY — so a respawn is a genuinely new aircraft (with its radar), not a reset. The sim
 // really emits a death and a spawn, which is the stream a narrative driver reads (see b3d-death).
-// The HUD stays in the COCKPIT view only (hudChase defaults false); the chase view is clean.
+// The HUD shows in BOTH views: in-scene on the canopy in cockpit, flat overlay in chase
+// (minus the artificial horizon, which only tells the truth from inside the aircraft).
 const plane = () =&gt; b3dAircraft(
   { library: &#39;vehicles&#39;, meshName: &#39;scout&#39;, player: true, y: 0, vtolSpeed: 6, maxSpeed: 55 },
   b3dRadar({ range: RADAR_RANGE, coneDeg: 90, lockTime: 1.2, maxLocks: 2 }),
@@ -244,8 +245,53 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
 <td>Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.</td>
 </tr>
 <tr>
+<td><code>lookRange</code></td>
+<td><code>120</code></td>
+<td>How far the right stick can swing the view (degrees each way)</td>
+</tr>
+<tr>
+<td><code>lookRate</code></td>
+<td><code>150</code></td>
+<td>Look slew rate (degrees/sec at full stick)</td>
+</tr>
+<tr>
+<td><code>lookReturn</code></td>
+<td><code>4</code></td>
+<td>How fast the view springs back to centre when released</td>
+</tr>
+<tr>
+<td><code>autoGear</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td>Find the model&#39;s gear-retract animations by NAME and run them from height above ground. <code>&#39;off&#39;</code> = manual (<code>setGear(up)</code>)</td>
+</tr>
+<tr>
+<td><code>gearAltitude</code></td>
+<td><code>40</code></td>
+<td>Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis)</td>
+</tr>
+<tr>
+<td><code>gearTime</code></td>
+<td><code>2.5</code></td>
+<td>Seconds for a full gear cycle</td>
+</tr>
+<tr>
+<td><code>gearSound</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Optional URL played spatially at the airframe on each gear transition</td>
+</tr>
+<tr>
+<td><code>gearVolume</code></td>
+<td><code>0.6</code></td>
+<td>Volume for <code>gearSound</code></td>
+</tr>
+<tr>
+<td><code>afterburnerSpeed</code> (behaviour)</td>
+<td>—</td>
+<td>Reached only while the trigger is HELD past the detent at full lever; release and you settle back to <code>maxSpeed</code> (military)</td>
+</tr>
+<tr>
 <td><code>hoverCeiling</code></td>
-<td><code>50</code></td>
+<td><code>140</code></td>
 <td>Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can&#39;t stall you below <code>vtolSpeed</code>. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off.</td>
 </tr>
 <tr>
@@ -259,9 +305,9 @@ lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
 <td>Vertical impact speed (m/s) above which a ground contact is a crash</td>
 </tr>
 <tr>
-<td><code>hudChase</code></td>
+<td><code>hudChaseOff</code></td>
 <td><code>false</code></td>
-<td>Show the flat DOM HUD overlay in chase view (cockpit uses the in-scene HUD)</td>
+<td>Hide the HUD entirely in chase view. By default chase shows the HUD <strong>without the artificial horizon</strong> (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene</td>
 </tr>
 <tr>
 <td><code>hudSize</code></td>
@@ -351,6 +397,42 @@ Shells inherit the airframe&#39;s velocity, so your own motion leads the shot. A
 </tbody></table>
 <p><code>fireGuns()</code>, <code>dropBomb()</code>, and <code>fireMissile()</code> are also callable directly (e.g. for
 an AI pilot). Set <code>weapons=&quot;off&quot;</code> to disarm.</p>
+<h2>The throttle is a LEVER, and the HUD marks where it&#39;s taking you</h2>
+<p>Full lever = <strong>military</strong> thrust, the fastest speed you can simply leave set.
+<strong>Afterburner is held, not parked</strong>: it lights only while the trigger is past
+a detent with the lever already at full, and letting go settles you back to
+military speed rather than cruising in reheat.</p>
+<p>Because a lever commands an <em>equilibrium</em>, the needle is always travelling
+toward a number rather than sitting on one — which looks like a fault if the
+gauge doesn&#39;t show the target. The HUD therefore marks it (<code>setMeterMarks</code>),
+and the same mechanism marks <strong>sea level</strong> on the altimeter when you drop
+below it and <strong>the ground beneath you</strong> when that&#39;s higher: an altimeter reads
+height above datum, which is the wrong number exactly when terrain is the
+thing about to hit you.</p>
+<h2>The right stick is the CAMERA</h2>
+<p>It swings the view and <strong>springs back</strong> when you let go: in chase it orbits the
+aircraft, in the cockpit it turns the pilot&#39;s head. Held, it slews; released,
+it returns — so you can glance at what you&#39;re about to hit without leaving the
+camera somewhere awkward, and without a second control to re-centre.</p>
+<p>It used to be an aux roll axis, which was near-useless: the left stick already
+banks, and bank-to-turn means a second roll input fights it. Looking around is
+what the spare stick is actually for.</p>
+<h2>Landing gear, found by name</h2>
+<p>If the model carries AnimationGroups whose names mention <strong>gear</strong> and
+<strong>retract</strong> (the scout&#39;s <code>Main Gear (L) Retract</code>, <code>Nose Gear Retract</code>, …), the
+aircraft finds them and runs them with height above ground — up on climb-out,
+down on approach, with hysteresis so a bumpy approach doesn&#39;t cycle them.
+Nothing to wire: it&#39;s convention over configuration, and a model without such
+animations simply has no gear to work.</p>
+<p>The animation is <strong>scrubbed, not played</strong> — a normalised position is advanced
+each frame and pushed with <code>goToFrame</code>. Playing the group looked simpler and
+failed: glTF animations arrive with a cyclic loop mode, so a group told to stop
+at the end can snap back to frame 0 (the gear cycles, then vanishes), and
+reversing via <code>start(from &gt; to)</code> is unreliable. Scrubbing also means an
+interrupted cycle turns around from wherever it got to, and the SAME animation
+serves both directions — there&#39;s no second one to author or keep in sync.</p>
+<p><code>gearSound</code> plays spatially at the airframe on each transition;
+<code>setGear(up)</code> and <code>gearUp</code> are public for an AI pilot or a key bind.</p>
 <h2>API (read-only properties for HUD binding)</h2>
 <ul>
 <li><code>airspeed: number</code> — current forward speed (m/s)</li>
@@ -413,6 +495,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -420,7 +503,10 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

@@ -67,6 +67,48 @@ export const sceneDelta = (scene) => {
 };
 export const conventionName = (name) => name.split('.model').join('');
 /**
+ * The BEHAVIOUR suffixes, longest-first so `_collideMesh` is matched before
+ * `_collide`. Lower-case; matching is case-insensitive.
+ */
+const BEHAVIOUR_SUFFIXES = [
+    'centerofgravity',
+    'center_of_gravity',
+    'collidemesh',
+    'collide_mesh',
+    'collidesphere',
+    'collide_sphere',
+    'collidecylinder',
+    'collide_cylinder',
+    'collidebox',
+    'collide_box',
+    'collide',
+    'noshadow',
+    'nocast',
+    'mirror',
+];
+/**
+ * The name a CONSUMER uses: `conventionName` (drop `.model`) with the
+ * behaviour suffixes stripped too, so `Hull_collideMesh.model` is publicly
+ * `Hull`.
+ *
+ * The suffixes are annotations telling the engine what to DO with a node —
+ * collider shape, shadow participation, the CoG marker — not part of what the
+ * thing IS. Leaking them into `getNames()` makes a consumer type engine
+ * plumbing they never chose (`instantiate('Hull_collideMesh')`), and it breaks
+ * the moment an author adds or changes a collider. Repeats, so a node carrying
+ * two annotations (`Hull_collideMesh_noshadow`) still resolves to `Hull`.
+ */
+export const publicName = (name) => {
+    let n = conventionName(name);
+    for (;;) {
+        const lower = n.toLowerCase();
+        const hit = BEHAVIOUR_SUFFIXES.find((s) => lower.endsWith(`_${s}`));
+        if (hit == null)
+            return n;
+        n = n.slice(0, -(hit.length + 1));
+    }
+};
+/**
  * World-space Y of the bottom of a node's combined geometry (the node itself
  * plus every descendant mesh). Returns null if there's no renderable geometry.
  */

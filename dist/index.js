@@ -10,13 +10,13 @@ export { WorldView, defaultMeshFactory } from './world-view';
 export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology';
 export { runMinSimConformance } from './min-sim-conformance';
 // Utilities
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 // Pure aircraft-HUD math (radar-trace projection + horizon + glass projection)
-export { hudTrace, horizonTransform, glassUV, hudPointFromUV, lockFillOpacity, } from './hud-math';
+export { hudTrace, horizonTransform, glassUV, hudPointFromUV, lockFillOpacity, arcDashArray, } from './hud-math';
 // HUD driver (meters / horizon / radar traces over the HUD SVG)
 export { createHudController, loadHud, buildFallbackHud } from './hud';
 export { B3dHud, b3dHud } from './b3d-hud';
@@ -155,7 +155,12 @@ export const ui = {
 export { mantaAxes, planetaryAxes, chartUV, cellBlend, slopeMask, photicFactor, } from './biome-chart';
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile, blendProfiles, profileField, } from './slope-profile';
-export { volcano, impactCrater, pad, composeLandforms, mergeProvinces, } from './landform';
+export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, } from './landform';
+// Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
+export { latticeHash, latticePoint, extractChunk } from './sdf-lattice';
+export { applyCarve, sphere, capsule, tube, box, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft, } from './carve';
+export { B3dPatch, b3dPatch } from './b3d-patch';
+export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field';
 export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin';
 // Effects & interaction
 export { B3dParticles, b3dParticles } from './b3d-particles';

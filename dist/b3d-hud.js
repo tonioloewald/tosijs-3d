@@ -176,6 +176,9 @@ export class B3dHud extends B3dChild {
                 c.setMeter(k, v);
             if (this._horizon)
                 c.setHorizon(...this._horizon);
+            for (const [n, l] of this._marks)
+                c.setMeterMarks?.(n, l);
+            c.setHorizonVisible(this._horizonVisible);
             if (this._warnings)
                 c.setWarnings(this._warnings);
             if (this._inSceneParent != null)
@@ -271,6 +274,12 @@ export class B3dHud extends B3dChild {
         this._meters.set(name, level);
         this.controller?.setMeter(name, level);
     }
+    /** Reference marks (notches) on a meter — see `hud.setMeterMarks`. */
+    setMeterMarks(name, levels) {
+        this._marks.set(name, levels);
+        this.controller?.setMeterMarks?.(name, levels);
+    }
+    _marks = new Map();
     /** Drive the horizon: pitch/roll in degrees, optional centre AoA number. */
     setHorizon(pitchDeg, rollDeg, angle) {
         this._horizon = [pitchDeg, rollDeg, angle];
@@ -280,6 +289,17 @@ export class B3dHud extends B3dChild {
     setVisible(visible) {
         this.hidden = !visible;
     }
+    /**
+     * Show/hide just the artificial horizon + pitch ladder, keeping the meters,
+     * radar traces and warnings. This is what a CHASE view wants: from outside
+     * the aircraft a horizon drawn level with the airframe contradicts the real
+     * horizon behind it, while everything else on the HUD is still true.
+     */
+    setHorizonVisible(visible) {
+        this._horizonVisible = visible;
+        this.controller?.setHorizonVisible(visible);
+    }
+    _horizonVisible = true;
     /** Warning lines (PULL UP / MISSILE …); a warning's `side` flashes that arc red. */
     setWarnings(warnings) {
         this._warnings = warnings;

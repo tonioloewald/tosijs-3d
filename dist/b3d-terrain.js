@@ -15,12 +15,19 @@ const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
-    seed: 42,
-    grossScale: 0.03,
-    detailScale: 0.15,
+    seed: 111,
+    // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
+    // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
+    // of amplitude across 530m is a plain, not a landscape.
+    // (⚠️ line comments ONLY in a doc demo: a block comment's closing
+    // delimiter ends the enclosing doc comment and truncates the demo —
+    // which is exactly how v-size ended up undefined and this went flat.
+    // Writing the delimiter even inside a line comment does it too.)
+    grossScale: 0.015,
+    detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 200,
-    detailAmplitude: 10,
+    grossAmplitude: 250,
+    detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
   },
@@ -280,7 +287,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise';
 import { PiecewiseLinearFilter } from './gradient-filter';
 import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler';
-import { buildTileField, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, } from './terrain-grid';
+import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, } from './terrain-grid';
 import { resolveBudget } from './b3d-quality';
 import { attachBiomePlugin } from './biome-plugin';
 // Pack (level, gx, gz) into a single number for Map/Set keys. Floating-origin
@@ -323,6 +330,13 @@ export class B3dTerrain extends B3dChild {
         // classification on the terrain material; tune live via `.biomePlugin`.
         biome: 'off',
         biomeSeaLevel: 0,
+        // 0 = the biome default (0.004/m). MUST be scaled to `grossAmplitude`:
+        // the lapse converts height to temperature, so a 340m world on the small-
+        // world default reads 0.72 − 340×0.004 ≈ 0 at the peaks and renders as
+        // snow everywhere (found on the patch demo). Rule of thumb: pick it so the
+        // highest ground lands near the temperature you want up there —
+        // 0.5 / amplitude gives temperate valleys and cold summits.
+        biomeLapseRate: 0,
         // 0..1: normals see a tent-filtered height (positions stay crisp) — cliff
         // faces shade smoothly instead of zigzag-banding. 0 restores pre-0.7 look.
         normalSmoothing: 0.6,
@@ -347,11 +361,20 @@ export class B3dTerrain extends B3dChild {
         fillBudget: 0,
         splitFactor: 2,
         reach: 0,
-        grossScale: 0.1,
-        detailScale: 0.5,
+        /*
+        SCALE IS A WAVELENGTH IN DISGUISE. These are 1/metres, so the useful range
+        is squashed against zero — Tonio landed on 0.015 by dragging a slider whose
+        minimum was 0.005, i.e. the good values live in the bottom 5% of the
+        control. Worse, the old defaults (0.1 / 0.5 = 10m and 2m features) with a
+        large gross amplitude give smooth, rounded, evenly-sized lumps: homogenous
+        pudding. What reads as landscape is BIG gross features carrying SMALL gross
+        amplitude, with the detail layer doing most of the vertical work.
+        */
+        grossScale: 0.015,
+        detailScale: 0.09,
         horizScale: 1,
         grossAmplitude: 8,
-        detailAmplitude: 2,
+        detailAmplitude: 3,
         // Flat vertical offset of the whole heightfield (metres). Default 0 = heightfield sits on 0.
         baseHeight: 0,
         // Auto-centre the heightfield on 0 (offset by -grossAmplitude/2), so it straddles 0 whatever
@@ -395,6 +418,28 @@ export class B3dTerrain extends B3dChild {
      * crater in, regenerate.
      */
     landform = null;
+    /**
+     * Volumetric patch mask — `(x, z) => true` where the terrain SURFACE is cut
+     * away (a bore mouth, a cavern opening). Queried per tile fill in
+     * origin-stable world coordinates, at that tile's own LOD: pooled tiles have
+     * no stable identity and the same ground is different cells at different
+     * levels, so a stored cell list would be wrong the moment anything streamed.
+     *
+     * Pair it with a [[patch-field]] density carving the same volume — the mask
+     * opens the roof, the patch supplies the walls beneath it.
+     */
+    patchMask = null;
+    /**
+     * Footprints of the volumetric patches cut into this terrain, in LOGICAL
+     * world coordinates (origin-stable — they're rebased into render space each
+     * frame, so a floating-origin reset can't move a tunnel).
+     *
+     * Each forces its ground to `level` or finer while it's near enough to be
+     * worth resolving, and is otherwise ignored — the ground simply seals over
+     * it. Patches never OWN tiles: they ride the same per-frame `desiredCells`
+     * diff the pool does, so a bore can't outlive the ground it's cut into.
+     */
+    patches = [];
     detailFilter = new PiecewiseLinearFilter();
     noise;
     noiseSeed = NaN; // last seed the noise was built with (for re-seeding)
@@ -422,6 +467,25 @@ export class B3dTerrain extends B3dChild {
      * Rebuilt per tile build (24×/frame at worst — nothing), so a slider change or an origin
      * shift is always picked up.
      */
+    /**
+     * The terrain's own height sampler, in LOGICAL world coordinates
+     * (origin-stable — pass the same coordinates a patch is authored in and a
+     * floating-origin reset can't move the answer).
+     *
+     * This is the function a volumetric patch must build its base density from:
+     * it is the hooked, landform-composed height the TILES are built from, so a
+     * bore's mouth lands on the ground that's actually there rather than on raw
+     * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
+     * after changing attributes or profiles.
+     */
+    heightSampler() {
+        const fn = this.makeHeightFn();
+        const offX = this.originOffsetX;
+        const offZ = this.originOffsetZ;
+        // makeHeightFn takes RENDER coordinates and adds the offset internally,
+        // so undo that here: callers think in logical world space.
+        return (x, z) => fn(x - offX, z - offZ);
+    }
     makeHeightFn() {
         const attrs = this;
         const sampler = this.sampler;
@@ -481,9 +545,15 @@ export class B3dTerrain extends B3dChild {
             return landform ? landform(ax, az, h) : h;
         };
     }
+    /** Metres the hole's rim folds down into a patch opening (see the collar
+     * note in `terrain-grid.tileIndexPlan`). */
+    rimCollar = 12;
+    _rimScratch;
     pool = [];
     _resolvedSubs = 0; // hiResSubdivisions after auto-resolution (pool is sized to it)
     tileTemplate = null;
+    /** The tiles' material. Read it to MATCH a patch's walls to the ground
+     * they're cut into (see `b3d-patch`); mutating it changes every tile. */
     material;
     registered = false;
     // Reusable scratch for the per-frame streamer — cleared and refilled each frame
@@ -502,8 +572,21 @@ export class B3dTerrain extends B3dChild {
     interestX = 0;
     interestZ = 0;
     // Conceptual position on the surface (u,v in [0,1))
+    /**
+     * Where this terrain sits in the sampler's (u, v) domain.
+     *
+     * ⚠️ `worldV = 0` puts the world ON A MIRROR PLANE. `CylinderSampler`
+     * deliberately reflects v (`if (vr > 0.5) vr = 1 - vr`, "symmetric
+     * hemispheres"), so v and −v sample the SAME point: the terrain either side
+     * of z = 0 is a mirror image, with a seam running away to the horizon.
+     * Invisible in a small demo sitting at the origin, glaring the moment you
+     * fly along it (Tonio spotted it as "the terrain sampling mirror").
+     *
+     * Default is 0.25 — a quarter turn away from both mirror planes (v = 0 and
+     * v = 0.5), which is the furthest you can get from either.
+     */
     worldU = 0;
-    worldV = 0;
+    worldV = 0.25;
     // Accumulated render-space offset from origin resets
     originOffsetX = 0;
     originOffsetZ = 0;
@@ -597,6 +680,9 @@ export class B3dTerrain extends B3dChild {
             // attr (keep it equal to the sibling b3d-water's y).
             this.biomePlugin = attachBiomePlugin(mat, {
                 seaLevel: this.biomeSeaLevel ?? 0,
+                ...(this.biomeLapseRate > 0
+                    ? { lapseRate: this.biomeLapseRate }
+                    : {}),
             });
         }
         return mat;
@@ -765,6 +851,27 @@ export class B3dTerrain extends B3dChild {
             omniRadius: reach * 0.4,
             interest: il > 1e-3
                 ? { x: this.interestX / il, z: this.interestZ / il }
+                : undefined,
+            // Volumetric patches force fine tiles in their own footprint (a bore
+            // mouth needs resolvable ground to cut a hole in), but only while the
+            // surrounding terrain is fine enough to be worth it — `patchResident`
+            // seals a distant tunnel rather than paying for invisible detail.
+            refine: this.patches.length > 0
+                ? this.patches
+                    .filter((p) => patchResident((p.minX + p.maxX) / 2, (p.minZ + p.maxZ) / 2, p.level, camX, camZ, {
+                    baseTileSize,
+                    levels: Math.max(1, attrs.lodLevels),
+                    splitFactor: attrs.splitFactor,
+                    maxReach: reach,
+                    omniRadius: reach * 0.4,
+                }))
+                    .map((p) => ({
+                    minX: p.minX - this.originOffsetX,
+                    maxX: p.maxX - this.originOffsetX,
+                    minZ: p.minZ - this.originOffsetZ,
+                    maxZ: p.maxZ - this.originOffsetZ,
+                    level: p.level,
+                }))
                 : undefined,
         };
     }
@@ -984,7 +1091,32 @@ export class B3dTerrain extends B3dChild {
         // 2. Skirt vertices: same XZ as their parent perimeter vertex, dropped
         //    straight down; normal copied from the parent (analytic → matches the
         //    neighbour), so the vertical band reads as ground, not a wall.
-        const skirtDepth = Math.max(attrs.grossAmplitude + attrs.detailAmplitude + 2, tileSize * 0.15);
+        // Depth from THIS TILE'S OWN RELIEF, not the world's amplitude. A skirt
+        // only has to cover the height a neighbouring coarser tile can differ by
+        // at this seam, which is bounded by how much the ground moves across a
+        // tile — never by how tall the whole world is.
+        //
+        // The old `grossAmplitude + detailAmplitude` gave a 340m world 344m
+        // skirts: a curtain hanging from every tile edge, straight down through
+        // anything below. Fly into a tunnel 150m under the surface and you hit
+        // one — it even looks like terrain, because it IS terrain, edge-on
+        // (Tonio hit exactly this, and reported it as an unexplained wall).
+        let hMin = Infinity;
+        let hMax = -Infinity;
+        for (let v = 0; v < tpl.gridCount; v++) {
+            const h = positions[v * 3 + 1];
+            if (h < hMin)
+                hMin = h;
+            if (h > hMax)
+                hMax = h;
+        }
+        const relief = Number.isFinite(hMax - hMin) ? hMax - hMin : 0;
+        // ×3, not ×1.5: the neighbour across a seam may be a COARSER tile, whose
+        // relief over the same ground is larger than this tile's — too short a
+        // skirt and the seam opens into a visible crack running away to the
+        // horizon (which is what ×1.5 gave). Still ~90m rather than the 344m the
+        // world-amplitude formula produced, so it no longer hangs into tunnels.
+        const skirtDepth = Math.max(relief * 3, tileSize * 0.5) + 2;
         for (let p = 0; p < tpl.perim.length; p++) {
             const parent = tpl.perim[p];
             const s = tpl.gridCount + p;
@@ -1037,6 +1169,40 @@ export class B3dTerrain extends B3dChild {
         // Everything above is arithmetic on plain floats; everything below hands buffers to
         // the GPU. That's the line a worker could be drawn along, so it's the line we time.
         const tSkirt = now();
+        // Patch holes: a tile the mask cuts draws its OWN index list; every other
+        // tile keeps the shared template. The `else if` is the release path — a
+        // pooled tile that once had a hole MUST go back to the template when it's
+        // reused elsewhere, or it renders a hole in ground that has none (and it
+        // would look like a streaming glitch, not a mask bug).
+        if (this.patchMask != null || tile.masked) {
+            const offX2 = this.originOffsetX;
+            const offZ2 = this.originOffsetZ;
+            const mask = this.patchMask;
+            const rim = this._rimScratch ?? (this._rimScratch = new Uint8Array(tpl.gridCount));
+            const plan = tileIndexPlan(tpl, mask == null
+                ? null
+                : (v) => mask(positions[v * 3] + cell.cx + offX2, positions[v * 3 + 2] + cell.cz + offZ2), rim);
+            if (plan != null) {
+                // Fold the hole's edge DOWN into it: a collar of terrain, so the
+                // ground doesn't stop at a cliff edge with daylight under it. The
+                // tunnel below flares up to meet this, and the two overlap instead of
+                // meeting exactly — which is the only way a grid-cut hole and an
+                // SDF-extracted tube can ever agree on a boundary.
+                const drop = Math.max(4, this.rimCollar);
+                for (let v = 0; v < tpl.gridCount; v++) {
+                    if (rim[v])
+                        positions[v * 3 + 1] -= drop;
+                }
+            }
+            if (plan != null) {
+                mesh.setIndices(plan, null, true);
+                tile.masked = true;
+            }
+            else if (tile.masked) {
+                mesh.setIndices(tpl.allIndices, null, true);
+                tile.masked = false;
+            }
+        }
         if (colors)
             mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, colors);
         mesh.updateVerticesData(BABYLON.VertexBuffer.PositionKind, positions);

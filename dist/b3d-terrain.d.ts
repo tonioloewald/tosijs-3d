@@ -12,6 +12,7 @@ export declare class B3dTerrain extends B3dChild {
     static initAttributes: {
         biome: "on" | "off";
         biomeSeaLevel: number;
+        biomeLapseRate: number;
         normalSmoothing: number;
         seed: number;
         surfaceType: string;
@@ -65,6 +66,34 @@ export declare class B3dTerrain extends B3dChild {
      * crater in, regenerate.
      */
     landform: ((x: number, z: number, h: number) => number) | null;
+    /**
+     * Volumetric patch mask — `(x, z) => true` where the terrain SURFACE is cut
+     * away (a bore mouth, a cavern opening). Queried per tile fill in
+     * origin-stable world coordinates, at that tile's own LOD: pooled tiles have
+     * no stable identity and the same ground is different cells at different
+     * levels, so a stored cell list would be wrong the moment anything streamed.
+     *
+     * Pair it with a [[patch-field]] density carving the same volume — the mask
+     * opens the roof, the patch supplies the walls beneath it.
+     */
+    patchMask: ((x: number, z: number) => boolean) | null;
+    /**
+     * Footprints of the volumetric patches cut into this terrain, in LOGICAL
+     * world coordinates (origin-stable — they're rebased into render space each
+     * frame, so a floating-origin reset can't move a tunnel).
+     *
+     * Each forces its ground to `level` or finer while it's near enough to be
+     * worth resolving, and is otherwise ignored — the ground simply seals over
+     * it. Patches never OWN tiles: they ride the same per-frame `desiredCells`
+     * diff the pool does, so a bore can't outlive the ground it's cut into.
+     */
+    patches: {
+        minX: number;
+        maxX: number;
+        minZ: number;
+        maxZ: number;
+        level: number;
+    }[];
     detailFilter: GradientFilter;
     private noise;
     private noiseSeed;
@@ -92,11 +121,29 @@ export declare class B3dTerrain extends B3dChild {
      * Rebuilt per tile build (24×/frame at worst — nothing), so a slider change or an origin
      * shift is always picked up.
      */
+    /**
+     * The terrain's own height sampler, in LOGICAL world coordinates
+     * (origin-stable — pass the same coordinates a patch is authored in and a
+     * floating-origin reset can't move the answer).
+     *
+     * This is the function a volumetric patch must build its base density from:
+     * it is the hooked, landform-composed height the TILES are built from, so a
+     * bore's mouth lands on the ground that's actually there rather than on raw
+     * noise. Cheap to hold onto for a burst of samples; rebuild it (call again)
+     * after changing attributes or profiles.
+     */
+    heightSampler(): (x: number, z: number) => number;
     private makeHeightFn;
+    /** Metres the hole's rim folds down into a patch opening (see the collar
+     * note in `terrain-grid.tileIndexPlan`). */
+    rimCollar: number;
+    private _rimScratch?;
     private pool;
     private _resolvedSubs;
     private tileTemplate;
-    private material;
+    /** The tiles' material. Read it to MATCH a patch's walls to the ground
+     * they're cut into (see `b3d-patch`); mutating it changes every tile. */
+    material: BABYLON.StandardMaterial;
     private registered;
     private _desired;
     private _desiredByKey;
@@ -108,8 +155,21 @@ export declare class B3dTerrain extends B3dChild {
     private lastCamZ;
     private interestX;
     private interestZ;
-    private worldU;
-    private worldV;
+    /**
+     * Where this terrain sits in the sampler's (u, v) domain.
+     *
+     * ⚠️ `worldV = 0` puts the world ON A MIRROR PLANE. `CylinderSampler`
+     * deliberately reflects v (`if (vr > 0.5) vr = 1 - vr`, "symmetric
+     * hemispheres"), so v and −v sample the SAME point: the terrain either side
+     * of z = 0 is a mirror image, with a seam running away to the horizon.
+     * Invisible in a small demo sitting at the origin, glaring the moment you
+     * fly along it (Tonio spotted it as "the terrain sampling mirror").
+     *
+     * Default is 0.25 — a quarter turn away from both mirror planes (v = 0 and
+     * v = 0.5), which is the furthest you can get from either.
+     */
+    worldU: number;
+    worldV: number;
     private originOffsetX;
     private originOffsetZ;
     private _beforeRender;

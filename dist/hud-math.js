@@ -186,4 +186,44 @@ export function glassUV(eyeLocal, targetLocal, half) {
 export function horizonTransform(pitchDeg, rollDeg, pxPerDeg) {
     return { offsetY: pitchDeg * pxPerDeg, rollDeg: -rollDeg };
 }
+/**
+ * Light one or more SPANS along a single path, as a `stroke-dasharray`.
+ *
+ * An SVG path with `pathLength` set is a ruler you can draw on: alternating
+ * gap/dash pairs light exactly the ranges you name, so ONE arc can carry a
+ * fill, a set-point notch, a redline band and a ground reference without four
+ * copies of the geometry to keep aligned. That's the trick the meter marks
+ * use, generalised — bars and notches are the same thing at different widths.
+ *
+ * Spans are `[from, to]` in 0..1 along the path; they're clamped, sorted and
+ * merged, so overlapping input can't produce a corrupt array.
+ */
+export function arcDashArray(spans, total = 1000) {
+    const unit = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+    const clean = spans
+        .map(([a, b]) => [unit(Math.min(a, b)), unit(Math.max(a, b))])
+        .filter(([a, b]) => b > a)
+        .sort((x, y) => x[0] - y[0]);
+    const merged = [];
+    for (const [a, b] of clean) {
+        const last = merged[merged.length - 1];
+        if (last != null && a <= last[1])
+            last[1] = Math.max(last[1], b);
+        else
+            merged.push([a, b]);
+    }
+    // A dasharray starts with a DASH, so lead with a zero-length one to make the
+    // first entry a gap.
+    // Rounded: these land in a DOM attribute, and 300.00000000000006 is noise
+    // that makes a dasharray unreadable in devtools for no benefit.
+    const round = (v) => Math.round(v * 1000) / 1000;
+    const parts = [0];
+    let cursor = 0;
+    for (const [a, b] of merged) {
+        parts.push(round((a - cursor) * total), round((b - a) * total));
+        cursor = b;
+    }
+    parts.push(round((1 - cursor) * total));
+    return parts.join(' ');
+}
 //# sourceMappingURL=hud-math.js.map

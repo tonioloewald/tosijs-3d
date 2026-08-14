@@ -762,8 +762,11 @@ export class B3dAircraft extends B3dControllable {
         // datum, which is the wrong number precisely when terrain is the thing
         // about to hit you.
         this._hud.setMeterMarks?.('speed', [
-          equilibriumSpeed(cfg, this.fbw.throttle ?? 0, this.fbw.afterburner ?? 0) /
-            topSpeed,
+          equilibriumSpeed(
+            cfg,
+            this.fbw.throttle ?? 0,
+            this.fbw.afterburner ?? 0
+          ) / topSpeed,
         ])
         const altMarks: number[] = []
         const groundY = node.position.y - this._lastGroundDist

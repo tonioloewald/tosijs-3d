@@ -12,13 +12,40 @@ export declare class B3dAircraft extends B3dControllable {
         player: boolean;
         enterable: boolean;
         ceiling: number;
-        hudChase: boolean;
+        hudChaseOff: boolean;
         hudSize: number;
         hudForward: number;
         maxSpeed: number;
         afterburnerSpeed: number;
         acceleration: number;
         vtolSpeed: number;
+        /** How fast the craft may back up in hover (units/s). */
+        reverseSpeed: number;
+        /** How fast the trigger moves the throttle lever (setting/sec). */
+        throttleRate: number;
+        /**
+         * AUTO LANDING GEAR. `'on'` finds the model's gear-retract AnimationGroups
+         * by name and runs them with height above ground: up on climb-out, down on
+         * approach. `'off'` leaves the gear to you (call `setGear`).
+         */
+        autoGear: "on" | "off";
+        /** Height above ground (m) at which the gear retracts. It extends again at
+         * 60% of this — hysteresis, so a bumpy approach doesn't cycle it. */
+        gearAltitude: number;
+        /** Optional sound for the gear cycle (URL). Played spatially at the
+         * airframe, once per transition. */
+        gearSound: string;
+        /** Volume for `gearSound`. */
+        gearVolume: number;
+        /** Seconds for a full gear cycle. */
+        gearTime: number;
+        /** How far the LOOK stick can swing the view (degrees each way). */
+        lookRange: number;
+        /** Look slew rate (degrees/sec at full deflection). */
+        lookRate: number;
+        /** How fast the view springs back to centre when the stick is released
+         * (fraction of the remaining offset per second). */
+        lookReturn: number;
         hoverCeiling: number;
         groundY: number;
         crashSpeed: number;
@@ -77,7 +104,7 @@ export declare class B3dAircraft extends B3dControllable {
     private fbw;
     private fbwSeeded;
     ceiling: number;
-    hudChase: boolean;
+    hudChaseOff: boolean;
     reticle: string;
     reticleRange: number;
     private _hud;
@@ -87,9 +114,16 @@ export declare class B3dAircraft extends B3dControllable {
     private meshNode;
     private _chasePivot;
     private _chaseLookPitch;
+    /** Where the LOOK stick has swung the view (radians), and how fast it
+     * springs back when released. */
+    private _lookYaw;
+    private _lookPitch;
     private meshesToDispose;
     private _lastGroundDist;
     private _groundNormal;
+    /** True while the airframe is in open air INSIDE the ground (a bore/cavern):
+     * heightfield assumptions are suspended for the frame. */
+    private _inCavity;
     private _worldVel;
     private _prevPos;
     private _prevPosValid;
@@ -130,6 +164,49 @@ export declare class B3dAircraft extends B3dControllable {
     private get gunWarhead();
     /** Nearest destroyable within `range` and inside the forward cone (or null). */
     private acquireTarget;
+    /** The model's gear-retract animations, found by name (see `_findGear`). */
+    private _gearGroups;
+    /** true = retracted (or retracting). Starts DOWN: you spawn on the ground. */
+    private _gearUp;
+    private _gearSound;
+    /** 0 = down, 1 = up — scrubbed toward `_gearTarget`. */
+    private _gearPos;
+    private _gearTarget;
+    /**
+     * Find the gear animations on a freshly-loaded model, by NAME.
+     *
+     * Convention over configuration: a group whose name mentions "gear" and
+     * "retract" (or "up") is a landing-gear animation, so the scout's
+     * "Main Gear (L) Retract" / "Nose Gear Retract" are picked up with no
+     * authoring beyond what's already in the GLB. Library instances carry their
+     * groups on `metadata.animationGroups` (renamed per instance), so several
+     * aircraft each animate their own gear.
+     */
+    private _findGear;
+    /**
+     * Raise or lower the gear. Public so an AI pilot, a cutscene or a key bind
+     * can call it; `autoGear` drives it from altitude otherwise.
+     */
+    setGear(up: boolean): void;
+    /**
+     * The gear is SCRUBBED, not played.
+     *
+     * Letting the AnimationGroup play itself looked obvious and doesn't work:
+     * glTF animations arrive with a cyclic loop mode, so a group told to stop at
+     * the end can snap back to frame 0 — the gear cycles and then vanishes
+     * (exactly what Tonio saw) — and reverse playback via `start(from > to)` is
+     * unreliable across Babylon versions. Advancing a normalised position and
+     * calling `goToFrame` sidesteps all of it: no loop mode, no end-of-group
+     * behaviour, no second animation to author for the reverse, and an
+     * interrupted cycle simply turns around from wherever it had got to.
+     */
+    private _scrubGear;
+    /** True while the gear is up (or on its way). */
+    get gearUp(): boolean;
+    private _playGearSound;
+    /** Drive the gear from height above ground, with hysteresis so a bumpy
+     * approach or a hill passing underneath doesn't cycle it. */
+    private _updateGear;
     /** Distance from the aircraft origin down to the nearest ground: the lower of
      * any terrain collider the raycast hits and the configured ground plane. */
     private groundDistance;

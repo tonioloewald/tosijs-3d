@@ -125,6 +125,116 @@ export function pad(opts) {
         return h + (level - h) * smooth((outer - d) / (outer - radius));
     };
 }
+/**
+ * A GULLEY: a **height-field FORCING FUNCTION** ending in a predictable cliff
+ * — the "friendly geometry to mate with" that makes a tunnel mouth tractable.
+ *
+ * The distinction that matters, and that the first version got wrong: this
+ * FORCES the height rather than cutting it. `min(h, floor)` only lowers ground
+ * that was already high, so on a hillside you get a channel and in a hollow
+ * you get nothing — the entrance is at the mercy of whatever terrain the seed
+ * produced, which is precisely the unpredictability we were trying to escape.
+ * Here the floor is `floorY` and the cliff is `cliffHeight` **whatever the
+ * natural ground was doing**, so a tunnel author knows the geometry their
+ * mouth will meet before they place it.
+ *
+ * The shape, along the axis:
+ *
+ * ```
+ *      into the hill  |  the face  |        the gulley floor        | ambient
+ *   ─────────────────╮|            |                                |
+ *    natural terrain  ╲  cliffHeight                                 ╱
+ *                      ╲___________|________________________________╱
+ *                       ↑ faceRun    floorY, grading out over length
+ * ```
+ *
+ * Forcing fades to the natural surface at the sides (`wallFade`) and at the
+ * outer end (`fade`), so the channel joins the landscape instead of ending in
+ * a second cliff. Everything outside is untouched, exactly.
+ */
+export function gulley(opts) {
+    const { x: fx, z: fz, heading, width, length, floorY } = opts;
+    const cliffHeight = opts.cliffHeight ?? 45;
+    const faceRun = Math.max(1e-3, opts.faceRun ?? 18);
+    const grade = opts.grade ?? 0;
+    const fade = Math.min(0.9, Math.max(0.05, opts.fade ?? 0.35));
+    const wallFade = Math.max(1e-3, opts.wallFade ?? width * 0.6);
+    const crestFade = Math.max(1e-3, opts.crestFade ?? faceRun * 3);
+    const cos = Math.cos(heading);
+    const sin = Math.sin(heading);
+    const halfW = width / 2;
+    const fadeStart = length * (1 - fade);
+    return (x, z, h) => {
+        const dx = x - fx;
+        const dz = z - fz;
+        const along = dx * cos + dz * sin; // + = outward from the face
+        const lateral = Math.abs(-dx * sin + dz * cos);
+        // Authority fades INTO the hill as well, over `crestFade` beyond the top
+        // of the face. Without it the forced cliff-top met natural ground at full
+        // authority and simply snapped — a 30m step at the crest, which is a
+        // cliff you fall off rather than a rim you fly over.
+        if (along < -faceRun - crestFade || along > length)
+            return h;
+        if (lateral > halfW + wallFade)
+            return h;
+        // The FORCED profile — a function of position only, never of `h`.
+        const forced = along >= 0
+            ? floorY + grade * along
+            : floorY + cliffHeight * smooth(Math.min(1, -along / faceRun));
+        // Authority: full across the floor and along the run, fading laterally to
+        // the natural surface and easing out at the far end.
+        const lateralW = lateral <= halfW ? 1 : 1 - smooth((lateral - halfW) / wallFade);
+        const alongW = along < -faceRun
+            ? 1 - smooth((-along - faceRun) / crestFade) // over the crest, into the hill
+            : along <= fadeStart
+                ? 1
+                : 1 - smooth((along - fadeStart) / (length - fadeStart));
+        const w = lateralW * alongW;
+        return h + (forced - h) * w;
+    };
+}
+/**
+ * COVER — force the ground ABOVE a tunnel to be high enough that the tunnel
+ * stays buried.
+ *
+ * This is the other half of making an entrance predictable, and the half the
+ * first gulley missed: shaping the ground in FRONT of the face does nothing
+ * about the ground OVER the run. Where the natural terrain dips below the
+ * tunnel's roof, the tube surfaces — a glancing blow that opens a hole
+ * nobody authored, complete with its own seam and its own tile skirts hanging
+ * into the tunnel. That is exactly the pathology the gulley was adopted to
+ * escape, reappearing 200m further in.
+ *
+ * `minHeight` should be the tunnel's ceiling plus a few metres of rock, so
+ * the tube meets the surface EXACTLY ONCE — at the face, where the geometry
+ * is conditioned for it. Raising ground is visually safe: it reads as the
+ * hill the tunnel goes through.
+ */
+export function cover(opts) {
+    const { x: sx, z: sz, heading, width, length, minHeight } = opts;
+    const fade = Math.max(1e-3, opts.fade ?? width * 0.7);
+    const cos = Math.cos(heading);
+    const sin = Math.sin(heading);
+    const halfW = width / 2;
+    return (x, z, h) => {
+        if (h >= minHeight)
+            return h; // already deep enough: nothing to do
+        const dx = x - sx;
+        const dz = z - sz;
+        const along = dx * cos + dz * sin;
+        if (along < 0 || along > length)
+            return h;
+        const lateral = Math.abs(-dx * sin + dz * cos);
+        if (lateral > halfW + fade)
+            return h;
+        // Ease at both ends of the corridor as well as the sides, so the raised
+        // ground is a ridge the tunnel runs under — not a wall across the map.
+        const lateralW = lateral <= halfW ? 1 : 1 - smooth((lateral - halfW) / fade);
+        const endW = 1 - smooth((along - length * 0.75) / (length * 0.25));
+        const w = lateralW * Math.max(0, Math.min(1, endW));
+        return h + (minHeight - h) * w;
+    };
+}
 /** Chain landforms left → right (each sees the previous result). */
 export function composeLandforms(...fns) {
     return (x, z, h) => {

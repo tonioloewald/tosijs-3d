@@ -50,6 +50,30 @@ export type HudController = {
     setTraces(points: HudTracePoint[]): void;
     /** Show warning lines (the `#warning` text) and flash any threat-side arc red. */
     setWarnings(warnings: HudWarning[]): void;
+    /**
+     * Show or hide the artificial horizon + pitch ladder.
+     *
+     * It's the one element that LIES outside the cockpit: from a chase camera
+     * the view isn't on the aircraft's attitude, so a horizon drawn level with
+     * the airframe contradicts the horizon you can see out the window. The
+     * meters, radar traces and warnings are all still true from any viewpoint,
+     * so they stay.
+     */
+    setHorizonVisible(visible: boolean): void;
+    /**
+     * REFERENCE MARKS on a meter — a notch at a level, drawn on the meter's own
+     * arc so it can't drift out of alignment with the fill.
+     *
+     * What a bare fill can't say: with a throttle LEVER your speed is heading
+     * TOWARD an equilibrium rather than sitting at one, and a needle with no
+     * target looks like it's misbehaving (Tonio watched speed climb after
+     * releasing the trigger and read it as a fault). A notch answers "where is
+     * this going?" Same trick serves the altimeter: sea level when you're below
+     * it, and the ground beneath you when that's higher.
+     *
+     * Levels are in the same 0..1 space as `setMeter`. Pass `[]` to clear.
+     */
+    setMeterMarks(name: MeterName, levels: number[]): void;
 };
 /** HUD viewBox is 256×256; CENTER is its middle. Exported so whoever projects onto
  * the HUD (b3d-hud) can map its quad's local (u,v) into these coords. */

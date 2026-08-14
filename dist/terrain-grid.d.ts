@@ -64,6 +64,22 @@ export interface QuadtreeConfig {
         x: number;
         z: number;
     };
+    /**
+     * Regions that must be resolved FINER than distance alone would choose —
+     * volumetric patches (a bore mouth needs fine tiles to cut a clean hole in).
+     * Cost is bounded by the region's AREA, not its distance: a 60 m footprint is
+     * a handful of fine tiles wherever it sits, so this can't blow up the tile
+     * count the way a distance-based override would.
+     */
+    refine?: RefineRegion[];
+}
+/** A world-XZ box that must be tiled at `level` or finer (0 = finest). */
+export interface RefineRegion {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+    level: number;
 }
 /**
  * The set of terrain cells that SHOULD exist right now, as a quadtree around the
@@ -133,4 +149,61 @@ export declare function buildTileField(heightAt: (wx: number, wz: number) => num
  * banding down the face. 0 = classic sharp normals.
  */
 normalSmoothing?: number): void;
+/**
+ * The index list a tile should DRAW, given which of its grid vertices a
+ * volumetric patch has masked away — or `null` for "use the shared template",
+ * which is the answer for the overwhelming majority of tiles.
+ *
+ * Returning `null` rather than a copy of the template is the point: it's what
+ * lets the caller tell "this tile needs its own buffer" from "this tile is
+ * ordinary", and therefore what makes the RELEASE path expressible — a pooled
+ * tile that once had a hole must go back to the template when it's reused
+ * somewhere else, or it renders a hole in ground that has none.
+ *
+ * A quad is dropped when ANY of its four corners is masked, so the hole comes
+ * out slightly LARGER than the mask. That's deliberate: the patch's rim is
+ * tucked just below the terrain surface (see `patch-field.marginBlend`), so an
+ * over-large hole is hidden by the bore's own geometry, while an under-large
+ * one would leave tile triangles poking through the tunnel wall.
+ *
+ * The skirt ring is kept EXCEPT where the hole eats it. A skirt hangs straight
+ * down from the tile's perimeter to hide the LOD seam — which is invisible
+ * while it's buried in solid ground, and a curtain hanging in mid-air the
+ * moment the ground beneath it has been carved away. When a bore lands on a
+ * tile boundary (four tiles meeting at a shaft is the normal case, not a
+ * pathological one — tile corners are on a grid and so are authored features),
+ * those tiles' skirts drop straight through the open bore. So a skirt quad
+ * goes when either of its perimeter vertices is masked, and the rest of the
+ * ring stays.
+ */
+export declare function tileIndexPlan(tpl: {
+    gridCount: number;
+    perim: number[];
+    gridIndices: number[];
+    allIndices: number[];
+}, isMasked: ((vertex: number) => boolean) | null, 
+/** Filled with 1 for each RIM vertex — masked, but touching unmasked ground.
+ * The caller drops those vertices to make a collar folding into the hole
+ * (see `tileIndexPlan`'s note on the rim). */
+rimOut?: Uint8Array): number[] | null;
+/**
+ * The LOD level the quadtree would naturally use at `dist` from the camera —
+ * i.e. how coarse the ground over there is about to be.
+ *
+ * This is what decides whether a volumetric patch is worth resolving at all:
+ * if the terrain around a bore is coarser than the patch's own detail level,
+ * SEAL it — mask nothing, extract no walls, let the ground close over the
+ * tunnel. Beyond that distance the hole is sub-pixel, and its wall chunks
+ * would be paying full price to be invisible. (It also dodges an aliasing
+ * mismatch the plan flags: coarse tiles band-limit their noise, an SDF never
+ * does.)
+ */
+export declare function naturalLevel(dist: number, cfg: QuadtreeConfig): number;
+/**
+ * Is a patch worth resolving from here? True when the surrounding terrain is
+ * at least as fine as the patch's `detailLevel`. Ref-count patch residency off
+ * this — don't let a patch own tiles, or a bore outlives the ground it's cut
+ * into and you get a tunnel floating in the air.
+ */
+export declare function patchResident(patchCenterX: number, patchCenterZ: number, detailLevel: number, camX: number, camZ: number, cfg: QuadtreeConfig): boolean;
 //# sourceMappingURL=terrain-grid.d.ts.map

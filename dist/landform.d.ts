@@ -75,6 +75,98 @@ export interface PadOptions {
  * `composeLandforms` to terrace a settlement up a hillside.
  */
 export declare function pad(opts: PadOptions): (x: number, z: number, h: number) => number;
+export interface GulleyOptions {
+    /** The FACE: where the cliff stands and the tunnel mouth sits. */
+    x: number;
+    z: number;
+    /** Direction the gulley runs OUT from the face (radians, world XZ). The
+     * tunnel drives the opposite way, into the hill. */
+    heading: number;
+    /** Floor width (m) — forced flat across this. */
+    width: number;
+    /** How far the gulley runs out from the face. */
+    length: number;
+    /** Floor height at the face (m). ABSOLUTE, not a cut: the floor is this
+     * height whether the natural ground was a hill or a hollow. */
+    floorY: number;
+    /** Height of the forced cliff behind the face (m above the floor). This is
+     * what the tunnel mouth is cut into, so it's the number that decides
+     * whether the mouth has room. */
+    cliffHeight?: number;
+    /** Distance over which the cliff rises, going INTO the hill (m). Small =
+     * near-vertical. */
+    faceRun?: number;
+    /** Floor grade going outward (m per m) — 0 is flat, positive climbs out. */
+    grade?: number;
+    /** Fraction of `length` spent fading back to natural terrain (0..1). */
+    fade?: number;
+    /** Lateral distance over which the forced floor fades to natural (m). */
+    wallFade?: number;
+    /** Distance PAST the cliff top over which forcing fades back to the natural
+     * surface (m). Too small and the crest is a step you fall off. */
+    crestFade?: number;
+}
+/**
+ * A GULLEY: a **height-field FORCING FUNCTION** ending in a predictable cliff
+ * — the "friendly geometry to mate with" that makes a tunnel mouth tractable.
+ *
+ * The distinction that matters, and that the first version got wrong: this
+ * FORCES the height rather than cutting it. `min(h, floor)` only lowers ground
+ * that was already high, so on a hillside you get a channel and in a hollow
+ * you get nothing — the entrance is at the mercy of whatever terrain the seed
+ * produced, which is precisely the unpredictability we were trying to escape.
+ * Here the floor is `floorY` and the cliff is `cliffHeight` **whatever the
+ * natural ground was doing**, so a tunnel author knows the geometry their
+ * mouth will meet before they place it.
+ *
+ * The shape, along the axis:
+ *
+ * ```
+ *      into the hill  |  the face  |        the gulley floor        | ambient
+ *   ─────────────────╮|            |                                |
+ *    natural terrain  ╲  cliffHeight                                 ╱
+ *                      ╲___________|________________________________╱
+ *                       ↑ faceRun    floorY, grading out over length
+ * ```
+ *
+ * Forcing fades to the natural surface at the sides (`wallFade`) and at the
+ * outer end (`fade`), so the channel joins the landscape instead of ending in
+ * a second cliff. Everything outside is untouched, exactly.
+ */
+export declare function gulley(opts: GulleyOptions): (x: number, z: number, h: number) => number;
+export interface CoverOptions {
+    /** Start of the corridor (usually the gulley's face). */
+    x: number;
+    z: number;
+    /** Direction the corridor runs (radians) — the way the tunnel drives. */
+    heading: number;
+    /** Corridor width (m). */
+    width: number;
+    /** How far along the heading the cover extends (m). */
+    length: number;
+    /** The ground is forced to AT LEAST this height over the corridor (m). */
+    minHeight: number;
+    /** Lateral distance over which the forcing fades out (m). */
+    fade?: number;
+}
+/**
+ * COVER — force the ground ABOVE a tunnel to be high enough that the tunnel
+ * stays buried.
+ *
+ * This is the other half of making an entrance predictable, and the half the
+ * first gulley missed: shaping the ground in FRONT of the face does nothing
+ * about the ground OVER the run. Where the natural terrain dips below the
+ * tunnel's roof, the tube surfaces — a glancing blow that opens a hole
+ * nobody authored, complete with its own seam and its own tile skirts hanging
+ * into the tunnel. That is exactly the pathology the gulley was adopted to
+ * escape, reappearing 200m further in.
+ *
+ * `minHeight` should be the tunnel's ceiling plus a few metres of rock, so
+ * the tube meets the surface EXACTLY ONCE — at the face, where the geometry
+ * is conditioned for it. Raising ground is visually safe: it reads as the
+ * hill the tunnel goes through.
+ */
+export declare function cover(opts: CoverOptions): (x: number, z: number, h: number) => number;
 /** Chain landforms left → right (each sees the previous result). */
 export declare function composeLandforms(...fns: Array<(x: number, z: number, h: number) => number>): (x: number, z: number, h: number) => number;
 /** Merge province fields by max — overlapping glows don't sum past 1. */

@@ -1,4 +1,4 @@
-# tosijs-3d v0.6.2
+# tosijs-3d v0.7.0-rc.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -73,6 +73,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
 - https://3d.tosijs.net/b3d-particles/ — b3d-particles
   Declarative particle effect component wrapping Babylon.js `ParticleSystem`.
+- https://3d.tosijs.net/b3d-patch/ — b3d-patch
+  base entrance. Where [[landform]] shapes the heightfield and [[patch-field]]
 - https://3d.tosijs.net/b3d-physics/ — b3d-physics
   Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
 - https://3d.tosijs.net/b3d-planet/ — b3d-planet
@@ -117,6 +119,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
+- https://3d.tosijs.net/carve/ — carve
+  Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/combat/ — Combat
@@ -168,6 +172,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Seeded pseudo-random number generator based on the Mersenne Twister
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
+- https://3d.tosijs.net/patch-field/ — patch-field
+  terrain's HEIGHT, a patch post-filters its DENSITY — one dimension up, so it can
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
@@ -175,6 +181,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/sdf-lattice/ — sdf-lattice
+  vents — see TODO's *0.7.0 → Tunnel patches*). Pure, deterministic, Babylon-free
 - https://3d.tosijs.net/selection/ — selection
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal

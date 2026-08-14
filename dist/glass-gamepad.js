@@ -283,6 +283,10 @@ export class B3dGamepad extends Component {
         scale: 1,
         deadzone: 0.15,
         maxZone: 0.85,
+        /** Seconds of no mouse/keyboard/gamepad before the pad fades back in. */
+        idleSeconds: 10,
+        /** Opacity while a real input device is in use (0 = invisible). */
+        fadedOpacity: 0,
     };
     // No styleSpec → light DOM, so page/b3d CSS reaches the clusters and the
     // `.active` press highlight applies. Styling is injected globally (scoped to
@@ -300,7 +304,71 @@ export class B3dGamepad extends Component {
             this.built = true;
             void this._build();
         }
+        this._watchRealInput();
     }
+    /**
+     * FADE OUT when a real input device shows up, back IN after `idleSeconds`
+     * of silence. On-screen controls are a fallback for a device with no
+     * keyboard or gamepad; on a laptop they sit on top of the view being useless
+     * — but removing them outright breaks the tablet case, and a manual toggle
+     * is a setting nobody finds.
+     *
+     * TOUCH is deliberately not counted: touching the glass pad IS using it, so
+     * it must not fade itself away under your thumb.
+     */
+    _watchRealInput() {
+        if (this._inputWatch != null)
+            return;
+        const wake = () => {
+            if (this._idleTimer != null)
+                clearTimeout(this._idleTimer);
+            this._setFaded(true);
+            this._idleTimer = setTimeout(() => this._setFaded(false), Math.max(1, this.idleSeconds) * 1000);
+        };
+        const onPointer = (e) => {
+            if (e.pointerType === 'touch')
+                return; // that's this pad, not a mouse
+            wake();
+        };
+        const onPad = () => {
+            const pads = navigator.getGamepads?.() ?? [];
+            for (const p of pads) {
+                if (p == null)
+                    continue;
+                if (p.buttons.some((b) => b.pressed) ||
+                    p.axes.some((a) => Math.abs(a) > 0.4)) {
+                    wake();
+                    return;
+                }
+            }
+        };
+        window.addEventListener('keydown', wake);
+        window.addEventListener('pointermove', onPointer);
+        window.addEventListener('pointerdown', onPointer);
+        // The Gamepad API has no "input happened" event, so a physical stick has
+        // to be polled — cheaply, and only while we're visible.
+        const padPoll = setInterval(onPad, 500);
+        this._inputWatch = () => {
+            window.removeEventListener('keydown', wake);
+            window.removeEventListener('pointermove', onPointer);
+            window.removeEventListener('pointerdown', onPointer);
+            clearInterval(padPoll);
+            if (this._idleTimer != null)
+                clearTimeout(this._idleTimer);
+        };
+    }
+    _setFaded(faded) {
+        if (faded === this._faded)
+            return;
+        this._faded = faded;
+        this.style.transition = 'opacity 0.4s';
+        this.style.opacity = faded ? String(this.fadedOpacity) : '1';
+        // Faded controls must not eat clicks meant for the scene behind them.
+        this.style.pointerEvents = faded ? 'none' : '';
+    }
+    _inputWatch = null;
+    _idleTimer = null;
+    _faded = false;
     async _build() {
         const host = this.parts.clusters;
         const { controls } = parseGamepadControls(String(this.controls ?? ''));
@@ -362,6 +430,8 @@ export class B3dGamepad extends Component {
             s.reflectState(pad);
     }
     disconnectedCallback() {
+        this._inputWatch?.();
+        this._inputWatch = null;
         for (const s of this.sources)
             s.dispose();
         this.sources = [];

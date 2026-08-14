@@ -106,6 +106,32 @@ export interface BiomeParams {
      */
     volcanicPalette: number[][];
     /**
+     * INTERIOR surface (a tunnel wall, a cavern ceiling): 1 = rock seen from
+     * inside the ground, so it shades as rock whatever its slope — a cavern
+     * FLOOR is level, and the chart would otherwise grow on it whatever the
+     * surface overhead grows.
+     *
+     * It does NOT mean "dry". Whether an interior floods is decided by
+     * `waterTable`, because a cave below the water line genuinely is a flooded
+     * cave — kelp on the walls of a sea cave is right, not a bug.
+     */
+    interior: number;
+    /**
+     * Height of the WATER TABLE — interiors below it are flooded and classify
+     * as submerged. This is not sea level: inland groundwater typically sits
+     * ABOVE it, which is why a hillside tunnel can flood while its mouth is
+     * well above the shore. Set it per world (or per region, by driving it
+     * from a field) rather than assuming the sea decides.
+     */
+    waterTable: number;
+    /**
+     * A world with **no liquid water at all**: interiors never flood however
+     * deep they go. Dry worlds — the Moon, a drained ice world, a sealed
+     * station — need this stated, not inferred from a height, because "no water"
+     * is a property of the world and "deep" is only a coordinate.
+     */
+    noWater: number;
+    /**
      * Subtle live-lava animation: molten seams and pools shimmer with a slow,
      * spatially-phased pulse + drifting 3D-noise churn (never a global blink),
      * and pool edges creep as crust breaks and reforms. 0 = static, 1 = the

@@ -26,7 +26,7 @@ hud.setMeter('airspeed', 0.6) // then mount hud's SVG in an overlay, or use <tos
 */
 /*{ "parent": "Core" }*/
 import { svgElements } from 'tosijs';
-import { sideFromD, lockFillOpacity } from './hud-math';
+import { sideFromD, lockFillOpacity, arcDashArray } from './hud-math';
 const SVGNS = 'http://www.w3.org/2000/svg';
 /**
  * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the
@@ -99,6 +99,9 @@ export const HUD_RING_RADIUS = 84;
 export const HUD_PIN_RADIUS = 116;
 const CENTER = HUD_CENTER; // HUD viewBox centre
 const PATH_LEN = 1000; // matches pathLength="1000" on the meter arcs
+/** Reference marks are white: distinct from every meter colour, and reads as
+ * a datum rather than as part of the fill. */
+const MARK_COLOUR = '#ffffff';
 /** Wrap a (normalized) HUD SVG element with the meter/horizon/trace setters. */
 export function createHudController(el, options = {}) {
     normalizeHud(el);
@@ -120,8 +123,57 @@ export function createHudController(el, options = {}) {
             p.setAttribute('stroke-dasharray', `${on} ${PATH_LEN}`);
         }
     };
+    // Marks are CLONES of the meter path, so they follow the same arc geometry
+    // by construction — no second set of coordinates to keep in sync when the
+    // HUD art changes. Each carries a single short dash at its level.
+    const markPaths = new Map();
+    const MARK_LEN = 14; // path units out of PATH_LEN
+    const setMeterMarks = (name, levels) => {
+        const p = el.querySelector(`#meter-${name}`);
+        if (p == null)
+            return;
+        const list = markPaths.get(name) ?? [];
+        while (list.length < levels.length) {
+            const clone = p.cloneNode(false);
+            clone.removeAttribute('id');
+            clone.setAttribute('data-mark', name);
+            // A mark must READ AS A DIFFERENT THING from the fill, not as more of
+            // it: white and fully opaque against the meter's own colour, so a glance
+            // separates "where I am" from "where I'm going" without reading values.
+            clone.setAttribute('stroke', MARK_COLOUR);
+            clone.setAttribute('opacity', '1');
+            clone.style.opacity = '1'; // beat any inherited style on the source arc
+            p.parentNode?.insertBefore(clone, p.nextSibling);
+            list.push(clone);
+        }
+        while (list.length > levels.length)
+            list.pop()?.remove();
+        markPaths.set(name, list);
+        const horizontal = p.getAttribute('data-axis') === 'h';
+        const half = MARK_LEN / PATH_LEN / 2;
+        levels.forEach((level, i) => {
+            // A horizontal arc fills middle-out, so a level's EDGE is where its fill
+            // would reach; a vertical arc is a straight run from the start.
+            const t = clamp01(level);
+            const pos = horizontal ? 0.5 + t / 2 : t;
+            list[i].setAttribute('stroke-dasharray', arcDashArray([[pos - half, pos + half]]));
+        });
+    };
     const ladder = el.querySelector('#horizon-ladder');
     const horizonG = el.querySelector('#horizon');
+    let horizonVisible = true;
+    const setHorizonVisible = (visible) => {
+        if (visible === horizonVisible)
+            return;
+        horizonVisible = visible;
+        const display = visible ? '' : 'none';
+        if (horizonG != null)
+            horizonG.style.display = display;
+        if (ladder != null)
+            ladder.style.display = display;
+        for (const l of ladders ?? [])
+            l.style.display = display;
+    };
     // Three copies of the ladder (cloned once): the 10°-level nearest the current
     // pitch, one above, one below — each labelled with its own multiple of 10.
     let ladders = null;
@@ -227,7 +279,15 @@ export function createHudController(el, options = {}) {
         const active = new Set(warnings.map((w) => w.side).filter(Boolean));
         el.querySelectorAll('[data-side]').forEach((f) => f.classList.toggle('hud-threat', active.has(f.getAttribute('data-side'))));
     };
-    return { el, setMeter, setHorizon, setTraces, setWarnings };
+    return {
+        el,
+        setMeter,
+        setMeterMarks,
+        setHorizon,
+        setTraces,
+        setWarnings,
+        setHorizonVisible,
+    };
 }
 const { svg, g, path, rect, circle, text, defs } = svgElements;
 // The gauge frame outlines and the four meter arcs (bezier geometry from the asset).

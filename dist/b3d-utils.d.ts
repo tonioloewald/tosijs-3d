@@ -43,6 +43,19 @@ export declare const isOff: (v: unknown) => boolean;
 export declare const sceneDelta: (scene: BABYLON.Scene) => number;
 export declare const conventionName: (name: string) => string;
 /**
+ * The name a CONSUMER uses: `conventionName` (drop `.model`) with the
+ * behaviour suffixes stripped too, so `Hull_collideMesh.model` is publicly
+ * `Hull`.
+ *
+ * The suffixes are annotations telling the engine what to DO with a node —
+ * collider shape, shadow participation, the CoG marker — not part of what the
+ * thing IS. Leaking them into `getNames()` makes a consumer type engine
+ * plumbing they never chose (`instantiate('Hull_collideMesh')`), and it breaks
+ * the moment an author adds or changes a collider. Repeats, so a node carrying
+ * two annotations (`Hull_collideMesh_noshadow`) still resolves to `Hull`.
+ */
+export declare const publicName: (name: string) => string;
+/**
  * Vertical gap, in world units, between a node's origin and the bottom of its
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).

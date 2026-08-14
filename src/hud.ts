@@ -27,9 +27,7 @@ hud.setMeter('airspeed', 0.6) // then mount hud's SVG in an overlay, or use <tos
 /*{ "parent": "Core" }*/
 
 import { svgElements } from 'tosijs'
-import { sideFromD, lockFillOpacity, type Side,
-  arcDashArray,
-} from './hud-math'
+import { sideFromD, lockFillOpacity, type Side, arcDashArray } from './hud-math'
 import type { Vec3 } from './spatial-transform'
 
 export type { Side } from './hud-math'
@@ -190,8 +188,6 @@ const PATH_LEN = 1000 // matches pathLength="1000" on the meter arcs
 /** Reference marks are white: distinct from every meter colour, and reads as
  * a datum rather than as part of the fill. */
 const MARK_COLOUR = '#ffffff'
-
-
 
 export type HudControllerOptions = {
   /**

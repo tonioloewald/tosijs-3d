@@ -105,4 +105,17 @@ export type HorizonTransform = {
  * the whole ladder counter-rotates by the roll so the horizon reads level.
  */
 export declare function horizonTransform(pitchDeg: number, rollDeg: number, pxPerDeg: number): HorizonTransform;
+/**
+ * Light one or more SPANS along a single path, as a `stroke-dasharray`.
+ *
+ * An SVG path with `pathLength` set is a ruler you can draw on: alternating
+ * gap/dash pairs light exactly the ranges you name, so ONE arc can carry a
+ * fill, a set-point notch, a redline band and a ground reference without four
+ * copies of the geometry to keep aligned. That's the trick the meter marks
+ * use, generalised — bars and notches are the same thing at different widths.
+ *
+ * Spans are `[from, to]` in 0..1 along the path; they're clamped, sorted and
+ * merged, so overlapping input can't produce a corrupt array.
+ */
+export declare function arcDashArray(spans: Array<[number, number]>, total?: number): string;
 //# sourceMappingURL=hud-math.d.ts.map

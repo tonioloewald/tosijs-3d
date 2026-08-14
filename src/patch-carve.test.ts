@@ -76,8 +76,16 @@ describe('roof and walls agree', () => {
         )
       }
     }
+    // `perim` became required when the rim collar landed (the skirt is rebuilt
+    // from it rather than sliced off allIndices)
+    const perim: number[] = []
+    for (let ix = 0; ix < n; ix++) perim.push(gi(ix, 0))
+    for (let iz = 0; iz < n; iz++) perim.push(gi(n, iz))
+    for (let ix = n; ix > 0; ix--) perim.push(gi(ix, n))
+    for (let iz = n; iz > 0; iz--) perim.push(gi(0, iz))
     const tpl = {
       gridCount: vps * vps,
+      perim,
       gridIndices,
       allIndices: [...gridIndices, 999, 998, 997],
     }
@@ -92,7 +100,16 @@ describe('roof and walls agree', () => {
       return mask(x, z)
     })
     expect(over).not.toBeNull()
-    expect(over!.length).toBeLessThan(tpl.allIndices.length) // a hole
+    // count GRID quads (skirt quads reference skirt vertices) — comparing
+    // total length is meaningless now that the plan REBUILDS the skirt from
+    // `perim` rather than slicing the stand-in's fake one
+    const gridQuads = (plan: number[]) => {
+      let q = 0
+      for (let i = 0; i < plan.length; i += 6)
+        if (plan[i + 1] < tpl.gridCount) q++
+      return q
+    }
+    expect(gridQuads(over!)).toBeLessThan(n * n) // a hole was cut
 
     const beside = tileIndexPlan(tpl, (v) => {
       const [x, z] = vertexAt(60, 60, v)

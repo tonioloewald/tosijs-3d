@@ -255,7 +255,16 @@ describe('arcDashArray — many bars on one arc', () => {
   })
 
   test('several spans coexist on one path', () => {
-    const d = nums(arcDashArray([[0, 0.1], [0.4, 0.5], [0.9, 1]], 1000))
+    const d = nums(
+      arcDashArray(
+        [
+          [0, 0.1],
+          [0.4, 0.5],
+          [0.9, 1],
+        ],
+        1000
+      )
+    )
     // 0 | dash 100 | gap 300 | dash 100 | gap 400 | dash 100 | gap 0
     expect(d).toEqual([0, 0, 100, 300, 100, 400, 100, 0])
     // dashes (odd indices after the lead) sum to the lit total
@@ -263,7 +272,15 @@ describe('arcDashArray — many bars on one arc', () => {
   })
 
   test('overlapping spans MERGE rather than corrupting the array', () => {
-    const d = nums(arcDashArray([[0.2, 0.5], [0.4, 0.7]], 1000))
+    const d = nums(
+      arcDashArray(
+        [
+          [0.2, 0.5],
+          [0.4, 0.7],
+        ],
+        1000
+      )
+    )
     expect(d).toEqual([0, 200, 500, 300]) // one 0.2→0.7 dash
   })
 

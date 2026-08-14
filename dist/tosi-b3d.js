@@ -576,6 +576,35 @@ export class B3d extends Component {
     _nameplates = new Map();
     _nameplateList = [];
     _nameplateScan = 0;
+    /**
+     * CAVITIES — open air that lives INSIDE the ground (a bore, a cavern).
+     *
+     * Anything that navigates by "terrain is a heightfield below me" needs to
+     * know when that stopped being true: a flat ground-plane floor, a downward
+     * ray, a landing gate. A cavity predicate is how a volumetric patch tells
+     * the rest of the engine "here, the rule is suspended" without either side
+     * knowing about the other — the same shape as the origin listeners above,
+     * and for the same reason.
+     */
+    addCavity(predicate) {
+        this._cavities.push(predicate);
+    }
+    removeCavity(predicate) {
+        const i = this._cavities.indexOf(predicate);
+        if (i >= 0)
+            this._cavities.splice(i, 1);
+    }
+    /** Is this world point inside open air within the ground? False when no
+     * patch has claimed it — so a scene with no cavities pays one array-length
+     * check and behaves exactly as it always did. */
+    insideCavity(x, y, z) {
+        for (let i = 0; i < this._cavities.length; i++) {
+            if (this._cavities[i](x, y, z))
+                return true;
+        }
+        return false;
+    }
+    _cavities = [];
     registerWorldRoot(node) {
         this._worldRoots.add(node);
     }

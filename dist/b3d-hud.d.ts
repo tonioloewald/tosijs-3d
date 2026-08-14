@@ -79,10 +79,21 @@ export declare class B3dHud extends B3dChild {
     sceneDispose(): void;
     /** Fill a meter arc (`speed`/`altitude`/`health`/`energy`), level 0..1. */
     setMeter(name: MeterName, level: number): void;
+    /** Reference marks (notches) on a meter — see `hud.setMeterMarks`. */
+    setMeterMarks(name: MeterName, levels: number[]): void;
+    private _marks;
     /** Drive the horizon: pitch/roll in degrees, optional centre AoA number. */
     setHorizon(pitchDeg: number, rollDeg: number, angle?: number): void;
     /** Show/hide the whole HUD (e.g. hide it in a chase view, show it in the cockpit). */
     setVisible(visible: boolean): void;
+    /**
+     * Show/hide just the artificial horizon + pitch ladder, keeping the meters,
+     * radar traces and warnings. This is what a CHASE view wants: from outside
+     * the aircraft a horizon drawn level with the airframe contradicts the real
+     * horizon behind it, while everything else on the HUD is still true.
+     */
+    setHorizonVisible(visible: boolean): void;
+    private _horizonVisible;
     /** Warning lines (PULL UP / MISSILE …); a warning's `side` flashes that arc red. */
     setWarnings(warnings: HudWarning[]): void;
     /**

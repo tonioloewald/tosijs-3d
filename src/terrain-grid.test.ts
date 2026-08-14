@@ -529,16 +529,38 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
     expect(tileIndexPlan(tpl, () => false)).toBeNull()
   })
 
-  test('a masked vertex removes every quad TOUCHING it, not just the ones it centres', () => {
-    const target = gi(2, 2)
-    const plan = tileIndexPlan(tpl, (v) => v === target)!
-    expect(plan).not.toBeNull()
-    // the 4 quads around an interior vertex are gone: 16 quads − 4 = 12
+  /*
+  THE RIM COLLAR changed what a mask means. A masked vertex TOUCHING unmasked
+  ground is rim: its quads are KEPT (the caller drops the vertex, so the
+  terrain folds into the hole instead of ending at a cliff edge). Only
+  vertices with no unmasked neighbour are truly cut. So a single masked vertex
+  is all rim and removes nothing — it becomes a dimple, not a hole.
+  */
+  test('a LONE masked vertex is all rim: quads survive, it becomes a dimple', () => {
+    const plan = tileIndexPlan(tpl, (v) => v === gi(2, 2))!
+    expect((plan.length - skirt.length) / 6).toBe(16) // nothing cut
+  })
+
+  test('a masked REGION cuts its interior and keeps its rim', () => {
+    // a 3×3 block of vertices: only the centre has no unmasked neighbour
+    const block = new Set([
+      gi(2, 2),
+      gi(3, 2),
+      gi(4, 2),
+      gi(2, 3),
+      gi(3, 3),
+      gi(4, 3),
+      gi(2, 4),
+      gi(3, 4),
+      gi(4, 4),
+    ])
+    const plan = tileIndexPlan(tpl, (v) => block.has(v))!
     const quadsLeft = (plan.length - skirt.length) / 6
-    expect(quadsLeft).toBe(12)
-    // and the masked vertex appears in no remaining grid triangle
+    expect(quadsLeft).toBeLessThan(16) // a real hole now
+    // the centre vertex is gone from the grid triangles; the rim is not
     const gridPart = plan.slice(0, plan.length - skirt.length)
-    expect(gridPart.includes(target)).toBe(false)
+    expect(gridPart.includes(gi(3, 3))).toBe(false)
+    expect(gridPart.includes(gi(2, 2))).toBe(true)
   })
 
   test('the skirt survives where the ground does — an INTERIOR hole keeps it whole', () => {
@@ -555,15 +577,21 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
   just geometry in the void.
   */
   test('a skirt whose GROUND was carved away goes with it', () => {
-    const edgeVertex = gi(0, 2) // on the tile's own edge — a bore at the seam
-    const plan = tileIndexPlan(tpl, (v) => v === edgeVertex)!
-    const skirtPart = plan.slice(plan.length - (plan.length % 6 === 0 ? 0 : 0))
-    // the two skirt quads that hang off this perimeter vertex are gone
-    expect(plan.length).toBeLessThan(
-      tileIndexPlan(tpl, (v) => v === gi(2, 2))!.length + skirt.length
-    )
-    expect(plan.includes(edgeVertex)).toBe(false) // nothing references it at all
-    expect(skirtPart).toBeDefined()
+    // a BLOCK against the tile edge, so the edge vertices are interior to the
+    // mask (a lone edge vertex would be rim, and rim keeps its skirt)
+    // must be big enough that gi(0,2) has NO unmasked neighbour — otherwise
+    // it's rim, and rim keeps both its quads and its skirt
+    const block = new Set([
+      gi(0, 1),
+      gi(1, 1),
+      gi(0, 2),
+      gi(1, 2),
+      gi(0, 3),
+      gi(1, 3),
+    ])
+    const plan = tileIndexPlan(tpl, (v) => block.has(v))!
+    expect(plan.includes(gi(0, 2))).toBe(false) // cut entirely
+    expect(plan.length).toBeLessThan(tpl.allIndices.length) // …skirt included
   })
 
   test('everything masked ⇒ nothing at all, not a floating ring', () => {
@@ -579,9 +607,7 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
     }
   })
 
-  test('an edge-vertex mask cuts fewer GRID quads than an interior one', () => {
-    // (an edge mask also takes skirt quads with it now — see the skirt test —
-    // so compare the grid portion, which is what this is about)
+  test('a bigger masked region cuts more quads — monotone, as a hole should be', () => {
     const gridQuads = (plan: number[]) => {
       let n = 0
       for (let i = 0; i < plan.length; i += 6) {
@@ -589,8 +615,15 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
       }
       return n
     }
-    expect(gridQuads(tileIndexPlan(tpl, (v) => v === gi(0, 0))!)).toBe(15)
-    expect(gridQuads(tileIndexPlan(tpl, (v) => v === gi(2, 2))!)).toBe(12)
+    const region = (size: number) => {
+      const set = new Set<number>()
+      for (let iz = 1; iz <= size; iz++)
+        for (let ix = 1; ix <= size; ix++) set.add(gi(ix, iz))
+      return gridQuads(tileIndexPlan(tpl, (v) => set.has(v))!)
+    }
+    expect(region(2)).toBe(16) // all rim: a dimple, nothing cut
+    expect(region(3)).toBeLessThan(region(2)) // an interior appears
+    expect(region(4)).toBeLessThan(region(3))
   })
 })
 

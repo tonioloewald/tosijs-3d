@@ -4,6 +4,91 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.7.0-rc.1
+
+**Aircraft that fly like aircraft, and the substrate for volumetric terrain.**
+Additive — no API removals, no peer-dependency changes — but the aircraft's
+throttle and camera behave differently enough to be worth reading before you
+upgrade a scene that tuned around the old feel.
+
+### Added
+
+- **[carve](https://3d.tosijs.net/carve/)** — the cave vocabulary: `sphere`,
+  `capsule`, `tube`, `box`, `smoothUnion` (fillets a junction so a passage
+  flares into a chamber), `subtract`, `intersect`, plus the two perturbations
+  that stop a carve looking carved: `roughen` (texture the wall, silhouette
+  stays) and `warp` (bend the space so nothing reads as a primitive).
+- **[sdf-lattice](https://3d.tosijs.net/sdf-lattice/)** — surface-nets
+  extraction over ONE global hash-jittered lattice, so chunks weld
+  bit-identically and cross-tile/cross-LOD seams are unrepresentable rather
+  than stitched. Includes the chunk-weld proof as a test.
+- **[patch-field](https://3d.tosijs.net/patch-field/)** — `landform`'s
+  volumetric sibling: `(x, y, z, d) => d'` carving composed against the
+  terrain's own hooked height sampler.
+- **[b3d-patch](https://3d.tosijs.net/b3d-patch/)** ⚠️ **experimental** —
+  streams extracted cave geometry with residency, a budget and a cavity
+  predicate. Interiors work; ENTRANCES do not yet (see the component's note).
+- **`landform`** gains `gulley` (a height FORCING function ending in a
+  predictable cliff), `cover` (forced ground over a tunnel so it stays
+  buried), and `pad` from 0.6.2's family.
+- **`b3d-terrain`**: `patchMask`/`patches` hooks, `biomeLapseRate` (the lapse
+  is coupled to vertical scale — a 340m world on the small-world default
+  renders entirely as snow), and a public `heightSampler()`.
+- **Landing gear, found by NAME** — AnimationGroups mentioning "gear" and
+  "retract" are cycled from height above ground, with hysteresis and an
+  optional `gearSound`. The animation is SCRUBBED, not played, because glTF
+  animations arrive with a cyclic loop mode and a played group can snap back
+  to frame 0.
+- **`arcDashArray`** + `hud.setMeterMarks` — reference marks on any meter,
+  drawn on the meter's own arc. Used for the throttle set point, sea level,
+  and the ground beneath you.
+- **`equilibriumSpeed(cfg, throttle, afterburner)`** — where a lever will
+  settle.
+
+### Changed
+
+- **⚠️ The aircraft throttle is a LEVER, not a speed setpoint.** It commands
+  an equilibrium: a climb settles at a new lower speed instead of stalling,
+  and lowering the nose returns you to the speed you had, untouched. Full
+  lever is MILITARY thrust; afterburner lights only while the trigger is held
+  past a detent and drops back when released. Releasing the trigger holds the
+  setting, so speed no longer self-sustains at idle — set the lever where you
+  want to cruise.
+- **⚠️ The right stick is the CAMERA**, not aux roll: it orbits the chase
+  camera around the aircraft and turns the pilot's head in the cockpit,
+  springing back on release. (`strafe` still sums into roll for anyone who
+  maps a dedicated axis.)
+- Hover gained a brake (the trigger's negative half sheds speed to a stop)
+  and slow reverse (nose-up lean), with the trigger staying purely vertical
+  so stopping never fights altitude. `hoverCeiling` 50 → 140.
+- Speed gauges read 0..100% of the FULL envelope, afterburner included.
+- Terrain defaults: bigger gross features carrying less gross amplitude, with
+  the detail layer doing real work — the old defaults read as pudding.
+- `worldV` defaults to 0.25: `CylinderSampler` reflects v, so `worldV = 0`
+  put every scene ON a mirror plane with a seam running to the horizon.
+
+### Fixed
+
+- **`canonicalize` applied a spurious 180° yaw**, flying correctly-authored
+  (Blender −Y-forward) models backwards. Pinned against real content now.
+- **Everything ticking in a scene observer ran at half or quarter speed** —
+  `getDeltaTime()` is the rAF tick, not the inter-render gap. B3d publishes
+  `frameDelta`; 14 call sites use it.
+- **Weapons inherited a phantom velocity** (the aircraft's `velocity` field is
+  the hover integrator and reads zero in wing-borne flight), and muzzles now
+  transform through the world matrix so shots leave the visible airframe.
+- **Flying into a cliff face passed through it** — a downward ray can't see a
+  wall ahead; airborne frames now sweep along the velocity.
+- **Death could strand you in the wreck**: an unregistered material plugin
+  made `Material.clone()` throw mid-sequence, so focus was never released.
+  Plugins are registered and death's exit is shielded from cosmetic failures.
+- **Tile skirts hung 344m through tunnels** — depth came from world amplitude
+  rather than the tile's own relief.
+- `getNames()` leaked behaviour suffixes (`Hull_collideMesh.model` listed as
+  `Hull_collideMesh`); `publicName()` is what consumers see.
+- `_centerOfGravity` markers, cave shading (`interior` as a depth ramp,
+  flooding by `waterTable`, `noWater`), volcanism confined to its caldera.
+
 ## 0.6.2
 
 Terrain gets **volcanism** and **authored landforms**, clouds get real shapes, and a

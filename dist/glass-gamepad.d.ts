@@ -36,12 +36,18 @@ export declare class B3dGamepad extends Component implements GamepadSource {
         scale: number;
         deadzone: number;
         maxZone: number;
+        /** Seconds of no mouse/keyboard/gamepad before the pad fades back in. */
+        idleSeconds: number;
+        /** Opacity while a real input device is in use (0 = invisible). */
+        fadedOpacity: number;
     };
     content: HTMLDivElement[];
     controls: string;
     scale: number;
     deadzone: number;
     maxZone: number;
+    idleSeconds: number;
+    fadedOpacity: number;
     /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one. */
     clusters?: {
         left?: ClusterConfig | false;
@@ -52,6 +58,21 @@ export declare class B3dGamepad extends Component implements GamepadSource {
     private sources;
     private built;
     connectedCallback(): void;
+    /**
+     * FADE OUT when a real input device shows up, back IN after `idleSeconds`
+     * of silence. On-screen controls are a fallback for a device with no
+     * keyboard or gamepad; on a laptop they sit on top of the view being useless
+     * — but removing them outright breaks the tablet case, and a manual toggle
+     * is a setting nobody finds.
+     *
+     * TOUCH is deliberately not counted: touching the glass pad IS using it, so
+     * it must not fade itself away under your thumb.
+     */
+    private _watchRealInput;
+    private _setFaded;
+    private _inputWatch;
+    private _idleTimer;
+    private _faded;
     private _build;
     poll(): VirtualGamepad;
     /** Mirror external gamepad state (hardware/keyboard) onto untouched controls. */

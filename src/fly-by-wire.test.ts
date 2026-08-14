@@ -537,3 +537,43 @@ describe('recovery after a climb bleeds you off (Tonio, 2026-08-13)', () => {
     expect(settle()).toBeCloseTo(level, 0) // …and levelling out gets it back
   })
 })
+
+describe('afterburner is HELD, not parked (Tonio, 2026-08-14)', () => {
+  const fly = (s: FlyByWireState, cmd: typeof NO_INPUT, n: number) => {
+    for (let i = 0; i < n; i++)
+      flyByWireStep(s, cmd, s.speed, 0, CFG, DT, false)
+    return s.speed
+  }
+  const FULL = { pitch: 0, roll: 0, lift: 1 }
+
+  test('holding past the detent at full lever reaches afterburner speed', () => {
+    const s = state({ speed: 40, throttle: 1 })
+    expect(fly(s, FULL, 8000)).toBeCloseTo(CFG.afterburnerSpeed, 0)
+    expect(s.afterburner).toBeGreaterThan(0.9)
+  })
+
+  test('LETTING GO settles back to military — no cruising in reheat', () => {
+    const s = state({ speed: 40, throttle: 1 })
+    fly(s, FULL, 8000)
+    expect(s.speed).toBeGreaterThan(CFG.maxSpeed + 5)
+    expect(fly(s, NO_INPUT, 8000)).toBeCloseTo(CFG.maxSpeed, 0)
+    expect(s.afterburner).toBe(0)
+    expect(s.throttle).toBeCloseTo(1, 5) // the LEVER never moved
+  })
+
+  test('reheat needs the lever at full — part throttle cannot light it', () => {
+    const s = state({ speed: 40, throttle: 0.5 })
+    for (let i = 0; i < 5; i++)
+      flyByWireStep(s, FULL, s.speed, 0, CFG, DT, false)
+    expect(s.afterburner).toBe(0)
+  })
+
+  test('equilibriumSpeed predicts where a lever settles', () => {
+    expect(equilibriumSpeed(CFG, 1, 0)).toBeCloseTo(CFG.maxSpeed, 5)
+    expect(equilibriumSpeed(CFG, 1, 1)).toBeCloseTo(CFG.afterburnerSpeed, 5)
+    expect(equilibriumSpeed(CFG, 0, 0)).toBe(0)
+    const s = state({ speed: 10, throttle: 0.6 })
+    fly(s, NO_INPUT, 8000)
+    expect(s.speed).toBeCloseTo(equilibriumSpeed(CFG, 0.6, 0), 0)
+  })
+})

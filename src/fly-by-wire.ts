@@ -234,8 +234,7 @@ export function flyByWireStep(
       : 0
   state.afterburner = reheat
   // Extra thrust sized so full reheat balances exactly at afterburnerSpeed.
-  const abRatio =
-    cfg.maxSpeed > 0 ? cfg.afterburnerSpeed / cfg.maxSpeed : 1
+  const abRatio = cfg.maxSpeed > 0 ? cfg.afterburnerSpeed / cfg.maxSpeed : 1
   const reheatAccel = cfg.accel * Math.max(0, abRatio * abRatio - 1)
   // AIRBRAKE: once the lever is at idle, further back-pressure is a brake
   // rather than a no-op. Without it a lever-based throttle leaves you with

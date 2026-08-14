@@ -59,12 +59,19 @@ const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
-    seed: 42,
-    grossScale: 0.03,
-    detailScale: 0.15,
+    seed: 111,
+    // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
+    // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
+    // of amplitude across 530m is a plain, not a landscape.
+    // (⚠️ line comments ONLY in a doc demo: a block comment&#39;s closing
+    // delimiter ends the enclosing doc comment and truncates the demo —
+    // which is exactly how v-size ended up undefined and this went flat.
+    // Writing the delimiter even inside a line comment does it too.)
+    grossScale: 0.015,
+    detailScale: 0.09,
     horizScale: 8,
-    grossAmplitude: 200,
-    detailAmplitude: 10,
+    grossAmplitude: 250,
+    detailAmplitude: 45,
     wireframe: false,
     debugColor: false,
   },
@@ -486,6 +493,7 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -493,7 +501,10 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>

@@ -112,7 +112,22 @@ export function desiredCellsInto(camX, camZ, cfg, out) {
         if (Math.hypot(ndx, ndz) > reach)
             return;
         const dist = Math.hypot(cx - camX, cz - camZ);
-        if (level > 0 && dist < cfg.splitFactor * ts) {
+        // A refine region forces descent even where distance says "coarse is fine".
+        let forced = false;
+        if (cfg.refine != null && level > 0) {
+            const half = ts / 2;
+            for (const r of cfg.refine) {
+                if (level > r.level &&
+                    cx + half > r.minX &&
+                    cx - half < r.maxX &&
+                    cz + half > r.minZ &&
+                    cz - half < r.maxZ) {
+                    forced = true;
+                    break;
+                }
+            }
+        }
+        if (level > 0 && (forced || dist < cfg.splitFactor * ts)) {
             descend(2 * gx, 2 * gz, level - 1);
             descend(2 * gx + 1, 2 * gz, level - 1);
             descend(2 * gx, 2 * gz + 1, level - 1);
@@ -238,5 +253,140 @@ normalSmoothing = 0) {
             normals[v * 3 + 2] = nz * inv;
         }
     }
+}
+/**
+ * The index list a tile should DRAW, given which of its grid vertices a
+ * volumetric patch has masked away — or `null` for "use the shared template",
+ * which is the answer for the overwhelming majority of tiles.
+ *
+ * Returning `null` rather than a copy of the template is the point: it's what
+ * lets the caller tell "this tile needs its own buffer" from "this tile is
+ * ordinary", and therefore what makes the RELEASE path expressible — a pooled
+ * tile that once had a hole must go back to the template when it's reused
+ * somewhere else, or it renders a hole in ground that has none.
+ *
+ * A quad is dropped when ANY of its four corners is masked, so the hole comes
+ * out slightly LARGER than the mask. That's deliberate: the patch's rim is
+ * tucked just below the terrain surface (see `patch-field.marginBlend`), so an
+ * over-large hole is hidden by the bore's own geometry, while an under-large
+ * one would leave tile triangles poking through the tunnel wall.
+ *
+ * The skirt ring is kept EXCEPT where the hole eats it. A skirt hangs straight
+ * down from the tile's perimeter to hide the LOD seam — which is invisible
+ * while it's buried in solid ground, and a curtain hanging in mid-air the
+ * moment the ground beneath it has been carved away. When a bore lands on a
+ * tile boundary (four tiles meeting at a shaft is the normal case, not a
+ * pathological one — tile corners are on a grid and so are authored features),
+ * those tiles' skirts drop straight through the open bore. So a skirt quad
+ * goes when either of its perimeter vertices is masked, and the rest of the
+ * ring stays.
+ */
+export function tileIndexPlan(tpl, isMasked, 
+/** Filled with 1 for each RIM vertex — masked, but touching unmasked ground.
+ * The caller drops those vertices to make a collar folding into the hole
+ * (see `tileIndexPlan`'s note on the rim). */
+rimOut) {
+    if (isMasked == null)
+        return null;
+    const masked = new Uint8Array(tpl.gridCount);
+    let any = false;
+    for (let v = 0; v < tpl.gridCount; v++) {
+        if (isMasked(v)) {
+            masked[v] = 1;
+            any = true;
+        }
+    }
+    if (!any)
+        return null; // touched by a patch's bounds, but nothing to cut
+    /*
+    THE RIM COLLAR. A hole cut cleanly at the grid leaves the terrain's edge
+    hanging in space, and the tunnel below starts wherever its own surface is —
+    so you see daylight between them (Tonio: "visible gap between tunnel start
+    and hole in ground", with the fix: skirt down from the hole edge, and flange
+    the tunnel out to meet it).
+  
+    A masked vertex TOUCHING unmasked ground keeps its quads instead of losing
+    them; the caller then drops that vertex, so the terrain folds down into the
+    hole as a collar rather than stopping at a cliff edge. Only the first ring
+    survives — everything deeper is genuinely gone.
+    */
+    const rim = rimOut ?? new Uint8Array(tpl.gridCount);
+    rim.fill(0);
+    const g0 = tpl.gridIndices;
+    for (let i = 0; i < g0.length; i += 6) {
+        const corners = [g0[i], g0[i + 1], g0[i + 2], g0[i + 5]];
+        let m = 0;
+        for (const c of corners)
+            if (masked[c])
+                m++;
+        if (m === 0 || m === 4)
+            continue; // wholly outside or wholly inside the hole
+        for (const c of corners)
+            if (masked[c])
+                rim[c] = 1;
+    }
+    // A rim vertex is dropped, not removed: its quads stay so the collar exists.
+    for (let v = 0; v < tpl.gridCount; v++)
+        if (rim[v])
+            masked[v] = 0;
+    const out = [];
+    const g = tpl.gridIndices;
+    for (let i = 0; i < g.length; i += 6) {
+        // one quad = two triangles over corners {a, b, c, d} = g[i], g[i+2], g[i+1], g[i+5]
+        if (masked[g[i]] ||
+            masked[g[i + 1]] ||
+            masked[g[i + 2]] ||
+            masked[g[i + 5]]) {
+            continue;
+        }
+        for (let k = 0; k < 6; k++)
+            out.push(g[i + k]);
+    }
+    // …then the skirt, minus any quad whose ground has been carved out from
+    // under it. Rebuilt from `perim` rather than sliced out of `allIndices`, so
+    // the two can't drift apart if the template's layout ever changes.
+    const pc = tpl.perim.length;
+    for (let p = 0; p < pc; p++) {
+        const pn = (p + 1) % pc;
+        const ga = tpl.perim[p];
+        const gb = tpl.perim[pn];
+        if (masked[ga] || masked[gb])
+            continue;
+        out.push(ga, tpl.gridCount + p, gb, gb, tpl.gridCount + p, tpl.gridCount + pn);
+    }
+    return out;
+}
+/**
+ * The LOD level the quadtree would naturally use at `dist` from the camera —
+ * i.e. how coarse the ground over there is about to be.
+ *
+ * This is what decides whether a volumetric patch is worth resolving at all:
+ * if the terrain around a bore is coarser than the patch's own detail level,
+ * SEAL it — mask nothing, extract no walls, let the ground close over the
+ * tunnel. Beyond that distance the hole is sub-pixel, and its wall chunks
+ * would be paying full price to be invisible. (It also dodges an aliasing
+ * mismatch the plan flags: coarse tiles band-limit their noise, an SDF never
+ * does.)
+ */
+export function naturalLevel(dist, cfg) {
+    const top = Math.max(0, cfg.levels - 1);
+    for (let level = 0; level < top; level++) {
+        const ts = cfg.baseTileSize * Math.pow(2, level);
+        if (dist < cfg.splitFactor * ts)
+            return level;
+    }
+    return top;
+}
+/**
+ * Is a patch worth resolving from here? True when the surrounding terrain is
+ * at least as fine as the patch's `detailLevel`. Ref-count patch residency off
+ * this — don't let a patch own tiles, or a bore outlives the ground it's cut
+ * into and you get a tunnel floating in the air.
+ */
+export function patchResident(patchCenterX, patchCenterZ, detailLevel, camX, camZ, cfg) {
+    const dist = Math.hypot(patchCenterX - camX, patchCenterZ - camZ);
+    if (dist > cfg.maxReach)
+        return false;
+    return naturalLevel(dist, cfg) <= detailLevel;
 }
 //# sourceMappingURL=terrain-grid.js.map

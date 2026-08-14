@@ -53,6 +53,9 @@ export const defaultBiomeParams = () => ({
     volcanicScale: 0.09,
     veinWidth: 0.06,
     glowAnimation: 1,
+    interior: 0,
+    waterTable: 0,
+    noWater: 0,
     volcanicPalette: LAVA_PALETTE.map((c) => [...c]),
 });
 /** Molten-rock volcanism (the default `volcanicPalette`). Ladder order:
@@ -205,6 +208,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 },
                 { name: 'biomePaletteB', size: 4, type: 'vec4', arraySize: 20 },
                 { name: 'biomeVolcPal', size: 4, type: 'vec4', arraySize: 7 },
+                { name: 'biomeExtra', size: 4, type: 'vec4' }, // interior, waterTable, noWater, spare
             ],
             fragment: `#ifdef BIOME
         uniform vec4 biomeCfg;
@@ -219,6 +223,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePalette[20];
         uniform vec4 biomePaletteB[20];
         uniform vec4 biomeVolcPal[7];
+        uniform vec4 biomeExtra;
       #endif`,
         };
     }
@@ -261,6 +266,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             vflat[i * 4 + 3] = 1;
         }
         uniformBuffer.updateFloatArray('biomeVolcPal', vflat);
+        uniformBuffer.updateFloat4('biomeExtra', p.interior, p.waterTable, p.noWater, 0);
     }
     getCustomCode(shaderType) {
         if (shaderType === 'vertex') {
@@ -439,7 +445,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           #endif
           effMapM = clamp(biomeCfg.w * dry + oro, 0.0, 1.0);
         }
-        bool underwater = altitude < 0.0;
+        // Submerged? OUTSIDE, the sea surface decides (altitude < 0). INSIDE
+        // the ground, the WATER TABLE does — which is usually HIGHER than sea
+        // level inland, so a hillside tunnel can flood while its mouth sits
+        // well above the shore. A flooded cave classifying as submerged is
+        // correct, not a bug: that's what a sea cave IS. noWater is the only
+        // thing that makes an interior dry at any depth, and it's a property
+        // of the world, stated — never inferred from a coordinate.
+        bool flooded = biomeExtra.z < 0.5 && wp.y < biomeExtra.y;
+        bool underwater = biomeExtra.x > 0.5 ? flooded : altitude < 0.0;
         // The MOISTURE GATE: on an airless world there is no sea at all —
         // below "sea level" is just lower dead land. Everything oceanic
         // (marine-row saturation here; surf + photic below) scales with it.
@@ -507,6 +521,24 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           float fecund = clamp(temperature, 0.0, 1.0) * clamp(moisture * 1.5, 0.0, 1.0);
           float pocket = clamp(0.5 + dith * 9.0, 0.0, 1.0);
           cliff *= 1.0 - biomeWater.w * fecund * pocket;
+          // Interior surfaces shade as rock whatever their slope (a cavern
+          // FLOOR is level, and the chart would happily grow grass on it) —
+          // but as a RAMP, not a switch. At a cave mouth the walls are still
+          // half-outside: lit, weathered, continuous with the hillside. Snapping
+          // to rock exactly at the threshold draws a hard ring around every
+          // entrance. The ramp arrives per-vertex (depth below the surface,
+          // written at extraction), so the transition happens over metres of
+          // tunnel instead of at one triangle.
+          // The per-vertex channel, read ONCE and used twice: as the local
+          // volcanism province on terrain tiles, and as the interior ramp on
+          // patch walls. Declared here because the interior ramp (just below)
+          // is its first use — it used to live down in the volcanism block,
+          // which compiled fine until something above it needed the value.
+          float provLocal = 0.0;
+          #ifdef VERTEXCOLOR
+            provLocal = 1.0 - vBiomeProvince;
+          #endif
+          cliff = max(cliff, biomeExtra.x * provLocal);
           biome = mix(biome, cliffCol, cliff);
           // --- VOLCANISM: the override that outranks climate ---------------
           // LOCAL provinces: terrain tiles carry a per-vertex volcanism field
@@ -514,11 +546,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
           // b3d-terrain's provinceField. Where present it runs the ladder at
           // that local intensity, independent of the global dial: THIS island
           // is volcanic. Meshes without vertex colours (planets) skip it.
-          float provLocal = 0.0;
-          #ifdef VERTEXCOLOR
-            provLocal = 1.0 - vBiomeProvince;
-          #endif
-          if (biomeSurf.y > 0.0 || provLocal > 0.0) {
+          // The per-vertex channel means DIFFERENT THINGS on different meshes:
+          // a local volcanic province on terrain tiles, the interior ramp on
+          // patch walls. Volcanism must only read the former, or a cave mouth
+          // shades as a full-intensity volcano — which is exactly what
+          // happened: black basalt and glowing lava inside an ordinary cave.
+          float provVolc = biomeExtra.x > 0.5 ? 0.0 : provLocal;
+          if (biomeSurf.y > 0.0 || provVolc > 0.0) {
             // Global provinces from a low-frequency mask; the volcanism param
             // slides the threshold, so 1.0 approaches everywhere and 0.3
             // gives scattered volcanic zones in a living landscape. The local
@@ -527,8 +561,8 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             float volcG = biomeSurf.y > 0.0
               ? smoothstep(0.6 - 0.6 * biomeSurf.y, 0.8 - 0.6 * biomeSurf.y, vn)
               : 0.0;
-            float volc = max(volcG, smoothstep(0.02, 0.3, provLocal));
-            float vEff = max(biomeSurf.y, provLocal);
+            float volc = max(volcG, smoothstep(0.02, 0.3, provVolc));
+            float vEff = max(biomeSurf.y, provVolc);
             if (volc > 0.0) {
               // The intensity LADDER (stage 1..3): 1 = near-black basalt with
               // DARK-BROWN voronoi seams; 2 = dark-brown rock with GLOWING
