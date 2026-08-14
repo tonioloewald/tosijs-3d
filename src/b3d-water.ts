@@ -117,6 +117,10 @@ export class B3dWater extends AbstractMesh {
   private _callback?: SceneAdditionHandler
   private _underwaterUpdate?: () => void
   private _removeFogLayer?: () => void
+  /** Is the sky currently fogged for us? Latched so we only touch it on a crossing. */
+  private _skyFogged = false
+  /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
+  private _skyWasFogged = new WeakMap<BABYLON.AbstractMesh, boolean>()
   private _followTick?: () => void
   private _wasUnderwater = false
 
@@ -221,6 +225,7 @@ export class B3dWater extends AbstractMesh {
       // should be obvious the moment you're out. Fast, but continuous.
       const attrs = this as any
       const w = band(depth, -0.05, Math.max(0.02, attrs.fogTransition))
+      this._fogTheSky(w > 0)
       if (w <= 0) return null
       // Full sea-fog immediately on entry, then keep thickening as you go deeper (murk with
       // depth is both true and useful — it hides what's below you).
@@ -239,7 +244,69 @@ export class B3dWater extends AbstractMesh {
     })
   }
 
+  /**
+   * THE SKY IS UNDERWATER TOO.
+   *
+   * A skybox is built `applyFog = false` and `infiniteDistance = true` — correct
+   * in air, where a long fog layer would otherwise swallow the whole sky. But
+   * submerged it means the fog does its job on everything EXCEPT the thing
+   * filling most of the screen, so you fly through a faintly-tinted SKY instead
+   * of through water. (tosijs-3d#12, manta-recon: "can't see anything underwater
+   * except for the skybox".)
+   *
+   * Nastier than it sounds because of the trap it sets: turning `underwaterFog`
+   * down to fix over-murky water makes it WORSE, since the heavy fog was the only
+   * thing disguising an unfogged sky. So tuning clarity walks you into it.
+   *
+   * Under EXP2 fog an infinite-distance mesh resolves to the fog colour in every
+   * direction, which is exactly what deep water looks like. This belongs here
+   * because `b3d-water` already owns the fog layer and already computes camera
+   * depth — anything else would have to duplicate both inputs and could disagree
+   * with them at the boundary.
+   *
+   * Keyed off the same band weight as the fog itself (`w > 0`), so sky and fog
+   * cannot disagree about where the surface is. It's a step where everything else
+   * is a ramp, but density is ~0 at the crossing, so there is nothing to see;
+   * `applyFog` is a boolean, so a true cross-fade would need per-mesh fog
+   * strength, which Babylon doesn't offer.
+   */
+  private _fogTheSky(submerged: boolean): void {
+    if (submerged === this._skyFogged) return
+    this._skyFogged = submerged
+    for (const sky of this._skyMeshes()) {
+      if (submerged) {
+        this._skyWasFogged.set(sky, sky.applyFog)
+        sky.applyFog = true
+      } else {
+        sky.applyFog = this._skyWasFogged.get(sky) ?? false
+      }
+    }
+  }
+
+  /** The skybox meshes to fog. Asks the `<tosi-b3d-skybox>` elements first —
+   * a named element beats a name match — and falls back to the naming convention
+   * so a hand-built or GLB skybox still works. */
+  private _skyMeshes(): BABYLON.AbstractMesh[] {
+    const out: BABYLON.AbstractMesh[] = []
+    const owner = this.owner
+    if (owner == null) return out
+    for (const el of owner.querySelectorAll('tosi-b3d-skybox')) {
+      const m = (el as unknown as { mesh?: BABYLON.AbstractMesh | null }).mesh
+      if (m) out.push(m)
+    }
+    if (out.length > 0) return out
+    const scene = owner.scene
+    if (scene == null) return out
+    for (const m of scene.meshes) {
+      if (m.infiniteDistance && /skybox|skydome/i.test(m.name)) out.push(m)
+    }
+    return out
+  }
+
   sceneDispose(): void {
+    // Hand the sky back exactly as we found it — a disposed water element must
+    // not leave the sky permanently fogged.
+    this._fogTheSky(false)
     if (this.owner && this._callback) {
       this.owner.removeSceneListener(this._callback)
     }

@@ -137,6 +137,16 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **The sky ignored the water you were under** (#12, manta-recon: _"can't see
+  anything underwater except for the skybox"_). A skybox is built
+  `applyFog = false` with `infiniteDistance = true` — right in air, where a long
+  fog layer would swallow it — so submerged, the fog worked on everything except
+  the thing filling most of the screen. `b3d-water` now turns the sky's fog on
+  while the camera is under it, keyed off the same band weight as the fog layer
+  so the two can't disagree about where the surface is, and hands it back on the
+  way out. Note the trap it set: turning `underwaterFog` DOWN made it worse,
+  because the murk had been the only thing disguising an unfogged sky.
+
 - **The device probe measured the machine while it was still loading, then cached
   the verdict for 30 days** (#11, manta-recon). It went out on `setTimeout(…, 0)`
   — one task, not one idle moment — so the benchmark ran during terrain build and
