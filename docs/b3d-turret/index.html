@@ -65,7 +65,7 @@ the barrel for gravity. So low-smart turrets lead but shoot flat; high-smart one
 <em>and</em> arc their shots onto target. (0.5–1 is reserved to fold in target
 acceleration/turn-rate prediction later.) Drop the traverse rate to watch it struggle to
 keep up even when smart.</p>
-<pre><code class="language-js">import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
@@ -104,7 +104,7 @@ const scene = b3d(
         turret.fireRate = s.fireRate.value
         turret.muzzleSpeed = s.muzzleSpeed.value
         turret.smart = s.smart.value
-        a += el.scene.getEngine().getDeltaTime() / 1000
+        a += sceneDelta(el.scene)
         if (!target || target.dead || !target.mesh) return
         target.x = Math.cos(a * 0.6) * 12
         target.z = Math.sin(a * 0.6) * 12

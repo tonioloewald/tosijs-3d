@@ -23,7 +23,9 @@ no issue URL is a complaint nobody will ever read.
 | `tosijs-ui` | `tosi-example` has no full-bleed/preview-sizing option — consumers pay a specificity hack + per-demo `.preview` css fences coupled to internal class names                                                                                                                                                                               | [tosijs-ui#52](https://github.com/tonioloewald/tosijs-ui/issues/52) |
 | `tosijs-ui` | `buildSite({emitLibrary})` writes its SITE bundle into the LIBRARY `dist/` (follow-up to the closed #31, which fixed only the hydrate half) — 65MB of unusable `iife.js.map` in packed history, ~35% of this repo's blob store                                                                                                           | [tosijs-ui#69](https://github.com/tonioloewald/tosijs-ui/issues/69) |
 | `tosijs-ui` | Doc extractor should FAIL LOUDLY when a `/*# */` block is truncated by a nested delimiter — it currently reports parse errors pointing at markdown prose, never at the delimiter                                                                                                                                                         | [tosijs-ui#70](https://github.com/tonioloewald/tosijs-ui/issues/70) |
-| `tosijs-ui` | `preview.host` is typed REQUIRED, but the documented practice is to supply it from `PREVIEW_HOST` and never commit it — so a correct config fails the root typecheck                                                                                                                                                                     | (rolled into #69's thread)                                          |
+| `tosijs-ui` | `preview.host` is typed REQUIRED, but the documented practice is to supply it from `PREVIEW_HOST` and never commit it — so a correct config fails the root typecheck (was "rolled into #69's thread", which was never posted and is an unrelated issue)                                                                                  | [tosijs-ui#72](https://github.com/tonioloewald/tosijs-ui/issues/72) |
+| `tosijs-ui` | `checkExamples` can't be told the import context, so a library documenting ITSELF must turn the guard off — upstream already accepts `contextKeys`, the orchestrator just never passes it. With it off, 0.7.0 shipped a SyntaxError on a doc page and 10 pages importing an unexported symbol                                            | [tosijs-ui#71](https://github.com/tonioloewald/tosijs-ui/issues/71) |
+| `tosijs`    | An unknown prop (not in `initAttributes`) is absorbed by `ElementProps`' index signature — so an attribute RENAME is undetectable downstream; `hudChase` → `hudChaseOff` compiles and silently does the opposite. Unknown-key sibling of #24                                                                                             | [tosijs#26](https://github.com/tonioloewald/tosijs/issues/26)       |
 | `tosijs-ui` | Live-example scope: a demo's `const name` silently collides with `window.name` (same family as tjs-lang#22)                                                                                                                                                                                                                              | [tosijs-ui#53](https://github.com/tonioloewald/tosijs-ui/issues/53) |
 
 ## Resolved
@@ -60,7 +62,20 @@ no issue URL is a complaint nobody will ever read.
 
 ## Incoming
 
-First consumer issues arrived 2026-08-10 from **manta-recon** (the first external
-adopter): #1 (focus/camera ordering hole — fixed in 0.6.1), #2 (fly-by-wire zero-speed
-deadlock — fixed in 0.6.1), #3 (underwater regime tracking — Manta prototypes first;
-mirrored in TODO.md).
+Issues filed **on us**, from **manta-recon** (the first external adopter, since
+2026-08-10). Same table discipline as the outgoing half — the closing version per
+row, so "fixed" and "fixed and the reporter knows" don't blur together.
+
+| #   | Finding                                                            | Status                                                        |
+| --- | ------------------------------------------------------------------ | ------------------------------------------------------------- |
+| #1  | Focus/camera ordering hole                                         | closed — fixed in 0.6.1                                       |
+| #2  | fly-by-wire zero-speed deadlock                                    | closed — fixed in 0.6.1                                       |
+| #3  | Underwater/submarine regime                                        | **open** — Manta prototypes first; mirrored in TODO.md        |
+| #4  | `b3d-trail` contrail/ribbon component                              | **open** — deferred, in TODO.md                               |
+| #5  | `url:` load path used the mirrored glTF `__root__` as control node | closed — fixed in 0.7.0                                       |
+| #6  | Canonical library frame must define engine-forward                 | closed — fixed in 0.7.0                                       |
+| #7  | `getNames()` returned collider-suffixed names                      | closed — fixed in 0.7.0 (changes `getNames()` output)         |
+| #8  | `CombatEvent` carries no attribution                               | **open** — deferred; consequence layer, in TODO.md            |
+| #9  | Crashed aircraft eats all input                                    | **open** — fixed in 0.7.0, awaiting the reporter's live check |
+
+0.7.0 closes three of these (#5, #6, #7).

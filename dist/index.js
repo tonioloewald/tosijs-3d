@@ -10,7 +10,11 @@ export { WorldView, defaultMeshFactory } from './world-view';
 export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology';
 export { runMinSimConformance } from './min-sim-conformance';
 // Utilities
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, } from './b3d-utils';
+// The pure flight model, so a consumer can predict what the aircraft will do
+// without instantiating one — `equilibriumSpeed` is what the HUD's set-point
+// mark is drawn from, and a mission planner wants the same number.
+export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire';
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
@@ -158,7 +162,30 @@ export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile
 export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, } from './landform';
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice';
-export { applyCarve, sphere, capsule, tube, box, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft, } from './carve';
+/*
+The CARVE family lives in a container for the same reason the `ui` family does
+(see the note above): `box`, `sphere`, `tube`, `union` are COMMON NOUNS, and a
+library barrel that exports them bare collides with every consumer's own
+vocabulary. `box` was the sharp end — a second one here would have shadowed
+`ui.box`, which is exactly the collision the 0.6.0 rc gate namespaced `ui` to
+prevent. Caught by the 0.7.0 gate while the window was still free.
+*/
+import { applyCarve, sphere, capsule, tube, box as carveBox, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft, } from './carve';
+export const carve = {
+    applyCarve,
+    sphere,
+    capsule,
+    tube,
+    box: carveBox,
+    union,
+    smoothUnion,
+    flange,
+    subtract,
+    intersect,
+    roughen,
+    warp,
+    shaft,
+};
 export { B3dPatch, b3dPatch } from './b3d-patch';
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field';
 export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin';

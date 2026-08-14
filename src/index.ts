@@ -96,11 +96,28 @@ export {
   enterXR,
   applyMaterialConventions,
   publicName,
+  isIgnored,
   placeOnSurface,
   boundingBottomOffset,
   sceneDelta,
 } from './b3d-utils'
 export type { XRStuff, XRParams } from './b3d-utils'
+
+// The pure flight model, so a consumer can predict what the aircraft will do
+// without instantiating one — `equilibriumSpeed` is what the HUD's set-point
+// mark is drawn from, and a mission planner wants the same number.
+export {
+  regime,
+  flyByWireStep,
+  targetVelocity,
+  chaseVelocity,
+  equilibriumSpeed,
+} from './fly-by-wire'
+export type {
+  FlyByWireConfig,
+  FlyByWireCommand,
+  FlyByWireState,
+} from './fly-by-wire'
 
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url'

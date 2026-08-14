@@ -27,7 +27,9 @@ import { demoSun, patternGround } from 'demo-utils'
 import { elements } from 'tosijs'
 const { div, pre } = elements
 
-const pad = b3dGamepad()
+// fade OFF in the demo: this page is where you look at the pad, and on a
+// desktop it would hide itself the moment you moved the mouse to reach it
+const pad = b3dGamepad({ fade: 'off' })
 const readout = pre({ class: 'readout' })
 let rover, mat
 
@@ -101,6 +103,7 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
 ```
 */
 /*{ "parent": "Input" }*/
+import { isOff } from './b3d-utils';
 import { Component, elements, StyleSheet } from 'tosijs';
 import { TouchGamepadSource } from './touch-gamepad';
 import { emptyGamepad, mergeGamepads, } from './virtual-gamepad';
@@ -285,6 +288,9 @@ export class B3dGamepad extends Component {
         maxZone: 0.85,
         /** Seconds of no mouse/keyboard/gamepad before the pad fades back in. */
         idleSeconds: 10,
+        /** `'off'` keeps the pad visible whatever else you're holding — for
+         * screenshots, desktop demos, or a scene where it IS the control. */
+        fade: 'on',
         /** Opacity while a real input device is in use (0 = invisible). */
         fadedOpacity: 0,
     };
@@ -318,6 +324,8 @@ export class B3dGamepad extends Component {
      */
     _watchRealInput() {
         if (this._inputWatch != null)
+            return;
+        if (isOff(this.fade))
             return;
         const wake = () => {
             if (this._idleTimer != null)

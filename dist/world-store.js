@@ -17,7 +17,7 @@ frame — **data flows one way, `store → meshes`**. Here we spawn a few entiti
 STORE; its cube follows. The render layer can never desync the sim.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta } from 'tosijs-3d'
 
 const store = new WorldStore()              // a 'player' entity exists at the origin
 store.spawn({ kind: 'npc', position: { x: -3, y: 0.9, z: 1 } })
@@ -33,7 +33,7 @@ const scene = b3d(
       new WorldView(el.scene, store)         // capsules for characters, boxes for objects
       let t = 0
       el.scene.onBeforeRenderObservable.add(() => {
-        t += el.scene.getEngine().getDeltaTime() / 1000
+        t += sceneDelta(el.scene)
         store.moveEntity(walker, { x: Math.cos(t) * 3, y: 0.9, z: Math.sin(t) * 3 })
       })
     },

@@ -90,7 +90,7 @@ document.body.append(
 */
 /*{ "parent": "Core" }*/
 import * as BABYLON from '@babylonjs/core';
-import { conventionName, applyMaterialConventions, B3dChild, isOff, } from './b3d-utils';
+import { applyMaterialConventions, B3dChild, isOff, isIgnored, } from './b3d-utils';
 import { DestroyableBehavior } from './destroyable-behavior';
 export class B3dLoader extends B3dChild {
     static initAttributes = {
@@ -143,17 +143,17 @@ export class B3dLoader extends B3dChild {
             this.meshes = meshes;
             this.lights = lights;
             for (const mesh of meshes) {
-                if (conventionName(mesh.name).includes('-ignore')) {
+                if (isIgnored(mesh.name)) {
                     mesh.dispose();
                 }
             }
             for (const node of transformNodes) {
-                if (conventionName(node.name).includes('-ignore')) {
+                if (isIgnored(node.name)) {
                     node.dispose();
                 }
             }
             for (const light of lights) {
-                if (conventionName(light.name).includes('-ignore')) {
+                if (isIgnored(light.name)) {
                     light.dispose();
                 }
                 else if (light instanceof BABYLON.PointLight ||

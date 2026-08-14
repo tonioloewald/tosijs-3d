@@ -4,7 +4,7 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.7.0-rc.1
+## 0.7.0
 
 **Aircraft that fly like aircraft, and the substrate for volumetric terrain.**
 No peer-dependency changes, but this is a **behaviour** release: the throttle,
@@ -29,11 +29,12 @@ that was tuned around the old feel.
   demo on a desktop.
 - **The right stick is the camera**, not aux roll. `strafe` still sums into
   roll, so a custom mapping can restore a dedicated roll axis.
-- **`carve` is a NAMESPACE, not 13 bare exports.** `0.7.0-rc.1` (published as
-  `next`) exported `applyCarve`, `sphere`, `capsule`, `tube`, `box`, `union`,
-  `smoothUnion`, `flange`, `subtract`, `intersect`, `roughen`, `warp` and
-  `shaft` at top level; they now live on `carve.*`. Anyone on the rc gets a
-  link error, which is the intended loud failure — `box` in particular
+- **`carve` is a NAMESPACE, not 13 bare exports.** New in this cycle, so this
+  affects only the handful of people who took `0.7.0-rc.1` off the `next` tag:
+  that tarball exported `applyCarve`, `sphere`, `capsule`, `tube`, `box`,
+  `union`, `smoothUnion`, `flange`, `subtract`, `intersect`, `roughen`, `warp`
+  and `shaft` at top level; they now live on `carve.*`. Coming from the rc you
+  get a link error, which is the intended loud failure — `box` in particular
   shadowed the UI container of the same name.
   - `import { sphere, tube } from 'tosijs-3d'` → `import { carve } from
 'tosijs-3d'`, then `carve.sphere(…)`, `carve.tube(…)`.
@@ -46,6 +47,14 @@ that was tuned around the old feel.
   compared it to an authored name with its suffix, needs updating.
 
 ### Added
+
+- **The pure flight model is exported**: `flyByWireStep`, `regime`,
+  `targetVelocity`, `chaseVelocity`, **`equilibriumSpeed`** and the
+  `FlyByWireConfig`/`Command`/`State` types. `equilibriumSpeed` is what the
+  HUD's new set-point mark is drawn from — a mission planner wants the same
+  number, and until now it was unreachable from the package.
+- **`isIgnored(name)`** — one matcher for the `-ignore` convention, used by the
+  loader, the library and `publicName`.
 
 - **[carve](https://3d.tosijs.net/carve/)** — the cave vocabulary, exported as
   the **`carve.*`** namespace (see ⚠️ Breaking): `carve.sphere`,
@@ -111,7 +120,16 @@ that was tuned around the old feel.
 
 ### Fixed
 
-- **A crashed aircraft no longer eats all input** (#9). A wreck keeps input
+- **`Foo_ignore` was half-honoured**: the loader disposed only the hyphen form
+  while `publicName` stripped only the underscore one, so an underscore-form
+  node survived the load AND collapsed to `Foo` — colliding with a real `Foo`,
+  which made `instantiate('Foo')` resolve to whichever came first. Both
+  separators now go through `isIgnored`.
+- **`spinner()` in the demo helpers** still used `engine.getDeltaTime()`, so on
+  any page importing it (the water demo among them) crates spun ~4× slow at the
+  default `frameRate: 30` — the one call site the `sceneDelta` sweep missed.
+
+- **A crashed aircraft releases input focus so a respawn can take over** (#9). A wreck keeps input
   focus and ignores it, so with no `<tosi-b3d-death>` in the scene the player
   held a dead controller — which reads as broken controls rather than as
   dying. The crash now releases focus if nothing else handled the event.
@@ -123,6 +141,21 @@ that was tuned around the old feel.
   rather than the tile's own relief.
 - `_centerOfGravity` markers, cave shading (`interior` as a depth ramp,
   flooding by `waterTable`, `noWater`), volcanism confined to its caldera.
+
+## 0.7.0-rc.1
+
+Published to npm under the `next` tag on 2026-08-13, superseded by 0.7.0.
+Everything in 0.7.0 above applies, with two differences that matter if you
+installed it:
+
+- It exported the 13 `carve` functions as **bare top-level names**; 0.7.0 moves
+  them to `carve.*` (see ⚠️ Breaking).
+- It did **not** export `sceneDelta`, despite the notes promising it — the
+  `getDeltaTime`-in-a-scene-observer fix was unusable from the package.
+
+It was tagged **before** the pre-release review ran, deliberately, to get it
+into an adopter's hands sooner. The review found no blocker in the shipped
+behaviour; what it found were the two release-artifact gaps above.
 
 ## 0.6.2
 

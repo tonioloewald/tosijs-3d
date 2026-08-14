@@ -57,7 +57,7 @@ headless driver.</p>
 <p>The store holds state; a <a href="../world-view/">world-view</a> reconciles one mesh per entity from it every
 frame — <strong>data flows one way, <code>store → meshes</code></strong>. Here we spawn a few entities and move one in the
 STORE; its cube follows. The render layer can never desync the sim.</p>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta } from &#39;tosijs-3d&#39;
 
 const store = new WorldStore()              // a &#39;player&#39; entity exists at the origin
 store.spawn({ kind: &#39;npc&#39;, position: { x: -3, y: 0.9, z: 1 } })
@@ -73,7 +73,7 @@ const scene = b3d(
       new WorldView(el.scene, store)         // capsules for characters, boxes for objects
       let t = 0
       el.scene.onBeforeRenderObservable.add(() =&gt; {
-        t += el.scene.getEngine().getDeltaTime() / 1000
+        t += sceneDelta(el.scene)
         store.moveEntity(walker, { x: Math.cos(t) * 3, y: 0.9, z: Math.sin(t) * 3 })
       })
     },

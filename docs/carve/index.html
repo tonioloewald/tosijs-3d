@@ -53,16 +53,23 @@ will stamp (see <code>TUNNEL-DESIGN.md</code>).</p>
 <p>A <code>Carve</code> is a signed distance to a carved surface, <strong>positive INSIDE the air</strong>
 — the opposite sign convention to density, because you author the hole, not the
 rock. <code>applyCarve</code> turns one into a <code>PatchField</code>:</p>
-<pre><code class="language-js">const cave = applyCarve(
-  roughen(
-    smoothUnion(30,
-      sphere({ x: 0, y: -40, z: 0 }, 45),          // a hall
-      capsule({ x: 0, y: -40, z: 0 }, { x: 200, y: -70, z: 40 }, 14), // an adit
+<pre><code class="language-js">import { carve } from &#39;tosijs-3d&#39;
+
+const cave = carve.applyCarve(
+  carve.roughen(
+    carve.smoothUnion(30,
+      carve.sphere({ x: 0, y: -40, z: 0 }, 45),          // a hall
+      carve.capsule({ x: 0, y: -40, z: 0 }, { x: 200, y: -70, z: 40 }, 14),
     ),
     { amp: 6, scale: 0.02, octaves: 3, seed: 7 },
   )
 )
 </code></pre>
+<blockquote>
+<p>The family is exported as <strong><code>carve.*</code></strong>, not as bare names: <code>box</code>, <code>sphere</code>,
+<code>tube</code> and <code>union</code> are common nouns, and one of them (<code>box</code>) would otherwise
+shadow <a href="/box/" class="wikilink">box</a>&#39;s UI container. Same reasoning as the <code>ui.*</code> namespace.</p>
+</blockquote>
 <h2>Why a capsule is the workhorse</h2>
 <p>A tunnel is a <strong>segment with a radius</strong> — that&#39;s a capsule, and its exact
 distance function is three lines. Chain them along a spine and you have a

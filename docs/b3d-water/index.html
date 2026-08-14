@@ -50,7 +50,7 @@
 <h2>Demo</h2>
 <p><strong>A lake with a few crates on the shore.</strong> The sun rakes across the surface; the water reflects the
 sky and the crates. Drag to orbit — dip the camera below the surface and the world tints and dims.</p>
-<pre><code class="language-js">import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround, sceneDelta } from &#39;tosijs-3d&#39;
 import { demoSun, orbitCam, spinner } from &#39;demo-utils&#39;
 
 const scene = b3d(
@@ -62,7 +62,7 @@ const scene = b3d(
       const b = spinner(el, { x: 4.5, y: 0.7, z: 4, size: 1.4, spin: -0.18 })
       let t = 0
       el.scene.registerBeforeRender(() =&gt; {
-        t += el.scene.getEngine().getDeltaTime() / 1000
+        t += sceneDelta(el.scene)
         a.position.y = 1.0 + Math.sin(t * 1.1) * 0.14
         b.position.y = 0.7 + Math.sin(t * 1.5 + 1) * 0.14
       })

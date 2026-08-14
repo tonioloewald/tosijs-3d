@@ -59,7 +59,7 @@ against the contract) and attach a view only where there&#39;s something to draw
 so a scene is visible with zero assets; pass your own <code>factory</code> to swap in
 <code>b3dBiped</code>, library instances, or GLB meshes per entity kind.</p>
 <pre><code class="language-js">import {
-  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView,
+  b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta,
 } from &#39;tosijs-3d&#39;
 
 // A stand-in &quot;director&quot; sets up a scene by writing to the store.
@@ -88,7 +88,7 @@ preview.append(
         new WorldView(el.scene, store)
       },
       update(el) {
-        const dt = el.scene.getEngine().getDeltaTime() / 1000
+        const dt = sceneDelta(el.scene)
         store.tick(dt)
         // WASD writes the player&#39;s position back into the store.
         const p = { ...store.getState().entities.player.position }

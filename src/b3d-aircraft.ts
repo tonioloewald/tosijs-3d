@@ -1332,8 +1332,6 @@ export class B3dAircraft extends B3dControllable {
     if (this.crashed) return
     this.crashed = true
     this.velocity.setAll(0)
-    // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
-    this.dispatchEvent(new CustomEvent('crash', { bubbles: true }))
 
     /*
     NOBODY LISTENING? THEN LET GO OF THE CONTROLS. (issue #9)
@@ -1341,22 +1339,35 @@ export class B3dAircraft extends B3dControllable {
     A wreck keeps input focus, and `applyInput` returns early while crashed —
     so with no <tosi-b3d-death> in the scene the player is left holding a
     controller that does nothing, which reads as "the controls are broken"
-    rather than "you died". The event fires either way; this only covers the
-    case where nothing acted on it.
+    rather than "you died".
 
-    Deferred a tick so a listener that mounts the death UI (or respawns) wins:
-    if `crashed` has been cleared by then, someone handled it and we do
-    nothing.
+    Release BEFORE dispatching, not after: the documented respawn is a `crash`
+    listener that appends a fresh aircraft, and `adoptIfVacant` refuses while
+    the wreck still holds focus (`b3d-input-focus`: `if (this.focusedEntity !=
+    null) return`). Releasing afterwards would null the focus the newcomer had
+    already been refused, leaving a healthy `player` aircraft nobody can fly.
+
+    Skipped entirely when a <tosi-b3d-death> is present — death owns the
+    aftermath, including the focus and the camera.
     */
-    setTimeout(() => {
-      if (!this.crashed || this.owner == null) return
-      const death = this.owner.querySelector('tosi-b3d-death')
-      if (death != null) return // death owns the aftermath, including focus
-      const focus = this.owner.querySelector('tosi-b3d-input-focus') as {
+    if (this.owner?.querySelector('tosi-b3d-death') == null) {
+      const focus = this.closest('tosi-b3d-input-focus') as {
+        focused?: unknown
         releaseFocus?: () => void
       } | null
-      focus?.releaseFocus?.()
-    }, 0)
+      // Only if we are the one holding it: an AI wingman crashing must not
+      // take the controls away from the player.
+      if (focus?.focused === this) focus.releaseFocus?.()
+      // Say so. Releasing focus is the honest state, but silence is what made
+      // this read as broken hardware in the first place.
+      this._hud?.setWarnings([{ text: 'CRASHED' }])
+      console.warn(
+        'tosi-b3d-aircraft: crashed with no <tosi-b3d-death> in the scene — input focus released. Handle the `crash` event (respawn, or add a <tosi-b3d-death>) to give the player something to fly.'
+      )
+    }
+
+    // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
+    this.dispatchEvent(new CustomEvent('crash', { bubbles: true }))
   }
 
   /** Raycast downward to find distance to ground. Returns Infinity if no hit.

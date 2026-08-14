@@ -86,7 +86,9 @@ import { demoSun, patternGround } from &#39;demo-utils&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, pre } = elements
 
-const pad = b3dGamepad()
+// fade OFF in the demo: this page is where you look at the pad, and on a
+// desktop it would hide itself the moment you moved the mouse to reach it
+const pad = b3dGamepad({ fade: &#39;off&#39; })
 const readout = pre({ class: &#39;readout&#39; })
 let rover, mat
 

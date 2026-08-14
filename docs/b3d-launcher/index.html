@@ -59,7 +59,7 @@ button) to fire</strong> a stream of shells — the <a href="../b3d-controller/"
 the same controls work on keyboard, touch, and in VR. <strong>Left-drag orbits</strong> the view.
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.</p>
-<pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
@@ -162,7 +162,7 @@ const scene = b3d(
         setTimeout(() =&gt; { state.target = spawn() }, 400)
       })
       el.scene.onBeforeRenderObservable.add(() =&gt; {
-        a += el.scene.getEngine().getDeltaTime() / 1000
+        a += sceneDelta(el.scene)
         const t = state.target
         if (!t || t.dead || !t.mesh) return
         t.x = Math.cos(a * 0.7) * 12

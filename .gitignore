@@ -196,5 +196,12 @@ static/jolt-physics.wasm-compat.js
 # Doc-site hydrate bundle leaks into dist/ from the tosijs-ui site pipeline;
 # the deployed site uses docs/hydrate.js — dist/hydrate is unused and must not ship.
 dist/hydrate/
+# Same leak, other half: the site's IIFE bundle + sourcemap (47 MB a release)
+# land in dist/ but are excluded from the tarball by package.json's `!dist/iife*`
+# negations, and the deployed site serves docs/iife.js. Tracking them bought
+# nothing and cost a permanent 47 MB per release commit.
+# Retire both entries when tosijs-ui#69 stops emitting site output into dist/.
+dist/iife.js
+dist/iife.js.map
 # build-backup ritual — retire when tosijs-ui#51 (concurrent-build lock) ships
 docs.last-good

@@ -1,6 +1,6 @@
 {
   "name": "tosijs-3d",
-  "version": "0.7.0-rc.1",
+  "version": "0.7.0",
   "main": "./dist/index.js",
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -42,7 +42,8 @@
     "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
     "tunnel": "tosijs-tunnel",
     "deploy": "tosijs-deploy",
-    "format": "bun eslint src bin --fix && bun prettier --write ."
+    "format": "bun eslint src bin --fix && bun prettier --write .",
+    "typecheck": "bunx tsc -p tsconfig.json --noEmit"
   },
   "peerDependencies": {
     "@babylonjs/core": "^9.0.0",

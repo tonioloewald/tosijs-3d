@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div } = elements
 
@@ -71,7 +71,7 @@ const scene = b3d(
       // Drift the AIR targets so they move on radar but stay hittable.
       let t = 0
       el.scene.onBeforeRenderObservable.add(() => {
-        t += el.scene.getEngine().getDeltaTime() / 1000
+        t += sceneDelta(el.scene)
         air.forEach((d, i) => {
           if (d.dead) return
           d.x += Math.sin(t * 0.3 + i) * 0.02
@@ -152,17 +152,22 @@ DOWN below the ceiling, slow to a hover, and descend vertically to land (or land
 conventionally). Below the ceiling the regime is speed-based, so slowing to a hover
 gives you the vertical trigger back.
 - **Hover / drone** (slow, below the ceiling): right trigger climbs, left trigger
-  descends. Let go and it bleeds back to a stationary hover.
-- **Plane** (fast): right trigger speeds up, left trigger slows down; speed holds
-  steady when you let go. Holding throttle past `maxSpeed` enters **afterburner**
-  (up to `afterburnerSpeed`); release and it bleeds back to `maxSpeed`. Pitch is
-  climb/dive, the turn stick banks to turn. Slow back below `vtolSpeed` and the
-  triggers return to up/down. Banking off level costs a little altitude.
+  descends — the trigger is purely VERTICAL here. Fore/aft is the lean: nose
+  down accelerates, nose up slows you and then walks you gently backwards
+  (`reverseSpeed`). Holding the left trigger also sheds speed to a stop, so
+  stopping never fights altitude.
+- **Plane** (fast): the trigger moves a THROTTLE LEVER and speed settles where
+  thrust meets drag — so a climb costs speed, a dive gives it back, and
+  releasing the trigger leaves the lever where it was rather than holding a
+  speed. Full lever is **military** thrust (`maxSpeed`); **afterburner** lights
+  only while the trigger is held past a detent at full lever and drops back to
+  military when you let go. Pitch is climb/dive, the turn stick banks to turn.
 
 Set `vtolSpeed` to 0 for a pure aeroplane with no hover regime.
 
-Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
-lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.
+Inputs: left stick = pitch + turn (bank), triggers = the dual-purpose
+lift/throttle axis above, **right stick = the camera** (orbits the chase view,
+turns the pilot's head in the cockpit, springs back on release).
 
 ## Attributes
 
@@ -1193,6 +1198,34 @@ export class B3dAircraft extends B3dControllable {
             return;
         this.crashed = true;
         this.velocity.setAll(0);
+        /*
+        NOBODY LISTENING? THEN LET GO OF THE CONTROLS. (issue #9)
+    
+        A wreck keeps input focus, and `applyInput` returns early while crashed —
+        so with no <tosi-b3d-death> in the scene the player is left holding a
+        controller that does nothing, which reads as "the controls are broken"
+        rather than "you died".
+    
+        Release BEFORE dispatching, not after: the documented respawn is a `crash`
+        listener that appends a fresh aircraft, and `adoptIfVacant` refuses while
+        the wreck still holds focus (`b3d-input-focus`: `if (this.focusedEntity !=
+        null) return`). Releasing afterwards would null the focus the newcomer had
+        already been refused, leaving a healthy `player` aircraft nobody can fly.
+    
+        Skipped entirely when a <tosi-b3d-death> is present — death owns the
+        aftermath, including the focus and the camera.
+        */
+        if (this.owner?.querySelector('tosi-b3d-death') == null) {
+            const focus = this.closest('tosi-b3d-input-focus');
+            // Only if we are the one holding it: an AI wingman crashing must not
+            // take the controls away from the player.
+            if (focus?.focused === this)
+                focus.releaseFocus?.();
+            // Say so. Releasing focus is the honest state, but silence is what made
+            // this read as broken hardware in the first place.
+            this._hud?.setWarnings([{ text: 'CRASHED' }]);
+            console.warn('tosi-b3d-aircraft: crashed with no <tosi-b3d-death> in the scene — input focus released. Handle the `crash` event (respawn, or add a <tosi-b3d-death>) to give the player something to fly.');
+        }
         // b3d-death frames the third-person aftermath itself (spectate) — no camera switch needed here.
         this.dispatchEvent(new CustomEvent('crash', { bubbles: true }));
     }

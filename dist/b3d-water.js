@@ -9,7 +9,7 @@ Water plane with reflections, waves, and underwater fog effect.
 sky and the crates. Drag to orbit — dip the camera below the surface and the world tints and dims.
 
 ```js
-import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround } from 'tosijs-3d'
+import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround, sceneDelta } from 'tosijs-3d'
 import { demoSun, orbitCam, spinner } from 'demo-utils'
 
 const scene = b3d(
@@ -21,7 +21,7 @@ const scene = b3d(
       const b = spinner(el, { x: 4.5, y: 0.7, z: 4, size: 1.4, spin: -0.18 })
       let t = 0
       el.scene.registerBeforeRender(() => {
-        t += el.scene.getEngine().getDeltaTime() / 1000
+        t += sceneDelta(el.scene)
         a.position.y = 1.0 + Math.sin(t * 1.1) * 0.14
         b.position.y = 0.7 + Math.sin(t * 1.5 + 1) * 0.14
       })

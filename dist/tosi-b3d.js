@@ -143,6 +143,7 @@ document.body.append(
 | `no-xr` | `false` | Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported) |
 | `gamepad` | absent | When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls |
 | `gamepadScale` | `1` | Scale factor for the glass gamepad clusters |
+| `gamepadFade` | `'on'` | `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used |
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
@@ -232,6 +233,9 @@ export class B3d extends Component {
         // Scale factor for the glass gamepad clusters. Touch-target pixel sizes vary
         // wildly across devices, so this is exposed for tuning per scene/device.
         gamepadScale: 1,
+        /** `'off'` stops the glass gamepad fading when a mouse/keyboard/pad is
+         * used (see b3d-gamepad's `fade`). */
+        gamepadFade: 'on',
         // Device quality: 'auto' follows the measured/cached device profile (and, if
         // none exists, runs the probe in the background for next time); 'low' |
         // 'medium' | 'high' force a tier. Drives the `auto` defaults of shadows,
@@ -2104,7 +2108,14 @@ export class B3d extends Component {
         if (attr == null && (prop === false || prop == null))
             return;
         const spec = typeof prop === 'string' && prop !== '' ? prop : attr ?? '';
-        this.appendChild(b3dGamepad({ controls: spec, scale: this.gamepadScale ?? 1 }));
+        this.appendChild(b3dGamepad({
+            controls: spec,
+            scale: this.gamepadScale ?? 1,
+            // Reachable opt-out: the pad fades once a real input device appears,
+            // and a scene that WANTS it permanent (kiosk, screenshot, a demo about
+            // the pad) had no way to say so.
+            fade: this.gamepadFade ?? 'on',
+        }));
     }
     // In-scene surface: render the panel onto a plane positioned each frame in
     // WORLD space relative to the HEAD (not the rig / flat camera), floating

@@ -38,8 +38,12 @@ cutting a release.**
    `docs/` churn which the build in step 4 overwrites deterministically:
 
    ```sh
-   git status --short | grep -vE ' docs/'   # should print nothing
+   git status --short | grep -vE ' (docs|dist)/'   # should print nothing
    ```
+
+   `dist/` is filtered for the same reason as `docs/`: step 4's build rewrites
+   both deterministically, so churn there before the build means nothing. A
+   dirty tree **after** steps 4–5 is the signal that matters.
 
 3. **Bump the version** in `package.json` (`"version"`). This is a `0.x` package, so
    semver is loose, but as a rule of thumb: new/changed public API or an
@@ -74,10 +78,16 @@ and confirm each is mentioned in `CLAUDE.md`.
 5. **Verify** — types + tests + lint:
 
    ```sh
-   bunx tsc -p tsconfig.build.json --noEmit   # (build already ran tsc; this is a belt-and-suspenders check)
+   bun run typecheck                          # tsconfig.json — the WHOLE repo: tests, demo/, site.config.ts
+   bunx tsc -p tsconfig.build.json --noEmit   # tsconfig.build.json — the shipped library only
    bun test
    bun format         # ESLint --fix + Prettier; re-run build if it changes anything
    ```
+
+   **Both configs, deliberately.** `tsconfig.build.json` excludes `src/**/*.test.ts`
+   and `site.config.ts` — the exact files that went red and stayed red across a
+   tagged rc in 0.7.0, hiding four real errors, because the only typecheck anyone
+   ran was the build's. `bun test` strips types and cannot substitute.
 
 5a0. **Re-check `UPSTREAM.md`'s Open rows** — `gh issue view` each one. Upstream
 issues get fixed while we're not looking, and a stale Open row is worse than no

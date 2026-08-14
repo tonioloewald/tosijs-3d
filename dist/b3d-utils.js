@@ -71,6 +71,8 @@ export const conventionName = (name) => name.split('.model').join('');
  * `_collide`. Lower-case; matching is case-insensitive.
  */
 const BEHAVIOUR_SUFFIXES = [
+    // hyphen forms too: the framework documents `-ignore`, and authors mix
+    // separators (the collision code already matches both).
     'centerofgravity',
     'center_of_gravity',
     'collidemesh',
@@ -85,6 +87,7 @@ const BEHAVIOUR_SUFFIXES = [
     'noshadow',
     'nocast',
     'mirror',
+    'ignore',
 ];
 /**
  * The name a CONSUMER uses: `conventionName` (drop `.model`) with the
@@ -98,6 +101,20 @@ const BEHAVIOUR_SUFFIXES = [
  * the moment an author adds or changes a collider. Repeats, so a node carrying
  * two annotations (`Hull_collideMesh_noshadow`) still resolves to `Hull`.
  */
+/**
+ * Is this node FILTERED OUT at load? The convention is written `-ignore` in the
+ * docs and `_ignore` by the underscore rule every other suffix follows, so both
+ * are accepted — one matcher, used by the loader, the library and `publicName`.
+ *
+ * They used to disagree: the loader disposed only the hyphen form while
+ * `publicName` stripped only the underscore one, so `Foo_ignore` survived the
+ * load AND collapsed to `Foo` — colliding with a real `Foo`, which made
+ * `instantiate('Foo')` resolve to whichever came first.
+ */
+export const isIgnored = (name) => {
+    const n = conventionName(name).toLowerCase();
+    return n.includes('-ignore') || n.includes('_ignore');
+};
 export const publicName = (name) => {
     let n = conventionName(name);
     for (;;) {

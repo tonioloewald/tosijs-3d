@@ -1,5 +1,126 @@
 # TODO
 
+## v0.7.0 review follow-ups (nine-lens, 2026-08-14)
+
+Folded in from `RELEASE-REVIEW-0.7.0-rc.1.md` and the 0.7.0 re-review — a review
+report is an artifact of the gate, not a worklist, and items were already being
+lost between the two. Verdict was GO_WITH_FOLLOWUPS; the three must-clears
+(barrel `equilibriumSpeed`, CHANGELOG section identity, untracking
+`dist/iife.js*`) are **done**, as are the verified docs/DRY items. What's left:
+
+### Correctness / DRY
+
+- [ ] **One `findInputFocus(el)` in `b3d-input-focus.ts`**, routed through by all
+      10 sites (`b3d-controllable:64`, `b3d-controller:130`, `b3d-biped:647,777`,
+      `b3d-death:206`, `tosi-b3d:807,1724,1837,1875`, `b3d-aircraft`). The
+      traversal rule has already split two ways inside one class hierarchy
+      (`closest` vs `querySelector`), with 6 inline casts. The crash fix added
+      the 10th; that's the point at which it's a seam, not a repetition.
+- [ ] **`b3d-terrain.ts:1486` `recenter()` discards an author-set `worldU`/`worldV`**,
+      hard-resetting to module constants — including the sampling window this
+      release newly documented as public. Capture `_baseU`/`_baseV` in
+      `sceneReady` and restore those, falling back to `0`/`MIRROR_SAFE_V`.
+- [ ] **`CylinderSampler` has no unit tests** — and its `if (vr > 0.5) vr = 1 - vr`
+      reflection is exactly what made `worldV = 0` a bug. Pin the v-reflection in
+      `surface-sampler.test.ts` + assert `recenter()` leaves `worldV` off both
+      mirror planes (0 and 0.5).
+
+### Efficiency (measured at the rc gate, tracked nowhere until now)
+
+- [ ] **`b3d-patch.ts:448` `patchResident()` is an unhysteretic step function.**
+      Each boundary crossing costs ~306 synchronous `Mesh.dispose()` in one frame
+      plus ~612 ms of budgeted re-extraction (2112 chunks × 0.69 ms, ~150 frames
+      at `buildMs: 4`) — and the demo invites circling the radius. Add the
+      enter/exit hysteresis band (the convention `b3d-aircraft` gear and
+      `b3d-clouds` already use), keep the miss-memo across a release, and budget
+      `_releaseChunks` the way `_extractSome` is. b3d-patch is EXPERIMENTAL, so
+      shipping the cost is defensible — but only written down, which this is.
+- [ ] **Terrain and b3d-patch compute residency separately and disagree**
+      (`maxReach` 560 vs 640 at stock defaults), and terrain's copy
+      (`b3d-terrain.ts:1000`) compares LOGICAL patch coords against a
+      RENDER-SPACE camera — the error is the accumulated origin offset, which
+      grows without bound. One public `isPatchResident(cx, cz, level)` on
+      `B3dTerrain` that rebases in one place fixes both.
+
+### Coverage / DX
+
+- [ ] **`publicName` has no test at all** — add `model-name.test.ts` cases
+      (`Hull-ignore`, `Hull_ignore`, `Hull_collideMesh.model`). This is the
+      `getNames()` surface issue #7 was filed about, so an inaccuracy lands on
+      the same adopter. (The `_ignore`/`-ignore` matcher split is fixed in
+      0.7.0 via `isIgnored`; the tests are what stop it re-splitting.)
+- [ ] **`hudChase` → `hudChaseOff` has no runtime signal.** ~3 lines in
+      `sceneReady`: warn once if the element carries a `hudChase` expando or
+      `hud-chase` attribute, naming the replacement AND the inverted polarity.
+      Turns the worst break shape available — correct-looking code that quietly
+      does the opposite — into a self-documenting one. (Upstream: tosijs#26.)
+- [ ] **The aircraft attribute table is missing `reverseSpeed` (`:399`) and
+      `throttleRate` (`:401`)**, both named in the rewritten prose, and carries a
+      duplicate `afterburnerSpeed (behaviour)` row six lines below the real one.
+- [ ] **The glass gamepad's auto-hide is documented only in the CHANGELOG**, which
+      names `fade="off"` — the wrong knob for the usual `<tosi-b3d gamepad>` path
+      (there it's `gamepadFade`, `tosi-b3d.ts:342`). Name both, and describe the
+      fade / `idleSeconds` behaviour on the glass-gamepad doc page.
+- [ ] **`B3dGamepad.fade` is read once in `connectedCallback`** (`glass-gamepad.ts:378`),
+      so toggling it at runtime is inert — including from a `scenePanel`
+      `toggle3d`, this repo's own recommended way to expose a tweakable.
+      Evaluate `isOff(this.fade)` inside `wake`, or install/tear down in `render()`.
+- [ ] **Same function: `wake()` runs on every unthrottled window `pointermove`**
+      (~240 timer ops/s at 120 Hz) and `setInterval(getGamepads, 500)` runs
+      forever per mounted pad regardless of `document.hidden` or faded state.
+      Rate-limit `wake()` to ~1 s (the idle window is 10 s); skip the poll while
+      hidden or faded.
+- [ ] **Publish a migration doc** — `site.config.ts:58` sets
+      `docPaths: ['src', 'README.md']`, so 0.7.0's five breaking items live only
+      in a changelog anchor. Add `Migration.md` to `docPaths`.
+- [ ] **Two tosijs deprecations ship in 0.7.0**: ~45 `elementCreator({ tag })`
+      call sites and 10+ `static styleSpec`. The consumer-facing recipe at
+      `b3d-utils.ts:341` teaches the deprecated form, so an agent following our
+      docs writes deprecated code. Fix that snippet first; row the sweep.
+- [ ] **Encode the barrel-hygiene rule as a test** — "no bare common nouns" was
+      recorded as prose beside `ui` at 0.6.0 and violated one release later by 13
+      `carve` nouns including a second `box`. Assert every value export of
+      `index.ts` is a component creator/class, a namespace object, or on an
+      explicit allowlist, failing with the offender's name.
+- [ ] **`CombatEvent` carries no attribution** (incoming #8) — "who killed this,
+      through what chain" is the load-bearing datum for a consequence layer.
+      Tracked only on GitHub until now; deferred, not dropped.
+- [ ] **Point-in-time review artifacts have no home.** `RELEASE-REVIEW-0.7.0-rc.1.md`
+      sits at the repo root, is referenced by nothing, is absent from CLAUDE.md's
+      root-doc map, and still opens "Verdict: BLOCK" with no record of what was
+      addressed. Move them under `reviews/` and describe the class once.
+
+### → shared `tosijs-coding-practices` (compounding; none blocks a tag)
+
+- [ ] **The eight lens-8 write-backs from the rc gate never landed** — that repo is
+      clean and its last `releasing.md`/`review.md` commit predates this release.
+      Land them attributed to tosijs-3d v0.7.0, update the README scoreboard
+      (still `0.6.0 | 2026-08-10`), and add to §8's Done-when: _a lens-8 finding
+      written into the reviewed repo's own report has NOT been filed — it lands
+      as a commit in tosijs-coding-practices or it did not happen._
+- [ ] **`practices/deployment.md:117-124` prescribes a `preview:` block that
+      doesn't typecheck** (`preview: { url }` while `host` is required upstream) —
+      exactly how this repo's root typecheck went red and stayed red across a
+      tagged rc, hiding four real errors. Correct to
+      `{ host: process.env.PREVIEW_HOST ?? '', url }` with one line of why; keep
+      the never-commit-the-host rule verbatim. (Upstream: tosijs-ui#72.)
+- [ ] **Freeze published changelog sections** — _once a version is published under
+      ANY dist-tag its section is frozen; remediating a gate on a published rc
+      bumps the rc number._ Editing the published version's notes makes the notes
+      describe an artifact nobody can install. (0.7.0 must-clear #2, generalized.)
+- [ ] **A review report is an artifact of the gate, not a worklist** — add to
+      `practices/review.md` triage: _findings are filed only once they are in the
+      file the project's own agent docs name as the worklist._
+- [ ] **The "an rc may be tagged before the gate" carve-out** (`RELEASING.md:95-101`)
+      is a good rule living in one repo. Write it into `practices/releasing.md`,
+      and restore the clause the local copy dropped: an rc tagged ahead of the
+      gate must state the gate has not run **and name the unreviewed subsystems**.
+- [ ] **An `upstream:check` script in the shared repo** — parse the UPSTREAM.md
+      tables, `gh issue view` every URL, report Open rows whose issue is CLOSED,
+      Resolved rows whose issue is OPEN, and **rows whose Issue cell is not a URL
+      at all**. Four repos each write the same manual checklist line while their
+      tables drift anyway. Reduces RELEASING step 5a0 to running it.
+
 ## v0.6.0-rc.1 review follow-ups (nine-lens, 2026-08-06)
 
 **STATUS (0.6.0 final):** the three rc.2 gating items AND nearly this whole list shipped —

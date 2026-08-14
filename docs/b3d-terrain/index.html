@@ -320,13 +320,13 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 </tr>
 <tr>
 <td><code>grossScale</code></td>
-<td><code>0.1</code></td>
-<td>Gross noise frequency (per render unit)</td>
+<td><code>0.015</code></td>
+<td>Gross noise frequency — a RECIPROCAL wavelength, so SMALL numbers make BIG landforms (0.015 ≈ 65m features before <code>horizScale</code>)</td>
 </tr>
 <tr>
 <td><code>detailScale</code></td>
-<td><code>0.5</code></td>
-<td>Detail noise frequency (per render unit)</td>
+<td><code>0.09</code></td>
+<td>Detail noise frequency, same units</td>
 </tr>
 <tr>
 <td><code>horizScale</code></td>
@@ -346,12 +346,57 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <tr>
 <td><code>grossAmplitude</code></td>
 <td><code>8</code></td>
-<td>Gross height multiplier</td>
+<td>Gross height multiplier. ⚠️ Meaningless on its own: it&#39;s spread over <code>grossScale</code>/<code>horizScale</code>, so the same number is a mountain range at one scale and a plain at another</td>
 </tr>
 <tr>
 <td><code>detailAmplitude</code></td>
-<td><code>2</code></td>
-<td>Detail height multiplier</td>
+<td><code>3</code></td>
+<td>Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail</td>
+</tr>
+<tr>
+<td><code>biomeSeaLevel</code></td>
+<td><code>0</code></td>
+<td>Sea level for the biome classifier (<code>biome=&quot;on&quot;</code>) — keep it equal to your water plane&#39;s <code>y</code></td>
+</tr>
+<tr>
+<td><code>biomeLapseRate</code></td>
+<td><code>0</code> (auto)</td>
+<td>Height→temperature lapse. ⚠️ Must be scaled to your vertical range: <code>≈ baseTemperature / relief</code>. The 0.004 default is a small-world number and renders a 340m world entirely as snow</td>
+</tr>
+<tr>
+<td><code>normalSmoothing</code></td>
+<td><code>0.6</code></td>
+<td>Low-pass the NORMALS&#39; height field (positions stay crisp) — kills cliff-face zigzag</td>
+</tr>
+<tr>
+<td><code>patchMask</code> (property)</td>
+<td><code>null</code></td>
+<td><code>(x,z) =&gt; boolean</code> — cut the surface away for a volumetric patch. See <a href="../b3d-patch/">b3d-patch</a> (experimental)</td>
+</tr>
+<tr>
+<td><code>patches</code> (property)</td>
+<td><code>[]</code></td>
+<td>Footprints that force finer tiles while resident (used by <code>b3d-patch</code>)</td>
+</tr>
+<tr>
+<td><code>landform</code> (property)</td>
+<td><code>null</code></td>
+<td><code>(x,z,h) =&gt; h&#39;</code> — force an authored shape through the noise. See <a href="../landform/">landform</a></td>
+</tr>
+<tr>
+<td><code>provinceField</code> (property)</td>
+<td><code>null</code></td>
+<td><code>(x,z) =&gt; 0..1</code> — local volcanism, carried per-vertex to the biome shader</td>
+</tr>
+<tr>
+<td><code>rimCollar</code></td>
+<td><code>12</code></td>
+<td>Metres the rim of a patch hole folds down into the opening</td>
+</tr>
+<tr>
+<td><code>worldU</code> / <code>worldV</code></td>
+<td><code>0</code> / <code>0.25</code></td>
+<td>Where this terrain sits in the sampler&#39;s domain. ⚠️ <code>worldV = 0</code> puts the world ON a mirror plane (<code>CylinderSampler</code> reflects v) — 0.25 is the furthest from both</td>
 </tr>
 <tr>
 <td><code>baseHeight</code></td>

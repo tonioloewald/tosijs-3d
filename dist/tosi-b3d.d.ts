@@ -74,6 +74,9 @@ export declare class B3d extends Component {
         scenePanelOpen: boolean;
         gamepad: boolean | string;
         gamepadScale: number;
+        /** `'off'` stops the glass gamepad fading when a mouse/keyboard/pad is
+         * used (see b3d-gamepad's `fade`). */
+        gamepadFade: "on" | "off";
         quality: QualitySetting;
         stats: boolean;
     };

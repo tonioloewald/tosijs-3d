@@ -64,13 +64,17 @@ export interface FlyByWireConfig {
    * backwards — that's the manoeuvre for backing out of somewhere you flew
    * into. Plane mode is never allowed below zero (that isn't a slow reverse,
    * it's flying tail-first).
+   *
+   * Optional: omitted means no reverse (the implementation guards `?? 0`).
    */
-  reverseSpeed: number
+  reverseSpeed?: number
   /**
    * Hover braking authority (units/s² per full brake). Only the trigger's
    * negative half uses it — see the note in `flyByWireStep`.
+   *
+   * Optional: omitted means no hover brake (guarded `?? 0`).
    */
-  hoverBrake: number
+  hoverBrake?: number
   /** Drone-mode lean: forward speed gained per full forward-pitch (units/s). */
   leanAccel: number
   /** Drone-mode hover bleed: how fast forward speed decays to a stop (1/s). */

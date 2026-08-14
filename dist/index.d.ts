@@ -12,8 +12,10 @@ export { proximityRung, rungNominal, routePortals, containmentPath, } from './wo
 export { runMinSimConformance } from './min-sim-conformance';
 export type { ConformanceHarness, TickableMinSim } from './min-sim-conformance';
 export type { WorldState, WorldEntity, EntityComponents, HealthComponent, InventoryEntry, FactionComponent, InteractableComponent, EntityId, EntityKind, EntityIntent, Behavior, Zone, ZoneId, SpawnSpec, SimulationEvent, EventHandler, Unsubscribe, WorldApi, PlaceId, PortalId, ChoiceId, Shape, Proximity, PlaceKind, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, MinSimApi, } from './world-contract';
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, placeOnSurface, boundingBottomOffset, } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, } from './b3d-utils';
 export type { XRStuff, XRParams } from './b3d-utils';
+export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire';
+export type { FlyByWireConfig, FlyByWireCommand, FlyByWireState, } from './fly-by-wire';
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 export type { Quat, Pose } from './spatial-transform';
@@ -158,8 +160,23 @@ export { cliffProfile, beachProfile, rollingProfile, mesaProfile, terraceProfile
 export type { LocalizedFilter } from './slope-profile';
 export { volcano, impactCrater, pad, gulley, cover, composeLandforms, mergeProvinces, } from './landform';
 export { latticeHash, latticePoint, extractChunk } from './sdf-lattice';
-export { applyCarve, sphere, capsule, tube, box, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft, } from './carve';
-export type { Carve, NoiseOptions } from './carve';
+import { applyCarve, sphere, capsule, tube, box as carveBox, union, smoothUnion, flange, subtract, intersect, roughen, warp, shaft } from './carve';
+export declare const carve: {
+    applyCarve: typeof applyCarve;
+    sphere: typeof sphere;
+    capsule: typeof capsule;
+    tube: typeof tube;
+    box: typeof carveBox;
+    union: typeof union;
+    smoothUnion: typeof smoothUnion;
+    flange: typeof flange;
+    subtract: typeof subtract;
+    intersect: typeof intersect;
+    roughen: typeof roughen;
+    warp: typeof warp;
+    shaft: typeof shaft;
+};
+export type { Carve, NoiseOptions, Vec3Like } from './carve';
 export { B3dPatch, b3dPatch } from './b3d-patch';
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field';
 export type { PatchField, Footprint } from './patch-field';

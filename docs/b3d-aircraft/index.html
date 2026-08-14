@@ -54,7 +54,7 @@ model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
 <p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.
 The full flight model is explained below the demo.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div } = elements
 
@@ -112,7 +112,7 @@ const scene = b3d(
       // Drift the AIR targets so they move on radar but stay hittable.
       let t = 0
       el.scene.onBeforeRenderObservable.add(() =&gt; {
-        t += el.scene.getEngine().getDeltaTime() / 1000
+        t += sceneDelta(el.scene)
         air.forEach((d, i) =&gt; {
           if (d.dead) return
           d.x += Math.sin(t * 0.3 + i) * 0.02
@@ -185,16 +185,21 @@ conventionally). Below the ceiling the regime is speed-based, so slowing to a ho
 gives you the vertical trigger back.</p>
 <ul>
 <li><strong>Hover / drone</strong> (slow, below the ceiling): right trigger climbs, left trigger
-descends. Let go and it bleeds back to a stationary hover.</li>
-<li><strong>Plane</strong> (fast): right trigger speeds up, left trigger slows down; speed holds
-steady when you let go. Holding throttle past <code>maxSpeed</code> enters <strong>afterburner</strong>
-(up to <code>afterburnerSpeed</code>); release and it bleeds back to <code>maxSpeed</code>. Pitch is
-climb/dive, the turn stick banks to turn. Slow back below <code>vtolSpeed</code> and the
-triggers return to up/down. Banking off level costs a little altitude.</li>
+descends — the trigger is purely VERTICAL here. Fore/aft is the lean: nose
+down accelerates, nose up slows you and then walks you gently backwards
+(<code>reverseSpeed</code>). Holding the left trigger also sheds speed to a stop, so
+stopping never fights altitude.</li>
+<li><strong>Plane</strong> (fast): the trigger moves a THROTTLE LEVER and speed settles where
+thrust meets drag — so a climb costs speed, a dive gives it back, and
+releasing the trigger leaves the lever where it was rather than holding a
+speed. Full lever is <strong>military</strong> thrust (<code>maxSpeed</code>); <strong>afterburner</strong> lights
+only while the trigger is held past a detent at full lever and drops back to
+military when you let go. Pitch is climb/dive, the turn stick banks to turn.</li>
 </ul>
 <p>Set <code>vtolSpeed</code> to 0 for a pure aeroplane with no hover regime.</p>
-<p>Inputs: left stick = pitch + turn (bank), right stick X = aux roll, triggers =
-lift/throttle (the dual-purpose axis above), right stick Y = camera zoom.</p>
+<p>Inputs: left stick = pitch + turn (bank), triggers = the dual-purpose
+lift/throttle axis above, <strong>right stick = the camera</strong> (orbits the chase view,
+turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <h2>Attributes</h2>
 <table>
 <thead>

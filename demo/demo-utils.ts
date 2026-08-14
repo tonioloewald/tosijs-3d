@@ -17,7 +17,7 @@
  * eyeball once it builds.
  */
 import * as BABYLON from '@babylonjs/core'
-import { b3dSun, b3dGround, SvgTexture } from '../src/index'
+import { b3dSun, b3dGround, SvgTexture, sceneDelta } from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -123,7 +123,7 @@ export function spinner(
   box.material = mat
   el.register?.({ meshes: [box] }) // enlist as a shadow caster (b3dSun adds registered meshes)
   el.scene.registerBeforeRender(() => {
-    box.rotation.y += (spin * el.scene.getEngine().getDeltaTime()) / 1000
+    box.rotation.y += (spin * sceneDelta(el.scene)) / 1000
   })
   return box
 }

@@ -11,16 +11,22 @@ A `Carve` is a signed distance to a carved surface, **positive INSIDE the air**
 rock. `applyCarve` turns one into a `PatchField`:
 
 ```js
-const cave = applyCarve(
-  roughen(
-    smoothUnion(30,
-      sphere({ x: 0, y: -40, z: 0 }, 45),          // a hall
-      capsule({ x: 0, y: -40, z: 0 }, { x: 200, y: -70, z: 40 }, 14), // an adit
+import { carve } from 'tosijs-3d'
+
+const cave = carve.applyCarve(
+  carve.roughen(
+    carve.smoothUnion(30,
+      carve.sphere({ x: 0, y: -40, z: 0 }, 45),          // a hall
+      carve.capsule({ x: 0, y: -40, z: 0 }, { x: 200, y: -70, z: 40 }, 14),
     ),
     { amp: 6, scale: 0.02, octaves: 3, seed: 7 },
   )
 )
 ```
+
+> The family is exported as **`carve.*`**, not as bare names: `box`, `sphere`,
+> `tube` and `union` are common nouns, and one of them (`box`) would otherwise
+> shadow [[box]]'s UI container. Same reasoning as the `ui.*` namespace.
 
 ## Why a capsule is the workhorse
 

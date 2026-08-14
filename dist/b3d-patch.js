@@ -36,8 +36,7 @@ import {
   b3dLibrary, b3dDeath, b3dHud, b3dRadar, b3dRadarBlip,
   gameController, inputFocus,
   label3d, slider3d,
-  applyCarve, sphere, tube, smoothUnion, roughen, warp, gulley, cover,
-  composeLandforms,
+  carve, gulley, cover, composeLandforms,
 } from 'tosijs-3d'
 
 // SCALE: features hundreds of metres across, so a ~6m aircraft reads as small.
@@ -107,16 +106,16 @@ terrain.landform = composeLandforms(
 // whole way — it never has to break the surface again.
 const MOUTH = { x: FACE.x - 6, y: FLOOR + 26, z: 0 }
 const HALL = { x: 330, y: FLOOR - 10, z: 40 }
-const cave = warp(
-  roughen(
-    smoothUnion(
+const cave = carve.warp(
+  carve.roughen(
+    carve.smoothUnion(
       34,
-      tube(
+      carve.tube(
         [MOUTH, { x: 150, y: FLOOR + 20, z: 10 }, { x: 250, y: FLOOR + 4, z: 30 }, HALL],
         [26, 24, 26, 34]
       ),
-      sphere(HALL, 74),
-      sphere({ x: 195, y: FLOOR + 34, z: -50 }, 38), // a side chamber
+      carve.sphere(HALL, 74),
+      carve.sphere({ x: 195, y: FLOOR + 34, z: -50 }, 38), // a side chamber
     ),
     { amp: 4, scale: 0.018, octaves: 3, seed: 7 }
   ),
@@ -128,7 +127,7 @@ const patch = b3dPatch({
   depth: 150, rise: 40,
   spacing: 3.5, jitter: 0.3, level: 4, chunkCells: 8,
 })
-patch.field = applyCarve(cave)
+patch.field = carve.applyCarve(cave)
 
 // You spawn a few hundred metres out, pointed at it. The WAYPOINT blip (a
 // radar contact with faction 'waypoint') puts a marker on the HUD, because

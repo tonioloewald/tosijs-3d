@@ -240,7 +240,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | File | Purpose |
 | --- | --- |
 | `src/tosi-b3d.ts` | Core `B3d` Component — engine, scene, render loop, scene registration, camera management |
-| `src/b3d-utils.ts` | `B3dChild` + `AbstractMesh` base classes, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, shared types |
+| `src/b3d-utils.ts` | `B3dChild` + `AbstractMesh` base classes, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, `sceneDelta()`, `isIgnored()`, shared types |
 | `src/b3d-loader.ts` | Loads GLB/GLTF files, registers meshes/lights, applies naming conventions |
 | `src/b3d-library.ts` | Parts catalog — preloaded mesh library for spawning instances |
 | `src/b3d-collisions.ts` | Collision detection with convention-based collider shapes |
@@ -315,7 +315,11 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 
 **UI & Textures:** — the Babylon-free SVG UI surface (box/surface/table/keyboard families
 below) exports its values under the **`ui.*` namespace** (`ui.box`, `ui.table`, `ui.keyboard`, …);
-types stay top-level. Bare common nouns don't leak from the barrel.
+types stay top-level. **Bare common nouns don't leak from the barrel** — this
+is a general rule, not a `ui` quirk: `carve` follows it too, and a family whose
+names are ordinary words (or would shadow an existing export) ships as a
+namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
+`volcano`, `terrainDensity`, `latticeHash`) — known debt, not precedent.
 
 | File                                           | Purpose                                                                                                                                                                                                                                                                 |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -350,7 +354,7 @@ types stay top-level. Bare common nouns don't leak from the barrel.
 | `src/gradient-filter.ts` | Gradient-based color mapping |
 | `src/surface-sampler.ts` | Surface point sampling |
 | `src/terrain-grid.ts` | Pure LOD terrain-tile grid math (placement/sampling/culling), unit-tested |
-| `src/carve.ts` | The CAVE VOCABULARY — sphere/capsule/tube/box carves (positive inside the air), `smoothUnion` for excavated-looking junctions, `subtract`/`intersect`, and the two perturbations: `roughen` (texture the wall) vs `warp` (bend the space so nothing reads as a primitive). Pure, unit-tested |
+| `src/carve.ts` | The CAVE VOCABULARY, exported as **`carve.*`** (never bare — `box`/`sphere`/`tube`/`union` are common nouns and `box` would shadow the UI container): `carve.sphere`/`capsule`/`tube`/`box` (positive inside the air), `smoothUnion` for excavated-looking junctions, `subtract`/`intersect`, and the two perturbations: `roughen` (texture the wall) vs `warp` (bend the space so nothing reads as a primitive). Pure, unit-tested |
 | `src/b3d-patch.ts` | `<tosi-b3d-patch>` — the volumetric patch in a scene: registers its footprint + derived mask with the terrain, extracts wall chunks under a ms budget, releases them when the ground coarsens (residency, never ownership) |
 | `src/patch-field.ts` | `landform`'s VOLUMETRIC sibling — `(x,y,z,d) => d'` patches that carve (bores/caverns), `terrainDensity` from the hooked height sampler, `marginBlend` so a rim converges onto the heightfield (tucked below it) instead of being stitched. Pure, unit-tested |
 | `src/sdf-lattice.ts` | Pure SDF extraction substrate for volumetric patches (tunnels/caverns): ONE global hash-jittered lattice + surface nets, so chunks weld bit-identically — cross-tile/cross-LOD seams are unrepresentable, not stitched. Unit-tested (incl. the chunk-weld proof) |
@@ -456,6 +460,14 @@ All components are regular tosijs `Component` subclasses (not blueprints). They 
 
 **⚠️ A boolean attribute can't default to `true`.** HTML boolean semantics are correct here — an absent attribute is `false` — so `static initAttributes = { foo: true }` never turns on when the element is written without `foo`, and it fails **silently** (it killed `b3d-trigger`'s `active`). Never declare a default-`true` boolean: either invert it to a negative (`disabled`, default `false` = active — what the trigger now does) or keep the positive meaning with a string enum (`'on' | 'off'`). **tosijs no longer fails silently — it now THROWS at construction on a true-default boolean**, so the component's constructor dies before it wires anything and the element is dead on arrival (this is exactly how `b3d-controller`'s `player: true` silently broke the whole controller — the ctor threw, `sceneReady` never ran, no input was ever wired; the uncaught exception only showed in DevTools, not via haltija's `console.*` capture). All offenders are now fixed (the four flagged ones use `'on'|'off'`; the controller uses `player: false`) — no default-true booleans remain. **Corollary: when converting a boolean attr to `'on'|'off'`, grep every call site** — tosijs silently DISCARDS a wrong-typed prop write, so a leftover `foo: false` compiles, runs, and quietly means `'on'` (filed as tosijs#24; this was the first link in the lost-pointerup saga — see UI-DESIGN-NOTES).
 
+**⚠️ Never call `engine.getDeltaTime()` inside a scene observer.** Babylon's scene
+observers can run more than once per engine frame (and do — the render loop, and again
+per active camera), so the engine's delta is the WHOLE frame each time and everything
+integrating with it runs at 2× or 4× speed. It fails silently: motion is smooth, just
+wrong, and it scales with how many cameras a scene happens to have. Use **`sceneDelta(scene)`**
+from `b3d-utils`, which divides the frame across the observer calls it actually got. This
+cost six demos a cycle before it was found (fixed across 14 call sites in 0.7.0).
+
 **⚠️ `parentElement` is the `<tosi-slot>`, not the component you nested into.** tosijs mounts a component's light-DOM children inside a `<tosi-slot>` wrapper, so for `b3dDestroyable({…}, b3dRadarBlip({…}))` the blip's `parentElement` is that **slot**, not the destroyable. Any child that wants to find "the thing I'm nested in" must skip it — use **`semanticParent(el)`** from `b3d-utils` (walks up past `TOSI-SLOT`). This fails **silently**: the lookup just returns a node with no `mesh`, so the child quietly finds nothing (it cost a long detour — `<tosi-b3d-radar>` found no platform and every nested `<tosi-b3d-radar-blip>` reported a null position, so the radar produced zero tracks and the HUD zero blips). `findB3dOwner()` is unaffected because it walks _all_ the way up. There's no clean workaround — the slot is a real DOM node, so `parentElement` is honestly reporting it; skipping it is the fix. (Documented upstream in the tosijs docs.)
 
 ### Adaptive defaults — prefer `auto` over hard-wired performance numbers
@@ -535,7 +547,7 @@ Hand-rolled `createElement('style')`, dynamically-concatenated CSS strings, or p
 
 Tests import from `bun:test` (`describe`, `expect`, `test`). The project favors **pure, dependency-free modules** that can be tested without a 3D engine — see `fly-by-wire.ts` (plain `{x, y, z}` objects, no Babylon), `perlin-noise.ts`, and the combat models `resource.ts` / `destroyable.ts` (deterministic — time only via a `dt`/`tick`, no `Date.now`/`Math.random`) as examples. When adding testable logic, follow this pattern: isolate computation from Babylon.js types so it can be unit tested directly. Pure state models that must be reproducible (combat, world-store) advance time explicitly and avoid `Date.now`/`Math.random`.
 
-Run `bun test` to exercise the full pure-model suite (51 files, ~760 tests, ~1s as of 2026-08 — no excuse to skip it). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `sdf-lattice`, `patch-field`, `landform`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, and the SVG UI surface: `box`, `flow-layout`, `surface`, `widget-box`, `keyboard`/`key-layout`/`text-edit`, `table`/`table-layout`, `selection`, `gamepad-focus`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
+Run `bun test` to exercise the full pure-model suite (~1s; **0 failures is the bar** — precise counts go stale between releases, so they aren't recorded here). The `*.test.ts` files (`fly-by-wire`, `perlin-noise`, `resource`/`destroyable`/`ballistics`/`guidance`/`warhead`, `radar`/`hud-math`/`hud-side`, `world-store`/`world-view`, `terrain-grid`, `sdf-lattice`, `patch-field`, `landform`, `spatial-transform`, `xr-frames`, `aircraft-rig`, `babylon-orientation`, `perf-probe`/`b3d-quality`, `model-transform`, `surface-sampler`, `gradient-filter`, `asset-url`, `svg-to-code`, and the SVG UI surface: `box`, `flow-layout`, `surface`, `widget-box`, `keyboard`/`key-layout`/`text-edit`, `table`/`table-layout`, `selection`, `gamepad-focus`, …) are where the framework's behavior is pinned down without a 3D engine; read the relevant one before changing a model it covers.
 
 ## Demo & Docs
 

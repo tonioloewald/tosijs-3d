@@ -38,6 +38,9 @@ export declare class B3dGamepad extends Component implements GamepadSource {
         maxZone: number;
         /** Seconds of no mouse/keyboard/gamepad before the pad fades back in. */
         idleSeconds: number;
+        /** `'off'` keeps the pad visible whatever else you're holding — for
+         * screenshots, desktop demos, or a scene where it IS the control. */
+        fade: "on" | "off";
         /** Opacity while a real input device is in use (0 = invisible). */
         fadedOpacity: number;
     };
@@ -47,6 +50,7 @@ export declare class B3dGamepad extends Component implements GamepadSource {
     deadzone: number;
     maxZone: number;
     idleSeconds: number;
+    fade: 'on' | 'off';
     fadedOpacity: number;
     /** Advanced: per-cluster url/anchor/vmin overrides, or `false` to omit one. */
     clusters?: {

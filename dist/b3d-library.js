@@ -183,7 +183,7 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 - Options: `{ x?, y?, z?, rx?, ry?, rz?, parent? }`
 */
 /*{ "parent": "Core" }*/
-import { B3dChild, conventionName, publicName } from './b3d-utils';
+import { B3dChild, publicName, isIgnored } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import { canonicalize } from './model-transform';
 /**
@@ -304,7 +304,7 @@ export class B3dLibrary extends B3dChild {
     _allNodes() {
         if (!this.container)
             return [];
-        return [...this.container.meshes, ...this.container.transformNodes].filter((n) => n.name !== '__root__' && !conventionName(n.name).includes('-ignore'));
+        return [...this.container.meshes, ...this.container.transformNodes].filter((n) => n.name !== '__root__' && !isIgnored(n.name));
     }
     getNames() {
         return modelExportNames(this._allNodes().map((n) => n.name));
@@ -327,9 +327,7 @@ export class B3dLibrary extends B3dChild {
         ];
         const buildTree = (parent) => {
             return allNodes
-                .filter((n) => n.parent === parent &&
-                n.name !== '__root__' &&
-                !conventionName(n.name).includes('-ignore'))
+                .filter((n) => n.parent === parent && n.name !== '__root__' && !isIgnored(n.name))
                 .map((n) => {
                 const isMesh = n instanceof BABYLON.AbstractMesh;
                 return {

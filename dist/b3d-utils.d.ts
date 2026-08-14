@@ -54,6 +54,17 @@ export declare const conventionName: (name: string) => string;
  * the moment an author adds or changes a collider. Repeats, so a node carrying
  * two annotations (`Hull_collideMesh_noshadow`) still resolves to `Hull`.
  */
+/**
+ * Is this node FILTERED OUT at load? The convention is written `-ignore` in the
+ * docs and `_ignore` by the underscore rule every other suffix follows, so both
+ * are accepted — one matcher, used by the loader, the library and `publicName`.
+ *
+ * They used to disagree: the loader disposed only the hyphen form while
+ * `publicName` stripped only the underscore one, so `Foo_ignore` survived the
+ * load AND collapsed to `Foo` — colliding with a real `Foo`, which made
+ * `instantiate('Foo')` resolve to whichever came first.
+ */
+export declare const isIgnored: (name: string) => boolean;
 export declare const publicName: (name: string) => string;
 /**
  * Vertical gap, in world units, between a node's origin and the bottom of its
