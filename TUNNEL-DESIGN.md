@@ -208,6 +208,60 @@ is no tile to disagree with — but every _transition_ wants a landform placed
 deliberately, not discovered. The topology compiler should therefore emit a
 landform per entrance portal, not only a carve.
 
+## ⚠️ The idea that may dissolve all of this: volumetric fine tiles
+
+> Tonio, 2026-08-15. Untried, and it deserves trying before any more work goes
+> into reconciling boundaries.
+
+**What if terrain tiles were volumetric, and only the coarser LODs were a top
+surface?** The finest ring around the camera extracts from a density field the
+way `b3d-patch` already does; everything beyond it stays the heightfield it is
+today.
+
+The reason this is interesting is not performance — it is that **it deletes the
+problem above rather than solving it.** Everything in the "Entrances" section is
+the cost of a _representation boundary_: a heightfield quantised to quads meeting
+an SDF quantised to a lattice, at whatever grazing angle the hill happens to
+have. Make the near field entirely volumetric and that boundary does not exist
+where the player is. The only remaining transition is volumetric-fine →
+heightfield-coarse, which happens _far away_, is always roughly horizontal, and
+is already hidden by the skirt machinery built for LOD seams.
+
+It also lines up with what we already know: caves are a NEAR-FIELD feature. You
+cannot see into one from a distance — at range a mouth is a dark patch, which a
+heightfield represents perfectly well. So "volumetric only where you can see
+detail" is not a compromise, it is the same information budget the LOD system
+already applies to everything else.
+
+**The risk, and it is the whole risk:** the two representations must produce the
+_same surface_ where there is no cave, or the ground visibly shifts when a tile
+changes LOD. Surface nets places a vertex where the density crosses zero; a
+heightfield grid places one at a sample point. Those are not the same surface,
+and a ripple that runs around the player at a fixed radius would be far worse
+than any seam we have now.
+
+Three things make it tractable rather than hopeful:
+
+- `sdf-lattice` already extracts from ONE global hash-jittered lattice, so
+  chunks weld bit-identically — cross-tile and cross-LOD seams are
+  _unrepresentable_ there, not stitched. That guarantee is exactly what this
+  needs, and it already exists and is unit-tested.
+- `patch-field.terrainDensity` already derives density from the hooked height
+  sampler, so "the density field agrees with the heightfield" is the existing
+  contract, not a new one.
+- `marginBlend` already converges a rim onto the heightfield.
+
+**How to test it cheaply, before building anything:** extract one flat tile
+volumetrically with no carve at all, overlay it on the heightfield tile it
+replaces, and measure the maximum vertex deviation. If it is sub-centimetre the
+idea is alive; if it is not, that number is the whole feasibility answer and
+costs an afternoon. Do that first — it is the same discipline that would have
+saved the fortnight the "Entrances" section documents.
+
+**If it works**, the `landform.gulley` / author-the-surface rule stops being a
+requirement and becomes a _style choice_: an excavated entrance because you
+wanted one, not because the geometry could not survive anything else.
+
 ## Stage 3 — the voxel map
 
 **Sparse, chunked, integer-addressed.** Only carved cells are stored, so a 2 km
