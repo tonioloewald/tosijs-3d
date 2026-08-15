@@ -269,7 +269,16 @@ Three things make it tractable rather than hopeful:
   contract, not a new one.
 - `marginBlend` already converges a rim onto the heightfield.
 
-**How to test it cheaply, before building anything:** extract one flat tile
+**MEASURED, 2026-08-15 — it passes.** And it was not an afternoon: `sdf-lattice`
+and `patch-field` are pure, so the whole thing is a unit test
+(`volumetric-surface.test.ts`, 15 ms). Against 6 m sine hills the deviation is
+0.189 m at an 8 m cell, 0.049 at 4 m, 0.0096 at 2 m and 0.0011 at 1 m — quadratic
+in cell size, which is discretisation rather than drift. Flat ground is machine
+epsilon. At the finest LOD a 2 m lattice is already sub-centimetre, so the ground
+does not shift when a tile changes representation and this direction is alive.
+
+The original plan for testing it, kept because the reasoning still applies to the
+second measurement: extract one flat tile
 volumetrically with no carve at all, overlay it on the heightfield tile it
 replaces, and measure the maximum vertex deviation. If it is sub-centimetre the
 idea is alive; if it is not, that number is the whole feasibility answer and

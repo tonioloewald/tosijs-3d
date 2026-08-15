@@ -441,8 +441,17 @@ connectivity nobody declared.
       into "am I inside, or can I see in".
 - [ ] **Extraction cost near a cavity** against `tileBuildMs`. Now scoped to
       tiles that actually contain one, not to the whole finest ring.
-- [ ] **Deviation, but only at a breaking cavity** — the surface is untouched
-      elsewhere, so this is now a question about the entrance case alone.
+- [x] **DONE — deviation measured, and it PASSES** (`volumetric-surface.test.ts`,
+      2026-08-15). Against 6 m sine hills: 8 m cell → 0.189 m max, 4 m → 0.049,
+      2 m → 0.0096, 1 m → 0.0011. Flat ground is machine epsilon; a plane is
+      6.7e-7. The error is **quadratic in cell size**, i.e. ordinary
+      discretisation (curvature inside a cell), not drift — so at the finest LOD,
+      where this would actually be used, 2 m is already inside the
+      sub-centimetre bar. The ground does not shift when a tile changes
+      representation. Caveat recorded in the test: smooth sine hills flatter the
+      result versus real fBm; the quadratic convergence is the durable finding.
+- [ ] **Deviation at a BREAKING cavity** — the surface is untouched elsewhere, so
+      what remains is the entrance case alone.
 
 Do NOT start building on this before both numbers exist. The last attempt at
 tunnels spent a fortnight discovering a conditioning problem that a morning's
