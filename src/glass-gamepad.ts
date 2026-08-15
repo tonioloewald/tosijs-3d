@@ -313,6 +313,8 @@ async function loadCluster(url: string): Promise<SVGSVGElement> {
  * and adds it to the active input provider.
  */
 export class B3dGamepad extends Component implements GamepadSource {
+  readonly kind = 'glass'
+
   static initAttributes = {
     /** Spec string: `''`/`true` = full layout, else e.g. `"a,b,left_stick"`. */
     controls: '',

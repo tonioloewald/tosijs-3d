@@ -238,6 +238,7 @@ export {
   aircraftMappingDescriptor,
   MappedInputProvider,
 } from './virtual-gamepad'
+export { STICK_UP_IS_POSITIVE } from './virtual-gamepad'
 export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad'
 export { HardwareGamepadSource } from './hardware-gamepad'
 export { TouchGamepadSource } from './touch-gamepad'

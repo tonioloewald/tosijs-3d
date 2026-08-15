@@ -205,6 +205,8 @@ export type TouchGamepadOptions = {
 }
 
 export class TouchGamepadSource implements GamepadSource {
+  readonly kind = 'touch'
+
   private svg: SVGSVGElement
   private state: VirtualGamepad = emptyGamepad()
   private sticks: StickState[] = []

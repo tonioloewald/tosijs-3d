@@ -28,6 +28,8 @@ function applyDeadzone(value: number, deadzone: number): number {
 }
 
 export class HardwareGamepadSource implements GamepadSource {
+  readonly kind = 'hardware'
+
   deadzone: number
   gamepadIndex: number
 

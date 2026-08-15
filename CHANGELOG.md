@@ -61,6 +61,19 @@ that was tuned around the old feel.
 
 ### Added
 
+- **The stick sign contract is now a test** (`stick-sign.test.ts`) — every
+  source must report **up/forward as positive**, and all of them must agree.
+  This was documented in three places and enforced in none, which is what let
+  #14 run for a day: a source that disagrees is internally consistent, so only
+  a player with two devices notices, and what they report is "the framework is
+  broken". Verified by deliberately flipping the touch and hardware signs in
+  turn and watching it fail. `STICK_UP_IS_POSITIVE` names the convention.
+- **`GamepadSource.kind`** — a stable `'keyboard' | 'hardware' | 'touch' | 'xr'
+  | 'glass'` marker, because the obvious alternative fails silently: an adopter
+  matched our glass pad with `constructor.name`, their bundler mangled it, the
+  lookup never matched, and every experiment built on it was a no-op that
+  looked like a result. Class names are not API.
+
 - **A gamepad gadget in the gear panel** — one tap to pin the glass pad visible
   or hand it back to the auto-hide. The fade is production-correct and
   development-hostile: once a mouse or trackpad is present the pad goes away and

@@ -38,6 +38,8 @@ import {
 } from './virtual-gamepad'
 
 export class XrGamepadSource implements GamepadSource {
+  readonly kind = 'xr'
+
   constructor(private controllers: TosiXRControllerMap) {}
 
   poll(): VirtualGamepad {

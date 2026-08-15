@@ -112,6 +112,8 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
 ]
 
 export class KeyboardGamepadSource extends Component implements GamepadSource {
+  readonly kind = 'keyboard'
+
   static initAttributes = {
     wheelSensitivity: 1,
     updateIntervalMs: 33,
