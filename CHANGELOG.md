@@ -61,6 +61,10 @@ that was tuned around the old feel.
 
 ### Added
 
+- **`panelFitWidth(fov, aspect, z, want, fill)`** — how wide a camera-relative
+  panel may be and stay on screen. Shared because there are two such panels and
+  a constant copied into both is a constant that will disagree with itself.
+
 - **PAUSE** — `b3d.pause(reason)` / `.resume()` / `.togglePause()` / `.paused`,
   a centred in-scene pause panel, and the attributes around them:
   - `pauseWhenHidden` (default **on**) — backgrounding the tab holds the scene,
@@ -201,6 +205,14 @@ that was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **`b3d-death`'s Respawn panel had both of the pause panel's problems**, and at
+  a worse moment. Its spectator camera was attached to the canvas, so a tap
+  meant for Respawn also drove the camera (Tonio, on a phone: *"the view
+  pivots"*), and it used the same fixed 1.1-unit width that overflows a portrait
+  viewport. The camera is now set with `{ attach: false }` — the orbit still
+  runs, it's driven by an observable, you just can't wrestle it — and the width
+  comes from the camera's FOV and aspect via the shared `panelFitWidth`.
 
 - **The pause panel fought the camera for your tap.** It lives in the scene, so
   a press on it is also a press on the canvas, and the camera's input got it

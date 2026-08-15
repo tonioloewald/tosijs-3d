@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'bun:test'
+import { panelFitWidth } from './widgets3d-layout'
 
 /*
 A CENTRED PANEL MUST FIT THE VIEWPORT IT IS CENTRED IN.
@@ -14,11 +15,11 @@ This pins the sizing rule that replaced the constant. It is the same arithmetic
 without a device.
 */
 
-/** Mirrors the fit in `_showPausePanel`. */
-const panelWidth = (fov: number, aspect: number, z = 2.2, want = 1.1) => {
-  const visibleH = 2 * z * Math.tan(fov / 2)
-  return Math.min(want, visibleH * aspect * 0.8)
-}
+// The REAL function, not a copy of it: a test that mirrors the arithmetic can
+// only ever confirm that I typed it twice the same way. Both panels (pause and
+// death) call this one.
+const panelWidth = (fov: number, aspect: number, z = 2.2, want = 1.1) =>
+  panelFitWidth(fov, aspect, z, want)
 
 const FOV = 0.8 // Babylon's default vertical FOV
 

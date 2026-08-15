@@ -252,6 +252,7 @@ import {
   textBlock3d,
   type Widget3d,
 } from './widgets3d'
+import { panelFitWidth } from './widgets3d-layout'
 import { SvgTexture } from './svg-texture'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
 import { isOff } from './b3d-utils'
@@ -810,8 +811,7 @@ export class B3d extends Component {
     const cam = this.scene.activeCamera
     const fov = (cam as BABYLON.FreeCamera)?.fov ?? 0.8
     const aspect = this.engine.getAspectRatio(cam as BABYLON.Camera) || 1.6
-    const visibleH = 2 * z * Math.tan(fov / 2)
-    const width = Math.min(1.1, visibleH * aspect * 0.8)
+    const width = panelFitWidth(fov, aspect, z, 1.1)
     const plane = b3dSvgPlane({
       cameraRelative: true,
       width,

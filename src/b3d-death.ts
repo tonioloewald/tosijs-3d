@@ -106,6 +106,7 @@ import { B3dChild, sceneDelta } from './b3d-utils'
 import { spawnPrefab, type Prefab } from './prefab'
 import { explosionFx } from './b3d-warhead'
 import { panel3d, label3d, button3d, type Widget3d } from './widgets3d'
+import { panelFitWidth } from './widgets3d-layout'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
 import type { B3d } from './tosi-b3d'
 import type { B3dInputFocus } from './b3d-input-focus'
@@ -327,7 +328,12 @@ export class B3dDeath extends B3dChild {
         orbit.lowerRadiusLimit = orbit.upperRadiusLimit = this.orbitRadius
         cam = orbit
       }
-      if (this.owner.setGameplayCamera(cam)) {
+      // NOT attached to the canvas: the Respawn panel is IN THE SCENE, so a tap
+      // on it is also a tap on the canvas, and an attached camera handles it
+      // too — the same fight the pause panel had, where a press read as a zoom
+      // and moved the panel out of reach. The orbit still runs (it's driven by
+      // the observable below, not by input); you just can't wrestle it.
+      if (this.owner.setGameplayCamera(cam, { attach: false })) {
         this._orbitCam = cam
         if (orbit != null) {
           // Slow. This is a moment, not a ride.
@@ -447,13 +453,26 @@ export class B3dDeath extends B3dChild {
             : [label3d({ text: 'no way back', muted: true })]),
         ]
 
-    const svg = panel3d({ width: 320, height: 46 + rows.length * 48 }, ...rows)
+    const svgH = 46 + rows.length * 48
+    const svg = panel3d({ width: 320, height: svgH }, ...rows)
     // In-scene, camera-relative: ONE panel that works flat AND in VR, with the same
     // coordinate-based picking. A DOM overlay would simply not exist in a headset.
+    //
+    // Width comes from the CAMERA, not a constant: 1.1 fits a monitor and
+    // overflows a portrait phone, which puts the Respawn button off screen — at
+    // the worst possible moment, since you have just crashed.
+    const deathCam = this.owner.scene.activeCamera
+    const width = panelFitWidth(
+      (deathCam as BABYLON.FreeCamera)?.fov ?? 0.8,
+      this.owner.scene.getEngine().getAspectRatio(deathCam as BABYLON.Camera) ||
+        1.6,
+      2.2,
+      1.1
+    )
     const plane = b3dSvgPlane({
       cameraRelative: true,
-      width: 1.1,
-      height: 1.1 * ((46 + rows.length * 48) / 320),
+      width,
+      height: width * (svgH / 320),
       z: 2.2,
       y: 0,
       resolution: 512,
