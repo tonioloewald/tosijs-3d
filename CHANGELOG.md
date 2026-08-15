@@ -96,7 +96,14 @@ that was tuned around the old feel.
   panel may be and stay on screen. Shared because there are two such panels and
   a constant copied into both is a constant that will disagree with itself.
 
-- **PAUSE** — `b3d.pause(reason)` / `.resume()` / `.togglePause()` / `.paused`,
+- **PAUSE — ⚠️ EXPERIMENTAL.** The flat path is confirmed on a real browser
+  (start paused, continue, background, return, repeat) but the VR path — the
+  Continue tap carrying the user gesture into `enterXRAsync`, and removing the
+  headset pausing — is **unvalidated**, and it is the reason the feature exists.
+  Treat the API as unsettled until it's been through a headset; nothing else
+  depends on it.
+
+  `b3d.pause(reason)` / `.resume()` / `.togglePause()` / `.paused`,
   a centred in-scene pause panel, and the attributes around them:
   - `pauseWhenHidden` (default **on**) — backgrounding the tab holds the scene,
     so a player returns to a held frame and a panel rather than to a world that

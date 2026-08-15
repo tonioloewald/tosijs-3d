@@ -120,6 +120,12 @@ tosi-b3d {
 
 ## Demo — pause, start screens, and the VR entry gesture
 
+> **⚠️ EXPERIMENTAL.** The flat behaviour below is verified; the VR half — the
+> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
+> headset off pausing — has not been through a headset yet. That's the half the
+> feature is *for*, so treat these attributes as unsettled until it has.
+
+
 A second, deliberately small scene. It starts paused with its own panel, so the
 first thing you see is a Start screen; backgrounding the tab pauses it again.
 
@@ -454,7 +460,8 @@ export class B3d extends Component {
     correct HTML and would silently disable the default (tosijs now throws on a
     true-default boolean). Same reason as `gamepadFade` and friends.
     */
-    /** Pause automatically when the tab/window goes to the background. */
+    /** Pause automatically when the tab/window goes to the background.
+     * ⚠️ EXPERIMENTAL — see the pause demo; the VR path is unvalidated. */
     pauseWhenHidden: 'on' as 'on' | 'off',
     /** Come up paused, showing the pause panel — the "press Start" shape. */
     startPaused: false,
