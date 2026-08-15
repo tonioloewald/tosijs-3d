@@ -262,6 +262,40 @@ saved the fortnight the "Entrances" section documents.
 requirement and becomes a _style choice_: an excavated entrance because you
 wanted one, not because the geometry could not survive anything else.
 
+### …and then there are no tunnels
+
+Tonio's follow-on, and it is the real conclusion: **this eliminates tunnels as a
+concept. We would just be shrink-wrapping volumes.**
+
+A tunnel stops being a _thing the engine knows about_ and becomes a region where
+the density function says air. The extractor does not know a cave from a cliff
+from an overhang; it wraps an isosurface. Which means most of what this document
+describes is scaffolding for a problem that disappears:
+
+| built for tunnels                                | becomes                                |
+| ------------------------------------------------ | -------------------------------------- |
+| `b3d-patch` residency, budgets, chunk release    | the terrain's own LOD, already written |
+| the patch/terrain boundary, rim collars, flanges | nothing — there is no boundary         |
+| "Entrances: shape the ground, don't boolean it"  | a style choice                         |
+| cavity predicates for flying inside              | one density query, same as the ground  |
+| `carve.*` as a patch vocabulary                  | terms in the terrain density function  |
+
+What genuinely remains is the part that was always the real work: **deciding
+where the air goes** (topology → voxel map, Stages 1–3), and authoring a density
+function. Those keep their value entirely. What evaporates is the machinery for
+making two representations coexist — which is where the fortnight went.
+
+Overhangs, arches, sea caves and cliff undercuts come along free, because none of
+them were ever tunnel-specific; they were all just "things a heightfield cannot
+say".
+
+**The cost, stated honestly:** the finest terrain ring gets more expensive
+(surface nets over a lattice versus a grid of heights), and the near ring is
+already the most expensive thing in the scene. So feasibility is two numbers, not
+one — the vertex deviation above, and extraction cost per tile against the
+current tile build budget. Both are measurable before anything is built, and both
+should be, given what the last attempt cost.
+
 ## Stage 3 — the voxel map
 
 **Sparse, chunked, integer-addressed.** Only carved cells are stored, so a 2 km
