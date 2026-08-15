@@ -261,14 +261,22 @@ machinery, every boundary reconciliation, the entrance-conditioning rule).
 
 **Two measurements first, both cheap, both decisive:**
 
-- [ ] **Vertex deviation.** Extract ONE flat tile volumetrically with no carve,
-      overlay it on the heightfield tile it would replace, report max deviation.
-      Sub-centimetre = alive. Anything visible = a ripple running around the
-      player at fixed radius on every LOD change, which is worse than any seam
-      we have today.
-- [ ] **Extraction cost per tile** against the current `tileBuildMs` budget. The
-      finest ring is already the most expensive thing in the scene; surface nets
-      over a lattice is not free.
+**Refined 2026-08-15** (see TUNNEL-DESIGN): the finest LOD stops refining the
+surface and adds VOLUME instead, and the volume is _surface minus cavities_ — so
+the ground is the heightfield by construction where nothing is carved, lower
+LODs cost nothing extra, and the surface transition stays seamless out to the
+third-highest LOD. Which retires the deviation risk except where a cavity
+actually cuts the surface.
+
+- [ ] **Precompute cavity-reaches-surface.** A cavity whose top is below the
+      terrain over its footprint cannot affect the visible surface, so it is
+      free until someone is inside it. Cheap (bounds vs the height sampler) and
+      it turns residency from a radius — with `b3d-patch`'s hysteresis problem —
+      into "am I inside, or can I see in".
+- [ ] **Extraction cost near a cavity** against `tileBuildMs`. Now scoped to
+      tiles that actually contain one, not to the whole finest ring.
+- [ ] **Deviation, but only at a breaking cavity** — the surface is untouched
+      elsewhere, so this is now a question about the entrance case alone.
 
 Do NOT start building on this before both numbers exist. The last attempt at
 tunnels spent a fortnight discovering a conditioning problem that a morning's

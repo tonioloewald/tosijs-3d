@@ -296,6 +296,56 @@ one — the vertex deviation above, and extraction cost per tile against the
 current tile build budget. Both are measurable before anything is built, and both
 should be, given what the last attempt cost.
 
+### The refinement that makes it cheap: the last LOD adds VOLUME, not polys
+
+> Tonio, same conversation, and it changes the plan materially.
+
+Two moves, and together they retire most of the risk above.
+
+**1. The finest LOD stops refining the surface and starts adding volume.** The
+tessellation ladder ends a rung early; the budget that would have bought more
+surface triangles buys cavities instead. So the last rung changes _kind_ rather
+than _density_ — which means **the surface transition stays seamless out to the
+third-highest LOD**, because nothing about the surface changes at the finest
+step. Only holes appear in it.
+
+**2. The volume is the surface MINUS cavities.** Not a re-extraction of the
+ground: the boundary _is_ the heightfield where nothing has been carved, exactly
+and by construction. This is the important one, because it dissolves the risk
+this document raised two sections ago — there is no "does surface nets reproduce
+the heightfield" question if the heightfield is what is being used. Deviation
+only arises where a cavity actually cuts the surface, and that is a small
+authored set rather than everywhere.
+
+It also means **the lower LODs cost nothing extra**, which was the other worry:
+they are the heightfield they already are, untouched.
+
+### Precompute which cavities never reach the surface
+
+Most caves in a world never break the ground. A cavity whose highest point sits
+below the terrain over its own footprint **cannot affect the visible surface at
+all** — so at surface level it can be ignored outright, and its walls only need
+to exist when a viewer is inside or can see through an opening.
+
+That is a cheap precomputation (cavity bounds against the height sampler, done
+once at authoring or load) and it turns the residency question from a radius —
+which is what `b3d-patch` does today, with the hysteresis problem that entails —
+into something far better defined: **am I inside, or can I see in.**
+
+### What this leaves as the hard case, honestly
+
+Where a cavity _does_ break the surface, the conditioning problem from
+"Entrances" is unchanged: two surfaces meeting at a grazing angle still have no
+well-defined boundary. What changes is its _scope_. It stops being a constant
+tax paid everywhere a tunnel runs near the ground, and becomes a rare case
+attached to entrances you placed deliberately — where the author-the-surface
+rule (`landform.gulley`, a near-vertical face) already works.
+
+So the earlier claim needs correcting: this does not delete the entrance
+problem. It **shrinks it from pervasive to occasional, and moves it to exactly
+the places where the existing fix applies.** That is a smaller claim and a much
+more believable one.
+
 ## Stage 3 — the voxel map
 
 **Sparse, chunked, integer-addressed.** Only carved cells are stored, so a 2 km
