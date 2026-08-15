@@ -61,6 +61,22 @@ that was tuned around the old feel.
 
 ### Added
 
+- **`b3d-destroyable` takes `library` + `meshName`** (#22) — a static,
+  destroyable thing that uses a library mesh is most of what populates a level,
+  and there was no route to it: `b3d-loader` takes a `url` (which also loses the
+  canonical frame), `b3d-aircraft` gets the frame right but flies. Absent
+  `library`, you still get the placeholder cube, so nothing existing changes.
+  The model is left **pickable** on purpose — damage resolves from the warhead
+  gathering destroyables near the detonation, not from which mesh the ray hit,
+  so the model can simply be the target and the hidden-cube-plus-skin dance
+  isn't needed.
+- **`spawnProjectile`/`spawnMissile` take a `mesh`** (#19) — draw the round as
+  an authored model, with the engine still owning motion, collision, lifetime
+  and disposal. It is also **oriented along velocity**, which a sphere never
+  needed: the engine moved a sphere, a sphere has no facing, so a modelled
+  missile flew sideways. Yaw and pitch only — a round has no reason to bank.
+  Supplied meshes and their children are made non-pickable, like the default.
+
 - **`panelFitWidth(fov, aspect, z, want, fill)`** — how wide a camera-relative
   panel may be and stay on screen. Shared because there are two such panels and
   a constant copied into both is a constant that will disagree with itself.

@@ -68,7 +68,7 @@ export interface DestroyableHost {
    * For a multi-mesh GLB this is the root — flash covers all children; `explode`
    * needs real geometry, so it suits single-mesh targets (multi-mesh → `dispose`).
    */
-  readonly mesh?: BABYLON.AbstractMesh
+  readonly mesh?: BABYLON.AbstractMesh | BABYLON.TransformNode
   /** Dispatch the bubbling `destroyed` event (usually the host Component). */
   dispatchEvent(ev: Event): boolean
 }
@@ -159,7 +159,10 @@ export class DestroyableBehavior {
     const glow = 1 - frac // 0 at full hp, 1 at death
     const damage = new BABYLON.Color3(0.65 * glow, 0.04 * glow, 0.04 * glow)
     const mats = new Set<BABYLON.Material>()
-    if (mesh.material != null) mats.add(mesh.material)
+    // A library instance's root is a TransformNode with no material of its own —
+    // the geometry hangs beneath it, which getChildMeshes() below covers.
+    const own = (mesh as BABYLON.AbstractMesh).material
+    if (own != null) mats.add(own)
     for (const c of mesh.getChildMeshes())
       if (c.material != null) mats.add(c.material)
     for (const m of mats) {
