@@ -4,6 +4,8 @@ import {
   clipPlaneFor,
   sideOf,
   crossedPortal,
+  attenuationAt,
+  depthLimit,
 } from './portal-transform'
 import {
   quatFromAxisAngle,
@@ -122,5 +124,56 @@ describe('crossedPortal — a step test, like every boundary in this engine', ()
   test('sideOf is negative approaching, positive once through', () => {
     expect(sideOf({ x: 0, y: 0, z: -3 }, door)).toBeLessThan(0)
     expect(sideOf({ x: 0, y: 0, z: 3 }, door)).toBeGreaterThan(0)
+  })
+})
+
+describe('recursion terminates the way real mirrors do', () => {
+  test('brightness falls off geometrically', () => {
+    expect(attenuationAt(0.9, 0)).toBeCloseTo(1)
+    expect(attenuationAt(0.9, 1)).toBeCloseTo(0.9)
+    expect(attenuationAt(0.9, 3)).toBeCloseTo(0.729)
+  })
+
+  test('the depth limit is DERIVED from the glass, not chosen', () => {
+    // Uncapped, so the derivation is what is being tested rather than the cap.
+    expect(depthLimit(0.95, 0.02, 999)).toBeGreaterThan(
+      depthLimit(0.7, 0.02, 999)
+    )
+    expect(depthLimit(0.5, 0.02, 99)).toBe(6) // 0.5^6 = 0.0156 < 0.02
+  })
+
+  test('REAL GLASS is ~95% transmissive, which is why mirrors look infinite', () => {
+    // The calibration that matters: at honest values the fade does NOT
+    // terminate anything in a useful number of passes, so the cap is
+    // load-bearing and the doc says so rather than hiding a hard limit behind a
+    // physical-sounding parameter.
+    expect(depthLimit(0.95, 0.02, 999)).toBe(77)
+    expect(depthLimit(0.97, 0.02, 999)).toBe(129)
+    // …and with a realistic cap, the level we stop at is still plainly visible —
+    // hence "render the cut level in the fade colour", not "omit it".
+    expect(attenuationAt(0.95, 8)).toBeGreaterThan(0.6)
+  })
+
+  test('art direction IS the perf budget', () => {
+    // The property that makes this better than a hard cap: dirtying the glass
+    // buys passes back, and reads as atmosphere rather than as a downgrade.
+    const clean = depthLimit(0.97, 0.02, 99)
+    const dirty = depthLimit(0.6, 0.02, 99)
+    expect(dirty).toBeLessThan(clean)
+  })
+
+  test('a device cap always wins — a headset can insist on 2', () => {
+    expect(depthLimit(0.99, 0.02, 2)).toBe(2)
+  })
+
+  test('a PERFECT mirror cannot hang us', () => {
+    // "The author typed 1.0" must not be an infinite loop.
+    expect(depthLimit(1)).toBeLessThanOrEqual(8)
+    expect(Number.isFinite(depthLimit(1))).toBe(true)
+    expect(attenuationAt(1, 500)).toBeLessThan(1)
+  })
+
+  test('an opaque portal draws the far side once and stops', () => {
+    expect(depthLimit(0)).toBe(1)
   })
 })

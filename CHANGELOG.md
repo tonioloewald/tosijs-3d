@@ -82,6 +82,25 @@ that was tuned around the old feel.
 
 ### Added
 
+- **⚠️ EXPERIMENTAL — `portalTransform`**, the pure math for see-through
+  portals: `portalCamera` (where the render-target camera goes so a doorway
+  shows another place), `clipPlaneFor` (the oblique near plane, without which
+  the far room leaks into the doorway), `crossedPortal` (a _step_ test — a jeep
+  is past a doorway within one frame, and a context swap one frame late is one
+  frame of the wrong world), and `depthLimit`/`attenuationAt` for recursion.
+
+  Recursion terminates the way real mirrors do — each traversal is slightly
+  lossy, so the tunnel darkens instead of hitting a hard cutoff that pops.
+  Calibration worth knowing: **real glass is ~95% transmissive**, which is why
+  mirror corridors look infinite — at 0.95 it takes 77 bounces to fall below 2%.
+  So the physics gives the right look and a useless budget; the device cap is
+  load-bearing, and a portal that should visibly fade out has to be markedly
+  dirtier than glass (~0.5–0.7). That trade is documented rather than hidden
+  behind a physical-sounding parameter.
+
+  No renderer yet: applying the clip plane, the passes and stencil framing are
+  deliberately out of scope for a pure module.
+
 - **⚠️ EXPERIMENTAL — `MediumOptics` + `fogLayerFor`** (MEDIUM-DESIGN.md §3).
   A medium can describe how it LOOKS (colour, density, murk-with-depth,
   visibility floor), and one derivation turns that into a fog layer for the

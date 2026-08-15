@@ -39,9 +39,8 @@ tests rather than three lines inside a render loop.
   and the camera renders in front of the view — the classic portal artefact, and
   the detail most likely to sink an implementation. `clipPlaneFor` gives the
   plane; applying it is the renderer's job.
-- **Recursion.** Looking out through the door you came in is reachable in the
-  first demo anyone builds (a TARDIS interior can see its own exterior), so a
-  depth limit is mandatory, not optional. It belongs with the render passes.
+- **The recursion PASSES.** How many to draw is answered here (`depthLimit`,
+  `attenuationAt`); actually drawing them is the renderer's job.
 - **Stencil / framing.** Keeping the view inside the doorway is a rendering
   concern.
 */
@@ -120,4 +119,84 @@ export function sideOf(p: Vec3, portal: Pose): number {
  */
 export function crossedPortal(from: Vec3, to: Vec3, portal: Pose): boolean {
   return sideOf(from, portal) <= 0 && sideOf(to, portal) > 0
+}
+
+/*
+RECURSION, THE WAY THE WORLD DOES IT.
+
+Looking out through the door you came in is reachable in the first demo anyone
+builds — a TARDIS interior can see its own exterior — so portals nest, and
+something has to stop them.
+
+A hard depth limit is the obvious answer and the wrong one: it pops. The level
+you refuse to draw is as bright as the one before it, so the cutoff is visible
+as a flat plate hanging in the middle of an otherwise convincing tunnel.
+
+Tonio's answer, and it is the physical one: **no mirror is perfect.** Real
+infinite mirrors terminate because each bounce absorbs a few percent, so the
+tunnel of reflections simply darkens into nothing. Give each portal an
+attenuation slightly under 1 and the same thing happens — and the level where you
+give up is already almost invisible, so there is nothing to pop.
+
+What that buys beyond looking right:
+
+- **The depth limit stops being a magic number.** It is derived from how lossy
+  the glass is and how dark a level has to get before nobody can tell.
+- **Art direction becomes the perf budget.** A slightly dirtier portal costs
+  fewer passes. On a weak device you can drop attenuation and get three levels
+  instead of six, and it reads as atmosphere rather than as a downgrade — which
+  is the opposite of how quality knobs usually feel.
+- **A tint composes for free.** Attenuate per channel and deep recursion drifts
+  toward the glass colour, exactly as a real mirror corridor goes green.
+
+CALIBRATION, AND THE THING IT REVEALS.
+
+Real glass is about **95% transmissive**, and you do not notice — which is
+precisely why a real mirror corridor looks *infinite*. Run the numbers and that
+is the whole story: at 0.95 it takes **77** bounces to fall below 2%, and at
+0.97 it takes 129.
+
+So the physical model gives the right LOOK and a useless BUDGET. The graceful
+darkening is real, but at honest values it darkens far too slowly to terminate
+anything — the `cap` does all the work, and pretending otherwise would just hide
+a hard limit behind a physical-sounding parameter.
+
+Which makes the trade explicit rather than accidental:
+
+- Want it to **look infinite**? Use glass-like values and accept that the cap is
+  what stops it, and that the cut level is still bright enough to see.
+- Want the fade to **do the terminating**? The portal has to be markedly dirtier
+  than glass — around 0.5–0.7, where the cut lands under 2% within 6–11 levels.
+  That is an art direction decision, not physics, and it should be made on
+  purpose.
+- Either way, **render the level you stop at in the fade colour** rather than
+  omitting it. A dim plate reads as depth; a missing one reads as a bug.
+*/
+
+/** Cumulative brightness after `depth` traversals of a portal of this quality. */
+export function attenuationAt(attenuation: number, depth: number): number {
+  const a = Math.max(0, Math.min(0.999, attenuation))
+  return Math.pow(a, Math.max(0, depth))
+}
+
+/**
+ * How many recursion levels are worth drawing, given how lossy the portal is
+ * and the brightness below which nobody can tell.
+ *
+ * `attenuation` is clamped under 1 deliberately: a perfect mirror would recurse
+ * forever, and "the author typed 1.0" must not be a hang. `cap` is the hard
+ * ceiling a device tier imposes — the answer is always the smaller of the two,
+ * so a headset can insist on 2 no matter how clean the glass is.
+ */
+export function depthLimit(
+  attenuation: number,
+  epsilon = 0.02,
+  cap = 8
+): number {
+  const a = Math.max(0, Math.min(0.999, attenuation))
+  if (a <= 0) return 1 // opaque portal: draw the far side once, no recursion
+  const e = Math.max(1e-6, Math.min(1, epsilon))
+  // a^n < e  →  n > ln e / ln a
+  const n = Math.ceil(Math.log(e) / Math.log(a))
+  return Math.max(1, Math.min(cap, n))
 }
