@@ -251,6 +251,57 @@ water meshes from the raycast behind a `submarine`/`waterY` attr; seabed stays t
 0.1 vs 1.0) — two configs lerped on a y-band, like b3dWater's fogTransition.
 [ ] Surface-crossing event (aircraft or water) for splash/wake VFX, audio, camera cues.
 
+## The everything demo — flat world → planet → system (idea, 2026-08-15)
+
+Tonio's: a scene you can fly a craft around a flat terrain-and-water world, climb
+through the air into space, and have it become a **spherical planet with air,
+water and space as shells** — eventually inside a star system, inside a galaxy.
+Later: portal into buildings, get out of the ship, walk to a jeep, drive to the
+beach, swim.
+
+**The trick that makes it possible is the whiteout.** The plasma sheath of
+atmospheric entry/exit is not decoration here — it is *cover for a
+representation swap*. A flat heightfield world and a spherical planet are
+different parameterisations, and the honest way to get from one to the other is
+to stop showing the player the world for a second. A loading curtain that the
+fiction asks for anyway. Same trick as the splash: the moment you cannot see is
+the moment you can rebuild.
+
+That reframes the whole thing from "a huge feature" to "one hard seam plus a lot
+of existing parts", which is why it's worth writing down.
+
+**Why it's worth building beyond the spectacle:** it exercises nearly every
+subsystem at once, in combination, which is where the bugs actually live —
+terrain LOD, water, media, the medium transitions, skybox, floating origin,
+vehicles, the biped, input focus, pause, and the perf budget under real load.
+Most of manta's issues this cycle were *combination* failures (ambient tuned for
+a walker breaking on a vehicle; a panel sized for a monitor breaking on a phone).
+It also answers #20 directly — the demo suite representing one kind of game.
+
+**Staging, cheapest first:**
+
+1. **Air → space on a FLAT world.** An atmosphere `sphere` medium centred far
+   below, so "climbing out" is just `submergence` falling to 0; skybox
+   cross-fades to stars on that same weight (MEDIUM-DESIGN §5); whiteout on
+   `crossing` (§6). No planet yet — this tests the medium/sky/transition trio
+   with nothing new underneath, and it's a good demo on its own.
+2. **Crossing speed** (§6) — one field on the crossing result. Do it before
+   anything dresses a transition, or splash and plasma each invent an intensity.
+3. **The swap.** Flat terrain ↔ spherical planet behind the whiteout. The hard
+   part is not the visual: it's that entity world positions are in a different
+   frame afterwards, and precision at planetary radius needs a nested frame
+   rather than the floating origin we have. Prototype with a SMALL planet
+   (single-digit km) where the maths is honest and the seams show.
+4. **Star system / galaxy.** `b3d-star-system` and `b3d-galaxy` exist; this is
+   mostly a scale-and-hand-off problem, i.e. step 3 again at another magnitude.
+5. **Get out and walk.** Ship → biped → jeep is `b3d-input-focus`'s existing
+   enter/exit; the new part is interiors (portals), which is `b3d-patch`
+   territory and currently EXPERIMENTAL.
+
+**Do not** build it as one demo page. It should be a series that share a scene
+setup, so each stage is independently checkable — and so a stage that breaks
+doesn't take the others down with it.
+
 ## Spin-up sequence — the loading screen that MEASURES (idea, 2026-08-14)
 
 An optional, lightweight, snazzy intro that plays while content streams in. Three
