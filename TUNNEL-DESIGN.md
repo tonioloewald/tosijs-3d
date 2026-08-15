@@ -389,6 +389,36 @@ And a lava tube is the complementary case: mostly _not_ reaching the surface, so
 mostly free under the precomputation above, with the hard part confined to its
 mouths — which is exactly where an author wants to place a landform anyway.
 
+### Mining falls out of it — and a mined world is a few kilobytes
+
+If a cavity is a carve and a province is a list of them, then **mining is
+appending to that list at runtime.** A player's beam adds a small sphere; the
+affected chunk re-extracts. There is no separate destructible-terrain system,
+because there is no distinction between "a cave the world came with" and "a hole
+the player made" — both are subtracted volumes.
+
+The part that matters most is not the rendering, it is the **storage**. A mined
+world is not a voxel grid: it is a seed plus an edit list. A player's entire
+excavation history is a few kilobytes of primitives, which means it costs nothing
+to save, nothing to sync, nothing to send to another player, and — the point Tonio
+is making — nothing to _load_. A No Man's Sky-shaped world that opens from a URL
+in seconds on a phone is possible precisely because there are no assets to stream:
+a procedural base, plus a list of spheres.
+
+Undo, refill and "the world heals over time" are all list operations. So is
+multiplayer: you exchange edits, not geometry.
+
+**Two real constraints, both known:**
+
+- **Re-extraction must fit a frame budget.** `b3d-patch`'s ms-budgeted extractor
+  survives this redesign even though its residency machinery does not — that part
+  was always right, and it is exactly what a mining beam needs.
+- **A hole is invisible at coarse LOD**, because coarse LOD is a heightfield.
+  Walk away far enough and your excavation flattens. That is the same near-field
+  property that makes the whole scheme cheap, and it is probably fine — you cannot
+  see a one-metre hole from a kilometre — but it is a real limit and worth stating
+  before someone discovers it as a bug.
+
 ### What this leaves as the hard case, honestly
 
 Where a cavity _does_ break the surface, the conditioning problem from
