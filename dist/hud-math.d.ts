@@ -118,4 +118,18 @@ export declare function horizonTransform(pitchDeg: number, rollDeg: number, pxPe
  * merged, so overlapping input can't produce a corrupt array.
  */
 export declare function arcDashArray(spans: Array<[number, number]>, total?: number): string;
+/**
+ * Pixel size for the square HUD, from the viewport it sits in.
+ *
+ * `pct` of the SMALLER side is the obvious rule and it is wrong in portrait:
+ * measured on a 1400x713 window it paints 36% of the width, on a 500x757 one
+ * 70% of it — same rule, twice the visual weight, because in portrait the small
+ * side is the width. Reported as "the hud circle gets pathologically big in
+ * fullscreen portrait".
+ *
+ * So it is capped at half that fraction of the LONG side as well, which keeps
+ * roughly the landscape proportion when the viewport turns and leaves landscape
+ * within a couple of percent of where it was.
+ */
+export declare function hudSizePx(width: number, height: number, pct: number): number;
 //# sourceMappingURL=hud-math.d.ts.map

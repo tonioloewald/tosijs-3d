@@ -252,6 +252,17 @@ export function mergeGamepads(a, b) {
         view: Math.max(a.view, b.view),
     };
 }
+/**
+ * THE SIGN CONTRACT every source must honour: **up / forward is POSITIVE**, on
+ * both sticks and on every device.
+ *
+ * Written down as a constant because it was documented in three places and
+ * enforced in none, which cost a day: a device that disagrees is internally
+ * consistent, so only a player with two devices ever notices, and the bug
+ * presents as "the framework is broken" rather than "one source is inverted".
+ * `virtual-gamepad.test.ts` asserts it across the sources.
+ */
+export const STICK_UP_IS_POSITIVE = true;
 // --- Built-in mapping presets ---
 export function bipedMapping(pad, _dt) {
     const input = emptyInput();

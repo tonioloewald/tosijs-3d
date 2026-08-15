@@ -202,9 +202,16 @@ import { detonateWarhead } from './b3d-warhead';
 export function spawnProjectile(owner, opts) {
     const scene = owner.scene;
     const r = opts.radius ?? 0.12;
-    const mesh = BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: r * 2, segments: 6 }, scene);
+    const mesh = (opts.mesh ??
+        BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: r * 2, segments: 6 }, scene));
     mesh.position.copyFrom(opts.origin);
-    mesh.isPickable = false; // never picks itself / occludes a blast's line of sight
+    // Both paths: never pick yourself, or you occlude your own blast's LOS. An
+    // authored model has children, so this has to reach all of them — a supplied
+    // mesh that intercepts the damage ray makes a target look hit and never die.
+    mesh.isPickable = false;
+    for (const c of mesh.getChildMeshes?.() ?? [])
+        c.isPickable = false;
+    const orientToVelocity = opts.mesh != null;
     const mat = new BABYLON.StandardMaterial('projectile-mat', scene);
     mat.emissiveColor = BABYLON.Color3.FromHexString(opts.color ?? '#ffdd55');
     mat.disableLighting = true;
@@ -273,6 +280,26 @@ export function spawnProjectile(owner, opts) {
             }
         }
         mesh.position.set(state.pos.x, state.pos.y, state.pos.z);
+        /*
+        POINT IT WHERE IT IS GOING.
+    
+        The engine moved a SPHERE, and a sphere has no orientation — so nothing in
+        this path ever tracked a facing. Hand it a modelled round and that omission
+        becomes visible immediately: it flies sideways. Only done when a mesh was
+        supplied, so the default costs nothing.
+    
+        Yaw/pitch from the velocity, no roll: a round has no reason to bank, and
+        deriving one from a turn-rate-limited seeker's lateral acceleration would be
+        guessing at a look.
+        */
+        if (orientToVelocity) {
+            const { x, y, z } = state.vel;
+            const flat = Math.hypot(x, z);
+            if (flat > 1e-6 || Math.abs(y) > 1e-6) {
+                mesh.rotationQuaternion ??= new BABYLON.Quaternion();
+                BABYLON.Quaternion.RotationYawPitchRollToRef(Math.atan2(x, z), -Math.atan2(y, flat), 0, mesh.rotationQuaternion);
+            }
+        }
         if (life >= maxLife || state.pos.y < -100)
             dispose();
     });
@@ -371,6 +398,7 @@ export function spawnMissile(owner, opts) {
             mass: 1,
         },
         radius: opts.radius,
+        mesh: opts.mesh,
         color: opts.color ?? '#ff6644',
         maxLifetime: opts.maxLifetime ?? 8,
         useLos: opts.useLos,

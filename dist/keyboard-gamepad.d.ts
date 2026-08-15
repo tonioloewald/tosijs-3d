@@ -1,6 +1,7 @@
 import { Component } from 'tosijs';
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad';
 export declare class KeyboardGamepadSource extends Component implements GamepadSource {
+    readonly kind = "keyboard";
     static initAttributes: {
         wheelSensitivity: number;
         updateIntervalMs: number;

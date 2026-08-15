@@ -89,6 +89,7 @@ const DEFAULT_BUTTONS = [
     { field: 'dpadRight', keys: ['K'], attack: 5, decay: 10 },
 ];
 export class KeyboardGamepadSource extends Component {
+    kind = 'keyboard';
     static initAttributes = {
         wheelSensitivity: 1,
         updateIntervalMs: 33,

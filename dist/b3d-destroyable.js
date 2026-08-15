@@ -148,7 +148,20 @@ export class B3dDestroyable extends AbstractMesh {
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'target',
-        size: 1, // placeholder cube edge length
+        /**
+         * Instantiate `meshName` from this LIBRARY instead of drawing the
+         * placeholder cube (`<tosi-b3d-library type="...">`). Absent = cube, so
+         * nothing existing changes.
+         *
+         * The gap this closes: a static, destroyable thing that uses a library mesh
+         * is most of what populates a level, and there was no route to it —
+         * `b3d-loader` takes a `url` (which also loses the canonical frame), and
+         * `b3d-aircraft` gets the frame right but flies. Reported by manta-recon
+         * (#22), where `library` was silently ignored and the resulting cube read
+         * as a deliberate placeholder rather than a fallback.
+         */
+        library: '',
+        size: 1, // placeholder cube edge length (ignored when `library` is set)
         color: '#cc3333',
         capacity: 10, // hit points
         armor: 0, // flat damage shrugged off per hit
@@ -236,17 +249,95 @@ export class B3dDestroyable extends AbstractMesh {
     get dead() {
         return this._behavior?.dead ?? false;
     }
+    /** Name the node by the combat id and register it, whenever it arrives. */
+    _adopt(owner) {
+        const node = this.mesh;
+        if (node == null)
+            return;
+        node.name = this.combatId;
+        const meshes = node instanceof BABYLON.AbstractMesh
+            ? [node]
+            : (node.getChildMeshes?.() ?? []);
+        if (meshes.length > 0)
+            owner.register({ meshes });
+    }
+    /**
+     * Instantiate the model, retrying until the library is mounted and loaded.
+     *
+     * The library element may connect after this one (declaration order in a
+     * scene is the author's business, not a load-order contract), so a single
+     * lookup would lose the race — the same wait `b3d-aircraft` does.
+     */
+    _loadFromLibrary(owner, type, meshName) {
+        const attrs = this;
+        const tryLoad = () => {
+            const lib = owner.getLibrary(type);
+            if (!lib)
+                return false;
+            void lib.ready.then(() => {
+                const node = lib.instantiate(meshName, {
+                    x: attrs.x ?? 0,
+                    y: attrs.y ?? 0,
+                    z: attrs.z ?? 0,
+                    canonical: true, // the frame fix the `url:` path doesn't get
+                });
+                if (!node) {
+                    console.error(`b3d-destroyable: could not instantiate "${meshName}" from library "${type}" — falling back to nothing visible. Check the library's getNames().`);
+                    return;
+                }
+                /*
+                A library instance's root is a TransformNode, and `AbstractMesh.mesh` is
+                typed `Mesh` — so this is a cast. It is the RIGHT node to put there
+                rather than a convenient lie: the base class syncs x/y/z and rx/ry/rz
+                onto `mesh` every frame, which is exactly what a placed library model
+                wants, and everything this component does with it (position, name,
+                getChildMeshes, dispose) is TransformNode-safe. `b3d-aircraft` keeps its
+                node in a separate field instead, and pays for it with a second code
+                path; this way the attribute plumbing just works.
+                */
+                this.mesh = node;
+                this._adopt(owner);
+            });
+            return true;
+        };
+        if (tryLoad())
+            return;
+        // Poll briefly rather than forever: a missing library is an authoring
+        // mistake and should say so, not hang silently.
+        let tries = 0;
+        const timer = setInterval(() => {
+            if (tryLoad() || ++tries > 50) {
+                clearInterval(timer);
+                if (tries > 50) {
+                    console.error(`b3d-destroyable: no <tosi-b3d-library type="${type}"> in this scene after 5s.`);
+                }
+            }
+        }, 100);
+    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
-        // Placeholder cube — the standalone element is just a DestroyableBehavior wrapped
-        // around a cube. Attach one to a loader/biped/car the same way for a real model.
-        const mesh = BABYLON.MeshBuilder.CreateBox(`${attrs.meshName}-mesh`, { size: attrs.size }, scene);
-        const mat = new BABYLON.StandardMaterial(`${attrs.meshName}-mat`, scene);
-        mat.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
-        mesh.material = mat;
-        mesh.position.set(attrs.x, attrs.y, attrs.z);
-        this.mesh = mesh;
+        // A library model if asked for, else the placeholder cube. The standalone
+        // element is a DestroyableBehavior wrapped around whichever it got; attach
+        // one to a loader/biped/car the same way for anything else.
+        //
+        // NOTE the model is left PICKABLE, deliberately. A consumer workaround for
+        // this gap parented a non-pickable skin to a hidden cube, because a skin
+        // that intercepts the projectile ray makes the target look hit and never
+        // die. Upstream that isn't needed: damage resolves from the warhead
+        // gathering destroyables near the detonation, not from which mesh the ray
+        // picked, so the model can simply BE the target.
+        if (String(attrs.library) !== '') {
+            this._loadFromLibrary(owner, String(attrs.library), attrs.meshName);
+        }
+        else {
+            const mesh = BABYLON.MeshBuilder.CreateBox(`${attrs.meshName}-mesh`, { size: attrs.size }, scene);
+            const mat = new BABYLON.StandardMaterial(`${attrs.meshName}-mat`, scene);
+            mat.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
+            mesh.material = mat;
+            mesh.position.set(attrs.x, attrs.y, attrs.z);
+            this.mesh = mesh;
+        }
         this._behavior = new DestroyableBehavior(owner, this, {
             idBase: attrs.meshName,
             capacity: attrs.capacity,
@@ -277,9 +368,10 @@ export class B3dDestroyable extends AbstractMesh {
             this.mesh = undefined;
         };
         this._behavior.attach();
-        // Name the mesh by the resolved combat id so lookups (warhead/aircraft) find it.
-        mesh.name = this.combatId;
-        owner.register({ meshes: [mesh] });
+        // Name by the resolved combat id so lookups (warhead/aircraft) find it, and
+        // register whatever we ended up with. A library model arrives ASYNC, so this
+        // runs again when it lands — see `_adopt`.
+        this._adopt(owner);
         // Floating origin: shift node AND the x/z attributes (see file header).
         this._onShift = (dx, dz) => {
             if (this.mesh == null)

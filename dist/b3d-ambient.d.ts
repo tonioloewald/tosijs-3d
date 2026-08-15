@@ -12,6 +12,9 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
         minTier: PerfTier;
         priority: number;
         radius: number;
+        lookAhead: number;
+        lead: number;
+        speedCap: number;
         rate: number;
         color: string;
         size: number;
@@ -41,6 +44,8 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     private _ps;
     private _leaves;
     private _emitter;
+    private _lastEye;
+    private _eyeVel;
     private _intensity;
     private _baseRate;
     private _granted;

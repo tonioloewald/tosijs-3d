@@ -26,7 +26,7 @@ export interface DestroyableHost {
      * For a multi-mesh GLB this is the root — flash covers all children; `explode`
      * needs real geometry, so it suits single-mesh targets (multi-mesh → `dispose`).
      */
-    readonly mesh?: BABYLON.AbstractMesh;
+    readonly mesh?: BABYLON.AbstractMesh | BABYLON.TransformNode;
     /** Dispatch the bubbling `destroyed` event (usually the host Component). */
     dispatchEvent(ev: Event): boolean;
 }

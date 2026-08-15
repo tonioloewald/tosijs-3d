@@ -53,6 +53,7 @@ export { XRInputProvider } from './xr-input-provider';
 export { B3dControllable } from './b3d-controllable';
 export { B3dController, b3dController } from './b3d-controller';
 export { emptyGamepad, mergeGamepads, bipedMapping, bipedMappingDescriptor, carMapping, carMappingDescriptor, aircraftMapping, aircraftMappingDescriptor, MappedInputProvider, } from './virtual-gamepad';
+export { STICK_UP_IS_POSITIVE } from './virtual-gamepad';
 export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad';
 export { HardwareGamepadSource } from './hardware-gamepad';
 export { TouchGamepadSource } from './touch-gamepad';

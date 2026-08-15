@@ -6,6 +6,19 @@ import { type Prefab } from './prefab';
 export declare class B3dDestroyable extends AbstractMesh {
     static initAttributes: {
         meshName: string;
+        /**
+         * Instantiate `meshName` from this LIBRARY instead of drawing the
+         * placeholder cube (`<tosi-b3d-library type="...">`). Absent = cube, so
+         * nothing existing changes.
+         *
+         * The gap this closes: a static, destroyable thing that uses a library mesh
+         * is most of what populates a level, and there was no route to it —
+         * `b3d-loader` takes a `url` (which also loses the canonical frame), and
+         * `b3d-aircraft` gets the frame right but flies. Reported by manta-recon
+         * (#22), where `library` was silently ignored and the resulting cube read
+         * as a deliberate placeholder rather than a fallback.
+         */
+        library: string;
         size: number;
         color: string;
         capacity: number;
@@ -76,6 +89,16 @@ export declare class B3dDestroyable extends AbstractMesh {
     get combatId(): string;
     /** True once destroyed (mesh gone / exploding). Lets others skip dead targets. */
     get dead(): boolean;
+    /** Name the node by the combat id and register it, whenever it arrives. */
+    private _adopt;
+    /**
+     * Instantiate the model, retrying until the library is mounted and loaded.
+     *
+     * The library element may connect after this one (declaration order in a
+     * scene is the author's business, not a load-order contract), so a single
+     * lookup would lose the race — the same wait `b3d-aircraft` does.
+     */
+    private _loadFromLibrary;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
     damage(amount: number): CombatEvent[];

@@ -25,7 +25,31 @@ export declare function emptyGamepad(): VirtualGamepad;
 export declare function mergeGamepads(a: VirtualGamepad, b: VirtualGamepad): VirtualGamepad;
 export interface GamepadSource {
     poll(): VirtualGamepad;
+    /**
+     * A STABLE name for this kind of source — `'keyboard'`, `'hardware'`,
+     * `'touch'`, `'xr'` — for code that needs to find or filter one.
+     *
+     * Exists because the obvious alternative silently fails: an adopter matched
+     * our glass pad with `constructor?.name === 'B3dGamepad'`, their bundler
+     * minified class names, the lookup never matched, and the patch they built on
+     * it never ran — so every experiment they reasoned from was a no-op that
+     * looked like a result (tosijs-3d#14). Class names are not API; this is.
+     *
+     * Optional so a consumer's own source needn't declare one.
+     */
+    readonly kind?: string;
 }
+/**
+ * THE SIGN CONTRACT every source must honour: **up / forward is POSITIVE**, on
+ * both sticks and on every device.
+ *
+ * Written down as a constant because it was documented in three places and
+ * enforced in none, which cost a day: a device that disagrees is internally
+ * consistent, so only a player with two devices ever notices, and the bug
+ * presents as "the framework is broken" rather than "one source is inverted".
+ * `virtual-gamepad.test.ts` asserts it across the sources.
+ */
+export declare const STICK_UP_IS_POSITIVE = true;
 export type InputMapping = (pad: VirtualGamepad, dt: number) => ControlInput;
 /** Labels for each gamepad control — used by UI visualizers */
 export type MappingLabels = Partial<Record<keyof VirtualGamepad, string>>;

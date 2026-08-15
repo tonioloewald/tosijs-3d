@@ -122,8 +122,11 @@ export class DestroyableBehavior {
         const glow = 1 - frac; // 0 at full hp, 1 at death
         const damage = new BABYLON.Color3(0.65 * glow, 0.04 * glow, 0.04 * glow);
         const mats = new Set();
-        if (mesh.material != null)
-            mats.add(mesh.material);
+        // A library instance's root is a TransformNode with no material of its own —
+        // the geometry hangs beneath it, which getChildMeshes() below covers.
+        const own = mesh.material;
+        if (own != null)
+            mats.add(own);
         for (const c of mesh.getChildMeshes())
             if (c.material != null)
                 mats.add(c.material);

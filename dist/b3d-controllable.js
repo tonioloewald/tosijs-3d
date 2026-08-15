@@ -83,8 +83,12 @@ export class B3dControllable extends AbstractMesh {
         // Scene input focus: when a page hosts multiple demos, only the active (last
         // hovered/clicked) scene consumes the shared keyboard/gamepad — an unfocused
         // scene sees neutral input so it idles instead of being driven in the background.
-        const focused = this.owner?.hasInputFocus ?? true;
-        const input = focused ? this.inputProvider.poll(dt) : emptyInput();
+        // A PAUSED scene must not read input either: the render loop still runs (the
+        // pause panel has to be drawn), so without this a held stick would keep
+        // steering a world that is supposed to be stopped.
+        const owner = this.owner;
+        const live = (owner?.hasInputFocus ?? true) && owner?.paused !== true;
+        const input = live ? this.inputProvider.poll(dt) : emptyInput();
         this.lastInput = input;
         this.applyInput(input, dt);
     };

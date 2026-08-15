@@ -8,6 +8,7 @@ export type TouchGamepadOptions = {
     handleButton?: (part: string, pressed: boolean) => void;
 };
 export declare class TouchGamepadSource implements GamepadSource {
+    readonly kind = "touch";
     private svg;
     private state;
     private sticks;

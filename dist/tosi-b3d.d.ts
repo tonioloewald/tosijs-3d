@@ -79,6 +79,17 @@ export declare class B3d extends Component {
         gamepadFade: "on" | "off";
         quality: QualitySetting;
         stats: boolean;
+        /** Pause automatically when the tab/window goes to the background. */
+        pauseWhenHidden: "on" | "off";
+        /** Come up paused, showing the pause panel — the "press Start" shape. */
+        startPaused: boolean;
+        /**
+         * On resume, enter immersive VR if the device supports it; on leaving VR,
+         * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
+         * user gesture, and the Continue tap is one. A scene that tried to enter XR
+         * on load would be refused by the browser.
+         */
+        enterXrOnResume: "on" | "off";
     };
     static styleSpec: {
         ':host': {
@@ -245,10 +256,71 @@ export declare class B3d extends Component {
     xrReticle: 'on' | 'off';
     scenePanelOpen: boolean;
     stats: boolean;
+    pauseWhenHidden: 'on' | 'off';
+    startPaused: boolean;
+    enterXrOnResume: 'on' | 'off';
+    private _paused;
+    private _pausePanel;
+    private _pauseWatch;
+    private _cameraWasAttached;
+    /** Is the simulation held? Rendering continues — the panel has to be drawn. */
+    get paused(): boolean;
+    /**
+     * HOLD THE SIMULATION. Rendering keeps going (a frozen frame plus a panel is
+     * the point; stopping the render loop would leave the panel invisible and the
+     * canvas stale), but time does not advance: no combat tick, no fog, no
+     * `update` hook, and `B3dControllable` sees an empty input so nothing drifts
+     * while you are away.
+     *
+     * `reason` is carried on the `pause` event so a game can tell "the player
+     * asked" from "the tab went away" — a settings menu and an interruption
+     * deserve different handling.
+     */
+    pause(reason?: 'user' | 'hidden' | 'xr' | 'start' | string): void;
+    /** Let time run again, and (if `enterXrOnResume`) take the user into VR —
+     * this call is expected to be inside a user gesture, which is what makes
+     * entering XR legal at all. */
+    resume(): void;
+    /**
+     * The default pause panel: a title and a Continue button, centred in front of
+     * the camera. Camera-relative so it works flat AND in a headset without a
+     * second implementation — the same choice `b3d-death` makes.
+     */
+    private _showPausePanel;
+    private _hidePausePanel;
+    /**
+     * Watch the things that should pause a scene without being asked.
+     *
+     * BACKGROUNDING: a hidden tab's rAF is throttled to nothing anyway, so the
+     * value here isn't saving work — it's that the player comes back to a held
+     * frame and a panel rather than to a world that carried on without them.
+     *
+     * ORIENTATION: reported, not acted on. A phone rotating is sometimes a pause
+     * ("I put it down") and sometimes nothing at all, and only the game knows
+     * which — so this dispatches `orientation` with the new value and lets the
+     * game decide. Note that TILT (deviceorientation) is a different, permissioned
+     * API on iOS and deliberately not touched here.
+     */
+    private _watchPause;
+    /** Flip it. What the default panel's button and a pause key both want. */
+    togglePause(): void;
     sceneCreated: B3dCallback;
     update: B3dCallback;
     setupXr: B3dCallback;
     scenePanel: (host: B3d) => Widget3d[];
+    /**
+     * The centred in-scene panel shown while paused. Return your own rows to
+     * replace the default (a title and a Continue button) — a title screen, a
+     * settings menu, a "you were away" summary.
+     *
+     * `resume` is passed in rather than left to be found: whatever you build must
+     * be able to let the player back in, and a pause panel with no way out is the
+     * failure mode this whole feature exists to avoid.
+     *
+     * Defaults to a function (not undefined) so the element creator treats it as
+     * a settable prop, like `scenePanel`.
+     */
+    pausePanel: (host: B3d, resume: () => void) => Widget3d[] | null;
     bodyPanels: (host: B3d) => FramePanelSpec[];
     private lastRender;
     /** Seconds of wall clock since the previous rendered frame (clamped to

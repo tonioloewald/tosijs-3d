@@ -59,4 +59,23 @@ export declare function measureTextWidth(text: string, font: FontSpec): number;
 export declare function valueToFraction(value: number, min: number, max: number): number;
 /** Inverse of valueToFraction, snapped to `step` (0 = continuous). */
 export declare function fractionToValue(fraction: number, min: number, max: number, step?: number): number;
+/**
+ * How wide a camera-relative panel may be, in world units, to stay on screen.
+ *
+ * A constant chosen on a desktop is too wide on a phone held upright: at the
+ * default ~0.8 rad vertical FOV a portrait viewport shows only ~0.86 units
+ * across at z=2.2, so a 1.1-wide panel puts its edges — and its buttons — off
+ * screen. That shipped, and the report was "I had to un-zoom to touch the
+ * button" (tosijs-3d, 2026-08-15).
+ *
+ * Shared because there are two of these panels (pause, death) and a number
+ * copied into both is a number that will disagree with itself later.
+ *
+ * @param fov vertical field of view in radians
+ * @param aspect viewport width / height
+ * @param z distance from the camera
+ * @param want the width you'd use if there were room
+ * @param fill fraction of the visible width to occupy
+ */
+export declare function panelFitWidth(fov: number, aspect: number, z: number, want: number, fill?: number): number;
 //# sourceMappingURL=widgets3d-layout.d.ts.map

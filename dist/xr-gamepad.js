@@ -32,6 +32,7 @@ import { XrGamepadSource } from 'tosijs-3d'
 import { emptyGamepad, } from './virtual-gamepad';
 export class XrGamepadSource {
     controllers;
+    kind = 'xr';
     constructor(controllers) {
         this.controllers = controllers;
     }

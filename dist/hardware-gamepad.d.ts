@@ -1,5 +1,6 @@
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad';
 export declare class HardwareGamepadSource implements GamepadSource {
+    readonly kind = "hardware";
     deadzone: number;
     gamepadIndex: number;
     constructor(options?: {

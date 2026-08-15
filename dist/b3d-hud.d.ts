@@ -75,6 +75,20 @@ export declare class B3dHud extends B3dChild {
      * `handleResize`, not `onResize` — the `on<Event>` prefix is reserved for the
      * elements factory's event sugar and collides with a component callback. */
     handleResize(): void;
+    /**
+     * Size the square HUD against BOTH viewport dimensions.
+     *
+     * `size`% of the smaller side alone is right in landscape and pathological in
+     * portrait: on a 1400x713 window it paints 36% of the width, on a 500x757 one
+     * it paints 70% of it — the same rule, twice the visual weight, because in
+     * portrait the small side IS the width (measured 2026-08-15, reported from a
+     * phone in fullscreen).
+     *
+     * So it is also capped at HALF that percentage of the LONG side, which keeps
+     * roughly the landscape proportion in portrait and leaves landscape itself
+     * within a couple of percent of where it was. Both dimensions, not just the
+     * one that happens to be smaller.
+     */
     private _measure;
     sceneDispose(): void;
     /** Fill a meter arc (`speed`/`altitude`/`health`/`energy`), level 0..1. */

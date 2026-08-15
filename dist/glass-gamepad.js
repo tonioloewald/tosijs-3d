@@ -279,6 +279,7 @@ async function loadCluster(url) {
  * and adds it to the active input provider.
  */
 export class B3dGamepad extends Component {
+    kind = 'glass';
     static initAttributes = {
         /** Spec string: `''`/`true` = full layout, else e.g. `"a,b,left_stick"`. */
         controls: '',

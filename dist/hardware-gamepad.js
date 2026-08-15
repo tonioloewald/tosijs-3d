@@ -25,6 +25,7 @@ function applyDeadzone(value, deadzone) {
     return sign * ((Math.abs(value) - deadzone) / (1 - deadzone));
 }
 export class HardwareGamepadSource {
+    kind = 'hardware';
     deadzone;
     gamepadIndex;
     constructor(options = {}) {

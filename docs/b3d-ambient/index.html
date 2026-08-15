@@ -203,6 +203,21 @@ preview.append(scene)
 <td>Size of the box around the camera that particles spawn in</td>
 </tr>
 <tr>
+<td><code>lookAhead</code></td>
+<td><code>0.35</code></td>
+<td>Push the spawn box along the VIEW, in units of <code>radius</code> — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18)</td>
+</tr>
+<tr>
+<td><code>lead</code></td>
+<td><code>0.25</code></td>
+<td>Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17)</td>
+</tr>
+<tr>
+<td><code>speedCap</code></td>
+<td><code>40</code></td>
+<td>Speed (m/s) past which <code>lead</code> stops growing</td>
+</tr>
+<tr>
 <td><code>rate</code></td>
 <td><code>0</code></td>
 <td>Particles/sec (0 = derive from the preset)</td>

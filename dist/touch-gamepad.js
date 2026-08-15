@@ -153,6 +153,7 @@ function svgPoint(svg, clientX, clientY) {
     return { x: transformed.x, y: transformed.y };
 }
 export class TouchGamepadSource {
+    kind = 'touch';
     svg;
     state = emptyGamepad();
     sticks = [];

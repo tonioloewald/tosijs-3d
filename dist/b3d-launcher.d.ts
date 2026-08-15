@@ -29,6 +29,21 @@ export interface ProjectileOpts {
         vel: Vec3;
     }, dt: number) => void;
     /**
+     * Draw the round as THIS instead of the default sphere — a node you supply
+     * (e.g. `library.instantiate('Missile', { canonical: true })`).
+     *
+     * The engine keeps owning motion, collision, lifetime and disposal; only the
+     * appearance changes. It is also **oriented along velocity** each step, which
+     * a sphere never needed: a modelled missile with no facing flies sideways,
+     * and that is the part a consumer can't add from outside without duplicating
+     * the integrator. (tosijs-3d#19 — manta-recon had an authored Missile that
+     * sat unused.)
+     *
+     * Made non-pickable on adoption, like the default sphere: a projectile that
+     * picks itself blocks the blast's own line of sight.
+     */
+    mesh?: BABYLON.TransformNode;
+    /**
      * Meshes the collision ray must ignore — the FIRING entity's own geometry, so a
      * shell/bomb spawned at/near the shooter (a bomb off the belly, guns in a climb)
      * doesn't immediately detonate on it. Return true to skip a mesh.
@@ -55,6 +70,9 @@ export declare function spawnProjectile(owner: B3d, opts: ProjectileOpts): {
     dispose: () => void;
 };
 export interface MissileOpts {
+    /** Draw the missile as this node, oriented along velocity. See
+     * `ProjectileOpts.mesh` — a homing round is the one most worth modelling. */
+    mesh?: BABYLON.TransformNode;
     /**
      * Per-frame hook run AFTER the seeker, so it can constrain what homing asked
      * for — water drag, a depth floor, a speed cap in another medium. Same shape as
