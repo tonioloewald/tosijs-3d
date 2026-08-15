@@ -359,6 +359,36 @@ What that buys, in order of importance:
 It also means the terrain's existing `patchMask` / `patches` hooks have a natural
 owner: a province emits them, rather than a consumer wiring them by hand.
 
+### The vocabulary this leaves: add a shape, subtract some volumes
+
+A province turns out to be two things we have already built and tested:
+
+> **height forcing function** (`landform.*`) **+ a list of subtracted volumes**
+> (`carve.*`)
+
+- **volcano** = a mount, minus a bunch of lava tubes
+- **arch** = a mound, minus a cylinder
+- **sea cave** = a headland, minus a capsule aimed inland
+- **crater with a collapsed chamber** = `impactCrater`, minus a sphere below it
+
+That is the entire authoring surface, and neither half is new. `landform` already
+does the additive side (`volcano`, `impactCrater`, `pad`, composed by
+`composeLandforms`); `carve` already does the subtractive side (`sphere`,
+`capsule`, `tube`, `box`, `smoothUnion`, and the two perturbations that stop
+anything reading as a primitive). The work done for tunnels survives intact — it
+just stops being "the tunnel system" and becomes the second half of a province.
+
+**The arch is the case worth building first**, and not because it is pretty: it
+is a cavity that breaks the surface _twice_, at close to the best-conditioned
+angle available (a cylinder exiting a mound is roughly perpendicular to it). So
+it exercises the whole path — additive shape, subtracted volume, surface
+intersection — in the geometry most likely to succeed. If an arch cannot be made
+to work, nothing harder will.
+
+And a lava tube is the complementary case: mostly _not_ reaching the surface, so
+mostly free under the precomputation above, with the hard part confined to its
+mouths — which is exactly where an author wants to place a landform anyway.
+
 ### What this leaves as the hard case, honestly
 
 Where a cavity _does_ break the surface, the conditioning problem from

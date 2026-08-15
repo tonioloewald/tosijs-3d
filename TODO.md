@@ -273,6 +273,15 @@ nothing and the feature is opt-in per region. Same authoring gesture as
 volcanism, same seed reproducibility, and it gives the precomputation a footprint
 and residency a unit ("am I in the province") instead of a radius.
 
+A province = **a height forcing function (`landform.*`) minus a list of volumes
+(`carve.*`)**. Volcano = mount minus lava tubes; arch = mound minus a cylinder;
+sea cave = headland minus a capsule. Both halves already exist and are
+unit-tested — the tunnel work survives as the subtractive half.
+
+- [ ] **Build the ARCH first** once the measurements pass: it breaks the surface
+      twice at close to the best-conditioned angle available, so it exercises the
+      whole path in the geometry most likely to work. If an arch can't be made to
+      work, nothing harder will.
 - [ ] **Precompute cavity-reaches-surface.** A cavity whose top is below the
       terrain over its footprint cannot affect the visible surface, so it is
       free until someone is inside it. Cheap (bounds vs the height sampler) and
