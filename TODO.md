@@ -251,6 +251,29 @@ water meshes from the raycast behind a `submarine`/`waterY` attr; seabed stays t
 0.1 vs 1.0) — two configs lerped on a y-band, like b3dWater's fogTransition.
 [ ] Surface-crossing event (aircraft or water) for splash/wake VFX, audio, camera cues.
 
+## Volumetric fine tiles — measure before building (2026-08-15)
+
+Tonio's idea, and its conclusion: if the finest terrain LOD is volumetric and
+coarser LODs stay a top surface, **tunnels stop being a concept** — we'd be
+shrink-wrapping volumes, and a cave is just where the density says air. See
+TUNNEL-DESIGN.md for what that deletes (most of `b3d-patch`'s residency
+machinery, every boundary reconciliation, the entrance-conditioning rule).
+
+**Two measurements first, both cheap, both decisive:**
+
+- [ ] **Vertex deviation.** Extract ONE flat tile volumetrically with no carve,
+      overlay it on the heightfield tile it would replace, report max deviation.
+      Sub-centimetre = alive. Anything visible = a ripple running around the
+      player at fixed radius on every LOD change, which is worse than any seam
+      we have today.
+- [ ] **Extraction cost per tile** against the current `tileBuildMs` budget. The
+      finest ring is already the most expensive thing in the scene; surface nets
+      over a lattice is not free.
+
+Do NOT start building on this before both numbers exist. The last attempt at
+tunnels spent a fortnight discovering a conditioning problem that a morning's
+measurement would have exposed.
+
 ## The everything demo — flat world → planet → system (idea, 2026-08-15)
 
 Tonio's: a scene you can fly a craft around a flat terrain-and-water world, climb
