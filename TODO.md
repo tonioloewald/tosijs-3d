@@ -439,7 +439,18 @@ connectivity nobody declared.
       free until someone is inside it. Cheap (bounds vs the height sampler) and
       it turns residency from a radius — with `b3d-patch`'s hysteresis problem —
       into "am I inside, or can I see in".
-- [x] **DONE — extraction cost measured, and it RULES OUT the naive version**
+- [x] **CORRECTED 2026-08-16 — both measurements PASS at the specified
+      resolution.** My cost test used 2–4 m cells against a heightfield whose
+      finest spacing is 128/24 = **5.33 m**, so it measured "denser mesh AND
+      cavities" — a proposal nobody made. And it compared deviation against
+      ZERO, when the baseline is the heightfield mesh's own interpolation error.
+      Measured properly: at 5.33 m the volumetric surface errs **0.243 max /
+      0.063 mean versus the heightfield's 0.266 / 0.068** — marginally _better_ —
+      and extraction costs **2.3–2.7 ms against a 2–4 ms budget**. At the
+      second-finest resolution it is 0.7–0.8 ms. So the LOD swap is invisible and
+      affordable, and surface-minus-cavities is now an optimisation rather than a
+      rescue.
+- [x] ~~extraction cost RULES OUT the naive version~~ — wrong, see above
       (2026-08-15). One 128 m tile, fBm terrain, against a 2–4 ms `tileBuildMs`:
       8 m cells 1.5 ms, 4 m 3.4–4.4 ms, 2 m 9.4–14.1 ms. Beside the deviation
       table that is a straight tension — **2 m buys sub-centimetre and costs 3–5×

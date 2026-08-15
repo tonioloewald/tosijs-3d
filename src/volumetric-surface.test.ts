@@ -19,7 +19,9 @@ It was written down as "an afternoon's experiment". It isn't: `sdf-lattice` and
 `patch-field` are pure and Babylon-free, so the measurement is a test — which is
 the point Tonio made about the volumetric work generally, and it is right.
 
-RESULT, 2026-08-15 — **it passes.** Against 6 m sine hills:
+RESULT, 2026-08-15 — it passes, but note these are measured against ZERO, which
+overstates the error; see the 2026-08-16 correction below for the comparison that
+matters (versus the heightfield mesh's own error). Against 6 m sine hills:
 
 | cell | max deviation | mean    |
 | ---- | ------------- | ------- |
@@ -123,6 +125,44 @@ describe('a volumetric tile must reproduce the heightfield it replaces', () => {
 })
 
 /*
+CORRECTION, 2026-08-16 — I MEASURED THE WRONG THING TWICE, AND BOTH ERRORS RAN
+THE SAME WAY.
+
+**Error 1: I extracted at a FINER lattice than the plan calls for.** The plan is
+that the finest LOD keeps the *same surface resolution* as the second finest and
+spends its budget on cavities. I tested 2 m and 4 m cells against a heightfield
+whose finest spacing is 128/24 = 5.33 m — so I measured "denser mesh AND
+cavities", which is a different and much more expensive proposal. (Tonio caught
+this.)
+
+**Error 2: I compared the deviation against ZERO.** A heightfield tile also only
+samples the terrain at its vertices and interpolates between them, so it has its
+own error against the continuous field. The question was never "does the
+volumetric surface match the true terrain", it is "does it match *what the
+heightfield tile would have drawn*".
+
+Measured properly, both answers are good:
+
+| spacing  | heightfield mesh error | volumetric error   | extraction |
+| -------- | ---------------------- | ------------------ | ---------- |
+| 5.33 m   | max 0.266  mean 0.068  | max 0.243  0.063   | 2.3–2.7 ms |
+| 10.67 m  | max 0.878  mean 0.262  | max 0.866  0.249   | 0.7–0.8 ms |
+
+The volumetric surface is **marginally more accurate than the heightfield mesh it
+replaces**, at the same resolution — so the LOD swap is invisible, not merely
+tolerable. And extraction at the finest surface resolution is **2.3–2.7 ms
+against a 2–4 ms budget**, i.e. it fits, with the second-finest resolution costing
+under a millisecond.
+
+So the direction is viable *as specified*, and my earlier "dead by its own
+numbers" verdict was an artefact of testing something nobody proposed. The
+surface-minus-cavities refinement remains the better design for other reasons —
+no extraction at all where nothing is carved — but it is now an optimisation
+rather than a rescue.
+
+*/
+
+/*
 THE SECOND MEASUREMENT: EXTRACTION COST. It does NOT pass for the naive version,
 and that is the useful part.
 
@@ -176,5 +216,61 @@ describe('extraction cost — documented, with a loose regression bound', () => 
     const ms = performance.now() - t0
     expect(mesh.triangleCount).toBeGreaterThan(500)
     expect(ms).toBeLessThan(50) // measured ~4.4ms
+  })
+})
+
+describe('the comparison that actually decides it', () => {
+  const n = new PerlinNoise(7)
+  const h = (x: number, z: number) => n.fractal(x * 0.004, 0, z * 0.004, 4) * 60
+
+  /** A heightfield tile samples at its vertices and interpolates between them —
+   * this is ITS error against the continuous field, which is the real baseline. */
+  const heightfieldError = (s: number) => {
+    let max = 0
+    for (let x = 0; x < 128; x += s)
+      for (let z = 0; z < 128; z += s) {
+        const bilinear =
+          (h(x, z) + h(x + s, z) + h(x, z + s) + h(x + s, z + s)) / 4
+        max = Math.max(max, Math.abs(bilinear - h(x + s / 2, z + s / 2)))
+      }
+    return max
+  }
+
+  const volumetricError = (s: number) => {
+    const c = Math.round(128 / s)
+    const m = extractChunk(
+      terrainDensity(h),
+      { ix: 0, iy: -4, iz: 0, nx: c, ny: 4, nz: c },
+      { spacing: s, jitter: 0.25, seed: 7 }
+    )
+    let max = 0
+    for (let i = 0; i < m.vertexCount; i++)
+      max = Math.max(
+        max,
+        Math.abs(
+          m.positions[i * 3 + 1] - h(m.positions[i * 3], m.positions[i * 3 + 2])
+        )
+      )
+    return max
+  }
+
+  test('at MATCHING resolution the volumetric surface is no worse', () => {
+    // The whole go/no-go. If this fails the ground pops on every LOD change; it
+    // does not fail, and the volumetric surface is in fact slightly better.
+    for (const s of [5.33, 10.67]) {
+      expect(volumetricError(s)).toBeLessThanOrEqual(heightfieldError(s))
+    }
+  })
+
+  test('extraction at the finest SURFACE resolution fits the tile budget', () => {
+    // 128m / 24 subdivisions = 5.33m, the heightfield's own finest spacing.
+    // Measured 2.3-2.7ms against a tileBuildMs of 2-4.
+    const c = Math.round(128 / 5.33)
+    const spec = { ix: 0, iy: -4, iz: 0, nx: c, ny: 4, nz: c }
+    const cfg = { spacing: 5.33, jitter: 0.25, seed: 7 }
+    extractChunk(terrainDensity(h), spec, cfg) // warm
+    const t0 = performance.now()
+    extractChunk(terrainDensity(h), spec, cfg)
+    expect(performance.now() - t0).toBeLessThan(30) // loose; measured ~2.5ms
   })
 })

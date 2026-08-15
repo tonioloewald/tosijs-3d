@@ -269,7 +269,15 @@ Three things make it tractable rather than hopeful:
   contract, not a new one.
 - `marginBlend` already converges a rim onto the heightfield.
 
-**MEASURED, 2026-08-15 — it passes.** And it was not an afternoon: `sdf-lattice`
+**MEASURED — it passes, and the second measurement does too (corrected
+2026-08-16).** At the heightfield's own finest spacing (128/24 = 5.33 m) the
+volumetric surface errs 0.243 m max against the heightfield mesh's own 0.266 m —
+_better_ — and extraction costs 2.3–2.7 ms against a 2–4 ms tile budget. My first
+cost run used 2–4 m cells, which is finer than the plan calls for, and compared
+accuracy against zero rather than against what the heightfield tile would itself
+have drawn; both errors made it look unaffordable. It is not.
+
+**The 2026-08-15 write-up below, kept for its reasoning.** And it was not an afternoon: `sdf-lattice`
 and `patch-field` are pure, so the whole thing is a unit test
 (`volumetric-surface.test.ts`, 15 ms). Against 6 m sine hills the deviation is
 0.189 m at an 8 m cell, 0.049 at 4 m, 0.0096 at 2 m and 0.0011 at 1 m — quadratic
