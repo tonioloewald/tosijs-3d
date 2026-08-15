@@ -57,6 +57,13 @@ that was tuned around the old feel.
 
 ### Added
 
+- **A gamepad gadget in the gear panel** — one tap to pin the glass pad visible
+  or hand it back to the auto-hide. The fade is production-correct and
+  development-hostile: once a mouse or trackpad is present the pad goes away and
+  doesn't come back, so checking it on a laptop meant switching Chrome into
+  responsive mode. It sits in the same icon bar as the debug tools, so it works
+  in a headset too. `B3dGamepad.setFade()` / `.hidden` are the API behind it.
+
 - **`b3d.sceneBusy`** and **`terrain.busy`** — is the world still building? Any
   frame-rate judgement taken while these are true is a measurement of the loading,
   not of the device.
@@ -145,6 +152,12 @@ that was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **`B3dGamepad.fade` was read once at connect**, so toggling it at runtime did
+  nothing in either direction — including from a `scenePanel` toggle, which is
+  this repo's own recommended way to expose a tweakable. A settings control that
+  silently does nothing is worse than no control. Now evaluated live, and
+  `setFade()` reconciles on the tap rather than on the next pointer move.
 
 - **A guided missile consumed the caller's `guide` hook** (#13), so a game could
   give medium behaviour — water drag, a depth floor — to a dumb shell but not to

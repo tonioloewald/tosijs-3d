@@ -1451,6 +1451,51 @@ export class B3d extends Component {
   // registered source, so it carries a fixed id + icon here; a source picks its own via
   // `DebugPanelSource.icon` (default `bug`). The icon bar toggles membership in
   // `_debugOpen`; only open tools render their rows below the bar (see `_panelWidgets`).
+  /**
+   * ICON-BAR GADGETS — items that FLIP something rather than expanding a
+   * readout. Same bar as the debug tools (one row of small icons, one UI in
+   * both presentations), different job.
+   *
+   * The glass gamepad's fade is production-correct and development-hostile: as
+   * soon as a mouse or trackpad is present it goes away and doesn't come back,
+   * so checking it on a laptop meant switching Chrome into responsive mode.
+   * This is the one-tap way back, and it works in a headset too.
+   */
+  private _panelGadgets(): Array<{
+    id: string
+    name: string
+    icon: string
+    active: boolean
+    onClick: () => void
+  }> {
+    const out: Array<{
+      id: string
+      name: string
+      icon: string
+      active: boolean
+      onClick: () => void
+    }> = []
+    const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
+      hidden?: boolean
+      setFade?: (on: boolean) => void
+      fade?: string
+    } | null
+    if (pad?.setFade != null) {
+      const forced = String(pad.fade) === 'off'
+      out.push({
+        id: '__gamepad',
+        name: forced ? 'Gamepad: always shown' : 'Gamepad: auto-hides',
+        icon: 'game',
+        active: forced,
+        onClick: () => {
+          pad.setFade?.(forced)
+          this._repaintPanels()
+        },
+      })
+    }
+    return out
+  }
+
   private _debugTools(): Array<{ id: string; name: string; icon: string }> {
     const tools: Array<{ id: string; name: string; icon: string }> = []
     if (perfDebugEnabled() || this.stats) {
@@ -1550,23 +1595,34 @@ export class B3d extends Component {
   private _panelWidgets(xr = false): Widget3d[] {
     const rows = this.scenePanel(this)
     const tools = this._debugTools()
-    if (tools.length === 0) {
-      // No debug tools → nothing to stop, clear this presentation's live bucket.
+    const gadgets = this._panelGadgets()
+    if (tools.length === 0 && gadgets.length === 0) {
+      // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
       this._liveDebug[xr ? 'xr' : 'flat'] = []
       return rows
     }
     const out: Widget3d[] = [
       iconBar3d({
-        items: tools.map((t) => ({
-          icon: t.icon,
-          title: t.name,
-          active: this._debugOpen.has(t.id),
-          onClick: () => {
-            if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
-            else this._debugOpen.add(t.id)
-            this._repaintPanels()
-          },
-        })),
+        items: [
+          ...tools.map((t) => ({
+            icon: t.icon,
+            title: t.name,
+            active: this._debugOpen.has(t.id),
+            onClick: () => {
+              if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
+              else this._debugOpen.add(t.id)
+              this._repaintPanels()
+            },
+          })),
+          // Gadgets last: diagnostics are the bar's main job, and a toggle
+          // moving position as tools appear would be worse than a fixed tail.
+          ...gadgets.map((g) => ({
+            icon: g.icon,
+            title: g.name,
+            active: g.active,
+            onClick: g.onClick,
+          })),
+        ],
       }),
     ]
     // Live text blocks for the OPEN sources are collected here and rewritten in place by

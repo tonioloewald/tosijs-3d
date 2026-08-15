@@ -375,8 +375,13 @@ export class B3dGamepad extends Component implements GamepadSource {
    */
   private _watchRealInput(): void {
     if (this._inputWatch != null) return
-    if (isOff(this.fade)) return
+    // NOTE: the watcher installs unconditionally and `fade` is read INSIDE
+    // `wake`. It used to be read here, once, which made the attribute inert at
+    // runtime in both directions — including from a `scenePanel` toggle, this
+    // repo's own recommended way to expose a tweakable. A settings control that
+    // silently does nothing is worse than no control.
     const wake = () => {
+      if (isOff(this.fade)) return
       if (this._idleTimer != null) clearTimeout(this._idleTimer)
       this._setFaded(true)
       this._idleTimer = setTimeout(
@@ -414,6 +419,33 @@ export class B3dGamepad extends Component implements GamepadSource {
       clearInterval(padPoll)
       if (this._idleTimer != null) clearTimeout(this._idleTimer)
     }
+  }
+
+  /**
+   * Is the pad currently hidden by the fade behaviour?
+   *
+   * Public because the fade is production-correct but development-hostile: once
+   * a mouse or trackpad is present the pad goes away and (short of an input
+   * drought) doesn't come back, so checking it on a laptop meant reaching for
+   * Chrome's responsive mode. `<tosi-b3d>` puts a gamepad gadget in the gear
+   * panel that reads and flips this.
+   */
+  get hidden(): boolean {
+    return this._faded
+  }
+
+  /**
+   * Force the pad visible (`false`) or hand it back to the fade behaviour
+   * (`true`). Reconciles immediately — a toggle that waited for the next
+   * pointer move would read as broken.
+   */
+  setFade(on: boolean): void {
+    this.fade = on ? 'on' : 'off'
+    if (this._idleTimer != null) {
+      clearTimeout(this._idleTimer)
+      this._idleTimer = null
+    }
+    if (!on) this._setFaded(false)
   }
 
   private _setFaded(faded: boolean): void {

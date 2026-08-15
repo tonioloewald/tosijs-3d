@@ -61,7 +61,7 @@ lost between the two. Verdict was GO_WITH_FOLLOWUPS; the three must-clears
       names `fade="off"` — the wrong knob for the usual `<tosi-b3d gamepad>` path
       (there it's `gamepadFade`, `tosi-b3d.ts:342`). Name both, and describe the
       fade / `idleSeconds` behaviour on the glass-gamepad doc page.
-- [ ] **`B3dGamepad.fade` is read once in `connectedCallback`** (`glass-gamepad.ts:378`),
+- [x] **DONE (0.7.0-beta.2)** — `B3dGamepad.fade` was read once in `connectedCallback` (`glass-gamepad.ts:378`),
       so toggling it at runtime is inert — including from a `scenePanel`
       `toggle3d`, this repo's own recommended way to expose a tweakable.
       Evaluate `isOff(this.fade)` inside `wake`, or install/tear down in `render()`.
