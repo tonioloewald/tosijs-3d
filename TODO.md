@@ -268,6 +268,11 @@ LODs cost nothing extra, and the surface transition stays seamless out to the
 third-highest LOD. Which retires the deviation risk except where a cavity
 actually cuts the surface.
 
+**Cavities come from PROVINCES** — none by default, so a stock world pays
+nothing and the feature is opt-in per region. Same authoring gesture as
+volcanism, same seed reproducibility, and it gives the precomputation a footprint
+and residency a unit ("am I in the province") instead of a radius.
+
 - [ ] **Precompute cavity-reaches-surface.** A cavity whose top is below the
       terrain over its footprint cannot affect the visible surface, so it is
       free until someone is inside it. Cheap (bounds vs the height sampler) and

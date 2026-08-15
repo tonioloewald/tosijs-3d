@@ -332,6 +332,33 @@ once at authoring or load) and it turns the residency question from a radius —
 which is what `b3d-patch` does today, with the hysteresis problem that entails —
 into something far better defined: **am I inside, or can I see in.**
 
+### Cavities come from PROVINCES, so there are none by default
+
+The last piece, and it is what makes the cost story "zero" rather than "small".
+
+A world has no cavities unless something declares them, and the thing that
+declares them is the mechanism that already exists for exactly this shape of
+statement: a **province**. `landform` already returns one for volcanism, `pad`
+already claims ground for a city, `provinceField` already seeds them across a
+world. "This region has caves" is the same authoring gesture as "this region is
+volcanic" — not a new system, a new field on an old one.
+
+What that buys, in order of importance:
+
+- **A default world pays nothing.** No province, no cavity, no volumetric path,
+  no extra tile cost — the terrain is exactly the terrain we ship today. The
+  feature is opt-in per region rather than a tax on the substrate.
+- **The reaches-the-surface precomputation is scoped for free.** A province has
+  bounds, so the question is asked over a known footprint instead of a world.
+- **Residency has an obvious unit.** Not a radius, not a tile heuristic: the
+  province. You are inside one or you are not, and its bounds are declared.
+- **Seeded worlds stay reproducible.** Provinces are already part of the seed, so
+  "same seed, same caves" comes along without a second mechanism — the same
+  property `b3d-spawner` relies on for "same seed, same battles".
+
+It also means the terrain's existing `patchMask` / `patches` hooks have a natural
+owner: a province emits them, rather than a consumer wiring them by hand.
+
 ### What this leaves as the hard case, honestly
 
 Where a cavity _does_ break the surface, the conditioning problem from
