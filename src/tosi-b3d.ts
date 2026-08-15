@@ -164,6 +164,8 @@ import {
   type Widget3d,
 } from './widgets3d'
 import { SvgTexture } from './svg-texture'
+import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
+import { isOff } from './b3d-utils'
 import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
@@ -353,6 +355,26 @@ export class B3d extends Component {
     // `showB3dStats()`, reveals it on every scene (handy on mobile, no console
     // needed). Shows `debugState` plus a one-tap hardware-scaling probe. Default off.
     stats: false,
+
+    /*
+    PAUSE.
+
+    `pauseWhenHidden` is a string enum, not a boolean, because an HTML boolean
+    attribute cannot default to true — an absent attribute is false, which is
+    correct HTML and would silently disable the default (tosijs now throws on a
+    true-default boolean). Same reason as `gamepadFade` and friends.
+    */
+    /** Pause automatically when the tab/window goes to the background. */
+    pauseWhenHidden: 'on' as 'on' | 'off',
+    /** Come up paused, showing the pause panel — the "press Start" shape. */
+    startPaused: false,
+    /**
+     * On resume, enter immersive VR if the device supports it; on leaving VR,
+     * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
+     * user gesture, and the Continue tap is one. A scene that tried to enter XR
+     * on load would be refused by the browser.
+     */
+    enterXrOnResume: 'off' as 'on' | 'off',
   }
 
   static styleSpec = {
@@ -585,6 +607,148 @@ export class B3d extends Component {
   declare xrReticle: 'on' | 'off'
   declare scenePanelOpen: boolean
   declare stats: boolean
+  declare pauseWhenHidden: 'on' | 'off'
+  declare startPaused: boolean
+  declare enterXrOnResume: 'on' | 'off'
+
+  // ─── Pause ────────────────────────────────────────────────────────────────
+  private _paused = false
+  private _pausePanel: B3dSvgPlane | null = null
+  private _pauseWatch: (() => void) | null = null
+
+  /** Is the simulation held? Rendering continues — the panel has to be drawn. */
+  get paused(): boolean {
+    return this._paused
+  }
+
+  /**
+   * HOLD THE SIMULATION. Rendering keeps going (a frozen frame plus a panel is
+   * the point; stopping the render loop would leave the panel invisible and the
+   * canvas stale), but time does not advance: no combat tick, no fog, no
+   * `update` hook, and `B3dControllable` sees an empty input so nothing drifts
+   * while you are away.
+   *
+   * `reason` is carried on the `pause` event so a game can tell "the player
+   * asked" from "the tab went away" — a settings menu and an interruption
+   * deserve different handling.
+   */
+  pause(reason: 'user' | 'hidden' | 'xr' | 'start' | string = 'user'): void {
+    if (this._paused) return
+    this._paused = true
+    this._showPausePanel()
+    this.dispatchEvent(
+      new CustomEvent('pause', { detail: { reason }, bubbles: true })
+    )
+  }
+
+  /** Let time run again, and (if `enterXrOnResume`) take the user into VR —
+   * this call is expected to be inside a user gesture, which is what makes
+   * entering XR legal at all. */
+  resume(): void {
+    if (!this._paused) return
+    this._paused = false
+    this._hidePausePanel()
+    // A resume must not deliver the whole absence as one frame. `frameDelta` is
+    // already clamped to 0.1s, but resetting the baseline keeps even that away.
+    this.lastRender = Date.now()
+    this.dispatchEvent(new CustomEvent('resume', { bubbles: true }))
+    if (this.enterXrOnResume === 'on' && !this.xrActive) {
+      const base = this.xrHelper?.baseExperience
+      if (base != null) {
+        // Flush rAF-batched work BEFORE handing the frame clock to the
+        // compositor — a render queued at the moment of entry is stranded for
+        // the whole session (see _installXrRafPump).
+        void updates()
+          .then(() => base.enterXRAsync('immersive-vr', 'local-floor'))
+          .catch(() => {
+            /* no headset, or the user declined — staying flat is fine */
+          })
+      }
+    }
+  }
+
+  /**
+   * The default pause panel: a title and a Continue button, centred in front of
+   * the camera. Camera-relative so it works flat AND in a headset without a
+   * second implementation — the same choice `b3d-death` makes.
+   */
+  private _showPausePanel(): void {
+    if (this._pausePanel != null || this.scene == null) return
+    const rows =
+      this.pausePanel(this, () => this.resume()) ??
+      [
+        label3d({ text: 'Paused', bold: true }),
+        button3d({
+          label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
+          // The tap IS the user gesture that makes entering XR legal.
+          onClick: () => this.resume(),
+        }),
+      ]
+    const svg = panel3d({ width: 320, height: 46 + rows.length * 48 }, ...rows)
+    const plane = b3dSvgPlane({
+      cameraRelative: true,
+      width: 1.1,
+      height: 1.1 * ((46 + rows.length * 48) / 320),
+      z: 2.2,
+      y: 0,
+      resolution: 512,
+      pointerEvents: 'on',
+    }) as B3dSvgPlane
+    plane.svgElement = svg
+    this._pausePanel = plane
+    this.appendChild(plane)
+  }
+
+  private _hidePausePanel(): void {
+    this._pausePanel?.remove()
+    this._pausePanel = null
+  }
+
+  /**
+   * Watch the things that should pause a scene without being asked.
+   *
+   * BACKGROUNDING: a hidden tab's rAF is throttled to nothing anyway, so the
+   * value here isn't saving work — it's that the player comes back to a held
+   * frame and a panel rather than to a world that carried on without them.
+   *
+   * ORIENTATION: reported, not acted on. A phone rotating is sometimes a pause
+   * ("I put it down") and sometimes nothing at all, and only the game knows
+   * which — so this dispatches `orientation` with the new value and lets the
+   * game decide. Note that TILT (deviceorientation) is a different, permissioned
+   * API on iOS and deliberately not touched here.
+   */
+  private _watchPause(): void {
+    if (this._pauseWatch != null) return
+    const onVisibility = () => {
+      if (isOff(this.pauseWhenHidden)) return
+      // NOT while immersive: some browsers report the page hidden during an XR
+      // session, and pausing there would fight the headset for no reason.
+      if (document.hidden && !this.xrActive) this.pause('hidden')
+    }
+    const onOrientation = () => {
+      this.dispatchEvent(
+        new CustomEvent('orientation', {
+          detail: {
+            type: screen.orientation?.type,
+            angle: screen.orientation?.angle,
+          },
+          bubbles: true,
+        })
+      )
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    screen.orientation?.addEventListener?.('change', onOrientation)
+    this._pauseWatch = () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      screen.orientation?.removeEventListener?.('change', onOrientation)
+    }
+  }
+
+  /** Flip it. What the default panel's button and a pause key both want. */
+  togglePause(): void {
+    if (this._paused) this.resume()
+    else this.pause('user')
+  }
 
   sceneCreated: B3dCallback = noop
   update: B3dCallback = noop
@@ -600,6 +764,20 @@ export class B3d extends Component {
   // so they stay in sync. Defaults to a function (not undefined) so the element
   // creator recognises it as a settable callback prop, like sceneCreated/update.
   scenePanel: (host: B3d) => Widget3d[] = () => []
+
+  /**
+   * The centred in-scene panel shown while paused. Return your own rows to
+   * replace the default (a title and a Continue button) — a title screen, a
+   * settings menu, a "you were away" summary.
+   *
+   * `resume` is passed in rather than left to be found: whatever you build must
+   * be able to let the player back in, and a pause panel with no way out is the
+   * failure mode this whole feature exists to avoid.
+   *
+   * Defaults to a function (not undefined) so the element creator treats it as
+   * a settable prop, like `scenePanel`.
+   */
+  pausePanel: (host: B3d, resume: () => void) => Widget3d[] | null = () => null
 
   // Body-anchored XR panels for the embodied player: pinned to a reference frame
   // (default `body`) and revealed by looking toward them. Defaults to placeholder
@@ -886,6 +1064,13 @@ export class B3d extends Component {
   }
 
   private _update = () => {
+    if (this._paused) {
+      // Keep RENDERING (the panel must be visible and pickable) but advance
+      // nothing. lastRender tracks so the first live frame isn't the whole pause.
+      this.lastRender = Date.now()
+      if (this.scene?.activeCamera != null) this.scene.render()
+      return
+    }
     if (this.scene != null && !this.hidden) {
       // Advance combat with real elapsed time (regen + scheduled chain reactions),
       // frame-rate independent and separate from the render throttle below.
@@ -1752,6 +1937,10 @@ export class B3d extends Component {
       // (whenReady) before the scene was up — they insert themselves now. Anything
       // connecting later self-registers and runs immediately.
       this._sceneReady = true
+      // Pause plumbing: watchers first, then the initial state — so a scene
+      // that comes up paused already has its panel and its listeners.
+      this._watchPause()
+      if (this.startPaused) this.pause('start')
       const queued = this._readyQueue
       this._readyQueue = []
       for (const cb of queued) cb()
@@ -1917,6 +2106,11 @@ export class B3d extends Component {
         xrSession = undefined
         restoreRaf?.()
         restoreRaf = undefined
+        // Leaving VR is a departure, not a view change: taking the headset off
+        // should not mean the world ran on without you. Only when the scene
+        // OPTED into the VR flow — a flat scene that happened to visit XR
+        // shouldn't suddenly acquire a pause panel on the way out.
+        if (this.enterXrOnResume === 'on') this.pause('xr')
       }
     })
     // XR is available — reveal the Enter VR button (grouped next to the gear in the
@@ -2757,6 +2951,8 @@ export class B3d extends Component {
   }
 
   disconnectedCallback(): void {
+    this._pauseWatch?.()
+    this._pauseWatch = null
     if (B3d._active === this) B3d._active = null
     if (this._qualityOff) {
       this._qualityOff()

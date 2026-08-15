@@ -61,6 +61,33 @@ that was tuned around the old feel.
 
 ### Added
 
+- **PAUSE** — `b3d.pause(reason)` / `.resume()` / `.togglePause()` / `.paused`,
+  a centred in-scene pause panel, and the attributes around them:
+  - `pauseWhenHidden` (default **on**) — backgrounding the tab holds the scene,
+    so a player returns to a held frame and a panel rather than to a world that
+    carried on without them. Suppressed while immersive, since some browsers
+    report the page hidden during an XR session.
+  - `startPaused` — come up paused: the "press Start" shape.
+  - `enterXrOnResume` — resume enters VR, and leaving VR pauses. **This is why
+    starting paused matters**: `enterXRAsync` requires a user gesture, so a
+    scene that tried to enter XR on load would simply be refused. The Continue
+    tap is the gesture, which makes "leave it paused, put the headset on, press
+    Continue" the only shape that reliably works.
+  - `pausePanel(host, resume)` — replace the default rows (a title and Continue)
+    with your own: a title screen, settings, a "you were away" summary. `resume`
+    is handed in, because a pause panel with no way out is the failure this
+    feature exists to prevent.
+  - `pause` / `resume` / `orientation` events. `pause` carries a `reason`
+    (`'user' | 'hidden' | 'xr' | 'start'`) so a game can tell "the player asked"
+    from "the tab went away".
+
+  Rendering continues while paused — the panel has to be drawn and picked —
+  but nothing advances: no combat tick, no fog, no `update` hook, and
+  controllables read empty input, so a held stick can't steer a stopped world.
+  Orientation changes are **reported, not acted on**: a rotating phone is
+  sometimes a pause and sometimes nothing, and only the game knows which. (Tilt
+  is a separate, permissioned API on iOS and deliberately untouched.)
+
 - **The stick sign contract is now a test** (`stick-sign.test.ts`) — every
   source must report **up/forward as positive**, and all of them must agree.
   This was documented in three places and enforced in none, which is what let
