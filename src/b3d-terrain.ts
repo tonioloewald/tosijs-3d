@@ -227,8 +227,6 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
 | `normalSmoothing` | `0.6` | Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag |
-| `patchMask` (property) | `null` | `(x,z) => boolean` — cut the surface away for a volumetric patch. See [b3d-patch](?b3d-patch.ts) (experimental) |
-| `patches` (property) | `[]` | Footprints that force finer tiles while resident (used by `b3d-patch`) |
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
 | `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
@@ -501,6 +499,9 @@ export class B3dTerrain extends B3dChild {
    * Pair it with a [[patch-field]] density carving the same volume — the mask
    * opens the roof, the patch supplies the walls beneath it.
    */
+  /** `(x,z) => boolean` — cut the surface away over a footprint. Kept as the
+   * generic hook a cavity province will use; the `b3d-patch` element that
+   * introduced it is gone (see TUNNEL-DESIGN.md). */
   patchMask: ((x: number, z: number) => boolean) | null = null
 
   /**
@@ -641,7 +642,7 @@ export class B3dTerrain extends B3dChild {
   private _resolvedSubs = 0 // hiResSubdivisions after auto-resolution (pool is sized to it)
   private tileTemplate: TileTemplate | null = null
   /** The tiles' material. Read it to MATCH a patch's walls to the ground
-   * they're cut into (see `b3d-patch`); mutating it changes every tile. */
+   * they're cut into; mutating it changes every tile. */
   material!: BABYLON.StandardMaterial
   private registered = false
   // Reusable scratch for the per-frame streamer — cleared and refilled each frame
@@ -1005,7 +1006,7 @@ export class B3dTerrain extends B3dChild {
         il > 1e-3
           ? { x: this.interestX / il, z: this.interestZ / il }
           : undefined,
-      // Volumetric patches force fine tiles in their own footprint (a bore
+      // A declared footprint forces fine tiles within it (a bore
       // mouth needs resolvable ground to cut a hole in), but only while the
       // surrounding terrain is fine enough to be worth it — `patchResident`
       // seals a distant tunnel rather than paying for invisible detail.

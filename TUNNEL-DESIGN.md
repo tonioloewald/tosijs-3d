@@ -1,5 +1,23 @@
 # Tunnel & cave design — topology → voxels → geometry
 
+> **⚰️ THE PATCH IMPLEMENTATION WAS YANKED, 2026-08-15.** `b3d-patch` — the
+> element that stitched an SDF-extracted volumetric patch into the heightfield,
+> with its residency, budgets, cavity predicates and boundary reconciliation —
+> is deleted. Tonio's verdict, and it is right: _a non-solution to a bypassed
+> problem._ It never worked (see "Entrances"), and the design below has since
+> removed the problem it was solving rather than solving it.
+>
+> **What was KEPT, because the new plan is built on it:** `carve.*` (the
+> subtractive half of a province), `sdf-lattice` (one global lattice, so chunks
+> weld bit-identically — cross-LOD seams unrepresentable rather than stitched),
+> and `patch-field.terrainDensity` (how a density field agrees with the
+> heightfield). None of that was the failure; the failure was making two
+> representations coexist.
+>
+> Stages 1–3 below (topology → voxel map) are unaffected — deciding _where the
+> air goes_ was always the real work. Read the volumetric-fine-tiles sections
+> first; they supersede the geometry half of this document.
+
 How caves, tunnels and underground complexes are authored, compiled and rendered.
 Companion to `SPATIAL-DESIGN.md` (attachment) and `TERRAIN-SHADER-DESIGN.md` (surface).
 

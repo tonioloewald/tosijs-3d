@@ -39,6 +39,15 @@ that was tuned around the old feel.
 
 ### ⚠️ Breaking
 
+- **`b3dPatch` / `B3dPatch` are removed.** The volumetric-patch element stitched
+  an SDF extraction into the heightfield and never worked: two surfaces meeting
+  at a grazing angle have no well-defined boundary, so every fix aimed at one
+  crossing created another elsewhere. It shipped EXPERIMENTAL and undemoed, and
+  the design that replaces it (TUNNEL-DESIGN.md) removes the boundary rather
+  than reconciling it. The pure modules it was built on — `carve.*`,
+  `sdf-lattice`, `patch-field` — are **kept**: they are the substrate the
+  replacement uses.
+
 - **`hudChase` → `hudChaseOff`, with the polarity inverted.** The old attribute
   is gone (no alias — HTML boolean semantics can't express a default-true flag,
   which is why the negative name exists). It shipped in 0.6.2's `dist`, and

@@ -567,7 +567,6 @@ export const carve = {
   shaft,
 }
 export type { Carve, NoiseOptions, Vec3Like } from './carve'
-export { B3dPatch, b3dPatch } from './b3d-patch'
 export {
   terrainDensity,
   composePatches,
