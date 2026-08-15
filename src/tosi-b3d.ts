@@ -704,6 +704,7 @@ export class B3d extends Component {
   private _paused = false
   private _pausePanel: B3dSvgPlane | null = null
   private _pauseWatch: (() => void) | null = null
+  private _cameraWasAttached = false
 
   /** Is the simulation held? Rendering continues — the panel has to be drawn. */
   get paused(): boolean {
@@ -763,6 +764,23 @@ export class B3d extends Component {
    */
   private _showPausePanel(): void {
     if (this._pausePanel != null || this.scene == null) return
+    /*
+    TAKE THE CAMERA'S HANDS OFF THE POINTER FIRST.
+
+    The panel is IN THE SCENE, so a tap on it is also a tap on the canvas — and
+    the camera's own input gets it too. Reported from a phone: the first attempt
+    to press Continue was read as a pinch-zoom, which moved the camera through
+    the panel and hid it, so the button had to be un-zoomed back into reach
+    before it could be pressed. A pause panel you have to fight the camera to
+    reach is worse than no pause panel.
+
+    Freezing the camera is also just what "paused" means. Restored on resume,
+    and only if we were the ones who detached it.
+    */
+    if (this.camera != null) {
+      this.camera.detachControl()
+      this._cameraWasAttached = true
+    }
     const rows =
       this.pausePanel(this, () => this.resume()) ??
       [
@@ -773,12 +791,32 @@ export class B3d extends Component {
           onClick: () => this.resume(),
         }),
       ]
-    const svg = panel3d({ width: 320, height: 46 + rows.length * 48 }, ...rows)
+    const svgH = 46 + rows.length * 48
+    const svg = panel3d({ width: 320, height: svgH }, ...rows)
+
+    /*
+    FIT THE VIEWPORT, don't assume a desktop one.
+
+    A fixed 1.1-wide panel at z=2.2 is comfortable on a 16:9 monitor and TOO
+    WIDE on a phone held upright: at the default ~0.8 rad vertical FOV the
+    visible width there is about 0.86 world units, so the panel's edges — and
+    with them the button — sit off-screen. Reported from a phone: the button had
+    to be un-zoomed back into reach.
+
+    So derive the size from the camera's actual FOV and aspect, and take the
+    smaller of "as wide as it wants" and "80% of what's visible".
+    */
+    const z = 2.2
+    const cam = this.scene.activeCamera
+    const fov = (cam as BABYLON.FreeCamera)?.fov ?? 0.8
+    const aspect = this.engine.getAspectRatio(cam as BABYLON.Camera) || 1.6
+    const visibleH = 2 * z * Math.tan(fov / 2)
+    const width = Math.min(1.1, visibleH * aspect * 0.8)
     const plane = b3dSvgPlane({
       cameraRelative: true,
-      width: 1.1,
-      height: 1.1 * ((46 + rows.length * 48) / 320),
-      z: 2.2,
+      width,
+      height: width * (svgH / 320),
+      z,
       y: 0,
       resolution: 512,
       pointerEvents: 'on',
@@ -791,6 +829,10 @@ export class B3d extends Component {
   private _hidePausePanel(): void {
     this._pausePanel?.remove()
     this._pausePanel = null
+    if (this._cameraWasAttached && this.camera != null) {
+      this.camera.attachControl(this.parts.canvas as HTMLCanvasElement, false)
+    }
+    this._cameraWasAttached = false
   }
 
   /**

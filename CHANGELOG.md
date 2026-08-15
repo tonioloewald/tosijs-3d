@@ -202,6 +202,18 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **The pause panel fought the camera for your tap.** It lives in the scene, so
+  a press on it is also a press on the canvas, and the camera's input got it
+  too: on a phone the first attempt to press Continue read as a pinch-zoom,
+  which moved the camera through the panel and hid it, so the button had to be
+  un-zoomed back into reach. The camera is now detached while the panel is up
+  (which is also what "paused" ought to mean) and restored on resume.
+- **The pause panel was wider than a phone's viewport.** Sized at a fixed 1.1
+  world units, it fits a 16:9 monitor and overflows a portrait phone — at the
+  default FOV only ~0.86 units are visible across, so the edges and the button
+  sat off-screen. It now derives its width from the camera's real FOV and
+  aspect. `panel-fit.test.ts` pins it, including the portrait case that broke.
+
 - **`B3dGamepad.fade` was read once at connect**, so toggling it at runtime did
   nothing in either direction — including from a `scenePanel` toggle, which is
   this repo's own recommended way to expose a tweakable. A settings control that
