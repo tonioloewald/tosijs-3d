@@ -67,6 +67,36 @@ Requires [Bun](https://bun.sh). Run `bun install` once after cloning.
 
 `bun run build` also emits the library: `site.config.ts` sets `emitLibrary: true` + `libraryTsconfig: 'tsconfig.build.json'`, so `buildSite()` runs the library `tsc` step itself after the doc-site build (there is no separate `tsc` invocation in `bin/site.ts`). The published `dist/` ships **per-file, unminified JS + `.d.ts` + sourcemaps with doc comments preserved** (`removeComments: false`), so consumers and AI agents have browseable source plus types. The root `tsconfig.json` is `noEmit`; `tsconfig.build.json` overrides it.
 
+### Prerelease tarballs go in `../local-packages/`, never a scratchpad
+
+A release that is tagged but not published is consumed by adopters as a `file:`
+dependency, and the artifact must live where **the other agent can find it**:
+`../local-packages/`, the ecosystem's agreed drop point (see
+`tosijs-coding-practices/practices/releasing.md` → "Bypassing the publish loop",
+written by manta-recon after failing to find tarballs I had packed into a
+session scratchpad — ephemeral, session-scoped, and unreachable by the one agent
+that needed them).
+
+Producing side, every time:
+
+```sh
+npm pack --pack-destination ../local-packages
+shasum -a 256 ../local-packages/tosijs-3d-<version>.tgz
+```
+
+…then update `../local-packages/PROVENANCE.md` with the tag, the commit actually
+packed from (say so if it is ahead of the tag), whether the tree was clean, the
+timestamp and the sha256. A `file:` dep has no registry and no integrity check,
+so that note **is** the supply chain. Never overwrite a tarball in place — a
+`file:` dep is cached by path, so same name plus different bytes gives some
+consumers the old one silently. Delete superseded ones, and drop the whole entry
+the moment the version reaches npm.
+
+**And clean up strays.** An `npm pack` with no `--pack-destination` drops the
+tarball in the cwd; loose ones in `/tmp` are worse than useless because an
+un-suffixed `tosijs-3d-0.7.0.tgz` can be OLDER than `…-0.7.0-beta.1.tgz` and
+reads as the final release. (Ours was, by 15 minutes. manta found it.)
+
 ### Driving the live page (haltija / `hj`)
 
 `bun start` runs a [haltija](https://github.com/tonioloewald/haltija) dev-channel so an agent can

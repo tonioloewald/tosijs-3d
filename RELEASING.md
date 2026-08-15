@@ -169,6 +169,24 @@ last **stable** tag, not the last rc.)
    - If something breaking lands in that window, say so — the section may now be
      titled for a smaller bump than it deserves.
 
+7a. **If it is a prerelease an adopter needs, drop the tarball where they can
+find it** — `../local-packages/`, not a scratchpad, not loose in `/tmp`:
+
+```sh
+npm pack --pack-destination ../local-packages
+shasum -a 256 ../local-packages/tosijs-3d-<version>.tgz
+```
+
+Then update `../local-packages/PROVENANCE.md`: tag, the commit actually
+packed from (say so if it is ahead of the tag), tree state, timestamp,
+sha256. A `file:` dep has no registry and no integrity hash, so that note is
+the supply chain. Never overwrite a tarball in place; delete superseded ones;
+drop the entry entirely once npm has the version.
+
+The rule and its traps live in `tosijs-coding-practices/practices/releasing.md`
+("Bypassing the publish loop") — written by an adopter who could not find
+tarballs packed into a session scratchpad.
+
 8. **Publish to npm** — **manual, done by a human** (not automated here):
 
    ```sh
