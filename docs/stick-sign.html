@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>stick sign — issue #14</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0d1117;
+        color: #e8eef2;
+        font:
+          16px/1.45 system-ui,
+          -apple-system,
+          sans-serif;
+        overflow: hidden;
+      }
+      header {
+        padding: 10px 14px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+      p.sub {
+        margin: 2px 0 0;
+        color: #93a4b0;
+        font-size: 13px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+        font:
+          15px/1.3 ui-monospace,
+          Menlo,
+          monospace;
+      }
+      th,
+      td {
+        padding: 7px 14px;
+        text-align: left;
+        border-bottom: 1px solid #1e2836;
+      }
+      th {
+        color: #93a4b0;
+        font-weight: 500;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      td.v {
+        font-size: 22px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+      .pos {
+        color: #6ee7a8;
+      }
+      .neg {
+        color: #ff8a7a;
+      }
+      .zero {
+        color: #55636f;
+      }
+      #verdict {
+        margin: 10px 14px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: #131c26;
+        border: 1px solid #26323f;
+        font-size: 15px;
+        min-height: 62px;
+      }
+      #verdict b {
+        display: block;
+        font-size: 17px;
+        margin-bottom: 3px;
+      }
+      .ok b {
+        color: #6ee7a8;
+      }
+      .bad b {
+        color: #ffcf6b;
+      }
+      /* The glass pad mounts fixed to the viewport corners; leave room. */
+      #pad {
+        position: fixed;
+        inset: 0;
+        container-type: size;
+        pointer-events: none;
+      }
+      #pad > * {
+        pointer-events: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Which way is up? — issue #14</h1>
+      <p class="sub">
+        Raw stick values straight out of each source, <b>before any mapping</b>.
+        Push the on-screen stick <b>UP</b> (and W, and a real pad if you have
+        one). They should all read the same sign.
+      </p>
+    </header>
+
+    <table>
+      <thead>
+        <tr>
+          <th>source</th>
+          <th>leftStickY</th>
+          <th>rightStickY</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>glass / touch</td>
+          <td class="v" id="gL">0.00</td>
+          <td class="v" id="gR">0.00</td>
+        </tr>
+        <tr>
+          <td>keyboard (W/S)</td>
+          <td class="v" id="kL">0.00</td>
+          <td class="v" id="kR">0.00</td>
+        </tr>
+        <tr>
+          <td>hardware pad</td>
+          <td class="v" id="hL">0.00</td>
+          <td class="v" id="hR">0.00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div id="verdict"><b>waiting…</b>push a stick up</div>
+
+    <div id="pad"><tosi-b3d-gamepad id="glass"></tosi-b3d-gamepad></div>
+
+    <script src="/iife.js"></script>
+    <script>
+      // Deliberately NO aircraftMapping and no ControlInput: the question is
+      // whether the SOURCES agree, so anything downstream would only add a place
+      // for the answer to change on the way here. (#14)
+      const $ = (id) => document.getElementById(id)
+      const glass = $('glass')
+
+      let keyboard = null
+      let hardware = null
+      const ready = setInterval(() => {
+        const T = window.tosijs3d ?? window['tosijs-3d'] ?? null
+        // The bundle doesn't publish a global, so reach the sources the way the
+        // glass pad does: it already owns a keyboard + hardware source list when
+        // mounted inside a scene. Standalone, poll what we can construct.
+        if (glass && typeof glass.poll === 'function') clearInterval(ready)
+      }, 200)
+
+      const show = (el, v) => {
+        el.textContent = (v >= 0 ? '+' : '') + v.toFixed(2)
+        el.className =
+          'v ' + (Math.abs(v) < 0.02 ? 'zero' : v > 0 ? 'pos' : 'neg')
+      }
+
+      // Keyboard, read directly off the physical keys so this page needs nothing
+      // from the input stack to produce its comparison row.
+      const keys = new Set()
+      addEventListener('keydown', (e) => keys.add(e.code))
+      addEventListener('keyup', (e) => keys.delete(e.code))
+      const keyboardY = () =>
+        (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) -
+        (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0)
+
+      let seenGlass = 0
+      let seenOther = 0
+
+      const tick = () => {
+        // GLASS: the component's own merged poll — exactly what the input stack
+        // consumes from it.
+        let g = { leftStickY: 0, rightStickY: 0 }
+        try {
+          if (typeof glass.poll === 'function') g = glass.poll()
+        } catch (e) {
+          /* still mounting */
+        }
+        show($('gL'), g.leftStickY ?? 0)
+        show($('gR'), g.rightStickY ?? 0)
+
+        // KEYBOARD: W = "forward/up" — the convention keyboard-gamepad documents.
+        const kY = keyboardY()
+        show($('kL'), kY)
+        show($('kR'), 0)
+
+        // HARDWARE: raw axes[1], negated the way hardware-gamepad does
+        // ("invert Y (up = positive)"), so this row shows what that source emits.
+        let hY = 0
+        let hRY = 0
+        const pads = navigator.getGamepads ? navigator.getGamepads() : []
+        for (const p of pads) {
+          if (!p) continue
+          hY = -(p.axes[1] ?? 0)
+          hRY = -(p.axes[3] ?? 0)
+          break
+        }
+        show($('hL'), hY)
+        show($('hR'), hRY)
+
+        // Remember the sign each family last showed at meaningful deflection, so
+        // you can push one then the other rather than needing three hands.
+        if (Math.abs(g.leftStickY ?? 0) > 0.4) seenGlass = Math.sign(g.leftStickY)
+        const other = Math.abs(kY) > 0.4 ? kY : Math.abs(hY) > 0.4 ? hY : 0
+        if (other !== 0) seenOther = Math.sign(other)
+
+        const v = $('verdict')
+        if (seenGlass === 0 || seenOther === 0) {
+          v.className = ''
+          v.innerHTML =
+            '<b>waiting…</b>push the glass stick up, then W (or a real pad)'
+        } else if (seenGlass === seenOther) {
+          v.className = 'ok'
+          v.innerHTML =
+            `<b>AGREE — both report ${seenGlass > 0 ? '+' : '−'}ve for up</b>` +
+            'The sources are consistent on this device. #14 is somewhere else.'
+        } else {
+          v.className = 'bad'
+          v.innerHTML =
+            `<b>DISAGREE — glass ${seenGlass > 0 ? '+' : '−'}ve, keyboard/pad ${seenOther > 0 ? '+' : '−'}ve for up</b>` +
+            '#14 confirmed on this device: the touch source has the opposite sign.'
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    </script>
+  </body>
+</html>
