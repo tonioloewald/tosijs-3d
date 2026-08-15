@@ -118,6 +118,95 @@ tosi-b3d {
 }
 ```
 
+## Demo — pause, start screens, and the VR entry gesture
+
+A second, deliberately small scene. It starts paused with its own panel, so the
+first thing you see is a Start screen; backgrounding the tab pauses it again.
+
+The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
+gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
+paused, put the headset on, press Continue" is the only arrangement that
+reliably enters VR, and `enterXrOnResume` closes the loop by pausing when you
+take the headset off. Set it on the scene below and the button changes to
+"Continue in VR" on a device that has it.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, label3d, button3d, select3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
+const RATE = { slow: 0.15, medium: 0.6, fast: 2 }
+
+const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#e06a3f' })
+
+const scene = b3d(
+  {
+    startPaused: true,
+    // pauseWhenHidden is ON by default — switch to another tab and come back.
+    frameRate: 60,
+    // Replace the built-in rows. `resume` is handed in: whatever you build has
+    // to be able to let the player back in.
+    pausePanel: (host, resume) => [
+      label3d({ text: 'PAUSED', bold: true }),
+      select3d({
+        label: 'spin',
+        value: demo.pauseDemo.spin,
+        options: ['slow', 'medium', 'fast'],
+      }),
+      button3d({ label: 'Continue', onClick: resume }),
+    ],
+    update: (host) => {
+      // Never runs while paused — that is the point. The cube freezing IS the
+      // demo, so leave the readout to the events below.
+      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? 0.6
+      // `ry`, not `mesh.rotation.y` — AbstractMesh writes a rotationQuaternion
+      // from rx/ry/rz every frame, so a euler write is silently overwritten.
+      cube.ry += rate * host.frameDelta
+    },
+  },
+  b3dSun({ intensity: 0.9 }),
+  b3dSkybox({ timeOfDay: 11 }),
+  b3dGround({ meshName: 'floor', width: 40, height: 40, color: '#5d7a5a' }),
+  cube
+)
+
+// Both events carry what a game needs to react: `reason` distinguishes "the
+// player asked" from "the tab went away".
+scene.addEventListener('pause', (e) => {
+  demo.pauseDemo.state = `paused (${e.detail.reason})`
+})
+scene.addEventListener('resume', () => {
+  demo.pauseDemo.state = 'running'
+})
+// Orientation comes from the VIEWPORT, so it works where screen.orientation
+// doesn't — rotate a phone, or make the window taller than it is wide.
+scene.addEventListener('orientation', (e) => {
+  demo.pauseDemo.state = `${e.detail.orientation} ${e.detail.width}x${e.detail.height}`
+})
+
+const readout = document.createElement('div')
+readout.style.cssText = 'font: 13px ui-monospace, monospace; padding: 6px'
+demo.pauseDemo.state.observe(() => {
+  readout.textContent = `state: ${demo.pauseDemo.state.valueOf()}   ·   scene.paused: ${scene.paused}`
+})
+readout.textContent = 'state: paused since load'
+
+const bar = document.createElement('div')
+bar.style.cssText = 'display: flex; gap: 8px; padding: 6px'
+for (const [label, fn] of [
+  ['pause()', () => scene.pause('user')],
+  ['resume()', () => scene.resume()],
+  ['togglePause()', () => scene.togglePause()],
+]) {
+  const b = document.createElement('button')
+  b.textContent = label
+  b.onclick = fn
+  bar.append(b)
+}
+
+preview.append(scene, readout, bar)
+```
+
 ## Usage
 
 ```javascript
