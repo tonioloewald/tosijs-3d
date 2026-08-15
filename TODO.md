@@ -251,6 +251,37 @@ water meshes from the raycast behind a `submarine`/`waterY` attr; seabed stays t
 0.1 vs 1.0) — two configs lerped on a y-band, like b3dWater's fogTransition.
 [ ] Surface-crossing event (aircraft or water) for splash/wake VFX, audio, camera cues.
 
+## Portals — the sim's word and the geometry's word are the same object
+
+Worth stating because the codebase uses "portal" in two places and they are one
+thing, which is the useful part:
+
+- **`world-topology.routePortals`** already treats a portal as a declared
+  connection between places, with `locked` making it impassable — the narrative
+  layer's vocabulary, shipped and unit-tested.
+- **The story→geometry compiler** (TUNNEL-DESIGN) turns a graph EDGE into a
+  volumetric stroke. That edge _is_ a portal.
+
+So the same declaration drives routing and geometry, which is exactly the
+property TUNNEL-DESIGN's verification rule needs: _the cave the sim believes in
+and the cave you can fly through must not diverge._ One object, two consumers,
+nothing to keep in sync.
+
+What follows from that, all already implied by the notes further down this file:
+
+- [ ] **A locked portal is a deliberately REGULAR neck** where a door mounts —
+      the one place in a cave system that should read as built rather than
+      excavated, because it is.
+- [ ] **Portals carry a clearance**, so Ariosto can route per agent profile
+      (foot ~0.4 m, scout ~4 m). "Walkable but unflyable" is gameplay, not a
+      bug. Verification is clearance-based flood fill, not connectivity alone.
+- [ ] **Interiors are not a separate system.** A building is a `pad` landform
+      minus some boxes — the same province vocabulary as a cave, with a door as
+      its surface-breaking node. Which means the everything-demo's "portal into
+      a building" needs no new machinery beyond what caves need.
+- [ ] **A door is a surface-breaking node pinned at depth 0**, so it is authored
+      rather than discovered — the same rule that makes entrances tractable.
+
 ## Volumetric fine tiles — measure before building (2026-08-15)
 
 Tonio's idea, and its conclusion: if the finest terrain LOD is volumetric and
@@ -349,8 +380,9 @@ It also answers #20 directly — the demo suite representing one kind of game.
 4. **Star system / galaxy.** `b3d-star-system` and `b3d-galaxy` exist; this is
    mostly a scale-and-hand-off problem, i.e. step 3 again at another magnitude.
 5. **Get out and walk.** Ship → biped → jeep is `b3d-input-focus`'s existing
-   enter/exit; the new part is interiors (portals), which is `b3d-patch`
-   territory and currently EXPERIMENTAL.
+   enter/exit; the new part is **interiors**, which is a cavity province like
+   any cave — a building is a `pad` landform minus some boxes. (`b3d-patch` was
+   yanked; see below.)
 
 **THE 2-SECOND BUDGET IS THE FEATURE.** Manta already loads fast on a phone,
 and a mini-No-Man's-Sky that opens from a URL in ~2s on an iPhone — no install,
