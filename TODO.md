@@ -439,8 +439,22 @@ connectivity nobody declared.
       free until someone is inside it. Cheap (bounds vs the height sampler) and
       it turns residency from a radius — with `b3d-patch`'s hysteresis problem —
       into "am I inside, or can I see in".
-- [ ] **Extraction cost near a cavity** against `tileBuildMs`. Now scoped to
-      tiles that actually contain one, not to the whole finest ring.
+- [x] **DONE — extraction cost measured, and it RULES OUT the naive version**
+      (2026-08-15). One 128 m tile, fBm terrain, against a 2–4 ms `tileBuildMs`:
+      8 m cells 1.5 ms, 4 m 3.4–4.4 ms, 2 m 9.4–14.1 ms. Beside the deviation
+      table that is a straight tension — **2 m buys sub-centimetre and costs 3–5×
+      the budget; 4 m fits and deviates 5 cm**, on ground you are standing next
+      to. So "make the finest tiles volumetric" is dead by its own numbers, and
+      what survives is **surface minus cavities**, where cost scales with cavity
+      volume rather than tile area and the deviation question does not arise at
+      all. The two measurements killed the expensive version and left the cheap
+      one standing, before anything was built on either.
+- [ ] **The number that now matters: what fraction of a tile a REAL cavity
+      touches**, and therefore what extraction actually costs in a province.
+      Needs a real province, not a synthetic one.
+- [ ] **Escape hatch if it is close:** extraction is a pure function over
+      transferable typed arrays — exactly the shape PERF-DESIGN says belongs in a
+      worker. Nothing about it needs the frame thread.
 - [x] **DONE — deviation measured, and it PASSES** (`volumetric-surface.test.ts`,
       2026-08-15). Against 6 m sine hills: 8 m cell → 0.189 m max, 4 m → 0.049,
       2 m → 0.0096, 1 m → 0.0011. Flat ground is machine epsilon; a plane is

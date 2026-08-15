@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test'
 import { extractChunk } from './sdf-lattice'
 import { terrainDensity } from './patch-field'
+import { PerlinNoise } from './perlin-noise'
 
 /*
 THE GO/NO-GO MEASUREMENT FOR VOLUMETRIC TERRAIN — AS A UNIT TEST.
@@ -118,5 +119,62 @@ describe('a volumetric tile must reproduce the heightfield it replaces', () => {
     const regular = deviation(slope, 4, 0)
     const jittered = deviation(slope, 4, 0.3)
     expect(jittered.max).toBeLessThan(Math.max(0.05, regular.max * 3 + 0.01))
+  })
+})
+
+/*
+THE SECOND MEASUREMENT: EXTRACTION COST. It does NOT pass for the naive version,
+and that is the useful part.
+
+One 128 m tile extracted volumetrically, fBm terrain, against the `tileBuildMs`
+budget of 2–4 ms:
+
+| cell | grid       | ms   | triangles |
+| ---- | ---------- | ---- | --------- |
+| 8 m  | 16×4×16    | 1.5  | 460       |
+| 4 m  | 32×4×32    | 3.4  | 2 016     |
+| 4 m  | 32×8×32    | 4.4  | 2 018     |
+| 2 m  | 64×4×64    | 9.4  | 5 560     |
+| 2 m  | 64×8×64    | 14.1 | 8 378     |
+
+Put beside the deviation table above, the two measurements are in tension:
+**2 m buys sub-centimetre accuracy and costs 3–5× the budget; 4 m fits the budget
+and deviates 5 cm** — which at the finest LOD is ground you are standing next to.
+
+So "make the finest tiles volumetric" — the version I wrote up first — is ruled
+out by its own numbers. What survives is the refinement: **surface MINUS
+cavities**. Where nothing is carved there is no extraction at all, so the cost
+scales with cavity volume rather than tile area, and the deviation question does
+not arise because the surface is still the heightfield. A lava tube crossing a
+tile touches a small fraction of its cells.
+
+Which means these two tables did their job: they killed the expensive version and
+left the cheap one standing, before anything was built on either.
+
+**Still open, and now the number that matters:** what fraction of a tile a real
+cavity actually touches, and therefore what the extraction costs in practice.
+That needs a real province, not a synthetic one.
+
+**And there is an escape hatch if it is close:** extraction is a pure function
+over transferable typed arrays — the exact shape PERF-DESIGN says belongs in a
+worker ("send the recipe, transfer the result"). Nothing here needs to run on the
+frame thread.
+*/
+
+describe('extraction cost — documented, with a loose regression bound', () => {
+  test('a full 128m tile at 4m cells is in the low milliseconds', () => {
+    // Deliberately loose: this is a MEASUREMENT that must not flake on a busy
+    // machine, but a 10x regression should still fail.
+    const n = new PerlinNoise(7)
+    const h = (x: number, z: number) =>
+      n.fractal(x * 0.004, 0, z * 0.004, 4) * 60
+    const spec = { ix: 0, iy: -8, iz: 0, nx: 32, ny: 8, nz: 32 }
+    const cfg = { spacing: 4, jitter: 0.25, seed: 7 }
+    extractChunk(terrainDensity(h), spec, cfg) // warm
+    const t0 = performance.now()
+    const mesh = extractChunk(terrainDensity(h), spec, cfg)
+    const ms = performance.now() - t0
+    expect(mesh.triangleCount).toBeGreaterThan(500)
+    expect(ms).toBeLessThan(50) // measured ~4.4ms
   })
 })
