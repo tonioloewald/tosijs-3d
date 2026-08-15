@@ -310,6 +310,57 @@ export function spawnMissile(owner, opts) {
         }
         : { x: dir0.x * cruise, y: dir0.y * cruise, z: dir0.z * cruise };
     let last = null;
+    // The seeker, named so the CALLER'S guide can compose with it rather than
+    // replace it. A missile used to consume `opts.guide` for its own homing, so a
+    // game could give medium behaviour (water drag, a depth floor) to a dumb shell
+    // but not to a guided round — tosijs-3d#13, manta-recon.
+    const seek = (state, dt) => {
+        elapsed += dt;
+        // THRUST first, and unconditionally — a motor burns whether or not there's a
+        // target, and (crucially) whether or not the seeker wants to turn.
+        // ramp the current speed toward cruise; steerToward below preserves the magnitude.
+        if (accel > 0) {
+            const cur = Math.hypot(state.vel.x, state.vel.y, state.vel.z);
+            const step = accel * dt;
+            const spd = Math.abs(cruise - cur) <= step
+                ? cruise
+                : cur + Math.sign(cruise - cur) * step;
+            if (cur > 1e-6) {
+                const s = spd / cur;
+                state.vel.x *= s;
+                state.vel.y *= s;
+                state.vel.z *= s;
+            }
+            else {
+                state.vel.x = dir0.x * spd;
+                state.vel.y = dir0.y * spd;
+                state.vel.z = dir0.z * spd;
+            }
+        }
+        if (target.isDisposed())
+            return; // lost lock — coast straight
+        const tp = target.absolutePosition;
+        const tPos = { x: tp.x, y: tp.y, z: tp.z };
+        const tVel = last != null && dt > 1e-5
+            ? {
+                x: (tPos.x - last.x) / dt,
+                y: (tPos.y - last.y) / dt,
+                z: (tPos.z - last.z) / dt,
+            }
+            : { x: 0, y: 0, z: 0 };
+        last = tPos;
+        const desired = interceptLead(state.pos, cruise, tPos, tVel) ??
+            gNormalize(gSub(tPos, state.pos));
+        // BOOST: the seeker steers throughout, but its authority ramps in as the motor
+        // brings the round up to speed — so it leaves the rail accelerating essentially
+        // straight, and is fully agile by burnout. (Thrust itself, above, is
+        // unconditional: a motor burns whether or not the seeker wants to turn.)
+        const authority = boostAuthority(elapsed, boostTime);
+        const v = steerToward(state.vel, desired, opts.turnRate * authority, dt);
+        state.vel.x = v.x;
+        state.vel.y = v.y;
+        state.vel.z = v.z;
+    };
     return spawnProjectile(owner, {
         origin: opts.origin,
         velocity: new BABYLON.Vector3(launchVel.x, launchVel.y, launchVel.z),
@@ -327,51 +378,10 @@ export function spawnMissile(owner, opts) {
         ignore: opts.ignore,
         radar: opts.radar,
         guide: (state, dt) => {
-            elapsed += dt;
-            // THRUST first, and unconditionally — a motor burns whether or not there's a
-            // target, and (crucially) whether or not the seeker wants to turn.
-            // ramp the current speed toward cruise; steerToward below preserves the magnitude.
-            if (accel > 0) {
-                const cur = Math.hypot(state.vel.x, state.vel.y, state.vel.z);
-                const step = accel * dt;
-                const spd = Math.abs(cruise - cur) <= step
-                    ? cruise
-                    : cur + Math.sign(cruise - cur) * step;
-                if (cur > 1e-6) {
-                    const s = spd / cur;
-                    state.vel.x *= s;
-                    state.vel.y *= s;
-                    state.vel.z *= s;
-                }
-                else {
-                    state.vel.x = dir0.x * spd;
-                    state.vel.y = dir0.y * spd;
-                    state.vel.z = dir0.z * spd;
-                }
-            }
-            if (target.isDisposed())
-                return; // lost lock — coast straight
-            const tp = target.absolutePosition;
-            const tPos = { x: tp.x, y: tp.y, z: tp.z };
-            const tVel = last != null && dt > 1e-5
-                ? {
-                    x: (tPos.x - last.x) / dt,
-                    y: (tPos.y - last.y) / dt,
-                    z: (tPos.z - last.z) / dt,
-                }
-                : { x: 0, y: 0, z: 0 };
-            last = tPos;
-            const desired = interceptLead(state.pos, cruise, tPos, tVel) ??
-                gNormalize(gSub(tPos, state.pos));
-            // BOOST: the seeker steers throughout, but its authority ramps in as the motor
-            // brings the round up to speed — so it leaves the rail accelerating essentially
-            // straight, and is fully agile by burnout. (Thrust itself, above, is
-            // unconditional: a motor burns whether or not the seeker wants to turn.)
-            const authority = boostAuthority(elapsed, boostTime);
-            const v = steerToward(state.vel, desired, opts.turnRate * authority, dt);
-            state.vel.x = v.x;
-            state.vel.y = v.y;
-            state.vel.z = v.z;
+            seek(state, dt);
+            // The caller LAST, so it sees what the seeker decided and can constrain it:
+            // the seeker wants to go fast, the water says no.
+            opts.guide?.(state, dt);
         },
     });
 }

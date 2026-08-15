@@ -55,6 +55,16 @@ export declare function spawnProjectile(owner: B3d, opts: ProjectileOpts): {
     dispose: () => void;
 };
 export interface MissileOpts {
+    /**
+     * Per-frame hook run AFTER the seeker, so it can constrain what homing asked
+     * for — water drag, a depth floor, a speed cap in another medium. Same shape as
+     * `ProjectileOpts.guide`; on a missile it composes with the seeker instead of
+     * replacing it (tosijs-3d#13).
+     */
+    guide?: (state: {
+        pos: Vec3;
+        vel: Vec3;
+    }, dt: number) => void;
     origin: BABYLON.Vector3;
     /** The mesh to home on. If it's disposed mid-flight the missile flies straight. */
     target: BABYLON.AbstractMesh;

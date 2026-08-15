@@ -494,6 +494,17 @@ export declare class B3d extends Component {
     private _repaintPanels;
     addDebugSource(source: DebugPanelSource): () => void;
     private _sourceRows;
+    /**
+     * ICON-BAR GADGETS — items that FLIP something rather than expanding a
+     * readout. Same bar as the debug tools (one row of small icons, one UI in
+     * both presentations), different job.
+     *
+     * The glass gamepad's fade is production-correct and development-hostile: as
+     * soon as a mouse or trackpad is present it goes away and doesn't come back,
+     * so checking it on a laptop meant switching Chrome into responsive mode.
+     * This is the one-tap way back, and it works in a headset too.
+     */
+    private _panelGadgets;
     private _debugTools;
     private _startLiveDebug;
     private _perfReadoutRows;

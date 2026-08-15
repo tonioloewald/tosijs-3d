@@ -9,6 +9,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 > **Beta builds cut from this section** (tarballs, not npm releases — see
 > `RELEASING.md`'s tagged-but-unpublished window):
 >
+> - **0.7.0-beta.2** (2026-08-15) — adds #13's missile-guide composition, the
+>   gear gadget for the glass gamepad, and the live `fade`. #14 investigated and
+>   NOT changed: the glass source measures correct on desktop from four
+>   independent angles, so no sign was flipped (see the issue).
 > - **0.7.0-beta.1** (2026-08-14) — everything below, including the four
 >   manta-recon issues fixed that day: #9 (crashed aircraft eats input) and the
 >   `b3d-death` latching bug behind it, #10 (`aircraftMapping` ignored its

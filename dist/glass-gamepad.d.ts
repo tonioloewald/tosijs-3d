@@ -73,6 +73,22 @@ export declare class B3dGamepad extends Component implements GamepadSource {
      * it must not fade itself away under your thumb.
      */
     private _watchRealInput;
+    /**
+     * Is the pad currently hidden by the fade behaviour?
+     *
+     * Public because the fade is production-correct but development-hostile: once
+     * a mouse or trackpad is present the pad goes away and (short of an input
+     * drought) doesn't come back, so checking it on a laptop meant reaching for
+     * Chrome's responsive mode. `<tosi-b3d>` puts a gamepad gadget in the gear
+     * panel that reads and flips this.
+     */
+    get hidden(): boolean;
+    /**
+     * Force the pad visible (`false`) or hand it back to the fade behaviour
+     * (`true`). Reconciles immediately — a toggle that waited for the next
+     * pointer move would read as broken.
+     */
+    setFade(on: boolean): void;
     private _setFaded;
     private _inputWatch;
     private _idleTimer;
