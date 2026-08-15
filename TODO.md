@@ -306,8 +306,39 @@ already won.
   200 buildings must not each occupy world space, or when inside genuinely
   differs (its own lighting, media, physics, time of day).
 
-**Start with co-located**, because it is free, and let portal rendering be the
-thing you reach for when co-location stops paying.
+**And the third option, which is probably the DEFAULT: a transition zone.** Tonio:
+go through a bent corridor and voila. If the geometry guarantees you can never see
+both spaces at once, nothing has to render both — so the swap happens inside the
+corridor with nothing visible to contradict it. That is not a compromise version
+of portal rendering, it is a **cheaper primitive that solves the same problem**:
+no render pass, no stencil, no recursion limit, and nothing to double in VR.
+
+It also happens to be the most robust option in a headset, because it relies on
+_occlusion_ rather than on where the player is looking — and you cannot direct a
+player's gaze in VR. A fade can be looked past; a wall cannot.
+
+The corridor is a `carve.tube` with a bend, so it is the vocabulary we already
+have, and an airlock, a porch, a stairwell and a jetway are all the same object
+dressed differently.
+
+**Two things must be CHECKED rather than assumed** — both cheap, both the same
+discipline as clearance verification:
+
+- **The bend actually occludes.** A corridor that looks bent can still hold a
+  grazing sight line, or a gap at the ceiling. This is verifiable the same way
+  clearance is: sample points either side, raycast, fail loudly naming the pair
+  that can see each other. A transition zone that _nearly_ occludes is worse than
+  none, because the failure is a one-frame flash of the wrong world.
+- **Length is a TIME budget, not a distance.** The corridor must take longer to
+  traverse than the far side takes to load, at the fastest speed anything can go
+  through it. A sprinting biped and a driven jeep need different corridors, so
+  the requirement is `length ≥ maxSpeed × loadTime` and it should be stated per
+  portal, not guessed. Better still, start loading on APPROACH (`b3d-trigger`
+  already does proximity), so the corridor only has to cover the tail.
+
+**Order of preference: co-located → transition zone → portal rendering.** Free,
+nearly free, then a render pass — and reach for the next one only when the
+previous stops paying.
 
 **What it would actually cost, stated before anyone calls it free:**
 
