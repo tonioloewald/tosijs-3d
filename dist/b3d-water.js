@@ -211,6 +211,24 @@ export class B3dWater extends AbstractMesh {
             // for depth charges and torpedoes, not a physical constant.
             drag: 40,
             density: 1000,
+            /*
+            ⚠️ EXPERIMENTAL, and deliberately NOT load-bearing yet.
+      
+            These are the same numbers the fog layer below computes from, published so
+            the underside shader, the light shafts and anything else that wants "how
+            murky is it here" can read ONE answer instead of deriving a second (which
+            is how the fogged sky and the transparent window ended up contradicting
+            each other). The shipped fog layer still computes its own, because that
+            path is verified and swapping it is a visual change that wants an eye on
+            it — see MEDIUM-DESIGN.md §7 step 1.
+            */
+            optics: {
+                color: { r: 0, g: 0.15, b: 0.3 },
+                density: this.underwaterFog,
+                murk: this.underwaterMurk,
+                murkDepth: 30,
+                minVisibility: 6,
+            },
         });
         this._removeMedium = owner.addMedium(this._medium);
         this._removeFogLayer = owner.addFogLayer(() => {

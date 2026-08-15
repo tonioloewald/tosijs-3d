@@ -119,16 +119,24 @@ describe('every source agrees: up is positive', () => {
     kb.axisState.leftStickY = 1
     const kbY = kb.poll().leftStickY
 
-    const g = globalThis as any
-    const prev = g.navigator?.getGamepads
-    g.navigator ??= {}
-    g.navigator.getGamepads = () => [{ axes: [0, -1, 0, 0], buttons: [], index: 0 }]
-    let hwY = 0
-    try {
-      hwY = new HardwareGamepadSource().poll().leftStickY
-    } finally {
-      if (prev) g.navigator.getGamepads = prev
+    // A helper rather than a let/try/finally dance: the assignment inside the
+    // try was flagged as dead (it always runs before any read), and reading a
+    // value out of a scoped stub is what we actually mean.
+    const withStubPad = <T>(axes: number[], fn: () => T): T => {
+      const g = globalThis as any
+      const prev = g.navigator?.getGamepads
+      g.navigator ??= {}
+      g.navigator.getGamepads = () => [{ axes, buttons: [], index: 0 }]
+      try {
+        return fn()
+      } finally {
+        if (prev) g.navigator.getGamepads = prev
+      }
     }
+    const hwY = withStubPad(
+      [0, -1, 0, 0],
+      () => new HardwareGamepadSource().poll().leftStickY
+    )
 
     expect(Math.sign(touchY)).toBe(Math.sign(kbY))
     expect(Math.sign(kbY)).toBe(Math.sign(hwY))

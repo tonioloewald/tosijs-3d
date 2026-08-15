@@ -295,7 +295,8 @@ export function spawnProjectile(owner, opts) {
                 }
             }
             // A depth charge: fuse on depth, not on impact.
-            if (opts.detonateDepth != null && depthIn(state.pos, m) >= opts.detonateDepth) {
+            if (opts.detonateDepth != null &&
+                depthIn(state.pos, m) >= opts.detonateDepth) {
                 const at = new BABYLON.Vector3(state.pos.x, state.pos.y, state.pos.z);
                 detonateWarhead(owner, at, opts.warhead, opts.useLos ?? true);
                 opts.onImpact?.(at);

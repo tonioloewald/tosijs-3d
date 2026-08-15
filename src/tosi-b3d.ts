@@ -790,16 +790,14 @@ export class B3d extends Component {
       this.camera.detachControl()
       this._cameraWasAttached = true
     }
-    const rows =
-      this.pausePanel(this, () => this.resume()) ??
-      [
-        label3d({ text: 'Paused', bold: true }),
-        button3d({
-          label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
-          // The tap IS the user gesture that makes entering XR legal.
-          onClick: () => this.resume(),
-        }),
-      ]
+    const rows = this.pausePanel(this, () => this.resume()) ?? [
+      label3d({ text: 'Paused', bold: true }),
+      button3d({
+        label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
+        // The tap IS the user gesture that makes entering XR legal.
+        onClick: () => this.resume(),
+      }),
+    ]
     const svgH = 46 + rows.length * 48
     const svg = panel3d({ width: 320, height: svgH }, ...rows)
 

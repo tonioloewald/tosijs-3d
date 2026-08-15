@@ -17,6 +17,8 @@ export interface PlaneMedium {
     maxSpeed?: number;
     /** kg/m³ if a caller wants buoyancy; unused here. */
     density?: number;
+    /** ⚠️ EXPERIMENTAL — see `MediumOptics`. */
+    optics?: MediumOptics;
 }
 /** A shell around a centre: inside is WITHIN `radius`. */
 export interface SphereMedium {
@@ -28,6 +30,8 @@ export interface SphereMedium {
     drag?: number;
     maxSpeed?: number;
     density?: number;
+    /** ⚠️ EXPERIMENTAL — see `MediumOptics`. */
+    optics?: MediumOptics;
 }
 export type Medium = PlaneMedium | SphereMedium;
 /** A horizontal medium — a sea, a fog bank, the top of a mercury vat. */
@@ -80,4 +84,48 @@ export declare function innermost(p: MediumVec3, media: Medium[]): Medium | null
  * by `submergence`, so entry is a ramp rather than a wall.
  */
 export declare function dragAt(p: MediumVec3, base: number, media: Medium[]): number;
+export interface MediumOptics {
+    /** Fog colour inside. */
+    color?: {
+        r: number;
+        g: number;
+        b: number;
+    };
+    /** Density the moment you are inside. */
+    density?: number;
+    /** Extra density at full depth — murk that thickens as you go down. */
+    murk?: number;
+    /** Metres over which `murk` reaches full. */
+    murkDepth?: number;
+    /**
+     * Shortest visibility, in metres, the layer will ask for. Fog modes that
+     * IGNORE density (Babylon's LINEAR) need a `start`/`end`, so a layer that
+     * only set density would tint and never thicken — a real bug, fixed once in
+     * b3d-water and worth not re-learning.
+     */
+    minVisibility?: number;
+    /** ⚠️ Reserved for light shafts (MEDIUM-DESIGN.md §4). Unused today. */
+    scattering?: number;
+}
+/** What `fogLayerFor` returns — the shape `atmosphere.compositeFog` consumes. */
+export interface MediumFogLayer {
+    weight: number;
+    color?: {
+        r: number;
+        g: number;
+        b: number;
+    };
+    density?: number;
+    start?: number;
+    end?: number;
+}
+/**
+ * ⚠️ EXPERIMENTAL. The fog contribution of being inside this medium, at this
+ * point — or null when you are outside it or it has no optics.
+ *
+ * Weight is `submergence`, so the fog and anything else keyed off the same
+ * medium (the sky, the underside shader, a regime) cannot disagree about where
+ * the surface is. That single shared weight is the entire point.
+ */
+export declare function fogLayerFor(p: MediumVec3, m: Medium): MediumFogLayer | null;
 //# sourceMappingURL=medium.d.ts.map

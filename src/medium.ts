@@ -259,10 +259,7 @@ export interface MediumFogLayer {
  * medium (the sky, the underside shader, a regime) cannot disagree about where
  * the surface is. That single shared weight is the entire point.
  */
-export function fogLayerFor(
-  p: MediumVec3,
-  m: Medium
-): MediumFogLayer | null {
+export function fogLayerFor(p: MediumVec3, m: Medium): MediumFogLayer | null {
   const o = m.optics
   if (o == null) return null
   const w = submergence(p, m)

@@ -154,4 +154,32 @@ export function dragAt(p, base, media) {
     }
     return base * k;
 }
+/**
+ * ⚠️ EXPERIMENTAL. The fog contribution of being inside this medium, at this
+ * point — or null when you are outside it or it has no optics.
+ *
+ * Weight is `submergence`, so the fog and anything else keyed off the same
+ * medium (the sky, the underside shader, a regime) cannot disagree about where
+ * the surface is. That single shared weight is the entire point.
+ */
+export function fogLayerFor(p, m) {
+    const o = m.optics;
+    if (o == null)
+        return null;
+    const w = submergence(p, m);
+    if (w <= 0)
+        return null;
+    const depth = Math.max(0, depthIn(p, m));
+    const deeper = Math.min(1, depth / Math.max(1e-6, o.murkDepth ?? 30));
+    const density = (o.density ?? 0) + (o.murk ?? 0) * deeper;
+    return {
+        weight: w,
+        color: o.color,
+        density,
+        start: 0,
+        // Contribute an `end` too: a LINEAR fog mode ignores density entirely, so a
+        // density-only layer tints without ever thickening.
+        end: Math.max(o.minVisibility ?? 6, density > 0 ? 3 / density : 1e6),
+    };
+}
 //# sourceMappingURL=medium.js.map

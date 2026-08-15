@@ -179,7 +179,7 @@ describe('⚠️ fogLayerFor — the falsifier for the whole generalisation', ()
   // share, this is fake and the components should stay apart. So the test is
   // whether ONE derivation reproduces what each component hand-rolls today.
 
-  test('WATER: b3d-water\'s own numbers, from optics alone', () => {
+  test("WATER: b3d-water's own numbers, from optics alone", () => {
     // underwaterFog 0.12, underwaterMurk over a 30m ramp, sea-blue, end = 3/density
     const sea = plane({
       name: 'water',

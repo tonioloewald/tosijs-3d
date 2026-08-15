@@ -1,26 +1,30 @@
 # Medium — one idea for water, air, cloud, weather, vacuum
 
 > Status: the **primitive** shipped in 0.7.0-beta.4 (`src/medium.ts`, pure, unit-tested).
-> Everything past §2 is design, not code. Marked ⚠️ where a section is speculative.
+> **§3 landed in 0.7.0-beta.5** as `MediumOptics` + `fogLayerFor`, marked EXPERIMENTAL and
+> deliberately not load-bearing — `b3d-water` publishes its optics but still computes its
+> own fog layer, because that path is verified and swapping it is a visual change.
+> The §8 falsifier has been RUN and holds: one derivation reproduces water's numbers, a
+> cloud bank's soft edge, and vacuum. §4–§6 are still design, not code.
 
 ## 1. The observation
 
 Four things we built separately turn out to be the same thing:
 
-| we called it            | it is                                              |
-| ----------------------- | -------------------------------------------------- |
-| underwater fog + murk   | a medium you are inside, tinting with depth        |
-| cloud whiteout          | a medium you are inside, tinting with depth        |
-| space (no fog)          | the absence of any medium                          |
-| air fog `start`/`end`   | a medium you are *always* inside, on a flat world  |
+| we called it          | it is                                             |
+| --------------------- | ------------------------------------------------- |
+| underwater fog + murk | a medium you are inside, tinting with depth       |
+| cloud whiteout        | a medium you are inside, tinting with depth       |
+| space (no fog)        | the absence of any medium                         |
+| air fog `start`/`end` | a medium you are _always_ inside, on a flat world |
 
 And three effects we would have built separately are one effect:
 
-| we called it              | it is                                      |
-| ------------------------- | ------------------------------------------ |
-| god rays through clouds   | light scattering through a medium          |
-| underwater light shafts   | light scattering through a medium          |
-| dusty shafts in a room    | light scattering through a medium          |
+| we called it            | it is                             |
+| ----------------------- | --------------------------------- |
+| god rays through clouds | light scattering through a medium |
+| underwater light shafts | light scattering through a medium |
+| dusty shafts in a room  | light scattering through a medium |
 
 They differ in **density, colour, and which light** — not in kind. That is the whole
 argument for generalising, and it is Tonio's, from watching #15/#16 land next to
@@ -64,7 +68,7 @@ Volumetric scattering parameterised by `(medium, lightDirection, submergence)`:
 - **interior** — dust in a window's light
 
 `b3d-sun` already dims with depth and already shares its direction, so the inputs are
-present. The open question is the *implementation*, not the model: camera-facing textured
+present. The open question is the _implementation_, not the model: camera-facing textured
 quads (cheap, reads well at a distance, breaks up close) versus a screen-space pass
 (uniform, costs fill, and fill is what a headset has least of).
 
@@ -95,8 +99,8 @@ that is what separates a wade from a belly-flop and a re-entry from a docking:
 - **plasma** — atmospheric entry, intensity from speed against a shell
 - **cloud** — entering a cloud bank, already prototyped in `b3d-clouds`
 
-One effect, one intensity input, three dressings. The engine should say *what happened
-and how hard*; the game decides whether that is a splash, a plasma sheath or nothing.
+One effect, one intensity input, three dressings. The engine should say _what happened
+and how hard_; the game decides whether that is a splash, a plasma sheath or nothing.
 
 **Design rule inherited from `b3d-death`:** cosmetics must not block the transition. If
 the whiteout throws, the medium change still happens. That failure has already been made

@@ -4,7 +4,9 @@ import {
   horizonTransform,
   glassUV,
   hudPointFromUV,
-  lockFillOpacity, hudSizePx } from './hud-math'
+  lockFillOpacity,
+  hudSizePx,
+} from './hud-math'
 import {
   IDENTITY_QUAT,
   quatFromAxisAngle,

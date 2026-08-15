@@ -387,11 +387,7 @@ export function spawnProjectile(
     }
 
     for (const m of media) {
-      const kind = crossing(
-        { x: fromX, y: fromY, z: fromZ },
-        state.pos,
-        m
-      )
+      const kind = crossing({ x: fromX, y: fromY, z: fromZ }, state.pos, m)
       if (kind != null) opts.whenCrossing?.(kind, m, { ...state.pos })
 
       // A torpedo: the surface is a ceiling. Held just inside rather than
@@ -405,7 +401,10 @@ export function spawnProjectile(
       }
 
       // A depth charge: fuse on depth, not on impact.
-      if (opts.detonateDepth != null && depthIn(state.pos, m) >= opts.detonateDepth) {
+      if (
+        opts.detonateDepth != null &&
+        depthIn(state.pos, m) >= opts.detonateDepth
+      ) {
         const at = new BABYLON.Vector3(state.pos.x, state.pos.y, state.pos.z)
         detonateWarhead(owner, at, opts.warhead, opts.useLos ?? true)
         opts.onImpact?.(at)

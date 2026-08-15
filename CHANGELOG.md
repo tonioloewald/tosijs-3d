@@ -9,6 +9,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 > **Beta builds cut from this section** (tarballs, not npm releases — see
 > `RELEASING.md`'s tagged-but-unpublished window):
 >
+> - **0.7.0-beta.5** (2026-08-15) — `MediumOptics` + `fogLayerFor`
+>   (⚠️ experimental, not load-bearing: water publishes its optics but still
+>   computes its own fog layer). Otherwise identical to beta.4 — the rest is
+>   design notes.
 > - **0.7.0-beta.4** (2026-08-15) — the `medium` primitive (space/air/water/
 >   mercury, plane or sphere), medium-aware projectiles closing #13, and pause
 >   marked EXPERIMENTAL pending a headset.
@@ -82,13 +86,14 @@ that was tuned around the old feel.
   it is a visual change that wants an eye on it. What's proven so far is the
   falsifier from the design doc: one derivation reproduces water's numbers
   (including thickening with depth), a cloud bank's soft edge, and vacuum
-  contributing nothing. Three hand-rolled contributions collapse onto it *in
-  the tests*; collapsing them in the code is the next step.
+  contributing nothing. Three hand-rolled contributions collapse onto it _in
+  the tests_; collapsing them in the code is the next step.
 
 - **Projectiles understand medium** (#13 — ⚠️ EXPERIMENTAL, unflown). A round
   now picks up drag from whatever it is passing through (`dragAt`, blended
   across the band so entry is a ramp), and gains three options that turn the
   same round into four weapons:
+
   - `whenCrossing(kind, medium, at)` — the entry splash, the breakout plume,
     the audio. Yours to dress; the engine only tells you it happened.
   - `detonateDepth` — a **depth charge**: a fuse on depth rather than impact.
@@ -106,8 +111,9 @@ that was tuned around the old feel.
   converging on). It answers three questions and owns nothing else: how deep am
   I (`depthIn`, signed — depth and altitude are one measurement), how much of me
   is in it (`submergence`, smoothed across a band), and did I just cross the
-  surface (`crossing`, a *step* test, because at 200 m/s a round is above the
+  surface (`crossing`, a _step_ test, because at 200 m/s a round is above the
   water one frame and 3 m under it the next).
+
   - **Two geometries**: `plane` (a sea, a fog bank, the top of a mercury vat)
     and `sphere` (a planet's ocean or atmosphere, the edge of space). A plane is
     NOT a very large sphere — at a 6371 km radius the arithmetic loses the
@@ -160,6 +166,7 @@ that was tuned around the old feel.
 
   `b3d.pause(reason)` / `.resume()` / `.togglePause()` / `.paused`,
   a centred in-scene pause panel, and the attributes around them:
+
   - `pauseWhenHidden` (default **on**) — backgrounding the tab holds the scene,
     so a player returns to a held frame and a panel rather than to a world that
     carried on without them. Suppressed while immersive, since some browsers
@@ -198,7 +205,7 @@ that was tuned around the old feel.
   broken". Verified by deliberately flipping the touch and hardware signs in
   turn and watching it fail. `STICK_UP_IS_POSITIVE` names the convention.
 - **`GamepadSource.kind`** — a stable `'keyboard' | 'hardware' | 'touch' | 'xr'
-  | 'glass'` marker, because the obvious alternative fails silently: an adopter
+| 'glass'` marker, because the obvious alternative fails silently: an adopter
   matched our glass pad with `constructor.name`, their bundler mangled it, the
   lookup never matched, and every experiment built on it was a no-op that
   looked like a result. Class names are not API.
@@ -300,7 +307,7 @@ that was tuned around the old feel.
 ### Fixed
 
 - **The HUD circle dominated a portrait viewport.** It was already sized off the
-  *smaller* dimension — that part was right — but a single percentage of the
+  _smaller_ dimension — that part was right — but a single percentage of the
   small side means 36% of the width in landscape and **70% of it in portrait**,
   the same rule with twice the visual weight. It's now capped at half that
   fraction of the long side as well, so turning the device doesn't change how
@@ -309,8 +316,8 @@ that was tuned around the old feel.
 
 - **`b3d-death`'s Respawn panel had both of the pause panel's problems**, and at
   a worse moment. Its spectator camera was attached to the canvas, so a tap
-  meant for Respawn also drove the camera (Tonio, on a phone: *"the view
-  pivots"*), and it used the same fixed 1.1-unit width that overflows a portrait
+  meant for Respawn also drove the camera (Tonio, on a phone: _"the view
+  pivots"_), and it used the same fixed 1.1-unit width that overflows a portrait
   viewport. The camera is now set with `{ attach: false }` — the orbit still
   runs, it's driven by an observable, you just can't wrestle it — and the width
   comes from the camera's FOV and aspect via the shared `panelFitWidth`.

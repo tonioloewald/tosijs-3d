@@ -260,8 +260,8 @@ Later: portal into buildings, get out of the ship, walk to a jeep, drive to the
 beach, swim.
 
 **The trick that makes it possible is the whiteout.** The plasma sheath of
-atmospheric entry/exit is not decoration here — it is *cover for a
-representation swap*. A flat heightfield world and a spherical planet are
+atmospheric entry/exit is not decoration here — it is _cover for a
+representation swap_. A flat heightfield world and a spherical planet are
 different parameterisations, and the honest way to get from one to the other is
 to stop showing the player the world for a second. A loading curtain that the
 fiction asks for anyway. Same trick as the splash: the moment you cannot see is
@@ -274,7 +274,7 @@ of existing parts", which is why it's worth writing down.
 subsystem at once, in combination, which is where the bugs actually live —
 terrain LOD, water, media, the medium transitions, skybox, floating origin,
 vehicles, the biped, input focus, pause, and the perf budget under real load.
-Most of manta's issues this cycle were *combination* failures (ambient tuned for
+Most of manta's issues this cycle were _combination_ failures (ambient tuned for
 a walker breaking on a vehicle; a panel sized for a monitor breaking on a phone).
 It also answers #20 directly — the demo suite representing one kind of game.
 

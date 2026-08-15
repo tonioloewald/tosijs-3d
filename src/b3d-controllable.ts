@@ -101,7 +101,10 @@ export class B3dControllable extends AbstractMesh {
     // A PAUSED scene must not read input either: the render loop still runs (the
     // pause panel has to be drawn), so without this a held stick would keep
     // steering a world that is supposed to be stopped.
-    const owner = this.owner as { hasInputFocus?: boolean; paused?: boolean } | null
+    const owner = this.owner as {
+      hasInputFocus?: boolean
+      paused?: boolean
+    } | null
     const live = (owner?.hasInputFocus ?? true) && owner?.paused !== true
     const input = live ? this.inputProvider.poll(dt) : emptyInput()
     this.lastInput = input

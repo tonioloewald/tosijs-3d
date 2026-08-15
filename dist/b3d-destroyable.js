@@ -257,7 +257,7 @@ export class B3dDestroyable extends AbstractMesh {
         node.name = this.combatId;
         const meshes = node instanceof BABYLON.AbstractMesh
             ? [node]
-            : (node.getChildMeshes?.() ?? []);
+            : node.getChildMeshes?.() ?? [];
         if (meshes.length > 0)
             owner.register({ meshes });
     }
