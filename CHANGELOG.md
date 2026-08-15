@@ -66,6 +66,26 @@ that was tuned around the old feel.
 
 ### Added
 
+- **[medium](https://3d.tosijs.net/medium/) — the substance you're moving
+  through**, pure and Babylon-free (#13, and the seam #3/#15/#16 were all
+  converging on). It answers three questions and owns nothing else: how deep am
+  I (`depthIn`, signed — depth and altitude are one measurement), how much of me
+  is in it (`submergence`, smoothed across a band), and did I just cross the
+  surface (`crossing`, a *step* test, because at 200 m/s a round is above the
+  water one frame and 3 m under it the next).
+  - **Two geometries**: `plane` (a sea, a fog bank, the top of a mercury vat)
+    and `sphere` (a planet's ocean or atmosphere, the edge of space). A plane is
+    NOT a very large sphere — at a 6371 km radius the arithmetic loses the
+    centimetres that decide whether you're above or below a wave.
+  - `innermost` resolves space → air → water the way you'd say it aloud, and
+    vacuum is simply the absence of a match. `dragAt` blends a projectile's drag
+    coefficient across the band, which is why depth charges and torpedoes need
+    no new integrator.
+  - **`b3d.media` / `b3d.addMedium()`**, and `b3d-water` registers itself — so
+    nothing has to re-derive where the surface is. Two subsystems deriving that
+    separately is exactly how the fogged sky and the transparent window ended up
+    disagreeing (#12/#15).
+
 - **`b3d-ambient` spawns where you're LOOKING and where you're GOING** (#17,
   #18): `lookAhead` (0.35 of `radius`, along the view) and `lead` (0.25s of
   travel, along motion), capped by `speedCap`. A camera sees a frustum, not a

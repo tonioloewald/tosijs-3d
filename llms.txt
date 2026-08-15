@@ -168,6 +168,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
   These conventions apply to all meshes entering the scene — via
+- https://3d.tosijs.net/medium/ — medium
+  Babylon-free description of the *substance* a thing is moving through — air,
 - https://3d.tosijs.net/mersenne-twister/ — mersenne-twister
   Seeded pseudo-random number generator based on the Mersenne Twister
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance

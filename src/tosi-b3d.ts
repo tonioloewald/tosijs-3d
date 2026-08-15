@@ -259,6 +259,7 @@ import {
   type Widget3d,
 } from './widgets3d'
 import { panelFitWidth } from './widgets3d-layout'
+import type { Medium } from './medium'
 import { SvgTexture } from './svg-texture'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
 import { isOff } from './b3d-utils'
@@ -1628,6 +1629,30 @@ export class B3d extends Component {
    *
    * `b3d-fog` sets the BASE (and the mode, once). Everyone else leans on it.
    */
+  /**
+   * THE MEDIA IN THIS SCENE — what things are moving through.
+   *
+   * A live list, not a snapshot: a water element registers itself here and
+   * anything that cares (projectiles wanting drag, a vehicle wanting a regime,
+   * a shader wanting depth) asks the scene rather than re-deriving the surface
+   * from a mesh it had to go and find. Two subsystems deriving "am I under
+   * water" separately is how they end up disagreeing at the boundary — the
+   * failure that produced the fogged-sky/transparent-window conflict.
+   *
+   * See [[medium]] for the geometry (plane or sphere: a sea, or a planet's
+   * ocean and atmosphere) and the queries.
+   */
+  readonly media: Medium[] = []
+
+  /** Register a medium. Returns its unregister, like `addFogLayer`. */
+  addMedium(m: Medium): () => void {
+    this.media.push(m)
+    return () => {
+      const i = this.media.indexOf(m)
+      if (i >= 0) this.media.splice(i, 1)
+    }
+  }
+
   addFogLayer(layer: FogContributor): () => void {
     this._fogLayers.push(layer)
     return () => {

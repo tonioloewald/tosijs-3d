@@ -1,0 +1,142 @@
+import { describe, test, expect } from 'bun:test'
+import {
+  plane,
+  sphere,
+  depthIn,
+  submergence,
+  crossing,
+  innermost,
+  dragAt,
+} from './medium'
+
+const sea = plane({ name: 'water', y: 0, band: 0.4, drag: 40, maxSpeed: 12 })
+
+describe('depthIn is signed, because depth and altitude are one measurement', () => {
+  test('plane: positive below the surface, negative above', () => {
+    expect(depthIn({ x: 0, y: -5, z: 0 }, sea)).toBeCloseTo(5)
+    expect(depthIn({ x: 0, y: 3, z: 0 }, sea)).toBeCloseTo(-3)
+    expect(depthIn({ x: 99, y: 0, z: -99 }, sea)).toBeCloseTo(0)
+  })
+
+  test('sphere: positive inside the shell, negative outside', () => {
+    const atmosphere = sphere({
+      name: 'air',
+      centre: { x: 0, y: 0, z: 0 },
+      radius: 100,
+      band: 5,
+    })
+    expect(depthIn({ x: 0, y: 0, z: 0 }, atmosphere)).toBeCloseTo(100)
+    expect(depthIn({ x: 0, y: 90, z: 0 }, atmosphere)).toBeCloseTo(10)
+    expect(depthIn({ x: 0, y: 130, z: 0 }, atmosphere)).toBeCloseTo(-30)
+  })
+})
+
+describe('submergence ramps rather than snapping', () => {
+  test('0 well outside, 1 well inside, 0.5 exactly at the surface', () => {
+    expect(submergence({ x: 0, y: 5, z: 0 }, sea)).toBeCloseTo(0)
+    expect(submergence({ x: 0, y: -5, z: 0 }, sea)).toBeCloseTo(1)
+    expect(submergence({ x: 0, y: 0, z: 0 }, sea)).toBeCloseTo(0.5)
+  })
+
+  test('it is monotonic through the band — no crease at either end', () => {
+    let prev = -1
+    for (let y = 1; y >= -1; y -= 0.05) {
+      const w = submergence({ x: 0, y, z: 0 }, sea)
+      expect(w).toBeGreaterThanOrEqual(prev)
+      prev = w
+    }
+    expect(prev).toBeCloseTo(1)
+  })
+
+  test('a wider band spreads the transition', () => {
+    const soft = plane({ name: 'haze', y: 0, band: 20 })
+    // 2m under: fully in a tight-banded sea, barely in a wide-banded haze.
+    expect(submergence({ x: 0, y: -2, z: 0 }, sea)).toBeCloseTo(1)
+    expect(submergence({ x: 0, y: -2, z: 0 }, soft)).toBeLessThan(0.8)
+  })
+})
+
+describe('crossing catches a fast mover the band would miss', () => {
+  test('entering and exiting', () => {
+    expect(crossing({ x: 0, y: 2, z: 0 }, { x: 0, y: -1, z: 0 }, sea)).toBe(
+      'entered'
+    )
+    expect(crossing({ x: 0, y: -1, z: 0 }, { x: 0, y: 2, z: 0 }, sea)).toBe(
+      'exited'
+    )
+  })
+
+  test('no crossing when the step stays on one side', () => {
+    expect(crossing({ x: 0, y: 9, z: 0 }, { x: 0, y: 3, z: 0 }, sea)).toBeNull()
+    expect(
+      crossing({ x: 0, y: -9, z: 0 }, { x: 0, y: -3, z: 0 }, sea)
+    ).toBeNull()
+  })
+
+  test('A 200 m/s ROUND: 3.3 m per frame, never seen inside the 0.4 m band', () => {
+    // The reason this is a step test and not a state flag. Sampling position
+    // alone at 60fps, this projectile is above the water on one frame and well
+    // under it on the next — anything waiting to observe a point inside the
+    // band misses the splash completely.
+    const above = { x: 0, y: 1.5, z: 0 }
+    const below = { x: 0, y: -1.8, z: 0 }
+    expect(Math.abs(depthIn(above, sea))).toBeGreaterThan(sea.band)
+    expect(Math.abs(depthIn(below, sea))).toBeGreaterThan(sea.band)
+    expect(crossing(above, below, sea)).toBe('entered')
+  })
+})
+
+describe('innermost — space, air, water, in the order you would say them', () => {
+  const air = sphere({
+    name: 'air',
+    centre: { x: 0, y: 0, z: 0 },
+    radius: 1000,
+    band: 50,
+    drag: 1,
+  })
+  const ocean = sphere({
+    name: 'ocean',
+    centre: { x: 0, y: 0, z: 0 },
+    radius: 900,
+    band: 0.4,
+    drag: 40,
+  })
+  const media = [air, ocean]
+
+  test('outside everything is vacuum — the absence of a match', () => {
+    expect(innermost({ x: 0, y: 5000, z: 0 }, media)).toBeNull()
+  })
+
+  test('between the shells you are in the air', () => {
+    expect(innermost({ x: 0, y: 950, z: 0 }, media)?.name).toBe('air')
+  })
+
+  test('inside the inner shell you are in the ocean, not the air', () => {
+    expect(innermost({ x: 0, y: 100, z: 0 }, media)?.name).toBe('ocean')
+  })
+
+  test('order of the list does not matter', () => {
+    expect(innermost({ x: 0, y: 100, z: 0 }, [ocean, air])?.name).toBe('ocean')
+  })
+})
+
+describe('dragAt — a torpedo needs a number, not a new integrator', () => {
+  test('base drag in vacuum', () => {
+    expect(dragAt({ x: 0, y: 50, z: 0 }, 0.02, [sea])).toBeCloseTo(0.02)
+  })
+
+  test('full multiplier well under', () => {
+    expect(dragAt({ x: 0, y: -50, z: 0 }, 0.02, [sea])).toBeCloseTo(0.02 * 40)
+  })
+
+  test('half way through the band is part way to the multiplier', () => {
+    const k = dragAt({ x: 0, y: 0, z: 0 }, 0.02, [sea]) / 0.02
+    expect(k).toBeGreaterThan(1)
+    expect(k).toBeLessThan(40)
+  })
+
+  test('a medium with no drag stated changes nothing', () => {
+    const fog = plane({ name: 'fog', y: 100, band: 10 })
+    expect(dragAt({ x: 0, y: 0, z: 0 }, 0.02, [fog])).toBeCloseTo(0.02)
+  })
+})

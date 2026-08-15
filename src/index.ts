@@ -119,6 +119,21 @@ export type {
   FlyByWireState,
 } from './fly-by-wire'
 
+/*
+The MEDIUM primitive as a namespace, not bare names: `plane`, `sphere` and
+`crossing` are common nouns and would collide the moment anything else wants
+them (`carve` already has a sphere). Types stay top-level.
+*/
+import * as mediumNs from './medium'
+export const medium = mediumNs
+export type {
+  Medium,
+  PlaneMedium,
+  SphereMedium,
+  MediumVec3,
+  MediumCrossing,
+} from './medium'
+
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url'
 

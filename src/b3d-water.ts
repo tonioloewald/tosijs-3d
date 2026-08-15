@@ -74,6 +74,7 @@ document.body.append(
 */
 /*{ "parent": "Environment" }*/
 
+import { plane as mediumPlane, type PlaneMedium } from './medium'
 import * as BABYLON from '@babylonjs/core'
 import { WaterMaterial } from '@babylonjs/materials'
 import { AbstractMesh } from './b3d-utils'
@@ -117,6 +118,8 @@ export class B3dWater extends AbstractMesh {
   private _callback?: SceneAdditionHandler
   private _underwaterUpdate?: () => void
   private _removeFogLayer?: () => void
+  private _removeMedium?: () => void
+  private _medium: PlaneMedium | null = null
   /** Is the sky currently fogged for us? Latched so we only touch it on a crossing. */
   private _skyFogged = false
   /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
@@ -212,7 +215,33 @@ export class B3dWater extends AbstractMesh {
     // Now the weight RAMPS over a band around the waterline (so passing through reads as
     // *entering the water* rather than teleporting into it) and keeps deepening as you go
     // down. The scene composites and smooths it; nothing toggles. See atmosphere.ts.
+    /*
+    PUBLISH THE WATER AS A MEDIUM.
+
+    The surface height and the transition band already exist here — they drive
+    the fog layer below — so a projectile asking "how much drag?" or a vehicle
+    asking "am I under?" can read them instead of hunting down the water mesh
+    and re-deriving the answer. Two derivations of one fact is how the sky and
+    the fog ended up disagreeing about where the surface was (#12/#15).
+
+    `y` tracks the mesh each frame (a followed plane moves), so the medium is a
+    live view rather than a value captured at setup.
+    */
+    this._medium = mediumPlane({
+      name: 'water',
+      y: this.mesh?.absolutePosition.y ?? (this as any).y ?? 0,
+      band: Math.max(0.02, (this as any).fogTransition),
+      // A round entering water sheds speed hard; the number is a starting point
+      // for depth charges and torpedoes, not a physical constant.
+      drag: 40,
+      density: 1000,
+    })
+    this._removeMedium = owner.addMedium(this._medium as PlaneMedium)
+
     this._removeFogLayer = owner.addFogLayer(() => {
+      if (this._medium != null && this.mesh != null) {
+        this._medium.y = this.mesh.absolutePosition.y
+      }
       const cam = scene.activeCamera
       if (!cam || !this.mesh) return null
       const depth = this.mesh.absolutePosition.y - cam.globalPosition.y
@@ -304,6 +333,9 @@ export class B3dWater extends AbstractMesh {
   }
 
   sceneDispose(): void {
+    this._removeMedium?.()
+    this._removeMedium = undefined
+    this._medium = null
     // Hand the sky back exactly as we found it — a disposed water element must
     // not leave the sky permanently fogged.
     this._fogTheSky(false)
