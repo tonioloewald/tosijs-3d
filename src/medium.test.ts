@@ -140,3 +140,35 @@ describe('dragAt — a torpedo needs a number, not a new integrator', () => {
     expect(dragAt({ x: 0, y: 0, z: 0 }, 0.02, [fog])).toBeCloseTo(0.02)
   })
 })
+
+describe('the four weapons of #13, expressed in this vocabulary', () => {
+  // Each is the same round with a different answer to "what does the surface
+  // mean to you" — which is the whole argument for a shared primitive.
+  const sea = plane({ name: 'water', y: 0, band: 0.4, drag: 40 })
+
+  test('bomb — the surface means ENTER: drag jumps, nothing else', () => {
+    const above = dragAt({ x: 0, y: 5, z: 0 }, 0.02, [sea])
+    const below = dragAt({ x: 0, y: -5, z: 0 }, 0.02, [sea])
+    expect(below / above).toBeCloseTo(40)
+  })
+
+  test('depth charge — the surface means SINK TO A DEPTH: a fuse predicate', () => {
+    const fuseAt = 30
+    expect(depthIn({ x: 0, y: -10, z: 0 }, sea) >= fuseAt).toBe(false)
+    expect(depthIn({ x: 0, y: -31, z: 0 }, sea) >= fuseAt).toBe(true)
+  })
+
+  test('torpedo — the surface is a CEILING: exiting is the event to prevent', () => {
+    expect(crossing({ x: 0, y: -1, z: 0 }, { x: 0, y: 0.5, z: 0 }, sea)).toBe(
+      'exited'
+    )
+  })
+
+  test('sub-launched missile — a ONE-WAY DOOR: exit once, then it is an air weapon', () => {
+    expect(crossing({ x: 0, y: -20, z: 0 }, { x: 0, y: 4, z: 0 }, sea)).toBe(
+      'exited'
+    )
+    // …and above the surface it flies with air drag, unchanged.
+    expect(dragAt({ x: 0, y: 4, z: 0 }, 0.02, [sea])).toBeCloseTo(0.02)
+  })
+})

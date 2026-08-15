@@ -192,6 +192,13 @@ import type { B3d, RadarFaction } from './tosi-b3d'
 const MIN_CLOSING_SPEED = 70
 import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics'
 import {
+  crossing,
+  depthIn,
+  dragAt,
+  type Medium,
+  type MediumCrossing,
+} from './medium'
+import {
   steerToward,
   interceptLead,
   boostAuthority,
@@ -246,6 +253,29 @@ export interface ProjectileOpts {
    * picks itself blocks the blast's own line of sight.
    */
   mesh?: BABYLON.TransformNode
+
+  /*
+  MEDIUM AWARENESS (#13). A depth charge, a torpedo and a sub-launched missile
+  are all the same round with a different answer to "what does the surface mean
+  to you": nothing, a floor, a ceiling, a one-way door. These three options are
+  that answer; the physics is unchanged, because `ballisticStep` already folds
+  density and area into one drag coefficient, so a medium is a multiplier on it.
+  */
+
+  /** React to a medium boundary: the entry splash, the breakout plume, the
+   * audio. Called with which way it went and which medium it was. */
+  whenCrossing?: (
+    kind: MediumCrossing,
+    medium: Medium,
+    at: { x: number; y: number; z: number }
+  ) => void
+
+  /** Detonate this many metres INSIDE a medium — a depth charge. */
+  detonateDepth?: number
+
+  /** Named medium the round refuses to leave — a torpedo, for which the
+   * surface is a ceiling. It is held just inside rather than reflected. */
+  stayIn?: string
   /**
    * Meshes the collision ray must ignore — the FIRING entity's own geometry, so a
    * shell/bomb spawned at/near the shooter (a bomb off the belly, guns in a climb)
@@ -273,6 +303,10 @@ export function spawnProjectile(
 ): { dispose: () => void } {
   const scene = owner.scene
   const r = opts.radius ?? 0.12
+  // Scratch copy so a per-frame drag change never mutates the caller's params
+  // (they are commonly a shared constant on a launcher).
+  const stepParams = { ...opts.params }
+  const baseDrag = opts.params.dragCoeff ?? 0
   const mesh = (opts.mesh ??
     BABYLON.MeshBuilder.CreateSphere(
       'projectile',
@@ -340,7 +374,45 @@ export function spawnProjectile(
     const fromX = state.pos.x
     const fromY = state.pos.y
     const fromZ = state.pos.z
-    ballisticStep(state, opts.params, dt)
+    // Drag from whatever it is actually flying through. `dragAt` blends across
+    // the medium's band, so entering water is a ramp rather than a wall.
+    // `?? []` because this path accepts a duck-typed owner (the spawn tests use
+    // one, and so may a consumer embedding the projectile machinery elsewhere).
+    const media = owner.media ?? []
+    if (media.length > 0 && opts.params.dragCoeff != null) {
+      stepParams.dragCoeff = dragAt(state.pos, baseDrag, media)
+      ballisticStep(state, stepParams, dt)
+    } else {
+      ballisticStep(state, opts.params, dt)
+    }
+
+    for (const m of media) {
+      const kind = crossing(
+        { x: fromX, y: fromY, z: fromZ },
+        state.pos,
+        m
+      )
+      if (kind != null) opts.whenCrossing?.(kind, m, { ...state.pos })
+
+      // A torpedo: the surface is a ceiling. Held just inside rather than
+      // bounced — a round that reflects off the water reads as a skipping
+      // stone, which is a different weapon.
+      if (opts.stayIn === m.name && kind === 'exited') {
+        if (m.kind === 'plane') {
+          state.pos.y = m.y - 0.01
+          if (state.vel.y > 0) state.vel.y = 0
+        }
+      }
+
+      // A depth charge: fuse on depth, not on impact.
+      if (opts.detonateDepth != null && depthIn(state.pos, m) >= opts.detonateDepth) {
+        const at = new BABYLON.Vector3(state.pos.x, state.pos.y, state.pos.z)
+        detonateWarhead(owner, at, opts.warhead, opts.useLos ?? true)
+        opts.onImpact?.(at)
+        dispose()
+        return
+      }
+    }
     // Swept collision: cast the segment we just traversed so a fast shell can't
     // tunnel through a thin target between frames.
     const from = new BABYLON.Vector3(fromX, fromY, fromZ)

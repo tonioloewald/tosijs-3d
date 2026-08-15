@@ -66,6 +66,22 @@ that was tuned around the old feel.
 
 ### Added
 
+- **Projectiles understand medium** (#13 — ⚠️ EXPERIMENTAL, unflown). A round
+  now picks up drag from whatever it is passing through (`dragAt`, blended
+  across the band so entry is a ramp), and gains three options that turn the
+  same round into four weapons:
+  - `whenCrossing(kind, medium, at)` — the entry splash, the breakout plume,
+    the audio. Yours to dress; the engine only tells you it happened.
+  - `detonateDepth` — a **depth charge**: a fuse on depth rather than impact.
+  - `stayIn: 'water'` — a **torpedo**, for which the surface is a ceiling. Held
+    just inside rather than reflected: a round that bounces off water reads as a
+    skipping stone, which is a different weapon.
+
+  A **sub-launched missile** needs no option at all — it is a `whenCrossing`
+  handler that swaps its own behaviour on `'exited'`. That the four fall out of
+  three small options is the argument for the primitive being shared rather than
+  per-weapon.
+
 - **[medium](https://3d.tosijs.net/medium/) — the substance you're moving
   through**, pure and Babylon-free (#13, and the seam #3/#15/#16 were all
   converging on). It answers three questions and owns nothing else: how deep am
