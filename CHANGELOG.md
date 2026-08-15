@@ -69,6 +69,22 @@ that was tuned around the old feel.
 
 ### Added
 
+- **⚠️ EXPERIMENTAL — `MediumOptics` + `fogLayerFor`** (MEDIUM-DESIGN.md §3).
+  A medium can describe how it LOOKS (colour, density, murk-with-depth,
+  visibility floor), and one derivation turns that into a fog layer for the
+  compositor that already exists. Weight is `submergence`, so the fog and
+  anything else keyed off the same medium cannot disagree about where the
+  surface is — that disagreement is what produced the fogged-sky vs
+  transparent-window conflict.
+
+  **Not load-bearing yet, on purpose.** `b3d-water` publishes its optics but
+  still computes its own fog layer, because that path is verified and swapping
+  it is a visual change that wants an eye on it. What's proven so far is the
+  falsifier from the design doc: one derivation reproduces water's numbers
+  (including thickening with depth), a cloud bank's soft edge, and vacuum
+  contributing nothing. Three hand-rolled contributions collapse onto it *in
+  the tests*; collapsing them in the code is the next step.
+
 - **Projectiles understand medium** (#13 — ⚠️ EXPERIMENTAL, unflown). A round
   now picks up drag from whatever it is passing through (`dragAt`, blended
   across the band so entry is a ramp), and gains three options that turn the

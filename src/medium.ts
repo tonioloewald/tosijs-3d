@@ -78,6 +78,8 @@ export interface PlaneMedium {
   maxSpeed?: number
   /** kg/m³ if a caller wants buoyancy; unused here. */
   density?: number
+  /** ⚠️ EXPERIMENTAL — see `MediumOptics`. */
+  optics?: MediumOptics
 }
 
 /** A shell around a centre: inside is WITHIN `radius`. */
@@ -90,6 +92,8 @@ export interface SphereMedium {
   drag?: number
   maxSpeed?: number
   density?: number
+  /** ⚠️ EXPERIMENTAL — see `MediumOptics`. */
+  optics?: MediumOptics
 }
 
 export type Medium = PlaneMedium | SphereMedium
@@ -199,4 +203,80 @@ export function dragAt(p: MediumVec3, base: number, media: Medium[]): number {
     k += (m.drag - 1) * submergence(p, m)
   }
   return base * k
+}
+
+/*
+⚠️ EXPERIMENTAL — HOW A MEDIUM LOOKS.
+
+Three components hand-roll a fog contribution today (b3d-water, b3d-clouds,
+b3d-fog), each re-deriving "how deep am I" from its own geometry. Three answers
+to that question is three chances to disagree at a boundary — which is exactly
+how the fogged skybox and the transparent Snell window ended up contradicting
+each other (#12/#15).
+
+So: describe the LOOK on the medium, derive the fog layer from it, and let the
+compositor in `atmosphere.ts` do what it already does.
+
+This is unproven until all three can be expressed by it — see MEDIUM-DESIGN.md
+§8, which says plainly that if the fields end up a union of knobs no two media
+share, the generalisation is fake and the components should stay apart. The
+water case is pinned in the tests as the first evidence.
+*/
+export interface MediumOptics {
+  /** Fog colour inside. */
+  color?: { r: number; g: number; b: number }
+  /** Density the moment you are inside. */
+  density?: number
+  /** Extra density at full depth — murk that thickens as you go down. */
+  murk?: number
+  /** Metres over which `murk` reaches full. */
+  murkDepth?: number
+  /**
+   * Shortest visibility, in metres, the layer will ask for. Fog modes that
+   * IGNORE density (Babylon's LINEAR) need a `start`/`end`, so a layer that
+   * only set density would tint and never thicken — a real bug, fixed once in
+   * b3d-water and worth not re-learning.
+   */
+  minVisibility?: number
+  /** ⚠️ Reserved for light shafts (MEDIUM-DESIGN.md §4). Unused today. */
+  scattering?: number
+}
+
+/** What `fogLayerFor` returns — the shape `atmosphere.compositeFog` consumes. */
+export interface MediumFogLayer {
+  weight: number
+  color?: { r: number; g: number; b: number }
+  density?: number
+  start?: number
+  end?: number
+}
+
+/**
+ * ⚠️ EXPERIMENTAL. The fog contribution of being inside this medium, at this
+ * point — or null when you are outside it or it has no optics.
+ *
+ * Weight is `submergence`, so the fog and anything else keyed off the same
+ * medium (the sky, the underside shader, a regime) cannot disagree about where
+ * the surface is. That single shared weight is the entire point.
+ */
+export function fogLayerFor(
+  p: MediumVec3,
+  m: Medium
+): MediumFogLayer | null {
+  const o = m.optics
+  if (o == null) return null
+  const w = submergence(p, m)
+  if (w <= 0) return null
+  const depth = Math.max(0, depthIn(p, m))
+  const deeper = Math.min(1, depth / Math.max(1e-6, o.murkDepth ?? 30))
+  const density = (o.density ?? 0) + (o.murk ?? 0) * deeper
+  return {
+    weight: w,
+    color: o.color,
+    density,
+    start: 0,
+    // Contribute an `end` too: a LINEAR fog mode ignores density entirely, so a
+    // density-only layer tints without ever thickening.
+    end: Math.max(o.minVisibility ?? 6, density > 0 ? 3 / density : 1e6),
+  }
 }

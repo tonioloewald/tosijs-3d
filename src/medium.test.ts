@@ -7,6 +7,7 @@ import {
   crossing,
   innermost,
   dragAt,
+  fogLayerFor,
 } from './medium'
 
 const sea = plane({ name: 'water', y: 0, band: 0.4, drag: 40, maxSpeed: 12 })
@@ -170,5 +171,72 @@ describe('the four weapons of #13, expressed in this vocabulary', () => {
     )
     // …and above the surface it flies with air drag, unchanged.
     expect(dragAt({ x: 0, y: 4, z: 0 }, 0.02, [sea])).toBeCloseTo(0.02)
+  })
+})
+
+describe('⚠️ fogLayerFor — the falsifier for the whole generalisation', () => {
+  // MEDIUM-DESIGN.md §8: if the optical fields are a union of knobs no two media
+  // share, this is fake and the components should stay apart. So the test is
+  // whether ONE derivation reproduces what each component hand-rolls today.
+
+  test('WATER: b3d-water\'s own numbers, from optics alone', () => {
+    // underwaterFog 0.12, underwaterMurk over a 30m ramp, sea-blue, end = 3/density
+    const sea = plane({
+      name: 'water',
+      y: 0,
+      band: 0.2,
+      optics: {
+        color: { r: 0, g: 0.15, b: 0.3 },
+        density: 0.12,
+        murk: 0.08,
+        murkDepth: 30,
+        minVisibility: 6,
+      },
+    })
+    const shallow = fogLayerFor({ x: 0, y: -1, z: 0 }, sea)!
+    expect(shallow.weight).toBeCloseTo(1)
+    expect(shallow.color).toEqual({ r: 0, g: 0.15, b: 0.3 })
+    expect(shallow.density).toBeCloseTo(0.12 + 0.08 * (1 / 30))
+    expect(shallow.end).toBeCloseTo(3 / shallow.density!)
+
+    // …and it THICKENS with depth, which is the behaviour a density-only layer lost.
+    const deep = fogLayerFor({ x: 0, y: -30, z: 0 }, sea)!
+    expect(deep.density!).toBeGreaterThan(shallow.density!)
+    expect(deep.end!).toBeLessThan(shallow.end!)
+  })
+
+  test('CLOUD: a fog bank is the same shape with a wide band and no murk', () => {
+    const bank = plane({
+      name: 'cloud',
+      y: 300,
+      band: 40, // clouds have soft edges; water does not
+      optics: { color: { r: 1, g: 1, b: 1 }, density: 0.08, minVisibility: 12 },
+    })
+    const inside = fogLayerFor({ x: 0, y: 250, z: 0 }, bank)!
+    expect(inside.weight).toBeCloseTo(1)
+    expect(inside.color).toEqual({ r: 1, g: 1, b: 1 })
+    // partial immersion at the edge — the cloud's `_immersion`, derived
+    const edge = fogLayerFor({ x: 0, y: 300, z: 0 }, bank)!
+    expect(edge.weight).toBeCloseTo(0.5)
+  })
+
+  test('VACUUM: no optics = no layer, not a zero-weight one', () => {
+    const space = sphere({
+      name: 'vacuum',
+      centre: { x: 0, y: 0, z: 0 },
+      radius: 1e9,
+      band: 1,
+    })
+    expect(fogLayerFor({ x: 0, y: 0, z: 0 }, space)).toBeNull()
+  })
+
+  test('outside the medium contributes nothing at all', () => {
+    const sea = plane({
+      name: 'water',
+      y: 0,
+      band: 0.2,
+      optics: { density: 0.12 },
+    })
+    expect(fogLayerFor({ x: 0, y: 50, z: 0 }, sea)).toBeNull()
   })
 })
