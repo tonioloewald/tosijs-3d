@@ -451,6 +451,63 @@ problem. It **shrinks it from pervasive to occasional, and moves it to exactly
 the places where the existing fix applies.** That is a smaller claim and a much
 more believable one.
 
+## Story → geometry, in the new paradigm: pin to the surface, then carve
+
+> Tonio, 2026-08-15. This replaces the geometry half of Stage 2 — the topology
+> stays, its output changes from a voxel map to a carve list.
+
+The compiler is three steps, and the middle one is the whole trick:
+
+1. **Take the map specification as a small graph** — nodes are places, edges are
+   connections. Lay it out over the terrain as a plan: `(x, z)` per node.
+2. **Pin every node BELOW THE SURFACE at a stated depth.** Not an absolute `y` —
+   an _offset from the terrain at that `(x, z)`_. The height sampler already
+   provides this (`heightSampler()`), and `patch-field.terrainDensity` is built
+   on it.
+3. **Hang volumetric strokes and fills off the pinned graph.** An edge becomes a
+   `carve.tube` along its spine; a node becomes a `carve.sphere` or `box` — a
+   chamber. `smoothUnion` makes the junctions read as excavated rather than
+   assembled, which is what it was written for.
+
+### Why the offset is the important part
+
+A node pinned at "40 m below the surface" **cannot break the surface**, by
+construction. So the precomputation this document asks for two sections up —
+_which cavities reach the surface_ — stops being a check and becomes a property:
+a cavity surfaces only where an author deliberately pins a node at zero depth.
+
+That is the entrance-conditioning problem finally cornered. It does not go away,
+but it stops happening _by accident_, which is what made it intractable: a tube
+in absolute coordinates grazes the hillside wherever the hill happens to rise,
+constantly and unpredictably. A tube pinned to the surface simply follows it.
+
+It also means the tunnel system inherits the terrain's own shape for free — a
+passage under a mountain is deeper because the mountain is taller, without
+anyone saying so.
+
+### Small graphs only, and say so in the API
+
+This is deliberately **not** a dungeon generator. With a large graph you get edge
+self-intersections producing connections nobody declared, and the verification
+step (Stage 1's rule: connectivity is CHECKED against the declared graph, never
+assumed) turns from a cheap assertion into a search problem.
+
+Small, authored, story-shaped: a cave system with three chambers and a back way
+out. That is what a narrative engine actually asks for, and the constraint should
+be stated in the API rather than discovered at scale.
+
+### The two failure modes to check for, not hope about
+
+- **An edge can surface even when both its nodes are deep.** Two nodes pinned at
+  −40 m with a ridge between them: a straight tube pops out of the ridge. So an
+  edge must be pinned _per sample along its length_, not interpolated between its
+  endpoints — the same rule `carve.roughen` already carries ("certify clearance
+  AFTER perturbing, never before").
+- **Edges that cross create connectivity nobody declared.** Two passages at the
+  same depth crossing in plan view merge into a junction. Either separate them in
+  depth at layout time, or detect it and say so — but do not let the geometry
+  quietly answer a question the topology was supposed to own.
+
 ## Stage 3 — the voxel map
 
 **Sparse, chunked, integer-addressed.** Only carved cells are stored, so a 2 km

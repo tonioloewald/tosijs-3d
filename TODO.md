@@ -278,6 +278,15 @@ A province = **a height forcing function (`landform.*`) minus a list of volumes
 sea cave = headland minus a capsule. Both halves already exist and are
 unit-tested — the tunnel work survives as the subtractive half.
 
+**Story → geometry** (TUNNEL-DESIGN): a small graph, nodes pinned as OFFSETS
+BELOW THE SURFACE, then strokes (`carve.tube`) along edges and fills
+(`carve.sphere`/`box`) at nodes. The offset is the trick — a node pinned 40m down
+cannot break the surface, so "which cavities surface" becomes a property rather
+than a check, and entrances happen only where an author pins depth 0. Two things
+to verify rather than hope: an edge between two deep nodes can still pop out of a
+ridge between them (pin per sample, don't interpolate), and crossing edges create
+connectivity nobody declared.
+
 - [ ] **Build the ARCH first** once the measurements pass: it breaks the surface
       twice at close to the best-conditioned angle available, so it exercises the
       whole path in the geometry most likely to work. If an arch can't be made to
