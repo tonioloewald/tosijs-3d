@@ -106,7 +106,7 @@ import {
   type TraceKind,
   type HudWarning,
 } from './hud'
-import { glassUV, hudPointFromUV } from './hud-math'
+import { glassUV, hudPointFromUV, hudSizePx } from './hud-math'
 import type { B3d } from './tosi-b3d'
 import * as BABYLON from '@babylonjs/core'
 
@@ -282,15 +282,27 @@ export class B3dHud extends B3dChild {
     this._measure()
   }
 
-  // Size the square HUD to `size`% of the canvas's SMALLER dimension.
+  /**
+   * Size the square HUD against BOTH viewport dimensions.
+   *
+   * `size`% of the smaller side alone is right in landscape and pathological in
+   * portrait: on a 1400x713 window it paints 36% of the width, on a 500x757 one
+   * it paints 70% of it — the same rule, twice the visual weight, because in
+   * portrait the small side IS the width (measured 2026-08-15, reported from a
+   * phone in fullscreen).
+   *
+   * So it is also capped at HALF that percentage of the LONG side, which keeps
+   * roughly the landscape proportion in portrait and leaves landscape itself
+   * within a couple of percent of where it was. Both dimensions, not just the
+   * one that happens to be smaller.
+   */
   private _measure(): void {
-    const min = Math.min(this.clientWidth, this.clientHeight)
-    if (min > 0) {
-      this.style.setProperty(
-        '--hud-size',
-        `${(min * (this as any).size) / 100}px`
-      )
-    }
+    const px = hudSizePx(
+      this.clientWidth,
+      this.clientHeight,
+      (this as any).size / 100
+    )
+    if (px > 0) this.style.setProperty('--hud-size', `${px}px`)
   }
 
   sceneDispose(): void {

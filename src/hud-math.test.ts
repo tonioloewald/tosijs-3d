@@ -4,8 +4,7 @@ import {
   horizonTransform,
   glassUV,
   hudPointFromUV,
-  lockFillOpacity,
-} from './hud-math'
+  lockFillOpacity, hudSizePx } from './hud-math'
 import {
   IDENTITY_QUAT,
   quatFromAxisAngle,
@@ -292,5 +291,37 @@ describe('arcDashArray — many bars on one arc', () => {
   test('empty or degenerate spans light nothing', () => {
     expect(nums(arcDashArray([], 1000))).toEqual([0, 1000])
     expect(nums(arcDashArray([[0.5, 0.5]], 1000))).toEqual([0, 1000])
+  })
+})
+
+describe('hudSizePx — the circle must not dominate a portrait viewport', () => {
+  const PCT = 0.7
+
+  test('landscape is essentially unchanged by the long-side cap', () => {
+    // 1400x713, the measured desktop case: 499 before, 490 after.
+    const px = hudSizePx(1400, 713, PCT)
+    expect(px).toBeCloseTo(490, 0)
+    expect(px / 713).toBeGreaterThan(0.65) // still ~the small side's 70%
+  })
+
+  test('portrait shrinks — the reported pathology', () => {
+    // 500x757: the old rule gave 350 (70% of the WIDTH, which is what "the hud
+    // circle gets pathologically big" was describing).
+    const px = hudSizePx(500, 757, PCT)
+    expect(px).toBeCloseTo(265, 0)
+    expect(px / 500).toBeLessThan(0.55) // was 0.70
+  })
+
+  test('the same viewport turned gives a similar fraction of the LONG side', () => {
+    // That is the property the cap buys: rotating the device shouldn't change
+    // how much of the screen the circle eats.
+    const landscape = hudSizePx(844, 390, PCT) / 844
+    const portrait = hudSizePx(390, 844, PCT) / 844
+    expect(portrait).toBeCloseTo(landscape, 5)
+  })
+
+  test('degenerate viewports return 0 rather than NaN', () => {
+    expect(hudSizePx(0, 0, PCT)).toBe(0)
+    expect(hudSizePx(100, 0, PCT)).toBe(0)
   })
 })

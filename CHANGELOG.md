@@ -206,6 +206,14 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **The HUD circle dominated a portrait viewport.** It was already sized off the
+  *smaller* dimension — that part was right — but a single percentage of the
+  small side means 36% of the width in landscape and **70% of it in portrait**,
+  the same rule with twice the visual weight. It's now capped at half that
+  fraction of the long side as well, so turning the device doesn't change how
+  much of the screen the circle eats: measured 490px (was 499) at 1400x713, and
+  265px (was 350) at 500x757. `hudSizePx` in `hud-math.ts`, unit-tested.
+
 - **`b3d-death`'s Respawn panel had both of the pause panel's problems**, and at
   a worse moment. Its spectator camera was attached to the canvas, so a tap
   meant for Respawn also drove the camera (Tonio, on a phone: *"the view
