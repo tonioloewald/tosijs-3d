@@ -6,6 +6,10 @@ import {
   crossedPortal,
   attenuationAt,
   depthLimit,
+  depthLimitFor,
+  geometricFalloff,
+  linearFalloff,
+  acceleratingFalloff,
 } from './portal-transform'
 import {
   quatFromAxisAngle,
@@ -175,5 +179,44 @@ describe('recursion terminates the way real mirrors do', () => {
 
   test('an opaque portal draws the far side once and stops', () => {
     expect(depthLimit(0)).toBe(1)
+  })
+})
+
+describe('falloff curves — decouple first-bounce quality from pass count', () => {
+  test('linear: the level count is STATED, not solved for', () => {
+    const f = linearFalloff(0.1)
+    expect(f(0)).toBeCloseTo(1)
+    expect(f(5)).toBeCloseTo(0.5)
+    expect(f(10)).toBeCloseTo(0)
+    expect(depthLimitFor(f, 0.02, 99)).toBe(10)
+  })
+
+  test('accelerating keeps the first bounce and collapses the tail', () => {
+    const f = acceleratingFalloff(0.05, 2) // 5%, 10%, 20%, 40%…
+    expect(f(1)).toBeCloseTo(0.95) // barely touched — the one you look at
+    expect(f(2)).toBeCloseTo(0.85)
+    expect(f(4)).toBeCloseTo(0.25)
+    expect(f(5)).toBeLessThan(0.05) // gone
+  })
+
+  test('THE POINT: same first-bounce quality, far fewer passes', () => {
+    // Geometric at 0.95 and accelerating-from-0.05 both keep 95% at depth 1.
+    // The geometric one then owes you 77 levels; the accelerating one, 5.
+    const geo = geometricFalloff(0.95)
+    const acc = acceleratingFalloff(0.05, 2)
+    expect(geo(1)).toBeCloseTo(acc(1)) // identical where it matters
+    expect(depthLimitFor(geo, 0.02, 999)).toBe(77)
+    expect(depthLimitFor(acc, 0.02, 999)).toBe(5)
+  })
+
+  test('the device cap still wins over any curve', () => {
+    expect(depthLimitFor(geometricFalloff(0.99), 0.02, 2)).toBe(2)
+    expect(depthLimitFor(linearFalloff(0.001), 0.02, 3)).toBe(3)
+  })
+
+  test('degenerate curves cannot hang or go negative', () => {
+    expect(linearFalloff(0)(1e6)).toBeGreaterThanOrEqual(0)
+    expect(acceleratingFalloff(0, 1)(50)).toBeGreaterThanOrEqual(0)
+    expect(depthLimitFor(() => 1, 0.02, 6)).toBe(6)
   })
 })

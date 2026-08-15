@@ -98,6 +98,13 @@ that was tuned around the old feel.
   dirtier than glass (~0.5–0.7). That trade is documented rather than hidden
   behind a physical-sounding parameter.
 
+  The falloff is a **curve, not a ratio** — `geometricFalloff`, `linearFalloff`
+  (state the level count instead of solving for it: `0.1` means exactly ten) and
+  `acceleratingFalloff` (the loss grows with depth — dirtier where nobody
+  looks). That decoupling is the point: geometric-at-0.95 and
+  accelerating-from-0.05 keep an identical 95% at the first bounce, the one
+  anyone actually inspects, but cost **77 levels versus 5**.
+
   No renderer yet: applying the clip plane, the passes and stencil framing are
   deliberately out of scope for a pure module.
 

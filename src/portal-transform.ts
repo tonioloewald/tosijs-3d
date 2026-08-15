@@ -200,3 +200,81 @@ export function depthLimit(
   const n = Math.ceil(Math.log(e) / Math.log(a))
   return Math.max(1, Math.min(cap, n))
 }
+
+/*
+THE FALLOFF NEED NOT BE MULTIPLICATIVE.
+
+Geometric attenuation ties two things together that you want to set separately:
+**how good the first bounce looks** and **how many passes you pay for**. At 0.95
+the first reflection is gorgeous and you owe 77 levels; at 0.5 you owe 6 but the
+first one is already half dark — and the first one is the only one anybody
+actually looks at.
+
+Tonio's point: it can be any curve. Two that are better than geometric for this:
+
+- **linear** — a fixed decline per level, so `0.1` means exactly ten levels and
+  the count is something you *state* rather than solve for.
+- **accelerating** — the loss GROWS with depth (0.05, then 0.1, then 0.2…), so
+  the first bounce is nearly perfect and the tail collapses. Getting dirtier
+  where you do not care, which is the same principle as every other budget in
+  this engine: spend the fidelity where it is perceived.
+
+Accelerating is the one to reach for. It is what makes a portal look expensive
+and cost little.
+*/
+
+/** Remaining brightness at each recursion depth. `0` is the direct view. */
+export type PortalFalloff = (depth: number) => number
+
+/** Geometric: `a^depth`. Physical, and slow — see the 95% note above. */
+export const geometricFalloff =
+  (attenuation: number): PortalFalloff =>
+  (depth) =>
+    attenuationAt(attenuation, depth)
+
+/**
+ * Linear: a fixed decline per level, so `step = 0.1` gives exactly ten levels.
+ * The pass count becomes a number you state rather than one you solve for.
+ */
+export const linearFalloff =
+  (step: number): PortalFalloff =>
+  (depth) =>
+    Math.max(0, 1 - Math.max(1e-6, step) * Math.max(0, depth))
+
+/**
+ * Accelerating: the per-level loss grows by `growth` each time, so the first
+ * bounce keeps almost everything and the tail falls off a cliff.
+ *
+ * `first = 0.05, growth = 2` loses 5%, then 10%, then 20% — dirt where nobody
+ * is looking. This is the perceptually honest one: the first reflection is the
+ * only one anyone inspects, and depth 4 exists to be atmosphere.
+ */
+export const acceleratingFalloff =
+  (first = 0.05, growth = 2): PortalFalloff =>
+  (depth) => {
+    let remaining = 1
+    let loss = Math.max(1e-6, first)
+    for (let d = 0; d < Math.max(0, depth); d++) {
+      remaining -= loss
+      loss *= Math.max(1, growth)
+      if (remaining <= 0) return 0
+    }
+    return Math.max(0, remaining)
+  }
+
+/**
+ * How many levels are worth drawing under any falloff curve: the first depth
+ * whose remaining brightness is below `epsilon`, capped by the device tier.
+ *
+ * The cap always wins, so a headset can insist on 2 however clean the glass is.
+ */
+export function depthLimitFor(
+  falloff: PortalFalloff,
+  epsilon = 0.02,
+  cap = 8
+): number {
+  for (let d = 1; d <= cap; d++) {
+    if (falloff(d) < epsilon) return d
+  }
+  return cap
+}
