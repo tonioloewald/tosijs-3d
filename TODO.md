@@ -340,6 +340,37 @@ discipline as clearance verification:
 nearly free, then a render pass — and reach for the next one only when the
 previous stops paying.
 
+### The TARDIS: the right first demo, and it splits across both mechanisms
+
+Tonio: put a TARDIS in the base demo, walk in, it's bigger on the inside. A small
+extra scene for the visual trick, as distinct from hiding a planet in a snow
+globe.
+
+The useful thing is that "bigger on the inside" comes in two versions with very
+different price tags, and the demo can do the cheap one first:
+
+- **Never seen at once** — walk through the door, a threshold occludes, you are
+  in a hall. That is a **transition zone**, costs nothing, and it is what Doctor
+  Who actually does: the show almost never frames both spaces in one shot.
+- **Seen at once** — stand outside and look _through_ the door at the vast
+  interior. That is the actual trick, and it needs **portal rendering**, because
+  the impossibility has to be visible to land.
+
+Which makes it a good first portal implementation rather than a stunt: the
+interior is a tiny self-contained scene (cheap to load, nothing streamed), the
+portal surface is a single flat quad (the simplest case there is), and you can
+build the transition-zone version first and upgrade the _same demo_ to
+see-through — so the two mechanisms can be compared side by side on identical
+content. It also sells the engine in about five seconds, which the current demo
+suite does not do (see #20).
+
+**The snow globe is the deep end, and worth naming as separate.** A planet inside
+a held object is not a harder TARDIS: the portal surface is curved, it moves and
+rotates with the object, and you look into it from arbitrary angles rather than
+through a doorway — so the virtual camera transform stops being "the twin of a
+fixed frame" and the near-plane clipping gets genuinely hard. File it as its own
+thing; do not let it set the requirements for the doorway case.
+
 **What it would actually cost, stated before anyone calls it free:**
 
 - One render pass per _visible_ portal — the reflection budget, again. Culls the
