@@ -282,6 +282,56 @@ What follows from that, all already implied by the notes further down this file:
 - [ ] **A door is a surface-breaking node pinned at depth 0**, so it is authored
       rather than discovered — the same rule that makes entrances tractable.
 
+### …and the OTHER sense: a portal as a context transition
+
+Tonio: walk from a city exterior into a building interior **with no graphic
+transition**. A hell of a primitive to have for free, and it looks like we nearly
+do.
+
+**A portal is a reflection probe pointed somewhere else.** `b3d-reflections`
+already renders a scene to a texture from a virtual camera, with a render list, a
+`refreshRate`, a distance ramp, a tier-driven `reflectionSize`, and
+`reflections: false` on the weakest tier. A doorway that shows another space is
+the same machinery with the virtual camera placed at the portal's twin instead of
+mirrored about a plane. The budget conversation is one we have already had and
+already won.
+
+**Two different things live under this word, and only one needs the render pass:**
+
+- **Co-located interiors** — the building is really there, a `pad` landform minus
+  some boxes. You walk in. No portal rendering at all, and it falls out of the
+  province vocabulary for nothing. This covers most of what a game wants.
+- **Portal-rendered contexts** — the doorway is a window into a separately
+  managed space. Earns its cost when the interior is bigger inside than out, when
+  200 buildings must not each occupy world space, or when inside genuinely
+  differs (its own lighting, media, physics, time of day).
+
+**Start with co-located**, because it is free, and let portal rendering be the
+thing you reach for when co-location stops paying.
+
+**What it would actually cost, stated before anyone calls it free:**
+
+- One render pass per _visible_ portal — the reflection budget, again. Culls the
+  same way: not facing it, not near it, not rendering it.
+- **Recursion needs a hard depth limit** (a portal visible through a portal), and
+  the limit is a quality knob, not a constant.
+- **The seam wants a stencil or a clip plane**, or geometry on the far side pokes
+  through the doorway's frame — the classic portal artefact.
+- **Crossing must be atomic**: the frame you swap contexts, the camera, the
+  player's parent, the active media and the physics world all move together, or
+  you get one frame of the wrong world. `shiftOrigin` and the media registry are
+  the right seams; this is the same discipline as death's aftermath.
+- **VR doubles it**, and stereo is where fill is scarcest. A portal that reads
+  beautifully flat can be the thing that breaks a headset's budget — so it needs
+  a per-tier cap from day one, not after someone complains.
+
+**The prize, and why it is worth doing properly:** with contexts, an interior can
+have its own medium (§medium), its own gravity, its own time of day, and its own
+LOD budget — and the exterior can stop existing while you are inside it. That is
+the mechanism behind "portal into a building, get out of the ship, walk to a
+jeep" in the everything demo, and it is also how a 200-building city stays
+affordable on a phone.
+
 ## Volumetric fine tiles — measure before building (2026-08-15)
 
 Tonio's idea, and its conclusion: if the finest terrain LOD is volumetric and
