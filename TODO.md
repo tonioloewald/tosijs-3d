@@ -287,6 +287,18 @@ Design notes to keep in mind when it's built:
 Changes made from source-only (tsc + unit tests green) that still need a human/headset
 look. **Flat** = check in the browser; **VR** = check in the headset.
 
+- [x] **Flat — pause** (0.7.0) — CONFIRMED by Tonio 2026-08-15 on the tunnel:
+      unpause works, the camera is frozen while paused (the zoom-gesture fix),
+      backgrounding repauses, returning and continuing works, repeatedly.
+- [ ] **VR — `enterXrOnResume`** — the motivating path and the one still
+      unproven: Continue must be the user gesture that enters immersive VR, and
+      taking the headset off must pause. Needs a headset; nothing in the flat
+      check exercises it.
+- [ ] **Flat — `b3d-death`'s panel likely has the same two bugs the pause panel
+      had** (camera fights the tap; fixed 1.1-unit width overflows a portrait
+      phone). Untouched because death runs its own spectator camera. Crash on a
+      phone and try Respawn — if it fights you, it's the same fix ported.
+
 - [x] **Flat — crashed aircraft releases input** (issue #9, fixed 0.7.0) — CONFIRMED
       by manta-recon 2026-08-14 on https://3d.tosijs.net/crash-test.html: case A
       halts with the no-death-element message, case B explodes → panel → a
