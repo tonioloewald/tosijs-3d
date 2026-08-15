@@ -298,6 +298,29 @@ It also answers #20 directly — the demo suite representing one kind of game.
    enter/exit; the new part is interiors (portals), which is `b3d-patch`
    territory and currently EXPERIMENTAL.
 
+**THE 2-SECOND BUDGET IS THE FEATURE.** Manta already loads fast on a phone,
+and a mini-No-Man's-Sky that opens from a URL in ~2s on an iPhone — no install,
+no store, no download screen — is a far stronger claim than the same thing
+looking prettier. It is also the whole PLATFORM.md bet, demonstrated instead of
+argued.
+
+What protects it, and what will quietly destroy it:
+
+- **Procedural is why it's fast.** Terrain, planet, star system and galaxy are
+  all generated, so there is nothing to stream — the payload is the 2.5 MB
+  gzipped bundle and almost nothing else. That is a property of this particular
+  demo, not of the engine.
+- **Assets are the enemy, and they arrive one reasonable decision at a time.**
+  A ship, then a jeep, then a building, then a character — each defensible, and
+  together they turn 2s into 20s. Stage 5 (get out and walk) is exactly where
+  this pressure lands.
+- **So state the budget up front and check it**: cold load to first interactive
+  frame on a mid phone, over LTE, with an empty cache. If a stage cannot hold
+  it, that stage ships as a SEPARATE page rather than being folded in — the
+  series structure below is what makes that possible without losing the arc.
+- The spin-up sequence (below) covers whatever load remains, and measures the
+  device while it does it.
+
 **Do not** build it as one demo page. It should be a series that share a scene
 setup, so each stage is independently checkable — and so a stage that breaks
 doesn't take the others down with it.
