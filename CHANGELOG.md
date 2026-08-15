@@ -9,6 +9,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 > **Beta builds cut from this section** (tarballs, not npm releases — see
 > `RELEASING.md`'s tagged-but-unpublished window):
 >
+> - **0.7.0-beta.4** (2026-08-15) — the `medium` primitive (space/air/water/
+>   mercury, plane or sphere), medium-aware projectiles closing #13, and pause
+>   marked EXPERIMENTAL pending a headset.
 > - **0.7.0-beta.3** (2026-08-15) — pause (backgrounding, start-paused, the VR
 >   entry gesture, a centred panel), the stick-sign contract test + `kind`, and
 >   four more manta reports: #17/#18 ambient spawn bias, #19 authored projectile

@@ -29,41 +29,69 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
-  <title>Input — tosijs-3d</title>
-  <meta name="description" content="Whether you&#39;re driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal is to build your controller code once and…" />
-  <link rel="canonical" href="https://3d.tosijs.net/input/" />
+  <title>medium — tosijs-3d</title>
+  <meta name="description" content="What is this stuff, where does it end, and how far in am I? A pure, Babylon-free description of the substance a thing is moving through — air, water, vacuum…" />
+  <link rel="canonical" href="https://3d.tosijs.net/medium/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="Input — tosijs-3d" />
-  <meta property="og:description" content="Whether you&#39;re driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal is to build your controller code once and…" />
-  <meta property="og:url" content="https://3d.tosijs.net/input/" />
+  <meta property="og:title" content="medium — tosijs-3d" />
+  <meta property="og:description" content="What is this stuff, where does it end, and how far in am I? A pure, Babylon-free description of the substance a thing is moving through — air, water, vacuum…" />
+  <meta property="og:url" content="https://3d.tosijs.net/medium/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Input","description":"Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal is to build your controller code once and…","url":"https://3d.tosijs.net/input/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"medium","description":"What is this stuff, where does it end, and how far in am I? A pure, Babylon-free description of the substance a thing is moving through — air, water, vacuum…","url":"https://3d.tosijs.net/medium/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
-<h1>Input</h1>
-<p>Whether you&#39;re driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal is to build your controller code once and have it work as broadly as possible.</p>
-<!-- toc -->
+<h1>medium</h1>
+<p><strong>What is this stuff, where does it end, and how far in am I?</strong> A pure,
+Babylon-free description of the <em>substance</em> a thing is moving through — air,
+water, vacuum, liquid mercury — and the boundary between one and the next.</p>
+<p>It answers three questions and does nothing else:</p>
 <ul>
-<li><a href="/b3d-controllable/">b3d-controllable</a></li>
-<li><a href="/b3d-controller/">b3d-controller</a></li>
-<li><a href="/b3d-input-focus/">b3d-input-focus</a></li>
-<li><a href="/control-input/">control-input</a></li>
-<li><a href="/game-controller/">game-controller</a></li>
-<li><a href="/gamepad-focus/">gamepad-focus</a></li>
-<li><a href="/gamepad-svg/">gamepad-svg</a></li>
-<li><a href="/glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
-<li><a href="/hardware-gamepad/">hardware-gamepad</a></li>
-<li><a href="/keyboard-gamepad/">keyboard-gamepad</a></li>
-<li><a href="/touch-gamepad/">touch-gamepad</a></li>
-<li><a href="/virtual-gamepad/">virtual-gamepad</a></li>
-<li><a href="/xr-gamepad/">xr-gamepad</a></li>
+<li><strong>how deep</strong> am I in it (<code>depthIn</code>)</li>
+<li><strong>how much</strong> of me is in it (<code>submergence</code>, smoothed across a band)</li>
+<li><strong>did I just cross</strong> its surface (<code>crossing</code>)</li>
 </ul>
-<!-- /toc -->
+<p>Everything else — drag, fog, buoyancy, the splash, the regime switch — is the
+CALLER&#39;s business. This module owns no rendering, no physics and no Babylon
+types, so it can be unit-tested and shared by the water, the projectiles, the
+vehicles and the shader without any of them depending on each other.</p>
+<pre><code class="language-js">import { medium } from &#39;tosijs-3d&#39;
+
+const sea = medium.plane({ name: &#39;water&#39;, y: 0, band: 0.4, drag: 40, maxSpeed: 12 })
+
+const w = medium.submergence({ x: 0, y: -3, z: 0 }, sea) // 1 — fully under
+const c = medium.crossing({ x: 0, y: 2, z: 0 }, { x: 0, y: -1, z: 0 }, sea)
+// → &#39;entered&#39;  (the splash, the whiteout, the regime change: yours to dress)
+</code></pre>
+<h2>Two geometries, because there are two real cases</h2>
+<ul>
+<li><strong><code>plane</code></strong> — a horizontal surface at some <code>y</code>. A sea, a fog bank, a smoke
+layer, the top of a mercury vat. Inside is below.</li>
+<li><strong><code>sphere</code></strong> — a shell around a centre. A planet&#39;s ocean, its atmosphere, the
+edge of space. Inside is within <code>radius</code>.</li>
+</ul>
+<p>A plane is <em>not</em> modelled as a very large sphere. It could be, and it would be
+worse: at a 6371 km radius the arithmetic loses the centimetres that decide
+whether you are above or below a wave, and every flat scene would pay for a
+planet it does not have.</p>
+<h2>Stacking: space → air → water</h2>
+<p>Media nest, and <code>innermost</code> picks the one you are actually in — the deepest
+match in the list, so an ocean inside an atmosphere inside vacuum resolves the
+way you would say it out loud. Nothing here blends <em>properties</em> between media;
+a caller that wants &quot;half in, half out&quot; has <code>submergence</code> for exactly that,
+which is the same band-weight the fog compositor already uses (see
+<a href="/atmosphere/" class="wikilink">atmosphere</a>) so a surface crossing looks like one event rather than three
+subsystems changing their minds at slightly different depths.</p>
+<h2>Why a band and not a plane</h2>
+<p>A hard boundary produces the &quot;thunk&quot;: the shader recompiles, the fog jumps, the
+drag doubles between one frame and the next. <code>band</code> is the thickness over which
+the transition happens (metres), smoothstepped — tight enough that entering
+water is <em>obvious</em>, wide enough that it is not a discontinuity. Tuned from
+<a href="/b3d-water/" class="wikilink">b3d-water</a>&#39;s <code>fogTransition</code>, which learned this the hard way.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -129,7 +157,7 @@
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
-    <li><details open><summary><a class="doc-link current" href="../input/" aria-current="page">Input</a></summary>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
@@ -186,11 +214,11 @@
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
-    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <li><details open><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
-      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link current" href="../medium/" aria-current="page">medium</a></li>
       <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
     </ul>
     </details></li>

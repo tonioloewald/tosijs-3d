@@ -120,6 +120,12 @@ tosi-b3d {
 
 ## Demo — pause, start screens, and the VR entry gesture
 
+> **⚠️ EXPERIMENTAL.** The flat behaviour below is verified; the VR half — the
+> Continue tap carrying a user gesture into `enterXRAsync`, and taking the
+> headset off pausing — has not been through a headset yet. That's the half the
+> feature is *for*, so treat these attributes as unsettled until it has.
+
+
 A second, deliberately small scene. It starts paused with its own panel, so the
 first thing you see is a Start screen; backgrounding the tab pauses it again.
 
@@ -347,7 +353,8 @@ export class B3d extends Component {
         correct HTML and would silently disable the default (tosijs now throws on a
         true-default boolean). Same reason as `gamepadFade` and friends.
         */
-        /** Pause automatically when the tab/window goes to the background. */
+        /** Pause automatically when the tab/window goes to the background.
+         * ⚠️ EXPERIMENTAL — see the pause demo; the VR path is unvalidated. */
         pauseWhenHidden: 'on',
         /** Come up paused, showing the pause panel — the "press Start" shape. */
         startPaused: false,
@@ -1419,6 +1426,29 @@ export class B3d extends Component {
      *
      * `b3d-fog` sets the BASE (and the mode, once). Everyone else leans on it.
      */
+    /**
+     * THE MEDIA IN THIS SCENE — what things are moving through.
+     *
+     * A live list, not a snapshot: a water element registers itself here and
+     * anything that cares (projectiles wanting drag, a vehicle wanting a regime,
+     * a shader wanting depth) asks the scene rather than re-deriving the surface
+     * from a mesh it had to go and find. Two subsystems deriving "am I under
+     * water" separately is how they end up disagreeing at the boundary — the
+     * failure that produced the fogged-sky/transparent-window conflict.
+     *
+     * See [[medium]] for the geometry (plane or sphere: a sea, or a planet's
+     * ocean and atmosphere) and the queries.
+     */
+    media = [];
+    /** Register a medium. Returns its unregister, like `addFogLayer`. */
+    addMedium(m) {
+        this.media.push(m);
+        return () => {
+            const i = this.media.indexOf(m);
+            if (i >= 0)
+                this.media.splice(i, 1);
+        };
+    }
     addFogLayer(layer) {
         this._fogLayers.push(layer);
         return () => {

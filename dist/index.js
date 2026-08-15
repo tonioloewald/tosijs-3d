@@ -15,6 +15,13 @@ export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, e
 // without instantiating one — `equilibriumSpeed` is what the HUD's set-point
 // mark is drawn from, and a mission planner wants the same number.
 export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire';
+/*
+The MEDIUM primitive as a namespace, not bare names: `plane`, `sphere` and
+`crossing` are common nouns and would collide the moment anything else wants
+them (`carve` already has a sphere). Types stay top-level.
+*/
+import * as mediumNs from './medium';
+export const medium = mediumNs;
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)

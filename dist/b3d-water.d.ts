@@ -34,6 +34,8 @@ export declare class B3dWater extends AbstractMesh {
     private _callback?;
     private _underwaterUpdate?;
     private _removeFogLayer?;
+    private _removeMedium?;
+    private _medium;
     /** Is the sky currently fogged for us? Latched so we only touch it on a crossing. */
     private _skyFogged;
     /** What each sky mesh's `applyFog` was before we took it — restored on exit. */

@@ -16,6 +16,9 @@ export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, e
 export type { XRStuff, XRParams } from './b3d-utils';
 export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire';
 export type { FlyByWireConfig, FlyByWireCommand, FlyByWireState, } from './fly-by-wire';
+import * as mediumNs from './medium';
+export declare const medium: typeof mediumNs;
+export type { Medium, PlaneMedium, SphereMedium, MediumVec3, MediumCrossing, } from './medium';
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 export type { Quat, Pose } from './spatial-transform';

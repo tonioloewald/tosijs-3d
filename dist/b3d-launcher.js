@@ -189,6 +189,7 @@ import { AbstractMesh, isOff, sceneDelta } from './b3d-utils';
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
 const MIN_CLOSING_SPEED = 70;
 import { ballisticStep } from './ballistics';
+import { crossing, depthIn, dragAt, } from './medium';
 import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance';
 import { makeResource, drain, regenTick, isEmpty, } from './resource';
 import { detonateWarhead } from './b3d-warhead';
@@ -202,6 +203,10 @@ import { detonateWarhead } from './b3d-warhead';
 export function spawnProjectile(owner, opts) {
     const scene = owner.scene;
     const r = opts.radius ?? 0.12;
+    // Scratch copy so a per-frame drag change never mutates the caller's params
+    // (they are commonly a shared constant on a launcher).
+    const stepParams = { ...opts.params };
+    const baseDrag = opts.params.dragCoeff ?? 0;
     const mesh = (opts.mesh ??
         BABYLON.MeshBuilder.CreateSphere('projectile', { diameter: r * 2, segments: 6 }, scene));
     mesh.position.copyFrom(opts.origin);
@@ -263,7 +268,41 @@ export function spawnProjectile(owner, opts) {
         const fromX = state.pos.x;
         const fromY = state.pos.y;
         const fromZ = state.pos.z;
-        ballisticStep(state, opts.params, dt);
+        // Drag from whatever it is actually flying through. `dragAt` blends across
+        // the medium's band, so entering water is a ramp rather than a wall.
+        // `?? []` because this path accepts a duck-typed owner (the spawn tests use
+        // one, and so may a consumer embedding the projectile machinery elsewhere).
+        const media = owner.media ?? [];
+        if (media.length > 0 && opts.params.dragCoeff != null) {
+            stepParams.dragCoeff = dragAt(state.pos, baseDrag, media);
+            ballisticStep(state, stepParams, dt);
+        }
+        else {
+            ballisticStep(state, opts.params, dt);
+        }
+        for (const m of media) {
+            const kind = crossing({ x: fromX, y: fromY, z: fromZ }, state.pos, m);
+            if (kind != null)
+                opts.whenCrossing?.(kind, m, { ...state.pos });
+            // A torpedo: the surface is a ceiling. Held just inside rather than
+            // bounced — a round that reflects off the water reads as a skipping
+            // stone, which is a different weapon.
+            if (opts.stayIn === m.name && kind === 'exited') {
+                if (m.kind === 'plane') {
+                    state.pos.y = m.y - 0.01;
+                    if (state.vel.y > 0)
+                        state.vel.y = 0;
+                }
+            }
+            // A depth charge: fuse on depth, not on impact.
+            if (opts.detonateDepth != null && depthIn(state.pos, m) >= opts.detonateDepth) {
+                const at = new BABYLON.Vector3(state.pos.x, state.pos.y, state.pos.z);
+                detonateWarhead(owner, at, opts.warhead, opts.useLos ?? true);
+                opts.onImpact?.(at);
+                dispose();
+                return;
+            }
+        }
         // Swept collision: cast the segment we just traversed so a fast shell can't
         // tunnel through a thin target between frames.
         const from = new BABYLON.Vector3(fromX, fromY, fromZ);

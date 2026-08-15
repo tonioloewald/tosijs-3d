@@ -3,6 +3,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
+import type { Medium } from './medium';
 import { CombatWorld } from './destroyable';
 import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
@@ -79,7 +80,8 @@ export declare class B3d extends Component {
         gamepadFade: "on" | "off";
         quality: QualitySetting;
         stats: boolean;
-        /** Pause automatically when the tab/window goes to the background. */
+        /** Pause automatically when the tab/window goes to the background.
+         * ⚠️ EXPERIMENTAL — see the pause demo; the VR path is unvalidated. */
         pauseWhenHidden: "on" | "off";
         /** Come up paused, showing the pause panel — the "press Start" shape. */
         startPaused: boolean;
@@ -534,6 +536,22 @@ export declare class B3d extends Component {
      *
      * `b3d-fog` sets the BASE (and the mode, once). Everyone else leans on it.
      */
+    /**
+     * THE MEDIA IN THIS SCENE — what things are moving through.
+     *
+     * A live list, not a snapshot: a water element registers itself here and
+     * anything that cares (projectiles wanting drag, a vehicle wanting a regime,
+     * a shader wanting depth) asks the scene rather than re-deriving the surface
+     * from a mesh it had to go and find. Two subsystems deriving "am I under
+     * water" separately is how they end up disagreeing at the boundary — the
+     * failure that produced the fogged-sky/transparent-window conflict.
+     *
+     * See [[medium]] for the geometry (plane or sphere: a sea, or a planet's
+     * ocean and atmosphere) and the queries.
+     */
+    readonly media: Medium[];
+    /** Register a medium. Returns its unregister, like `addFogLayer`. */
+    addMedium(m: Medium): () => void;
     addFogLayer(layer: FogContributor): () => void;
     /** The fog everything else blends FROM. `b3d-fog` owns this; without one we still keep a
      * whisper of fog on, so a layer can ramp up without ever switching the mode. */

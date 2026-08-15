@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils';
 import type { B3d, RadarFaction } from './tosi-b3d';
 import { type BallisticParams, type Vec3 } from './ballistics';
+import { type Medium, type MediumCrossing } from './medium';
 import type { WarheadSpec } from './warhead';
 export interface ProjectileOpts {
     origin: BABYLON.Vector3;
@@ -43,6 +44,18 @@ export interface ProjectileOpts {
      * picks itself blocks the blast's own line of sight.
      */
     mesh?: BABYLON.TransformNode;
+    /** React to a medium boundary: the entry splash, the breakout plume, the
+     * audio. Called with which way it went and which medium it was. */
+    whenCrossing?: (kind: MediumCrossing, medium: Medium, at: {
+        x: number;
+        y: number;
+        z: number;
+    }) => void;
+    /** Detonate this many metres INSIDE a medium — a depth charge. */
+    detonateDepth?: number;
+    /** Named medium the round refuses to leave — a torpedo, for which the
+     * surface is a ceiling. It is held just inside rather than reflected. */
+    stayIn?: string;
     /**
      * Meshes the collision ray must ignore — the FIRING entity's own geometry, so a
      * shell/bomb spawned at/near the shooter (a bomb off the belly, guns in a climb)
