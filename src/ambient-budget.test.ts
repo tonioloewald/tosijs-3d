@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { allocateAmbient, fillWeight, ratchetPool } from './ambient-budget'
+import { allocateAmbient, fillWeight, ratchetPool, spawnBias } from './ambient-budget'
 import type { AmbientRequest } from './ambient-budget'
 import type { PerfTier } from './perf-probe'
 
@@ -164,5 +164,43 @@ describe('ratchetPool', () => {
 
   test('a fully-shed pool stays shed', () => {
     expect(ratchetPool(0)).toBe(0)
+  })
+})
+
+describe('spawnBias — put the particles where the camera is looking', () => {
+  const F = { x: 0, y: 0, z: 1 } // looking +Z
+  const STILL = { x: 0, y: 0, z: 0 }
+
+  test('no knobs set = no change (the old behaviour, exactly)', () => {
+    const b = spawnBias(F, { x: 0, y: 0, z: 30 }, { radius: 12 })
+    expect(b).toEqual({ x: 0, y: 0, z: 0 })
+  })
+
+  test('lookAhead pushes the box along the VIEW, in units of radius', () => {
+    const b = spawnBias(F, STILL, { radius: 12, lookAhead: 0.5 })
+    expect(b.z).toBeCloseTo(6)
+    expect(b.x).toBeCloseTo(0)
+  })
+
+  test('lead pushes it along MOTION, in seconds of travel', () => {
+    const b = spawnBias(F, { x: 0, y: 0, z: 20 }, { radius: 12, lead: 0.5 })
+    expect(b.z).toBeCloseTo(10) // 20 m/s for half a second
+  })
+
+  test('the lead is CAPPED, so speed cannot fling the box past the far plane', () => {
+    const fast = spawnBias(F, { x: 0, y: 0, z: 200 }, { radius: 12, lead: 0.5, speedCap: 40 })
+    expect(fast.z).toBeCloseTo(20) // 40, not 200
+  })
+
+  test('looking and moving in different directions both contribute', () => {
+    const b = spawnBias(F, { x: 20, y: 0, z: 0 }, { radius: 12, lookAhead: 0.5, lead: 0.5 })
+    expect(b.z).toBeCloseTo(6) // view
+    expect(b.x).toBeCloseTo(10) // motion
+  })
+
+  test('a stationary viewer is unaffected by the lead', () => {
+    const b = spawnBias(F, STILL, { radius: 12, lookAhead: 0.5, lead: 0.5 })
+    expect(b.x).toBeCloseTo(0)
+    expect(b.z).toBeCloseTo(6)
   })
 })

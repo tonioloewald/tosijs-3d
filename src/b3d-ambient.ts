@@ -116,6 +116,9 @@ tosi-b3d { width: 100%; height: 100%; }
 | `minTier` | `'low'` | Never run below this device tier, at any budget |
 | `priority` | `0` | Higher survives longer when the pool is squeezed. Shed lowest-first |
 | `radius` | `18` | Size of the box around the camera that particles spawn in |
+| `lookAhead` | `0.35` | Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18) |
+| `lead` | `0.25` | Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17) |
+| `speedCap` | `40` | Speed (m/s) past which `lead` stops growing |
 | `rate` | `0` | Particles/sec (0 = derive from the preset) |
 | `color` | `''` | Override the preset's colour |
 | `size` | `0` | Scale the preset's sprite size |
@@ -128,7 +131,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta } from './b3d-utils'
 import { band } from './atmosphere'
-import { fillWeight } from './ambient-budget'
+import { fillWeight, spawnBias } from './ambient-budget'
 import { LeafField } from './ambient-leaves'
 import type { AmbientEffect, AmbientRequest } from './ambient-budget'
 import type { PerfTier } from './perf-probe'
@@ -336,6 +339,9 @@ function dotTexture(scene: BABYLON.Scene): BABYLON.DynamicTexture {
 
 let nextAmbientId = 0
 
+/** Fallback view direction when no camera can be asked. */
+const FORWARD_Z = new BABYLON.Vector3(0, 0, 1)
+
 export class B3dAmbient extends B3dChild implements AmbientEffect {
   static initAttributes = {
     preset: 'motes',
@@ -345,6 +351,12 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     minTier: 'low' as PerfTier,
     priority: 0,
     radius: 18,
+    // Bias the spawn box toward what the camera can actually SEE and where the
+    // owner is GOING. Defaults are modest: enough to fix a vehicle without
+    // visibly changing a walker. 0 for either restores the centred box.
+    lookAhead: 0.35,
+    lead: 0.25,
+    speedCap: 40,
     rate: 0,
     color: '',
     size: 0,
@@ -386,6 +398,8 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   private _ps: BABYLON.ParticleSystem | null = null
   private _leaves: LeafField | null = null
   private _emitter = new BABYLON.Vector3(0, 0, 0)
+  private _lastEye = new BABYLON.Vector3(0, 0, 0)
+  private _eyeVel = new BABYLON.Vector3(0, 0, 0)
   private _intensity = 0
   private _baseRate = 0
   private _granted = 0
@@ -626,6 +640,29 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     // materialising all around you.
     this._emitter.x -= this.windX * 0.5
     this._emitter.z -= this.windZ * 0.5
+
+    // …and toward what the camera is looking at, and where it is going. Velocity
+    // is measured from the eye's OWN displacement rather than asked of a vehicle:
+    // this element has no owner entity, and in a chase view the camera's motion
+    // is what matters anyway (it trails the craft, which is half of #17).
+    const dtFrame = sceneDelta(scene)
+    if (dtFrame > 1e-5) {
+      const inst = eye.subtract(this._lastEye).scale(1 / dtFrame)
+      // Low-passed: a single frame's displacement is noisy, and a jittering
+      // spawn centre reads as flicker.
+      this._eyeVel.scaleInPlace(0.85).addInPlace(inst.scale(0.15))
+    }
+    this._lastEye.copyFrom(eye)
+    const fwd = scene.activeCamera?.getForwardRay?.(1)?.direction ?? FORWARD_Z
+    const bias = spawnBias(fwd, this._eyeVel, {
+      radius: (this as any).radius,
+      lookAhead: (this as any).lookAhead,
+      lead: (this as any).lead,
+      speedCap: (this as any).speedCap,
+    })
+    this._emitter.x += bias.x
+    this._emitter.y += bias.y
+    this._emitter.z += bias.z
 
     ps.emitRate = this._fillRate(ps)
 

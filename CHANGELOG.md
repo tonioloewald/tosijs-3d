@@ -61,6 +61,16 @@ that was tuned around the old feel.
 
 ### Added
 
+- **`b3d-ambient` spawns where you're LOOKING and where you're GOING** (#17,
+  #18): `lookAhead` (0.35 of `radius`, along the view) and `lead` (0.25s of
+  travel, along motion), capped by `speedCap`. A camera sees a frustum, not a
+  sphere, so a box centred on the eye births most of its particles behind and
+  beside you — they live and are culled unseen, paying full budget for a
+  fraction of the result — and at speed you outrun the box entirely, emptying
+  the view ahead exactly when you want it fullest. Velocity is measured from the
+  camera's own displacement, so nothing has to be plumbed in; in a chase view
+  that's the right signal anyway. Set either to 0 for the old centred box.
+
 - **`b3d-destroyable` takes `library` + `meshName`** (#22) — a static,
   destroyable thing that uses a library mesh is most of what populates a level,
   and there was no route to it: `b3d-loader` takes a `url` (which also loses the

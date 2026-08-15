@@ -156,3 +156,64 @@ export function ratchetPool(scale: number): number {
   const next = scale * 0.6
   return next < 0.25 ? 0 : next // below a quarter there's no honest effect left — all off
 }
+
+export interface SpawnBiasOptions {
+  /** Emitter box half-size (the `radius` attribute). */
+  radius: number
+  /** Fraction of `radius` to push the box along the VIEW direction (0 = centred). */
+  lookAhead?: number
+  /** Seconds of travel to push the box along the direction of MOTION. */
+  lead?: number
+  /** Speed beyond which the motion lead stops growing (m/s). */
+  speedCap?: number
+}
+
+/**
+ * Where to centre the ambient emitter box, given where you're looking and how
+ * fast you're going.
+ *
+ * Centring it on the camera is right for a walker and wrong for anything quick,
+ * for two compounding reasons (tosijs-3d#17/#18, from manta-recon):
+ *
+ * 1. **A camera sees a frustum, not a sphere.** Most of a box centred on the eye
+ *    is behind, beside and below it, so most particles are born unseen, live
+ *    unseen and are culled unseen — full cost, a fraction of the result. The
+ *    owner's report: *"most of the bubbles are spawning out of sight and then
+ *    stay out of sight until they're culled."*
+ * 2. **You outrun it.** At 30 m/s a 12 m box is behind you in under a second, so
+ *    the faster you go the emptier the view ahead — exactly backwards, since
+ *    speed is when you most want a medium rushing past.
+ *
+ * In a chase view both bite at once: the camera trails the vehicle, so the box
+ * is already behind the thing the player is watching.
+ *
+ * Returns the OFFSET from the eye, so the caller adds it to whatever else it
+ * does (the existing wind bias, for instance).
+ */
+export function spawnBias(
+  forward: { x: number; y: number; z: number },
+  velocity: { x: number; y: number; z: number },
+  opts: SpawnBiasOptions
+): { x: number; y: number; z: number } {
+  const { radius, lookAhead = 0, lead = 0, speedCap = 40 } = opts
+  const out = { x: 0, y: 0, z: 0 }
+
+  const fLen = Math.hypot(forward.x, forward.y, forward.z)
+  if (fLen > 1e-6 && lookAhead !== 0) {
+    const k = (radius * lookAhead) / fLen
+    out.x += forward.x * k
+    out.y += forward.y * k
+    out.z += forward.z * k
+  }
+
+  const speed = Math.hypot(velocity.x, velocity.y, velocity.z)
+  if (speed > 1e-6 && lead !== 0) {
+    // Capped, not proportional: past a point, leading further just spawns
+    // particles beyond the far plane, which is the same waste from the other end.
+    const k = (lead * Math.min(speed, speedCap)) / speed
+    out.x += velocity.x * k
+    out.y += velocity.y * k
+    out.z += velocity.z * k
+  }
+  return out
+}
