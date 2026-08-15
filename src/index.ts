@@ -134,6 +134,13 @@ export type {
   MediumCrossing,
 } from './medium'
 
+/*
+See-through portal math, namespaced: `sideOf` and `crossedPortal` are generic
+enough to collide, and `portalCamera` reads better qualified.
+*/
+import * as portalNs from './portal-transform'
+export const portalTransform = portalNs
+
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url'
 
