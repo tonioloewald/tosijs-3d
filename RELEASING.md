@@ -89,6 +89,34 @@ and confirm each is mentioned in `CLAUDE.md`.
    tagged rc in 0.7.0, hiding four real errors, because the only typecheck anyone
    ran was the build's. `bun test` strips types and cannot substitute.
 
+5a. **MINOR AND MAJOR ONLY — drive every demo, flat AND in VR.** A human, on the
+real thing, page by page.
+
+This is not a formality and it is not covered by anything above. Every time it
+has been done it has been a goldmine, and the reason is structural: the tests
+pin PURE models, and almost every bug that actually reaches an adopter is a
+COMBINATION — a value that is right on a monitor and wrong on a phone, an effect
+tuned for a walker that fails on a vehicle, a panel that fights the camera for a
+tap. None of those can fail a unit test, because none of them is wrong in
+isolation.
+
+The 0.7.0 cycle in one session, all found this way and none by the suite:
+
+- the pause panel read a tap as a zoom, then hid itself out of reach
+- the same panel was wider than a portrait viewport, so its button was off screen
+- `b3d-death`'s panel had both problems, at the worst possible moment
+- the HUD circle ate 70% of the width in portrait vs 36% in landscape
+- the glass gamepad fades away and won't come back once a trackpad exists
+- a scene that respawned by its own route made `b3d-death` swallow every death
+  after the first
+
+**What "drive" means:** fly/walk/drive it, crash it, pause it, rotate the phone,
+enter and leave VR. Not "does it load".
+
+Log what you find rather than fixing in place — a list at the end beats six
+half-finished fixes — and put anything not fixed this cycle in TODO.md under
+"Needs validation" with the platform it was seen on.
+
 5a0. **Re-check `UPSTREAM.md`'s Open rows** — `gh issue view` each one. Upstream
 issues get fixed while we're not looking, and a stale Open row is worse than no
 row: it asserts a workaround is still needed. (`tosijs-ui#63` sat in Open for a
