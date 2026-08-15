@@ -725,10 +725,35 @@ export class B3d extends Component {
       // session, and pausing there would fight the headset for no reason.
       if (document.hidden && !this.xrActive) this.pause('hidden')
     }
-    const onOrientation = () => {
+    /*
+    ORIENTATION FROM THE VIEWPORT, not from `screen.orientation`.
+
+    The Orientation API is the obvious source and the wrong one to DEPEND on —
+    it is patchy on iOS, and a scene that only listens to it hears nothing on
+    the devices that rotate most. But the viewport always tells the truth: when
+    the device turns, `innerWidth`/`innerHeight` swap, and that is observable
+    everywhere. `screen.orientation` is still read when present, for the finer
+    `type`/`angle` a game may want — as extra detail, never as the trigger.
+
+    Deliberately the VIEWPORT and not this element's own box: an embedded scene
+    in a doc page is a small rectangle whose aspect says nothing about which way
+    the phone is being held. Both are reported so a game can use either.
+    */
+    const orientationOf = () =>
+      window.innerHeight >= window.innerWidth ? 'portrait' : 'landscape'
+    let last = orientationOf()
+    const onResize = () => {
+      const now = orientationOf()
+      if (now === last) return // a resize is not a rotation
+      last = now
       this.dispatchEvent(
         new CustomEvent('orientation', {
           detail: {
+            orientation: now,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            // Present on most platforms, absent on some iOS versions — which is
+            // exactly why it isn't the trigger.
             type: screen.orientation?.type,
             angle: screen.orientation?.angle,
           },
@@ -737,10 +762,14 @@ export class B3d extends Component {
       )
     }
     document.addEventListener('visibilitychange', onVisibility)
-    screen.orientation?.addEventListener?.('change', onOrientation)
+    window.addEventListener('resize', onResize)
+    // orientationchange fires before the viewport settles on some browsers, so
+    // it's a second nudge into the same debounced check, not a separate path.
+    window.addEventListener('orientationchange', onResize)
     this._pauseWatch = () => {
       document.removeEventListener('visibilitychange', onVisibility)
-      screen.orientation?.removeEventListener?.('change', onOrientation)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
     }
   }
 

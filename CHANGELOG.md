@@ -79,7 +79,12 @@ that was tuned around the old feel.
     feature exists to prevent.
   - `pause` / `resume` / `orientation` events. `pause` carries a `reason`
     (`'user' | 'hidden' | 'xr' | 'start'`) so a game can tell "the player asked"
-    from "the tab went away".
+    from "the tab went away". `orientation` is derived from the **viewport**
+    (`innerWidth`/`innerHeight` swapping), not from `screen.orientation` — that
+    API is patchy on iOS, so a scene depending on it hears nothing on the
+    devices that rotate most; it's still read for `type`/`angle` when present,
+    as detail rather than trigger. Fires only when the classification actually
+    flips, so dragging a desktop window edge isn't a rotation.
 
   Rendering continues while paused — the panel has to be drawn and picked —
   but nothing advances: no combat tick, no fog, no `update` hook, and
