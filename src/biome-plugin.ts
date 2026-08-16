@@ -829,7 +829,15 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // under shallow water, dimming with depth. sub ramps over the
               // first couple of metres so the waterline isn't a hard seam.
               float sub = clamp(-altitude * 0.5, 0.0, 1.0);
-              float stage = clamp(1.0 + 2.0 * vEff - cliffRaw - 0.5 * sub, 1.0, 3.0);
+              // The cliff lag SHRINKS as volcanism maxes out. A full stage of
+              // lag at every level meant a vertical face could never exceed
+              // stage 2 (1 + 2·1 − 1), so the whole top of the ladder — yellow
+              // seams, orange-red rock — was unreachable on a cliff or a cut
+              // face however volcanic it was. The lag is right at low
+              // volcanism (a cliff drains and crusts over) and wrong at the
+              // top, where the rock itself is molten and verticals glow too.
+              float lag = cliffRaw * (1.0 - 0.75 * vEff);
+              float stage = clamp(1.0 + 2.0 * vEff - lag - 0.5 * sub, 1.0, 3.0);
               // Veins WIDEN as the ladder climbs — gently through stage 2
               // (2x), then steeply through the molten transition (6x by
               // stage 3), so pools read as veins fattening until they MERGE
@@ -862,17 +870,26 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // volcanic face read as black rock with seams on it rather than as
               // rock that is itself heating up. The crust-edge colour is the
               // right target: it is the hot-but-solid entry in the palette.
+              // black → RED → orange. The stage-2 rock is the palette's dark
+              // brown warmed toward ember, because brown reads as "dirt" next to
+              // a glowing seam where the eye expects "hot rock"; stage 3 then
+              // carries it to the crust-edge orange.
+              vec3 rock2 = mix(biomeVolcPal[1].rgb, biomeVolcPal[3].rgb * 0.7, 0.55);
               vec3 volcGround = mix(
-                mix(biomeVolcPal[0].rgb, biomeVolcPal[1].rgb, t12),
+                mix(biomeVolcPal[0].rgb, rock2, t12),
                 biomeVolcPal[5].rgb,
-                t23 * 0.85
+                t23 * 0.9
               );
               // stage 1: seams are COLD dark brown; they hand over as glow rises.
               // Keep a floor under the cold seam so a stage-1 face still reads
               // as VEINED rock — near-black basalt with near-black seams on it
               // is indistinguishable from nothing, which is what a cutaway's
               // vertical walls looked like.
-              vec3 base = mix(volcGround, biomeVolcPal[2].rgb, vein * (1.0 - 0.65 * t12));
+              // The cold seam warms toward ember as soon as the ladder starts, so
+              // early veins read as THIN RED rather than as darker black — the
+              // progression Tonio asked for begins at stage 1, not stage 2.
+              vec3 coldVein = mix(biomeVolcPal[2].rgb, biomeVolcPal[3].rgb, 0.35 + 0.5 * t12);
+              vec3 base = mix(volcGround, coldVein, vein * (1.0 - 0.65 * t12));
               // stage 2: seams glow — MOST are cooled ember, a slow mask picks
               // the live molten channels, so the field reads "lava under
               // rock", not "lava planet".

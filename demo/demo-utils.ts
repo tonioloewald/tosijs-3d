@@ -175,8 +175,11 @@ export interface VolumetricDemoOptions {
    * slow ramp plus enough depth, rather than a fast ramp.
    */
   molten?: number | (() => number)
-  /** Also build the plain-grey heightfield mesh, for comparison. */
+  /** Also build the heightfield mesh, as a red wireframe overlay. */
   reference?: boolean
+  /** Orbit angle (radians). Default frames the tile from -z; a cutaway that
+   * removes z>centre wants the camera on the -z side to face the section. */
+  alpha?: number
   seaLevel?: number
 }
 
@@ -221,6 +224,7 @@ export function volumetricDemo(
     molten = 0,
     reference = false,
     seaLevel = -200,
+    alpha = -Math.PI / 2,
   } = opts
 
   const scene = el.scene
@@ -342,6 +346,7 @@ export function volumetricDemo(
 
   // Its own camera, framing the tile — the scene's default is clamped to 50m.
   orbitCam(el, {
+    alpha,
     radius: size * 1.6,
     beta: 1.1,
     target: [size / 2, ground(size / 2, size / 2) * 0.4, size / 2],

@@ -9,37 +9,6 @@ The module behind it is **`sdf-lattice`**: pure, deterministic, Babylon-free and
 unit-tested, in the same spirit as [[terrain-grid]]. It knows about signed
 distance fields and triangles, and nothing about scenes or materials.
 
-## The theory, briefly
-
-**A signed distance field** is a function `f(x, y, z)` that returns how far you
-are from a surface, negative on one side and positive on the other. The surface
-is wherever it crosses zero. That is the whole representation — there is no mesh
-until you ask for one, and a shape is a *function*, so combining shapes is
-arithmetic: `max` is union, `min` is intersection, negation is complement.
-[[carve]] is that arithmetic given names, and it is why "a volcano with lava
-tubes" is one expression rather than a modelling session.
-
-**Turning the field into triangles** is *isosurface extraction*, and there are
-three classical answers:
-
-- **Marching cubes** (Lorensen & Cline, 1987) — the famous one. Sample the field
-  on a grid and emit triangles per cell from a 256-case lookup table. Simple,
-  but it produces slivers and cannot represent a sharp edge.
-- **Dual contouring** (Ju et al., 2002) — place ONE vertex per cell, positioned
-  by solving for the point that best fits the field's gradients. Reproduces sharp
-  creases exactly; needs the gradient (a QEF solve per cell) and can place a
-  vertex outside its own cell, which makes it fiddly.
-- **Surface nets** (Gibson, 1998) — one vertex per cell, placed at the average of
-  the zero crossings on the cell's edges, then smoothed. No gradient, no solve,
-  never leaves the cell, and the mesh comes out uniform. It rounds sharp
-  features, which for *terrain* is not a defect: rock is not sharp.
-
-**This module uses surface nets**, for those reasons. Erosion, water and
-weathering all round things off anyway, and the cheapness matters more than the
-creases when a tile has a millisecond budget.
-
-## The one idea that makes it usable: a GLOBAL lattice
-
 ## Demo — a volcano in cross-section, with its lava tubes
 
 The province vocabulary in one object: **a landform for the mount, carves for the
@@ -53,7 +22,7 @@ import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d
 import { volumetricDemo } from 'demo-utils'
 import { tosi } from 'tosijs'
 
-const state = tosi({ volc: { cut: 1, molten: 55 } })
+const state = tosi({ volc: { cut: 1, molten: 80 } })
 const noise = new PerlinNoise(3)
 const cone = volcano({ x: 128, z: 128, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
 const ground = (x, z) => cone.landform(x, z, noise.fractal(x * 0.01, 0, z * 0.01, 3) * 8)
@@ -93,6 +62,8 @@ const scene = b3d(
         // ramp leaves the cut face at stage 1, which is near-black basalt with
         // near-black seams: correct by the spec, and invisible.
         molten: () => state.volc.molten.valueOf(),
+        // Face the cut: the box removes z > 128, so the section looks toward -z.
+        alpha: Math.PI / 2,
       })
       preview.append(demo.readout)
     },
@@ -110,6 +81,37 @@ const scene = b3d(
 
 preview.append(scene)
 ```
+
+## The theory, briefly
+
+**A signed distance field** is a function `f(x, y, z)` that returns how far you
+are from a surface, negative on one side and positive on the other. The surface
+is wherever it crosses zero. That is the whole representation — there is no mesh
+until you ask for one, and a shape is a *function*, so combining shapes is
+arithmetic: `max` is union, `min` is intersection, negation is complement.
+[[carve]] is that arithmetic given names, and it is why "a volcano with lava
+tubes" is one expression rather than a modelling session.
+
+**Turning the field into triangles** is *isosurface extraction*, and there are
+three classical answers:
+
+- **Marching cubes** (Lorensen & Cline, 1987) — the famous one. Sample the field
+  on a grid and emit triangles per cell from a 256-case lookup table. Simple,
+  but it produces slivers and cannot represent a sharp edge.
+- **Dual contouring** (Ju et al., 2002) — place ONE vertex per cell, positioned
+  by solving for the point that best fits the field's gradients. Reproduces sharp
+  creases exactly; needs the gradient (a QEF solve per cell) and can place a
+  vertex outside its own cell, which makes it fiddly.
+- **Surface nets** (Gibson, 1998) — one vertex per cell, placed at the average of
+  the zero crossings on the cell's edges, then smoothed. No gradient, no solve,
+  never leaves the cell, and the mesh comes out uniform. It rounds sharp
+  features, which for *terrain* is not a defect: rock is not sharp.
+
+**This module uses surface nets**, for those reasons. Erosion, water and
+weathering all round things off anyway, and the cheapness matters more than the
+creases when a tile has a millisecond budget.
+
+## The one idea that makes it usable: a GLOBAL lattice
 
 ## Demo — does a volumetric tile match the heightfield it would replace?
 
