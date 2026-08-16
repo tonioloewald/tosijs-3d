@@ -854,7 +854,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // they merge, and the bottom slightly thinner than before so the
               // progression has somewhere to start.
               float vw = max(biomeSurf.w, 1e-3)
-                * (0.8 + 1.8 * clamp(stage - 1.0, 0.0, 1.0) + 8.4 * clamp(stage - 2.0, 0.0, 1.0));
+                * (1.25 + 1.8 * clamp(stage - 1.0, 0.0, 1.0) + 8.4 * clamp(stage - 2.0, 0.0, 1.0));
               float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
               float t12 = clamp(stage - 1.0, 0.0, 1.0);
               float t23 = clamp(stage - 2.0, 0.0, 1.0);
@@ -864,7 +864,10 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // global blink. glowAnimation (biomeWater.z) dials it; 0 = still.
               float tAnim = biomePlanetD.w;
               float churn = bioSimplex3(vec3(wp.xz * 0.05, tAnim * 0.11));
-              float pulse = 1.0 + biomeWater.z * (0.10 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.18 * churn);
+              // Applied to BOTH ember and molten: it used to touch only the
+              // molten channel, which is a fraction of a fraction of the
+              // surface, so the "slow pulse" was invisible in practice.
+              float pulse = 1.0 + biomeWater.z * (0.17 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.26 * churn);
               // stage 1 → 2 → 3: base rock warms near-black basalt → dark
               // brown → RED-ORANGE. It used to stop at dark brown, so a fully
               // volcanic face read as black rock with seams on it rather than as
@@ -888,7 +891,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // The cold seam warms toward ember as soon as the ladder starts, so
               // early veins read as THIN RED rather than as darker black — the
               // progression Tonio asked for begins at stage 1, not stage 2.
-              vec3 coldVein = mix(biomeVolcPal[2].rgb, biomeVolcPal[3].rgb, 0.35 + 0.5 * t12);
+              vec3 coldVein = mix(biomeVolcPal[2].rgb, biomeVolcPal[3].rgb, 0.55 + 0.4 * t12);
               vec3 base = mix(volcGround, coldVein, vein * (1.0 - 0.65 * t12));
               // stage 2: seams glow — MOST are cooled ember, a slow mask picks
               // the live molten channels, so the field reads "lava under
@@ -900,7 +903,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               float liveLo = 0.55 - 0.34 * t23;
               float live = smoothstep(liveLo, liveLo + 0.17, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
               float glow = vein * t12 * damp;
-              vec3 ember = mix(base, biomeVolcPal[3].rgb, glow);
+              vec3 ember = mix(base, biomeVolcPal[3].rgb * pulse, glow);
               // …and the molten colour itself intensifies through stage 3, so
               // the top of the ladder is visibly hotter than the middle rather
               // than the same orange with wider seams.
