@@ -18,11 +18,11 @@ ground is a density field rather than a height. Volcanism ramps with depth below
 the surface, so the cut face reads as molten interior.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d, button3d, label3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
 import { tosi } from 'tosijs'
 
-const state = tosi({ volc: { cut: 1, molten: 80 } })
+const state = tosi({ volc: { cut: 0.5, molten: 80 } })
 const noise = new PerlinNoise(3)
 const cone = volcano({ x: 128, z: 128, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
 const ground = (x, z) => cone.landform(x, z, noise.fractal(x * 0.01, 0, z * 0.01, 3) * 8)
@@ -41,10 +41,21 @@ const tubes = carve.roughen(
 // The cutaway: a box whose NEAR face lands at the cut. Centre it on the tile
 // instead and it swallows the whole volume — which extracts to zero triangles
 // and renders as an empty canvas.
-const slice = (x, y, z) =>
-  carve.box({ x: 128, y: 40, z: 328 + (1 - state.volc.cut.valueOf()) * 300 }, { x: 400, y: 400, z: 200 })(x, y, z)
+//
+// The near face SWEEPS across the tile: 0 puts it at z=0 and takes everything,
+// 1 puts it past the far edge and takes nothing, 0.5 halves the cone. Starts at
+// 0.5 because the section is the point of the demo.
+const slice = (x, y, z) => {
+  const nearFace = state.volc.cut.valueOf() * 256
+  return carve.box({ x: 128, y: 40, z: nearFace + 200 }, { x: 400, y: 400, z: 200 })(x, y, z)
+}
 
 let demo = null
+let pending = null
+const rebuildSoon = () => {
+  clearTimeout(pending)
+  pending = setTimeout(() => demo?.rebuild(), 100)
+}
 
 const scene = b3d(
   {
@@ -69,9 +80,24 @@ const scene = b3d(
     },
     scenePanel: () => [
       label3d({ text: 'volcano, in section', bold: true }),
-      slider3d({ label: 'cutaway', value: state.volc.cut, min: 0, max: 1, step: 0.05 }),
-      slider3d({ label: 'molten depth', value: state.volc.molten, min: 20, max: 300, step: 10 }),
-      button3d({ label: 'rebuild', onClick: () => demo?.rebuild() }),
+      // Extraction is fast enough (~200ms for this chunk) that a slider can
+      // just drive it — debounced so a drag doesn't queue a rebuild per step.
+      slider3d({
+        label: 'cutaway',
+        value: state.volc.cut,
+        min: 0,
+        max: 1,
+        step: 0.02,
+        onChange: () => rebuildSoon(),
+      }),
+      slider3d({
+        label: 'molten depth',
+        value: state.volc.molten,
+        min: 20,
+        max: 300,
+        step: 5,
+        onChange: () => rebuildSoon(),
+      }),
     ],
   },
   b3dLight({ y: 1, intensity: 0.5 }),
@@ -170,6 +196,11 @@ const bore = carve.roughen(
 )
 
 let demo = null
+let pending = null
+const rebuildSoon = () => {
+  clearTimeout(pending)
+  pending = setTimeout(() => demo?.rebuild(), 100)
+}
 
 const scene = b3d(
   {
