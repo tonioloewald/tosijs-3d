@@ -8,7 +8,6 @@
 - [b3d-fog](/b3d-fog/)
 - [b3d-light](/b3d-light/)
 - [b3d-particles](/b3d-particles/)
-- [b3d-patch](/b3d-patch/)
 - [b3d-shadows](/b3d-shadows/)
 - [b3d-skybox](/b3d-skybox/)
 - [b3d-sound](/b3d-sound/)

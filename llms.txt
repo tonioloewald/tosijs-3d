@@ -73,8 +73,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
 - https://3d.tosijs.net/b3d-particles/ — b3d-particles
   Declarative particle effect component wrapping Babylon.js `ParticleSystem`.
-- https://3d.tosijs.net/b3d-patch/ — b3d-patch
-  base entrance. Where [[landform]] shapes the heightfield and [[patch-field]]
 - https://3d.tosijs.net/b3d-physics/ — b3d-physics
   Enables Jolt physics on the scene. Add as a child of `<tosi-b3d>` to
 - https://3d.tosijs.net/b3d-planet/ — b3d-planet
@@ -179,6 +177,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/portal-transform/ — portal-transform
+  see-through portals: a doorway that shows another place, and shows it *while you
 - https://3d.tosijs.net/prefab/ — prefab
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
 - https://3d.tosijs.net/radar/ — radar.ts
