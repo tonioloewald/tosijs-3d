@@ -341,6 +341,17 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **Volcanic veins were missing from every vertical surface.** The plate pattern
+  was sampled from world **XZ only**, so a cliff or a cut face barely moves
+  through the noise — its xz coordinate is near-constant across the surface —
+  and you got vertical streaks instead of a vein web. Now sampled with a true
+  **3D Worley**, which costs the same neighbourhood as blending three 2D
+  projections (27 cells either way, a 3-wide hash instead of 2-wide) and is
+  strictly better: no projection seams, no ghosting where planes blend, and a
+  cut face shows the veins' real cross-sections because the veins are genuinely
+  three-dimensional. Only the volcanism branch reaches it, so non-volcanic
+  surfaces pay nothing.
+
 - **The HUD circle dominated a portrait viewport.** It was already sized off the
   _smaller_ dimension — that part was right — but a single percentage of the
   small side means 36% of the width in landscape and **70% of it in portrait**,

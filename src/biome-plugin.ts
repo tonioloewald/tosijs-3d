@@ -586,6 +586,37 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         }
         return vec2(F1, F2);
       }
+      // 3D Worley — the volcanic plates as VOLUMES rather than a pattern
+      // painted on the ground. Costs the same neighbourhood as blending three
+      // 2D projections (27 cells either way, a 3-wide hash instead of 2-wide)
+      // and is strictly better: no projection seams, no ghosting where two
+      // planes blend, and a CUT FACE shows the veins' true cross-sections
+      // because the veins are genuinely three-dimensional. Only the volcanism
+      // branch reaches it, so a non-volcanic surface pays nothing.
+      vec3 bioCellHash3(vec3 c) {
+        return fract(sin(vec3(
+          dot(c, vec3(127.1, 311.7, 74.7)),
+          dot(c, vec3(269.5, 183.3, 246.1)),
+          dot(c, vec3(113.5, 271.9, 124.6))
+        )) * 43758.5453);
+      }
+      vec2 bioWorley3(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        float F1 = 8.0;
+        float F2 = 8.0;
+        for (int z = -1; z <= 1; z++) {
+          for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+              vec3 g = vec3(float(x), float(y), float(z));
+              float d = length(g + bioCellHash3(i + g) - f);
+              if (d < F1) { F2 = F1; F1 = d; }
+              else if (d < F2) { F2 = d; }
+            }
+          }
+        }
+        return vec2(F1, F2);
+      }
       float bioFbm(vec2 p) {
         // 2 octaves — the budget note in the design doc; add the third only
         // after profiling on mid-range mobile Safari.
@@ -803,7 +834,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // (2x), then steeply through the molten transition (6x by
               // stage 3), so pools read as veins fattening until they MERGE
               // — one continuous process, not two patterns swapping.
-              vec2 wF = bioWorley(wp.xz * biomeSurf.z);
+              // 3D, not XZ-only. Sampling the plate pattern from world XZ
+              // alone means a VERTICAL face barely moves through the noise — its
+              // xz coordinate is almost constant across the surface — so a cliff
+              // or a cut face got vertical STREAKS instead of cells and the vein
+              // web simply was not there. Reported on a cutaway volcano, where
+              // every interior wall is vertical.
+              vec2 wF = bioWorley3(wp * biomeSurf.z);
               float vw = max(biomeSurf.w, 1e-3)
                 * (1.0 + clamp(stage - 1.0, 0.0, 1.0) + 4.0 * clamp(stage - 2.0, 0.0, 1.0));
               float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
