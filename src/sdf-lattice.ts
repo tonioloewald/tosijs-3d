@@ -138,8 +138,11 @@ The bore is on by default; **fill the bore in** to see the ridge without it.
 > get a dimple where you asked for a tunnel.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, toggle3d, button3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
+import { tosi } from 'tosijs'
+
+const state = tosi({ sdf: { wire: true, bored: true } })
 
 // AUTHOR THE RIDGE, don't go hunting for one.
 //
@@ -166,7 +169,6 @@ const bore = carve.roughen(
 
 let demo = null
 let wire = false
-let bored = true
 
 const scene = b3d(
   {
@@ -185,15 +187,16 @@ const scene = b3d(
     },
     scenePanel: () => [
       label3d({ text: 'volumetric vs heightfield', bold: true }),
-      button3d({ label: 'hide the red wireframe', onClick: () => demo?.show('volumetric') }),
-      button3d({ label: 'show it', onClick: () => demo?.show('both') }),
+      toggle3d({
+        label: 'heightfield wireframe',
+        value: state.sdf.wire,
+        onChange: (on) => demo?.show(on ? 'both' : 'volumetric'),
+      }),
       button3d({ label: 'wireframe', onClick: () => demo?.wireframe((wire = !wire)) }),
-      button3d({
-        label: 'fill the bore in',
-        onClick: () => {
-          bored = !bored
-          demo?.setCarves(bored ? [bore] : [])
-        },
+      toggle3d({
+        label: 'bore',
+        value: state.sdf.bored,
+        onChange: (on) => demo?.setCarves(on ? [bore] : []),
       }),
     ],
   },
