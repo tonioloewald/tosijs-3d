@@ -140,19 +140,17 @@ in it, so with both shown it covers the mouths.
 import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
 
-/*
-AUTHOR THE RIDGE, don't go hunting for one.
-
-Two attempts failed before this: a hunted seed gave 18m of relief against a 14m
-bore (the tunnel removed the ridge instead of passing under it), and a second
-gave a roof that thinned to 2m with open trench at both ends — a groove with a
-lid, not a cave. Measured both by sampling vertical columns through the field
-rather than by looking.
-
-So: a gaussian ridge across the diagonal, and the bore under its crest. This is
-TUNNEL-DESIGN's own rule — where a tunnel must meet the surface, author the
-surface — and it gives 37m of rock over the bore with a clean mouth at each end.
-*/
+// AUTHOR THE RIDGE, don't go hunting for one.
+//
+// Two attempts failed first: a hunted seed gave 18m of relief against a 14m bore
+// (the tunnel removed the ridge instead of passing under it), and a second gave
+// a roof thinning to 2m with open trench at both ends — a groove with a lid, not
+// a cave. Both diagnosed by sampling vertical columns through the density field
+// rather than by looking at it.
+//
+// So: a gaussian ridge across the diagonal, bore under the crest. TUNNEL-DESIGN's
+// own rule — where a tunnel must meet the surface, author the surface — and it
+// gives 37m of rock over the bore with a clean mouth at each end.
 const noise = new PerlinNoise(2)
 const ridge = (x, z) => {
   const d = (x + z - 128) / Math.SQRT2 // distance from the diagonal crest
