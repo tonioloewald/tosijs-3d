@@ -122,9 +122,13 @@ The volumetric surface wears the terrain shader; the heightfield stays flat grey
 as a reference silhouette. Toggle between them and watch for movement.
 
 Then **punch a bore through the ridge** — the thing a heightfield cannot say at
-all. The terrain and the route were searched for rather than guessed: this hill
-puts 26 m of rock over the bore and the profile along it reads open / buried /
-open, so it has two mouths instead of being a trench or a buried pipe.
+all. The ridge is *authored* (a gaussian across the diagonal) rather than hunted
+for in noise, which is TUNNEL-DESIGN's own rule: where a tunnel must meet the
+surface, author the surface. It puts **37 m of rock over the bore** and gives a
+clean mouth at each end.
+
+**Switch to "volumetric only" to see it** — the grey heightfield tile has no hole
+in it, so with both shown it covers the mouths.
 
 > **A feature has to be bigger than the lattice.** At 5.33 m spacing a 12 m bore
 > is barely two cells across and surface nets can hardly express it; the tile
@@ -136,17 +140,29 @@ open, so it has two mouths instead of being a trench or a buried pipe.
 import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
 
-// Terrain and route SEARCHED for, not guessed: this seed puts a hill with 26m of
-// rock over the bore, and the profile along the tube reads open / buried / open —
-// so it has two mouths instead of being a trench or a buried pipe. The first
-// attempt failed because 18m of relief cannot contain a 14m tube: the bore just
-// removed the ridge.
+/*
+AUTHOR THE RIDGE, don't go hunting for one.
+
+Two attempts failed before this: a hunted seed gave 18m of relief against a 14m
+bore (the tunnel removed the ridge instead of passing under it), and a second
+gave a roof that thinned to 2m with open trench at both ends — a groove with a
+lid, not a cave. Measured both by sampling vertical columns through the field
+rather than by looking.
+
+So: a gaussian ridge across the diagonal, and the bore under its crest. This is
+TUNNEL-DESIGN's own rule — where a tunnel must meet the surface, author the
+surface — and it gives 37m of rock over the bore with a clean mouth at each end.
+*/
 const noise = new PerlinNoise(2)
-const ground = (x, z) => noise.fractal(x * 0.014, 0, z * 0.014, 4) * 90
+const ridge = (x, z) => {
+  const d = (x + z - 128) / Math.SQRT2 // distance from the diagonal crest
+  return 62 * Math.exp(-(d * d) / (2 * 26 * 26))
+}
+const ground = (x, z) => noise.fractal(x * 0.02, 0, z * 0.02, 3) * 7 + ridge(x, z) - 12
 
 const bore = carve.roughen(
-  carve.tube([{ x: 48, y: -6, z: 56 }, { x: 76, y: -6, z: 84 }, { x: 108, y: -6, z: 116 }], 6),
-  { amp: 1.4, scale: 0.06, octaves: 3, seed: 5 }
+  carve.tube([{ x: 14, y: 6, z: 14 }, { x: 64, y: 6, z: 64 }, { x: 114, y: 6, z: 114 }], 7),
+  { amp: 1.5, scale: 0.05, octaves: 3, seed: 5 }
 )
 
 let demo = null
@@ -159,9 +175,9 @@ const scene = b3d(
     sceneCreated: (el) => {
       demo = volumetricDemo(el, {
         size: 128,
-        spacing: 4, // fine enough to resolve a 12m bore; see the note below
-        below: 10,
-        above: 14,
+        spacing: 4, // fine enough to resolve a 14m bore; see the note below
+        below: 8,
+        above: 20, // the ridge is 62m tall — the chunk has to contain it
         ground,
         carves: [], // filled by the 'punch a bore' button
         reference: true, // build the grey heightfield tile too
