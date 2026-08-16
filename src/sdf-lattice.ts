@@ -53,7 +53,7 @@ import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d
 import { volumetricDemo } from 'demo-utils'
 import { tosi } from 'tosijs'
 
-const state = tosi({ volc: { cut: 1, molten: 140 } })
+const state = tosi({ volc: { cut: 1, molten: 55 } })
 const noise = new PerlinNoise(3)
 const cone = volcano({ x: 128, z: 128, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
 const ground = (x, z) => cone.landform(x, z, noise.fractal(x * 0.01, 0, z * 0.01, 3) * 8)
@@ -88,8 +88,10 @@ const scene = b3d(
         above: 30,
         ground,
         carves: [tubes, slice],
-        // A function, so the slider re-reads it on rebuild. 140m is slow enough
-        // that the upper cone stays rock and only the deep interior goes hot.
+        // A function, so the slider re-reads it on rebuild. 55m puts the deep
+        // interior at FULL volcanism — verticals lag a whole stage, so a slower
+        // ramp leaves the cut face at stage 1, which is near-black basalt with
+        // near-black seams: correct by the spec, and invisible.
         molten: () => state.volc.molten.valueOf(),
       })
       preview.append(demo.readout)

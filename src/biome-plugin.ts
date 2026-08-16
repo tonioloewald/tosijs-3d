@@ -853,10 +853,22 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               float tAnim = biomePlanetD.w;
               float churn = bioSimplex3(vec3(wp.xz * 0.05, tAnim * 0.11));
               float pulse = 1.0 + biomeWater.z * (0.10 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.18 * churn);
-              // stage 1 → 2: base rock warms near-black basalt → dark brown
-              vec3 volcGround = mix(biomeVolcPal[0].rgb, biomeVolcPal[1].rgb, t12);
-              // stage 1: seams are COLD dark brown; they hand over as glow rises
-              vec3 base = mix(volcGround, biomeVolcPal[2].rgb, vein * (1.0 - t12));
+              // stage 1 → 2 → 3: base rock warms near-black basalt → dark
+              // brown → RED-ORANGE. It used to stop at dark brown, so a fully
+              // volcanic face read as black rock with seams on it rather than as
+              // rock that is itself heating up. The crust-edge colour is the
+              // right target: it is the hot-but-solid entry in the palette.
+              vec3 volcGround = mix(
+                mix(biomeVolcPal[0].rgb, biomeVolcPal[1].rgb, t12),
+                biomeVolcPal[5].rgb,
+                t23 * 0.85
+              );
+              // stage 1: seams are COLD dark brown; they hand over as glow rises.
+              // Keep a floor under the cold seam so a stage-1 face still reads
+              // as VEINED rock — near-black basalt with near-black seams on it
+              // is indistinguishable from nothing, which is what a cutaway's
+              // vertical walls looked like.
+              vec3 base = mix(volcGround, biomeVolcPal[2].rgb, vein * (1.0 - 0.65 * t12));
               // stage 2: seams glow — MOST are cooled ember, a slow mask picks
               // the live molten channels, so the field reads "lava under
               // rock", not "lava planet".
