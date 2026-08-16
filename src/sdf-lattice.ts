@@ -17,8 +17,13 @@ nothing.
 Toggle between them and watch for movement. Then carve a tube through the hill:
 the cavity should be the *only* difference.
 
+Both wear the **same biome shader** — the one `b3d-terrain` uses. It samples in
+world space, so it does not care whether the triangles came from a grid or from
+surface nets, which is the other half of the claim: matching geometry is no use
+if the material cannot follow it onto the new mesh.
+
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, attachBiomePlugin, button3d, label3d } from 'tosijs-3d'
 
 const SPACING = 5.33
 const SIZE = 128
@@ -53,7 +58,9 @@ const buildHeightfield = (host, B) => {
   for (let iz = 0; iz < subs; iz++) {
     for (let ix = 0; ix < subs; ix++) {
       const a = iz * (subs + 1) + ix
-      idx.push(a, a + subs + 1, a + 1, a + 1, a + subs + 1, a + subs + 2)
+      // Winding matters: reversed, ComputeNormals points them DOWN and the
+      // tile renders black from above (it did).
+      idx.push(a, a + 1, a + subs + 1, a + 1, a + subs + 2, a + subs + 1)
     }
   }
   const mesh = new B.Mesh('heightfield', host.scene)
@@ -65,8 +72,9 @@ const buildHeightfield = (host, B) => {
   vd.normals = nrm
   vd.applyToMesh(mesh)
   const mat = new B.StandardMaterial('hm', host.scene)
-  mat.diffuseColor = new B.Color3(0.35, 0.75, 0.45)
+  mat.diffuseColor = new B.Color3(0.5, 0.55, 0.5)
   mat.backFaceCulling = false
+  attachBiomePlugin(mat, { seaLevel: -20 })
   mesh.material = mat
   return mesh
 }
@@ -89,8 +97,13 @@ const buildVolumetric = (host, B) => {
   vd.normals = Array.from(m.normals)
   vd.applyToMesh(volMesh)
   const mat = new B.StandardMaterial('vm', host.scene)
-  mat.diffuseColor = new B.Color3(0.9, 0.45, 0.2)
+  mat.diffuseColor = new B.Color3(0.5, 0.55, 0.5)
   mat.backFaceCulling = false
+  // The SAME shader as the heightfield: it samples in WORLD SPACE, so it does
+  // not care whether the triangles came from a grid or from surface nets. That
+  // is the other half of "the swap is invisible" — matching geometry is no use
+  // if the material can't follow it onto the new mesh.
+  attachBiomePlugin(mat, { seaLevel: -20 })
   volMesh.material = mat
 
   let max = 0
@@ -125,6 +138,10 @@ const scene = b3d(
       button3d({ label: 'both', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(true) } }),
       button3d({ label: 'heightfield only', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(false) } }),
       button3d({ label: 'volumetric only', onClick: () => { heightMesh?.setEnabled(false); volMesh?.setEnabled(true) } }),
+      button3d({ label: 'tint them apart', onClick: () => {
+        if (heightMesh) heightMesh.material.diffuseColor = new babylon.Color3(0.35, 0.75, 0.45)
+        if (volMesh) volMesh.material.diffuseColor = new babylon.Color3(0.9, 0.45, 0.2)
+      } }),
       button3d({ label: 'wireframe', onClick: () => {
         if (heightMesh) heightMesh.material.wireframe = !heightMesh.material.wireframe
         if (volMesh) volMesh.material.wireframe = !volMesh.material.wireframe
