@@ -206,9 +206,14 @@ const build = (host, B) => {
   if (mesh) mesh.dispose()
   const solid = terrainDensity(ground)
   // The CUTAWAY is just more air: a box carve, unioned with the tubes.
-  const slice = carve.box({ x: 128, y: 40, z: 300 - 130 * state.volc.cut.valueOf() }, { x: 400, y: 400, z: 200 })
-  const field = (x, y, z) =>
-    Math.max(solid(x, y, z), tubes(x, y, z), state.volc.cut.valueOf() > 0 ? slice(x, y, z) : -1e9)
+  //
+  // Note the box is positioned so its NEAR face lands where the cut should be —
+  // a half-extent of 200 centred at z=328 covers z>128 and nothing else. Centre
+  // it on the tile instead and it swallows the whole volume, which extracts to
+  // exactly zero triangles and renders as an empty canvas. (It did.)
+  const cut = state.volc.cut.valueOf()
+  const slice = carve.box({ x: 128, y: 40, z: 328 + (1 - cut) * 300 }, { x: 400, y: 400, z: 200 })
+  const field = (x, y, z) => Math.max(solid(x, y, z), tubes(x, y, z), slice(x, y, z))
 
   const cells = Math.round(SIZE / SPACING)
   const m = extractChunk(field, { ix: 0, iy: -20, iz: 0, nx: cells, ny: 50, nz: cells }, { spacing: SPACING, jitter: 0.2, seed: 4 })
@@ -268,7 +273,9 @@ const scene = b3d(
 preview.append(scene)
 ```
 
-> Move the **cutaway** slider and rebuild. The tubes are not drawn *into* the
+> Move the **cutaway** slider and rebuild — it slides the cutting box out of the
+> tile rather than resizing it, so 0 is an intact cone.
+> The tubes are not drawn *into* the
 > rock — they are absent from it, which is why the cut face shows their bores
 > honestly rather than as decals.
 
