@@ -324,13 +324,17 @@ export function volumetricDemo(
     BABYLON.VertexData.ComputeNormals(pos, idx, nrm)
     vd.normals = nrm
     vd.applyToMesh(referenceMesh)
-    // Flat grey ON PURPOSE: the biome plugin writes the surface colour, so two
-    // shaded surfaces are impossible to tell apart. One plain silhouette makes
-    // the comparison legible.
+    // A RED WIREFRAME, not a solid surface. A solid reference occludes exactly
+    // what you are trying to see — a bore's mouths sit in the heightfield's
+    // unbroken surface, so showing both hid the tunnel completely. As a
+    // wireframe it overlays the comparison instead of covering it, and the
+    // tessellation is visible too.
     const rm = new BABYLON.StandardMaterial('hmat', scene)
-    rm.diffuseColor = new BABYLON.Color3(0.55, 0.55, 0.58)
-    rm.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+    rm.emissiveColor = new BABYLON.Color3(0.9, 0.15, 0.15)
+    rm.diffuseColor = new BABYLON.Color3(0, 0, 0)
+    rm.specularColor = new BABYLON.Color3(0, 0, 0)
     rm.backFaceCulling = false
+    rm.wireframe = true
     referenceMesh.material = rm
   }
 

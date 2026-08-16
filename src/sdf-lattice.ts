@@ -118,8 +118,10 @@ from the same terrain at the same **5.33 m** spacing (a 128 m tile at 24
 subdivisions — the heightfield's own finest), so if extraction reproduces it, the
 two are indistinguishable and swapping one for the other shows nothing.
 
-The volumetric surface wears the terrain shader; the heightfield stays flat grey
-as a reference silhouette. Toggle between them and watch for movement.
+The volumetric surface wears the terrain shader; the heightfield is overlaid as a
+**red wireframe**, so it compares without occluding — a solid reference covers
+the very thing you are looking for, since a bore's mouths sit in the
+heightfield's unbroken surface.
 
 Then **punch a bore through the ridge** — the thing a heightfield cannot say at
 all. The ridge is *authored* (a gaussian across the diagonal) rather than hunted
@@ -127,8 +129,7 @@ for in noise, which is TUNNEL-DESIGN's own rule: where a tunnel must meet the
 surface, author the surface. It puts **37 m of rock over the bore** and gives a
 clean mouth at each end.
 
-**Switch to "volumetric only" to see it** — the grey heightfield tile has no hole
-in it, so with both shown it covers the mouths.
+The bore is on by default; **fill the bore in** to see the ridge without it.
 
 > **A feature has to be bigger than the lattice.** At 5.33 m spacing a 12 m bore
 > is barely two cells across and surface nets can hardly express it; the tile
@@ -165,7 +166,7 @@ const bore = carve.roughen(
 
 let demo = null
 let wire = false
-let bored = false
+let bored = true
 
 const scene = b3d(
   {
@@ -177,23 +178,21 @@ const scene = b3d(
         below: 8,
         above: 20, // the ridge is 62m tall — the chunk has to contain it
         ground,
-        carves: [], // filled by the 'punch a bore' button
+        carves: [bore], // ON by default — the tunnel IS the demo
         reference: true, // build the grey heightfield tile too
       })
       preview.append(demo.readout)
     },
     scenePanel: () => [
       label3d({ text: 'volumetric vs heightfield', bold: true }),
-      button3d({ label: 'both', onClick: () => demo?.show('both') }),
-      button3d({ label: 'heightfield only', onClick: () => demo?.show('reference') }),
-      button3d({ label: 'volumetric only', onClick: () => demo?.show('volumetric') }),
+      button3d({ label: 'hide the red wireframe', onClick: () => demo?.show('volumetric') }),
+      button3d({ label: 'show it', onClick: () => demo?.show('both') }),
       button3d({ label: 'wireframe', onClick: () => demo?.wireframe((wire = !wire)) }),
       button3d({
-        label: 'punch a bore through the ridge',
-        onClick: (e) => {
+        label: 'fill the bore in',
+        onClick: () => {
           bored = !bored
           demo?.setCarves(bored ? [bore] : [])
-          demo?.show(bored ? 'volumetric' : 'both')
         },
       }),
     ],
