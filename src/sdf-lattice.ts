@@ -6,6 +6,140 @@ vents — see TODO's *0.7.0 → Tunnel patches*). Pure, deterministic, Babylon-f
 and unit-tested, in the same spirit as [[terrain-grid]]: this module knows about
 signed distance fields and triangles, nothing about scenes or materials.
 
+## Demo — does a volumetric tile match the heightfield it would replace?
+
+The question the whole volumetric-terrain direction turns on. Both surfaces are
+built from the same terrain at the same **5.33 m** spacing (a 128 m tile at 24
+subdivisions — the heightfield's own finest), so if extraction reproduced it, the
+two are indistinguishable and swapping one for the other at the finest LOD shows
+nothing.
+
+Toggle between them and watch for movement. Then carve a tube through the hill:
+the cavity should be the *only* difference.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
+
+const SPACING = 5.33
+const SIZE = 128
+const noise = new PerlinNoise(7)
+const ground = (x, z) => noise.fractal(x * 0.004, 0, z * 0.004, 4) * 60
+
+const tube = carve.roughen(
+  carve.capsule({ x: 20, y: -6, z: 20 }, { x: 108, y: -14, z: 96 }, 7),
+  { amp: 2, scale: 0.05, octaves: 3, seed: 5 }
+)
+
+const readout = document.createElement('div')
+readout.style.cssText = 'font: 12px ui-monospace, monospace; padding: 6px'
+
+let heightMesh = null
+let volMesh = null
+let withCave = false
+let built = false
+let babylon = null // handed to us by the update hook; the barrel doesn't export it
+
+const buildHeightfield = (host, B) => {
+  const subs = Math.round(SIZE / SPACING)
+  const pos = []
+  const idx = []
+  for (let iz = 0; iz <= subs; iz++) {
+    for (let ix = 0; ix <= subs; ix++) {
+      const x = (ix / subs) * SIZE
+      const z = (iz / subs) * SIZE
+      pos.push(x, ground(x, z), z)
+    }
+  }
+  for (let iz = 0; iz < subs; iz++) {
+    for (let ix = 0; ix < subs; ix++) {
+      const a = iz * (subs + 1) + ix
+      idx.push(a, a + subs + 1, a + 1, a + 1, a + subs + 1, a + subs + 2)
+    }
+  }
+  const mesh = new B.Mesh('heightfield', host.scene)
+  const vd = new B.VertexData()
+  vd.positions = pos
+  vd.indices = idx
+  const nrm = []
+  B.VertexData.ComputeNormals(pos, idx, nrm)
+  vd.normals = nrm
+  vd.applyToMesh(mesh)
+  const mat = new B.StandardMaterial('hm', host.scene)
+  mat.diffuseColor = new B.Color3(0.35, 0.75, 0.45)
+  mat.backFaceCulling = false
+  mesh.material = mat
+  return mesh
+}
+
+const buildVolumetric = (host, B) => {
+  if (volMesh) volMesh.dispose()
+  const solid = terrainDensity(ground)
+  const field = withCave
+    ? (x, y, z) => Math.max(solid(x, y, z), tube(x, y, z))
+    : solid
+  const cells = Math.round(SIZE / SPACING)
+  const t0 = performance.now()
+  const m = extractChunk(field, { ix: 0, iy: -8, iz: 0, nx: cells, ny: 16, nz: cells }, { spacing: SPACING, jitter: 0.25, seed: 7 })
+  const ms = performance.now() - t0
+
+  volMesh = new B.Mesh('volumetric', host.scene)
+  const vd = new B.VertexData()
+  vd.positions = Array.from(m.positions)
+  vd.indices = Array.from(m.indices)
+  vd.normals = Array.from(m.normals)
+  vd.applyToMesh(volMesh)
+  const mat = new B.StandardMaterial('vm', host.scene)
+  mat.diffuseColor = new B.Color3(0.9, 0.45, 0.2)
+  mat.backFaceCulling = false
+  volMesh.material = mat
+
+  let max = 0
+  let sum = 0
+  for (let i = 0; i < m.vertexCount; i++) {
+    const d = Math.abs(m.positions[i * 3 + 1] - ground(m.positions[i * 3], m.positions[i * 3 + 2]))
+    if (d > max) max = d
+    sum += d
+  }
+  readout.textContent =
+    `${m.triangleCount} triangles, extracted in ${ms.toFixed(1)}ms at ${SPACING}m spacing. ` +
+    `Deviation from the continuous terrain: max ${max.toFixed(3)}m, mean ${(sum / m.vertexCount).toFixed(3)}m — ` +
+    `the heightfield mesh's OWN error here is max 0.266m, mean 0.068m, so they agree.`
+}
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    // BABYLON arrives as the second argument — the barrel doesn't re-export it.
+    update: (host, B) => {
+      if (built || host.scene == null) return
+      built = true
+      babylon = B
+      heightMesh = buildHeightfield(host, B)
+      buildVolumetric(host, B)
+      const cam = host.scene.activeCamera
+      if (cam && cam.setTarget) cam.setTarget(new B.Vector3(SIZE / 2, 0, SIZE / 2))
+      if (cam) { cam.radius = 210; cam.beta = 1.05 }
+    },
+    scenePanel: (host) => [
+      label3d({ text: 'volumetric vs heightfield', bold: true }),
+      button3d({ label: 'both', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(true) } }),
+      button3d({ label: 'heightfield only', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(false) } }),
+      button3d({ label: 'volumetric only', onClick: () => { heightMesh?.setEnabled(false); volMesh?.setEnabled(true) } }),
+      button3d({ label: 'wireframe', onClick: () => {
+        if (heightMesh) heightMesh.material.wireframe = !heightMesh.material.wireframe
+        if (volMesh) volMesh.material.wireframe = !volMesh.material.wireframe
+      } }),
+      button3d({ label: 'carve a tube', onClick: () => { withCave = !withCave; if (babylon) buildVolumetric(host, babylon) } }),
+    ],
+  },
+  b3dLight({ y: 1, intensity: 0.55 }),
+  b3dSun({ intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 9 })
+)
+
+preview.append(scene, readout)
+```
+
 ## The one idea: a GLOBAL lattice
 
 Every chunk of every patch extracts from **one world-aligned lattice** — spacing
