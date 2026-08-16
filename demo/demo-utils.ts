@@ -17,7 +17,14 @@
  * eyeball once it builds.
  */
 import * as BABYLON from '@babylonjs/core'
-import { b3dSun, b3dGround, SvgTexture, sceneDelta } from '../src/index'
+import {
+  b3dSun,
+  b3dGround,
+  SvgTexture,
+  sceneDelta,
+  extractChunk,
+  attachBiomePlugin,
+} from '../src/index'
 
 // The b3d element examples receive as `el` in sceneCreated — just the bits these helpers touch.
 type B3dEl = {
@@ -126,4 +133,240 @@ export function spinner(
     box.rotation.y += (spin * sceneDelta(el.scene)) / 1000
   })
   return box
+}
+
+/*
+ * ─── VOLUMETRIC TILE DEMOS ────────────────────────────────────────────────
+ *
+ * Every sdf/terrain demo is the same scene with a different DENSITY FUNCTION:
+ * a tile of ground, optionally carved, extracted and shaded. Written from
+ * scratch each time, that shared 60 lines is 60 lines of camera limits, vertex
+ * colours and material setup for a reader to wade through before reaching the
+ * one idea the demo is about — and 60 lines for the author to get wrong
+ * independently every time (a cutaway box that swallowed the tile, a camera
+ * radius silently clamped to 50, a heightfield lit from underneath: all three
+ * happened, all three in demos written from scratch).
+ *
+ * So: the boilerplate lives here and a demo supplies `ground`, some `carves`,
+ * and its panel rows.
+ */
+
+export interface VolumetricDemoOptions {
+  /** World extent of the tile, metres. */
+  size?: number
+  /** Lattice spacing, metres. Cost scales as the CUBE of this — 3–5 is sane. */
+  spacing?: number
+  /** Cells of lattice below / above y=0. Must bracket the surface AND the carves. */
+  below?: number
+  above?: number
+  /** The heightfield. Solid below it, air above, before any carving. */
+  ground: (x: number, z: number) => number
+  /** Air volumes subtracted from the ground — `carve.*`, positive inside the air. */
+  carves?: Array<(x: number, y: number, z: number) => number>
+  /**
+   * Depth (m) over which volcanism ramps to full. 0 = no depth ramp. A
+   * function is re-read on every `rebuild`, so a slider can drive it.
+   *
+   * Bigger is SLOWER. It interacts with the shader's stage ladder in a way
+   * worth knowing: verticals lag one stage behind horizontals by design (a
+   * cliff face drains and crusts over; lava pools flat), so a cut face at half
+   * volcanism shows COLD dark voronoi'd basalt, not glowing seams. To get a
+   * glowing web low down you need the deep end to reach FULL volcanism — so a
+   * slow ramp plus enough depth, rather than a fast ramp.
+   */
+  molten?: number | (() => number)
+  /** Also build the plain-grey heightfield mesh, for comparison. */
+  reference?: boolean
+  seaLevel?: number
+}
+
+export interface VolumetricDemo {
+  /** The extracted mesh, rebuilt by `rebuild()`. */
+  mesh: BABYLON.Mesh | null
+  /** The flat-grey heightfield mesh, when `reference` is set. */
+  referenceMesh: BABYLON.Mesh | null
+  /** A `<div>` reporting triangles, time and deviation — append it next to the scene. */
+  readout: HTMLDivElement
+  /** Re-extract (after changing a carve, a slider, anything). */
+  rebuild: () => void
+  /** Swap the carve list and re-extract — the "punch a hole in it" control. */
+  setCarves: (
+    carves: Array<(x: number, y: number, z: number) => number>
+  ) => void
+  /** Show/hide either surface. */
+  show: (which: 'both' | 'volumetric' | 'reference') => void
+  /** Wireframe on both, from one flag so they cannot diverge. */
+  wireframe: (on: boolean) => void
+}
+
+/**
+ * Build the volumetric-tile scene every sdf demo shares.
+ *
+ * Call it from `sceneCreated` (it needs a live scene). The camera is set up via
+ * `orbitCam`, which builds its OWN camera rather than adjusting the default one
+ * — the default's zoom is clamped to 50 m, which silently pins any scene-scale
+ * demo far too close.
+ */
+export function volumetricDemo(
+  el: B3dEl,
+  opts: VolumetricDemoOptions
+): VolumetricDemo {
+  const {
+    size = 256,
+    spacing = 4,
+    below = 20,
+    above = 30,
+    ground,
+    carves: initialCarves = [],
+    molten = 0,
+    reference = false,
+    seaLevel = -200,
+  } = opts
+
+  const scene = el.scene
+  const readout = document.createElement('div')
+  readout.style.cssText =
+    'font: 12px ui-monospace, Menlo, monospace; padding: 6px; color: #93a4b0'
+
+  let mesh: BABYLON.Mesh | null = null
+  let referenceMesh: BABYLON.Mesh | null = null
+  let wire = false
+
+  let carves = initialCarves
+  const density = (x: number, y: number, z: number) => {
+    let d = y - ground(x, z) // solid below the surface
+    for (const c of carves) d = Math.max(d, c(x, y, z))
+    return d
+  }
+
+  const rebuild = () => {
+    mesh?.dispose()
+    const cells = Math.max(1, Math.round(size / spacing))
+    const t0 = performance.now()
+    const m = extractChunk(
+      density,
+      { ix: 0, iy: -below, iz: 0, nx: cells, ny: below + above, nz: cells },
+      { spacing, jitter: 0.2, seed: 4 }
+    )
+    const ms = performance.now() - t0
+
+    mesh = new BABYLON.Mesh('volumetric', scene)
+    const vd = new BABYLON.VertexData()
+    vd.positions = Array.from(m.positions)
+    vd.indices = Array.from(m.indices)
+    vd.normals = Array.from(m.normals)
+
+    // Depth below the surface → the biome shader's volcanism ramp, carried in
+    // the colour alpha (inverted: 1 = none). The same channel b3d-terrain uses
+    // for local volcanic provinces, so a cut face reads as molten interior.
+    const moltenDepth = typeof molten === 'function' ? molten() : molten
+    if (moltenDepth > 0) {
+      const colours: number[] = []
+      for (let i = 0; i < m.vertexCount; i++) {
+        const x = m.positions[i * 3]
+        const y = m.positions[i * 3 + 1]
+        const z = m.positions[i * 3 + 2]
+        const depth = Math.max(0, ground(x, z) - y)
+        colours.push(1, 1, 1, 1 - Math.min(1, depth / moltenDepth))
+      }
+      vd.colors = colours
+    }
+    vd.applyToMesh(mesh)
+
+    const mat = new BABYLON.StandardMaterial('vmat', scene)
+    mat.diffuseColor = new BABYLON.Color3(0.5, 0.52, 0.5)
+    mat.backFaceCulling = false
+    mat.wireframe = wire
+    attachBiomePlugin(mat, { seaLevel })
+    mesh.material = mat
+    if (moltenDepth > 0) mesh.useVertexColors = true
+
+    // Deviation from the heightfield, which is the number these demos exist to
+    // show: the volumetric surface should match what a grid tile would draw.
+    let max = 0
+    for (let i = 0; i < m.vertexCount; i++) {
+      const d = Math.abs(
+        m.positions[i * 3 + 1] -
+          ground(m.positions[i * 3], m.positions[i * 3 + 2])
+      )
+      if (d > max) max = d
+    }
+    readout.textContent =
+      `${m.triangleCount} triangles · extracted in ${ms.toFixed(
+        0
+      )}ms at ${spacing}m spacing` +
+      (carves.length === 0
+        ? ` · max deviation from the heightfield ${max.toFixed(3)}m`
+        : ' · carved')
+  }
+
+  if (reference) {
+    const subs = Math.max(1, Math.round(size / spacing))
+    const pos: number[] = []
+    const idx: number[] = []
+    for (let iz = 0; iz <= subs; iz++)
+      for (let ix = 0; ix <= subs; ix++) {
+        const x = (ix / subs) * size
+        const z = (iz / subs) * size
+        pos.push(x, ground(x, z), z)
+      }
+    for (let iz = 0; iz < subs; iz++)
+      for (let ix = 0; ix < subs; ix++) {
+        const a = iz * (subs + 1) + ix
+        // Winding matters: reversed, the normals point DOWN and it renders black.
+        idx.push(a, a + 1, a + subs + 1, a + 1, a + subs + 2, a + subs + 1)
+      }
+    referenceMesh = new BABYLON.Mesh('heightfield', scene)
+    const vd = new BABYLON.VertexData()
+    vd.positions = pos
+    vd.indices = idx
+    const nrm: number[] = []
+    BABYLON.VertexData.ComputeNormals(pos, idx, nrm)
+    vd.normals = nrm
+    vd.applyToMesh(referenceMesh)
+    // Flat grey ON PURPOSE: the biome plugin writes the surface colour, so two
+    // shaded surfaces are impossible to tell apart. One plain silhouette makes
+    // the comparison legible.
+    const rm = new BABYLON.StandardMaterial('hmat', scene)
+    rm.diffuseColor = new BABYLON.Color3(0.55, 0.55, 0.58)
+    rm.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+    rm.backFaceCulling = false
+    referenceMesh.material = rm
+  }
+
+  rebuild()
+
+  // Its own camera, framing the tile — the scene's default is clamped to 50m.
+  orbitCam(el, {
+    radius: size * 1.6,
+    beta: 1.1,
+    target: [size / 2, ground(size / 2, size / 2) * 0.4, size / 2],
+  })
+
+  const api: VolumetricDemo = {
+    get mesh() {
+      return mesh
+    },
+    get referenceMesh() {
+      return referenceMesh
+    },
+    readout,
+    rebuild,
+    setCarves: (next) => {
+      carves = next
+      rebuild()
+    },
+    show: (which) => {
+      mesh?.setEnabled(which !== 'reference')
+      referenceMesh?.setEnabled(which !== 'volumetric')
+    },
+    wireframe: (on) => {
+      wire = on
+      if (mesh?.material)
+        (mesh.material as BABYLON.StandardMaterial).wireframe = on
+      if (referenceMesh?.material)
+        (referenceMesh.material as BABYLON.StandardMaterial).wireframe = on
+    },
+  }
+  return api
 }

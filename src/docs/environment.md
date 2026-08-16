@@ -16,8 +16,8 @@
 - [biome-chart](/biome-chart/)
 - [biome-plugin](/biome-plugin/)
 - [carve](/carve/)
+- [Carved landforms](/sdf-lattice/)
 - [landform](/landform/)
 - [patch-field](/patch-field/)
-- [sdf-lattice](/sdf-lattice/)
 - [slope-profile](/slope-profile/)
 <!-- /toc -->

@@ -1,200 +1,67 @@
 /*#
-# sdf-lattice
+# Carved landforms
 
-**The extraction substrate for volumetric terrain patches** (tunnels, caverns,
-vents — see TODO's *0.7.0 → Tunnel patches*). Pure, deterministic, Babylon-free
-and unit-tested, in the same spirit as [[terrain-grid]]: this module knows about
-signed distance fields and triangles, nothing about scenes or materials.
+**Ground you can cut holes in.** Caves, lava tubes, arches, sea caves, overhangs,
+mine shafts — everything a heightfield cannot say, because a heightfield has one
+height per point and none of these do.
 
-## Demo — does a volumetric tile match the heightfield it would replace?
+The module behind it is **`sdf-lattice`**: pure, deterministic, Babylon-free and
+unit-tested, in the same spirit as [[terrain-grid]]. It knows about signed
+distance fields and triangles, and nothing about scenes or materials.
 
-The question the whole volumetric-terrain direction turns on. Both surfaces are
-built from the same terrain at the same **5.33 m** spacing (a 128 m tile at 24
-subdivisions — the heightfield's own finest), so if extraction reproduced it, the
-two are indistinguishable and swapping one for the other at the finest LOD shows
-nothing.
+## The theory, briefly
 
-Toggle between them and watch for movement. Then carve a tube through the hill:
-the cavity should be the *only* difference.
+**A signed distance field** is a function `f(x, y, z)` that returns how far you
+are from a surface, negative on one side and positive on the other. The surface
+is wherever it crosses zero. That is the whole representation — there is no mesh
+until you ask for one, and a shape is a *function*, so combining shapes is
+arithmetic: `max` is union, `min` is intersection, negation is complement.
+[[carve]] is that arithmetic given names, and it is why "a volcano with lava
+tubes" is one expression rather than a modelling session.
 
-The **volumetric** surface wears the biome shader `b3d-terrain` uses; the
-heightfield stays **flat grey** as a reference silhouette. That split is the point:
-the shader samples in world space, so it does not care whether the triangles came
-from a grid or from surface nets — matching geometry is no use if the material
-cannot follow it onto the new mesh. Keeping one surface unshaded makes the
-comparison legible instead of making both pretty.
+**Turning the field into triangles** is *isosurface extraction*, and there are
+three classical answers:
 
-```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, attachBiomePlugin, button3d, label3d } from 'tosijs-3d'
+- **Marching cubes** (Lorensen & Cline, 1987) — the famous one. Sample the field
+  on a grid and emit triangles per cell from a 256-case lookup table. Simple,
+  but it produces slivers and cannot represent a sharp edge.
+- **Dual contouring** (Ju et al., 2002) — place ONE vertex per cell, positioned
+  by solving for the point that best fits the field's gradients. Reproduces sharp
+  creases exactly; needs the gradient (a QEF solve per cell) and can place a
+  vertex outside its own cell, which makes it fiddly.
+- **Surface nets** (Gibson, 1998) — one vertex per cell, placed at the average of
+  the zero crossings on the cell's edges, then smoothed. No gradient, no solve,
+  never leaves the cell, and the mesh comes out uniform. It rounds sharp
+  features, which for *terrain* is not a defect: rock is not sharp.
 
-const SPACING = 5.33
-const SIZE = 128
-const noise = new PerlinNoise(7)
-const ground = (x, z) => noise.fractal(x * 0.004, 0, z * 0.004, 4) * 60
+**This module uses surface nets**, for those reasons. Erosion, water and
+weathering all round things off anyway, and the cheapness matters more than the
+creases when a tile has a millisecond budget.
 
-const tube = carve.roughen(
-  carve.capsule({ x: 20, y: -6, z: 20 }, { x: 108, y: -14, z: 96 }, 7),
-  { amp: 2, scale: 0.05, octaves: 3, seed: 5 }
-)
-
-const readout = document.createElement('div')
-readout.style.cssText = 'font: 12px ui-monospace, monospace; padding: 6px'
-
-let heightMesh = null
-let volMesh = null
-let withCave = false
-let built = false
-let babylon = null // handed to us by the update hook; the barrel doesn't export it
-let wire = false // ONE flag: carving rebuilds the volumetric material, so per-mesh state diverges
-
-const buildHeightfield = (host, B) => {
-  const subs = Math.round(SIZE / SPACING)
-  const pos = []
-  const idx = []
-  for (let iz = 0; iz <= subs; iz++) {
-    for (let ix = 0; ix <= subs; ix++) {
-      const x = (ix / subs) * SIZE
-      const z = (iz / subs) * SIZE
-      pos.push(x, ground(x, z), z)
-    }
-  }
-  for (let iz = 0; iz < subs; iz++) {
-    for (let ix = 0; ix < subs; ix++) {
-      const a = iz * (subs + 1) + ix
-      // Winding matters: reversed, ComputeNormals points them DOWN and the
-      // tile renders black from above (it did).
-      idx.push(a, a + 1, a + subs + 1, a + 1, a + subs + 2, a + subs + 1)
-    }
-  }
-  const mesh = new B.Mesh('heightfield', host.scene)
-  const vd = new B.VertexData()
-  vd.positions = pos
-  vd.indices = idx
-  const nrm = []
-  B.VertexData.ComputeNormals(pos, idx, nrm)
-  vd.normals = nrm
-  vd.applyToMesh(mesh)
-  // FLAT GREY on purpose. The biome plugin writes the surface colour, so
-  // tinting a shaded material did nothing (it didn't) — and a plain reference
-  // silhouette is easier to compare against than two shaded surfaces anyway.
-  const mat = new B.StandardMaterial('hm', host.scene)
-  mat.diffuseColor = new B.Color3(0.55, 0.55, 0.58)
-  mat.specularColor = new B.Color3(0.05, 0.05, 0.05)
-  mat.backFaceCulling = false
-  mesh.material = mat
-  return mesh
-}
-
-const buildVolumetric = (host, B) => {
-  if (volMesh) volMesh.dispose()
-  const solid = terrainDensity(ground)
-  const field = withCave
-    ? (x, y, z) => Math.max(solid(x, y, z), tube(x, y, z))
-    : solid
-  const cells = Math.round(SIZE / SPACING)
-  const t0 = performance.now()
-  const m = extractChunk(field, { ix: 0, iy: -8, iz: 0, nx: cells, ny: 16, nz: cells }, { spacing: SPACING, jitter: 0.25, seed: 7 })
-  const ms = performance.now() - t0
-
-  volMesh = new B.Mesh('volumetric', host.scene)
-  const vd = new B.VertexData()
-  vd.positions = Array.from(m.positions)
-  vd.indices = Array.from(m.indices)
-  vd.normals = Array.from(m.normals)
-  vd.applyToMesh(volMesh)
-  const mat = new B.StandardMaterial('vm', host.scene)
-  mat.diffuseColor = new B.Color3(0.5, 0.55, 0.5)
-  mat.backFaceCulling = false
-  mat.wireframe = wire
-  // The terrain shader, on geometry it never saw: it samples in WORLD SPACE, so it does
-  // not care whether the triangles came from a grid or from surface nets. That
-  // is the other half of "the swap is invisible" — matching geometry is no use
-  // if the material can't follow it onto the new mesh.
-  attachBiomePlugin(mat, { seaLevel: -20 })
-  volMesh.material = mat
-
-  let max = 0
-  let sum = 0
-  for (let i = 0; i < m.vertexCount; i++) {
-    const d = Math.abs(m.positions[i * 3 + 1] - ground(m.positions[i * 3], m.positions[i * 3 + 2]))
-    if (d > max) max = d
-    sum += d
-  }
-  readout.textContent =
-    `${m.triangleCount} triangles, extracted in ${ms.toFixed(1)}ms at ${SPACING}m spacing. ` +
-    `Deviation from the continuous terrain: max ${max.toFixed(3)}m, mean ${(sum / m.vertexCount).toFixed(3)}m — ` +
-    `the heightfield mesh's OWN error here is max 0.266m, mean 0.068m, so they agree.`
-}
-
-const scene = b3d(
-  {
-    frameRate: 60,
-    // Default zoom limits are 2..50, which is far too close for a 128m tile.
-    minDistance: 20,
-    maxDistance: 600,
-    // BABYLON arrives as the second argument — the barrel doesn't re-export it.
-    update: (host, B) => {
-      if (built || host.scene == null) return
-      built = true
-      babylon = B
-      heightMesh = buildHeightfield(host, B)
-      buildVolumetric(host, B)
-      const cam = host.scene.activeCamera
-      if (cam && cam.setTarget) cam.setTarget(new B.Vector3(SIZE / 2, 0, SIZE / 2))
-      if (cam) { cam.radius = 210; cam.beta = 1.05 }
-    },
-    scenePanel: (host) => [
-      label3d({ text: 'volumetric vs heightfield', bold: true }),
-      button3d({ label: 'both', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(true) } }),
-      button3d({ label: 'heightfield only', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(false) } }),
-      button3d({ label: 'volumetric only', onClick: () => { heightMesh?.setEnabled(false); volMesh?.setEnabled(true) } }),
-      button3d({ label: 'wireframe', onClick: () => {
-        wire = !wire
-        if (heightMesh) heightMesh.material.wireframe = wire
-        if (volMesh) volMesh.material.wireframe = wire
-      } }),
-      button3d({ label: 'carve a tube', onClick: () => { withCave = !withCave; if (babylon) buildVolumetric(host, babylon) } }),
-    ],
-  },
-  b3dLight({ y: 1, intensity: 0.55 }),
-  b3dSun({ intensity: 0.85 }),
-  b3dSkybox({ timeOfDay: 9 })
-)
-
-preview.append(scene, readout)
-```
+## The one idea that makes it usable: a GLOBAL lattice
 
 ## Demo — a volcano in cross-section, with its lava tubes
 
 The province vocabulary in one object: **a landform for the mount, carves for the
-tubes, and one more carve to slice the whole thing open.** Nothing here is a
-special case — the cutaway is a box of air subtracted from the volume, exactly
-like the tubes are, which is only possible because the ground is a density field
-rather than a height.
-
-Volcanism ramps with **depth below the surface**, so the cut face reads as molten
-interior — the `Io` cutaway. That ramp is the same per-vertex channel
-`b3d-terrain` uses for local volcanic provinces; here the extraction writes it
-from how far under the surface each vertex sits.
+tubes, and one more carve to slice it open.** The cutaway is a box of *air*
+subtracted from the volume, exactly like the tubes — only possible because the
+ground is a density field rather than a height. Volcanism ramps with depth below
+the surface, so the cut face reads as molten interior.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, volcano, attachBiomePlugin, button3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d, button3d, label3d } from 'tosijs-3d'
+import { volumetricDemo } from 'demo-utils'
 import { tosi } from 'tosijs'
 
-const state = tosi({ volc: { cut: 1, molten: 60 } })
-const SIZE = 256
-const SPACING = 3
+const state = tosi({ volc: { cut: 1, molten: 140 } })
 const noise = new PerlinNoise(3)
-
-// A mount, from the SAME landform terrain would use.
-const cone = volcano({ x: SIZE / 2, z: SIZE / 2, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
+const cone = volcano({ x: 128, z: 128, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
 const ground = (x, z) => cone.landform(x, z, noise.fractal(x * 0.01, 0, z * 0.01, 3) * 8)
 
-// Lava tubes: a throat, and three that wander out under the flanks.
-const throat = carve.capsule({ x: 128, y: 95, z: 128 }, { x: 128, y: -40, z: 128 }, 9)
+// A throat, and three tubes wandering out under the flanks.
 const tubes = carve.roughen(
   carve.smoothUnion(14,
-    throat,
+    carve.capsule({ x: 128, y: 95, z: 128 }, { x: 128, y: -40, z: 128 }, 9),
     carve.tube([{ x: 128, y: -10, z: 128 }, { x: 70, y: -14, z: 90 }, { x: 30, y: -6, z: 60 }], 7),
     carve.tube([{ x: 128, y: 5, z: 128 }, { x: 180, y: -4, z: 150 }, { x: 220, y: 2, z: 190 }], 6),
     carve.tube([{ x: 128, y: 30, z: 128 }, { x: 150, y: 18, z: 80 }, { x: 165, y: 6, z: 35 }], 5)
@@ -202,93 +69,119 @@ const tubes = carve.roughen(
   { amp: 2.5, scale: 0.04, octaves: 3, seed: 11 }
 )
 
-let mesh = null
-let babylon = null
+// The cutaway: a box whose NEAR face lands at the cut. Centre it on the tile
+// instead and it swallows the whole volume — which extracts to zero triangles
+// and renders as an empty canvas.
+const slice = (x, y, z) =>
+  carve.box({ x: 128, y: 40, z: 328 + (1 - state.volc.cut.valueOf()) * 300 }, { x: 400, y: 400, z: 200 })(x, y, z)
 
-const build = (host, B) => {
-  if (mesh) mesh.dispose()
-  const solid = terrainDensity(ground)
-  // The CUTAWAY is just more air: a box carve, unioned with the tubes.
-  //
-  // Note the box is positioned so its NEAR face lands where the cut should be —
-  // a half-extent of 200 centred at z=328 covers z>128 and nothing else. Centre
-  // it on the tile instead and it swallows the whole volume, which extracts to
-  // exactly zero triangles and renders as an empty canvas. (It did.)
-  const cut = state.volc.cut.valueOf()
-  const slice = carve.box({ x: 128, y: 40, z: 328 + (1 - cut) * 300 }, { x: 400, y: 400, z: 200 })
-  const field = (x, y, z) => Math.max(solid(x, y, z), tubes(x, y, z), slice(x, y, z))
-
-  const cells = Math.round(SIZE / SPACING)
-  const m = extractChunk(field, { ix: 0, iy: -20, iz: 0, nx: cells, ny: 50, nz: cells }, { spacing: SPACING, jitter: 0.2, seed: 4 })
-
-  mesh = new B.Mesh('volcano', host.scene)
-  const vd = new B.VertexData()
-  vd.positions = Array.from(m.positions)
-  vd.indices = Array.from(m.indices)
-  vd.normals = Array.from(m.normals)
-
-  // DEPTH BELOW THE SURFACE -> the shader's volcanism ramp, in colour alpha
-  // (inverted: 1 = none). Rock deep inside the cone reads molten; the outside
-  // is ordinary ground. Same channel b3d-terrain uses for local provinces.
-  const rate = Math.max(1, state.volc.molten.valueOf())
-  const colours = []
-  for (let i = 0; i < m.vertexCount; i++) {
-    const x = m.positions[i * 3]
-    const y = m.positions[i * 3 + 1]
-    const z = m.positions[i * 3 + 2]
-    const depth = Math.max(0, ground(x, z) - y)
-    colours.push(1, 1, 1, 1 - Math.min(1, depth / rate))
-  }
-  vd.colors = colours
-  vd.applyToMesh(mesh)
-
-  const mat = new B.StandardMaterial('vmat', host.scene)
-  mat.diffuseColor = new B.Color3(0.5, 0.52, 0.5)
-  mat.backFaceCulling = false
-  attachBiomePlugin(mat, { seaLevel: -200 })
-  mesh.material = mat
-  mesh.useVertexColors = true
-}
+let demo = null
 
 const scene = b3d(
   {
     frameRate: 60,
-    // The camera's zoom is CLAMPED by these, and they default to 2..50 — a
-    // sensible range for a prop, catastrophic for a 256m volcano: radius is
-    // pinned at 50 and you sit inside the cone wondering what happened.
-    // Scene-scale content has to say its scale.
-    minDistance: 30,
-    maxDistance: 900,
-    update: (host, B) => {
-      if (babylon != null || host.scene == null) return
-      babylon = B
-      build(host, B)
-      const cam = host.scene.activeCamera
-      if (cam && cam.setTarget) cam.setTarget(new B.Vector3(SIZE / 2, 20, SIZE / 2))
-      if (cam) { cam.radius = 380; cam.beta = 1.15 }
+    sceneCreated: (el) => {
+      demo = volumetricDemo(el, {
+        size: 256,
+        spacing: 3,
+        below: 20,
+        above: 30,
+        ground,
+        carves: [tubes, slice],
+        // A function, so the slider re-reads it on rebuild. 140m is slow enough
+        // that the upper cone stays rock and only the deep interior goes hot.
+        molten: () => state.volc.molten.valueOf(),
+      })
+      preview.append(demo.readout)
     },
     scenePanel: () => [
       label3d({ text: 'volcano, in section', bold: true }),
       slider3d({ label: 'cutaway', value: state.volc.cut, min: 0, max: 1, step: 0.05 }),
-      slider3d({ label: 'molten depth', value: state.volc.molten, min: 10, max: 160, step: 5 }),
-      button3d({ label: 'rebuild', onClick: () => { if (babylon) build(scene, babylon) } }),
+      slider3d({ label: 'molten depth', value: state.volc.molten, min: 20, max: 300, step: 10 }),
+      button3d({ label: 'rebuild', onClick: () => demo?.rebuild() }),
+      button3d({ label: 'wireframe', onClick: () => demo?.wireframe((wire = !wire)) }),
     ],
   },
   b3dLight({ y: 1, intensity: 0.5 }),
   b3dSun({ intensity: 0.9 }),
   b3dSkybox({ timeOfDay: 8 })
 )
+let wire = false
 
 preview.append(scene)
 ```
 
-> Move the **cutaway** slider and rebuild — it slides the cutting box out of the
-> tile rather than resizing it, so 0 is an intact cone.
-> The tubes are not drawn *into* the
-> rock — they are absent from it, which is why the cut face shows their bores
-> honestly rather than as decals.
+## Demo — does a volumetric tile match the heightfield it would replace?
 
-## The one idea: a GLOBAL lattice
+The question the volumetric-terrain direction turns on. Both surfaces are built
+from the same terrain at the same **5.33 m** spacing (a 128 m tile at 24
+subdivisions — the heightfield's own finest), so if extraction reproduces it, the
+two are indistinguishable and swapping one for the other shows nothing.
+
+The volumetric surface wears the terrain shader; the heightfield stays flat grey
+as a reference silhouette. Toggle between them and watch for movement.
+
+Then **punch a bore through the ridge** — the thing a heightfield cannot say at
+all. The terrain here was chosen so the tube runs under a ridge with open ground
+either side, so it enters and leaves rather than simply being buried.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
+import { volumetricDemo } from 'demo-utils'
+
+// seed 21 at this frequency puts a RIDGE across the tube's path with open
+// ground either side, so the bore emerges — searched for, not guessed: the
+// profile along the tube reads buried / open / buried.
+const noise = new PerlinNoise(21)
+const ground = (x, z) => noise.fractal(x * 0.016, 0, z * 0.016, 4) * 60
+
+const bore = carve.roughen(
+  carve.tube([{ x: 10, y: 0, z: 20 }, { x: 60, y: 2, z: 60 }, { x: 118, y: 0, z: 108 }], 7),
+  { amp: 1.8, scale: 0.06, octaves: 3, seed: 5 }
+)
+
+let demo = null
+let wire = false
+let bored = false
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    sceneCreated: (el) => {
+      demo = volumetricDemo(el, {
+        size: 128,
+        spacing: 5.33, // the heightfield's OWN finest spacing
+        below: 8,
+        above: 12,
+        ground,
+        carves: [], // filled by the 'punch a bore' button
+        reference: true, // build the grey heightfield tile too
+      })
+      preview.append(demo.readout)
+    },
+    scenePanel: () => [
+      label3d({ text: 'volumetric vs heightfield', bold: true }),
+      button3d({ label: 'both', onClick: () => demo?.show('both') }),
+      button3d({ label: 'heightfield only', onClick: () => demo?.show('reference') }),
+      button3d({ label: 'volumetric only', onClick: () => demo?.show('volumetric') }),
+      button3d({ label: 'wireframe', onClick: () => demo?.wireframe((wire = !wire)) }),
+      button3d({
+        label: 'punch a bore through the ridge',
+        onClick: (e) => {
+          bored = !bored
+          demo?.setCarves(bored ? [bore] : [])
+          demo?.show(bored ? 'volumetric' : 'both')
+        },
+      }),
+    ],
+  },
+  b3dLight({ y: 1, intensity: 0.55 }),
+  b3dSun({ intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 9 })
+)
+
+preview.append(scene)
+```
 
 Every chunk of every patch extracts from **one world-aligned lattice** — spacing
 `L`, each vertex displaced by a deterministic hash of its INTEGER lattice
