@@ -99,14 +99,12 @@ const scene = b3d(
       slider3d({ label: 'cutaway', value: state.volc.cut, min: 0, max: 1, step: 0.05 }),
       slider3d({ label: 'molten depth', value: state.volc.molten, min: 20, max: 300, step: 10 }),
       button3d({ label: 'rebuild', onClick: () => demo?.rebuild() }),
-      button3d({ label: 'wireframe', onClick: () => demo?.wireframe((wire = !wire)) }),
     ],
   },
   b3dLight({ y: 1, intensity: 0.5 }),
   b3dSun({ intensity: 0.9 }),
   b3dSkybox({ timeOfDay: 8 })
 )
-let wire = false
 
 preview.append(scene)
 ```
@@ -138,7 +136,7 @@ The bore is on by default; **fill the bore in** to see the ridge without it.
 > get a dimple where you asked for a tunnel.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, toggle3d, button3d, label3d } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, toggle3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
 import { tosi } from 'tosijs'
 
@@ -168,7 +166,6 @@ const bore = carve.roughen(
 )
 
 let demo = null
-let wire = false
 
 const scene = b3d(
   {
@@ -192,7 +189,6 @@ const scene = b3d(
         value: state.sdf.wire,
         onChange: (on) => demo?.show(on ? 'both' : 'volumetric'),
       }),
-      button3d({ label: 'wireframe', onClick: () => demo?.wireframe((wire = !wire)) }),
       toggle3d({
         label: 'bore',
         value: state.sdf.bored,
