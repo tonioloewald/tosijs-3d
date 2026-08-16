@@ -841,8 +841,12 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // web simply was not there. Reported on a cutaway volcano, where
               // every interior wall is vertical.
               vec2 wF = bioWorley3(wp * biomeSurf.z);
+              // Width spread across the ladder: 0.8x → 2.6x → 11x. The top end
+              // is deliberately steep so pools read as veins FATTENING until
+              // they merge, and the bottom slightly thinner than before so the
+              // progression has somewhere to start.
               float vw = max(biomeSurf.w, 1e-3)
-                * (1.0 + clamp(stage - 1.0, 0.0, 1.0) + 4.0 * clamp(stage - 2.0, 0.0, 1.0));
+                * (0.8 + 1.8 * clamp(stage - 1.0, 0.0, 1.0) + 8.4 * clamp(stage - 2.0, 0.0, 1.0));
               float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
               float t12 = clamp(stage - 1.0, 0.0, 1.0);
               float t23 = clamp(stage - 2.0, 0.0, 1.0);
@@ -872,10 +876,18 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // stage 2: seams glow — MOST are cooled ember, a slow mask picks
               // the live molten channels, so the field reads "lava under
               // rock", not "lava planet".
-              float live = smoothstep(0.55, 0.72, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
+              // MORE of the field goes live as the ladder climbs — the molten
+              // channels spread rather than just brightening, so heat looks like
+              // it is taking over the rock instead of a fixed set of seams
+              // getting hotter.
+              float liveLo = 0.55 - 0.34 * t23;
+              float live = smoothstep(liveLo, liveLo + 0.17, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
               float glow = vein * t12 * damp;
               vec3 ember = mix(base, biomeVolcPal[3].rgb, glow);
-              vec3 molten = mix(base, biomeVolcPal[4].rgb * pulse, glow * (0.75 + dith * 4.0));
+              // …and the molten colour itself intensifies through stage 3, so
+              // the top of the ladder is visibly hotter than the middle rather
+              // than the same orange with wider seams.
+              vec3 molten = mix(base, biomeVolcPal[4].rgb * pulse * (1.0 + 0.9 * t23), glow * (0.75 + dith * 4.0));
               vec3 volcCol = mix(ember, molten, live);
               // stage 2 → 3: seams give way to PATCHY open lava — broad soft
               // pools whose edges creep with the churn (crust breaking and
