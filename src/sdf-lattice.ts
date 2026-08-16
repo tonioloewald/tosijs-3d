@@ -122,22 +122,31 @@ The volumetric surface wears the terrain shader; the heightfield stays flat grey
 as a reference silhouette. Toggle between them and watch for movement.
 
 Then **punch a bore through the ridge** — the thing a heightfield cannot say at
-all. The terrain here was chosen so the tube runs under a ridge with open ground
-either side, so it enters and leaves rather than simply being buried.
+all. The terrain and the route were searched for rather than guessed: this hill
+puts 26 m of rock over the bore and the profile along it reads open / buried /
+open, so it has two mouths instead of being a trench or a buried pipe.
+
+> **A feature has to be bigger than the lattice.** At 5.33 m spacing a 12 m bore
+> is barely two cells across and surface nets can hardly express it; the tile
+> here extracts at 4 m for that reason. It is the same rule [[carve]] states for
+> clearance — certify the hole you want against the resolution you have, or you
+> get a dimple where you asked for a tunnel.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, button3d, label3d } from 'tosijs-3d'
 import { volumetricDemo } from 'demo-utils'
 
-// seed 21 at this frequency puts a RIDGE across the tube's path with open
-// ground either side, so the bore emerges — searched for, not guessed: the
-// profile along the tube reads buried / open / buried.
-const noise = new PerlinNoise(21)
-const ground = (x, z) => noise.fractal(x * 0.016, 0, z * 0.016, 4) * 60
+// Terrain and route SEARCHED for, not guessed: this seed puts a hill with 26m of
+// rock over the bore, and the profile along the tube reads open / buried / open —
+// so it has two mouths instead of being a trench or a buried pipe. The first
+// attempt failed because 18m of relief cannot contain a 14m tube: the bore just
+// removed the ridge.
+const noise = new PerlinNoise(2)
+const ground = (x, z) => noise.fractal(x * 0.014, 0, z * 0.014, 4) * 90
 
 const bore = carve.roughen(
-  carve.tube([{ x: 10, y: 0, z: 20 }, { x: 60, y: 2, z: 60 }, { x: 118, y: 0, z: 108 }], 7),
-  { amp: 1.8, scale: 0.06, octaves: 3, seed: 5 }
+  carve.tube([{ x: 48, y: -6, z: 56 }, { x: 76, y: -6, z: 84 }, { x: 108, y: -6, z: 116 }], 6),
+  { amp: 1.4, scale: 0.06, octaves: 3, seed: 5 }
 )
 
 let demo = null
@@ -150,9 +159,9 @@ const scene = b3d(
     sceneCreated: (el) => {
       demo = volumetricDemo(el, {
         size: 128,
-        spacing: 5.33, // the heightfield's OWN finest spacing
-        below: 8,
-        above: 12,
+        spacing: 4, // fine enough to resolve a 12m bore; see the note below
+        below: 10,
+        above: 14,
         ground,
         carves: [], // filled by the 'punch a bore' button
         reference: true, // build the grey heightfield tile too
