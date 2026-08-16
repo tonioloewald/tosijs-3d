@@ -163,6 +163,21 @@ export interface BiomeParams {
    * rock; cold or dry climates stay bare regardless.
    */
   cliffCling: number
+  /**
+   * ⚠️ EXPERIMENTAL — SEDIMENTARY BANDING, visible on any cut through the rock.
+   *
+   * Only possible now the plate noise is sampled in 3D: strata are a function of
+   * world Y, so they mean nothing to a surface shader that only knows x/z. On a
+   * cutaway, a mine wall or a sea cliff they are what makes the rock read as
+   * ROCK rather than as a solid mass of one colour — the interior gains a
+   * history instead of a fill.
+   *
+   * 0 = off. `strataScale` is bands per metre; `strataTilt` shears them so beds
+   * are not perfectly level, which is what real ones never are.
+   */
+  strata: number
+  strataScale: number
+  strataTilt: number
 }
 
 export const defaultBiomeParams = (): BiomeParams => ({
@@ -194,6 +209,9 @@ export const defaultBiomeParams = (): BiomeParams => ({
   detailNoiseScale: 0.55,
   detailNoiseAmp: 0.1,
   cliffCling: 0.55,
+  strata: 0.35,
+  strataScale: 0.06,
+  strataTilt: 0.12,
   surfDepth: 3,
   volcanism: 0,
   volcanicScale: 0.09,
@@ -363,6 +381,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
         { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
         { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, volcanism, volcanicScale, veinWidth
+        { name: 'biomeStrata', size: 4, type: 'vec4' }, // strength, scale, tilt, unused
         { name: 'biomePlanetC', size: 4, type: 'vec4' }, // equatorTemp, temperateTemp, poleTemp, slopeExaggeration
         { name: 'biomePlanetD', size: 4, type: 'vec4' }, // rainShadow, windAzimuth, moistureDryHeight, animTime
         { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 } as any,
@@ -378,6 +397,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
         uniform vec4 biomeSurf;
+        uniform vec4 biomeStrata;
         uniform vec4 biomePlanetC;
         uniform vec4 biomePlanetD;
         uniform vec4 biomePalette[20];
@@ -418,6 +438,13 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
       p.underwaterMurk,
       p.glowAnimation,
       p.cliffCling
+    )
+    uniformBuffer.updateFloat4(
+      'biomeStrata',
+      p.strata,
+      p.strataScale,
+      p.strataTilt,
+      0
     )
     uniformBuffer.updateFloat4(
       'biomePlanetC',
@@ -883,6 +910,16 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 biomeVolcPal[5].rgb,
                 t23 * 0.9
               );
+              // SEDIMENTARY BANDING. Beds are a function of world Y — sheared a
+              // little, and wobbled by low-frequency noise so they undulate the
+              // way real beds do rather than reading as a ruler. Fades out as
+              // the rock melts (stage 3): molten rock has no bedding left.
+              float bedY = wp.y * biomeStrata.y
+                + biomeStrata.z * (wp.x + wp.z) * biomeStrata.y
+                + 0.35 * bioFbm(wp.xz * 0.01);
+              float bed = 0.5 + 0.5 * sin(bedY * 6.2831853);
+              float bedSharp = smoothstep(0.35, 0.65, bed);
+              volcGround *= 1.0 + biomeStrata.x * (bedSharp - 0.5) * (1.0 - 0.8 * t23);
               // stage 1: seams are COLD dark brown; they hand over as glow rises.
               // Keep a floor under the cold seam so a stage-1 face still reads
               // as VEINED rock — near-black basalt with near-black seams on it

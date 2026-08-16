@@ -136,6 +136,8 @@ const scene = b3d(
         bind('volcanism', 'volcanism', 0, 1, 0.01),
         bind('volcanic scale', 'volcanicScale', 0.02, 0.3, 0.005),
         bind('glow animation', 'glowAnimation', 0, 2, 0.05),
+        bind('strata', 'strata', 0, 1, 0.05),
+        bind('strata scale', 'strataScale', 0.01, 0.3, 0.005),
         // same ladder, different chemistry: molten WATER on a frozen world
         toggle3d({ label: 'cryovolcanic', value: false,
           onChange: (v) => { p.volcanicPalette = v ? CRYOVOLCANIC_PALETTE : LAVA_PALETTE } }),

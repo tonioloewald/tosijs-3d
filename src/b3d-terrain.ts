@@ -9,13 +9,14 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
     seed: 111,
+    volcano: false,
     // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
     // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
     // of amplitude across 530m is a plain, not a landscape.
@@ -99,6 +100,21 @@ const scene = b3d(
       slider3d({ label: 'v size', value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
       slider3d({ label: 'v detail', value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
       slider3d({ label: 'seed', value: demo.seed, min: 0, max: 999, step: 1 }),
+      // A PROVINCE, on the live terrain: an authored volcano forced through the
+      // noise plus the volcanism field that makes it glow. This is the half of
+      // the province idea that works today — the carving half needs a
+      // volumetric tile path (see TUNNEL-DESIGN). Worth having here because it
+      // is the half that meets LOD, streaming and floating origin.
+      toggle3d({
+        label: 'volcano province',
+        value: demo.volcano,
+        onChange: (on) => {
+          const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+          terrain.landform = on ? v.landform : null
+          terrain.provinceField = on ? v.province : null
+          terrain.regenerate()
+        },
+      }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],
