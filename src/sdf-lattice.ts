@@ -17,10 +17,12 @@ nothing.
 Toggle between them and watch for movement. Then carve a tube through the hill:
 the cavity should be the *only* difference.
 
-Both wear the **same biome shader** — the one `b3d-terrain` uses. It samples in
-world space, so it does not care whether the triangles came from a grid or from
-surface nets, which is the other half of the claim: matching geometry is no use
-if the material cannot follow it onto the new mesh.
+The **volumetric** surface wears the biome shader `b3d-terrain` uses; the
+heightfield stays **flat grey** as a reference silhouette. That split is the point:
+the shader samples in world space, so it does not care whether the triangles came
+from a grid or from surface nets — matching geometry is no use if the material
+cannot follow it onto the new mesh. Keeping one surface unshaded makes the
+comparison legible instead of making both pretty.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, attachBiomePlugin, button3d, label3d } from 'tosijs-3d'
@@ -43,6 +45,7 @@ let volMesh = null
 let withCave = false
 let built = false
 let babylon = null // handed to us by the update hook; the barrel doesn't export it
+let wire = false // ONE flag: carving rebuilds the volumetric material, so per-mesh state diverges
 
 const buildHeightfield = (host, B) => {
   const subs = Math.round(SIZE / SPACING)
@@ -71,10 +74,13 @@ const buildHeightfield = (host, B) => {
   B.VertexData.ComputeNormals(pos, idx, nrm)
   vd.normals = nrm
   vd.applyToMesh(mesh)
+  // FLAT GREY on purpose. The biome plugin writes the surface colour, so
+  // tinting a shaded material did nothing (it didn't) — and a plain reference
+  // silhouette is easier to compare against than two shaded surfaces anyway.
   const mat = new B.StandardMaterial('hm', host.scene)
-  mat.diffuseColor = new B.Color3(0.5, 0.55, 0.5)
+  mat.diffuseColor = new B.Color3(0.55, 0.55, 0.58)
+  mat.specularColor = new B.Color3(0.05, 0.05, 0.05)
   mat.backFaceCulling = false
-  attachBiomePlugin(mat, { seaLevel: -20 })
   mesh.material = mat
   return mesh
 }
@@ -99,7 +105,8 @@ const buildVolumetric = (host, B) => {
   const mat = new B.StandardMaterial('vm', host.scene)
   mat.diffuseColor = new B.Color3(0.5, 0.55, 0.5)
   mat.backFaceCulling = false
-  // The SAME shader as the heightfield: it samples in WORLD SPACE, so it does
+  mat.wireframe = wire
+  // The terrain shader, on geometry it never saw: it samples in WORLD SPACE, so it does
   // not care whether the triangles came from a grid or from surface nets. That
   // is the other half of "the swap is invisible" — matching geometry is no use
   // if the material can't follow it onto the new mesh.
@@ -138,13 +145,10 @@ const scene = b3d(
       button3d({ label: 'both', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(true) } }),
       button3d({ label: 'heightfield only', onClick: () => { heightMesh?.setEnabled(true); volMesh?.setEnabled(false) } }),
       button3d({ label: 'volumetric only', onClick: () => { heightMesh?.setEnabled(false); volMesh?.setEnabled(true) } }),
-      button3d({ label: 'tint them apart', onClick: () => {
-        if (heightMesh) heightMesh.material.diffuseColor = new babylon.Color3(0.35, 0.75, 0.45)
-        if (volMesh) volMesh.material.diffuseColor = new babylon.Color3(0.9, 0.45, 0.2)
-      } }),
       button3d({ label: 'wireframe', onClick: () => {
-        if (heightMesh) heightMesh.material.wireframe = !heightMesh.material.wireframe
-        if (volMesh) volMesh.material.wireframe = !volMesh.material.wireframe
+        wire = !wire
+        if (heightMesh) heightMesh.material.wireframe = wire
+        if (volMesh) volMesh.material.wireframe = wire
       } }),
       button3d({ label: 'carve a tube', onClick: () => { withCave = !withCave; if (babylon) buildVolumetric(host, babylon) } }),
     ],

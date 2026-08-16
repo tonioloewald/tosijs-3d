@@ -367,6 +367,58 @@ once at authoring or load) and it turns the residency question from a radius —
 which is what `b3d-patch` does today, with the hysteresis problem that entails —
 into something far better defined: **am I inside, or can I see in.**
 
+### DECIDED: heightfield to max detail, then volume — and make it configurable
+
+> Tonio, 2026-08-16, after seeing both surfaces side by side and the benchmark.
+
+**Heightfield for every LOD except the finest; volumetric at max detail.** The
+numbers say why, measured on the same 128 m tile at the same 5.33 m surface
+resolution:
+
+|                          | time    | field evaluations |
+| ------------------------ | ------- | ----------------- |
+| heightfield grid         | 0.18 ms | 625               |
+| volumetric, 4 deep       | 2.41 ms | 10 245            |
+| volumetric, 8 deep       | 2.91 ms | 13 185            |
+| coarse tile, heightfield | 0.04 ms | 625               |
+| coarse tile, volumetric  | 3.10 ms | 14 115            |
+
+13–75× the cost and ~20× the noise evaluations, because a heightfield samples an
+**area** and an extraction samples the **volume that brackets it**. Accuracy is a
+wash (volumetric is marginally better) and the terrain shader works on both, so
+this is purely a throughput decision: at `tileBuildMs` 2–4 the heightfield path
+builds ~15 tiles in a frame's budget and the volumetric one builds **one**. When
+you fly, that is the difference between terrain arriving and terrain popping in.
+
+**But make it a knob, not a law.** At low travel speed nothing is streaming, so
+all-volumetric is affordable — and that is exactly the case where the
+discrepancies would be most visible, so it should be selectable for looking at.
+A walking sim can run volumetric everywhere; a fast flyer cannot.
+
+**And the escape hatch stands:** `extractChunk` is a pure function over
+transferable typed arrays, the shape PERF-DESIGN says belongs in a worker.
+Off-thread the cost stops being throughput and becomes latency, which the
+existing skirt and placeholder machinery already hides. All-volumetric is a
+worker project, not a config change.
+
+### What this unlocks, which is not a small list
+
+Once the ground is a density field rather than a height, several things stop
+being features and start being _consequences_:
+
+- **Erosion.** Hydraulic and thermal erosion on a heightfield can only carve
+  downward — it cannot produce an undercut, an overhang or a sea cave, because
+  the representation cannot express one. On a volume it can, and the result is
+  the same carve vocabulary the rest of this document uses.
+- **Roads.** A road is a corridor that flattens what it crosses. On a volume,
+  cuttings, embankments, tunnels and bridges are ONE mechanism (a landform plus
+  carves along a spine) rather than four features that have to agree at their
+  junctions — which is where road systems usually fail.
+- **Stacked tiles for deep shafts.** Already supported: `ChunkSpec` has `iy`/`ny`,
+  and the lattice is GLOBAL, so a chunk stacked above or below another welds
+  bit-identically with no stitching. Vertical extent is a chunk count, not a
+  redesign — the one piece of this that needs no work at all.
+
 ### Cavities come from PROVINCES, so there are none by default
 
 The last piece, and it is what makes the cost story "zero" rather than "small".

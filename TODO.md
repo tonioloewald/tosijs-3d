@@ -394,6 +394,23 @@ the mechanism behind "portal into a building, get out of the ship, walk to a
 jeep" in the everything demo, and it is also how a 200-building city stays
 affordable on a phone.
 
+## Volumetric terrain — DECIDED 2026-08-16
+
+**Heightfield to max detail, then volume, and configurable** (all-volume is fine
+at low travel speed, which is also where the discrepancies show clearest). The
+benchmark that settled it: same tile, same 5.33 m surface resolution —
+heightfield 0.18 ms / 625 field calls, volumetric 2.4–2.9 ms / 10–13 k. Accuracy
+is a wash and the terrain shader works on both, so it is a throughput decision:
+~15 tiles per frame budget versus one. Workers are the route to all-volumetric,
+since extraction is pure over transferable arrays.
+
+Unlocked and worth their own entries when the time comes: **erosion** that can
+undercut (a heightfield cannot express an overhang), **roads** where cuttings,
+embankments, tunnels and bridges are one mechanism instead of four that must
+agree at junctions, and **stacked tiles for deep shafts** — which needs nothing:
+`ChunkSpec` already has `iy`/`ny` and the lattice is global, so stacked chunks
+weld bit-identically.
+
 ## Volumetric fine tiles — measure before building (2026-08-15)
 
 Tonio's idea, and its conclusion: if the finest terrain LOD is volumetric and
