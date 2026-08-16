@@ -129,6 +129,9 @@ const buildVolumetric = (host, B) => {
 const scene = b3d(
   {
     frameRate: 60,
+    // Default zoom limits are 2..50, which is far too close for a 128m tile.
+    minDistance: 20,
+    maxDistance: 600,
     // BABYLON arrives as the second argument — the barrel doesn't re-export it.
     update: (host, B) => {
       if (built || host.scene == null) return
@@ -250,6 +253,12 @@ const build = (host, B) => {
 const scene = b3d(
   {
     frameRate: 60,
+    // The camera's zoom is CLAMPED by these, and they default to 2..50 — a
+    // sensible range for a prop, catastrophic for a 256m volcano: radius is
+    // pinned at 50 and you sit inside the cone wondering what happened.
+    // Scene-scale content has to say its scale.
+    minDistance: 30,
+    maxDistance: 900,
     update: (host, B) => {
       if (babylon != null || host.scene == null) return
       babylon = B
