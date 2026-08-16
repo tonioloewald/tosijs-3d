@@ -161,6 +161,117 @@ const scene = b3d(
 preview.append(scene, readout)
 ```
 
+## Demo — a volcano in cross-section, with its lava tubes
+
+The province vocabulary in one object: **a landform for the mount, carves for the
+tubes, and one more carve to slice the whole thing open.** Nothing here is a
+special case — the cutaway is a box of air subtracted from the volume, exactly
+like the tubes are, which is only possible because the ground is a density field
+rather than a height.
+
+Volcanism ramps with **depth below the surface**, so the cut face reads as molten
+interior — the `Io` cutaway. That ramp is the same per-vertex channel
+`b3d-terrain` uses for local volcanic provinces; here the extraction writes it
+from how far under the surface each vertex sits.
+
+```js
+import { b3d, b3dSun, b3dSkybox, b3dLight, extractChunk, terrainDensity, PerlinNoise, carve, volcano, attachBiomePlugin, button3d, label3d, slider3d } from 'tosijs-3d'
+import { tosi } from 'tosijs'
+
+const state = tosi({ volc: { cut: 1, molten: 60 } })
+const SIZE = 256
+const SPACING = 3
+const noise = new PerlinNoise(3)
+
+// A mount, from the SAME landform terrain would use.
+const cone = volcano({ x: SIZE / 2, z: SIZE / 2, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
+const ground = (x, z) => cone.landform(x, z, noise.fractal(x * 0.01, 0, z * 0.01, 3) * 8)
+
+// Lava tubes: a throat, and three that wander out under the flanks.
+const throat = carve.capsule({ x: 128, y: 95, z: 128 }, { x: 128, y: -40, z: 128 }, 9)
+const tubes = carve.roughen(
+  carve.smoothUnion(14,
+    throat,
+    carve.tube([{ x: 128, y: -10, z: 128 }, { x: 70, y: -14, z: 90 }, { x: 30, y: -6, z: 60 }], 7),
+    carve.tube([{ x: 128, y: 5, z: 128 }, { x: 180, y: -4, z: 150 }, { x: 220, y: 2, z: 190 }], 6),
+    carve.tube([{ x: 128, y: 30, z: 128 }, { x: 150, y: 18, z: 80 }, { x: 165, y: 6, z: 35 }], 5)
+  ),
+  { amp: 2.5, scale: 0.04, octaves: 3, seed: 11 }
+)
+
+let mesh = null
+let babylon = null
+
+const build = (host, B) => {
+  if (mesh) mesh.dispose()
+  const solid = terrainDensity(ground)
+  // The CUTAWAY is just more air: a box carve, unioned with the tubes.
+  const slice = carve.box({ x: 128, y: 40, z: 300 - 130 * state.volc.cut.valueOf() }, { x: 400, y: 400, z: 200 })
+  const field = (x, y, z) =>
+    Math.max(solid(x, y, z), tubes(x, y, z), state.volc.cut.valueOf() > 0 ? slice(x, y, z) : -1e9)
+
+  const cells = Math.round(SIZE / SPACING)
+  const m = extractChunk(field, { ix: 0, iy: -20, iz: 0, nx: cells, ny: 50, nz: cells }, { spacing: SPACING, jitter: 0.2, seed: 4 })
+
+  mesh = new B.Mesh('volcano', host.scene)
+  const vd = new B.VertexData()
+  vd.positions = Array.from(m.positions)
+  vd.indices = Array.from(m.indices)
+  vd.normals = Array.from(m.normals)
+
+  // DEPTH BELOW THE SURFACE -> the shader's volcanism ramp, in colour alpha
+  // (inverted: 1 = none). Rock deep inside the cone reads molten; the outside
+  // is ordinary ground. Same channel b3d-terrain uses for local provinces.
+  const rate = Math.max(1, state.volc.molten.valueOf())
+  const colours = []
+  for (let i = 0; i < m.vertexCount; i++) {
+    const x = m.positions[i * 3]
+    const y = m.positions[i * 3 + 1]
+    const z = m.positions[i * 3 + 2]
+    const depth = Math.max(0, ground(x, z) - y)
+    colours.push(1, 1, 1, 1 - Math.min(1, depth / rate))
+  }
+  vd.colors = colours
+  vd.applyToMesh(mesh)
+
+  const mat = new B.StandardMaterial('vmat', host.scene)
+  mat.diffuseColor = new B.Color3(0.5, 0.52, 0.5)
+  mat.backFaceCulling = false
+  attachBiomePlugin(mat, { seaLevel: -200 })
+  mesh.material = mat
+  mesh.useVertexColors = true
+}
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    update: (host, B) => {
+      if (babylon != null || host.scene == null) return
+      babylon = B
+      build(host, B)
+      const cam = host.scene.activeCamera
+      if (cam && cam.setTarget) cam.setTarget(new B.Vector3(SIZE / 2, 20, SIZE / 2))
+      if (cam) { cam.radius = 380; cam.beta = 1.15 }
+    },
+    scenePanel: () => [
+      label3d({ text: 'volcano, in section', bold: true }),
+      slider3d({ label: 'cutaway', value: state.volc.cut, min: 0, max: 1, step: 0.05 }),
+      slider3d({ label: 'molten depth', value: state.volc.molten, min: 10, max: 160, step: 5 }),
+      button3d({ label: 'rebuild', onClick: () => { if (babylon) build(scene, babylon) } }),
+    ],
+  },
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ intensity: 0.9 }),
+  b3dSkybox({ timeOfDay: 8 })
+)
+
+preview.append(scene)
+```
+
+> Move the **cutaway** slider and rebuild. The tubes are not drawn *into* the
+> rock — they are absent from it, which is why the cut face shows their bores
+> honestly rather than as decals.
+
 ## The one idea: a GLOBAL lattice
 
 Every chunk of every patch extracts from **one world-aligned lattice** — spacing

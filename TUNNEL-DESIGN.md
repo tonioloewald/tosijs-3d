@@ -419,6 +419,35 @@ being features and start being _consequences_:
   bit-identically with no stitching. Vertical extent is a chunk count, not a
   redesign — the one piece of this that needs no work at all.
 
+### A landform must not push the surface out of its own tile
+
+Tonio, and it is the constraint that bites first when provinces both **raise**
+and **carve**.
+
+A heightfield tile does not care how tall its landform is — a height is a height,
+and the mesh is a grid however far up it goes. A _volumetric_ tile is a box: the
+surface has to be inside the chunk's vertical extent or the extraction simply
+does not find it, and you get a hole where a mountain should be.
+
+So a province that raises terrain 300 m needs 300 m of chunk, and a volcano that
+also carves needs the tubes' extent as well.
+
+Two answers, and the cheap one is right first:
+
+- **General:** stack chunks vertically. Costs nothing structurally — `ChunkSpec`
+  already has `iy`/`ny` and the lattice is global, so stacked chunks weld
+  bit-identically. This is what deep shafts need anyway.
+- **Simple, and the default:** do not let a landform push beyond the tile's
+  volume — **scale the tile to contain it**. A province declares its vertical
+  extent (it knows: it is the one raising the ground), and the tile takes that
+  extent instead of a fixed one.
+
+The simple version is not a stopgap. A province that knows how tall it is can
+say so, and a tile that sizes itself to its content is more honest than one that
+guesses a depth and hopes. Stacking is for the cases where the _content_ is
+genuinely taller than one sensible chunk — a shaft going down a kilometre — not
+for the ordinary hill.
+
 ### Cavities come from PROVINCES, so there are none by default
 
 The last piece, and it is what makes the cost story "zero" rather than "small".
