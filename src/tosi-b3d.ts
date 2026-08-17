@@ -144,11 +144,11 @@ import { tosi } from 'tosijs'
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
 // rad/s. The old values topped out at ~10s per revolution, which does not read
 // as motion — it reads as a still image. `medium` is now a turn every ~3s.
-const RATE = { slow: 0.8, medium: 2, fast: 5 }
+const RATE = { slow: 1.2, medium: 3, fast: 7 }
 
 // `glow` is self-illumination as a fraction of `color`; `glowLayerIntensity` on
 // the scene is what makes it bloom past the edges. Both, or it just looks pale.
-const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#b45a4e', glow: 0.3 })
+const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#b45a4e', glow: 0.18 })
 const moon = b3dSphere({ meshName: 'moon', diameter: 0.5, y: 1.6, color: '#f2d98a', glow: 0.7, glowColor: '#ffd34d' })
 
 const scene = b3d(
@@ -156,7 +156,7 @@ const scene = b3d(
     startPaused: true,
     // pauseWhenHidden is ON by default — switch to another tab and come back.
     frameRate: 60,
-    glowLayerIntensity: 1,
+    glowLayerIntensity: 0.5,
     // Replace the built-in rows. `resume` is handed in: whatever you build has
     // to be able to let the player back in.
     pausePanel: (host, resume) => [
