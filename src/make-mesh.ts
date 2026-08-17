@@ -32,6 +32,21 @@ options you'd have set anyway.
 | **`computeWorldMatrix(true)`** | see below — this one is a genuine trap |
 | **degrees** for `rx`/`ry`/`rz` | matches `AbstractMesh`, which is degrees. Babylon is radians, so a bare number is ambiguous exactly where it hurts |
 
+## It covers everything `MeshBuilder` has
+
+`make` is a Proxy that forwards `make.<shape>` to `MeshBuilder.Create<Shape>`, so
+all 26 are there — `icoSphere`, `torusKnot`, `polyhedron`, `tube`, `lathe`,
+`geodesic`, `goldberg`, `tiledBox` — plus whatever Babylon adds later, with no
+code here to keep in step. Options you don't recognise are simply forwarded, so
+a shape's own parameters work exactly as they do in Babylon.
+
+It is weightless: one Proxy, and a closure only for the names actually used.
+That laziness is the point — a hand-written list of eight would be wrong the
+moment somebody wanted the ninth.
+
+`make.decal` is refused with a message, because `CreateDecal` takes a source
+mesh rather than options and so doesn't fit the forwarding shape.
+
 ## Why `worldMatrix` defaults to true
 
 A mesh that has been positioned but never RENDERED has no world matrix, so
@@ -63,6 +78,9 @@ const scene = b3d(
       el.make.sphere({ diameter: 1.3, y: 1, color: '#3f7fb8' })
       el.make.cylinder({ height: 1.8, diameter: 0.9, x: 2.4, y: 0.9, color: '#c9a227', glow: 0.15 })
       el.make.torus({ diameter: 1.4, thickness: 0.28, y: 2.6, rx: 90, color: '#6ab04c' })
+      // Never hand-written here — the proxy forwards to MeshBuilder.CreateIcoSphere.
+      el.make.icoSphere({ radius: 0.7, subdivisions: 2, x: -2.4, y: 2.6, color: '#b07acc', glow: 0.3 })
+      el.make.torusKnot({ radius: 0.5, tube: 0.16, x: 2.4, y: 2.7, color: '#e08a3c', glow: 0.2 })
     },
   },
   ...demoStage({ size: 16, tiles: 10, pattern: true }),
@@ -141,159 +159,128 @@ function finish<T extends BABYLON.Mesh>(
   return mesh
 }
 
+/** A maker: shape options merged with the shared ones, returning the mesh. */
+export type Maker<Shape = Record<string, unknown>> = (
+  opts?: MakeOptions & Shape
+) => BABYLON.Mesh
+
+/*
+Everything `MeshBuilder` can make, without a list of everything MeshBuilder can
+make.
+
+The first cut hand-wrote eight primitives on a plain object, on the argument
+that a fixed set types better than a Proxy. Tonio: "the beauty of the proxy is
+it's weightless until used." Which is true, but the decisive part is what the
+laziness BUYS: a proxy forwards `make.foo` to `MeshBuilder.CreateFoo`, so it
+covers all 26 — icoSphere, polyhedron, tube, lathe, geodesic, goldberg, torusKnot
+— and whatever Babylon adds next, for no code and no maintenance. A hand-written
+list is a list that is wrong the moment somebody wants the ninth thing.
+
+Typing survives because `Makers` DECLARES the common shapes and falls back to an
+index signature: completion and checked options where it matters, the whole
+library reachable regardless.
+*/
+
+/** Options that belong to US; everything else is forwarded to MeshBuilder. */
+const SHARED_KEYS = new Set([
+  'name',
+  'x',
+  'y',
+  'z',
+  'rx',
+  'ry',
+  'rz',
+  'color',
+  'glow',
+  'glowColor',
+  'mirror',
+  'parent',
+  'shadows',
+  'pickable',
+  'worldMatrix',
+])
+
+/**
+ * Builders whose signature is NOT `(name, options, scene)`, so the forwarding
+ * shape doesn't fit. Named explicitly with a way out, because the failure would
+ * otherwise be a confusing argument mismatch deep inside Babylon.
+ */
+const INCOMPATIBLE: Record<string, string> = {
+  decal:
+    'CreateDecal takes a SOURCE MESH, not options — call BABYLON.MeshBuilder.CreateDecal directly.',
+}
+
+const pascal = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+
 /**
  * Build the `make` facade for an owner.
  *
- * A plain object rather than a Proxy — unlike `b3d-library`, the set of
- * primitives is FIXED and known at build time, so a real object is what gives
- * you completion and type-checked shape options. A proxy would trade both away
- * for nothing.
+ * Weightless: one Proxy, and a maker closure only for the names actually used.
  */
-export function createMakers(owner: MakeOwner) {
-  const scene = () => owner.scene
-  return {
-    box: (
-      opts: MakeOptions & {
-        size?: number
-        width?: number
-        height?: number
-        depth?: number
-      } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreateBox(
-          opts.name ?? 'box',
-          {
-            size: opts.size ?? 1,
-            width: opts.width ?? opts.size ?? 1,
-            height: opts.height ?? opts.size ?? 1,
-            depth: opts.depth ?? opts.size ?? 1,
-          },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    sphere: (
-      opts: MakeOptions & { diameter?: number; segments?: number } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreateSphere(
-          opts.name ?? 'sphere',
-          { diameter: opts.diameter ?? 1, segments: opts.segments ?? 16 },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    cylinder: (
-      opts: MakeOptions & {
-        height?: number
-        diameter?: number
-        diameterTop?: number
-        diameterBottom?: number
-        tessellation?: number
-      } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreateCylinder(
-          opts.name ?? 'cylinder',
-          {
-            height: opts.height ?? 1,
-            diameter: opts.diameter ?? 1,
-            diameterTop: opts.diameterTop,
-            diameterBottom: opts.diameterBottom,
-            tessellation: opts.tessellation ?? 24,
-          },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    plane: (
-      opts: MakeOptions & {
-        size?: number
-        width?: number
-        height?: number
-      } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreatePlane(
-          opts.name ?? 'plane',
-          {
-            size: opts.size ?? 1,
-            width: opts.width,
-            height: opts.height,
-            sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-          },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    ground: (
-      opts: MakeOptions & {
-        width?: number
-        height?: number
-        subdivisions?: number
-      } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreateGround(
-          opts.name ?? 'ground',
-          {
-            width: opts.width ?? 10,
-            height: opts.height ?? 10,
-            subdivisions: opts.subdivisions ?? 1,
-          },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    disc: (
-      opts: MakeOptions & { radius?: number; tessellation?: number } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreateDisc(
-          opts.name ?? 'disc',
-          { radius: opts.radius ?? 0.5, tessellation: opts.tessellation ?? 24 },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    torus: (
-      opts: MakeOptions & {
-        diameter?: number
-        thickness?: number
-        tessellation?: number
-      } = {}
-    ) =>
-      finish(
-        BABYLON.MeshBuilder.CreateTorus(
-          opts.name ?? 'torus',
-          {
-            diameter: opts.diameter ?? 1,
-            thickness: opts.thickness ?? 0.25,
-            tessellation: opts.tessellation ?? 24,
-          },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-    capsule: (opts: MakeOptions & { radius?: number; height?: number } = {}) =>
-      finish(
-        BABYLON.MeshBuilder.CreateCapsule(
-          opts.name ?? 'capsule',
-          { radius: opts.radius ?? 0.3, height: opts.height ?? 1 },
-          scene()
-        ),
-        owner,
-        opts
-      ),
-  }
+export function createMakers(owner: MakeOwner): Makers {
+  return new Proxy({} as Makers, {
+    get: (_t, prop: string) => {
+      if (typeof prop !== 'string') return undefined
+      if (INCOMPATIBLE[prop] != null) {
+        return () => {
+          console.error(`b3d make.${prop}: ${INCOMPATIBLE[prop]}`)
+          return null
+        }
+      }
+      const build = (
+        BABYLON.MeshBuilder as unknown as Record<
+          string,
+          (n: string, o: object, s: BABYLON.Scene) => BABYLON.Mesh
+        >
+      )[`Create${pascal(prop)}`]
+      if (typeof build !== 'function') {
+        return () => {
+          console.error(
+            `b3d make.${prop}: no BABYLON.MeshBuilder.Create${pascal(prop)}`
+          )
+          return null
+        }
+      }
+      return (opts: MakeOptions & Record<string, unknown> = {}) => {
+        // Split ours from the shape's, so a caller writes one flat object and
+        // MeshBuilder never sees `glow` or `shadows`.
+        const shape: Record<string, unknown> = {}
+        for (const k of Object.keys(opts)) {
+          if (!SHARED_KEYS.has(k))
+            shape[k] = (opts as Record<string, unknown>)[k]
+        }
+        return finish(build(opts.name ?? prop, shape, owner.scene), owner, opts)
+      }
+    },
+    has: (_t, prop: string) =>
+      typeof prop === 'string' &&
+      typeof (BABYLON.MeshBuilder as unknown as Record<string, unknown>)[
+        `Create${pascal(prop)}`
+      ] === 'function',
+  })
 }
 
-export type Makers = ReturnType<typeof createMakers>
+/**
+ * The common shapes are declared so they type-check and complete; the index
+ * signature keeps the rest of `MeshBuilder` reachable.
+ */
+export interface Makers {
+  box: Maker<{ size?: number; width?: number; height?: number; depth?: number }>
+  sphere: Maker<{ diameter?: number; segments?: number }>
+  cylinder: Maker<{
+    height?: number
+    diameter?: number
+    diameterTop?: number
+    diameterBottom?: number
+    tessellation?: number
+  }>
+  plane: Maker<{ size?: number; width?: number; height?: number }>
+  ground: Maker<{ width?: number; height?: number; subdivisions?: number }>
+  disc: Maker<{ radius?: number; tessellation?: number }>
+  torus: Maker<{ diameter?: number; thickness?: number; tessellation?: number }>
+  capsule: Maker<{ radius?: number; height?: number }>
+  icoSphere: Maker<{ radius?: number; subdivisions?: number }>
+  torusKnot: Maker<{ radius?: number; tube?: number }>
+  polyhedron: Maker<{ type?: number; size?: number }>
+  [shape: string]: Maker
+}
