@@ -137,13 +137,14 @@ take the headset off. Set it on the scene below and the button changes to
 "Continue in VR" on a device that has it.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, label3d, button3d, select3d } from 'tosijs-3d'
+import { b3d, b3dBox, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
+import { demoStage } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
 const RATE = { slow: 0.15, medium: 0.6, fast: 2 }
 
-const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#e06a3f' })
+const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#b45a4e' })
 
 const scene = b3d(
   {
@@ -169,10 +170,26 @@ const scene = b3d(
       // from rx/ry/rz every frame, so a euler write is silently overwritten.
       cube.ry += rate * host.frameDelta
     },
+    sceneCreated(el) {
+      // THE HONEST TEST. The cube above stops because `update` isn't called —
+      // easy, and it would look identical if pause did nothing but skip that
+      // callback. This moon runs on the RENDER OBSERVABLE off `sceneDelta`,
+      // which is where a paused scene used to keep right on simulating: an
+      // adopter measured 66m of travel during a 3-second pause. If pause is
+      // real, BOTH freeze.
+      const moon = BABYLON.MeshBuilder.CreateSphere('moon', { diameter: 0.5 }, el.scene)
+      const mat = new BABYLON.StandardMaterial('moon-mat', el.scene)
+      mat.diffuseColor = new BABYLON.Color3(0.92, 0.9, 0.86)
+      moon.material = mat
+      el.register({ meshes: [moon] })
+      let t = 0
+      el.scene.registerBeforeRender(() => {
+        t += sceneDelta(el.scene)
+        moon.position.set(Math.cos(t) * 3.2, 1.6 + Math.sin(t * 2) * 0.5, Math.sin(t) * 3.2)
+      })
+    },
   },
-  b3dSun({ intensity: 0.9 }),
-  b3dSkybox({ timeOfDay: 11 }),
-  b3dGround({ meshName: 'floor', width: 40, height: 40, color: '#5d7a5a' }),
+  ...demoStage({ pattern: true, size: 40, timeOfDay: 11 }),
   cube
 )
 

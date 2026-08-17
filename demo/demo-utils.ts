@@ -19,6 +19,7 @@
 import * as BABYLON from '@babylonjs/core'
 import {
   b3dSun,
+  b3dSkybox,
   b3dGround,
   SvgTexture,
   sceneDelta,
@@ -34,8 +35,14 @@ type B3dEl = {
   register?(additions: { meshes?: BABYLON.AbstractMesh[] }): void
 }
 
-/** The library's Warhol-ish test pattern (in `static/`), reused for grounds and props. */
-const PATTERN = '/tosi-test-pattern.svg'
+/**
+ * The library's Warhol-ish test pattern (in `static/`), reused for grounds and props.
+ *
+ * Exported because it is the answer to "what do I put on this so I can SEE it" —
+ * a flat colour hides the lighting, the shadows and the UV mapping all at once,
+ * which is how a demo ends up looking broken when it is merely bland.
+ */
+export const TEST_PATTERN = '/tosi-test-pattern.svg'
 
 /** A sun that CASTS shadows — the "when in doubt, add a shadow light" default. Pass overrides through. */
 export function demoSun(opts: Record<string, unknown> = {}) {
@@ -47,16 +54,51 @@ export function demoSun(opts: Record<string, unknown> = {}) {
  * colour, and `b3dGround` already wires up shadow-receiving. Placed as a child of `b3d(...)`.
  */
 export function patternGround(
-  opts: { size?: number; tiles?: number; color?: string } = {}
+  opts: {
+    size?: number
+    tiles?: number
+    color?: string
+    /** Use the tosi test pattern instead of the generated checker. Nicer to look
+     * at, and it shows UV orientation — a checker is symmetric, so it can't. */
+    pattern?: boolean
+  } = {}
 ) {
-  const { size = 40, tiles = 16, color = '#8a9b7e' } = opts
+  const { size = 40, tiles = 16, color = '#8a9b7e', pattern = false } = opts
   return b3dGround({
     width: size,
     height: size,
-    texture: 'checker',
-    textureTiles: tiles,
+    // `b3dGround` takes any texture URL; the SVG carries an intrinsic 512x512,
+    // so it rasterizes without help.
+    texture: pattern ? TEST_PATTERN : 'checker',
+    textureTiles: pattern ? Math.max(1, Math.round(tiles / 4)) : tiles,
     color,
   })
+}
+
+/**
+ * The whole "make it not look like a test harness" setup in one spread: a sun
+ * that casts, a sky to light and reflect, and a ground that shows both.
+ *
+ * ```js
+ * b3d({ ... }, ...demoStage({ pattern: true }), myThing)
+ * ```
+ *
+ * Exists because "bland" is a real defect and it is always the same three
+ * missing elements. A demo whose subject is a cube should still be worth
+ * looking at, or the reader concludes the FRAMEWORK looks like that.
+ */
+export function demoStage(
+  opts: {
+    size?: number
+    tiles?: number
+    color?: string
+    pattern?: boolean
+    timeOfDay?: number
+    sun?: Record<string, unknown>
+  } = {}
+) {
+  const { timeOfDay = 11, sun = {}, ...ground } = opts
+  return [demoSun(sun), b3dSkybox({ timeOfDay }), patternGround(ground)]
 }
 
 /**
@@ -124,7 +166,7 @@ export function spinner(
   const box = BABYLON.MeshBuilder.CreateBox('demo-spinner', { size }, el.scene)
   box.position.set(x, y, z)
   const mat = new BABYLON.StandardMaterial('demo-spinner-mat', el.scene)
-  const tex = new SvgTexture({ scene: el.scene, url: PATTERN, resolution: 512 })
+  const tex = new SvgTexture({ scene: el.scene, url: TEST_PATTERN, resolution: 512 })
   mat.diffuseTexture = tex.texture
   mat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15)
   box.material = mat
