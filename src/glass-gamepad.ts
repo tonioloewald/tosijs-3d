@@ -27,8 +27,9 @@ import { demoSun, patternGround } from 'demo-utils'
 import { elements } from 'tosijs'
 const { div, pre } = elements
 
-// fade OFF in the demo: this page is where you look at the pad, and on a
-// desktop it would hide itself the moment you moved the mouse to reach it
+// fade OFF in the demo: this page is where you LOOK at the pad, and any
+// keypress (a doc search, a scroll with the arrow keys) would fade it out
+// mid-inspection. Pointer movement no longer fades it — see `_watchRealInput`.
 const pad = b3dGamepad({ fade: 'off' })
 const readout = pre({ class: 'readout' })
 let rover, mat
@@ -101,6 +102,29 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
   pointer-events: none;
 }
 ```
+
+## Attributes
+
+| Attribute | Default | Purpose |
+| --- | --- | --- |
+| `controls` | `'sticks buttons'` | Which clusters to show, space-separated |
+| `fade` | `'on'` | Hide the pad once a real input device is in use. `'off'` pins it visible — what you want on a page where the pad itself is the subject |
+| `idleSeconds` | `10` | Seconds of silence before a faded pad comes back |
+| `fadedOpacity` | `0` | How faded is faded. `0` is invisible; a low value like `0.15` leaves a hint that the fallback exists |
+
+### What fading listens to, and what it ignores
+
+Only a **keypress** or a **physical gamepad** fades the pad. The pointer never
+does — not touch, not mouse, not trackpad.
+
+That is a deliberate asymmetry rather than an oversight. The pad is *operable by
+pointer*: `pointerdown` drives the sticks. So fading on pointer movement meant it
+vanished exactly as you reached for it — you moved the mouse to click a stick and
+your target disappeared. A keypress is the honest signal, because it is the one
+that actually implies an on-screen fallback isn't needed.
+
+If the pad is disappearing on you during development, `fade="off"` (or
+`setFade(false)`) pins it; `faded` reports the current state.
 */
 /*{ "parent": "Input" }*/
 
@@ -322,7 +346,7 @@ export class B3dGamepad extends Component implements GamepadSource {
     scale: 1,
     deadzone: 0.15,
     maxZone: 0.85,
-    /** Seconds of no mouse/keyboard/gamepad before the pad fades back in. */
+    /** Seconds of no keyboard/gamepad input before the pad fades back in. */
     idleSeconds: 10,
     /** `'off'` keeps the pad visible whatever else you're holding — for
      * screenshots, desktop demos, or a scene where it IS the control. */
@@ -372,8 +396,21 @@ export class B3dGamepad extends Component implements GamepadSource {
    * — but removing them outright breaks the tablet case, and a manual toggle
    * is a setting nobody finds.
    *
-   * TOUCH is deliberately not counted: touching the glass pad IS using it, so
-   * it must not fade itself away under your thumb.
+   * WHAT COUNTS AS "a real input device": a **keypress**, or a **physical
+   * gamepad**. Deliberately NOT the pointer, in any of its flavours:
+   *
+   * - **Touch** — touching the glass pad IS using it, so it must not fade away
+   *   under your thumb.
+   * - **Mouse / trackpad** — a pointer proves nothing about whether there's a
+   *   keyboard, and the pad is fully operable by pointer (`pointerdown` drives
+   *   the sticks). Fading on pointer movement meant the pad vanished exactly as
+   *   you reached for it — you moved the mouse to click a stick, and the thing
+   *   you were aiming at disappeared. It made the fade read as a bug rather
+   *   than as a feature, and the demo on this page had to opt out of it
+   *   entirely to be usable.
+   *
+   * A keypress is the honest signal, because it is the one that actually
+   * implies the fallback isn't needed.
    */
   private _watchRealInput(): void {
     if (this._inputWatch != null) return
@@ -391,10 +428,6 @@ export class B3dGamepad extends Component implements GamepadSource {
         Math.max(1, this.idleSeconds) * 1000
       ) as unknown as number
     }
-    const onPointer = (e: PointerEvent) => {
-      if (e.pointerType === 'touch') return // that's this pad, not a mouse
-      wake()
-    }
     const onPad = () => {
       const pads = navigator.getGamepads?.() ?? []
       for (const p of pads) {
@@ -409,15 +442,11 @@ export class B3dGamepad extends Component implements GamepadSource {
       }
     }
     window.addEventListener('keydown', wake)
-    window.addEventListener('pointermove', onPointer)
-    window.addEventListener('pointerdown', onPointer)
     // The Gamepad API has no "input happened" event, so a physical stick has
     // to be polled — cheaply, and only while we're visible.
     const padPoll = setInterval(onPad, 500) as unknown as number
     this._inputWatch = () => {
       window.removeEventListener('keydown', wake)
-      window.removeEventListener('pointermove', onPointer)
-      window.removeEventListener('pointerdown', onPointer)
       clearInterval(padPoll)
       if (this._idleTimer != null) clearTimeout(this._idleTimer)
     }
@@ -427,7 +456,7 @@ export class B3dGamepad extends Component implements GamepadSource {
    * Is the pad currently hidden by the fade behaviour?
    *
    * Public because the fade is production-correct but development-hostile: once
-   * a mouse or trackpad is present the pad goes away and (short of an input
+   * a keyboard is in use the pad goes away and (short of an input
    * drought) doesn't come back, so checking it on a laptop meant reaching for
    * Chrome's responsive mode. `<tosi-b3d>` puts a gamepad gadget in the gear
    * panel that reads and flips this.
