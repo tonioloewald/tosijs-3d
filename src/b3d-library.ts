@@ -179,6 +179,7 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 - `getRootNames(): string[]` — same, top-level nodes only
 - `getHierarchy(): {name, children, isMesh}[]` — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure
 - `instantiate(name, options?): Node | null` — clone a named node (mesh or transform, with children) into the scene
+- `make` — the same thing, as callable names: `lib.make.scout({ y: 1 })`. Quotes are the only difference, but a string is invisible to the editor and a typo in one is a runtime error rather than something you see while typing. It's a sub-object, not methods on the element, because a GLB may contain a node called `id` or `remove` and a model must never be able to shadow the DOM.
 - `clearInstances(): void` — dispose all previously instantiated clones
 - Options: `{ x?, y?, z?, rx?, ry?, rz?, parent? }`
 */
@@ -401,6 +402,56 @@ export class B3dLibrary extends B3dChild {
       instance.dispose()
     }
     this.instances = []
+  }
+
+  /**
+   * The library's contents as CALLABLE NAMES: `lib.make.scout({ y: 1 })`
+   * instead of `lib.instantiate('scout', { y: 1 })`.
+   *
+   * Same call, minus the quotes — which matters more than it looks. A string
+   * argument is invisible to the editor: no completion, no go-to-definition,
+   * and a typo is a runtime `console.error` rather than something you notice
+   * while typing. A property access at least reads like the thing it makes.
+   *
+   * Deliberately a SUB-OBJECT rather than methods on the element itself. This
+   * is an HTMLElement, and a GLB is free to contain a node called `title`,
+   * `id`, `children` or `remove` — putting arbitrary content names in that
+   * namespace means a model can silently shadow the DOM.
+   *
+   * It is `make` and not `parts` because `parts` is tosijs's own part registry
+   * (`this.parts.canvas`) — the first cut used it and the compiler caught the
+   * clash, which is the same class of collision one level up.
+   *
+   * Unknown names behave exactly as `instantiate` does: log and return null,
+   * never throw. A missing prop is a content problem, and taking the scene down
+   * over it helps nobody.
+   *
+   * Mirrors `svgIcons.<name>()`, so the codebase has one idea of what a
+   * name-keyed factory looks like.
+   */
+  get make(): Record<
+    string,
+    (options?: InstantiateOptions) => BABYLON.Node | null
+  > {
+    return new Proxy(
+      {} as Record<
+        string,
+        (options?: InstantiateOptions) => BABYLON.Node | null
+      >,
+      {
+        get:
+          (_t, prop: string) =>
+          (options: InstantiateOptions = {}) =>
+            this.instantiate(prop, options),
+        // So `'scout' in lib.parts` and console autocomplete tell the truth.
+        has: (_t, prop: string) => this.getNames().includes(prop),
+        ownKeys: () => this.getNames(),
+        getOwnPropertyDescriptor: () => ({
+          enumerable: true,
+          configurable: true,
+        }),
+      }
+    )
   }
 
   instantiate(

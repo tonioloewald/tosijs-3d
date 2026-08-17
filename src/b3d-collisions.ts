@@ -5,10 +5,17 @@ Opt-in collision detection via mesh naming conventions authored in Blender.
 
 ## Demo — where did it hit, and which way is the surface facing?
 
-Hail falls on a lumpy rock. Each impact is found by a SWEPT RAY (the segment the
+Hail falls on the scout. Each impact is found by a SWEPT RAY (the segment the
 stone travelled this frame, not its position), and the marker shows both things
 you actually need: the **point**, and a disc lying flat on the surface with a
-stalk along the **normal**. Watch the discs tilt as they land on the flanks.
+stalk along the **normal**. Watch the discs tilt to follow the fuselage, and
+lie flat the moment a stone misses and lands on the ground.
+
+Misses count too — a stone that hits nothing still hits the WORLD, and a demo
+that only reports the interesting case quietly teaches you that misses are free.
+Ground hits are the same marker in a cooler colour and a shorter life, because
+they are the common case and at equal weight they drown out the ones you care
+about.
 
 The sweep is the part worth copying. Testing "is the stone inside the rock now?"
 misses anything moving faster than its own radius per frame — at 60fps a stone
@@ -16,63 +23,82 @@ falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
 segment cannot tunnel.
 
 ```js
-import { b3d, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dLibrary, label3d, slider3d } from 'tosijs-3d'
 import { demoStage, orbitCam, impactMarker } from 'demo-utils'
 import { tosi } from 'tosijs'
 
-const { hail } = tosi({ hail: { rate: 6, hits: 0 } })
+const { hail } = tosi({ hail: { rate: 8, hits: 0, ground: 0 } })
+const lib = b3dLibrary({ url: '/test-3.glb', type: 'vehicles' })
+
 const readout = document.createElement('div')
 readout.style.cssText = 'font: 13px ui-monospace, monospace; padding: 6px'
-hail.hits.observe(() => { readout.textContent = `impacts: ${hail.hits.valueOf()}` })
+const paint = () => {
+  readout.textContent = `scout: ${hail.hits.valueOf()}   ground: ${hail.ground.valueOf()}`
+}
+hail.hits.observe(paint)
+hail.ground.observe(paint)
+paint()
 
 const scene = b3d(
   {
+    // Bloom for the stones' emissive; the impact markers pick it up too.
+    glowLayerIntensity: 0.6,
     scenePanel: () => [
       label3d({ text: 'hail' }),
-      slider3d({ label: 'stones', value: hail.rate, min: 1, max: 24, step: 1 }),
+      slider3d({ label: 'stones', value: hail.rate, min: 1, max: 30, step: 1 }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { radius: 9, beta: Math.PI / 2.9, target: [0, 1.5, 0] })
+      orbitCam(el, { radius: 7, beta: Math.PI / 3.1, target: [0, 1.4, 0] })
 
-      // An IRREGULAR target — lumps merged into one mesh, so the surface
-      // normals genuinely vary and the markers have something to reveal.
-      const lumps = []
-      for (let i = 0; i < 9; i++) {
-        const a = (i / 9) * Math.PI * 2
-        const r = 0.9 + ((i * 7) % 5) * 0.12
-        const s = BABYLON.MeshBuilder.CreateSphere('lump', { diameter: 1.1 + ((i * 3) % 4) * 0.28, segments: 10 }, el.scene)
-        s.position.set(Math.cos(a) * r, 0.9 + ((i * 5) % 3) * 0.34, Math.sin(a) * r)
-        lumps.push(s)
-      }
-      const rock = BABYLON.Mesh.MergeMeshes(lumps, true, true)
-      rock.name = 'rock'
-      const rockMat = new BABYLON.StandardMaterial('rock-mat', el.scene)
-      rockMat.diffuseColor = new BABYLON.Color3(0.55, 0.52, 0.48)
-      rockMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08)
-      rock.material = rockMat
-      el.register({ meshes: [rock] })
-
-      // Stones are pure kinematics — no physics engine, no colliders. The only
-      // question this demo asks is "what did the segment cross, and where".
       const G = 9.8
       const stones = []
+      // Orange, with a partial glow — hot enough to read against a busy ground
+      // without going full emissive, which would flatten them into flat discs.
       const mat = new BABYLON.StandardMaterial('stone-mat', el.scene)
-      mat.diffuseColor = new BABYLON.Color3(0.75, 0.8, 0.95)
+      mat.diffuseColor = new BABYLON.Color3(1, 0.42, 0.1)
+      mat.emissiveColor = new BABYLON.Color3(0.55, 0.2, 0.03)
+      mat.specularColor = new BABYLON.Color3(0.3, 0.25, 0.2)
+
+      // Everything the hail can land on. The scout is a HIERARCHY, so the
+      // target set is its child meshes — picking against the root would hit
+      // nothing (a TransformNode has no geometry). The ground goes in the same
+      // set: a stone that misses is still a collision, it just isn't a hit ON
+      // anything, and a demo that only reports the interesting case teaches you
+      // that misses are free.
+      const targets = new Set()
+      let ground = null
+      lib.ready.then(() => {
+        // `lib.make.<name>()` — the library's contents as callable names.
+        const scout = lib.make.scout({ y: 0.9, ry: 140 })
+        if (scout == null) return
+        scout.scaling.setAll(3.4) // fill the frame; it is the subject here
+        scout.getChildMeshes().forEach((m) => targets.add(m))
+        el.register({ meshes: scout.getChildMeshes() })
+        // NOT looping the cockpit animation: a hatch cycling open and shut
+        // forever pulls the eye off the impacts, which are the point.
+      })
+      // The ground arrives with the rest of the scene, not with the library.
+      el.scene.onNewMeshAddedObservable.add((m) => {
+        if (m.name === 'ground') ground = m
+      })
+      ground = el.scene.getMeshByName('ground')
+
       const reset = (s) => {
-        s.mesh.position.set((Math.random() - 0.5) * 5, 7 + Math.random() * 3, (Math.random() - 0.5) * 5)
+        // Spread just wider than the scout: most stones should find it, or the
+        // demo is mostly a ground-impact demo with a model in the background.
+        s.mesh.position.set((Math.random() - 0.5) * 4.5, 6 + Math.random() * 3, (Math.random() - 0.5) * 4.5)
         s.vel = -1 - Math.random() * 2
       }
       const spawn = () => {
-        const mesh = BABYLON.MeshBuilder.CreateSphere('stone', { diameter: 0.18, segments: 6 }, el.scene)
+        const mesh = BABYLON.MeshBuilder.CreateSphere('stone', { diameter: 0.16, segments: 6 }, el.scene)
         mesh.material = mat
         const s = { mesh, vel: 0 }
         reset(s)
         stones.push(s)
-        return s
       }
 
-      const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Up(), 1)
-      const onlyRock = (m) => m === rock
+      const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 1)
+      const canHit = (m) => targets.has(m) || m === ground
       el.scene.registerBeforeRender(() => {
         const dt = el.frameDelta
         while (stones.length < hail.rate.valueOf()) spawn()
@@ -82,25 +108,32 @@ const scene = b3d(
           s.vel -= G * dt
           s.mesh.position.y += s.vel * dt
           const drop = from.y - s.mesh.position.y
-          if (drop > 0) {
-            // SWEEP the segment just travelled, not the new position.
-            ray.origin = from
-            ray.direction = BABYLON.Vector3.Down()
-            ray.length = drop + 0.09
-            const hit = el.scene.pickWithRay(ray, onlyRock)
-            if (hit?.hit && hit.pickedPoint) {
-              impactMarker(el, hit.pickedPoint, hit.getNormal(true), { life: 1.4 })
-              hail.hits = hail.hits.valueOf() + 1
-              reset(s)
-              continue
-            }
+          if (drop <= 0) continue
+          // SWEEP the segment just travelled, not the new position.
+          ray.origin = from
+          ray.direction = BABYLON.Vector3.Down()
+          ray.length = drop + 0.08
+          const hit = el.scene.pickWithRay(ray, canHit)
+          if (hit?.hit && hit.pickedPoint) {
+            const onGround = hit.pickedMesh === ground
+            impactMarker(el, hit.pickedPoint, hit.getNormal(true), {
+              life: onGround ? 0.8 : 1.6,
+              // Ground hits are dimmer and shorter-lived: they are the common
+              // case, and at full brightness they drown out the hits you care
+              // about. Same marker, different weight.
+              color: onGround ? '#7fd4ff' : '#ffd34d',
+              size: onGround ? 0.22 : 0.32,
+            })
+            if (onGround) hail.ground = hail.ground.valueOf() + 1
+            else hail.hits = hail.hits.valueOf() + 1
+            reset(s)
           }
-          if (s.mesh.position.y < -0.4) reset(s)
         }
       })
     },
   },
-  ...demoStage({ size: 30, pattern: true, timeOfDay: 9 }),
+  lib,
+  ...demoStage({ size: 14, tiles: 12, pattern: true, timeOfDay: 9 }),
 )
 
 preview.append(scene, readout)
