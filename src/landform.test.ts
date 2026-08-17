@@ -120,7 +120,7 @@ describe('gulley — a FORCING function, not a cut', () => {
   const opts = {
     x: 0,
     z: 0,
-    heading: Math.PI, // runs out toward −x
+    heading: 180, // runs out toward −x (DEGREES)
     width: 60,
     length: 260,
     floorY: 70,
@@ -240,7 +240,7 @@ describe('cover — the tunnel stays buried', () => {
     const g = gulley({
       x: 0,
       z: 0,
-      heading: Math.PI,
+      heading: 180,
       width: 90,
       length: 300,
       floorY: 70,

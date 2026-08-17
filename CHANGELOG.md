@@ -47,6 +47,15 @@ No peer-dependency changes, but this is a **behaviour** release: the throttle,
 the right stick and the on-screen gamepad all work differently, and one
 attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
 
+- **Angles in the AUTHORING surface are DEGREES.** "We should use degrees
+  everywhere. Not even mathematicians visualize radians." Two APIs took radians
+  and now take degrees: `landform`'s `gulley`/`cover` `heading`, and the library
+  rotation below. **Migration:** multiply by `180 / Math.PI`.
+  Pure math modules (`spatial-transform`, `guidance`, `portal-transform`,
+  `fly-by-wire`'s internals) keep radians deliberately — that is mathematics,
+  not a dial an author turns. And `b3d-skybox`'s `azimuth` is neither: it is
+  Babylon's 0–1 fraction of a turn, passed straight through, now documented as
+  such rather than left to be guessed at.
 - **`library.instantiate()` / `library.make.*` rotation is now DEGREES**, not
   radians — matching `AbstractMesh`'s `rx`/`ry`/`rz` and the new `el.make.*`.
   The library was the only surface in the framework that disagreed, and a bare

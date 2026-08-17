@@ -216,6 +216,7 @@ export interface GulleyOptions {
   z: number
   /** Direction the gulley runs OUT from the face (radians, world XZ). The
    * tunnel drives the opposite way, into the hill. */
+  /** Direction the gulley runs, in DEGREES (0 = +x, 90 = +z). */
   heading: number
   /** Floor width (m) — forced flat across this. */
   width: number
@@ -272,7 +273,8 @@ export interface GulleyOptions {
 export function gulley(
   opts: GulleyOptions
 ): (x: number, z: number, h: number) => number {
-  const { x: fx, z: fz, heading, width, length, floorY } = opts
+  const { x: fx, z: fz, heading: headingDeg, width, length, floorY } = opts
+  const heading = headingDeg * (Math.PI / 180)
   const cliffHeight = opts.cliffHeight ?? 45
   const faceRun = Math.max(1e-3, opts.faceRun ?? 18)
   const grade = opts.grade ?? 0
@@ -320,7 +322,8 @@ export interface CoverOptions {
   /** Start of the corridor (usually the gulley's face). */
   x: number
   z: number
-  /** Direction the corridor runs (radians) — the way the tunnel drives. */
+  /** Direction the corridor runs, in DEGREES (0 = +x, 90 = +z) — the way the
+   * tunnel drives. Was radians until 0.7.0; see the CHANGELOG. */
   heading: number
   /** Corridor width (m). */
   width: number
@@ -352,7 +355,8 @@ export interface CoverOptions {
 export function cover(
   opts: CoverOptions
 ): (x: number, z: number, h: number) => number {
-  const { x: sx, z: sz, heading, width, length, minHeight } = opts
+  const { x: sx, z: sz, heading: headingDeg, width, length, minHeight } = opts
+  const heading = headingDeg * (Math.PI / 180)
   const fade = Math.max(1e-3, opts.fade ?? width * 0.7)
   const cos = Math.cos(heading)
   const sin = Math.sin(heading)
