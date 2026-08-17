@@ -130,7 +130,10 @@ export function spinner(
   box.material = mat
   el.register?.({ meshes: [box] }) // enlist as a shadow caster (b3dSun adds registered meshes)
   el.scene.registerBeforeRender(() => {
-    box.rotation.y += (spin * sceneDelta(el.scene)) / 1000
+    // sceneDelta is SECONDS. The line this replaced used getDeltaTime() (ms),
+    // and the /1000 came along with it — turning a 4x error into a 1000x one
+    // (the b3d-water crates were down to ~1 rev / 10 hours).
+    box.rotation.y += spin * sceneDelta(el.scene)
   })
   return box
 }

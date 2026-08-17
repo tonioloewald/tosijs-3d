@@ -6,8 +6,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.0
 
-> **Beta builds cut from this section** (tarballs, not npm releases — see
-> `RELEASING.md`'s tagged-but-unpublished window):
+> **Beta builds cut from this section.** They ARE published to npm, under the
+> `next` dist-tag — `latest` stays on the current stable until 0.7.0 ships.
+>
+> A note on the numbering, because it looks backwards: `0.7.0-rc.1` was cut
+> first, then work continued as `-beta.1…beta.6`. Semver sorts beta BELOW rc, so
+> those betas are unreachable through any range naming rc.1. That was a
+> deliberate trade at the time; the rule taken from it is that **a prerelease
+> channel never moves backwards** — the successor to `-rc.N` is `-rc.N+1`.
 >
 > - **0.7.0-beta.6** (2026-08-17) — carved landforms (the sdf-lattice page, the
 >   volcano cutaway, strata, 3D volcanic veins), portal math, and four
@@ -312,9 +318,6 @@ that was tuned around the old feel.
 - **[patch-field](https://3d.tosijs.net/patch-field/)** — `landform`'s
   volumetric sibling: `(x, y, z, d) => d'` carving composed against the
   terrain's own hooked height sampler.
-- **[b3d-patch](https://3d.tosijs.net/b3d-patch/)** ⚠️ **experimental** —
-  streams extracted cave geometry with residency, a budget and a cavity
-  predicate. Interiors work; ENTRANCES do not yet (see the component's note).
 - **`landform`** gains `gulley` (a height FORCING function ending in a
   predictable cliff), `cover` (forced ground over a tunnel so it stays
   buried), and `pad` from 0.6.2's family.
@@ -368,6 +371,15 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **Pause didn't pause** (#30) — an adopter measured a player travelling 66.58 m
+  during a 3-second pause with `paused === true` throughout. Two clocks leaked,
+  not one. `sceneDelta` accepted a published frame delta only when `> 0`, so the
+  one value meaning "stopped" was the one value it discarded, falling back to
+  the live engine clock — everything on the render observable (projectiles,
+  water, ambient) kept running. And `B3dControllable` runs its own `Date.now`
+  clock that a stopped scene delta cannot reach: it was fed empty input, but
+  with no input an aircraft COASTS, which is indistinguishable from cruising. A
+  paused scene now publishes a delta of zero and controllables halt outright.
 - **Blasts could not see library-backed destroyables** (#28) — a third
   consequence of `library`. `detonateWarhead` resolved targets with
   `scene.getMeshByName`, which searches meshes only, so a `library`

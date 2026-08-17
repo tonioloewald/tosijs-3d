@@ -320,6 +320,7 @@ export {
 } from './widgets3d'
 export type { Widget3d } from './widgets3d'
 export {
+  panelFitWidth,
   stackLayout,
   clampScroll,
   wrapText,
