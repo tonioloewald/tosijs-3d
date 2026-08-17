@@ -165,7 +165,7 @@ preview.append(scene)
   fog density formula** (`underwaterFog + underwaterMurk · depth/30`, EXP2), so
   growth visibly stops exactly where the light dies. Coherence for free.
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "environment", "order": 900 }*/
 
 /** Chart-axis configuration shared by both front-ends. */
 export interface BiomeChartConfig {

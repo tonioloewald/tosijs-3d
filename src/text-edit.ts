@@ -72,7 +72,7 @@ keyboard's own output.)
 there's no selection, so "replace the selection" and "insert at the caret" are the
 same code path — the collapsed case is not special.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 
 /** An edit state: the text plus a caret, and an anchor when there's a selection. */
 export interface EditState {

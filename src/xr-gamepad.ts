@@ -28,7 +28,7 @@ import { XrGamepadSource } from 'tosijs-3d'
 // with the other sources by CompositeInputProvider. Wired automatically inside <tosi-b3d-controller>.
 ```
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "Input", "order": 900 }*/
 
 import type { TosiXRControllerMap } from './gamepad'
 import {

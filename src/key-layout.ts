@@ -104,7 +104,7 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
   sheet, readout))
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 
 /** Which key set is showing. */
 export type KeyboardMode =

@@ -29,7 +29,7 @@ import { proximityRung, routePortals } from 'tosijs-3d'
 // routePortals(portals, 'study', 'garden') → { portals: ['door-1','gate-2'], cost: 45 } | null
 ```
 */
-/*{ "parent": "World-Sim" }*/
+/*{ "parent": "World-Sim", "order": 900 }*/
 
 import type {
   PlaceId,

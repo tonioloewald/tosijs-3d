@@ -26,7 +26,7 @@ const moved = { position: { x: 8, y: 0, z: -4 }, rotation: quatFromAxisAngle({ x
 const lampNow = composePose(moved, bolt) // the lamp's new world pose after the table moved
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 900 }*/
 
 export type Vec3 = { x: number; y: number; z: number }
 /** Unit quaternion (x, y, z, w). */

@@ -50,7 +50,7 @@ direction walks steadily instead of either sprinting or stopping dead.
 The timing is passed in as `now` rather than read from a clock, so the ramp is
 deterministic and testable — same discipline as the rest of the pure models here.
 */
-/*{ "parent": "input" }*/
+/*{ "parent": "input", "order": 900 }*/
 
 import type { VirtualGamepad } from './virtual-gamepad'
 

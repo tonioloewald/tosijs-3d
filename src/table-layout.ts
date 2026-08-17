@@ -74,7 +74,7 @@ keeps it proportional to the viewport instead of the data.
 `overscan` draws a row or two beyond each edge so a fast scroll doesn't flash empty
 bands before the next paint.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 
 /** A column as the author declares it. */
 export interface ColumnSpec {

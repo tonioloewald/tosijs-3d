@@ -46,7 +46,7 @@ join. The stair-stepped hole edge in the tile grid then sits inside solid rock,
 where nobody can see it. (Same instinct as terrain's skirts, which don't solve
 the LOD seam either — they make it invisible.)
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "environment", "order": 900 }*/
 
 /**
  * A volumetric patch: given a world point and the density there so far, return

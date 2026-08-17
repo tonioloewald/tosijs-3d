@@ -203,7 +203,7 @@ preview.append(div(
 }
 ```
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "Input", "order": 900 }*/
 
 import type { ControlInput, InputProvider } from './control-input'
 import { emptyInput } from './control-input'

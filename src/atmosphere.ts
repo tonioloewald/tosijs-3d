@@ -43,7 +43,7 @@ special cases; it's one:
 blending is unit-testable without an engine, which is the point: this is the code that makes
 a transition *feel* right, and feel is worth pinning down.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "Environment", "order": 900 }*/
 
 /** A fog state — all UNIFORMS. The fog MODE is deliberately not here: changing it recompiles
  * every shader, so it's set once and never touched. */

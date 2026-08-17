@@ -22,7 +22,7 @@ import { Radar } from 'tosijs-3d'
 // each dt and read its tracks / nearest lock. See <tosi-b3d-radar> for the wired-up version.
 ```
 #*/
-/*{ "parent": "Combat" }*/
+/*{ "parent": "Combat", "order": 900 }*/
 
 export type Vec3 = { x: number; y: number; z: number }
 

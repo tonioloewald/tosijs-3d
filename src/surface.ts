@@ -118,7 +118,7 @@ preview.append(
 }
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 300 }*/
 
 import { svgElements } from 'tosijs'
 import { placePopup, type FlowBox, type PopupSide } from './flow-layout'

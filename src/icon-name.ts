@@ -129,4 +129,4 @@ export function mergeIconStyle(into: IconStyle, add: IconStyle): void {
   }
 }
 
-/*{ "parent": "Utilities" }*/
+/*{ "parent": "Utilities", "order": 900 }*/

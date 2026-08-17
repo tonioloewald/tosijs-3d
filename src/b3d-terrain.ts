@@ -304,7 +304,7 @@ terrain.regenerate()
 document.body.append(b3d({}, terrain))
 ```
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "Environment", "order": 100 }*/
 
 import { B3dChild, isOff } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'

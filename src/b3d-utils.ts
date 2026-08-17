@@ -278,7 +278,7 @@ Material *appearance* (metallic, roughness, alpha, emissive) comes through glTF 
 | `-ignore` | Node is disposed on load |
 | `_collide*` | Physics collider (sphere/box/cylinder/mesh) |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 900 }*/
 
 // Thresholds for property-based material inference
 const ALPHA_OPAQUE_THRESHOLD = 0.95

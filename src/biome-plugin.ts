@@ -17,7 +17,7 @@ on any material for authored tiles. Being a plugin (not a ShaderMaterial),
 scene lighting, shadows, and fog keep composing — the same reason
 [[cloud-shadows]] is a plugin.
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "environment", "order": 900 }*/
 
 import * as BABYLON from '@babylonjs/core'
 

@@ -16,7 +16,7 @@ import { HardwareGamepadSource } from 'tosijs-3d'
 // (sticks, face buttons, triggers), deadzone-filtered. Merged automatically by <tosi-b3d-controller>.
 ```
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "Input", "order": 900 }*/
 
 import type { VirtualGamepad, GamepadSource } from './virtual-gamepad'
 import { emptyGamepad } from './virtual-gamepad'

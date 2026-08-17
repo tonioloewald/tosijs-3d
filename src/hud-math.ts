@@ -23,7 +23,7 @@ import { hudTrace, horizonTransform } from 'tosijs-3d'
 // aircraft attitude. See <tosi-b3d-hud> for the live, assembled HUD.
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 900 }*/
 
 import {
   type Vec3,

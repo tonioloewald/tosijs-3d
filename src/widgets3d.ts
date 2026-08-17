@@ -250,7 +250,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 | `--w3d-button-bg` / `--w3d-button-hover` / `--w3d-button-active` | greys | Button states |
 | `--w3d-row-bg` / `--w3d-row-hover` | subtle whites | Row background / hover |
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 100 }*/
 
 import { svgElements } from 'tosijs'
 import {

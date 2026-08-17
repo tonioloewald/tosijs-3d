@@ -45,7 +45,7 @@ Everything it needs to be *where and how the thing died*: `position`, `rotation`
 the air like a stone. Plus `source` (what died/spawned it) and `faction`, for prefabs that
 care.
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "World Sim", "order": 900 }*/
 
 import type { B3d } from './tosi-b3d'
 

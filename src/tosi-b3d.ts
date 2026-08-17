@@ -242,7 +242,7 @@ document.body.append(
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 100 }*/
 
 import { Component, elements, updates } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'

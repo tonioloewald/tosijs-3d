@@ -59,7 +59,7 @@ Two method groups make the boundary legible in code:
 Determinism: ids come from a counter and time advances only via `tick()` — no
 `Date.now`/`Math.random` — so the same inputs always produce the same trace.
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "World Sim", "order": 100 }*/
 
 import type {
   EntityId,

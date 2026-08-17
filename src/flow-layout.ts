@@ -47,7 +47,7 @@ const { boxes, height } = flowLayout(
 // boxes[i] = { x, y, width, height } for each item; `height` is the total.
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 
 /** A laid-out item: a full-width block, or an inline item with its own size. */
 export type FlowItem =

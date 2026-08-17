@@ -22,7 +22,7 @@ What it pins is the **contract behaviour**, not the geometry: place membership, 
 across places), the `SchematicView` shape, `traverse` → `placeEntered`, and that steering toward an
 entity actually *closes the distance*. It never asserts a coordinate — coordinates never cross.
 */
-/*{ "parent": "World-Sim" }*/
+/*{ "parent": "World-Sim", "order": 900 }*/
 
 import type {
   MinSimApi,
