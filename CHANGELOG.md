@@ -371,6 +371,16 @@ that was tuned around the old feel.
 
 ### Fixed
 
+- **Impacts now report the surface NORMAL, not just the point** (#29) —
+  `spawnProjectile`/`spawnMissile` take `whenImpact({ point, normal, mesh })`.
+  The swept ray already computed the normal and the launcher was throwing it
+  away, so anything that wanted an oriented effect (a scorch mark, a dent, a
+  ricochet) had to re-cast the same ray to get it back. `normal`/`mesh` are
+  `null` when there is genuinely no surface — a depth fuse in open water, a
+  timed round in mid-air. The old `onImpact(point)` still fires with a one-shot
+  deprecation warning; it was renamed off the `on*` prefix because such a key
+  becomes an `addEventListener` call the moment the shape is lifted onto an
+  element, and then silently never runs.
 - **Pause didn't pause** (#30) — an adopter measured a player travelling 66.58 m
   during a 3-second pause with `paused === true` throughout. Two clocks leaked,
   not one. `sceneDelta` accepted a published frame delta only when `> 0`, so the

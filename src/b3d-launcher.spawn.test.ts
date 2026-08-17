@@ -43,7 +43,15 @@ function makeScene(): BABYLON.Scene {
   return scene
 }
 function makeOwner(scene: BABYLON.Scene): any {
-  return { scene, addOriginListener() {}, removeOriginListener() {} }
+  return {
+    scene,
+    addOriginListener() {},
+    removeOriginListener() {},
+    // detonateWarhead enumerates <tosi-b3d-destroyable> children off the owner.
+    // Empty here: these tests are about the projectile and its impact report,
+    // not about who takes the damage.
+    querySelectorAll: () => [],
+  }
 }
 
 describe('spawnProjectile — the mechanism behind launcher.fire()', () => {
@@ -62,6 +70,102 @@ describe('spawnProjectile — the mechanism behind launcher.fire()', () => {
     const z0 = mesh.position.z
     for (let i = 0; i < 10; i++) scene.render()
     expect(mesh.position.z).toBeGreaterThan(z0)
+  })
+})
+
+/*
+IMPACT REPORTS A NORMAL (tosijs-3d#29).
+
+`point` alone cannot orient anything: a scorch mark, a dent decal, a spark
+spray and a ricochet all need to know which way the surface FACES. The swept
+ray already computed it and the launcher was discarding it, so every consumer
+that wanted an oriented effect had to re-cast the same ray to get it back.
+
+The null case is pinned just as hard as the hit case, because it is real: a
+depth fuse goes off in open water and there IS no surface. A caller that
+assumes a normal would orient its effect off nothing.
+*/
+describe('impact carries the surface normal, not just the point', () => {
+  /** A wall the projectile will fly into, facing back down -Z toward the shot. */
+  const wallAt = (scene: BABYLON.Scene, z: number) => {
+    const wall = BABYLON.MeshBuilder.CreateBox(
+      'wall',
+      { width: 20, height: 20, depth: 0.5 },
+      scene
+    )
+    wall.position.set(0, 5, z)
+    wall.isPickable = true
+    // REQUIRED. The projectile's swept ray runs in an onBeforeRender observer,
+    // so on the very first frame it picks against world matrices that have not
+    // been computed yet — the wall is still at the origin, the ray starts
+    // INSIDE it, and the "impact" lands at z=0.25 with a plausible normal off
+    // the wrong face. Plausible-but-wrong is the failure mode worth naming.
+    wall.computeWorldMatrix(true)
+    return wall
+  }
+
+  test('a hit reports point, world normal and the mesh struck', async () => {
+    const { spawnProjectile } = await import('./b3d-launcher')
+    const scene = makeScene()
+    const wall = wallAt(scene, 6)
+    let got: any = null
+    spawnProjectile(makeOwner(scene), {
+      origin: new BABYLON.Vector3(0, 5, 0),
+      velocity: new BABYLON.Vector3(0, 0, 60),
+      warhead: { damage: 10 },
+      params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
+      maxLifetime: 100,
+      whenImpact: (i) => {
+        got = i
+      },
+    })
+    for (let i = 0; i < 30 && got == null; i++) scene.render()
+
+    expect(got).not.toBeNull()
+    expect(got.mesh).toBe(wall)
+    expect(got.normal).not.toBeNull()
+    // Face normal of the wall's near side: pointing back at the shooter.
+    expect(got.normal.z).toBeLessThan(-0.5)
+    // …and the point is ON the wall, not at the shell's post-step position.
+    expect(got.point.z).toBeCloseTo(5.75, 1)
+  })
+
+  test('the deprecated onImpact still fires, with the point only', async () => {
+    const { spawnProjectile } = await import('./b3d-launcher')
+    const scene = makeScene()
+    wallAt(scene, 6)
+    const seen: BABYLON.Vector3[] = []
+    spawnProjectile(makeOwner(scene), {
+      origin: new BABYLON.Vector3(0, 5, 0),
+      velocity: new BABYLON.Vector3(0, 0, 60),
+      warhead: { damage: 10 },
+      params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
+      maxLifetime: 100,
+      onImpact: (p) => seen.push(p),
+    })
+    for (let i = 0; i < 30 && seen.length === 0; i++) scene.render()
+    expect(seen.length).toBe(1)
+    expect(seen[0].z).toBeCloseTo(5.75, 1)
+  })
+
+  test('BOTH fire when both are given — the old spelling is an alias, not a fork', async () => {
+    const { spawnProjectile } = await import('./b3d-launcher')
+    const scene = makeScene()
+    wallAt(scene, 6)
+    let newCount = 0
+    let oldCount = 0
+    spawnProjectile(makeOwner(scene), {
+      origin: new BABYLON.Vector3(0, 5, 0),
+      velocity: new BABYLON.Vector3(0, 0, 60),
+      warhead: { damage: 10 },
+      params: { gravity: { x: 0, y: 0, z: 0 }, dragCoeff: 0, mass: 1 },
+      maxLifetime: 100,
+      whenImpact: () => newCount++,
+      onImpact: () => oldCount++,
+    })
+    for (let i = 0; i < 30 && newCount === 0; i++) scene.render()
+    expect(newCount).toBe(1)
+    expect(oldCount).toBe(1)
   })
 })
 

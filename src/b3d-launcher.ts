@@ -158,6 +158,35 @@ preview.append(scene)
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## Where did it hit, and which way is that surface facing?
+
+`spawnProjectile`/`spawnMissile` report impacts through `whenImpact`, which
+hands you an `Impact`:
+
+```js
+const shell = {
+  whenImpact({ point, normal, mesh }) {
+    if (normal == null) return // a fuse in open space — no surface
+    scorchMark(point, normal) // decals need the facing, not just the spot
+  },
+}
+```
+
+`point` on its own cannot orient anything. A scorch mark, a dent, a spark spray
+and a ricochet all need to know which way the surface faces, and the swept ray
+already computed it — this used to be discarded, so every consumer that wanted
+an oriented effect had to re-cast the same ray to recover it (tosijs-3d#29).
+
+**`normal` and `mesh` are nullable, and the null case is real** rather than
+defensive: a depth fuse detonates in open water and a timed round detonates in
+mid-air. There is no surface, so there is no normal. Branch on it — a caller
+that assumes one orients its effect off nothing.
+
+> The older `onImpact(point)` still fires, with a one-shot deprecation warning.
+> It was renamed off the `on*` prefix as well as widened: an `onFoo` key in an
+> options bag becomes an `addEventListener` call the moment that shape is lifted
+> onto an element, and the callback then silently never runs.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -215,6 +244,55 @@ import {
 import { detonateWarhead } from './b3d-warhead'
 import type { WarheadSpec } from './warhead'
 
+/**
+ * WHERE a round stopped, and what it stopped against.
+ *
+ * `point` alone is not enough to place anything on a surface: a scorch mark, a
+ * dent decal, a spark spray and a ricochet all need to know which way the
+ * surface FACES. `pickWithRay` already returns that — the launcher was calling
+ * `getNormal()`'s owner and then throwing it away, so every consumer that
+ * wanted an oriented effect had to re-cast the same ray to recover it
+ * (tosijs-3d#29).
+ *
+ * `normal` and `mesh` are NULLABLE and the null case is real, not defensive: a
+ * depth fuse detonates in open water, and a timed or proximity round detonates
+ * in mid-air. There is no surface, so there is no normal — and a caller that
+ * assumes one would orient its effect off stale or zeroed data. Branch on it.
+ */
+export interface Impact {
+  /** World-space point of detonation. */
+  point: BABYLON.Vector3
+  /** World-space surface normal, or `null` if nothing was struck. */
+  normal: BABYLON.Vector3 | null
+  /** The mesh struck, or `null` for a fuse that went off in open space. */
+  mesh: BABYLON.AbstractMesh | null
+}
+
+/*
+One place that fires both callbacks, so the deprecated spelling cannot drift
+away from the current one — that drift is exactly how `b3d-destroyable`'s
+library load became a stale copy of the aircraft's.
+*/
+let warnedOnImpact = false
+const reportImpact = (
+  opts: {
+    whenImpact?: (i: Impact) => void
+    onImpact?: (p: BABYLON.Vector3) => void
+  },
+  impact: Impact
+): void => {
+  opts.whenImpact?.(impact)
+  if (opts.onImpact != null) {
+    if (!warnedOnImpact) {
+      warnedOnImpact = true
+      console.warn(
+        'b3d-launcher: `onImpact` is deprecated — use `whenImpact`, which also carries the surface normal and the mesh struck.'
+      )
+    }
+    opts.onImpact(impact.point)
+  }
+}
+
 export interface ProjectileOpts {
   origin: BABYLON.Vector3
   /** Full launch velocity (direction × speed). */
@@ -229,7 +307,20 @@ export interface ProjectileOpts {
   maxLifetime?: number
   /** Line-of-sight gating for the impact warhead (default true). */
   useLos?: boolean
-  /** Called with the impact point when the shell detonates. */
+  /**
+   * Called when the shell detonates, with the point, the surface normal and the
+   * mesh struck (see `Impact` — normal/mesh are null for a fuse in open space).
+   */
+  whenImpact?: (impact: Impact) => void
+  /**
+   * @deprecated Use `whenImpact`, which also carries the surface normal.
+   *
+   * Renamed off the `on*` prefix as well as widened: an `onFoo` key in an
+   * options bag that gets lifted onto an element becomes an addEventListener
+   * call and the callback silently never fires (see CLAUDE.md). This shape is
+   * headed for `<tosi-b3d-launcher>`, so the name was a trap waiting to be
+   * sprung. Still honoured, with a one-shot warning.
+   */
   onImpact?: (point: BABYLON.Vector3) => void
   /**
    * Per-frame steering hook, called BEFORE the ballistic integration with the live
@@ -407,7 +498,9 @@ export function spawnProjectile(
       ) {
         const at = new BABYLON.Vector3(state.pos.x, state.pos.y, state.pos.z)
         detonateWarhead(owner, at, opts.warhead, opts.useLos ?? true)
-        opts.onImpact?.(at)
+        // A depth fuse goes off in open water: there is no surface, so there is
+        // honestly no normal. Reported as null rather than as a default.
+        reportImpact(opts, { point: at, normal: null, mesh: null })
         dispose()
         return
       }
@@ -435,7 +528,13 @@ export function spawnProjectile(
           opts.warhead,
           opts.useLos ?? true
         )
-        opts.onImpact?.(hit.pickedPoint)
+        reportImpact(opts, {
+          point: hit.pickedPoint,
+          // `true` = world space. The ray already computed this; not passing it
+          // on was #29, and made every oriented effect re-cast the same ray.
+          normal: hit.getNormal(true),
+          mesh: hit.pickedMesh ?? null,
+        })
         dispose()
         return
       }
@@ -521,6 +620,8 @@ export interface MissileOpts {
   color?: string
   maxLifetime?: number
   useLos?: boolean
+  whenImpact?: (impact: Impact) => void
+  /** @deprecated Use `whenImpact` (see ProjectileOpts). */
   onImpact?: (point: BABYLON.Vector3) => void
   /** Ignore the firing entity's own meshes on the collision ray (see ProjectileOpts). */
   ignore?: (m: BABYLON.AbstractMesh) => boolean
@@ -635,6 +736,7 @@ export function spawnMissile(
     color: opts.color ?? '#ff6644',
     maxLifetime: opts.maxLifetime ?? 8,
     useLos: opts.useLos,
+    whenImpact: opts.whenImpact,
     onImpact: opts.onImpact,
     ignore: opts.ignore,
     radar: opts.radar,

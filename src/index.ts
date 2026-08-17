@@ -703,7 +703,7 @@ export {
   spawnProjectile,
   spawnMissile,
 } from './b3d-launcher'
-export type { ProjectileOpts, MissileOpts } from './b3d-launcher'
+export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher'
 export { B3dTurret, b3dTurret } from './b3d-turret'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip'
 export { B3dRadar, b3dRadar } from './b3d-radar'
