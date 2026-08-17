@@ -22,6 +22,12 @@ them (`carve` already has a sphere). Types stay top-level.
 */
 import * as mediumNs from './medium';
 export const medium = mediumNs;
+/*
+See-through portal math, namespaced: `sideOf` and `crossedPortal` are generic
+enough to collide, and `portalCamera` reads better qualified.
+*/
+import * as portalNs from './portal-transform';
+export const portalTransform = portalNs;
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
@@ -194,7 +200,6 @@ export const carve = {
     warp,
     shaft,
 };
-export { B3dPatch, b3dPatch } from './b3d-patch';
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field';
 export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, } from './biome-plugin';
 // Effects & interaction

@@ -55,11 +55,19 @@ and light correctly (normals difference the hooked field).</p>
 <p>The factories return a <strong>matched pair</strong> — the height <code>landform</code> and the
 <code>provinceField</code> that makes it glow — because a volcano isn&#39;t a shape OR a
 material, it&#39;s both:</p>
-<pre><code class="language-js">const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 24, baseLevel: 5 })
+<pre><code class="language-javascript">const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 24, baseLevel: 5 })
 terrain.landform = vesuvius.landform
 terrain.provinceField = vesuvius.province
 terrain.regenerate()
 </code></pre>
+<blockquote>
+<p>Shown, not run — it needs a <code>terrain</code> from the surrounding scene. The doc
+system executes <code>```js</code>, <code>```ts</code> and <code>```tjs</code> fences as
+LIVE examples, so an illustrative fragment in one of those renders as a broken
+demo. <code>```javascript</code> is the fence for &quot;read this, don&#39;t run it&quot;.
+A working landform is on the <a href="/sdf-lattice/" class="wikilink">sdf-lattice</a> page, where <code>volcano</code> builds the
+cone you can cut open.</p>
+</blockquote>
 <p>And a runtime explosion is the same move with the other factory — stamp an
 <code>impactCrater</code> at the hit point, compose it in, <code>regenerate()</code>: a glowing
 crater with almost no effort. <code>pad</code> is the same idea for CIVILIZATION — a
@@ -116,7 +124,6 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -125,9 +132,9 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link current" href="../landform/" aria-current="page">landform</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
-      <li><a class="doc-link" href="../sdf-lattice/">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
@@ -194,6 +201,7 @@ claim ground (terrace several up a hillside with <code>composeLandforms</code>).
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>

@@ -12,12 +12,19 @@ The factories return a **matched pair** — the height `landform` and the
 `provinceField` that makes it glow — because a volcano isn't a shape OR a
 material, it's both:
 
-```js
+```javascript
 const vesuvius = volcano({ x: 45, z: -25, radius: 55, height: 24, baseLevel: 5 })
 terrain.landform = vesuvius.landform
 terrain.provinceField = vesuvius.province
 terrain.regenerate()
 ```
+
+> Shown, not run — it needs a `terrain` from the surrounding scene. The doc
+> system executes ```` ```js ````, ```` ```ts ```` and ```` ```tjs ```` fences as
+> LIVE examples, so an illustrative fragment in one of those renders as a broken
+> demo. ```` ```javascript ```` is the fence for "read this, don't run it".
+> A working landform is on the [[sdf-lattice]] page, where `volcano` builds the
+> cone you can cut open.
 
 And a runtime explosion is the same move with the other factory — stamp an
 `impactCrater` at the hit point, compose it in, `regenerate()`: a glowing

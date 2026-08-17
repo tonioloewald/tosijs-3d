@@ -9,6 +9,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
 > **Beta builds cut from this section** (tarballs, not npm releases — see
 > `RELEASING.md`'s tagged-but-unpublished window):
 >
+> - **0.7.0-beta.6** (2026-08-17) — carved landforms (the sdf-lattice page, the
+>   volcano cutaway, strata, 3D volcanic veins), portal math, and four
+>   manta-reported fixes: the explode+library crash that seized the scene (#24),
+>   mutual death eating the panel (#25), blasts blind to library destroyables
+>   (#28), and pitch authority becoming configurable and asymmetric (#26).
 > - **0.7.0-beta.5** (2026-08-15) — `MediumOptics` + `fogLayerFor`
 >   (⚠️ experimental, not load-bearing: water publishes its optics but still
 >   computes its own fog layer). Otherwise identical to beta.4 — the rest is

@@ -29,28 +29,245 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
-  <title>sdf-lattice — tosijs-3d</title>
-  <meta name="description" content="The extraction substrate for volumetric terrain patches (tunnels, caverns, vents — see TODO&#39;s 0.7.0 → Tunnel patches)." />
+  <title>Carved landforms — tosijs-3d</title>
+  <meta name="description" content="Ground you can cut holes in. Caves, lava tubes, arches, sea caves, overhangs, mine shafts — everything a heightfield cannot say, because a heightfield has one" />
   <link rel="canonical" href="https://3d.tosijs.net/sdf-lattice/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="sdf-lattice — tosijs-3d" />
-  <meta property="og:description" content="The extraction substrate for volumetric terrain patches (tunnels, caverns, vents — see TODO&#39;s 0.7.0 → Tunnel patches)." />
+  <meta property="og:title" content="Carved landforms — tosijs-3d" />
+  <meta property="og:description" content="Ground you can cut holes in. Caves, lava tubes, arches, sea caves, overhangs, mine shafts — everything a heightfield cannot say, because a heightfield has one" />
   <meta property="og:url" content="https://3d.tosijs.net/sdf-lattice/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"sdf-lattice","description":"The extraction substrate for volumetric terrain patches (tunnels, caverns, vents — see TODO's 0.7.0 → Tunnel patches).","url":"https://3d.tosijs.net/sdf-lattice/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Carved landforms","description":"Ground you can cut holes in. Caves, lava tubes, arches, sea caves, overhangs, mine shafts — everything a heightfield cannot say, because a heightfield has one","url":"https://3d.tosijs.net/sdf-lattice/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
-<h1>sdf-lattice</h1>
-<p><strong>The extraction substrate for volumetric terrain patches</strong> (tunnels, caverns,
-vents — see TODO&#39;s <em>0.7.0 → Tunnel patches</em>). Pure, deterministic, Babylon-free
-and unit-tested, in the same spirit as <a href="/terrain-grid/" class="wikilink">terrain-grid</a>: this module knows about
-signed distance fields and triangles, nothing about scenes or materials.</p>
-<h2>The one idea: a GLOBAL lattice</h2>
+<h1>Carved landforms</h1>
+<p><strong>Ground you can cut holes in.</strong> Caves, lava tubes, arches, sea caves, overhangs,
+mine shafts — everything a heightfield cannot say, because a heightfield has one
+height per point and none of these do.</p>
+<p>The module behind it is <strong><code>sdf-lattice</code></strong>: pure, deterministic, Babylon-free and
+unit-tested, in the same spirit as <a href="/terrain-grid/" class="wikilink">terrain-grid</a>. It knows about signed
+distance fields and triangles, and nothing about scenes or materials.</p>
+<h2>Demo — a volcano in cross-section, with its lava tubes</h2>
+<p>The province vocabulary in one object: <strong>a landform for the mount, carves for the
+tubes, and one more carve to slice it open.</strong> The cutaway is a box of <em>air</em>
+subtracted from the volume, exactly like the tubes — only possible because the
+ground is a density field rather than a height. Volcanism ramps with depth below
+the surface, so the cut face reads as molten interior.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, carve, volcano, PerlinNoise, slider3d, label3d } from &#39;tosijs-3d&#39;
+import { volumetricDemo } from &#39;demo-utils&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const state = tosi({ volc: { cut: 0.5, molten: 80 } })
+const noise = new PerlinNoise(3)
+const cone = volcano({ x: 128, z: 128, radius: 90, height: 90, craterRadius: 18, craterDepth: 28 })
+const ground = (x, z) =&gt; cone.landform(x, z, noise.fractal(x * 0.01, 0, z * 0.01, 3) * 8)
+
+// A throat, and three tubes wandering out under the flanks.
+const tubes = carve.roughen(
+  carve.smoothUnion(14,
+    carve.capsule({ x: 128, y: 95, z: 128 }, { x: 128, y: -40, z: 128 }, 9),
+    carve.tube([{ x: 128, y: -10, z: 128 }, { x: 70, y: -14, z: 90 }, { x: 30, y: -6, z: 60 }], 7),
+    carve.tube([{ x: 128, y: 5, z: 128 }, { x: 180, y: -4, z: 150 }, { x: 220, y: 2, z: 190 }], 6),
+    carve.tube([{ x: 128, y: 30, z: 128 }, { x: 150, y: 18, z: 80 }, { x: 165, y: 6, z: 35 }], 5)
+  ),
+  { amp: 2.5, scale: 0.04, octaves: 3, seed: 11 }
+)
+
+// The cutaway: a box whose NEAR face lands at the cut. Centre it on the tile
+// instead and it swallows the whole volume — which extracts to zero triangles
+// and renders as an empty canvas.
+//
+// The near face SWEEPS across the tile: 0 puts it at z=0 and takes everything,
+// 1 puts it past the far edge and takes nothing, 0.5 halves the cone. Starts at
+// 0.5 because the section is the point of the demo.
+const slice = (x, y, z) =&gt; {
+  const nearFace = state.volc.cut.valueOf() * 256
+  return carve.box({ x: 128, y: 40, z: nearFace + 200 }, { x: 400, y: 400, z: 200 })(x, y, z)
+}
+
+let demo = null
+let pending = null
+const rebuildSoon = () =&gt; {
+  clearTimeout(pending)
+  pending = setTimeout(() =&gt; demo?.rebuild(), 100)
+}
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    sceneCreated: (el) =&gt; {
+      demo = volumetricDemo(el, {
+        size: 256,
+        spacing: 3,
+        below: 20,
+        above: 30,
+        ground,
+        carves: [tubes, slice],
+        // A function, so the slider re-reads it on rebuild. 55m puts the deep
+        // interior at FULL volcanism — verticals lag a whole stage, so a slower
+        // ramp leaves the cut face at stage 1, which is near-black basalt with
+        // near-black seams: correct by the spec, and invisible.
+        molten: () =&gt; state.volc.molten.valueOf(),
+        // Face the cut: the box removes z &gt; 128, so the section looks toward -z.
+        alpha: Math.PI / 2,
+      })
+      preview.append(demo.readout)
+    },
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;volcano, in section&#39;, bold: true }),
+      // Extraction is fast enough (~200ms for this chunk) that a slider can
+      // just drive it — debounced so a drag doesn&#39;t queue a rebuild per step.
+      slider3d({
+        label: &#39;cutaway&#39;,
+        value: state.volc.cut,
+        min: 0,
+        max: 1,
+        step: 0.02,
+        onChange: () =&gt; rebuildSoon(),
+      }),
+      slider3d({
+        label: &#39;molten depth&#39;,
+        value: state.volc.molten,
+        min: 20,
+        max: 300,
+        step: 5,
+        onChange: () =&gt; rebuildSoon(),
+      }),
+    ],
+  },
+  b3dLight({ y: 1, intensity: 0.5 }),
+  b3dSun({ intensity: 0.9 }),
+  b3dSkybox({ timeOfDay: 8 })
+)
+
+preview.append(scene)
+</code></pre>
+<h2>The theory, briefly</h2>
+<p><strong>A signed distance field</strong> is a function <code>f(x, y, z)</code> that returns how far you
+are from a surface, negative on one side and positive on the other. The surface
+is wherever it crosses zero. That is the whole representation — there is no mesh
+until you ask for one, and a shape is a <em>function</em>, so combining shapes is
+arithmetic: <code>max</code> is union, <code>min</code> is intersection, negation is complement.
+<a href="/carve/" class="wikilink">carve</a> is that arithmetic given names, and it is why &quot;a volcano with lava
+tubes&quot; is one expression rather than a modelling session.</p>
+<p><strong>Turning the field into triangles</strong> is <em>isosurface extraction</em>, and there are
+three classical answers:</p>
+<ul>
+<li><strong>Marching cubes</strong> (Lorensen &amp; Cline, 1987) — the famous one. Sample the field
+on a grid and emit triangles per cell from a 256-case lookup table. Simple,
+but it produces slivers and cannot represent a sharp edge.</li>
+<li><strong>Dual contouring</strong> (Ju et al., 2002) — place ONE vertex per cell, positioned
+by solving for the point that best fits the field&#39;s gradients. Reproduces sharp
+creases exactly; needs the gradient (a QEF solve per cell) and can place a
+vertex outside its own cell, which makes it fiddly.</li>
+<li><strong>Surface nets</strong> (Gibson, 1998) — one vertex per cell, placed at the average of
+the zero crossings on the cell&#39;s edges, then smoothed. No gradient, no solve,
+never leaves the cell, and the mesh comes out uniform. It rounds sharp
+features, which for <em>terrain</em> is not a defect: rock is not sharp.</li>
+</ul>
+<p><strong>This module uses surface nets</strong>, for those reasons. Erosion, water and
+weathering all round things off anyway, and the cheapness matters more than the
+creases when a tile has a millisecond budget.</p>
+<h2>The one idea that makes it usable: a GLOBAL lattice</h2>
+<h2>Demo — does a volumetric tile match the heightfield it would replace?</h2>
+<p>The question the volumetric-terrain direction turns on. Both surfaces are built
+from the same terrain at the same <strong>5.33 m</strong> spacing (a 128 m tile at 24
+subdivisions — the heightfield&#39;s own finest), so if extraction reproduces it, the
+two are indistinguishable and swapping one for the other shows nothing.</p>
+<p>The volumetric surface wears the terrain shader; the heightfield is overlaid as a
+<strong>red wireframe</strong>, so it compares without occluding — a solid reference covers
+the very thing you are looking for, since a bore&#39;s mouths sit in the
+heightfield&#39;s unbroken surface.</p>
+<p>Then <strong>punch a bore through the ridge</strong> — the thing a heightfield cannot say at
+all. The ridge is <em>authored</em> (a gaussian across the diagonal) rather than hunted
+for in noise, which is TUNNEL-DESIGN&#39;s own rule: where a tunnel must meet the
+surface, author the surface. It puts <strong>37 m of rock over the bore</strong> and gives a
+clean mouth at each end.</p>
+<p>The bore is on by default; <strong>fill the bore in</strong> to see the ridge without it.</p>
+<blockquote>
+<p><strong>A feature has to be bigger than the lattice.</strong> At 5.33 m spacing a 12 m bore
+is barely two cells across and surface nets can hardly express it; the tile
+here extracts at 4 m for that reason. It is the same rule <a href="/carve/" class="wikilink">carve</a> states for
+clearance — certify the hole you want against the resolution you have, or you
+get a dimple where you asked for a tunnel.</p>
+</blockquote>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, PerlinNoise, carve, toggle3d, label3d } from &#39;tosijs-3d&#39;
+import { volumetricDemo } from &#39;demo-utils&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const state = tosi({ sdf: { wire: true, bored: true } })
+
+// AUTHOR THE RIDGE, don&#39;t go hunting for one.
+//
+// Two attempts failed first: a hunted seed gave 18m of relief against a 14m bore
+// (the tunnel removed the ridge instead of passing under it), and a second gave
+// a roof thinning to 2m with open trench at both ends — a groove with a lid, not
+// a cave. Both diagnosed by sampling vertical columns through the density field
+// rather than by looking at it.
+//
+// So: a gaussian ridge across the diagonal, bore under the crest. TUNNEL-DESIGN&#39;s
+// own rule — where a tunnel must meet the surface, author the surface — and it
+// gives 37m of rock over the bore with a clean mouth at each end.
+const noise = new PerlinNoise(2)
+const ridge = (x, z) =&gt; {
+  const d = (x + z - 128) / Math.SQRT2 // distance from the diagonal crest
+  return 62 * Math.exp(-(d * d) / (2 * 26 * 26))
+}
+const ground = (x, z) =&gt; noise.fractal(x * 0.02, 0, z * 0.02, 3) * 7 + ridge(x, z) - 12
+
+const bore = carve.roughen(
+  carve.tube([{ x: 14, y: 6, z: 14 }, { x: 64, y: 6, z: 64 }, { x: 114, y: 6, z: 114 }], 7),
+  { amp: 1.5, scale: 0.05, octaves: 3, seed: 5 }
+)
+
+let demo = null
+let pending = null
+const rebuildSoon = () =&gt; {
+  clearTimeout(pending)
+  pending = setTimeout(() =&gt; demo?.rebuild(), 100)
+}
+
+const scene = b3d(
+  {
+    frameRate: 60,
+    sceneCreated: (el) =&gt; {
+      demo = volumetricDemo(el, {
+        size: 128,
+        spacing: 4, // fine enough to resolve a 14m bore; see the note below
+        below: 8,
+        above: 20, // the ridge is 62m tall — the chunk has to contain it
+        ground,
+        carves: [bore], // ON by default — the tunnel IS the demo
+        reference: true, // build the grey heightfield tile too
+      })
+      preview.append(demo.readout)
+    },
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;volumetric vs heightfield&#39;, bold: true }),
+      toggle3d({
+        label: &#39;heightfield wireframe&#39;,
+        value: state.sdf.wire,
+        onChange: (on) =&gt; demo?.show(on ? &#39;both&#39; : &#39;volumetric&#39;),
+      }),
+      toggle3d({
+        label: &#39;bore&#39;,
+        value: state.sdf.bored,
+        onChange: (on) =&gt; demo?.setCarves(on ? [bore] : []),
+      }),
+    ],
+  },
+  b3dLight({ y: 1, intensity: 0.55 }),
+  b3dSun({ intensity: 0.85 }),
+  b3dSkybox({ timeOfDay: 9 })
+)
+
+preview.append(scene)
+</code></pre>
 <p>Every chunk of every patch extracts from <strong>one world-aligned lattice</strong> — spacing
 <code>L</code>, each vertex displaced by a deterministic hash of its INTEGER lattice
 coordinate. Because a lattice point&#39;s position depends only on its integer
@@ -130,7 +347,6 @@ real corners.</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -139,9 +355,9 @@ real corners.</p>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link current" href="../sdf-lattice/" aria-current="page">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
-      <li><a class="doc-link current" href="../sdf-lattice/" aria-current="page">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
@@ -208,6 +424,7 @@ real corners.</p>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>

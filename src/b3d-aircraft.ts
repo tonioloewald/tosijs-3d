@@ -314,10 +314,10 @@ const LOCAL_Z = new BABYLON.Vector3(0, 0, 1)
 // Fly-by-wire tuning (the model itself lives in fly-by-wire.ts). Attitude eases
 // toward the stick at ATTITUDE_RATE and self-levels at the same rate; the turn
 // stick banks up to MAX_BANK and the bank swings the heading at up to
-// BANK_TURN_RATE (× sin bank); pitch commands up to MAX_PITCH of climb/dive.
+// BANK_TURN_RATE (× sin bank); pitch commands up to the `maxPitch`/`maxDive`
+// attributes of climb/dive (they were a symmetric module constant — see #26).
 const ATTITUDE_RATE = 3
 const MAX_BANK = 55 * DEG2RAD
-const MAX_PITCH = 35 * DEG2RAD
 const BANK_TURN_RATE = 70 * DEG2RAD
 // How fast the velocity chases where the nose points (the forgiveness knob), and
 // how fast drone-mode forward speed bleeds back to a stationary hover.
@@ -632,8 +632,11 @@ export class B3dAircraft extends B3dControllable {
       // asked (tosijs-3d#26).
       maxPitch: (attrs.maxPitch > 0 ? attrs.maxPitch : 35) * DEG2RAD,
       maxDive:
-        (attrs.maxDive > 0 ? attrs.maxDive : attrs.maxPitch > 0 ? attrs.maxPitch : 35) *
-        DEG2RAD,
+        (attrs.maxDive > 0
+          ? attrs.maxDive
+          : attrs.maxPitch > 0
+          ? attrs.maxPitch
+          : 35) * DEG2RAD,
       attitudeRate: ATTITUDE_RATE,
       bankTurnRate: BANK_TURN_RATE,
       accel: attrs.acceleration,

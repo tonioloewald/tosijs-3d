@@ -29,5 +29,22 @@ export interface ExplodeOptions {
  * If a physics engine is active on the scene, fragments get rigid bodies
  * and bounce realistically. Otherwise, a kinematic fallback is used.
  */
-export declare function explodeMesh(mesh: BABYLON.Mesh, scene: BABYLON.Scene, options?: ExplodeOptions): void;
+/**
+ * Shatter a mesh — or a whole HIERARCHY — into fragments.
+ *
+ * Accepts a `TransformNode` as well as a `Mesh`, because a library-instantiated
+ * model's root is a geometry-less transform node with the real meshes beneath it.
+ * Handed one of those, it explodes every descendant that HAS geometry, which is
+ * also the better outcome: a multi-part model comes apart properly instead of one
+ * piece shattering while the rest hangs in the air.
+ *
+ * It used to take a `Mesh` and call `getVerticesData` on whatever it was given.
+ * `b3d-destroyable`'s new `library` path made that a guaranteed crash on every
+ * kill — and because the throw happened inside a render observer, every observer
+ * registered after it was skipped: camera follow, flight integration, all of it.
+ * The scene stopped advancing while input kept being read, which presents as "the
+ * game has seized but the controls still respond". A cosmetic effect must never
+ * be able to take down the frame loop (tosijs-3d#24, manta-recon).
+ */
+export declare function explodeMesh(node: BABYLON.Mesh | BABYLON.TransformNode, scene: BABYLON.Scene, options?: ExplodeOptions): void;
 //# sourceMappingURL=b3d-exploder.d.ts.map

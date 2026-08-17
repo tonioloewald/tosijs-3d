@@ -52,7 +52,7 @@ export function flyByWireStep(state, cmd, forwardSpeed, altitude, cfg, dt, groun
     const targetBank = grounded ? 0 : roll * cfg.maxBank;
     const targetPitch = grounded
         ? Math.max(0, pitch) * cfg.maxPitch // runway: nose-up only (rotate to climb off)
-        : pitch * cfg.maxPitch;
+        : pitch * (pitch < 0 ? cfg.maxDive ?? cfg.maxPitch : cfg.maxPitch);
     state.bank += (targetBank - state.bank) * k;
     state.pitch += (targetPitch - state.pitch) * k;
     // --- Heading: bank swings the nose (coordinated turn); taxi-steer on ground ---

@@ -181,6 +181,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `afterburnerSpeed` | `75` | Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner. |
 | `acceleration` | `12` | Throttle / lean authority (speed change rate) |
 | `vtolSpeed` | `6` | Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime. |
+| `maxPitch` | `35` | Max nose-UP attitude the stick commands (degrees) |
+| `maxDive` | `0` | Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch` |
 | `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
 | `lookRate` | `150` | Look slew rate (degrees/sec at full stick) |
 | `lookReturn` | `4` | How fast the view springs back to centre when released |
@@ -298,10 +300,10 @@ const LOCAL_Z = new BABYLON.Vector3(0, 0, 1);
 // Fly-by-wire tuning (the model itself lives in fly-by-wire.ts). Attitude eases
 // toward the stick at ATTITUDE_RATE and self-levels at the same rate; the turn
 // stick banks up to MAX_BANK and the bank swings the heading at up to
-// BANK_TURN_RATE (× sin bank); pitch commands up to MAX_PITCH of climb/dive.
+// BANK_TURN_RATE (× sin bank); pitch commands up to the `maxPitch`/`maxDive`
+// attributes of climb/dive (they were a symmetric module constant — see #26).
 const ATTITUDE_RATE = 3;
 const MAX_BANK = 55 * DEG2RAD;
-const MAX_PITCH = 35 * DEG2RAD;
 const BANK_TURN_RATE = 70 * DEG2RAD;
 // How fast the velocity chases where the nose points (the forgiveness knob), and
 // how fast drone-mode forward speed bleeds back to a stationary hover.
@@ -376,6 +378,10 @@ export class B3dAircraft extends B3dControllable {
         gearTime: 2.5,
         /** How far the LOOK stick can swing the view (degrees each way). */
         lookRange: 120,
+        /** Max nose-UP attitude the stick can command, degrees. */
+        maxPitch: 35,
+        /** Max nose-DOWN attitude, degrees. 0 = same as `maxPitch`. */
+        maxDive: 0,
         /** Look slew rate (degrees/sec at full deflection). */
         lookRate: 150,
         /** How fast the view springs back to centre when the stick is released
@@ -562,7 +568,16 @@ export class B3dAircraft extends B3dControllable {
             vtolSpeed: attrs.vtolSpeed,
             hoverCeiling: attrs.hoverCeiling,
             maxBank: MAX_BANK,
-            maxPitch: MAX_PITCH,
+            // Attributes, not the module constant: an adopter could not reach it, and
+            // 35° symmetric is a gentle airliner descent — you cannot dive at
+            // anything. `maxDive` defaults to `maxPitch` so nothing changes unless
+            // asked (tosijs-3d#26).
+            maxPitch: (attrs.maxPitch > 0 ? attrs.maxPitch : 35) * DEG2RAD,
+            maxDive: (attrs.maxDive > 0
+                ? attrs.maxDive
+                : attrs.maxPitch > 0
+                    ? attrs.maxPitch
+                    : 35) * DEG2RAD,
             attitudeRate: ATTITUDE_RATE,
             bankTurnRate: BANK_TURN_RATE,
             accel: attrs.acceleration,

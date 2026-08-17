@@ -9,13 +9,14 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour
 ## Demo
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from 'tosijs-3d'
+import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
     seed: 111,
+    volcano: false,
     // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
     // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
     // of amplitude across 530m is a plain, not a landscape.
@@ -99,6 +100,21 @@ const scene = b3d(
       slider3d({ label: 'v size', value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
       slider3d({ label: 'v detail', value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
       slider3d({ label: 'seed', value: demo.seed, min: 0, max: 999, step: 1 }),
+      // A PROVINCE, on the live terrain: an authored volcano forced through the
+      // noise plus the volcanism field that makes it glow. This is the half of
+      // the province idea that works today — the carving half needs a
+      // volumetric tile path (see TUNNEL-DESIGN). Worth having here because it
+      // is the half that meets LOD, streaming and floating origin.
+      toggle3d({
+        label: 'volcano province',
+        value: demo.volcano,
+        onChange: (on) => {
+          const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+          terrain.landform = on ? v.landform : null
+          terrain.provinceField = on ? v.province : null
+          terrain.regenerate()
+        },
+      }),
       toggle3d({ label: 'wireframe', value: demo.wireframe }),
       toggle3d({ label: 'debug color', value: demo.debugColor }),
     ],
@@ -227,8 +243,6 @@ layer can orchestrate a visual transition before calling `recenter()`.
 | `biomeSeaLevel` | `0` | Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y` |
 | `biomeLapseRate` | `0` (auto) | Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow |
 | `normalSmoothing` | `0.6` | Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag |
-| `patchMask` (property) | `null` | `(x,z) => boolean` — cut the surface away for a volumetric patch. See [b3d-patch](?b3d-patch.ts) (experimental) |
-| `patches` (property) | `[]` | Footprints that force finer tiles while resident (used by `b3d-patch`) |
 | `landform` (property) | `null` | `(x,z,h) => h'` — force an authored shape through the noise. See [landform](?landform.ts) |
 | `provinceField` (property) | `null` | `(x,z) => 0..1` — local volcanism, carried per-vertex to the biome shader |
 | `rimCollar` | `12` | Metres the rim of a patch hole folds down into the opening |
@@ -440,6 +454,9 @@ export class B3dTerrain extends B3dChild {
      * Pair it with a [[patch-field]] density carving the same volume — the mask
      * opens the roof, the patch supplies the walls beneath it.
      */
+    /** `(x,z) => boolean` — cut the surface away over a footprint. Kept as the
+     * generic hook a cavity province will use; the `b3d-patch` element that
+     * introduced it is gone (see TUNNEL-DESIGN.md). */
     patchMask = null;
     /**
      * Footprints of the volumetric patches cut into this terrain, in LOGICAL
@@ -565,7 +582,7 @@ export class B3dTerrain extends B3dChild {
     _resolvedSubs = 0; // hiResSubdivisions after auto-resolution (pool is sized to it)
     tileTemplate = null;
     /** The tiles' material. Read it to MATCH a patch's walls to the ground
-     * they're cut into (see `b3d-patch`); mutating it changes every tile. */
+     * they're cut into; mutating it changes every tile. */
     material;
     registered = false;
     // Reusable scratch for the per-frame streamer — cleared and refilled each frame
@@ -878,7 +895,7 @@ export class B3dTerrain extends B3dChild {
             interest: il > 1e-3
                 ? { x: this.interestX / il, z: this.interestZ / il }
                 : undefined,
-            // Volumetric patches force fine tiles in their own footprint (a bore
+            // A declared footprint forces fine tiles within it (a bore
             // mouth needs resolvable ground to cut a hole in), but only while the
             // surrounding terrain is fine enough to be worth it — `patchResident`
             // seals a distant tunnel rather than paying for invisible detail.

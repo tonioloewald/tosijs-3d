@@ -41,6 +41,10 @@ export declare class B3dAircraft extends B3dControllable {
         gearTime: number;
         /** How far the LOOK stick can swing the view (degrees each way). */
         lookRange: number;
+        /** Max nose-UP attitude the stick can command, degrees. */
+        maxPitch: number;
+        /** Max nose-DOWN attitude, degrees. 0 = same as `maxPitch`. */
+        maxDive: number;
         /** Look slew rate (degrees/sec at full deflection). */
         lookRate: number;
         /** How fast the view springs back to centre when the stick is released

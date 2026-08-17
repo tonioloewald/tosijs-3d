@@ -19,6 +19,8 @@ export type { FlyByWireConfig, FlyByWireCommand, FlyByWireState, } from './fly-b
 import * as mediumNs from './medium';
 export declare const medium: typeof mediumNs;
 export type { Medium, PlaneMedium, SphereMedium, MediumVec3, MediumCrossing, } from './medium';
+import * as portalNs from './portal-transform';
+export declare const portalTransform: typeof portalNs;
 export { setAssetBase, getAssetBase, assetUrl } from './asset-url';
 export { add, sub, quatConjugate, quatMul, rotateVector, quatFromAxisAngle, composePose, relativePose, placeRelative, IDENTITY_QUAT, } from './spatial-transform';
 export type { Quat, Pose } from './spatial-transform';
@@ -181,7 +183,6 @@ export declare const carve: {
     shaft: typeof shaft;
 };
 export type { Carve, NoiseOptions, Vec3Like } from './carve';
-export { B3dPatch, b3dPatch } from './b3d-patch';
 export { terrainDensity, composePatches, circleFootprint, marginBlend, } from './patch-field';
 export type { PatchField, Footprint } from './patch-field';
 export type { SdfField, LatticeConfig, ChunkSpec, ExtractedMesh, } from './sdf-lattice';

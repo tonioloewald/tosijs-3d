@@ -581,7 +581,11 @@ describe('afterburner is HELD, not parked (Tonio, 2026-08-14)', () => {
 })
 
 describe('asymmetric pitch authority (#26)', () => {
-  const asym: FlyByWireConfig = { ...CFG, maxPitch: 60 * DEG, maxDive: 80 * DEG }
+  const asym: FlyByWireConfig = {
+    ...CFG,
+    maxPitch: 60 * DEG,
+    maxDive: 80 * DEG,
+  }
 
   /** Settled attitude, in degrees, after holding the stick. */
   const settled = (cfg: FlyByWireConfig, pitch: number) => {

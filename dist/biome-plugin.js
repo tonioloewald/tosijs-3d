@@ -48,6 +48,9 @@ export const defaultBiomeParams = () => ({
     detailNoiseScale: 0.55,
     detailNoiseAmp: 0.1,
     cliffCling: 0.55,
+    strata: 0.35,
+    strataScale: 0.06,
+    strataTilt: 0.12,
     surfDepth: 3,
     volcanism: 0,
     volcanicScale: 0.09,
@@ -203,6 +206,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
                 { name: 'biomePlanet', size: 4, type: 'vec4' }, // center xyz, seaRadius (0 = flat front-end)
                 { name: 'biomePlanetB', size: 4, type: 'vec4' }, // latWarpScale, latWarpAmp, detailScale, detailAmp
                 { name: 'biomeSurf', size: 4, type: 'vec4' }, // surfDepth, volcanism, volcanicScale, veinWidth
+                { name: 'biomeStrata', size: 4, type: 'vec4' }, // strength, scale, tilt, unused
                 { name: 'biomePlanetC', size: 4, type: 'vec4' }, // equatorTemp, temperateTemp, poleTemp, slopeExaggeration
                 { name: 'biomePlanetD', size: 4, type: 'vec4' }, // rainShadow, windAzimuth, moistureDryHeight, animTime
                 { name: 'biomePalette', size: 4, type: 'vec4', arraySize: 20 },
@@ -218,6 +222,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniform vec4 biomePlanet;
         uniform vec4 biomePlanetB;
         uniform vec4 biomeSurf;
+        uniform vec4 biomeStrata;
         uniform vec4 biomePlanetC;
         uniform vec4 biomePlanetD;
         uniform vec4 biomePalette[20];
@@ -235,6 +240,7 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
         uniformBuffer.updateFloat4('biomeNoise', p.tNoiseScale, p.tNoiseAmp, p.mNoiseScale, p.mNoiseAmp);
         uniformBuffer.updateFloat4('biomeDither', p.ditherScale, p.ditherAmp, p.cliffStart, p.cliffFull);
         uniformBuffer.updateFloat4('biomeWater', p.underwaterFog, p.underwaterMurk, p.glowAnimation, p.cliffCling);
+        uniformBuffer.updateFloat4('biomeStrata', p.strata, p.strataScale, p.strataTilt, 0);
         uniformBuffer.updateFloat4('biomePlanetC', p.equatorTemp, p.temperateTemp, p.poleTemp, p.slopeExaggeration);
         // .w is the lava-animation clock — wrapped so the shader float never
         // loses precision on a long-running page (the motion is periodic-ish
@@ -362,6 +368,37 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
             float d = length(g + bioCellHash(i + g) - f);
             if (d < F1) { F2 = F1; F1 = d; }
             else if (d < F2) { F2 = d; }
+          }
+        }
+        return vec2(F1, F2);
+      }
+      // 3D Worley — the volcanic plates as VOLUMES rather than a pattern
+      // painted on the ground. Costs the same neighbourhood as blending three
+      // 2D projections (27 cells either way, a 3-wide hash instead of 2-wide)
+      // and is strictly better: no projection seams, no ghosting where two
+      // planes blend, and a CUT FACE shows the veins' true cross-sections
+      // because the veins are genuinely three-dimensional. Only the volcanism
+      // branch reaches it, so a non-volcanic surface pays nothing.
+      vec3 bioCellHash3(vec3 c) {
+        return fract(sin(vec3(
+          dot(c, vec3(127.1, 311.7, 74.7)),
+          dot(c, vec3(269.5, 183.3, 246.1)),
+          dot(c, vec3(113.5, 271.9, 124.6))
+        )) * 43758.5453);
+      }
+      vec2 bioWorley3(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = fract(p);
+        float F1 = 8.0;
+        float F2 = 8.0;
+        for (int z = -1; z <= 1; z++) {
+          for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+              vec3 g = vec3(float(x), float(y), float(z));
+              float d = length(g + bioCellHash3(i + g) - f);
+              if (d < F1) { F2 = F1; F1 = d; }
+              else if (d < F2) { F2 = d; }
+            }
           }
         }
         return vec2(F1, F2);
@@ -576,14 +613,32 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // under shallow water, dimming with depth. sub ramps over the
               // first couple of metres so the waterline isn't a hard seam.
               float sub = clamp(-altitude * 0.5, 0.0, 1.0);
-              float stage = clamp(1.0 + 2.0 * vEff - cliffRaw - 0.5 * sub, 1.0, 3.0);
+              // The cliff lag SHRINKS as volcanism maxes out. A full stage of
+              // lag at every level meant a vertical face could never exceed
+              // stage 2 (1 + 2·1 − 1), so the whole top of the ladder — yellow
+              // seams, orange-red rock — was unreachable on a cliff or a cut
+              // face however volcanic it was. The lag is right at low
+              // volcanism (a cliff drains and crusts over) and wrong at the
+              // top, where the rock itself is molten and verticals glow too.
+              float lag = cliffRaw * (1.0 - 0.75 * vEff);
+              float stage = clamp(1.0 + 2.0 * vEff - lag - 0.5 * sub, 1.0, 3.0);
               // Veins WIDEN as the ladder climbs — gently through stage 2
               // (2x), then steeply through the molten transition (6x by
               // stage 3), so pools read as veins fattening until they MERGE
               // — one continuous process, not two patterns swapping.
-              vec2 wF = bioWorley(wp.xz * biomeSurf.z);
+              // 3D, not XZ-only. Sampling the plate pattern from world XZ
+              // alone means a VERTICAL face barely moves through the noise — its
+              // xz coordinate is almost constant across the surface — so a cliff
+              // or a cut face got vertical STREAKS instead of cells and the vein
+              // web simply was not there. Reported on a cutaway volcano, where
+              // every interior wall is vertical.
+              vec2 wF = bioWorley3(wp * biomeSurf.z);
+              // Width spread across the ladder: 0.8x → 2.6x → 11x. The top end
+              // is deliberately steep so pools read as veins FATTENING until
+              // they merge, and the bottom slightly thinner than before so the
+              // progression has somewhere to start.
               float vw = max(biomeSurf.w, 1e-3)
-                * (1.0 + clamp(stage - 1.0, 0.0, 1.0) + 4.0 * clamp(stage - 2.0, 0.0, 1.0));
+                * (1.25 + 1.8 * clamp(stage - 1.0, 0.0, 1.0) + 8.4 * clamp(stage - 2.0, 0.0, 1.0));
               float vein = 1.0 - smoothstep(0.0, vw, wF.y - wF.x);
               float t12 = clamp(stage - 1.0, 0.0, 1.0);
               float t23 = clamp(stage - 2.0, 0.0, 1.0);
@@ -593,18 +648,60 @@ export class BiomePlugin extends BABYLON.MaterialPluginBase {
               // global blink. glowAnimation (biomeWater.z) dials it; 0 = still.
               float tAnim = biomePlanetD.w;
               float churn = bioSimplex3(vec3(wp.xz * 0.05, tAnim * 0.11));
-              float pulse = 1.0 + biomeWater.z * (0.10 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.18 * churn);
-              // stage 1 → 2: base rock warms near-black basalt → dark brown
-              vec3 volcGround = mix(biomeVolcPal[0].rgb, biomeVolcPal[1].rgb, t12);
-              // stage 1: seams are COLD dark brown; they hand over as glow rises
-              vec3 base = mix(volcGround, biomeVolcPal[2].rgb, vein * (1.0 - t12));
+              // Applied to BOTH ember and molten: it used to touch only the
+              // molten channel, which is a fraction of a fraction of the
+              // surface, so the "slow pulse" was invisible in practice.
+              float pulse = 1.0 + biomeWater.z * (0.17 * sin(tAnim * 0.8 + wp.x * 0.21 + wp.z * 0.17) + 0.26 * churn);
+              // stage 1 → 2 → 3: base rock warms near-black basalt → dark
+              // brown → RED-ORANGE. It used to stop at dark brown, so a fully
+              // volcanic face read as black rock with seams on it rather than as
+              // rock that is itself heating up. The crust-edge colour is the
+              // right target: it is the hot-but-solid entry in the palette.
+              // black → RED → orange. The stage-2 rock is the palette's dark
+              // brown warmed toward ember, because brown reads as "dirt" next to
+              // a glowing seam where the eye expects "hot rock"; stage 3 then
+              // carries it to the crust-edge orange.
+              vec3 rock2 = mix(biomeVolcPal[1].rgb, biomeVolcPal[3].rgb * 0.7, 0.55);
+              vec3 volcGround = mix(
+                mix(biomeVolcPal[0].rgb, rock2, t12),
+                biomeVolcPal[5].rgb,
+                t23 * 0.9
+              );
+              // SEDIMENTARY BANDING. Beds are a function of world Y — sheared a
+              // little, and wobbled by low-frequency noise so they undulate the
+              // way real beds do rather than reading as a ruler. Fades out as
+              // the rock melts (stage 3): molten rock has no bedding left.
+              float bedY = wp.y * biomeStrata.y
+                + biomeStrata.z * (wp.x + wp.z) * biomeStrata.y
+                + 0.35 * bioFbm(wp.xz * 0.01);
+              float bed = 0.5 + 0.5 * sin(bedY * 6.2831853);
+              float bedSharp = smoothstep(0.35, 0.65, bed);
+              volcGround *= 1.0 + biomeStrata.x * (bedSharp - 0.5) * (1.0 - 0.8 * t23);
+              // stage 1: seams are COLD dark brown; they hand over as glow rises.
+              // Keep a floor under the cold seam so a stage-1 face still reads
+              // as VEINED rock — near-black basalt with near-black seams on it
+              // is indistinguishable from nothing, which is what a cutaway's
+              // vertical walls looked like.
+              // The cold seam warms toward ember as soon as the ladder starts, so
+              // early veins read as THIN RED rather than as darker black — the
+              // progression Tonio asked for begins at stage 1, not stage 2.
+              vec3 coldVein = mix(biomeVolcPal[2].rgb, biomeVolcPal[3].rgb, 0.55 + 0.4 * t12);
+              vec3 base = mix(volcGround, coldVein, vein * (1.0 - 0.65 * t12));
               // stage 2: seams glow — MOST are cooled ember, a slow mask picks
               // the live molten channels, so the field reads "lava under
               // rock", not "lava planet".
-              float live = smoothstep(0.55, 0.72, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
+              // MORE of the field goes live as the ladder climbs — the molten
+              // channels spread rather than just brightening, so heat looks like
+              // it is taking over the rock instead of a fixed set of seams
+              // getting hotter.
+              float liveLo = 0.55 - 0.34 * t23;
+              float live = smoothstep(liveLo, liveLo + 0.17, 0.5 + 0.5 * bioSimplex(wp.xz * 0.025 + 9.1));
               float glow = vein * t12 * damp;
-              vec3 ember = mix(base, biomeVolcPal[3].rgb, glow);
-              vec3 molten = mix(base, biomeVolcPal[4].rgb * pulse, glow * (0.75 + dith * 4.0));
+              vec3 ember = mix(base, biomeVolcPal[3].rgb * pulse, glow);
+              // …and the molten colour itself intensifies through stage 3, so
+              // the top of the ladder is visibly hotter than the middle rather
+              // than the same orange with wider seams.
+              vec3 molten = mix(base, biomeVolcPal[4].rgb * pulse * (1.0 + 0.9 * t23), glow * (0.75 + dith * 4.0));
               vec3 volcCol = mix(ember, molten, live);
               // stage 2 → 3: seams give way to PATCHY open lava — broad soft
               // pools whose edges creep with the churn (crust breaking and

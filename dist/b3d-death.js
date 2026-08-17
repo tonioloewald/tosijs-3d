@@ -184,22 +184,35 @@ export class B3dDeath extends B3dChild {
     _handleDeath(e) {
         const focus = this.focusManager;
         const driven = focus?.focused ?? null;
+        /*
+        RELEVANCE FIRST, RECOVERY SECOND. This order is the fix for #25.
+    
+        The "only OUR death matters" filter has to run before the already-dying
+        recovery, or ANY other entity dying while the player is dead tears the panel
+        down. Mutual death — ram an enemy and you both die — produced no death panel
+        at all, because the enemy's `destroyed` event arrived a frame later, was read
+        as "the run moved on", and called resume(). Reported by manta-recon, and it
+        was my own recovery patch from the day before.
+        */
+        if (driven == null || !e.target?.contains?.(driven)) {
+            if (e.target !== driven)
+                return;
+        }
         if (this._dying) {
             /*
-            ALREADY DEAD — unless something ELSE just died, which means the game got
-            back on its feet without us.
+            ALREADY DEAD — unless something ELSE we drive just died, which means the
+            game got back on its feet without us.
       
             `_dying` is only cleared by `resume()`, which only the panel's Respawn
             button calls — and that button doesn't exist unless a `respawn` callback
-            was supplied. So a scene that respawns by its own route (a `crash`
-            listener appending a fresh entity, which is a documented pattern) leaves
-            this component latched at `_dying = true` forever, and every later death
-            is swallowed by this guard: no panel, no release, welded to the wreck.
-            That is the exact failure this component exists to prevent, reintroduced
-            one level up. (Found by manta-recon crashing a respawned aircraft, 0.7.0.)
+            was supplied. So a scene that respawns by its own route leaves this
+            component latched forever and swallows every later death: no panel, no
+            release, welded to the wreck. (Found by manta-recon crashing a respawned
+            aircraft, 0.7.0.)
       
-            So: a death from an entity that ISN'T the wreck we're already holding is
-            proof the run moved on. Tear down and handle it as a new death.
+            Note this is now reached only for a death of the DRIVEN entity, so "a
+            different entity" here means "the thing we are driving is not the wreck we
+            are holding" — a respawned craft that has since crashed.
             */
             const wreck = this._wreck;
             const target = e.target;
@@ -209,11 +222,6 @@ export class B3dDeath extends B3dChild {
                 return;
             console.warn('b3d-death: a new death arrived while still dying — the run respawned without calling resume() (no `respawn` callback?). Recovering.');
             this.resume();
-        }
-        // Only OUR death matters. A cube exploding across the map is not a game-over.
-        if (driven == null || !e.target?.contains?.(driven)) {
-            if (e.target !== driven)
-                return;
         }
         this.die(driven);
     }

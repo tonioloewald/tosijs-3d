@@ -54,6 +54,20 @@ patch:     (x, y, z, d) =&gt; d&#39;      composePatches(...)       // carving
 </code></pre>
 <p>Pure, deterministic, Babylon-free, unit-tested. <a href="/sdf-lattice/" class="wikilink">sdf-lattice</a> turns the
 resulting field into triangles.</p>
+<blockquote>
+<p><strong>Still alive after <code>b3d-patch</code> was removed</strong> (0.7.0). The element that
+stitched an SDF patch into the heightfield is gone — it never worked, and the
+volumetric-terrain design removed the problem it was solving rather than
+solving it. This module was the substrate underneath it and survives intact:
+<strong><code>terrainDensity</code> is how a density field agrees with the heightfield</strong>, which
+is load-bearing for carved landforms, and the compose/footprint helpers are the
+composition vocabulary.</p>
+<p>The one vestige is <strong><code>marginBlend</code></strong>, which converged a patch&#39;s rim onto the
+heightfield across a boundary. There is no such boundary any more, so it has no
+current caller — kept because a rim that has to meet a surface is a real
+problem that will come back with authored entrances, not because anything uses
+it today. See <code>TUNNEL-DESIGN.md</code>.</p>
+</blockquote>
 <h2>Ordering is load-bearing</h2>
 <p>The base density is <code>y − heightAt(x, z)</code> where <code>heightAt</code> is the terrain&#39;s
 <strong>hooked, landform-composed</strong> height — not raw noise. Compose it that way and a
@@ -119,7 +133,6 @@ the LOD seam either — they make it invisible.)</p>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -128,9 +141,9 @@ the LOD seam either — they make it invisible.)</p>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link current" href="../patch-field/" aria-current="page">patch-field</a></li>
-      <li><a class="doc-link" href="../sdf-lattice/">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
@@ -197,6 +210,7 @@ the LOD seam either — they make it invisible.)</p>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>

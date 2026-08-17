@@ -145,6 +145,21 @@ export interface BiomeParams {
      * rock; cold or dry climates stay bare regardless.
      */
     cliffCling: number;
+    /**
+     * ⚠️ EXPERIMENTAL — SEDIMENTARY BANDING, visible on any cut through the rock.
+     *
+     * Only possible now the plate noise is sampled in 3D: strata are a function of
+     * world Y, so they mean nothing to a surface shader that only knows x/z. On a
+     * cutaway, a mine wall or a sea cliff they are what makes the rock read as
+     * ROCK rather than as a solid mass of one colour — the interior gains a
+     * history instead of a fill.
+     *
+     * 0 = off. `strataScale` is bands per metre; `strataTilt` shears them so beds
+     * are not perfectly level, which is what real ones never are.
+     */
+    strata: number;
+    strataScale: number;
+    strataTilt: number;
 }
 export declare const defaultBiomeParams: () => BiomeParams;
 /** Molten-rock volcanism (the default `volcanicPalette`). Ladder order:

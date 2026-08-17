@@ -53,13 +53,14 @@ symmetric hemispheres with no singularities. Two noise layers (gross contour</p>
 <li>fine detail) each pass through gradient filters for shaping plateaus, mesas, etc.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dTerrain, b3dClouds, b3dWater, b3dHud, b3dLight, b3dFog, b3dAircraft, b3dDeath, b3dLibrary, gameController, inputFocus, label3d, slider3d, toggle3d, blendProfiles, mesaProfile, cliffProfile, rollingProfile, profileField, volcano } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div, span, p } = elements
 
 const { demo } = tosi({
   demo: {
     seed: 111,
+    volcano: false,
     // AMPLITUDES INTERACT WITH horizScale: the scales are DIVIDED by it, so at
     // h-size 8 a grossScale of 0.015 means ~530m features — and a few metres
     // of amplitude across 530m is a plain, not a landscape.
@@ -143,6 +144,21 @@ const scene = b3d(
       slider3d({ label: &#39;v size&#39;, value: demo.grossAmplitude, min: 0, max: 400, step: 1 }),
       slider3d({ label: &#39;v detail&#39;, value: demo.detailAmplitude, min: 0, max: 50, step: 0.5 }),
       slider3d({ label: &#39;seed&#39;, value: demo.seed, min: 0, max: 999, step: 1 }),
+      // A PROVINCE, on the live terrain: an authored volcano forced through the
+      // noise plus the volcanism field that makes it glow. This is the half of
+      // the province idea that works today — the carving half needs a
+      // volumetric tile path (see TUNNEL-DESIGN). Worth having here because it
+      // is the half that meets LOD, streaming and floating origin.
+      toggle3d({
+        label: &#39;volcano province&#39;,
+        value: demo.volcano,
+        onChange: (on) =&gt; {
+          const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
+          terrain.landform = on ? v.landform : null
+          terrain.provinceField = on ? v.province : null
+          terrain.regenerate()
+        },
+      }),
       toggle3d({ label: &#39;wireframe&#39;, value: demo.wireframe }),
       toggle3d({ label: &#39;debug color&#39;, value: demo.debugColor }),
     ],
@@ -369,16 +385,6 @@ layer can orchestrate a visual transition before calling <code>recenter()</code>
 <td>Low-pass the NORMALS&#39; height field (positions stay crisp) — kills cliff-face zigzag</td>
 </tr>
 <tr>
-<td><code>patchMask</code> (property)</td>
-<td><code>null</code></td>
-<td><code>(x,z) =&gt; boolean</code> — cut the surface away for a volumetric patch. See <a href="../b3d-patch/">b3d-patch</a> (experimental)</td>
-</tr>
-<tr>
-<td><code>patches</code> (property)</td>
-<td><code>[]</code></td>
-<td>Footprints that force finer tiles while resident (used by <code>b3d-patch</code>)</td>
-</tr>
-<tr>
 <td><code>landform</code> (property)</td>
 <td><code>null</code></td>
 <td><code>(x,z,h) =&gt; h&#39;</code> — force an authored shape through the noise. See <a href="../landform/">landform</a></td>
@@ -538,7 +544,6 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -547,9 +552,9 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
-      <li><a class="doc-link" href="../sdf-lattice/">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
@@ -616,6 +621,7 @@ document.body.append(b3d({}, terrain))
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>

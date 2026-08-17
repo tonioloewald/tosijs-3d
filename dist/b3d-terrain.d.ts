@@ -76,6 +76,9 @@ export declare class B3dTerrain extends B3dChild {
      * Pair it with a [[patch-field]] density carving the same volume — the mask
      * opens the roof, the patch supplies the walls beneath it.
      */
+    /** `(x,z) => boolean` — cut the surface away over a footprint. Kept as the
+     * generic hook a cavity province will use; the `b3d-patch` element that
+     * introduced it is gone (see TUNNEL-DESIGN.md). */
     patchMask: ((x: number, z: number) => boolean) | null;
     /**
      * Footprints of the volumetric patches cut into this terrain, in LOGICAL
@@ -142,7 +145,7 @@ export declare class B3dTerrain extends B3dChild {
     private _resolvedSubs;
     private tileTemplate;
     /** The tiles' material. Read it to MATCH a patch's walls to the ground
-     * they're cut into (see `b3d-patch`); mutating it changes every tile. */
+     * they're cut into; mutating it changes every tile. */
     material: BABYLON.StandardMaterial;
     private registered;
     private _desired;

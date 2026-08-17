@@ -250,6 +250,16 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <td>Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.</td>
 </tr>
 <tr>
+<td><code>maxPitch</code></td>
+<td><code>35</code></td>
+<td>Max nose-UP attitude the stick commands (degrees)</td>
+</tr>
+<tr>
+<td><code>maxDive</code></td>
+<td><code>0</code></td>
+<td>Max nose-DOWN attitude (degrees); 0 = symmetric with <code>maxPitch</code></td>
+</tr>
+<tr>
 <td><code>lookRange</code></td>
 <td><code>120</code></td>
 <td>How far the right stick can swing the view (degrees each way)</td>
@@ -500,7 +510,6 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
       <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
       <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
-      <li><a class="doc-link" href="../b3d-patch/">b3d-patch</a></li>
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
@@ -509,9 +518,9 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
       <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
-      <li><a class="doc-link" href="../sdf-lattice/">sdf-lattice</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
@@ -578,6 +587,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
