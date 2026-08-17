@@ -209,10 +209,24 @@ export class DestroyableBehavior {
     // Visual outcome.
     if (mesh != null) {
       if (d.explode) {
-        explodeMesh(mesh as BABYLON.Mesh, scene, {
-          force: d.explodeForce ?? 6,
-          disposeOriginal: true,
-        })
+        // `mesh` may be a library instance's transform ROOT (no geometry of its
+        // own) — explodeMesh handles the hierarchy. Wrapped anyway because this
+        // runs inside a render observer: a throw here skips every observer
+        // registered after it, so the scene stops advancing while input keeps
+        // being read and the game appears to seize (tosijs-3d#24). Cosmetics
+        // must not be able to do that.
+        try {
+          explodeMesh(mesh as BABYLON.Mesh, scene, {
+            force: d.explodeForce ?? 6,
+            disposeOriginal: true,
+          })
+        } catch (err) {
+          console.warn(
+            'destroyable: explode failed; removing the mesh instead',
+            err
+          )
+          mesh.dispose()
+        }
       } else if (d.meshOnDeath === 'hide') {
         mesh.setEnabled(false)
       } else if (d.meshOnDeath !== 'keep') {

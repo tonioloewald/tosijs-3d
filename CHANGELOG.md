@@ -82,6 +82,22 @@ that was tuned around the old feel.
 
 ### Added
 
+- **⚠️ EXPERIMENTAL — `portalTransform`**: see-through portal math (virtual
+  camera pose, the oblique clip plane, a step-test crossing, and recursion
+  budgeted by a falloff CURVE rather than a hard depth limit — linear, geometric
+  or accelerating, so first-bounce quality and pass count stop being welded
+  together).
+- **Sedimentary strata** in the volcanic rock (`strata`, `strataScale`,
+  `strataTilt`), visible on any cut face — only possible because the plate noise
+  is now sampled in 3D, since bedding means nothing to a shader that knows only
+  x/z.
+- **Carved landforms** — the `sdf-lattice` page is now a real doc page with the
+  theory (SDF composition, marching cubes vs dual contouring vs surface nets, and
+  why this uses surface nets), a **volcano in cross-section** with lava tubes and
+  a sweeping cutaway, and a **volumetric-vs-heightfield comparison** with a bore
+  punched through an authored ridge. `demo-utils.volumetricDemo` is the shared
+  fixture behind both.
+
 - **⚠️ EXPERIMENTAL — `portalTransform`**, the pure math for see-through
   portals: `portalCamera` (where the render-target camera goes so a doorway
   shows another place), `clipPlaneFor` (the oblique near plane, without which
@@ -340,6 +356,28 @@ that was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **`library` + `explode` on a destroyable was a guaranteed crash** (#24) — and a
+  nasty one. The exploder read vertex buffers off whatever it was handed, and a
+  library instance's root is a geometry-less transform node. Worse than a throw:
+  it happened inside a render observer, so every observer after it was skipped —
+  camera follow, flight integration, all of it — and the scene stopped advancing
+  while input kept responding. It presents as "the game seized but the controls
+  still work". `explodeMesh` now takes a `TransformNode` and shatters the
+  descendants that have geometry (a multi-part model comes apart properly instead
+  of one piece shattering while the rest hangs in the air), warns once rather than
+  throwing when there is nothing to shatter, and the death path wraps the call
+  because a cosmetic must never be able to stop the frame loop.
+- **Mutual death produced no death panel** (#25). The already-dying _recovery_
+  added in 0.7.0 ran before the "only OUR death matters" filter, so any other
+  entity dying while the player was dead tore the panel down — ram an enemy and
+  you both die, and you got nothing. Relevance is checked first now.
+
+- **Volcanic veins were absent from every vertical surface** (3D Worley), the
+  **rock stopped warming** at dark brown so a fully volcanic face read as black,
+  **verticals could never exceed stage 2** so the top of the ladder was
+  unreachable on a cliff or cut face, and the **glow pulse touched only the
+  molten channel** — a fraction of a fraction, which is invisible in practice.
 
 - **Volcanic veins were missing from every vertical surface.** The plate pattern
   was sampled from world **XZ only**, so a cliff or a cut face barely moves

@@ -131,7 +131,65 @@ interface Fragment {
  * If a physics engine is active on the scene, fragments get rigid bodies
  * and bounce realistically. Otherwise, a kinematic fallback is used.
  */
+/**
+ * Shatter a mesh — or a whole HIERARCHY — into fragments.
+ *
+ * Accepts a `TransformNode` as well as a `Mesh`, because a library-instantiated
+ * model's root is a geometry-less transform node with the real meshes beneath it.
+ * Handed one of those, it explodes every descendant that HAS geometry, which is
+ * also the better outcome: a multi-part model comes apart properly instead of one
+ * piece shattering while the rest hangs in the air.
+ *
+ * It used to take a `Mesh` and call `getVerticesData` on whatever it was given.
+ * `b3d-destroyable`'s new `library` path made that a guaranteed crash on every
+ * kill — and because the throw happened inside a render observer, every observer
+ * registered after it was skipped: camera follow, flight integration, all of it.
+ * The scene stopped advancing while input kept being read, which presents as "the
+ * game has seized but the controls still respond". A cosmetic effect must never
+ * be able to take down the frame loop (tosijs-3d#24, manta-recon).
+ */
 export function explodeMesh(
+  node: BABYLON.Mesh | BABYLON.TransformNode,
+  scene: BABYLON.Scene,
+  options: ExplodeOptions = {}
+): void {
+  const self = node as BABYLON.Mesh
+  const hasGeometry =
+    typeof self.getVerticesData === 'function' && self.getTotalVertices?.() > 0
+
+  if (!hasGeometry) {
+    // A transform root, or a mesh with no geometry: explode the children that
+    // do have some. Split the fragment budget between them so a 12-part model
+    // doesn't cost twelve times a one-part one.
+    const parts = (node.getChildMeshes?.(false) ?? []).filter(
+      (m) => typeof m.getVerticesData === 'function' && m.getTotalVertices() > 0
+    )
+    if (parts.length === 0) {
+      // Nothing to shatter. Warn ONCE and return — never throw from here.
+      if (!warnedNoGeometry) {
+        warnedNoGeometry = true
+        console.warn(
+          'explodeMesh: nothing with geometry to shatter (a transform node with no meshes beneath it). Falling back to no explosion; use `meshOnDeath` if you want the model simply removed.'
+        )
+      }
+      return
+    }
+    const each = Math.max(
+      3,
+      Math.round((options.fragments ?? 20) / parts.length)
+    )
+    for (const part of parts) {
+      explodeMesh(part, scene, { ...options, fragments: each })
+    }
+    return
+  }
+
+  return explodeGeometry(self, scene, options)
+}
+
+let warnedNoGeometry = false
+
+function explodeGeometry(
   mesh: BABYLON.Mesh,
   scene: BABYLON.Scene,
   options: ExplodeOptions = {}
