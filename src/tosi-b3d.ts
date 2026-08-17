@@ -262,7 +262,7 @@ import { panelFitWidth } from './widgets3d-layout'
 import type { Medium } from './medium'
 import { SvgTexture } from './svg-texture'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
-import { isOff } from './b3d-utils'
+import { cameraIsAttached, isOff } from './b3d-utils'
 import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
@@ -786,10 +786,27 @@ export class B3d extends Component {
     Freezing the camera is also just what "paused" means. Restored on resume,
     and only if we were the ones who detached it.
     */
-    if (this.camera != null) {
-      this.camera.detachControl()
-      this._cameraWasAttached = true
-    }
+    /*
+    Record whether the camera was REALLY attached, not merely that one exists.
+
+    This flag used to be set to `true` whenever `this.camera != null`, which
+    made the comment above it vacuous — it claimed "only if we were the ones who
+    detached it" and then recorded nothing of the sort. Every gameplay camera in
+    this library is installed unattached (`setActiveCamera(cam, {attach: false})`
+    in b3d-biped and b3d-input-focus, and the death rig's orbit camera), so
+    resuming HANDED THE CANVAS to a follow camera that was deliberately never
+    given it: Babylon's FollowCamera wires arrows/wheel/drag by default, and the
+    arrows are also KeyboardGamepad's right stick, so the player's own look keys
+    would drive Babylon's rig at the same time. Reachable with no opt-in —
+    `pauseWhenHidden` defaults on, so tab away, tab back, Continue, drag.
+
+    Asking Babylon is better than remembering what we did, because several
+    components attach or detach the camera directly without going through
+    `setActiveCamera` (b3d-galaxy, b3d-svg-plane, the XR restore) and a
+    remembered flag goes stale behind them.
+    */
+    this._cameraWasAttached = cameraIsAttached(this.camera)
+    if (this._cameraWasAttached) this.camera?.detachControl()
     const rows = this.pausePanel(this, () => this.resume()) ?? [
       label3d({ text: 'Paused', bold: true }),
       button3d({

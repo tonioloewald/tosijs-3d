@@ -586,3 +586,20 @@ export class AbstractMesh extends B3dChild {
     this._updateAxes()
   }
 }
+
+/**
+ * Is this camera actually listening to the canvas right now?
+ *
+ * Ground truth from Babylon's own input manager rather than a flag we keep,
+ * because several components attach or detach a camera directly instead of
+ * going through `setActiveCamera` (b3d-galaxy, b3d-svg-plane, the XR restore)
+ * — a remembered flag goes stale behind them.
+ *
+ * Written defensively (optional chaining all the way down) because it is used
+ * on the RESUME path: guessing "attached" wrongly hands the canvas to a camera
+ * that was deliberately never given it, and guessing "not attached" wrongly
+ * only costs the user a click.
+ */
+export const cameraIsAttached = (
+  cam: { inputs?: { attachedToElement?: boolean } } | null | undefined
+): boolean => cam?.inputs?.attachedToElement === true
