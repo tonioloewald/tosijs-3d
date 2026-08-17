@@ -29,21 +29,43 @@ That optionality is the whole design. Most engines weld the layers together —
 terrain _type_ implies terrain _look_ implies terrain _shape_ — so a base becomes
 a hole punched in the system rather than an ordinary use of it.
 
-## One influence field, many effects
+## A province is a COORDINATE SYSTEM
 
-The layers are independent in _what_ they do and identical in _where_ they do it.
-A province has a single footprint and a single falloff, and **every layer fades
-with it**.
+The thing a province fundamentally provides is not a falloff curve — it is a
+**local space**. A domain (a box, a sphere, a cylinder, whatever suits) plus a
+mapping from world coordinates into normalised local ones. Everything the
+province declares is authored _in that space_.
 
-This is not a tidiness point. Give each layer its own falloff and you get a
-volcano whose glow stops before its slope does, a forest that thins on a
-different curve from the ground it grows on, and a boundary the eye finds
-instantly because three subsystems disagree about where the place ends. One
-influence function is what makes a province read as _one thing_.
+That is the same move as pinning a cave as an offset below the surface, one level
+up: **express the thing in the coordinate system that follows the thing.** A
+volcano authored in local coordinates is portable — place it anywhere, rotate it,
+scale it, and every layer comes along, because none of them ever referred to
+world space.
 
-It also gives the spatial index something to index: bounds are per-province, not
-per-layer, so "which provinces affect this tile" is one query however many layers
-each province carries.
+It also means the framework's job is small and dull: define the domain, do the
+transform, hand each layer its local coordinates. Everything after that is
+authoring.
+
+### How each layer responds in that space is ART
+
+A shared falloff is a sensible **default**, not a rule. Ship it as a helper,
+because it is what you want most of the time and it makes a province read as one
+thing rather than as several effects that happen to be co-located.
+
+But the interesting cases all break it deliberately:
+
+- glow that reaches **beyond** the slope, because heat travels through rock
+- a forest that stops **inside** the province's edge, leaving bare ground before
+  the boundary — which is what a real treeline does
+- carving confined to the **core** while the shape spreads to the rim
+- suppression with a **hard** edge where everything else is soft, because a lava
+  field's margin is abrupt and its influence on the weather is not
+
+Every one of those is an authored decision about what the place is like. A
+framework that enforces a single curve makes them impossible; a framework that
+provides the coordinate system and a good default makes them a one-line
+override. The rule is only that they are all speaking the same coordinates —
+which is what stops the disagreement from being _accidental_.
 
 ## Composition rules, per layer
 
@@ -65,14 +87,23 @@ rule, which is why this is a table and not a merge function:
 ```ts
 interface Province {
   name: string
-  bounds: { x: number; z: number; radius: number } // one footprint
-  influence(x: number, z: number): number // 0..1, ONE falloff
-  shape?: (x: number, z: number, h: number) => number
-  material?: (x: number, z: number) => number
-  volume?: Carve[]
-  decoration?: (kind: string) => number // density multiplier, 0 = none
-  climate?: Partial<ClimateBias>
+  /** The DOMAIN: what shape of local space this province occupies, and where. */
+  domain: ProvinceDomain // box | sphere | cylinder, placed and oriented
+  /**
+   * Layers are authored in LOCAL coordinates — the framework transforms, the
+   * province decides what to do with them. `p` is normalised: the domain's
+   * centre is the origin, its rim is 1.
+   */
+  shape?: (p: LocalVec3, h: number) => number
+  material?: (p: LocalVec3) => number
+  volume?: Carve[] // authored in local space too, so the whole thing is portable
+  decoration?: (p: LocalVec3, kind: string) => number // 0 = nothing grows
+  climate?: (p: LocalVec3) => Partial<ClimateBias>
 }
+
+// The usual falloff, as a HELPER rather than a rule — most provinces want it,
+// and the ones that matter override it per layer.
+const smoothRim = (p: LocalVec3) => 1 - smoothstep(0.7, 1, length(p))
 ```
 
 `volcano()` already returns two of those five. Growing it into the bundle is
