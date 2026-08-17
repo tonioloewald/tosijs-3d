@@ -52,12 +52,8 @@ const scene = b3d(
 
       const G = 9.8
       const stones = []
-      // Orange, with a partial glow — hot enough to read against a busy ground
-      // without going full emissive, which would flatten them into flat discs.
-      const mat = new BABYLON.StandardMaterial('stone-mat', el.scene)
-      mat.diffuseColor = new BABYLON.Color3(1, 0.42, 0.1)
-      mat.emissiveColor = new BABYLON.Color3(0.55, 0.2, 0.03)
-      mat.specularColor = new BABYLON.Color3(0.3, 0.25, 0.2)
+      // Orange with a partial glow — hot enough to read against a busy ground
+      // without going full emissive, which would flatten them into discs.
 
       // Everything the hail can land on. The scout is a HIERARCHY, so the
       // target set is its child meshes — picking against the root would hit
@@ -69,6 +65,8 @@ const scene = b3d(
       let ground = null
       lib.ready.then(() => {
         // `lib.make.<name>()` — the library's contents as callable names.
+        // ry is DEGREES (it was radians before 0.7.0 — this line said 140 and
+        // meant it as degrees, which is exactly how that trap springs).
         const scout = lib.make.scout({ y: 0.9, ry: 140 })
         if (scout == null) return
         scout.scaling.setAll(3.4) // fill the frame; it is the subject here
@@ -90,8 +88,12 @@ const scene = b3d(
         s.vel = -1 - Math.random() * 2
       }
       const spawn = () => {
-        const mesh = BABYLON.MeshBuilder.CreateSphere('stone', { diameter: 0.16, segments: 6 }, el.scene)
-        mesh.material = mat
+        // `el.make` gives it a material, registers it for shadows, and computes
+        // its world matrix — the three lines this loop used to carry.
+        const mesh = el.make.sphere({
+          name: 'stone', diameter: 0.16, segments: 6,
+          color: '#ff6b1a', glow: 0.45,
+        })
         const s = { mesh, vel: 0 }
         reset(s)
         stones.push(s)

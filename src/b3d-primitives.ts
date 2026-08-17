@@ -42,7 +42,7 @@ function makeCheckerTexture(
  * BLEED past the silhouette; the two are separate, and a glow with no glow
  * layer is a common "why isn't this glowing" (it is, it just isn't blooming).
  */
-const primitiveMaterial = (
+export const primitiveMaterial = (
   meshName: string,
   scene: BABYLON.Scene,
   attrs: {

@@ -46,7 +46,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 No peer-dependency changes, but this is a **behaviour** release: the throttle,
 the right stick and the on-screen gamepad all work differently, and one
 attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
-that was tuned around the old feel.
+
+- **`library.instantiate()` / `library.make.*` rotation is now DEGREES**, not
+  radians — matching `AbstractMesh`'s `rx`/`ry`/`rz` and the new `el.make.*`.
+  The library was the only surface in the framework that disagreed, and a bare
+  number is valid in either unit, so a value meant as degrees silently produced
+  some other orientation. It got past us in this repo's own collision demo.
+  **Migration:** if you passed radians, multiply by `180 / Math.PI`.
+  that was tuned around the old feel.
 
 ### ⚠️ Breaking
 
@@ -368,6 +375,18 @@ that was tuned around the old feel.
   the detail layer doing real work — the old defaults read as pudding.
 - `worldV` defaults to 0.25: `CylinderSampler` reflects v, so `worldV = 0`
   put every scene ON a mirror plane with a seam running to the horizon.
+
+### Added
+
+- **`el.make.*` — Babylon primitives with the forgettable parts done.**
+  `el.make.box({ y: 1, color: '#c33', glow: 0.3 })` builds the mesh, gives it a
+  material from the same `primitiveMaterial` `b3dBox` uses, `register()`s it so
+  the sun and reflection probes see it, and computes its world matrix. That last
+  one is a real trap: a mesh positioned but never rendered has no world matrix,
+  so a ray cast this frame finds it AT THE ORIGIN and returns a confident,
+  wrong answer. Covers box/sphere/cylinder/plane/ground/disc/torus/capsule, and
+  shares its option vocabulary with `library.make.*` — one surface whether the
+  thing you're making is a primitive or a model.
 
 ### Fixed
 

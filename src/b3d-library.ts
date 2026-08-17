@@ -280,6 +280,16 @@ export interface InstantiateOptions {
   x?: number
   y?: number
   z?: number
+  /**
+   * Rotation in DEGREES — matching `AbstractMesh`'s rx/ry/rz and `make-mesh`'s.
+   *
+   * ⚠️ These were RADIANS until 0.7.0, which made the library the only surface
+   * in the framework that disagreed. That is precisely the kind of divergence
+   * nobody catches by reading: a bare number is valid in either unit, so a
+   * value meant as degrees just silently produces some other orientation. It
+   * got past me in this repo's own collision demo (`ry: 140`, intended as
+   * degrees, actually 140 radians).
+   */
   rx?: number
   ry?: number
   rz?: number
@@ -426,8 +436,10 @@ export class B3dLibrary extends B3dChild {
    * never throw. A missing prop is a content problem, and taking the scene down
    * over it helps nobody.
    *
-   * Mirrors `svgIcons.<name>()`, so the codebase has one idea of what a
-   * name-keyed factory looks like.
+   * Mirrors `svgIcons.<name>()` and `<tosi-b3d>`'s own `el.make.box()`, so the
+   * codebase has ONE idea of what a name-keyed factory looks like — and the
+   * same option vocabulary (`x/y/z`, `rx/ry/rz` in degrees) whether the thing
+   * you are making is a primitive or a model.
    */
   get make(): Record<
     string,
@@ -511,9 +523,10 @@ export class B3dLibrary extends B3dChild {
       result.position.x = options.x ?? 0
       result.position.y = options.y ?? 0
       result.position.z = options.z ?? 0
-      if (options.rx !== undefined) result.rotation.x = options.rx
-      if (options.ry !== undefined) result.rotation.y = options.ry
-      if (options.rz !== undefined) result.rotation.z = options.rz
+      const DEG = Math.PI / 180
+      if (options.rx !== undefined) result.rotation.x = options.rx * DEG
+      if (options.ry !== undefined) result.rotation.y = options.ry * DEG
+      if (options.rz !== undefined) result.rotation.z = options.rz * DEG
     }
 
     const meshes =

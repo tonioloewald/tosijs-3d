@@ -290,6 +290,7 @@ import { panelFitWidth } from './widgets3d-layout'
 import type { Medium } from './medium'
 import { SvgTexture } from './svg-texture'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
+import { createMakers, type Makers } from './make-mesh'
 import { cameraIsAttached, isOff } from './b3d-utils'
 import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
@@ -766,6 +767,20 @@ export class B3d extends Component {
   */
   static BABYLON = BABYLON
   BABYLON = BABYLON
+
+  private _makers?: Makers
+  /**
+   * Babylon primitives with the easy-to-forget parts done: material from
+   * `color`/`glow`, `register()` so the sun and reflections see it, and
+   * `computeWorldMatrix` so a ray this frame doesn't find it at the origin.
+   *
+   * `el.make.box({ y: 1, color: '#c33' })`. Same shape as a library's
+   * `lib.make.scout({ y: 1 })` — one vocabulary whether you're making a
+   * primitive or a model. See `make-mesh`.
+   */
+  get make(): Makers {
+    return (this._makers ??= createMakers(this))
+  }
 
   declare minElevation: number
   declare maxElevation: number
