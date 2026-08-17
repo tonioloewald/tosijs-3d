@@ -20,6 +20,7 @@ import * as BABYLON from '@babylonjs/core'
 import {
   b3dSun,
   b3dSkybox,
+  b3dLight,
   b3dGround,
   SvgTexture,
   sceneDelta,
@@ -95,10 +96,26 @@ export function demoStage(
     pattern?: boolean
     timeOfDay?: number
     sun?: Record<string, unknown>
+    /** Hemispheric fill. 0 turns it off for a hard, airless look. */
+    fill?: number
   } = {}
 ) {
-  const { timeOfDay = 11, sun = {}, ...ground } = opts
-  return [demoSun(sun), b3dSkybox({ timeOfDay }), patternGround(ground)]
+  const { timeOfDay = 11, sun = {}, fill = 0.35, ...ground } = opts
+  return [
+    demoSun(sun),
+    /*
+    THE FILL LIGHT, and it is not optional-by-taste.
+
+    A directional sun alone leaves every unlit face at ZERO — objects read as
+    black silhouettes rather than as objects, which looked like a material bug
+    in the collisions demo (a grey rock rendering nearly black) and made the
+    pause demo's cube look dead on its shadowed side. Real outdoor light has
+    sky bounce; a hemispheric light is the cheap honest stand-in.
+    */
+    ...(fill > 0 ? [b3dLight({ y: 1, intensity: fill })] : []),
+    b3dSkybox({ timeOfDay }),
+    patternGround(ground),
+  ]
 }
 
 /**
@@ -427,4 +444,78 @@ export function volumetricDemo(
     },
   }
   return api
+}
+
+/**
+ * A HIT MARKER: a disc lying flat on the surface at `point`, plus a stalk along
+ * `normal`. Fades out and disposes itself.
+ *
+ * The disc is what makes a normal legible — a bare line tells you the direction
+ * but not what it is perpendicular TO, and on an irregular surface that is the
+ * whole question. Orientation comes from `Quaternion.FromUnitVectorsToRef`,
+ * which is the one-liner for "rotate +Y onto this vector" and avoids the
+ * gimbal case a yaw/pitch construction hits when the normal points straight up.
+ *
+ * It fades on `sceneDelta`, so it FREEZES with the rest of the world when the
+ * scene is paused rather than quietly ageing out behind the pause panel.
+ */
+export function impactMarker(
+  el: B3dEl,
+  point: BABYLON.Vector3,
+  normal: BABYLON.Vector3,
+  opts: { life?: number; size?: number; color?: string } = {}
+): void {
+  const { life = 1.2, size = 0.35, color = '#ffd34d' } = opts
+  const scene = el.scene
+  const tint = BABYLON.Color3.FromHexString(color)
+
+  const disc = BABYLON.MeshBuilder.CreateDisc(
+    'impact-disc',
+    { radius: size, tessellation: 16 },
+    scene
+  )
+  // A disc is born in the XY plane facing +Z; rotate +Z onto the normal, then
+  // lift it a hair off the surface so it doesn't z-fight what it just hit.
+  disc.rotationQuaternion = BABYLON.Quaternion.FromUnitVectorsToRef(
+    new BABYLON.Vector3(0, 0, 1),
+    normal,
+    new BABYLON.Quaternion()
+  )
+  disc.position = point.add(normal.scale(0.012))
+
+  const stalk = BABYLON.MeshBuilder.CreateCylinder(
+    'impact-normal',
+    { height: size * 2.4, diameter: size * 0.14 },
+    scene
+  )
+  stalk.rotationQuaternion = BABYLON.Quaternion.FromUnitVectorsToRef(
+    new BABYLON.Vector3(0, 1, 0),
+    normal,
+    new BABYLON.Quaternion()
+  )
+  stalk.position = point.add(normal.scale(size * 1.2))
+
+  const mat = new BABYLON.StandardMaterial('impact-mat', scene)
+  mat.emissiveColor = tint
+  mat.diffuseColor = tint
+  mat.disableLighting = true
+  mat.backFaceCulling = false
+  disc.material = mat
+  stalk.material = mat
+
+  let age = 0
+  const tick = () => {
+    age += sceneDelta(scene)
+    const k = 1 - age / life
+    if (k <= 0) {
+      scene.onBeforeRenderObservable.removeCallback(tick)
+      disc.dispose()
+      stalk.dispose()
+      mat.dispose()
+      return
+    }
+    mat.alpha = k
+    disc.scaling.setAll(1 + (1 - k) * 0.8) // a small outward pop
+  }
+  scene.onBeforeRenderObservable.add(tick)
 }

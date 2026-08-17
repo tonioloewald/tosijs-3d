@@ -3,6 +3,109 @@
 
 Opt-in collision detection via mesh naming conventions authored in Blender.
 
+## Demo — where did it hit, and which way is the surface facing?
+
+Hail falls on a lumpy rock. Each impact is found by a SWEPT RAY (the segment the
+stone travelled this frame, not its position), and the marker shows both things
+you actually need: the **point**, and a disc lying flat on the surface with a
+stalk along the **normal**. Watch the discs tilt as they land on the flanks.
+
+The sweep is the part worth copying. Testing "is the stone inside the rock now?"
+misses anything moving faster than its own radius per frame — at 60fps a stone
+falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
+segment cannot tunnel.
+
+```js
+import { b3d, label3d, slider3d } from 'tosijs-3d'
+import { demoStage, orbitCam, impactMarker } from 'demo-utils'
+import { tosi } from 'tosijs'
+
+const { hail } = tosi({ hail: { rate: 6, hits: 0 } })
+const readout = document.createElement('div')
+readout.style.cssText = 'font: 13px ui-monospace, monospace; padding: 6px'
+hail.hits.observe(() => { readout.textContent = `impacts: ${hail.hits.valueOf()}` })
+
+const scene = b3d(
+  {
+    scenePanel: () => [
+      label3d({ text: 'hail' }),
+      slider3d({ label: 'stones', value: hail.rate, min: 1, max: 24, step: 1 }),
+    ],
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { radius: 9, beta: Math.PI / 2.9, target: [0, 1.5, 0] })
+
+      // An IRREGULAR target — lumps merged into one mesh, so the surface
+      // normals genuinely vary and the markers have something to reveal.
+      const lumps = []
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2
+        const r = 0.9 + ((i * 7) % 5) * 0.12
+        const s = BABYLON.MeshBuilder.CreateSphere('lump', { diameter: 1.1 + ((i * 3) % 4) * 0.28, segments: 10 }, el.scene)
+        s.position.set(Math.cos(a) * r, 0.9 + ((i * 5) % 3) * 0.34, Math.sin(a) * r)
+        lumps.push(s)
+      }
+      const rock = BABYLON.Mesh.MergeMeshes(lumps, true, true)
+      rock.name = 'rock'
+      const rockMat = new BABYLON.StandardMaterial('rock-mat', el.scene)
+      rockMat.diffuseColor = new BABYLON.Color3(0.55, 0.52, 0.48)
+      rockMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08)
+      rock.material = rockMat
+      el.register({ meshes: [rock] })
+
+      // Stones are pure kinematics — no physics engine, no colliders. The only
+      // question this demo asks is "what did the segment cross, and where".
+      const G = 9.8
+      const stones = []
+      const mat = new BABYLON.StandardMaterial('stone-mat', el.scene)
+      mat.diffuseColor = new BABYLON.Color3(0.75, 0.8, 0.95)
+      const reset = (s) => {
+        s.mesh.position.set((Math.random() - 0.5) * 5, 7 + Math.random() * 3, (Math.random() - 0.5) * 5)
+        s.vel = -1 - Math.random() * 2
+      }
+      const spawn = () => {
+        const mesh = BABYLON.MeshBuilder.CreateSphere('stone', { diameter: 0.18, segments: 6 }, el.scene)
+        mesh.material = mat
+        const s = { mesh, vel: 0 }
+        reset(s)
+        stones.push(s)
+        return s
+      }
+
+      const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Up(), 1)
+      const onlyRock = (m) => m === rock
+      el.scene.registerBeforeRender(() => {
+        const dt = el.frameDelta
+        while (stones.length < hail.rate.valueOf()) spawn()
+        while (stones.length > hail.rate.valueOf()) stones.pop().mesh.dispose()
+        for (const s of stones) {
+          const from = s.mesh.position.clone()
+          s.vel -= G * dt
+          s.mesh.position.y += s.vel * dt
+          const drop = from.y - s.mesh.position.y
+          if (drop > 0) {
+            // SWEEP the segment just travelled, not the new position.
+            ray.origin = from
+            ray.direction = BABYLON.Vector3.Down()
+            ray.length = drop + 0.09
+            const hit = el.scene.pickWithRay(ray, onlyRock)
+            if (hit?.hit && hit.pickedPoint) {
+              impactMarker(el, hit.pickedPoint, hit.getNormal(true), { life: 1.4 })
+              hail.hits = hail.hits.valueOf() + 1
+              reset(s)
+              continue
+            }
+          }
+          if (s.mesh.position.y < -0.4) reset(s)
+        }
+      })
+    },
+  },
+  ...demoStage({ size: 30, pattern: true, timeOfDay: 9 }),
+)
+
+preview.append(scene, readout)
+```
+
 ## Naming Conventions
 
 Add these suffixes to mesh names in Blender:
