@@ -66,6 +66,8 @@ tosi-b3d { width: 100%; height: 100%; }
 | `shadowTextureSize` | `auto` | Shadow map resolution (per cascade); `auto` = device tier |
 | `shadowMaxZ` | `100` | Far plane of the cascaded shadow frustum |
 | `shadowDarkness` | `0.1` | 0 = fully dark shadow, 1 = no shadow |
+| `shadowNormalBias` | `0.05` | Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters |
+| `shadowBias` | `0.00005` | Depth-direction bias; peter-pans sooner than `shadowNormalBias`, so tune that one first |
 | `numCascades` | `auto` | Number of cascade splits (1–4); `auto` = device tier |
 | `stabilizeCascades` | `'on'` | Reduce shadow-edge "swimming" under motion |
 | `lambda` | `0.8` | Cascade split blend (0 = uniform, 1 = logarithmic) |
@@ -91,6 +93,24 @@ export class B3dSun extends B3dChild {
   static initAttributes = {
     shadowMaxZ: 100,
     shadowDarkness: 0.1,
+    /**
+     * Offset the shadow lookup ALONG THE SURFACE NORMAL, in world units.
+     *
+     * This is the acne knob. At Babylon's default of 0 a large ground plane
+     * self-shadows into a dense stipple that covers the whole surface — measured
+     * on the b3d pause demo, where it darkened roughly half the ground and read
+     * as a texture artifact rather than as a shadow bug. 0.02 clears the near
+     * field but leaves visible stipple mid-distance; 0.05 is clean throughout,
+     * with the caster's contact shadow still attached.
+     *
+     * Lower it if shadows detach from small objects ("peter-panning") — that is
+     * the trade this parameter makes, and the reason it is exposed rather than
+     * simply raised.
+     */
+    shadowNormalBias: 0.05,
+    /** Depth-direction bias. Babylon's CSM default; normalBias is the one to
+     * reach for first, because depth bias peter-pans much sooner. */
+    shadowBias: 0.00005,
     // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
     // explicit value to override. shadowTextureSize is fixed at generator creation.
     shadowTextureSize: 0,
@@ -249,8 +269,17 @@ export class B3dSun extends B3dChild {
         : attrs.shadowDarkness
     this.shadowGenerator.setDarkness(darkness)
 
-    // Leave bias/normalBias at Babylon's CSM-tuned defaults — overriding them
-    // tends to cause peter-panning (shadows detaching from their caster).
+    /*
+    ACNE. Babylon's CSM defaults are bias 0.00005 / normalBias 0, and a normal
+    bias of ZERO is not a tuned value for a large receiver — a 40x40 ground
+    self-shadowed into a fine stipple across its entire surface (see the
+    `shadowNormalBias` note). This was previously left alone with a comment
+    saying overriding it "tends to cause peter-panning"; that is true of DEPTH
+    bias, which is why the default moved on `normalBias` instead, and was
+    checked against a live scene at 0, 0.02 and 0.05 rather than reasoned about.
+    */
+    this.shadowGenerator.bias = attrs.shadowBias
+    this.shadowGenerator.normalBias = attrs.shadowNormalBias
     this.shadowGenerator.numCascades = resolveBudget(
       attrs.numCascades,
       'numCascades'
