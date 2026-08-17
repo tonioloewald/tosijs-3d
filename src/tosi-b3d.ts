@@ -144,11 +144,13 @@ import { tosi } from 'tosijs'
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
 // rad/s. The old values topped out at ~10s per revolution, which does not read
 // as motion — it reads as a still image. `medium` is now a turn every ~3s.
-const RATE = { slow: 1.2, medium: 3, fast: 7 }
+// DEGREES per second — `ry` is degrees (see AbstractMesh). `medium` is one
+// revolution every two seconds.
+const RATE = { slow: 60, medium: 180, fast: 420 }
 
 // `glow` is self-illumination as a fraction of `color`; `glowLayerIntensity` on
 // the scene is what makes it bloom past the edges. Both, or it just looks pale.
-const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#b45a4e', glow: 0.18 })
+const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#a8382c', glow: 0.26 })
 const moon = b3dSphere({ meshName: 'moon', diameter: 0.5, y: 1.6, color: '#f2d98a', glow: 0.7, glowColor: '#ffd34d' })
 
 const scene = b3d(
@@ -161,17 +163,22 @@ const scene = b3d(
     // to be able to let the player back in.
     pausePanel: (host, resume) => [
       label3d({ text: 'PAUSED', bold: true }),
+      button3d({ label: 'Continue', onClick: resume }),
+    ],
+    // The SAME control, in the ⚙ panel — so you can change the speed while it
+    // is RUNNING and watch it change, instead of only while it is frozen. Both
+    // panels bind the one `demo.pauseDemo.spin` value, so they never disagree.
+    scenePanel: () => [
       select3d({
         label: 'spin',
         value: demo.pauseDemo.spin,
         options: ['slow', 'medium', 'fast'],
       }),
-      button3d({ label: 'Continue', onClick: resume }),
     ],
     update: (host) => {
       // Never runs while paused — that is the point. The cube freezing IS the
       // demo, so leave the readout to the events below.
-      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? 0.6
+      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? RATE.medium
       // `ry`, not `mesh.rotation.y` — AbstractMesh writes a rotationQuaternion
       // from rx/ry/rz every frame, so a euler write is silently overwritten.
       cube.ry += rate * host.frameDelta
@@ -624,12 +631,20 @@ export class B3d extends Component {
     ':host .scene-panel-overlay[hidden]': {
       display: 'none',
     },
-    // Close (×) button pinned to the panel's top-right corner.
-    ':host .scene-panel-close': {
+    /*
+    The panel's HEADER: a right-aligned row of equal, close-sized buttons —
+    the icon-bar toggles, then close. Everything that is CHROME lives here, so
+    the panel body is entirely the author's controls.
+    */
+    ':host .scene-panel-head': {
       position: 'absolute',
       top: '4px',
       right: '4px',
       zIndex: '1',
+      display: 'flex',
+      gap: '4px',
+    },
+    ':host .scene-panel-btn': {
       width: '26px',
       height: '26px',
       border: 'none',
@@ -643,9 +658,25 @@ export class B3d extends Component {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '0',
+      flex: '0 0 auto',
     },
-    ':host .scene-panel-close:hover': {
+    ':host .scene-panel-btn svg': {
+      width: '15px',
+      height: '15px',
+      fill: 'none',
+      stroke: 'currentColor',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+    },
+    ':host .scene-panel-btn:hover': {
       background: 'rgba(0,0,0,0.85)',
+    },
+    // A toggle that is ON reads as filled rather than as merely hovered —
+    // hover and active must not compete for the same intensity.
+    ':host .scene-panel-btn.active': {
+      background: 'var(--xr-color, #4a9eff)',
+      color: '#fff',
     },
   }
 
@@ -2035,39 +2066,62 @@ export class B3d extends Component {
   // The bar comes FIRST: a demo's own controls shouldn't be buried under diagnostics, but
   // the diagnostics must be one tap away (there's no console in VR). Collapsed by default,
   // so the panel opens clean; an expanded tool's status still sits ABOVE the author rows.
+  /**
+   * The icon-bar items — diagnostics first, then gadgets.
+   *
+   * ONE list, two presentations, which is the panel's standing contract. Flat,
+   * these render as small round buttons in the panel's header beside the close
+   * button; in XR they render as an `iconBar3d` row, because a headset has no
+   * DOM header to put them in. Same items, same handlers, different layout —
+   * that is presentation, not divergence. What must never happen is the LIST
+   * differing between the two.
+   *
+   * They moved out of the flat panel BODY because a full-width row per toggle
+   * is a lot of panel for a thing you press once: "the graph button in the
+   * standard panel is a waste of space" (Tonio).
+   */
+  private _barItems(): Array<{
+    icon: string
+    title: string
+    active: boolean
+    onClick: () => void
+  }> {
+    return [
+      ...this._debugTools().map((t) => ({
+        icon: t.icon,
+        title: t.name,
+        active: this._debugOpen.has(t.id),
+        onClick: () => {
+          if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
+          else this._debugOpen.add(t.id)
+          this._repaintPanels()
+        },
+      })),
+      // Gadgets last: diagnostics are the bar's main job, and a toggle moving
+      // position as tools appear would be worse than a fixed tail.
+      ...this._panelGadgets().map((g) => ({
+        icon: g.icon,
+        title: g.name,
+        active: g.active,
+        onClick: g.onClick,
+      })),
+    ]
+  }
+
   private _panelWidgets(xr = false): Widget3d[] {
     const rows = this.scenePanel(this)
     const tools = this._debugTools()
-    const gadgets = this._panelGadgets()
-    if (tools.length === 0 && gadgets.length === 0) {
+    const items = this._barItems()
+    if (items.length === 0) {
       // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
       this._liveDebug[xr ? 'xr' : 'flat'] = []
       return rows
     }
-    const out: Widget3d[] = [
-      iconBar3d({
-        items: [
-          ...tools.map((t) => ({
-            icon: t.icon,
-            title: t.name,
-            active: this._debugOpen.has(t.id),
-            onClick: () => {
-              if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
-              else this._debugOpen.add(t.id)
-              this._repaintPanels()
-            },
-          })),
-          // Gadgets last: diagnostics are the bar's main job, and a toggle
-          // moving position as tools appear would be worse than a fixed tail.
-          ...gadgets.map((g) => ({
-            icon: g.icon,
-            title: g.name,
-            active: g.active,
-            onClick: g.onClick,
-          })),
-        ],
-      }),
-    ]
+    // NEITHER presentation gets its bar from here any more: flat renders the
+    // items as header buttons, XR builds an iconBar3d that also carries Exit VR
+    // and Re-seat. This returns the readouts and the author's rows only, so
+    // there is exactly one place each bar is assembled.
+    const out: Widget3d[] = []
     // Live text blocks for the OPEN sources are collected here and rewritten in place by
     // `_startLiveDebug` (a readout that only refreshes on reopen is useless — you'd switch
     // a profiler on and then watch frozen zeros). Collapsed tools contribute nothing.
@@ -2937,21 +2991,58 @@ export class B3d extends Component {
     }
   }
 
-  /** Open the flat scene panel, with a × close button pinned top-right. */
+  /**
+   * Open the flat scene panel: a header row of small round buttons pinned
+   * top-right — the icon-bar items, then close — over the panel body.
+   *
+   * The toggles used to be a full-width `iconBar3d` row inside the body, which
+   * spent a whole row of a small panel on things you press once. They are the
+   * same items either way (`_barItems`); only the flat LAYOUT changed.
+   */
   private _openScenePanel(): void {
     const host = this.parts.scenePanelHost as HTMLElement
-    const close = button(
-      { class: 'scene-panel-close', type: 'button', title: 'Close' },
-      // In a session the flat overlay isn't visible anyway, but keep it playful:
-      // a bug-eyed face for VR, the close icon on flat screens (currentColor
-      // resolves in live DOM — this button is flat-only in practice).
-      this.xrActive ? '😳' : svgIcons.close()
-    ) as HTMLButtonElement
-    close.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this._closeScenePanel()
-    })
-    host.replaceChildren(close, this._makePanel(this._panelWidgets()))
+    const mk = (
+      title: string,
+      icon: Element | string,
+      onClick: () => void,
+      active = false
+    ): HTMLButtonElement => {
+      const b = button(
+        {
+          class: active ? 'scene-panel-btn active' : 'scene-panel-btn',
+          type: 'button',
+          title,
+        },
+        icon
+      ) as HTMLButtonElement
+      b.addEventListener('click', (e) => {
+        e.stopPropagation()
+        onClick()
+      })
+      return b
+    }
+    const buttons = this._barItems().map((it) =>
+      mk(
+        it.title,
+        (svgIcons as Record<string, () => Element>)[it.icon]?.() ??
+          svgIcons.bug(),
+        it.onClick,
+        it.active
+      )
+    )
+    buttons.push(
+      mk(
+        'Close',
+        // In a session the flat overlay isn't visible anyway, but keep it
+        // playful: a bug-eyed face for VR, the close icon on flat screens.
+        this.xrActive ? '😳' : svgIcons.close(),
+        () => this._closeScenePanel()
+      )
+    )
+    host.replaceChildren(
+      div({ class: 'scene-panel-head' }, ...buttons),
+      this._makePanel(this._panelWidgets())
+    )
     host.removeAttribute('hidden')
   }
 
@@ -3010,18 +3101,32 @@ export class B3d extends Component {
     const scene = this.scene
     // In-scene panel always carries an Exit-VR button (you can't reach a DOM
     // button inside a headset), plus any scenePanel widgets.
+    // Exit VR and Re-seat ride in the ICON BAR rather than taking a full-width
+    // row each. Two labelled buttons cost a third of a small panel for two
+    // things you press once a session — and the panel's job in a headset is the
+    // author's controls, not its own chrome. They are appended at the MOUNT
+    // SITE (never branched into the shared widget list) because they are
+    // genuinely XR-only: Re-seat is meaningless flat, and flat already has an
+    // Exit VR in the toolbar lozenge.
     const rows: Widget3d[] = [
-      button3d({
-        label: 'Exit VR',
-        onClick: () => {
-          void this.xrHelper?.baseExperience?.exitXRAsync()
-        },
-      }),
-      // Re-seat is XR-only because it's meaningless flat — but it must be REACHABLE from
-      // inside the headset, which is the whole reason the panel exists there.
-      button3d({
-        label: 'Re-seat (look forward first)',
-        onClick: () => this.recenterXr(),
+      iconBar3d({
+        items: [
+          {
+            icon: 'logOut',
+            title: 'Exit VR',
+            active: false,
+            onClick: () => {
+              void this.xrHelper?.baseExperience?.exitXRAsync()
+            },
+          },
+          {
+            icon: 'compass',
+            title: 'Re-seat (look forward first)',
+            active: false,
+            onClick: () => this.recenterXr(),
+          },
+          ...this._barItems(),
+        ],
       }),
       ...this._panelWidgets(true),
     ]

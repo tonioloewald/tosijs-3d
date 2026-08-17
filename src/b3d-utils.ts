@@ -470,6 +470,12 @@ export class AbstractMesh extends B3dChild {
     x: 0,
     y: 0,
     z: 0,
+    // ROTATION IS IN DEGREES — `render()` multiplies by DEG_TO_RAD. Stated
+    // here because nothing else did, and a plain `ry` reads as radians to
+    // anyone who has just been working in Babylon (where it is). The b3d pause
+    // demo added radians per second to `ry` for its whole life and turned at
+    // roughly one revolution per ten minutes, which read as "the cube doesn't
+    // spin" rather than as a unit bug.
     rx: 0,
     ry: 0,
     rz: 0,
