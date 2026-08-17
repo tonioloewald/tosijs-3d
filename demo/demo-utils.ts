@@ -166,7 +166,11 @@ export function spinner(
   const box = BABYLON.MeshBuilder.CreateBox('demo-spinner', { size }, el.scene)
   box.position.set(x, y, z)
   const mat = new BABYLON.StandardMaterial('demo-spinner-mat', el.scene)
-  const tex = new SvgTexture({ scene: el.scene, url: TEST_PATTERN, resolution: 512 })
+  const tex = new SvgTexture({
+    scene: el.scene,
+    url: TEST_PATTERN,
+    resolution: 512,
+  })
   mat.diffuseTexture = tex.texture
   mat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15)
   box.material = mat

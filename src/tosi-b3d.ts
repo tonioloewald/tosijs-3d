@@ -142,7 +142,9 @@ import { demoStage } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
-const RATE = { slow: 0.15, medium: 0.6, fast: 2 }
+// rad/s. The old values topped out at ~10s per revolution, which does not read
+// as motion — it reads as a still image. `medium` is now a turn every ~3s.
+const RATE = { slow: 0.8, medium: 2, fast: 5 }
 
 const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#b45a4e' })
 
@@ -170,7 +172,12 @@ const scene = b3d(
       // from rx/ry/rz every frame, so a euler write is silently overwritten.
       cube.ry += rate * host.frameDelta
     },
-    sceneCreated(el) {
+    // BABYLON arrives as the SECOND ARGUMENT — same for `update`. There is no
+    // BABYLON global (`typeof BABYLON` is `undefined` on the page), and taking
+    // it from here rather than importing '@babylonjs/core' yourself guarantees
+    // it's the same copy the library is using — it's a peer dep, and a second
+    // copy means two Vector3 classes that fail `instanceof` against each other.
+    sceneCreated(el, BABYLON) {
       // THE HONEST TEST. The cube above stops because `update` isn't called —
       // easy, and it would look identical if pause did nothing but skip that
       // callback. This moon runs on the RENDER OBSERVABLE off `sceneDelta`,
@@ -711,6 +718,25 @@ export class B3d extends Component {
   /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
    * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
   xrFrames: XrFrames | null = null
+  /*
+  THE ENGINE, REACHABLE FROM THE FRAMEWORK.
+
+  Babylon is a PEER dependency: the consumer supplies it, and a second copy in
+  the tree is a real bug (two `Vector3` classes that fail `instanceof` against
+  each other, two engine registries). So the safest way to get a `MeshBuilder`
+  is to ask the library that is already holding one, rather than to import a
+  second specifier and hope the bundler dedupes it.
+
+  Static because it is a property of the FRAMEWORK, not of any one scene —
+  `B3d.BABYLON` works before a scene exists. The instance field stays as a
+  convenience for the common case, where you have an `el` in hand.
+
+  It is also re-exported from the barrel (`import { BABYLON } from 'tosijs-3d'`),
+  which is the form to reach for in a doc example. Before this, examples used a
+  bare `BABYLON` global that DOES NOT EXIST — `typeof BABYLON` is `undefined` on
+  the page — so every one of them was one line from a ReferenceError.
+  */
+  static BABYLON = BABYLON
   BABYLON = BABYLON
 
   declare minElevation: number

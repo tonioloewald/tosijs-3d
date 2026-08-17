@@ -1,5 +1,16 @@
 // Core
 export { B3d, b3d, showB3dStats } from './tosi-b3d'
+/*
+Re-export the Babylon namespace the library itself is using.
+
+Babylon is a peer dependency, so a consumer importing '@babylonjs/core'
+separately can end up with a SECOND copy — two Vector3 classes that fail
+`instanceof` against each other. Taking it from here is the guarantee that you
+have the same one. It is also what live doc examples should import: there is no
+`BABYLON` global (a long-standing assumption in ~16 of them, and one line away
+from a ReferenceError in every case).
+*/
+export * as BABYLON from '@babylonjs/core'
 export type {
   SceneAdditions,
   SceneAdditionHandler,
