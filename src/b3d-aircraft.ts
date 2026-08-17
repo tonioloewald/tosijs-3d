@@ -13,7 +13,7 @@ The full flight model is explained below the demo.
 ## Demo
 
 ```js
-import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta, slider3d } from 'tosijs-3d'
 import { elements } from 'tosijs'
 const { div } = elements
 
@@ -63,6 +63,21 @@ let down = 0
 const scene = b3d(
   {
     gamepad: true,
+    // EXPERIMENT (chasePitchFollow): how much of the nose's pitch the chase camera
+    // inherits. 0 = the level pivot (the plane pitches within a steady frame);
+    // 1 = as if the camera were bolted to the airframe, so a climb aims the view
+    // up. It's a slider because the right answer is a matter of taste and you can
+    // only judge it while flying — in the headset as much as flat.
+    scenePanel: (el) => [
+      slider3d({ label: 'chase pitch follow', min: 0, max: 1, step: 0.05, value: 0,
+        onChange(v) {
+          el.querySelectorAll('tosi-b3d-aircraft').forEach((a) => { a.chasePitchFollow = v })
+        } }),
+      slider3d({ label: 'follow lag', min: 0.5, max: 12, step: 0.5, value: 3,
+        onChange(v) {
+          el.querySelectorAll('tosi-b3d-aircraft').forEach((a) => { a.chasePitchLag = v })
+        } }),
+    ],
     sceneCreated(el) {
       el.addEventListener('destroyed', () => {
         down += 1
@@ -186,6 +201,8 @@ turns the pilot's head in the cockpit, springs back on release).
 | `lookRange` | `120` | How far the right stick can swing the view (degrees each way) |
 | `lookRate` | `150` | Look slew rate (degrees/sec at full stick) |
 | `lookReturn` | `4` | How fast the view springs back to centre when released |
+| `chasePitchFollow` | `0` | How much airframe PITCH the chase inherits. `0` = level pivot (plane pitches within the frame); `1` = as if parented to the airframe (a climb aims the view up) |
+| `chasePitchLag` | `3` | How fast that inherited pitch catches up (per second) — the low-pass that keeps attitude jitter out of the chase |
 | `autoGear` | `'on'` | Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`) |
 | `gearAltitude` | `40` | Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis) |
 | `gearTime` | `2.5` | Seconds for a full gear cycle |
@@ -428,6 +445,21 @@ export class B3dAircraft extends B3dControllable {
     /** How fast the view springs back to centre when the stick is released
      * (fraction of the remaining offset per second). */
     lookReturn: 4,
+    /**
+     * How much of the airframe's PITCH the chase camera inherits. `0` (the
+     * default) is the level pivot: the plane pitches within a steady frame.
+     * `1` is as if the camera were parented to the airframe — climb and the
+     * view swings up with the nose.
+     */
+    chasePitchFollow: 0,
+    /**
+     * How fast the inherited pitch catches up (per second). This is what makes
+     * `chasePitchFollow` viable at all: raw parenting hands the camera the
+     * airframe's attitude JITTER, which a ~5m lever arm amplifies into visible
+     * shake — the reason the pivot was flattened in the first place. Low-passing
+     * it keeps the intent (a climb aims the view up) and drops the noise.
+     */
+    chasePitchLag: 3,
     // Height above ground above which the trigger is forward thrust regardless of
     // speed (take off vertically, then fly) AND the brake can't stall you below
     // vtolSpeed. Below it, slowing to a hover gives the vertical trigger back for a
@@ -521,6 +553,9 @@ export class B3dAircraft extends B3dControllable {
   // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
   private _chasePivot: BABYLON.TransformNode | null = null
   private _chaseLookPitch = 0
+  /** Damped airframe pitch the chase has actually inherited (see
+   * `chasePitchFollow`) — smoothed, never the raw attitude. */
+  private _chaseFollowPitch = 0
   /** Where the LOOK stick has swung the view (radians), and how fast it
    * springs back when released. */
   private _lookYaw = 0
@@ -974,9 +1009,32 @@ export class B3dAircraft extends B3dControllable {
       (what this did first) only tilted the view off the target — the camera
       stayed exactly where it was.
       */
+      /*
+      PITCH FOLLOW (`chasePitchFollow`, default 0 = off).
+
+      At 1 the pivot pitches with the nose, which is what parenting the camera
+      to the airframe would give you: climb and the view swings up with it.
+      Tonio asked for it as an experiment, and it is a dial rather than a
+      reparent because the flat pivot is not arbitrary — it is what fixed the
+      jittery chase, and a hard reparent would hand the lever arm the airframe's
+      attitude noise again. The lag term is the whole trick: it passes the
+      INTENTION (a sustained climb) and stops the NOISE (per-frame wobble).
+
+      Sign: the airframe node is built with `-fbw.pitch` (line ~696), so nose-up
+      is positive in fbw terms and negative in Babylon's pitch parameter. Same
+      negation here, or the camera would dive when you climb.
+      */
+      const follow = (this as any).chasePitchFollow as number
+      if (follow > 0) {
+        const k = Math.exp(-((this as any).chasePitchLag as number) * dt)
+        this._chaseFollowPitch =
+          this.fbw.pitch + (this._chaseFollowPitch - this.fbw.pitch) * k
+      } else if (this._chaseFollowPitch !== 0) {
+        this._chaseFollowPitch = 0 // turned off mid-flight: don't hold a stale tilt
+      }
       BABYLON.Quaternion.RotationYawPitchRollToRef(
         this.fbw.heading + this._lookYaw,
-        this._lookPitch,
+        this._lookPitch - this._chaseFollowPitch * follow,
         0,
         this._chasePivot.rotationQuaternion
       )
