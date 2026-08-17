@@ -67,6 +67,50 @@ provides the coordinate system and a good default makes them a one-line
 override. The rule is only that they are all speaking the same coordinates —
 which is what stops the disagreement from being _accidental_.
 
+## The shape layer has TWO modes, and they are both already built
+
+Different provinces shape land in different — but closely related — ways, and the
+distinction that matters is _how the shape meets the noise_:
+
+- **REMAP** (`slope-profile.*`) — a transfer function on the height. The terrain
+  keeps its own character and gets re-levelled: `mesaProfile` flattens tops and
+  steepens shoulders, `terraceProfile` steps it, `cliffProfile` gives it a shelf,
+  `beachProfile` a shallow rise. Nothing is imposed; the hills that were there
+  are still there, wearing a different geology. `blendProfiles` localises one to
+  a region — which is a province's shape layer in everything but name.
+- **FORCE** (`landform.*`) — a shape pushed _through_ the noise regardless of
+  what was underneath: `volcano` a cone with a crater, `impactCrater` a bowl and
+  rim, `pad` a dead-flat plateau with a cut-and-fill skirt.
+
+So a **mesa** and a **volcano** differ less in machinery than in mode. Both are
+radial profiles over local coordinates; the mesa re-levels what the noise gave
+it, the volcano insists. Both belong in the same `shape?` slot, and a province
+may reasonably use either or chain them — `composeLandforms` already does the
+chaining, `blendProfiles` already does the localising.
+
+That both vocabularies exist and were built separately is itself the argument for
+the province bundle: they are two answers to "what is the land like here", and
+nothing currently ties them to the _place_ that motivated them.
+
+## A city is the bundle in one object
+
+Worth spelling out because it uses four layers and none of them is terrain-shaped
+in the obvious sense:
+
+- **shape** — `pad` flattens it, with a cut-and-fill skirt so it sits in the
+  hillside instead of on it. Several pads chained up a slope is a terraced town.
+- **decoration** — the buildings. Which makes the point that decoration is not
+  "vegetation": it is any placed mesh, and a city is a _scatter with rules_
+  (streets, density falloff toward the edge, orientation to the grid).
+- **volume** — interiors and cellars, once volumetric tiles exist. A building you
+  can walk into is decoration plus volume, which is exactly the "portal into a
+  building" case in `TUNNEL-DESIGN.md`.
+- **material** — a bare-earth or paved ground treatment where the pad sits, so
+  the flattening reads as _cleared_ rather than as suspiciously smooth grass.
+
+And nothing grows in the streets, which is the decoration layer's suppression
+doing its job — the same mechanism that keeps trees off a volcano's flank.
+
 ## Composition rules, per layer
 
 Provinces overlap, so each layer needs a stated rule — and they are not the same
