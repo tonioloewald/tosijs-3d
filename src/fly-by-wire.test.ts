@@ -579,3 +579,28 @@ describe('afterburner is HELD, not parked (Tonio, 2026-08-14)', () => {
     expect(s.speed).toBeCloseTo(equilibriumSpeed(CFG, 0.6, 0), 0)
   })
 })
+
+describe('asymmetric pitch authority (#26)', () => {
+  const asym: FlyByWireConfig = { ...CFG, maxPitch: 60 * DEG, maxDive: 80 * DEG }
+
+  /** Settled attitude, in degrees, after holding the stick. */
+  const settled = (cfg: FlyByWireConfig, pitch: number) => {
+    const st = state({ speed: 40 })
+    for (let i = 0; i < 400; i++) {
+      flyByWireStep(st, { ...NO_INPUT, pitch }, 40, 200, cfg, DT, false)
+    }
+    return (st.pitch * 180) / Math.PI
+  }
+
+  test('dive can exceed climb when maxDive says so', () => {
+    // A craft meant to fall out of the sky readily and climb reluctantly — the
+    // thing one symmetric number cannot express.
+    expect(settled(asym, -1)).toBeLessThan(-70)
+    expect(settled(asym, 1)).toBeGreaterThan(50)
+  })
+
+  test('omitting maxDive stays symmetric — nothing changes unless asked', () => {
+    const sym: FlyByWireConfig = { ...CFG, maxPitch: 45 * DEG }
+    expect(Math.abs(settled(sym, -1))).toBeCloseTo(settled(sym, 1), 2)
+  })
+})

@@ -52,6 +52,15 @@ export interface FlyByWireConfig {
   maxBank: number
   /** Full-stick pitch attitude, radians. */
   maxPitch: number
+  /**
+   * Nose-DOWN limit, if it differs from `maxPitch`. Omitted = symmetric.
+   *
+   * Real airframes are not symmetric here, and design intent is even less so: a
+   * craft meant to fall out of the sky readily and climb reluctantly cannot be
+   * expressed by one number. (tosijs-3d#26 — a flying submarine wanting to dive
+   * at 80° and climb at 60°.)
+   */
+  maxDive?: number
   /** Attitude easing toward the commanded target (1/s) — also the self-level rate. */
   attitudeRate: number
   /** Heading change at 90° bank (rad/s); scales by sin(bank). */
@@ -185,7 +194,7 @@ export function flyByWireStep(
   const targetBank = grounded ? 0 : roll * cfg.maxBank
   const targetPitch = grounded
     ? Math.max(0, pitch) * cfg.maxPitch // runway: nose-up only (rotate to climb off)
-    : pitch * cfg.maxPitch
+    : pitch * (pitch < 0 ? cfg.maxDive ?? cfg.maxPitch : cfg.maxPitch)
   state.bank += (targetBank - state.bank) * k
   state.pitch += (targetPitch - state.pitch) * k
 

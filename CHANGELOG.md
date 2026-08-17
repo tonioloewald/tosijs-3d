@@ -82,6 +82,12 @@ that was tuned around the old feel.
 
 ### Added
 
+- **`b3d-aircraft` gains `maxPitch` / `maxDive`** (#26). Pitch authority was a
+  module constant at a symmetric 35° — a gentle airliner descent, unreachable by
+  any adopter, and unable to express a craft that should fall out of the sky
+  readily and climb reluctantly. `maxDive` defaults to `maxPitch`, so nothing
+  changes unless asked.
+
 - **⚠️ EXPERIMENTAL — `portalTransform`**: see-through portal math (virtual
   camera pose, the oblique clip plane, a step-test crossing, and recursion
   budgeted by a falloff CURVE rather than a hard depth limit — linear, geometric
@@ -356,6 +362,13 @@ that was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **Blasts could not see library-backed destroyables** (#28) — a third
+  consequence of `library`. `detonateWarhead` resolved targets with
+  `scene.getMeshByName`, which searches meshes only, so a `library`
+  destroyable's TransformNode root was filtered out of every AOE. manta measured
+  it at 4 of 4 targets. It now uses the element's own node, which was always
+  right there.
 
 - **`library` + `explode` on a destroyable was a guaranteed crash** (#24) — and a
   nasty one. The exploder read vertex buffers off whatever it was handed, and a
