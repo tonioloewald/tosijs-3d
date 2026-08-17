@@ -73,7 +73,13 @@ export const isOff = (v: unknown): boolean =>
  */
 export const sceneDelta = (scene: BABYLON.Scene): number => {
   const published = (scene.metadata as any)?.b3dFrameDelta
-  if (typeof published === 'number' && published > 0) return published
+  // `>= 0`, not `> 0`: a published ZERO is <tosi-b3d> saying TIME IS STOPPED,
+  // and it has to be honoured or every simulation on the render observable keeps
+  // advancing through a pause. The engine-delta fallback is for scenes that
+  // never publish at all, not for a scene that published a deliberate zero.
+  // (tosijs-3d#30 — paused, the world ran on at full speed and only the stick
+  // stopped working: 66m of travel over a 3-second pause.)
+  if (typeof published === 'number' && published >= 0) return published
   return Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000)
 }
 

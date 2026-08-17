@@ -94,6 +94,18 @@ export class B3dControllable extends AbstractMesh {
     const dt = Math.min((now - this.lastUpdate) * 0.001, 0.1)
     this.lastUpdate = now
 
+    /*
+    HALT, don't just zero the stick.
+
+    This clock is `Date.now`-based, not `sceneDelta`, so a paused scene does not
+    slow it down. Feeding the flight model empty input was not a pause: with no
+    input an aircraft COASTS, which is indistinguishable from cruising. The
+    player's report was "I can background the tab, come back and the game is
+    continuing to run, I just can't steer" (#30). `lastUpdate` is stamped above,
+    so resuming does not deliver the whole pause as one step.
+    */
+    if ((this.owner as { paused?: boolean } | null)?.paused === true) return
+
     if (this.inputProvider == null) return
     // Scene input focus: when a page hosts multiple demos, only the active (last
     // hovered/clicked) scene consumes the shared keyboard/gamepad — an unfocused

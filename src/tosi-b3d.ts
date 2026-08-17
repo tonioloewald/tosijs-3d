@@ -1231,10 +1231,21 @@ export class B3d extends Component {
 
   private _update = () => {
     if (this._paused) {
-      // Keep RENDERING (the panel must be visible and pickable) but advance
-      // nothing. lastRender tracks so the first live frame isn't the whole pause.
+      /*
+      Keep RENDERING — the panel has to be visible and pickable — but stop the
+      CLOCK. Publishing a frame delta of zero is what actually pauses the world:
+      everything that simulates does so on the render observable via
+      `sceneDelta`, so gating only this method left projectiles flying, water
+      moving and aircraft coasting at cruise speed with the stick disconnected.
+      Measured at 66 m of travel over a 3-second pause (#30).
+      */
       this.lastRender = Date.now()
-      if (this.scene?.activeCamera != null) this.scene.render()
+      if (this.scene != null) {
+        if (this.scene.metadata == null) this.scene.metadata = {}
+        this.scene.metadata.b3dFrameDelta = 0
+        this.frameDelta = 0
+        if (this.scene.activeCamera != null) this.scene.render()
+      }
       return
     }
     if (this.scene != null && !this.hidden) {
