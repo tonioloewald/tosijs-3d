@@ -666,3 +666,77 @@ whole surface has one discoverable home. Types stay top-level (PascalCase doesn'
 and types can't live on a const). The rc window made the rename free; after final it would
 have been a breaking change. Demos import `ui` and destructure, so their bodies read
 unchanged.
+
+## Popups should be NEW SURFACES, not crammed into one
+
+**Decided 2026-08-18 (Tonio).** A popup — a menu cascade, a dropdown's open
+list, a debug panel — should spawn an **additional surface**, a second plane
+floating above the first, rather than being laid out inside the opener's SVG.
+
+> "In 3D (and especially VR) we actually control the universe in a way we don't
+> in the browser. We should leverage that, rather than trying to make it all
+> work in a second-rate single 2d panel."
+
+### What this retires
+
+`TODO.md`'s `select3d` entry said a dropdown "**MUST** grow the panel's layout
+(stackLayout re-flows) rather than a DOM-style absolute popover — a popover
+won't rasterize into the VR texture."
+
+That constraint is **real but escapable**, and noticing which is the whole
+point. It is true that an absolutely-positioned popover cannot be drawn outside
+the SVG that becomes the texture. It is _not_ true that a popup must therefore
+live inside that SVG. The third option — **another texture, on another plane** —
+was invisible because we were reasoning inside a browser's frame, where there is
+exactly one window and overlapping UI is a z-index problem.
+
+In a scene there is no such scarcity. Planes are cheap, they can sit in front of
+each other with real depth, and they can be _somewhere else_ entirely.
+
+### Why it is better, not merely different
+
+- **The opener does not reflow.** Today, opening the debug tool shoves the
+  author's controls down the panel — the content you were reading moves because
+  you asked a question about something else. A second surface leaves the first
+  alone.
+- **Tear-offs become natural.** If a popup is already its own surface, "keep
+  this open and put it over there" is a re-parent, not a feature. The debug
+  readout you want to watch _while_ flying belongs beside you, not stacked in a
+  menu you have to hold open.
+- **Depth is a free channel.** A popup slightly nearer the viewer reads as "on
+  top" without a z-index, a shadow, or a scrim — the thing 2D UI spends real
+  effort faking.
+- **It matches how the hardware wants to be used.** A headset's advantage over a
+  monitor is that UI can occupy space. A single panel with everything crammed in
+  is a monitor emulator.
+
+### The model
+
+- A **surface** is a plane + an `SvgTexture` + a pointer router. We already have
+  all three (`svg-texture`, `frame-panel`, `panelScene`).
+- A **popup** is a child surface, placed relative to its opener and owned by it:
+  closing the opener closes it, and it inherits the opener's frame so it travels
+  with it.
+- A **tear-off** is a popup PROMOTED to a frame of its own (`rig` or `world`),
+  at which point it stops being owned and stays where you put it. That is a
+  re-parent plus a lifetime change — see `SPATIAL-DESIGN.md`, which already has
+  the transform math for exactly this move.
+
+### Open questions (do not guess these — try them in a headset)
+
+1. **Placement.** Offset in the opener's plane, or arc'd toward the viewer? A
+   popup that appears co-planar may be hard to distinguish from its opener.
+2. **Reach.** In VR the popup must land where your hand already is, not where
+   the geometry says. This is probably the hardest part and the one most likely
+   to need a controller in hand to settle.
+3. **Budget.** Each surface is a texture. `perf-probe` should cap concurrent
+   surfaces per tier, and the ambient allocator's rule applies: something that
+   cannot have its honest minimum switches OFF rather than degrading.
+4. **Pointer routing across surfaces.** One ray, several planes — the nearest
+   hit wins, but capture (`widget-box`'s drag-survives-leaving-the-track
+   contract) has to survive a ray crossing between surfaces mid-drag.
+5. **Flat parity.** Flat, this could be one overlay with several absolutely
+   positioned panels — which is what `surface.ts` already does. The two
+   presentations may legitimately differ here, and if so, say so out loud
+   (see "One UI, two presentations": divergence is a bug _until proven
+   otherwise_, and this may be the proof).
