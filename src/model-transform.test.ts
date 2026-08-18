@@ -257,3 +257,61 @@ describe('the _centerOfGravity marker (vehicle node convention)', () => {
     wrap.dispose()
   })
 })
+
+/*
+PUBLIC NAMES ARE WHAT A HUMAN READS.
+
+The library picker showed `building_collideCylinder_primitive0`, which is three
+different kinds of noise stacked: a collider annotation the engine cares about,
+and `_primitive0`, which is not authored AT ALL — it is the glTF loader
+splitting one multi-material mesh into one Babylon mesh per material.
+
+The Blender case is the subtle one. `.001` lands AFTER the behaviour suffix, so
+a plain endsWith never matched it and the annotation leaked whole. It must be
+held aside and put back, not dropped: `tree.001` is a different object from
+`tree`, and `modelExportNames` dedupes through a Set — collapsing them would
+silently lose one.
+*/
+describe('publicName — what the consumer sees', () => {
+  // b3d-utils reaches tosijs, which wants a DOM at import time — same standup
+  // as stick-sign/pause-clock, so the import has to be dynamic.
+  let publicName: typeof import('./b3d-utils').publicName
+  beforeAll(async () => {
+    const { Window } = await import('happy-dom')
+    const win = new Window() as any
+    const g = globalThis as any
+    g.window ??= win
+    for (const k of Object.getOwnPropertyNames(win)) {
+      try {
+        g[k] ??= win[k]
+      } catch {
+        /* off-document getters */
+      }
+    }
+    ;({ publicName } = await import('./b3d-utils'))
+  })
+
+  test('behaviour suffixes come off', () => {
+    expect(publicName('Hull_collideMesh')).toBe('Hull')
+    expect(publicName('rock_collide_box')).toBe('rock')
+  })
+
+  test("the glTF loader's _primitiveN comes off", () => {
+    expect(publicName('building_primitive0')).toBe('building')
+    expect(publicName('building_collideCylinder_primitive0')).toBe('building')
+  })
+
+  test("Blender's .001 SURVIVES, with the annotation still removed", () => {
+    expect(publicName('tree_collideCylinder.001')).toBe('tree.001')
+    expect(publicName('tree.001')).toBe('tree.001')
+    // …and stays distinct from the original, which is the whole point.
+    expect(publicName('tree_collideCylinder.001')).not.toBe(
+      publicName('tree_collideCylinder')
+    )
+  })
+
+  test('.model comes off too, and composes with the rest', () => {
+    expect(publicName('scout.model')).toBe('scout')
+    expect(publicName('Hull_collideMesh.model')).toBe('Hull')
+  })
+})

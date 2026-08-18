@@ -138,11 +138,31 @@ export const isIgnored = (name: string): boolean => {
 }
 
 export const publicName = (name: string): string => {
-  let n = conventionName(name)
+  /*
+  `_primitive0` is not authored — it is the glTF loader SPLITTING one mesh that
+  uses several materials into one Babylon mesh per material. It is an artifact
+  of how the file was imported, and a consumer has no way to know it exists, so
+  it has no business in a name they have to type or read. Stripped FIRST,
+  because it sits outside the behaviour suffix: `building_collideCylinder_primitive0`
+  only cleans to `building` if the primitive tag comes off before the loop.
+
+  Tonio, looking at the library picker: "should show names like building, not
+  building_collideCylinder".
+  */
+  let n = conventionName(name).replace(/_primitive\d+$/i, '')
+  /*
+  Blender's DUPLICATE marker (`.001`) lands after the behaviour suffix, so
+  `tree_collideCylinder.001` matched no suffix and leaked the annotation whole.
+  Held aside and put back rather than dropped: `.001` is a genuinely different
+  object from `tree`, and collapsing the two would silently merge them in a name
+  list that dedupes.
+  */
+  const dup = n.match(/\.\d+$/)
+  if (dup != null) n = n.slice(0, -dup[0].length)
   for (;;) {
     const lower = n.toLowerCase()
     const hit = BEHAVIOUR_SUFFIXES.find((s) => lower.endsWith(`_${s}`))
-    if (hit == null) return n
+    if (hit == null) return dup != null ? n + dup[0] : n
     n = n.slice(0, -(hit.length + 1))
   }
 }
