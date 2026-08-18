@@ -319,3 +319,71 @@ describe('spawnMissile — the turn radius is a WALL, and it is meant to be', ()
     expect(fly({ deg: 15, range: 110, launcherSpeed: 150 }).hit).toBe(true)
   })
 })
+
+/*
+DEGREES ALONGSIDE RADIANS.
+
+`turnRate` stays radians/sec — trig wants it, and every tuned value in the wild
+is already written that way — but "is this radians?" should be answerable from
+the API rather than from the source. `turnRateDeg` is the discoverable view.
+
+What is worth PINNING is that the two spellings drive the same seeker. A
+degrees alias that quietly steered differently would be worse than no alias.
+*/
+describe('turnRateDeg — the same knob, in the unit you think in', () => {
+  test('a missile given degrees flies the identical path to its radian twin', async () => {
+    const { spawnMissile } = await import('./b3d-launcher')
+
+    const path = (opts: Record<string, unknown>) => {
+      const scene = makeScene()
+      const target = BABYLON.MeshBuilder.CreateBox('t', { size: 1 }, scene)
+      target.position.set(30, 0, 60)
+      target.computeWorldMatrix(true)
+      spawnMissile(makeOwner(scene), {
+        origin: new BABYLON.Vector3(0, 0, 0),
+        direction: new BABYLON.Vector3(0, 0, 1),
+        target,
+        speed: 40,
+        accel: 60,
+        inheritVelocity: { x: 0, y: 0, z: 0 },
+        warhead: { damage: 5 },
+        maxLifetime: 100,
+        ...opts,
+      } as any)
+      // spawnMissile names its mesh 'projectile' too — the existing tests above
+      // do the same. (Looking for 'missile' returned null and blew up on the
+      // next line: an assertion that never ran, which is worse than a red one.)
+      const m = scene.getMeshByName('projectile') as BABYLON.Mesh
+      const trace: number[] = []
+      for (let i = 0; i < 20; i++) {
+        scene.render()
+        if (m.isDisposed()) break
+        trace.push(+m.position.x.toFixed(4))
+      }
+      return trace
+    }
+
+    const rad = path({ turnRate: 2 })
+    const deg = path({ turnRateDeg: 2 * (180 / Math.PI) })
+    expect(deg.length).toBe(rad.length)
+    expect(deg).toEqual(rad)
+  })
+
+  test('and the two are NOT the same when the numbers are naively swapped', () => {
+    // Guards the test above from passing for the wrong reason: if the alias
+    // were ignored, `turnRateDeg: 2` would silently behave as `turnRate: 2`.
+    expect(2 * (Math.PI / 180)).not.toBeCloseTo(2)
+  })
+})
+
+describe('the element exposes the same conversion', () => {
+  test('setting degrees sets radians, and reading back round-trips', async () => {
+    const { B3dLauncher } = await import('./b3d-launcher')
+    const el = Object.create(B3dLauncher.prototype) as any
+    el.turnRate = 3
+    expect(el.turnRateDeg).toBeCloseTo(3 * (180 / Math.PI))
+    el.turnRateDeg = 180
+    expect(el.turnRate).toBeCloseTo(Math.PI)
+    expect(el.turnRateDeg).toBeCloseTo(180)
+  })
+})

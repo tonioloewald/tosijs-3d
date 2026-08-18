@@ -4,11 +4,38 @@
 **`el.make.box({ y: 1, color: '#c33', glow: 0.3 })`** — Babylon primitives with
 the four things everyone forgets already done.
 
+## Demo
+
+```js
+import { b3d, b3dSkybox } from 'tosijs-3d'
+import { demoStage, orbitCam } from 'demo-utils'
+
+const scene = b3d(
+  {
+    glowLayerIntensity: 0.7,
+    sceneCreated(el) {
+      orbitCam(el, { radius: 9, target: [0, 1, 0] })
+      // Every one of these casts a shadow and is ray-ready immediately.
+      el.make.box({ size: 1.2, x: -2.4, y: 0.9, color: '#b8483a', glow: 0.25 })
+      el.make.sphere({ diameter: 1.3, y: 1, color: '#3f7fb8' })
+      el.make.cylinder({ height: 1.8, diameter: 0.9, x: 2.4, y: 0.9, color: '#c9a227', glow: 0.15 })
+      el.make.torus({ diameter: 1.4, thickness: 0.28, y: 2.6, rx: 90, color: '#6ab04c' })
+      // Never hand-written here — the proxy forwards to MeshBuilder.CreateIcoSphere.
+      el.make.icoSphere({ radius: 0.7, subdivisions: 2, x: -2.4, y: 2.6, color: '#b07acc', glow: 0.3 })
+      el.make.torusKnot({ radius: 0.5, tube: 0.16, x: 2.4, y: 2.7, color: '#e08a3c', glow: 0.2 })
+    },
+  },
+  ...demoStage({ size: 16, tiles: 10, pattern: true }),
+)
+
+preview.append(scene)
+```
+
 `b3dBox`/`b3dSphere`/`b3dGround` cover the DECLARATIVE case. But plenty of scene
 code is imperative — inside `sceneCreated`, in a spawner, in a demo — and there
 the honest version of "add a cube" is:
 
-```js
+```javascript
 const box = BABYLON.MeshBuilder.CreateBox('box', { size: 1 }, el.scene)
 box.position.set(0, 1, 0)
 const mat = new BABYLON.StandardMaterial('box-mat', el.scene)
@@ -62,32 +89,6 @@ the phantom at the origin and exited its far side. Plausible, wrong, and silent.
 Pass `worldMatrix: false` if you are about to reposition the mesh anyway and
 want to skip the work.
 
-## Demo
-
-```js
-import { b3d, b3dSkybox } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
-
-const scene = b3d(
-  {
-    glowLayerIntensity: 0.7,
-    sceneCreated(el) {
-      orbitCam(el, { radius: 9, target: [0, 1, 0] })
-      // Every one of these casts a shadow and is ray-ready immediately.
-      el.make.box({ size: 1.2, x: -2.4, y: 0.9, color: '#b8483a', glow: 0.25 })
-      el.make.sphere({ diameter: 1.3, y: 1, color: '#3f7fb8' })
-      el.make.cylinder({ height: 1.8, diameter: 0.9, x: 2.4, y: 0.9, color: '#c9a227', glow: 0.15 })
-      el.make.torus({ diameter: 1.4, thickness: 0.28, y: 2.6, rx: 90, color: '#6ab04c' })
-      // Never hand-written here — the proxy forwards to MeshBuilder.CreateIcoSphere.
-      el.make.icoSphere({ radius: 0.7, subdivisions: 2, x: -2.4, y: 2.6, color: '#b07acc', glow: 0.3 })
-      el.make.torusKnot({ radius: 0.5, tube: 0.16, x: 2.4, y: 2.7, color: '#e08a3c', glow: 0.2 })
-    },
-  },
-  ...demoStage({ size: 16, tiles: 10, pattern: true }),
-)
-
-preview.append(scene)
-```
 */
 /*{ "parent": "Core", "order": 200 }*/
 

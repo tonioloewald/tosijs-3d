@@ -195,6 +195,7 @@ that assumes one orients its effect off nothing.
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
+| `turnRateDeg` | — | The same agility in deg/sec. A computed view onto `turnRate`: set either, read either. Exists because "is this radians?" should be answered by the API, not by reading the source |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
@@ -588,7 +589,12 @@ export interface MissileOpts {
   /** Cruise speed the motor accelerates to (and the seeker holds once reached). */
   speed: number
   /** Max turn rate (rad/sec) — the missile's agility. */
+  /** Seeker agility in RADIANS/sec. Prefer `turnRateDeg` if you think in
+   * degrees — give either, not both. */
   turnRate: number
+  /** Seeker agility in DEGREES/sec. Wins over `turnRate` when both are given,
+   * on the grounds that the more explicit unit is the more deliberate one. */
+  turnRateDeg?: number
   /** Launch platform's world velocity — the missile INHERITS it so it doesn't drop
    * behind a fast mover, then thrusts up to `speed`. Default none. */
   inheritVelocity?: Vec3
@@ -716,7 +722,13 @@ export function spawnMissile(
     // straight, and is fully agile by burnout. (Thrust itself, above, is
     // unconditional: a motor burns whether or not the seeker wants to turn.)
     const authority = boostAuthority(elapsed, boostTime)
-    const v = steerToward(state.vel, desired, opts.turnRate * authority, dt)
+    // Degrees wins when given: it is the more explicit spelling, so it is the
+    // more deliberate one. Resolved here rather than at every read.
+    const turnRate =
+      opts.turnRateDeg != null
+        ? opts.turnRateDeg * (Math.PI / 180)
+        : opts.turnRate
+    const v = steerToward(state.vel, desired, turnRate * authority, dt)
     state.vel.x = v.x
     state.vel.y = v.y
     state.vel.z = v.z
@@ -783,6 +795,28 @@ export class B3dLauncher extends AbstractMesh {
   declare mass: number
   declare missileSpeed: number
   declare turnRate: number
+
+  /*
+  DEGREES ALONGSIDE RADIANS, rather than instead of.
+
+  Tonio's pattern, and it beats converting: `turnRate` stays radians/sec — the
+  unit the maths actually wants, and the unit every tuned value in the wild is
+  already written in — while `turnRateDeg` is a computed view onto it. Nothing
+  breaks, and the degrees spelling is DISCOVERABLE: it shows up in completion
+  right next to the radians one, so the unit is answered by the API instead of
+  by reading the source or guessing.
+
+  The general rule this establishes: where an angle must stay radians (because
+  it feeds trig, or because changing it would break tuned values), expose a
+  `<name>Deg` accessor beside it. `Deg` and not `Degs`/`Degrees` — the codebase
+  already has rollDeg, coneDeg, pitchDeg, azimuthDeg, elevationDeg.
+  */
+  get turnRateDeg(): number {
+    return this.turnRate * (180 / Math.PI)
+  }
+  set turnRateDeg(v: number) {
+    this.turnRate = v * (Math.PI / 180)
+  }
   declare projRadius: number
   declare projColor: string
   declare maxLifetime: number

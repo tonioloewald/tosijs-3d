@@ -607,10 +607,46 @@ export function iconBar3d(config: {
       g({ 'data-w3d-icon': item.icon }, bg, glyph, underline),
       'cursor:pointer'
     )
+    // A real tooltip — but ONLY in live DOM. The XR panel rasterizes this SVG
+    // to a texture, where <title> renders nothing at all, so see the caption
+    // below: in a headset an icon with a hidden tooltip is just a mystery.
     if (item.title) cell.appendChild(svgElements.title(item.title))
+    /*
+    CAPTIONS, because an unlabelled icon in VR is a guess.
+
+    Tonio, testing in the headset: "What is the 'compass' icon supposed to be
+    toggling in the scene menu?" — a fair question with no way to answer it from
+    inside. It was Re-seat. Two problems at once: there was no label, and an
+    ACTION sitting in a row of toggles reads as a toggle.
+
+    Only the first word, because these sit 32px apart and the caption is a
+    reminder rather than documentation — the <title> still carries the full text
+    for anyone on a flat screen.
+    */
+    const caption = item.title
+      ? css(
+          text(
+            {
+              'dominant-baseline': 'hanging',
+              'text-anchor': 'middle',
+              'font-size': 9,
+              'font-family': FONT_FAMILY,
+              'font-weight': TEXT_WEIGHT,
+              fill: MUTED,
+              x: BS / 2,
+              y: BS + 3,
+            },
+            item.title.split(' ')[0]
+          ),
+          'pointer-events:none'
+        )
+      : null
+    if (caption) cell.appendChild(caption)
     return { item, bg, cell }
   })
   const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell))
+  const hasCaptions = config.items.some((i) => i.title)
+  const CAPTION_H = 12
   const step = BS + GAP
   const indexAt = (x: number): number => {
     const i = Math.floor(x / step)
@@ -630,7 +666,9 @@ export function iconBar3d(config: {
       cells.forEach((c, i) => {
         c.cell.setAttribute('transform', `translate(${i * step} ${by})`)
       })
-      return ROW
+      // Captions live BELOW the button, so the row has to grow or the next
+      // widget lands on top of them.
+      return hasCaptions ? ROW + CAPTION_H : ROW
     },
     hitTest(x) {
       return indexAt(x) >= 0
