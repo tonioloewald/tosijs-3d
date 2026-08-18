@@ -4,6 +4,7 @@
 - [widgets3d](/widgets3d/)
 - [box](/box/)
 - [surface](/surface/)
+- [popup-surface](/popup-surface/)
 - [b3d-hud](/b3d-hud/)
 - [b3d-panel](/b3d-panel/)
 - [b3d-svg-plane](/b3d-svg-plane/)

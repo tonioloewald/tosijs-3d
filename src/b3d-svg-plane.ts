@@ -413,6 +413,10 @@ export class B3dSvgPlane extends AbstractMesh {
   declare pointerEvents: 'on' | 'off'
   declare doubleSided: 'on' | 'off'
 
+  /** True only while WE have parented the mesh to the camera — so the
+   * cameraRelative sync never clears a parent somebody else set. */
+  private _camParented = false
+
   /** Set to a live SVG element for dynamic mode. */
   svgElement: SVGSVGElement | null = null
 
@@ -488,9 +492,24 @@ export class B3dSvgPlane extends AbstractMesh {
 
     if (attrs.cameraRelative) {
       const cam = this.owner?.scene?.activeCamera
-      if (cam && this.mesh.parent !== cam) this.mesh.parent = cam
-    } else if (this.mesh.parent) {
+      if (cam && this.mesh.parent !== cam) {
+        this.mesh.parent = cam
+        this._camParented = true
+      }
+    } else if (this._camParented && this.mesh.parent) {
+      /*
+      Only clear a parent WE set.
+
+      This used to null the parent unconditionally whenever `cameraRelative` was
+      off — asserting ownership over a field it never took, on every render. Any
+      caller that parented the plane to something (a popup pinned to its opener,
+      a panel riding a vehicle) had it silently torn off again a frame later,
+      with no error and no clue. Exactly the shape of the pause bug that
+      re-attached cameras it had never detached: the guard has to record what we
+      actually did, not what state the object happens to be in.
+      */
       this.mesh.parent = null
+      this._camParented = false
     }
   }
 

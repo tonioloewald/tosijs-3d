@@ -740,3 +740,29 @@ each other with real depth, and they can be _somewhere else_ entirely.
    presentations may legitimately differ here, and if so, say so out loud
    (see "One UI, two presentations": divergence is a bug _until proven
    otherwise_, and this may be the proof).
+
+### Building it: three things the first cut got wrong (2026-08-18)
+
+1. **The element owns the transform.** Writing `mesh.position` did nothing —
+   `AbstractMesh.render()` rewrites it from the element's `x/y/z` every frame, so
+   the popups sat at the origin looking unplaced. Same family as `ry` being
+   degrees: when an element manages a node, the element's fields are the source
+   of truth and the node's are output. A drag behaviour hits this too, which is
+   why the drag syncs back into `x/y/z` instead of being left to move the mesh.
+
+2. **`b3d-svg-plane` was clearing a parent it never set.** Its `cameraRelative`
+   sync ran `mesh.parent = null` unconditionally whenever the flag was off,
+   which silently tore off any parent a caller had set, one frame later, with no
+   error. Fixed by recording whether WE parented it — the identical shape as the
+   pause bug that re-attached cameras it had never detached. **The rule: a guard
+   must record what you did, not observe what state the object is in.**
+
+3. **A free drag comes apart the moment you orbit.** Tonio: "if you rotate the
+   camera and drag a surface, horrible things happen." Constrained to the
+   panel's own normal (`dragPlaneNormal` + `useObjectOrientationForDragging`), so
+   the gesture means the same thing from every angle: you slide it around its
+   face, which is what a flat panel affords.
+
+Bring-to-front is a real depth change, applied **toward the camera** rather than
+along world −Z — "in front" is a viewer-relative claim, and a stack arranged on
+a world axis is only correct from one side of the room.

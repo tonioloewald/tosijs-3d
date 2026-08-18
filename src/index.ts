@@ -705,6 +705,8 @@ export {
 } from './b3d-launcher'
 export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher'
 export { createMakers } from './make-mesh'
+export { openPopup } from './popup-surface'
+export type { PopupSurface, PopupSurfaceOptions } from './popup-surface'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh'
 export { B3dTurret, b3dTurret } from './b3d-turret'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip'

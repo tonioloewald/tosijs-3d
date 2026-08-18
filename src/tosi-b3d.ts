@@ -291,6 +291,11 @@ import type { Medium } from './medium'
 import { SvgTexture } from './svg-texture'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
 import { createMakers, type Makers } from './make-mesh'
+import {
+  openPopup,
+  type PopupSurface,
+  type PopupSurfaceOptions,
+} from './popup-surface'
 import { cameraIsAttached, isOff } from './b3d-utils'
 import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
@@ -780,6 +785,17 @@ export class B3d extends Component {
    */
   get make(): Makers {
     return (this._makers ??= createMakers(this))
+  }
+
+  /**
+   * Open a popup as its own SURFACE — another plane, floating above the opener,
+   * rather than more rows crammed into the panel you already have.
+   *
+   * See `popup-surface`: it can be owned (travels and dies with its opener) or
+   * torn off (promoted to world space, preserving pose, and draggable).
+   */
+  openPopup(opts: PopupSurfaceOptions): PopupSurface {
+    return openPopup(this, opts)
   }
 
   declare minElevation: number
