@@ -163,7 +163,7 @@ tosi-b3d { width: 100%; height: 100%; }
 `spawnProjectile`/`spawnMissile` report impacts through `whenImpact`, which
 hands you an `Impact`:
 
-```js
+```javascript
 const shell = {
   whenImpact({ point, normal, mesh }) {
     if (normal == null) return // a fuse in open space — no surface

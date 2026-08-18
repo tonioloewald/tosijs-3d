@@ -126,3 +126,43 @@ describe('doc-comment examples', () => {
     expect(bad).toEqual([])
   })
 })
+
+/*
+AN EXECUTABLE FENCE MUST MOUNT SOMETHING.
+
+A ```js / ```tjs / ```ts fence in a doc comment is RUN by the doc system as a
+live example. A ```javascript fence is not — it renders as a syntax example.
+The two look nearly identical in source and behave completely differently on the
+page, and I got it wrong four times in two days: make-mesh's "here is the code
+you write WITHOUT this module", the launcher's whenImpact shape, the library's
+animation snippet, and popup-surface's usage sketch. Each one shipped as a
+broken live example that Tonio found by reading the page.
+
+The rule that separates them cleanly: a real example ends by handing something
+to `preview` — that is how it gets on the page at all. Measured when this test
+was written: 73 of 73 real examples reference `preview`, and every fence that
+did not was an illustrative snippet in the wrong fence. So the check is exact
+rather than heuristic, and it fails at the moment the mistake is made instead of
+on somebody's screen.
+*/
+describe('doc fences: executable vs illustrative', () => {
+  test('every ```js fence mounts via `preview` — otherwise it should be ```javascript', () => {
+    const offenders: string[] = []
+    const dir = new URL('.', import.meta.url).pathname
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.ts') || file.includes('.test.')) continue
+      const src = readFileSync(`${dir}${file}`, 'utf8')
+      for (const block of src.matchAll(/\/\*#([\s\S]*?)\*\//g)) {
+        // Only the EXECUTED languages — `javascript` is the illustrative fence.
+        for (const m of block[1].matchAll(/```(js|tjs|ts)\n([\s\S]*?)```/g)) {
+          if (!m[2].includes('preview')) {
+            offenders.push(
+              `${file}: a \`\`\`${m[1]} fence never touches \`preview\`, so it runs as a live example and mounts nothing — fence it as \`\`\`javascript if it is a syntax example`
+            )
+          }
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+})

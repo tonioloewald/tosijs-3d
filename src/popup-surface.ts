@@ -8,7 +8,7 @@ absolutely positioned inside the one window you were given, and overlapping them
 is a z-index problem. In a scene none of that scarcity is real: planes are cheap,
 depth is an actual axis, and a panel can simply be *somewhere else*.
 
-```js
+```javascript
 import { openPopup } from 'tosijs-3d'
 
 const pop = openPopup(el, { svg: mySvg, opener: panel.mesh, width: 1.1 })
@@ -61,11 +61,15 @@ import { svgElements, elements } from 'tosijs'
 const { svg, rect, text } = svgElements
 
 // A little SVG panel, used for both the opener and its popups.
+// No `rx` on the background: the MESH is rounded now, so rounding the svg too
+// would only round the texture inside an already-rounded silhouette — a darker
+// fringe, and fill nobody asked for. (Tonio: "we can slightly simplify our svg
+// outer rect as well for a few ns of savings lol")
 const card = (title, lines, w = 220, h = 130) =>
   svg(
     { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
-    rect({ x: 0, y: 0, width: w, height: h, rx: 10, fill: '#1b2430' }),
-    rect({ x: 0, y: 0, width: w, height: 26, rx: 10, fill: '#2c3b4e' }),
+    rect({ x: 0, y: 0, width: w, height: h, fill: '#1b2430' }),
+    rect({ x: 0, y: 0, width: w, height: 26, fill: '#2c3b4e' }),
     text({ x: 12, y: 18, fill: '#e6edf5', 'font-size': 13, 'font-family': 'sans-serif' }, title),
     ...lines.map((l, i) =>
       text({ x: 12, y: 48 + i * 18, fill: '#9fb0c3', 'font-size': 12, 'font-family': 'sans-serif' }, l)
@@ -223,6 +227,14 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     width,
     height: width * aspect,
     resolution,
+    // OPAQUE, with the corners cut out of the mesh. A transparent panel does
+    // not write depth, so Babylon re-sorts it per frame by distance and
+    // near-coplanar popups swap order as you orbit — the "z-chasing" that no
+    // amount of correct depth ordering fixed. Geometry for the silhouette,
+    // z-buffer for the ordering.
+    cornerRadius: Math.min(0.05, width * 0.06),
+    transparent: 'off',
+    // Self-lit: a UI panel should read the same under any scene lighting.
     materialChannel: 'emissive',
     // The plane routes its own picks to the SVG's `handlePointer`; a popup with
     // no interactive content still wants this so it doesn't swallow the ray.

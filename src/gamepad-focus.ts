@@ -9,7 +9,7 @@ Everything either side of it already existed: `box`/`surface` expose
 `XrGamepadSource` produce a `VirtualGamepad` each frame. Nothing polled one and called
 the other, so a gamepad could light up the on-screen pad and still not touch the UI.
 
-```js
+```javascript
 import { HardwareGamepadSource, ui } from 'tosijs-3d'
 const { gamepadFocus } = ui
 

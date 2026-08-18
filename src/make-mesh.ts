@@ -94,6 +94,7 @@ want to skip the work.
 
 import * as BABYLON from '@babylonjs/core'
 import { primitiveMaterial } from './b3d-primitives'
+import { roundedRectGeometry } from './rounded-rect'
 
 /** The bits of `<tosi-b3d>` a maker touches. Duck-typed so a test can stand one
  * up without an engine, the same way the rest of this codebase does. */
@@ -214,6 +215,36 @@ const INCOMPATIBLE: Record<string, string> = {
 const pascal = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /**
+ * Shapes that are OURS, not MeshBuilder's — checked before the forwarding
+ * lookup so `make.roundedPlane` works like any other name.
+ */
+const OWN_SHAPES: Record<
+  string,
+  (
+    name: string,
+    opts: Record<string, unknown>,
+    scene: BABYLON.Scene
+  ) => BABYLON.Mesh
+> = {
+  roundedPlane(name, opts, scene) {
+    const g = roundedRectGeometry({
+      width: (opts.width as number) ?? 1,
+      height: (opts.height as number) ?? 1,
+      radius: (opts.radius as number) ?? 0.06,
+      cornerSegments: opts.cornerSegments as number | undefined,
+    })
+    const mesh = new BABYLON.Mesh(name, scene)
+    const data = new BABYLON.VertexData()
+    data.positions = g.positions
+    data.indices = g.indices
+    data.uvs = g.uvs
+    data.normals = g.normals
+    data.applyToMesh(mesh)
+    return mesh
+  },
+}
+
+/**
  * Build the `make` facade for an owner.
  *
  * Weightless: one Proxy, and a maker closure only for the names actually used.
@@ -228,12 +259,14 @@ export function createMakers(owner: MakeOwner): Makers {
           return null
         }
       }
-      const build = (
-        BABYLON.MeshBuilder as unknown as Record<
-          string,
-          (n: string, o: object, s: BABYLON.Scene) => BABYLON.Mesh
-        >
-      )[`Create${pascal(prop)}`]
+      const build =
+        OWN_SHAPES[prop] ??
+        (
+          BABYLON.MeshBuilder as unknown as Record<
+            string,
+            (n: string, o: object, s: BABYLON.Scene) => BABYLON.Mesh
+          >
+        )[`Create${pascal(prop)}`]
       if (typeof build !== 'function') {
         return () => {
           console.error(
@@ -255,9 +288,10 @@ export function createMakers(owner: MakeOwner): Makers {
     },
     has: (_t, prop: string) =>
       typeof prop === 'string' &&
-      typeof (BABYLON.MeshBuilder as unknown as Record<string, unknown>)[
-        `Create${pascal(prop)}`
-      ] === 'function',
+      (OWN_SHAPES[prop] != null ||
+        typeof (BABYLON.MeshBuilder as unknown as Record<string, unknown>)[
+          `Create${pascal(prop)}`
+        ] === 'function'),
   })
 }
 
@@ -283,5 +317,13 @@ export interface Makers {
   icoSphere: Maker<{ radius?: number; subdivisions?: number }>
   torusKnot: Maker<{ radius?: number; tube?: number }>
   polyhedron: Maker<{ type?: number; size?: number }>
+  /** OURS, not MeshBuilder's: a rounded rectangle as GEOMETRY, so a UI panel can
+   * be opaque instead of buying its corners with alpha. See `rounded-rect`. */
+  roundedPlane: Maker<{
+    width?: number
+    height?: number
+    radius?: number
+    cornerSegments?: number
+  }>
   [shape: string]: Maker
 }

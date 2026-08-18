@@ -189,6 +189,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/rounded-rect/ — rounded-rect
+  generation for in-scene UI panels.
 - https://3d.tosijs.net/selection/ — selection
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal

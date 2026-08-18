@@ -10,7 +10,7 @@ A `Carve` is a signed distance to a carved surface, **positive INSIDE the air**
 — the opposite sign convention to density, because you author the hole, not the
 rock. `applyCarve` turns one into a `PatchField`:
 
-```js
+```javascript
 import { carve } from 'tosijs-3d'
 
 const cave = carve.applyCarve(

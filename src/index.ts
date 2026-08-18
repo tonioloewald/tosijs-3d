@@ -705,6 +705,8 @@ export {
 } from './b3d-launcher'
 export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher'
 export { createMakers } from './make-mesh'
+export { roundedRectGeometry, signedArea } from './rounded-rect'
+export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect'
 export { openPopup } from './popup-surface'
 export type { PopupSurface, PopupSurfaceOptions } from './popup-surface'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh'

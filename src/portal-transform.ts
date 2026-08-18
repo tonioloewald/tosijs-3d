@@ -10,7 +10,7 @@ Two portals, `a` and `b`, are two frames pinned in the world. Looking into `a`
 shows what a camera at the equivalent pose relative to `b` would see. That
 equivalence is the only hard part, and it is here.
 
-```js
+```javascript
 import { portalTransform } from 'tosijs-3d'
 
 // where to put the render-target camera to fill portal `a` with `b`'s view
