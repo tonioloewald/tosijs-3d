@@ -45,6 +45,18 @@ type B3dEl = {
  */
 export const TEST_PATTERN = '/tosi-test-pattern.svg'
 
+/**
+ * The MUTED variant, for ground planes.
+ *
+ * Same grid, desaturated. The vivid pattern is right when the texture is the
+ * SUBJECT (an svg-plane demo, a spinning prop) and wrong under one: a floor in
+ * full Warhol competes with whatever is standing on it, which is why several
+ * demos read as a colour chart with a small object in the middle. Tonio made
+ * this variant for exactly that — "more muted, which might make it better as
+ * the default ground material for test scenes".
+ */
+export const TEST_GRID = '/tosi-warhol-testgrid.svg'
+
 /** A sun that CASTS shadows — the "when in doubt, add a shadow light" default. Pass overrides through. */
 export function demoSun(opts: Record<string, unknown> = {}) {
   /*
@@ -81,7 +93,8 @@ export function patternGround(
     height: size,
     // `b3dGround` takes any texture URL; the SVG carries an intrinsic 512x512,
     // so it rasterizes without help.
-    texture: pattern ? TEST_PATTERN : 'checker',
+    // The muted grid, not the vivid one — a ground should sit UNDER the subject.
+    texture: pattern ? TEST_GRID : 'checker',
     textureTiles: pattern ? Math.max(1, Math.round(tiles / 4)) : tiles,
     color,
   })

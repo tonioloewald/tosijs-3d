@@ -94,7 +94,10 @@ import { tosi } from 'tosijs'
 // air at once, chasing the target together before it's destroyed.
 // Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
 const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
-const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
+// projRadius 0.35, not the 0.12 default: this camera sits 30 units back and the
+// missile flies 30 more, where a 0.12 sphere is about two pixels. "The launcher
+// works now but I can't see the missile."
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: '#ffe066' })
 
 // Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
 const state = { target: null }
@@ -103,6 +106,7 @@ const scene = b3d(
   {
     gamepad: 'right_trigger',
     scenePanelOpen: true,
+    glowLayerIntensity: 0.8, // so the round reads as hot at range
     scenePanel: () => [
       label3d({ text: 'Missile', bold: true }),
       slider3d({ label: 'missile speed', value: s.missileSpeed, min: 8, max: 40, step: 1 }),
