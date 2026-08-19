@@ -14,6 +14,37 @@ function makeCheckerTexture(name, scene, colorA = '#9a9a9a', colorB = '#767676')
     tex.update();
     return tex;
 }
+/**
+ * The material a primitive gets, from its attributes.
+ *
+ * `mirror` picks a polished PBR metal, everything else a StandardMaterial —
+ * and either way `glow` applies. This was written out twice, identically, in
+ * B3dSphere and B3dBox, which is how the sphere came to be missing `glow`
+ * about ninety seconds after the box got it: the same code in two places
+ * disagrees the first time you touch one of them.
+ *
+ * On glow: `emissiveColor` is what it means to a StandardMaterial — colour
+ * added regardless of the lighting, so the surface reads as lit from within
+ * rather than merely pale. The parent's `glowLayerIntensity` is what makes it
+ * BLEED past the silhouette; the two are separate, and a glow with no glow
+ * layer is a common "why isn't this glowing" (it is, it just isn't blooming).
+ */
+export const primitiveMaterial = (meshName, scene, attrs) => {
+    if (attrs.mirror) {
+        const material = new BABYLON.PBRMaterial(meshName + '-mat', scene);
+        material.albedoColor = BABYLON.Color3.FromHexString(attrs.color);
+        material.metallic = 1;
+        material.roughness = 0.05;
+        return material;
+    }
+    const material = new BABYLON.StandardMaterial(meshName + '-mat', scene);
+    material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
+    const g = Math.max(0, Math.min(1, attrs.glow ?? 0));
+    if (g > 0) {
+        material.emissiveColor = BABYLON.Color3.FromHexString(attrs.glowColor || attrs.color).scale(g);
+    }
+    return material;
+};
 export class B3dSphere extends AbstractMesh {
     static initAttributes = {
         ...AbstractMesh.initAttributes,
@@ -21,6 +52,16 @@ export class B3dSphere extends AbstractMesh {
         segments: 16,
         diameter: 1,
         color: '#ff0000',
+        /**
+         * Self-illumination, 0..1, as a fraction of `color` — `0.3` is a lit-from-
+         * within look, `1` is a lamp. Needs `glowLayerIntensity` on the parent
+         * `<tosi-b3d>` for the BLOOM; without it the surface still brightens, it
+         * just doesn't bleed past its edges.
+         *
+         * `glowColor` overrides the hue, so a dull red box can throw yellow light.
+         */
+        glow: 0,
+        glowColor: '',
         mirror: false,
     };
     sceneReady(owner, scene) {
@@ -31,18 +72,7 @@ export class B3dSphere extends AbstractMesh {
             segments: attrs.segments,
             diameter: attrs.diameter,
         }, scene);
-        if (attrs.mirror) {
-            const material = new BABYLON.PBRMaterial(meshName + '-mat', scene);
-            material.albedoColor = BABYLON.Color3.FromHexString(attrs.color);
-            material.metallic = 1;
-            material.roughness = 0.05;
-            this.mesh.material = material;
-        }
-        else {
-            const material = new BABYLON.StandardMaterial(meshName + '-mat', scene);
-            material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
-            this.mesh.material = material;
-        }
+        this.mesh.material = primitiveMaterial(meshName, scene, attrs);
         owner.register({ meshes: [this.mesh] });
     }
 }
@@ -57,6 +87,16 @@ export class B3dBox extends AbstractMesh {
         depth: 0,
         color: '#ff0000',
         mirror: false,
+        /**
+         * Self-illumination, 0..1, as a fraction of `color` — `0.3` is a lit-from-
+         * within look, `1` is a lamp. Needs `glowLayerIntensity` on the parent
+         * `<tosi-b3d>` for the BLOOM; without it the surface still brightens, it
+         * just doesn't bleed past its edges.
+         *
+         * `glowColor` overrides the hue, so a dull red box can throw yellow light.
+         */
+        glow: 0,
+        glowColor: '',
     };
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
@@ -68,18 +108,7 @@ export class B3dBox extends AbstractMesh {
             height: attrs.height || attrs.size,
             depth: attrs.depth || attrs.size,
         }, scene);
-        if (attrs.mirror) {
-            const material = new BABYLON.PBRMaterial(meshName + '-mat', scene);
-            material.albedoColor = BABYLON.Color3.FromHexString(attrs.color);
-            material.metallic = 1;
-            material.roughness = 0.05;
-            this.mesh.material = material;
-        }
-        else {
-            const material = new BABYLON.StandardMaterial(meshName + '-mat', scene);
-            material.diffuseColor = BABYLON.Color3.FromHexString(attrs.color);
-            this.mesh.material = material;
-        }
+        this.mesh.material = primitiveMaterial(meshName, scene, attrs);
         owner.register({ meshes: [this.mesh] });
     }
 }

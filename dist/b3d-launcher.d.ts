@@ -4,6 +4,29 @@ import type { B3d, RadarFaction } from './tosi-b3d';
 import { type BallisticParams, type Vec3 } from './ballistics';
 import { type Medium, type MediumCrossing } from './medium';
 import type { WarheadSpec } from './warhead';
+/**
+ * WHERE a round stopped, and what it stopped against.
+ *
+ * `point` alone is not enough to place anything on a surface: a scorch mark, a
+ * dent decal, a spark spray and a ricochet all need to know which way the
+ * surface FACES. `pickWithRay` already returns that — the launcher was calling
+ * `getNormal()`'s owner and then throwing it away, so every consumer that
+ * wanted an oriented effect had to re-cast the same ray to recover it
+ * (tosijs-3d#29).
+ *
+ * `normal` and `mesh` are NULLABLE and the null case is real, not defensive: a
+ * depth fuse detonates in open water, and a timed or proximity round detonates
+ * in mid-air. There is no surface, so there is no normal — and a caller that
+ * assumes one would orient its effect off stale or zeroed data. Branch on it.
+ */
+export interface Impact {
+    /** World-space point of detonation. */
+    point: BABYLON.Vector3;
+    /** World-space surface normal, or `null` if nothing was struck. */
+    normal: BABYLON.Vector3 | null;
+    /** The mesh struck, or `null` for a fuse that went off in open space. */
+    mesh: BABYLON.AbstractMesh | null;
+}
 export interface ProjectileOpts {
     origin: BABYLON.Vector3;
     /** Full launch velocity (direction × speed). */
@@ -18,7 +41,20 @@ export interface ProjectileOpts {
     maxLifetime?: number;
     /** Line-of-sight gating for the impact warhead (default true). */
     useLos?: boolean;
-    /** Called with the impact point when the shell detonates. */
+    /**
+     * Called when the shell detonates, with the point, the surface normal and the
+     * mesh struck (see `Impact` — normal/mesh are null for a fuse in open space).
+     */
+    whenImpact?: (impact: Impact) => void;
+    /**
+     * @deprecated Use `whenImpact`, which also carries the surface normal.
+     *
+     * Renamed off the `on*` prefix as well as widened: an `onFoo` key in an
+     * options bag that gets lifted onto an element becomes an addEventListener
+     * call and the callback silently never fires (see CLAUDE.md). This shape is
+     * headed for `<tosi-b3d-launcher>`, so the name was a trap waiting to be
+     * sprung. Still honoured, with a one-shot warning.
+     */
     onImpact?: (point: BABYLON.Vector3) => void;
     /**
      * Per-frame steering hook, called BEFORE the ballistic integration with the live
@@ -102,7 +138,12 @@ export interface MissileOpts {
     /** Cruise speed the motor accelerates to (and the seeker holds once reached). */
     speed: number;
     /** Max turn rate (rad/sec) — the missile's agility. */
+    /** Seeker agility in RADIANS/sec. Prefer `turnRateDeg` if you think in
+     * degrees — give either, not both. */
     turnRate: number;
+    /** Seeker agility in DEGREES/sec. Wins over `turnRate` when both are given,
+     * on the grounds that the more explicit unit is the more deliberate one. */
+    turnRateDeg?: number;
     /** Launch platform's world velocity — the missile INHERITS it so it doesn't drop
      * behind a fast mover, then thrusts up to `speed`. Default none. */
     inheritVelocity?: Vec3;
@@ -134,6 +175,8 @@ export interface MissileOpts {
     color?: string;
     maxLifetime?: number;
     useLos?: boolean;
+    whenImpact?: (impact: Impact) => void;
+    /** @deprecated Use `whenImpact` (see ProjectileOpts). */
     onImpact?: (point: BABYLON.Vector3) => void;
     /** Ignore the firing entity's own meshes on the collision ray (see ProjectileOpts). */
     ignore?: (m: BABYLON.AbstractMesh) => boolean;
@@ -192,6 +235,8 @@ export declare class B3dLauncher extends AbstractMesh {
     mass: number;
     missileSpeed: number;
     turnRate: number;
+    get turnRateDeg(): number;
+    set turnRateDeg(v: number);
     projRadius: number;
     projColor: string;
     maxLifetime: number;

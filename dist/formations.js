@@ -52,7 +52,7 @@ import { ring, vee, escorts } from 'tosijs-3d'
 for (const at of ring(4, 30, { y: 5 })) spawnEscort(at)
 ```
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "World Sim", "order": 900 }*/
 /**
  * `count` points evenly spaced on a circle of `radius`. The classic escort screen, a ring of
  * perimeter turrets, a patrol orbit.

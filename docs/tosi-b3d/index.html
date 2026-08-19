@@ -173,43 +173,71 @@ paused, put the headset on, press Continue&quot; is the only arrangement that
 reliably enters VR, and <code>enterXrOnResume</code> closes the loop by pausing when you
 take the headset off. Set it on the scene below and the button changes to
 &quot;Continue in VR&quot; on a device that has it.</p>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, label3d, button3d, select3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from &#39;tosijs-3d&#39;
+import { demoStage } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const demo = tosi({ pauseDemo: { state: &#39;paused since load&#39;, spin: &#39;medium&#39; } })
-const RATE = { slow: 0.15, medium: 0.6, fast: 2 }
+// rad/s. The old values topped out at ~10s per revolution, which does not read
+// as motion — it reads as a still image. `medium` is now a turn every ~3s.
+// DEGREES per second — `ry` is degrees (see AbstractMesh). `medium` is one
+// revolution every two seconds.
+const RATE = { slow: 60, medium: 180, fast: 420 }
 
-const cube = b3dBox({ meshName: &#39;spinner&#39;, size: 1.4, y: 0.9, color: &#39;#e06a3f&#39; })
+// `glow` is self-illumination as a fraction of `color`; `glowLayerIntensity` on
+// the scene is what makes it bloom past the edges. Both, or it just looks pale.
+const cube = b3dBox({ meshName: &#39;spinner&#39;, size: 1.4, y: 0.9, color: &#39;#a8382c&#39;, glow: 0.26 })
+const moon = b3dSphere({ meshName: &#39;moon&#39;, diameter: 0.5, y: 1.6, color: &#39;#f2d98a&#39;, glow: 0.7, glowColor: &#39;#ffd34d&#39; })
 
 const scene = b3d(
   {
     startPaused: true,
     // pauseWhenHidden is ON by default — switch to another tab and come back.
     frameRate: 60,
+    glowLayerIntensity: 0.5,
     // Replace the built-in rows. `resume` is handed in: whatever you build has
     // to be able to let the player back in.
     pausePanel: (host, resume) =&gt; [
       label3d({ text: &#39;PAUSED&#39;, bold: true }),
+      button3d({ label: &#39;Continue&#39;, onClick: resume }),
+    ],
+    // The SAME control, in the ⚙ panel — so you can change the speed while it
+    // is RUNNING and watch it change, instead of only while it is frozen. Both
+    // panels bind the one `demo.pauseDemo.spin` value, so they never disagree.
+    scenePanel: () =&gt; [
       select3d({
         label: &#39;spin&#39;,
         value: demo.pauseDemo.spin,
         options: [&#39;slow&#39;, &#39;medium&#39;, &#39;fast&#39;],
       }),
-      button3d({ label: &#39;Continue&#39;, onClick: resume }),
     ],
     update: (host) =&gt; {
       // Never runs while paused — that is the point. The cube freezing IS the
       // demo, so leave the readout to the events below.
-      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? 0.6
+      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? RATE.medium
       // `ry`, not `mesh.rotation.y` — AbstractMesh writes a rotationQuaternion
       // from rx/ry/rz every frame, so a euler write is silently overwritten.
       cube.ry += rate * host.frameDelta
     },
+    sceneCreated(el) {
+      // THE HONEST TEST. The cube stops because `update` isn&#39;t called — easy,
+      // and it would look identical if pause did nothing but skip that one
+      // callback. The moon flies on the RENDER OBSERVABLE off `sceneDelta`,
+      // which is where a paused scene used to keep right on simulating: an
+      // adopter measured 66m of travel during a 3-second pause. If pause is
+      // real, BOTH freeze.
+      let t = 0
+      el.scene.registerBeforeRender(() =&gt; {
+        t += sceneDelta(el.scene)
+        moon.x = Math.cos(t) * 3.2
+        moon.y = 1.6 + Math.sin(t * 2) * 0.5
+        moon.z = Math.sin(t) * 3.2
+      })
+    },
   },
-  b3dSun({ intensity: 0.9 }),
-  b3dSkybox({ timeOfDay: 11 }),
-  b3dGround({ meshName: &#39;floor&#39;, width: 40, height: 40, color: &#39;#5d7a5a&#39; }),
-  cube
+  ...demoStage({ pattern: true, size: 40, timeOfDay: 11 }),
+  cube,
+  moon
 )
 
 // Both events carry what a game needs to react: `reason` distinguishes &quot;the
@@ -318,18 +346,19 @@ document.body.append(
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><details open><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link current" href="../tosi-b3d/" aria-current="page">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
       <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
@@ -354,8 +383,7 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -364,29 +392,30 @@ document.body.append(
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
       <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
       <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
       <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
@@ -394,8 +423,8 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
       <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
     </ul>
@@ -412,33 +441,35 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
@@ -450,15 +481,15 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
     </ul>
     </details></li>
   </ul>

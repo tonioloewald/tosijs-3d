@@ -137,43 +137,71 @@ take the headset off. Set it on the scene below and the button changes to
 "Continue in VR" on a device that has it.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, label3d, button3d, select3d } from 'tosijs-3d'
+import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
+import { demoStage } from 'demo-utils'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
-const RATE = { slow: 0.15, medium: 0.6, fast: 2 }
+// rad/s. The old values topped out at ~10s per revolution, which does not read
+// as motion — it reads as a still image. `medium` is now a turn every ~3s.
+// DEGREES per second — `ry` is degrees (see AbstractMesh). `medium` is one
+// revolution every two seconds.
+const RATE = { slow: 60, medium: 180, fast: 420 }
 
-const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#e06a3f' })
+// `glow` is self-illumination as a fraction of `color`; `glowLayerIntensity` on
+// the scene is what makes it bloom past the edges. Both, or it just looks pale.
+const cube = b3dBox({ meshName: 'spinner', size: 1.4, y: 0.9, color: '#a8382c', glow: 0.26 })
+const moon = b3dSphere({ meshName: 'moon', diameter: 0.5, y: 1.6, color: '#f2d98a', glow: 0.7, glowColor: '#ffd34d' })
 
 const scene = b3d(
   {
     startPaused: true,
     // pauseWhenHidden is ON by default — switch to another tab and come back.
     frameRate: 60,
+    glowLayerIntensity: 0.5,
     // Replace the built-in rows. `resume` is handed in: whatever you build has
     // to be able to let the player back in.
     pausePanel: (host, resume) => [
       label3d({ text: 'PAUSED', bold: true }),
+      button3d({ label: 'Continue', onClick: resume }),
+    ],
+    // The SAME control, in the ⚙ panel — so you can change the speed while it
+    // is RUNNING and watch it change, instead of only while it is frozen. Both
+    // panels bind the one `demo.pauseDemo.spin` value, so they never disagree.
+    scenePanel: () => [
       select3d({
         label: 'spin',
         value: demo.pauseDemo.spin,
         options: ['slow', 'medium', 'fast'],
       }),
-      button3d({ label: 'Continue', onClick: resume }),
     ],
     update: (host) => {
       // Never runs while paused — that is the point. The cube freezing IS the
       // demo, so leave the readout to the events below.
-      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? 0.6
+      const rate = RATE[demo.pauseDemo.spin.valueOf()] ?? RATE.medium
       // `ry`, not `mesh.rotation.y` — AbstractMesh writes a rotationQuaternion
       // from rx/ry/rz every frame, so a euler write is silently overwritten.
       cube.ry += rate * host.frameDelta
     },
+    sceneCreated(el) {
+      // THE HONEST TEST. The cube stops because `update` isn't called — easy,
+      // and it would look identical if pause did nothing but skip that one
+      // callback. The moon flies on the RENDER OBSERVABLE off `sceneDelta`,
+      // which is where a paused scene used to keep right on simulating: an
+      // adopter measured 66m of travel during a 3-second pause. If pause is
+      // real, BOTH freeze.
+      let t = 0
+      el.scene.registerBeforeRender(() => {
+        t += sceneDelta(el.scene)
+        moon.x = Math.cos(t) * 3.2
+        moon.y = 1.6 + Math.sin(t * 2) * 0.5
+        moon.z = Math.sin(t) * 3.2
+      })
+    },
   },
-  b3dSun({ intensity: 0.9 }),
-  b3dSkybox({ timeOfDay: 11 }),
-  b3dGround({ meshName: 'floor', width: 40, height: 40, color: '#5d7a5a' }),
-  cube
+  ...demoStage({ pattern: true, size: 40, timeOfDay: 11 }),
+  cube,
+  moon
 )
 
 // Both events carry what a game needs to react: `reason` distinguishes "the
@@ -242,7 +270,7 @@ document.body.append(
 | `minElevation` / `maxElevation` | `5` / `70` | Default orbit-camera elevation limits (degrees above the horizon) |
 | `minDistance` / `maxDistance` | `2` / `50` | Default orbit-camera zoom limits |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 100 }*/
 import { Component, elements, updates } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
@@ -253,7 +281,9 @@ import { panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d
 import { panelFitWidth } from './widgets3d-layout';
 import { SvgTexture } from './svg-texture';
 import { b3dSvgPlane } from './b3d-svg-plane';
-import { isOff } from './b3d-utils';
+import { createMakers } from './make-mesh';
+import { openPopup, } from './popup-surface';
+import { cameraIsAttached, isOff } from './b3d-utils';
 import { svgIcons } from './svg-icons';
 import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
@@ -494,12 +524,20 @@ export class B3d extends Component {
         ':host .scene-panel-overlay[hidden]': {
             display: 'none',
         },
-        // Close (×) button pinned to the panel's top-right corner.
-        ':host .scene-panel-close': {
+        /*
+        The panel's HEADER: a right-aligned row of equal, close-sized buttons —
+        the icon-bar toggles, then close. Everything that is CHROME lives here, so
+        the panel body is entirely the author's controls.
+        */
+        ':host .scene-panel-head': {
             position: 'absolute',
             top: '4px',
             right: '4px',
             zIndex: '1',
+            display: 'flex',
+            gap: '4px',
+        },
+        ':host .scene-panel-btn': {
             width: '26px',
             height: '26px',
             border: 'none',
@@ -513,9 +551,25 @@ export class B3d extends Component {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '0',
+            flex: '0 0 auto',
         },
-        ':host .scene-panel-close:hover': {
+        ':host .scene-panel-btn svg': {
+            width: '15px',
+            height: '15px',
+            fill: 'none',
+            stroke: 'currentColor',
+            strokeWidth: '2',
+            strokeLinecap: 'round',
+            strokeLinejoin: 'round',
+        },
+        ':host .scene-panel-btn:hover': {
             background: 'rgba(0,0,0,0.85)',
+        },
+        // A toggle that is ON reads as filled rather than as merely hovered —
+        // hover and active must not compete for the same intensity.
+        ':host .scene-panel-btn.active': {
+            background: 'var(--xr-color, #4a9eff)',
+            color: '#fff',
         },
     };
     content = [
@@ -572,7 +626,49 @@ export class B3d extends Component {
     /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
      * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
     xrFrames = null;
+    /*
+    THE ENGINE, REACHABLE FROM THE FRAMEWORK.
+  
+    Babylon is a PEER dependency: the consumer supplies it, and a second copy in
+    the tree is a real bug (two `Vector3` classes that fail `instanceof` against
+    each other, two engine registries). So the safest way to get a `MeshBuilder`
+    is to ask the library that is already holding one, rather than to import a
+    second specifier and hope the bundler dedupes it.
+  
+    Static because it is a property of the FRAMEWORK, not of any one scene —
+    `B3d.BABYLON` works before a scene exists. The instance field stays as a
+    convenience for the common case, where you have an `el` in hand.
+  
+    It is also re-exported from the barrel (`import { BABYLON } from 'tosijs-3d'`),
+    which is the form to reach for in a doc example. Before this, examples used a
+    bare `BABYLON` global that DOES NOT EXIST — `typeof BABYLON` is `undefined` on
+    the page — so every one of them was one line from a ReferenceError.
+    */
+    static BABYLON = BABYLON;
     BABYLON = BABYLON;
+    _makers;
+    /**
+     * Babylon primitives with the easy-to-forget parts done: material from
+     * `color`/`glow`, `register()` so the sun and reflections see it, and
+     * `computeWorldMatrix` so a ray this frame doesn't find it at the origin.
+     *
+     * `el.make.box({ y: 1, color: '#c33' })`. Same shape as a library's
+     * `lib.make.scout({ y: 1 })` — one vocabulary whether you're making a
+     * primitive or a model. See `make-mesh`.
+     */
+    get make() {
+        return (this._makers ??= createMakers(this));
+    }
+    /**
+     * Open a popup as its own SURFACE — another plane, floating above the opener,
+     * rather than more rows crammed into the panel you already have.
+     *
+     * See `popup-surface`: it can be owned (travels and dies with its opener) or
+     * torn off (promoted to world space, preserving pose, and draggable).
+     */
+    openPopup(opts) {
+        return openPopup(this, opts);
+    }
     // ─── Pause ────────────────────────────────────────────────────────────────
     _paused = false;
     _pausePanel = null;
@@ -647,10 +743,28 @@ export class B3d extends Component {
         Freezing the camera is also just what "paused" means. Restored on resume,
         and only if we were the ones who detached it.
         */
-        if (this.camera != null) {
-            this.camera.detachControl();
-            this._cameraWasAttached = true;
-        }
+        /*
+        Record whether the camera was REALLY attached, not merely that one exists.
+    
+        This flag used to be set to `true` whenever `this.camera != null`, which
+        made the comment above it vacuous — it claimed "only if we were the ones who
+        detached it" and then recorded nothing of the sort. Every gameplay camera in
+        this library is installed unattached (`setActiveCamera(cam, {attach: false})`
+        in b3d-biped and b3d-input-focus, and the death rig's orbit camera), so
+        resuming HANDED THE CANVAS to a follow camera that was deliberately never
+        given it: Babylon's FollowCamera wires arrows/wheel/drag by default, and the
+        arrows are also KeyboardGamepad's right stick, so the player's own look keys
+        would drive Babylon's rig at the same time. Reachable with no opt-in —
+        `pauseWhenHidden` defaults on, so tab away, tab back, Continue, drag.
+    
+        Asking Babylon is better than remembering what we did, because several
+        components attach or detach the camera directly without going through
+        `setActiveCamera` (b3d-galaxy, b3d-svg-plane, the XR restore) and a
+        remembered flag goes stale behind them.
+        */
+        this._cameraWasAttached = cameraIsAttached(this.camera);
+        if (this._cameraWasAttached)
+            this.camera?.detachControl();
         const rows = this.pausePanel(this, () => this.resume()) ?? [
             label3d({ text: 'Paused', bold: true }),
             button3d({
@@ -1057,11 +1171,23 @@ export class B3d extends Component {
     }
     _update = () => {
         if (this._paused) {
-            // Keep RENDERING (the panel must be visible and pickable) but advance
-            // nothing. lastRender tracks so the first live frame isn't the whole pause.
+            /*
+            Keep RENDERING — the panel has to be visible and pickable — but stop the
+            CLOCK. Publishing a frame delta of zero is what actually pauses the world:
+            everything that simulates does so on the render observable via
+            `sceneDelta`, so gating only this method left projectiles flying, water
+            moving and aircraft coasting at cruise speed with the stick disconnected.
+            Measured at 66 m of travel over a 3-second pause (#30).
+            */
             this.lastRender = Date.now();
-            if (this.scene?.activeCamera != null)
-                this.scene.render();
+            if (this.scene != null) {
+                if (this.scene.metadata == null)
+                    this.scene.metadata = {};
+                this.scene.metadata.b3dFrameDelta = 0;
+                this.frameDelta = 0;
+                if (this.scene.activeCamera != null)
+                    this.scene.render();
+            }
             return;
         }
         if (this.scene != null && !this.hidden) {
@@ -1730,41 +1856,58 @@ export class B3d extends Component {
     // The bar comes FIRST: a demo's own controls shouldn't be buried under diagnostics, but
     // the diagnostics must be one tap away (there's no console in VR). Collapsed by default,
     // so the panel opens clean; an expanded tool's status still sits ABOVE the author rows.
+    /**
+     * The icon-bar items — diagnostics first, then gadgets.
+     *
+     * ONE list, two presentations, which is the panel's standing contract. Flat,
+     * these render as small round buttons in the panel's header beside the close
+     * button; in XR they render as an `iconBar3d` row, because a headset has no
+     * DOM header to put them in. Same items, same handlers, different layout —
+     * that is presentation, not divergence. What must never happen is the LIST
+     * differing between the two.
+     *
+     * They moved out of the flat panel BODY because a full-width row per toggle
+     * is a lot of panel for a thing you press once: "the graph button in the
+     * standard panel is a waste of space" (Tonio).
+     */
+    _barItems() {
+        return [
+            ...this._debugTools().map((t) => ({
+                icon: t.icon,
+                title: t.name,
+                active: this._debugOpen.has(t.id),
+                onClick: () => {
+                    if (this._debugOpen.has(t.id))
+                        this._debugOpen.delete(t.id);
+                    else
+                        this._debugOpen.add(t.id);
+                    this._repaintPanels();
+                },
+            })),
+            // Gadgets last: diagnostics are the bar's main job, and a toggle moving
+            // position as tools appear would be worse than a fixed tail.
+            ...this._panelGadgets().map((g) => ({
+                icon: g.icon,
+                title: g.name,
+                active: g.active,
+                onClick: g.onClick,
+            })),
+        ];
+    }
     _panelWidgets(xr = false) {
         const rows = this.scenePanel(this);
         const tools = this._debugTools();
-        const gadgets = this._panelGadgets();
-        if (tools.length === 0 && gadgets.length === 0) {
+        const items = this._barItems();
+        if (items.length === 0) {
             // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
             this._liveDebug[xr ? 'xr' : 'flat'] = [];
             return rows;
         }
-        const out = [
-            iconBar3d({
-                items: [
-                    ...tools.map((t) => ({
-                        icon: t.icon,
-                        title: t.name,
-                        active: this._debugOpen.has(t.id),
-                        onClick: () => {
-                            if (this._debugOpen.has(t.id))
-                                this._debugOpen.delete(t.id);
-                            else
-                                this._debugOpen.add(t.id);
-                            this._repaintPanels();
-                        },
-                    })),
-                    // Gadgets last: diagnostics are the bar's main job, and a toggle
-                    // moving position as tools appear would be worse than a fixed tail.
-                    ...gadgets.map((g) => ({
-                        icon: g.icon,
-                        title: g.name,
-                        active: g.active,
-                        onClick: g.onClick,
-                    })),
-                ],
-            }),
-        ];
+        // NEITHER presentation gets its bar from here any more: flat renders the
+        // items as header buttons, XR builds an iconBar3d that also carries Exit VR
+        // and Re-seat. This returns the readouts and the author's rows only, so
+        // there is exactly one place each bar is assembled.
+        const out = [];
         // Live text blocks for the OPEN sources are collected here and rewritten in place by
         // `_startLiveDebug` (a readout that only refreshes on reopen is useless — you'd switch
         // a profiler on and then watch frozen zeros). Collapsed tools contribute nothing.
@@ -2570,19 +2713,35 @@ export class B3d extends Component {
                 this._openScenePanel();
         }
     }
-    /** Open the flat scene panel, with a × close button pinned top-right. */
+    /**
+     * Open the flat scene panel: a header row of small round buttons pinned
+     * top-right — the icon-bar items, then close — over the panel body.
+     *
+     * The toggles used to be a full-width `iconBar3d` row inside the body, which
+     * spent a whole row of a small panel on things you press once. They are the
+     * same items either way (`_barItems`); only the flat LAYOUT changed.
+     */
     _openScenePanel() {
         const host = this.parts.scenePanelHost;
-        const close = button({ class: 'scene-panel-close', type: 'button', title: 'Close' }, 
-        // In a session the flat overlay isn't visible anyway, but keep it playful:
-        // a bug-eyed face for VR, the close icon on flat screens (currentColor
-        // resolves in live DOM — this button is flat-only in practice).
-        this.xrActive ? '😳' : svgIcons.close());
-        close.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._closeScenePanel();
-        });
-        host.replaceChildren(close, this._makePanel(this._panelWidgets()));
+        const mk = (title, icon, onClick, active = false) => {
+            const b = button({
+                class: active ? 'scene-panel-btn active' : 'scene-panel-btn',
+                type: 'button',
+                title,
+            }, icon);
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onClick();
+            });
+            return b;
+        };
+        const buttons = this._barItems().map((it) => mk(it.title, svgIcons[it.icon]?.() ??
+            svgIcons.bug(), it.onClick, it.active));
+        buttons.push(mk('Close', 
+        // In a session the flat overlay isn't visible anyway, but keep it
+        // playful: a bug-eyed face for VR, the close icon on flat screens.
+        this.xrActive ? '😳' : svgIcons.close(), () => this._closeScenePanel()));
+        host.replaceChildren(div({ class: 'scene-panel-head' }, ...buttons), this._makePanel(this._panelWidgets()));
         host.removeAttribute('hidden');
     }
     _closeScenePanel() {
@@ -2629,18 +2788,32 @@ export class B3d extends Component {
         const scene = this.scene;
         // In-scene panel always carries an Exit-VR button (you can't reach a DOM
         // button inside a headset), plus any scenePanel widgets.
+        // Exit VR and Re-seat ride in the ICON BAR rather than taking a full-width
+        // row each. Two labelled buttons cost a third of a small panel for two
+        // things you press once a session — and the panel's job in a headset is the
+        // author's controls, not its own chrome. They are appended at the MOUNT
+        // SITE (never branched into the shared widget list) because they are
+        // genuinely XR-only: Re-seat is meaningless flat, and flat already has an
+        // Exit VR in the toolbar lozenge.
         const rows = [
-            button3d({
-                label: 'Exit VR',
-                onClick: () => {
-                    void this.xrHelper?.baseExperience?.exitXRAsync();
-                },
-            }),
-            // Re-seat is XR-only because it's meaningless flat — but it must be REACHABLE from
-            // inside the headset, which is the whole reason the panel exists there.
-            button3d({
-                label: 'Re-seat (look forward first)',
-                onClick: () => this.recenterXr(),
+            iconBar3d({
+                items: [
+                    {
+                        icon: 'logOut',
+                        title: 'Exit VR',
+                        active: false,
+                        onClick: () => {
+                            void this.xrHelper?.baseExperience?.exitXRAsync();
+                        },
+                    },
+                    {
+                        icon: 'compass',
+                        title: 'Re-seat (look forward first)',
+                        active: false,
+                        onClick: () => this.recenterXr(),
+                    },
+                    ...this._barItems(),
+                ],
             }),
             ...this._panelWidgets(true),
         ];

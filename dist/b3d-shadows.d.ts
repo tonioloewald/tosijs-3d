@@ -5,6 +5,24 @@ export declare class B3dSun extends B3dChild {
     static initAttributes: {
         shadowMaxZ: number;
         shadowDarkness: number;
+        /**
+         * Offset the shadow lookup ALONG THE SURFACE NORMAL, in world units.
+         *
+         * This is the acne knob. At Babylon's default of 0 a large ground plane
+         * self-shadows into a dense stipple that covers the whole surface — measured
+         * on the b3d pause demo, where it darkened roughly half the ground and read
+         * as a texture artifact rather than as a shadow bug. 0.02 clears the near
+         * field but leaves visible stipple mid-distance; 0.05 is clean throughout,
+         * with the caster's contact shadow still attached.
+         *
+         * Lower it if shadows detach from small objects ("peter-panning") — that is
+         * the trade this parameter makes, and the reason it is exposed rather than
+         * simply raised.
+         */
+        shadowNormalBias: number;
+        /** Depth-direction bias. Babylon's CSM default; normalBias is the one to
+         * reach for first, because depth bias peter-pans much sooner. */
+        shadowBias: number;
         shadowTextureSize: number;
         activeDistance: number;
         numCascades: number;

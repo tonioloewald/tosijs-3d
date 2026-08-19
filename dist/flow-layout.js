@@ -47,7 +47,7 @@ const { boxes, height } = flowLayout(
 // boxes[i] = { x, y, width, height } for each item; `height` is the total.
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 /**
  * Lay `items` out in flow order within `width`. Blocks break the line and fill
  * the width; inline items pack left-to-right and wrap. Returns a box per item

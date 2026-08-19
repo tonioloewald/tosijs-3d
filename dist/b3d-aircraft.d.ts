@@ -50,6 +50,21 @@ export declare class B3dAircraft extends B3dControllable {
         /** How fast the view springs back to centre when the stick is released
          * (fraction of the remaining offset per second). */
         lookReturn: number;
+        /**
+         * How much of the airframe's PITCH the chase camera inherits. `0` (the
+         * default) is the level pivot: the plane pitches within a steady frame.
+         * `1` is as if the camera were parented to the airframe — climb and the
+         * view swings up with the nose.
+         */
+        chasePitchFollow: number;
+        /**
+         * How fast the inherited pitch catches up (per second). This is what makes
+         * `chasePitchFollow` viable at all: raw parenting hands the camera the
+         * airframe's attitude JITTER, which a ~5m lever arm amplifies into visible
+         * shake — the reason the pivot was flattened in the first place. Low-passing
+         * it keeps the intent (a climb aims the view up) and drops the noise.
+         */
+        chasePitchLag: number;
         hoverCeiling: number;
         groundY: number;
         crashSpeed: number;
@@ -118,6 +133,9 @@ export declare class B3dAircraft extends B3dControllable {
     private meshNode;
     private _chasePivot;
     private _chaseLookPitch;
+    /** Damped airframe pitch the chase has actually inherited (see
+     * `chasePitchFollow`) — smoothed, never the raw attitude. */
+    private _chaseFollowPitch;
     /** Where the LOOK stick has swung the view (radians), and how fast it
      * springs back when released. */
     private _lookYaw;

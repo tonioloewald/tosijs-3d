@@ -4,6 +4,8 @@ import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
 import { type Widget3d } from './widgets3d';
 import type { Medium } from './medium';
+import { type Makers } from './make-mesh';
+import { type PopupSurface, type PopupSurfaceOptions } from './popup-surface';
 import { CombatWorld } from './destroyable';
 import { XrFrames } from './xr-frames';
 import { type FramePanelSpec } from './frame-panel';
@@ -207,11 +209,15 @@ export declare class B3d extends Component {
         ':host .scene-panel-overlay[hidden]': {
             display: string;
         };
-        ':host .scene-panel-close': {
+        ':host .scene-panel-head': {
             position: string;
             top: string;
             right: string;
             zIndex: string;
+            display: string;
+            gap: string;
+        };
+        ':host .scene-panel-btn': {
             width: string;
             height: string;
             border: string;
@@ -225,9 +231,23 @@ export declare class B3d extends Component {
             alignItems: string;
             justifyContent: string;
             padding: string;
+            flex: string;
         };
-        ':host .scene-panel-close:hover': {
+        ':host .scene-panel-btn svg': {
+            width: string;
+            height: string;
+            fill: string;
+            stroke: string;
+            strokeWidth: string;
+            strokeLinecap: string;
+            strokeLinejoin: string;
+        };
+        ':host .scene-panel-btn:hover': {
             background: string;
+        };
+        ':host .scene-panel-btn.active': {
+            background: string;
+            color: string;
         };
     };
     content: (HTMLCanvasElement | HTMLDivElement | HTMLSlotElement)[];
@@ -248,7 +268,27 @@ export declare class B3d extends Component {
     /** Reference frames (world/rig/body/neck/face) for spatial UI, live only while
      * an XR session is running. Parent in-scene UI to `xrFrames.body` etc. */
     xrFrames: XrFrames | null;
+    static BABYLON: typeof BABYLON;
     BABYLON: typeof BABYLON;
+    private _makers?;
+    /**
+     * Babylon primitives with the easy-to-forget parts done: material from
+     * `color`/`glow`, `register()` so the sun and reflections see it, and
+     * `computeWorldMatrix` so a ray this frame doesn't find it at the origin.
+     *
+     * `el.make.box({ y: 1, color: '#c33' })`. Same shape as a library's
+     * `lib.make.scout({ y: 1 })` — one vocabulary whether you're making a
+     * primitive or a model. See `make-mesh`.
+     */
+    get make(): Makers;
+    /**
+     * Open a popup as its own SURFACE — another plane, floating above the opener,
+     * rather than more rows crammed into the panel you already have.
+     *
+     * See `popup-surface`: it can be owned (travels and dies with its opener) or
+     * torn off (promoted to world space, preserving pose, and draggable).
+     */
+    openPopup(opts: PopupSurfaceOptions): PopupSurface;
     minElevation: number;
     maxElevation: number;
     minDistance: number;
@@ -598,6 +638,21 @@ export declare class B3d extends Component {
     private _debugTools;
     private _startLiveDebug;
     private _perfReadoutRows;
+    /**
+     * The icon-bar items — diagnostics first, then gadgets.
+     *
+     * ONE list, two presentations, which is the panel's standing contract. Flat,
+     * these render as small round buttons in the panel's header beside the close
+     * button; in XR they render as an `iconBar3d` row, because a headset has no
+     * DOM header to put them in. Same items, same handlers, different layout —
+     * that is presentation, not divergence. What must never happen is the LIST
+     * differing between the two.
+     *
+     * They moved out of the flat panel BODY because a full-width row per toggle
+     * is a lot of panel for a thing you press once: "the graph button in the
+     * standard panel is a waste of space" (Tonio).
+     */
+    private _barItems;
     private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;
@@ -607,7 +662,14 @@ export declare class B3d extends Component {
     private _setupNameplates;
     private _scanNameplates;
     private _setupScenePanel;
-    /** Open the flat scene panel, with a × close button pinned top-right. */
+    /**
+     * Open the flat scene panel: a header row of small round buttons pinned
+     * top-right — the icon-bar items, then close — over the panel body.
+     *
+     * The toggles used to be a full-width `iconBar3d` row inside the body, which
+     * spent a whole row of a small panel on things you press once. They are the
+     * same items either way (`_barItems`); only the flat LAYOUT changed.
+     */
     private _openScenePanel;
     private _closeScenePanel;
     /** Rebuild the flat scene panel from the current rows, if it's open.

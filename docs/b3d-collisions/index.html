@@ -47,6 +47,138 @@
   <article class="doc-content">
 <h1>b3d-collisions</h1>
 <p>Opt-in collision detection via mesh naming conventions authored in Blender.</p>
+<h2>Demo — where did it hit, and which way is the surface facing?</h2>
+<p>Hail falls on the scout. Each impact is found by a SWEPT RAY (the segment the
+stone travelled this frame, not its position), and the marker shows both things
+you actually need: the <strong>point</strong>, and a disc lying flat on the surface with a
+stalk along the <strong>normal</strong>. Watch the discs tilt to follow the fuselage, and
+lie flat the moment a stone misses and lands on the ground.</p>
+<p>Misses count too — a stone that hits nothing still hits the WORLD, and a demo
+that only reports the interesting case quietly teaches you that misses are free.
+Ground hits are the same marker in a cooler colour and a shorter life, because
+they are the common case and at equal weight they drown out the ones you care
+about.</p>
+<p>The sweep is the part worth copying. Testing &quot;is the stone inside the rock now?&quot;
+misses anything moving faster than its own radius per frame — at 60fps a stone
+falling at 12 m/s moves 0.2m, so a thin surface is a coin toss. Casting the
+segment cannot tunnel.</p>
+<pre><code class="language-js">import { b3d, b3dLibrary, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam, impactMarker } from &#39;demo-utils&#39;
+import { tosi } from &#39;tosijs&#39;
+
+const { hail } = tosi({ hail: { rate: 8, hits: 0, ground: 0 } })
+const lib = b3dLibrary({ url: &#39;/test-3.glb&#39;, type: &#39;vehicles&#39; })
+
+const readout = document.createElement(&#39;div&#39;)
+readout.style.cssText = &#39;font: 13px ui-monospace, monospace; padding: 6px&#39;
+const paint = () =&gt; {
+  readout.textContent = `scout: ${hail.hits.valueOf()}   ground: ${hail.ground.valueOf()}`
+}
+hail.hits.observe(paint)
+hail.ground.observe(paint)
+paint()
+
+const scene = b3d(
+  {
+    // Bloom for the stones&#39; emissive; the impact markers pick it up too.
+    glowLayerIntensity: 0.6,
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;hail&#39; }),
+      slider3d({ label: &#39;stones&#39;, value: hail.rate, min: 1, max: 30, step: 1 }),
+    ],
+    sceneCreated(el, BABYLON) {
+      orbitCam(el, { radius: 7, beta: Math.PI / 3.1, target: [0, 1.4, 0] })
+
+      const G = 9.8
+      const stones = []
+      // Orange with a partial glow — hot enough to read against a busy ground
+      // without going full emissive, which would flatten them into discs.
+
+      // Everything the hail can land on. The scout is a HIERARCHY, so the
+      // target set is its child meshes — picking against the root would hit
+      // nothing (a TransformNode has no geometry). The ground goes in the same
+      // set: a stone that misses is still a collision, it just isn&#39;t a hit ON
+      // anything, and a demo that only reports the interesting case teaches you
+      // that misses are free.
+      const targets = new Set()
+      let ground = null
+      lib.ready.then(() =&gt; {
+        // `lib.make.&lt;name&gt;()` — the library&#39;s contents as callable names.
+        // ry is DEGREES (it was radians before 0.7.0 — this line said 140 and
+        // meant it as degrees, which is exactly how that trap springs).
+        const scout = lib.make.scout({ y: 0.9, ry: 140 })
+        if (scout == null) return
+        scout.scaling.setAll(3.4) // fill the frame; it is the subject here
+        scout.getChildMeshes().forEach((m) =&gt; targets.add(m))
+        el.register({ meshes: scout.getChildMeshes() })
+        // NOT looping the cockpit animation: a hatch cycling open and shut
+        // forever pulls the eye off the impacts, which are the point.
+      })
+      // The ground arrives with the rest of the scene, not with the library.
+      el.scene.onNewMeshAddedObservable.add((m) =&gt; {
+        if (m.name === &#39;ground&#39;) ground = m
+      })
+      ground = el.scene.getMeshByName(&#39;ground&#39;)
+
+      const reset = (s) =&gt; {
+        // Spread just wider than the scout: most stones should find it, or the
+        // demo is mostly a ground-impact demo with a model in the background.
+        s.mesh.position.set((Math.random() - 0.5) * 4.5, 6 + Math.random() * 3, (Math.random() - 0.5) * 4.5)
+        s.vel = -1 - Math.random() * 2
+      }
+      const spawn = () =&gt; {
+        // `el.make` gives it a material, registers it for shadows, and computes
+        // its world matrix — the three lines this loop used to carry.
+        const mesh = el.make.sphere({
+          name: &#39;stone&#39;, diameter: 0.16, segments: 6,
+          color: &#39;#ff6b1a&#39;, glow: 0.45,
+        })
+        const s = { mesh, vel: 0 }
+        reset(s)
+        stones.push(s)
+      }
+
+      const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 1)
+      const canHit = (m) =&gt; targets.has(m) || m === ground
+      el.scene.registerBeforeRender(() =&gt; {
+        const dt = el.frameDelta
+        while (stones.length &lt; hail.rate.valueOf()) spawn()
+        while (stones.length &gt; hail.rate.valueOf()) stones.pop().mesh.dispose()
+        for (const s of stones) {
+          const from = s.mesh.position.clone()
+          s.vel -= G * dt
+          s.mesh.position.y += s.vel * dt
+          const drop = from.y - s.mesh.position.y
+          if (drop &lt;= 0) continue
+          // SWEEP the segment just travelled, not the new position.
+          ray.origin = from
+          ray.direction = BABYLON.Vector3.Down()
+          ray.length = drop + 0.08
+          const hit = el.scene.pickWithRay(ray, canHit)
+          if (hit?.hit &amp;&amp; hit.pickedPoint) {
+            const onGround = hit.pickedMesh === ground
+            impactMarker(el, hit.pickedPoint, hit.getNormal(true), {
+              life: onGround ? 0.8 : 1.6,
+              // Ground hits are dimmer and shorter-lived: they are the common
+              // case, and at full brightness they drown out the hits you care
+              // about. Same marker, different weight.
+              color: onGround ? &#39;#7fd4ff&#39; : &#39;#ffd34d&#39;,
+              size: onGround ? 0.22 : 0.32,
+            })
+            if (onGround) hail.ground = hail.ground.valueOf() + 1
+            else hail.hits = hail.hits.valueOf() + 1
+            reset(s)
+          }
+        }
+      })
+    },
+  },
+  lib,
+  ...demoStage({ size: 14, tiles: 12, pattern: true, timeOfDay: 9 }),
+)
+
+preview.append(scene, readout)
+</code></pre>
 <h2>Naming Conventions</h2>
 <p>Add these suffixes to mesh names in Blender:</p>
 <table>
@@ -96,18 +228,19 @@ document.body.append(
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><details open><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link current" href="../b3d-collisions/" aria-current="page">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
       <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
@@ -132,8 +265,7 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -142,29 +274,30 @@ document.body.append(
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
       <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
       <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
       <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
@@ -172,8 +305,8 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
       <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
     </ul>
@@ -190,33 +323,35 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
@@ -228,15 +363,15 @@ document.body.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
     </ul>
     </details></li>
   </ul>

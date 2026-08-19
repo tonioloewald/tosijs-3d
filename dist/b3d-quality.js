@@ -38,7 +38,7 @@ setQuality('auto')           // back to the measured profile (default)
 // a settings <select> calls setQuality(e.target.value) and reads getQuality()
 ```
 */
-/*{ "parent": "Performance" }*/
+/*{ "parent": "Performance", "order": 900 }*/
 import { defaultProfile, budgetsForTier, lowerTier, } from './perf-probe';
 let currentProfile = defaultProfile();
 let currentOverride = 'auto';

@@ -203,7 +203,7 @@ preview.append(div(
 }
 ```
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "Input", "order": 900 }*/
 import { emptyInput } from './control-input';
 export function emptyGamepad() {
     return {
@@ -260,7 +260,7 @@ export function mergeGamepads(a, b) {
  * enforced in none, which cost a day: a device that disagrees is internally
  * consistent, so only a player with two devices ever notices, and the bug
  * presents as "the framework is broken" rather than "one source is inverted".
- * `virtual-gamepad.test.ts` asserts it across the sources.
+ * `stick-sign.test.ts` asserts it across the sources.
  */
 export const STICK_UP_IS_POSITIVE = true;
 // --- Built-in mapping presets ---

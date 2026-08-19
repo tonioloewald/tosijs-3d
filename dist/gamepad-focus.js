@@ -9,7 +9,7 @@ Everything either side of it already existed: `box`/`surface` expose
 `XrGamepadSource` produce a `VirtualGamepad` each frame. Nothing polled one and called
 the other, so a gamepad could light up the on-screen pad and still not touch the UI.
 
-```js
+```javascript
 import { HardwareGamepadSource, ui } from 'tosijs-3d'
 const { gamepadFocus } = ui
 
@@ -50,7 +50,7 @@ direction walks steadily instead of either sprinting or stopping dead.
 The timing is passed in as `now` rather than read from a clock, so the ramp is
 deterministic and testable — same discipline as the rest of the pure models here.
 */
-/*{ "parent": "input" }*/
+/*{ "parent": "input", "order": 900 }*/
 const DIRS = [
     { key: 'dpadLeft', dx: -1, dy: 0 },
     { key: 'dpadRight', dx: 1, dy: 0 },

@@ -28,7 +28,7 @@ import { classify, budgetsForTier } from 'tosijs-3d'
 // when their attribute is left `auto`.
 ```
 */
-/*{ "parent": "Performance" }*/
+/*{ "parent": "Performance", "order": 900 }*/
 /** Bump whenever the benchmark WORKLOAD changes (so old cached measurements, which
  * are only comparable within a workload version, are discarded). Tuning the
  * classifier thresholds or the budget table does NOT need a bump — those re-derive

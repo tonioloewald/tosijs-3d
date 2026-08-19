@@ -15,7 +15,7 @@ the SVG is what makes the same markup render identically in the DOM and on a
 plane. The cost: the theme is not live-reactive to later JS changes — restyle
 before the bundle loads (tosijs's `vars`/`StyleSheet` at startup is fine).
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 const rootStyle = typeof document !== 'undefined'
     ? getComputedStyle(document.documentElement)
     : null;

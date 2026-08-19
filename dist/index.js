@@ -1,5 +1,16 @@
 // Core
 export { B3d, b3d, showB3dStats } from './tosi-b3d';
+/*
+Re-export the Babylon namespace the library itself is using.
+
+Babylon is a peer dependency, so a consumer importing '@babylonjs/core'
+separately can end up with a SECOND copy — two Vector3 classes that fail
+`instanceof` against each other. Taking it from here is the guarantee that you
+have the same one. It is also what live doc examples should import: there is no
+`BABYLON` global (a long-standing assumption in ~16 of them, and one line away
+from a ReferenceError in every case).
+*/
+export * as BABYLON from '@babylonjs/core';
 // Device-capability probe (measure-don't-guess quality budgets)
 export { B3dProbe, b3dProbe, runProbe } from './b3d-probe';
 export { getPerfProfile, setPerfProfile, setQuality, getQuality, effectiveTier, qualityBudgets, resolveBudget, onQualityChange, } from './b3d-quality';
@@ -87,7 +98,7 @@ export { B3dCar, b3dCar } from './b3d-car';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft';
 // SVG widgets (DOM-overlay or in-scene panels)
 export { panel3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
-export { stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout';
+export { panelFitWidth, stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout';
 // SVG material system
 export { SvgTexture } from './svg-texture';
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
@@ -236,6 +247,9 @@ export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable';
 export { DestroyableBehavior } from './destroyable-behavior';
 export { B3dWarhead, b3dWarhead, detonateWarhead, explosionFx, } from './b3d-warhead';
 export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, } from './b3d-launcher';
+export { createMakers } from './make-mesh';
+export { roundedRectGeometry, signedArea } from './rounded-rect';
+export { openPopup } from './popup-surface';
 export { B3dTurret, b3dTurret } from './b3d-turret';
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip';
 export { B3dRadar, b3dRadar } from './b3d-radar';

@@ -41,7 +41,9 @@ preview.append(scene)
 |-----------|---------|-------------|
 | `timeOfDay` | `6.5` | 0-24 hours |
 | `realtimeScale` | `10` | Realtime speed multiplier |
-| `latitude` | `40` | Geographic latitude (affects sun arc) |
+| `latitude` | `40` | Geographic latitude in DEGREES (affects the sun's arc) |
+| `azimuth` | `0` | Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours |
+| `luminance` | `1` | Sky brightness |
 | `turbidity` | `10` | Atmospheric haze |
 | `rayleigh` | `2` | Rayleigh scattering |
 | `sunColor` | `'#eeeeff'` | Midday sun color |
@@ -73,6 +75,10 @@ export class B3dSkybox extends AbstractMesh {
         ...AbstractMesh.initAttributes,
         turbidity: 10,
         luminance: 1,
+        // ⚠️ Babylon's SkyMaterial azimuth is a 0–1 FRACTION of a turn, not an
+        // angle. Passed through unchanged rather than converted, because a
+        // half-translated third-party unit is worse than an honest foreign one —
+        // but it is called out in the attribute table so nobody types 90 here.
         azimuth: 0,
         latitude: 40,
         realtimeScale: 10,

@@ -61,7 +61,13 @@ export const isOff = (v) => v === 'off' || v === false || v === 'false';
  */
 export const sceneDelta = (scene) => {
     const published = scene.metadata?.b3dFrameDelta;
-    if (typeof published === 'number' && published > 0)
+    // `>= 0`, not `> 0`: a published ZERO is <tosi-b3d> saying TIME IS STOPPED,
+    // and it has to be honoured or every simulation on the render observable keeps
+    // advancing through a pause. The engine-delta fallback is for scenes that
+    // never publish at all, not for a scene that published a deliberate zero.
+    // (tosijs-3d#30 — paused, the world ran on at full speed and only the stick
+    // stopped working: 66m of travel over a 3-second pause.)
+    if (typeof published === 'number' && published >= 0)
         return published;
     return Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000);
 };
@@ -116,12 +122,33 @@ export const isIgnored = (name) => {
     return n.includes('-ignore') || n.includes('_ignore');
 };
 export const publicName = (name) => {
-    let n = conventionName(name);
+    /*
+    `_primitive0` is not authored — it is the glTF loader SPLITTING one mesh that
+    uses several materials into one Babylon mesh per material. It is an artifact
+    of how the file was imported, and a consumer has no way to know it exists, so
+    it has no business in a name they have to type or read. Stripped FIRST,
+    because it sits outside the behaviour suffix: `building_collideCylinder_primitive0`
+    only cleans to `building` if the primitive tag comes off before the loop.
+  
+    Tonio, looking at the library picker: "should show names like building, not
+    building_collideCylinder".
+    */
+    let n = conventionName(name).replace(/_primitive\d+$/i, '');
+    /*
+    Blender's DUPLICATE marker (`.001`) lands after the behaviour suffix, so
+    `tree_collideCylinder.001` matched no suffix and leaked the annotation whole.
+    Held aside and put back rather than dropped: `.001` is a genuinely different
+    object from `tree`, and collapsing the two would silently merge them in a name
+    list that dedupes.
+    */
+    const dup = n.match(/\.\d+$/);
+    if (dup != null)
+        n = n.slice(0, -dup[0].length);
     for (;;) {
         const lower = n.toLowerCase();
         const hit = BEHAVIOUR_SUFFIXES.find((s) => lower.endsWith(`_${s}`));
         if (hit == null)
-            return n;
+            return dup != null ? n + dup[0] : n;
         n = n.slice(0, -(hit.length + 1));
     }
 };
@@ -235,7 +262,7 @@ Material *appearance* (metallic, roughness, alpha, emissive) comes through glTF 
 | `-ignore` | Node is disposed on load |
 | `_collide*` | Physics collider (sphere/box/cylinder/mesh) |
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 900 }*/
 // Thresholds for property-based material inference
 const ALPHA_OPAQUE_THRESHOLD = 0.95;
 /**
@@ -406,6 +433,12 @@ export class AbstractMesh extends B3dChild {
         x: 0,
         y: 0,
         z: 0,
+        // ROTATION IS IN DEGREES — `render()` multiplies by DEG_TO_RAD. Stated
+        // here because nothing else did, and a plain `ry` reads as radians to
+        // anyone who has just been working in Babylon (where it is). The b3d pause
+        // demo added radians per second to `ry` for its whole life and turned at
+        // roughly one revolution per ten minutes, which read as "the cube doesn't
+        // spin" rather than as a unit bug.
         rx: 0,
         ry: 0,
         rz: 0,
@@ -508,4 +541,18 @@ export class AbstractMesh extends B3dChild {
         this._updateAxes();
     }
 }
+/**
+ * Is this camera actually listening to the canvas right now?
+ *
+ * Ground truth from Babylon's own input manager rather than a flag we keep,
+ * because several components attach or detach a camera directly instead of
+ * going through `setActiveCamera` (b3d-galaxy, b3d-svg-plane, the XR restore)
+ * — a remembered flag goes stale behind them.
+ *
+ * Written defensively (optional chaining all the way down) because it is used
+ * on the RESUME path: guessing "attached" wrongly hands the canvas to a camera
+ * that was deliberately never given it, and guessing "not attached" wrongly
+ * only costs the user a click.
+ */
+export const cameraIsAttached = (cam) => cam?.inputs?.attachedToElement === true;
 //# sourceMappingURL=b3d-utils.js.map

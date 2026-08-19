@@ -30,7 +30,7 @@ import { LeafField } from 'tosijs-3d'
 // the budget + drain, so prefer <tosi-b3d-ambient> unless you're wiring your own ambient system.
 ```
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "Environment", "order": 900 }*/
 import * as BABYLON from '@babylonjs/core';
 const TAU = Math.PI * 2;
 /** Fade a leaf in/out over seconds, so it drifts into view instead of blinking on. */

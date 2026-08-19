@@ -16,7 +16,7 @@ CALLER's business. This module owns no rendering, no physics and no Babylon
 types, so it can be unit-tested and shared by the water, the projectiles, the
 vehicles and the shader without any of them depending on each other.
 
-```js
+```javascript
 import { medium } from 'tosijs-3d'
 
 const sea = medium.plane({ name: 'water', y: 0, band: 0.4, drag: 40, maxSpeed: 12 })

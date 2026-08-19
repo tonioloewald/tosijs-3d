@@ -72,7 +72,7 @@ keyboard's own output.)
 there's no selection, so "replace the selection" and "insert at the caret" are the
 same code path — the collapsed case is not special.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 /** Split to an array of code points — the unit every operation works in. */
 const cp = (text) => Array.from(text);
 /** Clamp `n` into `[0, max]`. */

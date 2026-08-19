@@ -160,7 +160,8 @@ export function pad(opts) {
  * a second cliff. Everything outside is untouched, exactly.
  */
 export function gulley(opts) {
-    const { x: fx, z: fz, heading, width, length, floorY } = opts;
+    const { x: fx, z: fz, heading: headingDeg, width, length, floorY } = opts;
+    const heading = headingDeg * (Math.PI / 180);
     const cliffHeight = opts.cliffHeight ?? 45;
     const faceRun = Math.max(1e-3, opts.faceRun ?? 18);
     const grade = opts.grade ?? 0;
@@ -218,7 +219,8 @@ export function gulley(opts) {
  * hill the tunnel goes through.
  */
 export function cover(opts) {
-    const { x: sx, z: sz, heading, width, length, minHeight } = opts;
+    const { x: sx, z: sz, heading: headingDeg, width, length, minHeight } = opts;
+    const heading = headingDeg * (Math.PI / 180);
     const fade = Math.max(1e-3, opts.fade ?? width * 0.7);
     const cos = Math.cos(heading);
     const sin = Math.sin(heading);

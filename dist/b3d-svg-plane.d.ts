@@ -18,6 +18,22 @@ export declare class B3dSvgPlane extends AbstractMesh {
         cameraRelative: boolean;
         pointerEvents: "on" | "off";
         doubleSided: "on" | "off";
+        /**
+         * Corner radius in world units. `0` = a plain rectangle.
+         *
+         * Rounds the MESH, so the corners cost triangles instead of alpha. Pair it
+         * with `transparent="off"` and the panel is opaque, which is the point: an
+         * opaque mesh writes depth and is sorted by the z-buffer, where a
+         * transparent one is re-sorted per frame by distance and flickers between
+         * near-coplanar panels. See `rounded-rect`.
+         */
+        cornerRadius: number;
+        /**
+         * Whether the SVG's alpha drives the mesh's opacity. `'on'` (default,
+         * unchanged) is what a panel with rounded corners drawn IN the SVG needs.
+         * `'off'` makes the panel opaque — use it with `cornerRadius`.
+         */
+        transparent: "on" | "off";
         x: number;
         y: number;
         z: number;
@@ -35,6 +51,11 @@ export declare class B3dSvgPlane extends AbstractMesh {
     cameraRelative: boolean;
     pointerEvents: 'on' | 'off';
     doubleSided: 'on' | 'off';
+    cornerRadius: number;
+    transparent: 'on' | 'off';
+    /** True only while WE have parented the mesh to the camera — so the
+     * cameraRelative sync never clears a parent somebody else set. */
+    private _camParented;
     /** Set to a live SVG element for dynamic mode. */
     svgElement: SVGSVGElement | null;
     private _svgTexture;

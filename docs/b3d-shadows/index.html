@@ -140,6 +140,16 @@ preview.append(
 <td>0 = fully dark shadow, 1 = no shadow</td>
 </tr>
 <tr>
+<td><code>shadowNormalBias</code></td>
+<td><code>0.05</code></td>
+<td>Offset along the surface normal — <strong>the shadow-acne knob</strong>. Lower it if shadows detach from small casters</td>
+</tr>
+<tr>
+<td><code>shadowBias</code></td>
+<td><code>0.00005</code></td>
+<td>Depth-direction bias; peter-pans sooner than <code>shadowNormalBias</code>, so tune that one first</td>
+</tr>
+<tr>
 <td><code>numCascades</code></td>
 <td><code>auto</code></td>
 <td>Number of cascade splits (1–4); <code>auto</code> = device tier</td>
@@ -194,18 +204,19 @@ preview.append(
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
       <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
@@ -230,8 +241,7 @@ preview.append(
     </details></li>
     <li><details open><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -240,29 +250,30 @@ preview.append(
       <li><a class="doc-link current" href="../b3d-shadows/" aria-current="page">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
       <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
       <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
       <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
@@ -270,8 +281,8 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
       <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
     </ul>
@@ -288,33 +299,35 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
@@ -326,15 +339,15 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
     </ul>
     </details></li>
   </ul>

@@ -43,7 +43,7 @@ special cases; it's one:
 blending is unit-testable without an engine, which is the point: this is the code that makes
 a transition *feel* right, and feel is worth pinning down.
 */
-/*{ "parent": "Environment" }*/
+/*{ "parent": "Environment", "order": 900 }*/
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 /**

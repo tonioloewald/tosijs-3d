@@ -158,6 +158,35 @@ preview.append(scene)
 tosi-b3d { width: 100%; height: 100%; }
 ```
 
+## Where did it hit, and which way is that surface facing?
+
+`spawnProjectile`/`spawnMissile` report impacts through `whenImpact`, which
+hands you an `Impact`:
+
+```javascript
+const shell = {
+  whenImpact({ point, normal, mesh }) {
+    if (normal == null) return // a fuse in open space — no surface
+    scorchMark(point, normal) // decals need the facing, not just the spot
+  },
+}
+```
+
+`point` on its own cannot orient anything. A scorch mark, a dent, a spark spray
+and a ricochet all need to know which way the surface faces, and the swept ray
+already computed it — this used to be discarded, so every consumer that wanted
+an oriented effect had to re-cast the same ray to recover it (tosijs-3d#29).
+
+**`normal` and `mesh` are nullable, and the null case is real** rather than
+defensive: a depth fuse detonates in open water and a timed round detonates in
+mid-air. There is no surface, so there is no normal. Branch on it — a caller
+that assumes one orients its effect off nothing.
+
+> The older `onImpact(point)` still fires, with a one-shot deprecation warning.
+> It was renamed off the `on*` prefix as well as widened: an `onFoo` key in an
+> options bag becomes an `addEventListener` call the moment that shape is lifted
+> onto an element, and the callback then silently never runs.
+
 ## Attributes
 
 | Attribute | Default | Description |
@@ -166,6 +195,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
+| `turnRateDeg` | — | The same agility in deg/sec. A computed view onto `turnRate`: set either, read either. Exists because "is this radians?" should be answered by the API, not by reading the source |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
@@ -193,6 +223,22 @@ import { crossing, depthIn, dragAt, } from './medium';
 import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance';
 import { makeResource, drain, regenTick, isEmpty, } from './resource';
 import { detonateWarhead } from './b3d-warhead';
+/*
+One place that fires both callbacks, so the deprecated spelling cannot drift
+away from the current one — that drift is exactly how `b3d-destroyable`'s
+library load became a stale copy of the aircraft's.
+*/
+let warnedOnImpact = false;
+const reportImpact = (opts, impact) => {
+    opts.whenImpact?.(impact);
+    if (opts.onImpact != null) {
+        if (!warnedOnImpact) {
+            warnedOnImpact = true;
+            console.warn('b3d-launcher: `onImpact` is deprecated — use `whenImpact`, which also carries the surface normal and the mesh struck.');
+        }
+        opts.onImpact(impact.point);
+    }
+};
 /**
  * Spawn one ballistic shell into the scene and fly it under `params` until it hits
  * something pickable (then it detonates its `warhead` at the impact point) or its
@@ -299,7 +345,9 @@ export function spawnProjectile(owner, opts) {
                 depthIn(state.pos, m) >= opts.detonateDepth) {
                 const at = new BABYLON.Vector3(state.pos.x, state.pos.y, state.pos.z);
                 detonateWarhead(owner, at, opts.warhead, opts.useLos ?? true);
-                opts.onImpact?.(at);
+                // A depth fuse goes off in open water: there is no surface, so there is
+                // honestly no normal. Reported as null rather than as a default.
+                reportImpact(opts, { point: at, normal: null, mesh: null });
                 dispose();
                 return;
             }
@@ -314,7 +362,13 @@ export function spawnProjectile(owner, opts) {
             const hit = scene.pickWithRay(ray, (m) => m.isPickable && m !== mesh && (opts.ignore == null || !opts.ignore(m)));
             if (hit != null && hit.hit && hit.pickedPoint != null) {
                 detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true);
-                opts.onImpact?.(hit.pickedPoint);
+                reportImpact(opts, {
+                    point: hit.pickedPoint,
+                    // `true` = world space. The ray already computed this; not passing it
+                    // on was #29, and made every oriented effect re-cast the same ray.
+                    normal: hit.getNormal(true),
+                    mesh: hit.pickedMesh ?? null,
+                });
                 dispose();
                 return;
             }
@@ -423,7 +477,12 @@ export function spawnMissile(owner, opts) {
         // straight, and is fully agile by burnout. (Thrust itself, above, is
         // unconditional: a motor burns whether or not the seeker wants to turn.)
         const authority = boostAuthority(elapsed, boostTime);
-        const v = steerToward(state.vel, desired, opts.turnRate * authority, dt);
+        // Degrees wins when given: it is the more explicit spelling, so it is the
+        // more deliberate one. Resolved here rather than at every read.
+        const turnRate = opts.turnRateDeg != null
+            ? opts.turnRateDeg * (Math.PI / 180)
+            : opts.turnRate;
+        const v = steerToward(state.vel, desired, turnRate * authority, dt);
         state.vel.x = v.x;
         state.vel.y = v.y;
         state.vel.z = v.z;
@@ -442,6 +501,7 @@ export function spawnMissile(owner, opts) {
         color: opts.color ?? '#ff6644',
         maxLifetime: opts.maxLifetime ?? 8,
         useLos: opts.useLos,
+        whenImpact: opts.whenImpact,
         onImpact: opts.onImpact,
         ignore: opts.ignore,
         radar: opts.radar,
@@ -475,6 +535,27 @@ export class B3dLauncher extends AbstractMesh {
         blastRadius: 3,
         los: 'on',
     };
+    /*
+    DEGREES ALONGSIDE RADIANS, rather than instead of.
+  
+    Tonio's pattern, and it beats converting: `turnRate` stays radians/sec — the
+    unit the maths actually wants, and the unit every tuned value in the wild is
+    already written in — while `turnRateDeg` is a computed view onto it. Nothing
+    breaks, and the degrees spelling is DISCOVERABLE: it shows up in completion
+    right next to the radians one, so the unit is answered by the API instead of
+    by reading the source or guessing.
+  
+    The general rule this establishes: where an angle must stay radians (because
+    it feeds trig, or because changing it would break tuned values), expose a
+    `<name>Deg` accessor beside it. `Deg` and not `Degs`/`Degrees` — the codebase
+    already has rollDeg, coneDeg, pitchDeg, azimuthDeg, elevationDeg.
+    */
+    get turnRateDeg() {
+        return this.turnRate * (180 / Math.PI);
+    }
+    set turnRateDeg(v) {
+        this.turnRate = v * (Math.PI / 180);
+    }
     _ammoPool;
     _cooldown = 0;
     _tick;

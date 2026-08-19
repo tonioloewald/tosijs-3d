@@ -29,7 +29,7 @@ origin safe), plain `evaluate(t)` filters work unchanged.
 | `mesaProfile` | quantized steps (alias of `plateauFilter`) | mesas, mid-level plateaus |
 | `terraceProfile` | steps with sloped risers | terraced hills |
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "environment", "order": 900 }*/
 import { PiecewiseLinearFilter, plateauFilter, } from './gradient-filter';
 import { PerlinNoise } from './perlin-noise';
 /** Sea cliffs: a flat low shelf (the water/beach line), a sharp riser, a flat

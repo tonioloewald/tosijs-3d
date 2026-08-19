@@ -163,6 +163,6 @@ And in reverse, to prove the sim is the sandbox it claims to be: a **scripted ad
 driver** pushing intents that are stale, impossible, contradictory, aimed at dead entities,
 or simply flooding — none of which may corrupt anything, because intents are advisory.
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "World Sim", "order": 900 }*/
 export {};
 //# sourceMappingURL=world-contract.js.map

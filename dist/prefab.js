@@ -45,7 +45,7 @@ Everything it needs to be *where and how the thing died*: `position`, `rotation`
 the air like a stone. Plus `source` (what died/spawned it) and `faction`, for prefabs that
 care.
 */
-/*{ "parent": "World Sim" }*/
+/*{ "parent": "World Sim", "order": 900 }*/
 const registry = new Map();
 /**
  * Register a prefab under a name. Names are how a prefab survives being written in an

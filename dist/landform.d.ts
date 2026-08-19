@@ -81,6 +81,7 @@ export interface GulleyOptions {
     z: number;
     /** Direction the gulley runs OUT from the face (radians, world XZ). The
      * tunnel drives the opposite way, into the hill. */
+    /** Direction the gulley runs, in DEGREES (0 = +x, 90 = +z). */
     heading: number;
     /** Floor width (m) — forced flat across this. */
     width: number;
@@ -138,7 +139,8 @@ export interface CoverOptions {
     /** Start of the corridor (usually the gulley's face). */
     x: number;
     z: number;
-    /** Direction the corridor runs (radians) — the way the tunnel drives. */
+    /** Direction the corridor runs, in DEGREES (0 = +x, 90 = +z) — the way the
+     * tunnel drives. Was radians until 0.7.0; see the CHANGELOG. */
     heading: number;
     /** Corridor width (m). */
     width: number;

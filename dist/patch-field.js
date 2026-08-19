@@ -46,7 +46,7 @@ join. The stair-stepped hole edge in the tile grid then sits inside solid rock,
 where nobody can see it. (Same instinct as terrain's skirts, which don't solve
 the LOD seam either — they make it invisible.)
 */
-/*{ "parent": "environment" }*/
+/*{ "parent": "environment", "order": 900 }*/
 const smoothstep = (t) => {
     const c = t < 0 ? 0 : t > 1 ? 1 : t;
     return c * c * (3 - 2 * c);

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>popup-surface — tosijs-3d</title>
+  <meta name="description" content="A popup is another SURFACE, not more rows in the one you have." />
+  <link rel="canonical" href="https://3d.tosijs.net/popup-surface/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="popup-surface — tosijs-3d" />
+  <meta property="og:description" content="A popup is another SURFACE, not more rows in the one you have." />
+  <meta property="og:url" content="https://3d.tosijs.net/popup-surface/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"popup-surface","description":"A popup is another SURFACE, not more rows in the one you have.","url":"https://3d.tosijs.net/popup-surface/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>popup-surface</h1>
+<p><strong>A popup is another SURFACE, not more rows in the one you have.</strong></p>
+<pre><code class="language-js">import { b3d } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam } from &#39;demo-utils&#39;
+import { svgElements, elements } from &#39;tosijs&#39;
+const { svg, rect, text } = svgElements
+
+// A little SVG panel, used for both the opener and its popups.
+// No `rx` on the background: the MESH is rounded now, so rounding the svg too
+// would only round the texture inside an already-rounded silhouette — a darker
+// fringe, and fill nobody asked for. (Tonio: &quot;we can slightly simplify our svg
+// outer rect as well for a few ns of savings lol&quot;)
+const card = (title, lines, w = 220, h = 130) =&gt;
+  svg(
+    { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
+    rect({ x: 0, y: 0, width: w, height: h, fill: &#39;#1b2430&#39; }),
+    rect({ x: 0, y: 0, width: w, height: 26, fill: &#39;#2c3b4e&#39; }),
+    text({ x: 12, y: 18, fill: &#39;#e6edf5&#39;, &#39;font-size&#39;: 13, &#39;font-family&#39;: &#39;sans-serif&#39; }, title),
+    ...lines.map((l, i) =&gt;
+      text({ x: 12, y: 48 + i * 18, fill: &#39;#9fb0c3&#39;, &#39;font-size&#39;: 12, &#39;font-family&#39;: &#39;sans-serif&#39; }, l)
+    )
+  )
+
+let opened = []
+const scene = b3d(
+  {
+    sceneCreated(el) {
+      orbitCam(el, { radius: 4.2, beta: Math.PI / 2.6, target: [0, 1.2, 0] })
+
+      // The opener: one ordinary in-scene panel.
+      const base = el.make.plane({ width: 1.6, height: 0.95, y: 1.2, color: &#39;#101820&#39; })
+      base.isPickable = true
+
+      const spawn = (n) =&gt; {
+        const pop = el.openPopup({
+          svg: card(`popup ${n}`, [&#39;spawned as its own surface&#39;, &#39;tear off, then drag me&#39;]),
+          opener: base,
+          width: 0.9,
+          // Fan them out and step each one nearer the viewer, so depth does the
+          // stacking that a z-index would do flat.
+          offset: { x: 0.55 + n * 0.16, y: 0.3 - n * 0.22, z: -0.06 * (n + 1) },
+        })
+        opened.push(pop)
+        return pop
+      }
+
+      // popup 0 stays OWNED — parented to the panel, so it travels with it.
+      // Drag it and it tears itself off, like pulling a tab out of a window.
+      spawn(0)
+      spawn(1).tearOff()
+      // A MODAL blocks pointer access to everything behind it (the other
+      // popups included) until it closes. The camera still moves.
+      const m = el.openPopup({
+        svg: card(&#39;modal&#39;, [&#39;blocks the ones behind it&#39;, &#39;camera still moves&#39;]),
+        width: 0.9,
+        offset: { x: -0.8, y: 0.2, z: -0.3 },
+        modal: true,
+      })
+      opened.push(m)
+    },
+  },
+  ...demoStage({ size: 12, tiles: 8, pattern: true, timeOfDay: 11 }),
+)
+
+preview.append(scene)
+</code></pre>
+<p>A menu cascade, a dropdown&#39;s open list, a debug readout — in a browser these are
+absolutely positioned inside the one window you were given, and overlapping them
+is a z-index problem. In a scene none of that scarcity is real: planes are cheap,
+depth is an actual axis, and a panel can simply be <em>somewhere else</em>.</p>
+<pre><code class="language-javascript">import { openPopup } from &#39;tosijs-3d&#39;
+
+const pop = openPopup(el, { svg: mySvg, opener: panel.mesh, width: 1.1 })
+pop.tearOff() // promote it: stays where you put it, and can be dragged
+pop.close()
+</code></pre>
+<h2>Why not lay it out inside the opener</h2>
+<p>We had written the opposite down as a hard constraint — a dropdown &quot;<strong>MUST</strong>
+grow the panel&#39;s layout rather than a DOM-style absolute popover, because a
+popover won&#39;t rasterize into the VR texture&quot;. Half of that is true: you cannot
+draw outside the SVG that becomes the texture. The leap it hides is that the
+popup must therefore live <em>in</em> that SVG. It doesn&#39;t. It can be <strong>another texture
+on another plane</strong>, and then the constraint simply isn&#39;t binding.</p>
+<p>What that buys, beyond the dropdown:</p>
+<ul>
+<li><strong>The opener stops reflowing.</strong> Opening a debug tool currently shoves the
+author&#39;s controls down the panel — the thing you were reading moves because
+you asked about something else.</li>
+<li><strong>Tear-offs stop being a feature.</strong> A popup that is already its own surface
+becomes &quot;leave this open over there&quot; by re-parenting, not by new machinery.</li>
+<li><strong>Depth replaces z-index.</strong> <code>lift</code> pulls the popup toward the viewer, which is
+the effect flat UI fakes with shadows and scrims.</li>
+</ul>
+<h2>Chrome: a title bar you can grab, and an x</h2>
+<p>A popup draws a <strong>move</strong> glyph and a <strong>close</strong> glyph into the top of its own
+SVG, and the top <code>gripHeight</code> of the panel is the only place a drag starts.</p>
+<p>That grip is not decoration. A popup with controls in it needs its own pointer
+events — if a drag began anywhere on the surface, every button press inside it
+would be a failed drag instead. Restricting the gesture to a title bar is what
+lets the rest of the panel be interactive, and the icon is what makes that rule
+visible rather than something you have to be told.</p>
+<p>The glyphs are injected here rather than left to the caller so they cannot drift
+out of line with the hit regions this module tests against — a move icon that
+isn&#39;t where the grip is would be worse than no icon at all. They are drawn with
+<code>iconGlyph</code>, not <code>svgIcons</code>, because this SVG becomes a TEXTURE and
+<code>currentColor</code> resolves against nothing there.</p>
+<h2>Ownership, and what tearing off changes</h2>
+<p>A popup is <strong>owned</strong>: parented to its opener, so it travels with it and is
+disposed with it. <code>tearOff()</code> promotes it to world space <strong>preserving its world
+pose</strong> (Babylon&#39;s <code>setParent(null)</code> does that arithmetic for us), after which it
+is nobody&#39;s child, stays where it is, and — if <code>draggable</code> — can be grabbed and
+moved. Ownership is a lifetime statement, not a position one; that split is the
+same one <code>SPATIAL-DESIGN.md</code> draws for riding an elevator.</p>
+<h2>Budget</h2>
+<p>Every surface is a texture. Two or three floating panels are nothing; twenty is
+a VRAM problem on a Quest, and VR is the tier with the least headroom. Callers
+should treat concurrent surfaces as a budget — the ambient allocator&#39;s rule
+applies, so something that cannot have its honest minimum should switch OFF
+rather than degrade.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link current" href="../popup-surface/" aria-current="page">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

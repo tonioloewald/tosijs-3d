@@ -372,7 +372,7 @@ release still **ending the gesture** (the capture contracts flat surfaces get
 free from the DOM). The [[box]], [[surface]], [[widget-box]], [[table]] and
 [[keyboard]] docs all use it for their 3D sides:
 
-```js
+```javascript
 const { plane, sceneCreated } = panelScene({ svg: svgEl, target: mySurface })
 const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 ```
@@ -380,6 +380,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh, isOff } from './b3d-utils';
+import { roundedRectGeometry } from './rounded-rect';
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3;
 import { SvgTexture } from './svg-texture';
@@ -396,7 +397,26 @@ export class B3dSvgPlane extends AbstractMesh {
         cameraRelative: false,
         pointerEvents: 'on',
         doubleSided: 'on',
+        /**
+         * Corner radius in world units. `0` = a plain rectangle.
+         *
+         * Rounds the MESH, so the corners cost triangles instead of alpha. Pair it
+         * with `transparent="off"` and the panel is opaque, which is the point: an
+         * opaque mesh writes depth and is sorted by the z-buffer, where a
+         * transparent one is re-sorted per frame by distance and flickers between
+         * near-coplanar panels. See `rounded-rect`.
+         */
+        cornerRadius: 0,
+        /**
+         * Whether the SVG's alpha drives the mesh's opacity. `'on'` (default,
+         * unchanged) is what a panel with rounded corners drawn IN the SVG needs.
+         * `'off'` makes the panel opaque — use it with `cornerRadius`.
+         */
+        transparent: 'on',
     };
+    /** True only while WE have parented the mesh to the camera — so the
+     * cameraRelative sync never clears a parent somebody else set. */
+    _camParented = false;
     /** Set to a live SVG element for dynamic mode. */
     svgElement = null;
     _svgTexture = null;
@@ -410,13 +430,32 @@ export class B3dSvgPlane extends AbstractMesh {
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
-        this.mesh = BABYLON.MeshBuilder.CreatePlane('svg-plane', {
-            width: attrs.width,
-            height: attrs.height,
-            sideOrientation: isOff(attrs.doubleSided)
-                ? BABYLON.Mesh.FRONTSIDE
-                : BABYLON.Mesh.DOUBLESIDE,
-        }, scene);
+        if (attrs.cornerRadius > 0) {
+            // Rounded corners as GEOMETRY. Same frame and UV mapping as CreatePlane,
+            // so this is a drop-in swap — the texture lands identically.
+            const g = roundedRectGeometry({
+                width: attrs.width,
+                height: attrs.height,
+                radius: attrs.cornerRadius,
+            });
+            const mesh = new BABYLON.Mesh('svg-plane', scene);
+            const data = new BABYLON.VertexData();
+            data.positions = g.positions;
+            data.indices = g.indices;
+            data.uvs = g.uvs;
+            data.normals = g.normals;
+            data.applyToMesh(mesh);
+            this.mesh = mesh;
+        }
+        else {
+            this.mesh = BABYLON.MeshBuilder.CreatePlane('svg-plane', {
+                width: attrs.width,
+                height: attrs.height,
+                sideOrientation: isOff(attrs.doubleSided)
+                    ? BABYLON.Mesh.FRONTSIDE
+                    : BABYLON.Mesh.DOUBLESIDE,
+            }, scene);
+        }
         this._svgTexture = new SvgTexture({
             scene,
             resolution: attrs.resolution,
@@ -427,7 +466,7 @@ export class B3dSvgPlane extends AbstractMesh {
         const mat = new BABYLON.StandardMaterial('svg-plane-mat', scene);
         mat.backFaceCulling = isOff(attrs.doubleSided);
         this._material = mat;
-        this._applyChannel(mat, attrs.materialChannel);
+        this._applyChannel(mat, attrs.materialChannel, isOff(attrs.transparent));
         this.mesh.material = mat;
         if (attrs.cameraRelative && scene.activeCamera) {
             this.mesh.parent = scene.activeCamera;
@@ -455,25 +494,51 @@ export class B3dSvgPlane extends AbstractMesh {
         const attrs = this;
         if (attrs.cameraRelative) {
             const cam = this.owner?.scene?.activeCamera;
-            if (cam && this.mesh.parent !== cam)
+            if (cam && this.mesh.parent !== cam) {
                 this.mesh.parent = cam;
+                this._camParented = true;
+            }
         }
-        else if (this.mesh.parent) {
+        else if (this._camParented && this.mesh.parent) {
+            /*
+            Only clear a parent WE set.
+      
+            This used to null the parent unconditionally whenever `cameraRelative` was
+            off — asserting ownership over a field it never took, on every render. Any
+            caller that parented the plane to something (a popup pinned to its opener,
+            a panel riding a vehicle) had it silently torn off again a frame later,
+            with no error and no clue. Exactly the shape of the pause bug that
+            re-attached cameras it had never detached: the guard has to record what we
+            actually did, not what state the object happens to be in.
+            */
             this.mesh.parent = null;
+            this._camParented = false;
         }
     }
     /** Get the SvgTexture instance for programmatic access. */
     get svgTexture() {
         return this._svgTexture;
     }
-    _applyChannel(mat, channel) {
+    _applyChannel(mat, channel, opaque = false) {
         if (!this._svgTexture)
             return;
         const tex = this._svgTexture.texture;
-        // The texture's alpha drives the PLANE's alpha — a transparent svg region
-        // (outside a panel's rounded corners, say) must be transparent on the mesh,
-        // not an opaque black substrate that the corners are drawn over.
-        mat.opacityTexture = tex;
+        /*
+        The texture's alpha drives the PLANE's alpha, so a transparent svg region
+        reads as transparent on the mesh rather than as an opaque substrate.
+    
+        That is right for a panel whose corners are drawn IN the svg — and it is
+        also what put every panel outside the depth buffer. Babylon does not
+        depth-write transparent meshes; it sorts them per frame by distance to
+        camera, so two panels a centimetre apart swap order as you orbit. It looks
+        exactly like z-fighting and isn't: the depth ORDER is fine, the compositing
+        order is what moves. `transparent="off"` (with `cornerRadius` for the
+        silhouette) opts out and puts the panel back under the z-buffer.
+        */
+        if (!opaque)
+            mat.opacityTexture = tex;
+        else
+            mat.opacityTexture = null;
         if (channel === 'emissive') {
             mat.emissiveTexture = tex;
             mat.diffuseColor = BABYLON.Color3.Black();

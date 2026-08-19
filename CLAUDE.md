@@ -272,7 +272,8 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | File | Purpose |
 | --- | --- |
 | `src/tosi-b3d.ts` | Core `B3d` Component — engine, scene, render loop, scene registration, camera management |
-| `src/b3d-utils.ts` | `B3dChild` + `AbstractMesh` base classes, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, `sceneDelta()`, `isIgnored()`, shared types |
+| `src/b3d-utils.ts` | `B3dChild` + `AbstractMesh` base classes, `findB3dOwner()`, `enterXR()`, `placeOnSurface()`, `sceneDelta()`, `cameraIsAttached()`, `isIgnored()`, shared types |
+| `src/make-mesh.ts` | `el.make.*` — Babylon primitives with the forgettable parts done (material, `register()` for shadows, `computeWorldMatrix`). A Proxy forwarding to `MeshBuilder`, so all 26 shapes are reachable; `roundedPlane` is ours |
 | `src/b3d-loader.ts` | Loads GLB/GLTF files, registers meshes/lights, applies naming conventions |
 | `src/b3d-library.ts` | Parts catalog — preloaded mesh library for spawning instances |
 | `src/b3d-collisions.ts` | Collision detection with convention-based collider shapes |
@@ -372,6 +373,8 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/svg-icons.ts` / `src/icon-name.ts`        | `svgIcons.<name>()` icon proxy (→ SVG `ElementCreator`) + `iconGlyph` (texture-safe glyph) over the generated `icon-data.ts` (from `icons/*` via `bun run icons`); `icon-name.ts` is the pure composition-suffix parser                                                 |
 | `src/xr-frames.ts`                             | XR reference frames (`world`/`rig`/`body`/`neck`/`face` + hands) for spatial UI                                                                                                                                                                                         |
 | `src/frame-panel.ts`                           | `attachFramePanel` — SVG panel pinned to an XR frame, gaze-revealed                                                                                                                                                                                                     |
+| `src/popup-surface.ts`                         | `el.openPopup()` — a popup is ANOTHER SURFACE (its own plane), owned by its opener or torn off into world space. Click-to-front, modals, title-bar drag. See UI-DESIGN-NOTES → "Popups should be NEW SURFACES"                                                          |
+| `src/rounded-rect.ts`                          | Pure rounded-rectangle vertex generation (3 quads + 4 corner fans) so a UI panel can be **opaque** — a transparent mesh isn't depth-written, so it is re-sorted per frame and flickers. Unit-tested                                                                     |
 | `src/b3d-panel.ts`                             | `<tosi-b3d-panel>` declarative spatial-UI panel component                                                                                                                                                                                                               |
 | `src/gradient-editor.ts`                       | Interactive gradient-editing widget                                                                                                                                                                                                                                     |
 | `src/b3d-primitives.ts`                        | Basic mesh primitives (sphere, ground)                                                                                                                                                                                                                                  |
@@ -391,6 +394,7 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/sdf-lattice.ts` | Pure SDF extraction substrate for volumetric patches (tunnels/caverns): ONE global hash-jittered lattice + surface nets, so chunks weld bit-identically — cross-tile/cross-LOD seams are unrepresentable, not stitched. Unit-tested (incl. the chunk-weld proof) |
 | `src/model-transform.ts` | Babylon-only model frame helpers (`canonicalize`, scale-bake) for spawned models |
 | `src/spatial-transform.ts` | Pure transform math for spatial attachment (`SPATIAL-DESIGN.md`) — vector/quaternion ops, compose ↔ relative, unit-tested |
+| `src/portal-transform.ts` | ⚠️ experimental. Pure see-through-portal math — virtual camera pose, oblique clip plane, step-test crossing, recursion budgeted by a falloff CURVE. Unit-tested |
 | `src/asset-url.ts` | `assetUrl()` — resolve a logical asset path to a hosted URL (retargetable CDN base, see `static-assets` memory) |
 | `src/perf-probe.ts` / `b3d-quality.ts` / `b3d-probe.ts` | Device-capability probe → per-tier `PerfBudgets` (see Adaptive defaults) |
 | `src/b3d-physics.ts` / `jolt-plugin.ts` | Jolt Physics integration layer |

@@ -30,7 +30,7 @@ class Spinner extends B3dControllable {
 - `getCameraTarget()` — returns the node cameras should follow
 - `handleGainFocus()` / `handleLoseFocus()` — lifecycle hooks for input switching
 */
-/*{ "parent": "Input" }*/
+/*{ "parent": "Input", "order": 900 }*/
 import { AbstractMesh } from './b3d-utils';
 import { emptyInput } from './control-input';
 export class B3dControllable extends AbstractMesh {
@@ -78,6 +78,18 @@ export class B3dControllable extends AbstractMesh {
         const now = Date.now();
         const dt = Math.min((now - this.lastUpdate) * 0.001, 0.1);
         this.lastUpdate = now;
+        /*
+        HALT, don't just zero the stick.
+    
+        This clock is `Date.now`-based, not `sceneDelta`, so a paused scene does not
+        slow it down. Feeding the flight model empty input was not a pause: with no
+        input an aircraft COASTS, which is indistinguishable from cruising. The
+        player's report was "I can background the tab, come back and the game is
+        continuing to run, I just can't steer" (#30). `lastUpdate` is stamped above,
+        so resuming does not deliver the whole pause as one step.
+        */
+        if (this.owner?.paused === true)
+            return;
         if (this.inputProvider == null)
             return;
         // Scene input focus: when a page hosts multiple demos, only the active (last

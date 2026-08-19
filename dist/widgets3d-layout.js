@@ -25,7 +25,7 @@ import { stackLayout, measureTextWrap, cssFont } from 'tosijs-3d'
 // the text actually overflows. See <tosi-b3d-panel> / widgets3d for the assembled panels.
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 /**
  * Stack `heights` top-to-bottom separated by `gap`. offsets[i] is the y of
  * child i; total is the full content height (no trailing gap).

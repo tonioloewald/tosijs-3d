@@ -12,7 +12,8 @@ direct references.
 ## Demo
 
 ```js
-import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface, label3d, list3d, button3d } from 'tosijs-3d'
+import { b3d, b3dLibrary, placeOnSurface, label3d, list3d, button3d } from 'tosijs-3d'
+import { demoStage, orbitCam } from 'demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 
@@ -28,7 +29,9 @@ function isInsertable(node) {
 function flattenInsertable(nodes, depth = 0, out = []) {
   for (const node of nodes) {
     if (isInsertable(node)) {
-      out.push({ label: '- '.repeat(depth) + node.name, name: node.name })
+      // `label`, not `name` — the raw node is `building_collideCylinder_primitive0`
+      // and nobody should have to read a collider annotation to pick a building.
+      out.push({ label: '   '.repeat(depth) + node.label, name: node.name })
     }
     if (node.children.length) flattenInsertable(node.children, depth + 1, out)
   }
@@ -61,13 +64,11 @@ const scene = b3d(
         button3d({ label: 'Clear all', onClick: () => lib.clearInstances() }),
       ]
     },
-    // No custom camera — b3d's default orbit camera already has sensible limits
-    // (≥5° above the horizon, bounded zoom) so you can't tilt under the ground or
-    // zoom through the parts.
+    sceneCreated(el) {
+      orbitCam(el, { radius: 12, beta: Math.PI / 2.9, target: [0, 1, 0] })
+    },
   },
-  b3dLight({ y: 1, intensity: 0.7 }),
-  b3dSkybox({ timeOfDay: 12 }),
-  b3dGround({ width: 20, height: 20 }),
+  ...demoStage({ size: 20, tiles: 12, pattern: true, timeOfDay: 12 }),
   lib,
 )
 
@@ -163,7 +164,7 @@ the container, animating the original nobody can see. They land on
 `instance.metadata.animationGroups`, named `<group>::<instance>` so multiple
 instances animate independently:
 
-```js
+```javascript
 const scout = lib.instantiate('scout', { canonical: true })
 const cockpit = scout.metadata.animationGroups
   .find((g) => g.name.startsWith('Cockpit Open'))
@@ -177,10 +178,12 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 - `getNames(): string[]` — declared `.model` exports under clean names (or all
   mesh/transform-node names when none are declared; `__root__`/`-ignore` always excluded)
 - `getRootNames(): string[]` — same, top-level nodes only
-- `getHierarchy(): {name, children, isMesh}[]` — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure
+- `getHierarchy(): {name, label, children, isMesh}[]` — recursive tree of all nodes reflecting parent–child structure. `name` identifies the node; **`label` is what you show a human** (`.model`, behaviour suffixes and the glTF loader's `_primitiveN` all removed, so `building_collideCylinder_primitive0` reads as `building`)
 - `instantiate(name, options?): Node | null` — clone a named node (mesh or transform, with children) into the scene
+- `make` — the same thing, as callable names: `lib.make.scout({ y: 1 })`. Quotes are the only difference, but a string is invisible to the editor and a typo in one is a runtime error rather than something you see while typing. It's a sub-object, not methods on the element, because a GLB may contain a node called `id` or `remove` and a model must never be able to shadow the DOM.
 - `clearInstances(): void` — dispose all previously instantiated clones
-- Options: `{ x?, y?, z?, rx?, ry?, rz?, parent? }`
+- Options: `{ x?, y?, z?, rx?, ry?, rz?, parent?, animations?, canonical? }` —
+  rotation in **degrees** (it was radians before 0.7.0; see the CHANGELOG)
 */
 /*{ "parent": "Core" }*/
 import { B3dChild, publicName, isIgnored } from './b3d-utils';
@@ -332,6 +335,10 @@ export class B3dLibrary extends B3dChild {
                 const isMesh = n instanceof BABYLON.AbstractMesh;
                 return {
                     name: n.name,
+                    // What a HUMAN should see: `.model`, the behaviour suffixes and the
+                    // loader's `_primitiveN` all off. `name` stays raw because that is
+                    // what identifies the node; `label` is what you show.
+                    label: publicName(n.name),
                     children: buildTree(n),
                     isMesh,
                 };
@@ -348,6 +355,45 @@ export class B3dLibrary extends B3dChild {
             instance.dispose();
         }
         this.instances = [];
+    }
+    /**
+     * The library's contents as CALLABLE NAMES: `lib.make.scout({ y: 1 })`
+     * instead of `lib.instantiate('scout', { y: 1 })`.
+     *
+     * Same call, minus the quotes — which matters more than it looks. A string
+     * argument is invisible to the editor: no completion, no go-to-definition,
+     * and a typo is a runtime `console.error` rather than something you notice
+     * while typing. A property access at least reads like the thing it makes.
+     *
+     * Deliberately a SUB-OBJECT rather than methods on the element itself. This
+     * is an HTMLElement, and a GLB is free to contain a node called `title`,
+     * `id`, `children` or `remove` — putting arbitrary content names in that
+     * namespace means a model can silently shadow the DOM.
+     *
+     * It is `make` and not `parts` because `parts` is tosijs's own part registry
+     * (`this.parts.canvas`) — the first cut used it and the compiler caught the
+     * clash, which is the same class of collision one level up.
+     *
+     * Unknown names behave exactly as `instantiate` does: log and return null,
+     * never throw. A missing prop is a content problem, and taking the scene down
+     * over it helps nobody.
+     *
+     * Mirrors `svgIcons.<name>()` and `<tosi-b3d>`'s own `el.make.box()`, so the
+     * codebase has ONE idea of what a name-keyed factory looks like — and the
+     * same option vocabulary (`x/y/z`, `rx/ry/rz` in degrees) whether the thing
+     * you are making is a primitive or a model.
+     */
+    get make() {
+        return new Proxy({}, {
+            get: (_t, prop) => (options = {}) => this.instantiate(prop, options),
+            // So `'scout' in lib.parts` and console autocomplete tell the truth.
+            has: (_t, prop) => this.getNames().includes(prop),
+            ownKeys: () => this.getNames(),
+            getOwnPropertyDescriptor: () => ({
+                enumerable: true,
+                configurable: true,
+            }),
+        });
     }
     instantiate(name, options = {}) {
         if (!this.container || !this.owner)
@@ -388,12 +434,13 @@ export class B3dLibrary extends B3dChild {
             result.position.x = options.x ?? 0;
             result.position.y = options.y ?? 0;
             result.position.z = options.z ?? 0;
+            const DEG = Math.PI / 180;
             if (options.rx !== undefined)
-                result.rotation.x = options.rx;
+                result.rotation.x = options.rx * DEG;
             if (options.ry !== undefined)
-                result.rotation.y = options.ry;
+                result.rotation.y = options.ry * DEG;
             if (options.rz !== undefined)
-                result.rotation.z = options.rz;
+                result.rotation.z = options.rz * DEG;
         }
         const meshes = clone instanceof BABYLON.AbstractMesh
             ? [clone, ...clone.getChildMeshes()]

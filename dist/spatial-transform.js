@@ -26,7 +26,7 @@ const moved = { position: { x: 8, y: 0, z: -4 }, rotation: quatFromAxisAngle({ x
 const lampNow = composePose(moved, bolt) // the lamp's new world pose after the table moved
 ```
 */
-/*{ "parent": "Core" }*/
+/*{ "parent": "Core", "order": 900 }*/
 export const IDENTITY_QUAT = { x: 0, y: 0, z: 0, w: 1 };
 export const add = (a, b) => ({
     x: a.x + b.x,

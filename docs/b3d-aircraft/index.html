@@ -54,7 +54,7 @@ model is pure and unit-tested in <a href="?fly-by-wire.ts">fly-by-wire</a>.</p>
 <p>Mesh can come from a <code>url</code> (own GLB) or from a <code>b3d-library</code> via <code>library</code> + <code>meshName</code>.
 The full flight model is explained below the demo.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dRadar, b3dRadarBlip, b3dHud, b3dClouds, b3dFog, b3dLibrary, b3dDestroyable, b3dDeath, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus, sceneDelta, slider3d } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div } = elements
 
@@ -104,6 +104,21 @@ let down = 0
 const scene = b3d(
   {
     gamepad: true,
+    // EXPERIMENT (chasePitchFollow): how much of the nose&#39;s pitch the chase camera
+    // inherits. 0 = the level pivot (the plane pitches within a steady frame);
+    // 1 = as if the camera were bolted to the airframe, so a climb aims the view
+    // up. It&#39;s a slider because the right answer is a matter of taste and you can
+    // only judge it while flying — in the headset as much as flat.
+    scenePanel: (el) =&gt; [
+      slider3d({ label: &#39;chase pitch follow&#39;, min: 0, max: 1, step: 0.05, value: 0,
+        onChange(v) {
+          el.querySelectorAll(&#39;tosi-b3d-aircraft&#39;).forEach((a) =&gt; { a.chasePitchFollow = v })
+        } }),
+      slider3d({ label: &#39;follow lag&#39;, min: 0.5, max: 12, step: 0.5, value: 3,
+        onChange(v) {
+          el.querySelectorAll(&#39;tosi-b3d-aircraft&#39;).forEach((a) =&gt; { a.chasePitchLag = v })
+        } }),
+    ],
     sceneCreated(el) {
       el.addEventListener(&#39;destroyed&#39;, () =&gt; {
         down += 1
@@ -273,6 +288,16 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <td><code>lookReturn</code></td>
 <td><code>4</code></td>
 <td>How fast the view springs back to centre when released</td>
+</tr>
+<tr>
+<td><code>chasePitchFollow</code></td>
+<td><code>0</code></td>
+<td>How much airframe PITCH the chase inherits. <code>0</code> = level pivot (plane pitches within the frame); <code>1</code> = as if parented to the airframe (a climb aims the view up)</td>
+</tr>
+<tr>
+<td><code>chasePitchLag</code></td>
+<td><code>3</code></td>
+<td>How fast that inherited pitch catches up (per second) — the low-pass that keeps attitude jitter out of the chase</td>
 </tr>
 <tr>
 <td><code>autoGear</code></td>
@@ -467,18 +492,19 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
       <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
@@ -503,8 +529,7 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -513,29 +538,30 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
       <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
       <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
       <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
@@ -543,8 +569,8 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
       <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
     </ul>
@@ -561,33 +587,35 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
     </ul>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
@@ -599,15 +627,15 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
     </ul>
     </details></li>
   </ul>

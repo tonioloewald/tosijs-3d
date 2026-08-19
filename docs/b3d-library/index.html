@@ -53,7 +53,8 @@ it as a reusable parts catalog — nothing is added to the scene until you call
 tile map) can discover them via <code>owner.getLibrary(&#39;tiles&#39;)</code> without holding
 direct references.</p>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLibrary, b3dLight, b3dSkybox, b3dGround, placeOnSurface, label3d, list3d, button3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLibrary, placeOnSurface, label3d, list3d, button3d } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam } from &#39;demo-utils&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, p } = elements
 
@@ -69,7 +70,9 @@ function isInsertable(node) {
 function flattenInsertable(nodes, depth = 0, out = []) {
   for (const node of nodes) {
     if (isInsertable(node)) {
-      out.push({ label: &#39;- &#39;.repeat(depth) + node.name, name: node.name })
+      // `label`, not `name` — the raw node is `building_collideCylinder_primitive0`
+      // and nobody should have to read a collider annotation to pick a building.
+      out.push({ label: &#39;   &#39;.repeat(depth) + node.label, name: node.name })
     }
     if (node.children.length) flattenInsertable(node.children, depth + 1, out)
   }
@@ -102,13 +105,11 @@ const scene = b3d(
         button3d({ label: &#39;Clear all&#39;, onClick: () =&gt; lib.clearInstances() }),
       ]
     },
-    // No custom camera — b3d&#39;s default orbit camera already has sensible limits
-    // (≥5° above the horizon, bounded zoom) so you can&#39;t tilt under the ground or
-    // zoom through the parts.
+    sceneCreated(el) {
+      orbitCam(el, { radius: 12, beta: Math.PI / 2.9, target: [0, 1, 0] })
+    },
   },
-  b3dLight({ y: 1, intensity: 0.7 }),
-  b3dSkybox({ timeOfDay: 12 }),
-  b3dGround({ width: 20, height: 20 }),
+  ...demoStage({ size: 20, tiles: 12, pattern: true, timeOfDay: 12 }),
   lib,
 )
 
@@ -214,7 +215,7 @@ and gear-retract animations in <code>test-3.glb</code>), <code>instantiate</code
 the container, animating the original nobody can see. They land on
 <code>instance.metadata.animationGroups</code>, named <code>&lt;group&gt;::&lt;instance&gt;</code> so multiple
 instances animate independently:</p>
-<pre><code class="language-js">const scout = lib.instantiate(&#39;scout&#39;, { canonical: true })
+<pre><code class="language-javascript">const scout = lib.instantiate(&#39;scout&#39;, { canonical: true })
 const cockpit = scout.metadata.animationGroups
   .find((g) =&gt; g.name.startsWith(&#39;Cockpit Open&#39;))
 cockpit.start(false) // one shot; .start(true) loops
@@ -226,10 +227,12 @@ scene&#39;s ambient animations stay behind. Pass <code>animations: false</code> 
 <li><code>getNames(): string[]</code> — declared <code>.model</code> exports under clean names (or all
 mesh/transform-node names when none are declared; <code>__root__</code>/<code>-ignore</code> always excluded)</li>
 <li><code>getRootNames(): string[]</code> — same, top-level nodes only</li>
-<li><code>getHierarchy(): {name, children, isMesh}[]</code> — recursive tree of all nodes (meshes + transforms) reflecting parent–child structure</li>
+<li><code>getHierarchy(): {name, label, children, isMesh}[]</code> — recursive tree of all nodes reflecting parent–child structure. <code>name</code> identifies the node; <strong><code>label</code> is what you show a human</strong> (<code>.model</code>, behaviour suffixes and the glTF loader&#39;s <code>_primitiveN</code> all removed, so <code>building_collideCylinder_primitive0</code> reads as <code>building</code>)</li>
 <li><code>instantiate(name, options?): Node | null</code> — clone a named node (mesh or transform, with children) into the scene</li>
+<li><code>make</code> — the same thing, as callable names: <code>lib.make.scout({ y: 1 })</code>. Quotes are the only difference, but a string is invisible to the editor and a typo in one is a runtime error rather than something you see while typing. It&#39;s a sub-object, not methods on the element, because a GLB may contain a node called <code>id</code> or <code>remove</code> and a model must never be able to shadow the DOM.</li>
 <li><code>clearInstances(): void</code> — dispose all previously instantiated clones</li>
-<li>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent? }</code></li>
+<li>Options: <code>{ x?, y?, z?, rx?, ry?, rz?, parent?, animations?, canonical? }</code> —
+rotation in <strong>degrees</strong> (it was radians before 0.7.0; see the CHANGELOG)</li>
 </ul>
 
   </article>
@@ -238,18 +241,19 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
     <li><details open><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
-      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link current" href="../b3d-library/" aria-current="page">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
       <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
       <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
       <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
       <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
       <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
       <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
-      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
@@ -274,8 +278,7 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
-      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -284,29 +287,30 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
       <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
       <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
       <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
-      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
-      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
-      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
       <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
       <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
       <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
       <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
-      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
       <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
       <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
-      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
       <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
-      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
       <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
       <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
       <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
@@ -314,8 +318,8 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
     </details></li>
     <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
     <ul>
-      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
       <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
       <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
     </ul>
@@ -332,33 +336,35 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
     </details></li>
     <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
     <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
-      <li><a class="doc-link" href="../box/">box</a></li>
-      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
-      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
-      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
-      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
@@ -370,15 +376,15 @@ mesh/transform-node names when none are declared; <code>__root__</code>/<code>-i
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
-      <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
-      <li><a class="doc-link" href="../world-view/">world-view</a></li>
     </ul>
     </details></li>
   </ul>

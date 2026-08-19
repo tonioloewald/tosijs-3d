@@ -32,7 +32,7 @@ import { DestroyableBehavior } from 'tosijs-3d'
 // <tosi-b3d-destroyable> cube; at 0 hp it runs the same explode / wreck / loot outcomes.
 ```
 */
-/*{ "parent": "Combat" }*/
+/*{ "parent": "Combat", "order": 900 }*/
 import * as BABYLON from '@babylonjs/core';
 import { detonateWarhead } from './b3d-warhead';
 import { explodeMesh } from './b3d-exploder';

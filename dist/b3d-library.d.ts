@@ -44,6 +44,16 @@ export interface InstantiateOptions {
     x?: number;
     y?: number;
     z?: number;
+    /**
+     * Rotation in DEGREES — matching `AbstractMesh`'s rx/ry/rz and `make-mesh`'s.
+     *
+     * ⚠️ These were RADIANS until 0.7.0, which made the library the only surface
+     * in the framework that disagreed. That is precisely the kind of divergence
+     * nobody catches by reading: a bare number is valid in either unit, so a
+     * value meant as degrees just silently produces some other orientation. It
+     * got past me in this repo's own collision demo (`ry: 140`, intended as
+     * degrees, actually 140 radians).
+     */
     rx?: number;
     ry?: number;
     rz?: number;
@@ -74,10 +84,39 @@ export declare class B3dLibrary extends B3dChild {
     getRootNames(): string[];
     getHierarchy(): {
         name: string;
+        label: string;
         children: any[];
         isMesh: boolean;
     }[];
     clearInstances(): void;
+    /**
+     * The library's contents as CALLABLE NAMES: `lib.make.scout({ y: 1 })`
+     * instead of `lib.instantiate('scout', { y: 1 })`.
+     *
+     * Same call, minus the quotes — which matters more than it looks. A string
+     * argument is invisible to the editor: no completion, no go-to-definition,
+     * and a typo is a runtime `console.error` rather than something you notice
+     * while typing. A property access at least reads like the thing it makes.
+     *
+     * Deliberately a SUB-OBJECT rather than methods on the element itself. This
+     * is an HTMLElement, and a GLB is free to contain a node called `title`,
+     * `id`, `children` or `remove` — putting arbitrary content names in that
+     * namespace means a model can silently shadow the DOM.
+     *
+     * It is `make` and not `parts` because `parts` is tosijs's own part registry
+     * (`this.parts.canvas`) — the first cut used it and the compiler caught the
+     * clash, which is the same class of collision one level up.
+     *
+     * Unknown names behave exactly as `instantiate` does: log and return null,
+     * never throw. A missing prop is a content problem, and taking the scene down
+     * over it helps nobody.
+     *
+     * Mirrors `svgIcons.<name>()` and `<tosi-b3d>`'s own `el.make.box()`, so the
+     * codebase has ONE idea of what a name-keyed factory looks like — and the
+     * same option vocabulary (`x/y/z`, `rx/ry/rz` in degrees) whether the thing
+     * you are making is a primitive or a model.
+     */
+    get make(): Record<string, (options?: InstantiateOptions) => BABYLON.Node | null>;
     instantiate(name: string, options?: InstantiateOptions): BABYLON.Node | null;
     sceneDispose(): void;
 }

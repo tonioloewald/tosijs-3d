@@ -6,14 +6,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.0
 
-> **Beta builds cut from this section.** They ARE published to npm, under the
-> `next` dist-tag — `latest` stays on the current stable until 0.7.0 ships.
->
-> A note on the numbering, because it looks backwards: `0.7.0-rc.1` was cut
+> **Prereleases, and why the numbering looks backwards.** `0.7.0-rc.1` was cut
 > first, then work continued as `-beta.1…beta.6`. Semver sorts beta BELOW rc, so
-> those betas are unreachable through any range naming rc.1. That was a
-> deliberate trade at the time; the rule taken from it is that **a prerelease
-> channel never moves backwards** — the successor to `-rc.N` is `-rc.N+1`.
+> `bun add tosijs-3d@next` wrote `^0.7.0-beta.6` and RESOLVED BACKWARDS to the
+> older rc.1 — silently, and `bun update` even reported the downgrade as an
+> upgrade. **Publishing 0.7.0 is what un-inverts the channel**, since it sorts
+> above every prerelease.
+>
+> The rule taken from it: **a prerelease channel never moves backwards** — the
+> successor to `-rc.N` is `-rc.N+1`, never a beta. If you pinned any
+> `^0.7.0-beta.*` or `0.7.0-rc.1`, move to `0.7.0`.
 >
 > - **0.7.0-beta.6** (2026-08-17) — carved landforms (the sdf-lattice page, the
 >   volcano cutaway, strata, 3D volcanic veins), portal math, and four
@@ -108,6 +110,65 @@ attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
   compared it to an authored name with its suffix, needs updating.
 
 ### Added
+
+- **Popups are their own SURFACES — `el.openPopup()`** (`popup-surface`). A menu,
+  a dropdown's list or a debug readout spawns a second plane above its opener
+  rather than being laid out inside its SVG. Owned popups travel and die with
+  their opener; `tearOff()` promotes one to world space preserving pose, after
+  which it stays where you put it — and **dragging an owned popup tears it off**,
+  like pulling a tab out of a window. Click-to-front, `modal` (blocks pointer
+  access to what's behind it, never the camera), a title-bar grip so the rest of
+  the panel can stay interactive, and injected move/close glyphs.
+
+  This retired a constraint we had recorded as absolute: a dropdown "MUST grow
+  the panel's layout … because a popover won't rasterize into the VR texture".
+  True of a popover inside ONE texture; the escape is another texture on another
+  plane. See `UI-DESIGN-NOTES.md`.
+
+- **`rounded-rect` + `cornerRadius` / `transparent` on `b3d-svg-plane`** — rounded
+  corners as GEOMETRY so a UI panel can be **opaque**. A transparent mesh is not
+  depth-written, so Babylon re-sorts it per frame by camera distance and
+  near-coplanar panels flip order as you orbit: it looks exactly like z-fighting
+  and no amount of correct depth ordering fixes it. Three quads plus four
+  quarter-disc fans, 22 triangles at 4 segments. **The general rule: in 3D,
+  express shape as geometry and reserve alpha for things that are genuinely
+  see-through.**
+
+- **`el.make.*`** (`make-mesh`) — Babylon primitives with the forgettable parts
+  done: material from `color`/`glow`, `register()` so the sun and reflection
+  probes see it, and `computeWorldMatrix` (a mesh positioned but never rendered
+  has no world matrix, so a ray cast this frame finds it AT THE ORIGIN and
+  answers confidently and wrongly). A Proxy forwarding to `MeshBuilder`, so all
+  26 shapes are reachable plus whatever Babylon adds later.
+
+- **`library.make.<name>()`** — a library's contents as callable names,
+  `lib.make.scout({ y: 1 })`. Same option vocabulary as `el.make.*`.
+
+- **`glow` / `glowColor` on `b3dBox` / `b3dSphere`** — self-illumination as a
+  fraction of `color`. Both primitives now share one `primitiveMaterial`, which
+  is how the sphere came to be missing `glow` ninety seconds after the box got
+  it.
+
+- **`B3d.BABYLON` (static) and `BABYLON` re-exported from the barrel.** Babylon
+  is a PEER dependency, so a consumer importing `@babylonjs/core` separately can
+  end up with a second copy — two `Vector3` classes that fail `instanceof`
+  against each other. Taking it from the library that already holds one is the
+  guarantee.
+
+- **`shadowNormalBias` / `shadowBias` on `b3dSun`**, defaulting to `0.05`.
+  Babylon's CSM ships `normalBias: 0`, which is not a tuned value for a large
+  receiver: a 40×40 ground self-shadowed into a dense stipple across its whole
+  surface. Measured at 0 / 0.02 / 0.05 on a live scene.
+
+- **`b3d-collisions` gains its first live demo** — hail on the scout, impacts
+  found by a SWEPT ray, each marked with a disc lying on the surface plus a
+  stalk along the normal. Ground hits count too, in a cooler colour.
+
+- **`b3d-aircraft` gains `chasePitchFollow` / `chasePitchLag`** — how much of the
+  nose's pitch the chase camera inherits. `0` (default) keeps the level pivot;
+  `1` is as if the camera were bolted to the airframe. A dial rather than a
+  reparent, because the flat pivot is what fixed the jittery chase, and the lag
+  term is what passes the intention while dropping the per-frame wobble.
 
 - **`b3d-aircraft` gains `maxPitch` / `maxDive`** (#26). Pitch authority was a
   module constant at a symmetric 35° — a gentle airliner descent, unreachable by
@@ -398,6 +459,30 @@ attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
   thing you're making is a primitive or a model.
 
 ### Fixed
+
+- **Shadow acne on large receivers** — see `shadowNormalBias` above. It was also
+  why scenes looked dull: the stipple darkened roughly half the ground.
+
+- **`b3d-svg-plane` cleared a parent it never set.** Its `cameraRelative` sync ran
+  `mesh.parent = null` unconditionally whenever the flag was off, so anything
+  parented to a plane was silently torn off a frame later, with no error. Same
+  shape as the pause bug below: **a guard must record what you DID, not observe
+  what state the object is in.**
+
+- **The glass gamepad no longer fades when you move the mouse.** It is operable
+  by pointer — `pointerdown` drives the sticks — so it vanished exactly as you
+  reached for it. Only a keypress or a physical gamepad fades it now.
+
+- **`publicName` leaked loader and Blender artifacts.** The library picker showed
+  `building_collideCylinder_primitive0`; `_primitiveN` is the glTF loader
+  splitting a multi-material mesh, and Blender's `.001` sat AFTER the behaviour
+  suffix so no `endsWith` matched it. `.001` is preserved (it is a different
+  object) while the annotation is removed.
+
+- **`ry` is DEGREES, and now says so.** `AbstractMesh.render()` multiplies
+  rx/ry/rz by `DEG_TO_RAD`; nothing documented it, and the b3d pause demo had
+  been adding radians per second for its whole life — about one revolution per
+  ten minutes, which read as "the cube doesn't spin".
 
 - **Impacts now report the surface NORMAL, not just the point** (#29) —
   `spawnProjectile`/`spawnMissile` take `whenImpact({ point, normal, mesh })`.

@@ -29,7 +29,7 @@ import { proximityRung, routePortals } from 'tosijs-3d'
 // routePortals(portals, 'study', 'garden') → { portals: ['door-1','gate-2'], cost: 45 } | null
 ```
 */
-/*{ "parent": "World-Sim" }*/
+/*{ "parent": "World-Sim", "order": 900 }*/
 /**
  * How the ladder's bands stretch with a place's `extent`. The numbers are the multiplier on the
  * base thresholds below, so a `vast` region's rungs are ~80× an `intimate` one's — "across the

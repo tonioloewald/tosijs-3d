@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.0-beta.6
+# tosijs-3d v0.7.0
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -166,6 +166,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
+- https://3d.tosijs.net/make-mesh/ — make-mesh
+  the four things everyone forgets already done.
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/medium/ — medium
@@ -179,12 +181,16 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/popup-surface/ — popup-surface
+  A menu cascade, a dropdown's open list, a debug readout — in a browser these are
 - https://3d.tosijs.net/portal-transform/ — portal-transform
   see-through portals: a doorway that shows another place, and shows it *while you
 - https://3d.tosijs.net/prefab/ — prefab
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
+- https://3d.tosijs.net/rounded-rect/ — rounded-rect
+  generation for in-scene UI panels.
 - https://3d.tosijs.net/selection/ — selection
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal

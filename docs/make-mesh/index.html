@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>make-mesh — tosijs-3d</title>
+  <meta name="description" content="El.make.box({ y: 1, color: &#39;#c33&#39;, glow: 0.3 }) — Babylon primitives with the four things everyone forgets already done." />
+  <link rel="canonical" href="https://3d.tosijs.net/make-mesh/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="make-mesh — tosijs-3d" />
+  <meta property="og:description" content="El.make.box({ y: 1, color: &#39;#c33&#39;, glow: 0.3 }) — Babylon primitives with the four things everyone forgets already done." />
+  <meta property="og:url" content="https://3d.tosijs.net/make-mesh/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"make-mesh","description":"El.make.box({ y: 1, color: '#c33', glow: 0.3 }) — Babylon primitives with the four things everyone forgets already done.","url":"https://3d.tosijs.net/make-mesh/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>make-mesh</h1>
+<p><strong><code>el.make.box({ y: 1, color: &#39;#c33&#39;, glow: 0.3 })</code></strong> — Babylon primitives with
+the four things everyone forgets already done.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dSkybox } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam } from &#39;demo-utils&#39;
+
+const scene = b3d(
+  {
+    glowLayerIntensity: 0.7,
+    sceneCreated(el) {
+      orbitCam(el, { radius: 9, target: [0, 1, 0] })
+      // Every one of these casts a shadow and is ray-ready immediately.
+      el.make.box({ size: 1.2, x: -2.4, y: 0.9, color: &#39;#b8483a&#39;, glow: 0.25 })
+      el.make.sphere({ diameter: 1.3, y: 1, color: &#39;#3f7fb8&#39; })
+      el.make.cylinder({ height: 1.8, diameter: 0.9, x: 2.4, y: 0.9, color: &#39;#c9a227&#39;, glow: 0.15 })
+      el.make.torus({ diameter: 1.4, thickness: 0.28, y: 2.6, rx: 90, color: &#39;#6ab04c&#39; })
+      // Never hand-written here — the proxy forwards to MeshBuilder.CreateIcoSphere.
+      el.make.icoSphere({ radius: 0.7, subdivisions: 2, x: -2.4, y: 2.6, color: &#39;#b07acc&#39;, glow: 0.3 })
+      el.make.torusKnot({ radius: 0.5, tube: 0.16, x: 2.4, y: 2.7, color: &#39;#e08a3c&#39;, glow: 0.2 })
+    },
+  },
+  ...demoStage({ size: 16, tiles: 10, pattern: true }),
+)
+
+preview.append(scene)
+</code></pre>
+<p><code>b3dBox</code>/<code>b3dSphere</code>/<code>b3dGround</code> cover the DECLARATIVE case. But plenty of scene
+code is imperative — inside <code>sceneCreated</code>, in a spawner, in a demo — and there
+the honest version of &quot;add a cube&quot; is:</p>
+<pre><code class="language-javascript">const box = BABYLON.MeshBuilder.CreateBox(&#39;box&#39;, { size: 1 }, el.scene)
+box.position.set(0, 1, 0)
+const mat = new BABYLON.StandardMaterial(&#39;box-mat&#39;, el.scene)
+mat.diffuseColor = BABYLON.Color3.FromHexString(&#39;#c33&#39;)
+box.material = mat
+el.register({ meshes: [box] }) // or it casts no shadow
+box.computeWorldMatrix(true) // or a ray this frame misses it
+</code></pre>
+<p>Six lines, of which the last two are invisible until something is subtly wrong.
+This is the same shape <code>b3d-library</code> grew for content (<code>lib.make.scout()</code>), and
+tosijs&#39;s <code>elementCreator</code> before that: the thing you want, named, taking the
+options you&#39;d have set anyway.</p>
+<h2>What it does for you</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>why it matters</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>material</strong> from <code>color</code>/<code>glow</code>/<code>glowColor</code></td>
+<td>the same <code>primitiveMaterial</code> <code>b3dBox</code> uses, so the two paths cannot drift</td>
+</tr>
+<tr>
+<td><strong><code>register()</code></strong> with the owner</td>
+<td>shadow casting, reflection probes — the scene-listener contract. A mesh nobody registered is a mesh the sun has never heard of</td>
+</tr>
+<tr>
+<td><strong><code>computeWorldMatrix(true)</code></strong></td>
+<td>see below — this one is a genuine trap</td>
+</tr>
+<tr>
+<td><strong>degrees</strong> for <code>rx</code>/<code>ry</code>/<code>rz</code></td>
+<td>matches <code>AbstractMesh</code>, which is degrees. Babylon is radians, so a bare number is ambiguous exactly where it hurts</td>
+</tr>
+</tbody></table>
+<h2>It covers everything <code>MeshBuilder</code> has</h2>
+<p><code>make</code> is a Proxy that forwards <code>make.&lt;shape&gt;</code> to <code>MeshBuilder.Create&lt;Shape&gt;</code>, so
+all 26 are there — <code>icoSphere</code>, <code>torusKnot</code>, <code>polyhedron</code>, <code>tube</code>, <code>lathe</code>,
+<code>geodesic</code>, <code>goldberg</code>, <code>tiledBox</code> — plus whatever Babylon adds later, with no
+code here to keep in step. Options you don&#39;t recognise are simply forwarded, so
+a shape&#39;s own parameters work exactly as they do in Babylon.</p>
+<p>It is weightless: one Proxy, and a closure only for the names actually used.
+That laziness is the point — a hand-written list of eight would be wrong the
+moment somebody wanted the ninth.</p>
+<p><code>make.decal</code> is refused with a message, because <code>CreateDecal</code> takes a source
+mesh rather than options and so doesn&#39;t fit the forwarding shape.</p>
+<h2>Why <code>worldMatrix</code> defaults to true</h2>
+<p>A mesh that has been positioned but never RENDERED has no world matrix, so
+anything that reads world space this frame — a ray, a bounding check, an
+<code>absolutePosition</code> — sees it <strong>at the origin</strong>. It does not throw; it quietly
+answers about a phantom copy somewhere else.</p>
+<p>That is not hypothetical: it cost a debugging detour in the collision demo&#39;s
+tests. A wall placed at <code>z=6</code>, shot at on the first frame, reported an impact at
+<code>z=0.25</code> with a confident normal off the wrong face — the ray had started inside
+the phantom at the origin and exited its far side. Plausible, wrong, and silent.</p>
+<p>Pass <code>worldMatrix: false</code> if you are about to reposition the mesh anyway and
+want to skip the work.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><details open><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link current" href="../make-mesh/" aria-current="page">make-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

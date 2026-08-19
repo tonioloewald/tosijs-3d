@@ -104,7 +104,7 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
   sheet, readout))
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 900 }*/
 const row = (chars) => Array.from(chars).map((c) => ({ label: c, value: c }));
 const SHIFT = { label: '⇧', action: 'shift', width: 1.5 };
 const BACK = { label: '⌫', action: 'backspace', width: 1.5 };
