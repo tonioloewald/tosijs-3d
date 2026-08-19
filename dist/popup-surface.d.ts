@@ -1,5 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { type B3dSvgPlane } from './b3d-svg-plane';
+import { chromeLayout } from './popup-chrome';
 import type { B3d } from './tosi-b3d';
 export interface PopupSurfaceOptions {
     /** The panel's content. Its viewBox aspect sets the plane's height. */
@@ -73,10 +74,15 @@ export interface PopupSurface {
     };
     /** Internal: does this one block what is behind it? */
     modal?: boolean;
-    /** Internal: title-bar height as a fraction of the panel. */
-    gripFraction: number;
+    /** Internal: the panel's viewBox and the chrome geometry derived from it —
+     * shared by the drawing and the hit testing so they cannot disagree. */
+    vbWidth: number;
+    vbHeight: number;
+    chromeLayout: ReturnType<typeof chromeLayout>;
     /** Internal: start the move gesture (called after the grip hit test). */
     beginDrag(pointerId: number): void;
+    /** Internal: end it on pointerup — the behaviour's own release is disabled. */
+    endDrag(): void;
     /** Bring this popup to the front of the stack. */
     toFront(): void;
 }

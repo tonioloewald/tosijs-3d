@@ -47,7 +47,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
 **Aircraft that fly like aircraft, and the substrate for volumetric terrain.**
 No peer-dependency changes, but this is a **behaviour** release: the throttle,
 the right stick and the on-screen gamepad all work differently, and one
-attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
+attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene that
+was tuned around the old feel.
+
+### ⚠️ Breaking
 
 - **Angles in the AUTHORING surface are DEGREES.** "We should use degrees
   everywhere. Not even mathematicians visualize radians." Two APIs took radians
@@ -64,9 +67,6 @@ attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
   number is valid in either unit, so a value meant as degrees silently produced
   some other orientation. It got past us in this repo's own collision demo.
   **Migration:** if you passed radians, multiply by `180 / Math.PI`.
-  that was tuned around the old feel.
-
-### ⚠️ Breaking
 
 - **`b3dPatch` / `B3dPatch` are removed.** The volumetric-patch element stitched
   an SDF extraction into the heightfield and never worked: two surfaces meeting
@@ -86,10 +86,11 @@ attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
   - `hudChase: false` → `hudChaseOff: true`.
   - Chase view now shows the HUD **without the artificial horizon** (which
     only tells the truth from inside the cockpit).
-- **The glass gamepad hides itself** once a mouse, keyboard or hardware pad is
-  used, returning after `idleSeconds` (10) of silence. Touch doesn't count.
-  Set `fade="off"` to keep it visible — worth knowing if you screenshot or
-  demo on a desktop.
+- **The glass gamepad hides itself** once a **keyboard or hardware gamepad** is
+  used, returning after `idleSeconds` (10) of silence. The POINTER never fades
+  it — not touch, not mouse, not trackpad: the pad is operable by pointer, so
+  fading on pointer movement made it vanish exactly as you reached for it.
+  Set `fade="off"` to pin it — worth knowing if you screenshot or demo.
 - **The right stick is the camera**, not aux roll. `strafe` still sums into
   roll, so a custom mapping can restore a dedicated roll axis.
 - **`carve` is a NAMESPACE, not 13 bare exports.** New in this cycle, so this
@@ -445,18 +446,6 @@ attribute was renamed. Read the ⚠️ Breaking block before upgrading a scene
   the detail layer doing real work — the old defaults read as pudding.
 - `worldV` defaults to 0.25: `CylinderSampler` reflects v, so `worldV = 0`
   put every scene ON a mirror plane with a seam running to the horizon.
-
-### Added
-
-- **`el.make.*` — Babylon primitives with the forgettable parts done.**
-  `el.make.box({ y: 1, color: '#c33', glow: 0.3 })` builds the mesh, gives it a
-  material from the same `primitiveMaterial` `b3dBox` uses, `register()`s it so
-  the sun and reflection probes see it, and computes its world matrix. That last
-  one is a real trap: a mesh positioned but never rendered has no world matrix,
-  so a ray cast this frame finds it AT THE ORIGIN and returns a confident,
-  wrong answer. Covers box/sphere/cylinder/plane/ground/disc/torus/capsule, and
-  shares its option vocabulary with `library.make.*` — one surface whether the
-  thing you're making is a primitive or a model.
 
 ### Fixed
 

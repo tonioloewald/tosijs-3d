@@ -6,6 +6,7 @@
 - [surface](/surface/)
 - [popup-surface](/popup-surface/)
 - [rounded-rect](/rounded-rect/)
+- [popup-chrome](/popup-chrome/)
 - [b3d-hud](/b3d-hud/)
 - [b3d-panel](/b3d-panel/)
 - [b3d-svg-plane](/b3d-svg-plane/)

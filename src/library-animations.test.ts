@@ -105,3 +105,68 @@ describe('cloneNodeAnimations (the animated-scout path)', () => {
     b.dispose()
   })
 })
+
+/*
+ROTATION MUST ACTUALLY ROTATE.
+
+`instantiate` wrote `result.rotation.x/y/z`, and a TransformNode ignores
+`.rotation` while a `rotationQuaternion` is set — which Babylon's glTF loader
+ALWAYS sets, even for a node with no rotation in the file. So the option was
+inert on the default path: position worked, which is exactly what made it look
+wired up.
+
+It went unnoticed because nothing measured the RESULT. The unit change in 0.7.0
+(radians → degrees) touched a number nobody read, and the changelog briefly told
+adopters to convert it. This asserts the effect, not the assignment.
+*/
+describe('instantiate rotation (degrees, and actually applied)', () => {
+  const forwardOf = (node: any) => {
+    node.computeWorldMatrix(true)
+    const m = node.getWorldMatrix()
+    return BABYLON.Vector3.TransformNormal(
+      new BABYLON.Vector3(0, 0, 1),
+      m
+    ).normalize()
+  }
+
+  /** A library element is a Component; drive `instantiate` on a duck-typed
+   * stand-in holding just the container + owner it touches. */
+  const makeLib = async () => {
+    const { B3dLibrary } = await import('./b3d-library')
+    const lib = Object.create(B3dLibrary.prototype) as any
+    lib.container = container
+    lib.instances = []
+    lib.owner = { scene, register() {} }
+    return lib
+  }
+
+  test('different ry values produce DIFFERENT orientations', async () => {
+    const lib = await makeLib()
+    const a = forwardOf(lib.instantiate('scout', { ry: 0 }))
+    const b = forwardOf(lib.instantiate('scout', { ry: 90 }))
+    // The bug: all three were bit-identical, because euler was discarded.
+    expect(BABYLON.Vector3.Distance(a, b)).toBeGreaterThan(0.5)
+  })
+
+  test('ry is DEGREES — 90 is a quarter turn, not 90 radians', async () => {
+    const lib = await makeLib()
+    const base = forwardOf(lib.instantiate('scout', { ry: 0 }))
+    const quarter = forwardOf(lib.instantiate('scout', { ry: 90 }))
+    // Dot product of two unit vectors 90° apart is 0. If 90 were taken as
+    // RADIANS (~5157°, i.e. ~117° after wrapping) this would not hold.
+    expect(BABYLON.Vector3.Dot(base, quarter)).toBeCloseTo(0, 4)
+  })
+
+  test('a full 360 comes back to where it started', async () => {
+    const lib = await makeLib()
+    const a = forwardOf(lib.instantiate('scout', { ry: 0 }))
+    const b = forwardOf(lib.instantiate('scout', { ry: 360 }))
+    expect(BABYLON.Vector3.Distance(a, b)).toBeCloseTo(0, 4)
+  })
+
+  test('position still works — it always did, which is why this hid', async () => {
+    const lib = await makeLib()
+    const node = lib.instantiate('scout', { x: 3, y: 2, z: -1 })
+    expect(node.position.asArray()).toEqual([3, 2, -1])
+  })
+})

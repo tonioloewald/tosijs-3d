@@ -6,6 +6,10 @@
   <img style="width: 280px; height: 280px;" alt="tosijs-3d logo" src="https://3d.tosijs.net/favicon.svg">
 </div>
 
+**Upgrading?** See [Migration.md](./Migration.md) for the breaking changes and
+what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
+Both ship inside the package, so they work from `node_modules` too.
+
 Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
 See the [b3d](?tosi-b3d.ts) page for a live interactive demo.
 

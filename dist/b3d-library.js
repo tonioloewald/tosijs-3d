@@ -434,13 +434,29 @@ export class B3dLibrary extends B3dChild {
             result.position.x = options.x ?? 0;
             result.position.y = options.y ?? 0;
             result.position.z = options.z ?? 0;
-            const DEG = Math.PI / 180;
-            if (options.rx !== undefined)
-                result.rotation.x = options.rx * DEG;
-            if (options.ry !== undefined)
-                result.rotation.y = options.ry * DEG;
-            if (options.rz !== undefined)
-                result.rotation.z = options.rz * DEG;
+            /*
+            QUATERNION, not euler — `.rotation` is IGNORED here.
+      
+            Babylon's glTF loader always assigns a `rotationQuaternion` (its
+            `_LoadTransform` sets `Quaternion.Identity()` even when the file carries
+            no rotation), and a TransformNode ignores `.rotation` entirely while a
+            quaternion is present. So writing euler did NOTHING on the default
+            non-canonical path: measured on the shipped scout, `ry = 0`, `ry = 140`
+            and `ry = -90` all produced bit-identical forward vectors — you got the
+            GLB's own baked scene rotation whichever you asked for.
+      
+            Position worked, which is what made it look wired up. The option has been
+            inert since it existed; 0.7.0 is merely the release that advertised it,
+            and briefly shipped a changelog telling adopters to convert a number that
+            was never read. Same lesson as `ry` on AbstractMesh: when something else
+            owns the quaternion, euler fields are decoration.
+            */
+            if (options.rx !== undefined ||
+                options.ry !== undefined ||
+                options.rz !== undefined) {
+                const DEG = Math.PI / 180;
+                result.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll((options.ry ?? 0) * DEG, (options.rx ?? 0) * DEG, (options.rz ?? 0) * DEG);
+            }
         }
         const meshes = clone instanceof BABYLON.AbstractMesh
             ? [clone, ...clone.getChildMeshes()]

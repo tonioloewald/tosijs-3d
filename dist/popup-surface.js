@@ -140,6 +140,7 @@ rather than degrade.
 import * as BABYLON from '@babylonjs/core';
 import { b3dSvgPlane } from './b3d-svg-plane';
 import { iconGlyph } from './svg-icons';
+import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome';
 /**
  * Open a popup as its own surface.
  *
@@ -224,9 +225,18 @@ function applyModalBlocking(owner) {
 /**
  * Wire click-to-front and modal blocking for a scene.
  *
- * `onPrePointerObservable` rather than `onPointerObservable`, because a modal
- * has to say NO before the scene routes the event to whatever is behind it —
- * afterwards is too late, the click has already landed.
+ * `onPointerObservable`, NOT `onPrePointerObservable`.
+ *
+ * Both matter and the ordering is the whole bug. `PointerDragBehavior` also
+ * listens on POINTERDOWN, and its handler releases any drag whose
+ * `_activeDragButton` doesn't match the event's button. `startDrag()` leaves
+ * that at -1, so starting the drag from the PRE observable meant Babylon's own
+ * pass ran afterwards and killed it inside the same event: one dragStart, one
+ * dragEnd, zero drags, and a popup that jumps to front but never follows the
+ * pointer. Starting AFTER that pass leaves the drag alive.
+ *
+ * Modal blocking does not need the pre-pass, because it is done by making the
+ * panels behind un-pickable rather than by vetoing events.
  */
 function wirePointer(owner) {
     if (wired.has(owner))
@@ -235,7 +245,7 @@ function wirePointer(owner) {
     const scene = owner.scene;
     if (scene == null)
         return;
-    scene.onPrePointerObservable.add((info) => {
+    scene.onPointerObservable.add((info) => {
         const list = openPopups.get(owner);
         if (list == null || list.length === 0)
             return;
@@ -243,6 +253,14 @@ function wirePointer(owner) {
         // included — a scene pick per mouse-move, for a question that can only be
         // answered by a click. Blocking is handled by `isPickable` now, so nothing
         // here needs to run while you are merely moving the mouse.
+        if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
+            // With `startAndReleaseDragOnPointerEvents` off, the behaviour's own
+            // release branch is gated off too — so nothing would ever end the drag
+            // and the panel would stick to the cursor forever.
+            for (const p of list)
+                p.endDrag();
+            return;
+        }
         if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN)
             return;
         // Un-pickable panels are skipped by the pick itself, so a modal's blocking
@@ -268,10 +286,18 @@ function wirePointer(owner) {
             const uv = hit?.getTextureCoordinates?.();
             if (uv == null)
                 return;
-            const inBar = uv.y >= 1 - target.gripFraction;
-            if (!inBar)
-                return;
-            if (uv.x > 1 - target.gripFraction * 0.55) {
+            /*
+            Classify in the panel's OWN units, against the same layout the chrome was
+            drawn from. The first version compared a UV x (a WIDTH fraction) against
+            the grip height (a HEIGHT fraction) — on a portrait panel the close region
+            and the drawn × were fully disjoint, so pressing close fell through to the
+            drag branch and tore the popup off its opener instead. See `popup-chrome`.
+            */
+            const pt = uvToViewBox(uv.x, uv.y, target.vbWidth, target.vbHeight);
+            const what = chromeHit(pt.x, pt.y, target.chromeLayout);
+            if (what === 'content')
+                return; // the panel's own UI must reach it
+            if (what === 'close') {
                 target.close();
                 return;
             }
@@ -296,23 +322,22 @@ export function openPopup(owner, opts) {
     */
     const vbW = vb && vb.width > 0 ? vb.width : 100;
     const vbH = vb && vb.height > 0 ? vb.height : 100;
-    const barH = vbH * gripHeight;
-    if (chrome && barH > 0) {
-        const glyph = Math.min(barH * 0.62, vbW * 0.09);
-        const pad = (barH - glyph) / 2;
-        if (draggable) {
+    // ONE layout, used by the drawing below AND by the hit test in `wirePointer`.
+    const layout = chromeLayout(vbW, vbH, gripHeight, draggable);
+    if (chrome && layout.barHeight > 0) {
+        if (layout.move != null) {
             svg.appendChild(iconGlyph('move', {
                 color: '#8fa3ba',
-                size: glyph,
-                x: pad,
-                y: pad,
+                size: layout.move.size,
+                x: layout.move.x,
+                y: layout.move.y,
             }));
         }
         svg.appendChild(iconGlyph('close', {
             color: '#8fa3ba',
-            size: glyph,
-            x: vbW - glyph - pad,
-            y: pad,
+            size: layout.close.size,
+            x: layout.close.x,
+            y: layout.close.y,
         }));
     }
     const plane = b3dSvgPlane({
@@ -454,11 +479,17 @@ export function openPopup(owner, opts) {
     const api = {
         plane,
         modal,
-        gripFraction: gripHeight,
+        vbWidth: vbW,
+        vbHeight: vbH,
+        chromeLayout: layout,
         beginDrag(pointerId) {
             if (drag == null || !draggable)
                 return;
             drag.startDrag(pointerId);
+        },
+        endDrag() {
+            if (drag?.dragging === true)
+                drag.releaseDrag();
         },
         toFront() {
             bringToFront(owner, api);

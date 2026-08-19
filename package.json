@@ -9,7 +9,9 @@
     "dist",
     "!dist/iife.js",
     "!dist/iife.js.map",
-    "!dist/hydrate"
+    "!dist/hydrate",
+    "CHANGELOG.md",
+    "Migration.md"
   ],
   "repository": {
     "type": "git",

@@ -181,6 +181,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/popup-chrome/ — popup-chrome
+  Pure, in viewBox units — the one place both answers come from.
 - https://3d.tosijs.net/popup-surface/ — popup-surface
   A menu cascade, a dropdown's open list, a debug readout — in a browser these are
 - https://3d.tosijs.net/portal-transform/ — portal-transform
@@ -213,7 +215,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
 - https://3d.tosijs.net/ — tosijs-3d
-  Declarative 3D/XR framework built on Babylon.js and tosijs. Compose 3D scenes with web components.
+  what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - https://3d.tosijs.net/ui/ — UI
