@@ -3,6 +3,72 @@
 
 **A popup is another SURFACE, not more rows in the one you have.**
 
+```js
+import { b3d } from 'tosijs-3d'
+import { demoStage, orbitCam } from 'demo-utils'
+import { svgElements, elements } from 'tosijs'
+const { svg, rect, text } = svgElements
+
+// A little SVG panel, used for both the opener and its popups.
+// No `rx` on the background: the MESH is rounded now, so rounding the svg too
+// would only round the texture inside an already-rounded silhouette — a darker
+// fringe, and fill nobody asked for. (Tonio: "we can slightly simplify our svg
+// outer rect as well for a few ns of savings lol")
+const card = (title, lines, w = 220, h = 130) =>
+  svg(
+    { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
+    rect({ x: 0, y: 0, width: w, height: h, fill: '#1b2430' }),
+    rect({ x: 0, y: 0, width: w, height: 26, fill: '#2c3b4e' }),
+    text({ x: 12, y: 18, fill: '#e6edf5', 'font-size': 13, 'font-family': 'sans-serif' }, title),
+    ...lines.map((l, i) =>
+      text({ x: 12, y: 48 + i * 18, fill: '#9fb0c3', 'font-size': 12, 'font-family': 'sans-serif' }, l)
+    )
+  )
+
+let opened = []
+const scene = b3d(
+  {
+    sceneCreated(el) {
+      orbitCam(el, { radius: 4.2, beta: Math.PI / 2.6, target: [0, 1.2, 0] })
+
+      // The opener: one ordinary in-scene panel.
+      const base = el.make.plane({ width: 1.6, height: 0.95, y: 1.2, color: '#101820' })
+      base.isPickable = true
+
+      const spawn = (n) => {
+        const pop = el.openPopup({
+          svg: card(`popup ${n}`, ['spawned as its own surface', 'tear off, then drag me']),
+          opener: base,
+          width: 0.9,
+          // Fan them out and step each one nearer the viewer, so depth does the
+          // stacking that a z-index would do flat.
+          offset: { x: 0.55 + n * 0.16, y: 0.3 - n * 0.22, z: -0.06 * (n + 1) },
+        })
+        opened.push(pop)
+        return pop
+      }
+
+      // popup 0 stays OWNED — parented to the panel, so it travels with it.
+      // Drag it and it tears itself off, like pulling a tab out of a window.
+      spawn(0)
+      spawn(1).tearOff()
+      // A MODAL blocks pointer access to everything behind it (the other
+      // popups included) until it closes. The camera still moves.
+      const m = el.openPopup({
+        svg: card('modal', ['blocks the ones behind it', 'camera still moves']),
+        width: 0.9,
+        offset: { x: -0.8, y: 0.2, z: -0.3 },
+        modal: true,
+      })
+      opened.push(m)
+    },
+  },
+  ...demoStage({ size: 12, tiles: 8, pattern: true, timeOfDay: 11 }),
+)
+
+preview.append(scene)
+```
+
 A menu cascade, a dropdown's open list, a debug readout — in a browser these are
 absolutely positioned inside the one window you were given, and overlapping them
 is a z-index problem. In a scene none of that scarcity is real: planes are cheap,
@@ -69,73 +135,6 @@ should treat concurrent surfaces as a budget — the ambient allocator's rule
 applies, so something that cannot have its honest minimum should switch OFF
 rather than degrade.
 
-## Demo
-
-```js
-import { b3d, b3dSkybox, ui, panelScene } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
-import { svgElements, elements } from 'tosijs'
-const { svg, rect, text } = svgElements
-
-// A little SVG panel, used for both the opener and its popups.
-// No `rx` on the background: the MESH is rounded now, so rounding the svg too
-// would only round the texture inside an already-rounded silhouette — a darker
-// fringe, and fill nobody asked for. (Tonio: "we can slightly simplify our svg
-// outer rect as well for a few ns of savings lol")
-const card = (title, lines, w = 220, h = 130) =>
-  svg(
-    { viewBox: `0 0 ${w} ${h}`, width: w, height: h },
-    rect({ x: 0, y: 0, width: w, height: h, fill: '#1b2430' }),
-    rect({ x: 0, y: 0, width: w, height: 26, fill: '#2c3b4e' }),
-    text({ x: 12, y: 18, fill: '#e6edf5', 'font-size': 13, 'font-family': 'sans-serif' }, title),
-    ...lines.map((l, i) =>
-      text({ x: 12, y: 48 + i * 18, fill: '#9fb0c3', 'font-size': 12, 'font-family': 'sans-serif' }, l)
-    )
-  )
-
-let opened = []
-const scene = b3d(
-  {
-    sceneCreated(el) {
-      orbitCam(el, { radius: 4.2, beta: Math.PI / 2.6, target: [0, 1.2, 0] })
-
-      // The opener: one ordinary in-scene panel.
-      const base = el.make.plane({ width: 1.6, height: 0.95, y: 1.2, color: '#101820' })
-      base.isPickable = true
-
-      const spawn = (n) => {
-        const pop = el.openPopup({
-          svg: card(`popup ${n}`, ['spawned as its own surface', 'tear off, then drag me']),
-          opener: base,
-          width: 0.9,
-          // Fan them out and step each one nearer the viewer, so depth does the
-          // stacking that a z-index would do flat.
-          offset: { x: 0.55 + n * 0.16, y: 0.3 - n * 0.22, z: -0.06 * (n + 1) },
-        })
-        opened.push(pop)
-        return pop
-      }
-
-      // popup 0 stays OWNED — parented to the panel, so it travels with it.
-      // Drag it and it tears itself off, like pulling a tab out of a window.
-      spawn(0)
-      spawn(1).tearOff()
-      // A MODAL blocks pointer access to everything behind it (the other
-      // popups included) until it closes. The camera still moves.
-      const m = el.openPopup({
-        svg: card('modal', ['blocks the ones behind it', 'camera still moves']),
-        width: 0.9,
-        offset: { x: -0.8, y: 0.2, z: -0.3 },
-        modal: true,
-      })
-      opened.push(m)
-    },
-  },
-  ...demoStage({ size: 12, tiles: 8, pattern: true, timeOfDay: 11 }),
-)
-
-preview.append(scene)
-```
 */
 /*{ "parent": "UI", "order": 400 }*/
 
@@ -273,6 +272,34 @@ function bringToFront(owner: B3d, front: PopupSurface): void {
 const wired = new WeakSet<B3d>()
 
 /**
+ * Make everything behind the topmost modal un-pickable, and restore it when the
+ * modal goes away.
+ *
+ * ⚠️ The obvious implementation is to cancel the pointer event
+ * (`skipOnPointerObservable = true`) when the press is not on the modal. I did
+ * that first and it BROKE MOUSE CONTROL: Babylon's camera pointer inputs route
+ * through `onPointerObservable` too, so cancelling there kills orbit along with
+ * the UI. Tonio, immediately: "I can only rotate the view in some places. Other
+ * places mouse doesn't work at all."
+ *
+ * So the block is expressed as what it actually means — those panels are not
+ * targets right now — instead of as a veto over the whole pointer pipeline. The
+ * camera is untouched, which matters more in a headset than anywhere: a modal
+ * owns the UI, not your head, and freezing someone's view is how you make them
+ * ill.
+ */
+function applyModalBlocking(owner: B3d): void {
+  const list = openPopups.get(owner)
+  if (list == null) return
+  const modal = list.find((p) => p.modal === true) ?? null
+  for (const p of list) {
+    const mesh = p.plane.mesh
+    if (mesh == null) continue
+    mesh.isPickable = modal == null || p === modal
+  }
+}
+
+/**
  * Wire click-to-front and modal blocking for a scene.
  *
  * `onPrePointerObservable` rather than `onPointerObservable`, because a modal
@@ -288,34 +315,20 @@ function wirePointer(owner: B3d): void {
   scene.onPrePointerObservable.add((info) => {
     const list = openPopups.get(owner)
     if (list == null || list.length === 0) return
+    // ONLY on a press. This used to pick on every pointer event, moves
+    // included — a scene pick per mouse-move, for a question that can only be
+    // answered by a click. Blocking is handled by `isPickable` now, so nothing
+    // here needs to run while you are merely moving the mouse.
+    if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
 
-    // Topmost modal wins: the front of the list is nearest the viewer, so the
-    // FIRST modal found is the one currently in charge.
-    const modal = list.find((p) => p.modal === true)
+    // Un-pickable panels are skipped by the pick itself, so a modal's blocking
+    // needs no test here.
     const hit = scene.pick(scene.pointerX, scene.pointerY, (m) =>
       list.some((p) => p.plane.mesh === m)
     )
     const onPopup = hit?.hit === true ? hit.pickedMesh : null
 
-    if (modal != null && onPopup !== modal.plane.mesh) {
-      /*
-      Block. Everything behind a modal is unreachable until it closes — which
-      is the whole point of one, and cheap here because a scene pick already
-      tells us what the ray met.
-
-      Deliberately NOT blocking camera input: those attach to the canvas
-      directly rather than through this observable, so the view still moves. A
-      modal owns the UI, not your head — taking someone's view away in a headset
-      is how you make them ill.
-      */
-      info.skipOnPointerObservable = true
-      return
-    }
-
-    if (
-      onPopup != null &&
-      info.type === BABYLON.PointerEventTypes.POINTERDOWN
-    ) {
+    if (onPopup != null) {
       // CLICK to front, not just drag-to-front: raising something only when you
       // move it means a panel you merely want to READ stays buried.
       const target = list.find((p) => p.plane.mesh === onPopup)
@@ -485,6 +498,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     // rule you have to be TOLD rather than one you can discover.
     attachDrag()
     wirePointer(owner)
+    applyModalBlocking(owner)
     mounted = true
     for (const fn of pending.splice(0)) fn()
   })
@@ -571,6 +585,8 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     close() {
       if (closed) return
       closed = true
+      // Remove first, THEN re-evaluate: if this was the modal, whatever it was
+      // blocking has to become reachable again.
       if (drag != null) plane.mesh?.removeBehavior(drag)
       const list = openPopups.get(owner)
       if (list != null) {
@@ -578,6 +594,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
         if (i >= 0) list.splice(i, 1)
       }
       plane.remove()
+      applyModalBlocking(owner)
     },
   }
 
