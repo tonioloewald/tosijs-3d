@@ -43,6 +43,7 @@ not just the current state:
 | `CHANGELOG.md`             | Per-version Added/Changed/Fixed, with a **⚠️ Breaking** block for any peer-dependency range change                                                                                                                                       |
 | `UPSTREAM.md`              | Ecosystem debt to file as issues on `tosijs`/`tosijs-ui`/`tjs-lang` (file, don't fix) — recurring footguns we work around                                                                                                                |
 | `ARIOSTO-SIM.md`           | Our side of the Ariosto × tosijs-3d roadmap's SIM lane — reviewed on every version cut; the shared roadmap lives in `../ariosto/notes/roadmap.md`                                                                                        |
+| `reviews/`                 | Point-in-time pre-release review reports, one per gate. **NOT `docs/`** — that is the generated site root and `bun run build` wipes it, which ate the first copy of the 0.7.0 report about ninety seconds after it was written |
 | `llms.txt`                 | Generated index of the published doc pages (agent-facing entry point to https://3d.tosijs.net)                                                                                                                                           |
 
 ## Build & Development Commands
