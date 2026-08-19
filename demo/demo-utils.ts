@@ -47,7 +47,18 @@ export const TEST_PATTERN = '/tosi-test-pattern.svg'
 
 /** A sun that CASTS shadows — the "when in doubt, add a shadow light" default. Pass overrides through. */
 export function demoSun(opts: Record<string, unknown> = {}) {
-  return b3dSun({ intensity: 0.9, shadowTextureSize: 1024, ...opts })
+  /*
+  2048, not 1024. Shadow acne is driven by TEXEL SIZE — the shadow map's area
+  divided by its resolution — so on a demo's 40-unit ground a 1024 map still
+  stippled at `shadowNormalBias` 0.05, which is clean on smaller scenes. Raising
+  the bias further clears it but buys peter-panning on small casters; doubling
+  the resolution halves the texel and costs nothing a demo cares about.
+
+  Measured on /shadow-decal/, which is where Tonio saw it: shadows off → clean,
+  so it is genuinely the shadow map and not texture moiré; maxZ tightening made
+  it WORSE; the sun is at 49°, so it is not a grazing-angle case either.
+  */
+  return b3dSun({ intensity: 0.9, shadowTextureSize: 2048, ...opts })
 }
 
 /**

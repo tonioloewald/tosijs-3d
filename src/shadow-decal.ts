@@ -19,8 +19,8 @@ better than a crisp CSM shadow would anyway.
 position over the floor.
 
 ```js
-import { b3d, b3dSkybox, b3dBox, createShadowDecal } from 'tosijs-3d'
-import { demoSun, orbitCam, patternGround } from 'demo-utils'
+import { b3d, b3dBox, createShadowDecal } from 'tosijs-3d'
+import { demoStage, orbitCam } from 'demo-utils'
 
 const scene = b3d(
   {
@@ -41,9 +41,7 @@ const scene = b3d(
       el.scene.onBeforeRenderObservable.add(place)
     },
   },
-  demoSun(),
-  b3dSkybox({ timeOfDay: 10 }),
-  patternGround({ size: 30, tiles: 15 }),
+  ...demoStage({ size: 24, tiles: 10, pattern: true, timeOfDay: 10 }),
   // `_nocast` so no real CSM shadow competes with the decal — the decal IS the grounding shadow here
   b3dBox({ meshName: 'floater_nocast', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
 )
