@@ -166,3 +166,78 @@ describe('doc fences: executable vs illustrative', () => {
     expect(offenders).toEqual([])
   })
 })
+
+/*
+A SNIPPET MUST IMPORT WHAT IT USES.
+
+The guided-missile demo referenced `sceneDelta` and never imported it. That is
+not a cosmetic break: the reference sits inside a render observer, Babylon's
+`notifyObservers` has no isolation, and a throw out of `scene.render()` leaves
+the render loop dead — so the page showed a BLACK RECTANGLE with no visible
+error. Tonio found it by looking at it, and noted "it used to be fine".
+
+The sibling test above asserts the opposite direction — that every specifier a
+snippet IMPORTS is really exported — which is what caught the `sceneDelta`
+export gap in 0.6.2. This is the other half, and the two together are why the
+same symbol could break twice in opposite ways.
+
+Scoped to identifiers the BARREL exports, so it cannot fire on a demo's own
+locals: if a snippet says `sceneDelta` and never imported it, it means ours.
+*/
+describe('doc snippets import the library symbols they use', () => {
+  test('no snippet references an export it never imported', async () => {
+    const lib = (await import('./index')) as Record<string, unknown>
+    // Only names long enough to be unambiguous — a two-letter export would
+    // match inside unrelated words and turn this into a nuisance.
+    const exported = Object.keys(lib).filter((k) => k.length > 3)
+    // A check whose input is empty passes forever and tells you nothing. The
+    // barrel needs a DOM to import at all, so this is a real failure mode.
+    expect(exported.length).toBeGreaterThan(50)
+    const offenders: string[] = []
+
+    // EXECUTABLE fences only: a ```javascript block is illustrative and is
+    // allowed to be a fragment. Same distinction the fence guard above draws.
+    const dir = new URL('.', import.meta.url).pathname
+    const runnable: Array<{ file: string; index: number; code: string }> = []
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.ts') || file.includes('.test.')) continue
+      const src = readFileSync(`${dir}${file}`, 'utf8')
+      for (const block of src.matchAll(/\/\*#([\s\S]*?)\*\//g)) {
+        let i = 0
+        for (const m of block[1].matchAll(/```(?:js|ts|tjs)\n([\s\S]*?)```/g)) {
+          runnable.push({ file, index: i++, code: m[1] })
+        }
+      }
+    }
+
+    for (const s of runnable) {
+      const imported = new Set<string>()
+      for (const m of s.code.matchAll(/import\s*\{([^}]*)\}/g)) {
+        for (const raw of m[1].split(',')) {
+          const name = raw
+            .trim()
+            .split(/\s+as\s+/)[0]
+            .trim()
+          if (name) imported.add(name)
+        }
+      }
+      // Strip imports and comments before scanning, so an import line or a
+      // prose mention can't count as a use.
+      const body = s.code
+        .replace(/^\s*import[^\n]*$/gm, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/\/[^\n]*/g, '')
+      for (const name of exported) {
+        if (imported.has(name)) continue
+        // A bare identifier — not `foo.name`, not `name:` in an object.
+        const used = new RegExp(`(?<![.\\w$])${name}\\s*\\(`).test(body)
+        if (used) {
+          offenders.push(
+            `${s.file} [example ${s.index}]: uses \`${name}\` but never imports it`
+          )
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+})

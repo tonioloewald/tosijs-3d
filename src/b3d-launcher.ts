@@ -86,7 +86,7 @@ contact. The target **respawns at a fresh altitude** each time you destroy it. D
 `turnRate` and watch them overshoot a hard-turning target.
 
 ```js
-import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
