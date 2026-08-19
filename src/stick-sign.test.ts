@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
+import { readFileSync } from 'fs'
 
 /*
 THE SIGN CONTRACT: up / forward is POSITIVE, on every source.
@@ -157,41 +158,55 @@ describe('sources are identifiable without guessing at class names', () => {
 })
 
 /*
-THE THUMB MUST STAY INSIDE ITS TRAVEL CIRCLE.
+THE ARTWORK MUST CONTAIN THE STICK'S REACH.
 
-The knob's CENTRE used to travel the full travel radius, so at full deflection
-half the knob hung outside — and clipped against the artwork's edge. Reported
-from the flat pass: "it clips a bit on the right for the left stick, and on the
-left for the right stick", which is each cluster meeting its own bounds.
+At full deflection the knob's CENTRE sits on the travel rim, so its own rim
+reaches `travelRadius + knobRadius` from centre. If the cluster's viewBox stops
+short of that, the thumb is clipped — which is what happened: the left cluster
+ended at x=1103 while the left stick reached 1117, and the right cluster started
+at 803 while its stick reached 788. Hence "it clips a bit on the right for the
+left stick, and on the left for the right stick".
 
-Pinned as geometry rather than as pixels: whatever the artwork, the knob's rim
-at full deflection must not pass the travel circle's rim.
+The fix belongs HERE, in the bounds, not in the travel. Shrinking travel to keep
+the thumb inside was tried first and reverted: it makes the stick harder to
+control, which is a real cost for a cosmetic gain (Tonio: "leave the radius as
+it was but change the outer bounding box").
+
+Read from the SHIPPED assets, so re-exporting the artwork from a drawing tool
+cannot quietly reintroduce it.
 */
-describe('stick travel leaves room for the knob', () => {
-  test('at FULL deflection the knob is still inside the travel circle', () => {
-    const src: any = new TouchGamepadSource(stickSvg(), {})
-    // Sticks initialise on the first pointer — getBBox is all zeros until the
-    // SVG is actually in a document, so the source retries rather than trusting
-    // construction time.
-    src.handlePointer('down', 100, 100, 1)
-    const stick = src.sticks[0]
-    // The stub: travel is 100 wide (r 50), knob 20 wide (r 10).
-    expect(stick.radius).toBeCloseTo(40)
-    const knobR = 10
-    expect(stick.radius + knobR).toBeLessThanOrEqual(50)
-  })
+describe('cluster artwork contains the full stick reach', () => {
+  const parse = (file: string) => {
+    const svg = readFileSync(`static/${file}`, 'utf8')
+    const vb = /viewBox="([-\d. ]+)"/.exec(svg)![1].split(/\s+/).map(Number)
+    const geom = (id: string) => {
+      const at = svg.indexOf(`id="${id}"`)
+      const seg = svg.slice(at, at + 260)
+      const d = /d="M([-\d.]+),([-\d.]+) C/.exec(seg)!
+      const cx = Number(d[1])
+      const top = Number(d[2])
+      const r = Math.abs(
+        Number(/C[-\d.]+,[-\d.]+,([-\d.]+),/.exec(seg)![1]) - cx
+      )
+      return { cx, cy: top + r, r }
+    }
+    return { vb, geom }
+  }
 
-  test('full deflection still reads 1.0 — range is normalised, not lost', () => {
-    const src: any = new TouchGamepadSource(stickSvg(), {})
-    src.handlePointer('down', 100, 100, 1)
-    src.handlePointer('move', 100, 100 - 40, 1) // exactly the new travel
-    expect(src.poll().leftStickY).toBeCloseTo(1, 2)
-  })
-
-  test('pushing PAST the travel clamps rather than escaping', () => {
-    const src: any = new TouchGamepadSource(stickSvg(), {})
-    src.handlePointer('down', 100, 100, 1)
-    src.handlePointer('move', 100, 0, 1) // way past the circle
-    expect(src.poll().leftStickY).toBeLessThanOrEqual(1.001)
-  })
+  for (const [file, side] of [
+    ['gamepad-left.svg', 'left'],
+    ['gamepad-right.svg', 'right'],
+  ] as const) {
+    test(`${file}: the thumb never leaves the box`, () => {
+      const { vb, geom } = parse(file)
+      const travel = geom(`${side}_stick_travel`)
+      const knob = geom(`${side}_stick`)
+      const reach = travel.r + knob.r
+      const [x, y, w, h] = vb
+      expect(travel.cx - reach).toBeGreaterThanOrEqual(x)
+      expect(travel.cx + reach).toBeLessThanOrEqual(x + w)
+      expect(travel.cy - reach).toBeGreaterThanOrEqual(y)
+      expect(travel.cy + reach).toBeLessThanOrEqual(y + h)
+    })
+  }
 })
