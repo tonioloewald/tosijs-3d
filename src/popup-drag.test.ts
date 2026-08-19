@@ -84,6 +84,46 @@ describe('grip drag survives Babylon own POINTERDOWN pass', () => {
     expect(drag.dragging).toBe(true)
   })
 
+  test('a behaviour registered AFTER us still kills a synchronous start', () => {
+    /*
+    The ordering trap, and why "run after the behaviour" was the wrong fix.
+
+    `wirePointer` installs ONCE per scene, on the first popup's mount. Every
+    later popup's drag behaviour therefore registers its observer AFTER ours —
+    so reordering fixed popup 0 and left the rest broken, which is precisely
+    what got reported: "I cannot move the pop-ups, none of them."
+    */
+    const { scene, mesh } = makeScene()
+    let started = false
+    // Our handler, registered FIRST — the later-popup case.
+    scene.onPointerObservable.add((info) => {
+      if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
+      if (!started) {
+        started = true
+        drag.startDrag(1)
+      }
+    })
+    const drag = gripDrag(mesh) // behaviour registers AFTER
+    pressDown(scene)
+    expect(drag.dragging).toBe(false) // killed, as reported
+  })
+
+  test('deferring past the EVENT survives whatever the order was', async () => {
+    const { scene, mesh } = makeScene()
+    let started = false
+    scene.onPointerObservable.add((info) => {
+      if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
+      if (started) return
+      started = true
+      // What `beginDrag` does now: leave the event entirely.
+      queueMicrotask(() => drag.startDrag(1))
+    })
+    const drag = gripDrag(mesh) // still registers after us
+    pressDown(scene)
+    await Promise.resolve()
+    expect(drag.dragging).toBe(true)
+  })
+
   test('releaseDrag ends it — nothing else will, with startAndRelease off', () => {
     const { scene, mesh } = makeScene()
     const drag = gripDrag(mesh)

@@ -1,5 +1,100 @@
 # TODO
 
+## 0.7.0 flat-3D validation pass (Tonio, 2026-08-19)
+
+One human, every demo, flat. VR pass still to come. Bugs first, then the theme
+that ran through the whole pass.
+
+### Bugs — release-relevant
+
+[ ] **popup-surface: the popups cannot be moved.** "I can drag the window around.
+I cannot move the pop-ups, none of them. They just cause me to drag the
+windows." The B1 gate fix did NOT work — the grip drag still never engages,
+and the press falls through to the camera. THE ONE THAT BLOCKS THE TAG.
+[ ] **b3d-launcher guided-missile demo renders a black rectangle** — "used to be
+fine". A regression, not a wish.
+[ ] **b3d-star-system: white text on a white background** in its overlay.
+[ ] **b3d-ambient: the headline "fly down into the sea" doesn't work** — you
+crash into the water instead of entering it. The demo cannot show its point.
+[ ] **shadow-decal still stipples** — the acne fix landed on `b3dSun`'s default,
+so a demo building its own generator misses it. Find the other paths.
+[ ] **cloud-shadows: the fog greys everything out** — "most of the time I'm not
+seeing the objects at all, I'm just seeing the fog."
+[ ] **b3d-panel's manipulator doesn't move the panel** — bug, or never wired?
+[ ] **table-layout: can't scroll with the mouse** (scrollbar works).
+[ ] **glass gamepad: the stick thumb CLIPS at the travel edge** — right side of
+the left stick, left side of the right stick. Bounding rect too tight.
+[ ] **radar and radar-blip have no demo at all** — two combat components
+undemoed, and the combat section has no working radar anywhere.
+
+### The theme: demos need the helper treatment
+
+Said about roughly twenty pages, so it is one job, not twenty: **sweep the demos
+onto `demoStage`** (fill light + test-pattern ground + shadows) and stop using
+spheres and cubes as subjects. Tonio: "when in doubt, put something other than a
+sphere in a demo" — spheres are rotationally symmetric, so they show neither
+orientation nor shading changes. The scout is the hero object and is already
+loadable from the library.
+
+[ ] Sweep: exploder, reflections, cloud-shadows, shadow-decal, combat (all),
+ambient, fog, b3d-light, particles, shadows, skybox, water, biped, b3d-death,
+formations.
+[ ] **A demo-overlay helper.** Every demo hand-rolls its little explanatory
+overlay; they are styled differently, positioned differently, and eat real
+estate. One helper: consistent style, pinned bottom-right (top-left is the
+scene button), and COLLAPSIBLE.
+
+### Improvements and future work
+
+[ ] **Use popups for the debug panel** — "it's crying out for popups". The
+clipped-to-parent-rect overlay with drop shadows on a flat surface is
+exactly what a 3D world should not be doing. Post-0.7.
+[ ] **Build the on-screen keyboard as a popup.**
+[ ] **`select` widgets instead of left/right steppers** — library demo, and the
+b3d spin picker. (This is TODO's existing `select3d` entry; the popup
+mechanism is now the way to build it.)
+[ ] **Exploder: click the object to explode it**, and explode the SCOUT — a
+hierarchy, which is the interesting case. Bigger ground.
+[ ] **Reflections: put a mirrored platform on the ground** so planar reflection
+is visible.
+[ ] **Combat: explain how to make things blow up**; show destruction that does
+more than disappear; a chain-reaction example (the fuel drums are close).
+[ ] **Turret presets** — "a smart turret with lead" vs "a really dumb one".
+[ ] **destroyable-behavior: a shield destroyed by an external object, exposing
+what it protected.**
+[ ] **Particles: click an object to trigger the burst.**
+[ ] **Sound: click the sphere to toggle**, and more volume.
+[ ] **Water — three separate asks:** - query water height at a point, so an object can BOB (physics is the
+caller's; the surface just answers "how deep here") - expose wavelength etc. so it can be made choppier - a vertex/mesh channel marking where geometry breaks the surface, so the
+shader can render surf; and more turbulence where the surface is steep,
+which is the road to waterfalls and rapids
+[ ] **Lights: more than hemispheric** — point, spot, and area if Babylon has it.
+And **attach geometry to a light automatically**: an area light gets a
+glowing panel, a point light a bulb. "That's an eternal pain in the ass when
+setting up scenes with dynamic lighting." Also allow attaching your own mesh.
+[ ] **A deep-space skybox** — and eventually project yourself to a position
+inside the galaxy and render the night sky from there, consistently. Needs
+more stars than the galaxy currently generates. Also what the space medium
+fades through to on leaving atmosphere.
+[ ] **b3d-ambient's doc leads with the wrong claim** — it "affords a TACTIC, not
+a texture", and the demo should come above that argument.
+[ ] **Radar: make the dynamic SVG radar display agnostic about its source**, so
+the combat radar could drive a display like the b3d-panel one. Note in the
+panel demo that it is currently just a demo, unrelated to combat radar.
+[ ] **b3d-panel: consider Babylon's built-in manipulator/gizmo** instead of our
+own placement helper.
+[ ] **Improve the volcano province** used by the biome chart (low priority).
+[ ] **formations: use scoutships, in midair.**
+[ ] **table-layout demo: state what it is for** — it reads as internal structure.
+[ ] **widget-box vs widgets3d: say why they are separate demos.**
+
+### Verified good in this pass
+
+b3d-loader, b3d-trigger ("works really well"), carved landforms ("fantastic"),
+biome chart, all the astronomy, b3d-warhead ("really cool"), launcher, turret,
+HUD, keyboard, selection, icons, svg-texture, the scrolling table ("fabulous"),
+text-edit, widgets3d, spawner.
+
 ## v0.7.0 review follow-ups (nine-lens, 2026-08-14)
 
 Folded in from `RELEASE-REVIEW-0.7.0-rc.1.md` and the 0.7.0 re-review — a review

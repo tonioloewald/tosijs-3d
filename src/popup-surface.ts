@@ -142,6 +142,7 @@ import * as BABYLON from '@babylonjs/core'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
 import { iconGlyph } from './svg-icons'
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome'
+import { cameraIsAttached } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 
 export interface PopupSurfaceOptions {
@@ -327,6 +328,38 @@ function wirePointer(owner: B3d): void {
   const scene = owner.scene
   if (scene == null) return
 
+  /*
+  THE CAMERA HAS TO YIELD, or the drag is invisible.
+
+  Starting our drag was necessary and not sufficient: the ArcRotateCamera's
+  pointer input is on this same observable and registers FIRST (the camera
+  exists before any popup), so a press on a panel began a camera orbit as well.
+  Both ran; the orbit is what you saw. Tonio, driving it: "I can drag the window
+  around. I cannot move the pop-ups, none of them. They just cause me to drag
+  the windows."
+
+  `panelScene` already solved this for in-scene UI — claim the gesture, detach
+  the camera, re-attach on release. Same move here. `cameraIsAttached` is the
+  guard from the pause bug: only re-attach a camera that WAS attached, or a
+  scene whose camera is deliberately unattached gets handed control it never
+  had.
+  */
+  let yielded: BABYLON.Camera | null = null
+  const yieldCamera = (): void => {
+    const cam = scene.activeCamera
+    if (cam == null || !cameraIsAttached(cam)) return
+    cam.detachControl()
+    yielded = cam
+  }
+  const restoreCamera = (): void => {
+    if (yielded == null) return
+    yielded.attachControl(
+      scene.getEngine().getRenderingCanvas() as HTMLCanvasElement,
+      true
+    )
+    yielded = null
+  }
+
   scene.onPointerObservable.add((info) => {
     const list = openPopups.get(owner)
     if (list == null || list.length === 0) return
@@ -339,6 +372,7 @@ function wirePointer(owner: B3d): void {
       // release branch is gated off too — so nothing would ever end the drag
       // and the panel would stick to the cursor forever.
       for (const p of list) p.endDrag()
+      restoreCamera()
       return
     }
     if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
@@ -382,6 +416,8 @@ function wirePointer(owner: B3d): void {
         target.close()
         return
       }
+      // Yield BEFORE starting: the camera must not have the press either.
+      yieldCamera()
       target.beginDrag((info.event as PointerEvent | undefined)?.pointerId ?? 0)
     }
   })
@@ -582,7 +618,27 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     chromeLayout: layout,
     beginDrag(pointerId: number) {
       if (drag == null || !draggable) return
-      drag.startDrag(pointerId)
+      /*
+      AFTER THE WHOLE EVENT, not merely after our own handler.
+
+      `PointerDragBehavior`'s POINTERDOWN handler releases any drag whose
+      `_activeDragButton` doesn't match the event's button, and `startDrag()`
+      leaves that at -1 — so whichever observer runs LAST wins. Registration
+      order decides that, and it is not stable here: `wirePointer` installs once
+      on the first popup's mount, so popup 0's behaviour registers before it and
+      every later popup's registers after. The first popup dragged; the rest did
+      not. That is what Tonio hit — "I cannot move the pop-ups, none of them" —
+      after I had already "fixed" this once by reordering.
+
+      A microtask runs after every observer for this event, so the answer stops
+      depending on who registered first. Ordering was the wrong lever; the right
+      one is to leave the event entirely.
+      */
+      const id = pointerId
+      queueMicrotask(() => {
+        if (drag == null || closed) return
+        drag.startDrag(id)
+      })
     },
     endDrag() {
       if (drag?.dragging === true) drag.releaseDrag()
