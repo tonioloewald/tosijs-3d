@@ -155,3 +155,43 @@ describe('sources are identifiable without guessing at class names', () => {
     expect(new (KeyboardGamepadSource as any)().kind).toBe('keyboard')
   })
 })
+
+/*
+THE THUMB MUST STAY INSIDE ITS TRAVEL CIRCLE.
+
+The knob's CENTRE used to travel the full travel radius, so at full deflection
+half the knob hung outside — and clipped against the artwork's edge. Reported
+from the flat pass: "it clips a bit on the right for the left stick, and on the
+left for the right stick", which is each cluster meeting its own bounds.
+
+Pinned as geometry rather than as pixels: whatever the artwork, the knob's rim
+at full deflection must not pass the travel circle's rim.
+*/
+describe('stick travel leaves room for the knob', () => {
+  test('at FULL deflection the knob is still inside the travel circle', () => {
+    const src: any = new TouchGamepadSource(stickSvg(), {})
+    // Sticks initialise on the first pointer — getBBox is all zeros until the
+    // SVG is actually in a document, so the source retries rather than trusting
+    // construction time.
+    src.handlePointer('down', 100, 100, 1)
+    const stick = src.sticks[0]
+    // The stub: travel is 100 wide (r 50), knob 20 wide (r 10).
+    expect(stick.radius).toBeCloseTo(40)
+    const knobR = 10
+    expect(stick.radius + knobR).toBeLessThanOrEqual(50)
+  })
+
+  test('full deflection still reads 1.0 — range is normalised, not lost', () => {
+    const src: any = new TouchGamepadSource(stickSvg(), {})
+    src.handlePointer('down', 100, 100, 1)
+    src.handlePointer('move', 100, 100 - 40, 1) // exactly the new travel
+    expect(src.poll().leftStickY).toBeCloseTo(1, 2)
+  })
+
+  test('pushing PAST the travel clamps rather than escaping', () => {
+    const src: any = new TouchGamepadSource(stickSvg(), {})
+    src.handlePointer('down', 100, 100, 1)
+    src.handlePointer('move', 100, 0, 1) // way past the circle
+    expect(src.poll().leftStickY).toBeLessThanOrEqual(1.001)
+  })
+})

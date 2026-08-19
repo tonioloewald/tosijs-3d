@@ -271,7 +271,24 @@ export class TouchGamepadSource implements GamepadSource {
         knob,
         cx: bbox.x + bbox.width / 2,
         cy: bbox.y + bbox.height / 2,
-        radius: Math.min(bbox.width, bbox.height) / 2,
+        /*
+        TRAVEL IS THE CIRCLE MINUS THE KNOB, not the circle.
+
+        The knob's CENTRE used to travel the full radius, so at full deflection
+        half of it hung outside the travel circle — and got clipped by the
+        artwork's edge. Tonio: "it clips a bit on the right for the left stick,
+        and on the left for the right stick", i.e. exactly where each cluster
+        runs into its own bounds.
+
+        Subtracting the knob's own radius keeps the whole thumb inside. Output
+        is normalised against THIS radius, so full deflection still reads 1.0 —
+        the stick loses a few pixels of throw, not any range.
+        */
+        radius: Math.max(
+          1,
+          Math.min(bbox.width, bbox.height) / 2 -
+            Math.min(knob.getBBox().width, knob.getBBox().height) / 2
+        ),
         knobOriginalTransform: knob.getAttribute('transform') || '',
         pointerId: -1,
         originX: 0,
