@@ -18,19 +18,26 @@ window recentres on the camera, the sun swings) — the steady state is just the
 drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.
 
 ```js
-import { b3d, b3dSun, b3dSkybox, b3dClouds, b3dGround, b3dBox } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { b3d, b3dClouds, b3dBox } from 'tosijs-3d'
+import { demoStage, orbitCam } from 'demo-utils'
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 55, target: [0, 0, 0] })
+      // Altitude 115 and a bounded orbit, deliberately: the layer used to sit at 55
+      // with the camera orbiting at the same radius, so tilting up put you INSIDE
+      // the clouds and the whiteout fog ate the demo — "most of the time I'm not
+      // seeing the objects at all, I'm just seeing the fog." Cloud SHADOWS are
+      // projected, not raymarched, so lifting the deck costs the demo nothing.
+      const cam = orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 55, target: [0, 0, 0] })
+      cam.upperRadiusLimit = 90
     },
   },
-  b3dSun({ x: -0.5, y: -1, z: -0.35 }),
-  b3dSkybox({ timeOfDay: 11 }),
-  b3dGround({ width: 160, height: 160, texture: 'checker', textureTiles: 32 }),
-  b3dClouds({ model: '/cloud.glb', altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
+  // On the stage — cloud shadows are DARKENING, so the scene needs a fill light
+  // to darken FROM. Sun alone put every unlit face at zero and the demo read as
+  // black boxes on a black floor.
+  ...demoStage({ size: 160, tiles: 26, pattern: true, timeOfDay: 11, sun: { x: -0.5, y: -1, z: -0.35 } }),
+  b3dClouds({ model: '/cloud.glb', altitude: 115, thickness: 18, spread: 200, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
   ...Array.from({ length: 9 }, (_, i) =>
     b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: '#7a9b6e' })
   ),
