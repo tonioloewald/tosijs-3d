@@ -60,13 +60,16 @@ break the surface.
 import { b3d, b3dAircraft, b3dAmbient, b3dWater, b3dFog, b3dLibrary, b3dLight, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
 import { demoSun } from 'demo-utils'
 
-// A submersible scout. The `groundY: -40` is what makes this demo WORK: an aircraft's floor
-// defaults to 0 — which here is EXACTLY the water surface — so by default you hit the waterline
-// and stop, and the underwater life is unreachable. Drop the floor to the real seabed and you can
-// DIVE. Start low and hover so the surface is right there: left trigger down to submerge.
+// A submersible scout. TWO things make the dive work, and it needs both:
+//   `groundY: -40`   — the floor is the seabed, not the default 0 (which here is
+//                      exactly the water surface).
+//   `submersible`    — the floor SENSOR ignores the water. Without it the ray
+//                      hits the surface mesh and calls it ground, so you stop
+//                      dead at the waterline however low the floor is. That is
+//                      right for a plane ditching in the sea and wrong here.
 const scout = b3dAircraft({
   library: 'vehicles', meshName: 'scout',
-  player: true, y: 9, groundY: -40, vtolSpeed: 6, maxSpeed: 30,
+  player: true, y: 9, groundY: -40, submersible: true, vtolSpeed: 6, maxSpeed: 30,
 })
 
 const scene = b3d(

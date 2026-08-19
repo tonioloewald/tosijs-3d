@@ -181,6 +181,22 @@ export class B3dWater extends AbstractMesh {
       )
     }
     this.mesh.checkCollisions = false
+    /*
+    MARK IT AS WATER.
+
+    A ground probe raycasts for "what is under me", and Babylon meshes are
+    pickable by default — so an aircraft's floor sensor hit the water SURFACE
+    and called it ground. That is right for a plane ditching in the sea and
+    wrong for anything meant to go under: the b3d-ambient dive demo set
+    `groundY: -40` to reach the seabed and still stopped dead at the waterline
+    ("you can't fly down to the sea because you crash into the water").
+
+    A flag rather than `isPickable = false`, because the surface still needs to
+    be pickable — querying water height at a point is a feature we want, not one
+    to design out. Consumers decide what water means to them; this only lets
+    them tell it apart.
+    */
+    this.mesh.metadata = { ...(this.mesh.metadata ?? {}), b3dWater: true }
 
     this.waterMaterial = new WaterMaterial(
       'water',

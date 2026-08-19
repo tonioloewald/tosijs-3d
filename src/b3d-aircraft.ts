@@ -211,6 +211,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `afterburnerSpeed` (behaviour) | — | Reached only while the trigger is HELD past the detent at full lever; release and you settle back to `maxSpeed` (military) |
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
+| `submersible` | `false` | Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 | `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
@@ -474,6 +475,15 @@ export class B3dAircraft extends B3dControllable {
     // Assumed ground-plane height (used as a floor in addition to any terrain
     // colliders the downward raycast hits).
     groundY: 0,
+    /**
+     * Treat a water surface as PASSABLE rather than as ground.
+     *
+     * Off by default, because a plane hitting the sea should crash — that is
+     * not a bug to fix, it is most aircraft. Turn it on for anything meant to
+     * go under, and the floor sensor ignores water and finds the real seabed
+     * (or `groundY`) beneath it.
+     */
+    submersible: false,
     // Vertical impact speed (m/s) above which a ground contact is a crash, not
     // a landing.
     crashSpeed: 8,
@@ -1465,13 +1475,16 @@ export class B3dAircraft extends B3dControllable {
     // the aircraft picks a cloud blob as "ground" (PULL UP / crash in mid-air over a cloud layer)
     // — exactly the picking trap b3d-clouds warns about. `isEnabled` also skips coverage-hidden
     // blobs.
+    const submersible = (this as any).submersible === true
     const hit = this.owner.scene.pickWithRay(
       this._ray,
       (m) =>
         m.isPickable &&
         m.isEnabled() &&
         !own.has(m) &&
-        !m.name.includes('__root__')
+        !m.name.includes('__root__') &&
+        // Water is only "ground" to something that can't go under it.
+        !(submersible && (m.metadata as any)?.b3dWater === true)
     )
     if (hit?.hit) {
       // Surface normal for the slope-impact crash test (up if unavailable).
