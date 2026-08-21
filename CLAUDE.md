@@ -150,6 +150,35 @@ it over `b3d.snapshot()` for "what is actually on screen": snapshot renders thro
 RTT, so a layout bug that collapses the canvas still snapshots fine, whereas the canvas
 capture fails with a zero-size error. Keep `snapshot()` for engine-specific needs.
 
+### Reaching the dev server from a HEADSET (or a phone)
+
+WebXR requires a secure context, so an XR surface can only be tested from a
+device that trusts the cert. Two things bite, and neither announces itself:
+
+- **`tosi.local` may resolve to IPv6 ONLY** (including a link-local `fe80::…`).
+  A Quest browser gets something it cannot route and fails silently — while the
+  Mac is perfectly happy, because it resolves mDNS natively. Check with
+  `dscacheutil -q host -a name tosi.local`: no `ipv4_address` line means the
+  headset is going to fail.
+- **`bun tls` (`tosijs-dev-certs`) does NOT put the LAN IP in the cert** — only
+  `localhost`, `127.0.0.1`, `::1` and `tosi.local`. So the IP URL that would work
+  gets a cert error instead (filed as tosijs-ui#92).
+
+**Use the LAN IPv4 address**, and reissue the cert to cover it:
+
+```sh
+ipconfig getifaddr en0                                   # e.g. 192.168.1.111
+cd tls && mkcert localhost 127.0.0.1 ::1 tosi.local <ip> # then rename over
+                                                         # certificate.pem/key.pem
+```
+
+⚠️ **`bun tls` silently undoes this** — it regenerates the fixed list, so the
+headset stops working with no clue why. Re-run the mkcert line after any `bun tls`.
+
+Diagnose in this order, because the misleading answers come first: the cert is
+usually valid, the server is usually listening on `*:8030`, and `curl -k` against
+the IP usually returns 200 from the host. **It is almost always the NAME.**
+
 **⚠️ Never `pkill -f haltija`** (or any broad `pkill -f`) — this machine runs concurrent
 sessions in sibling repos, and that pattern matches their scratchpad processes too. Kill
 by PID from `pgrep -fl`, having read what you're about to kill.
