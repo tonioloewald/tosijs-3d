@@ -150,6 +150,39 @@ it over `b3d.snapshot()` for "what is actually on screen": snapshot renders thro
 RTT, so a layout bug that collapses the canvas still snapshots fine, whereas the canvas
 capture fails with a zero-size error. Keep `snapshot()` for engine-specific needs.
 
+### A PRIVATE browser when the shared tab is throttled
+
+A hidden tab is rAF-throttled, so a live example never mounts and every reading
+is meaningless — which makes "no visible tab" a hard block on measuring
+anything. `haltija --private --app` solves it: Electron, its own server on an
+EPHEMERAL port, adopts nothing, and reports `hidden: false` because you own the
+window.
+
+```sh
+nohup bunx haltija --private --app --port-file "$SCRATCH/hz.json" > "$SCRATCH/hz.log" 2>&1 &
+# → {"port":60588,...,"pid":27794}
+hj --port 60588 shutdown        # Electron + servers, together
+```
+
+**Arm a watchdog BEFORE you use it.** The failure mode is not forgetting — it is
+a session that gets compacted or killed with the browser still up (a 1444%-CPU
+renderer came from exactly this). Discipline is not a mechanism:
+
+```sh
+nohup bash -c "sleep 900; hj --port $PORT shutdown; kill $PID" >/dev/null 2>&1 &
+```
+
+Two limits worth knowing before reaching for it:
+
+- **No credentials.** A private instance has no cookies and no logged-in state,
+  so it is for verifying LOCAL pages. Anything needing a login has to be a real
+  browser tab (Tonio: _"the main benefit of the in app tab is access to
+  credentials and login stuff"_).
+- **`pgrep` will show OTHER projects' private instances.** There was a live one
+  from `manta-recon` during this session. Kill by the PID from your own
+  `--port-file`, never by pattern — the usual rule, and private instances make
+  it easier to get wrong because they all match `haltija --private`.
+
 ### Reaching the dev server from a HEADSET (or a phone)
 
 WebXR requires a secure context, so an XR surface can only be tested from a
