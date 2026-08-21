@@ -773,6 +773,23 @@ export class B3d extends Component {
   static BABYLON = BABYLON
   BABYLON = BABYLON
 
+  /*
+  XR SESSION ACCOUNTING — so a headset can answer "is it us or the browser?"
+
+  The Quest does not reliably release WebXR GPU resources between sessions, so
+  after a dozen enter/exits everything degrades — including back in the flat
+  view, and only a reload clears it. That is browser-level and not ours to fix,
+  but it is indistinguishable IN THE HEADSET from a leak of our own, and there is
+  no console in VR to check with.
+
+  So: snapshot the scene's resource counts at the FIRST XR entry and report the
+  delta in the Perf panel. Flat deltas across many sessions means our teardown is
+  clean and the degradation is the browser's; growing deltas means it is ours.
+  Tonio hit exactly this after ~20 sessions in one pass and had no way to tell.
+  */
+  private _xrSessions = 0
+  private _xrBaseline: { mesh: number; mat: number; tex: number } | null = null
+
   private _makers?: Makers
   /**
    * Babylon primitives with the easy-to-forget parts done: material from
@@ -2067,6 +2084,29 @@ export class B3d extends Component {
         }`,
         muted: true,
       }),
+      // Only once XR has been entered — meaningless before, and a row that says
+      // nothing is a row that costs panel space in the place with least of it.
+      ...(this._xrBaseline != null
+        ? [
+            label3d({
+              text: (() => {
+                const b = this._xrBaseline!
+                const d = (now: number, was: number) => {
+                  const n = now - was
+                  return n === 0 ? '0' : n > 0 ? `+${n}` : String(n)
+                }
+                return `xr ${this._xrSessions}x  since 1st: mesh ${d(
+                  this.scene.meshes.length,
+                  b.mesh
+                )} mat ${d(this.scene.materials.length, b.mat)} tex ${d(
+                  this.scene.textures.length,
+                  b.tex
+                )}`
+              })(),
+              muted: true,
+            }),
+          ]
+        : []),
       // One-tap discriminator: swap between the engine's real hardware scaling and
       // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
       // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
@@ -2367,6 +2407,17 @@ export class B3d extends Component {
     }
     const base = xr.baseExperience
     if (base == null) return
+    base.onStateChangedObservable.add((state) => {
+      if (state !== BABYLON.WebXRState.IN_XR) return
+      this._xrSessions += 1
+      // Baseline from the FIRST entry only — the point is the trend across
+      // sessions, so re-baselining each time would hide exactly what we want.
+      this._xrBaseline ??= {
+        mesh: this.scene.meshes.length,
+        mat: this.scene.materials.length,
+        tex: this.scene.textures.length,
+      }
+    })
 
     const vrButton = this.parts.enterVrButton as HTMLButtonElement
     vrButton.addEventListener('click', async () => {

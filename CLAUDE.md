@@ -601,6 +601,16 @@ So **whenever you find a performance-sensitive default, make it `auto` instead o
 
   **Any code can write to the Perf Stats panel** via `b3d.addDebugSource({name, lines, actions})` — the only debug readout that exists in a headset (no console in VR, and VR has the tightest budget). `lines()` is re-called live; `actions` become buttons, which is how you switch a profiler on from inside the headset. Debug rows render FIRST (a diagnostic below the fold is a diagnostic you can't read).
 
+- **Telling OUR leak from the BROWSER's, inside the headset.** The Perf Stats
+  panel now shows `xr Nx  since 1st: mesh ±n mat ±n tex ±n` — the scene's
+  resource counts against a baseline captured at the FIRST XR entry. **Flat
+  deltas across many sessions means our teardown is clean** and the degradation
+  is the browser retaining GPU memory; growing deltas means it is ours and the
+  numbers say which kind. This exists because after ~20 enter/exits in one pass
+  everything was crawling _including back in the flat view_, and there was no way
+  to tell from inside a headset which side owned it. (Our teardown was audited at
+  the same time and is complete: `frame-panel` disposes texture, material and
+  plane; `SvgTexture.dispose` clears its interval and releases the GPU texture.)
 - **VRAM across sessions:** the Quest browser does not reliably release WebXR GPU resources between enter/exit, so repeated sessions can exhaust VRAM (reticle → checkerboard). Our per-session teardown (`_startDefaultXrExperience`'s disposer) IS complete — verify any new per-session resource is disposed there — but the browser-level retention isn't ours to fix; keep baseline XR VRAM low (render scaling, modest panel/texture resolution).
 
 ### Styling — use tosijs's CSS facilities, never hand-roll it
