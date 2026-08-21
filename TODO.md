@@ -2,8 +2,8 @@
 
 ## 0.7.0 VR (goggles) pass — Tonio, 2026-08-21
 
-Stopped halfway: *"everything works aside from some fairly minor issues with the
-VR setup / rig"* — the same faults recurring on every page, so the list stops
+Stopped halfway: _"everything works aside from some fairly minor issues with the
+VR setup / rig"_ — the same faults recurring on every page, so the list stops
 being informative. **The camera/rig is the fix.**
 
 ### THE ONE THAT MATTERS — the VR camera is locked
@@ -13,80 +13,80 @@ exploder, reflections, cloud-shadows, shadow-decal, destroyable, launcher,
 turret, warhead — i.e. **every orbit-camera demo**.
 
 [ ] **You cannot move the view in VR.** "I have a locked camera", "stuck looking
-    at this from a fixed angle". These demos have NO locomotion by design — flat,
-    you orbit with the mouse; in VR there is no orbit and nothing maps to one, so
-    you are planted wherever the rig lands. Whatever the fix is, it has to give
-    an orbit-style demo a way to move.
+at this from a fixed angle". These demos have NO locomotion by design — flat,
+you orbit with the mouse; in VR there is no orbit and nothing maps to one, so
+you are planted wherever the rig lands. Whatever the fix is, it has to give
+an orbit-style demo a way to move.
 [ ] **Entering VR ignores the flat camera.** You are looking at the scene from
-    one angle, enter VR, and are somewhere else entirely — sometimes facing away
-    ("the panel rig is off to my left", in make-mesh). Exiting VR, by contrast,
-    DOES carry the VR pose back. "It'd be kind of nice if that was symmetric."
+one angle, enter VR, and are somewhere else entirely — sometimes facing away
+("the panel rig is off to my left", in make-mesh). Exiting VR, by contrast,
+DOES carry the VR pose back. "It'd be kind of nice if that was symmetric."
 [ ] **Re-seat does not work.** Pressing it "did nothing"; the right-hand button
-    "seems to reseat it but the rig is still offset."
+"seems to reseat it but the rig is still offset."
 
 ### The aircraft rig in VR (b3d-terrain, b3d-clouds — not terrain-specific)
 
 [ ] **Chase camera is offset sideways from the aircraft**, and the offset TRACKS
-    your flying: "fly to the right and the camera is offset right, and so is the
-    crosshair… fly left and I end up offset left." It does not return to zero.
-    Cockpit view is correct; leaving cockpit breaks it again. Once, after a
-    respawn, it was briefly correct — so something is misaligned at rig SETUP,
-    not continuously.
+your flying: "fly to the right and the camera is offset right, and so is the
+crosshair… fly left and I end up offset left." It does not return to zero.
+Cockpit view is correct; leaving cockpit breaks it again. Once, after a
+respawn, it was briefly correct — so something is misaligned at rig SETUP,
+not continuously.
 [ ] **No HUD at all in VR chase.** ("First of all, no HUD showing.")
 [ ] **Jerky aircraft motion returned** — "so the parenting is messed up again."
 
 ### Performance
 
 [ ] **b3d-terrain leaks** — "brought the Oculus to its knees", jerky even after
-    dropping to flat, fixed by a reload. Suspect the terrain system; it also made
-    the aircraft sim visibly worse, and b3d-clouds showed the same rig faults
-    WITHOUT the jerkiness, which points at terrain rather than the aircraft.
+dropping to flat, fixed by a reload. Suspect the terrain system; it also made
+the aircraft sim visibly worse, and b3d-clouds showed the same rig faults
+WITHOUT the jerkiness, which points at terrain rather than the aircraft.
 [ ] **The pause demo spins FASTER in flat than in VR** — a frame-delta problem in
-    the XR loop, and a good small reproduction of the same class.
+the XR loop, and a good small reproduction of the same class.
 
 ### Regression I introduced
 
 [ ] **b3d-library lost its hierarchy** — "we now have a whole lot of things
-    called building… it's not showing the hierarchy at all, which it used to."
-    My `publicName` change strips `_primitiveN`, which collapses sibling nodes to
-    ONE name. The picker needs the hierarchy back and needs to disambiguate
-    same-named siblings. Public names are still right for the API; the TREE needs
-    more than a name.
+called building… it's not showing the hierarchy at all, which it used to."
+My `publicName` change strips `_primitiveN`, which collapses sibling nodes to
+ONE name. The picker needs the hierarchy back and needs to disambiguate
+same-named siblings. Public names are still right for the API; the TREE needs
+more than a name.
 
 ### Broken or missing
 
 [ ] **b3d-ambient bubbles never spawn** (omnidude demo, flat AND VR). Debug panel
-    reads pool 0, warmup 0, everything 0 — "we've eaten the budget somehow."
+reads pool 0, warmup 0, everything 0 — "we've eaten the budget somehow."
 [ ] **b3d-ambient's own dive demo still fails** — "you just crash into the water
-    and the demo's up." Either the `submersible` fix did not land in what was
-    tested or it is not sufficient. **Re-check before assuming fixed.**
-    Tonio: the demo does not need an aircraft at all — moving the camera up and
-    down through the surface would show it better.
+and the demo's up." Either the `submersible` fix did not land in what was
+tested or it is not sufficient. **Re-check before assuming fixed.**
+Tonio: the demo does not need an aircraft at all — moving the camera up and
+down through the surface would show it better.
 [ ] **Cloud shadows do not render in VR** (they work flat).
 [ ] **The radar demo is unusable in VR** — its readout is DOM, below the canvas,
-    so in a headset there is no radar at all. Needs an in-scene readout.
+so in a headset there is no radar at all. Needs an in-scene readout.
 [ ] **Live examples stopped maximising** in flat, mid-session, having worked
-    earlier; fine on desktop. Possibly the overlay stealing clicks, possibly
-    browser flakiness. Needs reproducing before chasing.
+earlier; fine on desktop. Possibly the overlay stealing clicks, possibly
+browser flakiness. Needs reproducing before chasing.
 
 ### Smaller
 
 [ ] Ambient leaves fall from far above the trees — spawn height should be bound
-    to the ground/canopy, "some kind of vertex mapping on the ground".
+to the ground/canopy, "some kind of vertex mapping on the ground".
 [ ] The scene-panel button row is top-right flat but a left-pinned row in VR —
-    no reason for them to differ.
+no reason for them to differ.
 [ ] Terrain's top button bar scrolls out of view; pin it. "Quite disconcerting
-    having to go hunt down the exit button."
+having to go hunt down the exit button."
 [ ] The glowing yellow moon does not read against the muted ground — try blue.
 [ ] Exploder: click the object to explode it. In VR you must currently look AWAY
-    from the thing to press its button.
+from the thing to press its button.
 [ ] Missiles never expire — wants lifespan / delta-v (see the `burnTime` note).
 [ ] Seen once: a missile hit that did not destroy the target.
 [ ] `b3d-loader`'s demo should be above the attributes table.
 [ ] The index page has no demo.
 [ ] Content: UV errors on the big staircase; physics jiggle walking DOWN the ramp.
 [ ] `b3d-clouds` and friends want a "plant a vehicle in a setting it can operate
-    in" helper, the aircraft equivalent of `demoStage`.
+in" helper, the aircraft equivalent of `demoStage`.
 
 ### Confirmed good in VR
 

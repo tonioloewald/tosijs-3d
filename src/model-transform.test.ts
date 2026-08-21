@@ -315,3 +315,75 @@ describe('publicName — what the consumer sees', () => {
     expect(publicName('Hull_collideMesh.model')).toBe('Hull')
   })
 })
+
+/*
+A CHASE CAMERA MUST AIM AT THE ROTATION CENTRE, NOT THE ORIGIN.
+
+`applyCenterOfGravity` calls `setPivotPoint`, so a vehicle with a
+`_centerOfGravity` marker rotates about the CoG. The consequence nobody expects:
+the hull then swings AWAY from `node.position` by an amount that depends on its
+attitude, so anything anchored on `position` drifts off the aircraft as it
+manoeuvres — and looks perfectly fine while level, which is how it survived.
+
+From the headset: "fly to the right and the camera is offset right, fly left and
+I end up offset left", correct right after a respawn and correct in cockpit
+(where the rig is parented to the hull and inherits the swing).
+
+These assert the divergence exists and that `getAbsolutePivotPoint` tracks it.
+*/
+describe('pivot vs origin under attitude', () => {
+  const withPivot = () => {
+    const node = new BABYLON.TransformNode('craft', scene)
+    // A CoG a metre forward of the origin — the scout's is offset likewise.
+    node.setPivotPoint(new BABYLON.Vector3(0, 0, 1))
+    node.position.set(10, 5, -3)
+    node.rotationQuaternion = BABYLON.Quaternion.Identity()
+    node.computeWorldMatrix(true)
+    return node
+  }
+
+  test('LEVEL: pivot and origin agree — which is why this hid', () => {
+    const node = withPivot()
+    const d = BABYLON.Vector3.Distance(
+      node.getAbsolutePivotPoint(),
+      node.absolutePosition
+    )
+    // They differ only by the pivot offset itself, in a fixed direction.
+    expect(d).toBeCloseTo(1, 5)
+  })
+
+  test('ROTATED: the gap MOVES — the offset tracks your heading', () => {
+    const node = withPivot()
+    const a = node.getAbsolutePivotPoint().clone()
+    BABYLON.Quaternion.RotationYawPitchRollToRef(
+      Math.PI / 2,
+      0,
+      0,
+      node.rotationQuaternion!
+    )
+    node.computeWorldMatrix(true)
+    const b = node.getAbsolutePivotPoint().clone()
+    // The rotation centre stays put in world space…
+    expect(BABYLON.Vector3.Distance(a, b)).toBeCloseTo(0, 5)
+    // …while a chase anchored on `position` would have swung by the pivot arm.
+    expect(
+      BABYLON.Vector3.Distance(
+        node.getAbsolutePivotPoint(),
+        node.absolutePosition
+      )
+    ).toBeCloseTo(1, 5)
+  })
+
+  test('NO marker: getAbsolutePivotPoint is the absolute position', () => {
+    // The fallback that makes this a safe drop-in for craft without a CoG.
+    const node = new BABYLON.TransformNode('plain', scene)
+    node.position.set(4, 2, 6)
+    node.computeWorldMatrix(true)
+    expect(
+      BABYLON.Vector3.Distance(
+        node.getAbsolutePivotPoint(),
+        node.absolutePosition
+      )
+    ).toBeCloseTo(0, 6)
+  })
+})

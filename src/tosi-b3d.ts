@@ -2755,9 +2755,29 @@ export class B3d extends Component {
         const targetYaw = Math.atan2(fwd.x, fwd.z)
         // fpv: anchor to the actual head bone if the entity exposes it.
         const headPos = isFpv ? entity?.getHeadPosition?.() ?? null : null
-        const targetX = headPos ? headPos.x : piloted.position.x - fwd.x * back
-        const targetY = headPos ? headPos.y : piloted.position.y + up
-        const targetZ = headPos ? headPos.z : piloted.position.z - fwd.z * back
+        /*
+        ANCHOR ON THE PIVOT, NOT THE ORIGIN.
+
+        A vehicle with a `_centerOfGravity` marker gets `setPivotPoint`, so it
+        ROTATES about the CoG — which means the hull visually swings away from
+        `node.position` by an amount that depends on its ATTITUDE. Aiming the
+        chase at `position` therefore points slightly off the aircraft whenever it
+        is not level, and the error changes as you manoeuvre.
+
+        Reported from the headset: "the camera seems to be offset to the right
+        from the aircraft… fly to the right and the camera is offset right, fly
+        left and I end up offset left", not returning to zero — and correct right
+        after a respawn (level, near origin) and in cockpit (where the rig is
+        PARENTED to the hull, so it inherits the swing for free).
+
+        `getAbsolutePivotPoint()` is the rotation centre in world space, and falls
+        back to the absolute position when no pivot is set — so this is a safe
+        drop-in for vehicles without a marker.
+        */
+        const anchor = piloted.getAbsolutePivotPoint()
+        const targetX = headPos ? headPos.x : anchor.x - fwd.x * back
+        const targetY = headPos ? headPos.y : anchor.y + up
+        const targetZ = headPos ? headPos.z : anchor.z - fwd.z * back
         if (chaseFirstFrame || lastPiloted !== piloted) {
           // Align to where the headset is currently looking so it doesn't snap.
           chaseFirstFrame = false

@@ -1004,7 +1004,11 @@ export class B3dAircraft extends B3dControllable {
 
     if (this._chasePivot != null) {
       node.computeWorldMatrix(true) // refresh: position moved since the attitude pass
-      this._chasePivot.position.copyFrom(node.absolutePosition)
+      // The PIVOT, not the origin: with a `_centerOfGravity` marker the hull
+      // rotates about the CoG, so it swings away from `position` with attitude
+      // and the chase would aim slightly off the aircraft as you manoeuvre.
+      // Falls back to absolutePosition when no marker is present.
+      this._chasePivot.position.copyFrom(node.getAbsolutePivotPoint())
       if (this._chasePivot.rotationQuaternion == null) {
         this._chasePivot.rotationQuaternion = new BABYLON.Quaternion()
       }
