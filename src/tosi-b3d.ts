@@ -2526,10 +2526,32 @@ export class B3d extends Component {
     const cam = base.camera
 
     const rig = new BABYLON.TransformNode('xr-rig', scene)
-    // Keep the flat camera's horizontal viewpoint but stand on the floor
-    // (local-floor reference space adds the viewer's real head height).
+    /*
+    ARRIVE WHERE YOU WERE LOOKING FROM — height included.
+
+    This used to take the flat camera's x/z and pin y to ZERO: "stand on the
+    floor". That is right for a scene you walk around in and wrong for the ones
+    this framework is mostly made of, where the flat camera ORBITS a subject from
+    several metres up and looks down at it. Dropping to the floor puts you under
+    the thing you came to look at. Tonio: "your world position is always quite
+    low."
+
+    So seed the height too, minus a nominal eye height, because `local-floor`
+    adds the viewer's REAL head height on top — the aim is for your head to land
+    where the flat camera was, not the rig's origin. Floored at 0 so a camera
+    that dipped below ground does not bury you.
+
+    (Orientation is deliberately NOT seeded. Where you look is your head's
+    business — pinning it fights the headset — and the height was the part that
+    actually broke the framing.)
+    */
     const p = this.camera?.position
-    rig.position.set(p?.x ?? 0, 0, p?.z ?? -this.minDistance * 2)
+    const NOMINAL_EYE = 1.6
+    rig.position.set(
+      p?.x ?? 0,
+      Math.max(0, (p?.y ?? NOMINAL_EYE) - NOMINAL_EYE),
+      p?.z ?? -this.minDistance * 2
+    )
     cam.parent = rig
 
     // Reference frames for spatial UI (body/neck/face follow the head; rig/world
