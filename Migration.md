@@ -9,17 +9,52 @@ and is staring at an error.
 
 ## 0.6.2 → 0.7.0
 
-| What                                            | Before                               | After                                                                                                                                                     |
-| ----------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `landform.gulley` / `landform.cover` `heading`  | radians                              | **degrees** — `heading * 180 / Math.PI`                                                                                                                   |
-| `library.instantiate()` / `lib.make.*` rotation | radians (and see the note below)     | **degrees**                                                                                                                                               |
-| `b3d-aircraft` chase HUD                        | `hudChase: true` / `hudChase: false` | delete it (now default) / `hudChaseOff: true`                                                                                                             |
-| Right stick                                     | aux roll                             | **camera**. `strafe` still sums into roll, so a custom mapping can restore a roll axis                                                                    |
-| Glass gamepad                                   | always visible                       | **auto-hides** once a keyboard or hardware gamepad is used. `fade="off"` pins it                                                                          |
-| `carve` exports                                 | 13 bare names (`sphere`, `tube`, …)  | the **`carve.*` namespace** (`carve.sphere`, `carve.tube`)                                                                                                |
-| `b3dPatch` / `B3dPatch`                         | experimental element                 | **removed** — the pure modules it used (`carve.*`, `sdf-lattice`, `patch-field`) are kept                                                                 |
-| `library.getNames()`                            | raw node names                       | **public names** — `.model`, behaviour suffixes and the glTF loader's `_primitiveN` removed, so `building_collideCylinder_primitive0` lists as `building` |
-| `spawnProjectile` / `spawnMissile` impact       | `onImpact(point)`                    | `whenImpact({ point, normal, mesh })`. The old name still fires, with a one-shot warning                                                                  |
+> # ⚠️ READ THIS ONE FIRST: library rotation
+>
+> **If you place library models with `rx`/`ry`/`rz`, your scenes will MOVE.**
+>
+> Everything else in this release either errors or looks obviously wrong. This
+> one changes a scene that previously looked **correct**, which is why it is at
+> the top instead of in the table.
+>
+> Two things happened to the same option at once:
+>
+> 1. It **never worked** on the default path. `instantiate()` wrote
+>    `result.rotation`, but Babylon's glTF loader always assigns a
+>    `rotationQuaternion`, and a `TransformNode` ignores `.rotation` while one is
+>    present. Measured on a real model: `ry: 0`, `ry: 140` and `ry: -90` all
+>    produced **bit-identical** orientations — you got the GLB's own baked
+>    rotation whatever you asked for. Position worked, which is exactly what made
+>    it look wired up.
+> 2. It is now **degrees**, not radians.
+>
+> So a value that did nothing now does something, in a unit that also changed.
+>
+> **What to do:**
+>
+> - **If you passed rotation and it appeared to work** — it was not your value
+>   doing it. Something else was: baked rotation in the model, a parent
+>   transform, or a compensating tweak downstream. That compensation is now
+>   **doubled up**. Look at every placement before assuming a regression.
+> - **If you passed rotation and gave up because it did nothing** — it works now.
+>   Your values are in radians; multiply by `180 / Math.PI`.
+> - **If you never passed rotation** — nothing changes. `canonical: true` was
+>   unaffected throughout.
+>
+> Quickest way to tell: search for `instantiate(` and `make.` with an `r[xyz]`
+> key. If there are none, skip this entirely.
+
+| What                                            | Before                                               | After                                                                                                                                                     |
+| ----------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `landform.gulley` / `landform.cover` `heading`  | radians                                              | **degrees** — `heading * 180 / Math.PI`                                                                                                                   |
+| `library.instantiate()` / `lib.make.*` rotation | radians **and silently ignored** — see the box above | **degrees, and actually applied**                                                                                                                         |
+| `b3d-aircraft` chase HUD                        | `hudChase: true` / `hudChase: false`                 | delete it (now default) / `hudChaseOff: true`                                                                                                             |
+| Right stick                                     | aux roll                                             | **camera**. `strafe` still sums into roll, so a custom mapping can restore a roll axis                                                                    |
+| Glass gamepad                                   | always visible                                       | **auto-hides** once a keyboard or hardware gamepad is used. `fade="off"` pins it                                                                          |
+| `carve` exports                                 | 13 bare names (`sphere`, `tube`, …)                  | the **`carve.*` namespace** (`carve.sphere`, `carve.tube`)                                                                                                |
+| `b3dPatch` / `B3dPatch`                         | experimental element                                 | **removed** — the pure modules it used (`carve.*`, `sdf-lattice`, `patch-field`) are kept                                                                 |
+| `library.getNames()`                            | raw node names                                       | **public names** — `.model`, behaviour suffixes and the glTF loader's `_primitiveN` removed, so `building_collideCylinder_primitive0` lists as `building` |
+| `spawnProjectile` / `spawnMissile` impact       | `onImpact(point)`                                    | `whenImpact({ point, normal, mesh })`. The old name still fires, with a one-shot warning                                                                  |
 
 ### The two that fail SILENTLY
 
@@ -33,14 +68,8 @@ not, so check them by hand:
 
 ### A note on library rotation
 
-`instantiate()`'s `rx`/`ry`/`rz` were not merely in the wrong unit — on the
-default (non-canonical) path they were **discarded entirely**. Babylon's glTF
-loader always assigns a `rotationQuaternion`, and a `TransformNode` ignores
-`.rotation` while one is present, so every value produced the GLB's own baked
-rotation. Fixed in 0.7.0 (the option now writes a quaternion). If you had
-compensated for that by baking rotation into your models or working around it
-downstream, **that workaround is now doubled up** — this is the one entry where
-upgrading can change a scene that previously looked correct.
+See the box at the top of this section. It is the one change here that can move a
+scene which previously looked correct, so it is not buried down here.
 
 ### Prerelease users
 

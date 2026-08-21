@@ -61,12 +61,36 @@ was tuned around the old feel.
   not a dial an author turns. And `b3d-skybox`'s `azimuth` is neither: it is
   Babylon's 0–1 fraction of a turn, passed straight through, now documented as
   such rather than left to be guessed at.
-- **`library.instantiate()` / `library.make.*` rotation is now DEGREES**, not
-  radians — matching `AbstractMesh`'s `rx`/`ry`/`rz` and the new `el.make.*`.
-  The library was the only surface in the framework that disagreed, and a bare
-  number is valid in either unit, so a value meant as degrees silently produced
-  some other orientation. It got past us in this repo's own collision demo.
-  **Migration:** if you passed radians, multiply by `180 / Math.PI`.
+- **⚠️ `library.instantiate()` / `library.make.*` rotation: WAS IGNORED, now
+  works — and is DEGREES.** The single most disruptive change in this release,
+  because it is the only one that can move a scene which previously looked
+  **correct**. Everything else here either errors or looks obviously wrong.
+
+  Two things happened to one option:
+
+  1. **It never applied on the default path.** `instantiate()` wrote
+     `result.rotation`, but Babylon's glTF loader always assigns a
+     `rotationQuaternion`, and a `TransformNode` ignores `.rotation` while one is
+     present. Measured on a real model: `ry: 0`, `ry: 140` and `ry: -90` gave
+     **bit-identical** orientations — you got the GLB's own baked rotation
+     whatever you asked for. `position` worked, which is precisely what made it
+     look wired up. (`canonical: true` was unaffected throughout.)
+  2. **It is now degrees**, matching `AbstractMesh`'s `rx`/`ry`/`rz` and
+     `el.make.*`. The library was the only surface in the framework that
+     disagreed, and a bare number is valid in either unit — so it failed by
+     producing a different orientation rather than an error. It got past us in
+     this repo's own collision demo, where `ry: 140` meant 140 radians.
+
+  **Migration.** If you passed rotation and it _appeared_ to work, it was not
+  your value doing it — something else was (baked rotation in the model, a parent
+  transform, a compensating tweak downstream), and that compensation is now
+  **doubled up**. Check every placement before calling it a regression. If you
+  passed rotation and gave up because nothing happened, it works now: your values
+  are radians, so multiply by `180 / Math.PI`. If you never passed rotation,
+  nothing changes. Quickest triage: grep for `instantiate(` and `make.` with an
+  `r[xyz]` key — no hits means this does not apply to you.
+
+  See `Migration.md`, which ships inside the package.
 
 - **`b3dPatch` / `B3dPatch` are removed.** The volumetric-patch element stitched
   an SDF extraction into the heightfield and never worked: two surfaces meeting
