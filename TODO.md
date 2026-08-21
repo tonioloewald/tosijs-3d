@@ -46,12 +46,18 @@ the XR loop, and a good small reproduction of the same class.
 
 ### Regression I introduced
 
-[ ] **b3d-library lost its hierarchy** — "we now have a whole lot of things
-called building… it's not showing the hierarchy at all, which it used to."
-My `publicName` change strips `_primitiveN`, which collapses sibling nodes to
-ONE name. The picker needs the hierarchy back and needs to disambiguate
-same-named siblings. Public names are still right for the API; the TREE needs
-more than a name.
+[x] **b3d-library lost its hierarchy** — FIXED by hiding the glTF loader's
+primitive splits from `getHierarchy`. A multi-material mesh imports as a
+TransformNode with the authored name plus one child per material
+(`_primitive0`, `_primitive1`), and once `publicName` stripped the suffix all
+three levels read "building". The tree was never gone; every level had the same
+name.
+
+[ ] **The library picker wants a HIERARCHICAL POPUP MENU**, not an indented flat
+list — indenting is the quick fix, the menu is the better one. Now buildable:
+`popup-surface` gives owned popups that die with their opener, and `surface`
+already has cascade menus. It would be the popup system's first real consumer,
+which is precisely the battle-testing argument from the ensemble spec.
 
 ### Broken or missing
 
