@@ -406,3 +406,55 @@ describe('pivot vs origin under attitude', () => {
     ).toBeCloseTo(0, 6)
   })
 })
+
+/*
+THE SHIPPED SCOUT'S CoG MUST BE ON THE CENTRELINE.
+
+A `_centerOfGravity` marker becomes the craft's PIVOT, so the airframe rotates
+about it — and an off-centre pivot makes handling asymmetric by construction
+(it turns more readily one way than the other) while also swinging the hull away
+from `position` under attitude, which reads as a chase-camera offset that tracks
+your flying.
+
+test-3.glb shipped with the marker 0.4 units off the centreline. It cost a
+headset pass, a wrong diagnosis and a reverted "fix" before anyone thought to
+measure the model. Asserted here because it is a CONTENT property that no code
+review can catch and a re-export can silently undo.
+
+Fore/aft and height are deliberately NOT constrained: a real CoG sits where the
+mass is, and only the LATERAL component is knowably wrong on a symmetric craft.
+*/
+describe('shipped model: centre of gravity', () => {
+  test('the scout rotates about its centreline', async () => {
+    const { readFileSync } = await import('fs')
+    const { canonicalize, applyCenterOfGravity } = await import(
+      './model-transform'
+    )
+    await import('@babylonjs/loaders')
+    const probe = new BABYLON.Scene(new BABYLON.NullEngine())
+    const b64 = readFileSync('static/test-3.glb').toString('base64')
+    const container = await BABYLON.SceneLoader.LoadAssetContainerAsync(
+      '',
+      'data:;base64,' + b64,
+      probe,
+      undefined,
+      '.glb'
+    )
+    const src = [...container.transformNodes, ...container.meshes].find(
+      (n) => n.name === 'scout' || n.name === 'scout.model'
+    )!
+    const clone = src.clone('cog-probe', null)!
+    container.addAllToScene()
+    clone.setEnabled(true)
+    canonicalize(clone as never)
+    clone.computeWorldMatrix(true)
+    applyCenterOfGravity(clone as never)
+
+    const pivot = clone.getPivotPoint()
+    // LATERAL is the one that must be zero on a symmetric airframe.
+    expect(Math.abs(pivot.x)).toBeLessThan(0.05)
+    // And the whole horizontal offset stays small — 0.707 was the broken value.
+    expect(Math.hypot(pivot.x, pivot.z)).toBeLessThan(0.1)
+    probe.dispose()
+  })
+})
