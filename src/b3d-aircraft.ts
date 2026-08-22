@@ -1615,8 +1615,14 @@ export class B3dAircraft extends B3dControllable {
     // depend on terrain's panel — and a headset has no console. Live `agl/hit`
     // shows what the ray is calling ground RIGHT NOW; `crash` shows the
     // captured report, which is the whole answer when it fires at altitude.
+    // Idempotent: sceneReady can run again for a re-connected element, and a
+    // respawn puts a SECOND aircraft in the scene — either way two identical
+    // rows appear and neither says which plane it is (Tonio: "two aircraft
+    // debug toggle buttons for some reason"). Drop any previous registration,
+    // and name the row so two live aircraft read as two aircraft.
+    this._groundDbgOff?.()
     this._groundDbgOff = owner.addDebugSource({
-      name: 'aircraft ground',
+      name: `aircraft ground${(this as any).player ? ' (player)' : ''}`,
       lines: () => {
         const c = this.crashReport
         const d = this._lastGroundDist

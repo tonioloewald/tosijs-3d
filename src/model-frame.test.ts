@@ -90,3 +90,51 @@ describe('canonical frame vs the real scout (test-3.glb)', () => {
     wrap.dispose()
   })
 })
+
+/*
+CANONICALIZE MUST DROP THE CONTENT NODE'S SCENE TRANSFORM.
+
+It only ever zeroed the node it was handed — which on the glTF path is
+`__root__`, the loader's own wrapper — while the authored object underneath kept
+its scene placement. In test-3.glb `scout` sits at (-0.89, 0, -1.44), so the
+control node the flight model steers was ~1.7m from the airframe, and
+`applyCenterOfGravity` folded that offset into the PIVOT.
+
+The user-visible cost: a CoG marker authored dead on the centreline (the
+documented way) produced a pivot 1.75m off, while an odd-looking hand-tuned
+marker silently compensated and came out right. Correct authoring was punished.
+Re-exporting the scout "properly" is what started the phantom crashes.
+*/
+describe('canonicalize drops scenic dressing', () => {
+  test('the content node under __root__ is zeroed, not just __root__', async () => {
+    const e = container.instantiateModelsToScene(undefined, false, {
+      doNotInstantiate: true,
+    })
+    const root = e.rootNodes[0] as import('@babylonjs/core').TransformNode
+    canonicalize(root, scene, 'ctl-dressing')
+    for (const child of root.getChildren(
+      (n) => n instanceof BABYLON.TransformNode,
+      true
+    )) {
+      const t = child as import('@babylonjs/core').TransformNode
+      expect(t.position.length()).toBeLessThan(1e-6)
+    }
+  })
+
+  test('a centreline-authored CoG installs a centreline pivot', async () => {
+    const { applyCenterOfGravity } = await import('./model-transform')
+    const e = container.instantiateModelsToScene(undefined, false, {
+      doNotInstantiate: true,
+    })
+    const control = canonicalize(
+      e.rootNodes[0] as import('@babylonjs/core').TransformNode,
+      scene,
+      'ctl-cog'
+    )
+    control.computeWorldMatrix(true)
+    applyCenterOfGravity(control)
+    // Lateral is the one that must be zero on a symmetric airframe: a pivot off
+    // the centreline makes the aircraft swing sideways when it banks.
+    expect(Math.abs(control.getPivotPoint().x)).toBeLessThan(1e-3)
+  })
+})
