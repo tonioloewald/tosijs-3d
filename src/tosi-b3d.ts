@@ -2683,12 +2683,9 @@ export class B3d extends Component {
     const side = new BABYLON.Vector3()
     const head = new BABYLON.Vector3()
     const tmp = new BABYLON.Vector3()
-    // Thumbstick-scroll: a controller pointing at the scrollable panel scrolls it
-    // with its stick (that stick is then withheld from locomotion for the frame).
-    const scrollRay = new BABYLON.Ray(
-      BABYLON.Vector3.Zero(),
-      BABYLON.Vector3.Up()
-    )
+    // Thumbstick-scroll: while a scrollable panel is gaze-visible, the RIGHT
+    // stick's Y scrolls it and is withheld from vertical movement. One axis, one
+    // hand — see the note at the call site for why it used to be everything.
     const SCROLL_SPEED = 1200 // panel viewBox units / sec at full stick (2× — VR thumbstick scroll felt sluggish vs the flat drag)
     // Chase-cam follow state (ported from the biped's XR camera): smoothly track
     // the piloted entity's position AND facing, with head-tracking compensation.
@@ -2935,35 +2932,34 @@ export class B3d extends Component {
       const left = controllers['left']?.['xr-standard-thumbstick']?.axes
       const right = controllers['right']?.['xr-standard-thumbstick']?.axes
 
-      // Thumbstick scroll: if a controller's ray hits the (scrollable, visible)
-      // panel, its stick Y scrolls the panel and is withheld from locomotion.
-      let leftScroll = false
+      /*
+      PANEL SCROLL — the RIGHT stick's Y, and nothing else.
+
+      This used to withhold BOTH sticks from locomotion whenever a scrollable
+      panel was visible, and it set the withhold flags for every connected
+      controller UNCONDITIONALLY — not when a stick had actually scrolled
+      anything. So a scene with a scene-panel long enough to scroll had NO
+      locomotion at all: left stick dead, turn dead, vertical dead. Reported as
+      "I'm stuck here… it's still not allowing me to move around at all in VR",
+      on demo after demo, while every control was implemented and correct.
+
+      Scroll stays gated on GAZE rather than on the controller ray (a pick that
+      breaks must not take the only escape hatch with it — that lesson holds).
+      What changed is the COST: it claims one axis on one hand, so walking and
+      turning are never withheld, and the most you lose while reading a panel is
+      vertical movement — which you are not using while reading a panel.
+      */
       let rightScroll = false
       if (panel.scrollable && panel.plane.visibility > 0.5) {
-        const inputs = this.xrHelper?.input?.controllers ?? []
-        for (const src of inputs) {
-          src.getWorldPointerRayToRef(scrollRay)
-          // Scroll is gated on GAZE (the panel is visible = you're looking at it), NOT on
-          // the controller ray hitting the panel. It used to require the pick — which made
-          // scrolling die whenever picking died, so a panel whose content ran below the
-          // fold became completely unreachable: you couldn't press anything AND you
-          // couldn't scroll to what you couldn't press. Never gate the only escape hatch
-          // on the thing that's broken.
-          const hand = src.inputSource?.handedness
-          const axes =
-            controllers[hand as 'left' | 'right']?.['xr-standard-thumbstick']
-              ?.axes
-          if (axes != null && Math.abs(axes.y) > DEAD) {
-            panel.scrollBy(axes.y * SCROLL_SPEED * dt)
-          }
-          if (hand === 'left') leftScroll = true
-          else if (hand === 'right') rightScroll = true
+        const axes = right
+        if (axes != null && Math.abs(axes.y) > DEAD) {
+          panel.scrollBy(axes.y * SCROLL_SPEED * dt)
+          rightScroll = true
         }
       }
 
       if (
         left != null &&
-        !leftScroll &&
         (Math.abs(left.x) > DEAD || Math.abs(left.y) > DEAD)
       ) {
         // Walk relative to where the head currently faces (flattened to floor).
@@ -2982,7 +2978,7 @@ export class B3d extends Component {
       if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend
       }
-      if (right != null && !rightScroll && Math.abs(right.x) > DEAD) {
+      if (right != null && Math.abs(right.x) > DEAD) {
         // Smooth-turn around the head (not the rig origin) so you spin in place
         // rather than orbiting when you've stepped off-centre. Rotate, then nudge
         // the rig so the head's world XZ is unchanged.
