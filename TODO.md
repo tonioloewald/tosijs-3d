@@ -57,6 +57,17 @@ with a tiny distance and a named mesh is the answer.** Note the sweep crashes
 on ANY hit above `crashSpeed` — no slope test — so it is the more likely of
 the two.
 
+[ ] **Design the reusable hit test around a POSE SOURCE, not a position** —
+see the new `COLLISION-DESIGN.md`. Tonio: the skeletal case (a sword tip
+parented to a bone, a limb noticing the environment) is _"something to
+consider when designing a reusable is-this-thing-hitting-that-thing test"_,
+i.e. a constraint at design time, not a later subsystem. A signature taking
+`Vector3` cannot express a bone-attached tip without bone math at every call
+site — which is exactly how this file's own world-matrix rule got ignored by
+its own rays. Taking something that yields a world matrix makes the animated,
+pivoted and floating-origin cases the SAME case. Also: never collide against
+skinned geometry (Babylon's `applySkeleton` is opt-in, so picking sees the
+BIND POSE — verified in 9.16.2); collide against bone-attached proxy volumes.
 [ ] **Generalize the collision probe to all entities** (Tonio): jeeps, ships,
 submarines, bipeds, animals will each need "where am I really, and what may I
 collide with". Two pieces worth sharing rather than re-deriving per vehicle:
