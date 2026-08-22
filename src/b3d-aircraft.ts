@@ -578,6 +578,25 @@ export class B3dAircraft extends B3dControllable {
   // Set, and a child-mesh array three times a frame.
   private _lastGroundDist = Infinity
   private _groundNormal = new BABYLON.Vector3(0, 1, 0)
+  /** Name of whatever the downward "ground" ray last hit — the phantom-collision witness. */
+  private _lastGroundHitName: string | null = null
+  private _groundDbgOff: (() => void) | null = null
+  /**
+   * Why the last crash fired, captured AT the crash. Always on: crashes are rare,
+   * so this costs nothing per frame, and it is readable in a headset (Perf panel)
+   * where there is no console. `hit` is the mesh the ground ray called ground —
+   * if that is not the ground, this is the phantom collision.
+   */
+  crashReport: {
+    hit: string | null
+    dist: number
+    altitude: number
+    normalY: number
+    upY: number
+    velY: number
+    speed: number
+    reason: string
+  } | null = null
   /** True while the airframe is in open air INSIDE the ground (a bore/cavern):
    * heightfield assumptions are suspended for the frame. */
   private _inCavity = false
@@ -869,7 +888,9 @@ export class B3dAircraft extends B3dControllable {
       sweepSpeed > 1e-3 &&
       this.owner != null
     ) {
-      this._ray.origin.copyFrom(node.position)
+      // From where the airframe IS (see originWorld) — under a CoG pivot the
+      // stance origin is not it, and this sweep crashes on any hit.
+      this._ray.origin.copyFrom(this.originWorld(node))
       this._ray.direction.copyFromFloats(
         vel.x / sweepSpeed,
         vel.y / sweepSpeed,
@@ -888,6 +909,20 @@ export class B3dAircraft extends B3dControllable {
       if (wallHit?.hit) {
         const n = wallHit.getNormal(true)
         if (n == null || n.y < 0.85 || sweepSpeed > attrs.crashSpeed) {
+          // Same witness as the ground path — without it a sweep-caused crash
+          // reports "no crash yet" and the instrument is worse than useless.
+          // `altitude` high + `dist` tiny + a named mesh = the phantom collision.
+          this.crashReport = {
+            hit: wallHit.pickedMesh?.name ?? '(unnamed)',
+            dist: wallHit.distance,
+            altitude: node.position.y,
+            normalY: n?.y ?? NaN,
+            upY: node.up.y,
+            velY: vel.y,
+            speed: sweepSpeed,
+            reason: 'sweep',
+          }
+          this.owner?.logDebug('crash', { ...this.crashReport })
           this.crash()
         }
       }
@@ -932,13 +967,25 @@ export class B3dAircraft extends B3dControllable {
       // demo). Water stays a plane (normal up), so gentle water touches
       // still count as landings.
       const impactSpeed = Math.hypot(vel.x, vel.y, vel.z)
-      if (
-        this._hasFlown &&
-        !wasGrounded &&
-        (vel.y < -attrs.crashSpeed ||
-          node.up.y < 0.5 ||
-          (this._groundNormal.y < 0.85 && impactSpeed > attrs.crashSpeed))
-      ) {
+      const fastDown = vel.y < -attrs.crashSpeed
+      const banked = node.up.y < 0.5
+      const intoSlope =
+        this._groundNormal.y < 0.85 && impactSpeed > attrs.crashSpeed
+      if (this._hasFlown && !wasGrounded && (fastDown || banked || intoSlope)) {
+        // Record WHY before crashing — a phantom collision at altitude shows up
+        // here as a big `altitude` with a small `dist`, naming the mesh the ray
+        // mistook for ground.
+        this.crashReport = {
+          hit: this._lastGroundHitName,
+          dist: groundDist,
+          altitude: node.position.y,
+          normalY: this._groundNormal.y,
+          upY: node.up.y,
+          velY: vel.y,
+          speed: impactSpeed,
+          reason: fastDown ? 'fast-down' : banked ? 'banked' : 'into-slope',
+        }
+        this.owner?.logDebug('crash', { ...this.crashReport })
         this.crash()
       }
       node.position.y += this.groundClearance - groundDist
@@ -1150,6 +1197,32 @@ export class B3dAircraft extends B3dControllable {
       this._ownMeshes = own
     }
     return this._ownMeshes ?? new Set()
+  }
+
+  /**
+   * WHERE THE AIRFRAME ACTUALLY IS — the world position of the node's local
+   * origin, for ray origins.
+   *
+   * `node.position` is the node's translation in its PARENT's space, and with a
+   * `_centerOfGravity` pivot the rendered airframe swings about the CoG under
+   * attitude while `position` keeps pointing at the stance origin. `muzzle()`
+   * already went through the world matrix for exactly this reason ("shots would
+   * spawn beside/behind the visible plane in a turn") — but both collision rays
+   * still fired from `position`, so BANKING moved the airframe out from under
+   * its own rays. The impact sweep crashes on ANY hit above `crashSpeed`, which
+   * turns that offset into "collided with something I was nowhere near"
+   * (Tonio, VR pass 2: "we could bank without crashing before").
+   *
+   * Transforming the LOCAL ORIGIN (not the pivot) keeps the existing ground
+   * semantics bit-for-bit: with no pivot and no parent this is exactly
+   * `node.position`, so `groundClearance` still means what it measured.
+   */
+  private originWorld(node: BABYLON.TransformNode): BABYLON.Vector3 {
+    node.computeWorldMatrix(true)
+    return BABYLON.Vector3.TransformCoordinates(
+      BABYLON.Vector3.ZeroReadOnly,
+      node.getWorldMatrix()
+    )
   }
 
   /** World nose direction (unit) and a muzzle point `ahead` metres in front.
@@ -1471,7 +1544,7 @@ export class B3dAircraft extends B3dControllable {
    * per-call allocation on this per-frame path. */
   private raycastGround(node: BABYLON.TransformNode): number {
     if (!this.owner) return Infinity
-    this._ray.origin.copyFrom(node.position)
+    this._ray.origin.copyFrom(this.originWorld(node))
     this._ray.direction.copyFromFloats(0, -1, 0)
     this._ray.length = 500
     if (this._ownMeshes == null) {
@@ -1503,9 +1576,17 @@ export class B3dAircraft extends B3dControllable {
       const n = hit.getNormal(true)
       if (n) this._groundNormal.copyFrom(n)
       else this._groundNormal.copyFromFloats(0, 1, 0)
+      // WHAT did we call "ground"? Recorded because the phantom-collision bug
+      // ("collided with something I was nowhere near", VR pass 2) is almost
+      // certainly this ray hitting a thing that is not the ground — a banked
+      // wing the exclusion set missed, an air target, a terrain skirt whose
+      // lied normal trips the slope test. The name is the answer; guessing
+      // which one cost a whole session.
+      this._lastGroundHitName = hit.pickedMesh?.name ?? '(unnamed)'
       return hit.distance
     }
     this._groundNormal.copyFromFloats(0, 1, 0)
+    this._lastGroundHitName = null
     return Infinity
   }
 
@@ -1528,6 +1609,29 @@ export class B3dAircraft extends B3dControllable {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
+
+    // Ground-ray diagnostics. Always registered (no arming), because the
+    // phantom collision happens in scenes with no terrain — so it must not
+    // depend on terrain's panel — and a headset has no console. Live `agl/hit`
+    // shows what the ray is calling ground RIGHT NOW; `crash` shows the
+    // captured report, which is the whole answer when it fires at altitude.
+    this._groundDbgOff = owner.addDebugSource({
+      name: 'aircraft ground',
+      lines: () => {
+        const c = this.crashReport
+        const d = this._lastGroundDist
+        return [
+          `agl ${d === Infinity ? '∞' : d.toFixed(1)} · hit ${
+            this._lastGroundHitName ?? '—'
+          }`,
+          c
+            ? `CRASH ${c.reason} @${c.altitude.toFixed(0)}m d=${c.dist.toFixed(
+                1
+              )} hit=${c.hit ?? '—'}`
+            : 'no crash yet',
+        ]
+      },
+    })
 
     if (attrs.url !== '') {
       this.loadFromUrl(attrs.url, owner, scene)
@@ -1778,6 +1882,8 @@ export class B3dAircraft extends B3dControllable {
   }
 
   sceneDispose() {
+    this._groundDbgOff?.()
+    this._groundDbgOff = null
     if (this.owner?.scene) {
       this.owner.scene.unregisterBeforeRender(this._update)
     }

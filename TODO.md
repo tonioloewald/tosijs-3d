@@ -20,8 +20,57 @@ relative to the volcano, makes no sense" — visible only in VR, not flat**
 (carved-landforms / volcano demo). Almost certainly the SAME bug wearing a
 different hat.
 
-**Leading hypothesis — floating-origin desync (needs instrumentation, NOT a
-blind fix).** The chain fits: fly far enough → `b3d-terrain.resetOrigin` fires →
+**REFUTED: floating origin.** Tonio: it happens in the **aircraft demo, which
+has no terrain** (flat `b3dGround`, no `resetOrigin`, no origin panel) and
+**"really soon after flying"** — a rebase needs a coarsest-tile of travel. Dead.
+
+**Also ruled out, by measurement not argument (2026-08-22):**
+
+- **Own-mesh exclusion is complete** — `getChildMeshes()` captures 36/36 pickable
+  descendants of the scout, 0 missed. The rays are not hitting the airframe.
+- **The HUD is not it** — `b3d-hud` sets `isPickable = false` and BOTH ray
+  predicates re-check it.
+- **CoG pivot drift is real but too small** — measured 0.11 m at 30° bank,
+  0.43 m inverted. A genuine bug (fixed, below); cannot move you from 80 m to
+  the ground.
+
+**FIXED — collision rays fired from `node.position`.** Both `raycastGround` and
+the impact sweep used `node.position`, which under a `_centerOfGravity` pivot is
+the STANCE ORIGIN, not where the airframe is: the model swings about the CoG
+under attitude. The file already had this rule written down for `muzzle()`
+("Computed through the WORLD matrix, never node.position … shots would spawn
+beside/behind the visible plane in a turn") — the collision rays simply never got
+it. Now both go through `originWorld(node)` (local origin through the world
+matrix), which is **bit-identical to `node.position` when there is no pivot**, so
+`groundClearance` semantics are unchanged. Pinned in `aircraft-rig.test.ts`.
+Matches "we could bank without crashing before" — but see the caveat above: this
+is almost certainly NOT the whole phantom collision.
+
+[ ] **STILL OPEN: what does the ray actually hit?** The instrument now answers
+it. Both crash paths (ground contact AND the impact sweep — the sweep had NO
+report, which would have made the panel lie) record `crashReport`: the hit
+mesh NAME, distance, altitude, normal, bank, speed, and which of the three
+conditions fired. Shown on an always-registered **"aircraft ground"** Perf row
+— no terrain, no arming, works in the aircraft demo. `agl ∞ · hit —` live;
+on a crash, `CRASH <reason> @<alt>m d=<dist> hit=<mesh>`. **A high altitude
+with a tiny distance and a named mesh is the answer.** Note the sweep crashes
+on ANY hit above `crashSpeed` — no slope test — so it is the more likely of
+the two.
+
+[ ] **Generalize the collision probe to all entities** (Tonio): jeeps, ships,
+submarines, bipeds, animals will each need "where am I really, and what may I
+collide with". Two pieces worth sharing rather than re-deriving per vehicle:
+the **world-matrix ray origin** (this bug — the rule existed and was still
+missed, because nothing shared it), and a **collision-exclusion convention**
+so a family of meshes can be skipped declaratively. Tonio: _"in Unity you can
+exclude certain mesh families from a ray collision test."_ We do it with an
+ad-hoc predicate per call site, and the predicate ALSO has to re-check
+`isPickable`/`isEnabled` (Babylon skips its built-in filter when a predicate
+is passed) — a footgun already paid for once with the clouds. A
+metadata/naming convention (the project already has one: `_nocast`,
+`-ignore`) plus one shared `probe()` helper would retire both.
+
+**Superseded hypothesis (kept for the record) — floating-origin desync.** The chain fits: fly far enough → `b3d-terrain.resetOrigin` fires →
 it shifts its tiles by `(shiftX,shiftZ)` and calls `owner.shiftOrigin` to move
 "everything else that carries a world position" by the same amount. If the
 piloted aircraft's NODE isn't the thing `shiftOrigin` actually moves (it moves

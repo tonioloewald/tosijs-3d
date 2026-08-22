@@ -129,3 +129,49 @@ describe('fly-by-wire orientation convention', () => {
     expect(up.x).toBeGreaterThan(0.4)
   })
 })
+
+/*
+RAY ORIGINS MUST COME FROM THE WORLD MATRIX, NOT `node.position`.
+
+With a `_centerOfGravity` pivot the rendered airframe swings about the CoG under
+attitude while `position` keeps pointing at the stance origin. `muzzle()` already
+went through the world matrix ("shots would spawn beside/behind the visible plane
+in a turn"); both COLLISION rays did not, so banking moved the airframe out from
+under its own rays — and the impact sweep crashes on ANY hit above `crashSpeed`.
+
+The safety property that makes the fix free: with no pivot, transforming the LOCAL
+ORIGIN through the world matrix is EXACTLY `node.position`, so ground semantics
+(`groundClearance`, derived from the origin) are unchanged.
+*/
+describe('collision ray origin under a CoG pivot', () => {
+  const originWorld = (node: BABYLON.TransformNode) => {
+    node.computeWorldMatrix(true)
+    return BABYLON.Vector3.TransformCoordinates(
+      BABYLON.Vector3.ZeroReadOnly,
+      node.getWorldMatrix()
+    )
+  }
+
+  test('with NO pivot it is bit-identical to node.position (the fix is free)', () => {
+    const scene = new BABYLON.Scene(new BABYLON.NullEngine())
+    const node = new BABYLON.TransformNode('plain', scene)
+    node.position.set(1, 2, 3)
+    node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0.3, 0.2, 1.1)
+    expect(BABYLON.Vector3.Distance(originWorld(node), node.position)).toBeLessThan(1e-6)
+  })
+
+  test('with a CoG pivot, banking moves the airframe away from node.position', () => {
+    const scene = new BABYLON.Scene(new BABYLON.NullEngine())
+    const node = new BABYLON.TransformNode('plane', scene)
+    node.position.set(0, 80, 0)
+    // The scout's re-exported centre of gravity.
+    node.setPivotPoint(new BABYLON.Vector3(0, 0.2149, -0.0107))
+
+    node.rotationQuaternion = BABYLON.Quaternion.Identity()
+    expect(BABYLON.Vector3.Distance(originWorld(node), node.position)).toBeLessThan(1e-6)
+
+    // Inverted is the worst case: the offset is mirrored, so it is 2 * |pivot|.
+    node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0, 0, Math.PI)
+    expect(BABYLON.Vector3.Distance(originWorld(node), node.position)).toBeGreaterThan(0.4)
+  })
+})
