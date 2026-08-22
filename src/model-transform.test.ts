@@ -317,7 +317,26 @@ describe('publicName — what the consumer sees', () => {
 })
 
 /*
-A CHASE CAMERA MUST AIM AT THE ROTATION CENTRE, NOT THE ORIGIN.
+A CHASE CAMERA MUST AIM AT THE ORIGIN, NOT THE PIVOT — the opposite of what I
+first concluded, and these tests are why the mistake is cheap to re-check.
+
+I moved both chase paths to `getAbsolutePivotPoint()` on the theory that a craft
+with a CoG marker rotates about it, so the hull swings away from `position` and
+the chase should follow the rotation centre. The reasoning is sound; the premise
+is not. MEASURED on the shipped scout, after canonicalisation:
+
+    pivotLocal = [0.398, 0.090, -0.584]
+    absPos     = [-0.551, -0.125, 0.808]
+
+That is ~1.7 units apart on a craft a couple of units long. A CoG is a MASS
+centre, authored where the mass is — not a visual centre, and on this model not
+even on the centreline. Anchoring there moved the chase sideways and Tonio saw
+it immediately in the FLAT view, which had been fine.
+
+So the vehicle convention stands: the root-node origin is centred and grounded,
+and that is what a chase frames. What follows still documents the Babylon
+semantics accurately — it is the reason to keep pivot and origin distinct in
+your head, not a reason to aim at the pivot.
 
 `applyCenterOfGravity` calls `setPivotPoint`, so a vehicle with a
 `_centerOfGravity` marker rotates about the CoG. The consequence nobody expects:

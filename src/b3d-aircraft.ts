@@ -1004,11 +1004,19 @@ export class B3dAircraft extends B3dControllable {
 
     if (this._chasePivot != null) {
       node.computeWorldMatrix(true) // refresh: position moved since the attitude pass
-      // The PIVOT, not the origin: with a `_centerOfGravity` marker the hull
-      // rotates about the CoG, so it swings away from `position` with attitude
-      // and the chase would aim slightly off the aircraft as you manoeuvre.
-      // Falls back to absolutePosition when no marker is present.
-      this._chasePivot.position.copyFrom(node.getAbsolutePivotPoint())
+      /*
+      The node ORIGIN, not the pivot. I moved this to `getAbsolutePivotPoint()`
+      believing the CoG was the visual centre the chase should track — and it is
+      not. `scout_centerOfGravity` sits at [0.398, 0.090, -0.584]: a MASS centre,
+      authored where the mass is and 0.4 units OFF THE CENTRELINE. Anchoring
+      there shifted the flat chase sideways by exactly that, which is how a fix
+      for a VR-only fault produced a flat regression Tonio saw immediately
+      ("even in flat 3D now, the chase camera is misaligned… offset to my right").
+
+      The vehicle convention is the right anchor: the root-node origin is centred
+      and grounded (see CLAUDE.md), which is precisely what a chase should frame.
+      */
+      this._chasePivot.position.copyFrom(node.absolutePosition)
       if (this._chasePivot.rotationQuaternion == null) {
         this._chasePivot.rotationQuaternion = new BABYLON.Quaternion()
       }
