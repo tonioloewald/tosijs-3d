@@ -33,6 +33,15 @@ predicate, and none excludes UI yet. Same bug is latent in each: shoot
 through your own settings panel, or have it block a turret's line of sight.
 This is the "one shared `probe()`" argument in COLLISION-DESIGN.md, now with
 a scar to point at.
+[ ] **Make UI exclusion the DEFAULT, not opt-out** (Tonio: Unity ships a few
+groups by default and UI is the obvious one to exclude from all non-UI
+physics). The shipped `isNoCollide` is opt-out — every predicate must
+remember `&& !isNoCollide(m)` — and a rule each call site must remember is
+precisely what produced this bug in the first place. The reusable probe
+should skip `ui` and `sensor` with NO group argument, so the four predicates
+above become correct by construction rather than by diligence, and "I want
+to hit UI" becomes the loud, rare, explicit case. See COLLISION-DESIGN.md →
+"Default groups".
 
 ### VR ENTRY ORDERING (new, pass 2 follow-up)
 

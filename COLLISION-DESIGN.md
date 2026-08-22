@@ -102,6 +102,41 @@ declares its proxies the same way — an empty on the hand bone named
 `Blade_collideCapsule` is a sword edge — so a rigger creates collision in
 Blender, not a programmer in TypeScript.
 
+## Default groups, and why UI must be excluded BY DEFAULT
+
+Tonio: _"Unity defined a few [groups] by default and UI is an obvious group to
+exclude from all non-UI physics stuff by default."_ Agreed, and the emphasis
+belongs on **by default** — that is the part that would have prevented this bug
+rather than merely described it.
+
+The shipped `markUiMesh`/`isNoCollide` is **opt-out**: every predicate has to
+remember `&& !isNoCollide(m)`. We already know what happens to a rule each call
+site must remember — it is the same failure that produced this bug (the
+world-matrix rule was written down in `b3d-aircraft` and its own rays ignored
+it) and there are **four more predicates** in the tree that don't have it yet
+(launcher, turret LOS, warhead gather, `b3d-collisions`). Opt-out means the bug
+is latent in each of them and will resurface in whichever ships first.
+
+So the reusable probe **excludes UI unless you ask for it**:
+
+| Group | In a physical probe | Notes |
+| --- | --- | --- |
+| `world` | ✅ default | terrain, structures, props |
+| `actors` | ✅ default | vehicles, bipeds, animals |
+| `projectiles` | ✅ default | needs self/owner exclusion, see below |
+| **`ui`** | **❌ never, unless asked** | panels, HUDs, pointer targets |
+| `sensor` | ❌ never | trigger volumes — overlap tests only |
+
+Pointer/gaze picking is the one caller that asks FOR `ui`, and it is already a
+different code path. So the default is right for every existing call site, and
+"I want to hit UI" becomes the loud, rare, explicit case — which is the correct
+shape for a footgun.
+
+The corollary matters as much: **a probe with no group argument must be safe**,
+because that is what a hurried call site writes. `probe.segment(from, to)` should
+already skip UI and sensors. Anything that requires an argument to be correct
+will eventually be called without it.
+
 ## What may hit what — the exclusion problem
 
 Tonio: _"in Unity you can exclude certain mesh families from a ray collision
