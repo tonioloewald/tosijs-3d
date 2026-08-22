@@ -2750,6 +2750,13 @@ export class B3d extends Component {
         scene
       )
       ground.isPickable = false
+      // UNDER THE VIEWER, not at the world origin. A 200m grid pinned to (0,0)
+      // is off in the distance for any scene whose subject isn't there — it
+      // read as a mystery grid floating away from the volcano, visible only in
+      // VR (Tonio, VR pass 2). Kept in WORLD space (not parented to the rig) so
+      // it still gives a motion reference when you fly.
+      ground.position.x = rig.position.x
+      ground.position.z = rig.position.z
       // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
       // ground / water / terrain at 0 — and so the real scene ground wins visually
       // (the grid only shows through where there's no ground, rather than covering
@@ -2808,6 +2815,9 @@ export class B3d extends Component {
     let cockpitYawOffset = 0 // head yaw captured when you take the seat
     // Deferred + re-armable, rather than captured once on entry. See the capture site.
     let yawCaptureNeeded = false
+    // Same, for FREE locomotion (no piloted entity) — see the capture below.
+    // Armed on entry so the first posed frame seats you facing the subject.
+    let freeYawNeeded = true
 
     const sm = base.sessionManager
     /** A real head pose this frame? Before one arrives the camera's rotation is stale. */
@@ -2835,6 +2845,10 @@ export class B3d extends Component {
      */
     const rearmYaw = (): void => {
       yawCaptureNeeded = true
+      // A system recentre must re-seat an ORBIT demo too, not just a cockpit —
+      // otherwise the Meta button appears to do nothing in exactly the demos
+      // where you cannot fly out of a bad heading.
+      freeYawNeeded = true
     }
     let resetSpace: XRReferenceSpace | null = null
     const bindReset = (): void => {
@@ -3038,6 +3052,42 @@ export class B3d extends Component {
       if (rig.rotationQuaternion != null) {
         rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y
         rig.rotationQuaternion = null
+      }
+
+      /*
+      FACE WHAT YOU WERE LOOKING AT — the free-locomotion case.
+
+      Both PILOTED paths seed yaw against the head (cockpit bakes
+      `cockpitYawOffset`, chase does `chaseYaw = targetYaw - chaseYawOffset`).
+      Free locomotion never did, so an ORBIT demo — one with no piloted entity,
+      which is most of them — dropped you in facing whichever way your head
+      physically pointed, with the scene wherever the unrotated rig left it.
+      Reported as the panel being "behind and left" and the subject "nowhere in
+      sight" (Tonio, VR pass 2, carved-landform/volcano).
+
+      Same shape as the cockpit capture, including the reason it waits: for the
+      first frames of a session the viewer pose can be null and the camera
+      reports a stale rotation, so capturing early bakes a garbage yaw. That is
+      also why TOGGLING VIEWS "fixed" it — the toggle re-armed a capture on a
+      frame that had a real pose.
+
+      Forward is the flat camera's view direction (an ArcRotateCamera looks at
+      its target), so you arrive looking at what you were looking at.
+      */
+      if (freeYawNeeded && hasViewerPose()) {
+        const flat = this.camera as BABYLON.ArcRotateCamera | null
+        if (flat != null) {
+          const tgt = (flat as any).target as BABYLON.Vector3 | undefined
+          const dx = (tgt?.x ?? 0) - flat.position.x
+          const dz = (tgt?.z ?? 0) - flat.position.z
+          if (Math.hypot(dx, dz) > 1e-4) {
+            const headYaw = cam.rotationQuaternion
+              ? cam.rotationQuaternion.toEulerAngles().y
+              : 0
+            rig.rotation.y = Math.atan2(dx, dz) - headYaw
+          }
+        }
+        freeYawNeeded = false
       }
 
       const left = controllers['left']?.['xr-standard-thumbstick']?.axes
