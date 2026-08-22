@@ -400,6 +400,14 @@ export class B3dSvgPlane extends AbstractMesh {
     updateInterval: 30,
     materialChannel: 'emissive',
     cameraRelative: false,
+    /**
+     * When `cameraRelative` AND in a headset, parent to this XR reference frame
+     * instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in
+     * front of you WITHOUT jittering on every head movement — right for a menu
+     * you read, wrong for a HUD (leave it '' so a HUD stays head-locked). Flat,
+     * or with no frame set, `cameraRelative` behaves exactly as before.
+     */
+    xrFrame: '',
     pointerEvents: 'on' as 'on' | 'off',
     doubleSided: 'on' as 'on' | 'off',
     /**
@@ -427,6 +435,7 @@ export class B3dSvgPlane extends AbstractMesh {
   declare updateInterval: number
   declare materialChannel: string
   declare cameraRelative: boolean
+  declare xrFrame: string
   declare pointerEvents: 'on' | 'off'
   declare doubleSided: 'on' | 'off'
   declare cornerRadius: number
@@ -528,9 +537,16 @@ export class B3dSvgPlane extends AbstractMesh {
     const attrs = this as any
 
     if (attrs.cameraRelative) {
-      const cam = this.owner?.scene?.activeCamera
-      if (cam && this.mesh.parent !== cam) {
-        this.mesh.parent = cam
+      // In a headset, an opt-in frame (e.g. 'body') is parented instead of the
+      // head camera, so a read-it panel doesn't jitter with every head turn. No
+      // frame, or flat, falls through to the active (head/orbit) camera — the
+      // original behaviour. HUDs leave xrFrame unset and stay head-locked.
+      const frames = (this.owner as any)?.xrFrames
+      const frameNode =
+        attrs.xrFrame && frames ? frames.get(attrs.xrFrame) : null
+      const target = frameNode ?? this.owner?.scene?.activeCamera ?? null
+      if (target && this.mesh.parent !== target) {
+        this.mesh.parent = target
         this._camParented = true
       }
     } else if (this._camParented && this.mesh.parent) {

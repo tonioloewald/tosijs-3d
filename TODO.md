@@ -77,6 +77,18 @@ weather for the whole session over one transient. `recoverPool` is the step
 size; what's missing is the demand-side re-probe that actually fires it. Tie
 into the stall above — the leaves-never-return report IS this gap.
 
+### Tech debt spotted this pass
+
+[ ] **`bun run typecheck` is RED** — `model-transform.test.ts:449` calls
+`canonicalize(clone as never)` with 1 arg; the signature is now
+`(clone, scene, name)`. The test PASSES at runtime (bun doesn't typecheck),
+so it's been normalised — but a red `tsc -p tsconfig.json --noEmit` is how a
+real type regression hides. `canonicalize` changed from mutate-in-place to
+wrapper-returning; the test still uses `clone` after, so the fix isn't just
+"pass two more args" — someone who owns that refactor should decide whether
+the assertion should measure the wrapper. Not fixed blind. Pre-existing (not
+from VR pass 2's changes).
+
 ## 0.7.0 VR (goggles) pass — Tonio, 2026-08-21
 
 Stopped halfway: _"everything works aside from some fairly minor issues with the

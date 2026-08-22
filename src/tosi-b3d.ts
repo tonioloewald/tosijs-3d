@@ -834,6 +834,19 @@ export class B3d extends Component {
   private _pausePanel: B3dSvgPlane | null = null
   private _pauseWatch: (() => void) | null = null
   private _cameraWasAttached = false
+  // Snapshot of the flat ORBIT camera taken on XR entry, restored on exit. An
+  // ArcRotateCamera orbits a target, so Babylon's default "carry the XR pose
+  // back" copies your walked-to headset position into it and recomputes a low
+  // orbit angle — you exit VR looking at the scene from the floor (Tonio, VR
+  // pass 2). Free/walkable cameras CAN adopt an arbitrary pose, so they keep the
+  // carry-back (which is the symmetric behaviour that was liked); only orbit
+  // cameras, for which it's meaningless, are restored.
+  private _flatOrbitState: {
+    alpha: number
+    beta: number
+    radius: number
+    target: BABYLON.Vector3
+  } | null = null
 
   /** Is the simulation held? Rendering continues — the panel has to be drawn. */
   get paused(): boolean {
@@ -1292,6 +1305,25 @@ export class B3d extends Component {
     move(carrier)
     for (const root of this._worldRoots) move(root)
     for (const cb of this._originShiftListeners) cb(dx, dz)
+    // Instrument the floating-origin desync hypothesis (VR pass 2, 'origin'
+    // tag): the phantom "collide with terrain nowhere near you" fits the piloted
+    // aircraft NOT being what shiftOrigin moves — in chase view the carrier can
+    // be the chase rig, leaving the plane at pre-shift coords while the tiles
+    // jump. Record exactly what was moved so the next pass reads the truth
+    // instead of us guessing. `carrierIsPiloted:false` while flying = confirmed.
+    if (this._debugCapture.has('origin')) {
+      this.logDebug('origin', {
+        kind: 'shiftOrigin',
+        dx,
+        dz,
+        carrier: (carrier as any)?.name ?? null,
+        piloted: (piloted as any)?.name ?? null,
+        carrierIsPiloted: carrier === piloted && piloted != null,
+        carrierY: (carrier as any)?.position?.y ?? null,
+        worldRoots: this._worldRoots.size,
+        view: focused?.cameraView ?? null,
+      })
+    }
   }
 
   registerLibrary(type: string, library: any): void {
@@ -1367,6 +1399,7 @@ export class B3d extends Component {
   }
 
   private _update = () => {
+    this._debugFrame++
     if (this._paused) {
       /*
       Keep RENDERING — the panel has to be visible and pickable — but stop the
@@ -1957,6 +1990,42 @@ export class B3d extends Component {
     }
   }
 
+  /*
+  A tiny diagnostic ring buffer, for VR bugs you can only catch in a headset.
+
+  There is no console in a headset and window.rAF is suspended, so the two
+  normal readback paths are gone. This records structured events IN the page:
+  read them back afterward at the desk with
+  `document.querySelector('tosi-b3d').debugLog` (over haltija when the tab is
+  reachable, or straight from DevTools). `frameNow` is a monotone counter, not a
+  clock — Date.now is banned in the deterministic layer and useless for ordering
+  frames anyway. Off by default; `b3d.debugCapture('origin')` arms a tag.
+  Mirror-to-console is opt-in per tag because a VR frame budget can't afford a
+  log line every reset.
+  */
+  private _debugRing: Array<Record<string, unknown>> = []
+  private _debugCapture = new Set<string>()
+  private _debugFrame = 0
+  /** Monotone frame counter for ordering diagnostic events (NOT a clock). */
+  get debugFrame(): number {
+    return this._debugFrame
+  }
+  /** The captured diagnostic events, oldest first. Read over haltija/DevTools. */
+  get debugLog(): ReadonlyArray<Record<string, unknown>> {
+    return this._debugRing
+  }
+  /** Arm (or, with on=false, disarm) diagnostic capture for a tag. */
+  debugCapture(tag: string, on = true): void {
+    if (on) this._debugCapture.add(tag)
+    else this._debugCapture.delete(tag)
+  }
+  /** Record a diagnostic event if its tag is armed. Cheap no-op otherwise. */
+  logDebug(tag: string, event: Record<string, unknown>): void {
+    if (!this._debugCapture.has(tag)) return
+    this._debugRing.push({ f: this._debugFrame, tag, ...event })
+    if (this._debugRing.length > 512) this._debugRing.shift()
+  }
+
   // Rows contributed by registered debug sources. Kept generic on purpose: the core
   // knows nothing about terrain (or whatever else) — each source decides what's worth
   // three lines on a panel you're reading through a headset.
@@ -2516,6 +2585,19 @@ export class B3d extends Component {
       // here would wipe the icon.
       vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR'
       if (state === BABYLON.WebXRState.IN_XR) {
+        // Snapshot the flat orbit camera so exit can restore it (see the field
+        // note). Babylon only mutates the non-XR camera on the way OUT, so the
+        // angles here are still the pre-entry ones.
+        const fc = this.camera
+        this._flatOrbitState =
+          fc instanceof BABYLON.ArcRotateCamera
+            ? {
+                alpha: fc.alpha,
+                beta: fc.beta,
+                radius: fc.radius,
+                target: fc.target.clone(),
+              }
+            : null
         // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
         // back to the flat one on exit (the cheap lever that's safe to change live).
         this._applyHardwareScaling(true)
@@ -2531,6 +2613,19 @@ export class B3d extends Component {
         restoreRaf ??= this._installXrRafPump(base)
         xrSession ??= this._startDefaultXrExperience(base, controllers)
       } else if (state === BABYLON.WebXRState.NOT_IN_XR) {
+        // Restore the orbit camera Babylon has just carried the (low) headset
+        // pose into. Runs after Babylon's restore; setting target then angles
+        // overrides the setPosition() it did, and ArcRotate recomputes position
+        // from these next frame. Free cameras keep the carry-back (state is null).
+        const fc = this.camera
+        const s = this._flatOrbitState
+        if (s != null && fc instanceof BABYLON.ArcRotateCamera) {
+          fc.setTarget(s.target)
+          fc.alpha = s.alpha
+          fc.beta = s.beta
+          fc.radius = s.radius
+        }
+        this._flatOrbitState = null
         this._applyHardwareScaling(false)
         this._reallocAmbient()
         xrSession?.dispose()
