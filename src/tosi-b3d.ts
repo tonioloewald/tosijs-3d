@@ -1714,7 +1714,23 @@ export class B3d extends Component {
    * We only need to know that ambient is the cheapest thing in the scene to give up.
    */
   private _ambientWatchdog(): void {
-    if (this._ambient.length === 0 || this._ambientPoolScale <= 0) return
+    /*
+    A pool at ZERO still has to be watched — that is the whole recovery case.
+
+    This used to bail on `_ambientPoolScale <= 0`, which made the recovery path
+    below unreachable from exactly the state it was written for:
+    `recoverPool(0)` returns 0.25 by design ("Zero is not a special case… a pool
+    ratcheted to nothing recovers from a floor rather than staying dead"), and
+    `ambient-budget.test.ts` pins it with "a pool shed to ZERO comes back — the
+    reported bug". The model was right, the test was green, and the caller
+    returned one line before it could ever run — so a scene that shed to nothing
+    stayed dead for the session, which is precisely the reported symptom (no
+    leaves, no bubbles, no motes, on hardware that had been drawing them a
+    second earlier).
+
+    Only the "no ambient effects at all" case is a real early-out.
+    */
+    if (this._ambient.length === 0) return
     if (this.engine == null) return
     const dt = this.engine.getDeltaTime()
 

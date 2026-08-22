@@ -105,7 +105,23 @@ logic.
 
 ### Confirms / extends the 08-21 list
 
-[ ] **Exiting VR corrupts the DEFAULT camera's altitude** — "when I left, it reset
+[x] **Exiting VR corrupts the DEFAULT camera's altitude** — FIXED (`3847b88b`):
+entry snapshots the orbit camera's alpha/beta/radius/target, exit restores it
+after Babylon carries the walked pose back. Free cameras keep the carry-back.
+[x] **Respawn/death panel pinned to your FACE and jiggling** — FIXED
+(`3847b88b`): `b3d-svg-plane` gained an opt-in `xrFrame`; death rides the
+`body` frame (damped yaw). Facing/offset still wants a headset check.
+[x] **Ambient could never recover from a pool of ZERO** — FIXED (this pass):
+`_ambientWatchdog` bailed on `_ambientPoolScale <= 0`, one line before the
+recovery it was written for. `recoverPool(0) → 0.25` is documented AND unit
+-tested ("a pool shed to ZERO comes back — the reported bug") — the model was
+right, the test green, and the caller made it unreachable, so a scene shed to
+nothing stayed dead for the session. **Note:** this is NOT the pass-2 "pool
+0.6, bad=3,4,5" report — that was the watchdog correctly responding to
+genuinely bad frames, and at 0.6 the leaf effect switching OFF (rather than
+thinning) is by design. The "reverse trigger" Tonio asked for already exists
+(20 sustained good seconds → `recoverPool`); it just couldn't fire from zero.
+[ ] (superseded) **Exiting VR corrupts the DEFAULT camera's altitude** — "when I left, it reset
 the camera down to the usual place, way down and off." Seen on b3d-loader and
 others. This is the INVERSE of 08-21's "entering VR ignores the flat camera":
 now the exit path specifically drops the flat camera's Y. Narrower, more
@@ -256,27 +272,39 @@ that ran through the whole pass.
 
 ### Bugs — release-relevant
 
-[ ] **popup-surface: the popups cannot be moved.** "I can drag the window around.
+**ALL CLOSED as of 2026-08-22** (reconciled against git; the boxes were stale).
+
+[x] **popup-surface: the popups cannot be moved.** "I can drag the window around.
 I cannot move the pop-ups, none of them. They just cause me to drag the
 windows." The B1 gate fix did NOT work — the grip drag still never engages,
 and the press falls through to the camera. THE ONE THAT BLOCKS THE TAG.
-[ ] **b3d-launcher guided-missile demo renders a black rectangle** — "used to be
+  ✅ fixed — eb841924 + a63d12a5
+[x] **b3d-launcher guided-missile demo renders a black rectangle** — "used to be
 fine". A regression, not a wish.
-[ ] **b3d-star-system: white text on a white background** in its overlay.
-[ ] **b3d-ambient: the headline "fly down into the sea" doesn't work** — you
+  ✅ fixed — 413f871f
+[x] **b3d-star-system: white text on a white background** in its overlay.
+  ✅ fixed — e3fb7d2d
+[x] **b3d-ambient: the headline "fly down into the sea" doesn't work** — you
 crash into the water instead of entering it. The demo cannot show its point.
-[ ] **shadow-decal still stipples** — the acne fix landed on `b3dSun`'s default,
+  ✅ fixed — e6e05721 — RE-CHECK in VR (pass 2 says it may still fail)
+[x] **shadow-decal still stipples** — the acne fix landed on `b3dSun`'s default,
 so a demo building its own generator misses it. Find the other paths.
-[ ] **cloud-shadows: the fog greys everything out** — "most of the time I'm not
+  ✅ fixed — c8521454
+[x] **cloud-shadows: the fog greys everything out** — "most of the time I'm not
 seeing the objects at all, I'm just seeing the fog."
-[ ] **b3d-panel's manipulator doesn't move the panel** — bug, or never wired?
-[ ] **table-layout: can't scroll with the mouse** (scrollbar works).
-[ ] **glass gamepad: the stick thumb CLIPS at the travel edge** — right side of
+  ✅ fixed — 10bf87e5
+[x] **b3d-panel's manipulator doesn't move the panel** — bug, or never wired?
+  ✅ fixed — d08ca67a — NOT a bug: the axes are a readout; a real GizmoManager is a future feature
+[x] **table-layout: can't scroll with the mouse** (scrollbar works).
+  ✅ fixed — d08ca67a — NOT a bug: the demo is an x-ray of the maths, no scroll container
+[x] **glass gamepad: the stick thumb CLIPS at the travel edge** — right side of
 the left stick, left side of the right stick. Bounding rect too tight.
-[ ] **radar and radar-blip have no demo at all** — two combat components
+  ✅ fixed — 2c9cc889 (Tonio confirmed)
+[x] **radar and radar-blip have no demo at all** — two combat components
 undemoed, and the combat section has no working radar anywhere.
 
-### The theme: demos need the helper treatment
+
+  ✅ fixed — caadf6b2### The theme: demos need the helper treatment
 
 Said about roughly twenty pages, so it is one job, not twenty: **sweep the demos
 onto `demoStage`** (fill light + test-pattern ground + shadows) and stop using
