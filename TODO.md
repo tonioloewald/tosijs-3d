@@ -7,7 +7,47 @@ still stands (cross-referenced, not duplicated); this pass adds one **new and
 serious** class of bug and two concrete feature asks. The reload-fast load is
 confirmed and the stick clipping is confirmed FIXED on this machine.
 
-### NEW — the scary one: phantom collisions far from any terrain
+### SOLVED — the phantom collision was the UI
+
+**`crashReport` named it: `hit=frame-panel`.** The aircraft's impact sweep was
+hitting the **spatial UI panel** floating in front of the cockpit and calling it
+terrain. The sweep crashes on ANY hit above `crashSpeed` (no slope test), so it
+was an instant kill.
+
+Everything now fits, including what refuted the earlier theories: it needs no
+terrain (the panel rides a head/body frame), it only bites in **cockpit view**
+(that is where the camera — and its frame panels — sit close enough to the
+airframe to fall inside a ~2m sweep), and it fires on **bank** because banking
+swings the velocity vector into the panel.
+
+FIXED by separating two questions that had shared one answer: a panel must stay
+`isPickable` (that is how a controller ray targets it) but must be invisible to
+COLLISION. `markUiMesh`/`isNoCollide` (b3d-utils) is the first of the collision
+GROUPS in `COLLISION-DESIGN.md`; applied to `frame-panel`, `b3d-svg-plane` and
+the XR settings panel, and filtered in both aircraft predicates. Pinned in
+`no-collide.test.ts`.
+
+[ ] **Sweep the other collision predicates** — the launcher's swept projectile,
+turret LOS, warhead gather and `b3d-collisions` all build their own
+predicate, and none excludes UI yet. Same bug is latent in each: shoot
+through your own settings panel, or have it block a turret's line of sight.
+This is the "one shared `probe()`" argument in COLLISION-DESIGN.md, now with
+a scar to point at.
+
+### VR ENTRY ORDERING (new, pass 2 follow-up)
+
+[ ] **On first XR entry the rig is wrong; toggling views fixes it.** Tonio: the
+panel was behind him and "the aircraft was nowhere in sight", then
+_"when I toggled views things corrected themselves including rig
+positioning"_. So the seed is computed too early — before the piloted entity
+/ focus is settled — and the view toggle recomputes it correctly. That the
+toggle is a reliable repair is the strongest clue we have: **compare what
+`setCameraView` does on toggle with what `_startDefaultXrExperience` does at
+entry, and make entry run the same path.** Likely suspects: `focusEl.focused`
+still null when the rig seeds (so it takes the free-fly branch and seeds from
+the flat camera), and the one-shot `playerDriven`/grid decision made at setup.
+
+### Superseded — the terrain hypothesis (kept: it is how the above was found)
 
 [ ] **Flying high, nowhere near terrain, you suddenly "collide with a skirt" at
 the wrong altitude — a real death, respawn fires.** Reproduced repeatedly:

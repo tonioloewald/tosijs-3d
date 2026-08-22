@@ -318,7 +318,12 @@ import {
   type FlyByWireConfig,
   type FlyByWireState,
 } from './fly-by-wire'
-import { placeOnSurface, boundingBottomOffset, isOff } from './b3d-utils'
+import {
+  placeOnSurface,
+  boundingBottomOffset,
+  isOff,
+  isNoCollide,
+} from './b3d-utils'
 import { spawnProjectile, spawnMissile } from './b3d-launcher'
 import type { WarheadSpec } from './warhead'
 import type { B3dRadar } from './b3d-radar'
@@ -904,6 +909,7 @@ export class B3dAircraft extends B3dControllable {
           m.isPickable &&
           m.isEnabled() &&
           !own.has(m) &&
+          !isNoCollide(m) &&
           !m.name.includes('__root__')
       )
       if (wallHit?.hit) {
@@ -1567,6 +1573,7 @@ export class B3dAircraft extends B3dControllable {
         m.isPickable &&
         m.isEnabled() &&
         !own.has(m) &&
+        !isNoCollide(m) &&
         !m.name.includes('__root__') &&
         // Water is only "ground" to something that can't go under it.
         !(submersible && (m.metadata as any)?.b3dWater === true)

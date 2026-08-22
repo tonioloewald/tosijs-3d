@@ -380,7 +380,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 /*{ "parent": "UI" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff } from './b3d-utils'
+import { AbstractMesh, isOff, markUiMesh } from './b3d-utils'
 import { roundedRectGeometry } from './rounded-rect'
 
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
@@ -493,6 +493,11 @@ export class B3dSvgPlane extends AbstractMesh {
         scene
       )
     }
+
+    // A UI plane is pointer-pickable but must be invisible to COLLISION — an
+    // aircraft's impact sweep crashed on a panel floating in front of the
+    // cockpit. See `markUiMesh`.
+    markUiMesh(this.mesh)
 
     this._svgTexture = new SvgTexture({
       scene,

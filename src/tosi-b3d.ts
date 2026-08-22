@@ -296,7 +296,7 @@ import {
   type PopupSurface,
   type PopupSurfaceOptions,
 } from './popup-surface'
-import { cameraIsAttached, isOff } from './b3d-utils'
+import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils'
 import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
@@ -3426,6 +3426,9 @@ export class B3d extends Component {
       },
       scene
     )
+    // Pointer-pickable, collision-invisible — this panel hangs in front of your
+    // face, which in cockpit view is inside the aircraft's impact sweep.
+    markUiMesh(plane)
 
     // The panel is near-static, so re-rasterising the SVG at high res every
     // 30ms (the SvgTexture default) was the main XR perf regression — throttle

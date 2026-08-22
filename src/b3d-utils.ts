@@ -188,6 +188,44 @@ function hierarchyMinWorldY(node: BABYLON.TransformNode): number | null {
 }
 
 /**
+ * Mark a mesh as **UI**: pickable by pointers, invisible to COLLISION.
+ *
+ * These are different questions and we had only one answer for both. A spatial
+ * panel MUST stay `isPickable` — that is how a controller ray, a gaze cursor or
+ * a mouse targets it — and `isPickable` was also the only thing collision
+ * predicates could filter on. So the aircraft's impact sweep, which crashes on
+ * ANY hit above `crashSpeed`, treated the settings panel floating in front of
+ * your face as terrain.
+ *
+ * That is the phantom collision (Tonio, VR pass 2 — `crashReport` named it:
+ * `hit=frame-panel`). It only bit in cockpit view because that is where the
+ * camera — and the panels riding its reference frames — sit close enough to the
+ * airframe to fall inside a ~2m sweep, and it fired on BANK because banking
+ * swings the velocity vector into the panel. Nothing to do with terrain, which
+ * is why it reproduced in scenes that have none.
+ *
+ * The first of the collision GROUPS described in `COLLISION-DESIGN.md`. Written
+ * on metadata rather than a name suffix because UI planes are built by us, not
+ * authored in Blender.
+ */
+export function markUiMesh(mesh: BABYLON.AbstractMesh): void {
+  mesh.metadata = { ...(mesh.metadata ?? {}), b3dNoCollide: true }
+}
+
+/**
+ * Should a collision probe ignore this mesh? True for UI (see `markUiMesh`).
+ *
+ * Every collision predicate should end with `&& !isNoCollide(m)`. Note that
+ * passing a predicate to `pickWithRay` makes Babylon SKIP its built-in
+ * `isPickable`/`isEnabled` filter, so a predicate must re-check those too —
+ * that trap is why this helper exists as one shared answer instead of a
+ * re-derived condition per call site.
+ */
+export function isNoCollide(mesh: BABYLON.AbstractMesh): boolean {
+  return (mesh.metadata as { b3dNoCollide?: boolean } | null)?.b3dNoCollide === true
+}
+
+/**
  * Vertical gap, in world units, between a node's origin and the bottom of its
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).
