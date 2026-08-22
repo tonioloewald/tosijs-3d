@@ -1,5 +1,82 @@
 # TODO
 
+## 0.7.0 VR pass 2 — Tonio, 2026-08-22
+
+Second goggle pass after the CoG re-export + cert fix. Most of the 08-21 list
+still stands (cross-referenced, not duplicated); this pass adds one **new and
+serious** class of bug and two concrete feature asks. The reload-fast load is
+confirmed and the stick clipping is confirmed FIXED on this machine.
+
+### NEW — the scary one: phantom collisions far from any terrain
+
+[ ] **Flying high, nowhere near terrain, you suddenly "collide with a skirt" at
+the wrong altitude — a real death, respawn fires.** Reproduced repeatedly:
+chase view is fine, switch to cockpit/first-person, roll left, and you're
+instantly in the ground while the plane is visibly still up in the air. Hit
+in **b3d-terrain, b3d-clouds, and the aircraft demo** — i.e. every scene with
+`b3d-terrain` under it. NOT present in warhead (flat ground plane).
+[ ] **A phantom grid appears "off in the distance, at the wrong location
+relative to the volcano, makes no sense" — visible only in VR, not flat**
+(carved-landforms / volcano demo). Almost certainly the SAME bug wearing a
+different hat.
+
+**Leading hypothesis — floating-origin desync (needs instrumentation, NOT a
+blind fix).** The chain fits: fly far enough → `b3d-terrain.resetOrigin` fires →
+it shifts its tiles by `(shiftX,shiftZ)` and calls `owner.shiftOrigin` to move
+"everything else that carries a world position" by the same amount. If the
+piloted aircraft's NODE isn't the thing `shiftOrigin` actually moves (it moves
+`focused?.getCameraTarget()` ?? `camera.parent` ?? `camera` — and in **chase
+view the camera's parent is the chase rig, not the aircraft**), the aircraft is
+left at pre-shift world coords while the tiles jump → its downward ground-raycast
+(`raycastGround`) now hits a tile that is suddenly in the wrong place → phantom
+collision at the wrong altitude; a tile left un-shifted → phantom distant grid.
+
+Ruled OUT this pass by code reading: the stale-`_prevPos` world-velocity spike on
+a reset frame — `applyInput` already caps it (`hypot(wx,wy,wz) <= maxSpeed*3`,
+b3d-aircraft.ts:617), so `_worldVel` is not corrupted. Search is narrowed to
+node-vs-tile alignment, not derived velocity.
+
+**Next step is INSTRUMENTATION, per our own rule.** Add a debug source that logs
+each `resetOrigin` (shiftX/shiftZ) and the live delta between the aircraft node
+and the nearest tile centre, so the next pass CAPTURES the desync instead of us
+guessing at it. See [[floating-origin-multi-entity]] and the "instrument the rig,
+don't theorise" lesson from the CoG detour. Do this before touching the shift
+logic.
+
+### Confirms / extends the 08-21 list
+
+[ ] **Exiting VR corrupts the DEFAULT camera's altitude** — "when I left, it reset
+the camera down to the usual place, way down and off." Seen on b3d-loader and
+others. This is the INVERSE of 08-21's "entering VR ignores the flat camera":
+now the exit path specifically drops the flat camera's Y. Narrower, more
+actionable than the 08-21 note — the exit restore is losing altitude.
+[ ] **Volcano/orbit demos in VR: left stick dead, rig planted BEHIND you, and
+BOTH recenter (our button) and the headset's own view-recenter fail to fix
+it.** Sharpens 08-21's "you cannot move the view in VR" with a concrete repro
+and the detail that the OS recenter can't rescue it either → the rig is
+mis-seeded at setup, not just un-driven.
+[ ] **Respawn/death camera is pinned to your FACE and jiggles** — should be
+rig-relative. New detail on the death-cam.
+[ ] Confirmed still open from 08-21: no HUD in VR chase; jerky aircraft motion
+(rig parenting); reseat button does nothing; terrain "out of VRAM" flakiness
+(brings the whole browser down, survives a drop back to flat); ambient leaves
+never fall (pool stuck ~0.6, warmup 0 — the recovery is STALLING, not absent:
+`recoverPool`/`_ambientWatchdog` exist, so the bug is why the watchdog never
+re-grants).
+
+### Feature asks from this pass
+
+[ ] **Orbit/loader demos need a VR locomotion mapping** (the concrete answer to
+08-21's "give an orbit demo a way to move"): **right stick = look L/R, left
+stick = forward/back, left bumper / right bumper = altitude down/up.** NOT the
+triggers — reserve those for actions (climb/brake, shoot). Wire it once,
+centrally, so every orbit demo inherits it.
+[ ] **Ambient "reverse trigger" — re-probe to bring effects BACK.** After a run
+of cheap frames, reassess and restore shed effects rather than losing the
+weather for the whole session over one transient. `recoverPool` is the step
+size; what's missing is the demand-side re-probe that actually fires it. Tie
+into the stall above — the leaves-never-return report IS this gap.
+
 ## 0.7.0 VR (goggles) pass — Tonio, 2026-08-21
 
 Stopped halfway: _"everything works aside from some fairly minor issues with the
