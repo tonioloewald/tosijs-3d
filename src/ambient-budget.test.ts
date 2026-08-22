@@ -3,6 +3,7 @@ import {
   allocateAmbient,
   fillWeight,
   ratchetPool,
+  recoverPool,
   spawnBias,
 } from './ambient-budget'
 import type { AmbientRequest } from './ambient-budget'
@@ -215,5 +216,57 @@ describe('spawnBias — put the particles where the camera is looking', () => {
     const b = spawnBias(F, STILL, { radius: 12, lookAhead: 0.5, lead: 0.5 })
     expect(b.x).toBeCloseTo(0)
     expect(b.z).toBeCloseTo(6)
+  })
+})
+
+/*
+A TRANSIENT MUST NOT COST THE SESSION ITS WEATHER.
+
+`ratchetPool` is one-way and fast, which is right on weak hardware and wrong for
+ordinary play: falling into water fired fog, bubbles and a surface transition at
+once, shed the pool to ZERO, and a headset that had been rendering leaves a
+second earlier had no ambience for the rest of the run.
+
+`recoverPool` is the other direction, and the asymmetry is the whole design —
+recovery must be harder to earn than shedding, or the two fight and you get an
+oscillator instead of a budget.
+*/
+describe('recoverPool — grudging, and never a rebound', () => {
+  test('recovery is SMALLER than the shed, so a wrong guess self-corrects', () => {
+    const shed = 1 - ratchetPool(1) // 0.4 lost in one step
+    const gain = recoverPool(0.6) - 0.6 // 0.21 regained in one step
+    expect(gain).toBeLessThan(shed)
+  })
+
+  test('a pool shed to ZERO comes back — the reported bug', () => {
+    expect(ratchetPool(0.36)).toBe(0) // below the quarter floor: all off
+    expect(recoverPool(0)).toBeGreaterThan(0)
+  })
+
+  test('it never exceeds the author budget', () => {
+    expect(recoverPool(0.95)).toBe(1)
+    expect(recoverPool(1)).toBe(1)
+    expect(recoverPool(2)).toBe(1)
+  })
+
+  test('shed-then-recover does NOT return to where it started in one step', () => {
+    // The property that stops oscillation: one bad interval costs more than one
+    // good interval buys, so a flapping frame rate settles DOWN, not sideways.
+    const after = recoverPool(ratchetPool(1))
+    expect(after).toBeLessThan(1)
+    expect(after).toBeGreaterThan(ratchetPool(1))
+  })
+
+  test('sustained good time fully recovers, so a hitch is not permanent', () => {
+    let s = 0
+    for (let i = 0; i < 12; i++) s = recoverPool(s)
+    expect(s).toBe(1)
+  })
+
+  test('a genuinely weak device stays near the bottom rather than flickering', () => {
+    // Shed twice per recovery — the machine really cannot afford it.
+    let s = 1
+    for (let i = 0; i < 6; i++) s = ratchetPool(ratchetPool(recoverPool(s)))
+    expect(s).toBe(0)
   })
 })

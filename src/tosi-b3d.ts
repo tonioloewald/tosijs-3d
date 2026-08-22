@@ -324,6 +324,7 @@ import {
 import {
   allocateAmbient,
   ratchetPool,
+  recoverPool,
   type AmbientEffect,
 } from './ambient-budget'
 
@@ -1560,11 +1561,15 @@ export class B3d extends Component {
   // `ambient-budget.ts`; B3d just owns the registry, the pool, and the watchdog.
 
   private _ambient: AmbientEffect[] = []
-  /** Shrunk by the watchdog, never grown. See `ratchetPool` — and TODO: reclaiming budget in
-   * quiet moments is a real want, but it must be a damped, deliberate thing, not a rebound. */
+  /** Rationed by the watchdog: shed fast (`ratchetPool`), recovered slowly
+   * (`recoverPool`) once the machine has held a good frame rate for 20 settled
+   * seconds. The asymmetry is the damping — a transient must not cost the
+   * session its weather, and a rebound must not cost it its frame rate. */
   private _ambientPoolScale = 1
   private _ambientSampleMs = 0
   private _ambientBadSamples = 0
+  /** Sustained GOOD seconds, for the recovery path — see `_ambientWatchdog`. */
+  private _ambientGoodSamples = 0
   private _ambientCooldownMs = 0
   /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`.
    * A FLOOR, not the whole rule: `sceneBusy` holds the countdown while assets are
@@ -1711,12 +1716,44 @@ export class B3d extends Component {
     const fps = this.engine.getFps()
     if (Number.isFinite(fps) && fps > 0 && fps < target * 0.75) {
       this._ambientBadSamples++
+      this._ambientGoodSamples = 0
     } else {
       this._ambientBadSamples = 0 // it must be SUSTAINED — one bad second is a hitch, not a trend
+      // Comfortably above the shed bar, not merely above it — recovering at the
+      // same threshold that sheds is how you build an oscillator.
+      if (Number.isFinite(fps) && fps > target * 0.9) this._ambientGoodSamples++
+      else this._ambientGoodSamples = 0
     }
+
+    /*
+    GIVE IT BACK, GRUDGINGLY.
+
+    The ratchet is one-way by design and that is right on weak hardware. Its
+    failure mode shows up in ordinary play instead: **a transient costs you the
+    weather for the whole session.** Reported from a headset — falling into the
+    water shed the pool to zero, and there were no leaves, bubbles or motes for
+    the rest of the run on a device that had been rendering them a second
+    earlier. Entering water fires fog, bubbles and a surface transition at once;
+    the hitch ends long before you surface, and the punishment did not.
+
+    Recovery is deliberately harder to earn than shedding: 20 good seconds
+    against 6 bad ones, a higher bar than the shed threshold, and a smaller step
+    (×1.35 up vs ×0.6 down). A wrong shed heals in a few intervals; a wrong
+    recovery is re-shed cheaply. The asymmetry IS the damping the old TODO asked
+    for — "a damped, deliberate thing, not a rebound".
+    */
+    if (this._ambientGoodSamples >= 20 && this._ambientPoolScale < 1) {
+      this._ambientGoodSamples = 0
+      this._ambientCooldownMs = 5000
+      this._ambientPoolScale = recoverPool(this._ambientPoolScale)
+      this._reallocAmbient()
+      return
+    }
+
     if (this._ambientBadSamples < 6) return // ~6s of genuinely bad frames, not 3
 
     this._ambientBadSamples = 0
+    this._ambientGoodSamples = 0
     this._ambientCooldownMs = 5000 // let the frame settle before judging again
     this._ambientPoolScale = ratchetPool(this._ambientPoolScale)
     this._reallocAmbient()

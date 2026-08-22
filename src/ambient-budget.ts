@@ -157,6 +157,44 @@ export function ratchetPool(scale: number): number {
   return next < 0.25 ? 0 : next // below a quarter there's no honest effect left — all off
 }
 
+/**
+ * Give budget BACK, slowly, after the machine has proved it can spare it.
+ *
+ * The ratchet above is deliberately one-way and fast: a device that cannot hold
+ * frame rate should lose the garnish immediately, and arguing with it costs
+ * frames. But one-way forever has a failure mode that shows up in ordinary play
+ * rather than on weak hardware — **a transient costs you the weather for the
+ * session**.
+ *
+ * Reported from a headset: falling into the water shed the pool to zero, and
+ * there were no leaves, bubbles or motes for the rest of the run on hardware
+ * that had been rendering them happily a second earlier. Entering water fires
+ * fog, bubbles and a surface transition at once; the hitch is over long before
+ * you surface, and the punishment is not.
+ *
+ * So: recover, but make it grudging, and asymmetric to the shed.
+ *
+ * - **Smaller steps up than down.** Down is ×0.6, up is ×1.35 — so a wrong shed
+ *   takes several good intervals to undo and a wrong recovery is cheap to
+ *   re-shed. Never the same size, or it oscillates.
+ * - **Never past 1.** The author's budget is the ceiling; the watchdog only ever
+ *   rationed it.
+ * - **Zero is not a special case.** A pool ratcheted to nothing recovers from a
+ *   floor rather than staying dead, which is the whole point — but it comes back
+ *   at the same grudging rate as any other step, so a genuinely weak device
+ *   spends its life near the bottom instead of flickering.
+ *
+ * The CALLER owns the "has it been good for long enough" question — this is only
+ * the size of the step. See `_ambientWatchdog`, which requires sustained good
+ * frames AND a settled scene before asking.
+ */
+export function recoverPool(scale: number): number {
+  if (scale >= 1) return 1
+  // From a dead pool, come back at the shed floor rather than at 1.35 * 0.
+  const next = scale <= 0 ? 0.25 : scale * 1.35
+  return next > 1 ? 1 : next
+}
+
 export interface SpawnBiasOptions {
   /** Emitter box half-size (the `radius` attribute). */
   radius: number
