@@ -542,8 +542,29 @@ from the thing to press its button.
 [ ] `b3d-loader`'s demo should be above the attributes table.
 [ ] The index page has no demo.
 [ ] Content: UV errors on the big staircase; physics jiggle walking DOWN the ramp.
-[ ] `b3d-clouds` and friends want a "plant a vehicle in a setting it can operate
-in" helper, the aircraft equivalent of `demoStage`.
+[ ] **`flightStage` — the aircraft equivalent of `demoStage`.** Third demo to
+hit this, so it is a missing helper rather than three oversights. What it must
+include, learned from what each demo forgot:
+
+- **A `b3dDeath` with a working respawn.** Without one, `crash()` releases
+  input focus (issue #9's fix) and leaves you holding NOTHING — no wreck to
+  fly, no panel, no way back. Tonio, on the clouds demo: _"landing the
+  aircraft hard just seized up the demo… I think it's just death with no
+  respawn."_ Exactly right, and it is not a hang: it is death with no exit.
+  The helper must therefore take a plane FACTORY, not an instance, because
+  respawn needs to build a fresh one.
+- **A sun configured for the ground it lights.** A 4000-unit ground with the
+  default single shadow map puts the aircraft's shadow in a far, coarse
+  cascade where it is effectively invisible — the clouds demo had no aircraft
+  shadow at all. Cascades, sized to the stage.
+- **Ground, sky, fog and a library** at scales an aircraft can actually
+  operate in — the parts every flight demo currently retypes slightly
+  differently.
+
+Same argument as `demoStage`: the helper is not sugar, it is where the
+easy-to-forget parts live. Note `demoSun`'s hard-wired `shadowTextureSize`
+is a filed efficiency finding — resolve that at the same time rather than
+copying it in.
 
 ### Confirmed good in VR
 

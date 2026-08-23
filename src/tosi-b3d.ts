@@ -2199,23 +2199,14 @@ export class B3d extends Component {
       id: '__pause',
       name: this.paused ? 'Resume' : 'Pause',
       /*
-      The CIRCLE variants, and the reason is legibility at 20px.
-
-      Bare `pause` is two 4-unit-wide rects. Rendered `stroked` (fill:none +
-      stroke) at ICON = 20 the stroke is ~1.7 units on a ~3.3-unit bar, so the
-      interior collapses to a sliver and antialiases into a solid block —
-      "the pause icon is just a solid box" (Tonio). `pauseCircle` is a circle
-      plus two LINES, and `playCircle` a circle plus a 6-unit triangle: stroke-
-      native geometry with no thin interior to lose, so they stay legible and
-      keep the same stroked weight as the bar's other icons (logOut, compass).
-
-      Filling `pause`/`play` instead would also be legible, but solid glyphs
-      beside stroked ones look like a mistake in a five-icon bar.
-
       `play` when paused (what pressing it DOES), `pause` when running — a
       transport control shows its action, not its state.
+
+      The BARE glyphs, not `playCircle`/`pauseCircle`: Tonio's call once both
+      existed. (The solid-white-box bug was never about which variant — the
+      names simply weren't in our generated icon set; see icon-names.test.ts.)
       */
-      icon: this.paused ? 'playCircle' : 'pauseCircle',
+      icon: this.paused ? 'play' : 'pause',
       active: this.paused,
       onClick: () => {
         if (this.paused) this.resume()
