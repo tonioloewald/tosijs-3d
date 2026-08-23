@@ -107,7 +107,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff, sceneDelta } from './b3d-utils'
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead'
 import type { B3dDestroyable } from './b3d-destroyable'
@@ -245,9 +245,11 @@ function hasLos(
   const dist = dir.length()
   if (dist < 0.1) return true
   const ray = new BABYLON.Ray(from, dir.normalize(), dist - 0.1)
+  // Shared predicate — a UI panel must not provide BLAST COVER. `ground` is
+  // deliberately transparent to LOS here (it is the floor, not a wall).
   const hit = owner.scene.pickWithRay(
     ray,
-    (m) => m.isPickable && m.name !== 'ground' && !destroyableMeshes.includes(m)
+    collidable((m) => m.name === 'ground' || destroyableMeshes.includes(m))
   )
   return !(hit != null && hit.hit)
 }

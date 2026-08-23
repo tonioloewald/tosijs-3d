@@ -187,6 +187,49 @@ function hierarchyMinWorldY(node: BABYLON.TransformNode): number | null {
   return minY
 }
 
+/** What a controllable needs to know from its owner to decide whether to run. */
+export interface SimGateOwner {
+  paused?: boolean
+  frozen?: boolean
+  inputSuppressed?: boolean
+  hasInputFocus?: boolean
+}
+
+/**
+ * Is the SIMULATION stopped for this owner? Then a controllable must **halt**,
+ * not merely read empty input.
+ *
+ * The distinction has cost us twice. A controllable's clock is `Date.now`-based,
+ * so a stopped scene does not slow it down, and an aircraft fed empty input
+ * COASTS — indistinguishable from cruising ("I can background the tab, come back
+ * and the game is continuing to run, I just can't steer", #30). `freeze()` then
+ * repeated the mistake in miniature: it stopped everything on `sceneDelta`
+ * (terrain, water, projectiles) while the piloted aircraft flew on, so raising
+ * the re-seat prompt in flight could fly you into the ground while the modal was
+ * up.
+ *
+ * Pure and exported so BOTH gates live in one place and a third state added
+ * later lands in both. This is the predicate `B3dControllable._update` halts on.
+ */
+export function simHalted(owner: SimGateOwner | null | undefined): boolean {
+  return owner?.paused === true || owner?.frozen === true
+}
+
+/**
+ * Should this controllable READ its input this frame? False also when input is
+ * modally suppressed (a dialog borrowing a control you also play with) or when
+ * another demo on the page holds scene focus.
+ *
+ * Distinct from `simHalted`: halted means "do not advance at all", not-live
+ * means "advance, but with neutral input" — which is right for an unfocused
+ * demo that should idle rather than freeze.
+ */
+export function controlsLive(owner: SimGateOwner | null | undefined): boolean {
+  if (simHalted(owner)) return false
+  if (owner?.inputSuppressed === true) return false
+  return owner?.hasInputFocus ?? true
+}
+
 /**
  * Mark a mesh as **UI**: pickable by pointers, invisible to COLLISION.
  *
@@ -215,16 +258,42 @@ export function markUiMesh(mesh: BABYLON.AbstractMesh): void {
 /**
  * Should a collision probe ignore this mesh? True for UI (see `markUiMesh`).
  *
- * Every collision predicate should end with `&& !isNoCollide(m)`. Note that
- * passing a predicate to `pickWithRay` makes Babylon SKIP its built-in
- * `isPickable`/`isEnabled` filter, so a predicate must re-check those too —
- * that trap is why this helper exists as one shared answer instead of a
- * re-derived condition per call site.
+ * Prefer `collidable()` over calling this directly — a rule every call site has
+ * to remember is a rule that gets forgotten, which is exactly what happened.
  */
 export function isNoCollide(mesh: BABYLON.AbstractMesh): boolean {
   return (
     (mesh.metadata as { b3dNoCollide?: boolean } | null)?.b3dNoCollide === true
   )
+}
+
+/**
+ * THE collision predicate. Everything physical picks through this.
+ *
+ * Excludes UI **by default** — you opt IN to hitting it, never out. That
+ * polarity is the whole point: `isNoCollide` shipped as an opt-out clause each
+ * predicate had to remember, and within one release two of the four sites had
+ * forgotten it, so a world-anchored panel stopped shells and acted as blast
+ * cover. See `COLLISION-DESIGN.md` → "Default groups".
+ *
+ * It also re-checks `isPickable`/`isEnabled` centrally, because **passing a
+ * predicate to `pickWithRay` makes Babylon skip its own filter** — the trap that
+ * once had an aircraft pick a cloud blob as ground. Note that `isPickable` is
+ * not the same as *visible*: a gaze-revealed panel hides with `visibility = 0`
+ * and stays pickable, so without the UI exclusion an unrevealed panel is an
+ * invisible bullet shield.
+ *
+ * `reject` is for the caller's OWN business — self-exclusion, `__root__`, water
+ * for a submersible — never for the shared rules above.
+ */
+export function collidable(
+  reject?: (m: BABYLON.AbstractMesh) => boolean
+): (m: BABYLON.AbstractMesh) => boolean {
+  return (m: BABYLON.AbstractMesh): boolean =>
+    m.isPickable &&
+    m.isEnabled() &&
+    !isNoCollide(m) &&
+    !(reject?.(m) ?? false)
 }
 
 /**

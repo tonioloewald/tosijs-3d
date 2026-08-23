@@ -33,7 +33,12 @@ class Spinner extends B3dControllable {
 /*{ "parent": "Input", "order": 900 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh } from './b3d-utils'
+import {
+  AbstractMesh,
+  simHalted,
+  controlsLive,
+  type SimGateOwner,
+} from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { emptyInput } from './control-input'
 import type { ControlInput, InputProvider } from './control-input'
@@ -104,7 +109,7 @@ export class B3dControllable extends AbstractMesh {
     continuing to run, I just can't steer" (#30). `lastUpdate` is stamped above,
     so resuming does not deliver the whole pause as one step.
     */
-    if ((this.owner as { paused?: boolean } | null)?.paused === true) return
+    if (simHalted(this.owner as SimGateOwner | null)) return
 
     if (this.inputProvider == null) return
     // Scene input focus: when a page hosts multiple demos, only the active (last
@@ -113,26 +118,13 @@ export class B3dControllable extends AbstractMesh {
     // A PAUSED scene must not read input either: the render loop still runs (the
     // pause panel has to be drawn), so without this a held stick would keep
     // steering a world that is supposed to be stopped.
-    const owner = this.owner as {
-      hasInputFocus?: boolean
-      paused?: boolean
-      inputSuppressed?: boolean
-    } | null
     /*
-    `inputSuppressed` is a MODAL gate, distinct from `paused`.
-
-    A prompt that asks you to pull a trigger must not also fire the gun with
-    that trigger (the re-seat dialog — Tonio: "can reseat also automatically
-    pause to avoid the shooting issue"). A full `pause()` would do it, but it
-    also raises the pause panel, can trigger enterXrOnResume, and would clobber
-    an existing pause on resume. This freezes the CONTROLS without stopping the
-    world: entities keep their momentum and the clock keeps running, they just
-    stop reading the sticks.
+    `inputSuppressed` is a MODAL gate: a prompt that asks you to pull a trigger
+    must not also fire the gun with it (the re-seat dialog). Unlike `frozen` it
+    does NOT stop the world — an unfocused demo on a busy page should idle, not
+    freeze — which is why the two predicates are separate. See `b3d-utils`.
     */
-    const live =
-      (owner?.hasInputFocus ?? true) &&
-      owner?.paused !== true &&
-      owner?.inputSuppressed !== true
+    const live = controlsLive(this.owner as SimGateOwner | null)
     const input = live ? this.inputProvider.poll(dt) : emptyInput()
     this.lastInput = input
     this.applyInput(input, dt)

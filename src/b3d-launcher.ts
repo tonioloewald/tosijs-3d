@@ -217,7 +217,7 @@ that assumes one orients its effect off nothing.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff, sceneDelta } from './b3d-utils'
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils'
 import type { B3d, RadarFaction } from './tosi-b3d'
 
 /** A guided missile always cruises at least this much FASTER than the platform that
@@ -521,10 +521,12 @@ export function spawnProjectile(
     const len = seg.length()
     if (len > 1e-4) {
       const ray = new BABYLON.Ray(from, seg.scale(1 / len), len)
+      // Shared predicate: UI is excluded by default, so a shell no longer
+      // detonates on a spatial panel (and an unrevealed, visibility-0 panel no
+      // longer acts as an invisible shield).
       const hit = scene.pickWithRay(
         ray,
-        (m) =>
-          m.isPickable && m !== mesh && (opts.ignore == null || !opts.ignore(m))
+        collidable((m) => m === mesh || (opts.ignore?.(m) ?? false))
       )
       if (hit != null && hit.hit && hit.pickedPoint != null) {
         detonateWarhead(

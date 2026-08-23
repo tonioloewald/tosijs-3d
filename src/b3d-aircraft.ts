@@ -322,7 +322,7 @@ import {
   placeOnSurface,
   boundingBottomOffset,
   isOff,
-  isNoCollide,
+  collidable,
 } from './b3d-utils'
 import { spawnProjectile, spawnMissile } from './b3d-launcher'
 import type { WarheadSpec } from './warhead'
@@ -905,12 +905,7 @@ export class B3dAircraft extends B3dControllable {
       const own = this.ownMeshes()
       const wallHit = this.owner.scene.pickWithRay(
         this._ray,
-        (m) =>
-          m.isPickable &&
-          m.isEnabled() &&
-          !own.has(m) &&
-          !isNoCollide(m) &&
-          !m.name.includes('__root__')
+        collidable((m) => own.has(m) || m.name.includes('__root__'))
       )
       if (wallHit?.hit) {
         const n = wallHit.getNormal(true)
@@ -1569,14 +1564,13 @@ export class B3dAircraft extends B3dControllable {
     const submersible = (this as any).submersible === true
     const hit = this.owner.scene.pickWithRay(
       this._ray,
-      (m) =>
-        m.isPickable &&
-        m.isEnabled() &&
-        !own.has(m) &&
-        !isNoCollide(m) &&
-        !m.name.includes('__root__') &&
-        // Water is only "ground" to something that can't go under it.
-        !(submersible && (m.metadata as any)?.b3dWater === true)
+      collidable(
+        (m) =>
+          own.has(m) ||
+          m.name.includes('__root__') ||
+          // Water is only "ground" to something that can't go under it.
+          (submersible && (m.metadata as any)?.b3dWater === true)
+      )
     )
     if (hit?.hit) {
       // Surface normal for the slope-impact crash test (up if unavailable).
