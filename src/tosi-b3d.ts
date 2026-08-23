@@ -2901,6 +2901,10 @@ export class B3d extends Component {
     const mtx = new BABYLON.Matrix()
     let chaseYaw = 0
     let chaseYawOffset = 0
+    // Declared HERE, above `rearmYaw`, because re-seat has to re-arm this too —
+    // see the note there. Kept out of the later block so the closure can never
+    // reference it before initialisation.
+    let chaseFirstFrame = true
     let cockpitYawOffset = 0 // head yaw captured when you take the seat
     // Deferred + re-armable, rather than captured once on entry. See the capture site.
     let yawCaptureNeeded = false
@@ -2938,11 +2942,30 @@ export class B3d extends Component {
      * next posed frame re-derives it.
      */
     const rearmYaw = (): void => {
+      /*
+      RE-SEAT MUST RE-ARM ALL THREE CAMERA PATHS — they capture yaw separately.
+
+      There are three, and each has its own capture: COCKPIT bakes
+      `cockpitYawOffset` (gated on `yawCaptureNeeded`), FREE locomotion seeds
+      `rig.rotation.y` (gated on `freeYawNeeded`), and CHASE/FPV derives
+      `chaseYawOffset` — gated on `chaseFirstFrame`, which re-seat used to leave
+      alone. So re-seating in an aircraft's chase view did NOTHING, while the
+      identical button worked in a cockpit and in an orbit demo.
+
+      The tell was diagnostic: toggling cockpit↔chase "fixed" it, because the
+      view-change path sets `chaseFirstFrame` — the repair was the toggle, not
+      the button (Tonio, VR pass 2: "it did start working after I had toggled
+      between cockpit and chase a bit").
+
+      A capture added later must be re-armed here, or it inherits this bug.
+      */
       yawCaptureNeeded = true
-      // A system recentre must re-seat an ORBIT demo too, not just a cockpit —
-      // otherwise the Meta button appears to do nothing in exactly the demos
-      // where you cannot fly out of a bad heading.
+      // Orbit demos too, or the Meta button appears to do nothing in exactly
+      // the scenes where you cannot fly out of a bad heading.
       freeYawNeeded = true
+      // Chase/FPV. Also re-anchors `chasePos`, which is what a re-seat means
+      // for a third-person camera.
+      chaseFirstFrame = true
     }
     let resetSpace: XRReferenceSpace | null = null
     const bindReset = (): void => {
@@ -3069,7 +3092,6 @@ export class B3d extends Component {
     })
     let lastView = '' // re-seat when the camera view toggles
     let chaseZoom = 0.5 // 0..1 chase distance (right stick Y while piloting)
-    let chaseFirstFrame = true
     let lastPiloted: BABYLON.TransformNode | null = null
     const ZOOM_RATE = 0.8
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°

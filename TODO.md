@@ -78,6 +78,14 @@ input locally, freeze only if the world is yours to freeze. Worth a
 `localOnly`-style convention before the second one is written, rather than
 after the fifth. See MEDIUM/SPATIAL-style design note if it grows.
 
+[x] **Re-seat did nothing in an aircraft's CHASE view** — FIXED. Three camera
+paths capture yaw separately (cockpit `yawCaptureNeeded`, free
+`freeYawNeeded`, chase/FPV `chaseFirstFrame`) and `rearmYaw` only re-armed
+the first two. Toggling cockpit↔chase "fixed" it because the view-change
+path sets `chaseFirstFrame` — the toggle was the repair, not the button.
+**Any yaw capture added later must be re-armed in `rearmYaw`**, or it
+inherits this exact bug; the comment there says so.
+
 ### VR ENTRY ORDERING (new, pass 2 follow-up)
 
 [ ] **On first XR entry the rig is wrong; toggling views fixes it.** Tonio: the
