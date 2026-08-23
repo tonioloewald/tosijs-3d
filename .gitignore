@@ -173,8 +173,15 @@ package-lock.json
 demo/docs.json
 
 # TLS dev certs
-tls/*.pem
-tls/*.csr
+# TLS dev certs — ALLOWLIST, not a suffix list.
+#
+# This was `tls/*.pem` + `tls/*.csr`, and a live private key still reached a
+# commit: the headset recipe wrote `key.pem.bak`, which matches neither pattern,
+# so `git add -A` swept it in (0.7.0 pre-tag gate, B2). Enumerating the
+# extensions you thought of is a losing game — ignore the whole directory and
+# opt individual files back in.
+tls/*
+!tls/.gitkeep
 .haltija/
 
 # static/ is copied verbatim into the build — keep heavy uncompressed audio

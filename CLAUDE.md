@@ -201,10 +201,17 @@ device that trusts the cert. Two things bite, and neither announces itself:
 **Use the LAN IPv4 address**, and reissue the cert to cover it:
 
 ```sh
-ipconfig getifaddr en0                                   # e.g. 192.168.1.111
-cd tls && mkcert localhost 127.0.0.1 ::1 tosi.local <ip> # then rename over
-                                                         # certificate.pem/key.pem
+ipconfig getifaddr en0   # e.g. 192.168.0.173
+mkcert -cert-file tls/certificate.pem -key-file tls/key.pem \
+  localhost 127.0.0.1 ::1 tosi.local <ip>
 ```
+
+⚠️ **Write IN PLACE — never generate then rename.** The old recipe here said
+"then rename over certificate.pem/key.pem", and the copies that dance leaves
+behind (`key.pem.bak`) matched none of the `tls/*.pem` ignore patterns, so a
+**live private key was committed** and was one `git push` from being public
+(0.7.0 pre-tag gate, B2). `tls/` is now an allowlist ignore, which is the real
+guard — but a recipe that never creates a second copy is why you don't need it.
 
 ⚠️ **`bun tls` silently undoes this** — it regenerates the fixed list, so the
 headset stops working with no clue why. Re-run the mkcert line after any `bun tls`.
