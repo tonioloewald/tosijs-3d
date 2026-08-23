@@ -1,5 +1,31 @@
 # TODO
 
+## Turret firing arcs (Tonio, 0.7.0 validation pass)
+
+Observed: the turret works, but "only hits if smarter or higher muzzle
+velocity". That part is **by design** — `smart` gates drop compensation, so a
+low-smart turret leads but shoots FLAT and misses anything far or high. The
+artificial-stupidity dial doing its job.
+
+[ ] **Support firing arcs.** Two readings, and they are different features —
+settle which (or both) before building:
+
+- **High-angle fire (lobbing).** `ballisticAim` returns ONE solution, the
+  flat/low one. A ballistic problem has two, and the HIGH arc reaches targets
+  beyond flat range at the same muzzle velocity — a mortar rather than a
+  rifle. Would let a dumb-but-lobbing turret be effective without raising
+  `smart` or `muzzleSpeed`, which is a much better dial for "emplaced
+  artillery" than either. Probably `arc: 'low' | 'high' | 'auto'` on the
+  turret, with `ballisticAim` gaining the second root.
+- **Traversal / elevation LIMITS** — the gunnery sense of "firing arc": a
+  turret that can only bear on a sector (hull-mounted, casemate, a gun that
+  cannot depress below the parapet). `can-bear` already exists as a flag but
+  the arc itself is not authorable. This makes emplacements tactical: you
+  flank the arc rather than out-ranging it.
+
+Both are cheap on top of what exists (`ballistics.ts` is pure and tested), and
+the second composes with the first. Neither blocks 0.7.0.
+
 ## 0.7.0 pre-tag gate — follow-ups NOT fixed (2026-08-23)
 
 Full report: `reviews/0.7.0-pre-tag-gate.md`. Blockers and verified majors were

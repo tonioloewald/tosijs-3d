@@ -2198,9 +2198,24 @@ export class B3d extends Component {
     out.push({
       id: '__pause',
       name: this.paused ? 'Resume' : 'Pause',
-      // `play` when paused (what pressing it DOES), `pause` when running. A
-      // transport control shows its action, not its state.
-      icon: this.paused ? 'play' : 'pause',
+      /*
+      The CIRCLE variants, and the reason is legibility at 20px.
+
+      Bare `pause` is two 4-unit-wide rects. Rendered `stroked` (fill:none +
+      stroke) at ICON = 20 the stroke is ~1.7 units on a ~3.3-unit bar, so the
+      interior collapses to a sliver and antialiases into a solid block —
+      "the pause icon is just a solid box" (Tonio). `pauseCircle` is a circle
+      plus two LINES, and `playCircle` a circle plus a 6-unit triangle: stroke-
+      native geometry with no thin interior to lose, so they stay legible and
+      keep the same stroked weight as the bar's other icons (logOut, compass).
+
+      Filling `pause`/`play` instead would also be legible, but solid glyphs
+      beside stroked ones look like a mistake in a five-icon bar.
+
+      `play` when paused (what pressing it DOES), `pause` when running — a
+      transport control shows its action, not its state.
+      */
+      icon: this.paused ? 'playCircle' : 'pauseCircle',
       active: this.paused,
       onClick: () => {
         if (this.paused) this.resume()
