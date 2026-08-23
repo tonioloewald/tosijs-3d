@@ -107,7 +107,7 @@ preview.append(div({ class: 'glass-stage' }, scene, pad, readout))
 
 | Attribute | Default | Purpose |
 | --- | --- | --- |
-| `controls` | `'sticks buttons'` | Which clusters to show, space-separated |
+| `controls` | `''` (all) | **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece |
 | `fade` | `'on'` | Hide the pad once a real input device is in use. `'off'` pins it visible — what you want on a page where the pad itself is the subject |
 | `idleSeconds` | `10` | Seconds of silence before a faded pad comes back |
 | `fadedOpacity` | `0` | How faded is faded. `0` is invisible; a low value like `0.15` leaves a hint that the fallback exists |
@@ -279,7 +279,19 @@ export function parseGamepadControls(spec: string): {
   const s = spec.trim()
   if (s === '' || s === 'true') return { offsets } // all controls
   const controls: string[] = []
-  for (const token of s.split(',')) {
+  /*
+  Tokenise, do NOT `split(',')`.
+
+  The offset syntax contains a comma — `right_stick(40,0)` — so splitting on
+  commas tore it into `right_stick(40` and `0)`, neither of which matches the
+  token pattern. Both were silently dropped: the piece vanished from the pad AND
+  its offset was lost, with no error. The example in this function's own JSDoc
+  could not parse.
+
+  Matching whole tokens instead means the comma inside the parens belongs to the
+  token, which is what anyone writing it expects.
+  */
+  for (const token of s.match(/[A-Za-z_]+(?:\([^)]*\))?/g) ?? []) {
     const m = token
       .trim()
       .match(

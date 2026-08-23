@@ -358,6 +358,25 @@ or implement your own shape-specific point-in-polygon tests.
 | `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
 | `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
 | `doubleSided` | `'on'` | Render both faces |
+| `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below |
+| `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius` |
+| `xrFrame` | `''` | In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked |
+
+## Opaque panels
+
+`cornerRadius` + `transparent="off"` is the combination that stops panels
+flickering against each other, and it is worth knowing why the two go together.
+
+A transparent mesh is **not depth-written**, so Babylon re-sorts it every frame
+by distance — and two near-coplanar panels swap order as you move, which reads
+as z-fighting that no amount of nudging fixes. Rounding the corners as GEOMETRY
+(three quads plus four corner fans, see [[rounded-rect]]) means the panel needs
+no alpha at all, so it can be opaque, write depth, and be ordered by the
+z-buffer like everything else.
+
+`doubleSided` is honoured on the rounded path: the geometry is generated
+single-sided and `backFaceCulling` follows the attribute, so `'off'` shows the
+back face as it does for a plain plane.
 
 Set the `svgElement` property to a live SVG element for dynamic mode.
 
