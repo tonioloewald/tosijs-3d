@@ -8,8 +8,32 @@ different outcome from "reviewed and fine".
 
 ### Decide before the next release
 
-[ ] **`demo-utils`: 38 examples across 33 files import a specifier no consumer
-can resolve.** CLAUDE.md puts the demo FIRST on every page, so it is the first
+[ ] **0.7.1, FIRST ITEM — publish a VETTED `tosijs-3d/demo-utils` subpath.**
+Decided 2026-08-23: DX and non-breaking, so it lands as a patch rather than
+holding 0.7.0. Tree-shaken, so the only real cost is the API commitment —
+and the vet found the current module is NOT publishable as-is:
+
+| Export                        | Verdict                                                                                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TEST_PATTERN` / `TEST_GRID`  | ❌ root-absolute paths (`/tosi-test-pattern.svg`) that exist only in OUR `static/` — a broken promise in any consumer project                                                 |
+| `demoSun`                     | ⚠️ `opts: Record<string, unknown>`; also hard-wires `shadowTextureSize: 2048` over the device-tier budget                                                                     |
+| `patternGround` / `demoStage` | ⚠️ asset-dependent, and `sun?: Record<string, unknown>`                                                                                                                       |
+| `orbitCam`                    | ⚠️ `alpha`/`beta` are RADIANS with no `Deg` sibling — violates the convention settled the same day, in an options object that already has `minElevationDeg`/`maxElevationDeg` |
+| `spinner`                     | ✅ typed, but depends on `TEST_PATTERN`                                                                                                                                       |
+| `volumetricDemo` (180 lines)  | ❌ an SDF-lattice x-ray for one page                                                                                                                                          |
+| `impactMarker`                | ❌ demo effect; allocates per impact, skips `computeWorldMatrix`                                                                                                              |
+
+**Publish only after:** `orbitCam` takes `alphaDeg`/`betaDeg` (radians
+dropped); both `Record<string, unknown>` typed; the asset dependency
+resolved (`texture?: string` or `assetUrl()`) rather than exporting paths;
+`shadowTextureSize` dropped to the `0` auto sentinel. `volumetricDemo`,
+`impactMarker` and the constants stay PRIVATE and their four examples get
+inlined. `orbitCam` alone is **30 of the 38 imports**, so the vetted subset
+closes almost the whole gap. Do it early in 0.7.1, while `orbitCam`'s
+signature can still change without a same-day breaking note.
+
+[ ] ~~`demo-utils`: 38 examples import an unresolvable specifier~~ — superseded
+by the item above; the ratchet test holds the count at 38 meanwhile. CLAUDE.md puts the demo FIRST on every page, so it is the first
 code an adopter or agent copies off the doc site, and it fails with "Failed to
 resolve module specifier". Deferred because both fixes are large or
 commitments, hours before a tag: **(a)** inline the two or three lines
