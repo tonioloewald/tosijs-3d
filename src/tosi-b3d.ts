@@ -2750,13 +2750,24 @@ export class B3d extends Component {
         scene
       )
       ground.isPickable = false
-      // UNDER THE VIEWER, not at the world origin. A 200m grid pinned to (0,0)
-      // is off in the distance for any scene whose subject isn't there — it
-      // read as a mystery grid floating away from the volcano, visible only in
-      // VR (Tonio, VR pass 2). Kept in WORLD space (not parented to the rig) so
-      // it still gives a motion reference when you fly.
-      ground.position.x = rig.position.x
-      ground.position.z = rig.position.z
+      /*
+      UNDER THE SUBJECT, not at the world origin — and not under the viewer.
+
+      Pinned to (0,0) it was a mystery grid off in the distance for any scene
+      whose subject isn't at the origin (VR-only, since it doesn't exist flat).
+      Moving it under the RIG then made it "overlap but not centred": an orbit
+      camera sits `radius` away from what it looks at, so a floor under your
+      feet is a floor beside the volcano.
+
+      The subject is the orbit camera's TARGET — the same point the flat view
+      frames — so the grid lands under the thing the demo is about. Falls back
+      to the rig for a non-orbit camera, where "under the viewer" IS the floor.
+      Stays in WORLD space (not parented) so it remains a motion reference.
+      */
+      const flatCam = this.camera as BABYLON.ArcRotateCamera | null
+      const subject = (flatCam as any)?.target as BABYLON.Vector3 | undefined
+      ground.position.x = subject?.x ?? rig.position.x
+      ground.position.z = subject?.z ?? rig.position.z
       // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
       // ground / water / terrain at 0 — and so the real scene ground wins visually
       // (the grid only shows through where there's no ground, rather than covering
@@ -2863,6 +2874,40 @@ export class B3d extends Component {
       rearmYaw()
     })
     this._recenterXr = rearmYaw
+    /*
+    XR INPUT + RIG READOUT — because a headset has no console.
+
+    "I can rotate with the right stick but cannot move" means the free-fly
+    branch IS running (turn lives in it) while `controllers['left']` is absent —
+    but absent WHY is unguessable from outside the headset, and guessing is what
+    this session has repeatedly paid for. So say it out loud, in the one readout
+    that exists in VR: which hands are seen, whether their thumbsticks report
+    axes, and where the rig ended up (including whether the entry yaw seed
+    actually fired).
+    */
+    const xrInputDbgOff = this.addDebugSource({
+      name: 'xr input',
+      lines: () => {
+        const fmt = (h: 'left' | 'right') => {
+          const c = controllers[h] as Record<string, any> | undefined
+          if (c == null) return `${h[0].toUpperCase()}:—`
+          const stick = c['xr-standard-thumbstick']
+          const ax = stick?.axes
+          if (ax == null) return `${h[0].toUpperCase()}:no-stick[${Object.keys(c).join(',')}]`
+          return `${h[0].toUpperCase()}:${ax.x.toFixed(2)},${ax.y.toFixed(2)}`
+        }
+        const deg = (r: number) => ((r * 180) / Math.PI).toFixed(0)
+        return [
+          `${fmt('left')}  ${fmt('right')}`,
+          `rig ${rig.position.x.toFixed(1)},${rig.position.y.toFixed(
+            1
+          )},${rig.position.z.toFixed(1)} yaw ${deg(rig.rotation.y)}°`,
+          `seed ${freeYawNeeded ? 'PENDING' : 'done'} · parent ${
+            rig.parent ? 'piloted' : 'world'
+          }`,
+        ]
+      },
+    })
     let lastView = '' // re-seat when the camera view toggles
     let chaseZoom = 0.5 // 0..1 chase distance (right stick Y while piloting)
     let chaseFirstFrame = true
@@ -3155,6 +3200,7 @@ export class B3d extends Component {
     return {
       dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
+        xrInputDbgOff()
         sm.onXRReferenceSpaceChanged.remove(refSpaceObs)
         resetSpace?.removeEventListener('reset', rearmYaw)
         this._recenterXr = noop
