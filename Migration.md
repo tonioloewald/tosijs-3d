@@ -1,6 +1,6 @@
-<!--{ "order": 2 }-->
-
 # Migration
+
+<!--{ "order": 2 }-->
 
 What to change when upgrading. Only breaking changes are listed — everything
 else is additive. The full detail for each is in [CHANGELOG.md](./CHANGELOG.md).

@@ -1,6 +1,6 @@
-<!--{ "order": 3 }-->
-
 # Changelog
+
+<!--{ "order": 3 }-->
 
 All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a

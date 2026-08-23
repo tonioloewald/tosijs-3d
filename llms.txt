@@ -19,10 +19,6 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 
 ## Pages
 
-- https://3d.tosijs.net/Migration/ — <!--{ "order": 2 }-->
-  What to change when upgrading. Only breaking changes are listed — everything
-- https://3d.tosijs.net/CHANGELOG/ — <!--{ "order": 3 }-->
-  All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 - https://3d.tosijs.net/ambient-budget/ — ambient-budget
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
@@ -125,6 +121,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/sdf-lattice/ — Carved landforms
   mine shafts — everything a heightfield cannot say, because a heightfield has one
+- https://3d.tosijs.net/CHANGELOG/ — Changelog
+  All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
 - https://3d.tosijs.net/combat/ — Combat
@@ -178,6 +176,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Babylon-free description of the *substance* a thing is moving through — air,
 - https://3d.tosijs.net/mersenne-twister/ — mersenne-twister
   Seeded pseudo-random number generator based on the Mersenne Twister
+- https://3d.tosijs.net/Migration/ — Migration
+  What to change when upgrading. Only breaking changes are listed — everything
 - https://3d.tosijs.net/min-sim-conformance/ — min-sim-conformance
   is implemented by BOTH Ariosto's reference store and tosijs-3d's [world-store](?world-store.ts). This
 - https://3d.tosijs.net/patch-field/ — patch-field
