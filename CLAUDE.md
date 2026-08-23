@@ -558,6 +558,35 @@ the control node's pivot to the marker, so attitude changes rotate about the CoG
 `position` keeps meaning the stance point (level attitude ⇒ the pivot is inert, parking
 unchanged). No marker → no pivot, prior behaviour. The scout is being updated to carry both.
 
+### Angles: degrees by default, and the `Deg` suffix rule
+
+**The authoring surface is DEGREES.** "We should use degrees everywhere. Not even
+mathematicians visualize radians." Pure math modules (`spatial-transform`,
+`guidance`, `portal-transform`, `fly-by-wire`'s internals) keep radians
+deliberately — that is mathematics, not authoring.
+
+Two rules, and the second is the one that removes the guessing:
+
+1. **A `<name>Deg` property is degrees**, and exists as a sibling wherever the
+   underlying value must stay radians — because it feeds trig directly, or
+   because every tuned value in the wild is already written in radians and
+   converting would silently break them. `Deg`, never `Degs`/`Degrees`
+   (`rollDeg`, `coneDeg`, `pitchDeg`, `azimuthDeg`, `elevationDeg`,
+   `turnRateDeg` are the existing spellings).
+
+2. **No `Deg` sibling ⇒ the bare name is ALREADY degrees.** The absence carries
+   information: `rx`/`ry`/`rz`, `maxPitch`, `maxDive`, `heading` have no `Deg`
+   variant, so they are degrees and no conversion is implied. You never have to
+   read the source to answer "is this radians?" — the API answers it, which is
+   the whole point of the suffix.
+
+**A `Deg` alias must work as an ATTRIBUTE, not just a JS property.** Attributes
+are the authoring surface, and degrees are the authoring unit, so an alias that
+exists only in JS is half a feature: `turn-rate-deg="90"` was silently inert
+while `b3dLauncher({ turnRateDeg: 90 })` worked — no error, no warning. Declare
+it in `initAttributes` (with `0` as the "unset" sentinel, the same shape as the
+`auto` performance sentinels) and resolve at the point of use.
+
 ### Component Pattern
 
 All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. **Scene children extend `B3dChild`** (or `AbstractMesh`, which extends it and adds position/rotation syncing) rather than `Component` directly — see [Child Lifecycle](#child-lifecycle--the-b3dchild-pull-model). Non-scene UI/utility elements (`b3d-panel`, `b3d-probe`) stay on plain `Component`.

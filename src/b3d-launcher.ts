@@ -199,7 +199,7 @@ that assumes one orients its effect off nothing.
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
-| `turnRateDeg` | — | The same agility in deg/sec. A computed view onto `turnRate`: set either, read either. Exists because "is this radians?" should be answered by the API, not by reading the source |
+| `turnRateDeg` | `0` | The same agility in **deg/sec**, and an attribute (so `turn-rate-deg="90"` works). `0` = unset ⇒ `turnRate` is used; any positive value wins. Exists because "is this radians?" should be answered by the API, not by reading the source — see CLAUDE.md → "Angles" |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
@@ -781,6 +781,11 @@ export class B3dLauncher extends AbstractMesh {
     mass: 1,
     missileSpeed: 22, // cruise speed of a guided shot (fireAt)
     turnRate: 3, // guided-missile agility (rad/sec)
+    // The degrees alias, as an ATTRIBUTE (see CLAUDE.md → "Angles"). `0` =
+    // unset, so `turnRate` is used; any positive value WINS over it. It was a
+    // bare accessor, which meant `turn-rate-deg="90"` was silently inert while
+    // the JS prop worked — half a feature, and no error either way.
+    turnRateDeg: 0,
     projRadius: 0.12,
     projColor: '#ffdd55',
     maxLifetime: 6,
@@ -817,11 +822,13 @@ export class B3dLauncher extends AbstractMesh {
   `<name>Deg` accessor beside it. `Deg` and not `Degs`/`Degrees` — the codebase
   already has rollDeg, coneDeg, pitchDeg, azimuthDeg, elevationDeg.
   */
-  get turnRateDeg(): number {
-    return this.turnRate * (180 / Math.PI)
-  }
-  set turnRateDeg(v: number) {
-    this.turnRate = v * (Math.PI / 180)
+  declare turnRateDeg: number
+
+  /** Agility in RADIANS/sec, honouring the degrees alias when it is set. */
+  private resolvedTurnRate(): number {
+    return this.turnRateDeg > 0
+      ? this.turnRateDeg * (Math.PI / 180)
+      : this.turnRate
   }
   declare projRadius: number
   declare projColor: string
@@ -939,7 +946,7 @@ export class B3dLauncher extends AbstractMesh {
       origin: this.muzzle(),
       target,
       speed: this.missileSpeed,
-      turnRate: this.turnRate,
+      turnRate: this.resolvedTurnRate(),
       warhead: this.warheadSpec,
       direction: direction ?? this.forward(),
       radius: this.projRadius,
