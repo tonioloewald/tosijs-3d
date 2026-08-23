@@ -59,10 +59,13 @@ warning, info, and error colors and this would be info"). Nothing else
 hand-rolls one today, so there is no migration debt, but two obvious
 candidates exist: `b3d-death`'s panel reads as `error`, and a PULL UP / stall
 warning reads as `warning`. Do it when touching those, not as a sweep.
-[ ] **The confirming trigger also fires the gun** in an armed scene. Harmless
-but untidy. Wants either input suppression while the prompt is up, or a
-non-trigger confirm (A/X). Left as-is rather than guess which feels right in
-a headset.
+[x] **The confirming trigger also fired the gun** — FIXED with a MODAL input
+gate (`b3d.suppressInput`), not a pause: a `pause()` raises the pause panel,
+can enter XR on resume, and would clobber an existing pause when it lifts.
+The controls go dead while the prompt is up; the world keeps running.
+Answers Tonio's "can reseat also automatically pause to avoid the shooting
+issue" — the intent, without the side effects. Prompt is now numbered, with
+RIGHT trigger = reseat and LEFT trigger = cancel.
 
 ### VR ENTRY ORDERING (new, pass 2 follow-up)
 

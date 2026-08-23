@@ -865,6 +865,23 @@ export class B3d extends Component {
    * asked" from "the tab went away" — a settings menu and an interruption
    * deserve different handling.
    */
+  /**
+   * Modal input gate — the controls go dead, the world does NOT stop.
+   *
+   * For a dialog that borrows a control you also play with: the re-seat prompt
+   * asks for a trigger pull, and without this that same pull fires the gun.
+   * Deliberately not `pause()`: a pause raises the pause panel, can enter XR on
+   * resume, and clobbers an existing pause when it lifts. Read by
+   * `B3dControllable._update`.
+   */
+  private _inputSuppressed = false
+  get inputSuppressed(): boolean {
+    return this._inputSuppressed
+  }
+  suppressInput(on: boolean): void {
+    this._inputSuppressed = on
+  }
+
   pause(reason: 'user' | 'hidden' | 'xr' | 'start' | string = 'user'): void {
     if (this._paused) return
     this._paused = true
@@ -2925,6 +2942,7 @@ export class B3d extends Component {
     const clearReseatPrompt = (): void => {
       reseatPrompt?.dispose()
       reseatPrompt = null
+      if (reseatArmed) this.suppressInput(false)
       reseatArmed = false
     }
     const promptReseat = (): void => {
@@ -2935,10 +2953,12 @@ export class B3d extends Component {
       }
       reseatArmed = true
       triggerWasDown = true
+      // Borrowing the trigger means the trigger must stop meaning "shoot".
+      this.suppressInput(true)
       const svg = panel3d(
         {
           width: 420,
-          height: 168,
+          height: 210,
           // DELIBERATELY NOT `panelBg`. This prompt appears in front of the
           // scene panel you were already looking at, and two near-identical
           // translucent dark slabs read as one confusing surface. `info` is the
@@ -2948,8 +2968,9 @@ export class B3d extends Component {
           background: w3dTheme.info,
         },
         label3d({ text: 'Re-seat', bold: true }),
-        label3d({ text: 'Look comfortably ahead,' }),
-        label3d({ text: 'then pull the trigger.' })
+        label3d({ text: '1. Look comfortably ahead.' }),
+        label3d({ text: '2. Pull right trigger to reseat.' }),
+        label3d({ text: 'Or, pull left trigger to cancel.', muted: true })
       )
       reseatPrompt = attachFramePanel(scene, cam, frames.get('face'), {
         frame: 'face',
@@ -3015,10 +3036,15 @@ export class B3d extends Component {
           ((controllers[h] as Record<string, any> | undefined)?.[
             'xr-standard-trigger'
           ]?.value ?? 0) > 0.6
-        const down = t('left') || t('right')
+        const rightDown = t('right')
+        const leftDown = t('left')
+        const down = rightDown || leftDown
         if (down && !triggerWasDown) {
+          // RIGHT commits, LEFT cancels — two hands, no ambiguity, and no way
+          // to be trapped behind the prompt.
+          const commit = rightDown
           clearReseatPrompt()
-          rearmYaw()
+          if (commit) rearmYaw()
         }
         triggerWasDown = down
       }

@@ -116,8 +116,23 @@ export class B3dControllable extends AbstractMesh {
     const owner = this.owner as {
       hasInputFocus?: boolean
       paused?: boolean
+      inputSuppressed?: boolean
     } | null
-    const live = (owner?.hasInputFocus ?? true) && owner?.paused !== true
+    /*
+    `inputSuppressed` is a MODAL gate, distinct from `paused`.
+
+    A prompt that asks you to pull a trigger must not also fire the gun with
+    that trigger (the re-seat dialog — Tonio: "can reseat also automatically
+    pause to avoid the shooting issue"). A full `pause()` would do it, but it
+    also raises the pause panel, can trigger enterXrOnResume, and would clobber
+    an existing pause on resume. This freezes the CONTROLS without stopping the
+    world: entities keep their momentum and the clock keeps running, they just
+    stop reading the sticks.
+    */
+    const live =
+      (owner?.hasInputFocus ?? true) &&
+      owner?.paused !== true &&
+      owner?.inputSuppressed !== true
     const input = live ? this.inputProvider.poll(dt) : emptyInput()
     this.lastInput = input
     this.applyInput(input, dt)
