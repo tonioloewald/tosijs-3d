@@ -287,6 +287,7 @@ import {
   type Widget3d,
 } from './widgets3d'
 import { panelFitWidth } from './widgets3d-layout'
+import { w3dTheme } from './w3d-theme'
 import type { Medium } from './medium'
 import { SvgTexture } from './svg-texture'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
@@ -2935,7 +2936,17 @@ export class B3d extends Component {
       reseatArmed = true
       triggerWasDown = true
       const svg = panel3d(
-        { width: 420, height: 150 },
+        {
+          width: 420,
+          height: 168,
+          // DELIBERATELY NOT `panelBg`. This prompt appears in front of the
+          // scene panel you were already looking at, and two near-identical
+          // translucent dark slabs read as one confusing surface. `info` is the
+          // themeable status SURFACE for exactly this: opaque, so the panel
+          // behind cannot show through the instruction, and distinct enough to
+          // say "different thing, acting now".
+          background: w3dTheme.info,
+        },
         label3d({ text: 'Re-seat', bold: true }),
         label3d({ text: 'Look comfortably ahead,' }),
         label3d({ text: 'then pull the trigger.' })
@@ -2945,6 +2956,9 @@ export class B3d extends Component {
         // Straight ahead of the FACE frame, so it is dead centre whichever way
         // you turn — and `focus` is the frame origin, i.e. your own eyes.
         anchor: { azimuthDeg: 0, elevationDeg: 0, distance: 0.9, focus: [0, 0, 0] },
+        // ~2x the 0.26 default: at 0.9m that is a comfortable read rather than
+        // a postage stamp, and a modal should out-weigh the panel behind it.
+        width: 0.55,
         reveal: 'always',
         svg,
       })

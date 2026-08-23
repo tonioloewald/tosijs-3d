@@ -53,6 +53,12 @@ trigger instead. Face-locking is normally something we avoid; this is the one
 case that earns it, because the instruction must stay readable WHILE you turn
 your head. Pressing Re-seat again cancels. The SYSTEM recentre (Meta button)
 still acts immediately — you were already looking where you meant.
+[ ] **Adopt the new status surfaces** (`w3dTheme.info`/`warning`/`error`,
+added with the re-seat prompt at Tonio's suggestion — "we might want standard
+warning, info, and error colors and this would be info"). Nothing else
+hand-rolls one today, so there is no migration debt, but two obvious
+candidates exist: `b3d-death`'s panel reads as `error`, and a PULL UP / stall
+warning reads as `warning`. Do it when touching those, not as a sweep.
 [ ] **The confirming trigger also fires the gun** in an armed scene. Harmless
 but untidy. Wants either input suppression while the prompt is up, or a
 non-trigger confirm (A/X). Left as-is rather than guess which feels right in

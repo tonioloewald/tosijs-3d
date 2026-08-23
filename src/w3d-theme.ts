@@ -48,4 +48,21 @@ export const w3dTheme = {
   accent: cssVar('--w3d-accent', '#39c5ff'),
   rowBg: cssVar('--w3d-row-bg', 'rgba(255,255,255,0.05)'),
   rowHover: cssVar('--w3d-row-hover', 'rgba(255,255,255,0.13)'),
+  /*
+  STATUS SURFACES — `info` / `warning` / `error`.
+
+  Backgrounds, not text colours: a status panel in a dark theme is a tinted
+  SURFACE that `text` still reads on, and the bright hue you would use for a
+  label is unreadable behind one. So these are deliberately dark and saturated
+  rather than the usual blue/amber/red you would set on a glyph.
+
+  They exist because the alternative is what we did first — a one-off literal
+  picked for a single dialog, which is how a design system rots. A prompt that
+  needs to stand out from the panel behind it asks for `info`, not for a hex.
+  Opaque on purpose: a translucent status surface lets the panel underneath
+  show through the very message it is interrupting you with.
+  */
+  info: cssVar('--w3d-info', '#1d4e6b'),
+  warning: cssVar('--w3d-warning', '#6b4a17'),
+  error: cssVar('--w3d-error', '#6b2323'),
 } as const
