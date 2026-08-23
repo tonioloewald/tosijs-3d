@@ -8,6 +8,16 @@ different outcome from "reviewed and fine".
 
 ### Decide before the next release
 
+[ ] **0.7.1 — decide which half of an angle pair is STORED.** `turnRateDeg` is
+a JS accessor and `turn-rate-deg` is therefore not a valid attribute, because
+`turnRate` holds the stored `initAttributes` slot and both cannot (they would
+diverge on the first write). Inverting it — degrees stored, radians as the
+accessor — is the right end state given "the authoring surface is degrees",
+but it is a real migration for anyone using `turn-rate`, so it is a patch-cycle
+decision, not a mid-release one. CLAUDE.md now states the constraint and
+requires the attribute row to say which form is available; this item is the
+inversion itself. Audit the other pairs at the same time.
+
 [ ] **0.7.1, FIRST ITEM — publish a VETTED `tosijs-3d/demo-utils` subpath.**
 Decided 2026-08-23: DX and non-breaking, so it lands as a patch rather than
 holding 0.7.0. Tree-shaken, so the only real cost is the API commitment —

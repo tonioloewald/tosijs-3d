@@ -580,12 +580,23 @@ Two rules, and the second is the one that removes the guessing:
    read the source to answer "is this radians?" — the API answers it, which is
    the whole point of the suffix.
 
-**A `Deg` alias must work as an ATTRIBUTE, not just a JS property.** Attributes
-are the authoring surface, and degrees are the authoring unit, so an alias that
-exists only in JS is half a feature: `turn-rate-deg="90"` was silently inert
-while `b3dLauncher({ turnRateDeg: 90 })` worked — no error, no warning. Declare
-it in `initAttributes` (with `0` as the "unset" sentinel, the same shape as the
-`auto` performance sentinels) and resolve at the point of use.
+**Only ONE of the pair can be an attribute — pick deliberately, and say which.**
+An `initAttributes` entry is _stored_, so declaring both `turnRate` and
+`turnRateDeg` gives you two values that diverge the moment either is written.
+The alias must therefore be a computed accessor onto the stored one.
+
+That makes the choice of which is stored an API decision:
+
+- **New angles: store the DEGREES form.** Degrees are the authoring unit, so
+  `foo-deg="90"` works in HTML and the radians accessor serves the maths.
+- **Existing radians attributes** (`turnRate`) keep their stored form, so the
+  `Deg` alias is **JS-only** and `turn-rate-deg` is not a valid attribute.
+  Inverting it is a real migration, not a rename.
+
+Whichever way it falls, **document it on the attribute row.** A `Deg` alias that
+silently does nothing as an attribute is worse than one that never existed —
+`turn-rate-deg="90"` fails with no error, no warning, and a plausible-looking
+JS equivalent that does work.
 
 ### Component Pattern
 
