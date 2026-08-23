@@ -1,5 +1,129 @@
 # TODO
 
+## 0.7.0 pre-tag gate — follow-ups NOT fixed (2026-08-23)
+
+Full report: `reviews/0.7.0-pre-tag-gate.md`. Blockers and verified majors were
+cleared in-session; everything below was **deliberately deferred**, which is a
+different outcome from "reviewed and fine".
+
+### Decide before the next release
+
+[ ] **`demo-utils`: 38 examples across 33 files import a specifier no consumer
+can resolve.** CLAUDE.md puts the demo FIRST on every page, so it is the first
+code an adopter or agent copies off the doc site, and it fails with "Failed to
+resolve module specifier". Deferred because both fixes are large or
+commitments, hours before a tag: **(a)** inline the two or three lines
+`orbitCam`/`demoStage` actually do — 33 files of churn, or **(b)** publish
+`demo-utils` as an `exports` subpath and rewrite the specifier to
+`tosijs-3d/demo-utils` — one sed, but it makes demo helpers public API we then
+maintain. A RATCHET test now caps the count at 38 so it cannot grow unobserved
+the way it went 32 → 38 this cycle. **Tonio's call: (a) or (b).**
+[ ] **`turnRateDeg` is documented in the attributes table but is a plain
+accessor**, not in `initAttributes` — so `turn-rate-deg="90"` is silently inert
+while the JS prop works. Settle the `<name>Deg` convention now; every future
+alias inherits whatever we do here.
+[ ] **Shipped sourcemaps dangle** — they point at `../src/*.ts`, which `files`
+excludes, so every consumer gets broken go-to-definition against the stated
+"browseable source" promise. Add `src` to `files`, or `inlineSources`, or stop
+emitting maps. `files` was edited this cycle, so it wants settling.
+
+### Correctness / robustness
+
+[ ] `bringToFront` mixes a frame-stale `mesh.position` with an already-updated
+`stackLift`, so two restacks in one frame leave a popup a `DEPTH_STEP` short
+and permanently break the `position − lift === base` invariant; the `tearOff`
+path gets no lift at all. Fix: track an un-lifted `basePos`.
+[ ] `B3dInputFocus._checkInteract` polls input every render with no
+paused/frozen/suppressed/focus gate — press interact behind the pause panel and
+you enter a vehicle in a stopped world. **Now cheap:** route it through the new
+`controlsLive()`.
+[ ] An integration test for the popup modal ORDERING bug (open a modal against
+an already-ready owner). `modalPickable` is pinned pure, but the bug was in
+call order, which pure tests cannot see.
+
+### Efficiency
+
+[ ] `openPopup` has no `updateInterval` escape hatch — every popup
+re-serializes its whole SVG ~33×/s (deep `cloneNode` + `XMLSerializer` before
+the dirty-check early-out), measured 0.5 ms per serialize at 300 nodes on an
+M-series Mac and several× that on a Quest. Add `updateInterval?` to
+`PopupSurfaceOptions`, default 200–400 ms to match the scene panel.
+[ ] `demoSun` hard-wires `shadowTextureSize: 2048`, overriding the device-tier
+budget for all 14 demos including on a headset (4× the shadow VRAM on the
+lowest tier). Drop to the `0` auto sentinel.
+[ ] `originWorld()` allocates a Vector3 and forces a world-matrix recompute
+twice per frame on a path documented as allocation-free — use a scratch +
+`TransformCoordinatesToRef`.
+[ ] `impactMarker` builds two meshes + a material + an observable per impact
+(~30/s in the collisions demo); pool the geometry.
+[ ] `el.make.*` feeds `B3d.pastAdditions`, which is never pruned — a
+spawner-facing API holding strong refs to disposed meshes forever.
+[ ] `B3dLibrary.make` mints a fresh Proxy per property access, unlike
+`B3d.make` which caches.
+
+### DRYness
+
+[ ] `roundedRectGeometry` → mesh is written twice (`make-mesh`,
+`b3d-svg-plane`) and has already drifted on radius default and side
+orientation; `rounded-rect.ts` names a `createRoundedPlane` bridge that was
+never written.
+[ ] "Place a node from x/y/z + rx/ry/rz degrees" exists twice, each with its
+own `const DEG` — in the release that just paid for a units divergence in
+exactly this code.
+[ ] Two incompatible `uvToViewBox` functions now exist, one exported from the
+barrel.
+[ ] Camera yield-and-restore is written a third time in `popup-surface`, and
+the `cameraIsAttached` guard learned from the pause bug is in only two of the
+three copies.
+[ ] The happy-dom prologue is copy-pasted into **23** test files (3 added this
+session). Collapse into `src/test-dom.ts` + a `bunfig.toml` preload — not done
+mid-release because it changes global test config.
+[ ] `demo-utils` still hand-rolls the MeshBuilder + material + register +
+`computeWorldMatrix` sequence `el.make` exists to replace, and `impactMarker`
+skips `computeWorldMatrix` — the one trap make-mesh calls out.
+
+### Coverage
+
+[ ] `make-mesh.ts` — 329 lines of public API with **zero tests**, including the
+`worldMatrix:false` failure it was written to prevent (reproduced: a box at
+z=6 ray-hits at z=0.1) and the degrees contract whose sibling path earned a
+⚠️ Breaking entry this cycle.
+[ ] `popup-surface.ts` — 697 lines, the release's headline UI feature, has no
+state-machine tests beyond the pure pieces now extracted.
+[ ] The `B3dControllable` halt is now pure and tested (`sim-gate.test.ts`), but
+the element-level path around it still is not.
+[ ] `_camParented` and the glass-gamepad fade fix have no regression tests; the
+fade fix is a DELETION, which is exactly what a future edit re-adds by accident.
+[ ] Both doc-scanning tests can pass vacuously — assert a non-empty corpus.
+[ ] **No `test` script in `package.json` and no CI.** Nothing runs `bun test`
+or `bun run typecheck` on any commit or tag; B1 is the cost, twice. The suite
+is 1.5 s, so cost is not the obstacle.
+
+### Docs
+
+[ ] `rounded-rect.ts` JSDoc points at a nonexistent `createRoundedPlane` and
+says "Default 6" where the code is `?? 4` — both ship in the `.d.ts` and are
+what a consumer's IDE hover shows.
+[ ] `popup-chrome` is a published doc page for a module no consumer can import.
+Export it or mark it internal; either way add its Key Files row.
+[ ] Stale radians JSDoc sits directly above the new degrees JSDoc on
+`GulleyOptions.heading`, and `MissileOpts.turnRate` has the same doubled shape.
+[ ] CLAUDE.md is now inaccurate on three points introduced this cycle: the
+blanket "do not re-export" rule vs `export * as BABYLON` (say why Babylon is
+the exception — single-instance `instanceof`), the demo-authoring note that
+warns against aliasing BABYLON without saying where it comes from, and
+`popup-chrome.ts` missing from Key Files.
+
+### Process
+
+[ ] The lens-8 write-back loop has failed **twice** — none of the rc.1 or final
+gate items landed in `tosijs-coding-practices`, and the final gate re-derived
+two from scratch. Two landed this session (`fe03680`: report path, prerelease
+monotonicity); the rest of the queue has not.
+[ ] `RELEASING.md` renumbers the shared flow (local 8/9 = publish/push vs
+canonical 7/8/8b/8c/9), so "completed step 9" skips both post-publish
+verifications and the scoreboard. Cut it down to the divergences it owns.
+
 ## 0.7.0 VR pass 2 — Tonio, 2026-08-22
 
 Second goggle pass after the CoG re-export + cert fix. Most of the 08-21 list

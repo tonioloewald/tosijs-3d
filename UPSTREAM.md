@@ -84,5 +84,16 @@ row, so "fixed" and "fixed and the reporter knows" don't blur together.
 | #7  | `getNames()` returned collider-suffixed names                      | closed — fixed in 0.7.0 (changes `getNames()` output)         |
 | #8  | `CombatEvent` carries no attribution                               | **open** — deferred; consequence layer, in TODO.md            |
 | #9  | Crashed aircraft eats all input                                    | **open** — fixed in 0.7.0, awaiting the reporter's live check |
+| #25 | Another entity's death destroyed the player's death panel          | closed — fixed in 0.7.0                                       |
+| #26 | `MAX_PITCH` hardcoded symmetric 35° — no diving craft              | closed — fixed in 0.7.0 (`maxDive`)                           |
+| #29 | Damage/VFX used the target's centre, not the impact point + normal | closed — fixed in 0.7.0 (`whenImpact`)                        |
+| #30 | `pause()` didn't pause — 66 m of travel over a 3-second pause      | closed — fixed in 0.7.0 (both clocks)                         |
 
-0.7.0 closes three of these (#5, #6, #7).
+0.7.0 closes **seven** of these (#5, #6, #7, #25, #26, #29, #30).
+
+**Closed with the version named, on the day the fix shipped.** The 0.7.0 gate
+found #25/#26/#29/#30 still open with the fixes already merged — three of them
+with zero comments — and #30 had drawn a **duplicate re-report five days after
+the fix landed**. An adopter cannot see your git log: an open issue IS the
+status, so leaving one open after fixing it buys a second report of the same
+bug.
