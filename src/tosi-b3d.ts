@@ -2783,8 +2783,26 @@ export class B3d extends Component {
       ground.material = grid
     }
 
-    const HORIZ_SPEED = 2.5 // metres/sec
-    const VERT_SPEED = 2.0
+    /*
+    LOCOMOTION IS SCALE-BLIND — and that reads as "the left stick is broken".
+
+    2.5 m/s is right for a room-sized demo and invisible in a landscape one. The
+    volcano chunk is 128 * 4 = 512 units across and the rig sits hundreds of
+    units out, so walking moved ~0.5% of the scene per second: indistinguishable
+    from nothing. TURNING is angular (rad/s) and therefore scale-free, which is
+    exactly why the right stick felt fine while the left felt dead — the
+    symptom that sent us hunting a missing controller (Tonio, VR pass 2; the
+    readout showed the left stick present and reporting 0.00).
+
+    Scale to the orbit camera's radius, which is what the flat view already uses
+    to frame the scene. The clamp floor is 1 so a small demo keeps TODAY's
+    numbers exactly; the ceiling stops a galaxy-scale camera from making a step
+    a light-year.
+    */
+    const flatRadius = (this.camera as BABYLON.ArcRotateCamera | null)?.radius
+    const MOVE_SCALE = Math.min(20, Math.max(1, (flatRadius ?? 8) / 8))
+    const HORIZ_SPEED = 2.5 * MOVE_SCALE // metres/sec
+    const VERT_SPEED = 2.0 * MOVE_SCALE
     const TURN_SPEED = 2.0 // radians/sec at full deflection
     const DEAD = 0.15
     const CHASE_HEIGHT = 2.5 // chase-cam height above a piloted entity
@@ -2829,6 +2847,11 @@ export class B3d extends Component {
     // Same, for FREE locomotion (no piloted entity) — see the capture below.
     // Armed on entry so the first posed frame seats you facing the subject.
     let freeYawNeeded = true
+    // The head yaw the free seed captured. The eye frame (which the scene panel
+    // hangs off) takes its yaw from `eyeYawOffset`, NOT from the head — so it
+    // must carry the same offset or the panel sits `headYaw` away from where
+    // you are looking. Cockpit already does this with `cockpitYawOffset`.
+    let freeYawOffset = 0
 
     const sm = base.sessionManager
     /** A real head pose this frame? Before one arrives the camera's rotation is stale. */
@@ -2904,7 +2927,7 @@ export class B3d extends Component {
           )},${rig.position.z.toFixed(1)} yaw ${deg(rig.rotation.y)}°`,
           `seed ${freeYawNeeded ? 'PENDING' : 'done'} · parent ${
             rig.parent ? 'piloted' : 'world'
-          }`,
+          } · x${MOVE_SCALE.toFixed(0)}`,
         ]
       },
     })
@@ -3089,7 +3112,10 @@ export class B3d extends Component {
       chaseFirstFrame = true
       lastPiloted = null
       lastView = ''
-      frames.eyeYawOffset = 0 // no recenter in free locomotion
+      // Match the seed: the eye frame's yaw is rig-local, so without this the
+      // panel hangs `headYaw` away from your gaze — "the panel is behind me",
+      // reproducibly, whenever you happened to enter facing off-axis.
+      frames.eyeYawOffset = freeYawOffset
       if (rig.parent != null) {
         rig.parent = null // came from the cockpit — back to world space
         rig.scaling.set(1, 1, 1)
@@ -3130,6 +3156,7 @@ export class B3d extends Component {
               ? cam.rotationQuaternion.toEulerAngles().y
               : 0
             rig.rotation.y = Math.atan2(dx, dz) - headYaw
+            freeYawOffset = headYaw
           }
         }
         freeYawNeeded = false
