@@ -11,7 +11,7 @@ and is staring at an error.
 
 ## 0.6.2 → 0.7.0
 
-> # ⚠️ READ THIS ONE FIRST: library rotation
+> # ⚠️ READ THIS FIRST: library rotation
 >
 > **If you place library models with `rx`/`ry`/`rz`, your scenes will MOVE.**
 >
@@ -46,7 +46,7 @@ and is staring at an error.
 > Quickest way to tell: search for `instantiate(` and `make.` with an `r[xyz]`
 > key. If there are none, skip this entirely.
 
-> ## ⚠️ ALSO READ THIS: models placed away from the origin in their file
+> ## ⚠️ AND THIS: models placed away from the origin in their file
 >
 > **If a `.glb` has its object sitting somewhere other than (0,0,0) in the source
 > scene, `canonicalize` now discards that placement** — as its contract always
