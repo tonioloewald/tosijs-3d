@@ -23,6 +23,16 @@ and the vet found the current module is NOT publishable as-is:
 | `volumetricDemo` (180 lines)  | ❌ an SDF-lattice x-ray for one page                                                                                                                                          |
 | `impactMarker`                | ❌ demo effect; allocates per impact, skips `computeWorldMatrix`                                                                                                              |
 
+**Ship it with an explicit STABILITY DISCLAIMER** (Tonio): dev helpers are
+intrinsically not going to get the support level the main API gets, so say
+so where a consumer will actually read it — the module's own doc page, the
+`## Attributes`-adjacent intro, and a line in the README. Wording to the
+effect of: _these exist so the examples run; they may change or vanish in a
+patch, they are not covered by the deprecation courtesy the main API gets,
+and production code should not depend on them._ Publishing without that is
+how a convenience becomes a support obligation by accident — and it is the
+whole reason the vet below matters less than the promise we attach to it.
+
 **Publish only after:** `orbitCam` takes `alphaDeg`/`betaDeg` (radians
 dropped); both `Record<string, unknown>` typed; the asset dependency
 resolved (`texture?: string` or `assetUrl()`) rather than exporting paths;
