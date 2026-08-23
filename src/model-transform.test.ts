@@ -446,11 +446,19 @@ describe('shipped model: centre of gravity', () => {
     const clone = src.clone('cog-probe', null)!
     container.addAllToScene()
     clone.setEnabled(true)
-    canonicalize(clone as never)
-    clone.computeWorldMatrix(true)
-    applyCenterOfGravity(clone as never)
+    // Pivot the WRAPPER, which is what production does: both load paths hand
+    // `canonicalize`'s return value to `applyCenterOfGravity`, and it is the
+    // wrapper the flight model steers. Pivoting the content node instead
+    // tested a shape nothing ships.
+    //
+    // The `as never` casts that used to be here are why a 1-of-3 argument call
+    // typechecked at all — B1 in the 0.7.0 pre-tag gate, and the second cycle
+    // running that a red `bun run typecheck` reached a release commit.
+    const control = canonicalize(clone, clone.getScene(), 'cog-probe-control')
+    control.computeWorldMatrix(true)
+    applyCenterOfGravity(control)
 
-    const pivot = clone.getPivotPoint()
+    const pivot = control.getPivotPoint()
     // LATERAL is the one that must be zero on a symmetric airframe.
     expect(Math.abs(pivot.x)).toBeLessThan(0.05)
     // And the whole horizontal offset stays small — 0.707 was the broken value.
