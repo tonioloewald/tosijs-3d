@@ -182,6 +182,14 @@ was tuned around the old feel.
     borrows a control you also play with can use them. `freeze()` stops the
     clock without raising the pause panel and without pause's resume semantics
     — a scene paused underneath stays paused.
+- **Pause/resume in the standard scene panel.** Pause was a one-way door: the
+  pause panel offers _Continue_, so it was a state you could LEAVE and never
+  ENTER — nothing in the panel stopped a running scene, and `startPaused` is an
+  initial condition, not a control. The icon bar now carries a transport toggle
+  (`play` when paused, `pause` when running — it shows what pressing it DOES,
+  not what the scene currently is). It is a panel GADGET, so it appears in the
+  flat overlay **and** the in-VR panel from one definition, and in a headset it
+  is the only way to stop the world at all.
 - **Status surfaces in the theme** — `--w3d-info`, `--w3d-warning`,
   `--w3d-error` (`w3dTheme.info` / `.warning` / `.error`). Backgrounds, not text
   colours: a status panel in a dark theme is a tinted SURFACE that `text` still

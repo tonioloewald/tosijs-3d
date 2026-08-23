@@ -2179,6 +2179,35 @@ export class B3d extends Component {
       active: boolean
       onClick: () => void
     }> = []
+    /*
+    PAUSE WAS A ONE-WAY DOOR.
+
+    The pause panel offers Continue, so pause was a state you could LEAVE and
+    never ENTER: nothing in the standard panel paused a running scene (Tonio).
+    `pause()`/`resume()` existed and were reachable only from JS or from
+    `startPaused`, which is not a control, it is an initial condition.
+
+    A gadget rather than a scenePanel row, so it lands in the flat panel AND the
+    in-VR panel from one definition — and in a headset it is the only way to
+    stop the world at all.
+
+    `pauseWhenHidden` is deliberately untouched: that is an automatic policy,
+    this is a manual act, and conflating them would make backgrounding the tab
+    look like the user pressed something.
+    */
+    out.push({
+      id: '__pause',
+      name: this.paused ? 'Resume' : 'Pause',
+      // `play` when paused (what pressing it DOES), `pause` when running. A
+      // transport control shows its action, not its state.
+      icon: this.paused ? 'play' : 'pause',
+      active: this.paused,
+      onClick: () => {
+        if (this.paused) this.resume()
+        else this.pause('user')
+        this._repaintPanels()
+      },
+    })
     const pad = this.querySelector('tosi-b3d-gamepad') as unknown as {
       hidden?: boolean
       setFade?: (on: boolean) => void
