@@ -1,3 +1,5 @@
+<!--{ "order": 3 }-->
+
 # Changelog
 
 All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor

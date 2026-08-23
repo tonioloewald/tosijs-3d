@@ -116,6 +116,33 @@ describe('doc-comment examples', () => {
     expect(missing).toEqual([])
   })
 
+  test('examples import only specifiers a CONSUMER can resolve', () => {
+    /*
+    A shipped example is copy-pasteable code — CLAUDE.md puts the demo FIRST on
+    every page, so it is the first thing an adopter or an agent lifts off
+    3d.tosijs.net. `demo-utils` resolves only inside the doc site's live-example
+    context, so those snippets fail with "Failed to resolve module specifier"
+    everywhere else, while shipping in dist/*.js doc comments and in the
+    pre-rendered SEO/agent-facing HTML.
+
+    This test does NOT fix the existing debt — see TODO, where the choice
+    (inline the helpers vs. publish them as a subpath) is recorded. It pins the
+    COUNT so the debt cannot grow unobserved, which is how it went from 32 to 38
+    in one release.
+    */
+    const UNRESOLVABLE = 'demo-utils'
+    const BASELINE = 38 // known debt at 0.7.0; only ever ratchet this DOWN
+    let count = 0
+    for (const s of all) {
+      for (const _ of s.code.matchAll(
+        new RegExp(`from\\s*['"]${UNRESOLVABLE}['"]`, 'g')
+      )) {
+        count++
+      }
+    }
+    expect(count).toBeLessThanOrEqual(BASELINE)
+  })
+
   test('no doubled or dangling commas in example import lists', () => {
     // The specific shape a mechanical sweep produces, called out by name so a
     // failure reads as "your edit script did this" rather than "syntax error".

@@ -1,3 +1,5 @@
+<!--{ "order": 2 }-->
+
 # Migration
 
 What to change when upgrading. Only breaking changes are listed — everything

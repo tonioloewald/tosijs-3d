@@ -55,7 +55,12 @@ export default defineSiteConfig({
   // resolves it via the page's importmap, fetching the standalone ESM module.
   bundleExternals: ['jolt-physics'],
 
-  docPaths: ['src', 'README.md'],
+  // Migration.md and CHANGELOG.md are part of the CONSUMER surface, not just
+  // repo files: README's "Upgrading?" call-to-action links to both, and without
+  // them here those links 404 on the published site (the pre-render leaves
+  // `./Migration.md` un-rewritten). Shipped inside the package too, so they
+  // work from node_modules as well.
+  docPaths: ['src', 'README.md', 'Migration.md', 'CHANGELOG.md'],
   staticDirs: ['static'],
   port: 8030,
 
