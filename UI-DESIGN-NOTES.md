@@ -766,3 +766,36 @@ each other with real depth, and they can be _somewhere else_ entirely.
 Bring-to-front is a real depth change, applied **toward the camera** rather than
 along world −Z — "in front" is a viewer-relative claim, and a stack arranged on
 a world axis is only correct from one side of the room.
+
+## An in-headset readout beats three good hypotheses (0.7.0, VR pass 2)
+
+The phantom-collision hunt cost three wrong theories — floating-origin desync, a
+CoG pivot, an incomplete own-mesh exclusion — each plausible, each refuted by
+measurement, none of them the bug. What ended it in one round was a **two-line
+readout in the Perf panel** that printed the name of the mesh the ray had called
+ground: `hit=frame-panel`. The UI. Sitting in front of the cockpit, being swept
+as terrain.
+
+The same thing happened twice more in one sitting:
+
+- "The left stick is broken" → the readout showed `L:0.00,0.00`, **not** `L:—`.
+  Controller present, stick present. The rig coordinates were in the hundreds
+  and free-fly walks at 2.5 m/s, so movement was ~0.5% of the scene per second.
+  Turning is angular and therefore scale-free — which is exactly why one stick
+  felt fine and the other felt dead.
+- "The panel is behind me" → `seed done` killed the sign-error theory and left
+  the real one: the eye frame takes its yaw from `eyeYawOffset`, not the head.
+
+**The rule this earns:** in XR there is no console, `window.rAF` is suspended,
+and the tester is a human describing a world you cannot see. Under those
+conditions a hypothesis is expensive and a printed fact is cheap. Build the
+readout FIRST — before the second hypothesis, not after the third — and make it
+name things (a mesh name, a stick's axes, a captured yaw) rather than report
+health. `b3d.addDebugSource` exists for this and costs a few lines.
+
+**Corollary, learned the same day:** an instrument that can lie is worse than
+none. The first version of the crash reporter covered only the ground-contact
+path, while the actual killer was the impact sweep — which called `crash()` with
+no report at all, so the panel would have said "no crash yet" for the very bug
+it was built to catch. Check that every path which can produce the symptom
+writes the record.
