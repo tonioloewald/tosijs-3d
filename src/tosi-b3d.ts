@@ -2896,7 +2896,60 @@ export class B3d extends Component {
       bindReset()
       rearmYaw()
     })
-    this._recenterXr = rearmYaw
+    /*
+    RE-SEAT IS A CHICKEN-AND-EGG GESTURE — so confirm it with your head straight.
+
+    Re-seating takes your CURRENT head yaw as forward. But to press the button
+    you must LOOK AT the button, so if the panel has drifted off to the left you
+    turn left to reach it and re-seat then points the rig at... where the panel
+    was. The gesture defeats itself exactly when you need it (Tonio, VR pass 2).
+
+    So the button no longer re-seats. It raises a prompt and waits for a trigger:
+    "look comfortably ahead, then pull the trigger." Pull it and the yaw is
+    captured from wherever you are looking THEN, which is the direction you
+    actually meant.
+
+    The prompt is pinned to the FACE frame — head-locked, `reveal: 'always'`.
+    Face-locking normally fights the headset and we avoid it; here it is the
+    whole point, because the instruction has to stay readable WHILE you turn your
+    head to face forward. This is the one case that earns it.
+
+    The SYSTEM recentre (holding the Meta button) still re-seats immediately —
+    you were already looking where you meant, and adding a confirmation to the
+    headset's own gesture would be impertinent.
+    */
+    let reseatPrompt: { dispose: () => void } | null = null
+    let reseatArmed = false
+    let triggerWasDown = true // ignore a trigger still held from pressing the button
+    const clearReseatPrompt = (): void => {
+      reseatPrompt?.dispose()
+      reseatPrompt = null
+      reseatArmed = false
+    }
+    const promptReseat = (): void => {
+      if (reseatArmed) {
+        // Pressing it again is a cancel — never trap someone behind a prompt.
+        clearReseatPrompt()
+        return
+      }
+      reseatArmed = true
+      triggerWasDown = true
+      const svg = panel3d(
+        { width: 420, height: 150 },
+        label3d({ text: 'Re-seat', bold: true }),
+        label3d({ text: 'Look comfortably ahead,' }),
+        label3d({ text: 'then pull the trigger.' })
+      )
+      reseatPrompt = attachFramePanel(scene, cam, frames.get('face'), {
+        frame: 'face',
+        // Straight ahead of the FACE frame, so it is dead centre whichever way
+        // you turn — and `focus` is the frame origin, i.e. your own eyes.
+        anchor: { azimuthDeg: 0, elevationDeg: 0, distance: 0.9, focus: [0, 0, 0] },
+        reveal: 'always',
+        svg,
+      })
+    }
+    this._recenterXr = promptReseat
     /*
     XR INPUT + RIG READOUT — because a headset has no console.
 
@@ -2939,6 +2992,22 @@ export class B3d extends Component {
     const MAX_PEEK = 0.8 // radians of temporary look (right stick X), ~46°
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       const now = Date.now()
+      // Re-seat confirmation: capture the yaw from where you are looking WHEN
+      // YOU PULL, not from where you had to look to press the button. Either
+      // hand. Edge-triggered, and `triggerWasDown` starts true so a trigger
+      // still held from pressing the button doesn't fire it instantly.
+      if (reseatArmed) {
+        const t = (h: 'left' | 'right') =>
+          ((controllers[h] as Record<string, any> | undefined)?.[
+            'xr-standard-trigger'
+          ]?.value ?? 0) > 0.6
+        const down = t('left') || t('right')
+        if (down && !triggerWasDown) {
+          clearReseatPrompt()
+          rearmYaw()
+        }
+        triggerWasDown = down
+      }
       const dt = Math.min((now - last) * 0.001, 0.1)
       last = now
       // Piloting a live controllable → the controllers fly it (via its mapping)
@@ -3227,6 +3296,7 @@ export class B3d extends Component {
     return {
       dispose: () => {
         base.sessionManager.onXRFrameObservable.remove(frame)
+        clearReseatPrompt()
         xrInputDbgOff()
         sm.onXRReferenceSpaceChanged.remove(refSpaceObs)
         resetSpace?.removeEventListener('reset', rearmYaw)

@@ -43,6 +43,21 @@ above become correct by construction rather than by diligence, and "I want
 to hit UI" becomes the loud, rare, explicit case. See COLLISION-DESIGN.md →
 "Default groups".
 
+### Re-seat (fixed, with one known rough edge)
+
+[x] **Re-seat defeated itself** — it takes your current head yaw as forward, but
+you had to LOOK AT the button to press it, so a panel that had drifted left
+re-seated you facing left. Now the button raises a **face-locked prompt**
+("look comfortably ahead, then pull the trigger") and captures the yaw on the
+trigger instead. Face-locking is normally something we avoid; this is the one
+case that earns it, because the instruction must stay readable WHILE you turn
+your head. Pressing Re-seat again cancels. The SYSTEM recentre (Meta button)
+still acts immediately — you were already looking where you meant.
+[ ] **The confirming trigger also fires the gun** in an armed scene. Harmless
+but untidy. Wants either input suppression while the prompt is up, or a
+non-trigger confirm (A/X). Left as-is rather than guess which feels right in
+a headset.
+
 ### VR ENTRY ORDERING (new, pass 2 follow-up)
 
 [ ] **On first XR entry the rig is wrong; toggling views fixes it.** Tonio: the
