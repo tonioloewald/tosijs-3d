@@ -295,15 +295,29 @@ const wired = new WeakSet<B3d>()
  * owns the UI, not your head, and freezing someone's view is how you make them
  * ill.
  */
+/**
+ * WHO IS PICKABLE while a modal is open — the pure decision, extracted so the
+ * rule can be tested without a scene.
+ *
+ * `true` for everything when no modal is open (which is what makes `close()`
+ * restore the stack — regress that and every popup becomes permanently
+ * untargetable while the camera still works, which reads as "the UI died").
+ * With a modal open, only the FIRST modal in the list is pickable.
+ */
+export function modalPickable(popups: { modal?: boolean }[]): boolean[] {
+  const modal = popups.find((p) => p.modal === true) ?? null
+  return popups.map((p) => modal == null || p === modal)
+}
+
 function applyModalBlocking(owner: B3d): void {
   const list = openPopups.get(owner)
   if (list == null) return
-  const modal = list.find((p) => p.modal === true) ?? null
-  for (const p of list) {
+  const pickable = modalPickable(list)
+  list.forEach((p, i) => {
     const mesh = p.plane.mesh
-    if (mesh == null) continue
-    mesh.isPickable = modal == null || p === modal
-  }
+    if (mesh == null) return
+    mesh.isPickable = pickable[i]
+  })
 }
 
 /**
@@ -692,6 +706,24 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   const list = openPopups.get(owner) ?? []
   list.unshift(api)
   openPopups.set(owner, list)
+
+  /*
+  RE-APPLY, because the mount above may already have run.
+
+  `owner.appendChild` drains the ready queue SYNCHRONOUSLY once the scene is up,
+  so for a popup opened at runtime `applyModalBlocking` fires during mount —
+  before this registration — and reads a list that does not contain this popup.
+  A `modal: true` popup therefore found no modal, set every OTHER popup back to
+  `isPickable = true`, and blocked nothing at all.
+
+  It only looked correct in the doc demo, which opens inside `sceneCreated`
+  while the queue is still deferred, so registration wins the race there.
+
+  Running it here as well is the fix and is idempotent: the mount-time call
+  still covers the deferred path (where `plane.mesh` may not exist yet, which
+  `applyModalBlocking` already skips).
+  */
+  applyModalBlocking(owner)
 
   return api
 }

@@ -75,8 +75,7 @@ and the warhead's line-of-sight) had already forgotten it — so a panel stopped
 shells and gave blast cover.
 */
 describe('collidable() — the shared pick predicate', () => {
-  const box = (name: string) =>
-    BABYLON.MeshBuilder.CreateBox(name, {}, scene)
+  const box = (name: string) => BABYLON.MeshBuilder.CreateBox(name, {}, scene)
 
   test('ordinary meshes pass', () => {
     expect(collidable()(box('rock'))).toBe(true)
@@ -110,7 +109,7 @@ describe('collidable() — the shared pick predicate', () => {
     expect(collidable()(off)).toBe(false)
   })
 
-  test('reject handles the caller\'s own business, and composes', () => {
+  test("reject handles the caller's own business, and composes", () => {
     const self = box('self')
     const other = box('other')
     const pred = collidable((m) => m === self)

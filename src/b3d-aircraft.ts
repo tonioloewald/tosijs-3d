@@ -902,10 +902,9 @@ export class B3dAircraft extends B3dControllable {
         vel.z / sweepSpeed
       )
       this._ray.length = sweepSpeed * dt + 1.5
-      const own = this.ownMeshes()
       const wallHit = this.owner.scene.pickWithRay(
         this._ray,
-        collidable((m) => own.has(m) || m.name.includes('__root__'))
+        collidable(this.skipForCollision())
       )
       if (wallHit?.hit) {
         const n = wallHit.getNormal(true)
@@ -1224,6 +1223,31 @@ export class B3dAircraft extends B3dControllable {
       BABYLON.Vector3.ZeroReadOnly,
       node.getWorldMatrix()
     )
+  }
+
+  /**
+   * What this airframe's collision rays must SKIP — shared by the ground ray
+   * and the impact sweep so they cannot diverge.
+   *
+   * They did diverge: `submersible` was consulted only by the ground ray, so a
+   * submersible aircraft passed the waterline on the downward test and then
+   * exploded on it via the sweep, which crashes on ANY hit above `crashSpeed`.
+   * The dive demo could not work at all — its own descent rate
+   * (`maxSpeed * 0.3` = 9 m/s) exceeds the default `crashSpeed` of 8 — and
+   * surfacing failed the same way, since Babylon's picking does not
+   * backface-cull.
+   *
+   * Water is ground to something that cannot go under it, and scenery to
+   * something that can. That is one rule, so it lives in one place.
+   */
+  private skipForCollision(): (m: BABYLON.AbstractMesh) => boolean {
+    const own = this.ownMeshes()
+    const submersible = (this as any).submersible === true
+    return (m: BABYLON.AbstractMesh) =>
+      own.has(m) ||
+      m.name.includes('__root__') ||
+      (submersible &&
+        (m.metadata as { b3dWater?: boolean } | null)?.b3dWater === true)
   }
 
   /** World nose direction (unit) and a muzzle point `ahead` metres in front.
@@ -1554,23 +1578,13 @@ export class B3dAircraft extends B3dControllable {
       for (const child of node.getChildMeshes()) own.add(child)
       this._ownMeshes = own
     }
-    const own = this._ownMeshes
-    // ⚠️ Passing a predicate to pickWithRay makes Babylon SKIP its built-in isPickable/isEnabled
-    // filter (ray.core.js: predicate is the SOLE test) — so the predicate MUST re-check them, or
-    // the ground ray hits non-pickable things. Clouds are `isPickable = false`, so without this
-    // the aircraft picks a cloud blob as "ground" (PULL UP / crash in mid-air over a cloud layer)
-    // — exactly the picking trap b3d-clouds warns about. `isEnabled` also skips coverage-hidden
-    // blobs.
-    const submersible = (this as any).submersible === true
+    // The isPickable/isEnabled re-check that this ray used to do by hand now
+    // lives in `collidable()` — Babylon makes a predicate the SOLE test, so
+    // skipping those checks let the aircraft pick a cloud blob as "ground"
+    // (PULL UP over open sky). Centralised so no pick site can forget it.
     const hit = this.owner.scene.pickWithRay(
       this._ray,
-      collidable(
-        (m) =>
-          own.has(m) ||
-          m.name.includes('__root__') ||
-          // Water is only "ground" to something that can't go under it.
-          (submersible && (m.metadata as any)?.b3dWater === true)
-      )
+      collidable(this.skipForCollision())
     )
     if (hit?.hit) {
       // Surface normal for the slope-impact crash test (up if unavailable).

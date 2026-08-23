@@ -290,10 +290,7 @@ export function collidable(
   reject?: (m: BABYLON.AbstractMesh) => boolean
 ): (m: BABYLON.AbstractMesh) => boolean {
   return (m: BABYLON.AbstractMesh): boolean =>
-    m.isPickable &&
-    m.isEnabled() &&
-    !isNoCollide(m) &&
-    !(reject?.(m) ?? false)
+    m.isPickable && m.isEnabled() && !isNoCollide(m) && !(reject?.(m) ?? false)
 }
 
 /**
