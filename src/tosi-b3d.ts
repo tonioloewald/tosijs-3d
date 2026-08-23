@@ -503,6 +503,18 @@ export class B3d extends Component {
     /** Come up paused, showing the pause panel — the "press Start" shape. */
     startPaused: false,
     /**
+     * Freeze the clock while the **re-seat** dialog is up (`'on'` default).
+     *
+     * Re-seating is a comfort action, and being shot while you do it is unfair.
+     * But freezing is a decision only a LOCAL world can make — a networked one
+     * cannot stop the other players — so set `'off'` for multiplayer and the
+     * dialog still gates YOUR input, which is the half that always works.
+     *
+     * A string enum rather than a boolean because an HTML boolean attribute
+     * cannot default to true (absent ⇒ false), and this one wants to.
+     */
+    reseatFreeze: 'on' as 'on' | 'off',
+    /**
      * On resume, enter immersive VR if the device supports it; on leaving VR,
      * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
      * user gesture, and the Continue tap is one. A scene that tried to enter XR
@@ -828,6 +840,7 @@ export class B3d extends Component {
   declare stats: boolean
   declare pauseWhenHidden: 'on' | 'off'
   declare startPaused: boolean
+  declare reseatFreeze: 'on' | 'off'
   declare enterXrOnResume: 'on' | 'off'
 
   // ─── Pause ────────────────────────────────────────────────────────────────
@@ -880,6 +893,33 @@ export class B3d extends Component {
   }
   suppressInput(on: boolean): void {
     this._inputSuppressed = on
+  }
+
+  /**
+   * Stop the CLOCK for a transient modal — no pause panel, no resume semantics.
+   *
+   * `pause()` is a user-facing state: it raises the panel, can enter XR on
+   * resume, and lifting it would clobber a pause the user set themselves. A
+   * dialog that lasts two seconds wants none of that; it just wants the world
+   * to hold still. This publishes `b3dFrameDelta = 0` exactly as a pause does,
+   * so everything on `sceneDelta` stops, and lifts without touching pause state
+   * (a scene paused underneath STAYS paused).
+   *
+   * **Local only, by definition.** Freezing is a decision your machine can make
+   * and a networked world cannot honour — you cannot stop other players'
+   * clocks. So `suppressInput` is the floor (your controls go dead, the world
+   * carries on) and this is policy on top, which is why the re-seat dialog
+   * always gates input and only optionally freezes (`reseatFreeze`).
+   */
+  private _frozen = false
+  get frozen(): boolean {
+    return this._frozen
+  }
+  freeze(on: boolean): void {
+    if (on === this._frozen) return
+    this._frozen = on
+    // Don't hand the held time back as one giant step on the first live frame.
+    if (!on) this.lastRender = Date.now()
   }
 
   pause(reason: 'user' | 'hidden' | 'xr' | 'start' | string = 'user'): void {
@@ -1418,7 +1458,9 @@ export class B3d extends Component {
 
   private _update = () => {
     this._debugFrame++
-    if (this._paused) {
+    // `_frozen` stops the clock exactly like a pause, but WITHOUT the pause
+    // panel or any of pause()'s resume semantics — see `freeze()`.
+    if (this._paused || this._frozen) {
       /*
       Keep RENDERING — the panel has to be visible and pickable — but stop the
       CLOCK. Publishing a frame delta of zero is what actually pauses the world:
@@ -2942,7 +2984,10 @@ export class B3d extends Component {
     const clearReseatPrompt = (): void => {
       reseatPrompt?.dispose()
       reseatPrompt = null
-      if (reseatArmed) this.suppressInput(false)
+      if (reseatArmed) {
+        this.suppressInput(false)
+        this.freeze(false)
+      }
       reseatArmed = false
     }
     const promptReseat = (): void => {
@@ -2954,7 +2999,10 @@ export class B3d extends Component {
       reseatArmed = true
       triggerWasDown = true
       // Borrowing the trigger means the trigger must stop meaning "shoot".
+      // The input gate is unconditional (and is the only half a networked world
+      // could honour); the freeze is policy, default on for single player.
       this.suppressInput(true)
+      if (!isOff(this.reseatFreeze)) this.freeze(true)
       const svg = panel3d(
         {
           width: 420,

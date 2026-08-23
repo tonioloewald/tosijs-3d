@@ -65,7 +65,18 @@ can enter XR on resume, and would clobber an existing pause when it lifts.
 The controls go dead while the prompt is up; the world keeps running.
 Answers Tonio's "can reseat also automatically pause to avoid the shooting
 issue" — the intent, without the side effects. Prompt is now numbered, with
-RIGHT trigger = reseat and LEFT trigger = cancel.
+RIGHT trigger = reseat and LEFT trigger = cancel. Time ALSO freezes by
+default (`reseatFreeze="on"`), via a `freeze()` that stops the clock without
+the pause panel or pause's resume semantics — a scene paused underneath
+stays paused. Tonio flagged the constraint that shaped the split:
+**freezing is local and a networked world cannot honour it**, so the input
+gate is the floor and the freeze is policy, `reseatFreeze="off"` for
+multiplayer.
+[ ] **Multiplayer will need this split everywhere, not just here.** Any modal
+that stops the world (inventory, map, dialogue) has the same shape: gate
+input locally, freeze only if the world is yours to freeze. Worth a
+`localOnly`-style convention before the second one is written, rather than
+after the fifth. See MEDIUM/SPATIAL-style design note if it grows.
 
 ### VR ENTRY ORDERING (new, pass 2 follow-up)
 
