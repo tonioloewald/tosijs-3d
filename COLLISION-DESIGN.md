@@ -21,18 +21,18 @@ because it decides the signature:
 
 Every case we know we need is then the same case:
 
-| Thing | Where it really is |
-| --- | --- |
-| a plain prop | its node's world matrix |
+| Thing                                       | Where it really is                          |
+| ------------------------------------------- | ------------------------------------------- |
+| a plain prop                                | its node's world matrix                     |
 | an aircraft with a `_centerOfGravity` pivot | world matrix (NOT `position` — today's bug) |
-| a sword tip on a hand bone | the bone-attached node's world matrix |
-| a limb capsule | ditto |
-| anything, after a floating-origin shift | ditto, inherited through the parent |
+| a sword tip on a hand bone                  | the bone-attached node's world matrix       |
+| a limb capsule                              | ditto                                       |
+| anything, after a floating-origin shift     | ditto, inherited through the parent         |
 
 A signature that takes `Vector3` **cannot** express a sword tip without the
 caller doing bone math at every call site — which is precisely how the aircraft
 ended up with a rule its own file documented and its own rays ignored. A
-signature that takes a *pose source* makes the animated case free, the pivot case
+signature that takes a _pose source_ makes the animated case free, the pivot case
 free, and the floating-origin case free, because all three live in the matrix.
 
 The corollary is that the test's other half — **what am I allowed to hit** — must
@@ -44,11 +44,11 @@ each caller re-implements is a rule that will be got wrong somewhere. See
 
 Three probe shapes cover everything we have and everything named above:
 
-| Probe | Question | Shipped example |
-| --- | --- | --- |
-| **Point / ray** | "what is below/ahead of me?" | aircraft `raycastGround` |
-| **Swept segment** | "what did I pass THROUGH since last frame?" | aircraft impact sweep, `b3d-launcher`'s swept projectile |
-| **Volume** (sphere/capsule/box) | "what am I overlapping?" | `b3d-collisions` convention colliders, `b3d-warhead` AOE gather |
+| Probe                           | Question                                    | Shipped example                                                 |
+| ------------------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| **Point / ray**                 | "what is below/ahead of me?"                | aircraft `raycastGround`                                        |
+| **Swept segment**               | "what did I pass THROUGH since last frame?" | aircraft impact sweep, `b3d-launcher`'s swept projectile        |
+| **Volume** (sphere/capsule/box) | "what am I overlapping?"                    | `b3d-collisions` convention colliders, `b3d-warhead` AOE gather |
 
 A sword tip is the **swept segment** case and nothing more exotic: between two
 frames the tip travels a line, and what that line crosses is what it cut. The
@@ -119,13 +119,13 @@ is latent in each of them and will resurface in whichever ships first.
 
 So the reusable probe **excludes UI unless you ask for it**:
 
-| Group | In a physical probe | Notes |
-| --- | --- | --- |
-| `world` | ✅ default | terrain, structures, props |
-| `actors` | ✅ default | vehicles, bipeds, animals |
-| `projectiles` | ✅ default | needs self/owner exclusion, see below |
-| **`ui`** | **❌ never, unless asked** | panels, HUDs, pointer targets |
-| `sensor` | ❌ never | trigger volumes — overlap tests only |
+| Group         | In a physical probe        | Notes                                 |
+| ------------- | -------------------------- | ------------------------------------- |
+| `world`       | ✅ default                 | terrain, structures, props            |
+| `actors`      | ✅ default                 | vehicles, bipeds, animals             |
+| `projectiles` | ✅ default                 | needs self/owner exclusion, see below |
+| **`ui`**      | **❌ never, unless asked** | panels, HUDs, pointer targets         |
+| `sensor`      | ❌ never                   | trigger volumes — overlap tests only  |
 
 Pointer/gaze picking is the one caller that asks FOR `ui`, and it is already a
 different code path. So the default is right for every existing call site, and
@@ -164,7 +164,7 @@ probe.segment(from, to, { exclude: self, groups: ['world', 'actors'] })
 ```
 
 The self-exclusion must be **the whole entity** (a sword must not cut its own
-wielder's arm), which means the group system needs an *owner* concept, not just
+wielder's arm), which means the group system needs an _owner_ concept, not just
 mesh identity. That is the part most likely to be got wrong on the first try.
 
 ## Rules that already have scars

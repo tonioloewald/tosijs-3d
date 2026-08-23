@@ -222,7 +222,9 @@ export function markUiMesh(mesh: BABYLON.AbstractMesh): void {
  * re-derived condition per call site.
  */
 export function isNoCollide(mesh: BABYLON.AbstractMesh): boolean {
-  return (mesh.metadata as { b3dNoCollide?: boolean } | null)?.b3dNoCollide === true
+  return (
+    (mesh.metadata as { b3dNoCollide?: boolean } | null)?.b3dNoCollide === true
+  )
 }
 
 /**

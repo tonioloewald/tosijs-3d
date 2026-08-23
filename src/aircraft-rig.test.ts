@@ -156,8 +156,14 @@ describe('collision ray origin under a CoG pivot', () => {
     const scene = new BABYLON.Scene(new BABYLON.NullEngine())
     const node = new BABYLON.TransformNode('plain', scene)
     node.position.set(1, 2, 3)
-    node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0.3, 0.2, 1.1)
-    expect(BABYLON.Vector3.Distance(originWorld(node), node.position)).toBeLessThan(1e-6)
+    node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      0.3,
+      0.2,
+      1.1
+    )
+    expect(
+      BABYLON.Vector3.Distance(originWorld(node), node.position)
+    ).toBeLessThan(1e-6)
   })
 
   test('with a CoG pivot, banking moves the airframe away from node.position', () => {
@@ -168,10 +174,18 @@ describe('collision ray origin under a CoG pivot', () => {
     node.setPivotPoint(new BABYLON.Vector3(0, 0.2149, -0.0107))
 
     node.rotationQuaternion = BABYLON.Quaternion.Identity()
-    expect(BABYLON.Vector3.Distance(originWorld(node), node.position)).toBeLessThan(1e-6)
+    expect(
+      BABYLON.Vector3.Distance(originWorld(node), node.position)
+    ).toBeLessThan(1e-6)
 
     // Inverted is the worst case: the offset is mirrored, so it is 2 * |pivot|.
-    node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0, 0, Math.PI)
-    expect(BABYLON.Vector3.Distance(originWorld(node), node.position)).toBeGreaterThan(0.4)
+    node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      0,
+      0,
+      Math.PI
+    )
+    expect(
+      BABYLON.Vector3.Distance(originWorld(node), node.position)
+    ).toBeGreaterThan(0.4)
   })
 })

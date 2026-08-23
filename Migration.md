@@ -44,6 +44,26 @@ and is staring at an error.
 > Quickest way to tell: search for `instantiate(` and `make.` with an `r[xyz]`
 > key. If there are none, skip this entirely.
 
+> ## ⚠️ ALSO READ THIS: models placed away from the origin in their file
+>
+> **If a `.glb` has its object sitting somewhere other than (0,0,0) in the source
+> scene, `canonicalize` now discards that placement** — as its contract always
+> claimed it did. It previously zeroed only the glTF loader's `__root__`
+> wrapper, leaving the authored object's scene transform intact.
+>
+> **The tell is a vehicle that pivots or collides oddly**, because the control
+> node used to sit a fixed distance from the model it steers (1.7 m for our own
+> scout). A `_centerOfGravity` marker measured against that node folded the
+> offset into the pivot, so a marker authored **correctly on the centreline**
+> produced a pivot 1.75 m out, while a hand-tuned offset came out right. Ours
+> was re-exported to the documented convention and immediately began crashing on
+> every bank.
+>
+> **What to do:** author in the model's LOCAL frame and delete compensating
+> offsets. Before treating a changed vehicle as a regression, check whether a
+> marker or placement was tuned against the old behaviour. **Models authored at
+> the origin — the common case — are unaffected.**
+
 | What                                            | Before                                               | After                                                                                                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `landform.gulley` / `landform.cover` `heading`  | radians                                              | **degrees** — `heading * 180 / Math.PI`                                                                                                                   |
@@ -54,6 +74,7 @@ and is staring at an error.
 | `carve` exports                                 | 13 bare names (`sphere`, `tube`, …)                  | the **`carve.*` namespace** (`carve.sphere`, `carve.tube`)                                                                                                |
 | `b3dPatch` / `B3dPatch`                         | experimental element                                 | **removed** — the pure modules it used (`carve.*`, `sdf-lattice`, `patch-field`) are kept                                                                 |
 | `library.getNames()`                            | raw node names                                       | **public names** — `.model`, behaviour suffixes and the glTF loader's `_primitiveN` removed, so `building_collideCylinder_primitive0` lists as `building` |
+| Model scene transform                           | kept on the content node under `__root__`            | **dropped** — see the box above; affects models not authored at the origin                                                                                |
 | `spawnProjectile` / `spawnMissile` impact       | `onImpact(point)`                                    | `whenImpact({ point, normal, mesh })`. The old name still fires, with a one-shot warning                                                                  |
 
 ### The two that fail SILENTLY

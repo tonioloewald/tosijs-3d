@@ -3047,7 +3047,12 @@ export class B3d extends Component {
         frame: 'face',
         // Straight ahead of the FACE frame, so it is dead centre whichever way
         // you turn — and `focus` is the frame origin, i.e. your own eyes.
-        anchor: { azimuthDeg: 0, elevationDeg: 0, distance: 0.9, focus: [0, 0, 0] },
+        anchor: {
+          azimuthDeg: 0,
+          elevationDeg: 0,
+          distance: 0.9,
+          focus: [0, 0, 0],
+        },
         // ~2x the 0.26 default: at 0.9m that is a comfortable read rather than
         // a postage stamp, and a modal should out-weigh the panel behind it.
         width: 0.55,
@@ -3075,7 +3080,8 @@ export class B3d extends Component {
           if (c == null) return `${h[0].toUpperCase()}:—`
           const stick = c['xr-standard-thumbstick']
           const ax = stick?.axes
-          if (ax == null) return `${h[0].toUpperCase()}:no-stick[${Object.keys(c).join(',')}]`
+          if (ax == null)
+            return `${h[0].toUpperCase()}:no-stick[${Object.keys(c).join(',')}]`
           return `${h[0].toUpperCase()}:${ax.x.toFixed(2)},${ax.y.toFixed(2)}`
         }
         const deg = (r: number) => ((r * 180) / Math.PI).toFixed(0)

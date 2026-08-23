@@ -370,33 +370,32 @@ that ran through the whole pass.
 I cannot move the pop-ups, none of them. They just cause me to drag the
 windows." The B1 gate fix did NOT work — the grip drag still never engages,
 and the press falls through to the camera. THE ONE THAT BLOCKS THE TAG.
-  ✅ fixed — eb841924 + a63d12a5
+✅ fixed — eb841924 + a63d12a5
 [x] **b3d-launcher guided-missile demo renders a black rectangle** — "used to be
 fine". A regression, not a wish.
-  ✅ fixed — 413f871f
+✅ fixed — 413f871f
 [x] **b3d-star-system: white text on a white background** in its overlay.
-  ✅ fixed — e3fb7d2d
+✅ fixed — e3fb7d2d
 [x] **b3d-ambient: the headline "fly down into the sea" doesn't work** — you
 crash into the water instead of entering it. The demo cannot show its point.
-  ✅ fixed — e6e05721 — RE-CHECK in VR (pass 2 says it may still fail)
+✅ fixed — e6e05721 — RE-CHECK in VR (pass 2 says it may still fail)
 [x] **shadow-decal still stipples** — the acne fix landed on `b3dSun`'s default,
 so a demo building its own generator misses it. Find the other paths.
-  ✅ fixed — c8521454
+✅ fixed — c8521454
 [x] **cloud-shadows: the fog greys everything out** — "most of the time I'm not
 seeing the objects at all, I'm just seeing the fog."
-  ✅ fixed — 10bf87e5
+✅ fixed — 10bf87e5
 [x] **b3d-panel's manipulator doesn't move the panel** — bug, or never wired?
-  ✅ fixed — d08ca67a — NOT a bug: the axes are a readout; a real GizmoManager is a future feature
+✅ fixed — d08ca67a — NOT a bug: the axes are a readout; a real GizmoManager is a future feature
 [x] **table-layout: can't scroll with the mouse** (scrollbar works).
-  ✅ fixed — d08ca67a — NOT a bug: the demo is an x-ray of the maths, no scroll container
+✅ fixed — d08ca67a — NOT a bug: the demo is an x-ray of the maths, no scroll container
 [x] **glass gamepad: the stick thumb CLIPS at the travel edge** — right side of
 the left stick, left side of the right stick. Bounding rect too tight.
-  ✅ fixed — 2c9cc889 (Tonio confirmed)
+✅ fixed — 2c9cc889 (Tonio confirmed)
 [x] **radar and radar-blip have no demo at all** — two combat components
 undemoed, and the combat section has no working radar anywhere.
 
-
-  ✅ fixed — caadf6b2### The theme: demos need the helper treatment
+✅ fixed — caadf6b2### The theme: demos need the helper treatment
 
 Said about roughly twenty pages, so it is one job, not twenty: **sweep the demos
 onto `demoStage`** (fill light + test-pattern ground + shadows) and stop using

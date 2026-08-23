@@ -52,6 +52,31 @@ was tuned around the old feel.
 
 ### ⚠️ Breaking
 
+- **`canonicalize` now drops the CONTENT node's scene transform, so a model
+  placed away from the origin in its source file lands differently.** The
+  contract always said it "drops the node's SCENE transform" and it only ever
+  zeroed the node it was handed — on the glTF path that is `__root__`, the
+  loader's own wrapper — while the authored object underneath kept its scene
+  placement.
+
+  **Who is affected:** anyone whose model sits somewhere other than the origin
+  inside its `.glb` AND who compensated for the resulting offset. The
+  compensation is now doubled.
+
+  **How it shows up:** the control node used to sit a fixed distance from the
+  airframe it steers (1.7 m for our own scout), so collision rays started beside
+  the model and a `_centerOfGravity` marker measured against the control node
+  folded that offset into the PIVOT. The perverse consequence: a marker authored
+  dead on the centreline — the documented way — installed a pivot 1.75 m out,
+  while an odd-looking hand-tuned marker silently netted out correct. Our scout
+  was re-exported "properly" and started crashing on every bank.
+
+  **Migration:** author content in the model's LOCAL frame, as
+  `CLAUDE.md` has always said, and delete compensating offsets. If a vehicle
+  now flies or pivots oddly, look for a marker or a placement that was tuned
+  against the old behaviour before assuming a regression. Models authored at the
+  origin (the common case) are unaffected.
+
 - **Angles in the AUTHORING surface are DEGREES.** "We should use degrees
   everywhere. Not even mathematicians visualize radians." Two APIs took radians
   and now take degrees: `landform`'s `gulley`/`cover` `heading`, and the library
@@ -135,6 +160,46 @@ was tuned around the old feel.
   compared it to an authored name with its suffix, needs updating.
 
 ### Added
+
+- **Re-seat is now a two-step, confirmed gesture — and it finally works.**
+  Re-seating takes your CURRENT head yaw as forward, but you had to LOOK AT the
+  button to press it, so a panel that had drifted left re-seated you facing
+  left: the gesture defeated itself exactly when you needed it. Pressing
+  **Re-seat** now raises a prompt pinned to the **face frame** (head-locked, so
+  it stays readable WHILE you turn your head — the one case that earns
+  face-locking): _1. Look comfortably ahead. 2. Pull right trigger to reseat.
+  Or, pull left trigger to cancel._ The yaw is captured on the trigger, from
+  wherever you are looking THEN.
+  - **`reseatFreeze`** (new `<tosi-b3d>` attribute, `'on' | 'off'`, default
+    `'on'`) freezes the clock while the prompt is up, so you are not shot mid
+    re-seat. **Set `'off'` for multiplayer** — freezing is a decision a local
+    world can make and a networked one cannot honour. The dialog always gates
+    YOUR input (`b3d.suppressInput`), which is the half that works in any
+    topology, so the trigger that confirms never also fires your gun.
+  - `b3d.freeze(on)` and `b3d.suppressInput(on)` are public: a modal that
+    borrows a control you also play with can use them. `freeze()` stops the
+    clock without raising the pause panel and without pause's resume semantics
+    — a scene paused underneath stays paused.
+- **Status surfaces in the theme** — `--w3d-info`, `--w3d-warning`,
+  `--w3d-error` (`w3dTheme.info` / `.warning` / `.error`). Backgrounds, not text
+  colours: a status panel in a dark theme is a tinted SURFACE that `text` still
+  reads on, and the bright hue you would put on a label is unreadable behind
+  one. Opaque on purpose, so the panel underneath cannot show through the
+  message interrupting you.
+- **`markUiMesh()` / `isNoCollide()`** (`b3d-utils`) — mark a mesh as UI:
+  pointer-pickable, but invisible to COLLISION. See the phantom-collision fix
+  below for why those are different questions. The first of the collision
+  GROUPS described in the new `COLLISION-DESIGN.md`.
+- **`xrFrame`** on `<tosi-b3d-svg-plane>` — when `cameraRelative` and in a
+  headset, ride an XR reference frame instead of the head camera. `'body'`
+  (damped yaw) keeps a panel in front of you without jittering on every head
+  movement; leave it unset for a HUD that should stay head-locked.
+- **A diagnostic ring buffer** — `b3d.logDebug(tag, event)`,
+  `b3d.debugCapture(tag)`, `b3d.debugLog`. There is no console in a headset and
+  `window.rAF` is suspended in-session, so this records structured events IN the
+  page for readback afterwards. Plus always-on Perf-panel rows: **aircraft
+  ground** (what the ground ray is calling ground, and a full crash report) and
+  **xr input** (per-hand thumbstick axes, rig pose, movement scale).
 
 - **Popups are their own SURFACES — `el.openPopup()`** (`popup-surface`). A menu,
   a dropdown's list or a debug readout spawns a second plane above its opener
@@ -472,6 +537,56 @@ was tuned around the old feel.
   put every scene ON a mirror plane with a seam running to the horizon.
 
 ### Fixed
+
+- **Phantom collisions: an aircraft "collided with something it was nowhere
+  near".** Flying high, banking in cockpit view, you died instantly — in any
+  scene, terrain or not. The impact sweep was hitting the **spatial UI panel**
+  floating in front of the cockpit and treating it as terrain, and that sweep
+  crashes on ANY hit above `crashSpeed` with no slope test. It only bit in
+  cockpit view (that is where the camera, and the panels riding its reference
+  frames, sit inside a ~2m sweep) and fired on bank (which swings the velocity
+  vector into the panel). A panel must stay `isPickable` — that is how a
+  controller ray targets it — so the fix separates the two questions:
+  `markUiMesh` marks it collision-invisible, and both aircraft predicates filter
+  it.
+- **Collision rays fired from `node.position`.** Under a `_centerOfGravity`
+  pivot that is the STANCE ORIGIN, not where the airframe is — the model swings
+  about the CoG under attitude, so banking moved the aircraft out from under its
+  own rays. Both rays now go through the world matrix, which is bit-identical to
+  `node.position` when there is no pivot.
+- **`canonicalize` did not drop the CONTENT node's scene transform** — see
+  ⚠️ Breaking above. This is also why the scout's centre of gravity appeared
+  wrong.
+- **Ambient effects could never recover from a pool of zero.** The watchdog
+  bailed one line before the recovery path written for exactly that state, so a
+  scene that shed its garnish to nothing stayed dead for the session — no
+  leaves, bubbles or motes on hardware that had been drawing them a second
+  earlier.
+- **VR: exiting dropped the flat camera's altitude.** Babylon carries the walked
+  headset pose back into the non-XR camera, which for an orbit camera recomputes
+  a low angle — you left VR looking at the scene from the floor. The orbit state
+  is now snapshotted on entry and restored on exit; free/walkable cameras keep
+  the carry-back.
+- **VR: orbit demos dropped you in facing a random direction.** Both piloted
+  paths seeded the rig's yaw against your head; free locomotion never did, so a
+  demo with no piloted entity left the panel behind you and the subject out of
+  sight. Now seeded on the first frame with a real viewer pose, facing what the
+  flat camera was looking at.
+- **VR: re-seat did nothing in an aircraft's chase view.** Three camera paths
+  capture yaw separately and re-seat only re-armed two; toggling cockpit↔chase
+  appeared to "fix" it because the view-change path re-armed the third.
+- **VR: locomotion was scale-blind.** Free-fly walked at a fixed 2.5 m/s, which
+  in a 512-unit landscape is ~0.5% of the scene per second — indistinguishable
+  from a broken stick, while turning (angular, therefore scale-free) felt fine.
+  Speed now scales with the orbit camera's radius; small demos are unchanged.
+- **VR: the grid floor sat at the world origin**, so in any scene whose subject
+  is elsewhere it read as a mystery grid off in the distance, visible only in
+  VR. It now sits under the subject.
+- **VR: the respawn panel was pinned to your face and jittered** with every head
+  movement. It rides the `body` frame now.
+- **`bun run typecheck` was red at the release commit** — a one-argument call to
+  a three-argument `canonicalize` in a test, invisible to `bun test` (which
+  strips types) and to the build tsconfig (which excludes test files).
 
 - **Shadow acne on large receivers** — see `shadowNormalBias` above. It was also
   why scenes looked dull: the stipple darkened roughly half the ground.
