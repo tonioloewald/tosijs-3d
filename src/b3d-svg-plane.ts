@@ -518,6 +518,25 @@ export class B3dSvgPlane extends AbstractMesh {
     // cockpit. See `markUiMesh`.
     markUiMesh(this.mesh)
 
+    /*
+    A CAMERA-RELATIVE PANEL MUST NOT BE BURIED BY THE WORLD.
+
+    These are dialogs — respawn, pause — and they were being occluded by
+    terrain: you die on a hillside and the panel offering you a way out is
+    inside the hill (Tonio). A modal you cannot see is a modal you cannot
+    dismiss, which is worse than a cosmetic glitch.
+
+    Rendering group 1 draws after group 0 and Babylon auto-clears depth between
+    groups, so the panel is always visible without moving it. The alternative —
+    pushing it to the near clip plane and scaling to match — keeps correct
+    stereo depth but puts a panel ~25cm from your eyes in VR, which is
+    genuinely uncomfortable; drawing on top keeps it at a readable 2m.
+
+    Only `cameraRelative` planes: world-anchored panels and popups keep normal
+    depth sorting, which is what the opaque rounded-geometry work is for.
+    */
+    if (attrs.cameraRelative) this.mesh.renderingGroupId = 1
+
     this._svgTexture = new SvgTexture({
       scene,
       resolution: attrs.resolution,

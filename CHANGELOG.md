@@ -182,6 +182,11 @@ was tuned around the old feel.
     borrows a control you also play with can use them. `freeze()` stops the
     clock without raising the pause panel and without pause's resume semantics
     — a scene paused underneath stays paused.
+- **Camera-relative dialogs are no longer buried by the world.** The respawn and
+  pause panels could end up inside terrain — you die on a hillside and the panel
+  offering you a way out is in the hill. They now render in group 1 (drawn after
+  the scene, depth auto-cleared between groups), so a modal is always readable.
+  World-anchored panels and popups keep normal depth sorting.
 - **VR altitude on the BUMPERS** — left down, right up, analog (squeeze
   pressure, so you can ease onto a height). Same hand logic as brake/accelerate
   on the triggers. The right stick's vertical still flies, but it doubles as

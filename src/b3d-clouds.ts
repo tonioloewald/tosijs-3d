@@ -42,7 +42,11 @@ const scene = b3d(
   // Cascaded shadows, because the ground is 4000 units across: with the default
   // single map the aircraft's shadow lands in a far, coarse cascade and is
   // effectively invisible. Cascades put the resolution where the camera is.
-  b3dSun({ intensity: 0.9, shadowCascading: true, shadowTextureSize: 2048 }),
+  // shadowMaxZ 600, not the 100 default: this demo climbs to cloud altitude
+  // (140m), and shadows simply stop rendering beyond maxZ — so the land lost
+  // its shadows exactly when you got high enough to look at it. Cascades keep
+  // the near resolution usable across the wider range.
+  b3dSun({ intensity: 0.9, shadowCascading: true, shadowTextureSize: 2048, shadowMaxZ: 600 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dFog({ start: 400, end: 3000, color: '#bfd9f2' }),
   b3dGround({ meshName: 'ground_nocast', width: 4000, height: 4000, color: '#6b7f5e' }),
