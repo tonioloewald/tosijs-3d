@@ -31,6 +31,29 @@ line ends a hypothesis chain immediately (`hit=frame-panel`, `L:0.00,0.00`,
 **is a release consideration** — a demo that wedges the page is worse than one
 that looks wrong.
 
+## When haltija reaches a headset (the remote bridge)
+
+tosijs-ui is cutting a release, and haltija-over-the-bridge is next — which
+removes the biggest pain point this project has. Right now the only channel out
+of a headset is a human reading a panel aloud.
+
+[ ] **Stream `debugLog` over the bridge when it lands.** The plumbing is already
+the right shape and was built this way deliberately: `logDebug(tag, event)`
+writes frame-stamped structured events into a ring, and the Perf rows
+(`aircraft ground`, `xr input`, `errors`) are just human-readable VIEWS over
+it. So this is wiring, not a redesign — point the ring at the channel and the
+same data an agent currently gets by asking becomes something it can read.
+[ ] **Revisit tosijs-ui#99 (the `/__debug-sink` endpoint) once the bridge
+exists.** #99 asked for a POST endpoint precisely because the dev channel is
+loopback-gated and cannot reach a headset. If the bridge solves that
+properly, #99 may be redundant — or may still be worth having as the
+no-haltija path (CI, a phone, a colleague's device). Decide rather than
+leave both half-built.
+[ ] **Retire the read-it-aloud workflow from the checklist** once streaming
+works: `reviews/0.7.0-headset-checklist.md` currently tells Tonio to read
+specific Perf rows back. That instruction should become "reproduce it and I
+will read the stream".
+
 ## Turret firing arcs (Tonio, 0.7.0 validation pass)
 
 Observed: the turret works, but "only hits if smarter or higher muzzle
