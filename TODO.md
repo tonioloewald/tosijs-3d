@@ -31,6 +31,36 @@ line ends a hypothesis chain immediately (`hit=frame-panel`, `L:0.00,0.00`,
 **is a release consideration** — a demo that wedges the page is worse than one
 that looks wrong.
 
+## Exiting VR re-seats you (minor, and it is a TRADEOFF I chose)
+
+Tonio: "when you exit VR you get reseated automatically. It's actually not bad
+but it isn't normal behavior." Correct, and it is mine — not a bug so much as
+the wrong horn of a dilemma.
+
+Fixing "exiting VR drops the flat camera to the floor" (`3847b88b`) made entry
+SNAPSHOT the orbit camera's alpha/beta/radius/target and exit RESTORE it. That
+kills the altitude collapse, but it also discards wherever you moved to in VR —
+which is what reads as an automatic re-seat. And it contradicts what Tonio
+asked for in the 08-21 pass: _"exiting VR DOES carry the VR pose back… it'd be
+kind of nice if that was symmetric."_ He liked the carry-back; the only problem
+was that Babylon dumps a raw walked POSITION into an `ArcRotateCamera`, which
+then recomputes a floor-level orbit.
+
+[ ] **Carry the pose back properly instead of restoring.** Derive orbit
+parameters from the headset pose rather than letting Babylon assign a
+position: keep the target, set `radius = distance(headPos, target)` (clamped
+to `lowerRadiusLimit`/`upperRadiusLimit`), and compute `alpha`/`beta` from
+the head→target vector (clamped to the existing beta limits). You then exit
+looking at the scene from where you were standing, which is the symmetric
+behaviour asked for, with no floor collapse.
+
+Falls back to the current snapshot-restore when there is no XR camera pose,
+so nothing regresses if the pose is unavailable at exit.
+
+Not done pre-tag: it is VR-only, I cannot verify it, and the current
+behaviour is by Tonio's own assessment "not bad". Doing it blind late in a
+release is how the panel-behind-you bug took three attempts.
+
 ## When haltija reaches a headset (the remote bridge)
 
 tosijs-ui is cutting a release, and haltija-over-the-bridge is next — which
