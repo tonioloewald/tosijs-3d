@@ -42,7 +42,7 @@ for (let i = 0; i < 24; i++) {
 }
 
 // Shared reticle position + shoot edge, reachable by both sceneCreated and drive.
-const state = { rx: -2.1, rz: -2, shootWas: false }
+const state = { rx: -2.1, rz: -2, shootWas: false, cam: null }
 
 const scene = b3d(
   {
@@ -56,7 +56,7 @@ const scene = b3d(
       toggle3d({ label: 'line of sight', value: s.los }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2.3, beta: Math.PI / 3, radius: 16, target: [0, 0.5, 0] })
+      state.cam = orbitCam(el, { alpha: -Math.PI / 2.3, beta: Math.PI / 3, radius: 16, target: [0, 0.5, 0] })
       // A wall that runs only HALF the width, between the two blocks of cubes.
       // Stopping short is the point: it gives you sheltered and exposed targets
       // at the same range, so one blast demonstrates the rule instead of the
@@ -82,8 +82,20 @@ const scene = b3d(
   b3dController({
     mapping: 'biped',
     drive(input, dt) {
-      state.rx = Math.max(-6, Math.min(6, state.rx + input.turn * 7 * dt)) // A/D
-      state.rz = Math.max(-5, Math.min(5, state.rz + input.forward * 7 * dt)) // W/S
+      // CAMERA-RELATIVE steering. World-axis steering is unusable here for a
+      // reason specific to this demo: its subject is the shadow the wall casts,
+      // which you can only read by orbiting — and once the camera has swung,
+      // "forward" was pushing the reticle sideways.
+      //
+      // ArcRotate puts the camera at target + r*(cos a*sin b, cos b, sin a*sin b),
+      // so camera->target in XZ is -(cos a, sin a) = screen "up", and screen
+      // "right" is up x forward = (-sin a, cos a).
+      const a = state.cam ? state.cam.alpha : -Math.PI / 2
+      const fx = -Math.cos(a), fz = -Math.sin(a)
+      const sx = -Math.sin(a), sz = Math.cos(a)
+      const step = 7 * dt
+      state.rx = Math.max(-6, Math.min(6, state.rx + (sx * input.turn + fx * input.forward) * step)) // A/D + W/S
+      state.rz = Math.max(-5, Math.min(5, state.rz + (sz * input.turn + fz * input.forward) * step))
       const shoot = input.shoot > 0.5 || input.sprint > 0.5
       if (shoot && !state.shootWas) {
         warhead.damage = s.damage.value
