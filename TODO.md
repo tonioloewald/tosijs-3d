@@ -1,5 +1,22 @@
 # TODO
 
+## 0.7.1 queue
+
+Everything deliberately deferred past the 0.7.0 tag. All non-breaking; none
+justified holding a release. Details live in the sections named.
+
+| Item                                                                          | Why it waited                                                                                           |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **`tosijs-3d/demo-utils` subpath** (vetted subset + stability disclaimer)     | API commitment; the vet found the module is not publishable as-is. `orbitCam` alone is 30 of 38 imports |
+| **Exit-VR carries the pose back** instead of re-seating you                   | VR-only, unverifiable at a desk, current behaviour "not bad"                                            |
+| **Which half of an angle pair is STORED** (`turnRateDeg` as a real attribute) | Inverting it is a migration for anyone using `turn-rate`                                                |
+| **Turret firing arcs** — high-angle fire and/or traversal limits              | New feature, two readings to settle first                                                               |
+| **`flightStage` helper** — the aircraft equivalent of `demoStage`             | Third demo to need it; specified, not built                                                             |
+| **Default-exclude collision groups** (`probe()`)                              | The shared predicate landed; the polarity flip and the remaining call sites did not                     |
+
+**Still open against 0.7.0 itself:** the guided-missile crash below, the
+left-stick double-duty conflict, and the npm channel decision.
+
 ## OPEN: guided-missile demo crashes on a hit (0.7.0 validation, UNRESOLVED)
 
 Tonio: crashes on roughly the 2nd–3rd missile hit, and it is bad — "I can
@@ -31,7 +48,7 @@ line ends a hypothesis chain immediately (`hit=frame-panel`, `L:0.00,0.00`,
 **is a release consideration** — a demo that wedges the page is worse than one
 that looks wrong.
 
-## Exiting VR re-seats you (minor, and it is a TRADEOFF I chose)
+## Exiting VR re-seats you — QUEUED FOR 0.7.1 (a tradeoff I chose)
 
 Tonio: "when you exit VR you get reseated automatically. It's actually not bad
 but it isn't normal behavior." Correct, and it is mine — not a bug so much as
@@ -57,9 +74,10 @@ behaviour asked for, with no floor collapse.
 Falls back to the current snapshot-restore when there is no XR camera pose,
 so nothing regresses if the pose is unavailable at exit.
 
-Not done pre-tag: it is VR-only, I cannot verify it, and the current
-behaviour is by Tonio's own assessment "not bad". Doing it blind late in a
-release is how the panel-behind-you bug took three attempts.
+**Queued for 0.7.1** (Tonio): not bad today, and the fix — if it is one — is
+non-breaking, so it does not justify holding a tag. It is also VR-only and
+unverifiable by me, and landing that blind late in a release is how the
+panel-behind-you bug took three attempts.
 
 ## When haltija reaches a headset (the remote bridge)
 
