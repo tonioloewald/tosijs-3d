@@ -26,6 +26,35 @@ settle which (or both) before building:
 Both are cheap on top of what exists (`ballistics.ts` is pure and tested), and
 the second composes with the first. Neither blocks 0.7.0.
 
+[ ] **Warhead demo: steer the reticle CAMERA-RELATIVE, not world-axis.** Tonio:
+_"it's quite weird to use it with the view rotated, and you really need to
+rotate the view to see the way the cover works."_ Those two halves are the
+whole argument — the demo's own subject (a wall casting a blast shadow) is
+only legible if you orbit, and orbiting is exactly what breaks the controls.
+Today `drive()` adds `input.turn` to world **x** and `input.forward` to world
+**z**, so once the camera has swung 90° "forward" pushes the reticle sideways.
+
+Fix: project the stick through the camera's yaw before applying, the same
+thing free-fly locomotion already does (`cam.getDirectionToRef` flattened to
+the floor). Roughly:
+
+```js
+const yaw = el.camera.alpha // ArcRotate: camera yaw about the target
+const c = Math.cos(yaw),
+  s = Math.sin(yaw)
+state.rx += (input.turn * c - input.forward * s) * SPEED * dt
+state.rz += (input.turn * s + input.forward * c) * SPEED * dt
+```
+
+**Checked, and it does NOT recur — the fix is local.** I expected a sweep and
+grepped for the same shape: `b3d-car` turns the car's own heading, the
+`b3d-controller` rover is tank-style (rotate then advance along its facing),
+and `b3d-launcher` steers its own azimuth via `ry`. All three are
+entity-relative and correct. The warhead reticle is the only place a stick
+drives WORLD axes directly, which is exactly why it is the only one that
+feels wrong when the camera moves. Screen-relative is what every RTS and
+cursor does, and it is the reason nobody notices until they orbit.
+
 ## 0.7.0 pre-tag gate — follow-ups NOT fixed (2026-08-23)
 
 Full report: `reviews/0.7.0-pre-tag-gate.md`. Blockers and verified majors were
