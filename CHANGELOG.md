@@ -182,6 +182,12 @@ was tuned around the old feel.
     borrows a control you also play with can use them. `freeze()` stops the
     clock without raising the pause panel and without pause's resume semantics
     — a scene paused underneath stays paused.
+- **VR altitude on the BUMPERS** — left down, right up, analog (squeeze
+  pressure, so you can ease onto a height). Same hand logic as brake/accelerate
+  on the triggers. The right stick's vertical still flies, but it doubles as
+  panel scroll, so in any scene with a scrollable panel open — most demos — the
+  stick scrolled and the rig did not move, and altitude appeared to be missing
+  entirely. Two dedicated buttons cannot be stolen by a panel.
 - **Pause/resume in the standard scene panel.** Pause was a one-way door: the
   pause panel offers _Continue_, so it was a state you could LEAVE and never
   ENTER — nothing in the panel stopped a running scene, and `startPaused` is an

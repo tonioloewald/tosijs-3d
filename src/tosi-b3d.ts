@@ -2758,7 +2758,11 @@ export class B3d extends Component {
 
   // The built-in XR experience used when no `setupXr` hook is supplied: stand
   // the viewer on a grid floor near the scene, walk with the left stick
-  // (relative to head facing), and fly up/down with the right stick. A rig
+  // (relative to head facing), turn with the right stick, and change altitude
+  // with the BUMPERS (left down / right up, analog — the same hand logic as
+  // brake/accelerate on the triggers). The right stick's vertical still flies
+  // when nothing is claiming it, but the bumpers are the reliable path: that
+  // axis doubles as panel scroll. A rig
   // TransformNode is the movable anchor — live head tracking applies as a local
   // transform on top. Returns a disposer that tears everything down on exit.
   private _startDefaultXrExperience(
@@ -3107,6 +3111,10 @@ export class B3d extends Component {
     axes, and where the rig ended up (including whether the entry yaw seed
     actually fired).
     */
+    const squeezeDbg = (h: 'left' | 'right') =>
+      ((controllers[h] as Record<string, any> | undefined)?.[
+        'xr-standard-squeeze'
+      ]?.value as number | undefined) ?? 0
     const xrInputDbgOff = this.addDebugSource({
       name: 'xr input',
       lines: () => {
@@ -3122,6 +3130,9 @@ export class B3d extends Component {
         const deg = (r: number) => ((r * 180) / Math.PI).toFixed(0)
         return [
           `${fmt('left')}  ${fmt('right')}`,
+          `lift L${squeezeDbg('left').toFixed(1)} R${squeezeDbg(
+            'right'
+          ).toFixed(1)}`,
           `rig ${rig.position.x.toFixed(1)},${rig.position.y.toFixed(
             1
           )},${rig.position.z.toFixed(1)} yaw ${deg(rig.rotation.y)}°`,
@@ -3428,6 +3439,30 @@ export class B3d extends Component {
         side.scaleToRef(left.x * step, tmp)
         rig.position.addInPlace(tmp)
       }
+      /*
+      ALTITUDE ON THE BUMPERS: left = down, right = up.
+
+      Tonio's mapping, and the same hand logic as the triggers (left brakes,
+      right accelerates) so the pair is learned once. It is ANALOG — squeeze
+      value, not a boolean — so you can ease onto a height rather than bang
+      between rates.
+
+      It exists because the right stick's vertical was not a reliable way down.
+      That axis is ALSO the panel scroll, so in any scene with a scrollable
+      panel open — which is most of the demos, they set `scenePanelOpen` — the
+      stick scrolls and the rig does not move, and the control appears simply
+      missing ("there's still no way to change your altitude"). Two dedicated
+      buttons cannot be stolen by a panel.
+
+      The stick keeps working when nothing is claiming it, so nobody who
+      already knows it loses it.
+      */
+      const squeeze = (h: 'left' | 'right') =>
+        ((controllers[h] as Record<string, any> | undefined)?.[
+          'xr-standard-squeeze'
+        ]?.value as number | undefined) ?? 0
+      const lift = squeeze('right') - squeeze('left')
+      if (Math.abs(lift) > DEAD) rig.position.y += lift * VERT_SPEED * dt
       if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
         rig.position.y += -right.y * VERT_SPEED * dt // push up to ascend
       }
