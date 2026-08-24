@@ -2079,6 +2079,52 @@ export class B3d extends Component {
   Mirror-to-console is opt-in per tag because a VR frame budget can't afford a
   log line every reset.
   */
+  /*
+  THE CONSOLE THAT EXISTS IN A HEADSET.
+
+  A VR-only crash is the worst shape of bug we have: there is no console, and
+  the one person who can see it is wearing the thing. The guided-missile demo
+  crashes on a hit in VR and NOT flat (Tonio), which is exactly the case where
+  "read me the error" is impossible.
+
+  So capture errors into the ring and surface the latest on the Perf panel. A
+  PASSIVE listener — never `preventDefault()` — so behaviour is unchanged and
+  this can ship on by default; an error that reaches `window` was already
+  uncaught, and recording it costs nothing until one happens.
+
+  Installed once per element, torn down with it.
+  */
+  private _errors: Array<{ f: number; msg: string; at: string }> = []
+  private _errorCaptureOff: (() => void) | null = null
+  private _installErrorCapture(): () => void {
+    const onError = (e: ErrorEvent) => {
+      const where = e.filename
+        ? `${String(e.filename).split('/').pop()}:${e.lineno}`
+        : 'unknown'
+      this._errors.push({
+        f: this._debugFrame,
+        msg: String(e.message ?? e.error ?? 'error').slice(0, 120),
+        at: where,
+      })
+      if (this._errors.length > 8) this._errors.shift()
+      this.logDebug('error', { msg: String(e.message), at: where })
+    }
+    const onRejection = (e: PromiseRejectionEvent) => {
+      this._errors.push({
+        f: this._debugFrame,
+        msg: `unhandled: ${String(e.reason)}`.slice(0, 120),
+        at: 'promise',
+      })
+      if (this._errors.length > 8) this._errors.shift()
+    }
+    window.addEventListener('error', onError)
+    window.addEventListener('unhandledrejection', onRejection)
+    return () => {
+      window.removeEventListener('error', onError)
+      window.removeEventListener('unhandledrejection', onRejection)
+    }
+  }
+
   private _debugRing: Array<Record<string, unknown>> = []
   private _debugCapture = new Set<string>()
   private _debugFrame = 0
@@ -2536,6 +2582,29 @@ export class B3d extends Component {
       // Scene is ready. Release any B3dChild components that connected and asked
       // (whenReady) before the scene was up — they insert themselves now. Anything
       // connecting later self-registers and runs immediately.
+      // Errors, on the one readout that exists in a headset — see
+      // _installErrorCapture. Registered once, with the scene.
+      this._errorCaptureOff = this._installErrorCapture()
+      this.addDebugSource({
+        name: 'errors',
+        lines: () => {
+          if (this._errors.length === 0) return ['none']
+          const last = this._errors[this._errors.length - 1]
+          return [
+            `${this._errors.length} seen · last f${last.f} @${last.at}`,
+            last.msg.slice(0, 46),
+          ]
+        },
+        actions: [
+          {
+            label: 'Clear',
+            onClick: () => {
+              this._errors = []
+              this._repaintPanels()
+            },
+          },
+        ],
+      })
       this._sceneReady = true
       // Pause plumbing: watchers first, then the initial state — so a scene
       // that comes up paused already has its panel and its listeners.
@@ -3949,6 +4018,8 @@ export class B3d extends Component {
   }
 
   disconnectedCallback(): void {
+    this._errorCaptureOff?.()
+    this._errorCaptureOff = null
     this._pauseWatch?.()
     this._pauseWatch = null
     if (B3d._active === this) B3d._active = null
