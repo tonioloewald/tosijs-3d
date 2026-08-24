@@ -1,5 +1,36 @@
 # TODO
 
+## OPEN: guided-missile demo crashes on a hit (0.7.0 validation, UNRESOLVED)
+
+Tonio: crashes on roughly the 2nd–3rd missile hit, and it is bad — "I can
+navigate to another page but the demo doesn't load until I refresh" (the demo
+that then failed to load was **warhead**, i.e. a DIFFERENT page). That
+cross-page symptom says the page is wedged, not just this scene: most likely an
+exception escaping a render observable, or the live-example runner left broken.
+
+**Not reproduced, and not explained.** Four plausible mechanisms were checked
+and every one is already guarded — recorded so nobody re-walks them:
+
+- `spawnMissile`'s `dispose()` is idempotent (`alive` flag).
+- `_die()` runs once (`if (this._dead) return` in its observer).
+- `damage()` on a disposed destroyable is a null-safe no-op.
+- Missile guidance handles a dead target: `if (target.isDisposed()) return //
+lost lock — coast straight`.
+
+**Fixed alongside, but NOT claimed as the cause:** the demo's `destroyed`
+handler reacted to ANY destroyed event and scheduled a respawn each time, so a
+second event queued an extra spawn while the target was already null — orphan
+drones that nothing moves or clears. Real bug, same shape as issue #25; may or
+may not be related to the crash.
+
+[ ] **Get the console error.** This is the decisive datum and it costs one
+reproduction: open DevTools on the flat page, fire until it goes, and capture
+the first red error + stack. The pattern this cycle has been that one printed
+line ends a hypothesis chain immediately (`hit=frame-panel`, `L:0.00,0.00`,
+`seed done`) while reasoning about it does not. Until then this stays OPEN and
+**is a release consideration** — a demo that wedges the page is worse than one
+that looks wrong.
+
 ## Turret firing arcs (Tonio, 0.7.0 validation pass)
 
 Observed: the turret works, but "only hits if smarter or higher muzzle

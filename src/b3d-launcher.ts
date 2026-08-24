@@ -124,9 +124,17 @@ const scene = b3d(
         return t
       }
       state.target = spawn()
-      el.addEventListener('destroyed', () => {
-        const dead = state.target; state.target = null
-        if (dead) dead.remove()
+      // RELEVANCE FIRST, and exactly once. This used to react to ANY `destroyed`
+      // event and schedule a respawn every time — so a second event (an AoE
+      // catching something else, a stray) queued an EXTRA spawn while the
+      // target was already null, leaving orphan drones nothing moves or clears.
+      // Same shape as issue #25, where any other entity's death tore down the
+      // death panel.
+      el.addEventListener('destroyed', (e) => {
+        const dead = state.target
+        if (!dead || (e.target !== dead && !dead.contains(e.target))) return
+        state.target = null
+        dead.remove()
         setTimeout(() => { state.target = spawn() }, 400)
       })
       el.scene.onBeforeRenderObservable.add(() => {
