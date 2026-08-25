@@ -580,6 +580,18 @@ Two rules, and the second is the one that removes the guessing:
    read the source to answer "is this radians?" — the API answers it, which is
    the whole point of the suffix.
 
+**Keep a `Deg` alias COMPUTED.** A name can be an attribute or an accessor, not
+both (`observedAttributes` comes from `initAttributes`, and attribute props are
+installed with `Object.defineProperty(this, …)`, which shadows a prototype
+accessor). In practice the accessor wins anyway: `elementCreator` assigns
+non-null values as properties, so `b3dLauncher({ turnRateDeg: 30 })` and
+`el.turnRateDeg = 30` both run it, and anything read per-frame picks the value
+up immediately. Only literal markup (`turn-rate-deg="30"`) waits on computed
+attributes in tosijs 1.8.0 ([tosijs#27]).
+
+Do NOT move the stored slot to degrees to win that last case — it breaks the
+radian attribute for everyone to buy a few months.
+
 **Only ONE of the pair can be an attribute — pick deliberately, and say which.**
 An `initAttributes` entry is _stored_, so declaring both `turnRate` and
 `turnRateDeg` gives you two values that diverge the moment either is written.

@@ -207,7 +207,7 @@ that assumes one orients its effect off nothing.
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
-| `turnRateDeg` | — | The same agility in **deg/sec**. A computed view onto `turnRate` — set either, read either — but **JS only**: `turn-rate-deg` is not an attribute, because `turnRate` is the stored one and both cannot be. See CLAUDE.md → "Angles" |
+| `turnRateDeg` | — | The same agility in **deg/sec** — a computed view onto `turnRate`: set either, read either, and reading returns exactly what you set. Literal markup (`turn-rate-deg="30"`) needs computed attributes, landing in tosijs 1.8.0 |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
