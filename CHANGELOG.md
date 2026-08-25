@@ -182,6 +182,12 @@ was tuned around the old feel.
     borrows a control you also play with can use them. `freeze()` stops the
     clock without raising the pause panel and without pause's resume semantics
     — a scene paused underneath stays paused.
+- **The package is licensed** — **Apache-2.0**, with a LICENSE file, plus
+  `description`, `homepage` and `bugs`. Every release since 0.2.1 shipped with
+  no licence at all, which legally means all-rights-reserved: SCA tooling flags
+  an unknown-licence dependency, and adopters consuming this as a `file:` dep
+  had nothing to point at. Apache-2.0 rather than MIT/BSD for the explicit
+  patent grant and retaliation clause.
 - **A `startPaused` scene renders its own fog, not Babylon's default** (#31). A
   paused frame still RENDERS — that is the point, the panel has to be visible —
   so everything the render reads has to be correct. `_updateFog` sat past the
