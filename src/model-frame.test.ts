@@ -106,31 +106,75 @@ marker silently compensated and came out right. Correct authoring was punished.
 Re-exporting the scout "properly" is what started the phantom crashes.
 */
 describe('canonicalize drops scenic dressing', () => {
-  test('the content node under __root__ is zeroed, not just __root__', async () => {
+  test('a MULTI-object scene file is left alone — layout is data, not dressing', async () => {
+    /*
+    This assertion used to loop over ALL children asserting position ~ 0, which
+    pinned the BUG rather than the contract: test-3.glb's __root__ has 8
+    children, 4 of them posed, and zeroing every one collapsed the scene into a
+    pile. Reachable via b3dAircraft({url}), which hands the glTF __root__
+    straight to canonicalize. Caught by the 0.7.0 pre-tag gate as B1.
+    */
     const e = container.instantiateModelsToScene(undefined, false, {
       doNotInstantiate: true,
     })
     const root = e.rootNodes[0] as import('@babylonjs/core').TransformNode
-    canonicalize(root, scene, 'ctl-dressing')
-    for (const child of root.getChildren(
+    const kids = root.getChildren(
       (n) => n instanceof BABYLON.TransformNode,
       true
-    )) {
-      const t = child as import('@babylonjs/core').TransformNode
-      expect(t.position.length()).toBeLessThan(1e-6)
+    ) as import('@babylonjs/core').TransformNode[]
+    expect(kids.length).toBeGreaterThan(1) // a scene file, not a single model
+    const posed = kids
+      .filter((k) => k.position.length() > 0.01)
+      .map((k) => ({ k, p: k.position.clone() }))
+    expect(posed.length).toBeGreaterThan(0) // non-vacuous: something IS posed
+
+    canonicalize(root, scene, 'ctl-multi')
+
+    for (const { k, p } of posed) {
+      expect(k.position.subtract(p).length()).toBeLessThan(1e-6)
     }
   })
 
+  test('a SINGLE content node under __root__ does lose its scene transform', async () => {
+    const e = container.instantiateModelsToScene(undefined, false, {
+      doNotInstantiate: true,
+    })
+    const root = e.rootNodes[0] as import('@babylonjs/core').TransformNode
+    // Reduce to one content child, which is the shape canonicalize is FOR.
+    const kids = root.getChildren(
+      (n) => n instanceof BABYLON.TransformNode,
+      true
+    ) as import('@babylonjs/core').TransformNode[]
+    const keep = kids.find((k) => k.position.length() > 0.01)!
+    for (const k of kids) if (k !== keep) k.parent = null
+    expect(keep.position.length()).toBeGreaterThan(0.01)
+
+    canonicalize(root, scene, 'ctl-single')
+    expect(keep.position.length()).toBeLessThan(1e-6)
+  })
+
   test('a centreline-authored CoG installs a centreline pivot', async () => {
+    /*
+    Reduced to ONE content node first, because that is the shape canonicalize
+    is for. The earlier version ran against the whole 8-object scene file and
+    only passed because the function was (wrongly) flattening every child —
+    so it was asserting the contract via the bug. See B1.
+    */
     const { applyCenterOfGravity } = await import('./model-transform')
     const e = container.instantiateModelsToScene(undefined, false, {
       doNotInstantiate: true,
     })
-    const control = canonicalize(
-      e.rootNodes[0] as import('@babylonjs/core').TransformNode,
-      scene,
-      'ctl-cog'
-    )
+    const root = e.rootNodes[0] as import('@babylonjs/core').TransformNode
+    const kids = root.getChildren(
+      (n) => n instanceof BABYLON.TransformNode,
+      true
+    ) as import('@babylonjs/core').TransformNode[]
+    const scout = kids.find((k) =>
+      k.getDescendants(false).some((d) => /centerofgravity/i.test(d.name))
+    )!
+    for (const k of kids) if (k !== scout) k.parent = null
+
+    const control = canonicalize(root, scene, 'ctl-cog')
     control.computeWorldMatrix(true)
     applyCenterOfGravity(control)
     // Lateral is the one that must be zero on a symmetric airframe: a pivot off

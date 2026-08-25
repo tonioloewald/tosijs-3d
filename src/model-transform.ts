@@ -90,10 +90,34 @@ export function canonicalize(
   */
   const isGltfRoot = clone.name.includes('__root__')
   const content = isGltfRoot
-    ? clone.getChildren((n) => n instanceof BABYLON.TransformNode, true)
+    ? (clone.getChildren(
+        (n) => n instanceof BABYLON.TransformNode,
+        true
+      ) as BABYLON.TransformNode[])
     : []
-  for (const child of content) {
-    const t = child as BABYLON.TransformNode
+  /*
+  EXACTLY ONE content node, or none at all.
+
+  The contract above says "the node's SCENE transform" — singular — and the
+  first version of this loop zeroed EVERY top-level child. On a multi-object
+  file that is a total, silent break: `test-3.glb`'s `__root__` has 8 children,
+  4 of them posed, and all 4 collapsed onto the origin. Reachable through
+  `b3dAircraft({ url })`, which always hands the glTF `__root__` straight here.
+
+  With more than one child we cannot know which is "the" content — the file is
+  a SCENE, and its layout is data, not dressing. So leave it entirely alone:
+  dropping a transform we were not asked about is how a model turns into a
+  pile. The single-child case is the one this function was written for, and the
+  one MIGRATION.md documents.
+
+  WHICH PATH GETS HERE, because it is easy to measure the wrong one: only the
+  `url:` path. The LIBRARY path hands us an already-renamed clone, so
+  `isGltfRoot` is false and this block never runs — and it does not need to,
+  because `clone.position.set(0, 0, 0)` above already zeroes the instantiated
+  node's own transform. The library path has always been correct.
+  */
+  if (content.length === 1) {
+    const t = content[0]
     t.position.set(0, 0, 0)
     t.rotationQuaternion = BABYLON.Quaternion.Identity()
     t.rotation.set(0, 0, 0)
