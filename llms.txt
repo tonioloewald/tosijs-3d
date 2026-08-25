@@ -61,6 +61,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
   Focus manager that wires input to the active controllable entity and handles
+- https://3d.tosijs.net/b3d-interactive/ — b3d-interactive
+  callback or by bubbling event. It is the substrate doors, knobs, switches,
 - https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
   Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
 - https://3d.tosijs.net/b3d-library/ — b3d-library
@@ -164,6 +166,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/input/ — Input
   Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
+- https://3d.tosijs.net/interaction/ — interaction
+  Babylon-free, deterministic, unit tested, so what counts as "you used it" can be
+- https://3d.tosijs.net/interactive-behavior/ — interactive-behavior
+  The **attachable** interactive — the scene-side bridge over the pure rules in
 - https://3d.tosijs.net/key-layout/ — key-layout
   The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard/ — keyboard

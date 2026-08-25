@@ -6,6 +6,38 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.7.3
+
+### Added
+
+- **`<tosi-b3d-interactive>` — a mesh you can touch** (#36), the substrate doors,
+  knobs, switches, levers, consoles and lamps all stand on. `b3d-button` is a
+  floating Babylon GUI widget; this is the other thing — world geometry you reach
+  out to. Requested by tosijs-3d-ensemble, whose framing was fair and lands:
+  _tosijs-3d has almost nothing for building a PLACE, as opposed to a battle._
+  Point at a mesh (or a named sub-mesh — the knob, not the door), reach it, use
+  it; `hover` / `unhover` / `activate` / `refused` arrive as bubbling events or
+  `whenX` callbacks.
+  - **One implementation, flat and immersive.** Babylon routes XR controller rays
+    through `scene.onPointerObservable`, the same observable a mouse feeds, so
+    there is no XR branch and no second path to keep in step.
+  - **Composition, not a god-feature.** `vetoes` is the seam ensemble asked for:
+    a `lockable` pushes one, `interactive` never learns what a lock is, and the
+    refusal NAMES the refuser — the difference between a locked door and a broken
+    one. Vetoes run at activation, not at hover, so a locked door still highlights
+    and still reports being tried; silence is a bug report.
+  - **It never touches the transform.** An element that manages a node owns its
+    transform (the rule #35 was a violation of), so this reads the scene and never
+    writes to it. A door that opens moves its ELEMENT.
+- **`interaction.ts`** — the pure, Babylon-free rules (`interactStep`,
+  `activationVeto`, `withinReach`), unit tested, so what counts as "you used it"
+  can be argued about without a scene. Activation is press-then-**release** on the
+  thing, because a press you drag off and release elsewhere is how anyone recovers
+  from touching the wrong thing — and aim wanders more in a headset, not less.
+- **`InteractiveBehavior`** — the attachable form, for anything that already owns
+  a mesh (a loader, a biped, a vehicle), plus `nearestInteractive` / `useNearest`
+  for the "walk up and press E" control that wires to `ControlInput.interact`.
+
 ## 0.7.2
 
 ### Fixed

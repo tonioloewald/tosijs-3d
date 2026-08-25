@@ -120,7 +120,14 @@ What they have that we lack, their ordering, and the first one carries the rest:
 - **Detection volumes** — a camera's cone, not a sphere.
 - **Spin in place**, "trivial and conspicuously missing".
 
-[ ] **Accept the promotion, and take the contract change with it.** Their one
+[x] **A way to TOUCH a mesh — shipped in 0.7.3** as `<tosi-b3d-interactive>` +
+`InteractiveBehavior` over the pure `interaction.ts`. The `vetoes` seam is
+their composition finding, taken as designed. What is NOT built, and is the
+obvious next layer on top of it: doors (swing/slide/iris), locks and keys as
+authorable pieces, lamps, mirrors, cone detection volumes, spin-in-place.
+Their `presets/world` rules port onto this substrate as-is.
+
+[x] **Accept the promotion, and take the contract change with it.** Their one
 architectural finding is the part I would not have got right alone:
 **features must compose on other features ON THE SAME PIECE.** A door
 consults `interactive` to know it was used; `interactive` consults

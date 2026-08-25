@@ -634,6 +634,30 @@ export type { BiomeParams } from './biome-plugin'
 export { B3dParticles, b3dParticles } from './b3d-particles'
 export { B3dSound, b3dSound } from './b3d-sound'
 export { B3dTrigger, b3dTrigger } from './b3d-trigger'
+// Interactive: the substrate for touching a thing — doors, knobs, switches, locks.
+export { B3dInteractive, b3dInteractive } from './b3d-interactive'
+export {
+  InteractiveBehavior,
+  nearestInteractive,
+  useNearest,
+} from './interactive-behavior'
+export type {
+  InteractionInfo,
+  InteractiveHost,
+  InteractiveConfig,
+} from './interactive-behavior'
+export {
+  interactStep,
+  newInteractState,
+  activationVeto,
+  withinReach,
+} from './interaction'
+export type {
+  InteractPhase,
+  InteractState,
+  InteractInput,
+  InteractResult,
+} from './interaction'
 // Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
 export { B3dDeath, b3dDeath } from './b3d-death'
 // Spawner: keeps the world populated with encounters (prefab + a rule).
