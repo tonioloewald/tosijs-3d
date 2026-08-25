@@ -837,11 +837,30 @@ export class B3dLauncher extends AbstractMesh {
   says plainly that the attribute form is unavailable, rather than leaving
   `turn-rate-deg="90"` to fail silently.
   */
+  /**
+   * What you last SET, if it is still the current value — otherwise derived.
+   *
+   * The naive `rad * 180/PI` round-trip is lossy: `30` comes back as
+   * `29.999999999999996`, which is what a slider readout or a saved scene would
+   * then show. Caching the pair you supplied fixes that without introducing a
+   * second source of truth, because the memo carries its own PROVENANCE — the
+   * radian value it produced. If anything writes `turnRate` afterwards the memo
+   * no longer matches and we derive fresh, so invalidation is exact and needs
+   * no observer, no dirty flag and no staleness window (Tonio's design).
+   *
+   * `turnRate` remains the one stored value; this is still a computed view.
+   */
+  private _degMemo: { deg: number; rad: number } | null = null
   get turnRateDeg(): number {
-    return this.turnRate * (180 / Math.PI)
+    const rad = this.turnRate
+    const memo = this._degMemo
+    if (memo != null && memo.rad === rad) return memo.deg
+    return rad * (180 / Math.PI)
   }
   set turnRateDeg(v: number) {
-    this.turnRate = v * (Math.PI / 180)
+    const rad = v * (Math.PI / 180)
+    this._degMemo = { deg: v, rad }
+    this.turnRate = rad
   }
   declare projRadius: number
   declare projColor: string

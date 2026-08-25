@@ -8,6 +8,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.1 (unreleased)
 
+### Fixed
+
+- **`turnRateDeg` returns exactly what you set.** Converting through radians is
+  lossy — `30` derived back as `29.999999999999996`, which is what a slider
+  readout or a saved scene would show. It now remembers the value you supplied
+  together with the radians it produced, so a later write to `turnRate` is
+  detected exactly and the view derives fresh. Still one stored value.
+
 ### Added
 
 - **`tosijs-3d/demo-utils`** — the scene-setup helpers every live example uses

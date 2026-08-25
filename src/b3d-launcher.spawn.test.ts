@@ -386,4 +386,37 @@ describe('the element exposes the same conversion', () => {
     expect(el.turnRate).toBeCloseTo(Math.PI)
     expect(el.turnRateDeg).toBeCloseTo(180)
   })
+
+  /*
+  The round-trip is LOSSY through radians — 30° derives back as
+  29.999999999999996, which is what a slider readout or a serialised scene then
+  shows. The memo returns what you SET while it is still current, and carries
+  the radian value it produced so staleness is detected exactly rather than
+  guessed at.
+  */
+  test('returns EXACTLY what you set — no float drift', async () => {
+    const { B3dLauncher } = await import('./b3d-launcher')
+    const el = Object.create(B3dLauncher.prototype) as any
+    expect((30 * (Math.PI / 180)) * (180 / Math.PI)).not.toBe(30) // the hazard
+    el.turnRateDeg = 30
+    expect(el.turnRateDeg).toBe(30) // exact, not 29.999999999999996
+  })
+
+  test('a direct write to turnRate invalidates the memo', async () => {
+    const { B3dLauncher } = await import('./b3d-launcher')
+    const el = Object.create(B3dLauncher.prototype) as any
+    el.turnRateDeg = 30
+    expect(el.turnRateDeg).toBe(30)
+    el.turnRate = 1 // somebody else moved it
+    expect(el.turnRateDeg).toBeCloseTo(180 / Math.PI)
+    expect(el.turnRateDeg).not.toBe(30)
+  })
+
+  test('re-setting turnRate to the SAME radians keeps the exact degrees', async () => {
+    const { B3dLauncher } = await import('./b3d-launcher')
+    const el = Object.create(B3dLauncher.prototype) as any
+    el.turnRateDeg = 30
+    el.turnRate = el.turnRate // a no-op write must not lose provenance
+    expect(el.turnRateDeg).toBe(30)
+  })
 })

@@ -593,6 +593,15 @@ That makes the choice of which is stored an API decision:
   `Deg` alias is **JS-only** and `turn-rate-deg` is not a valid attribute.
   Inverting it is a real migration, not a rename.
 
+**A `Deg` alias should return what you SET, not what derives back.** The
+conversion is lossy — `30` degrees comes back as `29.999999999999996` — and that
+value is what a slider readout or a serialised scene will show. Cache the pair
+you were given along with the radian value it produced; if the stored half no
+longer matches, derive fresh. The memo carries its own **provenance**, so
+invalidation is exact and needs no observer, no dirty flag and no staleness
+window, and there is still only one stored value. See `turnRateDeg` in
+`b3d-launcher` for the shape.
+
 Whichever way it falls, **document it on the attribute row.** A `Deg` alias that
 silently does nothing as an attribute is worse than one that never existed —
 `turn-rate-deg="90"` fails with no error, no warning, and a plausible-looking
