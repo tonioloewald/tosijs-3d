@@ -74,6 +74,7 @@ visibility. See [b3d-clouds](?b3d-clouds.ts), the first consumer.
 /*{ "parent": "Effects" }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { collidable } from './b3d-utils'
 
 const TEX_CACHE = new WeakMap<BABYLON.Scene, BABYLON.DynamicTexture>()
 const MAT_CACHE = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()
@@ -185,8 +186,15 @@ export function projectShadowDown(
     BABYLON.Vector3.Down(),
     opts.maxDistance ?? 1000
   )
-  const predicate =
-    opts.predicate ?? ((m: BABYLON.AbstractMesh) => m.isPickable)
+  /*
+  `collidable()`, not a bare `isPickable` check — a UI panel IS pickable, so the
+  old default let a blob shadow land on a floating dialog. `collidable` also
+  re-checks `isEnabled`, which Babylon skips whenever a predicate is passed.
+
+  A caller can still supply its own predicate; this is only the default, and the
+  default is the one that has to be safe.
+  */
+  const predicate = opts.predicate ?? collidable()
   const hit = scene.pickWithRay(ray, predicate)
   if (!hit?.pickedPoint) return false
   decal.position.copyFrom(hit.pickedPoint)

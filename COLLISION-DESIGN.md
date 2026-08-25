@@ -137,6 +137,32 @@ because that is what a hurried call site writes. `probe.segment(from, to)` shoul
 already skip UI and sensors. Anything that requires an argument to be correct
 will eventually be called without it.
 
+## The audit — every pick site, and which group it belongs to
+
+Done 0.7.1. The useful result is that **groups already exist implicitly**, and
+most sites were picking the right one for the right reason:
+
+| Site                                                           | Gate                                                    | Verdict                                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `b3d-aircraft` ground ray + impact sweep                       | `collidable()`                                          | ✅                                                                                   |
+| `b3d-launcher` shell ray                                       | `collidable()`                                          | ✅                                                                                   |
+| `b3d-warhead` line of sight                                    | `collidable()`                                          | ✅                                                                                   |
+| `b3d-svg-plane` dialog occlusion                               | `collidable()`                                          | ✅ — UI never blocks UI                                                              |
+| `shadow-decal`                                                 | ~~`m.isPickable`~~ → `collidable()`                     | ❌ **fixed** — a panel IS pickable, so a blob shadow could land on a floating dialog |
+| `b3d-collisions`                                               | explicit allowlist (`targets.has(m) \|\| m === ground`) | ✅ safe by construction                                                              |
+| `b3d-biped`, `b3d-car`                                         | `m.checkCollisions`                                     | ✅ and deliberately NOT `collidable()`                                               |
+| `b3d-svg-plane` pointer routing, `popup-surface`, `b3d-galaxy` | pointer picking                                         | ✅ these are the callers that WANT ui                                                |
+
+**`b3d-biped` / `b3d-car` are the instructive row.** Routing them through
+`collidable()` would have BROKEN them: a collider is often `isPickable = false`
+while `checkCollisions` is true, so the "obvious" sweep would have silently
+deleted their ground detection. `checkCollisions` is a legitimate group and UI
+never sets it, so they were already correct.
+
+The lesson for the eventual `probe()`: a blanket sweep is the wrong instrument.
+Group membership is a real decision per site, and the useful default is
+"exclude ui/sensor", not "use one predicate everywhere".
+
 ## What may hit what — the exclusion problem
 
 Tonio: _"in Unity you can exclude certain mesh families from a ray collision
