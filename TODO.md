@@ -94,6 +94,56 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
+## ENSEMBLE'S STANDING OFFER: world behaviour, prototyped there FOR promotion
+
+`tosijs-3d-ensemble/UPSTREAM.md` §0 is not a request, it is an offer — and the
+framing is the useful part:
+
+> **tosijs-3d has almost nothing for building a PLACE, as opposed to a battle.**
+
+That is fair and worth sitting with. We have destroyables, warheads, launchers,
+turrets, radar, death — and for a place: a spherical trigger, a point light,
+positional audio, and a floating GUI button. They are building the rest against
+real content in `src/presets/world/`, with the rules as pure functions in
+`world/logic.ts` specifically so the maths ports upstream and only the bindings
+get rewritten.
+
+What they have that we lack, their ordering, and the first one carries the rest:
+
+- **A way to TOUCH a mesh.** `b3d-button` is a floating Babylon GUI widget, not
+  world geometry you can reach for — so there is no substrate for doors, knobs,
+  switches, levers or consoles. Everything below stands on this.
+- **Doors** (swing, slide, iris) — and a knob you touch rather than the door.
+- **Locks and keys.**
+- **Lamps** as authorable objects: type, colour, switching, flicker, shadows.
+- **Mirrors** — `b3d-reflections` is a probe, not a reflective surface.
+- **Detection volumes** — a camera's cone, not a sphere.
+- **Spin in place**, "trivial and conspicuously missing".
+
+[ ] **Accept the promotion, and take the contract change with it.** Their one
+architectural finding is the part I would not have got right alone:
+**features must compose on other features ON THE SAME PIECE.** A door
+consults `interactive` to know it was used; `interactive` consults
+`lockable` to know whether it may open. Without that seam (`ctx.feature()`
+there) either every behaviour reimplements the others, or one god-feature
+knows about all of them. Whatever lands here needs that seam from the start
+— retrofitting composition is how you get the god-feature.
+
+[ ] **§1: no manipulator, flat or XR — their single most important
+interaction and their schedule risk.** Babylon's `GizmoManager` is
+mouse-shaped, so it only serves an editor that stays flat, and theirs is SVG
+UI precisely so it runs in a headset. Their warning is one we have already
+paid for elsewhere: **an element that manages a node OWNS its transform**,
+rewriting `mesh.position` from `x`/`y`/`z` every frame — so a drag that moves
+the MESH is silently undone next frame, and a gizmo's writes must land on the
+ELEMENT.
+
+[x] **§2: `destroyable="off"`** — shipped. Their `armor: 100_000` stopgap in
+`place-mesh.ts` can be deleted.
+[ ] **§3: `library` on `b3d-turret` / `b3d-launcher`** — filed as #34, with the
+open design question (which node is the barrel; I lean on a `_barrel` naming
+suffix, consistent with `_centerOfGravity` declaring a model's moving parts).
+
 ## b3d-water grows the UNDERSIDE (Snell's window) — adopter #15
 
 manta-recon has iterated this on a deployed build with a human judging by eye at
