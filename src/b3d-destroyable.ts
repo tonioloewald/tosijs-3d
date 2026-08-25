@@ -164,6 +164,17 @@ export class B3dDestroyable extends AbstractMesh {
      * as a deliberate placeholder rather than a fallback.
      */
     library: '',
+    /**
+     * `'off'` places the mesh WITHOUT enrolling it in combat — same knob and
+     * same spelling as [b3d-loader](?b3d-loader.ts) already has.
+     *
+     * This element is the only way to place a LIBRARY mesh by name, so scenery
+     * had no way out: an ensemble is mostly structure, and every wall and floor
+     * was getting a combat record whether or not anything could shoot it
+     * (tosijs-3d-ensemble, whose stopgap was `armor: 100_000` — buying "cannot
+     * be killed" by paying for a combatant).
+     */
+    destroyable: 'on' as 'on' | 'off',
     size: 1, // placeholder cube edge length (ignored when `library` is set)
     color: '#cc3333',
     capacity: 10, // hit points
@@ -191,6 +202,7 @@ export class B3dDestroyable extends AbstractMesh {
   }
 
   declare meshName: string
+  declare destroyable: 'on' | 'off'
   declare size: number
   declare color: string
   declare capacity: number
@@ -374,6 +386,10 @@ export class B3dDestroyable extends AbstractMesh {
       mesh.position.set(attrs.x, attrs.y, attrs.z)
       this.mesh = mesh
     }
+
+    // Scenery: placed, but not a combatant. No behaviour, so no combat record,
+    // no `destroyed` event and nothing for a warhead to gather.
+    if (isOff(attrs.destroyable)) return
 
     this._behavior = new DestroyableBehavior(
       owner,
