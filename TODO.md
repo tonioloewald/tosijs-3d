@@ -1,20 +1,28 @@
 # TODO
 
-## 0.7.1 queue
+## The queue
 
-Everything deliberately deferred past the 0.7.0 tag. All non-breaking; none
-justified holding a release. Details live in the sections named.
+Deferred past the 0.7.0 tag. Details live in the sections named.
 
-| Item                                                                          | Why it waited                                                                                           |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **`tosijs-3d/demo-utils` subpath** (vetted subset + stability disclaimer)     | API commitment; the vet found the module is not publishable as-is. `orbitCam` alone is 30 of 38 imports |
-| **Exit-VR carries the pose back** instead of re-seating you                   | VR-only, unverifiable at a desk, current behaviour "not bad"                                            |
-| **Which half of an angle pair is STORED** (`turnRateDeg` as a real attribute) | Inverting it is a migration for anyone using `turn-rate`                                                |
-| **Turret firing arcs** — high-angle fire and/or traversal limits              | New feature, two readings to settle first                                                               |
-| **`flightStage` helper** — the aircraft equivalent of `demoStage`             | Third demo to need it; specified, not built                                                             |
-| **World-placed modal dialogs + gaze recovery** (Tonio's design)               | Supersedes face-pinning AND the depth guard; the right fix for all of it                                |
-| **A UI DEPTH BAND** (stacked panels vs. occluders)                            | Per-panel pull-forward is right for one dialog and wrong for two — subsumed by world placement          |
-| **Default-exclude collision groups** (`probe()`)                              | The shared predicate landed; the polarity flip and the remaining call sites did not                     |
+**Release cadence: additive work and fixes go out as PATCHES.** Not minors —
+`practices/releasing.md` → "Responsibility scales with the MEASURED user base".
+Measured for tosijs-3d: ~1.2k downloads/month with **no known external
+consumers** (manta-recon and ariosto are in-house `file:` deps), and zero
+breakage complaints ever. Grading additive work as a minor and holding it for a
+release train is process cosplay — Firebase-scale caution without Firebase-scale
+users. Ship it, note it, move on. (Genuinely breaking changes still get the
+Migration.md treatment — that is about honesty to a consumer, not ceremony.)
+
+| Item                                                                      | Why it waited                                                                                                       |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **`tosijs-3d/demo-utils` subpath** (vetted subset + stability disclaimer) | API commitment; the vet found the module is not publishable as-is. `orbitCam` alone is 30 of 38 imports             |
+| **Exit-VR carries the pose back** instead of re-seating you               | VR-only, unverifiable at a desk, current behaviour "not bad"                                                        |
+| ~~Which half of an angle pair is STORED~~                                 | **Closed** — the alias is computed and reaches every call site that matters; literal markup lands with tosijs 1.8.0 |
+| **Turret firing arcs** — high-angle fire and/or traversal limits          | Two readings to settle first; additive, so it ships in a patch when built                                           |
+| **`flightStage` helper** — the aircraft equivalent of `demoStage`         | Third demo to need it; specified, not built                                                                         |
+| **World-placed modal dialogs + gaze recovery** (Tonio's design)           | Supersedes face-pinning AND the depth guard; the right fix for all of it                                            |
+| **A UI DEPTH BAND** (stacked panels vs. occluders)                        | Per-panel pull-forward is right for one dialog and wrong for two — subsumed by world placement                      |
+| **Default-exclude collision groups** (`probe()`)                          | The shared predicate landed; the polarity flip and the remaining call sites did not                                 |
 
 **Still open against 0.7.0 itself:** the guided-missile crash (page-wedging,
 the one that actually matters), the left-stick double-duty conflict, and the
@@ -86,12 +94,13 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
-## 0.8.0 — b3d-water grows the UNDERSIDE (Snell's window) — adopter #15
+## b3d-water grows the UNDERSIDE (Snell's window) — adopter #15
 
 manta-recon has iterated this on a deployed build with a human judging by eye at
 depth, so the numbers below are measured preferences, not guesses. Replied on
-the issue; scheduled for 0.8.0 (new surface treatment + material change, and it
-wants visual iteration rather than a blind implementation).
+the issue. Ships in a PATCH when it is ready — it is additive, and the only
+thing gating it is that it wants visual iteration rather than a blind
+implementation.
 
 **The defect:** with `twoSided: true` the water plane draws an opaque flat-colour
 backface from below — and that backface sits BETWEEN the camera and anything the
