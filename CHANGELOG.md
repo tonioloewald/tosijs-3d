@@ -182,6 +182,11 @@ was tuned around the old feel.
     borrows a control you also play with can use them. `freeze()` stops the
     clock without raising the pause panel and without pause's resume semantics
     — a scene paused underneath stays paused.
+- **A `startPaused` scene renders its own fog, not Babylon's default** (#31). A
+  paused frame still RENDERS — that is the point, the panel has to be visible —
+  so everything the render reads has to be correct. `_updateFog` sat past the
+  paused branch's early return and `startPaused` pauses in the same synchronous
+  setup block, so a scene that booted paused had never run it once.
 - **Entering VR unpauses a paused scene.** Putting the headset on is the resume
   — and a world you deliberately stepped into has no reason to be frozen. It
   also removed a broken state: entering while paused showed no pause panel

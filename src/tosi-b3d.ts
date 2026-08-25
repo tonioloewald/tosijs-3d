@@ -1480,6 +1480,21 @@ export class B3d extends Component {
         if (this.scene.metadata == null) this.scene.metadata = {}
         this.scene.metadata.b3dFrameDelta = 0
         this.frameDelta = 0
+        /*
+        FOG STILL HAS TO BE RIGHT WHILE STOPPED (adopter issue #31).
+
+        A paused frame RENDERS — that is the whole point, the panel must be
+        visible — so everything the render reads must be correct, and fog is
+        read by the render. `_updateFog` lives past this early return, and
+        `startPaused` pauses inside the same synchronous setup block, so a scene
+        that BOOTS paused had never run it once: you saw Babylon's default fog,
+        not the scene's.
+
+        `dt = 0` because the clock is stopped: this APPLIES the current fog
+        state without advancing any transition. Stopping time must not mean
+        rendering something the scene never asked for.
+        */
+        this._updateFog(0)
         if (this.scene.activeCamera != null) this.scene.render()
       }
       return
