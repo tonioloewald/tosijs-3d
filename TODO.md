@@ -12,6 +12,7 @@ justified holding a release. Details live in the sections named.
 | **Which half of an angle pair is STORED** (`turnRateDeg` as a real attribute) | Inverting it is a migration for anyone using `turn-rate`                                                |
 | **Turret firing arcs** — high-angle fire and/or traversal limits              | New feature, two readings to settle first                                                               |
 | **`flightStage` helper** — the aircraft equivalent of `demoStage`             | Third demo to need it; specified, not built                                                             |
+| **A UI DEPTH BAND** (stacked panels vs. occluders) — see below                | Per-panel pull-forward is right for one dialog and wrong for two                                        |
 | **Default-exclude collision groups** (`probe()`)                              | The shared predicate landed; the polarity flip and the remaining call sites did not                     |
 
 **Still open against 0.7.0 itself:** the guided-missile crash below, the
@@ -47,6 +48,33 @@ line ends a hypothesis chain immediately (`hit=frame-panel`, `L:0.00,0.00`,
 `seed done`) while reasoning about it does not. Until then this stays OPEN and
 **is a release consideration** — a demo that wedges the page is worse than one
 that looks wrong.
+
+## UI depth: a BAND, not a race to the front — QUEUED FOR 0.7.1
+
+Camera-relative dialogs were being swallowed by terrain. First attempt set
+`renderingGroupId = 1`, which fixed only the LOOK: rendering group does not
+affect PICKING, so the panel stayed geometrically behind the hill, XR rays hit
+the hill first, and the dialog became visible-but-dead — worse than being
+honestly buried, because it invites a press that cannot land. Now each
+camera-relative panel measures what is between you and it and sits just inside,
+scaling to hold apparent size, so **what you see is what you can touch**.
+
+[ ] **Generalise to a depth BAND before two panels can be open at once.**
+Tonio: _"we need to be careful about 'genuinely in front' when it comes time
+to stack UI elements. We may need to push stuff backwards vs. forwards."_
+Exactly — each panel currently races forward independently, so several would
+clamp to the same distance and fight, and the pull-forward would destroy the
+relative ordering it exists to preserve.
+
+The shape: the SCENE (not the panel) measures the nearest occluder once per
+frame, seats the front-most element just inside it, and stacks the rest
+BACKWARDS in `DEPTH_STEP` increments — `popup-surface`'s `stackLift`
+ordering, but with a moving front edge. It also wants the `bringToFront`
+invariant fix already filed, since both are about one owner of depth rather
+than several.
+
+Today only one camera-relative dialog is ever up (pause OR respawn), which is
+why the per-panel version is correct and shippable now.
 
 ## Exiting VR re-seats you — QUEUED FOR 0.7.1 (a tradeoff I chose)
 

@@ -1028,6 +1028,12 @@ export class B3d extends Component {
     const width = panelFitWidth(fov, aspect, z, 1.1)
     const plane = b3dSvgPlane({
       cameraRelative: true,
+      // Ride the TORSO, not your face (Tonio: "not sure the pause / continue
+      // dialog needs to be pinned to your face"). It is a thing you read and
+      // then press, so head-locking it means it follows every glance and can
+      // never be looked AWAY from — the same reason the respawn panel moved to
+      // this frame. Ignored flat, where cameraRelative means the orbit camera.
+      xrFrame: 'body',
       width,
       height: width * (svgH / 320),
       z,

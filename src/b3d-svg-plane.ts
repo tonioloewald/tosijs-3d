@@ -399,7 +399,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 /*{ "parent": "UI" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff, markUiMesh } from './b3d-utils'
+import { AbstractMesh, isOff, markUiMesh, collidable } from './b3d-utils'
 import { roundedRectGeometry } from './rounded-rect'
 
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
@@ -477,6 +477,47 @@ export class B3dSvgPlane extends AbstractMesh {
   private _lastSvgX = 0
   private _lastSvgY = 0
 
+  /** Nominal camera-local Z (the author's `z`), before any occlusion pull-in. */
+  private _nominalZ = 0
+  private _depthObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
+
+  /**
+   * Keep a camera-relative panel in FRONT of whatever is between you and it —
+   * see the note at the call site. Apparent size is preserved by scaling with
+   * the distance, so the panel reads identically whether it sits at its nominal
+   * depth or has been pulled in to clear a hillside.
+   */
+  private _installDepthGuard(scene: BABYLON.Scene): void {
+    const MIN_Z = 0.45 // closer than this is uncomfortable in a headset
+    const MARGIN = 0.12 // sit just inside the occluder, not coplanar with it
+    this._nominalZ = (this as any).z || 1
+    this._depthObs = scene.onBeforeRenderObservable.add(() => {
+      const mesh = this.mesh
+      const cam = scene.activeCamera
+      if (mesh == null || cam == null || mesh.parent == null) return
+      const nominal = this._nominalZ
+      if (nominal <= 0) return
+      mesh.computeWorldMatrix(true)
+      const from = cam.globalPosition
+      const dir = mesh.getAbsolutePosition().subtract(from)
+      const dist = dir.length()
+      let z = nominal
+      if (dist > 1e-3) {
+        dir.normalize()
+        const ray = new BABYLON.Ray(from, dir, dist)
+        // Ignore UI (this panel and its siblings) — only WORLD geometry should
+        // push a dialog forward. Same exclusion the collision probes use.
+        const hit = scene.pickWithRay(ray, (m) => collidable()(m))
+        if (hit?.hit && hit.distance < nominal) {
+          z = Math.max(MIN_Z, hit.distance - MARGIN)
+        }
+      }
+      const k = z / nominal
+      mesh.position.z = z
+      mesh.scaling.setAll(k)
+    })
+  }
+
   content = () => ''
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
@@ -519,23 +560,44 @@ export class B3dSvgPlane extends AbstractMesh {
     markUiMesh(this.mesh)
 
     /*
-    A CAMERA-RELATIVE PANEL MUST NOT BE BURIED BY THE WORLD.
+    A CAMERA-RELATIVE PANEL MUST NOT BE BURIED — AND MUST STAY TOUCHABLE.
 
-    These are dialogs — respawn, pause — and they were being occluded by
-    terrain: you die on a hillside and the panel offering you a way out is
-    inside the hill (Tonio). A modal you cannot see is a modal you cannot
-    dismiss, which is worse than a cosmetic glitch.
+    These are dialogs (respawn, pause) and terrain could swallow them: you die
+    on a hillside and the panel offering you a way out is inside the hill.
 
-    Rendering group 1 draws after group 0 and Babylon auto-clears depth between
-    groups, so the panel is always visible without moving it. The alternative —
-    pushing it to the near clip plane and scaling to match — keeps correct
-    stereo depth but puts a panel ~25cm from your eyes in VR, which is
-    genuinely uncomfortable; drawing on top keeps it at a readable 2m.
+    The first attempt set `renderingGroupId = 1`, which draws after the scene
+    with depth cleared between groups. It fixed the LOOK and nothing else:
+    rendering group has no bearing on PICKING, so the panel stayed
+    geometrically behind the hill, every XR ray hit the hill first, and the
+    dialog became visible-but-dead — strictly worse than being honestly buried,
+    because it now invites a press that cannot land (Tonio: "dialogs now paint
+    in front but you can't interact with them").
 
-    Only `cameraRelative` planes: world-anchored panels and popups keep normal
-    depth sorting, which is what the opaque rounded-geometry work is for.
+    So put it genuinely in front, which is what Tonio proposed originally:
+    measure what is between you and the panel, and pull the panel just inside
+    it, scaling to hold the apparent size. Then what you see IS what you can
+    touch — one invariant instead of two that can disagree.
+
+    Clamped to MIN_Z so a wall in your face cannot shove a panel to your nose
+    (uncomfortable in VR, which is why "just use the near clip plane" was the
+    wrong version of this idea).
+
+    ⚠️ THIS IS PER-PANEL, AND THAT DOES NOT GENERALISE TO STACKED UI.
+
+    Each panel currently races forward on its own. With ONE dialog up — which is
+    every case today — that is correct. With several, they would all clamp to
+    the same `hit.distance - MARGIN` and fight, and the pull-forward would have
+    destroyed exactly the relative ordering it was supposed to preserve (Tonio:
+    "we may need to push stuff backwards vs. forwards").
+
+    The generalisation is a reserved DEPTH BAND, owned by the scene rather than
+    the panel: measure the nearest occluder ONCE per frame, seat the front-most
+    element just inside it, and stack everything else BACKWARDS from there in
+    `DEPTH_STEP` increments — the same ordering `popup-surface` already does with
+    `stackLift`, but with a moving front edge. Do that before a second
+    camera-relative panel can be open at once. Filed in TODO.
     */
-    if (attrs.cameraRelative) this.mesh.renderingGroupId = 1
+    if (attrs.cameraRelative) this._installDepthGuard(scene)
 
     this._svgTexture = new SvgTexture({
       scene,
@@ -563,6 +625,10 @@ export class B3dSvgPlane extends AbstractMesh {
   }
 
   sceneDispose() {
+    if (this._depthObs && this.owner) {
+      this.owner.scene.onBeforeRenderObservable.remove(this._depthObs)
+      this._depthObs = null
+    }
     if (this._pointerObserver && this.owner) {
       this.owner.scene.onPointerObservable.remove(this._pointerObserver)
       this._pointerObserver = null
