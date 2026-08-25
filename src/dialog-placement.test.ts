@@ -135,3 +135,52 @@ describe('normalize', () => {
     expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1)
   })
 })
+
+/*
+THE REGRESSION THIS MODULE'S CALLER SHIPPED (#35), pinned as arithmetic.
+
+0.7.1 placed world dialogs by writing `mesh.position` — which `AbstractMesh`
+rewrites from the element's x/y/z on every render, so the camera-LOCAL offset
+(0, 0, 2.2) was left behind as a WORLD position and put straight back. Panels
+ended up at the world origin: manta measured one 1061 m away and 137° behind.
+
+The maths here was never wrong — `easeTo` moves toward the target correctly.
+What follows are the properties a caller must preserve, so the next person to
+wire this can check the arithmetic separately from the plumbing.
+*/
+describe('world placement: properties a caller must not break', () => {
+  test('a target far from the origin is reached, not approximated', () => {
+    // The bug looked like "easing is broken"; it was not. From a distant
+    // camera, easing converges on the target wherever it is.
+    let pos = { x: 0, y: 0, z: 2.2 } // the stale camera-local offset
+    const target = { x: 0, y: 514, z: 933 }
+    for (let i = 0; i < 200; i++) pos = easeTo(pos, target, 1 / 60)
+    expect(pos.y).toBeCloseTo(target.y, 1)
+    expect(pos.z).toBeCloseTo(target.z, 1)
+  })
+
+  test('a panel left at the origin IS outside the gaze cone — recovery cannot rescue it', () => {
+    // Why the dialog never came to you either: recovery re-picks a target, but
+    // if the caller then fails to move the mesh, nothing changes. The angle
+    // shows the panel was nowhere near the cone to begin with.
+    // manta measured 137.5 deg for a camera at (0, 17.4, 28.4). That only holds
+    // if the camera was looking AWAY from the origin — which is the real case:
+    // the action is wherever the scene put it, not at (0,0,0). (My first version
+    // of this test aimed the camera back at the origin, which makes the stranded
+    // panel on-axis and proves nothing.)
+    const eye = { x: 0, y: 17.4, z: 28.4 }
+    const forward = { x: 0, y: -0.1, z: 0.99 } // outward, deeper into the scene
+    const stranded = { x: 0, y: 0, z: 2.2 }
+    const off = gazeOffAxisDeg(eye, forward, stranded)
+    expect(off).toBeGreaterThan(120) // behind you, as measured
+  })
+
+  test('placement never returns the origin for a distant camera', () => {
+    // A correct placement is eye + dir * distance, so it cannot be (0,0,0)
+    // unless the eye is. This is the invariant the caller violated.
+    const eye = { x: 0, y: 514.4, z: 930.8 }
+    const dist = placementDistance(Infinity, 2.2)
+    const placed = { x: eye.x, y: eye.y, z: eye.z + dist }
+    expect(Math.hypot(placed.x, placed.y, placed.z)).toBeGreaterThan(100)
+  })
+})

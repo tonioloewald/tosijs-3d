@@ -558,7 +558,16 @@ export class B3dSvgPlane extends AbstractMesh {
       )
       const target = eye.add(dir.scale(dist))
       this._dialogTarget = target
-      if (immediate && this.mesh) this.mesh.position.copyFrom(target)
+      if (immediate && this.mesh) {
+        // The ELEMENT owns the transform (see the note below) — setting only
+        // the mesh here would be undone by the next render, which is exactly
+        // how #35 pinned every dialog at the world origin.
+        const self = this as any
+        self.x = target.x
+        self.y = target.y
+        self.z = target.z
+        this.mesh.position.copyFrom(target)
+      }
     }
 
     this._dialogObs = scene.onBeforeRenderObservable.add(() => {
@@ -584,12 +593,40 @@ export class B3dSvgPlane extends AbstractMesh {
 
       const t = this._dialogTarget
       if (t != null) {
-        // Eased, never snapped — a dialog that teleports reads as a glitch.
+        /*
+        WRITE THE ELEMENT, NOT THE MESH.
+
+        `AbstractMesh.render()` rewrites `mesh.position` from this element's
+        `x`/`y`/`z` — and `rotationQuaternion` from `yaw`/`pitch`/`roll` — so
+        anything that moves the MESH is silently undone on the next render. The
+        first version of this did exactly that and pinned every dialog at the
+        world origin: the camera-local offset (0, 0, 2.2) was left behind as a
+        WORLD position and put straight back every frame, so pause and respawn
+        panels were unreachable in any scene not centred on (0,0,0)
+        (manta-recon #35, measured at 1061 m away in one case).
+
+        tosijs-3d-ensemble had already written this rule down for the gizmo they
+        need — "a drag behaviour that moves the MESH is silently undone next
+        frame; a gizmo's writes must land on the ELEMENT" — and I hit it anyway
+        an hour later. The element owns the transform. Write the element.
+        */
         const next = easeTo(mesh.position, t, dt)
+        const self = this as any
+        self.x = next.x
+        self.y = next.y
+        self.z = next.z
+        // Also apply immediately, so the panel is correct on the frame it is
+        // placed rather than after the next render.
         mesh.position.set(next.x, next.y, next.z)
+
+        // Face the viewer — as YAW on the element, for the same reason.
+        // Rotating the mesh would be undone by the same render.
+        const dx = cam.globalPosition.x - next.x
+        const dz = cam.globalPosition.z - next.z
+        if (Math.hypot(dx, dz) > 1e-4) {
+          self.yaw = (Math.atan2(dx, dz) * 180) / Math.PI
+        }
       }
-      // Always face the viewer, so it is readable from wherever you ended up.
-      mesh.lookAt(cam.globalPosition)
     })
   }
 
