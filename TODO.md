@@ -86,6 +86,24 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
+## WATCH LIST — non-fatal, seen once, keep an eye out (Tonio, final pass)
+
+Neither is a blocker; both were explicitly "not fatal, just keep an eye out".
+Recorded so a second sighting is recognised as a pattern instead of re-derived.
+
+[ ] **A paused scene entered in VR shows no pause panel.** Volcano demo: it was
+already paused, entering VR showed no pause/continue panel (though the
+overhead panel's toggle still unpaused it), and pausing then leaving showed
+the dialog correctly in the flat view. So the panel exists and works — it
+just is not presented when the pause PRE-DATES the session. Likely the
+plane is parented to the flat camera at creation and nothing re-parents it
+on entry, since `cameraRelative` re-parents in `render()` and a paused
+scene may not be re-rendering the element. Suspect ordering, not geometry.
+[ ] **Exiting VR resets the camera position** (with the converted orbit rig).
+Distinct from the re-seat issue already queued: the re-seat is fixed, but
+the position still snaps rather than carrying back. Same root as the 0.7.1
+carry-back item — verify both together when that lands.
+
 ## THE CHASE/COCKPIT RIG HIERARCHY — one investigation, not three bugs
 
 Tonio's read, and it is probably right: the aircraft **jitters in chase view

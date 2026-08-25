@@ -515,6 +515,25 @@ export class B3dSvgPlane extends AbstractMesh {
       const k = z / nominal
       mesh.position.z = z
       mesh.scaling.setAll(k)
+
+      /*
+      EYE HEIGHT when riding a FRAME, floor when riding the camera.
+
+      `body` is a torso/locomotion anchor and sits at floor level by design
+      (`body.position.set(cam.x, 0, cam.z)`), so a dialog at `y: 0` hangs around
+      your knees and reads as waist height once it has any height to it — "the
+      respawn pin is a bit low… face height (just not pinned to face) would work
+      better" (Tonio). Parented to the CAMERA instead, `y: 0` means eye-centred
+      and is already right, which is why the offset cannot just be baked into
+      the attribute.
+
+      Not scaled with `k`: pulling the panel closer must not drop it down your
+      body. Height is an absolute comfort property, unlike apparent size.
+      */
+      const parentIsFrame = mesh.parent !== cam
+      mesh.position.y = parentIsFrame
+        ? ((this as any).y || 0) + (cam.position?.y ?? 1.6)
+        : (this as any).y || 0
     })
   }
 
