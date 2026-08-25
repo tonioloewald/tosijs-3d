@@ -1,0 +1,5 @@
+import{Fo as c}from"./site-xz0ekt48.js";import{du as l}from"./site-e325gqfj.js";import{ku as g,mu as h,ou as s}from"./site-86tpqddf.js";import{sE as u}from"./site-yf4sr5jd.js";class p extends l{constructor(t){super(t);this.config=t,this._easingFunctions={},this.mode=this.registerDataInput("mode",h,0),this.controlPoint1=this.registerDataInput("controlPoint1",s),this.controlPoint2=this.registerDataInput("controlPoint2",s),this.easingFunction=this.registerDataOutput("easingFunction",g)}_updateOutputs(t){let o=this.mode.getValue(t),e=this.controlPoint1.getValue(t),i=this.controlPoint2.getValue(t);if(o===void 0)return;let r=`${o}-${e.x}-${e.y}-${i.x}-${i.y}`;if(!this._easingFunctions[r]){let n=new c(e.x,e.y,i.x,i.y);n.setEasingMode(o),this._easingFunctions[r]=n}this.easingFunction.setValue(this._easingFunctions[r],t)}getClassName(){return"FlowGraphBezierCurveEasing"}}var a=!1;function m(){if(a)return;a=!0,u("FlowGraphBezierCurveEasing",p)}m();
+export{p as ko,m as lo};
+
+//# debugId=3B5DB074B402235C64756E2164756E21
+//# sourceMappingURL=site-4sg1n8q3.js.map

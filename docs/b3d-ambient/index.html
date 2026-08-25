@@ -93,13 +93,16 @@ break the surface.</p>
 <pre><code class="language-js">import { b3d, b3dAircraft, b3dAmbient, b3dWater, b3dFog, b3dLibrary, b3dLight, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { demoSun } from &#39;demo-utils&#39;
 
-// A submersible scout. The `groundY: -40` is what makes this demo WORK: an aircraft&#39;s floor
-// defaults to 0 — which here is EXACTLY the water surface — so by default you hit the waterline
-// and stop, and the underwater life is unreachable. Drop the floor to the real seabed and you can
-// DIVE. Start low and hover so the surface is right there: left trigger down to submerge.
+// A submersible scout. TWO things make the dive work, and it needs both:
+//   `groundY: -40`   — the floor is the seabed, not the default 0 (which here is
+//                      exactly the water surface).
+//   `submersible`    — the floor SENSOR ignores the water. Without it the ray
+//                      hits the surface mesh and calls it ground, so you stop
+//                      dead at the waterline however low the floor is. That is
+//                      right for a plane ditching in the sea and wrong here.
 const scout = b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
-  player: true, y: 9, groundY: -40, vtolSpeed: 6, maxSpeed: 30,
+  player: true, y: 9, groundY: -40, submersible: true, vtolSpeed: 6, maxSpeed: 30,
 })
 
 const scene = b3d(
@@ -109,7 +112,12 @@ const scene = b3d(
   b3dSkybox({ timeOfDay: 11 }),
   b3dFog({ start: 200, end: 1200, color: &#39;#bfd9f2&#39; }),
   b3dGround({ meshName: &#39;ground_nocast&#39;, width: 2000, height: 2000, color: &#39;#4a5f3e&#39;, y: -40 }),
-  b3dWater({ y: 0, width: 2000, height: 2000 }),
+  // `waterSize`, NOT width/height: those are not water attributes, and tosijs
+  // silently DISCARDS an unknown prop (tosijs#26), so the sea stayed at its
+  // 128 default beside a 2000-unit ground — &quot;the water quad is so much smaller
+  // than the land quad&quot;. `twoSided` because this demo&#39;s whole point is
+  // descending THROUGH the surface and looking back up at it.
+  b3dWater({ y: 0, waterSize: 2000, twoSided: true, follow: true }),
   b3dLibrary({ url: &#39;/test-3.glb&#39;, type: &#39;vehicles&#39; }),
 
   // Above the surface: dust motes in the air (visible right away). Below it: bubbles rising +
@@ -253,6 +261,8 @@ preview.append(scene)
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

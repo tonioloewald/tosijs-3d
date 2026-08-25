@@ -58,19 +58,26 @@ window recentres on the camera, the sun swings) — the steady state is just the
 <h2>Demo</h2>
 <p><a href="../b3d-clouds/">b3d-clouds</a> drives this under the hood: set <code>castShadows</code> and soft cloud shadows
 drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.</p>
-<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dClouds, b3dGround, b3dBox } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+<pre><code class="language-js">import { b3d, b3dClouds, b3dBox } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam } from &#39;demo-utils&#39;
 
 const scene = b3d(
   {
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 55, target: [0, 0, 0] })
+      // Altitude 115 and a bounded orbit, deliberately: the layer used to sit at 55
+      // with the camera orbiting at the same radius, so tilting up put you INSIDE
+      // the clouds and the whiteout fog ate the demo — &quot;most of the time I&#39;m not
+      // seeing the objects at all, I&#39;m just seeing the fog.&quot; Cloud SHADOWS are
+      // projected, not raymarched, so lifting the deck costs the demo nothing.
+      const cam = orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.4, radius: 55, target: [0, 0, 0] })
+      cam.upperRadiusLimit = 90
     },
   },
-  b3dSun({ x: -0.5, y: -1, z: -0.35 }),
-  b3dSkybox({ timeOfDay: 11 }),
-  b3dGround({ width: 160, height: 160, texture: &#39;checker&#39;, textureTiles: 32 }),
-  b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 55, thickness: 18, spread: 120, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
+  // On the stage — cloud shadows are DARKENING, so the scene needs a fill light
+  // to darken FROM. Sun alone put every unlit face at zero and the demo read as
+  // black boxes on a black floor.
+  ...demoStage({ size: 160, tiles: 26, pattern: true, timeOfDay: 11, sun: { x: -0.5, y: -1, z: -0.35 } }),
+  b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 115, thickness: 18, spread: 200, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
   ...Array.from({ length: 9 }, (_, i) =&gt;
     b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: &#39;#7a9b6e&#39; })
   ),
@@ -96,6 +103,8 @@ projected along the light before stamping), so the shader stays a plain straight
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

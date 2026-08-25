@@ -15,10 +15,14 @@ here you can also place one and detonate it directly.
 ## Demo
 
 **Steer the reticle with A/D + W/S (left stick), pull the right trigger (or `F`) to
-detonate there** — the [standard controller](?b3d-controller.ts). Cubes
-inside the radius take falloff damage (they flash, and die at 0 hp); the **wall blocks
-line of sight**, so parking the reticle behind it spares the cubes there. Tune the blast
-in the ⚙ panel.
+detonate there** — the [standard controller](?b3d-controller.ts). Cubes inside the
+radius take falloff damage (they flash, and die at 0 hp).
+
+**The wall blocks line of sight, and it only runs half the width.** So one blast on the
+near side shows both halves of the rule at once: cubes on the far side *behind* the wall
+survive, while cubes on the far side *past its end* die — same distance, different
+cover. Slide the blast along the wall and watch the shadow it casts. Turn **line of
+sight** off in the ⚙ panel and the wall stops mattering.
 
 ```js
 import { b3d, b3dController, b3dWarhead, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, toggle3d } from 'tosijs-3d'
@@ -28,13 +32,17 @@ import { tosi } from 'tosijs'
 const { s } = tosi({ s: { damage: 20, fullRadius: 1.5, blastRadius: 5, los: true } })
 const warhead = b3dWarhead({ y: 0.4, damage: s.damage, fullRadius: s.fullRadius, blastRadius: s.blastRadius })
 
+// Two blocks, one either side of the wall (which sits at z = 0). The far block is
+// the interesting one: its left half is sheltered, its right half is past the wall's
+// end and fully exposed.
+const ROWS = [-2.6, -1.2, 1.2, 2.6]
 const targets = []
 for (let i = 0; i < 24; i++) {
-  targets.push(b3dDestroyable({ x: (i % 6) * 1.4 - 3.5, y: 0.4, z: Math.floor(i / 6) * 1.4 - 2, size: 0.8, capacity: 8, color: '#cc4444' }))
+  targets.push(b3dDestroyable({ x: (i % 6) * 1.4 - 3.5, y: 0.4, z: ROWS[Math.floor(i / 6)], size: 0.8, capacity: 8, color: '#cc4444' }))
 }
 
 // Shared reticle position + shoot edge, reachable by both sceneCreated and drive.
-const state = { rx: 0, rz: -3, shootWas: false }
+const state = { rx: -2.1, rz: -2, shootWas: false, cam: null }
 
 const scene = b3d(
   {
@@ -48,10 +56,13 @@ const scene = b3d(
       toggle3d({ label: 'line of sight', value: s.los }),
     ],
     sceneCreated(el, BABYLON) {
-      orbitCam(el, { alpha: -Math.PI / 2.3, beta: Math.PI / 3, radius: 16, target: [0, 0.5, 0] })
-      // a wall for line-of-sight blocking
-      const wall = BABYLON.MeshBuilder.CreateBox('wall', { width: 6, height: 2.5, depth: 0.4 }, el.scene)
-      wall.position.set(0, 1.25, 3.2)
+      state.cam = orbitCam(el, { alpha: -Math.PI / 2.3, beta: Math.PI / 3, radius: 16, target: [0, 0.5, 0] })
+      // A wall that runs only HALF the width, between the two blocks of cubes.
+      // Stopping short is the point: it gives you sheltered and exposed targets
+      // at the same range, so one blast demonstrates the rule instead of the
+      // absence of an effect.
+      const wall = BABYLON.MeshBuilder.CreateBox('wall', { width: 4.2, height: 2.5, depth: 0.4 }, el.scene)
+      wall.position.set(-2.1, 1.25, 0)
       const wm = new BABYLON.StandardMaterial('wm', el.scene)
       wm.diffuseColor = new BABYLON.Color3(0.4, 0.42, 0.48)
       wall.material = wm
@@ -71,8 +82,20 @@ const scene = b3d(
   b3dController({
     mapping: 'biped',
     drive(input, dt) {
-      state.rx = Math.max(-6, Math.min(6, state.rx + input.turn * 7 * dt)) // A/D
-      state.rz = Math.max(-5, Math.min(6, state.rz + input.forward * 7 * dt)) // W/S
+      // CAMERA-RELATIVE steering. World-axis steering is unusable here for a
+      // reason specific to this demo: its subject is the shadow the wall casts,
+      // which you can only read by orbiting — and once the camera has swung,
+      // "forward" was pushing the reticle sideways.
+      //
+      // ArcRotate puts the camera at target + r*(cos a*sin b, cos b, sin a*sin b),
+      // so camera->target in XZ is -(cos a, sin a) = screen "up", and screen
+      // "right" is up x forward = (-sin a, cos a).
+      const a = state.cam ? state.cam.alpha : -Math.PI / 2
+      const fx = -Math.cos(a), fz = -Math.sin(a)
+      const sx = -Math.sin(a), sz = Math.cos(a)
+      const step = 7 * dt
+      state.rx = Math.max(-6, Math.min(6, state.rx + (sx * input.turn + fx * input.forward) * step)) // A/D + W/S
+      state.rz = Math.max(-5, Math.min(5, state.rz + (sz * input.turn + fz * input.forward) * step))
       const shoot = input.shoot > 0.5 || input.sprint > 0.5
       if (shoot && !state.shootWas) {
         warhead.damage = s.damage.value
@@ -107,7 +130,7 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff, sceneDelta } from './b3d-utils';
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils';
 import { resolveAoe } from './warhead';
 // Seconds for the blast to expand from the centre to its full radius — shared by the
 // boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.
@@ -213,7 +236,9 @@ function hasLos(owner, from, targetMesh, destroyableMeshes) {
     if (dist < 0.1)
         return true;
     const ray = new BABYLON.Ray(from, dir.normalize(), dist - 0.1);
-    const hit = owner.scene.pickWithRay(ray, (m) => m.isPickable && m.name !== 'ground' && !destroyableMeshes.includes(m));
+    // Shared predicate — a UI panel must not provide BLAST COVER. `ground` is
+    // deliberately transparent to LOS here (it is the floor, not a wall).
+    const hit = owner.scene.pickWithRay(ray, collidable((m) => m.name === 'ground' || destroyableMeshes.includes(m)));
     return !(hit != null && hit.hit);
 }
 // Expanding, fading flash at the blast center.

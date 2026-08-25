@@ -424,7 +424,34 @@ or implement your own shape-specific point-in-polygon tests.</p>
 <td><code>&#39;on&#39;</code></td>
 <td>Render both faces</td>
 </tr>
+<tr>
+<td><code>cornerRadius</code></td>
+<td><code>0</code></td>
+<td>Corner radius in WORLD units. <code>0</code> = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see <strong>Opaque panels</strong> below</td>
+</tr>
+<tr>
+<td><code>transparent</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;off&#39;</code> drops the opacity texture so the plane writes depth. Pair with <code>cornerRadius</code></td>
+</tr>
+<tr>
+<td><code>xrFrame</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>In a headset with <code>cameraRelative</code>, parent to this XR reference frame instead of the head camera. <code>&#39;body&#39;</code> (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked</td>
+</tr>
 </tbody></table>
+<h2>Opaque panels</h2>
+<p><code>cornerRadius</code> + <code>transparent=&quot;off&quot;</code> is the combination that stops panels
+flickering against each other, and it is worth knowing why the two go together.</p>
+<p>A transparent mesh is <strong>not depth-written</strong>, so Babylon re-sorts it every frame
+by distance — and two near-coplanar panels swap order as you move, which reads
+as z-fighting that no amount of nudging fixes. Rounding the corners as GEOMETRY
+(three quads plus four corner fans, see <a href="/rounded-rect/" class="wikilink">rounded-rect</a>) means the panel needs
+no alpha at all, so it can be opaque, write depth, and be ordered by the
+z-buffer like everything else.</p>
+<p><code>doubleSided</code> is honoured on the rounded path: the geometry is generated
+single-sided and <code>backFaceCulling</code> follows the attribute, so <code>&#39;off&#39;</code> shows the
+back face as it does for a plain plane.</p>
 <p>Set the <code>svgElement</code> property to a live SVG element for dynamic mode.</p>
 <h2>panelScene — dual-presentation in two lines</h2>
 <p><code>panelScene({ svg, target })</code> packages the common wiring for showing ONE live
@@ -443,6 +470,8 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

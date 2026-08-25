@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/hdrFiltering.vertex.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"hdrFilteringVertexShader\";\nconst shader = `attribute position: vec2f;varying direction: vec3f;uniform up: vec3f;uniform right: vec3f;uniform front: vec3f;\n#define CUSTOM_VERTEX_DEFINITIONS\n@vertex\nfn main(input : VertexInputs)->FragmentInputs {\n#define CUSTOM_VERTEX_MAIN_BEGIN\nvar view: mat3x3f= mat3x3f(uniforms.up,uniforms.right,uniforms.front);vertexOutputs.direction=view*vec3f(vertexInputs.position,1.0);vertexOutputs.position= vec4f(vertexInputs.position,0.0,1.0);\n#define CUSTOM_VERTEX_MAIN_END\n}`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const hdrFilteringVertexShaderWGSL = { name, shader };\n//# sourceMappingURL=hdrFiltering.vertex.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,2BACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,GASf,GAAI,CAAC,EAAY,iBAAiB,GAC9B,EAAY,iBAAiB,GAAQ,EAGlC,IAAM,EAA+B,CAAE,OAAM,QAAO",
+  "debugId": "35BA9B074E786E1864756E2164756E21",
+  "names": []
+}

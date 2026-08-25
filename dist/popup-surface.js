@@ -141,6 +141,7 @@ import * as BABYLON from '@babylonjs/core';
 import { b3dSvgPlane } from './b3d-svg-plane';
 import { iconGlyph } from './svg-icons';
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome';
+import { cameraIsAttached } from './b3d-utils';
 /**
  * Open a popup as its own surface.
  *
@@ -210,17 +211,30 @@ const wired = new WeakSet();
  * owns the UI, not your head, and freezing someone's view is how you make them
  * ill.
  */
+/**
+ * WHO IS PICKABLE while a modal is open — the pure decision, extracted so the
+ * rule can be tested without a scene.
+ *
+ * `true` for everything when no modal is open (which is what makes `close()`
+ * restore the stack — regress that and every popup becomes permanently
+ * untargetable while the camera still works, which reads as "the UI died").
+ * With a modal open, only the FIRST modal in the list is pickable.
+ */
+export function modalPickable(popups) {
+    const modal = popups.find((p) => p.modal === true) ?? null;
+    return popups.map((p) => modal == null || p === modal);
+}
 function applyModalBlocking(owner) {
     const list = openPopups.get(owner);
     if (list == null)
         return;
-    const modal = list.find((p) => p.modal === true) ?? null;
-    for (const p of list) {
+    const pickable = modalPickable(list);
+    list.forEach((p, i) => {
         const mesh = p.plane.mesh;
         if (mesh == null)
-            continue;
-        mesh.isPickable = modal == null || p === modal;
-    }
+            return;
+        mesh.isPickable = pickable[i];
+    });
 }
 /**
  * Wire click-to-front and modal blocking for a scene.
@@ -245,6 +259,36 @@ function wirePointer(owner) {
     const scene = owner.scene;
     if (scene == null)
         return;
+    /*
+    THE CAMERA HAS TO YIELD, or the drag is invisible.
+  
+    Starting our drag was necessary and not sufficient: the ArcRotateCamera's
+    pointer input is on this same observable and registers FIRST (the camera
+    exists before any popup), so a press on a panel began a camera orbit as well.
+    Both ran; the orbit is what you saw. Tonio, driving it: "I can drag the window
+    around. I cannot move the pop-ups, none of them. They just cause me to drag
+    the windows."
+  
+    `panelScene` already solved this for in-scene UI — claim the gesture, detach
+    the camera, re-attach on release. Same move here. `cameraIsAttached` is the
+    guard from the pause bug: only re-attach a camera that WAS attached, or a
+    scene whose camera is deliberately unattached gets handed control it never
+    had.
+    */
+    let yielded = null;
+    const yieldCamera = () => {
+        const cam = scene.activeCamera;
+        if (cam == null || !cameraIsAttached(cam))
+            return;
+        cam.detachControl();
+        yielded = cam;
+    };
+    const restoreCamera = () => {
+        if (yielded == null)
+            return;
+        yielded.attachControl(scene.getEngine().getRenderingCanvas(), true);
+        yielded = null;
+    };
     scene.onPointerObservable.add((info) => {
         const list = openPopups.get(owner);
         if (list == null || list.length === 0)
@@ -259,6 +303,7 @@ function wirePointer(owner) {
             // and the panel would stick to the cursor forever.
             for (const p of list)
                 p.endDrag();
+            restoreCamera();
             return;
         }
         if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN)
@@ -301,6 +346,8 @@ function wirePointer(owner) {
                 target.close();
                 return;
             }
+            // Yield BEFORE starting: the camera must not have the press either.
+            yieldCamera();
             target.beginDrag(info.event?.pointerId ?? 0);
         }
     });
@@ -485,7 +532,28 @@ export function openPopup(owner, opts) {
         beginDrag(pointerId) {
             if (drag == null || !draggable)
                 return;
-            drag.startDrag(pointerId);
+            /*
+            AFTER THE WHOLE EVENT, not merely after our own handler.
+      
+            `PointerDragBehavior`'s POINTERDOWN handler releases any drag whose
+            `_activeDragButton` doesn't match the event's button, and `startDrag()`
+            leaves that at -1 — so whichever observer runs LAST wins. Registration
+            order decides that, and it is not stable here: `wirePointer` installs once
+            on the first popup's mount, so popup 0's behaviour registers before it and
+            every later popup's registers after. The first popup dragged; the rest did
+            not. That is what Tonio hit — "I cannot move the pop-ups, none of them" —
+            after I had already "fixed" this once by reordering.
+      
+            A microtask runs after every observer for this event, so the answer stops
+            depending on who registered first. Ordering was the wrong lever; the right
+            one is to leave the event entirely.
+            */
+            const id = pointerId;
+            queueMicrotask(() => {
+                if (drag == null || closed)
+                    return;
+                drag.startDrag(id);
+            });
         },
         endDrag() {
             if (drag?.dragging === true)
@@ -544,6 +612,23 @@ export function openPopup(owner, opts) {
     const list = openPopups.get(owner) ?? [];
     list.unshift(api);
     openPopups.set(owner, list);
+    /*
+    RE-APPLY, because the mount above may already have run.
+  
+    `owner.appendChild` drains the ready queue SYNCHRONOUSLY once the scene is up,
+    so for a popup opened at runtime `applyModalBlocking` fires during mount —
+    before this registration — and reads a list that does not contain this popup.
+    A `modal: true` popup therefore found no modal, set every OTHER popup back to
+    `isPickable = true`, and blocked nothing at all.
+  
+    It only looked correct in the doc demo, which opens inside `sceneCreated`
+    while the queue is still deferred, so registration wins the race there.
+  
+    Running it here as well is the fix and is idempotent: the mount-time call
+    still covers the deferred path (where `plane.mesh` may not exist yet, which
+    `applyModalBlocking` already skips).
+    */
+    applyModalBlocking(owner);
     return api;
 }
 //# sourceMappingURL=popup-surface.js.map

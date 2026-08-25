@@ -330,7 +330,24 @@ export class B3dLibrary extends B3dChild {
         ];
         const buildTree = (parent) => {
             return allNodes
-                .filter((n) => n.parent === parent && n.name !== '__root__' && !isIgnored(n.name))
+                .filter((n) => n.parent === parent &&
+                n.name !== '__root__' &&
+                !isIgnored(n.name) &&
+                /*
+                Hide the glTF loader's PRIMITIVE SPLITS. A multi-material mesh is
+                imported as a TransformNode carrying the authored name plus one child
+                mesh per material, `<name>_primitive0`, `_primitive1`… Those children
+                are fragments of one authored object, not things you can meaningfully
+                pick.
+    
+                They only became visible when `publicName` started stripping the
+                suffix — before that they were ugly but distinct, and afterwards a
+                building rendered as "building" nested under "building" nested under
+                "building". Tonio: "we now have a whole lot of things called
+                building… it's not showing the hierarchy at all, which it used to."
+                The tree was still there; every level just had the same name.
+                */
+                !/_primitive\d+$/i.test(n.name))
                 .map((n) => {
                 const isMesh = n instanceof BABYLON.AbstractMesh;
                 return {

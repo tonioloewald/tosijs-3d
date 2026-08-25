@@ -76,7 +76,10 @@ const scene = b3d(
   b3dLight({ y: 1, intensity: 0.8 }),
   b3dSkybox({ timeOfDay: 12 }),
   b3dGround({ width: 20, height: 20, texture: &#39;checker&#39;, textureTiles: 10 }),
-  // `axes` pins a debug XYZ gizmo on any AbstractMesh geometry (glowing R/G/B).
+  // `axes` pins a debug XYZ READOUT on any AbstractMesh geometry (glowing R/G/B).
+  // It shows you an orientation; it is NOT a handle — there is nothing to grab
+  // and nothing happens if you try. (It reads as Babylon&#39;s position gizmo,
+  // which is a manipulator. Exposing that one is TODO — see the note below.)
   b3dBox({ meshName: &#39;cube&#39;, size: 1, y: cfg.height, color: &#39;#39c5ff&#39;, axes: true }),
   // BOTH flat + VR: a world-anchored SVG panel — it IS a mesh in the scene, so it
   // shows in the regular view and in VR, always in the same spot.
@@ -86,6 +89,12 @@ const scene = b3d(
 )
 preview.append(scene)
 </code></pre>
+<blockquote>
+<p><strong>The coloured axes are a readout, not a manipulator.</strong> They show the cube&#39;s
+orientation. Babylon ships a real position/rotation gizmo (<code>GizmoManager</code>)
+and exposing it — so a panel can be PLACED by dragging rather than by typing
+numbers — is on the list, not in 0.7.0.</p>
+</blockquote>
 <pre><code class="language-css">tosi-b3d { width: 100%; height: 100%; }
 </code></pre>
 <h2>Three ways to place a panel</h2>
@@ -192,6 +201,8 @@ so you have full control:</p>
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

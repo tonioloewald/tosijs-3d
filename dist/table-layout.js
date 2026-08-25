@@ -13,6 +13,16 @@ Two problems, both of which are only annoying when you get them wrong:
 - **Rows** — a table you can scroll should only build the rows you can see.
   `visibleRows` is the window: the slice to draw, plus the offset to draw it at.
 
+> **The demo below is an X-RAY of the maths, not a table.** The control is a
+> SLIDER standing in for a scroll position, and the boxes are the rows the model
+> says are worth building — so you can watch the window move and see rows enter
+> and leave. There is nothing to wheel over, because there is no scroll
+> container: that is the point of the module, which does the arithmetic and
+> paints nothing.
+>
+> Looking for a table you can actually use? That is [[table]] — sticky header,
+> drag-to-scroll, selection — and it is built on this.
+
 ## Demo
 
 Both halves, visualised. Drag the width slider to watch `resolveColumns` honour the fixed

@@ -424,6 +424,11 @@ export class B3dDeath extends B3dChild {
             1.6, 2.2, 1.1);
         const plane = b3dSvgPlane({
             cameraRelative: true,
+            // In VR, ride the BODY frame (torso, damped yaw) not the head camera — a
+            // respawn panel head-locked to a jostling death-cam "jiggles like crazy"
+            // (Tonio, VR pass 2). Ignored flat, where cameraRelative means the orbit
+            // camera as before.
+            xrFrame: 'body',
             width,
             height: width * (svgH / 320),
             z: 2.2,

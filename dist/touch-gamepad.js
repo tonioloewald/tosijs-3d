@@ -208,6 +208,10 @@ export class TouchGamepadSource {
                 knob,
                 cx: bbox.x + bbox.width / 2,
                 cy: bbox.y + bbox.height / 2,
+                // FULL travel: the knob's centre reaches the travel rim. Shrinking this
+                // to keep the thumb inside was tried and reverted — it makes the stick
+                // harder to control for a purely cosmetic gain. The clipping is a
+                // BOUNDS problem, fixed in the artwork's viewBox, not a travel problem.
                 radius: Math.min(bbox.width, bbox.height) / 2,
                 knobOriginalTransform: knob.getAttribute('transform') || '',
                 pointerId: -1,

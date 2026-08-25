@@ -52,6 +52,64 @@ export function canonicalize(clone, scene, name) {
     clone.position.set(0, 0, 0);
     // Strip mirror signs (the __root__ handedness flip); keep magnitudes.
     clone.scaling.set(Math.abs(clone.scaling.x), Math.abs(clone.scaling.y), Math.abs(clone.scaling.z));
+    /*
+    THE SCENE TRANSFORM LIVES ON THE CONTENT NODE, NOT ON `__root__`.
+  
+    The contract above says this function "drops the node's SCENE transform", and
+    it only ever zeroed `clone` — which on the glTF path IS `__root__`, the
+    loader's own wrapper, whose transform is the handedness flip and nothing else.
+    The authored object (`scout`) sits UNDER it and kept its scene placement, so
+    the dressing survived a function whose job was to discard it.
+  
+    Measured on test-3.glb: `scout` sits at (-0.89, 0, -1.44) inside the file.
+    Consequences, both of which we paid for:
+  
+    - the control node the flight model steers is ~1.7 m from the airframe it
+      steers, so every ray fired from it starts beside the aircraft; and
+    - `applyCenterOfGravity` measures the marker against the control node, so the
+      offset lands in the PIVOT. A marker authored dead on the centreline (the
+      documented way) installed a pivot at (-0.866, 0.512, -1.432) — 1.75 m out —
+      while the OLD marker's odd-looking (0.40, 0.09, -0.58) was silently
+      COMPENSATING for the dressing and netted out correct. So the convention
+      punished correct authoring and rewarded a hand-tuned offset, which is
+      exactly backwards, and re-exporting the model "correctly" broke flight.
+  
+    Zero the content node's dressing too. Rotation as well as position: scenic
+    ROTATION is the thing CLAUDE.md warns never to bake ("never apply all
+    transforms on models inside scene files"). Scaling is kept — that is real
+    authoring, not dressing.
+    */
+    const isGltfRoot = clone.name.includes('__root__');
+    const content = isGltfRoot
+        ? clone.getChildren((n) => n instanceof BABYLON.TransformNode, true)
+        : [];
+    /*
+    EXACTLY ONE content node, or none at all.
+  
+    The contract above says "the node's SCENE transform" — singular — and the
+    first version of this loop zeroed EVERY top-level child. On a multi-object
+    file that is a total, silent break: `test-3.glb`'s `__root__` has 8 children,
+    4 of them posed, and all 4 collapsed onto the origin. Reachable through
+    `b3dAircraft({ url })`, which always hands the glTF `__root__` straight here.
+  
+    With more than one child we cannot know which is "the" content — the file is
+    a SCENE, and its layout is data, not dressing. So leave it entirely alone:
+    dropping a transform we were not asked about is how a model turns into a
+    pile. The single-child case is the one this function was written for, and the
+    one MIGRATION.md documents.
+  
+    WHICH PATH GETS HERE, because it is easy to measure the wrong one: only the
+    `url:` path. The LIBRARY path hands us an already-renamed clone, so
+    `isGltfRoot` is false and this block never runs — and it does not need to,
+    because `clone.position.set(0, 0, 0)` above already zeroes the instantiated
+    node's own transform. The library path has always been correct.
+    */
+    if (content.length === 1) {
+        const t = content[0];
+        t.position.set(0, 0, 0);
+        t.rotationQuaternion = BABYLON.Quaternion.Identity();
+        t.rotation.set(0, 0, 0);
+    }
     return wrapper;
 }
 export function normalizeScale(mesh) {

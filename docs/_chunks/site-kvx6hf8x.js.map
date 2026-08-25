@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/color.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { clipPlaneFragmentDeclaration } from \"./ShadersInclude/clipPlaneFragmentDeclaration.js\";\nimport { fogFragmentDeclaration } from \"./ShadersInclude/fogFragmentDeclaration.js\";\nimport { clipPlaneFragment } from \"./ShadersInclude/clipPlaneFragment.js\";\nimport { fogFragment } from \"./ShadersInclude/fogFragment.js\";\nconst name = \"colorPixelShader\";\nconst shader = `#if defined(VERTEXCOLOR) || defined(INSTANCESCOLOR) && defined(INSTANCES)\n#define VERTEXCOLOR\nvarying vec4 vColor;\n#else\nuniform vec4 color;\n#endif\n#include<clipPlaneFragmentDeclaration>\n#include<fogFragmentDeclaration>\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void) {\n#define CUSTOM_FRAGMENT_MAIN_BEGIN\n#include<clipPlaneFragment>\n#if defined(VERTEXCOLOR) || defined(INSTANCESCOLOR) && defined(INSTANCES)\ngl_FragColor=vColor;\n#else\ngl_FragColor=color;\n#endif\n#include<fogFragment>(color,gl_FragColor)\n#define CUSTOM_FRAGMENT_MAIN_END\n}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [clipPlaneFragmentDeclaration, fogFragmentDeclaration, clipPlaneFragment, fogFragment];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const colorPixelShader = { name, shader };\n//# sourceMappingURL=color.fragment.js.map"
+  ],
+  "mappings": "wMAMA,IAAM,EAAO,mBACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,GAqBf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAA8B,EAAwB,EAAmB,CAAW,EACtG,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAAmB,CAAE,OAAM,QAAO",
+  "debugId": "0F19A5C5DE0A165664756E2164756E21",
+  "names": []
+}

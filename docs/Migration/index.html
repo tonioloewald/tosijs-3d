@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>Migration — tosijs-3d</title>
+  <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
+  <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="Migration — tosijs-3d" />
+  <meta property="og:description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
+  <meta property="og:url" content="https://3d.tosijs.net/Migration/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Migration","description":"What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md.","url":"https://3d.tosijs.net/Migration/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>Migration</h1>
+<!--{ "order": 2 }-->
+
+<p>What to change when upgrading. Only breaking changes are listed — everything
+else is additive. The full detail for each is in <a href="./CHANGELOG.md">CHANGELOG.md</a>.</p>
+<p>This file ships <strong>inside the package</strong>, because a migration table you can only
+read on GitHub does not exist for someone who has already installed the thing
+and is staring at an error.</p>
+<h2>0.6.2 → 0.7.0</h2>
+<blockquote>
+<h1>⚠️ READ THIS FIRST: library rotation</h1>
+<p><strong>If you place library models with <code>rx</code>/<code>ry</code>/<code>rz</code>, your scenes will MOVE.</strong></p>
+<p>Everything else in this release either errors or looks obviously wrong. This
+one changes a scene that previously looked <strong>correct</strong>, which is why it is at
+the top instead of in the table.</p>
+<p>Two things happened to the same option at once:</p>
+<ol>
+<li>It <strong>never worked</strong> on the default path. <code>instantiate()</code> wrote
+<code>result.rotation</code>, but Babylon&#39;s glTF loader always assigns a
+<code>rotationQuaternion</code>, and a <code>TransformNode</code> ignores <code>.rotation</code> while one is
+present. Measured on a real model: <code>ry: 0</code>, <code>ry: 140</code> and <code>ry: -90</code> all
+produced <strong>bit-identical</strong> orientations — you got the GLB&#39;s own baked
+rotation whatever you asked for. Position worked, which is exactly what made
+it look wired up.</li>
+<li>It is now <strong>degrees</strong>, not radians.</li>
+</ol>
+<p>So a value that did nothing now does something, in a unit that also changed.</p>
+<p><strong>What to do:</strong></p>
+<ul>
+<li><strong>If you passed rotation and it appeared to work</strong> — it was not your value
+doing it. Something else was: baked rotation in the model, a parent
+transform, or a compensating tweak downstream. That compensation is now
+<strong>doubled up</strong>. Look at every placement before assuming a regression.</li>
+<li><strong>If you passed rotation and gave up because it did nothing</strong> — it works now.
+Your values are in radians; multiply by <code>180 / Math.PI</code>.</li>
+<li><strong>If you never passed rotation</strong> — nothing changes. <code>canonical: true</code> was
+unaffected throughout.</li>
+</ul>
+<p>Quickest way to tell: search for <code>instantiate(</code> and <code>make.</code> with an <code>r[xyz]</code>
+key. If there are none, skip this entirely.</p>
+</blockquote>
+<blockquote>
+<h2>⚠️ AND THIS: models placed away from the origin in their file</h2>
+<p><strong>If a <code>.glb</code> has its object sitting somewhere other than (0,0,0) in the source
+scene, <code>canonicalize</code> now discards that placement</strong> — as its contract always
+claimed it did. It previously zeroed only the glTF loader&#39;s <code>__root__</code>
+wrapper, leaving the authored object&#39;s scene transform intact.</p>
+<p><strong>The tell is a vehicle that pivots or collides oddly</strong>, because the control
+node used to sit a fixed distance from the model it steers (1.7 m for our own
+scout). A <code>_centerOfGravity</code> marker measured against that node folded the
+offset into the pivot, so a marker authored <strong>correctly on the centreline</strong>
+produced a pivot 1.75 m out, while a hand-tuned offset came out right. Ours
+was re-exported to the documented convention and immediately began crashing on
+every bank.</p>
+<p><strong>What to do:</strong> author in the model&#39;s LOCAL frame and delete compensating
+offsets. Before treating a changed vehicle as a regression, check whether a
+marker or placement was tuned against the old behaviour. <strong>Models authored at
+the origin — the common case — are unaffected.</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>landform.gulley</code> / <code>landform.cover</code> <code>heading</code></td>
+<td>radians</td>
+<td><strong>degrees</strong> — <code>heading * 180 / Math.PI</code></td>
+</tr>
+<tr>
+<td><code>library.instantiate()</code> / <code>lib.make.*</code> rotation</td>
+<td>radians <strong>and silently ignored</strong> — see the box above</td>
+<td><strong>degrees, and actually applied</strong></td>
+</tr>
+<tr>
+<td><code>b3d-aircraft</code> chase HUD</td>
+<td><code>hudChase: true</code> / <code>hudChase: false</code></td>
+<td>delete it (now default) / <code>hudChaseOff: true</code></td>
+</tr>
+<tr>
+<td>Right stick</td>
+<td>aux roll</td>
+<td><strong>camera</strong>. <code>strafe</code> still sums into roll, so a custom mapping can restore a roll axis</td>
+</tr>
+<tr>
+<td>Glass gamepad</td>
+<td>always visible</td>
+<td><strong>auto-hides</strong> once a keyboard or hardware gamepad is used. <code>fade=&quot;off&quot;</code> pins it</td>
+</tr>
+<tr>
+<td><code>carve</code> exports</td>
+<td>13 bare names (<code>sphere</code>, <code>tube</code>, …)</td>
+<td>the <strong><code>carve.*</code> namespace</strong> (<code>carve.sphere</code>, <code>carve.tube</code>)</td>
+</tr>
+<tr>
+<td><code>b3dPatch</code> / <code>B3dPatch</code></td>
+<td>experimental element</td>
+<td><strong>removed</strong> — the pure modules it used (<code>carve.*</code>, <code>sdf-lattice</code>, <code>patch-field</code>) are kept</td>
+</tr>
+<tr>
+<td><code>library.getNames()</code></td>
+<td>raw node names</td>
+<td><strong>public names</strong> — <code>.model</code>, behaviour suffixes and the glTF loader&#39;s <code>_primitiveN</code> removed, so <code>building_collideCylinder_primitive0</code> lists as <code>building</code></td>
+</tr>
+<tr>
+<td>Model scene transform</td>
+<td>kept on the content node under <code>__root__</code></td>
+<td><strong>dropped</strong> — see the box above; affects models not authored at the origin</td>
+</tr>
+<tr>
+<td><code>spawnProjectile</code> / <code>spawnMissile</code> impact</td>
+<td><code>onImpact(point)</code></td>
+<td><code>whenImpact({ point, normal, mesh })</code>. The old name still fires, with a one-shot warning</td>
+</tr>
+</tbody></table>
+<h3>The two that fail SILENTLY</h3>
+<p>Most of the above errors, or is obvious the first time you look. These two do
+not, so check them by hand:</p>
+<ul>
+<li><strong>Angles.</strong> A bare number is valid in either unit, so a value meant as radians
+now produces a different orientation rather than an error.</li>
+<li><strong><code>hudChase</code>.</strong> tosijs props end in an index signature, so a stale <code>hudChase</code>
+<strong>compiles and is silently ignored</strong>. Nothing will tell you.</li>
+</ul>
+<h3>A note on library rotation</h3>
+<p>See the box at the top of this section. It is the one change here that can move a
+scene which previously looked correct, so it is not buried down here.</p>
+<h3>Prerelease users</h3>
+<p>If you pinned <code>0.7.0-rc.1</code> or any <code>0.7.0-beta.*</code>, move to <code>0.7.0</code>. The
+prerelease channel was inverted — <code>rc.1</code> was published before <code>beta.1…6</code>, and
+semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to the older build.
+<code>0.7.0</code> sorts above all of them.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link current" href="../Migration/" aria-current="page">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

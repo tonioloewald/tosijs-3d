@@ -10,6 +10,11 @@ HUD) plots. Two ways to place one:
 - **Directly in the scene** — a **static** blip at its own `x`/`y`/`z` (waypoints,
   fixed landmarks). It rides the floating origin.
 
+> **The live demo lives on [[b3d-radar]]** — a blip only means something to a
+> sensor, so one scene shows both: a sweeping mast, three blips of different
+> `faction` and `profile`, and a readout of what is detected and what is locked.
+> Duplicating it here would be two scenes to keep in step and one idea.
+
 ## Attributes
 
 | Attribute | Default | Description |

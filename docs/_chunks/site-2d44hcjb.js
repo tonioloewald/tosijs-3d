@@ -1,5 +1,0 @@
-import{Ut as Q}from"./site-40a1yrg8.js";import{zu as P}from"./site-v2rprchq.js";import{sE as N}from"./site-c9kedmgh.js";class U extends Q{constructor(A){super(A);this.config=A;for(let H in this.config.eventData){let q=this.config.eventData[H],J=typeof q.type==="string"?q.type:q.type?.typeName,L=typeof q.type?.serialize==="function"?q.type:P(J);q.type=L,this.registerDataInput(H,L,q.value)}}_execute(A){let H=this.config.eventId,q={};for(let J of this.dataInputs)q[J.name]=J.getValue(A);A.configuration.coordinator.notifyCustomEvent(H,q),this.out._activateSignal(A)}serialize(A={}){super.serialize(A);let H={};for(let q in this.config.eventData){let J=this.config.eventData[q];if(H[q]={type:J.type.typeName},J.value!==void 0)H[q].value=J.value}A.config.eventData=H}getClassName(){return"FlowGraphSendCustomEventBlock"}}var M=!1;function V(){if(M)return;M=!0,N("FlowGraphSendCustomEventBlock",U)}V();
-export{U as Er,V as Fr};
-
-//# debugId=CF02A7D344682DD564756E2164756E21
-//# sourceMappingURL=site-2d44hcjb.js.map

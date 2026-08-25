@@ -16,6 +16,14 @@ export declare class B3dSvgPlane extends AbstractMesh {
         updateInterval: number;
         materialChannel: string;
         cameraRelative: boolean;
+        /**
+         * When `cameraRelative` AND in a headset, parent to this XR reference frame
+         * instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in
+         * front of you WITHOUT jittering on every head movement — right for a menu
+         * you read, wrong for a HUD (leave it '' so a HUD stays head-locked). Flat,
+         * or with no frame set, `cameraRelative` behaves exactly as before.
+         */
+        xrFrame: string;
         pointerEvents: "on" | "off";
         doubleSided: "on" | "off";
         /**
@@ -49,6 +57,7 @@ export declare class B3dSvgPlane extends AbstractMesh {
     updateInterval: number;
     materialChannel: string;
     cameraRelative: boolean;
+    xrFrame: string;
     pointerEvents: 'on' | 'off';
     doubleSided: 'on' | 'off';
     cornerRadius: number;
@@ -64,6 +73,16 @@ export declare class B3dSvgPlane extends AbstractMesh {
     private _pressing;
     private _lastSvgX;
     private _lastSvgY;
+    /** Nominal camera-local Z (the author's `z`), before any occlusion pull-in. */
+    private _nominalZ;
+    private _depthObs;
+    /**
+     * Keep a camera-relative panel in FRONT of whatever is between you and it —
+     * see the note at the call site. Apparent size is preserved by scaling with
+     * the distance, so the panel reads identically whether it sits at its nominal
+     * depth or has been pulled in to clear a hillside.
+     */
+    private _installDepthGuard;
     content: () => string;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     sceneDispose(): void;

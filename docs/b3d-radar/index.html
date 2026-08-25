@@ -53,6 +53,78 @@ the pure, tested <a href="../radar/">radar</a> model. Nest it in the thing it ri
 <pre><code class="language-javascript">b3dAircraft({ player: true, y: 0 },
   b3dRadar({ range: 250, coneDeg: 90, lockTime: 1.5, maxLocks: 2 }))
 </code></pre>
+<h2>Demo — watch a lock build and decay</h2>
+<p>The mast <strong>sweeps</strong>, so contacts enter and leave the cone on their own. Watch the
+lock column: a contact inside the <em>acquire</em> cone climbs toward 1.00, holds while
+it stays in the wider <em>maintain</em> cone, and drops the moment it falls out. The
+grey contact is <code>faction: &#39;neutral&#39;</code> — detected, never locked.</p>
+<pre><code class="language-js">import { b3d, b3dRadar, b3dRadarBlip, b3dBox, label3d, slider3d } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam } from &#39;demo-utils&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+const { div } = elements
+
+const { rad } = tosi({ rad: { sweep: 35, range: 60 } })
+
+// The platform: a mast the radar rides. A radar finds what it is nested in.
+const radar = b3dRadar({ range: rad.range, coneDeg: 70, acquireConeDeg: 28, lockTime: 1.2, maxLocks: 2 })
+const mast = b3dBox({ meshName: &#39;mast&#39;, width: 0.8, depth: 0.8, height: 3, y: 1.5, color: &#39;#8a94a6&#39; }, radar)
+
+// Contacts: each a box carrying a blip, so the blip follows the mesh.
+const contacts = [
+  { name: &#39;alpha&#39;, faction: &#39;hostile&#39;, profile: 1.4, r: 22, speed: 0.35, color: &#39;#d05050&#39; },
+  { name: &#39;bravo&#39;, faction: &#39;hostile&#39;, profile: 0.6, r: 34, speed: -0.22, color: &#39;#d07a50&#39; },
+  { name: &#39;civil&#39;, faction: &#39;neutral&#39;, profile: 1.2, r: 27, speed: 0.5, color: &#39;#9aa5b1&#39; },
+]
+// Keep the BLIP elements: a track&#39;s `id` is the blip element itself, not a
+// name, so the readout matches by identity. (Stringifying it gives
+// &quot;[object HTMLElement]&quot; — which is how I first labelled every row &#39;alpha&#39;.)
+const blips = contacts.map((c) =&gt; b3dRadarBlip({ faction: c.faction, profile: c.profile }))
+const boxes = contacts.map((c, i) =&gt;
+  b3dBox({ meshName: c.name, size: 1.2, y: 1, color: c.color, glow: 0.3 }, blips[i]))
+
+const readout = div({ style: &#39;font:12px ui-monospace,monospace; padding:6px; white-space:pre&#39; })
+
+const scene = b3d(
+  {
+    glowLayerIntensity: 0.6,
+    scenePanel: () =&gt; [
+      label3d({ text: &#39;radar&#39; }),
+      slider3d({ label: &#39;sweep °/s&#39;, value: rad.sweep, min: 0, max: 90, step: 5 }),
+      slider3d({ label: &#39;range&#39;, value: rad.range, min: 15, max: 90, step: 5 }),
+    ],
+    sceneCreated(el) {
+      orbitCam(el, { radius: 46, beta: Math.PI / 3.2, target: [0, 1, 0] })
+      let t = 0
+      el.scene.registerBeforeRender(() =&gt; {
+        const dt = el.frameDelta
+        t += dt
+        // ry is DEGREES — the cone sweeps, so contacts come and go on their own.
+        mast.ry = (mast.ry + rad.sweep.valueOf() * dt) % 360
+        radar.range = rad.range.valueOf()
+        boxes.forEach((b, i) =&gt; {
+          const c = contacts[i]
+          b.x = Math.cos(t * c.speed + i * 2) * c.r
+          b.z = Math.sin(t * c.speed + i * 2) * c.r
+        })
+        const rows = (radar.tracks ?? []).map((tr) =&gt; {
+          const c = contacts[blips.indexOf(tr.id)] ?? contacts[0]
+          const bar = &#39;█&#39;.repeat(Math.round(tr.lockProgress * 10)).padEnd(10, &#39;·&#39;)
+          return `${c.name.padEnd(6)} ${String(Math.round(tr.distance)).padStart(3)}m  ` +
+            `${tr.detected ? &#39;seen&#39; : &#39;    &#39;}  ${bar} ${tr.locked ? &#39;LOCK&#39; : &#39;&#39;}`
+        })
+        readout.textContent = rows.length
+          ? &#39;contact  dist  det   lock\n&#39; + rows.join(&#39;\n&#39;)
+          : &#39;no contacts in cone&#39;
+      })
+    },
+  },
+  ...demoStage({ size: 90, tiles: 18, pattern: true, timeOfDay: 10 }),
+  mast,
+  ...boxes,
+)
+
+preview.append(scene, readout)
+</code></pre>
 <p>The platform reads <code>radar.tracks</code> (to plot the HUD) and <code>radar.nearestLock</code> (a homing
 missile&#39;s target — no lock ⇒ the missile flies ballistic). A <strong>turret</strong> wants a cheap
 one: <code>maxLocks: 1</code>, <code>alignment: &#39;hostile&#39;</code> (so it only locks the player).</p>
@@ -102,6 +174,8 @@ one: <code>maxLocks: 1</code>, <code>alignment: &#39;hostile&#39;</code> (so it 
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

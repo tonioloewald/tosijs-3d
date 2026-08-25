@@ -1,5 +1,0 @@
-class k{constructor(b,f){this.width=b,this.height=f}toString(){return`{W: ${this.width}, H: ${this.height}}`}getClassName(){return"Size"}getHashCode(){let b=this.width|0;return b=b*397^(this.height|0),b}copyFrom(b){this.width=b.width,this.height=b.height}copyFromFloats(b,f){return this.width=b,this.height=f,this}set(b,f){return this.copyFromFloats(b,f)}multiplyByFloats(b,f){return new k(this.width*b,this.height*f)}clone(){return new k(this.width,this.height)}equals(b){if(!b)return!1;return this.width===b.width&&this.height===b.height}get surface(){return this.width*this.height}static Zero(){return new k(0,0)}add(b){return new k(this.width+b.width,this.height+b.height)}subtract(b){return new k(this.width-b.width,this.height-b.height)}scale(b){return new k(this.width*b,this.height*b)}static Lerp(b,f,q){let v=b.width+(f.width-b.width)*q,x=b.height+(f.height-b.height)*q;return new k(v,x)}}
-export{k as Nw};
-
-//# debugId=C34943CAADDA473564756E2164756E21
-//# sourceMappingURL=site-r8mj0cxm.js.map

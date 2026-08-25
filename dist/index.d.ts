@@ -13,8 +13,8 @@ export { proximityRung, rungNominal, routePortals, containmentPath, } from './wo
 export { runMinSimConformance } from './min-sim-conformance';
 export type { ConformanceHarness, TickableMinSim } from './min-sim-conformance';
 export type { WorldState, WorldEntity, EntityComponents, HealthComponent, InventoryEntry, FactionComponent, InteractableComponent, EntityId, EntityKind, EntityIntent, Behavior, Zone, ZoneId, SpawnSpec, SimulationEvent, EventHandler, Unsubscribe, WorldApi, PlaceId, PortalId, ChoiceId, Shape, Proximity, PlaceKind, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, MinSimApi, } from './world-contract';
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, } from './b3d-utils';
-export type { XRStuff, XRParams } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, markUiMesh, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils';
+export type { XRStuff, XRParams, SimGateOwner } from './b3d-utils';
 export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire';
 export type { FlyByWireConfig, FlyByWireCommand, FlyByWireState, } from './fly-by-wire';
 import * as mediumNs from './medium';

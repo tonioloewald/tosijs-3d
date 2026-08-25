@@ -174,6 +174,96 @@ function hierarchyMinWorldY(node) {
     return minY;
 }
 /**
+ * Is the SIMULATION stopped for this owner? Then a controllable must **halt**,
+ * not merely read empty input.
+ *
+ * The distinction has cost us twice. A controllable's clock is `Date.now`-based,
+ * so a stopped scene does not slow it down, and an aircraft fed empty input
+ * COASTS — indistinguishable from cruising ("I can background the tab, come back
+ * and the game is continuing to run, I just can't steer", #30). `freeze()` then
+ * repeated the mistake in miniature: it stopped everything on `sceneDelta`
+ * (terrain, water, projectiles) while the piloted aircraft flew on, so raising
+ * the re-seat prompt in flight could fly you into the ground while the modal was
+ * up.
+ *
+ * Pure and exported so BOTH gates live in one place and a third state added
+ * later lands in both. This is the predicate `B3dControllable._update` halts on.
+ */
+export function simHalted(owner) {
+    return owner?.paused === true || owner?.frozen === true;
+}
+/**
+ * Should this controllable READ its input this frame? False also when input is
+ * modally suppressed (a dialog borrowing a control you also play with) or when
+ * another demo on the page holds scene focus.
+ *
+ * Distinct from `simHalted`: halted means "do not advance at all", not-live
+ * means "advance, but with neutral input" — which is right for an unfocused
+ * demo that should idle rather than freeze.
+ */
+export function controlsLive(owner) {
+    if (simHalted(owner))
+        return false;
+    if (owner?.inputSuppressed === true)
+        return false;
+    return owner?.hasInputFocus ?? true;
+}
+/**
+ * Mark a mesh as **UI**: pickable by pointers, invisible to COLLISION.
+ *
+ * These are different questions and we had only one answer for both. A spatial
+ * panel MUST stay `isPickable` — that is how a controller ray, a gaze cursor or
+ * a mouse targets it — and `isPickable` was also the only thing collision
+ * predicates could filter on. So the aircraft's impact sweep, which crashes on
+ * ANY hit above `crashSpeed`, treated the settings panel floating in front of
+ * your face as terrain.
+ *
+ * That is the phantom collision (Tonio, VR pass 2 — `crashReport` named it:
+ * `hit=frame-panel`). It only bit in cockpit view because that is where the
+ * camera — and the panels riding its reference frames — sit close enough to the
+ * airframe to fall inside a ~2m sweep, and it fired on BANK because banking
+ * swings the velocity vector into the panel. Nothing to do with terrain, which
+ * is why it reproduced in scenes that have none.
+ *
+ * The first of the collision GROUPS described in `COLLISION-DESIGN.md`. Written
+ * on metadata rather than a name suffix because UI planes are built by us, not
+ * authored in Blender.
+ */
+export function markUiMesh(mesh) {
+    mesh.metadata = { ...(mesh.metadata ?? {}), b3dNoCollide: true };
+}
+/**
+ * Should a collision probe ignore this mesh? True for UI (see `markUiMesh`).
+ *
+ * Prefer `collidable()` over calling this directly — a rule every call site has
+ * to remember is a rule that gets forgotten, which is exactly what happened.
+ */
+export function isNoCollide(mesh) {
+    return (mesh.metadata?.b3dNoCollide === true);
+}
+/**
+ * THE collision predicate. Everything physical picks through this.
+ *
+ * Excludes UI **by default** — you opt IN to hitting it, never out. That
+ * polarity is the whole point: `isNoCollide` shipped as an opt-out clause each
+ * predicate had to remember, and within one release two of the four sites had
+ * forgotten it, so a world-anchored panel stopped shells and acted as blast
+ * cover. See `COLLISION-DESIGN.md` → "Default groups".
+ *
+ * It also re-checks `isPickable`/`isEnabled` centrally, because **passing a
+ * predicate to `pickWithRay` makes Babylon skip its own filter** — the trap that
+ * once had an aircraft pick a cloud blob as ground. Note that `isPickable` is
+ * not the same as *visible*: a gaze-revealed panel hides with `visibility = 0`
+ * and stays pickable, so without the UI exclusion an unrevealed panel is an
+ * invisible bullet shield.
+ *
+ * `reject` is for the caller's OWN business — self-exclusion, `__root__`, water
+ * for a submersible — never for the shared rules above.
+ */
+export function collidable(reject) {
+    return (m) => m.isPickable && m.isEnabled() && !isNoCollide(m) && !(reject?.(m) ?? false);
+}
+/**
  * Vertical gap, in world units, between a node's origin and the bottom of its
  * geometry. Handy as a ground clearance so a model rests on a surface instead
  * of its origin sinking into it (origins are rarely at the model's feet).

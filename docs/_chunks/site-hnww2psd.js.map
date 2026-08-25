@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Maths/math.vector.js"],
+  "sourcesContent": [
+    "/**\n * Re-exports pure implementation and applies runtime side effects.\n * Import math.vector.pure for tree-shakeable, side-effect-free usage.\n */\nexport * from \"./math.vector.pure.js\";\nimport { RegisterMathVector } from \"./math.vector.pure.js\";\nRegisterMathVector();\n//# sourceMappingURL=math.vector.js.map"
+  ],
+  "mappings": "wCAMA,EAAmB",
+  "debugId": "48DE7BF9E9E07E9F64756E2164756E21",
+  "names": []
+}

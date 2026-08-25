@@ -67,6 +67,15 @@ export declare class B3dAircraft extends B3dControllable {
         chasePitchLag: number;
         hoverCeiling: number;
         groundY: number;
+        /**
+         * Treat a water surface as PASSABLE rather than as ground.
+         *
+         * Off by default, because a plane hitting the sea should crash — that is
+         * not a bug to fix, it is most aircraft. Turn it on for anything meant to
+         * go under, and the floor sensor ignores water and finds the real seabed
+         * (or `groundY`) beneath it.
+         */
+        submersible: boolean;
         crashSpeed: number;
         weapons: string;
         gunRate: number;
@@ -143,6 +152,25 @@ export declare class B3dAircraft extends B3dControllable {
     private meshesToDispose;
     private _lastGroundDist;
     private _groundNormal;
+    /** Name of whatever the downward "ground" ray last hit — the phantom-collision witness. */
+    private _lastGroundHitName;
+    private _groundDbgOff;
+    /**
+     * Why the last crash fired, captured AT the crash. Always on: crashes are rare,
+     * so this costs nothing per frame, and it is readable in a headset (Perf panel)
+     * where there is no console. `hit` is the mesh the ground ray called ground —
+     * if that is not the ground, this is the phantom collision.
+     */
+    crashReport: {
+        hit: string | null;
+        dist: number;
+        altitude: number;
+        normalY: number;
+        upY: number;
+        velY: number;
+        speed: number;
+        reason: string;
+    } | null;
     /** True while the airframe is in open air INSIDE the ground (a bore/cavern):
      * heightfield assumptions are suspended for the frame. */
     private _inCavity;
@@ -164,6 +192,41 @@ export declare class B3dAircraft extends B3dControllable {
     /** The airframe's own meshes — the collision ray must skip these so a shell/bomb
      * spawned at the belly (or the nose in a climb) never detonates on us. */
     private ownMeshes;
+    /**
+     * WHERE THE AIRFRAME ACTUALLY IS — the world position of the node's local
+     * origin, for ray origins.
+     *
+     * `node.position` is the node's translation in its PARENT's space, and with a
+     * `_centerOfGravity` pivot the rendered airframe swings about the CoG under
+     * attitude while `position` keeps pointing at the stance origin. `muzzle()`
+     * already went through the world matrix for exactly this reason ("shots would
+     * spawn beside/behind the visible plane in a turn") — but both collision rays
+     * still fired from `position`, so BANKING moved the airframe out from under
+     * its own rays. The impact sweep crashes on ANY hit above `crashSpeed`, which
+     * turns that offset into "collided with something I was nowhere near"
+     * (Tonio, VR pass 2: "we could bank without crashing before").
+     *
+     * Transforming the LOCAL ORIGIN (not the pivot) keeps the existing ground
+     * semantics bit-for-bit: with no pivot and no parent this is exactly
+     * `node.position`, so `groundClearance` still means what it measured.
+     */
+    private originWorld;
+    /**
+     * What this airframe's collision rays must SKIP — shared by the ground ray
+     * and the impact sweep so they cannot diverge.
+     *
+     * They did diverge: `submersible` was consulted only by the ground ray, so a
+     * submersible aircraft passed the waterline on the downward test and then
+     * exploded on it via the sweep, which crashes on ANY hit above `crashSpeed`.
+     * The dive demo could not work at all — its own descent rate
+     * (`maxSpeed * 0.3` = 9 m/s) exceeds the default `crashSpeed` of 8 — and
+     * surfacing failed the same way, since Babylon's picking does not
+     * backface-cull.
+     *
+     * Water is ground to something that cannot go under it, and scenery to
+     * something that can. That is one rule, so it lives in one place.
+     */
+    private skipForCollision;
     /** World nose direction (unit) and a muzzle point `ahead` metres in front.
      * Computed through the WORLD matrix, never node.position: with a
      * _centerOfGravity pivot the rendered airframe swings about the CoG under

@@ -147,6 +147,12 @@ for (const key of [&#39;animate&#39;, &#39;showOrbits&#39;]) {
 }
 updateInfo()
 </code></pre>
+<blockquote>
+<p>The panel&#39;s readout opts out of the doc system&#39;s <code>&lt;pre&gt;</code> styling. A <code>&lt;pre&gt;</code>
+is rendered as a CODE BLOCK there — light background, its own colour — and
+inside a panel that sets <code>color: white</code> it came out white-on-white and simply
+invisible.</p>
+</blockquote>
 <pre><code class="language-css">tosi-b3d {
   width: 100%;
   height: 100%;
@@ -163,6 +169,13 @@ updateInfo()
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+.debug-panel pre {
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  margin: 0;
 }
 </code></pre>
 <h2>Attributes</h2>
@@ -215,6 +228,8 @@ updateInfo()
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

@@ -31,7 +31,7 @@ class Spinner extends B3dControllable {
 - `handleGainFocus()` / `handleLoseFocus()` — lifecycle hooks for input switching
 */
 /*{ "parent": "Input", "order": 900 }*/
-import { AbstractMesh } from './b3d-utils';
+import { AbstractMesh, simHalted, controlsLive, } from './b3d-utils';
 import { emptyInput } from './control-input';
 export class B3dControllable extends AbstractMesh {
     inputProvider = null;
@@ -88,7 +88,7 @@ export class B3dControllable extends AbstractMesh {
         continuing to run, I just can't steer" (#30). `lastUpdate` is stamped above,
         so resuming does not deliver the whole pause as one step.
         */
-        if (this.owner?.paused === true)
+        if (simHalted(this.owner))
             return;
         if (this.inputProvider == null)
             return;
@@ -98,8 +98,13 @@ export class B3dControllable extends AbstractMesh {
         // A PAUSED scene must not read input either: the render loop still runs (the
         // pause panel has to be drawn), so without this a held stick would keep
         // steering a world that is supposed to be stopped.
-        const owner = this.owner;
-        const live = (owner?.hasInputFocus ?? true) && owner?.paused !== true;
+        /*
+        `inputSuppressed` is a MODAL gate: a prompt that asks you to pull a trigger
+        must not also fire the gun with it (the re-seat dialog). Unlike `frozen` it
+        does NOT stop the world — an unfocused demo on a busy page should idle, not
+        freeze — which is why the two predicates are separate. See `b3d-utils`.
+        */
+        const live = controlsLive(this.owner);
         const input = live ? this.inputProvider.poll(dt) : emptyInput();
         this.lastInput = input;
         this.applyInput(input, dt);

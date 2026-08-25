@@ -35,7 +35,10 @@ const scene = b3d(
   b3dLight({ y: 1, intensity: 0.8 }),
   b3dSkybox({ timeOfDay: 12 }),
   b3dGround({ width: 20, height: 20, texture: 'checker', textureTiles: 10 }),
-  // `axes` pins a debug XYZ gizmo on any AbstractMesh geometry (glowing R/G/B).
+  // `axes` pins a debug XYZ READOUT on any AbstractMesh geometry (glowing R/G/B).
+  // It shows you an orientation; it is NOT a handle — there is nothing to grab
+  // and nothing happens if you try. (It reads as Babylon's position gizmo,
+  // which is a manipulator. Exposing that one is TODO — see the note below.)
   b3dBox({ meshName: 'cube', size: 1, y: cfg.height, color: '#39c5ff', axes: true }),
   // BOTH flat + VR: a world-anchored SVG panel — it IS a mesh in the scene, so it
   // shows in the regular view and in VR, always in the same spot.
@@ -45,6 +48,11 @@ const scene = b3d(
 )
 preview.append(scene)
 ```
+> **The coloured axes are a readout, not a manipulator.** They show the cube's
+> orientation. Babylon ships a real position/rotation gizmo (`GizmoManager`)
+> and exposing it — so a panel can be PLACED by dragging rather than by typing
+> numbers — is on the list, not in 0.7.0.
+
 ```css
 tosi-b3d { width: 100%; height: 100%; }
 ```

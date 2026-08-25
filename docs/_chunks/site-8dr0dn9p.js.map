@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/iblDominantDirection.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { helperFunctions } from \"./ShadersInclude/helperFunctions.js\";\nimport { importanceSampling } from \"./ShadersInclude/importanceSampling.js\";\nimport { pbrBRDFFunctions } from \"./ShadersInclude/pbrBRDFFunctions.js\";\nimport { hdrFilteringFunctions } from \"./ShadersInclude/hdrFilteringFunctions.js\";\nconst name = \"iblDominantDirectionPixelShader\";\nconst shader = `precision highp sampler2D;precision highp samplerCube;\n#include<helperFunctions>\n#include<importanceSampling>\n#include<pbrBRDFFunctions>\n#include<hdrFilteringFunctions>\nvarying vec2 vUV;uniform sampler2D icdfSampler;void main(void) {vec3 lightDir=vec3(0.0,0.0,0.0);for(uint i=0u; i<NUM_SAMPLES; ++i)\n{vec2 Xi=hammersley(i,NUM_SAMPLES);vec2 T;T.x=texture2D(icdfSampler,vec2(Xi.x,0.0)).x;T.y=texture2D(icdfSampler,vec2(T.x,Xi.y)).y;vec3 Ls=uv_to_normal(vec2(1.0-fract(T.x+0.25),T.y));lightDir+=Ls;}\nlightDir/=float(NUM_SAMPLES);gl_FragColor=vec4(lightDir,1.0);}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [helperFunctions, importanceSampling, pbrBRDFFunctions, hdrFilteringFunctions];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const iblDominantDirectionPixelShader = { name, shader };\n//# sourceMappingURL=iblDominantDirection.fragment.js.map"
+  ],
+  "mappings": "wKAMA,IAAM,EAAO,kCACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,gEASf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAAiB,EAAoB,EAAkB,CAAqB,EAC9F,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAAkC,CAAE,OAAM,QAAO",
+  "debugId": "2B1600F81D3F344564756E2164756E21",
+  "names": []
+}

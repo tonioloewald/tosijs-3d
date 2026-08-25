@@ -21,7 +21,13 @@ export { WorldView, defaultMeshFactory } from './world-view';
 export { proximityRung, rungNominal, routePortals, containmentPath, } from './world-topology';
 export { runMinSimConformance } from './min-sim-conformance';
 // Utilities
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, } from './b3d-utils';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, 
+// Documented API that was reachable only by a deep import — which `exports`
+// (a bare string) blocks with ERR_PACKAGE_PATH_NOT_EXPORTED. `isNoCollide`'s
+// shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to
+// use `semanticParent`; instructing someone to call something they cannot
+// import is worse than not documenting it.
+markUiMesh, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils';
 // The pure flight model, so a consumer can predict what the aircraft will do
 // without instantiating one — `equilibriumSpeed` is what the HUD's set-point
 // mark is drawn from, and a mission planner wants the same number.

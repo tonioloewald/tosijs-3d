@@ -279,11 +279,12 @@ import '@babylonjs/loaders';
 import { xrControllers } from './gamepad';
 import { panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d';
 import { panelFitWidth } from './widgets3d-layout';
+import { w3dTheme } from './w3d-theme';
 import { SvgTexture } from './svg-texture';
 import { b3dSvgPlane } from './b3d-svg-plane';
 import { createMakers } from './make-mesh';
 import { openPopup, } from './popup-surface';
-import { cameraIsAttached, isOff } from './b3d-utils';
+import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils';
 import { svgIcons } from './svg-icons';
 import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
@@ -293,7 +294,7 @@ import { attachFramePanel, placeholderPanelSvg, } from './frame-panel';
 import { runProbe, hydrateProfileFromCache } from './b3d-probe';
 import { compositeFog, approachFog, } from './atmosphere';
 import { setQuality, qualityBudgets, onQualityChange, effectiveTier, } from './b3d-quality';
-import { allocateAmbient, ratchetPool, } from './ambient-budget';
+import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget';
 const { canvas, div, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
@@ -388,6 +389,18 @@ export class B3d extends Component {
         pauseWhenHidden: 'on',
         /** Come up paused, showing the pause panel — the "press Start" shape. */
         startPaused: false,
+        /**
+         * Freeze the clock while the **re-seat** dialog is up (`'on'` default).
+         *
+         * Re-seating is a comfort action, and being shot while you do it is unfair.
+         * But freezing is a decision only a LOCAL world can make — a networked one
+         * cannot stop the other players — so set `'off'` for multiplayer and the
+         * dialog still gates YOUR input, which is the half that always works.
+         *
+         * A string enum rather than a boolean because an HTML boolean attribute
+         * cannot default to true (absent ⇒ false), and this one wants to.
+         */
+        reseatFreeze: 'on',
         /**
          * On resume, enter immersive VR if the device supports it; on leaving VR,
          * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
@@ -646,6 +659,22 @@ export class B3d extends Component {
     */
     static BABYLON = BABYLON;
     BABYLON = BABYLON;
+    /*
+    XR SESSION ACCOUNTING — so a headset can answer "is it us or the browser?"
+  
+    The Quest does not reliably release WebXR GPU resources between sessions, so
+    after a dozen enter/exits everything degrades — including back in the flat
+    view, and only a reload clears it. That is browser-level and not ours to fix,
+    but it is indistinguishable IN THE HEADSET from a leak of our own, and there is
+    no console in VR to check with.
+  
+    So: snapshot the scene's resource counts at the FIRST XR entry and report the
+    delta in the Perf panel. Flat deltas across many sessions means our teardown is
+    clean and the degradation is the browser's; growing deltas means it is ours.
+    Tonio hit exactly this after ~20 sessions in one pass and had no way to tell.
+    */
+    _xrSessions = 0;
+    _xrBaseline = null;
     _makers;
     /**
      * Babylon primitives with the easy-to-forget parts done: material from
@@ -674,6 +703,14 @@ export class B3d extends Component {
     _pausePanel = null;
     _pauseWatch = null;
     _cameraWasAttached = false;
+    // Snapshot of the flat ORBIT camera taken on XR entry, restored on exit. An
+    // ArcRotateCamera orbits a target, so Babylon's default "carry the XR pose
+    // back" copies your walked-to headset position into it and recomputes a low
+    // orbit angle — you exit VR looking at the scene from the floor (Tonio, VR
+    // pass 2). Free/walkable cameras CAN adopt an arbitrary pose, so they keep the
+    // carry-back (which is the symmetric behaviour that was liked); only orbit
+    // cameras, for which it's meaningless, are restored.
+    _flatOrbitState = null;
     /** Is the simulation held? Rendering continues — the panel has to be drawn. */
     get paused() {
         return this._paused;
@@ -689,6 +726,50 @@ export class B3d extends Component {
      * asked" from "the tab went away" — a settings menu and an interruption
      * deserve different handling.
      */
+    /**
+     * Modal input gate — the controls go dead, the world does NOT stop.
+     *
+     * For a dialog that borrows a control you also play with: the re-seat prompt
+     * asks for a trigger pull, and without this that same pull fires the gun.
+     * Deliberately not `pause()`: a pause raises the pause panel, can enter XR on
+     * resume, and clobbers an existing pause when it lifts. Read by
+     * `B3dControllable._update`.
+     */
+    _inputSuppressed = false;
+    get inputSuppressed() {
+        return this._inputSuppressed;
+    }
+    suppressInput(on) {
+        this._inputSuppressed = on;
+    }
+    /**
+     * Stop the CLOCK for a transient modal — no pause panel, no resume semantics.
+     *
+     * `pause()` is a user-facing state: it raises the panel, can enter XR on
+     * resume, and lifting it would clobber a pause the user set themselves. A
+     * dialog that lasts two seconds wants none of that; it just wants the world
+     * to hold still. This publishes `b3dFrameDelta = 0` exactly as a pause does,
+     * so everything on `sceneDelta` stops, and lifts without touching pause state
+     * (a scene paused underneath STAYS paused).
+     *
+     * **Local only, by definition.** Freezing is a decision your machine can make
+     * and a networked world cannot honour — you cannot stop other players'
+     * clocks. So `suppressInput` is the floor (your controls go dead, the world
+     * carries on) and this is policy on top, which is why the re-seat dialog
+     * always gates input and only optionally freezes (`reseatFreeze`).
+     */
+    _frozen = false;
+    get frozen() {
+        return this._frozen;
+    }
+    freeze(on) {
+        if (on === this._frozen)
+            return;
+        this._frozen = on;
+        // Don't hand the held time back as one giant step on the first live frame.
+        if (!on)
+            this.lastRender = Date.now();
+    }
     pause(reason = 'user') {
         if (this._paused)
             return;
@@ -794,6 +875,12 @@ export class B3d extends Component {
         const width = panelFitWidth(fov, aspect, z, 1.1);
         const plane = b3dSvgPlane({
             cameraRelative: true,
+            // Ride the TORSO, not your face (Tonio: "not sure the pause / continue
+            // dialog needs to be pinned to your face"). It is a thing you read and
+            // then press, so head-locking it means it follows every glance and can
+            // never be looked AWAY from — the same reason the respawn panel moved to
+            // this frame. Ignored flat, where cameraRelative means the orbit camera.
+            xrFrame: 'body',
             width,
             height: width * (svgH / 320),
             z,
@@ -1109,6 +1196,25 @@ export class B3d extends Component {
             move(root);
         for (const cb of this._originShiftListeners)
             cb(dx, dz);
+        // Instrument the floating-origin desync hypothesis (VR pass 2, 'origin'
+        // tag): the phantom "collide with terrain nowhere near you" fits the piloted
+        // aircraft NOT being what shiftOrigin moves — in chase view the carrier can
+        // be the chase rig, leaving the plane at pre-shift coords while the tiles
+        // jump. Record exactly what was moved so the next pass reads the truth
+        // instead of us guessing. `carrierIsPiloted:false` while flying = confirmed.
+        if (this._debugCapture.has('origin')) {
+            this.logDebug('origin', {
+                kind: 'shiftOrigin',
+                dx,
+                dz,
+                carrier: carrier?.name ?? null,
+                piloted: piloted?.name ?? null,
+                carrierIsPiloted: carrier === piloted && piloted != null,
+                carrierY: carrier?.position?.y ?? null,
+                worldRoots: this._worldRoots.size,
+                view: focused?.cameraView ?? null,
+            });
+        }
     }
     registerLibrary(type, library) {
         if (!this._libraries.has(type)) {
@@ -1170,7 +1276,10 @@ export class B3d extends Component {
         return true;
     }
     _update = () => {
-        if (this._paused) {
+        this._debugFrame++;
+        // `_frozen` stops the clock exactly like a pause, but WITHOUT the pause
+        // panel or any of pause()'s resume semantics — see `freeze()`.
+        if (this._paused || this._frozen) {
             /*
             Keep RENDERING — the panel has to be visible and pickable — but stop the
             CLOCK. Publishing a frame delta of zero is what actually pauses the world:
@@ -1185,6 +1294,21 @@ export class B3d extends Component {
                     this.scene.metadata = {};
                 this.scene.metadata.b3dFrameDelta = 0;
                 this.frameDelta = 0;
+                /*
+                FOG STILL HAS TO BE RIGHT WHILE STOPPED (adopter issue #31).
+        
+                A paused frame RENDERS — that is the whole point, the panel must be
+                visible — so everything the render reads must be correct, and fog is
+                read by the render. `_updateFog` lives past this early return, and
+                `startPaused` pauses inside the same synchronous setup block, so a scene
+                that BOOTS paused had never run it once: you saw Babylon's default fog,
+                not the scene's.
+        
+                `dt = 0` because the clock is stopped: this APPLIES the current fog
+                state without advancing any transition. Stopping time must not mean
+                rendering something the scene never asked for.
+                */
+                this._updateFog(0);
                 if (this.scene.activeCamera != null)
                     this.scene.render();
             }
@@ -1352,11 +1476,15 @@ export class B3d extends Component {
     // minimum switches OFF rather than thinning into a lie. The maths is pure and lives in
     // `ambient-budget.ts`; B3d just owns the registry, the pool, and the watchdog.
     _ambient = [];
-    /** Shrunk by the watchdog, never grown. See `ratchetPool` — and TODO: reclaiming budget in
-     * quiet moments is a real want, but it must be a damped, deliberate thing, not a rebound. */
+    /** Rationed by the watchdog: shed fast (`ratchetPool`), recovered slowly
+     * (`recoverPool`) once the machine has held a good frame rate for 20 settled
+     * seconds. The asymmetry is the damping — a transient must not cost the
+     * session its weather, and a rebound must not cost it its frame rate. */
     _ambientPoolScale = 1;
     _ambientSampleMs = 0;
     _ambientBadSamples = 0;
+    /** Sustained GOOD seconds, for the recovery path — see `_ambientWatchdog`. */
+    _ambientGoodSamples = 0;
     _ambientCooldownMs = 0;
     /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`.
      * A FLOOR, not the whole rule: `sceneBusy` holds the countdown while assets are
@@ -1454,7 +1582,23 @@ export class B3d extends Component {
      * We only need to know that ambient is the cheapest thing in the scene to give up.
      */
     _ambientWatchdog() {
-        if (this._ambient.length === 0 || this._ambientPoolScale <= 0)
+        /*
+        A pool at ZERO still has to be watched — that is the whole recovery case.
+    
+        This used to bail on `_ambientPoolScale <= 0`, which made the recovery path
+        below unreachable from exactly the state it was written for:
+        `recoverPool(0)` returns 0.25 by design ("Zero is not a special case… a pool
+        ratcheted to nothing recovers from a floor rather than staying dead"), and
+        `ambient-budget.test.ts` pins it with "a pool shed to ZERO comes back — the
+        reported bug". The model was right, the test was green, and the caller
+        returned one line before it could ever run — so a scene that shed to nothing
+        stayed dead for the session, which is precisely the reported symptom (no
+        leaves, no bubbles, no motes, on hardware that had been drawing them a
+        second earlier).
+    
+        Only the "no ambient effects at all" case is a real early-out.
+        */
+        if (this._ambient.length === 0)
             return;
         if (this.engine == null)
             return;
@@ -1490,13 +1634,45 @@ export class B3d extends Component {
         const fps = this.engine.getFps();
         if (Number.isFinite(fps) && fps > 0 && fps < target * 0.75) {
             this._ambientBadSamples++;
+            this._ambientGoodSamples = 0;
         }
         else {
             this._ambientBadSamples = 0; // it must be SUSTAINED — one bad second is a hitch, not a trend
+            // Comfortably above the shed bar, not merely above it — recovering at the
+            // same threshold that sheds is how you build an oscillator.
+            if (Number.isFinite(fps) && fps > target * 0.9)
+                this._ambientGoodSamples++;
+            else
+                this._ambientGoodSamples = 0;
+        }
+        /*
+        GIVE IT BACK, GRUDGINGLY.
+    
+        The ratchet is one-way by design and that is right on weak hardware. Its
+        failure mode shows up in ordinary play instead: **a transient costs you the
+        weather for the whole session.** Reported from a headset — falling into the
+        water shed the pool to zero, and there were no leaves, bubbles or motes for
+        the rest of the run on a device that had been rendering them a second
+        earlier. Entering water fires fog, bubbles and a surface transition at once;
+        the hitch ends long before you surface, and the punishment did not.
+    
+        Recovery is deliberately harder to earn than shedding: 20 good seconds
+        against 6 bad ones, a higher bar than the shed threshold, and a smaller step
+        (×1.35 up vs ×0.6 down). A wrong shed heals in a few intervals; a wrong
+        recovery is re-shed cheaply. The asymmetry IS the damping the old TODO asked
+        for — "a damped, deliberate thing, not a rebound".
+        */
+        if (this._ambientGoodSamples >= 20 && this._ambientPoolScale < 1) {
+            this._ambientGoodSamples = 0;
+            this._ambientCooldownMs = 5000;
+            this._ambientPoolScale = recoverPool(this._ambientPoolScale);
+            this._reallocAmbient();
+            return;
         }
         if (this._ambientBadSamples < 6)
             return; // ~6s of genuinely bad frames, not 3
         this._ambientBadSamples = 0;
+        this._ambientGoodSamples = 0;
         this._ambientCooldownMs = 5000; // let the frame settle before judging again
         this._ambientPoolScale = ratchetPool(this._ambientPoolScale);
         this._reallocAmbient();
@@ -1688,6 +1864,92 @@ export class B3d extends Component {
             this.refreshScenePanel();
         };
     }
+    /*
+    A tiny diagnostic ring buffer, for VR bugs you can only catch in a headset.
+  
+    There is no console in a headset and window.rAF is suspended, so the two
+    normal readback paths are gone. This records structured events IN the page:
+    read them back afterward at the desk with
+    `document.querySelector('tosi-b3d').debugLog` (over haltija when the tab is
+    reachable, or straight from DevTools). `frameNow` is a monotone counter, not a
+    clock — Date.now is banned in the deterministic layer and useless for ordering
+    frames anyway. Off by default; `b3d.debugCapture('origin')` arms a tag.
+    Mirror-to-console is opt-in per tag because a VR frame budget can't afford a
+    log line every reset.
+    */
+    /*
+    THE CONSOLE THAT EXISTS IN A HEADSET.
+  
+    A VR-only crash is the worst shape of bug we have: there is no console, and
+    the one person who can see it is wearing the thing. The guided-missile demo
+    crashes on a hit in VR and NOT flat (Tonio), which is exactly the case where
+    "read me the error" is impossible.
+  
+    So capture errors into the ring and surface the latest on the Perf panel. A
+    PASSIVE listener — never `preventDefault()` — so behaviour is unchanged and
+    this can ship on by default; an error that reaches `window` was already
+    uncaught, and recording it costs nothing until one happens.
+  
+    Installed once per element, torn down with it.
+    */
+    _errors = [];
+    _errorCaptureOff = null;
+    _installErrorCapture() {
+        const onError = (e) => {
+            const where = e.filename
+                ? `${String(e.filename).split('/').pop()}:${e.lineno}`
+                : 'unknown';
+            this._errors.push({
+                f: this._debugFrame,
+                msg: String(e.message ?? e.error ?? 'error').slice(0, 120),
+                at: where,
+            });
+            if (this._errors.length > 8)
+                this._errors.shift();
+            this.logDebug('error', { msg: String(e.message), at: where });
+        };
+        const onRejection = (e) => {
+            this._errors.push({
+                f: this._debugFrame,
+                msg: `unhandled: ${String(e.reason)}`.slice(0, 120),
+                at: 'promise',
+            });
+            if (this._errors.length > 8)
+                this._errors.shift();
+        };
+        window.addEventListener('error', onError);
+        window.addEventListener('unhandledrejection', onRejection);
+        return () => {
+            window.removeEventListener('error', onError);
+            window.removeEventListener('unhandledrejection', onRejection);
+        };
+    }
+    _debugRing = [];
+    _debugCapture = new Set();
+    _debugFrame = 0;
+    /** Monotone frame counter for ordering diagnostic events (NOT a clock). */
+    get debugFrame() {
+        return this._debugFrame;
+    }
+    /** The captured diagnostic events, oldest first. Read over haltija/DevTools. */
+    get debugLog() {
+        return this._debugRing;
+    }
+    /** Arm (or, with on=false, disarm) diagnostic capture for a tag. */
+    debugCapture(tag, on = true) {
+        if (on)
+            this._debugCapture.add(tag);
+        else
+            this._debugCapture.delete(tag);
+    }
+    /** Record a diagnostic event if its tag is armed. Cheap no-op otherwise. */
+    logDebug(tag, event) {
+        if (!this._debugCapture.has(tag))
+            return;
+        this._debugRing.push({ f: this._debugFrame, tag, ...event });
+        if (this._debugRing.length > 512)
+            this._debugRing.shift();
+    }
     // Rows contributed by registered debug sources. Kept generic on purpose: the core
     // knows nothing about terrain (or whatever else) — each source decides what's worth
     // three lines on a panel you're reading through a headset.
@@ -1747,6 +2009,43 @@ export class B3d extends Component {
      */
     _panelGadgets() {
         const out = [];
+        /*
+        PAUSE WAS A ONE-WAY DOOR.
+    
+        The pause panel offers Continue, so pause was a state you could LEAVE and
+        never ENTER: nothing in the standard panel paused a running scene (Tonio).
+        `pause()`/`resume()` existed and were reachable only from JS or from
+        `startPaused`, which is not a control, it is an initial condition.
+    
+        A gadget rather than a scenePanel row, so it lands in the flat panel AND the
+        in-VR panel from one definition — and in a headset it is the only way to
+        stop the world at all.
+    
+        `pauseWhenHidden` is deliberately untouched: that is an automatic policy,
+        this is a manual act, and conflating them would make backgrounding the tab
+        look like the user pressed something.
+        */
+        out.push({
+            id: '__pause',
+            name: this.paused ? 'Resume' : 'Pause',
+            /*
+            `play` when paused (what pressing it DOES), `pause` when running — a
+            transport control shows its action, not its state.
+      
+            The BARE glyphs, not `playCircle`/`pauseCircle`: Tonio's call once both
+            existed. (The solid-white-box bug was never about which variant — the
+            names simply weren't in our generated icon set; see icon-names.test.ts.)
+            */
+            icon: this.paused ? 'play' : 'pause',
+            active: this.paused,
+            onClick: () => {
+                if (this.paused)
+                    this.resume();
+                else
+                    this.pause('user');
+                this._repaintPanels();
+            },
+        });
         const pad = this.querySelector('tosi-b3d-gamepad');
         if (pad?.setFade != null) {
             const forced = String(pad.fade) === 'off';
@@ -1825,6 +2124,23 @@ export class B3d extends Component {
                 text: `fps ${s.fps}  resizes ${s.resizeCount}${s.xrActive ? '  [XR]' : ''}`,
                 muted: true,
             }),
+            // Only once XR has been entered — meaningless before, and a row that says
+            // nothing is a row that costs panel space in the place with least of it.
+            ...(this._xrBaseline != null
+                ? [
+                    label3d({
+                        text: (() => {
+                            const b = this._xrBaseline;
+                            const d = (now, was) => {
+                                const n = now - was;
+                                return n === 0 ? '0' : n > 0 ? `+${n}` : String(n);
+                            };
+                            return `xr ${this._xrSessions}x  since 1st: mesh ${d(this.scene.meshes.length, b.mesh)} mat ${d(this.scene.materials.length, b.mat)} tex ${d(this.scene.textures.length, b.tex)}`;
+                        })(),
+                        muted: true,
+                    }),
+                ]
+                : []),
             // One-tap discriminator: swap between the engine's real hardware scaling and
             // a coarse ×3 (≈1/9th the pixels). FPS recovers → fill/RTT is the bottleneck;
             // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
@@ -2030,6 +2346,30 @@ export class B3d extends Component {
             // Scene is ready. Release any B3dChild components that connected and asked
             // (whenReady) before the scene was up — they insert themselves now. Anything
             // connecting later self-registers and runs immediately.
+            // Errors, on the one readout that exists in a headset — see
+            // _installErrorCapture. Registered once, with the scene.
+            this._errorCaptureOff = this._installErrorCapture();
+            this.addDebugSource({
+                name: 'errors',
+                lines: () => {
+                    if (this._errors.length === 0)
+                        return ['none'];
+                    const last = this._errors[this._errors.length - 1];
+                    return [
+                        `${this._errors.length} seen · last f${last.f} @${last.at}`,
+                        last.msg.slice(0, 46),
+                    ];
+                },
+                actions: [
+                    {
+                        label: 'Clear',
+                        onClick: () => {
+                            this._errors = [];
+                            this._repaintPanels();
+                        },
+                    },
+                ],
+            });
             this._sceneReady = true;
             // Pause plumbing: watchers first, then the initial state — so a scene
             // that comes up paused already has its panel and its listeners.
@@ -2120,6 +2460,18 @@ export class B3d extends Component {
         const base = xr.baseExperience;
         if (base == null)
             return;
+        base.onStateChangedObservable.add((state) => {
+            if (state !== BABYLON.WebXRState.IN_XR)
+                return;
+            this._xrSessions += 1;
+            // Baseline from the FIRST entry only — the point is the trend across
+            // sessions, so re-baselining each time would hide exactly what we want.
+            this._xrBaseline ??= {
+                mesh: this.scene.meshes.length,
+                mat: this.scene.materials.length,
+                tex: this.scene.textures.length,
+            };
+        });
         const vrButton = this.parts.enterVrButton;
         vrButton.addEventListener('click', async () => {
             try {
@@ -2179,6 +2531,40 @@ export class B3d extends Component {
             // here would wipe the icon.
             vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR';
             if (state === BABYLON.WebXRState.IN_XR) {
+                /*
+                ENTERING VR UNPAUSES. Putting the headset on IS the resume.
+        
+                A world you deliberately stepped INTO has no good reason to be frozen,
+                and the state was actively broken: entering a paused scene showed no
+                pause panel at all in-session (it exists, it is just never presented on
+                a path where the pause pre-dates the session), so you arrived in a
+                stopped world with no visible way out — the panel's toggle was the only
+                escape, and only if you knew to look.
+        
+                This removes the state rather than teaching the panel to appear in it,
+                which is the smaller and more honest fix (Tonio: "arguably entering VR
+                should unpause a paused scene"). It is also symmetric with
+                `enterXrOnResume`, which already couples resume → enter.
+        
+                Safe against re-entry: `xrActive` is set above, so `resume()`'s
+                `enterXrOnResume && !xrActive` guard cannot fire a second entry. And you
+                can still pause in VR — the panel's transport toggle does it.
+                */
+                if (this.paused)
+                    this.resume();
+                // Snapshot the flat orbit camera so exit can restore it (see the field
+                // note). Babylon only mutates the non-XR camera on the way OUT, so the
+                // angles here are still the pre-entry ones.
+                const fc = this.camera;
+                this._flatOrbitState =
+                    fc instanceof BABYLON.ArcRotateCamera
+                        ? {
+                            alpha: fc.alpha,
+                            beta: fc.beta,
+                            radius: fc.radius,
+                            target: fc.target.clone(),
+                        }
+                        : null;
                 // Stereo doubles fill — drop to the XR render-scaling budget on entry, and
                 // back to the flat one on exit (the cheap lever that's safe to change live).
                 this._applyHardwareScaling(true);
@@ -2195,6 +2581,19 @@ export class B3d extends Component {
                 xrSession ??= this._startDefaultXrExperience(base, controllers);
             }
             else if (state === BABYLON.WebXRState.NOT_IN_XR) {
+                // Restore the orbit camera Babylon has just carried the (low) headset
+                // pose into. Runs after Babylon's restore; setting target then angles
+                // overrides the setPosition() it did, and ArcRotate recomputes position
+                // from these next frame. Free cameras keep the carry-back (state is null).
+                const fc = this.camera;
+                const s = this._flatOrbitState;
+                if (s != null && fc instanceof BABYLON.ArcRotateCamera) {
+                    fc.setTarget(s.target);
+                    fc.alpha = s.alpha;
+                    fc.beta = s.beta;
+                    fc.radius = s.radius;
+                }
+                this._flatOrbitState = null;
                 this._applyHardwareScaling(false);
                 this._reallocAmbient();
                 xrSession?.dispose();
@@ -2216,17 +2615,39 @@ export class B3d extends Component {
     }
     // The built-in XR experience used when no `setupXr` hook is supplied: stand
     // the viewer on a grid floor near the scene, walk with the left stick
-    // (relative to head facing), and fly up/down with the right stick. A rig
+    // (relative to head facing), turn with the right stick, and change altitude
+    // with the BUMPERS (left down / right up, analog — the same hand logic as
+    // brake/accelerate on the triggers). The right stick's vertical still flies
+    // when nothing is claiming it, but the bumpers are the reliable path: that
+    // axis doubles as panel scroll. A rig
     // TransformNode is the movable anchor — live head tracking applies as a local
     // transform on top. Returns a disposer that tears everything down on exit.
     _startDefaultXrExperience(base, controllers) {
         const scene = this.scene;
         const cam = base.camera;
         const rig = new BABYLON.TransformNode('xr-rig', scene);
-        // Keep the flat camera's horizontal viewpoint but stand on the floor
-        // (local-floor reference space adds the viewer's real head height).
+        /*
+        ARRIVE WHERE YOU WERE LOOKING FROM — height included.
+    
+        This used to take the flat camera's x/z and pin y to ZERO: "stand on the
+        floor". That is right for a scene you walk around in and wrong for the ones
+        this framework is mostly made of, where the flat camera ORBITS a subject from
+        several metres up and looks down at it. Dropping to the floor puts you under
+        the thing you came to look at. Tonio: "your world position is always quite
+        low."
+    
+        So seed the height too, minus a nominal eye height, because `local-floor`
+        adds the viewer's REAL head height on top — the aim is for your head to land
+        where the flat camera was, not the rig's origin. Floored at 0 so a camera
+        that dipped below ground does not bury you.
+    
+        (Orientation is deliberately NOT seeded. Where you look is your head's
+        business — pinning it fights the headset — and the height was the part that
+        actually broke the framing.)
+        */
         const p = this.camera?.position;
-        rig.position.set(p?.x ?? 0, 0, p?.z ?? -this.minDistance * 2);
+        const NOMINAL_EYE = 1.6;
+        rig.position.set(p?.x ?? 0, Math.max(0, (p?.y ?? NOMINAL_EYE) - NOMINAL_EYE), p?.z ?? -this.minDistance * 2);
         cam.parent = rig;
         // Reference frames for spatial UI (body/neck/face follow the head; rig/world
         // are locomotion/play-space). Updated each XR frame below; UI parents to one.
@@ -2263,6 +2684,24 @@ export class B3d extends Component {
         if (showGrid) {
             ground = BABYLON.MeshBuilder.CreateGround('xr-ground', { width: 200, height: 200 }, scene);
             ground.isPickable = false;
+            /*
+            UNDER THE SUBJECT, not at the world origin — and not under the viewer.
+      
+            Pinned to (0,0) it was a mystery grid off in the distance for any scene
+            whose subject isn't at the origin (VR-only, since it doesn't exist flat).
+            Moving it under the RIG then made it "overlap but not centred": an orbit
+            camera sits `radius` away from what it looks at, so a floor under your
+            feet is a floor beside the volcano.
+      
+            The subject is the orbit camera's TARGET — the same point the flat view
+            frames — so the grid lands under the thing the demo is about. Falls back
+            to the rig for a non-orbit camera, where "under the viewer" IS the floor.
+            Stays in WORLD space (not parented) so it remains a motion reference.
+            */
+            const flatCam = this.camera;
+            const subject = flatCam?.target;
+            ground.position.x = subject?.x ?? rig.position.x;
+            ground.position.z = subject?.z ?? rig.position.z;
             // Drop a smidge BELOW y=0 so it doesn't z-fight ("z-chase") with a scene
             // ground / water / terrain at 0 — and so the real scene ground wins visually
             // (the grid only shows through where there's no ground, rather than covering
@@ -2277,8 +2716,26 @@ export class B3d extends Component {
             grid.opacity = 0.7;
             ground.material = grid;
         }
-        const HORIZ_SPEED = 2.5; // metres/sec
-        const VERT_SPEED = 2.0;
+        /*
+        LOCOMOTION IS SCALE-BLIND — and that reads as "the left stick is broken".
+    
+        2.5 m/s is right for a room-sized demo and invisible in a landscape one. The
+        volcano chunk is 128 * 4 = 512 units across and the rig sits hundreds of
+        units out, so walking moved ~0.5% of the scene per second: indistinguishable
+        from nothing. TURNING is angular (rad/s) and therefore scale-free, which is
+        exactly why the right stick felt fine while the left felt dead — the
+        symptom that sent us hunting a missing controller (Tonio, VR pass 2; the
+        readout showed the left stick present and reporting 0.00).
+    
+        Scale to the orbit camera's radius, which is what the flat view already uses
+        to frame the scene. The clamp floor is 1 so a small demo keeps TODAY's
+        numbers exactly; the ceiling stops a galaxy-scale camera from making a step
+        a light-year.
+        */
+        const flatRadius = this.camera?.radius;
+        const MOVE_SCALE = Math.min(20, Math.max(1, (flatRadius ?? 8) / 8));
+        const HORIZ_SPEED = 2.5 * MOVE_SCALE; // metres/sec
+        const VERT_SPEED = 2.0 * MOVE_SCALE;
         const TURN_SPEED = 2.0; // radians/sec at full deflection
         const DEAD = 0.15;
         const CHASE_HEIGHT = 2.5; // chase-cam height above a piloted entity
@@ -2293,9 +2750,9 @@ export class B3d extends Component {
         const side = new BABYLON.Vector3();
         const head = new BABYLON.Vector3();
         const tmp = new BABYLON.Vector3();
-        // Thumbstick-scroll: a controller pointing at the scrollable panel scrolls it
-        // with its stick (that stick is then withheld from locomotion for the frame).
-        const scrollRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Up());
+        // Thumbstick-scroll: while a scrollable panel is gaze-visible, the RIGHT
+        // stick's Y scrolls it and is withheld from vertical movement. One axis, one
+        // hand — see the note at the call site for why it used to be everything.
         const SCROLL_SPEED = 1200; // panel viewBox units / sec at full stick (2× — VR thumbstick scroll felt sluggish vs the flat drag)
         // Chase-cam follow state (ported from the biped's XR camera): smoothly track
         // the piloted entity's position AND facing, with head-tracking compensation.
@@ -2304,9 +2761,21 @@ export class B3d extends Component {
         const mtx = new BABYLON.Matrix();
         let chaseYaw = 0;
         let chaseYawOffset = 0;
+        // Declared HERE, above `rearmYaw`, because re-seat has to re-arm this too —
+        // see the note there. Kept out of the later block so the closure can never
+        // reference it before initialisation.
+        let chaseFirstFrame = true;
         let cockpitYawOffset = 0; // head yaw captured when you take the seat
         // Deferred + re-armable, rather than captured once on entry. See the capture site.
         let yawCaptureNeeded = false;
+        // Same, for FREE locomotion (no piloted entity) — see the capture below.
+        // Armed on entry so the first posed frame seats you facing the subject.
+        let freeYawNeeded = true;
+        // The head yaw the free seed captured. The eye frame (which the scene panel
+        // hangs off) takes its yaw from `eyeYawOffset`, NOT from the head — so it
+        // must carry the same offset or the panel sits `headYaw` away from where
+        // you are looking. Cockpit already does this with `cockpitYawOffset`.
+        let freeYawOffset = 0;
         const sm = base.sessionManager;
         /** A real head pose this frame? Before one arrives the camera's rotation is stale. */
         const hasViewerPose = () => {
@@ -2333,7 +2802,30 @@ export class B3d extends Component {
          * next posed frame re-derives it.
          */
         const rearmYaw = () => {
+            /*
+            RE-SEAT MUST RE-ARM ALL THREE CAMERA PATHS — they capture yaw separately.
+      
+            There are three, and each has its own capture: COCKPIT bakes
+            `cockpitYawOffset` (gated on `yawCaptureNeeded`), FREE locomotion seeds
+            `rig.rotation.y` (gated on `freeYawNeeded`), and CHASE/FPV derives
+            `chaseYawOffset` — gated on `chaseFirstFrame`, which re-seat used to leave
+            alone. So re-seating in an aircraft's chase view did NOTHING, while the
+            identical button worked in a cockpit and in an orbit demo.
+      
+            The tell was diagnostic: toggling cockpit↔chase "fixed" it, because the
+            view-change path sets `chaseFirstFrame` — the repair was the toggle, not
+            the button (Tonio, VR pass 2: "it did start working after I had toggled
+            between cockpit and chase a bit").
+      
+            A capture added later must be re-armed here, or it inherits this bug.
+            */
             yawCaptureNeeded = true;
+            // Orbit demos too, or the Meta button appears to do nothing in exactly
+            // the scenes where you cannot fly out of a bad heading.
+            freeYawNeeded = true;
+            // Chase/FPV. Also re-anchors `chasePos`, which is what a re-seat means
+            // for a third-person camera.
+            chaseFirstFrame = true;
         };
         let resetSpace = null;
         const bindReset = () => {
@@ -2347,15 +2839,143 @@ export class B3d extends Component {
             bindReset();
             rearmYaw();
         });
-        this._recenterXr = rearmYaw;
+        /*
+        RE-SEAT IS A CHICKEN-AND-EGG GESTURE — so confirm it with your head straight.
+    
+        Re-seating takes your CURRENT head yaw as forward. But to press the button
+        you must LOOK AT the button, so if the panel has drifted off to the left you
+        turn left to reach it and re-seat then points the rig at... where the panel
+        was. The gesture defeats itself exactly when you need it (Tonio, VR pass 2).
+    
+        So the button no longer re-seats. It raises a prompt and waits for a trigger:
+        "look comfortably ahead, then pull the trigger." Pull it and the yaw is
+        captured from wherever you are looking THEN, which is the direction you
+        actually meant.
+    
+        The prompt is pinned to the FACE frame — head-locked, `reveal: 'always'`.
+        Face-locking normally fights the headset and we avoid it; here it is the
+        whole point, because the instruction has to stay readable WHILE you turn your
+        head to face forward. This is the one case that earns it.
+    
+        The SYSTEM recentre (holding the Meta button) still re-seats immediately —
+        you were already looking where you meant, and adding a confirmation to the
+        headset's own gesture would be impertinent.
+        */
+        let reseatPrompt = null;
+        let reseatArmed = false;
+        let triggerWasDown = true; // ignore a trigger still held from pressing the button
+        const clearReseatPrompt = () => {
+            reseatPrompt?.dispose();
+            reseatPrompt = null;
+            if (reseatArmed) {
+                this.suppressInput(false);
+                this.freeze(false);
+            }
+            reseatArmed = false;
+        };
+        const promptReseat = () => {
+            if (reseatArmed) {
+                // Pressing it again is a cancel — never trap someone behind a prompt.
+                clearReseatPrompt();
+                return;
+            }
+            reseatArmed = true;
+            triggerWasDown = true;
+            // Borrowing the trigger means the trigger must stop meaning "shoot".
+            // The input gate is unconditional (and is the only half a networked world
+            // could honour); the freeze is policy, default on for single player.
+            this.suppressInput(true);
+            if (!isOff(this.reseatFreeze))
+                this.freeze(true);
+            const svg = panel3d({
+                width: 420,
+                height: 210,
+                // DELIBERATELY NOT `panelBg`. This prompt appears in front of the
+                // scene panel you were already looking at, and two near-identical
+                // translucent dark slabs read as one confusing surface. `info` is the
+                // themeable status SURFACE for exactly this: opaque, so the panel
+                // behind cannot show through the instruction, and distinct enough to
+                // say "different thing, acting now".
+                background: w3dTheme.info,
+            }, label3d({ text: 'Re-seat', bold: true }), label3d({ text: '1. Look comfortably ahead.' }), label3d({ text: '2. Pull right trigger to reseat.' }), label3d({ text: 'Or, pull left trigger to cancel.', muted: true }));
+            reseatPrompt = attachFramePanel(scene, cam, frames.get('face'), {
+                frame: 'face',
+                // Straight ahead of the FACE frame, so it is dead centre whichever way
+                // you turn — and `focus` is the frame origin, i.e. your own eyes.
+                anchor: {
+                    azimuthDeg: 0,
+                    elevationDeg: 0,
+                    distance: 0.9,
+                    focus: [0, 0, 0],
+                },
+                // ~2x the 0.26 default: at 0.9m that is a comfortable read rather than
+                // a postage stamp, and a modal should out-weigh the panel behind it.
+                width: 0.55,
+                reveal: 'always',
+                svg,
+            });
+        };
+        this._recenterXr = promptReseat;
+        /*
+        XR INPUT + RIG READOUT — because a headset has no console.
+    
+        "I can rotate with the right stick but cannot move" means the free-fly
+        branch IS running (turn lives in it) while `controllers['left']` is absent —
+        but absent WHY is unguessable from outside the headset, and guessing is what
+        this session has repeatedly paid for. So say it out loud, in the one readout
+        that exists in VR: which hands are seen, whether their thumbsticks report
+        axes, and where the rig ended up (including whether the entry yaw seed
+        actually fired).
+        */
+        const squeezeDbg = (h) => controllers[h]?.['xr-standard-squeeze']?.value ?? 0;
+        const xrInputDbgOff = this.addDebugSource({
+            name: 'xr input',
+            lines: () => {
+                const fmt = (h) => {
+                    const c = controllers[h];
+                    if (c == null)
+                        return `${h[0].toUpperCase()}:—`;
+                    const stick = c['xr-standard-thumbstick'];
+                    const ax = stick?.axes;
+                    if (ax == null)
+                        return `${h[0].toUpperCase()}:no-stick[${Object.keys(c).join(',')}]`;
+                    return `${h[0].toUpperCase()}:${ax.x.toFixed(2)},${ax.y.toFixed(2)}`;
+                };
+                const deg = (r) => ((r * 180) / Math.PI).toFixed(0);
+                return [
+                    `${fmt('left')}  ${fmt('right')}`,
+                    `lift L${squeezeDbg('left').toFixed(1)} R${squeezeDbg('right').toFixed(1)}`,
+                    `rig ${rig.position.x.toFixed(1)},${rig.position.y.toFixed(1)},${rig.position.z.toFixed(1)} yaw ${deg(rig.rotation.y)}°`,
+                    `seed ${freeYawNeeded ? 'PENDING' : 'done'} · parent ${rig.parent ? 'piloted' : 'world'} · x${MOVE_SCALE.toFixed(0)}`,
+                ];
+            },
+        });
         let lastView = ''; // re-seat when the camera view toggles
         let chaseZoom = 0.5; // 0..1 chase distance (right stick Y while piloting)
-        let chaseFirstFrame = true;
         let lastPiloted = null;
         const ZOOM_RATE = 0.8;
         const MAX_PEEK = 0.8; // radians of temporary look (right stick X), ~46°
         const frame = base.sessionManager.onXRFrameObservable.add(() => {
             const now = Date.now();
+            // Re-seat confirmation: capture the yaw from where you are looking WHEN
+            // YOU PULL, not from where you had to look to press the button. Either
+            // hand. Edge-triggered, and `triggerWasDown` starts true so a trigger
+            // still held from pressing the button doesn't fire it instantly.
+            if (reseatArmed) {
+                const t = (h) => (controllers[h]?.['xr-standard-trigger']?.value ?? 0) > 0.6;
+                const rightDown = t('right');
+                const leftDown = t('left');
+                const down = rightDown || leftDown;
+                if (down && !triggerWasDown) {
+                    // RIGHT commits, LEFT cancels — two hands, no ambiguity, and no way
+                    // to be trapped behind the prompt.
+                    const commit = rightDown;
+                    clearReseatPrompt();
+                    if (commit)
+                        rearmYaw();
+                }
+                triggerWasDown = down;
+            }
             const dt = Math.min((now - last) * 0.001, 0.1);
             last = now;
             // Piloting a live controllable → the controllers fly it (via its mapping)
@@ -2457,6 +3077,11 @@ export class B3d extends Component {
                 const targetYaw = Math.atan2(fwd.x, fwd.z);
                 // fpv: anchor to the actual head bone if the entity exposes it.
                 const headPos = isFpv ? entity?.getHeadPosition?.() ?? null : null;
+                // The node ORIGIN — the vehicle convention's centred, grounded stance
+                // point. NOT `getAbsolutePivotPoint()`: that returns the CoG, which is a
+                // MASS centre authored off the centreline (the scout's is 0.4 units to
+                // one side), so anchoring there shifts the chase sideways. Tried, and it
+                // regressed the flat view.
                 const targetX = headPos ? headPos.x : piloted.position.x - fwd.x * back;
                 const targetY = headPos ? headPos.y : piloted.position.y + up;
                 const targetZ = headPos ? headPos.z : piloted.position.z - fwd.z * back;
@@ -2501,7 +3126,10 @@ export class B3d extends Component {
             chaseFirstFrame = true;
             lastPiloted = null;
             lastView = '';
-            frames.eyeYawOffset = 0; // no recenter in free locomotion
+            // Match the seed: the eye frame's yaw is rig-local, so without this the
+            // panel hangs `headYaw` away from your gaze — "the panel is behind me",
+            // reproducibly, whenever you happened to enter facing off-axis.
+            frames.eyeYawOffset = freeYawOffset;
             if (rig.parent != null) {
                 rig.parent = null; // came from the cockpit — back to world space
                 rig.scaling.set(1, 1, 1);
@@ -2510,36 +3138,70 @@ export class B3d extends Component {
                 rig.rotation.y = rig.rotationQuaternion.toEulerAngles().y;
                 rig.rotationQuaternion = null;
             }
+            /*
+            FACE WHAT YOU WERE LOOKING AT — the free-locomotion case.
+      
+            Both PILOTED paths seed yaw against the head (cockpit bakes
+            `cockpitYawOffset`, chase does `chaseYaw = targetYaw - chaseYawOffset`).
+            Free locomotion never did, so an ORBIT demo — one with no piloted entity,
+            which is most of them — dropped you in facing whichever way your head
+            physically pointed, with the scene wherever the unrotated rig left it.
+            Reported as the panel being "behind and left" and the subject "nowhere in
+            sight" (Tonio, VR pass 2, carved-landform/volcano).
+      
+            Same shape as the cockpit capture, including the reason it waits: for the
+            first frames of a session the viewer pose can be null and the camera
+            reports a stale rotation, so capturing early bakes a garbage yaw. That is
+            also why TOGGLING VIEWS "fixed" it — the toggle re-armed a capture on a
+            frame that had a real pose.
+      
+            Forward is the flat camera's view direction (an ArcRotateCamera looks at
+            its target), so you arrive looking at what you were looking at.
+            */
+            if (freeYawNeeded && hasViewerPose()) {
+                const flat = this.camera;
+                if (flat != null) {
+                    const tgt = flat.target;
+                    const dx = (tgt?.x ?? 0) - flat.position.x;
+                    const dz = (tgt?.z ?? 0) - flat.position.z;
+                    if (Math.hypot(dx, dz) > 1e-4) {
+                        const headYaw = cam.rotationQuaternion
+                            ? cam.rotationQuaternion.toEulerAngles().y
+                            : 0;
+                        rig.rotation.y = Math.atan2(dx, dz) - headYaw;
+                        freeYawOffset = headYaw;
+                    }
+                }
+                freeYawNeeded = false;
+            }
             const left = controllers['left']?.['xr-standard-thumbstick']?.axes;
             const right = controllers['right']?.['xr-standard-thumbstick']?.axes;
-            // Thumbstick scroll: if a controller's ray hits the (scrollable, visible)
-            // panel, its stick Y scrolls the panel and is withheld from locomotion.
-            let leftScroll = false;
+            /*
+            PANEL SCROLL — the RIGHT stick's Y, and nothing else.
+      
+            This used to withhold BOTH sticks from locomotion whenever a scrollable
+            panel was visible, and it set the withhold flags for every connected
+            controller UNCONDITIONALLY — not when a stick had actually scrolled
+            anything. So a scene with a scene-panel long enough to scroll had NO
+            locomotion at all: left stick dead, turn dead, vertical dead. Reported as
+            "I'm stuck here… it's still not allowing me to move around at all in VR",
+            on demo after demo, while every control was implemented and correct.
+      
+            Scroll stays gated on GAZE rather than on the controller ray (a pick that
+            breaks must not take the only escape hatch with it — that lesson holds).
+            What changed is the COST: it claims one axis on one hand, so walking and
+            turning are never withheld, and the most you lose while reading a panel is
+            vertical movement — which you are not using while reading a panel.
+            */
             let rightScroll = false;
             if (panel.scrollable && panel.plane.visibility > 0.5) {
-                const inputs = this.xrHelper?.input?.controllers ?? [];
-                for (const src of inputs) {
-                    src.getWorldPointerRayToRef(scrollRay);
-                    // Scroll is gated on GAZE (the panel is visible = you're looking at it), NOT on
-                    // the controller ray hitting the panel. It used to require the pick — which made
-                    // scrolling die whenever picking died, so a panel whose content ran below the
-                    // fold became completely unreachable: you couldn't press anything AND you
-                    // couldn't scroll to what you couldn't press. Never gate the only escape hatch
-                    // on the thing that's broken.
-                    const hand = src.inputSource?.handedness;
-                    const axes = controllers[hand]?.['xr-standard-thumbstick']
-                        ?.axes;
-                    if (axes != null && Math.abs(axes.y) > DEAD) {
-                        panel.scrollBy(axes.y * SCROLL_SPEED * dt);
-                    }
-                    if (hand === 'left')
-                        leftScroll = true;
-                    else if (hand === 'right')
-                        rightScroll = true;
+                const axes = right;
+                if (axes != null && Math.abs(axes.y) > DEAD) {
+                    panel.scrollBy(axes.y * SCROLL_SPEED * dt);
+                    rightScroll = true;
                 }
             }
             if (left != null &&
-                !leftScroll &&
                 (Math.abs(left.x) > DEAD || Math.abs(left.y) > DEAD)) {
                 // Walk relative to where the head currently faces (flattened to floor).
                 cam.getDirectionToRef(XR_FORWARD, fwd);
@@ -2554,10 +3216,32 @@ export class B3d extends Component {
                 side.scaleToRef(left.x * step, tmp);
                 rig.position.addInPlace(tmp);
             }
+            /*
+            ALTITUDE ON THE BUMPERS: left = down, right = up.
+      
+            Tonio's mapping, and the same hand logic as the triggers (left brakes,
+            right accelerates) so the pair is learned once. It is ANALOG — squeeze
+            value, not a boolean — so you can ease onto a height rather than bang
+            between rates.
+      
+            It exists because the right stick's vertical was not a reliable way down.
+            That axis is ALSO the panel scroll, so in any scene with a scrollable
+            panel open — which is most of the demos, they set `scenePanelOpen` — the
+            stick scrolls and the rig does not move, and the control appears simply
+            missing ("there's still no way to change your altitude"). Two dedicated
+            buttons cannot be stolen by a panel.
+      
+            The stick keeps working when nothing is claiming it, so nobody who
+            already knows it loses it.
+            */
+            const squeeze = (h) => controllers[h]?.['xr-standard-squeeze']?.value ?? 0;
+            const lift = squeeze('right') - squeeze('left');
+            if (Math.abs(lift) > DEAD)
+                rig.position.y += lift * VERT_SPEED * dt;
             if (right != null && !rightScroll && Math.abs(right.y) > DEAD) {
                 rig.position.y += -right.y * VERT_SPEED * dt; // push up to ascend
             }
-            if (right != null && !rightScroll && Math.abs(right.x) > DEAD) {
+            if (right != null && Math.abs(right.x) > DEAD) {
                 // Smooth-turn around the head (not the rig origin) so you spin in place
                 // rather than orbiting when you've stepped off-centre. Rotate, then nudge
                 // the rig so the head's world XZ is unchanged.
@@ -2572,6 +3256,8 @@ export class B3d extends Component {
         return {
             dispose: () => {
                 base.sessionManager.onXRFrameObservable.remove(frame);
+                clearReseatPrompt();
+                xrInputDbgOff();
                 sm.onXRReferenceSpaceChanged.remove(refSpaceObs);
                 resetSpace?.removeEventListener('reset', rearmYaw);
                 this._recenterXr = noop;
@@ -2850,6 +3536,9 @@ export class B3d extends Component {
             height: PLANE_W * (vb.height / vb.width),
             sideOrientation: BABYLON.Mesh.DOUBLESIDE,
         }, scene);
+        // Pointer-pickable, collision-invisible — this panel hangs in front of your
+        // face, which in cockpit view is inside the aircraft's impact sweep.
+        markUiMesh(plane);
         // The panel is near-static, so re-rasterising the SVG at high res every
         // 30ms (the SvgTexture default) was the main XR perf regression — throttle
         // hard and drop the resolution. A settings panel doesn't need 33fps.
@@ -2984,6 +3673,8 @@ export class B3d extends Component {
         };
     }
     disconnectedCallback() {
+        this._errorCaptureOff?.();
+        this._errorCaptureOff = null;
         this._pauseWatch?.();
         this._pauseWatch = null;
         if (B3d._active === this)

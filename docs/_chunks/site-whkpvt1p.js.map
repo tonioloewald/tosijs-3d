@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/bumpVertex.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"bumpVertex\";\nconst shader = `#if defined(BUMP) || defined(PARALLAX) || defined(CLEARCOAT_BUMP) || defined(ANISOTROPIC)\n#if defined(TANGENT) && defined(NORMAL)\nvar tbnNormal: vec3f=normalize(normalUpdated);var tbnTangent: vec3f=normalize(tangentUpdated.xyz);var tbnBitangent: vec3f=cross(tbnNormal,tbnTangent)*tangentUpdated.w;var matTemp= mat3x3f(finalWorld[0].xyz,finalWorld[1].xyz,finalWorld[2].xyz)* mat3x3f(tbnTangent,tbnBitangent,tbnNormal);vertexOutputs.vTBN0=matTemp[0];vertexOutputs.vTBN1=matTemp[1];vertexOutputs.vTBN2=matTemp[2];\n#endif\n#endif\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const bumpVertexWGSL = { name, shader };\n//# sourceMappingURL=bumpVertex.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,aACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA,EAOf,GAAI,CAAC,EAAY,yBAAyB,GACtC,EAAY,yBAAyB,GAAQ,EAG1C,IAAM,EAAiB,CAAE,OAAM,QAAO",
+  "debugId": "F0EC75058C40A5B164756E2164756E21",
+  "names": []
+}

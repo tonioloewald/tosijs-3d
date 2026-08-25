@@ -358,6 +358,25 @@ or implement your own shape-specific point-in-polygon tests.
 | `cameraRelative` | `false` | Parent plane to active camera (HUD mode) |
 | `pointerEvents` | `'on'` | Map 3D pick hits → SVG pointer events |
 | `doubleSided` | `'on'` | Render both faces |
+| `cornerRadius` | `0` | Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below |
+| `transparent` | `'on'` | `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius` |
+| `xrFrame` | `''` | In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked |
+
+## Opaque panels
+
+`cornerRadius` + `transparent="off"` is the combination that stops panels
+flickering against each other, and it is worth knowing why the two go together.
+
+A transparent mesh is **not depth-written**, so Babylon re-sorts it every frame
+by distance — and two near-coplanar panels swap order as you move, which reads
+as z-fighting that no amount of nudging fixes. Rounding the corners as GEOMETRY
+(three quads plus four corner fans, see [[rounded-rect]]) means the panel needs
+no alpha at all, so it can be opaque, write depth, and be ordered by the
+z-buffer like everything else.
+
+`doubleSided` is honoured on the rounded path: the geometry is generated
+single-sided and `backFaceCulling` follows the attribute, so `'off'` shows the
+back face as it does for a plain plane.
 
 Set the `svgElement` property to a live SVG element for dynamic mode.
 
@@ -379,7 +398,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 */
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff } from './b3d-utils';
+import { AbstractMesh, isOff, markUiMesh, collidable } from './b3d-utils';
 import { roundedRectGeometry } from './rounded-rect';
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3;
@@ -395,6 +414,14 @@ export class B3dSvgPlane extends AbstractMesh {
         updateInterval: 30,
         materialChannel: 'emissive',
         cameraRelative: false,
+        /**
+         * When `cameraRelative` AND in a headset, parent to this XR reference frame
+         * instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in
+         * front of you WITHOUT jittering on every head movement — right for a menu
+         * you read, wrong for a HUD (leave it '' so a HUD stays head-locked). Flat,
+         * or with no frame set, `cameraRelative` behaves exactly as before.
+         */
+        xrFrame: '',
         pointerEvents: 'on',
         doubleSided: 'on',
         /**
@@ -426,6 +453,65 @@ export class B3dSvgPlane extends AbstractMesh {
     _pressing = false;
     _lastSvgX = 0;
     _lastSvgY = 0;
+    /** Nominal camera-local Z (the author's `z`), before any occlusion pull-in. */
+    _nominalZ = 0;
+    _depthObs = null;
+    /**
+     * Keep a camera-relative panel in FRONT of whatever is between you and it —
+     * see the note at the call site. Apparent size is preserved by scaling with
+     * the distance, so the panel reads identically whether it sits at its nominal
+     * depth or has been pulled in to clear a hillside.
+     */
+    _installDepthGuard(scene) {
+        const MIN_Z = 0.45; // closer than this is uncomfortable in a headset
+        const MARGIN = 0.12; // sit just inside the occluder, not coplanar with it
+        this._nominalZ = this.z || 1;
+        this._depthObs = scene.onBeforeRenderObservable.add(() => {
+            const mesh = this.mesh;
+            const cam = scene.activeCamera;
+            if (mesh == null || cam == null || mesh.parent == null)
+                return;
+            const nominal = this._nominalZ;
+            if (nominal <= 0)
+                return;
+            mesh.computeWorldMatrix(true);
+            const from = cam.globalPosition;
+            const dir = mesh.getAbsolutePosition().subtract(from);
+            const dist = dir.length();
+            let z = nominal;
+            if (dist > 1e-3) {
+                dir.normalize();
+                const ray = new BABYLON.Ray(from, dir, dist);
+                // Ignore UI (this panel and its siblings) — only WORLD geometry should
+                // push a dialog forward. Same exclusion the collision probes use.
+                const hit = scene.pickWithRay(ray, (m) => collidable()(m));
+                if (hit?.hit && hit.distance < nominal) {
+                    z = Math.max(MIN_Z, hit.distance - MARGIN);
+                }
+            }
+            const k = z / nominal;
+            mesh.position.z = z;
+            mesh.scaling.setAll(k);
+            /*
+            EYE HEIGHT when riding a FRAME, floor when riding the camera.
+      
+            `body` is a torso/locomotion anchor and sits at floor level by design
+            (`body.position.set(cam.x, 0, cam.z)`), so a dialog at `y: 0` hangs around
+            your knees and reads as waist height once it has any height to it — "the
+            respawn pin is a bit low… face height (just not pinned to face) would work
+            better" (Tonio). Parented to the CAMERA instead, `y: 0` means eye-centred
+            and is already right, which is why the offset cannot just be baked into
+            the attribute.
+      
+            Not scaled with `k`: pulling the panel closer must not drop it down your
+            body. Height is an absolute comfort property, unlike apparent size.
+            */
+            const parentIsFrame = mesh.parent !== cam;
+            mesh.position.y = parentIsFrame
+                ? (this.y || 0) + (cam.position?.y ?? 1.6)
+                : this.y || 0;
+        });
+    }
     content = () => '';
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
@@ -456,6 +542,50 @@ export class B3dSvgPlane extends AbstractMesh {
                     : BABYLON.Mesh.DOUBLESIDE,
             }, scene);
         }
+        // A UI plane is pointer-pickable but must be invisible to COLLISION — an
+        // aircraft's impact sweep crashed on a panel floating in front of the
+        // cockpit. See `markUiMesh`.
+        markUiMesh(this.mesh);
+        /*
+        A CAMERA-RELATIVE PANEL MUST NOT BE BURIED — AND MUST STAY TOUCHABLE.
+    
+        These are dialogs (respawn, pause) and terrain could swallow them: you die
+        on a hillside and the panel offering you a way out is inside the hill.
+    
+        The first attempt set `renderingGroupId = 1`, which draws after the scene
+        with depth cleared between groups. It fixed the LOOK and nothing else:
+        rendering group has no bearing on PICKING, so the panel stayed
+        geometrically behind the hill, every XR ray hit the hill first, and the
+        dialog became visible-but-dead — strictly worse than being honestly buried,
+        because it now invites a press that cannot land (Tonio: "dialogs now paint
+        in front but you can't interact with them").
+    
+        So put it genuinely in front, which is what Tonio proposed originally:
+        measure what is between you and the panel, and pull the panel just inside
+        it, scaling to hold the apparent size. Then what you see IS what you can
+        touch — one invariant instead of two that can disagree.
+    
+        Clamped to MIN_Z so a wall in your face cannot shove a panel to your nose
+        (uncomfortable in VR, which is why "just use the near clip plane" was the
+        wrong version of this idea).
+    
+        ⚠️ THIS IS PER-PANEL, AND THAT DOES NOT GENERALISE TO STACKED UI.
+    
+        Each panel currently races forward on its own. With ONE dialog up — which is
+        every case today — that is correct. With several, they would all clamp to
+        the same `hit.distance - MARGIN` and fight, and the pull-forward would have
+        destroyed exactly the relative ordering it was supposed to preserve (Tonio:
+        "we may need to push stuff backwards vs. forwards").
+    
+        The generalisation is a reserved DEPTH BAND, owned by the scene rather than
+        the panel: measure the nearest occluder ONCE per frame, seat the front-most
+        element just inside it, and stack everything else BACKWARDS from there in
+        `DEPTH_STEP` increments — the same ordering `popup-surface` already does with
+        `stackLift`, but with a moving front edge. Do that before a second
+        camera-relative panel can be open at once. Filed in TODO.
+        */
+        if (attrs.cameraRelative)
+            this._installDepthGuard(scene);
         this._svgTexture = new SvgTexture({
             scene,
             resolution: attrs.resolution,
@@ -477,6 +607,10 @@ export class B3dSvgPlane extends AbstractMesh {
         owner.register({ meshes: [this.mesh] });
     }
     sceneDispose() {
+        if (this._depthObs && this.owner) {
+            this.owner.scene.onBeforeRenderObservable.remove(this._depthObs);
+            this._depthObs = null;
+        }
         if (this._pointerObserver && this.owner) {
             this.owner.scene.onPointerObservable.remove(this._pointerObserver);
             this._pointerObserver = null;
@@ -493,9 +627,15 @@ export class B3dSvgPlane extends AbstractMesh {
             return;
         const attrs = this;
         if (attrs.cameraRelative) {
-            const cam = this.owner?.scene?.activeCamera;
-            if (cam && this.mesh.parent !== cam) {
-                this.mesh.parent = cam;
+            // In a headset, an opt-in frame (e.g. 'body') is parented instead of the
+            // head camera, so a read-it panel doesn't jitter with every head turn. No
+            // frame, or flat, falls through to the active (head/orbit) camera — the
+            // original behaviour. HUDs leave xrFrame unset and stay head-locked.
+            const frames = this.owner?.xrFrames;
+            const frameNode = attrs.xrFrame && frames ? frames.get(attrs.xrFrame) : null;
+            const target = frameNode ?? this.owner?.scene?.activeCamera ?? null;
+            if (target && this.mesh.parent !== target) {
+                this.mesh.parent = target;
                 this._camParented = true;
             }
         }

@@ -59,8 +59,8 @@ better than a crisp CSM shadow would anyway.</p>
 <p><strong>A floating crate, grounded by a soft blob.</strong> No shadow map is involved — just one alpha quad
 <code>createShadowDecal</code> drops on the ground beneath it. Drag to orbit; the decal reads the crate&#39;s
 position over the floor.</p>
-<pre><code class="language-js">import { b3d, b3dSkybox, b3dBox, createShadowDecal } from &#39;tosijs-3d&#39;
-import { demoSun, orbitCam, patternGround } from &#39;demo-utils&#39;
+<pre><code class="language-js">import { b3d, b3dBox, createShadowDecal } from &#39;tosijs-3d&#39;
+import { demoStage, orbitCam } from &#39;demo-utils&#39;
 
 const scene = b3d(
   {
@@ -81,9 +81,7 @@ const scene = b3d(
       el.scene.onBeforeRenderObservable.add(place)
     },
   },
-  demoSun(),
-  b3dSkybox({ timeOfDay: 10 }),
-  patternGround({ size: 30, tiles: 15 }),
+  ...demoStage({ size: 24, tiles: 10, pattern: true, timeOfDay: 10 }),
   // `_nocast` so no real CSM shadow competes with the decal — the decal IS the grounding shadow here
   b3dBox({ meshName: &#39;floater_nocast&#39;, size: 2, x: 0, y: 2.6, z: 0, color: &#39;#c85a3a&#39; }),
 )
@@ -114,6 +112,8 @@ visibility. See <a href="../b3d-clouds/">b3d-clouds</a>, the first consumer.</p>
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

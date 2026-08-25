@@ -88,6 +88,18 @@ export declare class B3d extends Component {
         /** Come up paused, showing the pause panel — the "press Start" shape. */
         startPaused: boolean;
         /**
+         * Freeze the clock while the **re-seat** dialog is up (`'on'` default).
+         *
+         * Re-seating is a comfort action, and being shot while you do it is unfair.
+         * But freezing is a decision only a LOCAL world can make — a networked one
+         * cannot stop the other players — so set `'off'` for multiplayer and the
+         * dialog still gates YOUR input, which is the half that always works.
+         *
+         * A string enum rather than a boolean because an HTML boolean attribute
+         * cannot default to true (absent ⇒ false), and this one wants to.
+         */
+        reseatFreeze: "on" | "off";
+        /**
          * On resume, enter immersive VR if the device supports it; on leaving VR,
          * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
          * user gesture, and the Continue tap is one. A scene that tried to enter XR
@@ -270,6 +282,8 @@ export declare class B3d extends Component {
     xrFrames: XrFrames | null;
     static BABYLON: typeof BABYLON;
     BABYLON: typeof BABYLON;
+    private _xrSessions;
+    private _xrBaseline;
     private _makers?;
     /**
      * Babylon primitives with the easy-to-forget parts done: material from
@@ -300,11 +314,13 @@ export declare class B3d extends Component {
     stats: boolean;
     pauseWhenHidden: 'on' | 'off';
     startPaused: boolean;
+    reseatFreeze: 'on' | 'off';
     enterXrOnResume: 'on' | 'off';
     private _paused;
     private _pausePanel;
     private _pauseWatch;
     private _cameraWasAttached;
+    private _flatOrbitState;
     /** Is the simulation held? Rendering continues — the panel has to be drawn. */
     get paused(): boolean;
     /**
@@ -318,6 +334,37 @@ export declare class B3d extends Component {
      * asked" from "the tab went away" — a settings menu and an interruption
      * deserve different handling.
      */
+    /**
+     * Modal input gate — the controls go dead, the world does NOT stop.
+     *
+     * For a dialog that borrows a control you also play with: the re-seat prompt
+     * asks for a trigger pull, and without this that same pull fires the gun.
+     * Deliberately not `pause()`: a pause raises the pause panel, can enter XR on
+     * resume, and clobbers an existing pause when it lifts. Read by
+     * `B3dControllable._update`.
+     */
+    private _inputSuppressed;
+    get inputSuppressed(): boolean;
+    suppressInput(on: boolean): void;
+    /**
+     * Stop the CLOCK for a transient modal — no pause panel, no resume semantics.
+     *
+     * `pause()` is a user-facing state: it raises the panel, can enter XR on
+     * resume, and lifting it would clobber a pause the user set themselves. A
+     * dialog that lasts two seconds wants none of that; it just wants the world
+     * to hold still. This publishes `b3dFrameDelta = 0` exactly as a pause does,
+     * so everything on `sceneDelta` stops, and lifts without touching pause state
+     * (a scene paused underneath STAYS paused).
+     *
+     * **Local only, by definition.** Freezing is a decision your machine can make
+     * and a networked world cannot honour — you cannot stop other players'
+     * clocks. So `suppressInput` is the floor (your controls go dead, the world
+     * carries on) and this is policy on top, which is why the re-seat dialog
+     * always gates input and only optionally freezes (`reseatFreeze`).
+     */
+    private _frozen;
+    get frozen(): boolean;
+    freeze(on: boolean): void;
     pause(reason?: 'user' | 'hidden' | 'xr' | 'start' | string): void;
     /** Let time run again, and (if `enterXrOnResume`) take the user into VR —
      * this call is expected to be inside a user gesture, which is what makes
@@ -494,11 +541,15 @@ export declare class B3d extends Component {
     private _probeWhenIdle;
     private _applyHardwareScaling;
     private _ambient;
-    /** Shrunk by the watchdog, never grown. See `ratchetPool` — and TODO: reclaiming budget in
-     * quiet moments is a real want, but it must be a damped, deliberate thing, not a rebound. */
+    /** Rationed by the watchdog: shed fast (`ratchetPool`), recovered slowly
+     * (`recoverPool`) once the machine has held a good frame rate for 20 settled
+     * seconds. The asymmetry is the damping — a transient must not cost the
+     * session its weather, and a rebound must not cost it its frame rate. */
     private _ambientPoolScale;
     private _ambientSampleMs;
     private _ambientBadSamples;
+    /** Sustained GOOD seconds, for the recovery path — see `_ambientWatchdog`. */
+    private _ambientGoodSamples;
     private _ambientCooldownMs;
     /** Don't judge the frame rate until the scene has settled — see `_ambientWatchdog`.
      * A FLOOR, not the whole rule: `sceneBusy` holds the countdown while assets are
@@ -623,6 +674,20 @@ export declare class B3d extends Component {
      * its contents in place. Unified on purpose — see `_panelWidgets`. */
     private _repaintPanels;
     addDebugSource(source: DebugPanelSource): () => void;
+    private _errors;
+    private _errorCaptureOff;
+    private _installErrorCapture;
+    private _debugRing;
+    private _debugCapture;
+    private _debugFrame;
+    /** Monotone frame counter for ordering diagnostic events (NOT a clock). */
+    get debugFrame(): number;
+    /** The captured diagnostic events, oldest first. Read over haltija/DevTools. */
+    get debugLog(): ReadonlyArray<Record<string, unknown>>;
+    /** Arm (or, with on=false, disarm) diagnostic capture for a tag. */
+    debugCapture(tag: string, on?: boolean): void;
+    /** Record a diagnostic event if its tag is armed. Cheap no-op otherwise. */
+    logDebug(tag: string, event: Record<string, unknown>): void;
     private _sourceRows;
     /**
      * ICON-BAR GADGETS — items that FLIP something rather than expanding a

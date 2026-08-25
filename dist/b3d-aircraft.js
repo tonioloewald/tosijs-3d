@@ -211,6 +211,7 @@ turns the pilot's head in the cockpit, springs back on release).
 | `afterburnerSpeed` (behaviour) | — | Reached only while the trigger is HELD past the detent at full lever; release and you settle back to `maxSpeed` (military) |
 | `hoverCeiling` | `140` | Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off. |
 | `groundY` | `0` | Assumed ground-plane height (a floor in addition to any terrain colliders) |
+| `submersible` | `false` | Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash |
 | `crashSpeed` | `8` | Vertical impact speed (m/s) above which a ground contact is a crash |
 | `hudChaseOff` | `false` | Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene |
 | `hudSize` | `0.7` | In-cockpit HUD plane size (metres) |
@@ -307,7 +308,7 @@ import { canonicalize, applyCenterOfGravity } from './model-transform';
 import { B3dControllable } from './b3d-controllable';
 import { aircraftMapping } from './virtual-gamepad';
 import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
-import { placeOnSurface, boundingBottomOffset, isOff } from './b3d-utils';
+import { placeOnSurface, boundingBottomOffset, isOff, collidable, } from './b3d-utils';
 import { spawnProjectile, spawnMissile } from './b3d-launcher';
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05;
@@ -433,6 +434,15 @@ export class B3dAircraft extends B3dControllable {
         // Assumed ground-plane height (used as a floor in addition to any terrain
         // colliders the downward raycast hits).
         groundY: 0,
+        /**
+         * Treat a water surface as PASSABLE rather than as ground.
+         *
+         * Off by default, because a plane hitting the sea should crash — that is
+         * not a bug to fix, it is most aircraft. Turn it on for anything meant to
+         * go under, and the floor sensor ignores water and finds the real seabed
+         * (or `groundY`) beneath it.
+         */
+        submersible: false,
         // Vertical impact speed (m/s) above which a ground contact is a crash, not
         // a landing.
         crashSpeed: 8,
@@ -519,6 +529,16 @@ export class B3dAircraft extends B3dControllable {
     // Set, and a child-mesh array three times a frame.
     _lastGroundDist = Infinity;
     _groundNormal = new BABYLON.Vector3(0, 1, 0);
+    /** Name of whatever the downward "ground" ray last hit — the phantom-collision witness. */
+    _lastGroundHitName = null;
+    _groundDbgOff = null;
+    /**
+     * Why the last crash fired, captured AT the crash. Always on: crashes are rare,
+     * so this costs nothing per frame, and it is readable in a headset (Perf panel)
+     * where there is no console. `hit` is the mesh the ground ray called ground —
+     * if that is not the ground, this is the phantom collision.
+     */
+    crashReport = null;
     /** True while the airframe is in open air INSIDE the ground (a bore/cavern):
      * heightfield assumptions are suspended for the frame. */
     _inCavity = false;
@@ -766,17 +786,29 @@ export class B3dAircraft extends B3dControllable {
             this._hasFlown &&
             sweepSpeed > 1e-3 &&
             this.owner != null) {
-            this._ray.origin.copyFrom(node.position);
+            // From where the airframe IS (see originWorld) — under a CoG pivot the
+            // stance origin is not it, and this sweep crashes on any hit.
+            this._ray.origin.copyFrom(this.originWorld(node));
             this._ray.direction.copyFromFloats(vel.x / sweepSpeed, vel.y / sweepSpeed, vel.z / sweepSpeed);
             this._ray.length = sweepSpeed * dt + 1.5;
-            const own = this.ownMeshes();
-            const wallHit = this.owner.scene.pickWithRay(this._ray, (m) => m.isPickable &&
-                m.isEnabled() &&
-                !own.has(m) &&
-                !m.name.includes('__root__'));
+            const wallHit = this.owner.scene.pickWithRay(this._ray, collidable(this.skipForCollision()));
             if (wallHit?.hit) {
                 const n = wallHit.getNormal(true);
                 if (n == null || n.y < 0.85 || sweepSpeed > attrs.crashSpeed) {
+                    // Same witness as the ground path — without it a sweep-caused crash
+                    // reports "no crash yet" and the instrument is worse than useless.
+                    // `altitude` high + `dist` tiny + a named mesh = the phantom collision.
+                    this.crashReport = {
+                        hit: wallHit.pickedMesh?.name ?? '(unnamed)',
+                        dist: wallHit.distance,
+                        altitude: node.position.y,
+                        normalY: n?.y ?? NaN,
+                        upY: node.up.y,
+                        velY: vel.y,
+                        speed: sweepSpeed,
+                        reason: 'sweep',
+                    };
+                    this.owner?.logDebug('crash', { ...this.crashReport });
                     this.crash();
                 }
             }
@@ -815,11 +847,24 @@ export class B3dAircraft extends B3dControllable {
             // demo). Water stays a plane (normal up), so gentle water touches
             // still count as landings.
             const impactSpeed = Math.hypot(vel.x, vel.y, vel.z);
-            if (this._hasFlown &&
-                !wasGrounded &&
-                (vel.y < -attrs.crashSpeed ||
-                    node.up.y < 0.5 ||
-                    (this._groundNormal.y < 0.85 && impactSpeed > attrs.crashSpeed))) {
+            const fastDown = vel.y < -attrs.crashSpeed;
+            const banked = node.up.y < 0.5;
+            const intoSlope = this._groundNormal.y < 0.85 && impactSpeed > attrs.crashSpeed;
+            if (this._hasFlown && !wasGrounded && (fastDown || banked || intoSlope)) {
+                // Record WHY before crashing — a phantom collision at altitude shows up
+                // here as a big `altitude` with a small `dist`, naming the mesh the ray
+                // mistook for ground.
+                this.crashReport = {
+                    hit: this._lastGroundHitName,
+                    dist: groundDist,
+                    altitude: node.position.y,
+                    normalY: this._groundNormal.y,
+                    upY: node.up.y,
+                    velY: vel.y,
+                    speed: impactSpeed,
+                    reason: fastDown ? 'fast-down' : banked ? 'banked' : 'into-slope',
+                };
+                this.owner?.logDebug('crash', { ...this.crashReport });
                 this.crash();
             }
             node.position.y += this.groundClearance - groundDist;
@@ -885,6 +930,18 @@ export class B3dAircraft extends B3dControllable {
         }
         if (this._chasePivot != null) {
             node.computeWorldMatrix(true); // refresh: position moved since the attitude pass
+            /*
+            The node ORIGIN, not the pivot. I moved this to `getAbsolutePivotPoint()`
+            believing the CoG was the visual centre the chase should track — and it is
+            not. `scout_centerOfGravity` sits at [0.398, 0.090, -0.584]: a MASS centre,
+            authored where the mass is and 0.4 units OFF THE CENTRELINE. Anchoring
+            there shifted the flat chase sideways by exactly that, which is how a fix
+            for a VR-only fault produced a flat regression Tonio saw immediately
+            ("even in flat 3D now, the chase camera is misaligned… offset to my right").
+      
+            The vehicle convention is the right anchor: the root-node origin is centred
+            and grounded (see CLAUDE.md), which is precisely what a chase should frame.
+            */
             this._chasePivot.position.copyFrom(node.absolutePosition);
             if (this._chasePivot.rotationQuaternion == null) {
                 this._chasePivot.rotationQuaternion = new BABYLON.Quaternion();
@@ -1008,6 +1065,51 @@ export class B3dAircraft extends B3dControllable {
             this._ownMeshes = own;
         }
         return this._ownMeshes ?? new Set();
+    }
+    /**
+     * WHERE THE AIRFRAME ACTUALLY IS — the world position of the node's local
+     * origin, for ray origins.
+     *
+     * `node.position` is the node's translation in its PARENT's space, and with a
+     * `_centerOfGravity` pivot the rendered airframe swings about the CoG under
+     * attitude while `position` keeps pointing at the stance origin. `muzzle()`
+     * already went through the world matrix for exactly this reason ("shots would
+     * spawn beside/behind the visible plane in a turn") — but both collision rays
+     * still fired from `position`, so BANKING moved the airframe out from under
+     * its own rays. The impact sweep crashes on ANY hit above `crashSpeed`, which
+     * turns that offset into "collided with something I was nowhere near"
+     * (Tonio, VR pass 2: "we could bank without crashing before").
+     *
+     * Transforming the LOCAL ORIGIN (not the pivot) keeps the existing ground
+     * semantics bit-for-bit: with no pivot and no parent this is exactly
+     * `node.position`, so `groundClearance` still means what it measured.
+     */
+    originWorld(node) {
+        node.computeWorldMatrix(true);
+        return BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.ZeroReadOnly, node.getWorldMatrix());
+    }
+    /**
+     * What this airframe's collision rays must SKIP — shared by the ground ray
+     * and the impact sweep so they cannot diverge.
+     *
+     * They did diverge: `submersible` was consulted only by the ground ray, so a
+     * submersible aircraft passed the waterline on the downward test and then
+     * exploded on it via the sweep, which crashes on ANY hit above `crashSpeed`.
+     * The dive demo could not work at all — its own descent rate
+     * (`maxSpeed * 0.3` = 9 m/s) exceeds the default `crashSpeed` of 8 — and
+     * surfacing failed the same way, since Babylon's picking does not
+     * backface-cull.
+     *
+     * Water is ground to something that cannot go under it, and scenery to
+     * something that can. That is one rule, so it lives in one place.
+     */
+    skipForCollision() {
+        const own = this.ownMeshes();
+        const submersible = this.submersible === true;
+        return (m) => own.has(m) ||
+            m.name.includes('__root__') ||
+            (submersible &&
+                m.metadata?.b3dWater === true);
     }
     /** World nose direction (unit) and a muzzle point `ahead` metres in front.
      * Computed through the WORLD matrix, never node.position: with a
@@ -1309,7 +1411,7 @@ export class B3dAircraft extends B3dControllable {
     raycastGround(node) {
         if (!this.owner)
             return Infinity;
-        this._ray.origin.copyFrom(node.position);
+        this._ray.origin.copyFrom(this.originWorld(node));
         this._ray.direction.copyFromFloats(0, -1, 0);
         this._ray.length = 500;
         if (this._ownMeshes == null) {
@@ -1320,17 +1422,11 @@ export class B3dAircraft extends B3dControllable {
                 own.add(child);
             this._ownMeshes = own;
         }
-        const own = this._ownMeshes;
-        // ⚠️ Passing a predicate to pickWithRay makes Babylon SKIP its built-in isPickable/isEnabled
-        // filter (ray.core.js: predicate is the SOLE test) — so the predicate MUST re-check them, or
-        // the ground ray hits non-pickable things. Clouds are `isPickable = false`, so without this
-        // the aircraft picks a cloud blob as "ground" (PULL UP / crash in mid-air over a cloud layer)
-        // — exactly the picking trap b3d-clouds warns about. `isEnabled` also skips coverage-hidden
-        // blobs.
-        const hit = this.owner.scene.pickWithRay(this._ray, (m) => m.isPickable &&
-            m.isEnabled() &&
-            !own.has(m) &&
-            !m.name.includes('__root__'));
+        // The isPickable/isEnabled re-check that this ray used to do by hand now
+        // lives in `collidable()` — Babylon makes a predicate the SOLE test, so
+        // skipping those checks let the aircraft pick a cloud blob as "ground"
+        // (PULL UP over open sky). Centralised so no pick site can forget it.
+        const hit = this.owner.scene.pickWithRay(this._ray, collidable(this.skipForCollision()));
         if (hit?.hit) {
             // Surface normal for the slope-impact crash test (up if unavailable).
             const n = hit.getNormal(true);
@@ -1338,9 +1434,17 @@ export class B3dAircraft extends B3dControllable {
                 this._groundNormal.copyFrom(n);
             else
                 this._groundNormal.copyFromFloats(0, 1, 0);
+            // WHAT did we call "ground"? Recorded because the phantom-collision bug
+            // ("collided with something I was nowhere near", VR pass 2) is almost
+            // certainly this ray hitting a thing that is not the ground — a banked
+            // wing the exclusion set missed, an air target, a terrain skirt whose
+            // lied normal trips the slope test. The name is the answer; guessing
+            // which one cost a whole session.
+            this._lastGroundHitName = hit.pickedMesh?.name ?? '(unnamed)';
             return hit.distance;
         }
         this._groundNormal.copyFromFloats(0, 1, 0);
+        this._lastGroundHitName = null;
         return Infinity;
     }
     updatePullUp(node, groundDist) {
@@ -1360,6 +1464,30 @@ export class B3dAircraft extends B3dControllable {
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
+        // Ground-ray diagnostics. Always registered (no arming), because the
+        // phantom collision happens in scenes with no terrain — so it must not
+        // depend on terrain's panel — and a headset has no console. Live `agl/hit`
+        // shows what the ray is calling ground RIGHT NOW; `crash` shows the
+        // captured report, which is the whole answer when it fires at altitude.
+        // Idempotent: sceneReady can run again for a re-connected element, and a
+        // respawn puts a SECOND aircraft in the scene — either way two identical
+        // rows appear and neither says which plane it is (Tonio: "two aircraft
+        // debug toggle buttons for some reason"). Drop any previous registration,
+        // and name the row so two live aircraft read as two aircraft.
+        this._groundDbgOff?.();
+        this._groundDbgOff = owner.addDebugSource({
+            name: `aircraft ground${this.player ? ' (player)' : ''}`,
+            lines: () => {
+                const c = this.crashReport;
+                const d = this._lastGroundDist;
+                return [
+                    `agl ${d === Infinity ? '∞' : d.toFixed(1)} · hit ${this._lastGroundHitName ?? '—'}`,
+                    c
+                        ? `CRASH ${c.reason} @${c.altitude.toFixed(0)}m d=${c.dist.toFixed(1)} hit=${c.hit ?? '—'}`
+                        : 'no crash yet',
+                ];
+            },
+        });
         if (attrs.url !== '') {
             this.loadFromUrl(attrs.url, owner, scene);
         }
@@ -1565,6 +1693,8 @@ export class B3dAircraft extends B3dControllable {
         }
     }
     sceneDispose() {
+        this._groundDbgOff?.();
+        this._groundDbgOff = null;
         if (this.owner?.scene) {
             this.owner.scene.unregisterBeforeRender(this._update);
         }

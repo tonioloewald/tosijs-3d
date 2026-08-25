@@ -28,6 +28,7 @@ import { attachFramePanel } from 'tosijs-3d'
 /*{ "parent": "Core" }*/
 import * as BABYLON from '@babylonjs/core';
 import { SvgTexture } from './svg-texture';
+import { markUiMesh } from './b3d-utils';
 import { gazeReveal } from './xr-frames';
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const DEG = Math.PI / 180;
@@ -158,6 +159,10 @@ export function attachFramePanel(scene, cam, frame, spec) {
     const width = spec.width ?? 0.26;
     const plane = BABYLON.MeshBuilder.CreatePlane('frame-panel', { width, height: width * aspect, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, scene);
     plane.parent = frame;
+    // Pointer-pickable, collision-invisible. This panel rides a head/body frame,
+    // so in cockpit view it sits right in front of the airframe — and the
+    // aircraft's impact sweep crashed on it. See markUiMesh.
+    markUiMesh(plane);
     plane.position.set(pos[0], pos[1], pos[2]);
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
     // Orient ONCE to face the focus point (your head): +Z toward it, tilted to its

@@ -86,7 +86,7 @@ contact. The target **respawns at a fresh altitude** each time you destroy it. D
 `turnRate` and watch them overshoot a hard-turning target.
 
 ```js
-import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
 import { orbitCam } from 'demo-utils'
 import { tosi } from 'tosijs'
 
@@ -94,7 +94,10 @@ import { tosi } from 'tosijs'
 // air at once, chasing the target together before it's destroyed.
 // Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
 const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
-const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
+// projRadius 0.35, not the 0.12 default: this camera sits 30 units back and the
+// missile flies 30 more, where a 0.12 sphere is about two pixels. "The launcher
+// works now but I can't see the missile."
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: '#ffe066' })
 
 // Shared so the orbit loop (in sceneCreated) and the controller's drive both reach it.
 const state = { target: null }
@@ -103,6 +106,7 @@ const scene = b3d(
   {
     gamepad: 'right_trigger',
     scenePanelOpen: true,
+    glowLayerIntensity: 0.8, // so the round reads as hot at range
     scenePanel: () => [
       label3d({ text: 'Missile', bold: true }),
       slider3d({ label: 'missile speed', value: s.missileSpeed, min: 8, max: 40, step: 1 }),
@@ -120,9 +124,17 @@ const scene = b3d(
         return t
       }
       state.target = spawn()
-      el.addEventListener('destroyed', () => {
-        const dead = state.target; state.target = null
-        if (dead) dead.remove()
+      // RELEVANCE FIRST, and exactly once. This used to react to ANY `destroyed`
+      // event and schedule a respawn every time — so a second event (an AoE
+      // catching something else, a stray) queued an EXTRA spawn while the
+      // target was already null, leaving orphan drones nothing moves or clears.
+      // Same shape as issue #25, where any other entity's death tore down the
+      // death panel.
+      el.addEventListener('destroyed', (e) => {
+        const dead = state.target
+        if (!dead || (e.target !== dead && !dead.contains(e.target))) return
+        state.target = null
+        dead.remove()
         setTimeout(() => { state.target = spawn() }, 400)
       })
       el.scene.onBeforeRenderObservable.add(() => {
@@ -195,7 +207,7 @@ that assumes one orients its effect off nothing.
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
-| `turnRateDeg` | — | The same agility in deg/sec. A computed view onto `turnRate`: set either, read either. Exists because "is this radians?" should be answered by the API, not by reading the source |
+| `turnRateDeg` | — | The same agility in **deg/sec**. A computed view onto `turnRate` — set either, read either — but **JS only**: `turn-rate-deg` is not an attribute, because `turnRate` is the stored one and both cannot be. See CLAUDE.md → "Angles" |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
@@ -213,7 +225,7 @@ that assumes one orients its effect off nothing.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff, sceneDelta } from './b3d-utils';
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils';
 /** A guided missile always cruises at least this much FASTER than the platform that
  * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
@@ -359,7 +371,10 @@ export function spawnProjectile(owner, opts) {
         const len = seg.length();
         if (len > 1e-4) {
             const ray = new BABYLON.Ray(from, seg.scale(1 / len), len);
-            const hit = scene.pickWithRay(ray, (m) => m.isPickable && m !== mesh && (opts.ignore == null || !opts.ignore(m)));
+            // Shared predicate: UI is excluded by default, so a shell no longer
+            // detonates on a spatial panel (and an unrevealed, visibility-0 panel no
+            // longer acts as an invisible shield).
+            const hit = scene.pickWithRay(ray, collidable((m) => m === mesh || (opts.ignore?.(m) ?? false)));
             if (hit != null && hit.hit && hit.pickedPoint != null) {
                 detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true);
                 reportImpact(opts, {
@@ -549,6 +564,18 @@ export class B3dLauncher extends AbstractMesh {
     it feeds trig, or because changing it would break tuned values), expose a
     `<name>Deg` accessor beside it. `Deg` and not `Degs`/`Degrees` — the codebase
     already has rollDeg, coneDeg, pitchDeg, azimuthDeg, elevationDeg.
+    */
+    /*
+    A JS ACCESSOR, not an attribute — and that asymmetry is a real limit, not an
+    oversight. `turnRate` is the stored `initAttributes` value, so `turnRateDeg`
+    cannot ALSO be stored without the two diverging the moment either is written.
+    Making the alias settable as `turn-rate-deg` requires the DEGREES form to
+    become the stored attribute and radians to become the accessor — an API change
+    with a real migration, not a mid-release tweak. Filed for 0.7.1.
+  
+    Until then this round-trips (set either, read either) in JS, and CLAUDE.md
+    says plainly that the attribute form is unavailable, rather than leaving
+    `turn-rate-deg="90"` to fail silently.
     */
     get turnRateDeg() {
         return this.turnRate * (180 / Math.PI);

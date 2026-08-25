@@ -171,8 +171,8 @@ preview.append(div({ class: &#39;glass-stage&#39; }, scene, pad, readout))
 </thead>
 <tbody><tr>
 <td><code>controls</code></td>
-<td><code>&#39;sticks buttons&#39;</code></td>
-<td>Which clusters to show, space-separated</td>
+<td><code>&#39;&#39;</code> (all)</td>
+<td><strong>Comma</strong>-separated piece list, e.g. <code>&#39;a,b,right_stick(40,0),menu&#39;</code>. Empty (the default) shows everything. <code>a/b/x/y</code> map to <code>A/B/X/Y</code>; <code>dpad</code> expands to the four directions; <code>name(dx,dy)</code> nudges one piece</td>
 </tr>
 <tr>
 <td><code>fade</code></td>
@@ -205,6 +205,8 @@ that actually implies an on-screen fallback isn&#39;t needed.</p>
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

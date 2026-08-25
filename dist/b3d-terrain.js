@@ -644,6 +644,7 @@ export class B3dTerrain extends B3dChild {
         return this._prof != null;
     }
     _debugOff = null;
+    _originDbgOff = null;
     // Join the scene's Perf Stats panel — the ONLY debug readout that exists inside a
     // headset, and the headset is exactly where these numbers matter most (least CPU
     // headroom, and a dropped frame there is nausea rather than jank). Without this you'd
@@ -674,10 +675,37 @@ export class B3dTerrain extends B3dChild {
                 { label: 'Reset', onClick: () => this.resetProfile() },
             ],
         });
+        // Floating-origin diagnostics — readable IN a headset (no console there), and
+        // armable from the panel so you can turn it on right before flying into the
+        // phantom-collision bug. Off until armed. See B3d.logDebug / debugLog.
+        this._originDbgOff = owner.addDebugSource({
+            name: 'origin',
+            lines: () => {
+                const log = owner.debugLog;
+                const last = [...log].reverse().find((e) => e.tag === 'origin');
+                const resets = log.filter((e) => e.kind === 'resetOrigin').length;
+                return [
+                    `off ${this.originOffsetX.toFixed(0)},${this.originOffsetZ.toFixed(0)} · resets ${resets}`,
+                    last
+                        ? `last ${String(last.kind)} carrier=${last.carrierIsPiloted === false ? 'NOT-piloted⚠' : 'piloted'}`
+                        : 'no events yet',
+                ];
+            },
+            actions: [
+                {
+                    label: () => owner.debugLog.some((e) => e.tag === 'origin')
+                        ? `origin log (${owner.debugLog.length})`
+                        : 'Capture origin',
+                    onClick: () => owner.debugCapture('origin'),
+                },
+            ],
+        });
     }
     sceneDispose() {
         this._debugOff?.();
         this._debugOff = null;
+        this._originDbgOff?.();
+        this._originDbgOff = null;
         if (this.owner && this._beforeRender) {
             this.owner.scene.unregisterBeforeRender(this._beforeRender);
         }
@@ -1330,6 +1358,18 @@ export class B3dTerrain extends B3dChild {
         // addOriginListener listener (projectiles etc. that also hold JS-side coordinates).
         // Shifting the piloted entity is what drops the camera's globalPosition back
         // below the reset threshold, so the reset doesn't re-fire.
+        // Log the reset BEFORE shiftOrigin so the pair reads in order: resetOrigin
+        // (what the terrain moved) immediately followed by shiftOrigin (what the
+        // owner moved to match). A gap between the two shifts is the desync.
+        this.owner?.logDebug('origin', {
+            kind: 'resetOrigin',
+            shiftX,
+            shiftZ,
+            camX,
+            camZ,
+            offX: this.originOffsetX,
+            offZ: this.originOffsetZ,
+        });
         this.owner?.shiftOrigin(shiftX, shiftZ);
         this.originOffsetX += shiftX;
         this.originOffsetZ += shiftZ;

@@ -183,6 +183,7 @@ export declare class B3dTerrain extends B3dChild {
     /** Is tile profiling on? (Drives the Perf Stats panel's button label.) */
     get profiling(): boolean;
     private _debugOff;
+    private _originDbgOff;
     private _joinDebugPanel;
     sceneDispose(): void;
     private createSampler;

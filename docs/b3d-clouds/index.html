@@ -58,32 +58,51 @@ worth more than a cloud that merely looks convincing.</p>
 <h2>Demo</h2>
 <p><strong>Climb into the cloud layer</strong> (R to throttle up, W/S pitch). Watch the world white out as
 you enter, and the readout climb. Then dive back out.</p>
-<pre><code class="language-js">import { b3d, b3dAircraft, b3dClouds, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dAircraft, b3dClouds, b3dDeath, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from &#39;tosijs-3d&#39;
 import { elements } from &#39;tosijs&#39;
 const { div } = elements
 
-const aircraft = b3dAircraft({
+// A FACTORY, not a single instance: death needs something to respawn. Without a
+// &lt;tosi-b3d-death&gt; a crash releases input focus and leaves you holding nothing —
+// which reads as the demo seizing up, not as dying.
+const plane = () =&gt; b3dAircraft({
   library: &#39;vehicles&#39;, meshName: &#39;scout&#39;,
   player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
 })
+let aircraft = plane()
+const focus = inputFocus(gameController(), aircraft)
 const clouds = b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: &#39;readout&#39; })
 
 const scene = b3d(
   { gamepad: true },
   b3dLight({ y: 1, intensity: 0.6 }),
-  b3dSun({ intensity: 0.9 }),
+  // Cascaded shadows, because the ground is 4000 units across: with the default
+  // single map the aircraft&#39;s shadow lands in a far, coarse cascade and is
+  // effectively invisible. Cascades put the resolution where the camera is.
+  // shadowMaxZ 600, not the 100 default: this demo climbs to cloud altitude
+  // (140m), and shadows simply stop rendering beyond maxZ — so the land lost
+  // its shadows exactly when you got high enough to look at it. Cascades keep
+  // the near resolution usable across the wider range.
+  b3dSun({ intensity: 0.9, shadowCascading: true, shadowTextureSize: 2048, shadowMaxZ: 600 }),
   b3dSkybox({ timeOfDay: 10 }),
   b3dFog({ start: 400, end: 3000, color: &#39;#bfd9f2&#39; }),
   b3dGround({ meshName: &#39;ground_nocast&#39;, width: 4000, height: 4000, color: &#39;#6b7f5e&#39; }),
   b3dLibrary({ url: &#39;/test-3.glb&#39;, type: &#39;vehicles&#39; }),
   clouds,
-  inputFocus(gameController(), aircraft),
+  b3dDeath({
+    title: &#39;DOWN&#39;,
+    respawn() {
+      aircraft = plane()
+      focus.appendChild(aircraft)
+    },
+  }),
+  focus,
 )
 
 setInterval(() =&gt; {
   const t = clouds.insideCloud
-  readout.textContent = `altitude ${aircraft.altitude.toFixed(0)}   in cloud ${(t * 100).toFixed(0)}%`
+  readout.textContent = `altitude ${(aircraft.altitude ?? 0).toFixed(0)}   in cloud ${(t * 100).toFixed(0)}%`
   readout.style.color = t &gt; 0.5 ? &#39;#fff&#39; : &#39;#9fb&#39;
 }, 100)
 
@@ -222,6 +241,8 @@ darkened by <code>shadowStrength</code> × <code>coverage</code>, repainted only
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

@@ -86,5 +86,34 @@ export interface PopupSurface {
     /** Bring this popup to the front of the stack. */
     toFront(): void;
 }
+/**
+ * Make everything behind the topmost modal un-pickable, and restore it when the
+ * modal goes away.
+ *
+ * ⚠️ The obvious implementation is to cancel the pointer event
+ * (`skipOnPointerObservable = true`) when the press is not on the modal. I did
+ * that first and it BROKE MOUSE CONTROL: Babylon's camera pointer inputs route
+ * through `onPointerObservable` too, so cancelling there kills orbit along with
+ * the UI. Tonio, immediately: "I can only rotate the view in some places. Other
+ * places mouse doesn't work at all."
+ *
+ * So the block is expressed as what it actually means — those panels are not
+ * targets right now — instead of as a veto over the whole pointer pipeline. The
+ * camera is untouched, which matters more in a headset than anywhere: a modal
+ * owns the UI, not your head, and freezing someone's view is how you make them
+ * ill.
+ */
+/**
+ * WHO IS PICKABLE while a modal is open — the pure decision, extracted so the
+ * rule can be tested without a scene.
+ *
+ * `true` for everything when no modal is open (which is what makes `close()`
+ * restore the stack — regress that and every popup becomes permanently
+ * untargetable while the camera still works, which reads as "the UI died").
+ * With a modal open, only the FIRST modal in the list is pickable.
+ */
+export declare function modalPickable(popups: {
+    modal?: boolean;
+}[]): boolean[];
 export declare function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface;
 //# sourceMappingURL=popup-surface.d.ts.map

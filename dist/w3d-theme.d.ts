@@ -20,5 +20,8 @@ export declare const w3dTheme: {
     readonly accent: string;
     readonly rowBg: string;
     readonly rowHover: string;
+    readonly info: string;
+    readonly warning: string;
+    readonly error: string;
 };
 //# sourceMappingURL=w3d-theme.d.ts.map

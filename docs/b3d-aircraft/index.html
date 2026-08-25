@@ -340,6 +340,11 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <td>Assumed ground-plane height (a floor in addition to any terrain colliders)</td>
 </tr>
 <tr>
+<td><code>submersible</code></td>
+<td><code>false</code></td>
+<td>Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash</td>
+</tr>
+<tr>
 <td><code>crashSpeed</code></td>
 <td><code>8</code></td>
 <td>Vertical impact speed (m/s) above which a ground contact is a crash</td>
@@ -490,6 +495,8 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>

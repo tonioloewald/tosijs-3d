@@ -122,7 +122,7 @@ the target and curves onto it (pure <code>interceptLead</code> + <code>steerTowa
 missiles</strong> at the orbiting cube; they bend to chase it and detonate on
 contact. The target <strong>respawns at a fresh altitude</strong> each time you destroy it. Drop
 <code>turnRate</code> and watch them overshoot a hard-turning target.</p>
-<pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
@@ -130,7 +130,10 @@ import { tosi } from &#39;tosijs&#39;
 // air at once, chasing the target together before it&#39;s destroyed.
 // Distinct tosi() key from the gun demo above (shared-singleton gotcha — see there).
 const { launcherMissile: s } = tosi({ launcherMissile: { missileSpeed: 16, turnRate: 3, fireRate: 2.5 } })
-const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3 })
+// projRadius 0.35, not the 0.12 default: this camera sits 30 units back and the
+// missile flies 30 more, where a 0.12 sphere is about two pixels. &quot;The launcher
+// works now but I can&#39;t see the missile.&quot;
+const launcher = b3dLauncher({ x: 0, y: 0.6, z: 0, missileSpeed: s.missileSpeed, turnRate: s.turnRate, fireRate: s.fireRate, blastRadius: 3, projRadius: 0.35, projColor: &#39;#ffe066&#39; })
 
 // Shared so the orbit loop (in sceneCreated) and the controller&#39;s drive both reach it.
 const state = { target: null }
@@ -139,6 +142,7 @@ const scene = b3d(
   {
     gamepad: &#39;right_trigger&#39;,
     scenePanelOpen: true,
+    glowLayerIntensity: 0.8, // so the round reads as hot at range
     scenePanel: () =&gt; [
       label3d({ text: &#39;Missile&#39;, bold: true }),
       slider3d({ label: &#39;missile speed&#39;, value: s.missileSpeed, min: 8, max: 40, step: 1 }),
@@ -156,9 +160,17 @@ const scene = b3d(
         return t
       }
       state.target = spawn()
-      el.addEventListener(&#39;destroyed&#39;, () =&gt; {
-        const dead = state.target; state.target = null
-        if (dead) dead.remove()
+      // RELEVANCE FIRST, and exactly once. This used to react to ANY `destroyed`
+      // event and schedule a respawn every time — so a second event (an AoE
+      // catching something else, a stray) queued an EXTRA spawn while the
+      // target was already null, leaving orphan drones nothing moves or clears.
+      // Same shape as issue #25, where any other entity&#39;s death tore down the
+      // death panel.
+      el.addEventListener(&#39;destroyed&#39;, (e) =&gt; {
+        const dead = state.target
+        if (!dead || (e.target !== dead &amp;&amp; !dead.contains(e.target))) return
+        state.target = null
+        dead.remove()
         setTimeout(() =&gt; { state.target = spawn() }, 400)
       })
       el.scene.onBeforeRenderObservable.add(() =&gt; {
@@ -248,7 +260,7 @@ onto an element, and the callback then silently never runs.</p>
 <tr>
 <td><code>turnRateDeg</code></td>
 <td>—</td>
-<td>The same agility in deg/sec. A computed view onto <code>turnRate</code>: set either, read either. Exists because &quot;is this radians?&quot; should be answered by the API, not by reading the source</td>
+<td>The same agility in <strong>deg/sec</strong>. A computed view onto <code>turnRate</code> — set either, read either — but <strong>JS only</strong>: <code>turn-rate-deg</code> is not an attribute, because <code>turnRate</code> is the stored one and both cannot be. See CLAUDE.md → &quot;Angles&quot;</td>
 </tr>
 <tr>
 <td><code>ammo</code></td>
@@ -326,6 +338,8 @@ onto an element, and the callback then silently never runs.</p>
   <nav class="doc-nav" aria-label="Documentation">
   <ul>
     <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
