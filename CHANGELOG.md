@@ -10,6 +10,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Fixed
 
+- **Modal dialogs are WORLD-PLACED and follow you if you look away.** The
+  respawn and pause panels sit at a spot with clear line of sight, face you, and
+  ease to a fresh spot after ~2s outside a generous cone. `placement="world"` on
+  `<tosi-b3d-svg-plane>`; the rules are pure and tested in `dialog-placement`.
+
+  This replaces three compensations that were each fixing a symptom: head-locking
+  (jittered with a jostling death-cam), riding the body frame (put it at knee
+  height), and rendering on top (painted in front but became **untouchable**,
+  because picking is geometric). It also fixes the case none of them could —
+  dying in cockpit view with the camera inside a hillside, where nothing "just
+  in front of you" helps.
+
 - **`turnRateDeg` returns exactly what you set.** Converting through radians is
   lossy — `30` derived back as `29.999999999999996`, which is what a slider
   readout or a saved scene would show. It now remembers the value you supplied
