@@ -16,9 +16,10 @@ justified holding a release. Details live in the sections named.
 | **A UI DEPTH BAND** (stacked panels vs. occluders)                            | Per-panel pull-forward is right for one dialog and wrong for two — subsumed by world placement          |
 | **Default-exclude collision groups** (`probe()`)                              | The shared predicate landed; the polarity flip and the remaining call sites did not                     |
 
-**Still open against 0.7.0 itself:** the guided-missile crash, the COCKPIT
-death camera (dialog under the ground, wreck far away), the left-stick
-double-duty conflict, and the npm channel decision.
+**Still open against 0.7.0 itself:** the guided-missile crash (page-wedging,
+the one that actually matters), the left-stick double-duty conflict, and the
+npm channel decision. The rig-hierarchy family (chase jitter, cockpit death)
+is explicitly NOT a blocker — see below.
 
 ## OPEN: guided-missile demo crashes on a hit (0.7.0 validation, UNRESOLVED)
 
@@ -85,7 +86,30 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
-## COCKPIT DEATH: dialog under the ground, wreck far away (0.7.0, UNRESOLVED)
+## THE CHASE/COCKPIT RIG HIERARCHY — one investigation, not three bugs
+
+Tonio's read, and it is probably right: the aircraft **jitters in chase view
+ever since CoG landed**, and cockpit view has the odd death behaviour below.
+Both are parenting, so treat them as ONE look at the rig hierarchy rather than
+three separate irritations chased separately.
+
+Symptoms that likely share the root:
+
+- **Chase jitter since the CoG pivot.** The chase pivot re-derives from the
+  airframe each frame while the airframe now rotates about a pivot — two
+  things deriving from each other at slightly different times is the classic
+  shape of jitter.
+- **Cockpit death** — wreck far away, dialog underground (below).
+- Possibly the exit-VR re-seat, which is also "who owns this transform".
+
+**NOT BLOCKERS** (Tonio): non-fatal corner cases in something that works well
+the rest of the time. The instruction is to stay ALERT for them while we are
+already in that code — not to hunt them now. When one is next reproduced,
+measure the actual parent chain (`node.parent` up to the root, plus which
+frame owns the transform each frame) rather than reasoning about it: the last
+two camera bugs each cost three hypotheses and one measurement.
+
+## COCKPIT DEATH: dialog under the ground, wreck far away (0.7.0, NOT A BLOCKER)
 
 Clouds demo. Dying in CHASE view is fine. Dying in COCKPIT view: only the top
 edge of the dialog pokes above the ground, and "somehow the aircraft was moved
