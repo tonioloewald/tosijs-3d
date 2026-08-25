@@ -799,3 +799,48 @@ path, while the actual killer was the impact sweep — which called `crash()` wi
 no report at all, so the panel would have said "no crash yet" for the very bug
 it was built to catch. Check that every path which can produce the symptom
 writes the record.
+
+## The window frame in 2D, depth and collision in XR: don't cheat the medium
+
+Tonio, during the 0.7.0 tag run:
+
+> There is a family of usability issues in web UX that basically come down to
+> DOM elements are clipped to a window whereas a real UI can layer above and
+> outside a window. In XR UX the equivalent issue is that depth and collision
+> are best treated as "reality" in the same way the window frame needs to be
+> treated as "reality" in the 2D web.
+
+**The 2D pathology.** A DOM element lives inside its container's clip and
+stacking context, so `z-index` is a LOCAL claim: it cannot lift you out of an
+`overflow: hidden` ancestor, and it means nothing across stacking contexts. The
+only real fix is to leave — render at the document root. Native UI does not have
+the problem at all, because menus and tooltips can extend past the window.
+
+**The XR analogue is exact.** Depth and collision are the reality you do not get
+to opt out of. `renderingGroupId` is `z-index`: a COMPOSITING claim. Reached for
+it for the same reason people reach for `z-index: 9999`, and it failed the same
+way — a respawn dialog buried in terrain was set to render in group 1, painted
+in front, and became **untouchable**, because picking is geometric and does not
+care what you drew last. Visible-but-dead is worse than honestly buried: it
+invites a press that cannot land.
+
+**The rule: place it somewhere real, don't composite it on top.**
+
+- 2D: escape the container. Render at the root, then position deliberately
+  (which is what `placePopup`'s flip/clamp is for).
+- XR: put the thing at a real location with clear line of sight, and let depth
+  do what depth does. The design that follows is world-placed dialogs with
+  **gaze recovery** — if you look away for ~2s it re-picks a spot and comes to
+  you — which gets findability without the panel chasing your eyes.
+
+**The corollary we already got right.** "Popups should be NEW SURFACES" was this
+same insight a month earlier: _"in 3D (and especially VR) we actually control
+the universe in a way we don't in the browser."_ A popup becomes another plane
+at a real place, rather than something crammed into a parent's rect — the exact
+equivalent of rendering at the document root instead of fighting the clip. The
+lesson is that the 3D version of a 2D escape hatch is usually _more_ honest, not
+less: you have somewhere real to put things.
+
+**Smell test for the next one.** If a fix makes something LOOK right without
+changing where it IS, ask what else keys off where it is — picking, collision,
+occlusion, audio. In 2D that list is short. In XR it is most of the system.
