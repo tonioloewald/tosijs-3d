@@ -86,6 +86,57 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
+## TWO CLOCKS: a fixed simulation step, separate from the render delta
+
+Tonio: _"Unity had a deltaTime value specifically for dealing with per frame
+updates vs physics time updates."_ `Time.deltaTime` for rendering and input,
+`Time.fixedDeltaTime` for physics, with the render pose interpolated between
+fixed steps.
+
+**We have one clock.** `sceneDelta()` is the real inter-render delta and **20
+modules consume it** — fly-by-wire, ballistics, guidance, combat, terrain,
+ambient, the XR rig. Nothing is fixed-stepped.
+
+Why it matters here specifically, in order of how much:
+
+- **Determinism.** `world-contract` promises a simulation that is reproducible
+  and advances only via `tick()` — and `world-store` honours that. Anything
+  driven off the render delta does not: the same inputs on a 60Hz monitor and a
+  72Hz headset produce different trajectories. That is a problem for a narrative
+  driver (Ariosto), for replay, and for any "same seed, same battles" claim.
+- **Stability at low frame rates.** A Quest dropping to 20fps hands the
+  integrator 50ms steps. Attitude chase and quadratic drag degrade smoothly for
+  a while and then do not.
+- **Tunnelling.** The aircraft's impact SWEEP exists precisely because a point
+  test at speed misses thin geometry. A bounded step attacks that at the source
+  rather than per-consumer.
+- **Multiplayer**, when it comes: lockstep needs a fixed tick, and the freeze
+  conversation already showed which decisions are local-only.
+
+**What we already got right, which makes this cheap:** every pure model takes
+`dt` as a PARAMETER (`fly-by-wire`, `ballistics`, `guidance`, `world-store`), so
+none of them needs rewriting — only the driver changes. And `sceneDelta` is a
+single choke point, so there is one place to introduce the split.
+
+[ ] **Add an accumulator to `<tosi-b3d>`.** Consume real elapsed time into
+fixed steps (1/60 is the obvious default), run the simulation N times per
+frame, keep the remainder. Expose BOTH: `frameDelta` (variable, for
+rendering, camera easing, UI) and the fixed step (for anything that
+integrates). Clamp steps-per-frame — an unbounded accumulator on a slow
+frame spirals, and we already clamp `dt` to 0.1s for the same reason.
+Composes with pause/freeze for free: a stopped clock simply feeds zero
+steps.
+[ ] **Then decide about interpolation.** Rendering at the last fixed step
+judders at rates that are not a multiple of the step; interpolating the
+render pose between steps is the standard fix and is what makes Unity's
+split invisible. Worth doing only after the split exists — and it interacts
+with the chase-rig jitter already on the list, which may turn out to be the
+same phenomenon.
+
+Promote to its own design doc if it grows past this. Cross-refs:
+`PERF-DESIGN.md` (where the frame budget is spent), `world-contract.ts` (the
+determinism promise this would let us actually keep).
+
 ## WATCH LIST — non-fatal, seen once, keep an eye out (Tonio, final pass)
 
 Neither is a blocker; both were explicitly "not fatal, just keep an eye out".
