@@ -58,7 +58,7 @@ break the surface.
 
 ```js
 import { b3d, b3dAircraft, b3dAmbient, b3dWater, b3dFog, b3dLibrary, b3dLight, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
-import { demoSun } from 'demo-utils'
+import { demoSun } from 'tosijs-3d/demo-utils'
 
 // A submersible scout. TWO things make the dive work, and it needs both:
 //   `groundY: -40`   — the floor is the seabed, not the default 0 (which here is

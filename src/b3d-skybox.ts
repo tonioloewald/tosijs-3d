@@ -8,7 +8,7 @@ a `b3dSun` sibling's direction, intensity, and color.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, b3dSphere, label3d, slider3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const { sky } = tosi({ sky: { timeOfDay: 17 } })

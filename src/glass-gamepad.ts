@@ -23,7 +23,7 @@ directly, it's a `GamepadSource` whose `poll()` merges all clusters.
 
 ```js
 import { b3d, b3dGamepad, b3dSkybox } from 'tosijs-3d'
-import { demoSun, patternGround } from 'demo-utils'
+import { demoSun, patternGround } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div, pre } = elements
 

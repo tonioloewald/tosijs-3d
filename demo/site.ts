@@ -24,6 +24,11 @@ for (const el of document.querySelectorAll('tosi-doc-system')) {
     tosijs,
     'tosijs-3d': tosijs3d,
     'tosijs-ui': tosijsui,
+    // The PUBLISHED specifier, so a snippet copied off a page resolves in a
+    // consumer's project unchanged. `demo-utils` stays registered for the
+    // handful of examples that use the site-only helpers (volumetricDemo,
+    // impactMarker, the asset constants).
+    'tosijs-3d/demo-utils': demoUtils,
     'demo-utils': demoUtils,
   }
 }

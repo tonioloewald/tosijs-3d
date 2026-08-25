@@ -20,7 +20,7 @@ position over the floor.
 
 ```js
 import { b3d, b3dBox, createShadowDecal } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {
@@ -41,7 +41,7 @@ const scene = b3d(
       el.scene.onBeforeRenderObservable.add(place)
     },
   },
-  ...demoStage({ size: 24, tiles: 10, pattern: true, timeOfDay: 10 }),
+  ...demoStage({ size: 24, tiles: 10, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 10 }),
   // `_nocast` so no real CSM shadow competes with the decal — the decal IS the grounding shadow here
   b3dBox({ meshName: 'floater_nocast', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
 )

@@ -6,6 +6,33 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.7.1 (unreleased)
+
+### Added
+
+- **`tosijs-3d/demo-utils`** — the scene-setup helpers every live example uses
+  are now published, so **code copied off a doc page resolves in your project**.
+  Previously 38 examples across 33 files imported a bare `demo-utils` that no
+  consumer could resolve, and since the demo goes first on every page it was the
+  first thing anyone copied.
+
+  They ship with an explicit stability disclaimer: **dev helpers, not API.** They
+  can change or vanish in a patch, they are tuned to flatter a doc page rather
+  than your game, and production code should compose `b3dSun`/`b3dSkybox`/
+  `b3dGround` directly.
+
+  Vetted rather than published wholesale — the module was not shippable as-is:
+
+  - `orbitCam` takes **`alphaDeg`/`betaDeg`**; the radian `alpha`/`beta` still
+    work and are converted, so existing snippets keep running.
+  - Options are typed — the two `Record<string, unknown>` signatures are gone.
+  - Ground helpers take a **`texture` URL** instead of exporting root-absolute
+    asset paths that resolve only on this site.
+  - `demoSun` uses the **auto shadow-size sentinel** rather than hard-wiring
+    2048 over the device-tier budget.
+  - `volumetricDemo`, `impactMarker` and the asset constants stay **private** —
+    they are page-specific, not API.
+
 ## 0.7.0
 
 > **Prereleases, and why the numbering looks backwards.** `0.7.0-rc.1` was cut

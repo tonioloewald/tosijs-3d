@@ -8,7 +8,17 @@
     "url": "https://github.com/tonioloewald/tosijs-3d/issues"
   },
   "main": "./dist/index.js",
-  "exports": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./demo-utils": {
+      "types": "./dist/demo-utils.d.ts",
+      "default": "./dist/demo-utils.js"
+    },
+    "./package.json": "./package.json"
+  },
   "types": "./dist/index.d.ts",
   "type": "module",
   "files": [

@@ -19,7 +19,7 @@ drift across the ground and the crates below. Drag to orbit; watch the dark patc
 
 ```js
 import { b3d, b3dClouds, b3dBox } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {
@@ -36,7 +36,7 @@ const scene = b3d(
   // On the stage — cloud shadows are DARKENING, so the scene needs a fill light
   // to darken FROM. Sun alone put every unlit face at zero and the demo read as
   // black boxes on a black floor.
-  ...demoStage({ size: 160, tiles: 26, pattern: true, timeOfDay: 11, sun: { x: -0.5, y: -1, z: -0.35 } }),
+  ...demoStage({ size: 160, tiles: 26, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 11, sun: { x: -0.5, y: -1, z: -0.35 } }),
   b3dClouds({ model: '/cloud.glb', altitude: 115, thickness: 18, spread: 200, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
   ...Array.from({ length: 9 }, (_, i) =>
     b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: '#7a9b6e' })

@@ -5,7 +5,7 @@
 
 ```js
 import { b3d } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 import { svgElements, elements } from 'tosijs'
 const { svg, rect, text } = svgElements
 
@@ -63,7 +63,7 @@ const scene = b3d(
       opened.push(m)
     },
   },
-  ...demoStage({ size: 12, tiles: 8, pattern: true, timeOfDay: 11 }),
+  ...demoStage({ size: 12, tiles: 8, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 11 }),
 )
 
 preview.append(scene)

@@ -130,13 +130,16 @@ describe('doc-comment examples', () => {
     COUNT so the debt cannot grow unobserved, which is how it went from 32 to 38
     in one release.
     */
+    // Matches the BARE specifier only — `tosijs-3d/demo-utils` is published
+    // and resolves for consumers, so it is not debt.
     const UNRESOLVABLE = 'demo-utils'
-    const BASELINE = 38 // known debt at 0.7.0; only ever ratchet this DOWN
+    const BASELINE = 3 // 38 at 0.7.0 → 3 once the subpath shipped. Ratchet DOWN only.
     let count = 0
     for (const s of all) {
       for (const _ of s.code.matchAll(
         new RegExp(`from\\s*['"]${UNRESOLVABLE}['"]`, 'g')
       )) {
+        // (the leading quote makes `tosijs-3d/demo-utils` a non-match)
         count++
       }
     }

@@ -13,7 +13,7 @@ for `'enter'` / `'exit'` CustomEvents on the element.
 
 ```js
 import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, emptyInput } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span, p } = elements
 

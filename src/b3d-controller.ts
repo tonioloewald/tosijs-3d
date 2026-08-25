@@ -20,7 +20,7 @@ in VR — because it's the standard controller, not a demo hack.
 
 ```js
 import { b3d, b3dController, b3dSkybox } from 'tosijs-3d'
-import { demoSun, orbitCam, patternGround } from 'demo-utils'
+import { demoSun, orbitCam, patternGround } from 'tosijs-3d/demo-utils'
 
 // A rover we drive around: left stick / WASD → move + turn. The controller merges keyboard,
 // the on-screen glass pad, and any hardware/XR pad, and hands `drive` the result each frame.

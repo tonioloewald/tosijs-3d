@@ -13,7 +13,7 @@ until the user interacts with the page.
 
 ```js
 import { b3d, b3dSound, b3dLight, b3dSkybox, b3dSphere, b3dGround, label3d, button3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 

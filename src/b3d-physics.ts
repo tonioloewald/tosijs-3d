@@ -12,7 +12,7 @@ and dispatches a `'physics-ready'` event when initialization completes.
 
 ```js
 import { b3d, b3dPhysics, b3dLight, b3dSkybox, b3dGround, b3dSphere, explodeMesh, label3d, button3d, toggle3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 

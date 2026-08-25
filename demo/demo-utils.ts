@@ -36,6 +36,53 @@ type B3dEl = {
   register?(additions: { meshes?: BABYLON.AbstractMesh[] }): void
 }
 
+/*
+The doc site's PRIVATE helper layer.
+
+The publishable subset now lives in `src/demo-utils.ts` and ships as
+`tosijs-3d/demo-utils`, so the code a reader copies off a page resolves in
+their project. This file re-exports those and adds the parts that are
+deliberately NOT published:
+
+- `TEST_PATTERN` / `TEST_GRID` — root-absolute paths that resolve only on THIS
+  site. Publishing them would be a broken promise in a consumer's project.
+- `volumetricDemo` — an SDF-lattice x-ray for one page.
+- `impactMarker` — a demo effect, and a filed perf finding.
+
+Plus a `pattern: boolean` convenience on the ground helpers, which maps onto
+the published `texture` option using our own asset.
+*/
+export { orbitCam }
+export {
+  demoSun,
+  spinner,
+  type DemoHost,
+  type DemoSunOptions,
+  type OrbitCamOptions,
+  type SpinnerOptions,
+} from '../src/demo-utils'
+import {
+  orbitCam,
+  demoStage as publicDemoStage,
+  patternGround as publicPatternGround,
+  type DemoStageOptions,
+  type PatternGroundOptions,
+} from '../src/demo-utils'
+
+/** Site-only: `pattern: true` selects OUR muted grid asset. */
+export function patternGround(
+  opts: PatternGroundOptions & { pattern?: boolean } = {}
+) {
+  const { pattern, ...rest } = opts
+  return publicPatternGround(pattern ? { ...rest, texture: TEST_GRID } : rest)
+}
+
+/** Site-only: same `pattern` convenience, spread into a scene. */
+export function demoStage(opts: DemoStageOptions & { pattern?: boolean } = {}) {
+  const { pattern, ...rest } = opts
+  return publicDemoStage(pattern ? { ...rest, texture: TEST_GRID } : rest)
+}
+
 /**
  * The library's Warhol-ish test pattern (in `static/`), reused for grounds and props.
  *
@@ -56,190 +103,6 @@ export const TEST_PATTERN = '/tosi-test-pattern.svg'
  * the default ground material for test scenes".
  */
 export const TEST_GRID = '/tosi-warhol-testgrid.svg'
-
-/** A sun that CASTS shadows — the "when in doubt, add a shadow light" default. Pass overrides through. */
-export function demoSun(opts: Record<string, unknown> = {}) {
-  /*
-  2048, not 1024. Shadow acne is driven by TEXEL SIZE — the shadow map's area
-  divided by its resolution — so on a demo's 40-unit ground a 1024 map still
-  stippled at `shadowNormalBias` 0.05, which is clean on smaller scenes. Raising
-  the bias further clears it but buys peter-panning on small casters; doubling
-  the resolution halves the texel and costs nothing a demo cares about.
-
-  Measured on /shadow-decal/, which is where Tonio saw it: shadows off → clean,
-  so it is genuinely the shadow map and not texture moiré; maxZ tightening made
-  it WORSE; the sun is at 49°, so it is not a grazing-angle case either.
-  */
-  return b3dSun({ intensity: 0.9, shadowTextureSize: 2048, ...opts })
-}
-
-/**
- * A checkered ground that RECEIVES shadows — a test pattern reads the light far better than a flat
- * colour, and `b3dGround` already wires up shadow-receiving. Placed as a child of `b3d(...)`.
- */
-export function patternGround(
-  opts: {
-    size?: number
-    tiles?: number
-    color?: string
-    /** Use the tosi test pattern instead of the generated checker. Nicer to look
-     * at, and it shows UV orientation — a checker is symmetric, so it can't. */
-    pattern?: boolean
-  } = {}
-) {
-  const { size = 40, tiles = 16, color = '#8a9b7e', pattern = false } = opts
-  return b3dGround({
-    width: size,
-    height: size,
-    // `b3dGround` takes any texture URL; the SVG carries an intrinsic 512x512,
-    // so it rasterizes without help.
-    // The muted grid, not the vivid one — a ground should sit UNDER the subject.
-    texture: pattern ? TEST_GRID : 'checker',
-    textureTiles: pattern ? Math.max(1, Math.round(tiles / 4)) : tiles,
-    color,
-  })
-}
-
-/**
- * The whole "make it not look like a test harness" setup in one spread: a sun
- * that casts, a sky to light and reflect, and a ground that shows both.
- *
- * ```js
- * b3d({ ... }, ...demoStage({ pattern: true }), myThing)
- * ```
- *
- * Exists because "bland" is a real defect and it is always the same three
- * missing elements. A demo whose subject is a cube should still be worth
- * looking at, or the reader concludes the FRAMEWORK looks like that.
- */
-export function demoStage(
-  opts: {
-    size?: number
-    tiles?: number
-    color?: string
-    pattern?: boolean
-    timeOfDay?: number
-    sun?: Record<string, unknown>
-    /** Hemispheric fill. 0 turns it off for a hard, airless look. */
-    fill?: number
-  } = {}
-) {
-  const { timeOfDay = 11, sun = {}, fill = 0.35, ...ground } = opts
-  return [
-    demoSun(sun),
-    /*
-    THE FILL LIGHT, and it is not optional-by-taste.
-
-    A directional sun alone leaves every unlit face at ZERO — objects read as
-    black silhouettes rather than as objects, which looked like a material bug
-    in the collisions demo (a grey rock rendering nearly black) and made the
-    pause demo's cube look dead on its shadowed side. Real outdoor light has
-    sky bounce; a hemispheric light is the cheap honest stand-in.
-    */
-    ...(fill > 0 ? [b3dLight({ y: 1, intensity: fill })] : []),
-    b3dSkybox({ timeOfDay }),
-    patternGround(ground),
-  ]
-}
-
-/**
- * The standard ArcRotateCamera every demo sets up — one call instead of six lines. In sceneCreated.
- *
- * Clamps the tilt by DEFAULT so you can't drag the view below the horizon and see the world from
- * underneath (an ArcRotateCamera happily orbits under the floor otherwise — a long-standing demo
- * papercut). `minElevationDeg` (default 5) keeps the camera at least that many degrees above
- * horizontal; `maxElevationDeg` (default 89) stops it going exactly top-down. Set either to null
- * to opt out.
- */
-export function orbitCam(
-  el: B3dEl,
-  opts: {
-    alpha?: number
-    beta?: number
-    radius?: number
-    target?: [number, number, number]
-    minElevationDeg?: number | null
-    maxElevationDeg?: number | null
-  } = {}
-): BABYLON.ArcRotateCamera {
-  const {
-    alpha = -Math.PI / 2,
-    beta = Math.PI / 3,
-    radius = 14,
-    target = [0, 0.8, 0],
-    minElevationDeg = 5,
-    maxElevationDeg = 89,
-  } = opts
-  const cam = new BABYLON.ArcRotateCamera(
-    'demo-cam',
-    alpha,
-    beta,
-    radius,
-    new BABYLON.Vector3(target[0], target[1], target[2]),
-    el.scene
-  )
-  cam.attachControl(el.querySelector('canvas'), true)
-  // beta is measured from straight-up (0) to straight-down (π); π/2 is level with the horizon.
-  // Elevation ABOVE horizontal = π/2 − beta, so a min elevation is an UPPER beta limit.
-  if (minElevationDeg != null)
-    cam.upperBetaLimit = Math.PI / 2 - (minElevationDeg * Math.PI) / 180
-  if (maxElevationDeg != null)
-    cam.lowerBetaLimit = Math.PI / 2 - (maxElevationDeg * Math.PI) / 180
-  el.setActiveCamera(cam)
-  return cam
-}
-
-/**
- * A textured, slowly-rotating box — the "non-static object so you can see the shadow move" prop.
- * Registers itself as a shadow caster so `demoSun`/`b3dSun` picks it up. Call in sceneCreated.
- */
-export function spinner(
-  el: B3dEl,
-  opts: {
-    size?: number
-    x?: number
-    y?: number
-    z?: number
-    spin?: number
-  } = {}
-): BABYLON.Mesh {
-  const { size = 1.6, x = 0, y = 0.9, z = 0, spin = 0.4 } = opts
-  const box = BABYLON.MeshBuilder.CreateBox('demo-spinner', { size }, el.scene)
-  box.position.set(x, y, z)
-  const mat = new BABYLON.StandardMaterial('demo-spinner-mat', el.scene)
-  const tex = new SvgTexture({
-    scene: el.scene,
-    url: TEST_PATTERN,
-    resolution: 512,
-  })
-  mat.diffuseTexture = tex.texture
-  mat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15)
-  box.material = mat
-  el.register?.({ meshes: [box] }) // enlist as a shadow caster (b3dSun adds registered meshes)
-  el.scene.registerBeforeRender(() => {
-    // sceneDelta is SECONDS. The line this replaced used getDeltaTime() (ms),
-    // and the /1000 came along with it — turning a 4x error into a 1000x one
-    // (the b3d-water crates were down to ~1 rev / 10 hours).
-    box.rotation.y += spin * sceneDelta(el.scene)
-  })
-  return box
-}
-
-/*
- * ─── VOLUMETRIC TILE DEMOS ────────────────────────────────────────────────
- *
- * Every sdf/terrain demo is the same scene with a different DENSITY FUNCTION:
- * a tile of ground, optionally carved, extracted and shaded. Written from
- * scratch each time, that shared 60 lines is 60 lines of camera limits, vertex
- * colours and material setup for a reader to wade through before reaching the
- * one idea the demo is about — and 60 lines for the author to get wrong
- * independently every time (a cutaway box that swallowed the tile, a camera
- * radius silently clamped to 50, a heightfield lit from underneath: all three
- * happened, all three in demos written from scratch).
- *
- * So: the boilerplate lives here and a demo supplies `ground`, some `carves`,
- * and its panel rows.
- */
 
 export interface VolumetricDemoOptions {
   /** World extent of the tile, metres. */

@@ -1,6 +1,7 @@
 # Utilities
 
 <!-- toc -->
+- [demo-utils](/demo-utils/)
 - [b3d-physics](/b3d-physics/)
 - [medium](/medium/)
 - [portal-transform](/portal-transform/)

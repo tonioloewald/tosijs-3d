@@ -138,7 +138,7 @@ take the headset off. Set it on the scene below and the button changes to
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
-import { demoStage } from 'demo-utils'
+import { demoStage } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
@@ -199,7 +199,7 @@ const scene = b3d(
       })
     },
   },
-  ...demoStage({ pattern: true, size: 40, timeOfDay: 11 }),
+  ...demoStage({ texture: '/tosi-warhol-testgrid.svg', size: 40, timeOfDay: 11 }),
   cube,
   moon
 )

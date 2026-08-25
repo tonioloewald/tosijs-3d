@@ -21,7 +21,7 @@ meshes are skipped to keep the shadow map tight.
 
 ```js
 import { b3d, b3dSun, b3dLight, b3dSkybox, b3dGround, b3dSphere, label3d, slider3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const { sun } = tosi({ sun: { timeOfDay: 10 } })

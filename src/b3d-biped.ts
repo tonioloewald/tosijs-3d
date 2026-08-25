@@ -8,7 +8,7 @@ and drives it via `ControlInput`.
 
 ```js
 import { b3d, b3dBiped, b3dLight, b3dSkybox, b3dGround, label3d, select3d, slider3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements, tosi } from 'tosijs'
 
 const animations = [

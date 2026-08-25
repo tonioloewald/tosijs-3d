@@ -11,7 +11,7 @@ as CSS hex strings. Call `burst(count)` for one-shot effects like explosions.
 
 ```js
 import { b3d, b3dParticles, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, button3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const { demo } = tosi({ demo: { emitRate: 80 } })

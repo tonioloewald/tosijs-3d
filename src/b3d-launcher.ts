@@ -19,7 +19,7 @@ chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the 
 
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 // Unique tosi() key per demo — tosi() is a singleton keyed by path, so two demos on the
@@ -87,7 +87,7 @@ contact. The target **respawns at a fresh altitude** each time you destroy it. D
 
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 // fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the

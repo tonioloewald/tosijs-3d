@@ -14,7 +14,7 @@ Renders SVG content to a Babylon.js texture via an offscreen canvas.
 
 ```js
 import { b3d, b3dLight, SvgTexture } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {

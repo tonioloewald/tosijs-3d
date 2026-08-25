@@ -12,7 +12,7 @@ source SVG element using UV coordinates, so interactive SVG UIs work in 3D/XR.
 
 ```js
 import { b3d, b3dSvgPlane, b3dLight } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {
@@ -36,7 +36,7 @@ preview.append(scene)
 
 ```js
 import { b3d, b3dSvgPlane, b3dLight, SvgTexture } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { svgElements, tosi, xin } from 'tosijs'
 
 const { svg, g, path, circle, polygon } = svgElements
@@ -169,7 +169,7 @@ preview.append(scene)
 
 ```js
 import { b3d, b3dLight, SvgTexture } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { svgElements } from 'tosijs'
 
 const { svg, rect, text, g } = svgElements

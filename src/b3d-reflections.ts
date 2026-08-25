@@ -18,7 +18,7 @@ work doesn't all pile onto one frame.
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dSphere, b3dReflections } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 preview.append(
   b3d(
