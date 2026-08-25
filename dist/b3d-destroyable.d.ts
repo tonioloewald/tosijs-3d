@@ -19,6 +19,17 @@ export declare class B3dDestroyable extends AbstractMesh {
          * as a deliberate placeholder rather than a fallback.
          */
         library: string;
+        /**
+         * `'off'` places the mesh WITHOUT enrolling it in combat — same knob and
+         * same spelling as [b3d-loader](?b3d-loader.ts) already has.
+         *
+         * This element is the only way to place a LIBRARY mesh by name, so scenery
+         * had no way out: an ensemble is mostly structure, and every wall and floor
+         * was getting a combat record whether or not anything could shoot it
+         * (tosijs-3d-ensemble, whose stopgap was `armor: 100_000` — buying "cannot
+         * be killed" by paying for a combatant).
+         */
+        destroyable: "on" | "off";
         size: number;
         color: string;
         capacity: number;
@@ -46,6 +57,7 @@ export declare class B3dDestroyable extends AbstractMesh {
         axes: boolean;
     };
     meshName: string;
+    destroyable: 'on' | 'off';
     size: number;
     color: string;
     capacity: number;

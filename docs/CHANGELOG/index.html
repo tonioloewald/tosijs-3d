@@ -51,6 +51,29 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.2</h2>
+<h3>Fixed</h3>
+<ul>
+<li><strong><code>placement=&quot;world&quot;</code> left dialogs at the WORLD ORIGIN</strong> (#35) — so the pause
+and respawn panels were unreachable in any scene not centred on <code>(0,0,0)</code>, and
+a <code>startPaused</code> scene opened with no visible way out. The panel is created
+parented to the camera and then un-parented, leaving the camera-LOCAL offset
+<code>(0, 0, 2.2)</code> behind as a world position. Worse, it was re-applied every
+render: <strong><code>AbstractMesh</code> rewrites <code>mesh.position</code> from the element&#39;s
+<code>x</code>/<code>y</code>/<code>z</code></strong> (and rotation from yaw/pitch/roll), so anything that moves the
+MESH is silently undone. Both the placement and the easing now write the
+ELEMENT, which is what owns the transform.</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong><code>destroyable=&quot;off&quot;</code> on <code>&lt;tosi-b3d-destroyable&gt;</code></strong> — place a library mesh
+without enrolling it in combat. Same knob and spelling <code>b3d-loader</code> already
+had. This element is the only way to place a library mesh BY NAME, so scenery
+had no way out: an ensemble is mostly structure, and every wall and floor was
+getting a combat record whether or not anything could shoot it. Requested by
+tosijs-3d-ensemble, whose stopgap was <code>armor: 100_000</code> — buying &quot;cannot be
+killed&quot; by paying for a combatant.</li>
+</ul>
 <h2>0.7.1</h2>
 <h3>Fixed</h3>
 <ul>
