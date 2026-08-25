@@ -20,51 +20,29 @@ worth more than a cloud that merely looks convincing.
 you enter, and the readout climb. Then dive back out.
 
 ```js
-import { b3d, b3dAircraft, b3dClouds, b3dDeath, b3dFog, b3dLibrary, b3dLight, b3dSun, b3dSkybox, b3dGround, gameController, inputFocus } from 'tosijs-3d'
+import { b3d, b3dAircraft, b3dClouds } from 'tosijs-3d'
+import { flightStage } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div } = elements
 
-// A FACTORY, not a single instance: death needs something to respawn. Without a
-// <tosi-b3d-death> a crash releases input focus and leaves you holding nothing —
-// which reads as the demo seizing up, not as dying.
-const plane = () => b3dAircraft({
-  library: 'vehicles', meshName: 'scout',
-  player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
+// `plane` is a FACTORY because flightStage's death panel respawns you — pass an
+// instance and the first crash is unrecoverable.
+const stage = flightStage({
+  plane: () => b3dAircraft({
+    library: 'vehicles', meshName: 'scout',
+    player: true, y: 40, vtolSpeed: 6, maxSpeed: 60,
+  }),
+  library: '/test-3.glb',
 })
-let aircraft = plane()
-const focus = inputFocus(gameController(), aircraft)
 const clouds = b3dClouds({ model: '/cloud.glb', altitude: 140, thickness: 40, count: 40, size: 70, castShadows: true, seed: 7 })
 const readout = div({ class: 'readout' })
 
-const scene = b3d(
-  { gamepad: true },
-  b3dLight({ y: 1, intensity: 0.6 }),
-  // Cascaded shadows, because the ground is 4000 units across: with the default
-  // single map the aircraft's shadow lands in a far, coarse cascade and is
-  // effectively invisible. Cascades put the resolution where the camera is.
-  // shadowMaxZ 600, not the 100 default: this demo climbs to cloud altitude
-  // (140m), and shadows simply stop rendering beyond maxZ — so the land lost
-  // its shadows exactly when you got high enough to look at it. Cascades keep
-  // the near resolution usable across the wider range.
-  b3dSun({ intensity: 0.9, shadowCascading: true, shadowTextureSize: 2048, shadowMaxZ: 600 }),
-  b3dSkybox({ timeOfDay: 10 }),
-  b3dFog({ start: 400, end: 3000, color: '#bfd9f2' }),
-  b3dGround({ meshName: 'ground_nocast', width: 4000, height: 4000, color: '#6b7f5e' }),
-  b3dLibrary({ url: '/test-3.glb', type: 'vehicles' }),
-  clouds,
-  b3dDeath({
-    title: 'DOWN',
-    respawn() {
-      aircraft = plane()
-      focus.appendChild(aircraft)
-    },
-  }),
-  focus,
-)
+const scene = b3d({ gamepad: true }, ...stage.elements, clouds)
 
 setInterval(() => {
   const t = clouds.insideCloud
-  readout.textContent = `altitude ${(aircraft.altitude ?? 0).toFixed(0)}   in cloud ${(t * 100).toFixed(0)}%`
+  // `stage.aircraft`, not a captured reference — respawn replaces it.
+  readout.textContent = `altitude ${(stage.aircraft.altitude ?? 0).toFixed(0)}   in cloud ${(t * 100).toFixed(0)}%`
   readout.style.color = t > 0.5 ? '#fff' : '#9fb'
 }, 100)
 

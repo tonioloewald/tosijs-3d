@@ -43,6 +43,7 @@ preview.append(scene)
 | `patternGround(opts)` | A ground that RECEIVES shadows and shows the light |
 | `orbitCam(el, opts)` | The standard orbit camera, tilt-clamped, in `sceneCreated` |
 | `spinner(el, opts)` | A slowly-rotating textured box, so you can see shadows move |
+| `flightStage(opts)` | A setting an **aircraft** can operate in — stage, library, and a death panel that respawns you |
 
 ## Angles are DEGREES
 
@@ -61,7 +62,17 @@ or omit it for a generated checker that needs no asset at all.
 /*{ "parent": "Utilities" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { b3dSun, b3dSkybox, b3dLight, b3dGround } from './index'
+import {
+  b3dSun,
+  b3dSkybox,
+  b3dLight,
+  b3dGround,
+  b3dFog,
+  b3dLibrary,
+  b3dDeath,
+  inputFocus,
+  gameController,
+} from './index'
 
 const DEG = Math.PI / 180
 
@@ -243,4 +254,107 @@ export function spinner(el: DemoHost, opts: SpinnerOptions = {}): BABYLON.Mesh {
     box.rotation.y += spin * 0.016 * Math.PI * 2
   })
   return box
+}
+
+export interface FlightStageOptions {
+  /**
+   * Builds a FRESH aircraft. A factory, not an instance — respawn has to
+   * construct a new one, and a demo that passed an instance was unrecoverable
+   * after the first crash.
+   */
+  plane: () => any
+  /** Ground extent. Default 4000 — an aircraft needs somewhere to go. */
+  size?: number
+  timeOfDay?: number
+  /** GLB holding the vehicle library, if the plane uses `library:`. */
+  library?: string
+  libraryType?: string
+  /** Distance fog. `false` for a hard, airless look. */
+  fog?: boolean
+  groundColor?: string
+  /** Heading on the death panel. */
+  title?: string
+}
+
+/**
+ * A setting an aircraft can actually operate in — the flight equivalent of
+ * {@link demoStage}, and the fix for three demos that each forgot a different
+ * piece of it.
+ *
+ * What it includes, and why each is here rather than left to the caller:
+ *
+ * - **A `b3dDeath` with a working respawn.** Without one, `crash()` releases
+ *   input focus and leaves you holding nothing — no wreck to fly, no panel, no
+ *   way back. That reads as the demo seizing up rather than as dying, and it is
+ *   why `plane` is a factory.
+ * - **A sun configured for the ground it lights.** A 4000-unit ground with the
+ *   default single shadow map puts the aircraft's shadow in a coarse far
+ *   cascade where it is invisible, and `shadowMaxZ` at its default of 100 drops
+ *   shadows entirely once you climb.
+ * - **Ground, sky and fog at flight scale**, which every flight demo otherwise
+ *   retypes slightly differently.
+ *
+ * Returns an object rather than an array (unlike `demoStage`) because the stage
+ * owns an IDENTITY: the current aircraft changes on respawn, so a readout that
+ * captured the first one would go stale.
+ *
+ * ```js
+ * const stage = flightStage({
+ *   plane: () => b3dAircraft({ library: 'vehicles', meshName: 'scout', player: true, y: 40 }),
+ *   library: '/test-3.glb',
+ * })
+ * const scene = b3d({ gamepad: true }, ...stage.elements)
+ * // stage.aircraft is always the one you are flying NOW
+ * ```
+ */
+export function flightStage(opts: FlightStageOptions) {
+  const {
+    plane,
+    size = 4000,
+    timeOfDay = 10,
+    library,
+    libraryType = 'vehicles',
+    fog = true,
+    groundColor = '#6b7f5e',
+    title = 'DOWN',
+  } = opts
+
+  let current = plane()
+  const focus = inputFocus(gameController(), current)
+
+  const elements = [
+    b3dLight({ y: 1, intensity: 0.6 }),
+    // Cascaded, with a shadowMaxZ that still reaches the ground from cruising
+    // altitude. `shadowTextureSize` stays on the auto sentinel so the device
+    // tier decides — a hard-wired size is 4x the VRAM on the tier least able to
+    // pay for it.
+    b3dSun({ intensity: 0.9, shadowCascading: true, shadowMaxZ: 600 }),
+    b3dSkybox({ timeOfDay }),
+    ...(fog
+      ? [b3dFog({ start: size / 10, end: size * 0.75, color: '#bfd9f2' })]
+      : []),
+    b3dGround({
+      meshName: 'ground_nocast',
+      width: size,
+      height: size,
+      color: groundColor,
+    }),
+    ...(library ? [b3dLibrary({ url: library, type: libraryType })] : []),
+    b3dDeath({
+      title,
+      respawn() {
+        current = plane()
+        focus.appendChild(current)
+      },
+    }),
+    focus,
+  ]
+
+  return {
+    elements,
+    /** The aircraft you are flying NOW — changes on respawn. */
+    get aircraft() {
+      return current
+    },
+  }
 }

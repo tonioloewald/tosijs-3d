@@ -30,6 +30,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`flightStage()`** — a setting an aircraft can actually operate in: ground,
+  sky and fog at flight scale, a library, a sun configured for the ground it
+  lights, and **a death panel that respawns you**. Takes a plane FACTORY, not an
+  instance, because respawn has to build a new one — passing an instance is what
+  made a crash unrecoverable. Returns `{ elements, aircraft }` rather than an
+  array, since the current aircraft changes on respawn and a captured reference
+  goes stale. The clouds demo lost 22 lines converting to it.
 - **`tosijs-3d/demo-utils`** — the scene-setup helpers every live example uses
   are now published, so **code copied off a doc page resolves in your project**.
   Previously 38 examples across 33 files imported a bare `demo-utils` that no
