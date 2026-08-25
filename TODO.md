@@ -12,11 +12,13 @@ justified holding a release. Details live in the sections named.
 | **Which half of an angle pair is STORED** (`turnRateDeg` as a real attribute) | Inverting it is a migration for anyone using `turn-rate`                                                |
 | **Turret firing arcs** — high-angle fire and/or traversal limits              | New feature, two readings to settle first                                                               |
 | **`flightStage` helper** — the aircraft equivalent of `demoStage`             | Third demo to need it; specified, not built                                                             |
-| **A UI DEPTH BAND** (stacked panels vs. occluders) — see below                | Per-panel pull-forward is right for one dialog and wrong for two                                        |
+| **World-placed modal dialogs + gaze recovery** (Tonio's design)               | Supersedes face-pinning AND the depth guard; the right fix for all of it                                |
+| **A UI DEPTH BAND** (stacked panels vs. occluders)                            | Per-panel pull-forward is right for one dialog and wrong for two — subsumed by world placement          |
 | **Default-exclude collision groups** (`probe()`)                              | The shared predicate landed; the polarity flip and the remaining call sites did not                     |
 
-**Still open against 0.7.0 itself:** the guided-missile crash below, the
-left-stick double-duty conflict, and the npm channel decision.
+**Still open against 0.7.0 itself:** the guided-missile crash, the COCKPIT
+death camera (dialog under the ground, wreck far away), the left-stick
+double-duty conflict, and the npm channel decision.
 
 ## OPEN: guided-missile demo crashes on a hit (0.7.0 validation, UNRESOLVED)
 
@@ -48,6 +50,65 @@ line ends a hypothesis chain immediately (`hit=frame-panel`, `L:0.00,0.00`,
 `seed done`) while reasoning about it does not. Until then this stays OPEN and
 **is a release consideration** — a demo that wedges the page is worse than one
 that looks wrong.
+
+## Modal dialogs: WORLD-PLACED, with gaze recovery (Tonio's design — 0.7.1)
+
+This supersedes both the face-pinning argument and the per-panel depth guard,
+and it is a better answer than either.
+
+Tonio: _"place them in world space in a 'good spot' and then if the user looks
+away for more than say 2s, move them to a newly picked face-relative
+position."_
+
+Why it beats what we have:
+
+- **World-placed means honest depth.** It sits somewhere real, so it occludes
+  and is occluded consistently, stacks with other UI by ordinary z, and does
+  not jitter with your head. The whole "band vs race to the front" problem
+  stops being a special case — panels are just things in the world.
+- **Gaze recovery removes the failure mode that made face-pinning tempting.**
+  The reason to head-lock a dialog was "what if you cannot find it". Answer:
+  if you look away for ~2s, it comes to you. You get findability WITHOUT the
+  thing chasing your eyes, which is what made the pause panel unpleasant.
+- **It fixes the case the depth guard cannot.** If the CAMERA is inside
+  geometry — cockpit view, nose in a hillside — there is no "just in front"
+  that helps, because everything in front of you is rock. A world placement
+  picked for clear line of sight is not affected by where the wreck ended up.
+
+Shape: on show, pick a spot with clear LOS from the viewer (raycast a few
+candidate directions, prefer near the thing you died to / the scene subject);
+place it in WORLD space facing the viewer; run a gaze test each frame, and if
+the panel has been outside a generous cone for > ~2s, re-pick and move (an
+eased move, not a snap — a dialog that teleports reads as a glitch).
+
+[ ] Build it. Retire `xrFrame: 'body'` on the pause and respawn panels and the
+per-panel `_installDepthGuard` at the same time — all three are compensating
+for the absence of this.
+
+## COCKPIT DEATH: dialog under the ground, wreck far away (0.7.0, UNRESOLVED)
+
+Clouds demo. Dying in CHASE view is fine. Dying in COCKPIT view: only the top
+edge of the dialog pokes above the ground, and "somehow the aircraft was moved
+way away from me (it was in the air, burning)".
+
+The second half is the same shape as a pre-CoG-fix report — "the camera is on
+the ground but the scout's mesh is way above and it's smoking" — so it is
+likely ONE bug that the CoG fix masked in chase view and not in cockpit.
+
+Known: `b3d-death` takes its anchor from `entity.getCameraTarget()`, so the
+explosion, the burn and the spectator camera all key off the real node for both
+mesh and library load paths — that part is right, and was fixed deliberately.
+So the suspect is COCKPIT-specific: in cockpit the XR rig is PARENTED to the
+piloted entity (`rig.parent = piloted`), and death releases focus and re-seats
+the camera while that parenting is live.
+
+[ ] Reproduce with the `errors` row open, and read the wreck's position vs the
+camera's. Do NOT theorise further — the last two camera bugs each took three
+hypotheses and one measurement.
+
+Note the dialog half is expected to be fixed by the world-placement design
+above, since no "just in front of you" placement can help when the camera
+itself is inside the terrain.
 
 ## UI depth: a BAND, not a race to the front — QUEUED FOR 0.7.1
 
