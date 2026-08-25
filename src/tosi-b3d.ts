@@ -2771,6 +2771,26 @@ export class B3d extends Component {
       // here would wipe the icon.
       vrButton.title = this.xrActive ? 'Exit VR' : 'Enter VR'
       if (state === BABYLON.WebXRState.IN_XR) {
+        /*
+        ENTERING VR UNPAUSES. Putting the headset on IS the resume.
+
+        A world you deliberately stepped INTO has no good reason to be frozen,
+        and the state was actively broken: entering a paused scene showed no
+        pause panel at all in-session (it exists, it is just never presented on
+        a path where the pause pre-dates the session), so you arrived in a
+        stopped world with no visible way out — the panel's toggle was the only
+        escape, and only if you knew to look.
+
+        This removes the state rather than teaching the panel to appear in it,
+        which is the smaller and more honest fix (Tonio: "arguably entering VR
+        should unpause a paused scene"). It is also symmetric with
+        `enterXrOnResume`, which already couples resume → enter.
+
+        Safe against re-entry: `xrActive` is set above, so `resume()`'s
+        `enterXrOnResume && !xrActive` guard cannot fire a second entry. And you
+        can still pause in VR — the panel's transport toggle does it.
+        */
+        if (this.paused) this.resume()
         // Snapshot the flat orbit camera so exit can restore it (see the field
         // note). Babylon only mutates the non-XR camera on the way OUT, so the
         // angles here are still the pre-entry ones.

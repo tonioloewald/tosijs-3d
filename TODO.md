@@ -91,14 +91,15 @@ for the absence of this.
 Neither is a blocker; both were explicitly "not fatal, just keep an eye out".
 Recorded so a second sighting is recognised as a pattern instead of re-derived.
 
-[ ] **A paused scene entered in VR shows no pause panel.** Volcano demo: it was
-already paused, entering VR showed no pause/continue panel (though the
-overhead panel's toggle still unpaused it), and pausing then leaving showed
-the dialog correctly in the flat view. So the panel exists and works — it
-just is not presented when the pause PRE-DATES the session. Likely the
-plane is parented to the flat camera at creation and nothing re-parents it
-on entry, since `cameraRelative` re-parents in `render()` and a paused
-scene may not be re-rendering the element. Suspect ordering, not geometry.
+[x] **A paused scene entered in VR shows no pause panel** — RESOLVED by
+removing the state: **entering VR now unpauses** (Tonio: "arguably entering
+VR should unpause a paused scene"). Putting the headset on IS the resume,
+and it is symmetric with `enterXrOnResume`. The presentation bug is still
+real underneath — a `cameraRelative` plane created before entry is never
+re-parented onto the XR camera, because that happens in `render()` and a
+paused scene may not re-render the element — so **if any other pre-existing
+camera-relative panel goes missing on entry, that is the cause.** Not
+chased further: no other panel is created while paused.
 [ ] **Exiting VR resets the camera position** (with the converted orbit rig).
 Distinct from the re-seat issue already queued: the re-seat is fixed, but
 the position still snaps rather than carrying back. Same root as the 0.7.1
