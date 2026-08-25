@@ -86,6 +86,51 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
+## 0.8.0 — b3d-water grows the UNDERSIDE (Snell's window) — adopter #15
+
+manta-recon has iterated this on a deployed build with a human judging by eye at
+depth, so the numbers below are measured preferences, not guesses. Replied on
+the issue; scheduled for 0.8.0 (new surface treatment + material change, and it
+wants visual iteration rather than a blind implementation).
+
+**The defect:** with `twoSided: true` the water plane draws an opaque flat-colour
+backface from below — and that backface sits BETWEEN the camera and anything the
+game puts under the surface. The general form of the argument, which is the part
+worth keeping: **a component that occupies a surface owes that surface a
+treatment.** Claiming the space without paying for it is worse than not drawing.
+
+**Definition of done (their tuned values):**
+
+| parameter        | value  | controls                                                        |
+| ---------------- | ------ | --------------------------------------------------------------- |
+| `windowClarity`  | 0.6    | how much sky comes through; 0 = opaque mirror, 1 = open ceiling |
+| tint             | 1.0    | how strongly the water colours what comes through               |
+| `underwaterMurk` | 0.002  | murk with depth — reads right at 30–150 m                       |
+| `underwaterFog`  | 0.0007 | base density; ~1 terrain tile (1024 u) of visibility            |
+
+**Two notes learned the hard way there, both taken:**
+
+1. **Clarity must move the ALPHA, not just the Fresnel.** Their first version
+   varied only `opacityFresnelParameters` and captures at clarity 0 and 1 were
+   indistinguishable — in level flight the surface is only seen through a narrow
+   band of angles, so a Fresnel-only knob moves off-screen pixels. A control that
+   cannot be seen to work is worse than no control.
+2. **Cull our own backface** when we draw an underside, or the new surface
+   renders behind the old flat one and nothing appears to change.
+
+**Sequencing — this is a MEDIUM item, not a water item.** `MEDIUM-DESIGN.md` §3
+already names "the underside shader" as a consumer of the shared optics layer
+and cites this exact #12/#15 collision. Optics on `Medium` FIRST (fogColor,
+fogDensity, murk-per-metre), then the underside reads depth and murk from it
+instead of re-deriving them — otherwise the fogged sky and the window disagree
+about where the surface is, which is the bug that produced the collision.
+
+[ ] **Scale-independent defaults.** Their `underwaterFog` 0.0007 vs our 0.12 is
+~170×, and it is not a disagreement — ours was set against a pond, theirs
+against 1024-unit terrain tiles. Whatever ships should express density in a
+way that does not assume one scale (deriving from water extent?), or every
+large-world adopter retunes the same two numbers.
+
 ## TWO CLOCKS: a fixed simulation step, separate from the render delta
 
 Tonio: _"Unity had a deltaTime value specifically for dealing with per frame
