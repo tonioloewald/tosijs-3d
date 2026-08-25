@@ -113,6 +113,35 @@ Why it matters here specifically, in order of how much:
 - **Multiplayer**, when it comes: lockstep needs a fixed tick, and the freeze
   conversation already showed which decisions are local-only.
 
+**THE RULE (Tonio): variable time is strictly for COSMETIC things.** Anything
+that changes simulation state takes the fixed step. The line is whether two
+machines are allowed to disagree about it: nobody can tell if your cloud drifted
+a millimetre further than mine, and everybody can tell if your missile hit and
+mine missed.
+
+Classifying the 20 consumers now, because this IS the migration list:
+
+| Fixed step (simulation)                                | Variable is fine (cosmetic)                                                 |
+| ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| `b3d-aircraft` — flight integration                    | `b3d-ambient` — motes, bubbles, leaves                                      |
+| `b3d-launcher` — ballistics, ammo regen                | `b3d-clouds` — drift                                                        |
+| `b3d-turret` — slew, lead, firing                      | `b3d-water` — wave animation                                                |
+| `b3d-warhead` — staggered shockwave damage             | `b3d-planet` / `b3d-star` / `b3d-star-system` / `b3d-black-hole` — rotation |
+| `b3d-radar` — lock acquire/decay                       | `b3d-svg-plane` — dialog easing, gaze clock                                 |
+| `b3d-spawner` — seeded encounters                      | `b3d-death` — spectator orbit                                               |
+| `world-store` / `world-view` — the deterministic store | `b3d-exploder` — debris                                                     |
+|                                                        | `tosi-b3d` — fog transitions, ambient watchdog                              |
+
+Roughly an even split, and the cosmetic half is genuinely fine as it is — this
+is not a rewrite, it is moving eight modules onto a different clock.
+
+[ ] **Make the wrong choice hard to make silently.** Today every call site
+writes `sceneDelta(scene)` and the distinction lives in the author's head. Add
+`simDelta(scene)` beside it so picking is explicit, and say on each which one
+you want — a name is the cheapest enforcement there is, and this codebase has
+already paid twice for a rule that lived only in a comment (the world-matrix
+ray origins, the UI collision exclusion).
+
 **What we already got right, which makes this cheap:** every pure model takes
 `dt` as a PARAMETER (`fly-by-wire`, `ballistics`, `guidance`, `world-store`), so
 none of them needs rewriting — only the driver changes. And `sceneDelta` is a
