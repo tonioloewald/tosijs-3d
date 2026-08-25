@@ -174,7 +174,7 @@ reliably enters VR, and <code>enterXrOnResume</code> closes the loop by pausing 
 take the headset off. Set it on the scene below and the button changes to
 &quot;Continue in VR&quot; on a device that has it.</p>
 <pre><code class="language-js">import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from &#39;tosijs-3d&#39;
-import { demoStage } from &#39;demo-utils&#39;
+import { demoStage } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const demo = tosi({ pauseDemo: { state: &#39;paused since load&#39;, spin: &#39;medium&#39; } })
@@ -235,7 +235,7 @@ const scene = b3d(
       })
     },
   },
-  ...demoStage({ pattern: true, size: 40, timeOfDay: 11 }),
+  ...demoStage({ texture: &#39;/tosi-warhol-testgrid.svg&#39;, size: 40, timeOfDay: 11 }),
   cube,
   moon
 )
@@ -452,6 +452,7 @@ document.body.append(
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -469,6 +470,7 @@ document.body.append(
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

@@ -51,6 +51,60 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.1</h2>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>Modal dialogs are WORLD-PLACED and follow you if you look away.</strong> The
+respawn and pause panels sit at a spot with clear line of sight, face you, and
+ease to a fresh spot after ~2s outside a generous cone. <code>placement=&quot;world&quot;</code> on
+<code>&lt;tosi-b3d-svg-plane&gt;</code>; the rules are pure and tested in <code>dialog-placement</code>.</p>
+<p>This replaces three compensations that were each fixing a symptom: head-locking
+(jittered with a jostling death-cam), riding the body frame (put it at knee
+height), and rendering on top (painted in front but became <strong>untouchable</strong>,
+because picking is geometric). It also fixes the case none of them could —
+dying in cockpit view with the camera inside a hillside, where nothing &quot;just
+in front of you&quot; helps.</p>
+</li>
+<li><p><strong><code>turnRateDeg</code> returns exactly what you set.</strong> Converting through radians is
+lossy — <code>30</code> derived back as <code>29.999999999999996</code>, which is what a slider
+readout or a saved scene would show. It now remembers the value you supplied
+together with the radians it produced, so a later write to <code>turnRate</code> is
+detected exactly and the view derives fresh. Still one stored value.</p>
+</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><p><strong><code>flightStage()</code></strong> — a setting an aircraft can actually operate in: ground,
+sky and fog at flight scale, a library, a sun configured for the ground it
+lights, and <strong>a death panel that respawns you</strong>. Takes a plane FACTORY, not an
+instance, because respawn has to build a new one — passing an instance is what
+made a crash unrecoverable. Returns <code>{ elements, aircraft }</code> rather than an
+array, since the current aircraft changes on respawn and a captured reference
+goes stale. The clouds demo lost 22 lines converting to it.</p>
+</li>
+<li><p><strong><code>tosijs-3d/demo-utils</code></strong> — the scene-setup helpers every live example uses
+are now published, so <strong>code copied off a doc page resolves in your project</strong>.
+Previously 38 examples across 33 files imported a bare <code>demo-utils</code> that no
+consumer could resolve, and since the demo goes first on every page it was the
+first thing anyone copied.</p>
+<p>They ship with an explicit stability disclaimer: <strong>dev helpers, not API.</strong> They
+can change or vanish in a patch, they are tuned to flatter a doc page rather
+than your game, and production code should compose <code>b3dSun</code>/<code>b3dSkybox</code>/
+<code>b3dGround</code> directly.</p>
+<p>Vetted rather than published wholesale — the module was not shippable as-is:</p>
+<ul>
+<li><code>orbitCam</code> takes <strong><code>alphaDeg</code>/<code>betaDeg</code></strong>; the radian <code>alpha</code>/<code>beta</code> still
+work and are converted, so existing snippets keep running.</li>
+<li>Options are typed — the two <code>Record&lt;string, unknown&gt;</code> signatures are gone.</li>
+<li>Ground helpers take a <strong><code>texture</code> URL</strong> instead of exporting root-absolute
+asset paths that resolve only on this site.</li>
+<li><code>demoSun</code> uses the <strong>auto shadow-size sentinel</strong> rather than hard-wiring
+2048 over the device-tier budget.</li>
+<li><code>volumetricDemo</code>, <code>impactMarker</code> and the asset constants stay <strong>private</strong> —
+they are page-specific, not API.</li>
+</ul>
+</li>
+</ul>
 <h2>0.7.0</h2>
 <blockquote>
 <p><strong>Prereleases, and why the numbering looks backwards.</strong> <code>0.7.0-rc.1</code> was cut
@@ -1429,6 +1483,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -1446,6 +1501,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

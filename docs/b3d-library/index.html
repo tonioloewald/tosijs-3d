@@ -54,7 +54,7 @@ tile map) can discover them via <code>owner.getLibrary(&#39;tiles&#39;)</code> w
 direct references.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dLibrary, placeOnSurface, label3d, list3d, button3d } from &#39;tosijs-3d&#39;
-import { demoStage, orbitCam } from &#39;demo-utils&#39;
+import { demoStage, orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { elements } from &#39;tosijs&#39;
 const { div, p } = elements
 
@@ -109,7 +109,7 @@ const scene = b3d(
       orbitCam(el, { radius: 12, beta: Math.PI / 2.9, target: [0, 1, 0] })
     },
   },
-  ...demoStage({ size: 20, tiles: 12, pattern: true, timeOfDay: 12 }),
+  ...demoStage({ size: 20, tiles: 12, texture: &#39;/tosi-warhol-testgrid.svg&#39;, timeOfDay: 12 }),
   lib,
 )
 
@@ -347,6 +347,7 @@ rotation in <strong>degrees</strong> (it was radians before 0.7.0; see the CHANG
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -364,6 +365,7 @@ rotation in <strong>degrees</strong> (it was radians before 0.7.0; see the CHANG
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

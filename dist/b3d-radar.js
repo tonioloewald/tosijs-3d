@@ -20,7 +20,7 @@ grey contact is `faction: 'neutral'` — detected, never locked.
 
 ```js
 import { b3d, b3dRadar, b3dRadarBlip, b3dBox, label3d, slider3d } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div } = elements
 
@@ -79,7 +79,7 @@ const scene = b3d(
       })
     },
   },
-  ...demoStage({ size: 90, tiles: 18, pattern: true, timeOfDay: 10 }),
+  ...demoStage({ size: 90, tiles: 18, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 10 }),
   mast,
   ...boxes,
 )

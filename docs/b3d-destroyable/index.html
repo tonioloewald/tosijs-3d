@@ -57,7 +57,7 @@ front grid are independent targets; the <strong>back row is chain-linked</strong
 leftmost cascades the reaction down the line (chains are wired after mount, since they
 reference combat ids that only exist once the targets have mounted).</p>
 <pre><code class="language-js">import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 
 const grid = []
 for (let i = 0; i &lt; 12; i++) {
@@ -126,7 +126,7 @@ express.</li>
 <p><strong>Click any drum</strong> — it explodes, and the blast sets off its neighbours in a spreading
 chain reaction (each drum both <code>explode</code>s and fires a <code>deathBlast</code>).</p>
 <pre><code class="language-js">import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 
 const drums = []
 for (let i = 0; i &lt; 48; i++) {
@@ -282,6 +282,7 @@ in code for direct-transfer chain reactions, or <code>whenDestroyed</code> for a
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -299,6 +300,7 @@ in code for direct-transfer chain reactions, or <code>whenDestroyed</code> for a
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

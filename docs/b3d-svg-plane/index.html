@@ -53,7 +53,7 @@ tosijs-bound HUDs and instrument panels).</p>
 source SVG element using UV coordinates, so interactive SVG UIs work in 3D/XR.</p>
 <h2>Example — static SVG on a plane</h2>
 <pre><code class="language-js">import { b3d, b3dSvgPlane, b3dLight } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 
 const scene = b3d(
   {
@@ -74,7 +74,7 @@ preview.append(scene)
 </code></pre>
 <h2>Example — live dynamic SVG (radar display)</h2>
 <pre><code class="language-js">import { b3d, b3dSvgPlane, b3dLight, SvgTexture } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { svgElements, tosi, xin } from &#39;tosijs&#39;
 
 const { svg, g, path, circle, polygon } = svgElements
@@ -204,7 +204,7 @@ preview.append(scene)
 </code></pre>
 <h2>Example — dynamic interactive SVG with pointer events</h2>
 <pre><code class="language-js">import { b3d, b3dLight, SvgTexture } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { svgElements } from &#39;tosijs&#39;
 
 const { svg, rect, text, g } = svgElements
@@ -578,6 +578,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link current" href="../b3d-svg-plane/" aria-current="page">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -595,6 +596,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.0
+# tosijs-3d v0.7.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -130,8 +130,12 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/control-input/ — control-input
   Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
 - https://3d.tosijs.net/core/ — Core
+- https://3d.tosijs.net/demo-utils/ — demo-utils
+  that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
+- https://3d.tosijs.net/dialog-placement/ — dialog-placement
+  world-placed dialogs. Babylon-free (plain `{x, y, z}`), deterministic, and unit
 - https://3d.tosijs.net/effects/ — Effects
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout

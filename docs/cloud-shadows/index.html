@@ -59,7 +59,7 @@ window recentres on the camera, the sun swings) — the steady state is just the
 <p><a href="../b3d-clouds/">b3d-clouds</a> drives this under the hood: set <code>castShadows</code> and soft cloud shadows
 drift across the ground and the crates below. Drag to orbit; watch the dark patches slide.</p>
 <pre><code class="language-js">import { b3d, b3dClouds, b3dBox } from &#39;tosijs-3d&#39;
-import { demoStage, orbitCam } from &#39;demo-utils&#39;
+import { demoStage, orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 
 const scene = b3d(
   {
@@ -76,7 +76,7 @@ const scene = b3d(
   // On the stage — cloud shadows are DARKENING, so the scene needs a fill light
   // to darken FROM. Sun alone put every unlit face at zero and the demo read as
   // black boxes on a black floor.
-  ...demoStage({ size: 160, tiles: 26, pattern: true, timeOfDay: 11, sun: { x: -0.5, y: -1, z: -0.35 } }),
+  ...demoStage({ size: 160, tiles: 26, texture: &#39;/tosi-warhol-testgrid.svg&#39;, timeOfDay: 11, sun: { x: -0.5, y: -1, z: -0.35 } }),
   b3dClouds({ model: &#39;/cloud.glb&#39;, altitude: 115, thickness: 18, spread: 200, size: 38, coverage: 0.5, castShadows: true, shadowStrength: 0.7, seed: 3 }),
   ...Array.from({ length: 9 }, (_, i) =&gt;
     b3dBox({ meshName: `crate-${i}`, size: 3, x: (i % 3) * 10 - 10, y: 1.5, z: Math.floor(i / 3) * 10 - 10, color: &#39;#7a9b6e&#39; })
@@ -211,6 +211,7 @@ projected along the light before stamping), so the shader stays a plain straight
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -228,6 +229,7 @@ projected along the light before stamping), so the shader stays a plain straight
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

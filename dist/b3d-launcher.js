@@ -19,7 +19,7 @@ chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the 
 
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 // Unique tosi() key per demo — tosi() is a singleton keyed by path, so two demos on the
@@ -87,7 +87,7 @@ contact. The target **respawns at a fresh altitude** each time you destroy it. D
 
 ```js
 import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 // fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
@@ -207,7 +207,7 @@ that assumes one orients its effect off nothing.
 | `fireRate` | `5` | Max shots per second (cadence gate) |
 | `missileSpeed` | `22` | Cruise speed of a guided shot (`fireAt`) |
 | `turnRate` | `3` | Guided-missile agility (rad/sec) |
-| `turnRateDeg` | — | The same agility in **deg/sec**. A computed view onto `turnRate` — set either, read either — but **JS only**: `turn-rate-deg` is not an attribute, because `turnRate` is the stored one and both cannot be. See CLAUDE.md → "Angles" |
+| `turnRateDeg` | — | The same agility in **deg/sec** — a computed view onto `turnRate`: set either, read either, and reading returns exactly what you set. Literal markup (`turn-rate-deg="30"`) needs computed attributes, landing in tosijs 1.8.0 |
 | `ammo` | `40` | Magazine capacity (a `Resource`) |
 | `reloadRate` | `8` | Ammo regenerated per second (0 = no reload) |
 | `reloadDelay` | `1` | Seconds after firing before reload resumes |
@@ -577,11 +577,31 @@ export class B3dLauncher extends AbstractMesh {
     says plainly that the attribute form is unavailable, rather than leaving
     `turn-rate-deg="90"` to fail silently.
     */
+    /**
+     * What you last SET, if it is still the current value — otherwise derived.
+     *
+     * The naive `rad * 180/PI` round-trip is lossy: `30` comes back as
+     * `29.999999999999996`, which is what a slider readout or a saved scene would
+     * then show. Caching the pair you supplied fixes that without introducing a
+     * second source of truth, because the memo carries its own PROVENANCE — the
+     * radian value it produced. If anything writes `turnRate` afterwards the memo
+     * no longer matches and we derive fresh, so invalidation is exact and needs
+     * no observer, no dirty flag and no staleness window (Tonio's design).
+     *
+     * `turnRate` remains the one stored value; this is still a computed view.
+     */
+    _degMemo = null;
     get turnRateDeg() {
-        return this.turnRate * (180 / Math.PI);
+        const rad = this.turnRate;
+        const memo = this._degMemo;
+        if (memo != null && memo.rad === rad)
+            return memo.deg;
+        return rad * (180 / Math.PI);
     }
     set turnRateDeg(v) {
-        this.turnRate = v * (Math.PI / 180);
+        const rad = v * (Math.PI / 180);
+        this._degMemo = { deg: v, rad };
+        this.turnRate = rad;
     }
     _ammoPool;
     _cooldown = 0;

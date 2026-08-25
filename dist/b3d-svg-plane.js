@@ -12,7 +12,7 @@ source SVG element using UV coordinates, so interactive SVG UIs work in 3D/XR.
 
 ```js
 import { b3d, b3dSvgPlane, b3dLight } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {
@@ -36,7 +36,7 @@ preview.append(scene)
 
 ```js
 import { b3d, b3dSvgPlane, b3dLight, SvgTexture } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { svgElements, tosi, xin } from 'tosijs'
 
 const { svg, g, path, circle, polygon } = svgElements
@@ -169,7 +169,7 @@ preview.append(scene)
 
 ```js
 import { b3d, b3dLight, SvgTexture } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { svgElements } from 'tosijs'
 
 const { svg, rect, text, g } = svgElements
@@ -398,7 +398,8 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 */
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff, markUiMesh, collidable } from './b3d-utils';
+import { AbstractMesh, isOff, markUiMesh, collidable, sceneDelta, } from './b3d-utils';
+import { gazeOffAxisDeg, gazeStep, newGazeState, bestCandidate, placementDistance, easeTo, } from './dialog-placement';
 import { roundedRectGeometry } from './rounded-rect';
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3;
@@ -414,6 +415,18 @@ export class B3dSvgPlane extends AbstractMesh {
         updateInterval: 30,
         materialChannel: 'emissive',
         cameraRelative: false,
+        /**
+         * `'world'` places this panel at a real spot with clear line of sight and
+         * lets it FOLLOW you — if it has been out of view for a couple of seconds
+         * it eases to a fresh spot in front of you (see [[dialog-placement]]).
+         *
+         * The right mode for a MODAL: depth is XR's window frame, so a dialog that
+         * composites over the world paints in front and cannot be touched, while a
+         * head-locked one chases your eyes and can never be looked away from.
+         * Requires `cameraRelative` (it is a placement strategy, not a parenting
+         * one). `'camera'` (default) keeps the existing behaviour.
+         */
+        placement: 'camera',
         /**
          * When `cameraRelative` AND in a headset, parent to this XR reference frame
          * instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in
@@ -453,6 +466,80 @@ export class B3dSvgPlane extends AbstractMesh {
     _pressing = false;
     _lastSvgX = 0;
     _lastSvgY = 0;
+    /**
+     * WORLD-PLACED MODAL, with gaze recovery — the `placement="world"` strategy.
+     *
+     * The panel is NOT parented: it sits at a real point, so it occludes and is
+     * occluded like anything else and stacks with other UI by ordinary depth.
+     * It is placed where there is clear line of sight, faces the viewer, and if
+     * you look away for a couple of seconds it eases to a fresh spot in front of
+     * you — findability without the panel chasing your eyes.
+     *
+     * The rules live in [[dialog-placement]] (pure, tested); this is the Babylon
+     * plumbing: cast the candidate rays, move the mesh, aim it.
+     */
+    _gaze = newGazeState();
+    _dialogObs = null;
+    _dialogTarget = null;
+    _installWorldDialog(scene) {
+        // Straight ahead first, then progressively further off-axis: bestCandidate
+        // breaks ties toward EARLIER entries, so this order IS the preference.
+        const YAW_CANDIDATES = [0, -20, 20, -40, 40, -70, 70, 180];
+        const desired = this.z || 2;
+        const place = (cam, immediate) => {
+            const eye = cam.globalPosition;
+            const fwd = cam.getDirection(BABYLON.Vector3.Forward());
+            const clearances = [];
+            const dirs = [];
+            for (const yawDeg of YAW_CANDIDATES) {
+                const q = BABYLON.Quaternion.RotationAxis(BABYLON.Vector3.Up(), (yawDeg * Math.PI) / 180);
+                const dir = BABYLON.Vector3.Zero();
+                fwd.rotateByQuaternionToRef(q, dir);
+                dir.normalize();
+                dirs.push(dir);
+                const hit = scene.pickWithRay(new BABYLON.Ray(eye, dir, desired + 1), 
+                // UI never blocks UI — a dialog must not hide behind another panel.
+                collidable());
+                clearances.push(hit?.hit ? hit.distance : Infinity);
+            }
+            const i = bestCandidate(clearances, 0.7);
+            // Nowhere is clear (boxed in): take straight ahead at the floor distance
+            // rather than refusing to show a modal at all.
+            const dir = dirs[i >= 0 ? i : 0];
+            const dist = placementDistance(i >= 0 ? clearances[i] : 0, desired, 0.6, 0.25);
+            const target = eye.add(dir.scale(dist));
+            this._dialogTarget = target;
+            if (immediate && this.mesh)
+                this.mesh.position.copyFrom(target);
+        };
+        this._dialogObs = scene.onBeforeRenderObservable.add(() => {
+            const mesh = this.mesh;
+            const cam = scene.activeCamera;
+            if (mesh == null || cam == null)
+                return;
+            // World space: never parented, so nothing inherits a head transform.
+            if (mesh.parent != null) {
+                mesh.parent = null;
+                this._camParented = false;
+            }
+            if (this._dialogTarget == null)
+                place(cam, true);
+            const dt = sceneDelta(scene);
+            const off = gazeOffAxisDeg(cam.globalPosition, cam.getDirection(BABYLON.Vector3.Forward()), mesh.position);
+            const stepped = gazeStep(this._gaze, off, dt);
+            this._gaze = stepped.state;
+            if (stepped.recover)
+                place(cam, false);
+            const t = this._dialogTarget;
+            if (t != null) {
+                // Eased, never snapped — a dialog that teleports reads as a glitch.
+                const next = easeTo(mesh.position, t, dt);
+                mesh.position.set(next.x, next.y, next.z);
+            }
+            // Always face the viewer, so it is readable from wherever you ended up.
+            mesh.lookAt(cam.globalPosition);
+        });
+    }
     /** Nominal camera-local Z (the author's `z`), before any occlusion pull-in. */
     _nominalZ = 0;
     _depthObs = null;
@@ -584,8 +671,12 @@ export class B3dSvgPlane extends AbstractMesh {
         `stackLift`, but with a moving front edge. Do that before a second
         camera-relative panel can be open at once. Filed in TODO.
         */
-        if (attrs.cameraRelative)
-            this._installDepthGuard(scene);
+        if (attrs.cameraRelative) {
+            if (attrs.placement === 'world')
+                this._installWorldDialog(scene);
+            else
+                this._installDepthGuard(scene);
+        }
         this._svgTexture = new SvgTexture({
             scene,
             resolution: attrs.resolution,
@@ -607,6 +698,10 @@ export class B3dSvgPlane extends AbstractMesh {
         owner.register({ meshes: [this.mesh] });
     }
     sceneDispose() {
+        if (this._dialogObs && this.owner) {
+            this.owner.scene.onBeforeRenderObservable.remove(this._dialogObs);
+            this._dialogObs = null;
+        }
         if (this._depthObs && this.owner) {
             this.owner.scene.onBeforeRenderObservable.remove(this._depthObs);
             this._depthObs = null;

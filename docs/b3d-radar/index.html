@@ -59,7 +59,7 @@ lock column: a contact inside the <em>acquire</em> cone climbs toward 1.00, hold
 it stays in the wider <em>maintain</em> cone, and drops the moment it falls out. The
 grey contact is <code>faction: &#39;neutral&#39;</code> — detected, never locked.</p>
 <pre><code class="language-js">import { b3d, b3dRadar, b3dRadarBlip, b3dBox, label3d, slider3d } from &#39;tosijs-3d&#39;
-import { demoStage, orbitCam } from &#39;demo-utils&#39;
+import { demoStage, orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi, elements } from &#39;tosijs&#39;
 const { div } = elements
 
@@ -118,7 +118,7 @@ const scene = b3d(
       })
     },
   },
-  ...demoStage({ size: 90, tiles: 18, pattern: true, timeOfDay: 10 }),
+  ...demoStage({ size: 90, tiles: 18, texture: &#39;/tosi-warhol-testgrid.svg&#39;, timeOfDay: 10 }),
   mast,
   ...boxes,
 )
@@ -282,6 +282,7 @@ one: <code>maxLocks: 1</code>, <code>alignment: &#39;hostile&#39;</code> (so it 
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -299,6 +300,7 @@ one: <code>maxLocks: 1</code>, <code>alignment: &#39;hostile&#39;</code> (so it 
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

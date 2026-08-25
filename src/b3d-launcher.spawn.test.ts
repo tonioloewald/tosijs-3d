@@ -397,7 +397,7 @@ describe('the element exposes the same conversion', () => {
   test('returns EXACTLY what you set — no float drift', async () => {
     const { B3dLauncher } = await import('./b3d-launcher')
     const el = Object.create(B3dLauncher.prototype) as any
-    expect((30 * (Math.PI / 180)) * (180 / Math.PI)).not.toBe(30) // the hazard
+    expect(30 * (Math.PI / 180) * (180 / Math.PI)).not.toBe(30) // the hazard
     el.turnRateDeg = 30
     expect(el.turnRateDeg).toBe(30) // exact, not 29.999999999999996
   })
@@ -416,7 +416,11 @@ describe('the element exposes the same conversion', () => {
     const { B3dLauncher } = await import('./b3d-launcher')
     const el = Object.create(B3dLauncher.prototype) as any
     el.turnRateDeg = 30
-    el.turnRate = el.turnRate // a no-op write must not lose provenance
+    // A no-op write must not lose provenance — the memo keys off the VALUE,
+    // not off "was there a write", so re-setting the same radians keeps the
+    // exact degrees. eslint-disable because the self-assignment IS the test.
+    // eslint-disable-next-line no-self-assign
+    el.turnRate = el.turnRate
     expect(el.turnRateDeg).toBe(30)
   })
 })

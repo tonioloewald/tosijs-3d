@@ -17,6 +17,18 @@ export declare class B3dSvgPlane extends AbstractMesh {
         materialChannel: string;
         cameraRelative: boolean;
         /**
+         * `'world'` places this panel at a real spot with clear line of sight and
+         * lets it FOLLOW you — if it has been out of view for a couple of seconds
+         * it eases to a fresh spot in front of you (see [[dialog-placement]]).
+         *
+         * The right mode for a MODAL: depth is XR's window frame, so a dialog that
+         * composites over the world paints in front and cannot be touched, while a
+         * head-locked one chases your eyes and can never be looked away from.
+         * Requires `cameraRelative` (it is a placement strategy, not a parenting
+         * one). `'camera'` (default) keeps the existing behaviour.
+         */
+        placement: "camera" | "world";
+        /**
          * When `cameraRelative` AND in a headset, parent to this XR reference frame
          * instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in
          * front of you WITHOUT jittering on every head movement — right for a menu
@@ -57,6 +69,7 @@ export declare class B3dSvgPlane extends AbstractMesh {
     updateInterval: number;
     materialChannel: string;
     cameraRelative: boolean;
+    placement: 'camera' | 'world';
     xrFrame: string;
     pointerEvents: 'on' | 'off';
     doubleSided: 'on' | 'off';
@@ -73,6 +86,22 @@ export declare class B3dSvgPlane extends AbstractMesh {
     private _pressing;
     private _lastSvgX;
     private _lastSvgY;
+    /**
+     * WORLD-PLACED MODAL, with gaze recovery — the `placement="world"` strategy.
+     *
+     * The panel is NOT parented: it sits at a real point, so it occludes and is
+     * occluded like anything else and stacks with other UI by ordinary depth.
+     * It is placed where there is clear line of sight, faces the viewer, and if
+     * you look away for a couple of seconds it eases to a fresh spot in front of
+     * you — findability without the panel chasing your eyes.
+     *
+     * The rules live in [[dialog-placement]] (pure, tested); this is the Babylon
+     * plumbing: cast the candidate rays, move the mesh, aim it.
+     */
+    private _gaze;
+    private _dialogObs;
+    private _dialogTarget;
+    private _installWorldDialog;
     /** Nominal camera-local Z (the author's `z`), before any occlusion pull-in. */
     private _nominalZ;
     private _depthObs;

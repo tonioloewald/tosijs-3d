@@ -8,7 +8,7 @@ the four things everyone forgets already done.
 
 ```js
 import { b3d, b3dSkybox } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {
@@ -25,7 +25,7 @@ const scene = b3d(
       el.make.torusKnot({ radius: 0.5, tube: 0.16, x: 2.4, y: 2.7, color: '#e08a3c', glow: 0.2 })
     },
   },
-  ...demoStage({ size: 16, tiles: 10, pattern: true }),
+  ...demoStage({ size: 16, tiles: 10, texture: '/tosi-warhol-testgrid.svg' }),
 )
 
 preview.append(scene)

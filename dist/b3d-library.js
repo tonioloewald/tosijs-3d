@@ -13,7 +13,7 @@ direct references.
 
 ```js
 import { b3d, b3dLibrary, placeOnSurface, label3d, list3d, button3d } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 
@@ -68,7 +68,7 @@ const scene = b3d(
       orbitCam(el, { radius: 12, beta: Math.PI / 2.9, target: [0, 1, 0] })
     },
   },
-  ...demoStage({ size: 20, tiles: 12, pattern: true, timeOfDay: 12 }),
+  ...demoStage({ size: 20, tiles: 12, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 12 }),
   lib,
 )
 

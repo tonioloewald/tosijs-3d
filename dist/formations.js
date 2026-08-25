@@ -19,7 +19,7 @@ The functions just return offsets — here a crate is dropped at each slot of a 
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dGround, b3dBox, vee } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 // vee(count, opts) → an array of {x, y, z} offsets. The sim just places a mesh at each.
 const slots = vee(7, { spacing: 3, sweep: 2.5 })

@@ -10,7 +10,7 @@ sky and the crates. Drag to orbit — dip the camera below the surface and the w
 
 ```js
 import { b3d, b3dSkybox, b3dWater, b3dReflections, b3dGround, sceneDelta } from 'tosijs-3d'
-import { demoSun, orbitCam, spinner } from 'demo-utils'
+import { demoSun, orbitCam, spinner } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {

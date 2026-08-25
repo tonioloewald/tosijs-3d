@@ -138,7 +138,7 @@ take the headset off. Set it on the scene below and the button changes to
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
-import { demoStage } from 'demo-utils'
+import { demoStage } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const demo = tosi({ pauseDemo: { state: 'paused since load', spin: 'medium' } })
@@ -199,7 +199,7 @@ const scene = b3d(
       })
     },
   },
-  ...demoStage({ pattern: true, size: 40, timeOfDay: 11 }),
+  ...demoStage({ texture: '/tosi-warhol-testgrid.svg', size: 40, timeOfDay: 11 }),
   cube,
   moon
 )
@@ -875,12 +875,10 @@ export class B3d extends Component {
         const width = panelFitWidth(fov, aspect, z, 1.1);
         const plane = b3dSvgPlane({
             cameraRelative: true,
-            // Ride the TORSO, not your face (Tonio: "not sure the pause / continue
-            // dialog needs to be pinned to your face"). It is a thing you read and
-            // then press, so head-locking it means it follows every glance and can
-            // never be looked AWAY from — the same reason the respawn panel moved to
-            // this frame. Ignored flat, where cameraRelative means the orbit camera.
-            xrFrame: 'body',
+            // World-placed, like the respawn panel: a thing you read and then press
+            // should not follow every glance, but must still be findable — so it
+            // comes to you if you look away for ~2s. See dialog-placement.
+            placement: 'world',
             width,
             height: width * (svgH / 320),
             z,

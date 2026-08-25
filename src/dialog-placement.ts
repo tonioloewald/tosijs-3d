@@ -60,11 +60,7 @@ export function normalize(v: Vec3): Vec3 | null {
  * is reported as `0` — on-axis — because "you are inside it" is not a reason to
  * go and fetch it.
  */
-export function gazeOffAxisDeg(
-  eye: Vec3,
-  forward: Vec3,
-  dialog: Vec3
-): number {
+export function gazeOffAxisDeg(eye: Vec3, forward: Vec3, dialog: Vec3): number {
   const f = normalize(forward)
   const d = normalize(sub(dialog, eye))
   if (f == null || d == null) return 0

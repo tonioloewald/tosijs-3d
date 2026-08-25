@@ -235,6 +235,20 @@ export declare class B3dLauncher extends AbstractMesh {
     mass: number;
     missileSpeed: number;
     turnRate: number;
+    /**
+     * What you last SET, if it is still the current value — otherwise derived.
+     *
+     * The naive `rad * 180/PI` round-trip is lossy: `30` comes back as
+     * `29.999999999999996`, which is what a slider readout or a saved scene would
+     * then show. Caching the pair you supplied fixes that without introducing a
+     * second source of truth, because the memo carries its own PROVENANCE — the
+     * radian value it produced. If anything writes `turnRate` afterwards the memo
+     * no longer matches and we derive fresh, so invalidation is exact and needs
+     * no observer, no dirty flag and no staleness window (Tonio's design).
+     *
+     * `turnRate` remains the one stored value; this is still a computed view.
+     */
+    private _degMemo;
     get turnRateDeg(): number;
     set turnRateDeg(v: number);
     projRadius: number;

@@ -51,7 +51,7 @@ import {
   toggle3d, mesaProfile, beachProfile, cliffProfile, blendProfiles,
   profileField, LAVA_PALETTE, CRYOVOLCANIC_PALETTE, volcano,
 } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 // PINNED showcase vista — seed + scales chosen so this exact terrain shows
 // every spec transition at once. Change DELIBERATELY, with the page open: the

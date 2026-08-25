@@ -48,7 +48,7 @@
 <h1>popup-surface</h1>
 <p><strong>A popup is another SURFACE, not more rows in the one you have.</strong></p>
 <pre><code class="language-js">import { b3d } from &#39;tosijs-3d&#39;
-import { demoStage, orbitCam } from &#39;demo-utils&#39;
+import { demoStage, orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { svgElements, elements } from &#39;tosijs&#39;
 const { svg, rect, text } = svgElements
 
@@ -106,7 +106,7 @@ const scene = b3d(
       opened.push(m)
     },
   },
-  ...demoStage({ size: 12, tiles: 8, pattern: true, timeOfDay: 11 }),
+  ...demoStage({ size: 12, tiles: 8, texture: &#39;/tosi-warhol-testgrid.svg&#39;, timeOfDay: 11 }),
 )
 
 preview.append(scene)
@@ -277,6 +277,7 @@ rather than degrade.</p>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -294,6 +295,7 @@ rather than degrade.</p>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

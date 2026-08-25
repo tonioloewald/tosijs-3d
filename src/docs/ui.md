@@ -1,7 +1,6 @@
 # UI
 
 <!-- toc -->
-- [dialog-placement](/dialog-placement/)
 - [widgets3d](/widgets3d/)
 - [box](/box/)
 - [surface](/surface/)
@@ -11,6 +10,7 @@
 - [b3d-hud](/b3d-hud/)
 - [b3d-panel](/b3d-panel/)
 - [b3d-svg-plane](/b3d-svg-plane/)
+- [dialog-placement](/dialog-placement/)
 - [keyboard](/keyboard/)
 - [selection](/selection/)
 - [svg-icons](/svg-icons/)

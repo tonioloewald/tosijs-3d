@@ -20,7 +20,7 @@ position over the floor.
 
 ```js
 import { b3d, b3dBox, createShadowDecal } from 'tosijs-3d'
-import { demoStage, orbitCam } from 'demo-utils'
+import { demoStage, orbitCam } from 'tosijs-3d/demo-utils'
 
 const scene = b3d(
   {
@@ -41,7 +41,7 @@ const scene = b3d(
       el.scene.onBeforeRenderObservable.add(place)
     },
   },
-  ...demoStage({ size: 24, tiles: 10, pattern: true, timeOfDay: 10 }),
+  ...demoStage({ size: 24, tiles: 10, texture: '/tosi-warhol-testgrid.svg', timeOfDay: 10 }),
   // `_nocast` so no real CSM shadow competes with the decal — the decal IS the grounding shadow here
   b3dBox({ meshName: 'floater_nocast', size: 2, x: 0, y: 2.6, z: 0, color: '#c85a3a' }),
 )
@@ -73,6 +73,7 @@ visibility. See [b3d-clouds](?b3d-clouds.ts), the first consumer.
 */
 /*{ "parent": "Effects" }*/
 import * as BABYLON from '@babylonjs/core';
+import { collidable } from './b3d-utils';
 const TEX_CACHE = new WeakMap();
 const MAT_CACHE = new WeakMap();
 /** Lift a decal this far off the surface it sits on, to keep it out of a z-fight with the ground. */
@@ -136,7 +137,15 @@ export function createShadowDecal(scene, opts = {}) {
 export function projectShadowDown(decal, scene, x, z, opts = {}) {
     const from = opts.fromHeight ?? 200;
     const ray = new BABYLON.Ray(new BABYLON.Vector3(x, from, z), BABYLON.Vector3.Down(), opts.maxDistance ?? 1000);
-    const predicate = opts.predicate ?? ((m) => m.isPickable);
+    /*
+    `collidable()`, not a bare `isPickable` check — a UI panel IS pickable, so the
+    old default let a blob shadow land on a floating dialog. `collidable` also
+    re-checks `isEnabled`, which Babylon skips whenever a predicate is passed.
+  
+    A caller can still supply its own predicate; this is only the default, and the
+    default is the one that has to be safe.
+    */
+    const predicate = opts.predicate ?? collidable();
     const hit = scene.pickWithRay(ray, predicate);
     if (!hit?.pickedPoint)
         return false;

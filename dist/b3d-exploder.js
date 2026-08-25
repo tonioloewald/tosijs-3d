@@ -20,7 +20,7 @@ until they all leave the camera view.
 
 ```js
 import { b3d, b3dLight, b3dSkybox, b3dGround, explodeMesh, label3d, button3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div, p } = elements
 

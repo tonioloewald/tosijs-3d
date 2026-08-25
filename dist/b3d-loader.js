@@ -28,7 +28,7 @@ model, or remove the element to free it.)
 
 ```js
 import { b3d, b3dSun, b3dSkybox, b3dLoader, b3dReflections, slider3d } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi, elements } from 'tosijs'
 const { div, span } = elements
 

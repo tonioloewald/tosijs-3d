@@ -60,7 +60,7 @@ the same controls work on keyboard, touch, and in VR. <strong>Left-drag orbits</
 Shells arc under gravity and blast the wide cube field — a direct hit kills, a near miss
 chips the neighbours. Tune muzzle speed, fire rate, drag and the warhead in the ⚙ panel.</p>
 <pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 // Unique tosi() key per demo — tosi() is a singleton keyed by path, so two demos on the
@@ -123,7 +123,7 @@ missiles</strong> at the orbiting cube; they bend to chase it and detonate on
 contact. The target <strong>respawns at a fresh altitude</strong> each time you destroy it. Drop
 <code>turnRate</code> and watch them overshoot a hard-turning target.</p>
 <pre><code class="language-js">import { b3d, b3dController, b3dLauncher, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from &#39;tosijs-3d&#39;
-import { orbitCam } from &#39;demo-utils&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 // fireRate 2.5 (a missile every 0.4s) with a slower cruise keeps 2–3 missiles in the
@@ -260,7 +260,7 @@ onto an element, and the callback then silently never runs.</p>
 <tr>
 <td><code>turnRateDeg</code></td>
 <td>—</td>
-<td>The same agility in <strong>deg/sec</strong>. A computed view onto <code>turnRate</code> — set either, read either — but <strong>JS only</strong>: <code>turn-rate-deg</code> is not an attribute, because <code>turnRate</code> is the stored one and both cannot be. See CLAUDE.md → &quot;Angles&quot;</td>
+<td>The same agility in <strong>deg/sec</strong> — a computed view onto <code>turnRate</code>: set either, read either, and reading returns exactly what you set. Literal markup (<code>turn-rate-deg=&quot;30&quot;</code>) needs computed attributes, landing in tosijs 1.8.0</td>
 </tr>
 <tr>
 <td><code>ammo</code></td>
@@ -446,6 +446,7 @@ onto an element, and the callback then silently never runs.</p>
       <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
@@ -463,6 +464,7 @@ onto an element, and the callback then silently never runs.</p>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>

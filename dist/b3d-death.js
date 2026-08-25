@@ -424,11 +424,18 @@ export class B3dDeath extends B3dChild {
             1.6, 2.2, 1.1);
         const plane = b3dSvgPlane({
             cameraRelative: true,
-            // In VR, ride the BODY frame (torso, damped yaw) not the head camera — a
-            // respawn panel head-locked to a jostling death-cam "jiggles like crazy"
-            // (Tonio, VR pass 2). Ignored flat, where cameraRelative means the orbit
-            // camera as before.
-            xrFrame: 'body',
+            /*
+            WORLD-PLACED, and it follows you if you look away.
+      
+            Head-locking made it jiggle with a jostling death-cam; riding the body
+            frame put it at knee height and terrain still swallowed it; drawing it on
+            top made it untouchable. All three were compensating for the panel not
+            being anywhere real. It now sits at a spot with clear line of sight and
+            eases to a new one if you look away for ~2s — which also fixes the case
+            none of the others could, dying in cockpit view with the camera INSIDE a
+            hillside, where nothing "just in front of you" helps.
+            */
+            placement: 'world',
             width,
             height: width * (svgH / 320),
             z: 2.2,

@@ -25,7 +25,7 @@ keep up even when smart.
 
 ```js
 import { b3d, b3dTurret, b3dDestroyable, b3dLight, b3dSkybox, b3dGround, label3d, slider3d, sceneDelta } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const { s } = tosi({ s: { traverseRate: 2.5, range: 30, fireRate: 2, muzzleSpeed: 24, smart: 0 } })

@@ -16,7 +16,7 @@ reference combat ids that only exist once the targets have mounted).
 
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 const grid = []
 for (let i = 0; i < 12; i++) {
@@ -91,7 +91,7 @@ chain reaction (each drum both `explode`s and fires a `deathBlast`).
 
 ```js
 import { b3d, b3dDestroyable, b3dLight, b3dSkybox, b3dGround } from 'tosijs-3d'
-import { orbitCam } from 'demo-utils'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 
 const drums = []
 for (let i = 0; i < 48; i++) {
