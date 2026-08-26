@@ -8,6 +8,32 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.3
 
+### Added
+
+- **The biped swims.** Water was already a medium rather than a boundary line
+  (underwater fog with a continuous crossing); the biped now treats it as one
+  too. Tonio: _"can we change the rate at which the biped falls in water. And
+  while we are at it the biped could learn to tread water and swim."_ Both
+  animations were already in the standard set, so this is one equation plus
+  wiring.
+  - **`buoyancy.ts`** — pure, tested. A body is slightly less dense than water,
+    so it is pushed up in proportion to how much of it is submerged and rests
+    where that balances its weight. Everything readable falls out of that one
+    equation instead of being special-cased: plunge-and-bob when you drop in, a
+    head that ends up **above** the surface (equilibrium is partial submersion —
+    nothing targets a head height), and wading that does nothing until the water
+    is deep enough to lift you. Sinking is ~1.5 m/s against ~20 m/s in air, and
+    drag blends by submersion rather than switching at the waterline, so
+    crossing the surface does not read as bouncing off it.
+  - **Swimming is deep enough AND not resting on the floor** — _resting on_,
+    not _within reach of_. The first version asked "is there ground below me?"
+    and left the character standing on the seabed under six metres of water.
+    The floor stops you sinking; it does not hold you down.
+  - `swim` while moving, `tread-water` while holding station.
+  - Verified live: released on a seabed under 6 m of water the biped rose and
+    settled at **0.866** submersion against a predicted 0.870, and a walk
+    downhill waded in and began swimming on its own.
+
 ### Changed
 
 - **Toolchain bumped** — `tosijs` 1.7.8 → 1.8.0, `tosijs-ui` 1.9.8 → 1.12.3,
