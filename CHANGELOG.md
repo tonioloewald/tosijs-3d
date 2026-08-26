@@ -22,6 +22,27 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **The biped floated above or sank into slopes, and never corrected.** Tonio,
+  on a long-standing one: _"you often end up a little offset from the ground …
+  this never really corrects. It just gets randomly messed up again when you
+  navigate another slope."_ Not random — the ground check was a **dead band with
+  no corrective term**: it probed 0.15 m down from just above the feet and, if
+  it found anything, did nothing. So the biped fell until the probe happened to
+  see ground and then stopped wherever in that 0.15 m window it landed, and any
+  error inside the band was permanent.
+
+  Slopes made it worse both ways. Going up, `moveWithCollisions` slides the body
+  up the ellipsoid and leaves it high in the band. Going down — "especially
+  down" — gravity moved at most `min(0.1, 9.81·dt)`, a hard **0.1 m per frame**
+  clamp, so a brisk descent outran it and it floated the whole way.
+
+  Now it probes a step up and a step down and puts the feet **on** the surface,
+  and a real fall accumulates velocity instead of moving a fixed amount per
+  frame (with the probe extended by the frame's fall so it cannot step over the
+  ground between frames). Measured on the b3d demo scene: **390 consecutive
+  frames walking a slope at offset 0.00000**, where before the error wandered
+  freely inside a 15 cm band. The probe also goes through `collidable()` now, so
+  a UI panel is no longer something you can stand on.
 - **Dying in VR teleported you to the world origin.** Tonio: _"I collided with
   wreckage high up and respawned at the origin or starting point with the wrecked
   plane hanging in mid-air off in the distance."_ He was not moved away from the

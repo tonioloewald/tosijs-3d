@@ -107,7 +107,7 @@ document.body.append(
 /*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { XRStuff } from './b3d-utils'
+import { XRStuff, collidable } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -149,6 +149,11 @@ export class AnimState {
     return specs.map((spec) => new AnimState(spec))
   }
 }
+
+/** How high a lip the biped walks straight over instead of being stopped by. */
+const STEP_UP = 0.5
+/** How far the ground may drop before it becomes a FALL rather than a step. */
+const STEP_DOWN = 0.6
 
 export class B3dBiped extends B3dControllable {
   static initAttributes = {
@@ -237,6 +242,12 @@ export class B3dBiped extends B3dControllable {
   animationGroup?: BABYLON.AnimationGroup
   gameController?: GameController
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
+  /**
+   * Downward speed while airborne, m/s. One value per element rather than per
+   * root node: a character GLB has a single root, and sharing it across two
+   * would only matter for a rig that does not exist.
+   */
+  private _fallVel = 0
   private xrCamZoom = 0.25 // 0 = closest, 1 = furthest
 
   animationStates = AnimState.buildList(
@@ -385,21 +396,59 @@ export class B3dBiped extends B3dControllable {
         rotation * dt * attrs.turnSpeed * DEG_TO_RAD
       )
 
-      // Gravity: only apply if not grounded (raycast down from feet)
-      const feetY = node.position.y + 0.05
-      const rayOrigin = new BABYLON.Vector3(
-        node.position.x,
-        feetY,
-        node.position.z
+      /*
+      STAND ON THE GROUND — a SNAP, not a dead band.
+
+      This used to probe 0.15 m down from just above the feet and, if it found
+      anything, do nothing at all. So there was no term pulling the biped TOWARD
+      the surface: it fell until the probe happened to see ground, then stopped
+      wherever in that 0.15 m window it landed. Anything inside the band was
+      permanent, which is exactly how it was reported — Tonio: "you often end up
+      a little offset from the ground (floating above or sunken in) and this
+      never really corrects. It just gets randomly messed up again when you
+      navigate another slope."
+
+      Slopes made it worse in both directions. Going UP, `moveWithCollisions`
+      slides the body up the ellipsoid and leaves it high in the band. Going
+      DOWN — "especially down" — the ground fell away faster than the old
+      gravity could follow: it moved at most `min(0.1, 9.81·dt)` per frame, a
+      hard 0.1 m clamp, so a brisk descent outran it and it floated the whole
+      way down.
+
+      Now: probe a step's worth up and a step's worth down, and if there is
+      ground in that range put the feet ON it (the root origin IS the feet — see
+      the ellipsoid offset in setupMesh). Otherwise fall properly, accumulating
+      velocity rather than moving a fixed amount per frame.
+      */
+      const fallStep = Math.abs(this._fallVel * dt)
+      const ray = new BABYLON.Ray(
+        new BABYLON.Vector3(
+          node.position.x,
+          node.position.y + STEP_UP,
+          node.position.z
+        ),
+        BABYLON.Vector3.Down(),
+        // Extended by this frame's fall so a fast descent cannot step over the
+        // surface between two frames and keep going.
+        STEP_UP + STEP_DOWN + fallStep
       )
-      const ray = new BABYLON.Ray(rayOrigin, BABYLON.Vector3.Down(), 0.15)
       const hit = this.owner!.scene.pickWithRay(
         ray,
-        (m) => m !== node && m.checkCollisions
+        // `collidable()` for the shared rules (UI never counts as floor,
+        // isPickable/isEnabled re-checked because a predicate replaces
+        // Babylon's own filter); `checkCollisions` stays as OUR clause.
+        collidable((m) => m === node || !m.checkCollisions)
       )
-      if (!hit?.hit) {
-        const gravity = Math.min(0.1, 9.81 * dt)
-        node.moveWithCollisions(new BABYLON.Vector3(0, -gravity, 0))
+      if (hit?.hit && hit.pickedPoint != null) {
+        node.position.y = hit.pickedPoint.y
+        this._fallVel = 0
+      } else {
+        // Terminal velocity keeps one slow frame from teleporting a biped
+        // through the floor, on top of the probe extension above.
+        this._fallVel = Math.max(-20, this._fallVel - 9.81 * dt)
+        node.moveWithCollisions(
+          new BABYLON.Vector3(0, this._fallVel * dt, 0)
+        )
       }
       // Void-catch backstop: never sink below groundY, so a biped can't fall forever
       // when a scene has no collidable ground at all. Default is DEEP (see
