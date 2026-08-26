@@ -889,9 +889,9 @@ fixed by the same one-line change, before anyone noticed it existed.
 
 **Now unified (2026-08-26).** All three go through `dialog-placement.faceViewer`,
 which aims the plane's visible face at a point; both `uScale = -1` compensations and
-the settings panel's `1 - uv.x` pick flip are gone. Flat paths verified here; the
-two XR-only panels are a headset check (text reads, and a right-aligned control
-responds where it is drawn — a centred button works either way and proves nothing).
+the settings panel's `1 - uv.x` pick flip are gone. Verified in a headset the same
+day — including a deliberate crash with a tilted head, which raised the next
+question below.
 
 **And the tail that nearly got away.** Turning a panel around reverses the apparent
 sense of a ROLL, so the change is only safe if every caller flips its roll too. I
@@ -907,3 +907,14 @@ The geometry facts are pinned in `babylon-orientation.test.ts`: `CreatePlane` no
 are `(0, 0, -1)`, a `DOUBLESIDE` back reuses the front's UVs, `faceViewer` aims the
 face from any direction, and the image's top-right lands in the same world position
 before and after the change.
+
+**Open: should a dialog's ROLL follow your head?** Lie sideways on the ground — very
+often because you are DEAD, which is when the respawn dialog appears — and a world-up
+dialog reads at 90°. Answer when we get to it (deferred to the first-person locomotion
+push, see TODO): **yes, but with a dead zone and a hold, never continuously coupled.**
+Roll is a different kind of thing from position and yaw/pitch — those say where the
+dialog IS, and roll says nothing, so matching your head costs nothing from the
+world-object contract. Reading is retinal; your vestibular system does not rotate your
+text recogniser. The rule that falls out and generalises: **the more a surface belongs
+to the world, the more world-referenced its roll; the more it is addressed to the
+player, the more retinal.** A sign on a wall stays world-up; a modal dialog does not.

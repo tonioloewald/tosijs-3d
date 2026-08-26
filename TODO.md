@@ -94,6 +94,49 @@ eased move, not a snap — a dialog that teleports reads as a glitch).
 per-panel `_installDepthGuard` at the same time — all three are compensating
 for the absence of this.
 
+## Dialog ROLL should follow your head — when we go hard into first person
+
+Deferred deliberately (Tonio, 2026-08-26, after verifying the panel-facing
+unification in a headset — including a crash with his head tilted, which is
+how this came up): _"more likely when we go hard into first person
+locomotion."_ Current behaviour is yaw-only and he is happy with it.
+
+**The question.** Lying sideways on the ground — very often DEAD, which is
+exactly when the respawn dialog appears — should the dialog be sideways with
+the world, or aligned with your head?
+
+**The answer, when we get to it: aligned with your head, but only once you
+really mean it.** Roll is a different KIND of thing from position and
+yaw/pitch. Those carry information about where the dialog IS — the whole "a
+thing at a place" argument, and why it occludes and why you can touch it. Roll
+carries no positional information: rotating a panel about its own view axis
+moves it nowhere, so matching your head costs nothing from the world-object
+contract and buys the thing the panel exists for. Reading is a RETINAL task;
+your vestibular system does not rotate your text recogniser, and 90°-rotated
+text is genuinely slow to read. Nobody thanks you for a physically honest
+unreadable label.
+
+Consistency argument sitting right there: face-frame panels already roll with
+your head, free, because they are parented to it. So today the panels people
+like roll with you and the world dialogs do not — this makes them agree.
+
+**Not continuously coupled** — that swims, and it is the same mistake
+head-locking the position was. It wants the shape `gazeStep` already has:
+
+[ ] dead zone ~20–25° of head roll (lean your head, nothing happens)
+[ ] ~1s sustained beyond it, so a glance-and-tilt costs nothing
+[ ] ease to head-up, never snap; shortest-angle, and a lean past 90° must not
+flip it end-over-end
+[ ] `rollStep` beside `gazeStep` in `dialog-placement`, pure and tested the
+same way
+
+**Where NOT to do it:** anything diegetic — a sign on a wall, a console
+readout, a label on a crate. Those belong to the world and stay world-up even
+when you are on your side. The rule: **the more the surface belongs to the
+world, the more world-referenced its roll; the more it is addressed to the
+player, the more retinal.** Modal dialogs are the far end of "addressed to the
+player", and `roll` on `<tosi-b3d-panel>` is the escape hatch for the other end.
+
 ## ENSEMBLE'S STANDING OFFER: world behaviour, prototyped there FOR promotion
 
 `tosijs-3d-ensemble/UPSTREAM.md` §0 is not a request, it is an offer — and the
