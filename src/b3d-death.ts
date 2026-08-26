@@ -452,8 +452,9 @@ export class B3dDeath extends B3dChild {
       ? node.rotationQuaternion.clone()
       : BABYLON.Quaternion.FromEulerVector(node.rotation)
     const spin = new BABYLON.Quaternion()
-    let groundY = -Infinity
-    let sincePick = 99 // force a pick on the first frame
+    let groundY = -Infinity // -Infinity means "never picked"
+    let pickedAtX = 0
+    let pickedAtZ = 0
 
     this._fallObs = scene.onBeforeRenderObservable.add(() => {
       const fall = this._fall
@@ -467,17 +468,43 @@ export class B3dDeath extends B3dChild {
       fall.pos.y = here.y
       fall.pos.z = here.z
 
-      // Re-pick the ground every frame only when it is close enough to matter.
-      // `scene.pickWithRay` walks every pickable mesh, and a terrain scene has a
-      // lot of them — paying that per frame for a wreck still 200 m up buys
-      // nothing, since the surface under it barely changes in one frame.
-      sincePick++
-      if (sincePick >= 6 || here.y - groundY < 60) {
-        sincePick = 0
+      /*
+      RE-PICK ONLY WHEN THE ANSWER CAN HAVE CHANGED.
+
+      `scene.pickWithRay` walks every pickable mesh and does a full triangle
+      intersection on each one whose bounding box the ray enters. A vertical ray
+      through a terrain scene enters several tiles of tens of thousands of
+      triangles each, so this is milliseconds, not microseconds — and running it
+      per frame for the seconds a wreck takes to fall is the likeliest source of
+      "the world hung before the plane stopped flying" (Tonio, VR). It fits the
+      other half of that report too: pressing Respawn before the hang avoids it,
+      and Respawn is what takes this observer off.
+
+      The ground under a wreck falling STRAIGHT DOWN does not change at all, so
+      the whole descent needs one pick. Re-pick when it has drifted sideways far
+      enough to be over something else, or when it is close enough that being
+      wrong matters.
+      */
+      const movedX = here.x - pickedAtX
+      const movedZ = here.z - pickedAtZ
+      if (
+        groundY === -Infinity ||
+        movedX * movedX + movedZ * movedZ > 64 || // 8 m sideways
+        here.y - groundY < 60
+      ) {
+        pickedAtX = here.x
+        pickedAtZ = here.z
         this._fallRay.origin.copyFromFloats(here.x, here.y + 1, here.z)
         this._fallRay.direction.copyFromFloats(0, -1, 0)
         const hit = scene.pickWithRay(this._fallRay, skip)
         groundY = hit?.hit ? here.y + 1 - hit.distance : -Infinity
+        // Nothing under it. Re-picking every frame will not conjure ground, and
+        // the abandon guard below ends it — so stop asking.
+        if (groundY === -Infinity) {
+          pickedAtX = here.x
+          pickedAtZ = here.z
+          groundY = -1e9
+        }
       }
 
       const { impacted } = wreckFallStep(fall, groundY, dt)
