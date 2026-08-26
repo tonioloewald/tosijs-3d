@@ -151,13 +151,38 @@ it over `b3d.snapshot()` for "what is actually on screen": snapshot renders thro
 RTT, so a layout bug that collapses the canvas still snapshots fine, whereas the canvas
 capture fails with a zero-size error. Keep `snapshot()` for engine-specific needs.
 
-### A PRIVATE browser when the shared tab is throttled
+### Which browser: private Electron for flat, the user's tab for VR
 
-A hidden tab is rAF-throttled, so a live example never mounts and every reading
-is meaningless — which makes "no visible tab" a hard block on measuring
-anything. `haltija --private --app` solves it: Electron, its own server on an
-EPHEMERAL port, adopts nothing, and reports `hidden: false` because you own the
-window.
+**Default to `haltija --private --app` for verifying local flat pages.** It is
+Electron, its own server on an EPHEMERAL port, adopts nothing, and reports
+`hidden: false` because you own the window — so it cannot be stolen by another
+project's tab or throttled by the user's window manager. (A hidden tab is
+rAF-throttled, so a live example never mounts and every reading is meaningless;
+"no visible tab" is otherwise a hard block on measuring anything.) Tonio:
+_"driving an electron instance is much more convenient in a lot of cases."_
+
+**The user's own tab earns its keep in exactly two cases**, and the second is
+the one that matters here:
+
+| verifying                 | use                                                         |
+| ------------------------- | ----------------------------------------------------------- |
+| a local flat page         | your own `--private --app` instance                         |
+| anything behind a login   | the user's real browser (a private instance has no cookies) |
+| **anything in a HEADSET** | **their headset tab, over the bridge**                      |
+
+You cannot spawn Electron on a Quest, so driving the headset's own browser is
+the only way to `eval` against a live immersive session. Every VR finding to
+date has arrived as the user describing symptoms in words, each costing a round
+trip — the bridge is what changes that.
+
+**Never navigate a tab the user is actively testing in.** Open your own
+(`hj tabs open`), and put it back when you are done.
+
+Since haltija 1.12 this repo carries a **`.haltija.json`**
+(`{"origins": ["https://localhost:8030"]}`), so `hj` run anywhere inside it pins
+to a tosijs-3d tab regardless of which window has focus — the fix for the
+wrong-tab bouncing that used to need a `location.pathname` guard on every eval.
+`hj where` prints an `origins:` line showing what resolved.
 
 ```sh
 nohup bunx haltija --private --app --port-file "$SCRATCH/hz.json" > "$SCRATCH/hz.log" 2>&1 &
