@@ -151,6 +151,21 @@ ELEMENT.
 open design question (which node is the barrel; I lean on a `_barrel` naming
 suffix, consistent with `_centerOfGravity` declaring a model's moving parts).
 
+## Unify how a panel faces you (needs a headset, one pass)
+
+Three panel sites, three answers to "a Babylon plane's face is −Z" — see
+UI-DESIGN-NOTES → "A plane's face is −Z". The world dialog is fixed (it now
+faces you with its FRONT and needs no compensation); `frame-panel` and
+`tosi-b3d`'s XR settings panel still face you with their BACK and cancel it
+with `tex.uScale = -1` (plus `1 - uv.x` on every pick, for the settings panel).
+
+[ ] Turn both to face front, drop the U-flip, drop the pick flip. It must be a
+MATCHED TRIPLE: any two of the three leaves the panel mirrored or its
+controls mapped to the wrong side. Both are correct today, so this buys
+consistency and one less trap, not a fix — do it **with a headset in hand**,
+not on faith. Same session, verify: text reads, and a right-aligned control
+(a slider's right end, a select's arrows) responds where it is drawn.
+
 ## b3d-water grows the UNDERSIDE (Snell's window) — adopter #15
 
 manta-recon has iterated this on a deployed build with a human judging by eye at

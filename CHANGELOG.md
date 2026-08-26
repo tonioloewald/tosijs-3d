@@ -8,6 +8,20 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.3
 
+### Fixed
+
+- **World-placed dialogs rendered MIRRORED** — the death/respawn panel read
+  "NWOD", and so did the pause panel in any scene using `placement="world"`.
+  Reported from a headset, but not headset-specific: it was mirrored flat too,
+  and had been since 0.7.2. A Babylon plane's visible face is local **−Z**, so
+  aiming `atan2(dx, dz)` at the eye — which points local **+Z** at it — shows you
+  the panel's **back**, and a `doubleSided` back reuses the front's UVs rather
+  than vanishing. Hence a mirror instead of a missing dialog, which is why it
+  survived a release. Now `dialog-placement.facingYawDeg`, tested on the property
+  that matters: turn the plane's visible face by this yaw and it points at the
+  eye. The same change fixes touch, which was mirrored with it — every
+  right-aligned control on a world dialog was mapping to the left.
+
 ### Added
 
 - **`<tosi-b3d-interactive>` — a mesh you can touch** (#36), the substrate doors,

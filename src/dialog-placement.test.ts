@@ -7,6 +7,7 @@ import {
   placementDistance,
   easeTo,
   normalize,
+  facingYawDeg,
 } from './dialog-placement'
 
 const EYE = { x: 0, y: 1.6, z: 0 }
@@ -182,5 +183,70 @@ describe('world placement: properties a caller must not break', () => {
     const dist = placementDistance(Infinity, 2.2)
     const placed = { x: eye.x, y: eye.y, z: eye.z + dist }
     expect(Math.hypot(placed.x, placed.y, placed.z)).toBeGreaterThan(100)
+  })
+})
+
+describe('facingYawDeg — a panel that faces you, not its own back', () => {
+  const origin = { x: 0, y: 0, z: 0 }
+
+  /**
+   * The property that actually matters, stated the way the renderer sees it:
+   * turn the plane's VISIBLE face (local -Z) by the yaw and it must point at
+   * the eye. Verified against Babylon's own numbers — `CreatePlane` normals are
+   * `(0, 0, -1)`, and `RotationYawPitchRoll(yaw)` maps local +Z to
+   * `(sin yaw, 0, cos yaw)`.
+   */
+  const faceDirection = (yawDeg: number) => {
+    const y = (yawDeg * Math.PI) / 180
+    return { x: -Math.sin(y), z: -Math.cos(y) }
+  }
+
+  const eyes = [
+    { x: 0, y: 0, z: -5 },
+    { x: 0, y: 0, z: 5 },
+    { x: 5, y: 0, z: 0 },
+    { x: -5, y: 0, z: 0 },
+    { x: 3, y: 2, z: -4 },
+    { x: -7, y: -1, z: -2 },
+    { x: 0.3, y: 0, z: 0.4 },
+  ]
+
+  test('the visible face points at the eye, from every direction', () => {
+    for (const eye of eyes) {
+      const f = faceDirection(facingYawDeg(origin, eye))
+      const len = Math.hypot(eye.x, eye.z)
+      const dot = (f.x * eye.x + f.z * eye.z) / len
+      expect(dot).toBeCloseTo(1, 6)
+    }
+  })
+
+  test('it holds when the panel is not at the origin', () => {
+    const panel = { x: 12, y: 3, z: -40 }
+    const eye = { x: 9, y: 4, z: -35 }
+    const f = faceDirection(facingYawDeg(panel, eye))
+    const dx = eye.x - panel.x
+    const dz = eye.z - panel.z
+    const len = Math.hypot(dx, dz)
+    expect((f.x * dx + f.z * dz) / len).toBeCloseTo(1, 6)
+  })
+
+  test('the NAIVE atan2(dx, dz) is the bug — it aims the back at you', () => {
+    // This is what shipped, and why the dialog rendered mirrored instead of
+    // invisible: a double-sided back face reuses the front UVs.
+    const eye = { x: 5, y: 0, z: 0 }
+    const naive = (Math.atan2(eye.x, eye.z) * 180) / Math.PI
+    const f = faceDirection(naive)
+    expect((f.x * eye.x + f.z * eye.z) / 5).toBeCloseTo(-1, 6)
+    expect(Math.abs(naive - facingYawDeg(origin, eye))).toBeCloseTo(180, 6)
+  })
+
+  test('directly overhead keeps the current yaw rather than spinning', () => {
+    expect(facingYawDeg(origin, { x: 0, y: 9, z: 0 })).toBe(0)
+  })
+
+  test('yaw only — elevation never tilts a dialog', () => {
+    const low = facingYawDeg(origin, { x: 4, y: -20, z: 4 })
+    const high = facingYawDeg(origin, { x: 4, y: 20, z: 4 })
+    expect(low).toBeCloseTo(high, 9)
   })
 })

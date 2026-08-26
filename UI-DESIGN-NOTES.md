@@ -844,3 +844,52 @@ less: you have somewhere real to put things.
 **Smell test for the next one.** If a fix makes something LOOK right without
 changing where it IS, ask what else keys off where it is — picking, collision,
 occlusion, audio. In 2D that list is short. In XR it is most of the system.
+
+## A plane's face is −Z, and three panels gave three different answers (2026-08-26)
+
+**Symptom:** _"the death / respawn dialog was flipped horizontally"_ (Tonio, headset
+run). Not headset-specific — it was mirrored flat too, and had been since 0.7.2.
+
+**Cause.** A Babylon plane's visible front normal is local **−Z**, not +Z. (Verified,
+not assumed: `MeshBuilder.CreatePlane` normals come out `(0, 0, -1)`, and our
+`rounded-rect` geometry matches it deliberately.) The world-dialog placement aimed the
+panel with the obvious `yaw = atan2(dx, dz)`, which points local **+Z** at the eye — so
+you are looking at the **back** of the panel.
+
+**And the back does not vanish, it MIRRORS.** A `doubleSided` plane's back faces reuse
+the front's UVs, so the texture renders reversed. `doubleSided` defaults to `'on'`. That
+is the whole reason this survived a release: a single-sided panel would have been
+invisible and fixed in minutes, whereas a mirrored one still reads as "a panel", still
+has a button roughly where you expect, and just looks subtly wrong until you try to read
+it. **A bug that degrades gracefully is a bug that ships.**
+
+**The finding is not the mirror — it is that we already knew.** Both other panel sites
+had hit this and each solved it locally, with near-identical comments:
+
+| Site                                              | Faces     | Compensation                                       |
+| ------------------------------------------------- | --------- | -------------------------------------------------- |
+| `frame-panel`                                     | +Z at you | `tex.uScale = -1`, `uOffset = 1`                   |
+| `tosi-b3d`'s XR settings panel                    | +Z at you | the same U-flip, **plus** `1 - uv.x` on every pick |
+| world dialog (`placement="world"`, added for #35) | +Z at you | **none** — mirrored                                |
+
+Three panels, three answers, and the third one was written months later in a different
+file by someone (me) who had read neither comment. The knowledge existed and did not
+travel, which is the same failure mode as `isNoCollide` being an opt-out clause every
+predicate had to remember — and the same fix: **put it in a named, tested function so
+the answer travels with the call.** That is `dialog-placement.facingYawDeg`, whose test
+asserts the property that actually matters — turn the plane's visible face by this yaw
+and it points at the eye — rather than asserting an angle.
+
+**Face the viewer with the FRONT; do not compensate.** The U-flip is a second wrong
+turn cancelling the first, and it costs a third: the pick returns raw mesh UVs, so
+anything that flips the texture must also flip the pick or every right-aligned control
+maps to the dead zone (`tosi-b3d` learned that one the hard way). Turning the panel the
+right way round fixes display and touch together — the world dialog's `1 - uv.x` bug was
+fixed by the same one-line change, before anyone noticed it existed.
+
+**Not yet unified, deliberately.** `frame-panel` and the XR settings panel are correct
+on screen and correct under the finger; rewriting working XR code I cannot verify
+without a headset, purely for tidiness, is the trap this repo keeps warning itself
+about. Tracked in TODO — do it with a headset in hand, in one pass, as a matched
+triple (orientation + drop `uScale` + drop `1 - uv.x`), since any two of the three
+leaves it mirrored.

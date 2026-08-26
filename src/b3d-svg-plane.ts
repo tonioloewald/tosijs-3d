@@ -412,6 +412,7 @@ import {
   newGazeState,
   bestCandidate,
   placementDistance,
+  facingYawDeg,
   easeTo,
 } from './dialog-placement'
 import { roundedRectGeometry } from './rounded-rect'
@@ -621,10 +622,14 @@ export class B3dSvgPlane extends AbstractMesh {
 
         // Face the viewer — as YAW on the element, for the same reason.
         // Rotating the mesh would be undone by the same render.
-        const dx = cam.globalPosition.x - next.x
-        const dz = cam.globalPosition.z - next.z
-        if (Math.hypot(dx, dz) > 1e-4) {
-          self.yaw = (Math.atan2(dx, dz) * 180) / Math.PI
+        //
+        // `facingYawDeg` and not `atan2(dx, dz)`: a plane's visible face is
+        // local -Z, so the obvious version turns the panel's BACK to you, and a
+        // double-sided back reuses the front's UVs — the dialog rendered
+        // MIRRORED rather than vanishing, which is how it survived a release.
+        const eye = cam.globalPosition
+        if (Math.hypot(eye.x - next.x, eye.z - next.z) > 1e-4) {
+          self.yaw = facingYawDeg(next, eye)
         }
       }
     })

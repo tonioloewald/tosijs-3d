@@ -167,3 +167,30 @@ export function easeTo(
     z: current.z + (target.z - current.z) * t,
   }
 }
+
+/**
+ * Yaw in DEGREES that turns a panel's FACE toward the viewer.
+ *
+ * A Babylon plane's visible front normal is local **−Z**, not +Z (verified
+ * against `MeshBuilder.CreatePlane`, whose normals come out `(0, 0, -1)`; our
+ * `rounded-rect` geometry matches deliberately). So the obvious
+ * `atan2(dx, dz)` — which aims local +Z at the eye — turns the panel's BACK to
+ * the viewer.
+ *
+ * That failed in the one way nobody looks for. A `doubleSided` plane's back
+ * faces reuse the front's UVs, so the panel does not vanish: it renders with
+ * the texture **mirrored horizontally**, which is how this arrived — "the death
+ * / respawn dialog was flipped horizontally" — rather than as a missing dialog.
+ * A single-sided panel would have disappeared and been fixed in minutes.
+ *
+ * Yaw only: a dialog stays upright, so elevation is never applied.
+ */
+export function facingYawDeg(panel: Vec3, eye: Vec3): number {
+  const dx = eye.x - panel.x
+  const dz = eye.z - panel.z
+  // Directly overhead (or exactly on the panel) gives no yaw to speak of;
+  // keeping the current one beats spinning to an arbitrary answer.
+  if (Math.hypot(dx, dz) < 1e-6) return 0
+  // Negated because the FACE is −Z: aim −Z at the eye, not +Z.
+  return (Math.atan2(-dx, -dz) * 180) / Math.PI
+}
