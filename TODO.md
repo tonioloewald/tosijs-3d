@@ -339,28 +339,104 @@ Distinct from the re-seat issue already queued: the re-seat is fixed, but
 the position still snaps rather than carrying back. Same root as the 0.7.1
 carry-back item — verify both together when that lands.
 
-## THE CHASE/COCKPIT RIG HIERARCHY — one investigation, not three bugs
+## THE CHASE RIG — MEASURED 2026-08-26. Flat is rigid; VR is not parented at all
 
-Tonio's read, and it is probably right: the aircraft **jitters in chase view
-ever since CoG landed**, and cockpit view has the odd death behaviour below.
-Both are parenting, so treat them as ONE look at the rig hierarchy rather than
-three separate irritations chased separately.
+Tonio: _"if things are parented correctly that should just never happen."_ Right —
+and the measurement says **flat IS parented correctly and VR is not.** The old
+hypothesis in this slot (the CoG pivot; "two things deriving from each other at
+slightly different times") is **disproved** — recorded here rather than deleted,
+because it was plausible for months and cost nothing only because it was finally
+measured.
 
-Symptoms that likely share the root:
+**Method.** Instrumented the live `/b3d-aircraft/` demo: walked the parent chain,
+then recorded 400 frames of a sustained banked turn at ~61 m/s, logging the
+aircraft's position **in camera space** — the quantity that is constant if and
+only if the rig is rigid.
 
-- **Chase jitter since the CoG pivot.** The chase pivot re-derives from the
-  airframe each frame while the airframe now rotates about a pivot — two
-  things deriving from each other at slightly different times is the classic
-  shape of jitter.
-- **Cockpit death** — wreck far away, dialog underground (below).
-- Possibly the exit-VR re-seat, which is also "who owns this transform".
+### Flat chase: rigid. Not the bug.
 
-**NOT BLOCKERS** (Tonio): non-fatal corner cases in something that works well
-the rest of the time. The instruction is to stay ALERT for them while we are
-already in that code — not to hunt them now. When one is next reproduced,
-measure the actual parent chain (`node.parent` up to the root, plus which
-frame owns the transform each frame) rather than reasoning about it: the last
-two camera bugs each cost three hypotheses and one measurement.
+```
+chase FreeCamera → aircraft-chase-pivot <TransformNode>   (scene root)
+scout_instance_0 <TransformNode>                          (scene root)
+```
+
+The camera is a real child of the pivot at a fixed local offset, and the pivot
+copies `node.absolutePosition` in the same tick the airframe moved.
+
+| measured over 350 frames, 61 m/s banked turn |                                        |
+| -------------------------------------------- | -------------------------------------- |
+| aircraft position in camera space            | **sd 0.0000 m, total spread 0.0002 m** |
+| updates per rendered frame                   | exactly 1 (no double-update)           |
+
+**0.2 mm of spread over a banked turn is rigid.** The aircraft cannot visibly
+jitter against the flat chase camera. Whatever is seen flat is the WORLD moving
+unevenly, not the rig.
+
+### What does move flat: the world, at wall-clock dt
+
+|                              | mean     | sd               | spread  |
+| ---------------------------- | -------- | ---------------- | ------- |
+| frame gap                    | 38.1 ms  | 4.0 ms           | 9.3 ms  |
+| `dt` fed to the flight model | 38.2 ms  | 4.2 ms (**11%**) | 9.0 ms  |
+| world travel per frame       | 2.36 m   | 0.28 m (**12%**) | 0.92 m  |
+| fbw speed                    | 61.3 m/s | 2.3 m/s (3.7%)   | 7.9 m/s |
+
+Per-frame travel varies by 12% while the speed varies by 3.7%: **the travel
+variance IS the dt variance.** `B3dControllable._update` integrates by `Date.now()`
+elapsed sampled when the update runs, which is not when the frame is presented, so
+the pose shown at presentation time is integrated to a moment that drifts around it.
+At 61 m/s a 4 ms timing error is 24 cm of world shift. That is the \*\*fixed-timestep
+
+- interpolation\*\* item above, not a parenting fault — and it is the same phenomenon
+  that section predicted these would turn out to share.
+
+(Measured in a private Electron window running ~26 fps, so the absolute numbers are
+that host's. The RATIO — travel variance tracking dt variance — is the robust part.)
+
+### VR chase: not parented, and eased with a frame-rate-dependent lerp
+
+`tosi-b3d.ts` ~3380–3440. The XR rig is **explicitly un-parented** (`rig.parent =
+null`) and its position is chased in world space every frame:
+
+```js
+const posT = Math.min(1, (isChase ? 9 : 16) * dt)
+chasePos.x += (targetX - chasePos.x) * posT
+```
+
+Three problems, all of which the flat pivot does not have:
+
+1. **`lerp(a, b, k·dt)` is not frame-rate independent.** The correct form is
+   `1 - Math.exp(-k·dt)`, which this file's own neighbour uses
+   (`b3d-aircraft`'s look-spring: `Math.exp(-lookReturn * dt)`).
+2. **A first-order tracker lags by `v/k`.** At `k = 9` and 61 m/s that is **~6.8 m**
+   — and it is proportional to SPEED, so the aircraft drifts forward in the frame
+   as you accelerate and back as you decelerate. That alone reads as swimming.
+3. **Head-pose compensation is applied a frame stale.** The rig subtracts
+   `cam.position` (the tracked head offset) to land the head at `chasePos`, but the
+   compositor **late-latches** the real head pose after JS has run. Parenting is
+   exactly what makes late-latching correct: the head is resolved WITHIN the rig.
+
+[ ] **Give VR the flat rig.** Parent the XR rig to `_chasePivot` — position + yaw,
+held level — with the zoom as a local offset, instead of easing a world-space
+copy. Rigid by construction, still level (so no attitude nausea, which is why it
+was not simply parented to the airframe), and head tracking resolves inside the
+rig where it belongs. If yaw smoothing is still wanted, smooth the PIVOT'S YAW —
+a slow-varying signal — never the rig's position.
+[ ] If any easing survives, convert it to `1 - Math.exp(-k*dt)` on the way past.
+
+### Latent, found while reading: `AbstractMesh.render()` can fight the flight model
+
+`B3dControllable extends AbstractMesh`, whose `render()` rewrites
+`mesh.position` from the element's `x`/`y`/`z` and `rotationQuaternion` from
+`rx`/`ry`/`rz`. `b3d-aircraft` sets `this.mesh = root` **only when the loaded root
+is a `Mesh`** — for the scout it is a `TransformNode`, so `render()` is inert and
+this has never bitten. Load a **single-mesh** aircraft and any element render
+(setting `chasePitchFollow` from the scene panel is enough) teleports it back to
+its spawn `x/y/z` and levels its attitude. Same family as #35.
+
+[ ] Either stop `AbstractMesh.render()` owning the transform once a controllable
+has taken control, or sync `x/y/z`/`rx/ry/rz` back each frame. The first is
+safer — writing six attributes per frame re-triggers render.
 
 ## COCKPIT DEATH: dialog under the ground, wreck far away (0.7.0, NOT A BLOCKER)
 
