@@ -22,6 +22,24 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **A wreck hung in the air where it died.** Tonio, from a headset: _"I collided
+  with wreckage high up … the wrecked plane hanging in mid-air (it should really
+  tumble to the ground)."_ Hanging wreckage is worse than untidy — it is a solid
+  object in the sky, so the debris of one death becomes the cause of the next.
+  A wreck now falls: a tumbling ballistic descent on the velocity it died with,
+  one bad bounce, a skid, and a rest. The fires and the spectate camera go down
+  with it (a smoke column left at the kill point with the wreck 100 m below it
+  is worse than no fire at all). Rules are pure and tested in **`wreck-fall`**;
+  the spin is DERIVED from the velocity, never random, so the same crash looks
+  the same twice.
+  - New seam **`B3dControllable.getWorldVelocity()`**. `b3d-aircraft`'s own
+    `velocity` field reads ZERO in wing-borne flight — the fly-by-wire path
+    moves the node directly — so a wreck launched from it dropped straight down
+    out of a 60 m/s dive.
+  - A wreck with **nothing under it** (the edge of a finite ground, a kill over
+    open water) is abandoned after 1500 m rather than falling forever with the
+    camera chasing it down. Found by killing outside a 600 m ground plane: it
+    reached y = −25 and kept going.
 - **The VR chase camera jittered and drifted with speed** — Tonio, in a headset:
   _"throttle up the aircraft gets further away, throttle down it gets closer",_
   and it jitters climbing, diving and turning. Three faults, all in the XR rig

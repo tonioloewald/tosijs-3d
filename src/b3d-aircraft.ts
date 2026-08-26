@@ -563,6 +563,11 @@ export class B3dAircraft extends B3dControllable {
   private _reticleMesh: BABYLON.Mesh | null = null
   private meshNode: BABYLON.TransformNode | null = null
 
+  /** The displacement-tracked world velocity — see `_worldVel`. */
+  getWorldVelocity(): BABYLON.Vector3 | null {
+    return this._prevPosValid ? this._worldVel : null
+  }
+
   /**
    * Created on demand: a scene with no headset and no chase camera never needs
    * one, and the XR rig may ask for it long after the model loaded.

@@ -449,6 +449,35 @@ its spawn `x/y/z` and levels its attitude. Same family as #35.
 has taken control, or sync `x/y/z`/`rx/ry/rz` back each frame. The first is
 safer — writing six attributes per frame re-triggers render.
 
+## Wreck fall — DONE 2026-08-26, and what it did NOT fix
+
+A wreck now tumbles to the ground (`wreck-fall.ts`, pure + tested; driven from
+`b3d-death._startFall`). Verified live: died at 66 m, landed at exactly y = 0,
+108 m downrange, tumbling, then sat still for 460 frames — no drift, no
+micro-bouncing.
+
+Two things the measurement caught that reading would not have:
+
+- **Drag was 10× too high** at first (`0.02`). `a_drag = k·|v|·v` is 162 m/s² at
+  90 m/s, so a wreck shed its speed in half a second and fell almost
+  vertically out of a fast dive — 97 m downrange from 90 m/s. Terminal
+  velocity is `sqrt(-g/k)`, so `0.002` (≈70 m/s) is the right order. It looked
+  entirely plausible until it met a real crash.
+- **Nothing under it is a real case.** Killed at z ≈ 1690 in a demo whose ground
+  is 600 m across, the wreck reached y = −25 and kept going, with the spectate
+  camera chasing it down and the observer never coming off. Now abandoned
+  1500 m below the death point.
+
+[ ] Still open: a wreck rests with its ORIGIN on the surface, so a model whose
+origin is not at its belly will sit slightly proud or slightly sunk. Reads
+as "dug in" at the shallow angles a tumble ends at, so it is not obviously
+wrong — but `groundClearance` exists on the aircraft and could be used.
+[ ] Not addressed: respawn puts you back at the authored spawn while the wreck
+stays where it fell, so it is "off in the distance" by design (the demo's
+`respawn()` appends a FRESH aircraft — the sim really emits a death and a
+spawn). If respawn-near-death is wanted it is a scene-level choice, and it
+wants #40 (spawn at an authored place) first.
+
 ## COCKPIT DEATH: dialog under the ground, wreck far away (0.7.0, NOT A BLOCKER)
 
 Clouds demo. Dying in CHASE view is fine. Dying in COCKPIT view: only the top

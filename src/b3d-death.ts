@@ -102,12 +102,13 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "World Sim" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, sceneDelta } from './b3d-utils'
+import { B3dChild, sceneDelta, collidable } from './b3d-utils'
 import { spawnPrefab, type Prefab } from './prefab'
 import { explosionFx } from './b3d-warhead'
 import { panel3d, label3d, button3d, type Widget3d } from './widgets3d'
 import { panelFitWidth } from './widgets3d-layout'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
+import { newWreckFall, wreckFallStep, type WreckFallState } from './wreck-fall'
 import type { B3d } from './tosi-b3d'
 import type { B3dInputFocus } from './b3d-input-focus'
 import type { B3dControllable } from './b3d-controllable'
@@ -184,6 +185,14 @@ export class B3dDeath extends B3dChild {
   private _fires: BABYLON.ParticleSystem[] = []
   private _charMats: BABYLON.Material[] = []
   private _obs: BABYLON.Observer<BABYLON.Scene> | null = null
+  /** The falling wreck, while it is still in the air. */
+  private _fall: WreckFallState | null = null
+  private _fallObs: BABYLON.Observer<BABYLON.Scene> | null = null
+  private _fallRay = new BABYLON.Ray(
+    BABYLON.Vector3.Zero(),
+    BABYLON.Vector3.Down(),
+    2000
+  )
   private _timer: ReturnType<typeof setTimeout> | null = null
   private _onDeath = (e: Event) => this._handleDeath(e)
 
@@ -295,6 +304,7 @@ export class B3dDeath extends B3dChild {
         } else {
           this._burn(scene, node, at)
         }
+        this._startFall(scene, node, entity)
       } catch (err) {
         console.warn('b3d-death: wreckage FX failed (exit continues)', err)
       }
@@ -361,6 +371,121 @@ export class B3dDeath extends B3dChild {
     // 4. A beat to watch it burn, THEN the panel. Offering a menu over a fireball reads
     //    as a bug report rather than a death.
     this._timer = setTimeout(() => this._showPanel(), this.delay * 1000)
+  }
+
+  /**
+   * DEAD THINGS FALL.
+   *
+   * A wreck used to stop where it died, so a kill at altitude left a charred
+   * airframe hanging in the sky — and, because it is still solid, waiting to be
+   * flown into. Tonio, from a headset: _"I collided with wreckage high up … the
+   * wrecked plane hanging in mid-air (it should really tumble to the ground)."_
+   *
+   * The rules are pure and tested in [[wreck-fall]]; this is the Babylon side:
+   * sample the ground, step the model, carry the node, the fires and the
+   * spectate camera down with it.
+   *
+   * **Position is read from the NODE each frame and written back**, rather than
+   * held in JS across frames. A floating-origin rebase moves the node, and a
+   * model holding a world position would keep flying the wreck to where the
+   * world used to be.
+   */
+  private _startFall(
+    scene: BABYLON.Scene,
+    node: BABYLON.TransformNode | null,
+    entity: B3dControllable | null
+  ): void {
+    if (node == null) return
+    const vel = entity?.getWorldVelocity?.() ?? null
+    // Own meshes never count as ground — a wreck must not land on its own wing.
+    const own = new Set<BABYLON.AbstractMesh>()
+    if (node instanceof BABYLON.AbstractMesh) own.add(node)
+    for (const child of node.getChildMeshes()) own.add(child)
+    const skip = collidable((m) => own.has(m))
+
+    const start = node.getAbsolutePosition()
+    // Nothing under it is a real case — the edge of a finite ground plane, a
+    // kill out over open water in a scene with no sea floor. Without a floor
+    // the wreck falls forever, the spectate camera chases it down forever, and
+    // the observer never comes off. Found by killing at z≈1690 in a demo whose
+    // ground is 600 m across: it reached y = −25 and kept going.
+    const abandonY = start.y - 1500
+    this._fall = newWreckFall(
+      { x: start.x, y: start.y, z: start.z },
+      vel ? { x: vel.x, y: vel.y, z: vel.z } : { x: 0, y: 0, z: 0 }
+    )
+    // Tumble about a FIXED world axis through the wreck: an airframe that has
+    // stopped flying has no frame of its own worth preserving.
+    const axis = new BABYLON.Vector3(
+      this._fall.axis.x,
+      this._fall.axis.y,
+      this._fall.axis.z
+    )
+    const rest = node.rotationQuaternion
+      ? node.rotationQuaternion.clone()
+      : BABYLON.Quaternion.FromEulerVector(node.rotation)
+    const spin = new BABYLON.Quaternion()
+
+    this._fallObs = scene.onBeforeRenderObservable.add(() => {
+      const fall = this._fall
+      if (fall == null || node.isDisposed()) return
+      const dt = sceneDelta(scene)
+      if (dt <= 0) return
+
+      // Node → model, so an origin shift is absorbed (see the note above).
+      const here = node.getAbsolutePosition()
+      fall.pos.x = here.x
+      fall.pos.y = here.y
+      fall.pos.z = here.z
+
+      this._fallRay.origin.copyFromFloats(here.x, here.y + 1, here.z)
+      this._fallRay.direction.copyFromFloats(0, -1, 0)
+      const hit = scene.pickWithRay(this._fallRay, skip)
+      const groundY = hit?.hit ? here.y + 1 - hit.distance : -Infinity
+
+      const { impacted } = wreckFallStep(fall, groundY, dt)
+      node.position.copyFromFloats(fall.pos.x, fall.pos.y, fall.pos.z)
+      BABYLON.Quaternion.RotationAxisToRef(axis, fall.angle, spin)
+      node.rotationQuaternion = spin.multiply(rest)
+
+      // The fires ride along — a smoke column left behind at the kill point,
+      // with the wreck a hundred metres below it, is worse than no fire.
+      for (const p of this._fires) {
+        const e = p.emitter as BABYLON.Vector3 | null
+        if (e && typeof (e as BABYLON.Vector3).copyFromFloats === 'function') {
+          e.copyFromFloats(fall.pos.x, fall.pos.y, fall.pos.z)
+        }
+      }
+
+      // And so does the shot: you are watching THIS, so keep it in frame.
+      const cam = this._orbitCam
+      if (cam instanceof BABYLON.ArcRotateCamera) {
+        cam.target.copyFromFloats(
+          fall.pos.x,
+          fall.pos.y + this.orbitHeight * 0.35,
+          fall.pos.z
+        )
+      } else if (cam instanceof BABYLON.FreeCamera) {
+        cam.setTarget(new BABYLON.Vector3(fall.pos.x, fall.pos.y, fall.pos.z))
+      }
+
+      if (impacted) {
+        try {
+          explosionFx(
+            scene,
+            new BABYLON.Vector3(fall.pos.x, fall.pos.y, fall.pos.z),
+            this.blastRadius * 0.5
+          )
+        } catch {
+          // Cosmetics never block the exit — same rule as the death FX above.
+        }
+      }
+      if (fall.grounded || fall.pos.y < abandonY) {
+        scene.onBeforeRenderObservable.remove(this._fallObs)
+        this._fallObs = null
+        this._fall = null
+      }
+    })
   }
 
   private _burn(
@@ -524,6 +649,10 @@ export class B3dDeath extends B3dChild {
     const scene = this.owner?.scene
     if (scene && this._obs) scene.onBeforeRenderObservable.remove(this._obs)
     this._obs = null
+    if (scene && this._fallObs)
+      scene.onBeforeRenderObservable.remove(this._fallObs)
+    this._fallObs = null
+    this._fall = null
     for (const p of this._fires) p.dispose()
     this._fires = []
     for (const mat of this._charMats) mat.dispose()

@@ -660,6 +660,9 @@ export type {
 } from './interaction'
 // Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
 export { B3dDeath, b3dDeath } from './b3d-death'
+// Wreck fall: the pure tumbling-descent model b3d-death drops a corpse with.
+export { newWreckFall, wreckFallStep, tumbleAxis } from './wreck-fall'
+export type { WreckFallState, WreckFallParams } from './wreck-fall'
 // Spawner: keeps the world populated with encounters (prefab + a rule).
 export { B3dSpawner, b3dSpawner } from './b3d-spawner'
 // Formations: pure placement patterns for an encounter's members.

@@ -254,6 +254,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **pure spatial math** behind the coordinate-free `MinSimApi` surface ([world-contract](?world-contract.ts) §8).
 - https://3d.tosijs.net/world-view/ — world-view
   The Babylon **view** of a [[world-store]]. The store is the authoritative,
+- https://3d.tosijs.net/wreck-fall/ — wreck-fall
+  tumbling ballistic descent, an impact, a skid, and a rest. Babylon-free,
 - https://3d.tosijs.net/xr-frames/ — xr-frames
   Reference frames for spatial XR UI. "Stable" in XR isn't one thing — there are
 - https://3d.tosijs.net/xr-gamepad/ — xr-gamepad

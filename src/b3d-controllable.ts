@@ -87,6 +87,19 @@ export class B3dControllable extends AbstractMesh {
   }
 
   /**
+   * TRUE world velocity, m/s, or `null` if this entity does not track one.
+   *
+   * The seam exists because `b3d-death` has to launch a wreck on the velocity
+   * it died with, and an entity's own `velocity` field is often only part of
+   * the story — `b3d-aircraft`'s reads ZERO in wing-borne flight, because the
+   * fly-by-wire path moves the node directly. A wreck given that would drop
+   * straight down out of a 60 m/s dive.
+   */
+  getWorldVelocity(): BABYLON.Vector3 | null {
+    return null
+  }
+
+  /**
    * A node carrying this entity's POSITION and HEADING, held level — what a
    * chase camera should be a child of.
    *
