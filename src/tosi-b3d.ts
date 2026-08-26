@@ -3028,6 +3028,10 @@ export class B3d extends Component {
         chaseHeight?: number
         chaseDistance?: number
         getHeadPosition?: () => BABYLON.Vector3 | null
+        /** Level position+heading node to PARENT the chase rig to — see
+         * `B3dControllable.getChaseAnchor`. Absent/null ⇒ the eased
+         * world-space follow below. */
+        getChaseAnchor?: () => BABYLON.TransformNode | null
         lastInput?: { cameraZoom: number; cameraPeek: number }
       }
     } | null
@@ -3372,8 +3376,10 @@ export class B3d extends Component {
           return
         }
 
-        // Non-cockpit: ensure the rig is back in world space.
-        if (rig.parent != null) {
+        // Non-cockpit: ensure the rig is back in world space — unless it is
+        // riding a chase ANCHOR, which is the good case (see below).
+        const chaseAnchor = isFpv ? null : entity?.getChaseAnchor?.() ?? null
+        if (rig.parent != null && rig.parent !== chaseAnchor) {
           rig.parent = null
           rig.scaling.set(1, 1, 1)
           chaseFirstFrame = true
@@ -3413,11 +3419,67 @@ export class B3d extends Component {
           chaseYaw = targetYaw - chaseYawOffset
           chasePos.set(targetX, targetY, targetZ)
         }
+
+        /*
+        PARENTED CHASE — the rigid path, when the entity offers an anchor.
+
+        The rig becomes a CHILD of a level position+heading node the entity
+        updates in the same tick it moves. That fixes three separate faults at
+        once, all measured 2026-08-26 (see TODO → "THE CHASE RIG"):
+
+          1. ORDER. This observer is `onXRFrameObservable`, which fires BEFORE
+             `scene.render()`; the entity moves in `registerBeforeRender`, which
+             fires inside it. So the world-space path below positions the rig
+             from LAST frame's aircraft position, every frame — and a variable
+             frame time turns that fixed lag into jitter. A child's world matrix
+             is resolved at render, after the move.
+          2. LAG. `chasePos += (target - chasePos) * k*dt` is a first-order
+             tracker, so it sits `v/k` behind — about 6.8 m at 61 m/s, and
+             PROPORTIONAL TO SPEED. Tonio, in a headset: "throttle up the
+             aircraft gets further away. Throttle down it gets closer." A child
+             at a fixed local offset cannot drift.
+          3. FRAME-RATE DEPENDENCE. `k*dt` as a lerp factor is the wrong form
+             (`1 - exp(-k*dt)` is the right one), so the easing itself changed
+             behaviour with frame rate.
+
+        Level and yaw-only, exactly as the un-parented version was: parenting to
+        the airframe would hand the view its attitude, and a rolling horizon in
+        a headset is why this was not simply parented in the first place.
+
+        Head compensation stays. It is not decoration — `cam.position` is the
+        tracked head offset within the rig, and in a floor-level reference space
+        that is your whole standing height. It mirrors the cockpit branch above,
+        which has always worked this way. The residual staleness is a frame of
+        HEAD motion (millimetres), not a frame of aircraft motion (metres).
+        */
+        if (chaseAnchor != null) {
+          if (rig.parent !== chaseAnchor) {
+            rig.parent = chaseAnchor
+            rig.scaling.set(1, 1, 1)
+          }
+          BABYLON.Quaternion.RotationYawPitchRollToRef(
+            peekYaw - chaseYawOffset,
+            0,
+            0,
+            yawQuat
+          )
+          rig.rotationQuaternion = yawQuat
+          BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx)
+          BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp)
+          // Anchor-local: +Z is the entity's forward, so behind is −Z.
+          rig.position.set(-tmp.x, up - tmp.y, -back - tmp.z)
+          frames.eyeYawOffset = chaseYawOffset - peekYaw
+          return
+        }
         // Chase eases horizontally (turning doesn't snap); vertical always tracks
         // tightly so it doesn't sink below on a climb. fpv tracks tight all round.
-        const posT = Math.min(1, (isChase ? 9 : 16) * dt)
-        const posTy = Math.min(1, 16 * dt)
-        const yawT = Math.min(1, 6 * dt)
+        // `1 - exp(-k*dt)`, NOT `k*dt`: the latter is not frame-rate
+        // independent, so the follow behaved differently at 72 and 90 Hz. Only
+        // entities with no chase anchor still come through here (a biped, a
+        // car) — an aircraft is parented above and does not ease at all.
+        const posT = 1 - Math.exp(-(isChase ? 9 : 16) * dt)
+        const posTy = 1 - Math.exp(-16 * dt)
+        const yawT = 1 - Math.exp(-6 * dt)
         chasePos.x += (targetX - chasePos.x) * posT
         chasePos.y += (targetY - chasePos.y) * posTy
         chasePos.z += (targetZ - chasePos.z) * posT

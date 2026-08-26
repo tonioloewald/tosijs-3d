@@ -562,11 +562,36 @@ export class B3dAircraft extends B3dControllable {
   private _radar: B3dRadar | null | undefined = undefined
   private _reticleMesh: BABYLON.Mesh | null = null
   private meshNode: BABYLON.TransformNode | null = null
+
+  /**
+   * Created on demand: a scene with no headset and no chase camera never needs
+   * one, and the XR rig may ask for it long after the model loaded.
+   */
+  getChaseAnchor(): BABYLON.TransformNode | null {
+    if (this.owner == null || this.meshNode == null) return null
+    if (this._chaseAnchor == null) {
+      const anchor = new BABYLON.TransformNode(
+        `aircraft-chase-anchor-${this.instanceId}`,
+        this.owner.scene
+      )
+      anchor.rotationQuaternion = new BABYLON.Quaternion()
+      anchor.position.copyFrom(this.meshNode.absolutePosition)
+      this._chaseAnchor = anchor
+    }
+    return this._chaseAnchor
+  }
   // The chase camera parents to THIS, not to the airframe. It tracks the aircraft's position and
   // HEADING (yaw) only, held level — so the plane pitches and rolls WITHIN the view instead of
   // dragging the camera with it. The airframe's small attitude jitter, amplified by the ~5m chase
   // lever arm, was the whole reason the chase was jittery while the pivot-adjacent cockpit wasn't.
   private _chasePivot: BABYLON.TransformNode | null = null
+  /**
+   * Position + heading, level — the node a chase camera can be a CHILD of.
+   * Separate from `_chasePivot`, which also carries the flat view's look-spring
+   * and pitch-follow; those are the flat camera's orbit and must not ride into
+   * a headset. Updated in the same tick the airframe moves.
+   */
+  private _chaseAnchor: BABYLON.TransformNode | null = null
   private _chaseLookPitch = 0
   /** Damped airframe pitch the chase has actually inherited (see
    * `chasePitchFollow`) — smoothed, never the raw attitude. */
@@ -1107,6 +1132,23 @@ export class B3dAircraft extends B3dControllable {
         0,
         this._chasePivot.rotationQuaternion
       )
+      // The bare anchor: position + heading, no look, no pitch-follow. Same
+      // tick, same source values as the pivot above — so anything parented to
+      // it is rigid by construction rather than by good timing.
+      //
+      // `_chaseAnchor`, not `getChaseAnchor()`: only maintain one that someone
+      // asked for. A flat scene full of aircraft should not carry a node per
+      // craft for a headset that is not there.
+      const anchor = this._chaseAnchor
+      if (anchor != null) {
+        anchor.position.copyFrom(node.absolutePosition)
+        BABYLON.Quaternion.RotationYawPitchRollToRef(
+          this.fbw.heading,
+          0,
+          0,
+          anchor.rotationQuaternion!
+        )
+      }
       if (this.chaseCamera?.rotationQuaternion != null) {
         BABYLON.Quaternion.RotationYawPitchRollToRef(
           0,
@@ -1919,6 +1961,12 @@ export class B3dAircraft extends B3dControllable {
     if (this._chasePivot) {
       this._chasePivot.dispose()
       this._chasePivot = null
+    }
+    if (this._chaseAnchor) {
+      // Anything parented to it (the XR rig) must not be disposed with it.
+      for (const child of this._chaseAnchor.getChildren()) child.parent = null
+      this._chaseAnchor.dispose()
+      this._chaseAnchor = null
     }
     if (this.cockpitCamera) {
       this.cockpitCamera.parent = null

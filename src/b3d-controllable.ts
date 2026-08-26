@@ -86,6 +86,27 @@ export class B3dControllable extends AbstractMesh {
     return this.mesh ?? null
   }
 
+  /**
+   * A node carrying this entity's POSITION and HEADING, held level — what a
+   * chase camera should be a child of.
+   *
+   * It exists so a chase rig can be **parented** rather than recomputed. The XR
+   * rig runs in `onXRFrameObservable`, which fires BEFORE `scene.render()`,
+   * while an entity moves in `registerBeforeRender`, which fires inside it — so
+   * anything that copies a position is copying LAST frame's, every frame, and a
+   * variable frame time turns that fixed lag into jitter. A child's world matrix
+   * is resolved at render time, after the entity moved, so the order stops
+   * mattering. (Measured 2026-08-26; see TODO → "THE CHASE RIG".)
+   *
+   * Level and yaw-only on purpose: parenting straight to the airframe would hand
+   * the camera the attitude, which is a rolling horizon in a headset.
+   *
+   * `null` (the default) means "no anchor" and a caller must fall back.
+   */
+  getChaseAnchor(): BABYLON.TransformNode | null {
+    return null
+  }
+
   handleGainFocus() {
     this.inputProvider?.activate?.()
   }

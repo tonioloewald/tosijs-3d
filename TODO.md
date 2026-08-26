@@ -416,13 +416,24 @@ Three problems, all of which the flat pivot does not have:
    compositor **late-latches** the real head pose after JS has run. Parenting is
    exactly what makes late-latching correct: the head is resolved WITHIN the rig.
 
-[ ] **Give VR the flat rig.** Parent the XR rig to `_chasePivot` — position + yaw,
-held level — with the zoom as a local offset, instead of easing a world-space
-copy. Rigid by construction, still level (so no attitude nausea, which is why it
-was not simply parented to the airframe), and head tracking resolves inside the
-rig where it belongs. If yaw smoothing is still wanted, smooth the PIVOT'S YAW —
-a slow-varying signal — never the rig's position.
-[ ] If any easing survives, convert it to `1 - Math.exp(-k*dt)` on the way past.
+**Confirmed in a headset before building** (Tonio): _"Throttle up the aircraft gets
+further away. Throttle down it gets closer."_ That is the `v/k` lag exactly — a
+prediction the generic-judder explanation does not make.
+
+[x] **Built: the rig is PARENTED.** `B3dControllable.getChaseAnchor()` is the new
+seam — a level position+heading node the entity updates in the same tick it
+moves (`b3d-aircraft` maintains one, lazily, so a flat scene carries no node
+per craft). The XR chase branch parents the rig to it at a fixed local offset
+and no longer eases anything. Head compensation stays: `cam.position` is your
+whole standing height in a floor-level reference space, and the residual
+staleness is a frame of HEAD motion (millimetres), not aircraft motion (metres).
+[x] **Remaining easing converted to `1 - Math.exp(-k*dt)`** — only entities with
+no anchor (a biped, a car) still take that path.
+[ ] **Needs a headset run.** Flat is proven unregressed by measurement (aircraft
+in camera space still z = 9.36, sd 0.00004 m) and the anchor tracks the
+aircraft with ZERO error — but the parented VR path itself cannot be
+exercised flat.
+[ ] Give `b3d-biped` and `b3d-car` anchors too, and the fallback path can go.
 
 ### Latent, found while reading: `AbstractMesh.render()` can fight the flight model
 

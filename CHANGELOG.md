@@ -22,6 +22,29 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **The VR chase camera jittered and drifted with speed** — Tonio, in a headset:
+  _"throttle up the aircraft gets further away, throttle down it gets closer",_
+  and it jitters climbing, diving and turning. Three faults, all in the XR rig
+  and none in the flat one (which measures rigid to 0.2 mm):
+
+  - It was **not parented**. The XR rig runs in `onXRFrameObservable`, which
+    fires BEFORE `scene.render()`, while an entity moves in
+    `registerBeforeRender`, which fires inside it — so the rig was positioned
+    from last frame's aircraft position, every frame, and a variable frame time
+    turns that fixed lag into jitter.
+  - It **eased toward a world-space target**, and a first-order tracker sits
+    `v/k` behind — ~6.8 m at 61 m/s, proportional to speed. Hence the throttle
+    symptom.
+  - The easing used `lerp(a, b, k*dt)`, which is **not frame-rate independent**
+    (`1 - exp(-k*dt)` is).
+
+  The rig is now a CHILD of a level position+heading anchor the entity updates in
+  the same tick it moves, at a fixed local offset, with no easing at all — rigid
+  by construction rather than by good timing. New seam:
+  **`B3dControllable.getChaseAnchor()`**, `null` by default; `b3d-aircraft`
+  provides one. Entities without an anchor keep the eased path, now with the
+  correct exponential form.
+
 - **All three panel sites now aim themselves the same way**, through
   `dialog-placement.faceViewer`. `frame-panel` and the XR settings panel used to
   face you with their BACK and cancel the resulting mirror with
