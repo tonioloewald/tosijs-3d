@@ -454,7 +454,8 @@ export class B3dDeath extends B3dChild {
     a glide, not a crash, and it dragged the spectate camera across that much
     terrain with it.
     */
-    const impact = (entity as unknown as { crashed?: boolean })?.crashed === true
+    const impact =
+      (entity as unknown as { crashed?: boolean })?.crashed === true
     const carry = impact ? 0.25 : 0.7
 
     const start = node.getAbsolutePosition()
@@ -597,7 +598,10 @@ export class B3dDeath extends B3dChild {
     }
     for (const p of this._fires) {
       const e = p.emitter as BABYLON.Vector3 | null
-      if (e && typeof (e as BABYLON.Vector3).addInPlaceFromFloats === 'function') {
+      if (
+        e &&
+        typeof (e as BABYLON.Vector3).addInPlaceFromFloats === 'function'
+      ) {
         e.addInPlaceFromFloats(dx, 0, dz)
       }
     }

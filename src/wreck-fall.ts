@@ -142,7 +142,6 @@ export function newWreckFall(
 ): WreckFallState {
   const { spinPerSpeed = 0.05, maxSpin = 4, carry = 1 } = params
   const kept = { x: vel.x * carry, y: vel.y * carry, z: vel.z * carry }
-  const speed = length(kept)
   return {
     pos: { ...pos },
     vel: kept,

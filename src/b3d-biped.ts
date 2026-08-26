@@ -451,9 +451,7 @@ export class B3dBiped extends B3dControllable {
         // Terminal velocity keeps one slow frame from teleporting a biped
         // through the floor, on top of the probe extension above.
         this._fallVel = Math.max(-20, this._fallVel - 9.81 * dt)
-        node.moveWithCollisions(
-          new BABYLON.Vector3(0, this._fallVel * dt, 0)
-        )
+        node.moveWithCollisions(new BABYLON.Vector3(0, this._fallVel * dt, 0))
       }
       // Void-catch backstop: never sink below groundY, so a biped can't fall forever
       // when a scene has no collidable ground at all. Default is DEEP (see
@@ -830,7 +828,11 @@ export class B3dBiped extends B3dControllable {
         is something the probe can then stand you on.
         */
         this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
-        this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75 + STEP_OFFSET, 0)
+        this.mesh.ellipsoidOffset = new BABYLON.Vector3(
+          0,
+          0.75 + STEP_OFFSET,
+          0
+        )
         this.mesh.checkCollisions = true
         owner.register({ meshes })
         // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX

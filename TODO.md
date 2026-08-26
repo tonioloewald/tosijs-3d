@@ -2,54 +2,28 @@
 
 ## The queue
 
-[ ] **UPSTREAM: the `widgets3d` doc page's in-browser test block does not
-compile** — `✗ Test execution - Arg string terminates parameters early`,
-so `0/1 tests passed` and the doc site carries a permanent red "Failed 1"
-badge. Pre-existing (predates 2026-08-26; noticed while verifying an
-unrelated fix, and recorded rather than dismissed).
+[ ] **UPSTREAM (filed: tosijs-ui#109): the `widgets3d` doc page's `test` fence
+does not COMPILE** — `Arg string terminates parameters early`, so `0/1 tests
+passed` and the doc site carries a permanent red badge. **Survives the
+2026-08-26 toolchain upgrade** (tosijs-ui 1.12.3, tjs-lang 0.13.6), so it is
+a live bug rather than a stale-version artifact.
 
-The message is a TRANSPILER parse error, not an assertion: the whole fence
-fails to compile, so none of the six widget tests run. Two guesses at the
-offending construct were both WRONG — a nested double quote in
-`'[data-w3d="slider"] circle'`, then the deep call nesting — so the
-trigger is genuinely unknown and needs a bisect of the fence rather than
-another guess. Both guesses are recorded so the next person does not
-repeat them.
+Narrowed before filing: it is NOT tjs-lang's transpiler choking on this
+source — `transpileToJS` / `tjs` / `parse` / `preprocess` all return clean
+on the fence body — and the message exists as a literal in no installed
+package and no built bundle, so it is assembled at runtime. That points at
+the doc system's test-block handling.
 
-Worth real attention: these are the only tests covering pointer routing
-into `panel3d` (slider drag, toggle, button release, iconBar hit zones,
-list rows, clipping), the exact surface that broke in the lost-pointerup
-saga. They have been silently not running.
+Two guesses were WRONG and are recorded upstream so nobody repeats them: a
+nested double quote in `'[data-w3d="slider"] circle'`, and the deep call
+nesting in the `iconBar3d` test.
 
-File on tjs-lang once bisected; mirror in `UPSTREAM.md`.
-
-
-Deferred past the 0.7.0 tag. Details live in the sections named.
-
-**Release cadence: additive work and fixes go out as PATCHES.** Not minors —
-`practices/releasing.md` → "Responsibility scales with the MEASURED user base".
-Measured for tosijs-3d: ~1.2k downloads/month with **no known external
-consumers** (manta-recon and ariosto are in-house `file:` deps), and zero
-breakage complaints ever. Grading additive work as a minor and holding it for a
-release train is process cosplay — Firebase-scale caution without Firebase-scale
-users. Ship it, note it, move on. (Genuinely breaking changes still get the
-Migration.md treatment — that is about honesty to a consumer, not ceremony.)
-
-| Item                                                                      | Why it waited                                                                                                       |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| **`tosijs-3d/demo-utils` subpath** (vetted subset + stability disclaimer) | API commitment; the vet found the module is not publishable as-is. `orbitCam` alone is 30 of 38 imports             |
-| **Exit-VR carries the pose back** instead of re-seating you               | VR-only, unverifiable at a desk, current behaviour "not bad"                                                        |
-| ~~Which half of an angle pair is STORED~~                                 | **Closed** — the alias is computed and reaches every call site that matters; literal markup lands with tosijs 1.8.0 |
-| **Turret firing arcs** — high-angle fire and/or traversal limits          | Two readings to settle first; additive, so it ships in a patch when built                                           |
-| **`flightStage` helper** — the aircraft equivalent of `demoStage`         | Third demo to need it; specified, not built                                                                         |
-| **World-placed modal dialogs + gaze recovery** (Tonio's design)           | Supersedes face-pinning AND the depth guard; the right fix for all of it                                            |
-| **A UI DEPTH BAND** (stacked panels vs. occluders)                        | Per-panel pull-forward is right for one dialog and wrong for two — subsumed by world placement                      |
-| **Default-exclude collision groups** (`probe()`)                          | The shared predicate landed; the polarity flip and the remaining call sites did not                                 |
-
-**Still open against 0.7.0 itself:** the guided-missile crash (page-wedging,
-the one that actually matters), the left-stick double-duty conflict, and the
-npm channel decision. The rig-hierarchy family (chase jitter, cockpit death)
-is explicitly NOT a blocker — see below.
+Why it matters more than a badge: those six tests are the only cover for
+pointer routing into `panel3d` (slider drag, toggle, button release,
+iconBar hit zones, list rows, clipping) — the exact surface that broke in
+the lost-pointerup saga — and they have been silently not running. A fence
+that fails to COMPILE reports as one failing test rather than six missing
+ones, which is why it hid.
 
 ## OPEN: guided-missile demo crashes on a hit (0.7.0 validation, UNRESOLVED)
 
@@ -1081,28 +1055,11 @@ into the stall above — the leaves-never-return report IS this gap.
 
 ### Tech debt spotted this pass
 
-[ ] **`bun run typecheck` is RED** — `model-transform.test.ts:449` calls
-`canonicalize(clone as never)` with 1 arg; the signature is now
-`(clone, scene, name)`. The test PASSES at runtime (bun doesn't typecheck),
-so it's been normalised — but a red `tsc -p tsconfig.json --noEmit` is how a
-real type regression hides. `canonicalize` changed from mutate-in-place to
-wrapper-returning; the test still uses `clone` after, so the fix isn't just
-"pass two more args" — someone who owns that refactor should decide whether
-the assertion should measure the wrapper. Not fixed blind. Pre-existing (not
-from VR pass 2's changes).
-
-## 0.7.0 VR (goggles) pass — Tonio, 2026-08-21
-
-Stopped halfway: _"everything works aside from some fairly minor issues with the
-VR setup / rig"_ — the same faults recurring on every page, so the list stops
-being informative. **The camera/rig is the fix.**
-
-### THE ONE THAT MATTERS — the VR camera is locked
-
-Hit on b3d (pause demo), make-mesh, b3d-collisions, b3d-library, b3d-trigger,
-exploder, reflections, cloud-shadows, shadow-decal, destroyable, launcher,
-turret, warhead — i.e. **every orbit-camera demo**.
-
+[x] **`bun run typecheck` was RED** (`model-transform.test.ts:449`, canonicalize
+arity) — **green as of the 2026-08-26 toolchain upgrade**, and so is
+`tsconfig.build.json`. Verified: both emit zero lines. Kept as an [x] rather
+than deleted because this was a standing "known red" that a gate had to route
+around twice; the point is that it is no longer a reason to skip the check.
 [ ] **You cannot move the view in VR.** "I have a locked camera", "stuck looking
 at this from a fixed angle". These demos have NO locomotion by design — flat,
 you orbit with the mouse; in VR there is no orbit and nothing maps to one, so

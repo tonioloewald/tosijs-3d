@@ -8,6 +8,30 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ## 0.7.3
 
+### Changed
+
+- **Toolchain bumped** — `tosijs` 1.7.8 → 1.8.0, `tosijs-ui` 1.9.8 → 1.12.3,
+  `haltija` 1.11.2 → 1.12.5, and **`tjs-lang` 0.13.6 added explicitly**: it is a
+  peer of tosijs-ui and was **not installed here at all**, which nothing warned
+  about. The site built anyway, so "works" and "works properly" were
+  indistinguishable — installing it changed the build output (`tjs-lang bundles
+served same-origin at /tjs/` is new).
+
+  `peerDependencies` is deliberately unchanged: `tosijs ^1.7.8` already admits
+  1.8.0, so developing against the newer one costs consumers nothing and this
+  stays a **patch**.
+
+  Fallout, all fixed: an unused variable in `wreck-fall` failed lint, which
+  `bun start` runs first — so the dev server would not start, and because
+  `bun format` is `eslint && prettier`, **prettier had been silently skipped**
+  on every file since. Also: `bun run typecheck` is **green again** (the
+  standing `model-transform.test.ts:449` red is gone).
+
+- **`.haltija.json` pins agent commands to this project's origin.** A shared
+  haltija server holds tabs from several repos and commands followed browser
+  FOCUS, so a command run from this directory could silently drive another
+  project's page — which happened repeatedly. New in haltija 1.12.
+
 ### Fixed
 
 - **World-placed dialogs rendered MIRRORED** — the death/respawn panel read
@@ -79,6 +103,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
   frames walking a slope at offset 0.00000**, where before the error wandered
   freely inside a 15 cm band. The probe also goes through `collidable()` now, so
   a UI panel is no longer something you can stand on.
+
 - **Dying in VR teleported you to the world origin.** Tonio: _"I collided with
   wreckage high up and respawned at the origin or starting point with the wrecked
   plane hanging in mid-air off in the distance."_ He was not moved away from the
