@@ -105,23 +105,44 @@ export function gazeStep(
 }
 
 /**
- * Pick the best of several candidate distances — the results of casting a ray
- * along each candidate direction.
+ * Pick the best of several candidate directions, given how far each one is
+ * clear. `Infinity` means nothing was hit. Returns `-1` when every candidate is
+ * too cramped to use.
  *
- * `Infinity` means nothing was hit, i.e. fully clear. The winner is the
- * candidate with the most room, preferring EARLIER candidates on a tie so a
- * caller can order them by desirability (straight ahead first). Returns `-1`
- * when every candidate is too cramped to use.
+ * **Enough room wins over the most room**, which is the whole point. Candidates
+ * are in preference order (straight ahead first), and the rule takes the FIRST
+ * one with room for the panel at roughly its intended distance. Only if none has
+ * that does it fall back to the roomiest.
+ *
+ * It used to simply maximise clearance, and that is subtly awful in third
+ * person: a follow camera looks at your character, so **your own body is the
+ * thing straight ahead**, and every other direction is open sky. Measured in the
+ * b3d demo — straight ahead 2.17 m (hit: `Clone of HumanBase`), all seven other
+ * candidates `Infinity`. So the dialog was pushed off-axis every single time,
+ * and with slightly different geometry the winner could as easily have been the
+ * 180° candidate: behind you. Meanwhile 2.17 m was ample —
+ * `placementDistance` would have sat the panel at 1.92 m, comfortably in front
+ * of the character, exactly where you are looking.
+ *
+ * Reported as "I paused the b3d demo and the continue panel showed up in an
+ * interesting spot."
+ *
+ * Omit `desired` for the old most-room behaviour.
  */
 export function bestCandidate(
   clearances: number[],
-  minClearance: number
+  minClearance: number,
+  desired?: number
 ): number {
+  // "Room enough" is deliberately less than `desired`: a panel that has to come
+  // 25% closer is still straight ahead, and straight ahead beats sideways.
+  const roomEnough = desired == null ? Infinity : desired * 0.75
   let best = -1
   let bestClear = -Infinity
   for (let i = 0; i < clearances.length; i++) {
     const c = clearances[i]
     if (c < minClearance) continue
+    if (c >= roomEnough) return i // first fit, in preference order
     if (c > bestClear) {
       best = i
       bestClear = c

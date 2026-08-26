@@ -132,9 +132,10 @@ first thing you see is a Start screen; backgrounding the tab pauses it again.
 The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
 gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
 paused, put the headset on, press Continue" is the only arrangement that
-reliably enters VR, and `enterXrOnResume` closes the loop by pausing when you
-take the headset off. Set it on the scene below and the button changes to
-"Continue in VR" on a device that has it.
+reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene below
+and the button changes to "Continue in VR" on a device that has it. (Leaving VR
+pauses in every scene now, not only this one — entering unpauses, so leaving has
+to be its inverse or it is not a pair.)
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
@@ -516,10 +517,13 @@ export class B3d extends Component {
      */
     reseatFreeze: 'on' as 'on' | 'off',
     /**
-     * On resume, enter immersive VR if the device supports it; on leaving VR,
-     * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
-     * user gesture, and the Continue tap is one. A scene that tried to enter XR
-     * on load would be refused by the browser.
+     * On resume, enter immersive VR if the device supports it. This is why
+     * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
+     * Continue tap is one. A scene that tried to enter XR on load would be
+     * refused by the browser.
+     *
+     * The other direction — leaving VR pauses — is no longer gated on this; it
+     * happens for every scene, because the pair is the point.
      */
     enterXrOnResume: 'off' as 'on' | 'off',
   }
@@ -2852,11 +2856,25 @@ export class B3d extends Component {
         xrSession = undefined
         restoreRaf?.()
         restoreRaf = undefined
-        // Leaving VR is a departure, not a view change: taking the headset off
-        // should not mean the world ran on without you. Only when the scene
-        // OPTED into the VR flow — a flat scene that happened to visit XR
-        // shouldn't suddenly acquire a pause panel on the way out.
-        if (this.enterXrOnResume === 'on') this.pause('xr')
+        /*
+        LEAVING VR PAUSES — for every scene, not just the ones that opted in.
+
+        Taking the headset off is a departure, not a view change: the world
+        should not run on without you while it sits on your desk.
+
+        This used to require `enterXrOnResume`, on the reasoning that a flat
+        scene which merely VISITED XR should not suddenly acquire a pause panel
+        on the way out. Superseded by the symmetry, which is the stronger
+        argument (Tonio: "just as entering VR should unpause, exiting VR should
+        probably pause"): one gesture means resume, its inverse means stop, and
+        a rule you have to opt into is not a pair. `enterXrOnResume` still owns
+        the other direction — resume → enter — so the loop it describes is
+        unchanged; it just no longer gates this half.
+
+        Guarded on `paused` so exiting a scene you paused from INSIDE the headset
+        does not re-enter the pause it is already in.
+        */
+        if (!this.paused) this.pause('xr')
       }
     })
     // XR is available — reveal the Enter VR button (grouped next to the gear in the

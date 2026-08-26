@@ -22,6 +22,21 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **Leaving VR now pauses in EVERY scene**, not only those with
+  `enterXrOnResume`. Taking the headset off is a departure, not a view change.
+  The gate existed on the reasoning that a flat scene which merely visited XR
+  shouldn't acquire a pause panel on the way out; superseded by the symmetry,
+  which is the stronger argument (Tonio: _"just as entering VR should unpause,
+  exiting VR should probably pause"_) — one gesture means resume, its inverse
+  means stop, and a rule you opt into is not a pair. `enterXrOnResume` still owns
+  resume → enter.
+- **The biped got stuck on slopes** — the cost of the fix below, found and fixed
+  in the same session. Snapping the feet onto the surface put the collision
+  ellipsoid's bottom exactly ON it, so moving into rising ground embedded it and
+  Babylon refused the move. The old 15 cm float had been acting as the clearance.
+  The body now starts a step above the feet (`STEP_OFFSET`, which is Unity's Step
+  Offset): anything lower than a step is walked over, the probe stands you on it
+  afterwards, and a wall is still a wall.
 - **The biped floated above or sank into slopes, and never corrected.** Tonio,
   on a long-standing one: _"you often end up a little offset from the ground …
   this never really corrects. It just gets randomly messed up again when you

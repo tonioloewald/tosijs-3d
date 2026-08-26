@@ -547,7 +547,10 @@ export class B3dSvgPlane extends AbstractMesh {
         )
         clearances.push(hit?.hit ? hit.distance : Infinity)
       }
-      const i = bestCandidate(clearances, 0.7)
+      // `desired` matters: it makes this "the least deviation with room" rather
+      // than "the most room", so a follow camera's own subject stops pushing
+      // every dialog off-axis. See bestCandidate.
+      const i = bestCandidate(clearances, 0.7, desired)
       // Nowhere is clear (boxed in): take straight ahead at the floor distance
       // rather than refusing to show a modal at all.
       const dir = dirs[i >= 0 ? i : 0]

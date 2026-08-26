@@ -150,6 +150,11 @@ export class AnimState {
   }
 }
 
+/**
+ * How far above the feet the collision body starts — everything below this is
+ * walked over rather than collided with. Unity calls it Step Offset.
+ */
+const STEP_OFFSET = 0.35
 /** How high a lip the biped walks straight over instead of being stopped by. */
 const STEP_UP = 0.5
 /** How far the ground may drop before it becomes a FALL rather than a step. */
@@ -804,8 +809,28 @@ export class B3dBiped extends B3dControllable {
               (n) =>
                 /head/i.test(n.name) && !(n instanceof BABYLON.AbstractMesh)
             ) ?? null
+        /*
+        THE COLLISION BODY STARTS A STEP ABOVE THE FEET.
+
+        Its bottom used to sit exactly ON the feet, which was survivable only
+        because the old ground check left the biped floating somewhere in a
+        15 cm dead band — that float WAS the clearance. Snapping the feet onto
+        the surface removed the float and, with it, the clearance: moving into
+        rising ground embedded the ellipsoid in the slope, Babylon refused the
+        move, and you stopped dead. Tonio: "you can get stuck on sloped
+        surfaces."
+
+        Raising the offset by `STEP_OFFSET` is the standard fix (it is Unity's
+        Step Offset): the capsule ignores anything lower than a step, so a slope
+        rising under you is not an obstacle, and the ground probe puts the feet
+        on the surface afterwards. A wall is still a wall — the capsule above
+        the step height is unchanged.
+
+        Kept below `STEP_UP` (the probe's reach), so anything the body walks over
+        is something the probe can then stand you on.
+        */
         this.mesh.ellipsoid = new BABYLON.Vector3(0.3, 0.75, 0.3)
-        this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75, 0)
+        this.mesh.ellipsoidOffset = new BABYLON.Vector3(0, 0.75 + STEP_OFFSET, 0)
         this.mesh.checkCollisions = true
         owner.register({ meshes })
         // Skin materials that export as alphaMode MASK + base-color alpha 0 (an FBX
