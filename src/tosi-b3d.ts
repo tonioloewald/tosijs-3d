@@ -656,6 +656,26 @@ export class B3d extends Component {
     ':host .scene-panel-overlay[hidden]': {
       display: 'none',
     },
+    // Centred, above everything, and it dims the world behind it — a modal
+    // should read as one. `pointer-events` on the backdrop so a stray click
+    // lands on the scrim rather than steering the camera underneath.
+    ':host .pause-overlay': {
+      position: 'absolute',
+      inset: '0',
+      zIndex: '30',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.35)',
+    },
+    ':host .pause-overlay[hidden]': {
+      display: 'none',
+    },
+    ':host .pause-overlay > svg': {
+      maxWidth: 'min(90%, 420px)',
+      height: 'auto',
+      filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.6))',
+    },
     /*
     The panel's HEADER: a right-aligned row of equal, close-sized buttons —
     the icon-bar toggles, then close. Everything that is CHROME lives here, so
@@ -742,6 +762,22 @@ export class B3d extends Component {
       )
     ),
     div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
+    /*
+    THE PAUSE PANEL, ON A FLAT SCREEN, IS DOM.
+
+    It used to be an in-scene plane in both presentations. That is right in a
+    headset — there is no DOM to put it on — and wrong on a monitor, where it
+    inherits every problem of being a thing in the world: it has to find a spot
+    with clear line of sight, it can be occluded, it has to be raycast to be
+    clicked, and it lands wherever the geometry allows rather than where you are
+    looking. Tonio: "in flat 3d the continue should be presented in the dom like
+    the scene panel."
+
+    Same rule the scene panel already follows — ONE widget list, two
+    presentations — and the same reason: the flat one is a DOM overlay because
+    flat HAS one.
+    */
+    div({ class: 'pause-overlay', part: 'pauseHost', hidden: true }),
     slot(),
   ]
 
@@ -1015,6 +1051,30 @@ export class B3d extends Component {
     const svg = panel3d({ width: 320, height: svgH }, ...rows)
 
     /*
+    FLAT: the DOM. IMMERSIVE: a plane in the scene.
+
+    ONE widget list, two presentations — the scene panel's rule, applied to the
+    modal that most needed it. On a monitor a DOM overlay is simply better on
+    every axis that has bitten this panel: it cannot be occluded, it cannot be
+    placed somewhere odd by a line-of-sight cast, it needs no raycast to be
+    clicked, and it is exactly where you are already looking. All of that
+    machinery exists because a HEADSET has no DOM, which is the only place it
+    earns its cost.
+
+    `panel3d` hangs `handlePointer` off the SVG for the in-scene path, but as a
+    DOM node the widgets' own listeners work natively — the same element,
+    unmodified, in both.
+    */
+    if (!this.xrActive) {
+      const host = this.parts.pauseHost as HTMLElement | undefined
+      if (host != null) {
+        host.replaceChildren(svg)
+        host.removeAttribute('hidden')
+        return
+      }
+    }
+
+    /*
     FIT THE VIEWPORT, don't assume a desktop one.
 
     A fixed 1.1-wide panel at z=2.2 is comfortable on a 16:9 monitor and TOO
@@ -1050,6 +1110,11 @@ export class B3d extends Component {
   }
 
   private _hidePausePanel(): void {
+    const host = this.parts?.pauseHost as HTMLElement | undefined
+    if (host != null) {
+      host.replaceChildren()
+      host.setAttribute('hidden', '')
+    }
     this._pausePanel?.remove()
     this._pausePanel = null
     if (this._cameraWasAttached && this.camera != null) {

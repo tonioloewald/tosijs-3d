@@ -22,6 +22,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **The pause/continue panel is DOM on a flat screen**, and stays an in-scene
+  plane in VR — the scene panel's rule (one widget list, two presentations)
+  applied to the modal that most needed it. Tonio: _"in flat 3d the continue
+  should be presented in the dom like the scene panel."_ On a monitor the DOM
+  overlay is better on every axis that has bitten this panel: it cannot be
+  occluded, cannot be put somewhere odd by a line-of-sight cast, needs no raycast
+  to be clicked, and is exactly where you are already looking. All that machinery
+  exists because a headset has no DOM, which is the only place it earns its cost.
+  The same `panel3d` SVG serves both — its widgets' listeners work natively in
+  the DOM, and `handlePointer` serves the in-scene path.
 - **Death and world-placed dialogs now survive a floating-origin rebase.**
   Neither had opted in, so in a terrain scene — the only kind big enough to
   rebase, which is why it hid — a shift mid-death slid the spectate camera, the

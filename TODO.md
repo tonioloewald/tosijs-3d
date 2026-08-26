@@ -2,6 +2,28 @@
 
 ## The queue
 
+[ ] **UPSTREAM: the `widgets3d` doc page's in-browser test block does not
+compile** — `✗ Test execution - Arg string terminates parameters early`,
+so `0/1 tests passed` and the doc site carries a permanent red "Failed 1"
+badge. Pre-existing (predates 2026-08-26; noticed while verifying an
+unrelated fix, and recorded rather than dismissed).
+
+The message is a TRANSPILER parse error, not an assertion: the whole fence
+fails to compile, so none of the six widget tests run. Two guesses at the
+offending construct were both WRONG — a nested double quote in
+`'[data-w3d="slider"] circle'`, then the deep call nesting — so the
+trigger is genuinely unknown and needs a bisect of the fence rather than
+another guess. Both guesses are recorded so the next person does not
+repeat them.
+
+Worth real attention: these are the only tests covering pointer routing
+into `panel3d` (slider drag, toggle, button release, iconBar hit zones,
+list rows, clipping), the exact surface that broke in the lost-pointerup
+saga. They have been silently not running.
+
+File on tjs-lang once bisected; mirror in `UPSTREAM.md`.
+
+
 Deferred past the 0.7.0 tag. Details live in the sections named.
 
 **Release cadence: additive work and fixes go out as PATCHES.** Not minors —
