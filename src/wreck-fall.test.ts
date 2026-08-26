@@ -124,3 +124,46 @@ describe('frame rate does not change where it lands', () => {
     expect(s).toEqual(before)
   })
 })
+
+describe('how you died decides how far the wreck goes', () => {
+  const HIGH = { x: 0, y: 130, z: 0 }
+  const FAST = { x: 90, y: 0, z: 0 }
+
+  const landsAt = (carry: number) => {
+    const s = newWreckFall(HIGH, FAST, { carry })
+    drop(s)
+    return s.pos.x
+  }
+
+  test('flying into something eats the energy — it does not glide away', () => {
+    // The reported bug: at full carry a 90 m/s crash from 130 m travelled far
+    // enough to read as a glide, and dragged the spectate camera with it.
+    expect(landsAt(0.25)).toBeLessThan(landsAt(1) * 0.5)
+  })
+
+  test('being shot down leaves you moving — it still goes somewhere', () => {
+    expect(landsAt(0.7)).toBeGreaterThan(landsAt(0.25))
+    expect(landsAt(0.7)).toBeGreaterThan(20)
+  })
+
+  test('a wreck that kept nothing drops where it died', () => {
+    const s = newWreckFall(HIGH, FAST, { carry: 0 })
+    drop(s)
+    expect(Math.abs(s.pos.x)).toBeLessThan(0.001)
+  })
+
+  test('the SPIN comes from the death speed, not the kept speed', () => {
+    // A wreck that lost its velocity to an impact is spinning harder for it.
+    const hit = newWreckFall(HIGH, FAST, { carry: 0.25 })
+    const shot = newWreckFall(HIGH, FAST, { carry: 0.7 })
+    expect(hit.rate).toBeCloseTo(shot.rate, 9)
+  })
+
+  test('drag keeps it debris, not a glider — terminal is well under the death speed', () => {
+    const s = newWreckFall({ x: 0, y: 4000, z: 0 }, { x: 0, y: 0, z: 0 })
+    for (let i = 0; i < 3000; i++) wreckFallStep(s, 0, 1 / 60)
+    // terminal = sqrt(-g / drag) = sqrt(9.81 / 0.005) ≈ 44 m/s
+    expect(Math.abs(s.vel.y)).toBeGreaterThan(40)
+    expect(Math.abs(s.vel.y)).toBeLessThan(48)
+  })
+})

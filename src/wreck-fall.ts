@@ -78,8 +78,24 @@ export interface WreckFallParams {
    * a second and dropped almost vertically out of a fast dive. It looked
    * plausible in isolation and wrong the moment it was measured against a real
    * crash (97 m downrange from 90 m/s).
+   *
+   * Then 0.002 proved too LITTLE, because it is the figure for a streamlined
+   * body and a broken airframe tumbles broadside. 0.005 (≈44 m/s terminal) is
+   * the compromise: it falls like debris rather than gliding.
    */
   drag?: number
+  /**
+   * Fraction of the death velocity the wreck keeps. Default `1` — it was
+   * already moving, and nothing says otherwise.
+   *
+   * The caller decides, because only the caller knows HOW you died. Flying into
+   * something is an inelastic collision that eats most of the energy; being shot
+   * down leaves you with all of it. Getting this wrong is spectacular in the
+   * wrong direction: at `1` from 130 m at 90 m/s the wreck travels ~450 m
+   * before it lands, which is not a crash, it is a glide — Tonio: _"The plane
+   * went flying off into the distance … pretty funny but not as expected."_
+   */
+  carry?: number
   /** Fraction of vertical speed kept on the first impact. Default 0.25. */
   bounce?: number
   /** Fraction of horizontal speed kept on impact (the skid). Default 0.45. */
@@ -124,13 +140,16 @@ export function newWreckFall(
   vel: Vec3,
   params: WreckFallParams = {}
 ): WreckFallState {
-  const { spinPerSpeed = 0.05, maxSpin = 4 } = params
-  const speed = length(vel)
+  const { spinPerSpeed = 0.05, maxSpin = 4, carry = 1 } = params
+  const kept = { x: vel.x * carry, y: vel.y * carry, z: vel.z * carry }
+  const speed = length(kept)
   return {
     pos: { ...pos },
-    vel: { ...vel },
+    vel: kept,
+    // Spin from the DEATH velocity, not the kept one: a wreck that lost its
+    // speed to an impact is spinning harder for it, not less.
     axis: tumbleAxis(vel),
-    rate: Math.min(maxSpin, speed * spinPerSpeed),
+    rate: Math.min(maxSpin, length(vel) * spinPerSpeed),
     angle: 0,
     grounded: false,
     bounces: 0,
@@ -154,7 +173,7 @@ export function wreckFallStep(
   if (state.grounded || dt <= 0) return { impacted: false }
   const {
     gravity = -9.81,
-    drag = 0.002,
+    drag = 0.005,
     bounce = 0.25,
     skid = 0.45,
     friction = 3,

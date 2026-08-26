@@ -414,6 +414,21 @@ export class B3dDeath extends B3dChild {
     for (const child of node.getChildMeshes()) own.add(child)
     const skip = collidable((m) => own.has(m))
 
+    /*
+    HOW you died decides how far the wreck goes.
+
+    Flying into something is an inelastic collision and eats most of the energy;
+    being shot down leaves you with all of it, still moving, now on fire. Only
+    this side knows which happened — `crashed` is set by the airframe's own
+    impact test — so the pure model takes it as a number and this makes the call.
+
+    Without it a crash at 90 m/s from 130 m carried the wreck ~450 m downrange:
+    a glide, not a crash, and it dragged the spectate camera across that much
+    terrain with it.
+    */
+    const impact = (entity as unknown as { crashed?: boolean })?.crashed === true
+    const carry = impact ? 0.25 : 0.7
+
     const start = node.getAbsolutePosition()
     // Nothing under it is a real case — the edge of a finite ground plane, a
     // kill out over open water in a scene with no sea floor. Without a floor
@@ -423,7 +438,8 @@ export class B3dDeath extends B3dChild {
     const abandonY = start.y - 1500
     this._fall = newWreckFall(
       { x: start.x, y: start.y, z: start.z },
-      vel ? { x: vel.x, y: vel.y, z: vel.z } : { x: 0, y: 0, z: 0 }
+      vel ? { x: vel.x, y: vel.y, z: vel.z } : { x: 0, y: 0, z: 0 },
+      { carry }
     )
     // Tumble about a FIXED world axis through the wreck: an airframe that has
     // stopped flying has no frame of its own worth preserving.
@@ -436,6 +452,8 @@ export class B3dDeath extends B3dChild {
       ? node.rotationQuaternion.clone()
       : BABYLON.Quaternion.FromEulerVector(node.rotation)
     const spin = new BABYLON.Quaternion()
+    let groundY = -Infinity
+    let sincePick = 99 // force a pick on the first frame
 
     this._fallObs = scene.onBeforeRenderObservable.add(() => {
       const fall = this._fall
@@ -449,10 +467,18 @@ export class B3dDeath extends B3dChild {
       fall.pos.y = here.y
       fall.pos.z = here.z
 
-      this._fallRay.origin.copyFromFloats(here.x, here.y + 1, here.z)
-      this._fallRay.direction.copyFromFloats(0, -1, 0)
-      const hit = scene.pickWithRay(this._fallRay, skip)
-      const groundY = hit?.hit ? here.y + 1 - hit.distance : -Infinity
+      // Re-pick the ground every frame only when it is close enough to matter.
+      // `scene.pickWithRay` walks every pickable mesh, and a terrain scene has a
+      // lot of them — paying that per frame for a wreck still 200 m up buys
+      // nothing, since the surface under it barely changes in one frame.
+      sincePick++
+      if (sincePick >= 6 || here.y - groundY < 60) {
+        sincePick = 0
+        this._fallRay.origin.copyFromFloats(here.x, here.y + 1, here.z)
+        this._fallRay.direction.copyFromFloats(0, -1, 0)
+        const hit = scene.pickWithRay(this._fallRay, skip)
+        groundY = hit?.hit ? here.y + 1 - hit.distance : -Infinity
+      }
 
       const { impacted } = wreckFallStep(fall, groundY, dt)
       node.position.copyFromFloats(fall.pos.x, fall.pos.y, fall.pos.z)
