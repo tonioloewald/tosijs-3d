@@ -310,8 +310,19 @@ export class B3dDeath extends B3dChild {
       }
     }
 
-    // 2. Stop driving the corpse. THE bug this component exists to fix.
+    /*
+    2. Stop driving the corpse — and TELL it that it is one.
+
+    `releaseFocus()` already stops a focus-managed entity, but incidentally: it
+    nulls `inputProvider` and `_update` short-circuits on that. `halt()` says it
+    outright, and covers a `die()` handed an entity the focus manager never held
+    (a scripted death, an AI, a test), which nothing else would stop.
+
+    Order matters: `_startFall` above has already read the velocity it died
+    with.
+    */
     this.focusManager?.releaseFocus()
+    entity?.halt?.()
 
     // 3. Orbit the mistake you made — FLAT ONLY. `setGameplayCamera` is a no-op in a headset (the
     //    WebXR camera owns the view; swapping it blanks the display), and returns false so we skip

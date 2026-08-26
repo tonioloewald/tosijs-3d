@@ -86,6 +86,35 @@ export class B3dControllable extends AbstractMesh {
     return this.mesh ?? null
   }
 
+  protected _halted = false
+
+  /**
+   * **Stop simulating. You are a corpse.** Idempotent.
+   *
+   * **Belt and braces, honestly labelled.** A focus-managed entity already
+   * stops when it dies, but only INCIDENTALLY: `releaseFocus()` sets
+   * `inputProvider = null` and `_update` happens to short-circuit on that. I
+   * went looking for a coasting corpse behind a real bug report and measured
+   * one that does not move (0.05 m in 10 s) — the report turned out to be the
+   * XR rig teleporting to the origin, not the wreck flying away.
+   *
+   * It stays because the incidental version does not cover everything: `die()`
+   * can be handed an entity the focus manager never held — a scripted death, an
+   * AI, a test — and nothing would stop that one at all. "You are dead" should
+   * be something the entity is TOLD, not a side effect of a null field.
+   *
+   * Halting here rather than in each subclass because `_update` is the single
+   * entry point every controllable's motion goes through.
+   */
+  halt(): void {
+    this._halted = true
+  }
+
+  /** True once `halt()` has been called. */
+  get halted(): boolean {
+    return this._halted
+  }
+
   /**
    * TRUE world velocity, m/s, or `null` if this entity does not track one.
    *
@@ -144,6 +173,8 @@ export class B3dControllable extends AbstractMesh {
     so resuming does not deliver the whole pause as one step.
     */
     if (simHalted(this.owner as SimGateOwner | null)) return
+    // Dead. Not merely unsteered — see `halt()`.
+    if (this._halted) return
 
     if (this.inputProvider == null) return
     // Scene input focus: when a page hosts multiple demos, only the active (last

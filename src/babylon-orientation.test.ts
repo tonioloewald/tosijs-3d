@@ -337,3 +337,56 @@ describe('Turning the panel around preserves what you SEE, roll included', () =>
     })
   }
 })
+
+describe('Unparenting: `parent = null` STRANDS, `setParent(null)` preserves', () => {
+  /*
+  The fact behind the XR rig teleporting to the origin on death. Pinned because
+  the two spellings look interchangeable, the wrong one is the shorter one, and
+  the failure is invisible until something happens to be parented — which is why
+  it sat in TODO as a cockpit-only oddity for five months and only became
+  reproducible when the chase rig was parented too.
+  */
+  const rigUnder = (scene: BABYLON.Scene) => {
+    const parent = new BABYLON.TransformNode('anchor', scene)
+    parent.position.set(120, 40, -300)
+    parent.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      1.1,
+      0,
+      0
+    )
+    const rig = new BABYLON.TransformNode('rig', scene)
+    rig.parent = parent
+    rig.position.set(0, 2, -5) // behind and above, the chase offset
+    rig.computeWorldMatrix(true)
+    return { parent, rig, wasAt: rig.getAbsolutePosition().clone() }
+  }
+
+  test('`parent = null` reinterprets the LOCAL pose as world — straight to the origin', () => {
+    const { rig, wasAt } = rigUnder(makeScene())
+    rig.parent = null
+    rig.computeWorldMatrix(true)
+    const now = rig.getAbsolutePosition()
+    expectVecClose(now, 0, 2, -5) // the local offset, now in world space
+    expect(BABYLON.Vector3.Distance(now, wasAt)).toBeGreaterThan(300)
+  })
+
+  test('`setParent(null)` leaves it exactly where it was', () => {
+    const { rig, wasAt } = rigUnder(makeScene())
+    rig.setParent(null)
+    rig.computeWorldMatrix(true)
+    expectVecClose(rig.getAbsolutePosition(), wasAt.x, wasAt.y, wasAt.z)
+  })
+
+  test('…and preserves world ORIENTATION too, not just position', () => {
+    const scene = makeScene()
+    const { parent, rig } = rigUnder(scene)
+    rig.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(0.4, 0, 0)
+    rig.computeWorldMatrix(true)
+    const before = rig.getDirection(new BABYLON.Vector3(0, 0, 1)).normalize()
+    rig.setParent(null)
+    rig.computeWorldMatrix(true)
+    const after = rig.getDirection(new BABYLON.Vector3(0, 0, 1)).normalize()
+    expect(BABYLON.Vector3.Dot(before, after)).toBeCloseTo(1, 5)
+    expect(parent.isDisposed()).toBe(false)
+  })
+})

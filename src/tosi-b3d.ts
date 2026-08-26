@@ -3380,7 +3380,10 @@ export class B3d extends Component {
         // riding a chase ANCHOR, which is the good case (see below).
         const chaseAnchor = isFpv ? null : entity?.getChaseAnchor?.() ?? null
         if (rig.parent != null && rig.parent !== chaseAnchor) {
-          rig.parent = null
+          // setParent(null), NOT `parent = null` — see the note in the
+          // free-walk branch. Harmless here (the pose is recomputed below), but
+          // spelled the same way so neither site can drift into the other.
+          rig.setParent(null)
           rig.scaling.set(1, 1, 1)
           chaseFirstFrame = true
         }
@@ -3519,7 +3522,31 @@ export class B3d extends Component {
       // reproducibly, whenever you happened to enter facing off-axis.
       frames.eyeYawOffset = freeYawOffset
       if (rig.parent != null) {
-        rig.parent = null // came from the cockpit — back to world space
+        /*
+        `setParent(null)`, NEVER `parent = null`.
+
+        Assigning `parent` KEEPS THE LOCAL POSE and reinterprets it as world, so
+        a rig sitting at local (0, 2, −5) behind its parent teleports to (0, 2,
+        −5) in the WORLD — next to the origin. `setParent` preserves the world
+        transform, which is what "back to world space" was always supposed to
+        mean.
+
+        This is the path a death takes: `releaseFocus()` nulls the focused
+        entity, so the next XR frame finds nothing piloted and falls through to
+        here. Tonio, VR: "I collided with wreckage high up and respawned at the
+        origin or starting point with the wrecked plane hanging in mid-air off
+        in the distance." He was not moved away from the wreck — he was moved to
+        the ORIGIN, and the wreck stayed where he died (measured: a corpse
+        drifts 0.05 m in 10 s).
+
+        The comment here used to say "came from the cockpit", and that was true:
+        only the cockpit branch parented the rig, which is why TODO has carried
+        "COCKPIT DEATH: … the aircraft was moved way away from me" as a
+        cockpit-only oddity since 0.7.0. Parenting the CHASE rig (the jitter
+        fix) made the same latent bug reachable from the view people actually
+        fly in, which is how a five-month-old note finally got diagnosed.
+        */
+        rig.setParent(null)
         rig.scaling.set(1, 1, 1)
       }
       if (rig.rotationQuaternion != null) {

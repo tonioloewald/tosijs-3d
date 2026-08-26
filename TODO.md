@@ -478,30 +478,35 @@ stays where it fell, so it is "off in the distance" by design (the demo's
 spawn). If respawn-near-death is wanted it is a scene-level choice, and it
 wants #40 (spawn at an authored place) first.
 
-## COCKPIT DEATH: dialog under the ground, wreck far away (0.7.0, NOT A BLOCKER)
+## COCKPIT DEATH — the "moved way away from me" half is SOLVED (2026-08-26)
 
-Clouds demo. Dying in CHASE view is fine. Dying in COCKPIT view: only the top
-edge of the dialog pokes above the ground, and "somehow the aircraft was moved
-way away from me (it was in the air, burning)".
+The wreck-far-away half of this was never the wreck moving. `releaseFocus()`
+nulls the focused entity, the next XR frame finds nothing piloted and falls
+through to free locomotion, which did **`rig.parent = null`** — and that keeps
+the LOCAL pose and reinterprets it as world, so a rig sitting at local
+`(0, 2, −5)` behind its parent lands at `(0, 2, −5)` in the WORLD. You are
+teleported to the origin; the wreck stays where you died. Measured: a corpse
+drifts 0.05 m in 10 s.
 
-The second half is the same shape as a pre-CoG-fix report — "the camera is on
-the ground but the scout's mesh is way above and it's smoking" — so it is
-likely ONE bug that the CoG fix masked in chase view and not in cockpit.
+Only the COCKPIT branch parented the rig, which is why this sat here for five
+months as a cockpit-only oddity. Parenting the CHASE rig (the jitter fix) made
+it reachable from the view people actually fly in, and Tonio hit it on the first
+run: _"respawned at the origin or starting point with the wrecked plane hanging
+in mid-air off in the distance."_
 
-Known: `b3d-death` takes its anchor from `entity.getCameraTarget()`, so the
-explosion, the burn and the spectator camera all key off the real node for both
-mesh and library load paths — that part is right, and was fixed deliberately.
-So the suspect is COCKPIT-specific: in cockpit the XR rig is PARENTED to the
-piloted entity (`rig.parent = piloted`), and death releases focus and re-seats
-the camera while that parenting is live.
+Fixed with `rig.setParent(null)` at both unparent sites, and both spellings
+pinned in `babylon-orientation.test.ts` — they look interchangeable and the
+wrong one is shorter.
 
-[ ] Reproduce with the `errors` row open, and read the wreck's position vs the
-camera's. Do NOT theorise further — the last two camera bugs each took three
-hypotheses and one measurement.
+**The lesson worth keeping:** a latent bug reachable from one rarely-used path
+is not a small bug, it is an undiagnosed one. This was written off as "cockpit
+is weird" precisely because nobody flew cockpit enough to characterise it.
 
-Note the dialog half is expected to be fixed by the world-placement design
-above, since no "just in front of you" placement can help when the camera
-itself is inside the terrain.
+[ ] STILL OPEN, the other half: dying in cockpit view put the respawn dialog
+under the ground (only its top edge showing). World-placed dialogs with gaze
+recovery landed since, and the panel now casts for clear line of sight — so
+this may already be gone. Re-check on a cockpit death before spending
+anything on it.
 
 ## UI depth: a BAND, not a race to the front — QUEUED FOR 0.7.1
 

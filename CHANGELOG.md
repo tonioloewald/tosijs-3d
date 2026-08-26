@@ -22,6 +22,27 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **Dying in VR teleported you to the world origin.** Tonio: _"I collided with
+  wreckage high up and respawned at the origin or starting point with the wrecked
+  plane hanging in mid-air off in the distance."_ He was not moved away from the
+  wreck — the wreck stayed exactly where he died (measured: a corpse drifts 0.05 m
+  in 10 s); **he** was moved. `releaseFocus()` nulls the focused entity, so the
+  next XR frame finds nothing piloted and falls through to free locomotion, which
+  did `rig.parent = null`. That KEEPS THE LOCAL POSE and reinterprets it as world,
+  so a rig at local `(0, 2, −5)` behind its parent lands at `(0, 2, −5)` in the
+  world. Now `rig.setParent(null)`, which preserves the world transform.
+
+  It had been latent since 0.7.0 as the cockpit-only oddity in `TODO.md`
+  ("the aircraft was moved way away from me"); parenting the chase rig — the
+  jitter fix above — made it reachable from the view people actually fly in,
+  which is how a five-month-old note finally got diagnosed. Both spellings are
+  now pinned in `babylon-orientation.test.ts`, because they look interchangeable
+  and the wrong one is shorter.
+
+- **`B3dControllable.halt()`** — tell an entity it is dead, rather than relying on
+  `releaseFocus()` nulling its input provider and `_update` short-circuiting on
+  that. `b3d-death` calls it. Belt and braces for the focus-managed case; the only
+  thing that stops a `die()` handed an entity the focus manager never held.
 - **A wreck hung in the air where it died.** Tonio, from a headset: _"I collided
   with wreckage high up … the wrecked plane hanging in mid-air (it should really
   tumble to the ground)."_ Hanging wreckage is worse than untidy — it is a solid
