@@ -137,7 +137,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
-  world-placed dialogs. Babylon-free (plain `{x, y, z}`), deterministic, and unit
+  faces** — the pure half of world-placed dialogs, plus the one function every
 - https://3d.tosijs.net/effects/ — Effects
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout

@@ -298,6 +298,7 @@ import {
   type PopupSurfaceOptions,
 } from './popup-surface'
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils'
+import { faceViewer } from './dialog-placement'
 import { svgIcons } from './svg-icons'
 import { CombatWorld } from './destroyable'
 import { b3dGamepad } from './glass-gamepad'
@@ -3930,10 +3931,6 @@ export class B3d extends Component {
     mat.backFaceCulling = false
     mat.emissiveTexture = tex.texture
     mat.opacityTexture = tex.texture
-    // You view the plane's back (+Z faces you), which mirrors the texture
-    // horizontally — flip U so the panel reads correctly.
-    tex.texture.uScale = -1
-    tex.texture.uOffset = 1
     mat.diffuseColor = BABYLON.Color3.Black()
     mat.disableLighting = true
     plane.material = mat
@@ -3950,11 +3947,15 @@ export class B3d extends Component {
     const frame = base.sessionManager.onXRFrameObservable.add(() => {
       if (placed) return
       placed = true
-      // Seat ONCE 60° up in the eye frame (origin = head), facing back down at it.
+      // Seat ONCE 60° up in the eye frame (origin = head), facing back down at
+      // it. `faceViewer` aims the plane's VISIBLE face (local -Z) at your head;
+      // this used to aim +Z and cancel the resulting mirror twice over — once on
+      // the texture and once on every pick. See dialog-placement.faceViewer.
       plane.position.set(0, ABOVE, AHEAD)
+      const aim = faceViewer({ x: 0, y: ABOVE, z: AHEAD }, { x: 0, y: 0, z: 0 })
       plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-        Math.PI,
-        Math.atan2(ABOVE, AHEAD),
+        aim.yaw,
+        aim.pitch,
         0
       )
       plane.visibility = 1
@@ -4026,12 +4027,13 @@ export class B3d extends Component {
       }
       if (kind) dbg.uv = uv ? `${uv.x.toFixed(2)},${uv.y.toFixed(2)}` : 'none'
       if (uv) {
-        // The panel is the plane's BACK face with the texture U-flipped
-        // (uScale=-1) so it READS correctly — but the pick returns the raw mesh
-        // UV, so its x is mirrored relative to what you see. Undo the flip here, or
-        // every right-aligned control (slider track, toggle switch, select arrows)
-        // maps to the dead label zone and feels unresponsive.
-        vx = (1 - uv.x) * vb.width
+        // Straight through, matching `b3d-svg-plane`: u across, v flipped
+        // (texture space is bottom-up). This used to need `1 - uv.x` to undo a
+        // U-flipped texture on a back-facing plane — two compensations for one
+        // avoidable cause, and if either had gone missing every right-aligned
+        // control (slider track, toggle switch, select arrows) would have mapped
+        // to the dead label zone and felt unresponsive.
+        vx = uv.x * vb.width
         vy = (1 - uv.y) * vb.height
       }
       // Route every event; the panel manages press-capture and hover itself.

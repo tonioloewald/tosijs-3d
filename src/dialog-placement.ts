@@ -1,8 +1,9 @@
 /*#
 # dialog-placement
 
-**Where a modal dialog goes, and when it should follow you** — the pure half of
-world-placed dialogs. Babylon-free (plain `{x, y, z}`), deterministic, and unit
+**Where a modal dialog goes, when it should follow you, and which way a panel
+faces** — the pure half of world-placed dialogs, plus the one function every
+panel in the library aims itself with (`faceViewer`). Babylon-free (plain `{x, y, z}`), deterministic, and unit
 tested, so the rules can be argued about without a headset.
 
 ## Why dialogs are world-placed at all
@@ -169,28 +170,64 @@ export function easeTo(
 }
 
 /**
- * Yaw in DEGREES that turns a panel's FACE toward the viewer.
+ * Aim a panel's FACE at a point. Returns `{ yaw, pitch }` in **radians**, ready
+ * for `Quaternion.RotationYawPitchRoll(yaw, pitch, roll)`.
  *
- * A Babylon plane's visible front normal is local **−Z**, not +Z (verified
- * against `MeshBuilder.CreatePlane`, whose normals come out `(0, 0, -1)`; our
- * `rounded-rect` geometry matches deliberately). So the obvious
- * `atan2(dx, dz)` — which aims local +Z at the eye — turns the panel's BACK to
- * the viewer.
+ * **A Babylon plane's visible front normal is local −Z, not +Z.** (Verified, not
+ * assumed: `MeshBuilder.CreatePlane` normals come out `(0, 0, -1)` and our
+ * `rounded-rect` geometry matches it deliberately — both pinned in
+ * `babylon-orientation.test.ts`.) So the obvious `atan2(dx, dz)` aims local +Z
+ * at the viewer and turns the panel's **back** to them.
  *
- * That failed in the one way nobody looks for. A `doubleSided` plane's back
- * faces reuse the front's UVs, so the panel does not vanish: it renders with
- * the texture **mirrored horizontally**, which is how this arrived — "the death
- * / respawn dialog was flipped horizontally" — rather than as a missing dialog.
- * A single-sided panel would have disappeared and been fixed in minutes.
+ * That fails in the one way nobody looks for. A `doubleSided` plane's back faces
+ * reuse the front's UVs, so the panel does not vanish — it renders with the
+ * texture **mirrored horizontally**, and a mirrored panel still reads as a panel
+ * with its button roughly where you expect. A bug that degrades gracefully is a
+ * bug that ships: this reached a release, and arrived as "the death / respawn
+ * dialog was flipped horizontally" rather than as a missing dialog.
  *
- * Yaw only: a dialog stays upright, so elevation is never applied.
+ * It exists as ONE function because it had previously been answered three times,
+ * differently, in three files — two compensating with `tex.uScale = -1` (and one
+ * of those also flipping `1 - uv.x` on every pick) and the third not at all.
+ * Knowledge that lives in a comment does not travel; a function does.
+ *
+ * **Roll comes back NEGATED, and that is the point of passing it in here.**
+ * Turning a panel around reverses the apparent sense of a roll, so a caller
+ * moving off the old back-facing convention has to flip its own roll or every
+ * non-symmetric one silently mirrors. I first reasoned that the flip and the
+ * dropped texture-mirror cancelled — they do not, and only a test caught it
+ * (`180°` is symmetric, so the one roll actually in use agreed with the wrong
+ * answer). The correction lives here rather than in each caller, because the
+ * whole reason this function exists is that per-caller memory is what failed.
+ */
+export function faceViewer(
+  panel: Vec3,
+  viewer: Vec3,
+  /** Roll in RADIANS, in the sense the caller wants the viewer to see. */
+  roll = 0
+): { yaw: number; pitch: number; roll: number } {
+  const dx = viewer.x - panel.x
+  const dy = viewer.y - panel.y
+  const dz = viewer.z - panel.z
+  const flat = Math.hypot(dx, dz)
+  // Negated because the FACE is −Z: aim −Z at the viewer, not +Z.
+  return {
+    yaw: Math.atan2(-dx, -dz),
+    pitch: Math.atan2(dy, flat),
+    roll: -roll,
+  }
+}
+
+/**
+ * Yaw in DEGREES that turns a panel's face toward the viewer — `faceViewer` for
+ * something that stays upright, which every dialog does.
+ *
+ * Degrees because it is written onto an ELEMENT (`ry`), and the authoring
+ * surface is degrees.
  */
 export function facingYawDeg(panel: Vec3, eye: Vec3): number {
-  const dx = eye.x - panel.x
-  const dz = eye.z - panel.z
   // Directly overhead (or exactly on the panel) gives no yaw to speak of;
   // keeping the current one beats spinning to an arbitrary answer.
-  if (Math.hypot(dx, dz) < 1e-6) return 0
-  // Negated because the FACE is −Z: aim −Z at the eye, not +Z.
-  return (Math.atan2(-dx, -dz) * 180) / Math.PI
+  if (Math.hypot(eye.x - panel.x, eye.z - panel.z) < 1e-6) return 0
+  return (faceViewer(panel, eye).yaw * 180) / Math.PI
 }

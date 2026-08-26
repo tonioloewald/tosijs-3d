@@ -13,6 +13,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import * as BABYLON from '@babylonjs/core'
+import { faceViewer } from './dialog-placement'
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine'
 
 function makeScene(): BABYLON.Scene {
@@ -153,4 +154,186 @@ describe('TransformNode under a rotated parent', () => {
     expectVecClose(child.up, -1, 0, 0)
     expectVecClose(child.forward, 0, 0, 1)
   })
+})
+
+describe("A plane's visible face is local −Z (and its back MIRRORS)", () => {
+  /*
+  The geometry facts behind `dialog-placement.faceViewer`. Pinned here because
+  the whole library aims panels on them, and because getting it wrong does not
+  fail loudly: a back-facing double-sided panel renders MIRRORED rather than
+  disappearing, which is how it reached a release as "the death / respawn dialog
+  was flipped horizontally".
+  */
+
+  test('CreatePlane normals point at −Z', () => {
+    const scene = makeScene()
+    const plane = BABYLON.MeshBuilder.CreatePlane('p', { size: 1 }, scene)
+    const n = plane.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+    expect([n[0], n[1], n[2]]).toEqual([0, 0, -1])
+  })
+
+  test('a DOUBLESIDE back face REUSES the front UVs — hence a mirror, not a gap', () => {
+    const scene = makeScene()
+    const plane = BABYLON.MeshBuilder.CreatePlane(
+      'p',
+      { size: 1, sideOrientation: BABYLON.Mesh.DOUBLESIDE },
+      scene
+    )
+    const uv = plane.getVerticesData(BABYLON.VertexBuffer.UVKind)!
+    const front = Array.from(uv.slice(0, 8))
+    const back = Array.from(uv.slice(8, 16))
+    expect(back).toEqual(front)
+  })
+
+  test('faceViewer aims that face at the viewer, from any direction', () => {
+    const scene = makeScene()
+    const cases: Array<[number[], number[]]> = [
+      [
+        [0, 0, 0],
+        [0, 0, -5],
+      ],
+      [
+        [0, 0, 0],
+        [5, 0, 0],
+      ],
+      [
+        [0, 0, 0],
+        [0, 4, 0.001],
+      ],
+      [
+        [1, 2, 3],
+        [-4, 7, -2],
+      ],
+      [
+        [0, 0, 0],
+        [3, -6, 2],
+      ],
+      // The XR settings panel's own seating: 60° up the sight-line, aimed back
+      // down at your head.
+      [
+        [0, 1.212, 0.7],
+        [0, 0, 0],
+      ],
+    ]
+    for (const [pos, viewer] of cases) {
+      const mesh = BABYLON.MeshBuilder.CreatePlane('p', { size: 1 }, scene)
+      const { yaw, pitch } = faceViewer(
+        { x: pos[0], y: pos[1], z: pos[2] },
+        { x: viewer[0], y: viewer[1], z: viewer[2] }
+      )
+      mesh.position.set(pos[0], pos[1], pos[2])
+      mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+        yaw,
+        pitch,
+        0
+      )
+      mesh.computeWorldMatrix(true)
+      const face = BABYLON.Vector3.TransformNormal(
+        new BABYLON.Vector3(0, 0, -1),
+        mesh.getWorldMatrix()
+      ).normalize()
+      const want = new BABYLON.Vector3(
+        viewer[0] - pos[0],
+        viewer[1] - pos[1],
+        viewer[2] - pos[2]
+      ).normalize()
+      expect(BABYLON.Vector3.Dot(face, want)).toBeCloseTo(1, 5)
+      mesh.dispose()
+    }
+  })
+
+  test('the NAIVE atan2(dx, dz) aims the BACK at you — the shipped bug', () => {
+    const scene = makeScene()
+    const mesh = BABYLON.MeshBuilder.CreatePlane('p', { size: 1 }, scene)
+    const viewer = new BABYLON.Vector3(5, 0, 0)
+    mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      Math.atan2(viewer.x, viewer.z),
+      0,
+      0
+    )
+    mesh.computeWorldMatrix(true)
+    const face = BABYLON.Vector3.TransformNormal(
+      new BABYLON.Vector3(0, 0, -1),
+      mesh.getWorldMatrix()
+    ).normalize()
+    expect(BABYLON.Vector3.Dot(face, viewer.normalizeToNew())).toBeCloseTo(
+      -1,
+      5
+    )
+  })
+})
+
+describe('Turning the panel around preserves what you SEE, roll included', () => {
+  /*
+  The change that dropped `tex.uScale = -1` from `frame-panel` and the XR
+  settings panel. It is only safe if the new configuration puts every pixel
+  where the old one did — including under a roll, since `frame-panel`'s
+  grip-space anchors carry `rollDeg: 180` to right themselves.
+
+  Stated as geometry rather than as an argument: the point a viewer sees at the
+  image's top-right must land in the same place either way.
+
+    OLD: back of the plane faces you, texture U-flipped, so the image's
+         top-right is drawn on the vertex with mesh uv (0, 1).
+    NEW: face of the plane faces you, texture untouched, so the image's
+         top-right is drawn on the vertex with mesh uv (1, 1).
+  */
+  const cornerWorld = (
+    scene: BABYLON.Scene,
+    yaw: number,
+    pitch: number,
+    roll: number,
+    uv: [number, number]
+  ): BABYLON.Vector3 => {
+    const mesh = BABYLON.MeshBuilder.CreatePlane('p', { size: 1 }, scene)
+    mesh.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+      yaw,
+      pitch,
+      roll
+    )
+    mesh.computeWorldMatrix(true)
+    const pos = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+    const uvs = mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)!
+    let index = -1
+    for (let i = 0; i < uvs.length / 2; i++) {
+      if (uvs[i * 2] === uv[0] && uvs[i * 2 + 1] === uv[1]) index = i
+    }
+    expect(index).toBeGreaterThanOrEqual(0)
+    const local = new BABYLON.Vector3(
+      pos[index * 3],
+      pos[index * 3 + 1],
+      pos[index * 3 + 2]
+    )
+    const world = BABYLON.Vector3.TransformCoordinates(
+      local,
+      mesh.getWorldMatrix()
+    )
+    mesh.dispose()
+    return world
+  }
+
+  for (const rollDeg of [0, 180, 37]) {
+    test(`the image's top-right lands in the same place at roll ${rollDeg}°`, () => {
+      const scene = makeScene()
+      const panel = { x: 0.4, y: 1.2, z: -0.9 }
+      const viewer = { x: 0, y: 1.6, z: 0 }
+      const roll = (rollDeg * Math.PI) / 180
+
+      const dx = viewer.x - panel.x
+      const dy = viewer.y - panel.y
+      const dz = viewer.z - panel.z
+      // What both panels used to do: aim +Z at the viewer.
+      const oldSeen = cornerWorld(
+        scene,
+        Math.atan2(dx, dz),
+        -Math.atan2(dy, Math.hypot(dx, dz)),
+        roll,
+        [0, 1]
+      )
+      const aim = faceViewer(panel, viewer, roll)
+      const newSeen = cornerWorld(scene, aim.yaw, aim.pitch, aim.roll, [1, 1])
+
+      expectVecClose(newSeen, oldSeen.x, oldSeen.y, oldSeen.z)
+    })
+  }
 })

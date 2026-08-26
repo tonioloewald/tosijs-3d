@@ -22,6 +22,19 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **All three panel sites now aim themselves the same way**, through
+  `dialog-placement.faceViewer`. `frame-panel` and the XR settings panel used to
+  face you with their BACK and cancel the resulting mirror with
+  `tex.uScale = -1` — the settings panel also flipping `1 - uv.x` on every pick,
+  two compensations for one avoidable cause. Both are gone. No visible change
+  (they were correct on screen and under the finger); it removes the trap that
+  produced the world-dialog bug above, since the knowledge lived in a comment in
+  two files and comments do not travel.
+  - **`rollDeg` keeps its meaning**: turning a panel around reverses how a roll
+    reads, so `faceViewer` negates it. Worth stating because reasoning said the
+    flips cancelled and they do not — the only roll in the library is `180°`,
+    which is symmetric and agrees with the wrong answer.
+
 ### Added
 
 - **`<tosi-b3d-interactive>` — a mesh you can touch** (#36), the substrate doors,

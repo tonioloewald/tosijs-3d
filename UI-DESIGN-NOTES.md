@@ -887,9 +887,23 @@ maps to the dead zone (`tosi-b3d` learned that one the hard way). Turning the pa
 right way round fixes display and touch together — the world dialog's `1 - uv.x` bug was
 fixed by the same one-line change, before anyone noticed it existed.
 
-**Not yet unified, deliberately.** `frame-panel` and the XR settings panel are correct
-on screen and correct under the finger; rewriting working XR code I cannot verify
-without a headset, purely for tidiness, is the trap this repo keeps warning itself
-about. Tracked in TODO — do it with a headset in hand, in one pass, as a matched
-triple (orientation + drop `uScale` + drop `1 - uv.x`), since any two of the three
-leaves it mirrored.
+**Now unified (2026-08-26).** All three go through `dialog-placement.faceViewer`,
+which aims the plane's visible face at a point; both `uScale = -1` compensations and
+the settings panel's `1 - uv.x` pick flip are gone. Flat paths verified here; the
+two XR-only panels are a headset check (text reads, and a right-aligned control
+responds where it is drawn — a centred button works either way and proves nothing).
+
+**And the tail that nearly got away.** Turning a panel around reverses the apparent
+sense of a ROLL, so the change is only safe if every caller flips its roll too. I
+reasoned that the geometric flip and the dropped texture-mirror cancelled — they do
+not. It survived because the only roll in the library is `rollDeg: 180` on the
+grip-space anchors, which is symmetric and agrees with the wrong answer; a
+`<tosi-b3d-panel roll="37">` would have silently mirrored. A test at 0°, 180° **and
+37°** caught it, and `faceViewer` now owns the negation so no caller has to remember
+it. **Pick the test case that can disagree** — 0 and 180 were the two values in use,
+and both were blind to the bug.
+
+The geometry facts are pinned in `babylon-orientation.test.ts`: `CreatePlane` normals
+are `(0, 0, -1)`, a `DOUBLESIDE` back reuses the front's UVs, `faceViewer` aims the
+face from any direction, and the image's top-right lands in the same world position
+before and after the change.
