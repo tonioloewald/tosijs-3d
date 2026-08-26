@@ -520,8 +520,46 @@ export class B3dSvgPlane extends AbstractMesh {
   private _gaze = newGazeState()
   private _dialogObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
   private _dialogTarget: BABYLON.Vector3 | null = null
+  private _offOrigin: (() => void) | null = null
 
   private _installWorldDialog(scene: BABYLON.Scene): void {
+    /*
+    A WORLD-PLACED PANEL HOLDS A WORLD POSITION, SO IT HAS TO OPT IN.
+
+    Terrain rebases the world (B3d.shiftOrigin) and moves only what registered.
+    This panel keeps its position on the ELEMENT (`x`/`y`/`z` — the #35 rule) and
+    its destination in `_dialogTarget`, both in JS, both world coordinates. A
+    rebase during a paused or dying scene therefore slid the dialog away by the
+    shift, in the one kind of scene big enough to need rebasing.
+
+    A LISTENER, not `registerWorldRoot`: the element owns the transform and
+    rewrites the mesh from it every render, so shifting the node would be undone
+    a frame later. Fix the numbers the element is written FROM.
+
+    Gaze recovery would eventually drag it back, which is precisely what makes
+    this worth fixing rather than tolerating: the symptom is a dialog that
+    wanders and then returns, and "it sort of fixes itself" is how a bug avoids
+    being reported.
+    */
+    const owner = this.owner
+    if (owner != null) {
+      const onShift = (dx: number, dz: number) => {
+        const self = this as any
+        self.x += dx
+        self.z += dz
+        if (this.mesh != null) {
+          this.mesh.position.x += dx
+          this.mesh.position.z += dz
+        }
+        if (this._dialogTarget != null) {
+          this._dialogTarget.x += dx
+          this._dialogTarget.z += dz
+        }
+      }
+      owner.addOriginListener(onShift)
+      this._offOrigin = () => owner.removeOriginListener(onShift)
+    }
+
     // Straight ahead first, then progressively further off-axis: bestCandidate
     // breaks ties toward EARLIER entries, so this order IS the preference.
     const YAW_CANDIDATES = [0, -20, 20, -40, 40, -70, 70, 180]
@@ -808,6 +846,8 @@ export class B3dSvgPlane extends AbstractMesh {
   }
 
   sceneDispose() {
+    this._offOrigin?.()
+    this._offOrigin = null
     if (this._dialogObs && this.owner) {
       this.owner.scene.onBeforeRenderObservable.remove(this._dialogObs)
       this._dialogObs = null

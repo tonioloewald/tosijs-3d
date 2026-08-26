@@ -22,6 +22,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   eye. The same change fixes touch, which was mirrored with it — every
   right-aligned control on a world dialog was mapping to the left.
 
+- **Death and world-placed dialogs now survive a floating-origin rebase.**
+  Neither had opted in, so in a terrain scene — the only kind big enough to
+  rebase, which is why it hid — a shift mid-death slid the spectate camera, the
+  fire emitters and the dialog away from the crash while the world moved out
+  from under them. That reads exactly like the origin-teleport fixed above ("the
+  wreck is way off, I am looking at nothing"), and two causes producing one
+  description is how a fixed bug looks unfixed. Both use an origin LISTENER
+  rather than `registerWorldRoot`, because both hold world coordinates in JS and
+  the element owns the transform (shifting the node would be undone next render).
+  The falling wreck needed nothing — it re-reads its position from the node every
+  frame, so a shift is absorbed.
 - **Leaving VR now pauses in EVERY scene**, not only those with
   `enterXrOnResume`. Taking the headset off is a departure, not a view change.
   The gate existed on the reasoning that a flat scene which merely visited XR

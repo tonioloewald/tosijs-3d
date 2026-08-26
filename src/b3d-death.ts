@@ -187,6 +187,7 @@ export class B3dDeath extends B3dChild {
   private _obs: BABYLON.Observer<BABYLON.Scene> | null = null
   /** The falling wreck, while it is still in the air. */
   private _fall: WreckFallState | null = null
+  private _offOrigin: (() => void) | null = null
   private _fallObs: BABYLON.Observer<BABYLON.Scene> | null = null
   private _fallRay = new BABYLON.Ray(
     BABYLON.Vector3.Zero(),
@@ -379,6 +380,33 @@ export class B3dDeath extends B3dChild {
       console.warn('b3d-death: spectate camera failed (exit continues)', err)
     }
 
+    /*
+    SURVIVE A FLOATING-ORIGIN REBASE.
+
+    Terrain rebases the world periodically (see B3d.shiftOrigin), and everything
+    holding a WORLD position has to opt in or it is silently left behind. Death
+    holds three: the spectate camera (position AND target), the fire emitters,
+    and the fall's cached ground-sample point.
+
+    Nothing here was registered, so in a terrain scene a rebase mid-death moved
+    the world out from under the shot — the camera left pointing at where the
+    crash used to be. That is the same FAMILY of symptom as the origin-teleport
+    fixed above and would read identically ("the wreck is way off, I am looking
+    at nothing"), which is exactly why it is worth closing rather than waiting
+    to see it: two causes producing one description is how a fixed bug looks
+    unfixed.
+
+    A LISTENER, not `registerWorldRoot`: a camera is not a TransformNode we own,
+    and the emitters are plain vectors. Per CLAUDE.md, anything holding world
+    coordinates in JS fixes ITSELF and must not also register a root.
+
+    The wreck NODE needs nothing — `_startFall` reads its position from the node
+    every frame and writes it back, so a shift is absorbed. That was written for
+    a different reason and pays off here.
+    */
+    this.owner.addOriginListener(this._shiftOrigin)
+    this._offOrigin = () => this.owner?.removeOriginListener(this._shiftOrigin)
+
     // 4. A beat to watch it burn, THEN the panel. Offering a menu over a fireball reads
     //    as a bug report rather than a death.
     this._timer = setTimeout(() => this._showPanel(), this.delay * 1000)
@@ -455,6 +483,10 @@ export class B3dDeath extends B3dChild {
     let groundY = -Infinity // -Infinity means "never picked"
     let pickedAtX = 0
     let pickedAtZ = 0
+    this._fallShift = (dx, dz) => {
+      pickedAtX += dx
+      pickedAtZ += dz
+    }
 
     this._fallObs = scene.onBeforeRenderObservable.add(() => {
       const fall = this._fall
@@ -551,6 +583,31 @@ export class B3dDeath extends B3dChild {
       }
     })
   }
+
+  /** Move everything death holds in world space by a rebase. See `die()`. */
+  private _shiftOrigin = (dx: number, dz: number): void => {
+    const cam = this._orbitCam
+    if (cam != null) {
+      cam.position.x += dx
+      cam.position.z += dz
+      if (cam instanceof BABYLON.ArcRotateCamera) {
+        cam.target.x += dx
+        cam.target.z += dz
+      }
+    }
+    for (const p of this._fires) {
+      const e = p.emitter as BABYLON.Vector3 | null
+      if (e && typeof (e as BABYLON.Vector3).addInPlaceFromFloats === 'function') {
+        e.addInPlaceFromFloats(dx, 0, dz)
+      }
+    }
+    // The fall re-reads the node each frame, so only its cached sample point is
+    // stale — shift it so the shift does not look like sideways drift and force
+    // a needless re-pick.
+    this._fallShift?.(dx, dz)
+  }
+
+  private _fallShift: ((dx: number, dz: number) => void) | null = null
 
   private _burn(
     scene: BABYLON.Scene,
@@ -717,6 +774,9 @@ export class B3dDeath extends B3dChild {
       scene.onBeforeRenderObservable.remove(this._fallObs)
     this._fallObs = null
     this._fall = null
+    this._fallShift = null
+    this._offOrigin?.()
+    this._offOrigin = null
     for (const p of this._fires) p.dispose()
     this._fires = []
     for (const mat of this._charMats) mat.dispose()
