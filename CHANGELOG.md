@@ -53,6 +53,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   is worse than no fire at all). Rules are pure and tested in **`wreck-fall`**;
   the spin is DERIVED from the velocity, never random, so the same crash looks
   the same twice.
+  - **How you died decides how far it goes.** Flying into something is an
+    inelastic collision that eats most of the energy (`carry: 0.25`); being shot
+    down leaves you with nearly all of it (`0.7`). At full carry a 90 m/s crash
+    from 130 m travelled ~450 m before landing — a glide, not a crash, and it
+    dragged the spectate camera across that much terrain. Tonio: _"The plane
+    went flying off into the distance … pretty funny but not as expected."_
+  - Drag settled at `0.005` (≈44 m/s terminal). `0.02` was ten times too much (a
+    wreck shed its speed in half a second); `0.002` is the figure for a
+    STREAMLINED body, and a broken airframe tumbles broadside. Each was
+    plausible in isolation; only a real crash told them apart.
   - New seam **`B3dControllable.getWorldVelocity()`**. `b3d-aircraft`'s own
     `velocity` field reads ZERO in wing-borne flight — the fly-by-wire path
     moves the node directly — so a wreck launched from it dropped straight down
