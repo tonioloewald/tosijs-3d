@@ -108,6 +108,7 @@ document.body.append(
 
 import * as BABYLON from '@babylonjs/core'
 import { XRStuff, collidable } from './b3d-utils'
+import { buoyantStep, submergedFraction, isSwimming } from './buoyancy'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -253,6 +254,28 @@ export class B3dBiped extends B3dControllable {
    * would only matter for a rig that does not exist.
    */
   private _fallVel = 0
+  /** True while in the water and off the bottom — see `buoyancy.isSwimming`. */
+  private _swimming = false
+  private _waterEl: { mesh?: BABYLON.TransformNode } | null | undefined
+
+  /**
+   * Surface height of the scene's water, or `null` if there is none.
+   *
+   * Looked up lazily and cached — `undefined` means "not asked yet", `null`
+   * means "asked, no water", which is the common case and must cost nothing per
+   * frame. Read from the MESH rather than the element's `y`: water is
+   * viewer-centred and not origin-shifted, so the mesh is the honest answer.
+   */
+  private _waterSurfaceY(): number | null {
+    if (this._waterEl === undefined) {
+      this._waterEl =
+        (this.owner?.querySelector('tosi-b3d-water') as {
+          mesh?: BABYLON.TransformNode
+        } | null) ?? null
+    }
+    const mesh = this._waterEl?.mesh
+    return mesh ? mesh.absolutePosition.y : null
+  }
   private xrCamZoom = 0.25 // 0 = closest, 1 = furthest
 
   animationStates = AnimState.buildList(
@@ -444,10 +467,57 @@ export class B3dBiped extends B3dControllable {
         // Babylon's own filter); `checkCollisions` stays as OUR clause.
         collidable((m) => m === node || !m.checkCollisions)
       )
-      if (hit?.hit && hit.pickedPoint != null) {
-        node.position.y = hit.pickedPoint.y
+      /*
+      WATER IS A MEDIUM, NOT A LINE.
+
+      Falling through water is not falling through air with a smaller number: a
+      body is slightly less dense than water, so it is pushed up in proportion
+      to how much of it is under, and it comes to rest where that balances its
+      weight. Plunge-and-bob, a head that ends up ABOVE the surface, and wading
+      that does nothing until it is deep enough to lift you all fall out of that
+      one equation — see [[buoyancy]], where it is pure and tested.
+
+      SWIMMING IS IN THE WATER **AND** OFF THE BOTTOM. Both halves matter: deep
+      water while standing on a sandbar is wading, and getting it wrong gives you
+      a character doing breaststroke while visibly standing up.
+      */
+      const surfaceY = this._waterSurfaceY()
+      // `eyeHeight` as a proxy for body height. It is a little short by
+      // definition, which is the harmless direction: equilibrium is a FRACTION
+      // of whatever height you give it, so erring small floats you a touch
+      // lower rather than leaving you standing on the water.
+      const bodyHeight = ((this as any).eyeHeight as number) || 1.6
+      const submerged =
+        surfaceY == null
+          ? 0
+          : submergedFraction(node.position.y, bodyHeight, surfaceY)
+      const grounded = hit?.hit === true && hit.pickedPoint != null
+      const groundY = grounded ? hit!.pickedPoint!.y : -Infinity
+
+      if (submerged > 0) {
+        /*
+        In water, buoyancy owns the vertical and THE FLOOR IS ONLY A FLOOR: it
+        stops you sinking past it, it does not hold you down. Snapping to it
+        whenever it was in reach — which is what "grounded" meant a moment ago —
+        stood the character on the seabed under six metres of water, technically
+        grounded and visibly wrong.
+        */
+        this._fallVel = buoyantStep(this._fallVel, submerged, dt)
+        let nextY = node.position.y + this._fallVel * dt
+        let onFloor = false
+        if (nextY <= groundY) {
+          nextY = groundY
+          this._fallVel = 0
+          onFloor = true
+        }
+        node.position.y = nextY
+        this._swimming = isSwimming(submerged, onFloor)
+      } else if (grounded) {
+        this._swimming = false
+        node.position.y = groundY
         this._fallVel = 0
       } else {
+        this._swimming = false
         // Terminal velocity keeps one slow frame from teleporting a biped
         // through the floor, on top of the probe extension above.
         this._fallVel = Math.max(-20, this._fallVel - 9.81 * dt)
@@ -459,7 +529,15 @@ export class B3dBiped extends B3dControllable {
       // or water — real collidable surfaces above it ground the biped via the probe.
       if (node.position.y < attrs.groundY) node.position.y = attrs.groundY
 
-      if (speed > 0.1) {
+      if (this._swimming) {
+        // Moving = swim, holding station = tread water. Both are in the standard
+        // animation set (`swim`, `tread-water`), so this is wiring, not art.
+        if (Math.abs(speed) > 0.1) {
+          this.setAnimationState('swim', Math.abs(speed) + 0.25)
+        } else {
+          this.setAnimationState('tread-water')
+        }
+      } else if (speed > 0.1) {
         if (sprintSpeed > 0.25) {
           this.setAnimationState('run', sprintSpeed + 0.25)
         } else {

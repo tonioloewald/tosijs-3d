@@ -662,6 +662,14 @@ export type {
 export { B3dDeath, b3dDeath } from './b3d-death'
 // Wreck fall: the pure tumbling-descent model b3d-death drops a corpse with.
 export { newWreckFall, wreckFallStep, tumbleAxis } from './wreck-fall'
+// Buoyancy: the pure vertical model behind the biped's swimming.
+export {
+  buoyantStep,
+  submergedFraction,
+  equilibriumSubmersion,
+  isSwimming,
+} from './buoyancy'
+export type { BuoyancyParams } from './buoyancy'
 export type { WreckFallState, WreckFallParams } from './wreck-fall'
 // Spawner: keeps the world populated with encounters (prefab + a rule).
 export { B3dSpawner, b3dSpawner } from './b3d-spawner'
