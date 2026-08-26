@@ -108,7 +108,12 @@ document.body.append(
 
 import * as BABYLON from '@babylonjs/core'
 import { XRStuff, collidable } from './b3d-utils'
-import { buoyantStep, submergedFraction, isSwimming } from './buoyancy'
+import {
+  buoyantStep,
+  submergedFraction,
+  isSwimming,
+  swimBuoyancy,
+} from './buoyancy'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -160,6 +165,12 @@ const STEP_OFFSET = 0.35
 const STEP_UP = 0.5
 /** How far the ground may drop before it becomes a FALL rather than a step. */
 const STEP_DOWN = 0.6
+/**
+ * Vertical kick while swimming, m/s². Enough to beat buoyancy comfortably
+ * (which is ~1.5 m/s² of upward push at full submersion) without feeling like a
+ * jetpack.
+ */
+const SWIM_THRUST = 6
 
 export class B3dBiped extends B3dControllable {
   static initAttributes = {
@@ -501,8 +512,26 @@ export class B3dBiped extends B3dControllable {
         whenever it was in reach — which is what "grounded" meant a moment ago —
         stood the character on the seabed under six metres of water, technically
         grounded and visibly wrong.
+
+        DIVING: `sneak` takes you down, `jump` takes you up — crouch-to-descend
+        matches the GTA-V control vocabulary this project follows, and leaves
+        the triggers alone. Thrust competes with buoyancy rather than replacing
+        it, so letting go hands the vertical back to physics instead of pinning
+        you.
+
+        And once your head is properly under, buoyancy blends toward NEUTRAL
+        (see `swimBuoyancy`) so you hold the depth you swam to, drifting up
+        slowly rather than corking — Tonio's call: "holding with a slow drift
+        upward by default." Note you also GLIDE a little deeper after releasing
+        the control; that is momentum, not a bug, and letting go is not a brake.
         */
-        this._fallVel = buoyantStep(this._fallVel, submerged, dt)
+        const swimUp = (input.jump ?? 0) > 0.5 ? 1 : 0
+        const swimDown = (input.sneak ?? 0) > 0.5 ? 1 : 0
+        const headDepth = surfaceY! - (node.position.y + bodyHeight)
+        this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
+          buoyancy: swimBuoyancy(headDepth),
+          thrust: (swimUp - swimDown) * SWIM_THRUST,
+        })
         let nextY = node.position.y + this._fallVel * dt
         let onFloor = false
         if (nextY <= groundY) {

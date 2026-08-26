@@ -4,6 +4,7 @@ import {
   submergedFraction,
   equilibriumSubmersion,
   isSwimming,
+  swimBuoyancy,
 } from './buoyancy'
 
 const H = 1.8 // a person
@@ -149,5 +150,121 @@ describe('isSwimming — deep enough AND not resting on the floor', () => {
     // submerged, playing a walk cycle.
     const deepWaterFeetCouldTouch = isSwimming(1, false)
     expect(deepWaterFeetCouldTouch).toBe(true)
+  })
+})
+
+describe('diving: hold depth, drift up slowly, never cork', () => {
+  const H = 1.8
+
+  /** Swim with a held vertical control, then release it and coast. */
+  function dive(holdSec: number, coastSec: number, thrust = -6) {
+    let vy = 0
+    let y = -H / 2 // floating at the surface
+    const step = (t: number) => {
+      const headDepth = -(y + H)
+      const sub = submergedFraction(y, H, 0)
+      vy = buoyantStep(vy, sub, 1 / 60, {
+        buoyancy: swimBuoyancy(headDepth),
+        thrust: t,
+      })
+      y += vy / 60
+    }
+    for (let i = 0; i < holdSec * 60; i++) step(thrust)
+    const atRelease = y
+    for (let i = 0; i < coastSec * 60; i++) step(0)
+    return { atRelease, after: y, drift: y - atRelease }
+  }
+
+  test('holding the dive control takes you under', () => {
+    const r = dive(3, 0)
+    expect(r.atRelease).toBeLessThan(-H) // fully submerged, head under
+  })
+
+  test('let go and you HOLD depth — no cork to the surface', () => {
+    const r = dive(3, 4)
+    // Four seconds of doing nothing must not undo a three-second dive.
+    expect(r.after).toBeLessThan(-H)
+    expect(r.drift).toBeLessThan(1.2)
+  })
+
+  test('you GLIDE a little deeper first — letting go is not a brake', () => {
+    // Measured: released at −4.20 with −1.1 m/s still on, it coasts to −4.57
+    // over about a second before buoyancy wins. That is why the "does it drift
+    // up?" assertion below measures from the DEEPEST point and not from the
+    // release point — the first version compared against release at 4 s, where
+    // the glide has just cancelled the drift, and failed on correct behaviour.
+    const r = dive(3, 1.5)
+    expect(r.after).toBeLessThan(r.atRelease)
+  })
+
+  test('…then drifts UP steadily, so you surface if you stop paying attention', () => {
+    let vy = 0
+    let y = -H / 2
+    const step = (t: number) => {
+      vy = buoyantStep(vy, submergedFraction(y, H, 0), 1 / 60, {
+        buoyancy: swimBuoyancy(-(y + H)),
+        thrust: t,
+      })
+      y += vy / 60
+    }
+    for (let i = 0; i < 180; i++) step(-6)
+    let deepest = y
+    for (let i = 0; i < 120; i++) {
+      step(0)
+      if (y < deepest) deepest = y
+    }
+    const before = y
+    for (let i = 0; i < 180; i++) step(0)
+    const rate = (y - before) / 3 // m/s of drift, once the glide is spent
+    expect(y).toBeGreaterThan(deepest)
+    expect(rate).toBeGreaterThan(0.1) // rising
+    expect(rate).toBeLessThan(0.5) // but a drift, not a cork
+  })
+
+  test('a long enough coast eventually returns you to the surface', () => {
+    const r = dive(3, 120)
+    expect(submergedFraction(r.after, H, 0)).toBeCloseTo(
+      equilibriumSubmersion(1.15),
+      1
+    )
+  })
+
+  test('thrust up surfaces you faster than drifting', () => {
+    const down = dive(3, 0)
+    let vy = 0
+    let y = down.atRelease
+    for (let i = 0; i < 120; i++) {
+      const headDepth = -(y + H)
+      vy = buoyantStep(vy, submergedFraction(y, H, 0), 1 / 60, {
+        buoyancy: swimBuoyancy(headDepth),
+        thrust: 6,
+      })
+      y += vy / 60
+    }
+    const drifted = dive(3, 2).after
+    expect(y).toBeGreaterThan(drifted)
+  })
+})
+
+describe('swimBuoyancy — a swimmer is not a log', () => {
+  test('at and above the surface it is the ordinary floating value', () => {
+    expect(swimBuoyancy(-1)).toBeCloseTo(1.15, 9)
+    expect(swimBuoyancy(0)).toBeCloseTo(1.15, 9)
+  })
+
+  test('well under, it is near neutral — but still ABOVE 1', () => {
+    const deep = swimBuoyancy(5)
+    expect(deep).toBeCloseTo(1.02, 9)
+    expect(deep).toBeGreaterThan(1) // the slow drift up
+  })
+
+  test('the transition is continuous — breaking the surface must not kick', () => {
+    expect(Math.abs(swimBuoyancy(0.001) - swimBuoyancy(0))).toBeLessThan(0.01)
+  })
+
+  test('thrust needs water to push against — kicking in air does nothing', () => {
+    const inAir = buoyantStep(0, 0, 1 / 60, { thrust: -50 })
+    const gravityOnly = buoyantStep(0, 0, 1 / 60)
+    expect(inAir).toBeCloseTo(gravityOnly, 6)
   })
 })

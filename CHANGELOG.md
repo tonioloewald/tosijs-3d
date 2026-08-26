@@ -30,6 +30,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
     and left the character standing on the seabed under six metres of water.
     The floor stops you sinking; it does not hold you down.
   - `swim` while moving, `tread-water` while holding station.
+  - **You can dive.** `sneak` down, `jump` up — crouch-to-descend matches the
+    GTA-V control vocabulary this project follows and leaves the triggers free.
+    Thrust competes with buoyancy rather than replacing it, so letting go hands
+    the vertical back to physics instead of pinning you.
+  - **Released, you HOLD depth and drift up slowly** rather than corking to the
+    surface (Tonio's call). Once your head is properly under, buoyancy blends
+    toward neutral — but stays just above 1, so you surface if you stop paying
+    attention. You also glide a little deeper after letting go: that is
+    momentum, and letting go is not a brake. Measured live in 12 m of water:
+    dive to the seabed, release, drift up at **0.2 m/s**; hold `jump` and it
+    becomes **0.65 m/s**.
   - Verified live: released on a seabed under 6 m of water the biped rose and
     settled at **0.866** submersion against a predicted 0.870, and a walk
     downhill waded in and began swimming on its own.

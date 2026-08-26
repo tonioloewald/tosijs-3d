@@ -47,8 +47,12 @@ export interface BuoyancyParams {
   waterDrag?: number
   /** Quadratic drag through air, for the part of you that is out. Default 0.02. */
   airDrag?: number
-  /** Speed below which a bob is considered settled, m/s. Default 0.05. */
-  restSpeed?: number
+  /**
+   * Vertical thrust, m/s², signed (positive up) — a swimmer kicking. Added to
+   * the acceleration, so it competes with buoyancy rather than overriding it:
+   * stop kicking and physics takes over again. Default 0.
+   */
+  thrust?: number
 }
 
 /**
@@ -89,11 +93,14 @@ export function buoyantStep(
     buoyancy = 1.15,
     waterDrag = 4,
     airDrag = 0.02,
+    thrust = 0,
   } = params
   if (dt <= 0) return vy
   const s = submerged <= 0 ? 0 : submerged >= 1 ? 1 : submerged
-  // Weight always; the push scales with how much of you is in the water.
-  const accel = gravity + -gravity * buoyancy * s
+  // Weight always; the push scales with how much of you is in the water. Thrust
+  // only works against something to push on, so it scales with submersion too —
+  // kicking in mid-air should not launch you.
+  const accel = gravity + -gravity * buoyancy * s + thrust * s
   const drag = airDrag + (waterDrag - airDrag) * s
   const next = vy + accel * dt
   // Drag opposes motion and is applied on the NEW speed, which keeps it stable
@@ -128,4 +135,32 @@ export function isSwimming(
   restingOnFloor: boolean
 ): boolean {
   return !restingOnFloor && submerged >= 0.5
+}
+
+/**
+ * **Buoyancy for a swimmer, which is not buoyancy for a floating body.**
+ *
+ * A relaxed body corks to the surface; a diver holds depth. Both are true — the
+ * difference is that a swimmer manages it (exhaling, finning) and a log does
+ * not. So once your head is properly under, buoyancy blends from the floating
+ * value toward `neutral`, which is set **just above 1 on purpose**: hold still
+ * underwater and you drift slowly up, so you surface if you stop paying
+ * attention, but you do not cork the moment you stop kicking.
+ *
+ * Tonio chose the behaviour: _"holding with a slow drift upward by default."_
+ * Games usually hold depth and real bodies cork; holding is the comfortable
+ * choice and the drift is what keeps it honest.
+ *
+ * `headDepth` is how far the TOP of the body is below the surface — negative
+ * while any part is still out. The blend is over half a metre so breaking the
+ * surface is continuous, for the same reason the drag blend is.
+ */
+export function swimBuoyancy(
+  headDepth: number,
+  params: { buoyancy?: number; neutral?: number; blend?: number } = {}
+): number {
+  const { buoyancy = 1.15, neutral = 1.02, blend = 0.5 } = params
+  if (headDepth <= 0) return buoyancy
+  const t = blend <= 0 ? 1 : Math.min(1, headDepth / blend)
+  return buoyancy + (neutral - buoyancy) * t
 }
