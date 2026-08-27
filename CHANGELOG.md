@@ -85,6 +85,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   waterline (`1` = as authored, higher rides higher), because the absolute is
   not ours to choose: the clip already encodes it, and a number here would be a
   second opinion that goes stale with the next animation set.
+- **A clip change no longer briefly makes a swimmer stand.** A newly-started
+  clip cannot be measured until its pose settles, and falling back to the
+  standing assumption for those frames put the root back at the feet — so a
+  swimmer floating at the waterline read as barely submerged and walked off
+  across it. Moving is exactly what changes the clip, which is why it showed as
+  _"when you move he tends to jump up to the surface and walk"_. An unmeasured
+  clip now inherits the last swim pose, `height / -bottom` is clamped so a
+  mid-blend reading cannot launch anyone, and **no floor under you means you
+  cannot stand** — full stop, rather than a number derived from where the body
+  drifted to.
 - **The swim/stand test no longer feeds back on itself.** It asks how deep the
   water is **at your feet on the floor**, which is stable across the switch —
   the previous form measured the current pose, so raising buoyancy raised the

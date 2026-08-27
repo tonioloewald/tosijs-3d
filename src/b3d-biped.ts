@@ -391,6 +391,8 @@ export class B3dBiped extends B3dControllable {
   private _poseCache = new Map<string, { bottom: number; height: number }>()
   /** Seconds the current clip has been playing — a pose needs settling before measuring. */
   private _poseAge = 0
+  /** Last measured pose that hangs below its root, i.e. a swim pose. See the note in water. */
+  private _lastSwimPose: { bottom: number; height: number } | null = null
   gameController?: GameController
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
   /**
@@ -957,7 +959,24 @@ export class B3dBiped extends B3dControllable {
       */
       const nearWater =
         surfaceY != null && node.position.y < surfaceY + standHeight
-      const pose = nearWater ? this._currentPose() : null
+      /*
+      A CLIP CHANGE MUST NOT BRIEFLY MAKE A SWIMMER STAND.
+
+      `_currentPose` returns null until the new clip has settled enough to
+      measure, and falling back to the standing assumption for those few frames
+      put the root back at the feet — so a swimmer floating at the waterline
+      read as barely submerged and started walking on it. Moving is exactly what
+      changes the clip (tread → forward stroke), which is why it showed up as
+      "when you move he tends to jump up to the surface and walk".
+
+      So while swimming, an unmeasured clip inherits the last swim pose. It is
+      the better guess by far: consecutive swim clips hang the body off the root
+      the same way, and the alternative is a pose we know to be wrong.
+      */
+      const pose = nearWater
+        ? this._currentPose() ?? (this._swimming ? this._lastSwimPose : null)
+        : null
+      if (pose != null && pose.bottom < -0.01) this._lastSwimPose = pose
       // No measurement yet ⇒ assume the standing pose: root at the feet, body
       // upward. True while standing, and merely the previous behaviour
       // otherwise, so a pose we cannot measure degrades rather than breaks.
@@ -988,16 +1007,17 @@ export class B3dBiped extends B3dControllable {
       const standSubmerged =
         surfaceY == null
           ? 0
-          : submergedFraction(
-              // Feet ON THE FLOOR, not the root — while swimming the root sits
-              // mid-torso, so measuring from it asks "how deep if I stood with
-              // my feet where my chest is". With no floor under you at all,
-              // fall back to the body's lowest point: you certainly cannot
-              // stand, and the number will say so.
-              grounded ? groundY : node.position.y + bodyBottom,
-              standHeight,
-              surfaceY
-            )
+          : grounded
+          ? // Feet ON THE FLOOR, not the root — while swimming the root sits
+            // mid-torso, so measuring from it asks "how deep would it be if I
+            // stood with my feet where my chest is".
+            submergedFraction(groundY, standHeight, surfaceY)
+          : // NO FLOOR AT ALL ⇒ you cannot stand, and no position can argue
+            // otherwise. Deriving this from where the body happens to be let
+            // a swimmer who rode high read as barely submerged and walk off
+            // across the surface; the honest answer does not depend on how
+            // buoyant the last frame was.
+            1
       const wasInAir = this._inAir
 
       /*
@@ -1092,7 +1112,12 @@ export class B3dBiped extends B3dControllable {
         */
         const poseBuoyancy =
           pose != null && pose.bottom < -0.01
-            ? (pose.height / -pose.bottom) * attrs.buoyancy
+            ? // Clamped: a pose caught mid-blend reads shallower than it is, and
+              // `height / -bottom` diverges as `bottom` approaches zero. Without
+              // this, one bad frame of measurement is a swimmer fired out of the
+              // water. The band spans every plausible swim pose.
+              Math.min(3, Math.max(1, pose.height / -pose.bottom)) *
+              attrs.buoyancy
             : DEFAULT_BUOYANCY * attrs.buoyancy
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
           buoyancy: swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
