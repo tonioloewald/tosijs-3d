@@ -182,6 +182,8 @@ const SWIM_THRUST = 6
 const LOCAL_FORWARD = new BABYLON.Vector3(0, 0, 1)
 /** Scratch for the yaw read-back; never allocate inside the per-frame loop. */
 const _fwdScratch = new BABYLON.Vector3()
+/** Scratch for the derived right axis, same reason. */
+const _rightScratch = new BABYLON.Vector3()
 
 export class B3dBiped extends B3dControllable {
   static initAttributes = {
@@ -673,8 +675,28 @@ export class B3dBiped extends B3dControllable {
       */
       const strafe = input.strafe ?? 0
       if (Math.abs(strafe) > 0.01) {
+        /*
+        DERIVE RIGHT FROM FORWARD — `node.right` is not it.
+
+        A glTF root arrives mirrored (`scaling.z = -1`), and the scale applies in
+        LOCAL space, so `forward` comes back negated while `right` does not. The
+        two then describe opposite handedness: measured on the live rig,
+        `node.right` versus `cross(up, forward)` gives a dot product of exactly
+        −1. Strafing right walked left.
+
+        `cross(up, forward)` is right-by-construction in this coordinate system
+        (see `babylon-orientation.test.ts`: `cross(forward, up)` is LEFT), and it
+        cannot disagree with the facing because it is DERIVED from it. That is
+        the fix rather than another `scaling.z` sign test — the pitch needed one
+        because it feeds a quaternion, but a direction can just be computed.
+        */
+        BABYLON.Vector3.CrossToRef(
+          BABYLON.Vector3.Up(),
+          node.forward,
+          _rightScratch
+        )
         node.moveWithCollisions(
-          node.right.scaleInPlace(strafe * walk * attrs.strafeSpeed * dt)
+          _rightScratch.scaleInPlace(strafe * walk * attrs.strafeSpeed * dt)
         )
       }
       node.rotate(
