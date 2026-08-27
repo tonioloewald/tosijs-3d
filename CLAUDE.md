@@ -584,6 +584,39 @@ the control node's pivot to the marker, so attitude changes rotate about the CoG
 `position` keeps meaning the stance point (level attitude ⇒ the pivot is inert, parking
 unchanged). No marker → no pivot, prior behaviour. The scout is being updated to carry both.
 
+### Scale: a person is 1.8 m, and the engine already assumed it
+
+**One metre is one unit, and a human is ~1.8 m.** Content that disagrees does not
+merely look wrong next to other content — it silently invalidates every tuned
+constant in the movement code, because those constants are lengths.
+
+This was measured, not decreed (2026-08-27). The stock `omnidude.glb` is
+**0.88 m tall** — half human scale, and about the height of a Kenney table
+(0.84 m, and the Kenney props are already real-scale). Meanwhile `b3d-biped`'s
+defaults are human numbers:
+
+| constant                               | against 0.88 m                   | against 1.83 m            |
+| -------------------------------------- | -------------------------------- | ------------------------- |
+| `runSpeed` 5 m/s                       | 5.7 body-lengths/s               | ≈ a human sprint          |
+| `STEP_UP` 0.5 m                        | 57% of body height               | a tall step (~27%)        |
+| jump ≈ 1.13 m                          | 1.3× his own height              | 62% — athletic, plausible |
+| collision ellipsoid 0.75 + 0.75 offset | a 1.5 m body around a 0.88 m rig | about right               |
+
+So the tuning was always for a person and the rig was the outlier. Adopting
+**1.83 m** (Quaternius' UE-mannequin scale, `cdn.tosijs.net/quaternius/…`) makes
+the existing numbers correct rather than requiring new ones. Scale small content
+UP; do not scale the person down.
+
+**The lever for shipped assets is `scale` in the pack's `metadata.json`** in
+`../static-assets` — the convert pipeline applies it, so re-scaling a library is
+a data change rather than a re-export. (It is deliberately NOT applied to
+animation subsets: those inputs are already built at their authored scale.)
+
+**Symptoms of getting this wrong**, so it is recognisable rather than
+re-derived: a character who takes stairs as though they were kerbs, jumps his own
+height, sprints like a car, or wades in water that should drown him. Each reads
+as a separate tuning bug and all of them are one scale error.
+
 ### Angles: degrees by default, and the `Deg` suffix rule
 
 **The authoring surface is DEGREES.** "We should use degrees everywhere. Not even

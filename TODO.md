@@ -2,6 +2,30 @@
 
 ## The queue
 
+[ ] **Adopt 1.83 m as the human reference and scale small content UP** — see
+CLAUDE.md → "Scale: a person is 1.8 m". Measured 2026-08-27: `omnidude.glb`
+is **0.88 m**, half human scale and about the height of a Kenney table,
+while the biped's own defaults (5 m/s run, 0.5 m step, a 1.13 m jump, a
+1.5 m collision ellipsoid) are human numbers. The rig was the outlier, so
+switching makes the existing tuning correct instead of needing new tuning.
+
+Not a like-for-like swap: framing, camera offsets and anything expressed in
+"about waist deep" all shift with it. Do it deliberately, demo by demo.
+
+[ ] **The `tosi-b3d` demo has no shallow water, so wade→swim is untestable.**
+Measured with the water at its default −0.2: the sea floor drops like a
+step, shallowest point **1.37 m** and median **2.41 m**, and **zero**
+sampled points are wadeable for a 1.83 m body. You go from dry land
+straight to swimming.
+
+Lowering the demo's default water level to about **−1.0** would give a
+wading margin (shallowest ≈ 0.6 m) while keeping the deep part swimmable
+(≈ 1.6 m, still past the half-body threshold). The slider's −1..4 range was
+chosen for the 0.88 m rig and wants revisiting at the new scale too.
+
+Worth having a beach in the test scene regardless — the transition is a
+behaviour we now have code for and no way to watch.
+
 [ ] **Quaternius animations: the whole library is on hand — see
 `../static-assets/CONTENT-MAP.md` → "Quaternius — Universal Animation
 Library".** UAL1 has **120** clips and UAL2 **134**, and a curated
