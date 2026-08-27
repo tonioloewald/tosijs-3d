@@ -67,6 +67,23 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **Strafing is a toggle, `strafing="off"` by default.** Both sticks then turn
+  you — the left while moving or not, the right without moving — and the
+  sidestep clips never play. Off on principle: sidestepping is a shooter idiom
+  that reads oddly on a character meant to move like a person. That it also
+  avoids the weakest clips in the Quaternius set is a bonus, not the reason.
+- **The pose is averaged over the cycle, not sampled once** — the fix for
+  _"I seem to porpoise out of the water"_. A swim cycle is not a fixed shape:
+  over `Swim_Fwd_Loop`'s 1.33 s the body's lowest point swings from −1.26 to
+  −0.28 as the legs kick. A single sample landed wherever the settle timer fell,
+  and the shallow end of that swing drove the derived buoyancy to its clamp and
+  fired the swimmer out of the water — intermittently, because it depended on
+  the phase.
+- **`buoyancy` is METRES, not a multiplier** (`0` default = waterline at the
+  head; `0.1` floats ten centimetres higher). A multiplier is not authorable —
+  its effect depends on how tall the pose happens to be, so the same number
+  means different things for a tread and a crawl. Tonio: _"we can keep buoyancy
+  as a strict z offset for a given figure in water."_
 - **The waterline is anchored at the swimmer's HEAD.** Which is what swimming
   _is_ — you keep your head at the surface, and you do it by swimming rather
   than by floating — so it is a fact about the activity, not about a clip, and

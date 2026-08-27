@@ -325,18 +325,36 @@ export class B3dBiped extends B3dControllable {
     /** Sidestep speed as a fraction of walking. Slower than forward on purpose. */
     strafeSpeed: 0.75,
     /**
-     * **Flotation trim — how high you ride relative to what the swim animation
-     * says.** `1` (default) rests exactly where the clip was authored to rest,
-     * which for a standard swim set means the root on the waterline: head and
-     * shoulders out when treading, head breaking the surface when crawling.
+     * `'on'` to sidestep with the left stick, `'off'` (default) to turn with it
+     * instead — both sticks then steer and the sidestep clips never play.
      *
-     * Above 1 rides higher, below 1 lower — the honest way to model a heavy
-     * pack or armour. It is a multiplier rather than an absolute because the
-     * absolute is not ours to choose: the animation already encodes it, and a
-     * number here would just be a second opinion that goes stale the moment the
-     * animation set changes.
+     * Off by default on principle rather than as a workaround: strafing is a
+     * shooter idiom that reads oddly on a character meant to move like a
+     * person. That it also avoids the weakest clips in the Quaternius set is a
+     * bonus, not the reason.
+     *
+     * A string enum rather than a boolean because a boolean attribute cannot
+     * default to true, and the useful default here is "strafing off".
      */
-    buoyancy: 1,
+    strafing: 'off',
+    /**
+     * **How high this figure rides in the water, in METRES.** `0` (default)
+     * puts the waterline at the head — what swimming means — and it is a
+     * straight vertical offset from there: `0.1` floats ten centimetres
+     * higher, `-0.1` ten lower.
+     *
+     * Metres rather than a dimensionless multiplier because a multiplier is not
+     * authorable — its effect depends on how tall the pose happens to be, so
+     * the same number means different things for a tread and a crawl, and you
+     * tune it by bisection. An offset is the thing you actually want to say:
+     * *this figure sits a bit lower in the water.* Tonio: *"we can keep
+     * buoyancy as a strict z offset for a given figure in water."*
+     *
+     * It is per-FIGURE, which is the useful axis — a heavy pack, armour, a
+     * different body — and it composes with any animation set, because the
+     * anchor it offsets from is measured rather than authored.
+     */
+    buoyancy: 0,
   }
 
   entries?: BABYLON.InstantiatedEntries
@@ -394,6 +412,16 @@ export class B3dBiped extends B3dControllable {
   >()
   /** Seconds the current clip has been playing — a pose needs settling before measuring. */
   private _poseAge = 0
+  /** Samples in flight for the clip being measured — see `_currentPose`. */
+  private _poseAccum: {
+    key: string
+    n: number
+    bottom: number
+    height: number
+    head: number
+    headN: number
+    next: number
+  } | null = null
   /** Last measured pose that hangs below its root, i.e. a swim pose. See the note in water. */
   private _lastSwimPose: {
     bottom: number
@@ -595,22 +623,69 @@ export class B3dBiped extends B3dControllable {
   }
 
   /**
-   * The cached extent for the clip currently playing, measuring it once the
-   * pose has had `settle` seconds to reach it. Returns `null` until then, and
-   * callers fall back to the standing assumption — which is correct for
-   * standing and merely the status quo for anything else.
+   * The extent for the clip currently playing, **averaged over a couple of
+   * seconds** rather than sampled once, and cached per clip.
+   *
+   * Averaging is not polish, it is the difference between working and not. A
+   * swim cycle is not a fixed shape: measured on `Swim_Fwd_Loop` (1.33 s), the
+   * body's lowest point swings from −1.26 to −0.28 as the legs kick — nearly a
+   * metre — and the head from −0.03 to +0.28. A single sample therefore lands
+   * wherever the settle timer happens to fall, and since the waterline is
+   * derived from `height / depth`, the shallow end of that swing produced a
+   * buoyancy at the clamp and fired the swimmer out of the water. Tonio: *"I
+   * seem to porpoise out of the water with a dead right stick"* — intermittent,
+   * because it depended on the phase, which is exactly how it read.
+   *
+   * Returns the running mean while it accumulates, so the value is usable
+   * immediately and merely gets better; it is committed to the cache once the
+   * window closes.
    */
   private _currentPose(
-    settle = 0.25
+    settle = 0.25,
+    window = 2,
+    interval = 0.08
   ): { bottom: number; height: number; head: number | null } | null {
     const key = this.animationState?.animation ?? this.animationState?.name
     if (key == null) return null
     const hit = this._poseCache.get(key)
     if (hit != null) return hit
     if (this._poseAge < settle) return null
-    const measured = this._poseExtent()
-    if (measured != null) this._poseCache.set(key, measured)
-    return measured
+    let acc = this._poseAccum
+    if (acc == null || acc.key !== key) {
+      acc = this._poseAccum = {
+        key,
+        n: 0,
+        bottom: 0,
+        height: 0,
+        head: 0,
+        headN: 0,
+        next: 0,
+      }
+    }
+    // Spread the samples across the cycle rather than taking them back to back:
+    // a skinning pass per frame for two seconds is a real cost, and adjacent
+    // frames say almost the same thing anyway.
+    if (this._poseAge >= acc.next) {
+      acc.next = this._poseAge + interval
+      const m = this._poseExtent()
+      if (m != null) {
+        acc.n++
+        acc.bottom += m.bottom
+        acc.height += m.height
+        if (m.head != null) {
+          acc.head += m.head
+          acc.headN++
+        }
+      }
+    }
+    if (acc.n === 0) return null
+    const mean = {
+      bottom: acc.bottom / acc.n,
+      height: acc.height / acc.n,
+      head: acc.headN > 0 ? acc.head / acc.headN : null,
+    }
+    if (this._poseAge >= settle + window) this._poseCache.set(key, mean)
+    return mean
   }
 
   /**
@@ -642,10 +717,13 @@ export class B3dBiped extends B3dControllable {
    * one mid-blend measurement would otherwise fire a swimmer out of the water.
    */
   private _swimWaterline(
-    pose: { bottom: number; height: number; head: number | null } | null
+    pose: { bottom: number; height: number; head: number | null } | null,
+    riseMetres = 0
   ): number {
     if (pose == null || pose.bottom >= -0.01) return DEFAULT_BUOYANCY
-    const waterline = pose.head ?? 0
+    // Riding `riseMetres` higher is the same as the water sitting that much
+    // lower on the body, which is the form the equilibrium wants.
+    const waterline = (pose.head ?? 0) - riseMetres
     const submergedDepth = waterline - pose.bottom
     if (!(submergedDepth > 0.01)) return DEFAULT_BUOYANCY
     return Math.min(3, Math.max(1, pose.height / submergedDepth))
@@ -782,7 +860,25 @@ export class B3dBiped extends B3dControllable {
     this._sneakWas = sneakDown
 
     const speed = input.forward
-    const rotation = input.turn
+    /*
+    STRAFING IS OPTIONAL, AND OFF BY DEFAULT.
+
+    Tonio: *"I've decided I hate strafing both on principle and specifically the
+    way its animated by quaternius."* Two objections and they are worth keeping
+    apart, because only one of them is about this rig: sidestepping is a shooter
+    idiom that reads oddly on a character who is supposed to move like a person,
+    and the lateral clips are the weakest in the set. The first outlives the
+    animation library.
+
+    With it off, BOTH sticks turn you — the left while moving or not, the right
+    without moving — so nothing is lost from the control surface and the
+    sidestep clips simply never play. Summed and clamped rather than picked
+    between, so using both at once is not a fight.
+    */
+    const strafeIsTurn = isOff((this as any).strafing)
+    const rotation = strafeIsTurn
+      ? Math.max(-1, Math.min(1, (input.turn ?? 0) + (input.strafe ?? 0)))
+      : input.turn
     const sprint = this._sneaking ? 0 : input.sprint
     const sprintSpeed = speed * sprint
     const walk = this._sneaking
@@ -895,7 +991,7 @@ export class B3dBiped extends B3dControllable {
       sideways is not a thing, and letting it happen makes the sprint modifier
       feel like a general speed multiplier rather than a run.
       */
-      const strafe = input.strafe ?? 0
+      const strafe = strafeIsTurn ? 0 : input.strafe ?? 0
       if (Math.abs(strafe) > 0.01) {
         /*
         DERIVE RIGHT FROM FORWARD — `node.right` is not it.
@@ -1176,7 +1272,7 @@ export class B3dBiped extends B3dControllable {
         Below, `swimBuoyancy` blends this toward neutral as you go deeper, so
         diving still holds its depth; this only sets where the SURFACE is.
         */
-        const poseBuoyancy = this._swimWaterline(pose) * attrs.buoyancy
+        const poseBuoyancy = this._swimWaterline(pose, attrs.buoyancy)
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
           buoyancy: swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
           thrust: (swimUp - swimDown) * SWIM_THRUST,
