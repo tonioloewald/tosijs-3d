@@ -56,6 +56,21 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
     stance you adopt for a while versus a thing you do continuously, and a toggle
     whose state you must remember with your head underwater is worse than useless.
+- **`ualAnimationStates()`** — the clip-name map for Quaternius UAL rigs, so
+  adopting that library is one line rather than twelve hand-written states. It
+  retires two fakes: `walkBackwards` becomes a real `Jog_Bwd_Loop` instead of
+  the walk cycle played in reverse, and `sneak` gets a `Crouch_Idle_Loop` that
+  holds at rest. `Jump_Start` / `Jump_Loop` / `Jump_Land` are mapped separately,
+  which is what will let the jump's brace genuinely hold rather than scrubbing a
+  one-shot — addressable now, not yet wired.
+- **⚠️ The `tosi-b3d` demo uses a 1.83 m rig** from the CDN
+  (`quaternius/UAL1_core.glb`) instead of `omnidude.glb`, which measured
+  **0.88 m** — half human scale. **Camera framing roughly doubled** to match
+  (`cameraHeightOffset`, `cameraTargetHeight`, follow distances): that is the one
+  part of the tuning genuinely scale-bound, because it is in metres. Everything
+  else — run speed, step height, jump, the collision ellipsoid — was already
+  human-scale and is now _correct_ rather than needing adjustment. A project
+  using its own small rig will want the camera numbers back down.
 - **The biped swims.** Water was already a medium rather than a boundary line
   (underwater fog with a continuous crossing); the biped now treats it as one
   too. Tonio: _"can we change the rate at which the biped falls in water. And
