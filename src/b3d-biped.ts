@@ -468,9 +468,27 @@ export class B3dBiped extends B3dControllable {
       console.error(`setAnimationState: no state named "${name}"`)
       return
     }
-    const idx = this.entries.animationGroups.findIndex((g) =>
-      g.name.endsWith(newState.animation)
-    )
+    /*
+    EXACT NAME FIRST, suffix only as a fallback.
+
+    The lookup was `g.name.endsWith(animation)`, and a suffix match is ambiguous
+    the moment one clip's name ends with another's. Quaternius exposes it
+    immediately — asking for `Idle_Loop` played `Crouch_Idle_Loop`, because that
+    ends with it and sorts earlier — but it was already latent in the stock set:
+    `running-jump` ends with `jump`, so `setAnimationState('jump')` could match
+    the running jump depending on array order.
+
+    Babylon prefixes cloned groups with "Clone of ", so exactness has to be
+    measured after stripping that. The suffix fallback stays for rigs whose
+    exporter added some other prefix — permissive when it must be, precise when
+    it can be.
+    */
+    const clipName = (n: string) => n.replace(/^Clone of /, '')
+    const groups = this.entries.animationGroups
+    let idx = groups.findIndex((g) => clipName(g.name) === newState.animation)
+    if (idx === -1) {
+      idx = groups.findIndex((g) => g.name.endsWith(newState.animation))
+    }
     if (idx === -1) {
       console.error(
         `setAnimationState: could not find animation "${newState.animation}"`

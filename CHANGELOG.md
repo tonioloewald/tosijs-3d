@@ -137,6 +137,15 @@ served same-origin at /tjs/` is new).
 
 ### Fixed
 
+- **`setAnimationState` could pick the wrong clip.** The lookup was
+  `group.name.endsWith(animation)`, and a suffix match is ambiguous the moment
+  one clip's name ends with another's. Asking a Quaternius rig for `Idle_Loop`
+  played **`Crouch_Idle_Loop`** — but it was already latent in the stock set,
+  where `running-jump` ends with `jump`, so `setAnimationState('jump')` could
+  match the running jump depending on array order. Now an exact name match
+  (after stripping Babylon's `Clone of ` prefix), with the suffix behaviour kept
+  only as a fallback for rigs whose exporter adds some other prefix.
+
 - **A `_collideCylinder` child of a `_collideMesh` parent built a cylinder around
   the PARENT's whole subtree.** Reported as _"I put a collideMesh on the hull and
   collideCylinders on each mast but the ship just seems to have a single giant
