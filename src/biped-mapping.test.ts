@@ -30,6 +30,22 @@ function pad(over: Partial<VirtualGamepad> = {}): VirtualGamepad {
   return { ...zero, ...over } as VirtualGamepad
 }
 
+describe('bipedMapping: GTA V layout — left moves, right turns', () => {
+  test('left stick is move and STRAFE, not turn', () => {
+    const i = bipedMapping(pad({ leftStickY: 0.8, leftStickX: -0.3 }), 1 / 60)
+    expect(i.forward).toBeCloseTo(0.8, 9)
+    expect(i.strafe).toBeCloseTo(-0.3, 9)
+    expect(i.turn).toBe(0)
+  })
+
+  test('right stick X turns the BODY', () => {
+    expect(bipedMapping(pad({ rightStickX: 0.5 }), 1 / 60).turn).toBeCloseTo(
+      0.5,
+      9
+    )
+  })
+})
+
 describe('bipedMapping: the right stick is LOOK', () => {
   /*
   This layer is exactly what a live test bypasses. Swimming "where you look" was
@@ -37,13 +53,16 @@ describe('bipedMapping: the right stick is LOOK', () => {
   model and never touched the mapping — where the stick was still bound to zoom,
   so in play there was no aim at all.
   */
-  test('right stick drives lookX / lookY', () => {
+  test('right stick Y drives lookY (pitch); X turns the body instead', () => {
     const i = bipedMapping(
       pad({ rightStickX: 0.5, rightStickY: -0.25 }),
       1 / 60
     )
-    expect(i.lookX).toBeCloseTo(0.5, 9)
     expect(i.lookY).toBeCloseTo(-0.25, 9)
+    // No camera yaw at all: X is `turn`, so the view cannot end up pointing
+    // somewhere the character is not.
+    expect(i.lookX).toBe(0)
+    expect(i.turn).toBeCloseTo(0.5, 9)
   })
 
   test('the right stick no longer zooms', () => {
@@ -79,12 +98,6 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
 })
 
 describe('bipedMapping: nothing else moved', () => {
-  test('movement stays on the left stick', () => {
-    const i = bipedMapping(pad({ leftStickY: 0.8, leftStickX: -0.3 }), 1 / 60)
-    expect(i.forward).toBeCloseTo(0.8, 9)
-    expect(i.turn).toBeCloseTo(-0.3, 9)
-  })
-
   test('sprint stays on the right trigger, away from the left thumb', () => {
     expect(bipedMapping(pad({ rightTrigger: 1 }), 1 / 60).sprint).toBe(1)
   })

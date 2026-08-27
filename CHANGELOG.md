@@ -10,6 +10,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **⚠️ The biped uses the GTA V control layout.** Left stick moves and
+  **strafes**; right stick **turns the body** and pitches. It was tank-controlled
+  (left stick X turned), which nobody has muscle memory for any more and which
+  left the right stick doing camera work that could not steer. Turning the body
+  with the right stick makes **swim direction and body facing one thing** rather
+  than two that can disagree — the thing that made look-directed swimming fiddly.
+  The camera now sits straight behind the body and has no yaw of its own, so it
+  cannot end up pointing somewhere the character is not. Measured: strafe moves
+  4.65 m sideways with the yaw unchanged; turn rotates 34° with zero translation.
 - **The biped's right stick is a LOOK control**, and jump and sneak exist.
   Tonio spotted that look-directed swimming had nothing to aim with on a flat
   screen: the right stick was bound to `cameraZoom` (Y) and a snap-back peek (X),

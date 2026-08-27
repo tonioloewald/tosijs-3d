@@ -328,22 +328,34 @@ export interface InputMappingDescriptor {
 
 export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   const input = emptyInput()
+  /*
+  GTA V LAYOUT: the left stick MOVES, the right stick TURNS.
+
+  The biped was tank-controlled — left stick X turned the body — which nobody
+  has muscle memory for any more, and it left the right stick doing camera work
+  that could not steer. Turning the BODY with the right stick makes swim
+  direction and body facing ONE thing rather than two that can disagree, which
+  is what made look-directed swimming fiddly to control.
+
+  Left stick X becomes strafe, which is worth having on land regardless.
+  */
   input.forward = pad.leftStickY
-  input.turn = pad.leftStickX
+  input.strafe = pad.leftStickX
+  input.turn = pad.rightStickX
   // Right trigger, not left bumper: movement is the LEFT stick, so a left-hand
   // sprint modifier fights the left thumb. Right trigger frees that up.
   input.sprint = pad.rightTrigger
   input.interact = pad.buttonX
   input.shoot = pad.buttonB
   /*
-  RIGHT STICK IS LOOK, like the aircraft's.
+  Right stick Y is PITCH — the camera's, and while swimming the body's. There is
+  no separate camera yaw, because X turns the body and the camera follows it, so
+  the view cannot be left pointing somewhere the character is not.
 
   It used to be zoom (Y) and a snap-back peek (X), which meant a character had
   no aim at all: nothing to point at a thing, and — once swimming arrived —
-  nothing to point DOWN with, so look-directed swimming had no input on a flat
-  screen. Zoom moves to the d-pad, which the sneak toggle has just vacated.
+  nothing to point DOWN with. Zoom moved to the d-pad, which sneak vacated.
   */
-  input.lookX = pad.rightStickX
   input.lookY = pad.rightStickY
   input.cameraZoom = Math.max(0, pad.dpadUp - pad.dpadDown)
   /*
@@ -367,14 +379,14 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
   map: bipedMapping,
   labels: {
     leftStickY: 'move',
-    leftStickX: 'turn',
+    leftStickX: 'strafe',
+    rightStickX: 'turn',
     rightBumper: 'jump',
     leftBumper: 'sneak',
     rightTrigger: 'sprint',
     buttonX: 'interact',
     buttonB: 'shoot',
-    rightStickX: 'look',
-    rightStickY: 'look',
+    rightStickY: 'pitch',
     dpadUp: 'zoom',
   },
 }

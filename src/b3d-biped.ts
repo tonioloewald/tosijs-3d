@@ -246,6 +246,8 @@ export class B3dBiped extends B3dControllable {
     jumpMinScale: 0.45,
     /** Fraction of walking speed while sneaking. */
     sneakSpeed: 0.4,
+    /** Sidestep speed as a fraction of walking. Slower than forward on purpose. */
+    strafeSpeed: 0.75,
   }
 
   entries?: BABYLON.InstantiatedEntries
@@ -314,10 +316,10 @@ export class B3dBiped extends B3dControllable {
   private _swimWasPitched = false
   /** Body yaw in radians while pitched — integrated, never read back. */
   private _bodyYaw = 0
-  /** Persistent look, degrees. Third-person look STAYS where you put it —
-   * unlike the aircraft's, which springs back, because a character's camera is
-   * how you look around rather than a glance off the flight path. */
-  private _lookYaw = 0
+  /**
+   * Camera/body pitch in degrees, positive up. There is no `_lookYaw`: the
+   * right stick turns the BODY now, so the camera has no yaw of its own.
+   */
   private _lookPitch = 0
   private _sneaking = false
   private _jumpWas = false
@@ -600,13 +602,6 @@ export class B3dBiped extends B3dControllable {
       this._lookPitch *= Math.exp(-3 * dt) // frame-rate independent
       if (Math.abs(this._lookPitch) < 0.5) this._lookPitch = 0
     }
-    this._lookYaw += (input.lookX ?? 0) * attrs.lookRate * dt
-    // Wrap. Yaw is unbounded by nature — you can keep panning — and an
-    // accumulator nobody wraps grows all session (it read 377° after three
-    // seconds of test input), taking `rotationOffset` and float precision with
-    // it. Pitch needs no wrap; it is clamped by `maxLookPitch`.
-    if (this._lookYaw > 180) this._lookYaw -= 360
-    else if (this._lookYaw < -180) this._lookYaw += 360
     this._lookPitch = Math.max(
       -attrs.maxLookPitch,
       Math.min(
@@ -624,7 +619,11 @@ export class B3dBiped extends B3dControllable {
         0,
         Math.min(1, this._camZoom + (input.cameraZoom ?? 0) * dt)
       )
-      this.camera.rotationOffset = 180 + this._lookYaw
+      // Straight behind the body. The right stick turns the CHARACTER now, so
+      // the camera has no yaw of its own and cannot end up pointing somewhere
+      // the character is not — which is the failure mode an orbiting
+      // third-person camera has and a GTA-style one does not.
+      this.camera.rotationOffset = 180
       // Pitch as height: +look is up, which means the camera drops BELOW the
       // subject to look up at it, so the offset runs the other way.
       this.camera.heightOffset =
@@ -644,6 +643,20 @@ export class B3dBiped extends B3dControllable {
       } else if (speed < 0) {
         node.moveWithCollisions(
           node.forward.scaleInPlace(speed * dt * attrs.backwardSpeed)
+        )
+      }
+      /*
+      STRAFE — the left stick's X, now that the right stick turns.
+
+      Along the body's own right axis, so it follows the facing (and, while
+      swimming, the pitch) for free. Deliberately not sprint-scaled: sprinting
+      sideways is not a thing, and letting it happen makes the sprint modifier
+      feel like a general speed multiplier rather than a run.
+      */
+      const strafe = input.strafe ?? 0
+      if (Math.abs(strafe) > 0.01) {
+        node.moveWithCollisions(
+          node.right.scaleInPlace(strafe * walk * attrs.strafeSpeed * dt)
         )
       }
       node.rotate(
