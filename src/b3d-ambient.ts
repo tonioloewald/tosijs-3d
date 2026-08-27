@@ -406,6 +406,9 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   private _ps: BABYLON.ParticleSystem | null = null
   private _leaves: LeafField | null = null
   private _emitter = new BABYLON.Vector3(0, 0, 0)
+  /** Spawn-box vertical extent, emitter-relative — clipped at the waterline. */
+  private _spawnLoY = -18
+  private _spawnHiY = 18
   private _lastEye = new BABYLON.Vector3(0, 0, 0)
   private _eyeVel = new BABYLON.Vector3(0, 0, 0)
   private _intensity = 0
@@ -505,11 +508,29 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
       let x = 0
       let y = 0
       let z = 0
+      /*
+      CLIP THE SPAWN BOX AT THE WATERLINE.
+
+      Intensity already ramps on the CAMERA's depth, and that was never the
+      problem — the box is. It is a cube of side 2r centred on the eye, so with
+      the eye anywhere near the surface, half of it is in the wrong medium:
+      `above` leaves are born a radius BELOW the waterline and `underwater`
+      bubbles a radius above it. Swimming in third person parks the camera right
+      at the surface and makes it constant, which is how Tonio found it — "a LOT
+      of ambient particles including leaves (below water) and bubbles (above)".
+
+      Intensity says HOW MUCH to emit; it cannot say WHERE, so this is not
+      something the ramp could ever have fixed. The medium has a boundary, so
+      the volume needs one too — the same lesson as the biped's plane-vs-volume
+      submersion test, one layer along.
+      */
+      const loY = this._spawnLoY
+      const hiY = this._spawnHiY
       // Rejection-sample out of the near-field core. Bounded — on the rare miss we just take
       // the last sample rather than spin.
       for (let i = 0; i < 8; i++) {
         x = (Math.random() * 2 - 1) * r
-        y = (Math.random() * 2 - 1) * r
+        y = loY + Math.random() * (hiY - loY)
         z = (Math.random() * 2 - 1) * r
         if (x * x + y * y + z * z >= near * near) break
       }
@@ -627,6 +648,7 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     // world space unless you ask otherwise). That's the whole illusion.
     const eye = cam.globalPosition
     this._intensity = this.disabled ? 0 : this._whereWeight(eye.y)
+    this._clipSpawnBox()
 
     // Quad (leaf) path: population the budget×gaze allow, eased in `LeafField`.
     if (this._isQuad) {
@@ -719,6 +741,29 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
    * arrive as the water does. A hard cut at the surface is the particle version of the fog
    * thunk, and we fixed that once already.
    */
+  /**
+   * Keep the spawn box on the right side of the water. See the note in the
+   * spawn function for why intensity could never have done this.
+   *
+   * Runs after the emitter has been placed, so it clips against where particles
+   * will ACTUALLY be born rather than against the camera — the two differ by the
+   * look-ahead and wind bias, which is exactly the amount that would leak.
+   */
+  private _clipSpawnBox(): void {
+    const r = this.radius
+    this._spawnLoY = -r
+    this._spawnHiY = r
+    if (this.where === 'always') return
+    const waterY = this._waterY()
+    if (waterY == null) return
+    const surface = waterY - this._emitter.y // emitter-relative waterline
+    if (this.where === 'above') this._spawnLoY = Math.max(-r, surface)
+    else this._spawnHiY = Math.min(r, surface)
+    // Fully on the wrong side: leave a degenerate sliver rather than an
+    // inverted box. Intensity is ~0 here anyway, so nothing is born.
+    if (this._spawnLoY > this._spawnHiY) this._spawnLoY = this._spawnHiY
+  }
+
   private _whereWeight(eyeY: number): number {
     if (this.where === 'always') return 1
     const waterY = this._waterY()

@@ -79,6 +79,19 @@ served same-origin at /tjs/` is new).
 
 ### Fixed
 
+- **Ambient particles spawned on the wrong side of the water** — leaves below it,
+  bubbles above, and a lot of them. Reported while swimming, which is what made
+  it constant: third person parks the camera right at the surface. Intensity was
+  never the problem; it already ramps correctly on the camera's depth. The
+  **spawn box** was: a cube of side 2·radius centred on the eye, so with the eye
+  near the surface half of it sits in the wrong medium. Intensity says how much
+  to emit and cannot say where, so no amount of ramping could have fixed it. The
+  box is now clipped at the waterline — measured with the camera on the surface,
+  `leaves/above` spawns from −0.20 up and both `underwater` presets from −0.20
+  down, against a surface at −0.20. Same lesson as the biped's plane-vs-volume
+  submersion test, one layer along: a medium with a boundary needs a volume with
+  one too.
+
 - **World-placed dialogs rendered MIRRORED** — the death/respawn panel read
   "NWOD", and so did the pause panel in any scene using `placement="world"`.
   Reported from a headset, but not headset-specific: it was mirrored flat too,
