@@ -164,6 +164,59 @@ export class AnimState {
 }
 
 /**
+ * **Animation states for a Quaternius UAL rig** (the Universal Animation
+ * Library, on `cdn.tosijs.net/quaternius/`).
+ *
+ * The biped drives states by NAME — `walk`, `run`, `sneak` — and a rig supplies
+ * whatever its animator called them. This is the translation for UAL, so
+ * adopting that library is one line:
+ *
+ * ```js
+ * b3dBiped({
+ *   url: assetUrl('quaternius/UAL1_core.glb'),
+ *   animationStates: ualAnimationStates(),
+ * })
+ * ```
+ *
+ * Two things it buys beyond names. `walkBackwards` becomes a real
+ * `Jog_Bwd_Loop` rather than the walk cycle played in reverse, and `sneak` gets
+ * a crouch that holds at rest — both were fakes against the stock rig.
+ *
+ * Pass `extra` to add or override entries; a later entry with the same `name`
+ * wins, so a project can retarget one state without restating the rest.
+ */
+export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
+  const base: AnimStateSpec[] = [
+    { name: 'idle', animation: 'Idle_Loop', loop: true },
+    { name: 'walk', animation: 'Walk_Loop', loop: true },
+    { name: 'run', animation: 'Jog_Fwd_Loop', loop: true },
+    { name: 'sprint', animation: 'Sprint_Loop', loop: true },
+    { name: 'walkBackwards', animation: 'Jog_Bwd_Loop', loop: true },
+    { name: 'strafeLeft', animation: 'Jog_Left_Loop', loop: true },
+    { name: 'strafeRight', animation: 'Jog_Right_Loop', loop: true },
+    { name: 'sneak', animation: 'Crouch_Fwd_Loop', loop: true },
+    { name: 'sneakIdle', animation: 'Crouch_Idle_Loop', loop: true },
+    // One clip per phase, which is why the jump can be done properly here:
+    // `jump` is the wind-up, and the loop and landing are addressable.
+    { name: 'jump', animation: 'Jump_Start', loop: false },
+    { name: 'jumpLoop', animation: 'Jump_Loop', loop: true },
+    { name: 'jumpLand', animation: 'Jump_Land', loop: false },
+    { name: 'running-jump', animation: 'Jump_Loop', loop: false },
+    { name: 'swim', animation: 'Swim_Fwd_Loop', loop: true },
+    { name: 'tread-water', animation: 'Swim_Idle_Loop', loop: true },
+    { name: 'dance', animation: 'Dance_Loop', loop: true },
+    { name: 'pilot', animation: 'Driving_Loop', loop: true },
+    { name: 'pickup', animation: 'Interact', loop: false },
+    { name: 'look', animation: 'Idle_Loop', loop: true },
+  ]
+  const byName = new Map<string, AnimStateSpec>()
+  for (const spec of [...base, ...extra]) {
+    byName.set(spec.name ?? spec.animation, spec)
+  }
+  return AnimState.buildList(...byName.values())
+}
+
+/**
  * How far above the feet the collision body starts — everything below this is
  * walked over rather than collided with. Unity calls it Step Offset.
  */
@@ -206,10 +259,22 @@ export class B3dBiped extends B3dControllable {
     forwardSpeed: 2,
     runSpeed: 5,
     backwardSpeed: 1,
-    cameraHeightOffset: 1,
-    cameraTargetHeight: 0.75,
-    cameraMinFollowDistance: 2,
-    cameraMaxFollowDistance: 5,
+    /*
+    CAMERA FRAMING IS IN METRES, so it is scale-bound — and these were tuned
+    against a 0.88 m rig. At human scale (1.8 m, see CLAUDE.md → "Scale") the
+    old numbers put the camera at chest height two metres back, which frames
+    the character's shoulders and not the world. Roughly doubled, which is the
+    ratio between the rigs.
+
+    Note `eyeHeight` below was ALREADY 1.6 — a human number on a half-height
+    character. That mismatch is the tell that the defaults were written for a
+    person and the rig drifted, which is the argument for standardising on 1.8 m
+    rather than retuning everything down.
+    */
+    cameraHeightOffset: 2,
+    cameraTargetHeight: 1.4,
+    cameraMinFollowDistance: 4,
+    cameraMaxFollowDistance: 10,
     // Void-catch backstop: a biped never falls below this Y. It's a last resort for
     // scenes with NO collidable ground at all (a GLB floor not named `_collide`), so
     // set it DEEP — not at walking level. At 0 it would act as an invisible floor,

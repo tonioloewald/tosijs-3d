@@ -9,7 +9,7 @@ must be children of a `b3d` element.
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
-  b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
+  b3dBiped, ualAnimationStates, assetUrl, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
@@ -26,7 +26,15 @@ const { demo } = tosi({
 })
 
 const scene = '/test-3.glb'
-const omnidude = '/omnidude.glb'
+// A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
+// CDN (the full library is 120 clips and 20 MB; see ../static-assets). Replaces
+// omnidude.glb, which measured 0.88 m: half human scale, about as tall as a
+// Kenney table, while this engine's movement constants were always human
+// numbers. See CLAUDE.md → "Scale: a person is 1.8 m".
+//
+// Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
+// was the walk cycle in reverse, and sneaking had no crouch to hold.
+const person = assetUrl('quaternius/UAL1_core.glb')
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -54,10 +62,10 @@ preview.append(
     b3dLoader({ url: scene }),
     inputFocus(
       gameController(),
-      b3dBiped({ url: omnidude, x: 5, ry: 135, player: true, cameraType: 'follow', initialState: 'look' }),
+      b3dBiped({ url: person, animationStates: ualAnimationStates(), x: 5, ry: 135, player: true, cameraType: 'follow', initialState: 'idle' }),
     ),
-    b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: 'idle' }),
-    b3dBiped({ url: omnidude, x: 3, z: -2, initialState: 'dance' }),
+    b3dBiped({ url: person, animationStates: ualAnimationStates(), x: -4, z: 3, ry: 45, initialState: 'idle' }),
+    b3dBiped({ url: person, animationStates: ualAnimationStates(), x: 3, z: -2, initialState: 'dance' }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
     b3dWater({ y: demo.waterLevel, twoSided: true, waterSize: 1024 }),
     // ABOVE the surface: leaves tumbling on the breeze — two-sided quads that flip and blow,

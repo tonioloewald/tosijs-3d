@@ -315,6 +315,8 @@ export { B3dPanel, b3dPanel } from './b3d-panel'
 
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped'
+// Clip-name map for Quaternius UAL rigs — see b3d-biped.
+export { ualAnimationStates } from './b3d-biped'
 export type { AnimStateSpec } from './b3d-biped'
 export { GameController, gameController } from './game-controller'
 export { B3dInputFocus, inputFocus } from './b3d-input-focus'
