@@ -79,6 +79,30 @@ served same-origin at /tjs/` is new).
 
 ### Fixed
 
+- **A `_collideCylinder` child of a `_collideMesh` parent built a cylinder around
+  the PARENT's whole subtree.** Reported as _"I put a collideMesh on the hull and
+  collideCylinders on each mast but the ship just seems to have a single giant
+  squat cylinder"_ — and the effect was a **34.4 m wide, 26 m tall** invisible
+  barrier you could not walk within twenty metres of. Two independent faults,
+  both in how a collider's bounds are chosen:
+
+  - The root-walk climbed while the parent had **any** collide annotation, so
+    each mast climbed onto the hull. The shape came from the leaf and the bounds
+    from the root, so it built the mast's _cylinder_ around the hull's _subtree_
+    — and one `processed` entry then swallowed the other two masts, which is why
+    there was exactly one. It now climbs only across the **same** annotation.
+    (The tell was the generated mesh's name: `Hull_collideMesh_collider` should
+    be impossible, because `_collideMesh` never builds a primitive.)
+  - Bounds combined the annotated node's children even when the node had its own
+    geometry. A mast is a Mesh 0.55 × 20.6 × 0.64 carrying the Crow's Nest, Flag,
+    Spars and SquareSails, so combining gave a 10.2 m cylinder around each mast
+    — the deck still walled off. Children are combined only when the annotated
+    node has no geometry of its own, which is the GLB TransformNode case the
+    behaviour was written for.
+
+  Ship colliders now measure **0.58–0.64 m across** at mast height, and the hull
+  keeps its mesh collider.
+
 - **Ambient particles spawned on the wrong side of the water** — leaves below it,
   bubbles above, and a lot of them. Reported while swimming, which is what made
   it constant: third person parks the camera right at the surface. Intensity was
