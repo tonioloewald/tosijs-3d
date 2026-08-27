@@ -29,6 +29,13 @@ to do properly."_
 realism slider. They make opposite promises and a spectrum between them would
 keep both.
 
+Tonio: _"Mario is not gradually turning into GTAV. They are different by
+intention."_ Worth stating flatly, because "make it configurable" is the
+default instinct and it is wrong here: the platform jumper's whole value is
+that the character does exactly what you pressed, and any amount of the
+character deciding things destroys it. These are not two ends of a dial. They
+are two contracts.
+
 |                     | **Platform jumper**                         | **Intent model**                                  |
 | ------------------- | ------------------------------------------- | ------------------------------------------------- |
 | The player supplies | a verb, executed now                        | an intention                                      |
@@ -84,12 +91,71 @@ transitions and cannot desync. Cover is the same shape at a larger scale.
 **because it is a movement order, not a mode change**: it says "go there", and
 being in cover on arrival is still derived.
 
+## Derived from geometry, NEVER painted on it
+
+The sharpest rule here, and the one with teeth. Two failure modes Tonio names:
+
+- **Mass Effect's cover.** Cover is statically determined by a level designer.
+  It does not matter whether a thing _looks_ like it would work as cover — it
+  only matters whether someone painted the area with cover polygons.
+- **MGSV's climbing.** The hero can do almost anything, but can only climb
+  cliffs carrying a specific graphic.
+
+Both break the same contract, and it is a contract about _trust_: the player
+learns the world by looking at it, then discovers that looking at it was the
+wrong way to know. A wall that plainly shelters you but is not painted is worse
+than no cover system, because it teaches you to stop believing your eyes.
+
+The alternative is not "better painting". Tonio's contrast is exact: cover
+shooters that work do so **either** because geometry and line of sight actually
+dictate cover, **or** because the designers were whipped until every spot anyone
+could think of was painted — and only the first scales. (Borderlands is offered
+as genuinely good mechanics with awful AI, which is a useful reminder that the
+two are separable and fail separately. See AI-DESIGN.md.)
+
+**The gold standard is the original box-terrain Tomb Raider**: climbability was
+strictly geometric. The newer ones drift toward painting, and are better about
+it than most only because the legacy keeps them honest.
+
+### Why they paint, and why we might not have to
+
+The honest engineering note: TR's world was literally a grid of blocks, so "can I
+climb this?" was a question about a _shape_, answerable analytically. On
+arbitrary triangle soup the same question is genuinely hard, and painting is what
+studios do about that. Derivation is not a matter of virtue.
+
+But **our terrain is closer to TR's box world than to triangle soup.** The voxel
+/ density-field substrate (`sdf-lattice`, `patch-field`, TUNNEL-DESIGN.md) is a
+field we can _query_ — a ledge, an overhang, a nook is a fact about the field
+rather than something to be recovered from geometry after the fact. That is a
+real structural advantage for this north star and an argument for pushing
+mobility toward the terrain substrate rather than toward mesh annotation.
+
+### The line this draws through OUR conventions
+
+tosijs-3d is full of authored metadata — `_collideMesh`, `_collideCylinder`,
+`_mirror`, `_noshadow`. That is painting. So the rule needs a boundary, or the
+next person adds `_cover` and `_climbable` and reinvents Mass Effect:
+
+> **Suffixes declare what geometry IS. Affordances describe what a character can
+> DO with it, and must be computed.**
+
+`_collideMesh` says "this is solid" — a physical fact about the object, true for
+everyone, cheap to author and impossible to derive (we cannot know a decorative
+railing is not a wall). "You may take cover here" is not a property of the
+railing; it depends on the character's size, stance, and where the shooting is
+coming from. It is a _relation_, and relations have to be computed or they are
+lies.
+
+**A `_cover` suffix would be a bug, not a shortcut.**
+
 ## What it needs that we do not have
 
 - **Affordance queries.** "Is this geometry cover, from where?" is the same
   question as [b3d-interactive](src/b3d-interactive.ts)'s "can I use this?", one
   layer up: an affordance found in the WORLD rather than declared on a tagged
-  object. The interaction substrate's veto seam is probably the right shape for
+  object. Note the **"from where"** — it is a relation between geometry, a
+  character and a threat, which is precisely why it cannot be a suffix. The interaction substrate's veto seam is probably the right shape for
   the composition — `cover` is a thing a piece of geometry offers, and other
   features get to say "not from that angle".
 - **A capability set per character** — can it vault, mantle, climb, wall-run —
