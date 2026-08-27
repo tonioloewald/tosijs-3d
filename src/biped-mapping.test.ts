@@ -96,3 +96,26 @@ describe('bipedMapping: nothing else moved', () => {
     }
   })
 })
+
+describe('the mouse wheel must not reach the LOOK stick', () => {
+  /*
+  The wheel fed `rightStickY` for as long as the right stick was zoom, and came
+  along for the ride when the stick became look — so a scroll pitched the
+  camera, and while swimming it tipped the swimmer, because the swim aim IS the
+  look pitch. Swimming broke and the wheel is the last place anyone would look.
+
+  Asserted through the MAPPING, since that is the layer a live test bypasses —
+  the same gap that let the original "no aim on a flat screen" bug ship.
+  */
+  test('the zoom axis reaches cameraZoom and never lookY', () => {
+    const zoomed = bipedMapping(pad({ dpadUp: 1 }), 1 / 60)
+    expect(zoomed.cameraZoom).toBe(1)
+    expect(zoomed.lookY).toBe(0)
+  })
+
+  test('and look reaches lookY and never cameraZoom', () => {
+    const looked = bipedMapping(pad({ rightStickY: 1 }), 1 / 60)
+    expect(looked.lookY).toBe(1)
+    expect(looked.cameraZoom).toBe(0)
+  })
+})

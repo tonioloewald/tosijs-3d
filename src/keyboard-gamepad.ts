@@ -21,7 +21,7 @@ import { keyboardGamepad } from 'tosijs-3d'
 |----------------|------|
 | leftStick Y | W (+) / S (-) |
 | leftStick X | D (+) / A (-) |
-| rightStick Y | ArrowUp (+) / ArrowDown (-) |
+| rightStick Y | ArrowUp (+) / ArrowDown (-) — LOOK, not zoom |
 | rightStick X | ArrowRight (+) / ArrowLeft (-) |
 | buttonA | Space |
 | buttonB | F |
@@ -33,7 +33,7 @@ import { keyboardGamepad } from 'tosijs-3d'
 | rightBumper | ShiftRight |
 | dpadUp/Down/Left/Right | I / M / J / K |
 
-Mouse wheel adjusts rightStick Y (for camera zoom).
+Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
 */
 /*{ "parent": "Input" }*/
 
@@ -138,11 +138,22 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
       ;(pad as any)[btn.field] = this.buttonState[btn.field] ?? 0
     }
 
-    // Mouse wheel → rightStickY (merged with arrow keys via max-abs)
+    /*
+    MOUSE WHEEL → THE ZOOM AXIS, WHICH IS THE D-PAD.
+
+    It used to feed `rightStickY`, and that was right while the right stick WAS
+    zoom. The stick became LOOK, and the wheel came along with it — so a scroll
+    pitched the camera, and while swimming it tipped the swimmer, because the
+    swim aim is the look pitch. Reported as swimming being "horribly broken",
+    and the wheel is the last place anyone would look for it.
+
+    Pointing the wheel at the zoom axis rather than at whatever the right stick
+    currently means keeps "the wheel zooms" true through any future remapping.
+    Merged with the keys via max-abs so both work.
+    */
     const wheel = clamp(-1, this.wheelAccum, 1)
-    if (Math.abs(wheel) > Math.abs(pad.rightStickY)) {
-      pad.rightStickY = wheel
-    }
+    if (wheel > Math.abs(pad.dpadUp)) pad.dpadUp = wheel
+    else if (-wheel > Math.abs(pad.dpadDown)) pad.dpadDown = -wheel
     this.wheelAccum *= 0.8 // decay wheel toward 0
 
     return pad
