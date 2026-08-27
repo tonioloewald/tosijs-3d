@@ -103,3 +103,36 @@ export function easeAim(
 export function aimTarget(swimming: boolean, aimDeg: number): number {
   return swimming ? aimDeg : 0
 }
+
+/**
+ * **Launch speed that keeps you airborne for `seconds`.**
+ *
+ * A jump looks right when its flight time matches the clip that plays over it —
+ * land early and the animation is still winding up as you touch down, land late
+ * and you hang. Under constant gravity the time up and down is `2v/|g|`, so the
+ * speed is simply `|g|·t/2`. One line, but worth naming: it means the jump
+ * TUNES ITSELF to whatever animation set is loaded, which matters because this
+ * one is placeholder and the numbers will change under it.
+ *
+ * **The clip is an upper bound on airtime, not a measure of it.** A jump clip
+ * usually contains ground phases at both ends — the crouch and the recovery —
+ * and only the middle is flight. Measured on the stock set: `running-jump` is
+ * 0.93 s and almost entirely airborne, while the standing `jump` is 1.93 s
+ * because most of it happens with the feet down. Matching the whole of that
+ * would hang a character in the air for two seconds.
+ *
+ * There is no marker saying where the flight starts, so the honest thing is a
+ * clamp: anything longer than `maxSeconds` is assumed to include ground time
+ * and is treated as a normal jump. A tighter animation set lands inside the
+ * band and tunes itself; a loose one degrades to something sane rather than
+ * launching someone into orbit.
+ */
+export function jumpSpeedForAirtime(
+  seconds: number,
+  gravity = 9.81,
+  minSeconds = 0.35,
+  maxSeconds = 1
+): number {
+  const t = Math.max(minSeconds, Math.min(maxSeconds, seconds))
+  return (Math.abs(gravity) * t) / 2
+}

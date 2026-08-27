@@ -26,6 +26,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
     lifted the body ~7 cm, the probe still saw ground 0.6 m below, and the snap
     put it straight back — a jump that rose exactly 0.00 m. The snap now yields
     while you are rising.
+  - The jump **crouches on press and launches on release**, so the clip's
+    anticipation precedes the launch instead of chasing it (before, "he crouches
+    after launching"). `jumpSpeed: 0` (the default) derives the launch from the
+    clip length so airtime matches the animation — and retunes itself when a
+    better animation set lands. A clip is treated as an **upper bound** on
+    airtime, not a measure: measured, `running-jump` is 0.93 s and nearly all
+    flight while the standing `jump` is 1.93 s because most of it happens with
+    the feet down.
   - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
     stance you adopt for a while versus a thing you do continuously, and a toggle
     whose state you must remember with your head underwater is worse than useless.

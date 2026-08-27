@@ -5,6 +5,7 @@ import {
   integrateAim,
   easeAim,
   aimTarget,
+  jumpSpeedForAirtime,
 } from './swim-aim'
 
 describe('clampAim', () => {
@@ -116,5 +117,44 @@ describe('aimTarget — leaving the water unwinds you', () => {
       pitch = easeAim(pitch, aimTarget(false, 60), 1 / 60)
     }
     expect(Math.abs(pitch)).toBeLessThan(0.01)
+  })
+})
+
+describe('jumpSpeedForAirtime — the jump tunes itself to the clip', () => {
+  /** Time of flight for a launch speed, under constant gravity. */
+  const airtime = (v: number, g = 9.81) => (2 * v) / g
+
+  test('a launch at the returned speed stays up for the requested time', () => {
+    for (const t of [0.4, 0.7, 0.9, 1.0]) {
+      expect(airtime(jumpSpeedForAirtime(t))).toBeCloseTo(t, 6)
+    }
+  })
+
+  test('a longer clip means a higher, slower jump', () => {
+    expect(jumpSpeedForAirtime(0.9)).toBeGreaterThan(jumpSpeedForAirtime(0.6))
+  })
+
+  test('a clip with ground phases is clamped, not believed', () => {
+    // Measured on the stock set: running-jump is 0.93 s and nearly all flight,
+    // the standing jump 1.93 s because most of it happens with the feet down.
+    // Believing the latter would hang the character for two seconds.
+    const running = jumpSpeedForAirtime(0.933)
+    const standing = jumpSpeedForAirtime(1.933)
+    expect(running).toBeCloseTo(4.58, 1)
+    expect(standing).toBe(jumpSpeedForAirtime(1))
+    expect(standing).toBeLessThan(5.5)
+  })
+
+  test('a missing or absurd clip cannot launch you into orbit', () => {
+    expect(jumpSpeedForAirtime(90)).toBe(jumpSpeedForAirtime(1))
+    expect(jumpSpeedForAirtime(0)).toBe(jumpSpeedForAirtime(0.35))
+    expect(jumpSpeedForAirtime(-5)).toBe(jumpSpeedForAirtime(0.35))
+  })
+
+  test('it honours a different gravity', () => {
+    // A low-gravity world should give a gentler launch for the same clip.
+    expect(jumpSpeedForAirtime(1, 1.6)).toBeLessThan(
+      jumpSpeedForAirtime(1, 9.81)
+    )
   })
 })

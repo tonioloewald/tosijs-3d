@@ -114,7 +114,13 @@ import {
   isSwimming,
   swimBuoyancy,
 } from './buoyancy'
-import { aimFromLook, clampAim, easeAim, aimTarget } from './swim-aim'
+import {
+  aimFromLook,
+  clampAim,
+  easeAim,
+  aimTarget,
+  jumpSpeedForAirtime,
+} from './swim-aim'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -216,8 +222,17 @@ export class B3dBiped extends B3dControllable {
     lookRate: 120,
     /** How far up/down the look can go, degrees. */
     maxLookPitch: 70,
-    /** Upward speed of a jump, m/s. ~4.5 clears half a metre. */
-    jumpSpeed: 4.5,
+    /**
+     * Upward speed of a jump, m/s. **`0` = auto**, and auto is the good default:
+     * the launch is derived from the length of the `jump` (or `running-jump`)
+     * clip so the time in the air MATCHES the animation playing over it. Land
+     * early and the clip is still winding up as you touch down; land late and
+     * you hang. Set a number to override.
+     *
+     * Auto also means a better animation set retunes the jump for free, which is
+     * the point — this one is placeholder.
+     */
+    jumpSpeed: 0,
     /** Fraction of walking speed while sneaking. */
     sneakSpeed: 0.4,
   }
@@ -293,6 +308,27 @@ export class B3dBiped extends B3dControllable {
   private _lookPitch = 0
   private _sneaking = false
   private _jumpWas = false
+  /** Held the jump button while grounded: winding up, not yet launched. */
+  private _jumpCharging = false
+
+  /**
+   * How long an animation clip runs, in seconds — `0` if there is no such clip.
+   *
+   * `from`/`to` are FRAMES, so this needs the clip's own frame rate rather than
+   * an assumed 60: a 24 fps export would otherwise read as two and a half times
+   * too long and launch the character accordingly. `speedRatio` counts too,
+   * since the biped scales playback by movement speed.
+   */
+  private _clipSeconds(name: string): number {
+    const groups = this.entries?.animationGroups ?? []
+    const g = groups.find((x) =>
+      new RegExp(`(^|[^a-z])${name}$`, 'i').test(x.name)
+    )
+    if (g == null) return 0
+    const fps = g.targetedAnimations[0]?.animation?.framePerSecond ?? 60
+    const ratio = Math.abs(g.speedRatio) || 1
+    return (g.to - g.from) / fps / ratio
+  }
   private _sneakWas = false
   /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
   private _camZoom = 0
@@ -584,8 +620,25 @@ export class B3dBiped extends B3dControllable {
       water the same button SURFACES you, which is the continuous verb). Edge
       triggered, so holding it does not pogo.
       */
+      /*
+      CROUCH ON PRESS, LAUNCH ON RELEASE — Tonio's call, and the animation is
+      the reason.
+
+      Firing the impulse on the press edge put the wind-up in the wrong place:
+      the `jump` clip opens with a crouch, so launching immediately meant "he
+      crouches AFTER launching". Anticipation has to precede the thing it
+      anticipates or it is not anticipation, it is a stumble.
+
+      So the press starts the crouch and the release launches. The clip is
+      requested while still grounded and simply keeps playing through the
+      launch — `setAnimationState` is idempotent, so asking for `jump` again
+      while airborne does not restart it and the wind-up is not replayed.
+
+      Charging is cancelled by leaving the ground or entering water. In water
+      this button is the SURFACE control and continuous, so it never charges.
+      */
       const jumpDown = (input.jump ?? 0) > 0.5
-      const jumpPressed = jumpDown && !this._jumpWas
+      const jumpReleased = !jumpDown && this._jumpWas
       this._jumpWas = jumpDown
 
       const surfaceY = this._waterSurfaceY()
@@ -600,6 +653,15 @@ export class B3dBiped extends B3dControllable {
           : submergedFraction(node.position.y, bodyHeight, surfaceY)
       const grounded = hit?.hit === true && hit.pickedPoint != null
       const groundY = grounded ? hit!.pickedPoint!.y : -Infinity
+
+      // Charge while held and still standing on dry ground; launch on release.
+      if (jumpDown && grounded && submerged <= 0 && this._fallVel <= 0) {
+        this._jumpCharging = true
+      } else if (!jumpDown || !grounded || submerged > 0) {
+        this._jumpCharging = false
+      }
+      const jumpLaunch = jumpReleased && this._jumpCharging
+      if (jumpLaunch) this._jumpCharging = false
 
       if (submerged > 0) {
         /*
@@ -637,9 +699,16 @@ export class B3dBiped extends B3dControllable {
         }
         node.position.y = nextY
         this._swimming = isSwimming(submerged, onFloor)
-      } else if (jumpPressed && grounded) {
+      } else if (jumpLaunch && grounded) {
         this._swimming = false
-        this._fallVel = attrs.jumpSpeed
+        this._fallVel =
+          attrs.jumpSpeed > 0
+            ? attrs.jumpSpeed
+            : jumpSpeedForAirtime(
+                this._clipSeconds(
+                  Math.abs(speed) > 0.1 ? 'running-jump' : 'jump'
+                )
+              )
         node.moveWithCollisions(new BABYLON.Vector3(0, this._fallVel * dt, 0))
       } else if (grounded && this._fallVel <= 0) {
         /*
@@ -750,6 +819,9 @@ export class B3dBiped extends B3dControllable {
         } else {
           this.setAnimationState('tread-water')
         }
+      } else if (this._jumpCharging) {
+        // The wind-up, on the ground, BEFORE the launch.
+        this.setAnimationState('jump')
       } else if (this._fallVel > 0.5) {
         this.setAnimationState(speed > 0.1 ? 'running-jump' : 'jump')
       } else if (this._sneaking && Math.abs(speed) > 0.1) {

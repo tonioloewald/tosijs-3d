@@ -2,6 +2,48 @@
 
 ## The queue
 
+## LOCOMOTION: steer the character, let it solve the terrain (the RDR2 horse)
+
+Tonio, 2026-08-27, while we were tuning a jump button: _"jumping looks
+terrible in almost all games because for gameplay you want it to be
+instantaneous but real jumps require anticipation that is insanely hard to do
+properly. Basically you need to make characters work like horses in Red Dead
+Redemption 2 — you just steer them and they figure out the terrain."_
+
+This reframes the jump rather than refining it, and it is worth writing down
+before we polish the wrong thing. The tension is real and we hit it
+immediately: a jump the player triggers must fire NOW to feel responsive, but
+a jump that looks right must wind up FIRST, and the wind-up is exactly the
+part the player will not wait for. Crouch-on-press/launch-on-release buys some
+of it back by moving the anticipation into a moment the player chose to spend,
+and it is still a compromise.
+
+The RDR2 answer refuses the trade instead of splitting it: the player supplies
+INTENT — direction, pace, roughly where they want to be — and the character
+solves footing, gaps, ledges and jumps itself, with as much anticipation as it
+needs because it decided to jump before the player would have. The jump stops
+being a verb the player fires and becomes something the character does on the
+way to somewhere.
+
+Fits the north star squarely: behavioural richness over fidelity, and the unit
+of progress is a WATCHABLE BEHAVIOUR. A character that picks its own line over
+broken ground is exactly that, and it is worth more than a better jump arc.
+
+Evidence we already have that this is the right direction:
+
+- The stock `jump` clip is **1.93 s** and the `running-jump` **0.93 s**. The
+  long one is mostly ground — crouch and recovery. The running jump reads well
+  precisely because the character was already committed and moving.
+- Auto-tuning the launch from clip length works for the running jump and has
+  to be CLAMPED for the standing one, because there is no marker saying where
+  flight begins. A system that chose its own jumps would know.
+
+[ ] Not scheduled, and deliberately not started. It wants a real animation set
+first — Tonio is looking at Quaternius, which also brings props and
+customisation — because the whole idea is animation-led and the current
+placeholder set cannot express it. Revisit when that lands, and consider
+promoting this to its own design doc rather than a TODO section.
+
 [ ] **Submersion is a PLANE test, so "below the waterline" and "under water"
 are the same thing to the biped.** Shipped that way in 0.7.3 knowingly. It
 is fine until an interior exists below sea level — a ship's hold, a cabin,
