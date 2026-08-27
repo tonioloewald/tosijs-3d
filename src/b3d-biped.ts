@@ -114,7 +114,13 @@ import {
   isSwimming,
   swimBuoyancy,
 } from './buoyancy'
-import { aimFromLook, clampAim, easeAim, aimTarget } from './swim-aim'
+import {
+  aimFromLook,
+  clampAim,
+  easeAim,
+  aimTarget,
+  surfaceAimLimit,
+} from './swim-aim'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -571,6 +577,29 @@ export class B3dBiped extends B3dControllable {
     the camera and it looks down — which is exactly the third-person behaviour
     and needs no second camera type.
     */
+    /*
+    WHILE SWIMMING, LEVEL IS THE RESTING STATE.
+
+    Persistent look is right on land — you look around and it stays where you
+    put it. In the water it is a trap, because the swim aim IS the look pitch:
+    aim down once to dive and you are aimed down forever, so every stroke digs
+    deeper and getting back out means holding the stick up for a second and a
+    half against the 70° clamp. Tonio: "trying to go up from on the surface is a
+    big issue but I can't get out of the water now."
+
+    So while swimming the pitch springs back to level when the stick is
+    released. Push up to climb, push down to dive, let go to swim flat — and
+    buoyancy then does the rest, which is the behaviour that makes surfacing
+    automatic instead of a manoeuvre. Yaw does NOT spring: turning is turning,
+    in or out of the water.
+
+    In a headset none of this applies: your neck already returns to level, and
+    the aim comes from your head rather than from here.
+    */
+    if (this._swimming && Math.abs(input.lookY ?? 0) < 0.08) {
+      this._lookPitch *= Math.exp(-3 * dt) // frame-rate independent
+      if (Math.abs(this._lookPitch) < 0.5) this._lookPitch = 0
+    }
     this._lookYaw += (input.lookX ?? 0) * attrs.lookRate * dt
     // Wrap. Yaw is unbounded by nature — you can keep panning — and an
     // accumulator nobody wraps grows all session (it read 377° after three
@@ -886,6 +915,19 @@ export class B3dBiped extends B3dControllable {
         positive DOWN to match the quaternion. Hence the negation, once, here.
         */
         this._swimAim = clampAim(-this._lookPitch, attrs.maxLookPitch)
+      }
+      /*
+      You cannot swim up out of water, and trying is not merely useless — the
+      stroke fights the surface and the body porpoises. Cap the UPWARD aim by
+      how deep the head is: none at the surface, full once properly under.
+      Downward is never capped, so diving always works.
+      */
+      if (this._swimming) {
+        const up = surfaceAimLimit(
+          surfaceY! - (node.position.y + bodyHeight),
+          attrs.maxLookPitch
+        )
+        if (this._swimAim < -up) this._swimAim = -up
       }
       const target = aimTarget(this._swimming, this._swimAim)
       this._swimPitch = easeAim(this._swimPitch, target, dt)

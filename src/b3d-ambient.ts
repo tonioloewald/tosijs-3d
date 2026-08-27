@@ -602,6 +602,37 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
     this._baseRate = this.rate > 0 ? this.rate : p.rate
     ps.emitRate = 0 // ramped in _update — never switched on
     ps.start()
+    /*
+    BUBBLES POP AT THE SURFACE; LEAVES DO NOT SINK.
+
+    Clipping the spawn box fixed where particles are BORN, and bubbles rise, so
+    one born just under the surface crosses it a moment later and is seen in the
+    air. Tonio, after that fix: "still seeing bubbles above the waterline."
+
+    Birth position and lifetime are different questions and this is the second
+    one. Retiring a particle at the boundary is also what actually happens — a
+    bubble reaching the surface pops — so the fix and the physics agree, which
+    is usually the sign of the right one.
+
+    `updateFunction` wraps rather than replaces Babylon's, so emission, colour
+    and size gradients keep working; setting `age = lifeTime` retires a particle
+    through the engine's own path rather than teleporting or hiding it.
+    */
+    if (this.where !== 'always') {
+      const base = ps.updateFunction.bind(ps)
+      const underwater = this.where === 'underwater'
+      ps.updateFunction = (particles) => {
+        base(particles)
+        const waterY = this._waterY()
+        if (waterY == null) return
+        for (const particle of particles) {
+          const wrongSide = underwater
+            ? particle.position.y > waterY
+            : particle.position.y < waterY
+          if (wrongSide) particle.age = particle.lifeTime
+        }
+      }
+    }
     this._ps = ps
 
     scene.registerBeforeRender(this._tick)

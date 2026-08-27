@@ -136,3 +136,28 @@ export function jumpSpeedForAirtime(
   const t = Math.max(minSeconds, Math.min(maxSeconds, seconds))
   return (Math.abs(gravity) * t) / 2
 }
+
+/**
+ * **How far UP a swimmer may aim, given how deep their head is.**
+ *
+ * You cannot swim upward out of water. At the surface an upward aim is not
+ * merely useless, it is pathological: buoyancy already holds you there, so the
+ * stroke fights a ceiling and the body porpoises — pitched up, going nowhere,
+ * pumping at the boundary. Tonio: _"if you're pitched up at the surface you get
+ * quite pathological."_
+ *
+ * So the up limit is a function of head depth: none at the surface, full once
+ * you are properly under. Down is never limited — you can always dive.
+ *
+ * Returns DEGREES of permitted upward aim (a positive magnitude), blended over
+ * `blend` metres so surfacing does not snap the body level.
+ */
+export function surfaceAimLimit(
+  headDepth: number,
+  maxDeg = 70,
+  blend = 0.4
+): number {
+  if (headDepth <= 0) return 0
+  const t = blend <= 0 ? 1 : Math.min(1, headDepth / blend)
+  return Math.abs(maxDeg) * t
+}

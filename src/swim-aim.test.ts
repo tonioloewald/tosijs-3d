@@ -6,6 +6,7 @@ import {
   easeAim,
   aimTarget,
   jumpSpeedForAirtime,
+  surfaceAimLimit,
 } from './swim-aim'
 
 describe('clampAim', () => {
@@ -156,5 +157,29 @@ describe('jumpSpeedForAirtime — the jump tunes itself to the clip', () => {
     expect(jumpSpeedForAirtime(1, 1.6)).toBeLessThan(
       jumpSpeedForAirtime(1, 9.81)
     )
+  })
+})
+
+describe('surfaceAimLimit — you cannot swim up out of water', () => {
+  test('head out of the water: no upward aim at all', () => {
+    expect(surfaceAimLimit(0)).toBe(0)
+    expect(surfaceAimLimit(-1)).toBe(0)
+  })
+
+  test('properly under: the full range', () => {
+    expect(surfaceAimLimit(5)).toBe(70)
+  })
+
+  test('blended, so surfacing does not snap the body level', () => {
+    const mid = surfaceAimLimit(0.2)
+    expect(mid).toBeGreaterThan(0)
+    expect(mid).toBeLessThan(70)
+  })
+
+  test('down is never limited — you can always dive', () => {
+    // The limit is a magnitude for the UP direction only; the caller clamps one
+    // side with it. Stated as a test so nobody later makes it symmetric.
+    expect(surfaceAimLimit(0)).toBe(0)
+    expect(clampAim(70, 70)).toBe(70) // full downward aim still available
   })
 })
