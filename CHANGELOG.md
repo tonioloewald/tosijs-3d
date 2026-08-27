@@ -67,6 +67,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
     and left the character standing on the seabed under six metres of water.
     The floor stops you sinking; it does not hold you down.
   - `swim` while moving, `tread-water` while holding station.
+  - **Fixed after report: swimming broke when you pitched and turned at once.**
+    The body's yaw was read back out of the _pitched_ matrix, and
+    `atan2(forward.x, forward.z)` is ill-conditioned there — at 70° the
+    horizontal part is scaled by `cos 70° = 0.34`, so x and z collapse toward
+    zero, the recovered yaw gets noisy, and writing it straight back compounds
+    the noise into a body that wanders. The yaw is now **captured once from the
+    level matrix** and integrated from the turn input thereafter, so the only
+    reading happens while well conditioned. It hid because pitching _and_
+    turning together is one stick on a controller and two hands on a keyboard.
+  - Also fixed: the **mouse wheel** still fed `rightStickY`, which had become
+    `lookY` — so a scroll tipped the swimmer, since the swim aim is the look
+    pitch. It feeds the zoom axis now, so "the wheel zooms" survives remapping.
   - **Look-directed swimming** (`swim-aim.ts`, pure + tested): the BODY pitches,
     and the stroke follows for free — the biped already swims along its own
     forward vector, so there is no separate vertical term and no way for aim and

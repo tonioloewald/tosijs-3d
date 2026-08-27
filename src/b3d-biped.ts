@@ -306,6 +306,8 @@ export class B3dBiped extends B3dControllable {
   private _swimPitch = 0
   /** Whether the body carried a pitch last frame, so unwinding runs to zero. */
   private _swimWasPitched = false
+  /** Body yaw in radians while pitched — integrated, never read back. */
+  private _bodyYaw = 0
   /** Persistent look, degrees. Third-person look STAYS where you put it —
    * unlike the aircraft's, which springs back, because a character's camera is
    * how you look around rather than a glance off the flight path. */
@@ -887,11 +889,33 @@ export class B3dBiped extends B3dControllable {
       }
       const target = aimTarget(this._swimming, this._swimAim)
       this._swimPitch = easeAim(this._swimPitch, target, dt)
-      if (Math.abs(this._swimPitch) > 0.01 || this._swimWasPitched) {
-        this._swimWasPitched = Math.abs(this._swimPitch) > 0.01
-        node.computeWorldMatrix(true)
-        node.getDirectionToRef(LOCAL_FORWARD, _fwdScratch)
-        const yaw = Math.atan2(_fwdScratch.x, _fwdScratch.z)
+      const pitched = Math.abs(this._swimPitch) > 0.01
+      if (pitched || this._swimWasPitched) {
+        /*
+        DO NOT READ THE YAW BACK OUT OF A PITCHED MATRIX.
+
+        `atan2(forward.x, forward.z)` is fine while level and ill-conditioned
+        while pitched: at 70° the forward vector's horizontal part is scaled by
+        `cos 70° = 0.34`, so x and z collapse toward zero and the recovered yaw
+        gets noisy — then it is written straight back, so the noise compounds
+        into a body that wanders or spins. You only reach it by pitching AND
+        turning at once, which is one stick on a controller and two hands on a
+        keyboard, so it hid from every test I ran ("this was happening with
+        joystick").
+
+        So the yaw is CAPTURED ONCE from the level matrix, on the frame the
+        pitch starts, and integrated from the turn input after that. Well
+        conditioned by construction: the only reading happens while level.
+        */
+        if (!this._swimWasPitched) {
+          node.computeWorldMatrix(true)
+          node.getDirectionToRef(LOCAL_FORWARD, _fwdScratch)
+          this._bodyYaw = Math.atan2(_fwdScratch.x, _fwdScratch.z)
+        } else {
+          this._bodyYaw += rotation * dt * attrs.turnSpeed * DEG_TO_RAD
+        }
+        this._swimWasPitched = pitched
+        const yaw = this._bodyYaw
         /*
         THE `__root__` MIRROR FLIPS THE PITCH SIGN.
 
