@@ -114,7 +114,7 @@ import {
   isSwimming,
   swimBuoyancy,
 } from './buoyancy'
-import { aimFromLook, integrateAim, easeAim, aimTarget } from './swim-aim'
+import { aimFromLook, clampAim, easeAim, aimTarget } from './swim-aim'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -212,6 +212,14 @@ export class B3dBiped extends B3dControllable {
     // Eye height for the first-person camera (the view button toggles between
     // third-person over-the-shoulder and this).
     eyeHeight: 1.6,
+    /** Degrees per second the right stick swings the view. */
+    lookRate: 120,
+    /** How far up/down the look can go, degrees. */
+    maxLookPitch: 70,
+    /** Upward speed of a jump, m/s. ~4.5 clears half a metre. */
+    jumpSpeed: 4.5,
+    /** Fraction of walking speed while sneaking. */
+    sneakSpeed: 0.4,
   }
 
   entries?: BABYLON.InstantiatedEntries
@@ -278,6 +286,16 @@ export class B3dBiped extends B3dControllable {
   private _swimPitch = 0
   /** Whether the body carried a pitch last frame, so unwinding runs to zero. */
   private _swimWasPitched = false
+  /** Persistent look, degrees. Third-person look STAYS where you put it —
+   * unlike the aircraft's, which springs back, because a character's camera is
+   * how you look around rather than a glance off the flight path. */
+  private _lookYaw = 0
+  private _lookPitch = 0
+  private _sneaking = false
+  private _jumpWas = false
+  private _sneakWas = false
+  /** Zoom 0..1, now integrated from the d-pad rather than read off a stick. */
+  private _camZoom = 0
   private _waterEl: { mesh?: BABYLON.TransformNode } | null | undefined
 
   /**
@@ -410,21 +428,77 @@ export class B3dBiped extends B3dControllable {
       this.fpvCamera.rotation.set(0, Math.atan2(f.x, f.z), 0)
     }
 
+    /*
+    SNEAK IS A TOGGLE ON LAND AND A HELD CONTROL IN WATER.
+
+    Tonio's call, and it is the right one for both: sneaking is a stance you
+    adopt for a while, so holding a bumper the whole time is a chore — but
+    diving is a thing you do continuously, and a toggle you have to remember the
+    state of while your head is under is worse than useless. Same button, and
+    the medium decides which verb it is.
+
+    The edge is tracked rather than the level, so the toggle flips once per
+    press. Leaving the water does NOT clear the flag: you sneak out of the sea
+    if you were sneaking when you went in, which is the least surprising thing.
+    */
+    const sneakDown = (input.sneak ?? 0) > 0.5
+    if (!this._swimming && sneakDown && !this._sneakWas) {
+      this._sneaking = !this._sneaking
+    }
+    this._sneakWas = sneakDown
+
     const speed = input.forward
     const rotation = input.turn
-    const sprint = input.sprint
+    const sprint = this._sneaking ? 0 : input.sprint
     const sprintSpeed = speed * sprint
+    const walk = this._sneaking
+      ? attrs.forwardSpeed * attrs.sneakSpeed
+      : attrs.forwardSpeed
     const totalSpeed =
-      speed * attrs.forwardSpeed +
-      sprintSpeed * (attrs.runSpeed - attrs.forwardSpeed)
+      speed * walk + sprintSpeed * (attrs.runSpeed - attrs.forwardSpeed)
 
-    // Camera zoom from input
+    /*
+    LOOK — the right stick, and the reason swimming had no aim on a flat screen.
+
+    Persistent, not sprung: a character's camera is how you look AROUND, so it
+    stays where you put it. (The aircraft's springs back because there it is a
+    glance off the flight path, which is a different job with the same stick.)
+
+    A `FollowCamera` has no pitch of its own; it looks at its locked target from
+    `heightOffset` above and `rotationOffset` around. So pitch is height — raise
+    the camera and it looks down — which is exactly the third-person behaviour
+    and needs no second camera type.
+    */
+    this._lookYaw += (input.lookX ?? 0) * attrs.lookRate * dt
+    // Wrap. Yaw is unbounded by nature — you can keep panning — and an
+    // accumulator nobody wraps grows all session (it read 377° after three
+    // seconds of test input), taking `rotationOffset` and float precision with
+    // it. Pitch needs no wrap; it is clamped by `maxLookPitch`.
+    if (this._lookYaw > 180) this._lookYaw -= 360
+    else if (this._lookYaw < -180) this._lookYaw += 360
+    this._lookPitch = Math.max(
+      -attrs.maxLookPitch,
+      Math.min(
+        attrs.maxLookPitch,
+        this._lookPitch + (input.lookY ?? 0) * attrs.lookRate * dt
+      )
+    )
     if (this.camera instanceof BABYLON.FollowCamera) {
       this.camera.radius = lerp(
         attrs.cameraMinFollowDistance,
         attrs.cameraMaxFollowDistance,
-        Math.max(0, Math.min(1, input.cameraZoom))
+        Math.max(0, Math.min(1, this._camZoom))
       )
+      this._camZoom = Math.max(
+        0,
+        Math.min(1, this._camZoom + (input.cameraZoom ?? 0) * dt)
+      )
+      this.camera.rotationOffset = 180 + this._lookYaw
+      // Pitch as height: +look is up, which means the camera drops BELOW the
+      // subject to look up at it, so the offset runs the other way.
+      this.camera.heightOffset =
+        attrs.cameraHeightOffset +
+        Math.tan((-this._lookPitch * Math.PI) / 180) * this.camera.radius * 0.5
     }
 
     // XR camera zoom from right stick
@@ -503,6 +577,17 @@ export class B3dBiped extends B3dControllable {
       water while standing on a sandbar is wading, and getting it wrong gives you
       a character doing breaststroke while visibly standing up.
       */
+      /*
+      JUMP — an impulse, not a teleport, so the existing gravity carries it.
+
+      Only from the ground: no double-jumping and no jumping out of water (in
+      water the same button SURFACES you, which is the continuous verb). Edge
+      triggered, so holding it does not pogo.
+      */
+      const jumpDown = (input.jump ?? 0) > 0.5
+      const jumpPressed = jumpDown && !this._jumpWas
+      this._jumpWas = jumpDown
+
       const surfaceY = this._waterSurfaceY()
       // `eyeHeight` as a proxy for body height. It is a little short by
       // definition, which is the harmless direction: equilibrium is a FRACTION
@@ -552,7 +637,23 @@ export class B3dBiped extends B3dControllable {
         }
         node.position.y = nextY
         this._swimming = isSwimming(submerged, onFloor)
-      } else if (grounded) {
+      } else if (jumpPressed && grounded) {
+        this._swimming = false
+        this._fallVel = attrs.jumpSpeed
+        node.moveWithCollisions(new BABYLON.Vector3(0, this._fallVel * dt, 0))
+      } else if (grounded && this._fallVel <= 0) {
+        /*
+        THE SNAP HAS TO YIELD WHILE YOU ARE RISING.
+
+        Snapping the feet to the ground is unconditional the rest of the time,
+        and that swallowed the jump whole: the impulse lifted the body ~7 cm,
+        the probe still saw ground 0.6 m below on the next frame, and the snap
+        put it straight back. Measured — a jump that rose exactly 0.00 m.
+
+        So the ground only claims you when you are not moving away from it.
+        `_fallVel <= 0` is the whole condition: falling or at rest, snap; rising,
+        let ballistics have it.
+        */
         this._swimming = false
         node.position.y = groundY
         this._fallVel = 0
@@ -587,7 +688,16 @@ export class B3dBiped extends B3dControllable {
         const look = headCam.getDirection(LOCAL_FORWARD)
         this._swimAim = aimFromLook(look.y)
       } else if (this._swimming) {
-        this._swimAim = integrateAim(this._swimAim, -(input.lookY ?? 0), dt)
+        /*
+        The aim IS the look now, rather than a second thing integrated from the
+        same stick. That makes "swim where you are looking" literally true on a
+        flat screen, and it is the same rule the headset already followed — the
+        head there, the camera here, one source of truth either way.
+
+        Sign: `_lookPitch` is positive UP (it raises the view), and swim aim is
+        positive DOWN to match the quaternion. Hence the negation, once, here.
+        */
+        this._swimAim = clampAim(-this._lookPitch, attrs.maxLookPitch)
       }
       const target = aimTarget(this._swimming, this._swimAim)
       this._swimPitch = easeAim(this._swimPitch, target, dt)
@@ -640,6 +750,10 @@ export class B3dBiped extends B3dControllable {
         } else {
           this.setAnimationState('tread-water')
         }
+      } else if (this._fallVel > 0.5) {
+        this.setAnimationState(speed > 0.1 ? 'running-jump' : 'jump')
+      } else if (this._sneaking && Math.abs(speed) > 0.1) {
+        this.setAnimationState('sneak', Math.abs(speed) + 0.25)
       } else if (speed > 0.1) {
         if (sprintSpeed > 0.25) {
           this.setAnimationState('run', sprintSpeed + 0.25)

@@ -330,15 +330,29 @@ export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   const input = emptyInput()
   input.forward = pad.leftStickY
   input.turn = pad.leftStickX
-  input.jump = pad.buttonA
   // Right trigger, not left bumper: movement is the LEFT stick, so a left-hand
   // sprint modifier fights the left thumb. Right trigger frees that up.
   input.sprint = pad.rightTrigger
   input.interact = pad.buttonX
   input.shoot = pad.buttonB
-  input.cameraZoom = pad.rightStickY
-  input.cameraPeek = pad.rightStickX // temporary look left/right (snaps to centre)
-  input.sneak = pad.dpadDown
+  /*
+  RIGHT STICK IS LOOK, like the aircraft's.
+
+  It used to be zoom (Y) and a snap-back peek (X), which meant a character had
+  no aim at all: nothing to point at a thing, and — once swimming arrived —
+  nothing to point DOWN with, so look-directed swimming had no input on a flat
+  screen. Zoom moves to the d-pad, which the sneak toggle has just vacated.
+  */
+  input.lookX = pad.rightStickX
+  input.lookY = pad.rightStickY
+  input.cameraZoom = Math.max(0, pad.dpadUp - pad.dpadDown)
+  /*
+  BUMPERS for the two vertical verbs, per Tonio: left bumper sneak, right
+  bumper jump. `buttonA` keeps jumping too — it was already bound and A-to-jump
+  is too conventional to take away, and an alias costs nothing.
+  */
+  input.jump = Math.max(pad.buttonA, pad.rightBumper)
+  input.sneak = pad.leftBumper
   // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
   input.view = Math.max(pad.view, pad.buttonY)
   return input
@@ -349,12 +363,14 @@ export const bipedMappingDescriptor: InputMappingDescriptor = {
   labels: {
     leftStickY: 'move',
     leftStickX: 'turn',
-    buttonA: 'jump',
+    rightBumper: 'jump',
+    leftBumper: 'sneak',
     rightTrigger: 'sprint',
     buttonX: 'interact',
     buttonB: 'shoot',
-    rightStickY: 'camera',
-    dpadDown: 'sneak',
+    rightStickX: 'look',
+    rightStickY: 'look',
+    dpadUp: 'zoom',
   },
 }
 
