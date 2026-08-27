@@ -10,6 +10,25 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **The biped's right stick is a LOOK control**, and jump and sneak exist.
+  Tonio spotted that look-directed swimming had nothing to aim with on a flat
+  screen: the right stick was bound to `cameraZoom` (Y) and a snap-back peek (X),
+  so a character had no aim at all. Now `lookX`/`lookY`, **persistent rather than
+  sprung** — a character's camera is how you look _around_, where the aircraft's
+  springs back because there it is a glance off the flight path. A `FollowCamera`
+  has no pitch of its own, so pitch is height: raise the camera and it looks down
+  at its locked target. Zoom moves to the d-pad, which sneak vacated.
+  - **Swim aim now reads that look** rather than integrating the stick
+    separately, so "swim where you are looking" is literally true flat and is the
+    same rule the headset already followed with your head.
+  - **Jump** — right bumper, and `A` still works (already bound, too conventional
+    to drop). Measured 1.13 m. The ground snap swallowed it at first: the impulse
+    lifted the body ~7 cm, the probe still saw ground 0.6 m below, and the snap
+    put it straight back — a jump that rose exactly 0.00 m. The snap now yields
+    while you are rising.
+  - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
+    stance you adopt for a while versus a thing you do continuously, and a toggle
+    whose state you must remember with your head underwater is worse than useless.
 - **The biped swims.** Water was already a medium rather than a boundary line
   (underwater fog with a continuous crossing); the biped now treats it as one
   too. Tonio: _"can we change the rate at which the biped falls in water. And
