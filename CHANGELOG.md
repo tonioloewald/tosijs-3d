@@ -21,19 +21,29 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **Swim aim now reads that look** rather than integrating the stick
     separately, so "swim where you are looking" is literally true flat and is the
     same rule the headset already followed with your head.
-  - **Jump** — right bumper, and `A` still works (already bound, too conventional
-    to drop). Measured 1.13 m. The ground snap swallowed it at first: the impulse
-    lifted the body ~7 cm, the probe still saw ground 0.6 m below, and the snap
-    put it straight back — a jump that rose exactly 0.00 m. The snap now yields
-    while you are rising.
-  - The jump **crouches on press and launches on release**, so the clip's
-    anticipation precedes the launch instead of chasing it (before, "he crouches
-    after launching"). `jumpSpeed: 0` (the default) derives the launch from the
-    clip length so airtime matches the animation — and retunes itself when a
-    better animation set lands. A clip is treated as an **upper bound** on
-    airtime, not a measure: measured, `running-jump` is 0.93 s and nearly all
-    flight while the standing `jump` is 1.93 s because most of it happens with
-    the feet down.
+  - **Jump** — right bumper only. `A` briefly aliased it, and Tonio removed the
+    alias: the face buttons are **reserved for actions** (they are primary and
+    secondary fire on the aircraft), and a control vocabulary that changes
+    meaning per vehicle is one you have to relearn. The ground snap swallowed the
+    first version whole — the impulse lifted the body ~7 cm, the probe still saw
+    ground 0.6 m below, and the snap put it straight back, a jump that rose
+    exactly 0.00 m. The snap now yields while you are rising.
+  - **Standing jumps brace; running jumps fire on the press.** A running jump's
+    anticipation _is the run_ — the character is already loaded and moving, so a
+    wind-up can only read as a stumble. A standing jump has no run-up to borrow
+    from, so holding scrubs the clip into the braced pose and **parks there**,
+    and releasing launches. The hold is not a delay tax: it **scales the jump**
+    (`jumpMinScale` 0.45 → full), so it is a choice rather than a wait. Measured:
+    full brace 1.13 m, short hold 0.45 m, nothing at all while held.
+  - **The animation is retimed to the jump, not the jump to the animation.**
+    Physics stays fixed at `jumpSpeed`, and the clip's `speedRatio` is set so it
+    lasts exactly the flight time. Measured: `running-jump` plays at **1.02×**
+    (0.93 s clip over 0.92 s of flight). The first attempt had this backwards —
+    sizing the launch from the clip length — which made the jump a consequence of
+    whatever the animator exported.
+  - The jump clip holds for the **whole airborne period**, and the clip is chosen
+    at the press and never re-picked, so a standing jump cannot switch to the
+    running clip in mid-air.
   - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
     stance you adopt for a while versus a thing you do continuously, and a toggle
     whose state you must remember with your head underwater is worse than useless.

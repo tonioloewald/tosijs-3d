@@ -347,11 +347,16 @@ export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   input.lookY = pad.rightStickY
   input.cameraZoom = Math.max(0, pad.dpadUp - pad.dpadDown)
   /*
-  BUMPERS for the two vertical verbs, per Tonio: left bumper sneak, right
-  bumper jump. `buttonA` keeps jumping too — it was already bound and A-to-jump
-  is too conventional to take away, and an alias costs nothing.
+  BUMPERS for the two vertical verbs: left bumper sneak, right bumper jump.
+
+  `buttonA` deliberately does NOT jump, though it did originally and I kept it
+  as an alias on the grounds that A-to-jump is conventional. Tonio's call, and
+  the better one: the face buttons are **reserved for actions**, because they
+  are primary and secondary fire on the aircraft and a control vocabulary that
+  changes meaning per vehicle is a vocabulary you have to relearn. A convention
+  borrowed from other games is worth less than consistency within this one.
   */
-  input.jump = Math.max(pad.buttonA, pad.rightBumper)
+  input.jump = pad.rightBumper
   input.sneak = pad.leftBumper
   // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
   input.view = Math.max(pad.view, pad.buttonY)

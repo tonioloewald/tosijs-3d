@@ -66,8 +66,11 @@ describe('bipedMapping: bumpers carry the vertical verbs', () => {
     expect(bipedMapping(pad({ rightBumper: 1 }), 1 / 60).jump).toBe(1)
   })
 
-  test('A still jumps — it was already bound and the convention is too strong to drop', () => {
-    expect(bipedMapping(pad({ buttonA: 1 }), 1 / 60).jump).toBe(1)
+  test('A does NOT jump — the face buttons are reserved for actions', () => {
+    // They are primary/secondary fire on the aircraft, and a control vocabulary
+    // that changes meaning per vehicle is one you have to relearn. Consistency
+    // within this project beats a convention borrowed from other games.
+    expect(bipedMapping(pad({ buttonA: 1 }), 1 / 60).jump).toBe(0)
   })
 
   test('the d-pad no longer sneaks', () => {
