@@ -2,6 +2,27 @@
 
 ## The queue
 
+[ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
+2026-08-27, after living with the UAL rig: _"I have bigger issues with the
+quality of some of the quaternius animations — I think that Mixamo's are
+generally better, but lack coverage. At some point we might try combining
+mixamo and also Mocap's stuff (which is significantly more expensive)."_
+
+Not scheduled. Recorded because the plumbing to act on it already exists and
+is worth knowing about before anyone reaches for a re-export:
+
+- `animationStates` maps state → clip name, so a rig's clips can come from
+  anywhere; `ualAnimationStates()` is just the UAL table. A mixed set is a
+  different table, not different code.
+- `bin/subset-glb.ts` in `../static-assets` composes a GLB from a clip list.
+  Combining sources is a manifest question if the rigs share a skeleton — UAL
+  is the UE mannequin (65 joints, `root`/`pelvis`/`spine_01`), and Mixamo's
+  default rig is NOT, so cross-source mixing needs retargeting rather than
+  merging. That is the actual cost, and it is worth measuring before paying
+  for Mocap data.
+- Per-clip quality varies, so this need not be all-or-nothing: keep UAL for
+  coverage and override the handful that read badly.
+
 [ ] **Adopt 1.83 m as the human reference and scale small content UP** — see
 CLAUDE.md → "Scale: a person is 1.8 m". Measured 2026-08-27: `omnidude.glb`
 is **0.88 m**, half human scale and about the height of a Kenney table,

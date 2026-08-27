@@ -654,7 +654,21 @@ export class B3dBiped extends B3dControllable {
       this._lookPitch *= Math.exp(-3 * dt) // frame-rate independent
       if (Math.abs(this._lookPitch) < 0.5) this._lookPitch = 0
     }
-    const lookYSign = isOff(attrs.invertLookY) ? 1 : -1
+    /*
+    THE INVERSION IS A CAMERA PREFERENCE, NOT A SWIMMING ONE.
+
+    Inverted Y is conventional for a camera — push away, look down — and wrong
+    for a direction of travel, where push away must mean go up. The swim aim
+    follows the look, so inverting the look inverted the swimming with it:
+    pushing up pitched the body nose-down, put the head under, and then the
+    surface cap on upward aim made climbing back out as hard as it sounded.
+    Tonio: "still treading water with head underwater and it's hard to swim up".
+
+    So the inversion applies on land and not in water. The medium changes what
+    the stick means, which is the same rule `sneak` already follows — a toggle
+    ashore, a held control under.
+    */
+    const lookYSign = this._swimming || isOff(attrs.invertLookY) ? 1 : -1
     this._lookPitch = Math.max(
       -attrs.maxLookPitch,
       Math.min(
