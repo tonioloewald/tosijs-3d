@@ -316,21 +316,7 @@ export class B3dBiped extends B3dControllable {
      * of whatever the animator exported.
      */
     jumpSpeed: 4.5,
-    /**
-     * Seconds of wind-up at the head of a jump clip. Holding the button scrubs
-     * into it and STOPS at the braced pose; releasing plays on through.
-     *
-     * A duration rather than a fraction of the clip, because the wind-up is a
-     * real amount of time a body takes to load, while clip length varies wildly
-     * with what else the animator packed in (measured: `jump` 1.93 s,
-     * `running-jump` 0.93 s).
-     */
-    jumpWindup: 0.35,
-    /**
-     * How far a jump released with NO wind-up goes, as a fraction of a full one.
-     * You always jump — a tap is a short hop, a held brace is the full leap.
-     */
-    jumpMinScale: 0.45,
+
     /** Fraction of walking speed while sneaking. */
     sneakSpeed: 0.4,
     /** Sidestep speed as a fraction of walking. Slower than forward on purpose. */
@@ -409,68 +395,19 @@ export class B3dBiped extends B3dControllable {
    */
   private _lookPitch = 0
   private _sneaking = false
-  private _jumpWas = false
   /** Held the jump button while grounded: winding up, not yet launched. */
-  private _jumpCharging = false
-  private _jumpCharge = 0
   private _jumpWasDown = false
   /** Off the ground and not in water — the jump clip owns the animation. */
   private _inAir = false
   private _jumpClip: 'jump' | 'running-jump' = 'jump'
-
   /**
-   * Scrub the jump clip's WIND-UP as the button is held, and stop at braced.
-   *
-   * A one-shot clip played normally runs straight through the crouch and back
-   * to idle, so holding the button showed a crouch that then stood up again
-   * while still held. Scrubbing makes the hold do what it looks like it does:
-   * the pose tracks the charge and parks at the braced frame.
+   * Which phase of the three-part jump is showing. `Jump_Start` is a takeoff,
+   * `Jump_Loop` holds you in the air however long the arc lasts, `Jump_Land`
+   * plays on touchdown — so the clips no longer have to be stretched to fit the
+   * flight, which is what `speedRatio` retiming was compensating for.
    */
-  private _braceJumpClip(frac: number): void {
-    this.setAnimationState(this._jumpClip)
-    const g = this.animationGroup
-    if (g == null) return
-    const fps = g.targetedAnimations[0]?.animation?.framePerSecond ?? 60
-    const windupFrames = ((this as any).jumpWindup as number) * fps
-    g.pause()
-    g.goToFrame(g.from + windupFrames * Math.max(0, Math.min(1, frac)))
-  }
-
-  /**
-   * Play the rest of the jump clip so it lasts exactly as long as the jump.
-   *
-   * The ANIMATION follows the physics here, which is the way round Tonio asked
-   * for and the way round that keeps a jump feeling like a jump: "slow the
-   * running jump speed to match the EXPECTED duration of the jump". Flight time
-   * under constant gravity is `2v/g`, and the clip has `clipSeconds - windup`
-   * left to play, so the ratio is one division.
-   *
-   * The earlier version did the inverse — sized the LAUNCH from the clip — and
-   * that made the jump a consequence of whatever the animator exported.
-   */
-  private _launchJumpClip(launchSpeed: number, windupConsumed: boolean): void {
-    /*
-    Make sure the JUMP clip is the current one before retiming it.
-
-    On the braced path it already is — the wind-up scrubbed it. On the running
-    path nothing had switched yet, so this reached for `animationGroup` and
-    retimed whatever was playing: it set speedRatio 1.25 on the RUN cycle and
-    left the jump clip alone. Idempotent for the braced case, so it costs
-    nothing there and cannot replay the wind-up.
-    */
-    this.setAnimationState(this._jumpClip)
-    const g = this.animationGroup
-    if (g == null) return
-    // Only the braced path has already spent the wind-up; a running jump starts
-    // the clip at frame 0, so all of it is still to play.
-    const windup = windupConsumed
-      ? ((this as any).jumpWindup as number) ?? 0
-      : 0
-    const remaining = Math.max(0.05, this._clipSeconds(this._jumpClip) - windup)
-    const flight = Math.max(0.05, (2 * launchSpeed) / 9.81)
-    g.speedRatio = remaining / flight
-    g.play(false) // resume from the braced frame, do not restart
-  }
+  private _airPhase: 'start' | 'loop' | 'land' | null = null
+  private _phaseLeft = 0
 
   /**
    * How long an animation clip runs, in seconds — `0` if there is no such clip.
@@ -481,10 +418,20 @@ export class B3dBiped extends B3dControllable {
    * since the biped scales playback by movement speed.
    */
   private _clipSeconds(name: string): number {
+    /*
+    Resolve the STATE name to its clip name first.
+
+    States and clips are only the same string on a rig that happens to name its
+    animations the way the biped names its states. Looking up `jump` directly
+    found nothing on a rig whose clip is `Jump_Start`, so this returned 0, the
+    start phase expired in the frame it began, and the takeoff never played.
+    */
+    const state = this.animationStates.find((st) => st.name === name)
+    const clip = state?.animation ?? name
     const groups = this.entries?.animationGroups ?? []
-    const g = groups.find((x) =>
-      new RegExp(`(^|[^a-z])${name}$`, 'i').test(x.name)
-    )
+    const g =
+      groups.find((x) => x.name.replace(/^Clone of /, '') === clip) ??
+      groups.find((x) => new RegExp(`(^|[^a-z])${clip}$`, 'i').test(x.name))
     if (g == null) return 0
     const fps = g.targetedAnimations[0]?.animation?.framePerSecond ?? 60
     const ratio = Math.abs(g.speedRatio) || 1
@@ -886,7 +833,6 @@ export class B3dBiped extends B3dControllable {
       this button is the SURFACE control and continuous, so it never charges.
       */
       const jumpDown = (input.jump ?? 0) > 0.5
-      const jumpReleased = !jumpDown && this._jumpWas
       this._jumpWas = jumpDown
 
       const surfaceY = this._waterSurfaceY()
@@ -899,6 +845,7 @@ export class B3dBiped extends B3dControllable {
         surfaceY == null
           ? 0
           : submergedFraction(node.position.y, bodyHeight, surfaceY)
+      const wasInAir = this._inAir
       const grounded = hit?.hit === true && hit.pickedPoint != null
       const groundY = grounded ? hit!.pickedPoint!.y : -Infinity
 
@@ -906,63 +853,32 @@ export class B3dBiped extends B3dControllable {
       HOLDING BRACES YOU; RELEASING JUMPS.
 
       The charge is TIME, and it scales the launch: release immediately and you
-      hop (`jumpMinScale`), hold through the wind-up and you get the full leap.
-      Tonio: "if you start to jump beyond a certain point you should jump, just
-      not as far with a full windup. And just holding the jump button should
-      stop you at braced to jump. You jump on release."
-
-      So the wind-up is not a delay tax on a fixed jump — it IS the jump's
-      power, which is the only version where holding it is a choice rather than
-      a wait.
       */
       // Read the charge BEFORE the guard below can clear it. On the release
       // frame `jumpDown` is already false, so clearing first meant `jumpLaunch`
       // never saw a charge and the jump could not fire at all — the same
       // read-then-clear ordering slip as the ground snap swallowing the impulse.
-      const wasCharging = this._jumpCharging
+      /*
+      JUMPS ARE INSTANTANEOUS. The animation set says so.
+
+      This used to crouch on press and launch on release, which was an
+      adaptation to the stock rig's single one-shot clip that happened to open
+      with a crouch. Quaternius ships the standard three phases — `Jump_Start`
+      is a TAKEOFF, not a wind-up — and Tonio read it correctly: "it's basically
+      designed for instantaneous jumps where once you jump you enter the jump
+      state and that's it."
+
+      Which is also the platform-jumper contract in MOBILITY-DESIGN.md: the
+      character does exactly what you pressed, now. Anticipation belongs to the
+      intent model, where the character decides to jump before you ask — not to
+      a button that makes you wait for it.
+      */
       const jumpPressed = jumpDown && !this._jumpWasDown
       this._jumpWasDown = jumpDown
       const moving = Math.abs(speed) > 0.1
       const canJump = grounded && submerged <= 0 && this._fallVel <= 0
-
-      /*
-      RUNNING JUMPS FIRE ON THE PRESS. Standing jumps brace.
-
-      Tonio: "we shouldn't use brace while running (it just doesn't work)" — and
-      it does not, for a reason the design doc already stumbled on: a running
-      jump's anticipation IS THE RUN. The character is loaded and moving before
-      you press anything, so there is nothing to wind up and a brace can only
-      read as a stumble. A standing jump has no run-up to borrow from, which is
-      exactly why it needs the wind-up to be something you spend.
-
-      So: moving, it goes now, at full power. Standing, holding braces and
-      releasing launches at whatever you charged.
-      */
-      const runLaunch = jumpPressed && canJump && moving
-
-      if (!runLaunch && jumpDown && canJump && !moving) {
-        if (!this._jumpCharging) {
-          this._jumpCharging = true
-          this._jumpCharge = 0
-          this._jumpClip = 'jump'
-        }
-        this._jumpCharge = Math.min(attrs.jumpWindup, this._jumpCharge + dt)
-      } else if (!jumpDown || !canJump || moving) {
-        this._jumpCharging = false
-      }
-      if (runLaunch) this._jumpClip = 'running-jump'
-
-      // Read the charge BEFORE the guard above can clear it. On the release
-      // frame `jumpDown` is already false, so clearing first meant `jumpLaunch`
-      // never saw a charge and the jump could not fire at all — the same
-      // read-then-clear ordering slip as the ground snap swallowing the impulse.
-      const jumpLaunch = runLaunch || (jumpReleased && wasCharging && grounded)
-      const chargeFrac = runLaunch
-        ? 1
-        : attrs.jumpWindup > 0
-        ? Math.min(1, this._jumpCharge / attrs.jumpWindup)
-        : 1
-      if (jumpLaunch) this._jumpCharging = false
+      const jumpLaunch = jumpPressed && canJump
+      if (jumpLaunch) this._jumpClip = moving ? 'running-jump' : 'jump'
 
       if (submerged > 0) {
         /*
@@ -1018,10 +934,10 @@ export class B3dBiped extends B3dControllable {
         this._swimming = isSwimming(submerged, onFloor, this._swimming)
       } else if (jumpLaunch && grounded) {
         this._swimming = false
-        this._fallVel =
-          attrs.jumpSpeed *
-          (attrs.jumpMinScale + (1 - attrs.jumpMinScale) * chargeFrac)
-        this._launchJumpClip(this._fallVel, !runLaunch)
+        this._fallVel = attrs.jumpSpeed
+        this._airPhase = 'start'
+        this._phaseLeft = this._clipSeconds(this._jumpClip)
+        this.setAnimationState(this._jumpClip)
         node.moveWithCollisions(new BABYLON.Vector3(0, this._fallVel * dt, 0))
         this._inAir = true
       } else if (grounded && this._fallVel <= 0) {
@@ -1050,6 +966,32 @@ export class B3dBiped extends B3dControllable {
         this._inAir = true
       }
       if (submerged > 0) this._inAir = false
+
+      /*
+      START → LOOP → LAND, each for as long as it is actually true.
+
+      `Jump_Start` runs its own length; `Jump_Loop` then covers however long the
+      arc lasts, whatever the launch speed; `Jump_Land` plays on touchdown and
+      releases back to normal locomotion when it finishes. Nothing is stretched
+      to fit, which is why the `speedRatio` retiming could go.
+
+      Touchdown is the airborne→grounded EDGE rather than a velocity test, so a
+      jump interrupted by a ceiling or a slope still lands.
+      */
+      if (this._airPhase != null) {
+        this._phaseLeft -= dt
+        if (wasInAir && !this._inAir) {
+          this._airPhase = 'land'
+          this._phaseLeft = this._clipSeconds('jumpLand') || 0.3
+        } else if (this._airPhase === 'start' && this._phaseLeft <= 0) {
+          this._airPhase = this._inAir ? 'loop' : null
+        } else if (this._airPhase === 'land' && this._phaseLeft <= 0) {
+          this._airPhase = null
+        } else if (this._airPhase === 'loop' && !this._inAir) {
+          this._airPhase = 'land'
+          this._phaseLeft = this._clipSeconds('jumpLand') || 0.3
+        }
+      }
       /*
       LOOK-DIRECTED SWIMMING: pitch the BODY, and the stroke follows.
 
@@ -1186,24 +1128,22 @@ export class B3dBiped extends B3dControllable {
         } else {
           this.setAnimationState('tread-water')
         }
-      } else if (this._jumpCharging) {
-        // The wind-up, on the ground, BEFORE the launch — scrubbed to the
-        // charge and parked at braced.
-        this._braceJumpClip(chargeFrac)
-      } else if (this._inAir) {
+      } else if (this._airPhase != null) {
         /*
-        The whole time you are off the ground — not just while rising.
-
-        Gating on `_fallVel > 0.5` meant the clip switched to `walk` the moment
-        the jump peaked, so the descent was animated as walking in mid-air.
-        Measured: 800 ms after a running launch the current group was "Clone of
-        walk". Landing puts you back on the ground and the normal branches take
-        over on their own.
-
-        `speedRatio` is left alone — `_launchJumpClip` set it to match the
-        flight time, and re-passing it every frame would fight that.
+        Three clips, each for as long as it is true — not one clip stretched to
+        fit. `Jump_Start` plays out, `Jump_Loop` covers however long the arc
+        actually lasts, and `Jump_Land` plays on touchdown. That retires the
+        `speedRatio` retiming, which existed only because a single clip had to
+        span a flight whose duration it could not know.
         */
-        this.setAnimationState(this._jumpClip, this.animationGroup?.speedRatio)
+        const want =
+          this._airPhase === 'start'
+            ? this._jumpClip
+            : this._airPhase === 'loop'
+            ? 'jumpLoop'
+            : 'jumpLand'
+        const has = this.animationStates.some((st) => st.name === want)
+        this.setAnimationState(has ? want : this._jumpClip)
       } else if (Math.abs(strafe) > 0.1 && Math.abs(strafe) > Math.abs(speed)) {
         /*
         SIDESTEPPING HAS ITS OWN CLIPS — use them.

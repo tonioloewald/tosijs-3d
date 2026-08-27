@@ -56,6 +56,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
     stance you adopt for a while versus a thing you do continuously, and a toggle
     whose state you must remember with your head underwater is worse than useless.
+- **⚠️ Jumping is instantaneous again, and animated in three phases.** The
+  crouch-on-press/launch-on-release model was an adaptation to the stock rig's
+  single one-shot clip that happened to open with a crouch. Quaternius ships
+  `Jump_Start` / `Jump_Loop` / `Jump_Land`, where **start is a takeoff, not a
+  wind-up** — Tonio: _"it's basically designed for instantaneous jumps where
+  once you jump you enter the jump state and that's it."_ That is also the
+  platform-jumper contract in `MOBILITY-DESIGN.md`: the character does exactly
+  what you pressed, now; anticipation belongs to the intent model, where the
+  character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
+  so is the `speedRatio` retiming — each clip now plays for as long as it is
+  actually true instead of being stretched to fit a flight it could not know.
 - **Sidestepping uses the lateral clips** rather than the forward walk — the
   slide is gone. UAL ships a full eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd,
   Bwd_L/R) for jog, crouch **and** crawl; the biped now picks the lateral one
