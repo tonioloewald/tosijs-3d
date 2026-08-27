@@ -388,11 +388,18 @@ export class B3dBiped extends B3dControllable {
   animationState?: AnimState
   animationGroup?: BABYLON.AnimationGroup
   /** Measured vertical extent of the body per animation clip. See `_poseExtent`. */
-  private _poseCache = new Map<string, { bottom: number; height: number }>()
+  private _poseCache = new Map<
+    string,
+    { bottom: number; height: number; head: number | null }
+  >()
   /** Seconds the current clip has been playing — a pose needs settling before measuring. */
   private _poseAge = 0
   /** Last measured pose that hangs below its root, i.e. a swim pose. See the note in water. */
-  private _lastSwimPose: { bottom: number; height: number } | null = null
+  private _lastSwimPose: {
+    bottom: number
+    height: number
+    head: number | null
+  } | null = null
   gameController?: GameController
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
   /**
@@ -534,7 +541,11 @@ export class B3dBiped extends B3dControllable {
    * frame. `refreshBoundingInfo({applySkeleton:true})` is far too expensive to
    * run continuously.
    */
-  private _poseExtent(): { bottom: number; height: number } | null {
+  private _poseExtent(): {
+    bottom: number
+    height: number
+    head: number | null
+  } | null {
     const node = this.entries?.rootNodes?.[0] as
       | BABYLON.TransformNode
       | undefined
@@ -563,7 +574,24 @@ export class B3dBiped extends B3dControllable {
     return {
       bottom: (lo - node.position.y) / (scale || 1),
       height: (hi - lo) / (scale || 1),
+      head: this._headOffset(node, scale || 1),
     }
+  }
+
+  /**
+   * Height of the head bone above the root in the current pose, or `null` on a
+   * rig with no findable head. See `_swimWaterline` for what it is for.
+   */
+  private _headOffset(
+    node: BABYLON.TransformNode,
+    scale: number
+  ): number | null {
+    for (const m of node.getChildMeshes()) {
+      const bone = m.skeleton?.bones?.find((b) => /^head$/i.test(b.name))
+      if (bone == null) continue
+      return (bone.getAbsolutePosition(m).y - node.position.y) / scale
+    }
+    return null
   }
 
   /**
@@ -574,7 +602,7 @@ export class B3dBiped extends B3dControllable {
    */
   private _currentPose(
     settle = 0.25
-  ): { bottom: number; height: number } | null {
+  ): { bottom: number; height: number; head: number | null } | null {
     const key = this.animationState?.animation ?? this.animationState?.name
     if (key == null) return null
     const hit = this._poseCache.get(key)
@@ -583,6 +611,44 @@ export class B3dBiped extends B3dControllable {
     const measured = this._poseExtent()
     if (measured != null) this._poseCache.set(key, measured)
     return measured
+  }
+
+  /**
+   * **Where the water should sit on this pose**, expressed as the buoyancy that
+   * puts it there — a body rests at submersion `1 / buoyancy`, so the two are
+   * the same statement.
+   *
+   * The anchor is the **head**, because that is what swimming IS: a swimmer
+   * keeps their head at the surface, and does it by swimming rather than by
+   * floating. That makes this a fact about the activity rather than about a
+   * clip, so it holds for any humanoid rig — the head bone exists in all of
+   * them — and needs no per-animation-set tuning.
+   *
+   * It also beats the two conventions it sits between, both of which we tried.
+   * The root is not a reliable anchor because it means different things in
+   * different clips (Tonio: *"the whole root means two completely different
+   * things ... is quite problematic"*) — feet when standing, roughly waterline
+   * when swimming. Taking it literally floated this rig at ARMPIT height, since
+   * its root sits 73% up the treading pose: *"he's still floating way too
+   * high."* Anchoring at the head instead puts the water at the neck with the
+   * chin clear, which is what treading water looks like, and the same rule
+   * leaves a front crawl's head breaking the surface.
+   *
+   * Falls back to the root convention on a rig with no head bone, and to a
+   * plain physical ratio for a pose that does not hang below its root (i.e. a
+   * standing one, where there is no waterline being declared at all).
+   *
+   * Clamped, because `height / depth` diverges as the depth approaches zero and
+   * one mid-blend measurement would otherwise fire a swimmer out of the water.
+   */
+  private _swimWaterline(
+    pose: { bottom: number; height: number; head: number | null } | null
+  ): number {
+    if (pose == null || pose.bottom >= -0.01) return DEFAULT_BUOYANCY
+    const waterline = pose.head ?? 0
+    const submergedDepth = waterline - pose.bottom
+    if (!(submergedDepth > 0.01)) return DEFAULT_BUOYANCY
+    return Math.min(3, Math.max(1, pose.height / submergedDepth))
   }
 
   setAnimationState(name: string, speed = 1) {
@@ -1110,15 +1176,7 @@ export class B3dBiped extends B3dControllable {
         Below, `swimBuoyancy` blends this toward neutral as you go deeper, so
         diving still holds its depth; this only sets where the SURFACE is.
         */
-        const poseBuoyancy =
-          pose != null && pose.bottom < -0.01
-            ? // Clamped: a pose caught mid-blend reads shallower than it is, and
-              // `height / -bottom` diverges as `bottom` approaches zero. Without
-              // this, one bad frame of measurement is a swimmer fired out of the
-              // water. The band spans every plausible swim pose.
-              Math.min(3, Math.max(1, pose.height / -pose.bottom)) *
-              attrs.buoyancy
-            : DEFAULT_BUOYANCY * attrs.buoyancy
+        const poseBuoyancy = this._swimWaterline(pose) * attrs.buoyancy
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
           buoyancy: swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
           thrust: (swimUp - swimDown) * SWIM_THRUST,

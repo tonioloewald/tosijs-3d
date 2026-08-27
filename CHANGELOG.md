@@ -67,6 +67,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **The waterline is anchored at the swimmer's HEAD.** Which is what swimming
+  _is_ — you keep your head at the surface, and you do it by swimming rather
+  than by floating — so it is a fact about the activity, not about a clip, and
+  it holds for any humanoid rig without per-animation tuning. Treading now sits
+  with the water just above the neck and the head clear; a front crawl breaks
+  the surface. Both from one rule.
 - **Swimmers float where the ANIMATION says, not where a constant says.** The
   swim clips are authored with the **root at the waterline** — measured on the
   Quaternius rig, `Swim_Idle_Loop` spans −1.37…+0.50 about the root and
@@ -74,6 +80,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   with head and shoulders out and a crawl with the head just breaking. The
   equilibrium is now READ from the pose rather than tuned, so any standard
   animation set floats correctly untouched.
+
+  The root itself is **not** a usable anchor: it means different things in
+  different clips — feet when standing, roughly waterline when swimming — and
+  taking it literally floated this rig at armpit height, since its root sits 73%
+  up the treading pose. It is still what tells us a pose _is_ a swim pose (the
+  body hangs below it), just not where the water goes.
 
   Three bugs fell out of the old assumption that the root is at the feet, which
   is true only while standing: the real head sat ~1.2 m under while treading;
