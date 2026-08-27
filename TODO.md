@@ -2,6 +2,22 @@
 
 ## The queue
 
+[ ] **Submersion is a PLANE test, so "below the waterline" and "under water"
+are the same thing to the biped.** Shipped that way in 0.7.3 knowingly. It
+is fine until an interior exists below sea level — a ship's hold, a cabin,
+a cave under a lake — at which point walking into a dry room reads as
+submerged and the character pitches over and treads water in it.
+
+The proper answer is the one MEDIUM-DESIGN.md is about: a medium needs a
+VOLUME, not a surface. The cheap one, which handles decks, cabins and caves
+with a single rule, is to cast UP from the head toward the water plane and
+treat a geometry hit as "under cover, not under water" — and only when the
+plane test already says submerged, so it costs nothing on dry land.
+
+Deferred by Tonio (2026-08-27) with the pirate ship gone into the test
+scene: the hull is not reachable yet and its interior is not modelled, so
+there is nothing to stand in. Do it when there is.
+
 [ ] **UPSTREAM (filed: tosijs-ui#109): the `widgets3d` doc page's `test` fence
 does not COMPILE** — `Arg string terminates parameters early`, so `0/1 tests
 passed` and the doc site carries a permanent red badge. **Survives the
