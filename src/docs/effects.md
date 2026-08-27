@@ -8,5 +8,6 @@
 - [buoyancy](/buoyancy/)
 - [cloud-shadows](/cloud-shadows/)
 - [shadow-decal](/shadow-decal/)
+- [swim-aim](/swim-aim/)
 - [wreck-fall](/wreck-fall/)
 <!-- /toc -->

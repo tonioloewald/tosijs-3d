@@ -30,6 +30,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
     and left the character standing on the seabed under six metres of water.
     The floor stops you sinking; it does not hold you down.
   - `swim` while moving, `tread-water` while holding station.
+  - **Look-directed swimming** (`swim-aim.ts`, pure + tested): the BODY pitches,
+    and the stroke follows for free — the biped already swims along its own
+    forward vector, so there is no separate vertical term and no way for aim and
+    motion to disagree. Aim comes from your **head** in a headset, and from the
+    right stick flat, because the biped's `FollowCamera` has a fixed pitch and
+    there is nothing to read. The stick **integrates** rather than mapping to an
+    absolute angle, so releasing it holds the descent instead of springing back
+    to level. Leaving the water unwinds the pitch on its own.
   - **You can dive.** `sneak` down, `jump` up — crouch-to-descend matches the
     GTA-V control vocabulary this project follows and leaves the triggers free.
     Thrust competes with buoyancy rather than replacing it, so letting go hands

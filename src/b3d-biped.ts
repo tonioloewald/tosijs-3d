@@ -114,6 +114,7 @@ import {
   isSwimming,
   swimBuoyancy,
 } from './buoyancy'
+import { aimFromLook, integrateAim, easeAim, aimTarget } from './swim-aim'
 import type { B3d } from './tosi-b3d'
 import { xrControllers } from './gamepad'
 import type { GameController } from './game-controller'
@@ -171,6 +172,10 @@ const STEP_DOWN = 0.6
  * jetpack.
  */
 const SWIM_THRUST = 6
+/** Local +Z. Allocated once — this is read every frame while swimming. */
+const LOCAL_FORWARD = new BABYLON.Vector3(0, 0, 1)
+/** Scratch for the yaw read-back; never allocate inside the per-frame loop. */
+const _fwdScratch = new BABYLON.Vector3()
 
 export class B3dBiped extends B3dControllable {
   static initAttributes = {
@@ -267,6 +272,12 @@ export class B3dBiped extends B3dControllable {
   private _fallVel = 0
   /** True while in the water and off the bottom — see `buoyancy.isSwimming`. */
   private _swimming = false
+  /** Held aim while swimming, DEGREES, positive down — see [[swim-aim]]. */
+  private _swimAim = 0
+  /** The pitch actually applied to the body, eased toward `_swimAim`. */
+  private _swimPitch = 0
+  /** Whether the body carried a pitch last frame, so unwinding runs to zero. */
+  private _swimWasPitched = false
   private _waterEl: { mesh?: BABYLON.TransformNode } | null | undefined
 
   /**
@@ -552,6 +563,69 @@ export class B3dBiped extends B3dControllable {
         this._fallVel = Math.max(-20, this._fallVel - 9.81 * dt)
         node.moveWithCollisions(new BABYLON.Vector3(0, this._fallVel * dt, 0))
       }
+      /*
+      LOOK-DIRECTED SWIMMING: pitch the BODY, and the stroke follows.
+
+      The biped already swims along its own forward vector, so tilting the body
+      tilts the movement — one rotation, no separate vertical term for the
+      stroke, and no way for the aim and the motion to disagree. It also fixes
+      the thing that made swimming read wrong even when it worked: a character
+      moving downward while standing bolt upright.
+
+      Aim comes from your HEAD in a headset (that is what look-directed means
+      when you have a neck) and from the right stick flat, because the biped's
+      follow camera has a fixed pitch and there is simply nothing to read. Both
+      land in the same stored value, so nothing downstream knows which.
+
+      Rebuilt as yaw+pitch rather than rotated incrementally: turning is
+      `node.rotate(UP)` accumulating into the quaternion, so the yaw is read
+      back out of it and re-composed with the pitch. Incremental pitching would
+      drift and eventually roll.
+      */
+      const headCam = this.owner?.scene.activeCamera
+      if (this._swimming && this.xrStuff && headCam != null) {
+        const look = headCam.getDirection(LOCAL_FORWARD)
+        this._swimAim = aimFromLook(look.y)
+      } else if (this._swimming) {
+        this._swimAim = integrateAim(this._swimAim, -(input.lookY ?? 0), dt)
+      }
+      const target = aimTarget(this._swimming, this._swimAim)
+      this._swimPitch = easeAim(this._swimPitch, target, dt)
+      if (Math.abs(this._swimPitch) > 0.01 || this._swimWasPitched) {
+        this._swimWasPitched = Math.abs(this._swimPitch) > 0.01
+        node.computeWorldMatrix(true)
+        node.getDirectionToRef(LOCAL_FORWARD, _fwdScratch)
+        const yaw = Math.atan2(_fwdScratch.x, _fwdScratch.z)
+        /*
+        THE `__root__` MIRROR FLIPS THE PITCH SIGN.
+
+        A glTF root arrives with `scaling.z = -1` — the handedness mirror. The
+        scale is applied in LOCAL space, so world forward is `-(R·ẑ)`, and the
+        y component comes out `+sin(pitch)` where a clean node gives `-sin`.
+        Aiming down therefore swam the character UP, measured: aim +70°, world
+        forward.y +0.94, and a 12.9 m ASCENT.
+
+        Two things fall out, and only one of them is a bug:
+
+        - The pitch needs the mirror applied. Hence `zSign`, read from the node
+          rather than hard-coded, so a canonicalised (unmirrored) root is right
+          too — `canonicalize` strips this exact mirror, and the biped's load
+          path does not go through it.
+        - The YAW is fine untouched, which is why turning never looked wrong.
+          The mirror also turns the yaw by π, but it is read back OUT of the
+          same mirrored matrix a line above, so it round-trips exactly.
+
+        Verified against a clean node in the same scene rather than reasoned
+        about: identical quaternion, opposite sign.
+        */
+        const zSign = node.scaling.z < 0 ? -1 : 1
+        node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
+          yaw,
+          (this._swimPitch * zSign * Math.PI) / 180,
+          0
+        )
+      }
+
       // Void-catch backstop: never sink below groundY, so a biped can't fall forever
       // when a scene has no collidable ground at all. Default is DEEP (see
       // initAttributes) so it doesn't act as an invisible floor over sub-zero terrain

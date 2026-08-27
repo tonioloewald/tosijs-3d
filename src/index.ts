@@ -670,6 +670,14 @@ export {
   isSwimming,
 } from './buoyancy'
 export type { BuoyancyParams } from './buoyancy'
+// Swim aim: the pure model behind look-directed swimming.
+export {
+  clampAim,
+  aimFromLook,
+  integrateAim,
+  easeAim,
+  aimTarget,
+} from './swim-aim'
 export type { WreckFallState, WreckFallParams } from './wreck-fall'
 // Spawner: keeps the world populated with encounters (prefab + a rule).
 export { B3dSpawner, b3dSpawner } from './b3d-spawner'
