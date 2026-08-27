@@ -132,9 +132,27 @@ export function equilibriumSubmersion(buoyancy = 1.15): number {
  */
 export function isSwimming(
   submerged: number,
-  restingOnFloor: boolean
+  restingOnFloor: boolean,
+  wasSwimming = false
 ): boolean {
-  return !restingOnFloor && submerged >= 0.5
+  if (restingOnFloor) return false
+  /*
+  HYSTERESIS, and it is a concession worth naming.
+
+  MOBILITY-DESIGN.md argues that modes should be DERIVED rather than entered,
+  and lists exactly this as what would falsify it: "if deriving cover every
+  frame proves too noisy — flickering in and out at a boundary — then it needs
+  hysteresis, and hysteresis is a state." It fired here first. Walking down a
+  ramp into water, submersion hovers around the threshold and the character
+  flickers between swimming and standing — Tonio: "there's sometimes a twitch
+  and you go back to standing as you ramp into water."
+
+  So: enter swimming at 0.5, keep it until 0.35. One bit of state, and the
+  narrowest kind — it changes when you SWITCH, never what you can do. The
+  broader claim survives with a caveat rather than intact, which is worth more
+  than pretending the falsifier did not fire.
+  */
+  return submerged >= (wasSwimming ? 0.35 : 0.5)
 }
 
 /**

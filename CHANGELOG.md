@@ -56,6 +56,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   - **Sneak** — left bumper, a **toggle on land and a held control in water**: a
     stance you adopt for a while versus a thing you do continuously, and a toggle
     whose state you must remember with your head underwater is worse than useless.
+- **Sidestepping uses the lateral clips** rather than the forward walk — the
+  slide is gone. UAL ships a full eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd,
+  Bwd_L/R) for jog, crouch **and** crawl; the biped now picks the lateral one
+  when sideways motion dominates, crouched or not, and falls back to walking on
+  a rig that has no such clip. Sneaking at rest holds `Crouch_Idle_Loop`.
+- **⚠️ The right stick's Y is inverted by default** (`invertLookY: 'off'` to
+  restore) — pushing away tips the view down, the way a camera head works.
+- **The follow camera can no longer go underground.** Pitch drives its HEIGHT,
+  so looking up walked it downward until the world vanished; `cameraMinHeight`
+  (0.5 m) floors it.
 - **`ualAnimationStates()`** — the clip-name map for Quaternius UAL rigs, so
   adopting that library is one line rather than twelve hand-written states. It
   retires two fakes: `walkBackwards` becomes a real `Jog_Bwd_Loop` instead of
@@ -151,6 +161,20 @@ served same-origin at /tjs/` is new).
   project's page — which happened repeatedly. New in haltija 1.12.
 
 ### Fixed
+
+- **Entering water flipped your heading 180°.** With a mirrored glTF root
+  (`scaling.z = −1`) world forward is `−(R·ẑ)`, so reading yaw back gives
+  `θ + π` and writing it produces `−F`. I had reasoned this round-tripped; it
+  does not. On land nothing rewrites the quaternion, so it only showed the
+  instant pitch engaged — which is the instant you start swimming.
+- **You could wade on top of the water.** Holding surface-thrust lifted you
+  until submersion fell under the swim threshold, at which point you were
+  classed as standing and got a walk cycle while still afloat. Up-thrust is now
+  gated by head depth, exactly as the upward aim is: you cannot push yourself
+  out of water, and surfacing is buoyancy's job anyway.
+- **The swim/stand switch twitched at the waterline.** Walking down a ramp,
+  submersion hovers around the threshold and the mode flickered. `isSwimming`
+  now enters at 0.5 and holds until 0.35.
 
 - **`setAnimationState` could pick the wrong clip.** The lookup was
   `group.name.endsWith(animation)`, and a suffix match is ambiguous the moment

@@ -268,3 +268,31 @@ describe('swimBuoyancy — a swimmer is not a log', () => {
     expect(inAir).toBeCloseTo(gravityOnly, 6)
   })
 })
+
+describe('isSwimming hysteresis — no flicker at the boundary', () => {
+  test('you start swimming at half submerged', () => {
+    expect(isSwimming(0.49, false, false)).toBe(false)
+    expect(isSwimming(0.5, false, false)).toBe(true)
+  })
+
+  test('but once swimming you keep it down to 0.35', () => {
+    expect(isSwimming(0.4, false, true)).toBe(true)
+    expect(isSwimming(0.34, false, true)).toBe(false)
+  })
+
+  test('a wade down a ramp does not flicker', () => {
+    // Submersion wobbling either side of 0.5 used to switch mode every frame.
+    let swimming = false
+    let switches = 0
+    for (const sub of [0.45, 0.52, 0.48, 0.51, 0.47, 0.53, 0.46]) {
+      const next = isSwimming(sub, false, swimming)
+      if (next !== swimming) switches++
+      swimming = next
+    }
+    expect(switches).toBe(1) // in, and it stays in
+  })
+
+  test('resting on the floor still wins outright', () => {
+    expect(isSwimming(1, true, true)).toBe(false)
+  })
+})

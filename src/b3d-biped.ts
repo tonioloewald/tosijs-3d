@@ -107,7 +107,7 @@ document.body.append(
 /*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { XRStuff, collidable } from './b3d-utils'
+import { XRStuff, collidable, isOff } from './b3d-utils'
 import {
   buoyantStep,
   submergedFraction,
@@ -196,6 +196,8 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'strafeRight', animation: 'Jog_Right_Loop', loop: true },
     { name: 'sneak', animation: 'Crouch_Fwd_Loop', loop: true },
     { name: 'sneakIdle', animation: 'Crouch_Idle_Loop', loop: true },
+    { name: 'sneakLeft', animation: 'Crouch_Left_Loop', loop: true },
+    { name: 'sneakRight', animation: 'Crouch_Right_Loop', loop: true },
     // One clip per phase, which is why the jump can be done properly here:
     // `jump` is the wind-up, and the loop and landing are addressable.
     { name: 'jump', animation: 'Jump_Start', loop: false },
@@ -289,6 +291,24 @@ export class B3dBiped extends B3dControllable {
     lookRate: 120,
     /** How far up/down the look can go, degrees. */
     maxLookPitch: 70,
+    /**
+     * Invert the right stick's vertical. **On by default** — Tonio's call, and
+     * the conventional one for a third-person camera: pushing the stick away
+     * from you tips the view DOWN, the way a physical camera head works. Set
+     * `'off'` for the direct mapping.
+     *
+     * A string enum rather than a boolean because an absent boolean attribute
+     * is false, so a default-true boolean can never turn on (and tosijs now
+     * throws on one) — see CLAUDE.md.
+     */
+    invertLookY: 'on' as 'on' | 'off',
+    /**
+     * Never let the follow camera drop below this above the character's feet.
+     * Pitch drives the camera's HEIGHT, so looking up walks it downward — and
+     * without a floor it ends up underground, which reads as the world
+     * vanishing. Metres.
+     */
+    cameraMinHeight: 0.5,
     /**
      * Upward speed of a FULLY wound-up jump, m/s. The physics is fixed and the
      * ANIMATION is retimed to match it — not the other way round. Matching the
@@ -687,11 +707,12 @@ export class B3dBiped extends B3dControllable {
       this._lookPitch *= Math.exp(-3 * dt) // frame-rate independent
       if (Math.abs(this._lookPitch) < 0.5) this._lookPitch = 0
     }
+    const lookYSign = isOff(attrs.invertLookY) ? 1 : -1
     this._lookPitch = Math.max(
       -attrs.maxLookPitch,
       Math.min(
         attrs.maxLookPitch,
-        this._lookPitch + (input.lookY ?? 0) * attrs.lookRate * dt
+        this._lookPitch + (input.lookY ?? 0) * lookYSign * attrs.lookRate * dt
       )
     )
     if (this.camera instanceof BABYLON.FollowCamera) {
@@ -711,9 +732,23 @@ export class B3dBiped extends B3dControllable {
       this.camera.rotationOffset = 180
       // Pitch as height: +look is up, which means the camera drops BELOW the
       // subject to look up at it, so the offset runs the other way.
-      this.camera.heightOffset =
+      /*
+      KEEP THE CAMERA ABOVE GROUND.
+
+      Pitch drives HEIGHT on a FollowCamera, so looking up walks the camera
+      downward — and past a certain angle it goes underground and the world
+      vanishes. A floor is the cheap, always-correct half of the fix; the
+      thorough version raycasts from the subject to the camera and pulls in, the
+      way the world-dialog depth guard does, which also handles walls rather
+      than just terrain.
+      */
+      this.camera.heightOffset = Math.max(
+        attrs.cameraMinHeight,
         attrs.cameraHeightOffset +
-        Math.tan((-this._lookPitch * Math.PI) / 180) * this.camera.radius * 0.5
+          Math.tan((-this._lookPitch * Math.PI) / 180) *
+            this.camera.radius *
+            0.5
+      )
     }
 
     // XR camera zoom from right stick
@@ -949,9 +984,25 @@ export class B3dBiped extends B3dControllable {
         upward by default." Note you also GLIDE a little deeper after releasing
         the control; that is momentum, not a bug, and letting go is not a brake.
         */
-        const swimUp = (input.jump ?? 0) > 0.5 ? 1 : 0
-        const swimDown = (input.sneak ?? 0) > 0.5 ? 1 : 0
         const headDepth = surfaceY! - (node.position.y + bodyHeight)
+        /*
+        YOU CANNOT PUSH YOURSELF OUT OF WATER.
+
+        Surface thrust used to apply at any depth, so holding it lifted you
+        until submersion fell under the swim threshold — at which point you were
+        classed as standing, got a walk cycle, and could stroll across the
+        surface. Tonio: "pressing up in water causes me to stand (it's allowing
+        me to 'wade on water')."
+
+        So the up thrust is gated by head depth, exactly as the upward AIM is:
+        full while properly under, fading to nothing as your head breaks the
+        surface. Getting to the surface is buoyancy's job and it does it for
+        free; this button exists to get you up when you are deep. Down is
+        ungated — you can always dive.
+        */
+        const upAllowed = surfaceAimLimit(headDepth, 1)
+        const swimUp = (input.jump ?? 0) > 0.5 ? upAllowed : 0
+        const swimDown = (input.sneak ?? 0) > 0.5 ? 1 : 0
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
           buoyancy: swimBuoyancy(headDepth),
           thrust: (swimUp - swimDown) * SWIM_THRUST,
@@ -964,7 +1015,7 @@ export class B3dBiped extends B3dControllable {
           onFloor = true
         }
         node.position.y = nextY
-        this._swimming = isSwimming(submerged, onFloor)
+        this._swimming = isSwimming(submerged, onFloor, this._swimming)
       } else if (jumpLaunch && grounded) {
         this._swimming = false
         this._fallVel =
@@ -1099,8 +1150,23 @@ export class B3dBiped extends B3dControllable {
         about: identical quaternion, opposite sign.
         */
         const zSign = node.scaling.z < 0 ? -1 : 1
+        /*
+        THE YAW NEEDS THE MIRROR TOO, and I got this wrong the first time.
+
+        With `scaling.z = -1` the world forward is `-(R·ẑ)`, so reading it back
+        gives `θ + π`. I argued that writing that value returned the same
+        heading — it does not. Writing `Ryaw(θ + π)` yields a forward of
+        `-(R'·ẑ) = -F`: the body faces exactly backwards. On land nothing
+        rewrites the quaternion, so it never showed; the instant pitch engages —
+        which is the instant you enter water — the character flips. Reported as
+        "when I enter the water my direction gets flipped".
+
+        So the same π that the read introduced is removed on the write. Both
+        halves of the mirror are now accounted for: π on the yaw, a sign on the
+        pitch.
+        */
         node.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
-          yaw,
+          yaw + (zSign < 0 ? Math.PI : 0),
           (this._swimPitch * zSign * Math.PI) / 180,
           0
         )
@@ -1138,6 +1204,26 @@ export class B3dBiped extends B3dControllable {
         flight time, and re-passing it every frame would fight that.
         */
         this.setAnimationState(this._jumpClip, this.animationGroup?.speedRatio)
+      } else if (Math.abs(strafe) > 0.1 && Math.abs(strafe) > Math.abs(speed)) {
+        /*
+        SIDESTEPPING HAS ITS OWN CLIPS — use them.
+
+        Playing the forward walk while moving sideways is the slide Tonio
+        reported, and it is not a missing-asset problem: UAL ships a full
+        eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd, Bwd_L/R) for jog, crouch
+        AND crawl. This picks the lateral one when sideways motion dominates.
+
+        Guarded by `hasState`, because a rig without these clips must degrade to
+        walking rather than to `setAnimationState` logging an error every frame.
+        */
+        const side = strafe > 0 ? 'Right' : 'Left'
+        const want = this._sneaking ? `sneak${side}` : `strafe${side}`
+        const speedScale = Math.abs(strafe) + 0.25
+        if (this.animationStates.some((st) => st.name === want)) {
+          this.setAnimationState(want, speedScale)
+        } else {
+          this.setAnimationState(this._sneaking ? 'sneak' : 'walk', speedScale)
+        }
       } else if (this._sneaking && Math.abs(speed) > 0.1) {
         this.setAnimationState('sneak', Math.abs(speed) + 0.25)
       } else if (speed > 0.1) {
@@ -1148,6 +1234,13 @@ export class B3dBiped extends B3dControllable {
         }
       } else if (speed < -0.1) {
         this.setAnimationState('walkBackwards', Math.abs(speed) + 0.25)
+      } else if (
+        this._sneaking &&
+        this.animationStates.some((st) => st.name === 'sneakIdle')
+      ) {
+        // A crouch that HOLDS at rest — the stock rig had no such clip, so
+        // standing still while sneaking used to stand you up.
+        this.setAnimationState('sneakIdle')
       } else if (Math.abs(rotation) > 0.1) {
         this.setAnimationState('walk', Math.abs(rotation * 0.5) + 0.25)
       } else {

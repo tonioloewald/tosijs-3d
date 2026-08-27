@@ -170,10 +170,20 @@ lies.
 
 ## What would falsify it
 
-- If deriving cover every frame proves too noisy — flickering in and out at a
-  boundary — then it needs hysteresis, and hysteresis is a state, and the
-  "cannot be stuck" property is weaker than claimed. Worth testing early with
-  something crude before building on it.
+- ~~If deriving cover every frame proves too noisy — flickering in and out at a
+  boundary — then it needs hysteresis, and hysteresis is a state.~~ **This
+  fired, on 2026-08-27, in the smallest possible case.** Walking down a ramp
+  into water, submersion hovers around the swim threshold and the character
+  flickered between swimming and standing — "there's sometimes a twitch and you
+  go back to standing as you ramp into water". `isSwimming` now enters at 0.5
+  and holds until 0.35.
+
+  So the claim survives with a caveat rather than intact, and the caveat is
+  narrow: the state is one bit, it changes **when you switch**, never **what you
+  can do**, and there is still nothing to be stuck in — the hysteresis band is
+  0.15 of a body, not a mode you have to escape. Cover should expect the same
+  and budget for it from the start rather than discovering it late.
+
 - If players read an automatic baulk as **unresponsive** rather than as
   judgement, the intent model is wrong for anything action-paced and belongs
   only where the pace allows it.
