@@ -67,12 +67,33 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
-- **`buoyancy` is a biped attribute** — the dial for how high a swimmer rides.
-  Equilibrium submersion is `1 / buoyancy`, so the default `1.15` rests ~87%
-  under (measured: 0.34 m of head clearance on a 1.83 m rig); `1.35` sits ~74%
-  under. Exposed because how high a body floats is a **look**, depending on the
-  rig's proportions and how upright its tread-water clip holds it — neither of
-  which the engine can see.
+- **Swimmers float where the ANIMATION says, not where a constant says.** The
+  swim clips are authored with the **root at the waterline** — measured on the
+  Quaternius rig, `Swim_Idle_Loop` spans −1.37…+0.50 about the root and
+  `Swim_Fwd_Loop` −0.60…+0.31, so floating the root on the surface gives a tread
+  with head and shoulders out and a crawl with the head just breaking. The
+  equilibrium is now READ from the pose rather than tuned, so any standard
+  animation set floats correctly untouched.
+
+  Three bugs fell out of the old assumption that the root is at the feet, which
+  is true only while standing: the real head sat ~1.2 m under while treading;
+  the legs were buried in the seabed (the floor clamped the root, not the body's
+  lowest point); and `buoyancy` appeared to do nothing, because clearing that
+  head needed a submersion of 0.14 — `buoyancy ≈ 7`.
+
+- **`buoyancy` is a biped attribute** — now a **trim** on the animation's
+  waterline (`1` = as authored, higher rides higher), because the absolute is
+  not ours to choose: the clip already encodes it, and a number here would be a
+  second opinion that goes stale with the next animation set.
+- **The swim/stand test no longer feeds back on itself.** It asks how deep the
+  water is **at your feet on the floor**, which is stable across the switch —
+  the previous form measured the current pose, so raising buoyancy raised the
+  body, flipped the pose upright, and the upright reading locked the flip in:
+  at `buoyancy` 1.3 the character corked out and stood on the surface.
+- **Neutral buoyancy starts at 1.5 m of head depth, not 0.5 m.** Holding depth
+  is for DIVING; at half a metre a swimmer whose head dipped barely under went
+  neutral and stayed there, with the up-thrust throttled near the surface too —
+  Tonio: _"still treading water with head underwater and it's hard to swim up."_
 - **Sidestepping uses the lateral clips** rather than the forward walk — the
   slide is gone. UAL ships a full eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd,
   Bwd_L/R) for jog, crouch **and** crawl; the biped now picks the lateral one

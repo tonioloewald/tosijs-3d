@@ -222,6 +222,9 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
  * How far above the feet the collision body starts — everything below this is
  * walked over rather than collided with. Unity calls it Step Offset.
  */
+/** Ratio-to-weight for a body with no swim pose to read a waterline from. */
+const DEFAULT_BUOYANCY = 1.15
+
 const STEP_OFFSET = 0.35
 /** How high a lip the biped walks straight over instead of being stopped by. */
 const STEP_UP = 0.5
@@ -322,20 +325,18 @@ export class B3dBiped extends B3dControllable {
     /** Sidestep speed as a fraction of walking. Slower than forward on purpose. */
     strafeSpeed: 0.75,
     /**
-     * How buoyant the body is — the upward push at FULL submersion as a
-     * multiple of weight. **This is the dial for "how high do I float".**
+     * **Flotation trim — how high you ride relative to what the swim animation
+     * says.** `1` (default) rests exactly where the clip was authored to rest,
+     * which for a standard swim set means the root on the waterline: head and
+     * shoulders out when treading, head breaking the surface when crawling.
      *
-     * Equilibrium submersion is `1 / buoyancy`, so the default 1.15 rests with
-     * ~87% of the body under: roughly a person treading water, and measured at
-     * 0.34 m of head clearance on a 1.83 m rig. Raise it to sit higher (1.35 →
-     * ~74% under, over half a metre clear); below 1 the body sinks, which is the
-     * honest way to model armour.
-     *
-     * Exposed because how high a swimmer rides is a LOOK, not a constant — it
-     * depends on the rig's proportions and on how upright its tread-water clip
-     * holds the body, neither of which the engine can see.
+     * Above 1 rides higher, below 1 lower — the honest way to model a heavy
+     * pack or armour. It is a multiplier rather than an absolute because the
+     * absolute is not ours to choose: the animation already encodes it, and a
+     * number here would just be a second opinion that goes stale the moment the
+     * animation set changes.
      */
-    buoyancy: 1.15,
+    buoyancy: 1,
   }
 
   entries?: BABYLON.InstantiatedEntries
@@ -386,6 +387,10 @@ export class B3dBiped extends B3dControllable {
   private xrInputProvider?: XRInputProvider
   animationState?: AnimState
   animationGroup?: BABYLON.AnimationGroup
+  /** Measured vertical extent of the body per animation clip. See `_poseExtent`. */
+  private _poseCache = new Map<string, { bottom: number; height: number }>()
+  /** Seconds the current clip has been playing — a pose needs settling before measuring. */
+  private _poseAge = 0
   gameController?: GameController
   // XR camera: zoom goes from (1 back, 1 up) to (5 back, 2 up), default (2 back, 1.25 up)
   /**
@@ -497,6 +502,87 @@ export class B3dBiped extends B3dControllable {
     { animation: 'pilot', loop: true }
   )
 
+  /**
+   * **How tall the body actually is, in the pose it is holding right now.**
+   *
+   * Returns the body's vertical extent relative to the root node — `bottom` is
+   * how far BELOW the root the lowest point is, `height` the full span — or
+   * `null` until a skinned mesh is available.
+   *
+   * This exists because the root node is only at the feet when the character is
+   * STANDING. Measured on the Quaternius rig: `Idle_Loop` spans 0 → 1.78 above
+   * the root, but `Swim_Idle_Loop` hangs the legs 1.37 m BELOW it and puts the
+   * head just 0.24 m above. Treating the root as the feet therefore floated a
+   * body that was not there and left the real head about 1.2 m under —
+   * Tonio: *"the biped is much lower when treading water relative to the old
+   * biped"*, which is exactly right and now measured rather than guessed.
+   *
+   * It also killed the `buoyancy` dial: getting that head out of the water
+   * needed a submersion of 0.14, i.e. `buoyancy ≈ 7`, so raising it to 2 moved
+   * the body and changed nothing anyone could see.
+   *
+   * **Measured, never authored.** A per-rig table of swim offsets would be the
+   * obvious alternative and is the wrong shape — it is `_cover` painting by
+   * another name (MOBILITY-DESIGN.md): a fact the geometry already knows, wired
+   * by hand, silently wrong for the next animation set. Since the numbers here
+   * come out of the pose itself, a Mixamo or Mocap rig with different
+   * proportions floats correctly with no tuning.
+   *
+   * Cost is one CPU skinning pass per CLIP, cached forever after — not per
+   * frame. `refreshBoundingInfo({applySkeleton:true})` is far too expensive to
+   * run continuously.
+   */
+  private _poseExtent(): { bottom: number; height: number } | null {
+    const node = this.entries?.rootNodes?.[0] as
+      | BABYLON.TransformNode
+      | undefined
+    if (node == null || node.position == null) return null
+    let lo = Infinity
+    let hi = -Infinity
+    for (const m of node.getChildMeshes()) {
+      if (!m.skeleton || m.getTotalVertices() === 0) continue
+      try {
+        m.refreshBoundingInfo({ applySkeleton: true, applyMorph: true })
+      } catch {
+        // Older Babylon builds take a boolean here. A pose we cannot measure
+        // must not throw — it falls back to the standing assumption.
+        try {
+          ;(m as any).refreshBoundingInfo(true)
+        } catch {
+          return null
+        }
+      }
+      const bb = m.getBoundingInfo().boundingBox
+      if (bb.minimumWorld.y < lo) lo = bb.minimumWorld.y
+      if (bb.maximumWorld.y > hi) hi = bb.maximumWorld.y
+    }
+    if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return null
+    const scale = node.scaling?.y || 1
+    return {
+      bottom: (lo - node.position.y) / (scale || 1),
+      height: (hi - lo) / (scale || 1),
+    }
+  }
+
+  /**
+   * The cached extent for the clip currently playing, measuring it once the
+   * pose has had `settle` seconds to reach it. Returns `null` until then, and
+   * callers fall back to the standing assumption — which is correct for
+   * standing and merely the status quo for anything else.
+   */
+  private _currentPose(
+    settle = 0.25
+  ): { bottom: number; height: number } | null {
+    const key = this.animationState?.animation ?? this.animationState?.name
+    if (key == null) return null
+    const hit = this._poseCache.get(key)
+    if (hit != null) return hit
+    if (this._poseAge < settle) return null
+    const measured = this._poseExtent()
+    if (measured != null) this._poseCache.set(key, measured)
+    return measured
+  }
+
   setAnimationState(name: string, speed = 1) {
     if (name == null) {
       throw new Error('setAnimationState failed, no animation name specified.')
@@ -509,6 +595,8 @@ export class B3dBiped extends B3dControllable {
       return
     }
     if (this.entries == null) return
+    // A new clip means a new pose; it must settle before it can be measured.
+    this._poseAge = 0
 
     const newState = this.animationStates.find(
       (state) => state.name === name || state.animation === name
@@ -580,6 +668,7 @@ export class B3dBiped extends B3dControllable {
   applyInput(input: ControlInput, dt: number) {
     if (this.entries == null) return
     const attrs = this as any
+    this._poseAge += dt
 
     // Camera toggle on the view button (edge-detected).
     const viewPressed = input.view > 0.5
@@ -858,14 +947,58 @@ export class B3dBiped extends B3dControllable {
       // definition, which is the harmless direction: equilibrium is a FRACTION
       // of whatever height you give it, so erring small floats you a touch
       // lower rather than leaving you standing on the water.
-      const bodyHeight = ((this as any).eyeHeight as number) || 1.6
+      const standHeight = ((this as any).eyeHeight as number) || 1.6
+      /*
+      A cheap standing test FIRST, purely to decide whether measuring is worth
+      it: `_currentPose` costs a CPU skinning pass on the frame it measures a
+      new clip, and running that for every walk/run/jump clip on dry land would
+      be a hitch bought for nothing. Near the water it pays for itself once per
+      clip and is cached forever.
+      */
+      const nearWater =
+        surfaceY != null && node.position.y < surfaceY + standHeight
+      const pose = nearWater ? this._currentPose() : null
+      // No measurement yet ⇒ assume the standing pose: root at the feet, body
+      // upward. True while standing, and merely the previous behaviour
+      // otherwise, so a pose we cannot measure degrades rather than breaks.
+      const bodyBottom = pose ? pose.bottom : 0
+      const bodyHeight = pose ? pose.height : standHeight
+      const feetY = node.position.y + bodyBottom
       const submerged =
-        surfaceY == null
-          ? 0
-          : submergedFraction(node.position.y, bodyHeight, surfaceY)
-      const wasInAir = this._inAir
+        surfaceY == null ? 0 : submergedFraction(feetY, bodyHeight, surfaceY)
       const grounded = hit?.hit === true && hit.pickedPoint != null
       const groundY = grounded ? hit!.pickedPoint!.y : -Infinity
+      /*
+      THE SWIM/STAND TEST MUST NOT USE THE POSE, or it feeds back on itself.
+
+      Buoyancy needs the CURRENT pose, because displacement is a fact about the
+      body that is actually in the water. The DECISION to swim must not, because
+      the pose is a consequence of that decision: raise buoyancy, the body
+      rises, submersion falls under the exit threshold, the pose snaps upright,
+      and an upright body measured from the same root reads as barely
+      submerged — which locks the flip in. Observed directly: at `buoyancy` 1.3
+      the character corked out and stood on the surface, the "wade on water" bug
+      arriving by a new route.
+
+      So the decision asks a question whose answer cannot depend on it: **how
+      deep would this water be if I STOOD here?** Which is also the question it
+      means — you swim because you cannot stand — and it is stable across the
+      switch, so there is no loop left to close.
+      */
+      const standSubmerged =
+        surfaceY == null
+          ? 0
+          : submergedFraction(
+              // Feet ON THE FLOOR, not the root — while swimming the root sits
+              // mid-torso, so measuring from it asks "how deep if I stood with
+              // my feet where my chest is". With no floor under you at all,
+              // fall back to the body's lowest point: you certainly cannot
+              // stand, and the number will say so.
+              grounded ? groundY : node.position.y + bodyBottom,
+              standHeight,
+              surfaceY
+            )
+      const wasInAir = this._inAir
 
       /*
       HOLDING BRACES YOU; RELEASING JUMPS.
@@ -894,7 +1027,7 @@ export class B3dBiped extends B3dControllable {
       const jumpPressed = jumpDown && !this._jumpWasDown
       this._jumpWasDown = jumpDown
       const moving = Math.abs(speed) > 0.1
-      const canJump = grounded && submerged <= 0 && this._fallVel <= 0
+      const canJump = grounded && standSubmerged <= 0 && this._fallVel <= 0
       const jumpLaunch = jumpPressed && canJump
       if (jumpLaunch) this._jumpClip = moving ? 'running-jump' : 'jump'
 
@@ -918,7 +1051,7 @@ export class B3dBiped extends B3dControllable {
         upward by default." Note you also GLIDE a little deeper after releasing
         the control; that is momentum, not a bug, and letting go is not a brake.
         */
-        const headDepth = surfaceY! - (node.position.y + bodyHeight)
+        const headDepth = surfaceY! - (feetY + bodyHeight)
         /*
         YOU CANNOT PUSH YOURSELF OUT OF WATER.
 
@@ -937,19 +1070,46 @@ export class B3dBiped extends B3dControllable {
         const upAllowed = surfaceAimLimit(headDepth, 1)
         const swimUp = (input.jump ?? 0) > 0.5 ? upAllowed : 0
         const swimDown = (input.sneak ?? 0) > 0.5 ? 1 : 0
+        /*
+        THE CLIP DECLARES THE WATERLINE.
+
+        Tonio's read, and the measurements agree exactly: the swim animations
+        are authored with the ROOT AT WATER LEVEL. `Swim_Idle_Loop` spans −1.37
+        to +0.50 about the root and `Swim_Fwd_Loop` −0.60 to +0.31 — float the
+        root on the surface and the first is a tread with head and shoulders
+        out, the second a crawl with the head just breaking. Both are right, and
+        neither needed a number chosen by anyone.
+
+        So the equilibrium is not tuned, it is READ: a body rests where its
+        displacement balances its weight, at submersion `1 / buoyancy`, so the
+        buoyancy that parks the root on the surface is `height / -bottom`. The
+        animation set therefore tunes its own flotation, which is the same
+        argument as `_poseExtent` — a fact the content already knows, taken from
+        the content rather than typed in beside it.
+
+        Below, `swimBuoyancy` blends this toward neutral as you go deeper, so
+        diving still holds its depth; this only sets where the SURFACE is.
+        */
+        const poseBuoyancy =
+          pose != null && pose.bottom < -0.01
+            ? (pose.height / -pose.bottom) * attrs.buoyancy
+            : DEFAULT_BUOYANCY * attrs.buoyancy
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
-          buoyancy: swimBuoyancy(headDepth, { buoyancy: attrs.buoyancy }),
+          buoyancy: swimBuoyancy(headDepth, { buoyancy: poseBuoyancy }),
           thrust: (swimUp - swimDown) * SWIM_THRUST,
         })
         let nextY = node.position.y + this._fallVel * dt
         let onFloor = false
-        if (nextY <= groundY) {
-          nextY = groundY
+        // The floor stops the body's LOWEST point, which in a swim pose is the
+        // trailing legs rather than the root — treading, they hang 1.37 m below
+        // it. Clamping the root instead buried them in the seabed.
+        if (nextY + bodyBottom <= groundY) {
+          nextY = groundY - bodyBottom
           this._fallVel = 0
           onFloor = true
         }
         node.position.y = nextY
-        this._swimming = isSwimming(submerged, onFloor, this._swimming)
+        this._swimming = isSwimming(standSubmerged, onFloor, this._swimming)
       } else if (jumpLaunch && grounded) {
         this._swimming = false
         this._fallVel = attrs.jumpSpeed

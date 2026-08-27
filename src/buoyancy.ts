@@ -170,14 +170,22 @@ export function isSwimming(
  * choice and the drift is what keeps it honest.
  *
  * `headDepth` is how far the TOP of the body is below the surface — negative
- * while any part is still out. The blend is over half a metre so breaking the
- * surface is continuous, for the same reason the drag blend is.
+ * while any part is still out. The blend is gradual so breaking the surface is
+ * continuous, for the same reason the drag blend is.
+ *
+ * **The blend distance is the difference between diving and drowning.** At half
+ * a metre — the first value here — a swimmer whose head dipped barely under was
+ * already fully neutral, so they held there instead of bobbing back up, and the
+ * up-thrust is throttled near the surface too (`surfaceAimLimit`), which left
+ * nothing to get them out. Tonio: *"still treading water with head underwater
+ * and it's hard to swim up."* Over 1.5 m the hold belongs to DIVING, which is
+ * what it was for, and the surface stays buoyant.
  */
 export function swimBuoyancy(
   headDepth: number,
   params: { buoyancy?: number; neutral?: number; blend?: number } = {}
 ): number {
-  const { buoyancy = 1.15, neutral = 1.02, blend = 0.5 } = params
+  const { buoyancy = 1.15, neutral = 1.02, blend = 1.5 } = params
   if (headDepth <= 0) return buoyancy
   const t = blend <= 0 ? 1 : Math.min(1, headDepth / blend)
   return buoyancy + (neutral - buoyancy) * t
