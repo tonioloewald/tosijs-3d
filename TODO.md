@@ -2,6 +2,30 @@
 
 ## The queue
 
+[ ] **Quaternius animations: the whole library is on hand — see
+`../static-assets/CONTENT-MAP.md` → "Quaternius — Universal Animation
+Library".** UAL1 has **120** clips and UAL2 **134**, and a curated
+`UAL1_core.glb` (27 clips, 20.4 MB → 5.00 MB) is produced by
+`bin/subset-glb.ts` there, with no Blender involved. **If a clip we need is
+missing from the subset, add it to the list and regenerate** — nothing has to
+be re-downloaded or re-exported.
+
+What that unblocks, all of which is faked or broken today against the stock
+rig: **strafe** (`Jog_Left/Right_Loop` — currently a slide), **backwards**
+(`Jog_Bwd_Loop` — currently the walk cycle reversed), **the split jump**
+(`Jump_Start` / `Jump_Loop` / `Jump_Land` — so the brace can actually hold, the
+airborne loop can last the flight, and landings exist), and **sneak holding a
+crouch at rest** (`Crouch_Idle_Loop`).
+
+And for MOBILITY-DESIGN.md: `ClimbLedge`, `Climb_Up/Down/Left/Right_Loop`,
+`Roll`, `Dodge_Left/Right`, `Crawl_*`, `Turn90_L/R` are all authored already —
+the intent model's vocabulary exists before the intent model does.
+
+[ ] `_RM` (root-motion) variants are on the CDN and deliberately unused: the
+clip translates the root and `b3d-biped` also translates it, so they fight.
+They are what the intent model will want, where movement comes FROM the
+animation rather than being painted over it.
+
 ## LOCOMOTION: two models, and cover you discover — see MOBILITY-DESIGN.md
 
 Promoted out of this file on 2026-08-27: the design outgrew a TODO section the
