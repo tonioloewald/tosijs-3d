@@ -2,86 +2,30 @@
 
 ## The queue
 
-## LOCOMOTION: steer the character, let it solve the terrain (the RDR2 horse)
+## LOCOMOTION: two models, and cover you discover — see MOBILITY-DESIGN.md
 
-Tonio, 2026-08-27, while we were tuning a jump button: _"jumping looks
-terrible in almost all games because for gameplay you want it to be
-instantaneous but real jumps require anticipation that is insanely hard to do
-properly. Basically you need to make characters work like horses in Red Dead
-Redemption 2 — you just steer them and they figure out the terrain."_
+Promoted out of this file on 2026-08-27: the design outgrew a TODO section the
+moment Tonio named the actual north star, which is not jumping at all.
 
-This reframes the jump rather than refining it, and it is worth writing down
-before we polish the wrong thing. The tension is real and we hit it
-immediately: a jump the player triggers must fire NOW to feel responsive, but
-a jump that looks right must wind up FIRST, and the wind-up is exactly the
-part the player will not wait for. Crouch-on-press/launch-on-release buys some
-of it back by moving the anticipation into a moment the player chose to spend,
-and it is still a compromise.
+The short version. `b3d-biped` should bifurcate into a **platform jumper**
+(instant jumps, core gameplay verbs) and an **intent model** (you steer, the
+character solves the terrain — baulking at cliffs, prepping run-ups, parkour if
+capable). And the thing worth building toward is **cover you DISCOVER**: push
+into a nook while crouched and you are in cover, walk out and you are not, with
+no mode to be stuck in. GTA V and Watch Dogs, plus Mirror's Edge and Tomb
+Raider.
 
-The RDR2 answer refuses the trade instead of splitting it: the player supplies
-INTENT — direction, pace, roughly where they want to be — and the character
-solves footing, gaps, ledges and jumps itself, with as much anticipation as it
-needs because it decided to jump before the player would have. The jump stops
-being a verb the player fires and becomes something the character does on the
-way to somewhere.
+The architectural note that makes it tractable: **cover must be derived, never
+entered** — the same shape as `isSwimming(submerged, restingOnFloor)`, which is
+a function of the world rather than a state machine, and is exactly why entering
+and leaving water needs no transitions and cannot desync. And "is this geometry
+cover?" is `b3d-interactive`'s "can I use this?" one layer up — an affordance
+found in the world rather than declared on a tagged object.
 
-Fits the north star squarely: behavioural richness over fidelity, and the unit
-of progress is a WATCHABLE BEHAVIOUR. A character that picks its own line over
-broken ground is exactly that, and it is worth more than a better jump arc.
-
-Evidence we already have that this is the right direction:
-
-- The stock `jump` clip is **1.93 s** and the `running-jump` **0.93 s**. The
-  long one is mostly ground — crouch and recovery. The running jump reads well
-  precisely because the character was already committed and moving.
-- Auto-tuning the launch from clip length works for the running jump and has
-  to be CLAMPED for the standing one, because there is no marker saying where
-  flight begins. A system that chose its own jumps would know.
-
-[ ] Not scheduled, and deliberately not started. It wants a real animation set
-first — Tonio is looking at Quaternius, which also brings props and
-customisation — because the whole idea is animation-led and the current
-placeholder set cannot express it. Revisit when that lands, and consider
-promoting this to its own design doc rather than a TODO section.
-
-[ ] **Submersion is a PLANE test, so "below the waterline" and "under water"
-are the same thing to the biped.** Shipped that way in 0.7.3 knowingly. It
-is fine until an interior exists below sea level — a ship's hold, a cabin,
-a cave under a lake — at which point walking into a dry room reads as
-submerged and the character pitches over and treads water in it.
-
-The proper answer is the one MEDIUM-DESIGN.md is about: a medium needs a
-VOLUME, not a surface. The cheap one, which handles decks, cabins and caves
-with a single rule, is to cast UP from the head toward the water plane and
-treat a geometry hit as "under cover, not under water" — and only when the
-plane test already says submerged, so it costs nothing on dry land.
-
-Deferred by Tonio (2026-08-27) with the pirate ship gone into the test
-scene: the hull is not reachable yet and its interior is not modelled, so
-there is nothing to stand in. Do it when there is.
-
-[ ] **UPSTREAM (filed: tosijs-ui#109): the `widgets3d` doc page's `test` fence
-does not COMPILE** — `Arg string terminates parameters early`, so `0/1 tests
-passed` and the doc site carries a permanent red badge. **Survives the
-2026-08-26 toolchain upgrade** (tosijs-ui 1.12.3, tjs-lang 0.13.6), so it is
-a live bug rather than a stale-version artifact.
-
-Narrowed before filing: it is NOT tjs-lang's transpiler choking on this
-source — `transpileToJS` / `tjs` / `parse` / `preprocess` all return clean
-on the fence body — and the message exists as a literal in no installed
-package and no built bundle, so it is assembled at runtime. That points at
-the doc system's test-block handling.
-
-Two guesses were WRONG and are recorded upstream so nobody repeats them: a
-nested double quote in `'[data-w3d="slider"] circle'`, and the deep call
-nesting in the `iconBar3d` test.
-
-Why it matters more than a badge: those six tests are the only cover for
-pointer routing into `panel3d` (slider drag, toggle, button release,
-iconBar hit zones, list rows, clipping) — the exact surface that broke in
-the lost-pointerup saga — and they have been silently not running. A fence
-that fails to COMPILE reports as one failing test rather than six missing
-ones, which is why it hid.
+[ ] Not scheduled, deliberately. Animation-led: it wants a real set first
+(Quaternius, which also brings props and customisation), because without
+vault/mantle/slide clips the intent model has nothing to express and would
+degrade to the platform jumper with extra latency.
 
 ## OPEN: guided-missile demo crashes on a hit (0.7.0 validation, UNRESOLVED)
 
