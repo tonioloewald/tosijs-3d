@@ -67,6 +67,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **`buoyancy` is a biped attribute** — the dial for how high a swimmer rides.
+  Equilibrium submersion is `1 / buoyancy`, so the default `1.15` rests ~87%
+  under (measured: 0.34 m of head clearance on a 1.83 m rig); `1.35` sits ~74%
+  under. Exposed because how high a body floats is a **look**, depending on the
+  rig's proportions and how upright its tread-water clip holds it — neither of
+  which the engine can see.
 - **Sidestepping uses the lateral clips** rather than the forward walk — the
   slide is gone. UAL ships a full eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd,
   Bwd_L/R) for jog, crouch **and** crawl; the biped now picks the lateral one

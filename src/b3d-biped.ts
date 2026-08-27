@@ -321,6 +321,21 @@ export class B3dBiped extends B3dControllable {
     sneakSpeed: 0.4,
     /** Sidestep speed as a fraction of walking. Slower than forward on purpose. */
     strafeSpeed: 0.75,
+    /**
+     * How buoyant the body is — the upward push at FULL submersion as a
+     * multiple of weight. **This is the dial for "how high do I float".**
+     *
+     * Equilibrium submersion is `1 / buoyancy`, so the default 1.15 rests with
+     * ~87% of the body under: roughly a person treading water, and measured at
+     * 0.34 m of head clearance on a 1.83 m rig. Raise it to sit higher (1.35 →
+     * ~74% under, over half a metre clear); below 1 the body sinks, which is the
+     * honest way to model armour.
+     *
+     * Exposed because how high a swimmer rides is a LOOK, not a constant — it
+     * depends on the rig's proportions and on how upright its tread-water clip
+     * holds the body, neither of which the engine can see.
+     */
+    buoyancy: 1.15,
   }
 
   entries?: BABYLON.InstantiatedEntries
@@ -654,21 +669,10 @@ export class B3dBiped extends B3dControllable {
       this._lookPitch *= Math.exp(-3 * dt) // frame-rate independent
       if (Math.abs(this._lookPitch) < 0.5) this._lookPitch = 0
     }
-    /*
-    THE INVERSION IS A CAMERA PREFERENCE, NOT A SWIMMING ONE.
-
-    Inverted Y is conventional for a camera — push away, look down — and wrong
-    for a direction of travel, where push away must mean go up. The swim aim
-    follows the look, so inverting the look inverted the swimming with it:
-    pushing up pitched the body nose-down, put the head under, and then the
-    surface cap on upward aim made climbing back out as hard as it sounded.
-    Tonio: "still treading water with head underwater and it's hard to swim up".
-
-    So the inversion applies on land and not in water. The medium changes what
-    the stick means, which is the same rule `sneak` already follows — a toggle
-    ashore, a held control under.
-    */
-    const lookYSign = this._swimming || isOff(attrs.invertLookY) ? 1 : -1
+    // Inverted in BOTH media, deliberately: it is one control and it should not
+    // change sense when you get your feet wet. (Tried land-only; Tonio's call
+    // is that consistency wins, and the head-underwater problem was elsewhere.)
+    const lookYSign = isOff(attrs.invertLookY) ? 1 : -1
     this._lookPitch = Math.max(
       -attrs.maxLookPitch,
       Math.min(
@@ -934,7 +938,7 @@ export class B3dBiped extends B3dControllable {
         const swimUp = (input.jump ?? 0) > 0.5 ? upAllowed : 0
         const swimDown = (input.sneak ?? 0) > 0.5 ? 1 : 0
         this._fallVel = buoyantStep(this._fallVel, submerged, dt, {
-          buoyancy: swimBuoyancy(headDepth),
+          buoyancy: swimBuoyancy(headDepth, { buoyancy: attrs.buoyancy }),
           thrust: (swimUp - swimDown) * SWIM_THRUST,
         })
         let nextY = node.position.y + this._fallVel * dt
