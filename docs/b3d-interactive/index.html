@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>b3d-interactive — tosijs-3d</title>
+  <meta name="description" content="Makes a mesh touchable. Point at it, reach it, use it — and it tells you, by callback or by bubbling event." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-interactive/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-interactive — tosijs-3d" />
+  <meta property="og:description" content="Makes a mesh touchable. Point at it, reach it, use it — and it tells you, by callback or by bubbling event." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-interactive/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-interactive","description":"Makes a mesh touchable. Point at it, reach it, use it — and it tells you, by callback or by bubbling event.","url":"https://3d.tosijs.net/b3d-interactive/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>b3d-interactive</h1>
+<p><strong>Makes a mesh touchable.</strong> Point at it, reach it, use it — and it tells you, by
+callback or by bubbling event. It is the substrate doors, knobs, switches,
+levers, consoles and lamps all stand on; the rules it enforces are pure and
+tested in <a href="../interaction/">interaction</a>, and the scene bridge is
+<a href="../interactive-behavior/">interactive-behavior</a>.</p>
+<p><code>b3d-button</code> is a floating Babylon GUI widget. This is the other thing: <em>world
+geometry you reach out to</em>.</p>
+<h2>Demo</h2>
+<pre><code class="language-js">import { b3d, b3dBox, b3dSphere, b3dGround, b3dLight, b3dSkybox, b3dInteractive } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
+import { tosi, elements } from &#39;tosijs&#39;
+const { div, p, span } = elements
+
+const { demo } = tosi({ demo: { status: &#39;Click a brass knob.&#39;, key: &#39;no key&#39; } })
+
+// Two sliding doors. Each is a BOX plus a KNOB, and the interactive targets the
+// KNOB — the sub-mesh you actually touch, not the whole panel. Knobs sit at -z
+// because the default camera is on that side; a knob on the far face is behind
+// its own door and unpickable, which reads as &quot;the interactive is broken&quot;.
+const doorL = b3dBox({ meshName: &#39;doorL&#39;, width: 1.6, height: 2.4, depth: 0.14, x: -2.2, y: 1.2, color: &#39;#7a5236&#39; })
+const knobL = b3dSphere({ meshName: &#39;knobL&#39;, diameter: 0.22, x: -1.55, y: 1.2, z: -0.14, color: &#39;#d9a441&#39; })
+const doorR = b3dBox({ meshName: &#39;doorR&#39;, width: 1.6, height: 2.4, depth: 0.14, x: 2.2, y: 1.2, color: &#39;#7a5236&#39; })
+const knobR = b3dSphere({ meshName: &#39;knobR&#39;, diameter: 0.22, x: 1.55, y: 1.2, z: -0.14, color: &#39;#b0483c&#39; })
+
+// A key on a plinth. Picking it up is just another interactive.
+const key = b3dBox({ meshName: &#39;key&#39;, width: 0.35, height: 0.1, depth: 0.1, x: 0, y: 1.05, z: -0.1, color: &#39;#ffd45e&#39;, glow: 0.8 })
+const plinth = b3dBox({ meshName: &#39;plinth&#39;, width: 0.6, height: 1, depth: 0.6, x: 0, y: 0.5, color: &#39;#555a60&#39; })
+
+// A lamp and its switch — the same primitive doing something that isn&#39;t a door.
+const ambient = b3dLight({ y: 1, intensity: 0.35 })
+const lamp = b3dSphere({ meshName: &#39;lamp&#39;, diameter: 0.5, x: 0, y: 3.2, color: &#39;#332a12&#39;, glow: 0.1 })
+const post = b3dBox({ meshName: &#39;post&#39;, width: 0.12, height: 1.3, depth: 0.12, x: 0.9, y: 0.65, z: -0.9, color: &#39;#4b5057&#39; })
+const lampSwitch = b3dBox({ meshName: &#39;switch&#39;, width: 0.3, height: 0.4, depth: 0.12, x: 0.9, y: 1.35, z: -0.9, color: &#39;#c8ccd0&#39; })
+
+let hasKey = false
+let openL = 0, wantL = 0, openR = 0, wantR = 0, lit = false
+
+// LEFT door: unlocked. Note it moves the ELEMENT (`x`), never `mesh.position` —
+// an element that manages a node owns its transform, so writing the mesh is
+// undone on the next render.
+const useL = b3dInteractive({
+  target: &#39;knobL&#39;,
+  whenActivated: () =&gt; { wantL = wantL ? 0 : 1; demo.status.value = wantL ? &#39;Left door opening.&#39; : &#39;Left door closing.&#39; },
+})
+
+// RIGHT door: locked, by COMPOSITION. `lockable` is a veto on the same piece —
+// the interactive never learns what a lock is, and a refusal names the refuser.
+const useR = b3dInteractive({
+  target: &#39;knobR&#39;,
+  whenActivated: () =&gt; { wantR = wantR ? 0 : 1; demo.status.value = wantR ? &#39;Right door opening.&#39; : &#39;Right door closing.&#39; },
+  whenRefused: (info) =&gt; { demo.status.value = `It will not budge — ${info.reason}.` },
+})
+useR.vetoes.push({ name: &#39;locked&#39;, blocks: () =&gt; !hasKey })
+
+const takeKey = b3dInteractive({
+  target: &#39;key&#39;,
+  whenActivated: () =&gt; {
+    hasKey = true
+    demo.key.value = &#39;brass key&#39;
+    demo.status.value = &#39;You take the key. The red knob will turn now.&#39;
+    key.remove()
+    // Material, not placement — b3d-primitives build their material once, so a
+    // live recolour goes through the material rather than the `color` attribute.
+    knobR.mesh.material.diffuseColor.set(0.85, 0.64, 0.25)
+  },
+})
+
+const flick = b3dInteractive({
+  target: &#39;switch&#39;,
+  whenActivated: () =&gt; {
+    lit = !lit
+    ambient.intensity = lit ? 1.1 : 0.35
+    lamp.mesh.material.emissiveColor.set(lit ? 1 : 0.1, lit ? 0.94 : 0.08, lit ? 0.72 : 0.04)
+    demo.status.value = lit ? &#39;Lamp on.&#39; : &#39;Lamp off.&#39;
+  },
+})
+
+// Cosmetic easing only — the doors slide by writing their elements&#39; x.
+setInterval(() =&gt; {
+  openL += (wantL - openL) * 0.12
+  openR += (wantR - openR) * 0.12
+  doorL.x = -2.2 - openL * 1.55; knobL.x = -1.55 - openL * 1.55
+  doorR.x = 2.2 + openR * 1.55; knobR.x = 1.55 + openR * 1.55
+}, 16)
+
+preview.append(
+  b3d(
+    {
+      glowLayerIntensity: 0.7,
+      sceneCreated(el) {
+        orbitCam(el, { alphaDeg: -90, betaDeg: 68, radius: 11, target: [0, 1.2, 0] })
+      },
+    },
+    ambient,
+    b3dSkybox({ timeOfDay: 17 }),
+    b3dGround({ size: 30, color: &#39;#4a4f45&#39; }),
+    doorL, knobL, doorR, knobR, plinth, key, lamp, post, lampSwitch,
+    useL, useR, takeKey, flick,
+  ),
+  div(
+    { style: &#39;position:absolute; top:8px; left:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:14px monospace&#39; },
+    p(&#39;Hover highlights. Press and release ON a thing to use it.&#39;),
+    span({ bindText: demo.status }),
+    p({ style: &#39;opacity:0.7&#39; }, &#39;carrying: &#39;, span({ bindText: demo.key })),
+  )
+)
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>target</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>Mesh or node name to make touchable. Empty = the mesh of the element this one is nested inside</td>
+</tr>
+<tr>
+<td><code>include</code></td>
+<td><code>&#39;subtree&#39;</code></td>
+<td><code>&#39;subtree&#39;</code> counts the named node and everything under it; <code>&#39;self&#39;</code> counts only the node itself</td>
+</tr>
+<tr>
+<td><code>reach</code></td>
+<td><code>0</code></td>
+<td>Max distance in world units; <code>0</code> means no limit</td>
+</tr>
+<tr>
+<td><code>disabled</code></td>
+<td><code>false</code></td>
+<td>Refuses hover, and drops a press already in flight</td>
+</tr>
+<tr>
+<td><code>highlight</code></td>
+<td><code>&#39;#ffcc44&#39;</code></td>
+<td>Hover outline colour; <code>&#39;none&#39;</code> for no highlight</td>
+</tr>
+</tbody></table>
+<h2>Events and callbacks</h2>
+<p>Every one carries <code>{ mesh, point, distance }</code>; <code>refused</code> adds <code>reason</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Callback prop</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>hover</code></td>
+<td><code>whenHovered</code></td>
+<td>The pointer arrived (and is in reach)</td>
+</tr>
+<tr>
+<td><code>unhover</code></td>
+<td><code>whenUnhovered</code></td>
+<td>It left, or the thing was disabled under it</td>
+</tr>
+<tr>
+<td><code>activate</code></td>
+<td><code>whenActivated</code></td>
+<td>A press that started AND ended on it, with no veto</td>
+</tr>
+<tr>
+<td><code>refused</code></td>
+<td><code>whenRefused</code></td>
+<td>The same press, but a veto said no</td>
+</tr>
+</tbody></table>
+<p>Callbacks are named <code>whenX</code>, not <code>onX</code>, on purpose: <code>elementCreator</code> treats any
+<code>on*</code> prop as a DOM event listener, so an <code>onActivate</code> prop would silently become
+<code>addEventListener(&#39;activate&#39;)</code> and your function would never be called.</p>
+<h2>Composing other features onto it</h2>
+<p>Push a veto and something else on the same piece can refuse an activation
+without either feature knowing the other exists:</p>
+<pre><code class="language-javascript">import { b3dInteractive } from &#39;tosijs-3d&#39;
+
+const use = b3dInteractive({ target: &#39;hatch&#39; })
+use.vetoes.push({ name: &#39;powered&#39;, blocks: () =&gt; !reactor.online })
+use.vetoes.push({ name: &#39;locked&#39;, blocks: () =&gt; !player.has(&#39;hatch-key&#39;) })
+</code></pre>
+<p>The first refuser&#39;s name comes back on the <code>refused</code> event, which is the
+difference between a locked door and a broken one.</p>
+<h2>Reaching it without pointing at it</h2>
+<p><code>useNearest(scene, position)</code> activates the closest thing within its own reach —
+the &quot;walk up and press E&quot; control, for wiring to <code>ControlInput.interact</code>:</p>
+<pre><code class="language-javascript">import { useNearest } from &#39;tosijs-3d&#39;
+if (input.interact) useNearest(scene, camera.globalPosition)
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link current" href="../b3d-interactive/" aria-current="page">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

@@ -44,6 +44,9 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     private _ps;
     private _leaves;
     private _emitter;
+    /** Spawn-box vertical extent, emitter-relative — clipped at the waterline. */
+    private _spawnLoY;
+    private _spawnHiY;
     private _lastEye;
     private _eyeVel;
     private _intensity;
@@ -105,6 +108,15 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
      * arrive as the water does. A hard cut at the surface is the particle version of the fog
      * thunk, and we fixed that once already.
      */
+    /**
+     * Keep the spawn box on the right side of the water. See the note in the
+     * spawn function for why intensity could never have done this.
+     *
+     * Runs after the emitter has been placed, so it clips against where particles
+     * will ACTUALLY be born rather than against the camera — the two differ by the
+     * look-ahead and wind bias, which is exactly the amount that would leak.
+     */
+    private _clipSpawnBox;
     private _whereWeight;
     private _waterY;
 }

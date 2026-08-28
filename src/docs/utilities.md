@@ -3,6 +3,7 @@
 <!-- toc -->
 - [b3d-physics](/b3d-physics/)
 - [demo-utils](/demo-utils/)
+- [glb-manifest](/glb-manifest/)
 - [medium](/medium/)
 - [portal-transform](/portal-transform/)
 - [icon-name](/icon-name/)

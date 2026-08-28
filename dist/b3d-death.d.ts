@@ -42,6 +42,11 @@ export declare class B3dDeath extends B3dChild {
     private _fires;
     private _charMats;
     private _obs;
+    /** The falling wreck, while it is still in the air. */
+    private _fall;
+    private _offOrigin;
+    private _fallObs;
+    private _fallRay;
     private _timer;
     private _onDeath;
     sceneReady(owner: B3d): void;
@@ -50,6 +55,27 @@ export declare class B3dDeath extends B3dChild {
     private _handleDeath;
     /** Kill the run. Public so a game can trigger a death that isn't a crash or a hit. */
     die(entity: B3dControllable | null): void;
+    /**
+     * DEAD THINGS FALL.
+     *
+     * A wreck used to stop where it died, so a kill at altitude left a charred
+     * airframe hanging in the sky — and, because it is still solid, waiting to be
+     * flown into. Tonio, from a headset: _"I collided with wreckage high up … the
+     * wrecked plane hanging in mid-air (it should really tumble to the ground)."_
+     *
+     * The rules are pure and tested in [[wreck-fall]]; this is the Babylon side:
+     * sample the ground, step the model, carry the node, the fires and the
+     * spectate camera down with it.
+     *
+     * **Position is read from the NODE each frame and written back**, rather than
+     * held in JS across frames. A floating-origin rebase moves the node, and a
+     * model holding a world position would keep flying the wreck to where the
+     * world used to be.
+     */
+    private _startFall;
+    /** Move everything death holds in world space by a rebase. See `die()`. */
+    private _shiftOrigin;
+    private _fallShift;
     private _burn;
     private _showPanel;
     /** Tear down the death state and hand control back — then run `next` (e.g. respawn). */

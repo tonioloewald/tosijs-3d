@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/fluidRenderingParticleDiffuse.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"fluidRenderingParticleDiffusePixelShader\";\nconst shader = `uniform particleAlpha: f32;varying uv: vec2f;varying diffuseColor: vec3f;@fragment\nfn main(input: FragmentInputs)->FragmentOutputs {var normalxy: vec2f=input.uv*2.0-1.0;var r2: f32=dot(normalxy,normalxy);if (r2>1.0) {discard;}\nfragmentOutputs.color=vec4f(input.diffuseColor,1.0);}\n`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const fluidRenderingParticleDiffusePixelShaderWGSL = { name, shader };\n//# sourceMappingURL=fluidRenderingParticleDiffuse.fragment.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,2CACP,EAAS;AAAA;AAAA;AAAA,EAKf,GAAI,CAAC,EAAY,iBAAiB,GAC9B,EAAY,iBAAiB,GAAQ,EAGlC,IAAM,EAA+C,CAAE,OAAM,QAAO",
+  "debugId": "DF4A3E78E345033364756E2164756E21",
+  "names": []
+}

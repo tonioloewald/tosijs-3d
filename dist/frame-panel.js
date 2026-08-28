@@ -30,6 +30,7 @@ import * as BABYLON from '@babylonjs/core';
 import { SvgTexture } from './svg-texture';
 import { markUiMesh } from './b3d-utils';
 import { gazeReveal } from './xr-frames';
+import { faceViewer } from './dialog-placement';
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const DEG = Math.PI / 180;
 // Angular presets measured from the mean-eye point, all at the same comfortable
@@ -165,14 +166,20 @@ export function attachFramePanel(scene, cam, frame, spec) {
     markUiMesh(plane);
     plane.position.set(pos[0], pos[1], pos[2]);
     plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_NONE;
-    // Orient ONCE to face the focus point (your head): +Z toward it, tilted to its
-    // height. The panel doesn't rotate after this — the frame carries it.
-    const dx = focus[0] - pos[0];
-    const dy = focus[1] - pos[1];
-    const dz = focus[2] - pos[2];
-    const yaw = Math.atan2(dx, dz);
-    const pitch = -Math.atan2(dy, Math.hypot(dx, dz));
-    const roll = (anchor.rollDeg ?? 0) * DEG;
+    // Orient ONCE to face the focus point (your head), tilted to its height. The
+    // panel doesn't rotate after this — the frame carries it.
+    //
+    // `faceViewer` and not a local atan2: a plane's visible face is local -Z, so
+    // aiming +Z at your head shows its BACK, which a double-sided plane renders
+    // MIRRORED rather than not at all. This used to do exactly that and cancel it
+    // with `tex.uScale = -1`; two wrongs that read correctly are still a trap for
+    // the next panel, and the next panel (the world dialog) duly shipped mirrored.
+    // Roll goes THROUGH faceViewer, which flips its sense — turning the panel
+    // around reverses how a roll reads, so `rollDeg` keeps meaning what it meant.
+    // (`rollDeg: 180`, which rights the grip-space anchors, is symmetric and
+    // agrees either way — which is exactly why this needed a test rather than an
+    // argument.)
+    const { yaw, pitch, roll } = faceViewer({ x: pos[0], y: pos[1], z: pos[2] }, { x: focus[0], y: focus[1], z: focus[2] }, (anchor.rollDeg ?? 0) * DEG);
     plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(yaw, pitch, roll);
     const tex = el
         ? new SvgTexture({
@@ -186,10 +193,6 @@ export function attachFramePanel(scene, cam, frame, spec) {
     mat.backFaceCulling = false;
     mat.emissiveTexture = tex.texture;
     mat.opacityTexture = tex.texture;
-    // The face you view is the plane's back (+Z points at you), which mirrors the
-    // texture horizontally — flip U so it reads correctly.
-    tex.texture.uScale = -1;
-    tex.texture.uOffset = 1;
     mat.diffuseColor = BABYLON.Color3.Black();
     mat.disableLighting = true;
     // Additive for glowing HUD glyphs (reticle): dark pixels add nothing, bright

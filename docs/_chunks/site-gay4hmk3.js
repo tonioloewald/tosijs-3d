@@ -1,0 +1,5 @@
+import{Ts as s}from"./site-nv8skz8z.js";import{mt as n}from"./site-bab0thfc.js";import{fG as l}from"./site-pcap36fe.js";import{jH as a}from"./site-h971jg3h.js";class i extends s{constructor(t){super(t);this.config=t,this.condition=this.registerDataInput("condition",n),this.executionFlow=this._registerSignalOutput("executionFlow"),this.completed=this._registerSignalOutput("completed"),this._unregisterSignalOutput("out")}_execute(t,p){let e=this.condition.getValue(t);if(this.config?.doWhile&&!e)this.executionFlow._activateSignal(t);let o=0;while(e){if(this.executionFlow._activateSignal(t),++o,o>=i.MaxLoopCount){a.Warn("FlowGraphWhileLoopBlock: Max loop count reached. Breaking.");break}e=this.condition.getValue(t)}this.completed._activateSignal(t)}getClassName(){return"FlowGraphWhileLoopBlock"}}i.MaxLoopCount=1000;var r=!1;function u(){if(r)return;r=!0,l("FlowGraphWhileLoopBlock",i)}u();
+export{i as Uo,u as Vo};
+
+//# debugId=4D094B7313B00B2A64756E2164756E21
+//# sourceMappingURL=site-gay4hmk3.js.map

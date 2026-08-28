@@ -67,6 +67,22 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **`b3d-library` surfaces the glb's own catalogue** (#45). `getManifest()`
+  returns `{count, categories, items:[{name, category, tags, size}]}` built from
+  the loaded nodes; `getInfo(name)` answers `{category, tags, clips}` **without
+  instantiating**, which is what a clip picker needs (`metadata.animationGroups`
+  requires an instance to exist first). `getNames()` now narrows to the declared
+  items when a catalogue is present — the data-driven twin of the `.model`
+  convention, and a packed kit badly over-reports without it (measured: 559 raw
+  nodes vs 131 declared items). `getRootNames()`/`getHierarchy()` still expose
+  everything, so sub-part targets keep working, and `instantiate()` carries the
+  extras onto what it returns — including the `canonical: true` wrapper, which
+  was the actual reason the data looked unreachable.
+- **`glb-manifest`** — the pure half: category/tag/size queries over a library
+  catalogue, plus GLB JSON-chunk parsing for the case where you want a
+  library's contents _without_ loading it into a scene. Note Babylon surfaces
+  per-**node** extras and drops per-**scene** ones, so `manifestFromNodes` is
+  the path that needs no parsing at all.
 - **Mantling — the biped climbs onto a ledge too high to step onto.** No button:
   push into it and the character solves it, which is the intent model rather
   than the platform jumper. `mantle.ts` is the pure half (Babylon-free, 13

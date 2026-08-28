@@ -1,0 +1,5 @@
+function l(t){return Math.floor(t/8)}function p(t){return 1<<t%8}class h{constructor(t){this.size=t,this._byteArray=new Uint8Array(Math.ceil(this.size/8))}get(t){if(t>=this.size)throw RangeError("Bit index out of range");let r=l(t),o=p(t);return(this._byteArray[r]&o)!==0}set(t,r){if(t>=this.size)throw RangeError("Bit index out of range");let o=l(t),s=p(t);if(r)this._byteArray[o]|=s;else this._byteArray[o]&=~s}}function M(t){let r=[],o=t.length/3;for(let e=0;e<o;e++)r.push([t[e*3],t[e*3+1],t[e*3+2]]);let s=new Map;for(let e=0;e<r.length;e++){let c=r[e];for(let n of c){let a=s.get(n);if(!a)s.set(n,a=[]);a.push(e)}}let f=new h(o),u=[],x=(e)=>{let c=[e];while(c.length>0){let n=c.pop();if(f.get(n))continue;f.set(n,!0),u.push(r[n]);for(let a of r[n]){let g=s.get(a);if(!g)return;for(let y of g)if(!f.get(y))c.push(y)}}};for(let e=0;e<o;e++)if(!f.get(e))x(e);let i=0;for(let e of u)t[i++]=e[0],t[i++]=e[1],t[i++]=e[2]}
+export{h as uF,M as vF};
+
+//# debugId=03BEB51F9C45D1AB64756E2164756E21
+//# sourceMappingURL=site-8sd42vg3.js.map

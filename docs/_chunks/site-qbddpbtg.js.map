@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/meshUVSpaceRenderer.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"meshUVSpaceRendererPixelShader\";\nconst shader = `precision highp float;varying vec2 vDecalTC;uniform sampler2D textureSampler;void main(void) {if (vDecalTC.x<0. || vDecalTC.x>1. || vDecalTC.y<0. || vDecalTC.y>1.) {discard;}\ngl_FragColor=texture2D(textureSampler,vDecalTC);}\n`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\n/** @internal */\nexport const meshUVSpaceRendererPixelShader = { name, shader };\n//# sourceMappingURL=meshUVSpaceRenderer.fragment.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,iCACP,EAAS;AAAA;AAAA,EAIf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAG9B,IAAM,EAAiC,CAAE,OAAM,QAAO",
+  "debugId": "B09B5B93FBF5892964756E2164756E21",
+  "names": []
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/sharpen.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"sharpenPixelShader\";\nconst shader = `varying vec2 vUV;uniform sampler2D textureSampler;uniform vec2 screenSize;uniform vec2 sharpnessAmounts;\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void)\n{vec2 onePixel=vec2(1.0,1.0)/screenSize;vec4 color=texture2D(textureSampler,vUV);vec4 edgeDetection=texture2D(textureSampler,vUV+onePixel*vec2(0,-1)) +\ntexture2D(textureSampler,vUV+onePixel*vec2(-1,0)) +\ntexture2D(textureSampler,vUV+onePixel*vec2(1,0)) +\ntexture2D(textureSampler,vUV+onePixel*vec2(0,1)) -\ncolor*4.0;gl_FragColor=max(vec4(color.rgb*sharpnessAmounts.y,color.a)-(sharpnessAmounts.x*vec4(edgeDetection.rgb,0)),0.);}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\n/** @internal */\nexport const sharpenPixelShader = { name, shader };\n//# sourceMappingURL=sharpen.fragment.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,qBACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,4HASf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAG9B,IAAM,EAAqB,CAAE,OAAM,QAAO",
+  "debugId": "2F00EE58DE45082064756E2164756E21",
+  "names": []
+}

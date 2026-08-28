@@ -101,6 +101,7 @@ export declare class B3dSvgPlane extends AbstractMesh {
     private _gaze;
     private _dialogObs;
     private _dialogTarget;
+    private _offOrigin;
     private _installWorldDialog;
     /** Nominal camera-local Z (the author's `z`), before any occlusion pull-in. */
     private _nominalZ;

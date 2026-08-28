@@ -9,7 +9,7 @@ must be children of a `b3d` element.
 ```js
 import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
-  b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
+  b3dBiped, ualAnimationStates, assetUrl, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { tosi, elements } from 'tosijs'
@@ -26,7 +26,15 @@ const { demo } = tosi({
 })
 
 const scene = '/test-3.glb'
-const omnidude = '/omnidude.glb'
+// A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
+// CDN (the full library is 120 clips and 20 MB; see ../static-assets). Replaces
+// omnidude.glb, which measured 0.88 m: half human scale, about as tall as a
+// Kenney table, while this engine's movement constants were always human
+// numbers. See CLAUDE.md → "Scale: a person is 1.8 m".
+//
+// Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
+// was the walk cycle in reverse, and sneaking had no crouch to hold.
+const person = assetUrl('quaternius/UAL1_core.glb')
 
 const formatTime = (v) => {
   const h = Math.floor(v)
@@ -54,10 +62,10 @@ preview.append(
     b3dLoader({ url: scene }),
     inputFocus(
       gameController(),
-      b3dBiped({ url: omnidude, x: 5, ry: 135, player: true, cameraType: 'follow', initialState: 'look' }),
+      b3dBiped({ url: person, animationStates: ualAnimationStates(), x: 5, ry: 135, player: true, cameraType: 'follow', initialState: 'idle' }),
     ),
-    b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: 'idle' }),
-    b3dBiped({ url: omnidude, x: 3, z: -2, initialState: 'dance' }),
+    b3dBiped({ url: person, animationStates: ualAnimationStates(), x: -4, z: 3, ry: 45, initialState: 'idle' }),
+    b3dBiped({ url: person, animationStates: ualAnimationStates(), x: 3, z: -2, initialState: 'dance' }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: '#8080ff' }),
     b3dWater({ y: demo.waterLevel, twoSided: true, waterSize: 1024 }),
     // ABOVE the surface: leaves tumbling on the breeze — two-sided quads that flip and blow,
@@ -132,9 +140,10 @@ first thing you see is a Start screen; backgrounding the tab pauses it again.
 The reason this shape matters is not tidiness. **`enterXRAsync` requires a user
 gesture** — a scene cannot enter VR on load, the browser refuses. So "come up
 paused, put the headset on, press Continue" is the only arrangement that
-reliably enters VR, and `enterXrOnResume` closes the loop by pausing when you
-take the headset off. Set it on the scene below and the button changes to
-"Continue in VR" on a device that has it.
+reliably enters VR. `enterXrOnResume` closes the loop: set it on the scene below
+and the button changes to "Continue in VR" on a device that has it. (Leaving VR
+pauses in every scene now, not only this one — entering unpauses, so leaving has
+to be its inverse or it is not a pair.)
 
 ```js
 import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from 'tosijs-3d'
@@ -285,6 +294,7 @@ import { b3dSvgPlane } from './b3d-svg-plane';
 import { createMakers } from './make-mesh';
 import { openPopup, } from './popup-surface';
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils';
+import { faceViewer } from './dialog-placement';
 import { svgIcons } from './svg-icons';
 import { CombatWorld } from './destroyable';
 import { b3dGamepad } from './glass-gamepad';
@@ -402,10 +412,13 @@ export class B3d extends Component {
          */
         reseatFreeze: 'on',
         /**
-         * On resume, enter immersive VR if the device supports it; on leaving VR,
-         * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
-         * user gesture, and the Continue tap is one. A scene that tried to enter XR
-         * on load would be refused by the browser.
+         * On resume, enter immersive VR if the device supports it. This is why
+         * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
+         * Continue tap is one. A scene that tried to enter XR on load would be
+         * refused by the browser.
+         *
+         * The other direction — leaving VR pauses — is no longer gated on this; it
+         * happens for every scene, because the pair is the point.
          */
         enterXrOnResume: 'off',
     };
@@ -537,6 +550,26 @@ export class B3d extends Component {
         ':host .scene-panel-overlay[hidden]': {
             display: 'none',
         },
+        // Centred, above everything, and it dims the world behind it — a modal
+        // should read as one. `pointer-events` on the backdrop so a stray click
+        // lands on the scrim rather than steering the camera underneath.
+        ':host .pause-overlay': {
+            position: 'absolute',
+            inset: '0',
+            zIndex: '30',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.35)',
+        },
+        ':host .pause-overlay[hidden]': {
+            display: 'none',
+        },
+        ':host .pause-overlay > svg': {
+            maxWidth: 'min(90%, 420px)',
+            height: 'auto',
+            filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.6))',
+        },
         /*
         The panel's HEADER: a right-aligned row of equal, close-sized buttons —
         the icon-bar toggles, then close. Everything that is CHROME lives here, so
@@ -612,6 +645,22 @@ export class B3d extends Component {
             title: 'Enter VR',
         }, svgIcons.xrColor())),
         div({ class: 'scene-panel-overlay', part: 'scenePanelHost', hidden: true }),
+        /*
+        THE PAUSE PANEL, ON A FLAT SCREEN, IS DOM.
+    
+        It used to be an in-scene plane in both presentations. That is right in a
+        headset — there is no DOM to put it on — and wrong on a monitor, where it
+        inherits every problem of being a thing in the world: it has to find a spot
+        with clear line of sight, it can be occluded, it has to be raycast to be
+        clicked, and it lands wherever the geometry allows rather than where you are
+        looking. Tonio: "in flat 3d the continue should be presented in the dom like
+        the scene panel."
+    
+        Same rule the scene panel already follows — ONE widget list, two
+        presentations — and the same reason: the flat one is a DOM overlay because
+        flat HAS one.
+        */
+        div({ class: 'pause-overlay', part: 'pauseHost', hidden: true }),
         slot(),
     ];
     engine;
@@ -857,6 +906,29 @@ export class B3d extends Component {
         const svgH = 46 + rows.length * 48;
         const svg = panel3d({ width: 320, height: svgH }, ...rows);
         /*
+        FLAT: the DOM. IMMERSIVE: a plane in the scene.
+    
+        ONE widget list, two presentations — the scene panel's rule, applied to the
+        modal that most needed it. On a monitor a DOM overlay is simply better on
+        every axis that has bitten this panel: it cannot be occluded, it cannot be
+        placed somewhere odd by a line-of-sight cast, it needs no raycast to be
+        clicked, and it is exactly where you are already looking. All of that
+        machinery exists because a HEADSET has no DOM, which is the only place it
+        earns its cost.
+    
+        `panel3d` hangs `handlePointer` off the SVG for the in-scene path, but as a
+        DOM node the widgets' own listeners work natively — the same element,
+        unmodified, in both.
+        */
+        if (!this.xrActive) {
+            const host = this.parts.pauseHost;
+            if (host != null) {
+                host.replaceChildren(svg);
+                host.removeAttribute('hidden');
+                return;
+            }
+        }
+        /*
         FIT THE VIEWPORT, don't assume a desktop one.
     
         A fixed 1.1-wide panel at z=2.2 is comfortable on a 16:9 monitor and TOO
@@ -891,6 +963,11 @@ export class B3d extends Component {
         this.appendChild(plane);
     }
     _hidePausePanel() {
+        const host = this.parts?.pauseHost;
+        if (host != null) {
+            host.replaceChildren();
+            host.setAttribute('hidden', '');
+        }
         this._pausePanel?.remove();
         this._pausePanel = null;
         if (this._cameraWasAttached && this.camera != null) {
@@ -2598,11 +2675,25 @@ export class B3d extends Component {
                 xrSession = undefined;
                 restoreRaf?.();
                 restoreRaf = undefined;
-                // Leaving VR is a departure, not a view change: taking the headset off
-                // should not mean the world ran on without you. Only when the scene
-                // OPTED into the VR flow — a flat scene that happened to visit XR
-                // shouldn't suddenly acquire a pause panel on the way out.
-                if (this.enterXrOnResume === 'on')
+                /*
+                LEAVING VR PAUSES — for every scene, not just the ones that opted in.
+        
+                Taking the headset off is a departure, not a view change: the world
+                should not run on without you while it sits on your desk.
+        
+                This used to require `enterXrOnResume`, on the reasoning that a flat
+                scene which merely VISITED XR should not suddenly acquire a pause panel
+                on the way out. Superseded by the symmetry, which is the stronger
+                argument (Tonio: "just as entering VR should unpause, exiting VR should
+                probably pause"): one gesture means resume, its inverse means stop, and
+                a rule you have to opt into is not a pair. `enterXrOnResume` still owns
+                the other direction — resume → enter — so the loop it describes is
+                unchanged; it just no longer gates this half.
+        
+                Guarded on `paused` so exiting a scene you paused from INSIDE the headset
+                does not re-enter the pause it is already in.
+                */
+                if (!this.paused)
                     this.pause('xr');
             }
         });
@@ -3056,9 +3147,14 @@ export class B3d extends Component {
                     chaseFirstFrame = true; // re-seat the chase on toggle-out
                     return;
                 }
-                // Non-cockpit: ensure the rig is back in world space.
-                if (rig.parent != null) {
-                    rig.parent = null;
+                // Non-cockpit: ensure the rig is back in world space — unless it is
+                // riding a chase ANCHOR, which is the good case (see below).
+                const chaseAnchor = isFpv ? null : entity?.getChaseAnchor?.() ?? null;
+                if (rig.parent != null && rig.parent !== chaseAnchor) {
+                    // setParent(null), NOT `parent = null` — see the note in the
+                    // free-walk branch. Harmless here (the pose is recomputed below), but
+                    // spelled the same way so neither site can drift into the other.
+                    rig.setParent(null);
                     rig.scaling.set(1, 1, 1);
                     chaseFirstFrame = true;
                 }
@@ -3093,11 +3189,61 @@ export class B3d extends Component {
                     chaseYaw = targetYaw - chaseYawOffset;
                     chasePos.set(targetX, targetY, targetZ);
                 }
+                /*
+                PARENTED CHASE — the rigid path, when the entity offers an anchor.
+        
+                The rig becomes a CHILD of a level position+heading node the entity
+                updates in the same tick it moves. That fixes three separate faults at
+                once, all measured 2026-08-26 (see TODO → "THE CHASE RIG"):
+        
+                  1. ORDER. This observer is `onXRFrameObservable`, which fires BEFORE
+                     `scene.render()`; the entity moves in `registerBeforeRender`, which
+                     fires inside it. So the world-space path below positions the rig
+                     from LAST frame's aircraft position, every frame — and a variable
+                     frame time turns that fixed lag into jitter. A child's world matrix
+                     is resolved at render, after the move.
+                  2. LAG. `chasePos += (target - chasePos) * k*dt` is a first-order
+                     tracker, so it sits `v/k` behind — about 6.8 m at 61 m/s, and
+                     PROPORTIONAL TO SPEED. Tonio, in a headset: "throttle up the
+                     aircraft gets further away. Throttle down it gets closer." A child
+                     at a fixed local offset cannot drift.
+                  3. FRAME-RATE DEPENDENCE. `k*dt` as a lerp factor is the wrong form
+                     (`1 - exp(-k*dt)` is the right one), so the easing itself changed
+                     behaviour with frame rate.
+        
+                Level and yaw-only, exactly as the un-parented version was: parenting to
+                the airframe would hand the view its attitude, and a rolling horizon in
+                a headset is why this was not simply parented in the first place.
+        
+                Head compensation stays. It is not decoration — `cam.position` is the
+                tracked head offset within the rig, and in a floor-level reference space
+                that is your whole standing height. It mirrors the cockpit branch above,
+                which has always worked this way. The residual staleness is a frame of
+                HEAD motion (millimetres), not a frame of aircraft motion (metres).
+                */
+                if (chaseAnchor != null) {
+                    if (rig.parent !== chaseAnchor) {
+                        rig.parent = chaseAnchor;
+                        rig.scaling.set(1, 1, 1);
+                    }
+                    BABYLON.Quaternion.RotationYawPitchRollToRef(peekYaw - chaseYawOffset, 0, 0, yawQuat);
+                    rig.rotationQuaternion = yawQuat;
+                    BABYLON.Matrix.FromQuaternionToRef(yawQuat, mtx);
+                    BABYLON.Vector3.TransformCoordinatesToRef(cam.position, mtx, tmp);
+                    // Anchor-local: +Z is the entity's forward, so behind is −Z.
+                    rig.position.set(-tmp.x, up - tmp.y, -back - tmp.z);
+                    frames.eyeYawOffset = chaseYawOffset - peekYaw;
+                    return;
+                }
                 // Chase eases horizontally (turning doesn't snap); vertical always tracks
                 // tightly so it doesn't sink below on a climb. fpv tracks tight all round.
-                const posT = Math.min(1, (isChase ? 9 : 16) * dt);
-                const posTy = Math.min(1, 16 * dt);
-                const yawT = Math.min(1, 6 * dt);
+                // `1 - exp(-k*dt)`, NOT `k*dt`: the latter is not frame-rate
+                // independent, so the follow behaved differently at 72 and 90 Hz. Only
+                // entities with no chase anchor still come through here (a biped, a
+                // car) — an aircraft is parented above and does not ease at all.
+                const posT = 1 - Math.exp(-(isChase ? 9 : 16) * dt);
+                const posTy = 1 - Math.exp(-16 * dt);
+                const yawT = 1 - Math.exp(-6 * dt);
                 chasePos.x += (targetX - chasePos.x) * posT;
                 chasePos.y += (targetY - chasePos.y) * posTy;
                 chasePos.z += (targetZ - chasePos.z) * posT;
@@ -3129,7 +3275,31 @@ export class B3d extends Component {
             // reproducibly, whenever you happened to enter facing off-axis.
             frames.eyeYawOffset = freeYawOffset;
             if (rig.parent != null) {
-                rig.parent = null; // came from the cockpit — back to world space
+                /*
+                `setParent(null)`, NEVER `parent = null`.
+        
+                Assigning `parent` KEEPS THE LOCAL POSE and reinterprets it as world, so
+                a rig sitting at local (0, 2, −5) behind its parent teleports to (0, 2,
+                −5) in the WORLD — next to the origin. `setParent` preserves the world
+                transform, which is what "back to world space" was always supposed to
+                mean.
+        
+                This is the path a death takes: `releaseFocus()` nulls the focused
+                entity, so the next XR frame finds nothing piloted and falls through to
+                here. Tonio, VR: "I collided with wreckage high up and respawned at the
+                origin or starting point with the wrecked plane hanging in mid-air off
+                in the distance." He was not moved away from the wreck — he was moved to
+                the ORIGIN, and the wreck stayed where he died (measured: a corpse
+                drifts 0.05 m in 10 s).
+        
+                The comment here used to say "came from the cockpit", and that was true:
+                only the cockpit branch parented the rig, which is why TODO has carried
+                "COCKPIT DEATH: … the aircraft was moved way away from me" as a
+                cockpit-only oddity since 0.7.0. Parenting the CHASE rig (the jitter
+                fix) made the same latent bug reachable from the view people actually
+                fly in, which is how a five-month-old note finally got diagnosed.
+                */
+                rig.setParent(null);
                 rig.scaling.set(1, 1, 1);
             }
             if (rig.rotationQuaternion != null) {
@@ -3550,10 +3720,6 @@ export class B3d extends Component {
         mat.backFaceCulling = false;
         mat.emissiveTexture = tex.texture;
         mat.opacityTexture = tex.texture;
-        // You view the plane's back (+Z faces you), which mirrors the texture
-        // horizontally — flip U so the panel reads correctly.
-        tex.texture.uScale = -1;
-        tex.texture.uOffset = 1;
         mat.diffuseColor = BABYLON.Color3.Black();
         mat.disableLighting = true;
         plane.material = mat;
@@ -3570,9 +3736,13 @@ export class B3d extends Component {
             if (placed)
                 return;
             placed = true;
-            // Seat ONCE 60° up in the eye frame (origin = head), facing back down at it.
+            // Seat ONCE 60° up in the eye frame (origin = head), facing back down at
+            // it. `faceViewer` aims the plane's VISIBLE face (local -Z) at your head;
+            // this used to aim +Z and cancel the resulting mirror twice over — once on
+            // the texture and once on every pick. See dialog-placement.faceViewer.
             plane.position.set(0, ABOVE, AHEAD);
-            plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(Math.PI, Math.atan2(ABOVE, AHEAD), 0);
+            const aim = faceViewer({ x: 0, y: ABOVE, z: AHEAD }, { x: 0, y: 0, z: 0 });
+            plane.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(aim.yaw, aim.pitch, 0);
             plane.visibility = 1;
         });
         const T = BABYLON.PointerEventTypes;
@@ -3639,12 +3809,13 @@ export class B3d extends Component {
             if (kind)
                 dbg.uv = uv ? `${uv.x.toFixed(2)},${uv.y.toFixed(2)}` : 'none';
             if (uv) {
-                // The panel is the plane's BACK face with the texture U-flipped
-                // (uScale=-1) so it READS correctly — but the pick returns the raw mesh
-                // UV, so its x is mirrored relative to what you see. Undo the flip here, or
-                // every right-aligned control (slider track, toggle switch, select arrows)
-                // maps to the dead label zone and feels unresponsive.
-                vx = (1 - uv.x) * vb.width;
+                // Straight through, matching `b3d-svg-plane`: u across, v flipped
+                // (texture space is bottom-up). This used to need `1 - uv.x` to undo a
+                // U-flipped texture on a back-facing plane — two compensations for one
+                // avoidable cause, and if either had gone missing every right-aligned
+                // control (slider track, toggle switch, select arrows) would have mapped
+                // to the dead label zone and felt unresponsive.
+                vx = uv.x * vb.width;
                 vy = (1 - uv.y) * vb.height;
             }
             // Route every event; the panel manages press-capture and hover itself.

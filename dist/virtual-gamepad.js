@@ -266,17 +266,52 @@ export const STICK_UP_IS_POSITIVE = true;
 // --- Built-in mapping presets ---
 export function bipedMapping(pad, _dt) {
     const input = emptyInput();
+    /*
+    GTA V LAYOUT: the left stick MOVES, the right stick TURNS.
+  
+    The biped was tank-controlled — left stick X turned the body — which nobody
+    has muscle memory for any more, and it left the right stick doing camera work
+    that could not steer. Turning the BODY with the right stick makes swim
+    direction and body facing ONE thing rather than two that can disagree, which
+    is what made look-directed swimming fiddly to control.
+  
+    Left stick X becomes strafe, which is worth having on land regardless.
+    */
     input.forward = pad.leftStickY;
-    input.turn = pad.leftStickX;
-    input.jump = pad.buttonA;
+    input.strafe = pad.leftStickX;
+    input.turn = pad.rightStickX;
     // Right trigger, not left bumper: movement is the LEFT stick, so a left-hand
     // sprint modifier fights the left thumb. Right trigger frees that up.
     input.sprint = pad.rightTrigger;
     input.interact = pad.buttonX;
     input.shoot = pad.buttonB;
-    input.cameraZoom = pad.rightStickY;
-    input.cameraPeek = pad.rightStickX; // temporary look left/right (snaps to centre)
-    input.sneak = pad.dpadDown;
+    /*
+    Right stick Y is PITCH — the camera's, and while swimming the body's. There is
+    no separate camera yaw, because X turns the body and the camera follows it, so
+    the view cannot be left pointing somewhere the character is not.
+  
+    It used to be zoom (Y) and a snap-back peek (X), which meant a character had
+    no aim at all: nothing to point at a thing, and — once swimming arrived —
+    nothing to point DOWN with. Zoom moved to the d-pad, which sneak vacated.
+    */
+    input.lookY = pad.rightStickY;
+    // Signed: up zooms out, down zooms in. It was wrapped in `Math.max(0, …)`,
+    // which silently discarded the entire zoom-in half — down produced 0, not −1,
+    // so the camera could only ever retreat. Tonio: "d-pad up zooms out and I
+    // can't zoom in."
+    input.cameraZoom = pad.dpadUp - pad.dpadDown;
+    /*
+    BUMPERS for the two vertical verbs: left bumper sneak, right bumper jump.
+  
+    `buttonA` deliberately does NOT jump, though it did originally and I kept it
+    as an alias on the grounds that A-to-jump is conventional. Tonio's call, and
+    the better one: the face buttons are **reserved for actions**, because they
+    are primary and secondary fire on the aircraft and a control vocabulary that
+    changes meaning per vehicle is a vocabulary you have to relearn. A convention
+    borrowed from other games is worth less than consistency within this one.
+    */
+    input.jump = pad.rightBumper;
+    input.sneak = pad.leftBumper;
     // Camera toggle: glass-gamepad view button, or Y (reachable on a controller).
     input.view = Math.max(pad.view, pad.buttonY);
     return input;
@@ -285,13 +320,15 @@ export const bipedMappingDescriptor = {
     map: bipedMapping,
     labels: {
         leftStickY: 'move',
-        leftStickX: 'turn',
-        buttonA: 'jump',
+        leftStickX: 'strafe',
+        rightStickX: 'turn',
+        rightBumper: 'jump',
+        leftBumper: 'sneak',
         rightTrigger: 'sprint',
         buttonX: 'interact',
         buttonB: 'shoot',
-        rightStickY: 'camera',
-        dpadDown: 'sneak',
+        rightStickY: 'pitch',
+        dpadUp: 'zoom',
     },
 };
 export function carMapping(pad, _dt) {

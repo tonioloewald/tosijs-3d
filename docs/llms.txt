@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.2
+# tosijs-3d v0.7.3
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -16,6 +16,13 @@ each has its own `preview` element, but they share one tosijs module, so
 deliberate (it shows tosi isolation and lets you drive demos via the global
 singleton). Namespace example state with unique top-level keys so examples
 don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
+
+Running this project locally (`bun start`), the dev server injects a
+localhost-gated dev channel, so an agent can DRIVE the live page with the `hj`
+CLI — `hj navigate`, `hj eval`, `hj tree` — instead of inferring behaviour from
+source. Injected at serve time only, never in the built output. Note that no
+requestAnimationFrame runs under `hj eval`, and tosijs renders are rAF-driven, so
+use it to inspect STATE; a painted-output check needs a real test lane.
 
 ## Pages
 
@@ -61,6 +68,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   A drop-in aircraft HUD: mounts the [hud](?hud.ts) SVG as an **additive, translucent**
 - https://3d.tosijs.net/b3d-input-focus/ — b3d-input-focus
   Focus manager that wires input to the active controllable entity and handles
+- https://3d.tosijs.net/b3d-interactive/ — b3d-interactive
+  callback or by bubbling event. It is the substrate doors, knobs, switches,
 - https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
   Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
 - https://3d.tosijs.net/b3d-library/ — b3d-library
@@ -117,6 +126,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The Babylon half of the procedural terrain shader (TERRAIN-SHADER-DESIGN.md):
 - https://3d.tosijs.net/box/ — box
   The **flow `box`** — the first-class SVG UI container built on [[flow-layout]]. A
+- https://3d.tosijs.net/buoyancy/ — buoyancy
+  biped's swimming: how fast a body sinks, why it comes back up, and where it
 - https://3d.tosijs.net/carve/ — carve
   Pure, deterministic, Babylon-free; the vocabulary [[patch-field]] composes and
 - https://3d.tosijs.net/sdf-lattice/ — Carved landforms
@@ -135,7 +146,7 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
   The **attachable** destroyable — the reusable bridge that makes *any* modeled element
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
-  world-placed dialogs. Babylon-free (plain `{x, y, z}`), deterministic, and unit
+  faces** — the pure half of world-placed dialogs, plus the one function every
 - https://3d.tosijs.net/effects/ — Effects
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout
@@ -154,6 +165,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Generates a gamepad SVG using tosijs element creators. All colors and stroke
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)
   A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
+- https://3d.tosijs.net/glb-manifest/ — glb-manifest
+  chunk holds attribution (`asset.extras`) and, for libraries built by
 - https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
   Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
 - https://3d.tosijs.net/hud/ — hud
@@ -164,6 +177,10 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/input/ — Input
   Whether you're driving a 3d scene with keyboard and mouse, a touchscreen, a game controller, or AR controls, the goal...
+- https://3d.tosijs.net/interaction/ — interaction
+  Babylon-free, deterministic, unit tested, so what counts as "you used it" can be
+- https://3d.tosijs.net/interactive-behavior/ — interactive-behavior
+  The **attachable** interactive — the scene-side bridge over the pure rules in
 - https://3d.tosijs.net/key-layout/ — key-layout
   The **pure keyboard model**: which keys exist in each mode, what a long-press offers,
 - https://3d.tosijs.net/keyboard/ — keyboard
@@ -174,6 +191,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
+- https://3d.tosijs.net/mantle/ — mantle
+  the pure path: given what a probe saw in front of the character, is there a lip
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/medium/ — medium
@@ -216,6 +235,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   An **icon proxy** in the style of tosijs-ui's `icons`, over tosijs-3d's own
 - https://3d.tosijs.net/svg-texture/ — svg-texture
   Renders SVG content to a Babylon.js texture via an offscreen canvas.
+- https://3d.tosijs.net/swim-aim/ — swim-aim
+  an aim input into a body pitch, easing it, and unwinding it when you stand up
 - https://3d.tosijs.net/table/ — table
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
 - https://3d.tosijs.net/table-layout/ — table-layout
@@ -248,6 +269,8 @@ don't clobber each other; the `iframe` attribute isolates DOM/CSS, not state.
   The **pure spatial math** behind the coordinate-free `MinSimApi` surface ([world-contract](?world-contract.ts) §8).
 - https://3d.tosijs.net/world-view/ — world-view
   The Babylon **view** of a [[world-store]]. The store is the authoritative,
+- https://3d.tosijs.net/wreck-fall/ — wreck-fall
+  tumbling ballistic descent, an impact, a skid, and a rest. Babylon-free,
 - https://3d.tosijs.net/xr-frames/ — xr-frames
   Reference frames for spatial XR UI. "Stable" in XR isn't one thing — there are
 - https://3d.tosijs.net/xr-gamepad/ — xr-gamepad

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Animations/animationGroup.js"],
+  "sourcesContent": [
+    "export * from \"./animationGroup.pure.js\";\nexport * from \"./animationGroup.types.js\";\nimport { RegisterAnimationGroup } from \"./animationGroup.pure.js\";\nRegisterAnimationGroup();\n//# sourceMappingURL=animationGroup.js.map"
+  ],
+  "mappings": "wCAGA,EAAuB",
+  "debugId": "7A4724A8CBD1628064756E2164756E21",
+  "names": []
+}

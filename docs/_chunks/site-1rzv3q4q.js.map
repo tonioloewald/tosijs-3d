@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/boundingBoxRendererFragmentDeclaration.js", "../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/boundingBoxRenderer.fragment.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"boundingBoxRendererFragmentDeclaration\";\nconst shader = `uniform vec4 color;\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const boundingBoxRendererFragmentDeclaration = { name, shader };\n//# sourceMappingURL=boundingBoxRendererFragmentDeclaration.js.map",
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nimport { boundingBoxRendererFragmentDeclaration } from \"./ShadersInclude/boundingBoxRendererFragmentDeclaration.js\";\nimport { boundingBoxRendererUboDeclaration } from \"./ShadersInclude/boundingBoxRendererUboDeclaration.js\";\nconst name = \"boundingBoxRendererPixelShader\";\nconst shader = `#include<__decl__boundingBoxRendererFragment>\n#define CUSTOM_FRAGMENT_DEFINITIONS\nvoid main(void) {\n#define CUSTOM_FRAGMENT_MAIN_BEGIN\ngl_FragColor=color;\n#define CUSTOM_FRAGMENT_MAIN_END\n}`;\n// Sideeffect\nif (!ShaderStore.ShadersStore[name]) {\n    ShaderStore.ShadersStore[name] = shader;\n}\nconst includes = [boundingBoxRendererFragmentDeclaration, boundingBoxRendererUboDeclaration];\nfor (const inc of includes) {\n    if (!ShaderStore.IncludesShadersStore[inc.name]) {\n        ShaderStore.IncludesShadersStore[inc.name] = inc.shader;\n    }\n}\n/** @internal */\nexport const boundingBoxRendererPixelShader = { name, shader };\n//# sourceMappingURL=boundingBoxRenderer.fragment.js.map"
+  ],
+  "mappings": "gFAEA,IAAM,EAAO,yCACP,EAAS;AAAA,EAGf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAAyC,CAAE,OAAM,QAAO,ECNrE,IAAM,EAAO,iCACP,EAAS;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,GAQf,GAAI,CAAC,EAAY,aAAa,GAC1B,EAAY,aAAa,GAAQ,EAErC,IAAM,EAAW,CAAC,EAAwC,CAAiC,EAC3F,QAAW,KAAO,EACd,GAAI,CAAC,EAAY,qBAAqB,EAAI,MACtC,EAAY,qBAAqB,EAAI,MAAQ,EAAI,OAIlD,IAAM,EAAiC,CAAE,OAAM,QAAO",
+  "debugId": "7CDE455EFAF0FBA664756E2164756E21",
+  "names": []
+}

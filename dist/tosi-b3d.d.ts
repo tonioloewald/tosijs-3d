@@ -100,10 +100,13 @@ export declare class B3d extends Component {
          */
         reseatFreeze: "on" | "off";
         /**
-         * On resume, enter immersive VR if the device supports it; on leaving VR,
-         * pause. This is why starting paused matters: `enterXRAsync` REQUIRES a
-         * user gesture, and the Continue tap is one. A scene that tried to enter XR
-         * on load would be refused by the browser.
+         * On resume, enter immersive VR if the device supports it. This is why
+         * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
+         * Continue tap is one. A scene that tried to enter XR on load would be
+         * refused by the browser.
+         *
+         * The other direction — leaving VR pauses — is no longer gated on this; it
+         * happens for every scene, because the pair is the point.
          */
         enterXrOnResume: "on" | "off";
     };
@@ -220,6 +223,23 @@ export declare class B3d extends Component {
         };
         ':host .scene-panel-overlay[hidden]': {
             display: string;
+        };
+        ':host .pause-overlay': {
+            position: string;
+            inset: string;
+            zIndex: string;
+            display: string;
+            alignItems: string;
+            justifyContent: string;
+            background: string;
+        };
+        ':host .pause-overlay[hidden]': {
+            display: string;
+        };
+        ':host .pause-overlay > svg': {
+            maxWidth: string;
+            height: string;
+            filter: string;
         };
         ':host .scene-panel-head': {
             position: string;

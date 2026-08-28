@@ -101,12 +101,13 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, sceneDelta } from './b3d-utils';
+import { B3dChild, sceneDelta, collidable } from './b3d-utils';
 import { spawnPrefab } from './prefab';
 import { explosionFx } from './b3d-warhead';
 import { panel3d, label3d, button3d } from './widgets3d';
 import { panelFitWidth } from './widgets3d-layout';
 import { b3dSvgPlane } from './b3d-svg-plane';
+import { newWreckFall, wreckFallStep } from './wreck-fall';
 const DEG = Math.PI / 180;
 /** A soft round dot for the wreck fire/smoke. A ParticleSystem with NO particleTexture emits
  * nothing (it silently produced zero particles — that was the "lost explosion"), so it needs one. */
@@ -161,6 +162,11 @@ export class B3dDeath extends B3dChild {
     _fires = [];
     _charMats = [];
     _obs = null;
+    /** The falling wreck, while it is still in the air. */
+    _fall = null;
+    _offOrigin = null;
+    _fallObs = null;
+    _fallRay = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Down(), 2000);
     _timer = null;
     _onDeath = (e) => this._handleDeath(e);
     sceneReady(owner) {
@@ -263,13 +269,25 @@ export class B3dDeath extends B3dChild {
                 else {
                     this._burn(scene, node, at);
                 }
+                this._startFall(scene, node, entity);
             }
             catch (err) {
                 console.warn('b3d-death: wreckage FX failed (exit continues)', err);
             }
         }
-        // 2. Stop driving the corpse. THE bug this component exists to fix.
+        /*
+        2. Stop driving the corpse — and TELL it that it is one.
+    
+        `releaseFocus()` already stops a focus-managed entity, but incidentally: it
+        nulls `inputProvider` and `_update` short-circuits on that. `halt()` says it
+        outright, and covers a `die()` handed an entity the focus manager never held
+        (a scripted death, an AI, a test), which nothing else would stop.
+    
+        Order matters: `_startFall` above has already read the velocity it died
+        with.
+        */
         this.focusManager?.releaseFocus();
+        entity?.halt?.();
         // 3. Orbit the mistake you made — FLAT ONLY. `setGameplayCamera` is a no-op in a headset (the
         //    WebXR camera owns the view; swapping it blanks the display), and returns false so we skip
         //    building the orbit rig entirely. In VR you keep your head where it is and the Respawn
@@ -321,10 +339,207 @@ export class B3dDeath extends B3dChild {
         catch (err) {
             console.warn('b3d-death: spectate camera failed (exit continues)', err);
         }
+        /*
+        SURVIVE A FLOATING-ORIGIN REBASE.
+    
+        Terrain rebases the world periodically (see B3d.shiftOrigin), and everything
+        holding a WORLD position has to opt in or it is silently left behind. Death
+        holds three: the spectate camera (position AND target), the fire emitters,
+        and the fall's cached ground-sample point.
+    
+        Nothing here was registered, so in a terrain scene a rebase mid-death moved
+        the world out from under the shot — the camera left pointing at where the
+        crash used to be. That is the same FAMILY of symptom as the origin-teleport
+        fixed above and would read identically ("the wreck is way off, I am looking
+        at nothing"), which is exactly why it is worth closing rather than waiting
+        to see it: two causes producing one description is how a fixed bug looks
+        unfixed.
+    
+        A LISTENER, not `registerWorldRoot`: a camera is not a TransformNode we own,
+        and the emitters are plain vectors. Per CLAUDE.md, anything holding world
+        coordinates in JS fixes ITSELF and must not also register a root.
+    
+        The wreck NODE needs nothing — `_startFall` reads its position from the node
+        every frame and writes it back, so a shift is absorbed. That was written for
+        a different reason and pays off here.
+        */
+        this.owner.addOriginListener(this._shiftOrigin);
+        this._offOrigin = () => this.owner?.removeOriginListener(this._shiftOrigin);
         // 4. A beat to watch it burn, THEN the panel. Offering a menu over a fireball reads
         //    as a bug report rather than a death.
         this._timer = setTimeout(() => this._showPanel(), this.delay * 1000);
     }
+    /**
+     * DEAD THINGS FALL.
+     *
+     * A wreck used to stop where it died, so a kill at altitude left a charred
+     * airframe hanging in the sky — and, because it is still solid, waiting to be
+     * flown into. Tonio, from a headset: _"I collided with wreckage high up … the
+     * wrecked plane hanging in mid-air (it should really tumble to the ground)."_
+     *
+     * The rules are pure and tested in [[wreck-fall]]; this is the Babylon side:
+     * sample the ground, step the model, carry the node, the fires and the
+     * spectate camera down with it.
+     *
+     * **Position is read from the NODE each frame and written back**, rather than
+     * held in JS across frames. A floating-origin rebase moves the node, and a
+     * model holding a world position would keep flying the wreck to where the
+     * world used to be.
+     */
+    _startFall(scene, node, entity) {
+        if (node == null)
+            return;
+        const vel = entity?.getWorldVelocity?.() ?? null;
+        // Own meshes never count as ground — a wreck must not land on its own wing.
+        const own = new Set();
+        if (node instanceof BABYLON.AbstractMesh)
+            own.add(node);
+        for (const child of node.getChildMeshes())
+            own.add(child);
+        const skip = collidable((m) => own.has(m));
+        /*
+        HOW you died decides how far the wreck goes.
+    
+        Flying into something is an inelastic collision and eats most of the energy;
+        being shot down leaves you with all of it, still moving, now on fire. Only
+        this side knows which happened — `crashed` is set by the airframe's own
+        impact test — so the pure model takes it as a number and this makes the call.
+    
+        Without it a crash at 90 m/s from 130 m carried the wreck ~450 m downrange:
+        a glide, not a crash, and it dragged the spectate camera across that much
+        terrain with it.
+        */
+        const impact = entity?.crashed === true;
+        const carry = impact ? 0.25 : 0.7;
+        const start = node.getAbsolutePosition();
+        // Nothing under it is a real case — the edge of a finite ground plane, a
+        // kill out over open water in a scene with no sea floor. Without a floor
+        // the wreck falls forever, the spectate camera chases it down forever, and
+        // the observer never comes off. Found by killing at z≈1690 in a demo whose
+        // ground is 600 m across: it reached y = −25 and kept going.
+        const abandonY = start.y - 1500;
+        this._fall = newWreckFall({ x: start.x, y: start.y, z: start.z }, vel ? { x: vel.x, y: vel.y, z: vel.z } : { x: 0, y: 0, z: 0 }, { carry });
+        // Tumble about a FIXED world axis through the wreck: an airframe that has
+        // stopped flying has no frame of its own worth preserving.
+        const axis = new BABYLON.Vector3(this._fall.axis.x, this._fall.axis.y, this._fall.axis.z);
+        const rest = node.rotationQuaternion
+            ? node.rotationQuaternion.clone()
+            : BABYLON.Quaternion.FromEulerVector(node.rotation);
+        const spin = new BABYLON.Quaternion();
+        let groundY = -Infinity; // -Infinity means "never picked"
+        let pickedAtX = 0;
+        let pickedAtZ = 0;
+        this._fallShift = (dx, dz) => {
+            pickedAtX += dx;
+            pickedAtZ += dz;
+        };
+        this._fallObs = scene.onBeforeRenderObservable.add(() => {
+            const fall = this._fall;
+            if (fall == null || node.isDisposed())
+                return;
+            const dt = sceneDelta(scene);
+            if (dt <= 0)
+                return;
+            // Node → model, so an origin shift is absorbed (see the note above).
+            const here = node.getAbsolutePosition();
+            fall.pos.x = here.x;
+            fall.pos.y = here.y;
+            fall.pos.z = here.z;
+            /*
+            RE-PICK ONLY WHEN THE ANSWER CAN HAVE CHANGED.
+      
+            `scene.pickWithRay` walks every pickable mesh and does a full triangle
+            intersection on each one whose bounding box the ray enters. A vertical ray
+            through a terrain scene enters several tiles of tens of thousands of
+            triangles each, so this is milliseconds, not microseconds — and running it
+            per frame for the seconds a wreck takes to fall is the likeliest source of
+            "the world hung before the plane stopped flying" (Tonio, VR). It fits the
+            other half of that report too: pressing Respawn before the hang avoids it,
+            and Respawn is what takes this observer off.
+      
+            The ground under a wreck falling STRAIGHT DOWN does not change at all, so
+            the whole descent needs one pick. Re-pick when it has drifted sideways far
+            enough to be over something else, or when it is close enough that being
+            wrong matters.
+            */
+            const movedX = here.x - pickedAtX;
+            const movedZ = here.z - pickedAtZ;
+            if (groundY === -Infinity ||
+                movedX * movedX + movedZ * movedZ > 64 || // 8 m sideways
+                here.y - groundY < 60) {
+                pickedAtX = here.x;
+                pickedAtZ = here.z;
+                this._fallRay.origin.copyFromFloats(here.x, here.y + 1, here.z);
+                this._fallRay.direction.copyFromFloats(0, -1, 0);
+                const hit = scene.pickWithRay(this._fallRay, skip);
+                groundY = hit?.hit ? here.y + 1 - hit.distance : -Infinity;
+                // Nothing under it. Re-picking every frame will not conjure ground, and
+                // the abandon guard below ends it — so stop asking.
+                if (groundY === -Infinity) {
+                    pickedAtX = here.x;
+                    pickedAtZ = here.z;
+                    groundY = -1e9;
+                }
+            }
+            const { impacted } = wreckFallStep(fall, groundY, dt);
+            node.position.copyFromFloats(fall.pos.x, fall.pos.y, fall.pos.z);
+            BABYLON.Quaternion.RotationAxisToRef(axis, fall.angle, spin);
+            node.rotationQuaternion = spin.multiply(rest);
+            // The fires ride along — a smoke column left behind at the kill point,
+            // with the wreck a hundred metres below it, is worse than no fire.
+            for (const p of this._fires) {
+                const e = p.emitter;
+                if (e && typeof e.copyFromFloats === 'function') {
+                    e.copyFromFloats(fall.pos.x, fall.pos.y, fall.pos.z);
+                }
+            }
+            // And so does the shot: you are watching THIS, so keep it in frame.
+            const cam = this._orbitCam;
+            if (cam instanceof BABYLON.ArcRotateCamera) {
+                cam.target.copyFromFloats(fall.pos.x, fall.pos.y + this.orbitHeight * 0.35, fall.pos.z);
+            }
+            else if (cam instanceof BABYLON.FreeCamera) {
+                cam.setTarget(new BABYLON.Vector3(fall.pos.x, fall.pos.y, fall.pos.z));
+            }
+            if (impacted) {
+                try {
+                    explosionFx(scene, new BABYLON.Vector3(fall.pos.x, fall.pos.y, fall.pos.z), this.blastRadius * 0.5);
+                }
+                catch {
+                    // Cosmetics never block the exit — same rule as the death FX above.
+                }
+            }
+            if (fall.grounded || fall.pos.y < abandonY) {
+                scene.onBeforeRenderObservable.remove(this._fallObs);
+                this._fallObs = null;
+                this._fall = null;
+            }
+        });
+    }
+    /** Move everything death holds in world space by a rebase. See `die()`. */
+    _shiftOrigin = (dx, dz) => {
+        const cam = this._orbitCam;
+        if (cam != null) {
+            cam.position.x += dx;
+            cam.position.z += dz;
+            if (cam instanceof BABYLON.ArcRotateCamera) {
+                cam.target.x += dx;
+                cam.target.z += dz;
+            }
+        }
+        for (const p of this._fires) {
+            const e = p.emitter;
+            if (e &&
+                typeof e.addInPlaceFromFloats === 'function') {
+                e.addInPlaceFromFloats(dx, 0, dz);
+            }
+        }
+        // The fall re-reads the node each frame, so only its cached sample point is
+        // stale — shift it so the shift does not look like sideways drift and force
+        // a needless re-pick.
+        this._fallShift?.(dx, dz);
+    };
+    _fallShift = null;
     _burn(scene, mesh, at) {
         const fire = new BABYLON.ParticleSystem('wreck-fire', 220, scene);
         fire.particleTexture = sootDot(scene);
@@ -469,6 +684,13 @@ export class B3dDeath extends B3dChild {
         if (scene && this._obs)
             scene.onBeforeRenderObservable.remove(this._obs);
         this._obs = null;
+        if (scene && this._fallObs)
+            scene.onBeforeRenderObservable.remove(this._fallObs);
+        this._fallObs = null;
+        this._fall = null;
+        this._fallShift = null;
+        this._offOrigin?.();
+        this._offOrigin = null;
         for (const p of this._fires)
             p.dispose();
         this._fires = [];

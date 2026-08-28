@@ -268,20 +268,58 @@ export class B3dCollisions extends B3dChild {
                 }
                 continue;
             }
-            // For shape colliders, find the root node for this object
-            // (the TransformNode or top-level mesh with the collide name)
+            /*
+            Find the root of this object — but only across the SAME annotation.
+      
+            The point of climbing is that one logical object can be several meshes
+            all annotated the same way, and it should get ONE collider rather than
+            one each. It must not climb onto a DIFFERENTLY annotated parent, because
+            the shape is taken from the leaf and the BOUNDS from the root, so crossing
+            an annotation boundary builds the child's shape around the parent's whole
+            subtree.
+      
+            That is not hypothetical. A pirate ship whose masts are children of the
+            hull — `mainMast_collideCylinder` under `Hull_collideMesh` — climbed to
+            the hull and produced a CYLINDER sized from the hull's entire subtree,
+            sails included: 34.4 m across and 26 m tall, centred on the ship. One
+            `processed` entry then swallowed the other two masts, so it appeared as a
+            single giant squat cylinder and you could not get within twenty metres of
+            the ship. Tonio: "I put a collideMesh on the hull and collideCylinders on
+            each mast but the ship just seems to have a single giant squat cylinder."
+      
+            The name of the generated mesh was the tell — `Hull_collideMesh_collider`
+            should be impossible, since `_collideMesh` returns above without building
+            a primitive at all.
+            */
             let root = mesh;
-            while (root.parent && this.getCollideType(root.parent.name) != null) {
+            while (root.parent &&
+                this.getCollideType(root.parent.name) === collideType) {
                 root = root.parent;
             }
             const rootName = root.name;
             if (processed.has(rootName))
                 continue;
             processed.add(rootName);
-            // Compute combined bounding box from all child meshes
-            const childMeshes = root instanceof BABYLON.AbstractMesh
-                ? [root, ...root.getChildMeshes()]
-                : root.getChildMeshes();
+            /*
+            Bounds from the annotated node's OWN geometry when it has any.
+      
+            Combining children exists for the case the comment above describes: a GLB
+            splits an object into a TransformNode with the geometry in its children,
+            and the annotation lands on the node. When the annotated thing IS a mesh,
+            though, its own geometry is the answer and its children are whatever was
+            parented to it — which on a ship is the rigging.
+      
+            Measured: `mainMast_collideCylinder` is a Mesh 0.55 × 20.6 × 0.64 — a
+            pole — carrying Crow's Nest, Flag, Spar and two SquareSails as children.
+            Combining them gave a 10.2 m diameter cylinder around each mast, so the
+            deck was still walled off even after the giant one was fixed.
+            */
+            const hasOwnGeometry = root instanceof BABYLON.AbstractMesh && root.getTotalVertices() > 0;
+            const childMeshes = hasOwnGeometry
+                ? [root]
+                : root instanceof BABYLON.AbstractMesh
+                    ? [root, ...root.getChildMeshes()]
+                    : root.getChildMeshes();
             if (childMeshes.length === 0)
                 continue;
             // Get world-space bounds across all children, then make collider in world space (no parent)

@@ -32,6 +32,7 @@
   <url><loc>https://3d.tosijs.net/b3d-galaxy/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-hud/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-input-focus/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-interactive/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-launcher/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-library/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-light/</loc></url>
@@ -54,6 +55,7 @@
   <url><loc>https://3d.tosijs.net/b3d-turret/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-warhead/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-water/</loc></url>
+  <url><loc>https://3d.tosijs.net/buoyancy/</loc></url>
   <url><loc>https://3d.tosijs.net/carve/</loc></url>
   <url><loc>https://3d.tosijs.net/sdf-lattice/</loc></url>
   <url><loc>https://3d.tosijs.net/cloud-shadows/</loc></url>
@@ -63,11 +65,14 @@
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/game-controller/</loc></url>
   <url><loc>https://3d.tosijs.net/glass-gamepad/</loc></url>
+  <url><loc>https://3d.tosijs.net/glb-manifest/</loc></url>
   <url><loc>https://3d.tosijs.net/hud/</loc></url>
   <url><loc>https://3d.tosijs.net/input/</loc></url>
+  <url><loc>https://3d.tosijs.net/interaction/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/landform/</loc></url>
+  <url><loc>https://3d.tosijs.net/mantle/</loc></url>
   <url><loc>https://3d.tosijs.net/medium/</loc></url>
   <url><loc>https://3d.tosijs.net/performance/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
@@ -76,12 +81,14 @@
   <url><loc>https://3d.tosijs.net/space/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-icons/</loc></url>
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
+  <url><loc>https://3d.tosijs.net/swim-aim/</loc></url>
   <url><loc>https://3d.tosijs.net/table/</loc></url>
   <url><loc>https://3d.tosijs.net/ui/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/vehicles/</loc></url>
   <url><loc>https://3d.tosijs.net/world-sim/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
+  <url><loc>https://3d.tosijs.net/wreck-fall/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-frames/</loc></url>
   <url><loc>https://3d.tosijs.net/ambient-budget/</loc></url>
   <url><loc>https://3d.tosijs.net/ambient-leaves/</loc></url>
@@ -101,6 +108,7 @@
   <url><loc>https://3d.tosijs.net/hardware-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/hud-math/</loc></url>
   <url><loc>https://3d.tosijs.net/icon-name/</loc></url>
+  <url><loc>https://3d.tosijs.net/interactive-behavior/</loc></url>
   <url><loc>https://3d.tosijs.net/key-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/mersenne-twister/</loc></url>

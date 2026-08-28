@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Misc/precisionDate.js"],
+  "sourcesContent": [
+    "import { IsWindowObjectExist } from \"./domManagement.js\";\n/**\n * Class containing a set of static utilities functions for precision date\n */\nexport class PrecisionDate {\n    /**\n     * Gets either window.performance.now() if supported or Date.now() else\n     */\n    static get Now() {\n        if (IsWindowObjectExist() && window.performance && window.performance.now) {\n            return window.performance.now();\n        }\n        return Date.now();\n    }\n}\n//# sourceMappingURL=precisionDate.js.map"
+  ],
+  "mappings": "wCAIO,MAAM,CAAc,WAIZ,IAAG,EAAG,CACb,GAAI,EAAoB,GAAK,OAAO,aAAe,OAAO,YAAY,IAClE,OAAO,OAAO,YAAY,IAAI,EAElC,OAAO,KAAK,IAAI,EAExB",
+  "debugId": "B8429E8FE36B9B5B64756E2164756E21",
+  "names": []
+}

@@ -399,7 +399,7 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh, isOff, markUiMesh, collidable, sceneDelta, } from './b3d-utils';
-import { gazeOffAxisDeg, gazeStep, newGazeState, bestCandidate, placementDistance, easeTo, } from './dialog-placement';
+import { gazeOffAxisDeg, gazeStep, newGazeState, bestCandidate, placementDistance, facingYawDeg, easeTo, } from './dialog-placement';
 import { roundedRectGeometry } from './rounded-rect';
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3;
@@ -481,7 +481,44 @@ export class B3dSvgPlane extends AbstractMesh {
     _gaze = newGazeState();
     _dialogObs = null;
     _dialogTarget = null;
+    _offOrigin = null;
     _installWorldDialog(scene) {
+        /*
+        A WORLD-PLACED PANEL HOLDS A WORLD POSITION, SO IT HAS TO OPT IN.
+    
+        Terrain rebases the world (B3d.shiftOrigin) and moves only what registered.
+        This panel keeps its position on the ELEMENT (`x`/`y`/`z` — the #35 rule) and
+        its destination in `_dialogTarget`, both in JS, both world coordinates. A
+        rebase during a paused or dying scene therefore slid the dialog away by the
+        shift, in the one kind of scene big enough to need rebasing.
+    
+        A LISTENER, not `registerWorldRoot`: the element owns the transform and
+        rewrites the mesh from it every render, so shifting the node would be undone
+        a frame later. Fix the numbers the element is written FROM.
+    
+        Gaze recovery would eventually drag it back, which is precisely what makes
+        this worth fixing rather than tolerating: the symptom is a dialog that
+        wanders and then returns, and "it sort of fixes itself" is how a bug avoids
+        being reported.
+        */
+        const owner = this.owner;
+        if (owner != null) {
+            const onShift = (dx, dz) => {
+                const self = this;
+                self.x += dx;
+                self.z += dz;
+                if (this.mesh != null) {
+                    this.mesh.position.x += dx;
+                    this.mesh.position.z += dz;
+                }
+                if (this._dialogTarget != null) {
+                    this._dialogTarget.x += dx;
+                    this._dialogTarget.z += dz;
+                }
+            };
+            owner.addOriginListener(onShift);
+            this._offOrigin = () => owner.removeOriginListener(onShift);
+        }
         // Straight ahead first, then progressively further off-axis: bestCandidate
         // breaks ties toward EARLIER entries, so this order IS the preference.
         const YAW_CANDIDATES = [0, -20, 20, -40, 40, -70, 70, 180];
@@ -502,7 +539,10 @@ export class B3dSvgPlane extends AbstractMesh {
                 collidable());
                 clearances.push(hit?.hit ? hit.distance : Infinity);
             }
-            const i = bestCandidate(clearances, 0.7);
+            // `desired` matters: it makes this "the least deviation with room" rather
+            // than "the most room", so a follow camera's own subject stops pushing
+            // every dialog off-axis. See bestCandidate.
+            const i = bestCandidate(clearances, 0.7, desired);
             // Nowhere is clear (boxed in): take straight ahead at the floor distance
             // rather than refusing to show a modal at all.
             const dir = dirs[i >= 0 ? i : 0];
@@ -567,10 +607,14 @@ export class B3dSvgPlane extends AbstractMesh {
                 mesh.position.set(next.x, next.y, next.z);
                 // Face the viewer — as YAW on the element, for the same reason.
                 // Rotating the mesh would be undone by the same render.
-                const dx = cam.globalPosition.x - next.x;
-                const dz = cam.globalPosition.z - next.z;
-                if (Math.hypot(dx, dz) > 1e-4) {
-                    self.yaw = (Math.atan2(dx, dz) * 180) / Math.PI;
+                //
+                // `facingYawDeg` and not `atan2(dx, dz)`: a plane's visible face is
+                // local -Z, so the obvious version turns the panel's BACK to you, and a
+                // double-sided back reuses the front's UVs — the dialog rendered
+                // MIRRORED rather than vanishing, which is how it survived a release.
+                const eye = cam.globalPosition;
+                if (Math.hypot(eye.x - next.x, eye.z - next.z) > 1e-4) {
+                    self.yaw = facingYawDeg(next, eye);
                 }
             }
         });
@@ -733,6 +777,8 @@ export class B3dSvgPlane extends AbstractMesh {
         owner.register({ meshes: [this.mesh] });
     }
     sceneDispose() {
+        this._offOrigin?.();
+        this._offOrigin = null;
         if (this._dialogObs && this.owner) {
             this.owner.scene.onBeforeRenderObservable.remove(this._dialogObs);
             this._dialogObs = null;

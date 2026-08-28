@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/Shaders/ShadersInclude/backgroundUboDeclaration.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nimport \"./sceneUboDeclaration.js\";\nconst name = \"backgroundUboDeclaration\";\nconst shader = `layout(std140,column_major) uniform;uniform Material\n{uniform vec4 vPrimaryColor;uniform vec4 vPrimaryColorShadow;uniform vec2 vDiffuseInfos;uniform mat4 diffuseMatrix;uniform float fFovMultiplier;uniform float pointSize;uniform float shadowLevel;uniform float alpha;uniform vec3 vBackgroundCenter;uniform vec4 vReflectionControl;uniform vec2 projectedGroundInfos;uniform vec2 vReflectionInfos;uniform mat4 reflectionMatrix;uniform vec3 vReflectionMicrosurfaceInfos;};\n#include<sceneUboDeclaration>\n`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStore[name]) {\n    ShaderStore.IncludesShadersStore[name] = shader;\n}\n/** @internal */\nexport const backgroundUboDeclaration = { name, shader };\n//# sourceMappingURL=backgroundUboDeclaration.js.map"
+  ],
+  "mappings": "wCAGA,IAAM,EAAO,2BACP,EAAS;AAAA;AAAA;AAAA,EAKf,GAAI,CAAC,EAAY,qBAAqB,GAClC,EAAY,qBAAqB,GAAQ,EAGtC,IAAM,EAA2B,CAAE,OAAM,QAAO",
+  "debugId": "999B8175F17FBEBF64756E2164756E21",
+  "names": []
+}

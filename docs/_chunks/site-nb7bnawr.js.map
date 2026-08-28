@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/ShadersInclude/subSurfaceScatteringFunctions.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../../Engines/shaderStore.js\";\nconst name = \"subSurfaceScatteringFunctions\";\nconst shader = `fn testLightingForSSS(diffusionProfile: f32)->bool\n{return diffusionProfile<1.;}`;\n// Sideeffect\nif (!ShaderStore.IncludesShadersStoreWGSL[name]) {\n    ShaderStore.IncludesShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const subSurfaceScatteringFunctionsWGSL = { name, shader };\n//# sourceMappingURL=subSurfaceScatteringFunctions.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,gCACP,EAAS;AAAA,+BAGf,GAAI,CAAC,EAAY,yBAAyB,GACtC,EAAY,yBAAyB,GAAQ,EAG1C,IAAM,EAAoC,CAAE,OAAM,QAAO",
+  "debugId": "94EF7A2878BC658C64756E2164756E21",
+  "names": []
+}

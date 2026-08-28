@@ -40,7 +40,7 @@
   <meta name="twitter:card" content="summary" />
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d","description":"The root 3D scene container. All other components (b3dSun, b3dSkybox, b3dLoader, etc.) must be children of a b3d element.","url":"https://3d.tosijs.net/tosi-b3d/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
-<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
@@ -51,7 +51,7 @@ must be children of a <code>b3d</code> element.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import {
   b3d, b3dSun, b3dSkybox, b3dSphere, b3dLoader,
-  b3dBiped, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
+  b3dBiped, ualAnimationStates, assetUrl, b3dButton, b3dLight, b3dWater, b3dReflections, b3dCollisions,
   b3dAmbient, gameController, inputFocus, toggle3d, slider3d,
 } from &#39;tosijs-3d&#39;
 import { tosi, elements } from &#39;tosijs&#39;
@@ -68,7 +68,15 @@ const { demo } = tosi({
 })
 
 const scene = &#39;/test-3.glb&#39;
-const omnidude = &#39;/omnidude.glb&#39;
+// A Quaternius UAL rig — 1.83 m, feet at the origin, 27 curated clips off the
+// CDN (the full library is 120 clips and 20 MB; see ../static-assets). Replaces
+// omnidude.glb, which measured 0.88 m: half human scale, about as tall as a
+// Kenney table, while this engine&#39;s movement constants were always human
+// numbers. See CLAUDE.md → &quot;Scale: a person is 1.8 m&quot;.
+//
+// Real Jog_Bwd_Loop and Crouch_* clips also retire two fakes: walking backwards
+// was the walk cycle in reverse, and sneaking had no crouch to hold.
+const person = assetUrl(&#39;quaternius/UAL1_core.glb&#39;)
 
 const formatTime = (v) =&gt; {
   const h = Math.floor(v)
@@ -96,10 +104,10 @@ preview.append(
     b3dLoader({ url: scene }),
     inputFocus(
       gameController(),
-      b3dBiped({ url: omnidude, x: 5, ry: 135, player: true, cameraType: &#39;follow&#39;, initialState: &#39;look&#39; }),
+      b3dBiped({ url: person, animationStates: ualAnimationStates(), x: 5, ry: 135, player: true, cameraType: &#39;follow&#39;, initialState: &#39;idle&#39; }),
     ),
-    b3dBiped({ url: omnidude, x: -4, z: 3, ry: 45, initialState: &#39;idle&#39; }),
-    b3dBiped({ url: omnidude, x: 3, z: -2, initialState: &#39;dance&#39; }),
+    b3dBiped({ url: person, animationStates: ualAnimationStates(), x: -4, z: 3, ry: 45, initialState: &#39;idle&#39; }),
+    b3dBiped({ url: person, animationStates: ualAnimationStates(), x: 3, z: -2, initialState: &#39;dance&#39; }),
     b3dLight({ y: 1, z: 0.5, intensity: 0.2, diffuse: &#39;#8080ff&#39; }),
     b3dWater({ y: demo.waterLevel, twoSided: true, waterSize: 1024 }),
     // ABOVE the surface: leaves tumbling on the breeze — two-sided quads that flip and blow,
@@ -170,9 +178,10 @@ first thing you see is a Start screen; backgrounding the tab pauses it again.</p
 <p>The reason this shape matters is not tidiness. <strong><code>enterXRAsync</code> requires a user
 gesture</strong> — a scene cannot enter VR on load, the browser refuses. So &quot;come up
 paused, put the headset on, press Continue&quot; is the only arrangement that
-reliably enters VR, and <code>enterXrOnResume</code> closes the loop by pausing when you
-take the headset off. Set it on the scene below and the button changes to
-&quot;Continue in VR&quot; on a device that has it.</p>
+reliably enters VR. <code>enterXrOnResume</code> closes the loop: set it on the scene below
+and the button changes to &quot;Continue in VR&quot; on a device that has it. (Leaving VR
+pauses in every scene now, not only this one — entering unpauses, so leaving has
+to be its inverse or it is not a pair.)</p>
 <pre><code class="language-js">import { b3d, b3dBox, b3dSphere, label3d, button3d, select3d, sceneDelta } from &#39;tosijs-3d&#39;
 import { demoStage } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
@@ -367,8 +376,11 @@ document.body.append(
     <ul>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
       <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -471,6 +483,7 @@ document.body.append(
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
@@ -482,15 +495,19 @@ document.body.append(
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>

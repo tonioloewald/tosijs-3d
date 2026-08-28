@@ -40,7 +40,7 @@
   <meta name="twitter:card" content="summary" />
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Changelog","description":"All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…","url":"https://3d.tosijs.net/CHANGELOG/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
-<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style>
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
@@ -51,6 +51,557 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.3</h2>
+<h3>Added</h3>
+<ul>
+<li><p><strong>⚠️ The biped uses the GTA V control layout.</strong> Left stick moves and
+<strong>strafes</strong>; right stick <strong>turns the body</strong> and pitches. It was tank-controlled
+(left stick X turned), which nobody has muscle memory for any more and which
+left the right stick doing camera work that could not steer. Turning the body
+with the right stick makes <strong>swim direction and body facing one thing</strong> rather
+than two that can disagree — the thing that made look-directed swimming fiddly.
+The camera now sits straight behind the body and has no yaw of its own, so it
+cannot end up pointing somewhere the character is not. Measured: strafe moves
+4.65 m sideways with the yaw unchanged; turn rotates 34° with zero translation.</p>
+</li>
+<li><p><strong>The biped&#39;s right stick is a LOOK control</strong>, and jump and sneak exist.
+Tonio spotted that look-directed swimming had nothing to aim with on a flat
+screen: the right stick was bound to <code>cameraZoom</code> (Y) and a snap-back peek (X),
+so a character had no aim at all. Now <code>lookX</code>/<code>lookY</code>, <strong>persistent rather than
+sprung</strong> — a character&#39;s camera is how you look <em>around</em>, where the aircraft&#39;s
+springs back because there it is a glance off the flight path. A <code>FollowCamera</code>
+has no pitch of its own, so pitch is height: raise the camera and it looks down
+at its locked target. Zoom moves to the d-pad, which sneak vacated.</p>
+<ul>
+<li><strong>Swim aim now reads that look</strong> rather than integrating the stick
+separately, so &quot;swim where you are looking&quot; is literally true flat and is the
+same rule the headset already followed with your head.</li>
+<li><strong>Jump</strong> — right bumper only. <code>A</code> briefly aliased it, and Tonio removed the
+alias: the face buttons are <strong>reserved for actions</strong> (they are primary and
+secondary fire on the aircraft), and a control vocabulary that changes
+meaning per vehicle is one you have to relearn. The ground snap swallowed the
+first version whole — the impulse lifted the body ~7 cm, the probe still saw
+ground 0.6 m below, and the snap put it straight back, a jump that rose
+exactly 0.00 m. The snap now yields while you are rising.</li>
+<li><strong>Standing jumps brace; running jumps fire on the press.</strong> A running jump&#39;s
+anticipation <em>is the run</em> — the character is already loaded and moving, so a
+wind-up can only read as a stumble. A standing jump has no run-up to borrow
+from, so holding scrubs the clip into the braced pose and <strong>parks there</strong>,
+and releasing launches. The hold is not a delay tax: it <strong>scales the jump</strong>
+(<code>jumpMinScale</code> 0.45 → full), so it is a choice rather than a wait. Measured:
+full brace 1.13 m, short hold 0.45 m, nothing at all while held.</li>
+<li><strong>The animation is retimed to the jump, not the jump to the animation.</strong>
+Physics stays fixed at <code>jumpSpeed</code>, and the clip&#39;s <code>speedRatio</code> is set so it
+lasts exactly the flight time. Measured: <code>running-jump</code> plays at <strong>1.02×</strong>
+(0.93 s clip over 0.92 s of flight). The first attempt had this backwards —
+sizing the launch from the clip length — which made the jump a consequence of
+whatever the animator exported.</li>
+<li>The jump clip holds for the <strong>whole airborne period</strong>, and the clip is chosen
+at the press and never re-picked, so a standing jump cannot switch to the
+running clip in mid-air.</li>
+<li><strong>Sneak</strong> — left bumper, a <strong>toggle on land and a held control in water</strong>: a
+stance you adopt for a while versus a thing you do continuously, and a toggle
+whose state you must remember with your head underwater is worse than useless.</li>
+</ul>
+</li>
+<li><p><strong>⚠️ Jumping is instantaneous again, and animated in three phases.</strong> The
+crouch-on-press/launch-on-release model was an adaptation to the stock rig&#39;s
+single one-shot clip that happened to open with a crouch. Quaternius ships
+<code>Jump_Start</code> / <code>Jump_Loop</code> / <code>Jump_Land</code>, where <strong>start is a takeoff, not a
+wind-up</strong> — Tonio: <em>&quot;it&#39;s basically designed for instantaneous jumps where
+once you jump you enter the jump state and that&#39;s it.&quot;</em> That is also the
+platform-jumper contract in <code>MOBILITY-DESIGN.md</code>: the character does exactly
+what you pressed, now; anticipation belongs to the intent model, where the
+character decides before you ask. <code>jumpWindup</code> and <code>jumpMinScale</code> are gone, and
+so is the <code>speedRatio</code> retiming — each clip now plays for as long as it is
+actually true instead of being stretched to fit a flight it could not know.</p>
+</li>
+<li><p><strong>Mantling — the biped climbs onto a ledge too high to step onto.</strong> No button:
+push into it and the character solves it, which is the intent model rather
+than the platform jumper. <code>mantle.ts</code> is the pure half (Babylon-free, 13
+tests): <code>canMantle</code> (every clause a way of NOT being a ledge — too low is a
+step, too high a wall, no landing is a fence you would be stranded on),
+<code>mantlePath</code> (an ARC — rise leads translation, because a straight line drives
+the body through the lip) and <code>mantleClip</code> (picks <code>ClimbUp_1m</code>/<code>_2m</code> by
+MEASURING the ledge, since Quaternius indexes those clips by height).</p>
+<p>It arrived as <em>&quot;when you swim to the water&#39;s edge, you just pop instantly to
+the surface onto the land&quot;</em>, but it is not a water feature — climbing out of a
+pond is mantling a lip of height h, so the bank, the low wall and the crate
+are one verb. A swimmer&#39;s reach is measured from the <strong>waterline</strong>, not the
+dangling feet: your hands are at the surface, and the feet reading made every
+bank in the demo 3 m tall.</p>
+<p>New attribute <code>climbReach</code> (2.2 m). The probe is throttled to 12 Hz — see
+MOBILITY-DESIGN → &quot;Probes: one budgeted read of the surroundings&quot;.</p>
+</li>
+<li><p><strong>The wade↔swim transition is verified</strong> — it had been the one untestable
+case, because no water in the 0.2–0.9 m band existed anywhere in the demo.
+With the canal&#39;s variable depth it now does: walking deep → shelf → deep
+across a HARD step (4.24 m → 0.37 m → 4.56 m, the worst case for flicker)
+produces exactly two state changes over 304 samples, one at each edge.</p>
+</li>
+<li><p><strong><code>wadeDepth</code> is a biped attribute</strong> (<code>0.45</code> = fraction of standing height,
+~0.8 m on a 1.83 m rig). Below it you wade; above it buoyancy takes over.
+Tonio set the band — <em>&quot;about 0.4-0.5 (it&#39;s hard to swim in water less than
+waist deep)&quot;</em> — which is the real constraint: swimming shallower than that
+is not a choice a person gets to make, the bottom is in the way. A fraction
+rather than metres because it is a fact about the <strong>body</strong>, so a smaller
+character starts swimming sooner in the same pond for free.</p>
+</li>
+<li><p><strong>Camera zoom-IN works.</strong> <code>cameraZoom</code> was <code>Math.max(0, dpadUp - dpadDown)</code>,
+which discarded the whole zoom-in half — down produced <code>0</code>, not <code>−1</code>, so the
+camera could only retreat. The unit test asserted the broken value, having
+been written beside the broken line.</p>
+</li>
+<li><p><strong>Vertical look moves the chase rig in XR.</strong> Flat, <code>lookY</code> tilts the
+<code>FollowCamera</code> via <code>heightOffset</code>; in a headset there is no <code>FollowCamera</code>, so
+it did nothing. A regression from moving camera zoom onto the D-pad — XR
+controllers have no D-pad, so the headset lost both the zoom and the tilt in
+one move. Same formula as flat, clamped, so the two feel alike.</p>
+<p><strong>Known gap:</strong> camera zoom is now unreachable in VR. It needs a home that
+exists on an XR controller — most likely a slider on the in-headset scene
+panel.</p>
+</li>
+<li><p><strong>Strafing is a toggle, <code>strafing=&quot;off&quot;</code> by default.</strong> Both sticks then turn
+you — the left while moving or not, the right without moving — and the
+sidestep clips never play. Off on principle: sidestepping is a shooter idiom
+that reads oddly on a character meant to move like a person. That it also
+avoids the weakest clips in the Quaternius set is a bonus, not the reason.</p>
+</li>
+<li><p><strong>The pose is averaged over the cycle, not sampled once</strong> — the fix for
+<em>&quot;I seem to porpoise out of the water&quot;</em>. A swim cycle is not a fixed shape:
+over <code>Swim_Fwd_Loop</code>&#39;s 1.33 s the body&#39;s lowest point swings from −1.26 to
+−0.28 as the legs kick. A single sample landed wherever the settle timer fell,
+and the shallow end of that swing drove the derived buoyancy to its clamp and
+fired the swimmer out of the water — intermittently, because it depended on
+the phase.</p>
+</li>
+<li><p><strong><code>buoyancy</code> is METRES, not a multiplier</strong> (<code>0</code> default = waterline at the
+head; <code>0.1</code> floats ten centimetres higher). A multiplier is not authorable —
+its effect depends on how tall the pose happens to be, so the same number
+means different things for a tread and a crawl. Tonio: <em>&quot;we can keep buoyancy
+as a strict z offset for a given figure in water.&quot;</em></p>
+</li>
+<li><p><strong>The waterline is anchored at the swimmer&#39;s HEAD.</strong> Which is what swimming
+<em>is</em> — you keep your head at the surface, and you do it by swimming rather
+than by floating — so it is a fact about the activity, not about a clip, and
+it holds for any humanoid rig without per-animation tuning. Treading now sits
+with the water just above the neck and the head clear; a front crawl breaks
+the surface. Both from one rule.</p>
+</li>
+<li><p><strong>Swimmers float where the ANIMATION says, not where a constant says.</strong> The
+swim clips are authored with the <strong>root at the waterline</strong> — measured on the
+Quaternius rig, <code>Swim_Idle_Loop</code> spans −1.37…+0.50 about the root and
+<code>Swim_Fwd_Loop</code> −0.60…+0.31, so floating the root on the surface gives a tread
+with head and shoulders out and a crawl with the head just breaking. The
+equilibrium is now READ from the pose rather than tuned, so any standard
+animation set floats correctly untouched.</p>
+<p>The root itself is <strong>not</strong> a usable anchor: it means different things in
+different clips — feet when standing, roughly waterline when swimming — and
+taking it literally floated this rig at armpit height, since its root sits 73%
+up the treading pose. It is still what tells us a pose <em>is</em> a swim pose (the
+body hangs below it), just not where the water goes.</p>
+<p>Three bugs fell out of the old assumption that the root is at the feet, which
+is true only while standing: the real head sat ~1.2 m under while treading;
+the legs were buried in the seabed (the floor clamped the root, not the body&#39;s
+lowest point); and <code>buoyancy</code> appeared to do nothing, because clearing that
+head needed a submersion of 0.14 — <code>buoyancy ≈ 7</code>.</p>
+</li>
+<li><p><strong><code>buoyancy</code> is a biped attribute</strong> — now a <strong>trim</strong> on the animation&#39;s
+waterline (<code>1</code> = as authored, higher rides higher), because the absolute is
+not ours to choose: the clip already encodes it, and a number here would be a
+second opinion that goes stale with the next animation set.</p>
+</li>
+<li><p><strong>A clip change no longer briefly makes a swimmer stand.</strong> A newly-started
+clip cannot be measured until its pose settles, and falling back to the
+standing assumption for those frames put the root back at the feet — so a
+swimmer floating at the waterline read as barely submerged and walked off
+across it. Moving is exactly what changes the clip, which is why it showed as
+<em>&quot;when you move he tends to jump up to the surface and walk&quot;</em>. An unmeasured
+clip now inherits the last swim pose, <code>height / -bottom</code> is clamped so a
+mid-blend reading cannot launch anyone, and <strong>no floor under you means you
+cannot stand</strong> — full stop, rather than a number derived from where the body
+drifted to.</p>
+</li>
+<li><p><strong>The swim/stand test no longer feeds back on itself.</strong> It asks how deep the
+water is <strong>at your feet on the floor</strong>, which is stable across the switch —
+the previous form measured the current pose, so raising buoyancy raised the
+body, flipped the pose upright, and the upright reading locked the flip in:
+at <code>buoyancy</code> 1.3 the character corked out and stood on the surface.</p>
+</li>
+<li><p><strong>Neutral buoyancy starts at 1.5 m of head depth, not 0.5 m.</strong> Holding depth
+is for DIVING; at half a metre a swimmer whose head dipped barely under went
+neutral and stayed there, with the up-thrust throttled near the surface too —
+Tonio: <em>&quot;still treading water with head underwater and it&#39;s hard to swim up.&quot;</em></p>
+</li>
+<li><p><strong>Sidestepping uses the lateral clips</strong> rather than the forward walk — the
+slide is gone. UAL ships a full eight-way set (Fwd, Fwd_L/R, Left, Right, Bwd,
+Bwd_L/R) for jog, crouch <strong>and</strong> crawl; the biped now picks the lateral one
+when sideways motion dominates, crouched or not, and falls back to walking on
+a rig that has no such clip. Sneaking at rest holds <code>Crouch_Idle_Loop</code>.</p>
+</li>
+<li><p><strong>⚠️ The right stick&#39;s Y is inverted by default</strong> (<code>invertLookY: &#39;off&#39;</code> to
+restore) — pushing away tips the view down, the way a camera head works.</p>
+</li>
+<li><p><strong>The follow camera can no longer go underground.</strong> Pitch drives its HEIGHT,
+so looking up walked it downward until the world vanished; <code>cameraMinHeight</code>
+(0.5 m) floors it.</p>
+</li>
+<li><p><strong><code>ualAnimationStates()</code></strong> — the clip-name map for Quaternius UAL rigs, so
+adopting that library is one line rather than twelve hand-written states. It
+retires two fakes: <code>walkBackwards</code> becomes a real <code>Jog_Bwd_Loop</code> instead of
+the walk cycle played in reverse, and <code>sneak</code> gets a <code>Crouch_Idle_Loop</code> that
+holds at rest. <code>Jump_Start</code> / <code>Jump_Loop</code> / <code>Jump_Land</code> are mapped separately,
+which is what will let the jump&#39;s brace genuinely hold rather than scrubbing a
+one-shot — addressable now, not yet wired.</p>
+</li>
+<li><p><strong>⚠️ The <code>tosi-b3d</code> demo uses a 1.83 m rig</strong> from the CDN
+(<code>quaternius/UAL1_core.glb</code>) instead of <code>omnidude.glb</code>, which measured
+<strong>0.88 m</strong> — half human scale. <strong>Camera framing roughly doubled</strong> to match
+(<code>cameraHeightOffset</code>, <code>cameraTargetHeight</code>, follow distances): that is the one
+part of the tuning genuinely scale-bound, because it is in metres. Everything
+else — run speed, step height, jump, the collision ellipsoid — was already
+human-scale and is now <em>correct</em> rather than needing adjustment. A project
+using its own small rig will want the camera numbers back down.</p>
+</li>
+<li><p><strong>The biped swims.</strong> Water was already a medium rather than a boundary line
+(underwater fog with a continuous crossing); the biped now treats it as one
+too. Tonio: <em>&quot;can we change the rate at which the biped falls in water. And
+while we are at it the biped could learn to tread water and swim.&quot;</em> Both
+animations were already in the standard set, so this is one equation plus
+wiring.</p>
+<ul>
+<li><strong><code>buoyancy.ts</code></strong> — pure, tested. A body is slightly less dense than water,
+so it is pushed up in proportion to how much of it is submerged and rests
+where that balances its weight. Everything readable falls out of that one
+equation instead of being special-cased: plunge-and-bob when you drop in, a
+head that ends up <strong>above</strong> the surface (equilibrium is partial submersion —
+nothing targets a head height), and wading that does nothing until the water
+is deep enough to lift you. Sinking is ~1.5 m/s against ~20 m/s in air, and
+drag blends by submersion rather than switching at the waterline, so
+crossing the surface does not read as bouncing off it.</li>
+<li><strong>Swimming is deep enough AND not resting on the floor</strong> — <em>resting on</em>,
+not <em>within reach of</em>. The first version asked &quot;is there ground below me?&quot;
+and left the character standing on the seabed under six metres of water.
+The floor stops you sinking; it does not hold you down.</li>
+<li><code>swim</code> while moving, <code>tread-water</code> while holding station.</li>
+<li><strong>Fixed after report: swimming broke when you pitched and turned at once.</strong>
+The body&#39;s yaw was read back out of the <em>pitched</em> matrix, and
+<code>atan2(forward.x, forward.z)</code> is ill-conditioned there — at 70° the
+horizontal part is scaled by <code>cos 70° = 0.34</code>, so x and z collapse toward
+zero, the recovered yaw gets noisy, and writing it straight back compounds
+the noise into a body that wanders. The yaw is now <strong>captured once from the
+level matrix</strong> and integrated from the turn input thereafter, so the only
+reading happens while well conditioned. It hid because pitching <em>and</em>
+turning together is one stick on a controller and two hands on a keyboard.</li>
+<li>Also fixed: the <strong>mouse wheel</strong> still fed <code>rightStickY</code>, which had become
+<code>lookY</code> — so a scroll tipped the swimmer, since the swim aim is the look
+pitch. It feeds the zoom axis now, so &quot;the wheel zooms&quot; survives remapping.</li>
+<li><strong>Look-directed swimming</strong> (<code>swim-aim.ts</code>, pure + tested): the BODY pitches,
+and the stroke follows for free — the biped already swims along its own
+forward vector, so there is no separate vertical term and no way for aim and
+motion to disagree. Aim comes from your <strong>head</strong> in a headset, and from the
+right stick flat, because the biped&#39;s <code>FollowCamera</code> has a fixed pitch and
+there is nothing to read. The stick <strong>integrates</strong> rather than mapping to an
+absolute angle, so releasing it holds the descent instead of springing back
+to level. Leaving the water unwinds the pitch on its own.</li>
+<li><strong>You can dive.</strong> <code>sneak</code> down, <code>jump</code> up — crouch-to-descend matches the
+GTA-V control vocabulary this project follows and leaves the triggers free.
+Thrust competes with buoyancy rather than replacing it, so letting go hands
+the vertical back to physics instead of pinning you.</li>
+<li><strong>Released, you HOLD depth and drift up slowly</strong> rather than corking to the
+surface (Tonio&#39;s call). Once your head is properly under, buoyancy blends
+toward neutral — but stays just above 1, so you surface if you stop paying
+attention. You also glide a little deeper after letting go: that is
+momentum, and letting go is not a brake. Measured live in 12 m of water:
+dive to the seabed, release, drift up at <strong>0.2 m/s</strong>; hold <code>jump</code> and it
+becomes <strong>0.65 m/s</strong>.</li>
+<li>Verified live: released on a seabed under 6 m of water the biped rose and
+settled at <strong>0.866</strong> submersion against a predicted 0.870, and a walk
+downhill waded in and began swimming on its own.</li>
+</ul>
+</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><p><strong>Toolchain bumped</strong> — <code>tosijs</code> 1.7.8 → 1.8.0, <code>tosijs-ui</code> 1.9.8 → 1.12.3,
+<code>haltija</code> 1.11.2 → 1.12.5, and <strong><code>tjs-lang</code> 0.13.6 added explicitly</strong>: it is a
+peer of tosijs-ui and was <strong>not installed here at all</strong>, which nothing warned
+about. The site built anyway, so &quot;works&quot; and &quot;works properly&quot; were
+indistinguishable — installing it changed the build output (<code>tjs-lang bundles served same-origin at /tjs/</code> is new).</p>
+<p><code>peerDependencies</code> is deliberately unchanged: <code>tosijs ^1.7.8</code> already admits
+1.8.0, so developing against the newer one costs consumers nothing and this
+stays a <strong>patch</strong>.</p>
+<p>Fallout, all fixed: an unused variable in <code>wreck-fall</code> failed lint, which
+<code>bun start</code> runs first — so the dev server would not start, and because
+<code>bun format</code> is <code>eslint &amp;&amp; prettier</code>, <strong>prettier had been silently skipped</strong>
+on every file since. Also: <code>bun run typecheck</code> is <strong>green again</strong> (the
+standing <code>model-transform.test.ts:449</code> red is gone).</p>
+</li>
+<li><p><strong><code>.haltija.json</code> pins agent commands to this project&#39;s origin.</strong> A shared
+haltija server holds tabs from several repos and commands followed browser
+FOCUS, so a command run from this directory could silently drive another
+project&#39;s page — which happened repeatedly. New in haltija 1.12.</p>
+</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>Entering water flipped your heading 180°.</strong> With a mirrored glTF root
+(<code>scaling.z = −1</code>) world forward is <code>−(R·ẑ)</code>, so reading yaw back gives
+<code>θ + π</code> and writing it produces <code>−F</code>. I had reasoned this round-tripped; it
+does not. On land nothing rewrites the quaternion, so it only showed the
+instant pitch engaged — which is the instant you start swimming.</p>
+</li>
+<li><p><strong>You could wade on top of the water.</strong> Holding surface-thrust lifted you
+until submersion fell under the swim threshold, at which point you were
+classed as standing and got a walk cycle while still afloat. Up-thrust is now
+gated by head depth, exactly as the upward aim is: you cannot push yourself
+out of water, and surfacing is buoyancy&#39;s job anyway.</p>
+</li>
+<li><p><strong>The swim/stand switch twitched at the waterline.</strong> Walking down a ramp,
+submersion hovers around the threshold and the mode flickered. <code>isSwimming</code>
+now enters at 0.5 and holds until 0.35.</p>
+</li>
+<li><p><strong><code>setAnimationState</code> could pick the wrong clip.</strong> The lookup was
+<code>group.name.endsWith(animation)</code>, and a suffix match is ambiguous the moment
+one clip&#39;s name ends with another&#39;s. Asking a Quaternius rig for <code>Idle_Loop</code>
+played <strong><code>Crouch_Idle_Loop</code></strong> — but it was already latent in the stock set,
+where <code>running-jump</code> ends with <code>jump</code>, so <code>setAnimationState(&#39;jump&#39;)</code> could
+match the running jump depending on array order. Now an exact name match
+(after stripping Babylon&#39;s <code>Clone of </code> prefix), with the suffix behaviour kept
+only as a fallback for rigs whose exporter adds some other prefix.</p>
+</li>
+<li><p><strong>A <code>_collideCylinder</code> child of a <code>_collideMesh</code> parent built a cylinder around
+the PARENT&#39;s whole subtree.</strong> Reported as <em>&quot;I put a collideMesh on the hull and
+collideCylinders on each mast but the ship just seems to have a single giant
+squat cylinder&quot;</em> — and the effect was a <strong>34.4 m wide, 26 m tall</strong> invisible
+barrier you could not walk within twenty metres of. Two independent faults,
+both in how a collider&#39;s bounds are chosen:</p>
+<ul>
+<li>The root-walk climbed while the parent had <strong>any</strong> collide annotation, so
+each mast climbed onto the hull. The shape came from the leaf and the bounds
+from the root, so it built the mast&#39;s <em>cylinder</em> around the hull&#39;s <em>subtree</em>
+— and one <code>processed</code> entry then swallowed the other two masts, which is why
+there was exactly one. It now climbs only across the <strong>same</strong> annotation.
+(The tell was the generated mesh&#39;s name: <code>Hull_collideMesh_collider</code> should
+be impossible, because <code>_collideMesh</code> never builds a primitive.)</li>
+<li>Bounds combined the annotated node&#39;s children even when the node had its own
+geometry. A mast is a Mesh 0.55 × 20.6 × 0.64 carrying the Crow&#39;s Nest, Flag,
+Spars and SquareSails, so combining gave a 10.2 m cylinder around each mast
+— the deck still walled off. Children are combined only when the annotated
+node has no geometry of its own, which is the GLB TransformNode case the
+behaviour was written for.</li>
+</ul>
+<p>Ship colliders now measure <strong>0.58–0.64 m across</strong> at mast height, and the hull
+keeps its mesh collider.</p>
+</li>
+<li><p><strong>Ambient particles spawned on the wrong side of the water</strong> — leaves below it,
+bubbles above, and a lot of them. Reported while swimming, which is what made
+it constant: third person parks the camera right at the surface. Intensity was
+never the problem; it already ramps correctly on the camera&#39;s depth. The
+<strong>spawn box</strong> was: a cube of side 2·radius centred on the eye, so with the eye
+near the surface half of it sits in the wrong medium. Intensity says how much
+to emit and cannot say where, so no amount of ramping could have fixed it. The
+box is now clipped at the waterline — measured with the camera on the surface,
+<code>leaves/above</code> spawns from −0.20 up and both <code>underwater</code> presets from −0.20
+down, against a surface at −0.20. Same lesson as the biped&#39;s plane-vs-volume
+submersion test, one layer along: a medium with a boundary needs a volume with
+one too.</p>
+</li>
+<li><p><strong>World-placed dialogs rendered MIRRORED</strong> — the death/respawn panel read
+&quot;NWOD&quot;, and so did the pause panel in any scene using <code>placement=&quot;world&quot;</code>.
+Reported from a headset, but not headset-specific: it was mirrored flat too,
+and had been since 0.7.2. A Babylon plane&#39;s visible face is local <strong>−Z</strong>, so
+aiming <code>atan2(dx, dz)</code> at the eye — which points local <strong>+Z</strong> at it — shows you
+the panel&#39;s <strong>back</strong>, and a <code>doubleSided</code> back reuses the front&#39;s UVs rather
+than vanishing. Hence a mirror instead of a missing dialog, which is why it
+survived a release. Now <code>dialog-placement.facingYawDeg</code>, tested on the property
+that matters: turn the plane&#39;s visible face by this yaw and it points at the
+eye. The same change fixes touch, which was mirrored with it — every
+right-aligned control on a world dialog was mapping to the left.</p>
+</li>
+<li><p><strong>The pause/continue panel is DOM on a flat screen</strong>, and stays an in-scene
+plane in VR — the scene panel&#39;s rule (one widget list, two presentations)
+applied to the modal that most needed it. Tonio: <em>&quot;in flat 3d the continue
+should be presented in the dom like the scene panel.&quot;</em> On a monitor the DOM
+overlay is better on every axis that has bitten this panel: it cannot be
+occluded, cannot be put somewhere odd by a line-of-sight cast, needs no raycast
+to be clicked, and is exactly where you are already looking. All that machinery
+exists because a headset has no DOM, which is the only place it earns its cost.
+The same <code>panel3d</code> SVG serves both — its widgets&#39; listeners work natively in
+the DOM, and <code>handlePointer</code> serves the in-scene path.</p>
+</li>
+<li><p><strong>Death and world-placed dialogs now survive a floating-origin rebase.</strong>
+Neither had opted in, so in a terrain scene — the only kind big enough to
+rebase, which is why it hid — a shift mid-death slid the spectate camera, the
+fire emitters and the dialog away from the crash while the world moved out
+from under them. That reads exactly like the origin-teleport fixed above (&quot;the
+wreck is way off, I am looking at nothing&quot;), and two causes producing one
+description is how a fixed bug looks unfixed. Both use an origin LISTENER
+rather than <code>registerWorldRoot</code>, because both hold world coordinates in JS and
+the element owns the transform (shifting the node would be undone next render).
+The falling wreck needed nothing — it re-reads its position from the node every
+frame, so a shift is absorbed.</p>
+</li>
+<li><p><strong>Leaving VR now pauses in EVERY scene</strong>, not only those with
+<code>enterXrOnResume</code>. Taking the headset off is a departure, not a view change.
+The gate existed on the reasoning that a flat scene which merely visited XR
+shouldn&#39;t acquire a pause panel on the way out; superseded by the symmetry,
+which is the stronger argument (Tonio: <em>&quot;just as entering VR should unpause,
+exiting VR should probably pause&quot;</em>) — one gesture means resume, its inverse
+means stop, and a rule you opt into is not a pair. <code>enterXrOnResume</code> still owns
+resume → enter.</p>
+</li>
+<li><p><strong>The biped got stuck on slopes</strong> — the cost of the fix below, found and fixed
+in the same session. Snapping the feet onto the surface put the collision
+ellipsoid&#39;s bottom exactly ON it, so moving into rising ground embedded it and
+Babylon refused the move. The old 15 cm float had been acting as the clearance.
+The body now starts a step above the feet (<code>STEP_OFFSET</code>, which is Unity&#39;s Step
+Offset): anything lower than a step is walked over, the probe stands you on it
+afterwards, and a wall is still a wall.</p>
+</li>
+<li><p><strong>The biped floated above or sank into slopes, and never corrected.</strong> Tonio,
+on a long-standing one: <em>&quot;you often end up a little offset from the ground …
+this never really corrects. It just gets randomly messed up again when you
+navigate another slope.&quot;</em> Not random — the ground check was a <strong>dead band with
+no corrective term</strong>: it probed 0.15 m down from just above the feet and, if
+it found anything, did nothing. So the biped fell until the probe happened to
+see ground and then stopped wherever in that 0.15 m window it landed, and any
+error inside the band was permanent.</p>
+<p>Slopes made it worse both ways. Going up, <code>moveWithCollisions</code> slides the body
+up the ellipsoid and leaves it high in the band. Going down — &quot;especially
+down&quot; — gravity moved at most <code>min(0.1, 9.81·dt)</code>, a hard <strong>0.1 m per frame</strong>
+clamp, so a brisk descent outran it and it floated the whole way.</p>
+<p>Now it probes a step up and a step down and puts the feet <strong>on</strong> the surface,
+and a real fall accumulates velocity instead of moving a fixed amount per
+frame (with the probe extended by the frame&#39;s fall so it cannot step over the
+ground between frames). Measured on the b3d demo scene: <strong>390 consecutive
+frames walking a slope at offset 0.00000</strong>, where before the error wandered
+freely inside a 15 cm band. The probe also goes through <code>collidable()</code> now, so
+a UI panel is no longer something you can stand on.</p>
+</li>
+<li><p><strong>Dying in VR teleported you to the world origin.</strong> Tonio: <em>&quot;I collided with
+wreckage high up and respawned at the origin or starting point with the wrecked
+plane hanging in mid-air off in the distance.&quot;</em> He was not moved away from the
+wreck — the wreck stayed exactly where he died (measured: a corpse drifts 0.05 m
+in 10 s); <strong>he</strong> was moved. <code>releaseFocus()</code> nulls the focused entity, so the
+next XR frame finds nothing piloted and falls through to free locomotion, which
+did <code>rig.parent = null</code>. That KEEPS THE LOCAL POSE and reinterprets it as world,
+so a rig at local <code>(0, 2, −5)</code> behind its parent lands at <code>(0, 2, −5)</code> in the
+world. Now <code>rig.setParent(null)</code>, which preserves the world transform.</p>
+<p>It had been latent since 0.7.0 as the cockpit-only oddity in <code>TODO.md</code>
+(&quot;the aircraft was moved way away from me&quot;); parenting the chase rig — the
+jitter fix above — made it reachable from the view people actually fly in,
+which is how a five-month-old note finally got diagnosed. Both spellings are
+now pinned in <code>babylon-orientation.test.ts</code>, because they look interchangeable
+and the wrong one is shorter.</p>
+</li>
+<li><p><strong><code>B3dControllable.halt()</code></strong> — tell an entity it is dead, rather than relying on
+<code>releaseFocus()</code> nulling its input provider and <code>_update</code> short-circuiting on
+that. <code>b3d-death</code> calls it. Belt and braces for the focus-managed case; the only
+thing that stops a <code>die()</code> handed an entity the focus manager never held.</p>
+</li>
+<li><p><strong>A wreck hung in the air where it died.</strong> Tonio, from a headset: <em>&quot;I collided
+with wreckage high up … the wrecked plane hanging in mid-air (it should really
+tumble to the ground).&quot;</em> Hanging wreckage is worse than untidy — it is a solid
+object in the sky, so the debris of one death becomes the cause of the next.
+A wreck now falls: a tumbling ballistic descent on the velocity it died with,
+one bad bounce, a skid, and a rest. The fires and the spectate camera go down
+with it (a smoke column left at the kill point with the wreck 100 m below it
+is worse than no fire at all). Rules are pure and tested in <strong><code>wreck-fall</code></strong>;
+the spin is DERIVED from the velocity, never random, so the same crash looks
+the same twice.</p>
+<ul>
+<li><strong>How you died decides how far it goes.</strong> Flying into something is an
+inelastic collision that eats most of the energy (<code>carry: 0.25</code>); being shot
+down leaves you with nearly all of it (<code>0.7</code>). At full carry a 90 m/s crash
+from 130 m travelled ~450 m before landing — a glide, not a crash, and it
+dragged the spectate camera across that much terrain. Tonio: <em>&quot;The plane
+went flying off into the distance … pretty funny but not as expected.&quot;</em></li>
+<li>Drag settled at <code>0.005</code> (≈44 m/s terminal). <code>0.02</code> was ten times too much (a
+wreck shed its speed in half a second); <code>0.002</code> is the figure for a
+STREAMLINED body, and a broken airframe tumbles broadside. Each was
+plausible in isolation; only a real crash told them apart.</li>
+<li>New seam <strong><code>B3dControllable.getWorldVelocity()</code></strong>. <code>b3d-aircraft</code>&#39;s own
+<code>velocity</code> field reads ZERO in wing-borne flight — the fly-by-wire path
+moves the node directly — so a wreck launched from it dropped straight down
+out of a 60 m/s dive.</li>
+<li>A wreck with <strong>nothing under it</strong> (the edge of a finite ground, a kill over
+open water) is abandoned after 1500 m rather than falling forever with the
+camera chasing it down. Found by killing outside a 600 m ground plane: it
+reached y = −25 and kept going.</li>
+</ul>
+</li>
+<li><p><strong>The VR chase camera jittered and drifted with speed</strong> — Tonio, in a headset:
+<em>&quot;throttle up the aircraft gets further away, throttle down it gets closer&quot;,</em>
+and it jitters climbing, diving and turning. Three faults, all in the XR rig
+and none in the flat one (which measures rigid to 0.2 mm):</p>
+<ul>
+<li>It was <strong>not parented</strong>. The XR rig runs in <code>onXRFrameObservable</code>, which
+fires BEFORE <code>scene.render()</code>, while an entity moves in
+<code>registerBeforeRender</code>, which fires inside it — so the rig was positioned
+from last frame&#39;s aircraft position, every frame, and a variable frame time
+turns that fixed lag into jitter.</li>
+<li>It <strong>eased toward a world-space target</strong>, and a first-order tracker sits
+<code>v/k</code> behind — ~6.8 m at 61 m/s, proportional to speed. Hence the throttle
+symptom.</li>
+<li>The easing used <code>lerp(a, b, k*dt)</code>, which is <strong>not frame-rate independent</strong>
+(<code>1 - exp(-k*dt)</code> is).</li>
+</ul>
+<p>The rig is now a CHILD of a level position+heading anchor the entity updates in
+the same tick it moves, at a fixed local offset, with no easing at all — rigid
+by construction rather than by good timing. New seam:
+<strong><code>B3dControllable.getChaseAnchor()</code></strong>, <code>null</code> by default; <code>b3d-aircraft</code>
+provides one. Entities without an anchor keep the eased path, now with the
+correct exponential form.</p>
+</li>
+<li><p><strong>All three panel sites now aim themselves the same way</strong>, through
+<code>dialog-placement.faceViewer</code>. <code>frame-panel</code> and the XR settings panel used to
+face you with their BACK and cancel the resulting mirror with
+<code>tex.uScale = -1</code> — the settings panel also flipping <code>1 - uv.x</code> on every pick,
+two compensations for one avoidable cause. Both are gone. No visible change
+(they were correct on screen and under the finger); it removes the trap that
+produced the world-dialog bug above, since the knowledge lived in a comment in
+two files and comments do not travel.</p>
+<ul>
+<li><strong><code>rollDeg</code> keeps its meaning</strong>: turning a panel around reverses how a roll
+reads, so <code>faceViewer</code> negates it. Worth stating because reasoning said the
+flips cancelled and they do not — the only roll in the library is <code>180°</code>,
+which is symmetric and agrees with the wrong answer.</li>
+</ul>
+</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong><code>&lt;tosi-b3d-interactive&gt;</code> — a mesh you can touch</strong> (#36), the substrate doors,
+knobs, switches, levers, consoles and lamps all stand on. <code>b3d-button</code> is a
+floating Babylon GUI widget; this is the other thing — world geometry you reach
+out to. Requested by tosijs-3d-ensemble, whose framing was fair and lands:
+<em>tosijs-3d has almost nothing for building a PLACE, as opposed to a battle.</em>
+Point at a mesh (or a named sub-mesh — the knob, not the door), reach it, use
+it; <code>hover</code> / <code>unhover</code> / <code>activate</code> / <code>refused</code> arrive as bubbling events or
+<code>whenX</code> callbacks.<ul>
+<li><strong>One implementation, flat and immersive.</strong> Babylon routes XR controller rays
+through <code>scene.onPointerObservable</code>, the same observable a mouse feeds, so
+there is no XR branch and no second path to keep in step.</li>
+<li><strong>Composition, not a god-feature.</strong> <code>vetoes</code> is the seam ensemble asked for:
+a <code>lockable</code> pushes one, <code>interactive</code> never learns what a lock is, and the
+refusal NAMES the refuser — the difference between a locked door and a broken
+one. Vetoes run at activation, not at hover, so a locked door still highlights
+and still reports being tried; silence is a bug report.</li>
+<li><strong>It never touches the transform.</strong> An element that manages a node owns its
+transform (the rule #35 was a violation of), so this reads the scene and never
+writes to it. A door that opens moves its ELEMENT.</li>
+</ul>
+</li>
+<li><strong><code>interaction.ts</code></strong> — the pure, Babylon-free rules (<code>interactStep</code>,
+<code>activationVeto</code>, <code>withinReach</code>), unit tested, so what counts as &quot;you used it&quot;
+can be argued about without a scene. Activation is press-then-<strong>release</strong> on the
+thing, because a press you drag off and release elsewhere is how anyone recovers
+from touching the wrong thing — and aim wanders more in a headset, not less.</li>
+<li><strong><code>InteractiveBehavior</code></strong> — the attachable form, for anything that already owns
+a mesh (a loader, a biped, a vehicle), plus <code>nearestInteractive</code> / <code>useNearest</code>
+for the &quot;walk up and press E&quot; control that wires to <code>ControlInput.interact</code>.</li>
+</ul>
 <h2>0.7.2</h2>
 <h3>Fixed</h3>
 <ul>
@@ -1421,8 +1972,11 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
       <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
       <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
@@ -1525,6 +2079,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
       <li><a class="doc-link" href="../medium/">medium</a></li>
       <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
       <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
@@ -1536,15 +2091,19 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
       <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
       <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
     <ul>
       <li><a class="doc-link" href="../world-store/">world-store</a></li>
       <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
       <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
       <li><a class="doc-link" href="../world-view/">world-view</a></li>
       <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
       <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
       <li><a class="doc-link" href="../prefab/">prefab</a></li>
       <li><a class="doc-link" href="../world-contract/">world-contract</a></li>

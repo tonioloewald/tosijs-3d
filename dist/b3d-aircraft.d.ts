@@ -140,7 +140,21 @@ export declare class B3dAircraft extends B3dControllable {
     private _radar;
     private _reticleMesh;
     private meshNode;
+    /** The displacement-tracked world velocity — see `_worldVel`. */
+    getWorldVelocity(): BABYLON.Vector3 | null;
+    /**
+     * Created on demand: a scene with no headset and no chase camera never needs
+     * one, and the XR rig may ask for it long after the model loaded.
+     */
+    getChaseAnchor(): BABYLON.TransformNode | null;
     private _chasePivot;
+    /**
+     * Position + heading, level — the node a chase camera can be a CHILD of.
+     * Separate from `_chasePivot`, which also carries the flat view's look-spring
+     * and pitch-follow; those are the flat camera's orbit and must not ride into
+     * a headset. Updated in the same tick the airframe moves.
+     */
+    private _chaseAnchor;
     private _chaseLookPitch;
     /** Damped airframe pitch the chase has actually inherited (see
      * `chasePitchFollow`) — smoothed, never the raw attitude. */

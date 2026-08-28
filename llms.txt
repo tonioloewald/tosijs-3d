@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.2
+# tosijs-3d v0.7.3
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -165,6 +165,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Generates a gamepad SVG using tosijs element creators. All colors and stroke
 - https://3d.tosijs.net/glass-gamepad/ — glass-gamepad (b3dGamepad)
   A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
+- https://3d.tosijs.net/glb-manifest/ — glb-manifest
+  chunk holds attribution (`asset.extras`) and, for libraries built by
 - https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
   Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
 - https://3d.tosijs.net/hud/ — hud

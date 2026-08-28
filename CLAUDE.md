@@ -375,6 +375,9 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-library.ts` | Parts catalog — preloaded mesh library for spawning instances |
 | `src/b3d-collisions.ts` | Collision detection with convention-based collider shapes |
 | `src/b3d-trigger.ts` | Proximity-based trigger zones |
+| `src/b3d-interactive.ts` | `<tosi-b3d-interactive>` — the "touch a mesh" substrate (doors, knobs, switches, locks); press-then-release ON the thing, reach is part of the rule |
+| `src/interaction.ts` | Pure interaction rules — activation, reach, disabled-mid-gesture, vetoes consulted at activation not hover. Babylon-free, unit-tested |
+| `src/interactive-behavior.ts` | Attachable interactivity — makes any modeled element usable without being a separate element |
 
 **Input & Control:**
 | File | Purpose |
@@ -414,6 +417,9 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-car.ts` | Vehicle with acceleration, steering, wheel spin, enterability |
 | `src/b3d-aircraft.ts` | Aircraft with VTOL, flight dynamics, follow camera |
 | `src/fly-by-wire.ts` | Pure "drone-becomes-a-plane" attitude-command flight model (zero Babylon deps), unit-tested |
+| `src/mantle.ts` | Pure ledge-climb decision + path (`canMantle`/`mantlePath`/`mantleClip`) — the band between a step and a wall, an ARC so the body clears the lip, clip picked by MEASURING the ledge. Unit-tested |
+| `src/buoyancy.ts` | Pure vertical water model — `submergedFraction`/`buoyantStep`/`swimBuoyancy`/`isSwimming` (hysteresis). Unit-tested |
+| `src/swim-aim.ts` | Pure look-directed swim aim — clamp/integrate/ease, `surfaceAimLimit` (you cannot swim up out of water), `jumpSpeedForAirtime`. Unit-tested |
 
 **Environment & Effects:**
 | File | Purpose |
@@ -427,6 +433,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-clouds.ts` | `<tosi-b3d-clouds>` — opaque blob cloud layer you can fly into (fog whiteout), `coverage` weather dial, `insideCloud` tactic |
 | `src/cloud-shadows.ts` | Projected cloud-shadow texture (world-XZ sampled in a material plugin) — conforms to terrain, falls on elevated receivers |
 | `src/shadow-decal.ts` | Reusable soft blob-shadow decal (single caster: character/vehicle/item) — `createShadowDecal` / `projectShadowDown` |
+| `src/wreck-fall.ts` | Pure tumbling ballistic descent for wreckage — spin DERIVED from velocity (same crash twice looks the same), one bad bounce, then rest. Unit-tested |
 | `src/atmosphere.ts` | Pure fog compositing (`compositeFog`/`approachFog`/`band`) — layers underwater/cloud/space whiteouts over the base fog |
 | `src/b3d-ambient.ts` | `<tosi-b3d-ambient>` — device-budgeted ambient garnish (motes/bubbles/leaves); competes for one pool, switches OFF rather than thinning |
 | `src/ambient-leaves.ts` | `LeafField` — tumbling two-sided quads (`SolidParticleSystem`), the one ambient effect that isn't a billboard |
@@ -472,6 +479,7 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/frame-panel.ts`                           | `attachFramePanel` — SVG panel pinned to an XR frame, gaze-revealed                                                                                                                                                                                                     |
 | `src/popup-surface.ts`                         | `el.openPopup()` — a popup is ANOTHER SURFACE (its own plane), owned by its opener or torn off into world space. Click-to-front, modals, title-bar drag. See UI-DESIGN-NOTES → "Popups should be NEW SURFACES"                                                          |
 | `src/rounded-rect.ts`                          | Pure rounded-rectangle vertex generation (3 quads + 4 corner fans) so a UI panel can be **opaque** — a transparent mesh isn't depth-written, so it is re-sorted per frame and flickers. Unit-tested                                                                     |
+| `src/dialog-placement.ts`                      | Pure panel-facing math (`faceViewer`/`facingYawDeg`) — a plane's visible face is local −Z, so aiming +Z at the viewer shows its back (that was the mirrored death dialog). Roll is negated. Unit-tested                                                                 |
 | `src/b3d-panel.ts`                             | `<tosi-b3d-panel>` declarative spatial-UI panel component                                                                                                                                                                                                               |
 | `src/gradient-editor.ts`                       | Interactive gradient-editing widget                                                                                                                                                                                                                                     |
 | `src/b3d-primitives.ts`                        | Basic mesh primitives (sphere, ground)                                                                                                                                                                                                                                  |
@@ -491,6 +499,7 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/sdf-lattice.ts` | Pure SDF extraction substrate for volumetric patches (tunnels/caverns): ONE global hash-jittered lattice + surface nets, so chunks weld bit-identically — cross-tile/cross-LOD seams are unrepresentable, not stitched. Unit-tested (incl. the chunk-weld proof) |
 | `src/model-transform.ts` | Babylon-only model frame helpers (`canonicalize`, scale-bake) for spawned models |
 | `src/spatial-transform.ts` | Pure transform math for spatial attachment (`SPATIAL-DESIGN.md`) — vector/quaternion ops, compose ↔ relative, unit-tested |
+| `src/glb-manifest.ts` | Reads a curated library's own catalogue — `manifestFromNodes` (Babylon surfaces per-NODE extras, drops per-SCENE) + category/tag/size queries; GLB JSON-chunk parsing as the no-scene fallback. Unit-tested |
 | `src/portal-transform.ts` | ⚠️ experimental. Pure see-through-portal math — virtual camera pose, oblique clip plane, step-test crossing, recursion budgeted by a falloff CURVE. Unit-tested |
 | `src/asset-url.ts` | `assetUrl()` — resolve a logical asset path to a hosted URL (retargetable CDN base, see `static-assets` memory) |
 | `src/perf-probe.ts` / `b3d-quality.ts` / `b3d-probe.ts` | Device-capability probe → per-tier `PerfBudgets` (see Adaptive defaults) |

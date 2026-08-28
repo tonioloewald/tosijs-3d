@@ -96,6 +96,8 @@ export { attachFramePanel, placeholderPanelSvg, excludeFromGlow, } from './frame
 export { B3dPanel, b3dPanel } from './b3d-panel';
 // Character & input
 export { B3dBiped, b3dBiped, AnimState } from './b3d-biped';
+// Clip-name map for Quaternius UAL rigs — see b3d-biped.
+export { ualAnimationStates } from './b3d-biped';
 export { GameController, gameController } from './game-controller';
 export { B3dInputFocus, inputFocus } from './b3d-input-focus';
 export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './gamepad';
@@ -223,8 +225,18 @@ export { BiomePlugin, attachBiomePlugin, defaultBiomeParams, MANTA_PALETTE, LAVA
 export { B3dParticles, b3dParticles } from './b3d-particles';
 export { B3dSound, b3dSound } from './b3d-sound';
 export { B3dTrigger, b3dTrigger } from './b3d-trigger';
+// Interactive: the substrate for touching a thing — doors, knobs, switches, locks.
+export { B3dInteractive, b3dInteractive } from './b3d-interactive';
+export { InteractiveBehavior, nearestInteractive, useNearest, } from './interactive-behavior';
+export { interactStep, newInteractState, activationVeto, withinReach, } from './interaction';
 // Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
 export { B3dDeath, b3dDeath } from './b3d-death';
+// Wreck fall: the pure tumbling-descent model b3d-death drops a corpse with.
+export { newWreckFall, wreckFallStep, tumbleAxis } from './wreck-fall';
+// Buoyancy: the pure vertical model behind the biped's swimming.
+export { buoyantStep, submergedFraction, equilibriumSubmersion, isSwimming, } from './buoyancy';
+// Swim aim: the pure model behind look-directed swimming.
+export { clampAim, aimFromLook, integrateAim, easeAim, aimTarget, } from './swim-aim';
 // Spawner: keeps the world populated with encounters (prefab + a rule).
 export { B3dSpawner, b3dSpawner } from './b3d-spawner';
 // Formations: pure placement patterns for an encounter's members.

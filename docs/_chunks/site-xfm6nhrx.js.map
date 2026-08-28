@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../../../../../../Users/tonioloewald/tosijs-3d/node_modules/@babylonjs/core/ShadersWGSL/meshUVSpaceRendererFinaliser.vertex.js"],
+  "sourcesContent": [
+    "// Do not edit.\nimport { ShaderStore } from \"../Engines/shaderStore.js\";\nconst name = \"meshUVSpaceRendererFinaliserVertexShader\";\nconst shader = `attribute position: vec3f;attribute uv: vec2f;uniform worldViewProjection: mat4x4f;varying vUV: vec2f;@vertex\nfn main(input : VertexInputs)->FragmentInputs {vertexOutputs.position=uniforms.worldViewProjection* vec4f(vertexInputs.position,1.0);vertexOutputs.positionvUV=vertexInputs.uv;}\n`;\n// Sideeffect\nif (!ShaderStore.ShadersStoreWGSL[name]) {\n    ShaderStore.ShadersStoreWGSL[name] = shader;\n}\n/** @internal */\nexport const meshUVSpaceRendererFinaliserVertexShaderWGSL = { name, shader };\n//# sourceMappingURL=meshUVSpaceRendererFinaliser.vertex.js.map"
+  ],
+  "mappings": "wCAEA,IAAM,EAAO,2CACP,EAAS;AAAA;AAAA,EAIf,GAAI,CAAC,EAAY,iBAAiB,GAC9B,EAAY,iBAAiB,GAAQ,EAGlC,IAAM,EAA+C,CAAE,OAAM,QAAO",
+  "debugId": "A28F90169AE9EC0164756E2164756E21",
+  "names": []
+}

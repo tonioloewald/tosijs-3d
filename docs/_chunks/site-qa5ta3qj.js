@@ -1,0 +1,5 @@
+class i{constructor(t,h){this.width=t,this.height=h}toString(){return`{W: ${this.width}, H: ${this.height}}`}getClassName(){return"Size"}getHashCode(){let t=this.width|0;return t=t*397^(this.height|0),t}copyFrom(t){this.width=t.width,this.height=t.height}copyFromFloats(t,h){return this.width=t,this.height=h,this}set(t,h){return this.copyFromFloats(t,h)}multiplyByFloats(t,h){return new i(this.width*t,this.height*h)}clone(){return new i(this.width,this.height)}equals(t){if(!t)return!1;return this.width===t.width&&this.height===t.height}get surface(){return this.width*this.height}static Zero(){return new i(0,0)}add(t){return new i(this.width+t.width,this.height+t.height)}subtract(t){return new i(this.width-t.width,this.height-t.height)}scale(t){return new i(this.width*t,this.height*t)}static Lerp(t,h,e){let s=t.width+(h.width-t.width)*e,r=t.height+(h.height-t.height)*e;return new i(s,r)}}
+export{i as Lx};
+
+//# debugId=CF08E28CA44F919D64756E2164756E21
+//# sourceMappingURL=site-qa5ta3qj.js.map

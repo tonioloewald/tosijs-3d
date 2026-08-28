@@ -1,6 +1,7 @@
 import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
+import { type LibraryManifest } from './glb-manifest';
 /**
  * The `.model` naming convention, pure (unit-tested): a node named
  * `<name>.model` declares itself an INTENDED EXPORT of the library file.
@@ -80,6 +81,44 @@ export declare class B3dLibrary extends B3dChild {
     /** Every node (meshes AND transform nodes — a multi-part model's top node is
      * usually a TransformNode) eligible for listing. */
     private _allNodes;
+    /**
+     * **The library's own catalogue**, or `null` if the glb does not carry one.
+     *
+     * Built from `metadata.gltf.extras` on the loaded nodes, which Babylon's
+     * `ExtrasAsMetadata` extension populates for free. Note it does NOT come from
+     * `scenes[0].extras.library`, even though the pipeline writes a fuller index
+     * there: Babylon surfaces extras for nodes, cameras, materials and animations
+     * and drops them for SCENES. Verified by loading a real library headlessly —
+     * every item node arrives with its extras, and nothing anywhere carries the
+     * scene block. (three.js does hand that one back as `gltf.scene.userData`,
+     * so it is not dead weight upstream, just invisible here.)
+     */
+    getManifest(): LibraryManifest | null;
+    /**
+     * What the library says about ONE item — `{category, tags, clips, size}` —
+     * without instantiating it.
+     *
+     * `clips` is the point: it answers "what animations does this model have"
+     * before anything is placed, which is what a clip picker in a property panel
+     * needs and what `instance.metadata.animationGroups` cannot provide (it
+     * requires an instance to exist first).
+     */
+    getInfo(name: string): Record<string, any> | null;
+    /**
+     * Public names of the things an author may ask for.
+     *
+     * **A declared catalogue wins.** When the glb's nodes carry library extras,
+     * those items ARE the export list — the data-driven twin of the `.model`
+     * naming convention, and it narrows for the same reason. Without it a packed
+     * kit over-reports: measured on `pirate-kit.glb`, 80 names for 72 declared
+     * items, the extras being a stray Blender `Group` plus sub-parts (a chest's
+     * `lid`, a ship's `sail-a`, `paddles`). Those are real subsystem targets and
+     * useless as palette entries — an author offered "lid" has been shown an
+     * implementation detail.
+     *
+     * `getRootNames()`/`getHierarchy()` still expose everything, so the sub-part
+     * cases keep working. Reported by the ensemble pipeline as #45.
+     */
     getNames(): string[];
     getRootNames(): string[];
     getHierarchy(): {

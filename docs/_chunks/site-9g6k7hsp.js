@@ -1,0 +1,5 @@
+import{ur as i}from"./site-d8tyq8af.js";import{Rs as h}from"./site-7aw589yr.js";import{kt as a,mt as s}from"./site-bab0thfc.js";class l extends h{constructor(t){super(t);this.key=this.registerDataInput("key",a),this.keyCode=this.registerDataOutput("keyCode",a),this.keyValue=this.registerDataOutput("keyValue",a),this.shiftKey=this.registerDataOutput("shiftKey",s),this.ctrlKey=this.registerDataOutput("ctrlKey",s),this.altKey=this.registerDataOutput("altKey",s),this.metaKey=this.registerDataOutput("metaKey",s),this.commandOrCtrl=this.registerDataOutput("commandOrCtrl",s)}_executeEvent(t,u){let e=u.event,r=this.key.getValue(t);if(r&&r!==e.code)return!0;return this.keyCode.setValue(e.code,t),this.keyValue.setValue(e.key,t),this.shiftKey.setValue(e.shiftKey,t),this.ctrlKey.setValue(e.ctrlKey,t),this.altKey.setValue(e.altKey,t),this.metaKey.setValue(e.metaKey,t),this.commandOrCtrl.setValue(i?e.metaKey:e.ctrlKey,t),this._execute(t),!this.config?.stopPropagation}_preparePendingTasks(t){}_cancelPendingTasks(t){}}
+export{l as go};
+
+//# debugId=107A4A46033F8D8B64756E2164756E21
+//# sourceMappingURL=site-9g6k7hsp.js.map
