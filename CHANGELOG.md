@@ -67,6 +67,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **Vertical look moves the chase rig in XR.** Flat, `lookY` tilts the
+  `FollowCamera` via `heightOffset`; in a headset there is no `FollowCamera`, so
+  it did nothing. A regression from moving camera zoom onto the D-pad — XR
+  controllers have no D-pad, so the headset lost both the zoom and the tilt in
+  one move. Same formula as flat, clamped, so the two feel alike.
+
+  **Known gap:** camera zoom is now unreachable in VR. It needs a home that
+  exists on an XR controller — most likely a slider on the in-headset scene
+  panel.
+
 - **Strafing is a toggle, `strafing="off"` by default.** Both sticks then turn
   you — the left while moving or not, the right without moving — and the
   sidestep clips never play. Off on principle: sidestepping is a shooter idiom

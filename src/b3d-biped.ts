@@ -1624,10 +1624,34 @@ export class B3dBiped extends B3dControllable {
       const backDist = lerp(1, 5, this.xrCamZoom)
       const upDist = lerp(1, 2, this.xrCamZoom)
 
+      /*
+      VERTICAL LOOK HAS TO MOVE THE RIG IN XR, because there is nothing else for
+      it to move. Flat, `lookY` tilts the FollowCamera via `heightOffset`; in a
+      headset there is no FollowCamera, so it did nothing — Tonio, from the
+      goggles: *"the right stick isn't tilting the view vertically any more,
+      only rotating the character horizontally."*
+
+      A regression I caused. The XR rig's height comes from `xrCamZoom`, which
+      the right stick used to drive; moving zoom onto the D-pad left the axis
+      free for `lookY`, and XR controllers have no D-pad — so the headset lost
+      both the zoom and the tilt in one move.
+
+      Same formula as flat so the two feel alike: raising the view lifts the rig
+      and looks down on the character. Clamped, because `tan` runs away near the
+      70° limit and the flat version is bounded by a shorter camera arm.
+      */
+      const lookLift = Math.max(
+        -1.5,
+        Math.min(
+          6,
+          Math.tan((-this._lookPitch * Math.PI) / 180) * backDist * 0.6
+        )
+      )
+
       // Target position: behind and above the character
       const behind = node.forward.scale(-backDist)
       const targetX = node.position.x + behind.x
-      const targetY = node.position.y + upDist
+      const targetY = node.position.y + upDist + lookLift
       const targetZ = node.position.z + behind.z
 
       // Target yaw: face same direction as character

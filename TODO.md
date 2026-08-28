@@ -1,5 +1,10 @@
 # TODO
 
+- **Camera zoom is unreachable in VR.** `cameraZoom` moved to the D-pad and XR
+  controllers have no D-pad; the right stick's vertical axis is now the view
+  tilt. Wants a slider on the in-headset scene panel, which is the established
+  place for settings you cannot bind to a button.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
