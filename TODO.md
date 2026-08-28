@@ -102,6 +102,35 @@
   Keep writing the scene index too: three.js DOES hand it back as
   `gltf.scene.userData`, so it is not dead weight, just invisible to us.
 
+- **SVG UI form layer (#37), starting with `type` on `inputField`.** ensemble's
+  seven-item bill from building one property panel. Agreed as the next push;
+  all of it is flat-testable.
+
+  **The keystone is that a field should declare its TYPE**, which turns out to
+  be mostly wiring: `KeyboardMode` already has tested layouts for `alpha`,
+  `alphanumeric`, `symbols`, `numpad`, `dial`, `email` and `url`, but
+  `keyboard()` owns its own mode and only changes it when the user taps a mode
+  key — so focusing a numeric field does **not** raise the numpad. Two
+  deliberate taps per field, and worse in XR than flat because there is no
+  physical keyboard to fall back to.
+
+  A `type` (`'text' | 'number' | 'email' | 'url' | 'tel'`, i.e. HTML's
+  `inputmode` idea) does triple duty: picks the layout on focus, drives
+  parse/format/commit so a number field is a CONFIGURATION rather than a
+  sibling widget (and `emailField`/`urlField` never need to exist), and gives
+  the host something to validate against. Tonio: _"genuinely valuable and
+  something we will definitely want."_
+
+  Dates deliberately excluded for now — a date wants a segmented control or a
+  masked numpad, which is a design decision rather than a missing layout.
+
+  Rest of the order, cheapest-and-unblocking first: **content measurement**
+  (its failures are SILENT — clipping looks exactly like a feature not being
+  there, which cost ensemble three separate wrong panel heights), **row
+  layout**, **slider value readout**, then the **popup-select-from-a-panel**
+  seam — that last one is structural, not a widget: `panel3d` returns a bare
+  `SVGSVGElement` while `openPopup`/`openMenu` need a `Surface`.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
