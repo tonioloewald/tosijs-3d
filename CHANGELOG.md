@@ -67,6 +67,11 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **The wade↔swim transition is verified** — it had been the one untestable
+  case, because no water in the 0.2–0.9 m band existed anywhere in the demo.
+  With the canal's variable depth it now does: walking deep → shelf → deep
+  across a HARD step (4.24 m → 0.37 m → 4.56 m, the worst case for flicker)
+  produces exactly two state changes over 304 samples, one at each edge.
 - **`wadeDepth` is a biped attribute** (`0.45` = fraction of standing height,
   ~0.8 m on a 1.83 m rig). Below it you wade; above it buoyancy takes over.
   Tonio set the band — _"about 0.4-0.5 (it's hard to swim in water less than

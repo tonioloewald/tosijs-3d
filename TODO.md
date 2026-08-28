@@ -5,6 +5,16 @@
   tilt. Wants a slider on the in-headset scene panel, which is the established
   place for settings you cannot bind to a button.
 
+- **Replace `test-3.glb` with real terrain + provinces as the test scene.** The
+  authored GLB has carried the demo a long way and is now the limiting factor:
+  every depth, slope and shelf we want to test has to be modelled by hand and
+  re-exported, and the scene cannot express the things the engine is actually
+  for. Tonio: _"eventually we just switch to an actual piece of terrain and
+  start using mesh placement and provinces to make a more interesting and
+  useful landscape to test in."_ This is the first real consumer of
+  PROVINCE-DESIGN.md — and it pays twice, since a procedural landscape can be
+  asked for a 0.5 m shelf rather than having one sculpted into it.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
