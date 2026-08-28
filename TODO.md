@@ -83,6 +83,25 @@
   Deck has ABXY _and_ a d-pad, so it comes through the Gamepad API complete and
   needs none of it.
 
+- **`library-glb` should write `size` into each item's NODE extras.** One-line
+  change in `static-assets/bin/library-glb.ts`, not made here because ensemble
+  is mid-edit in that file.
+
+  The builder already writes `{category, tags}` per node and a fuller index —
+  including `size` — into `scenes[0].extras.library`. Babylon surfaces the
+  first and **drops the second**: its `ExtrasAsMetadata` extension covers nodes,
+  cameras, materials and animations, and scenes are not on that list. Verified
+  by loading a real library headlessly (`node "grass" → metadata.gltf.extras`
+  arrives; nothing carries `scenes[0].extras.library`).
+
+  So `size` — the one field placement code most wants, since it answers "what
+  fits in this gap" without instantiating anything — is the only part of the
+  index Babylon cannot see. Copying it alongside `category`/`tags` closes the
+  gap and makes `glb-manifest`'s parsing path unnecessary for scene consumers.
+
+  Keep writing the scene index too: three.js DOES hand it back as
+  `gltf.scene.userData`, so it is not dead weight, just invisible to us.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
