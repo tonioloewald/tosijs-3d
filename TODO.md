@@ -39,11 +39,19 @@
   Plan: virtual view/menu and a virtual d-pad on wrist panels, mounted to the
   `leftHand`/`rightHand` frames.
 
-  **Open question for the headset:** Tonio's split is d-pad left, view/menu
-  right. Worth trying the inverse — the d-pad drives ZOOM, which pairs with the
-  view controls on the right stick, so putting it on the right wrist keeps it
-  glanceable mid-action while the seldom-used view/menu park on the left. Only
-  wearing the thing settles it.
+  **Settled: Tonio's split (d-pad left, view/menu right) stands.** I argued for
+  the inverse on the grounds that the d-pad drives zoom and so wants to be
+  glanceable mid-action — but the premise was our own binding, not convention.
+  Tonio: _"GTA and similar are using d-pad for things like changing radio
+  stations and inventory navigation."_ Infrequent, deliberate, non-urgent — a
+  wrist panel is a perfectly good home for that, and the objection dissolves.
+
+  It leaves a better question behind, though: **camera zoom probably should not
+  be on the d-pad at all.** Zoom is a mid-action control and the d-pad is
+  conventionally where menu-ish things live, so the awkwardness in VR was not
+  only the missing d-pad — it was a binding fighting its own idiom. Worth
+  revisiting when this is built (zoom moved there on 2026-08-27 to free the
+  right stick for LOOK, which was itself the right call).
 
   Most of the parts exist: `xr-frames` already senses `leftHand`/`rightHand`,
   `frame-panel` pins a gaze-revealed SVG panel to a frame, and `touch-gamepad`
