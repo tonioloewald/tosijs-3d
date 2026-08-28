@@ -191,6 +191,7 @@ import { B3dChild, publicName, isIgnored } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 import { canonicalize } from './model-transform'
+import { manifestFromNodes, type LibraryManifest } from './glb-manifest'
 
 /**
  * The `.model` naming convention, pure (unit-tested): a node named
@@ -360,7 +361,61 @@ export class B3dLibrary extends B3dChild {
     )
   }
 
+  /**
+   * **The library's own catalogue**, or `null` if the glb does not carry one.
+   *
+   * Built from `metadata.gltf.extras` on the loaded nodes, which Babylon's
+   * `ExtrasAsMetadata` extension populates for free. Note it does NOT come from
+   * `scenes[0].extras.library`, even though the pipeline writes a fuller index
+   * there: Babylon surfaces extras for nodes, cameras, materials and animations
+   * and drops them for SCENES. Verified by loading a real library headlessly —
+   * every item node arrives with its extras, and nothing anywhere carries the
+   * scene block. (three.js does hand that one back as `gltf.scene.userData`,
+   * so it is not dead weight upstream, just invisible here.)
+   */
+  getManifest(): LibraryManifest | null {
+    return manifestFromNodes(
+      this._allNodes().map((n) => ({ name: n.name, metadata: n.metadata }))
+    )
+  }
+
+  /**
+   * What the library says about ONE item — `{category, tags, clips, size}` —
+   * without instantiating it.
+   *
+   * `clips` is the point: it answers "what animations does this model have"
+   * before anything is placed, which is what a clip picker in a property panel
+   * needs and what `instance.metadata.animationGroups` cannot provide (it
+   * requires an instance to exist first).
+   */
+  getInfo(name: string): Record<string, any> | null {
+    const resolved = resolveModelName(
+      this._allNodes().map((n) => n.name),
+      name
+    )
+    const node = this._allNodes().find((n) => n.name === resolved)
+    const extras = (node as any)?.metadata?.gltf?.extras
+    return extras != null && typeof extras === 'object' ? extras : null
+  }
+
+  /**
+   * Public names of the things an author may ask for.
+   *
+   * **A declared catalogue wins.** When the glb's nodes carry library extras,
+   * those items ARE the export list — the data-driven twin of the `.model`
+   * naming convention, and it narrows for the same reason. Without it a packed
+   * kit over-reports: measured on `pirate-kit.glb`, 80 names for 72 declared
+   * items, the extras being a stray Blender `Group` plus sub-parts (a chest's
+   * `lid`, a ship's `sail-a`, `paddles`). Those are real subsystem targets and
+   * useless as palette entries — an author offered "lid" has been shown an
+   * implementation detail.
+   *
+   * `getRootNames()`/`getHierarchy()` still expose everything, so the sub-part
+   * cases keep working. Reported by the ensemble pipeline as #45.
+   */
   getNames(): string[] {
+    const manifest = this.getManifest()
+    if (manifest != null) return manifest.items.map((i) => publicName(i.name))
     return modelExportNames(this._allNodes().map((n) => n.name))
   }
 
@@ -535,6 +590,25 @@ export class B3dLibrary extends B3dChild {
     if (options.canonical && clone instanceof BABYLON.TransformNode) {
       clone.name = `${name}_mesh`
       result = canonicalize(clone, this.owner.scene, `${name}_instance_${i}`)
+    }
+
+    /*
+    CARRY THE EXTRAS ONTO WHAT WE RETURN.
+
+    `clone()` preserves `metadata` (verified — it is the same object), but
+    `canonical: true` returns a WRAPPER built by `canonicalize`, and the wrapper
+    has none: the extras are down on the child. So a consumer doing the
+    documented thing got `metadata` `{}` and concluded the catalogue was
+    unreachable (#45). It was one node away.
+
+    Copied rather than shared, so a consumer annotating an instance cannot write
+    through to the container's node and change what every later instance sees.
+    */
+    const extras = (source as any)?.metadata?.gltf?.extras
+    if (extras != null && result !== clone) {
+      const meta = ((result as any).metadata ??= {})
+      const gltf = (meta.gltf ??= {})
+      gltf.extras = { ...extras }
     }
 
     // Animations: retarget the container's groups onto the clone (see
