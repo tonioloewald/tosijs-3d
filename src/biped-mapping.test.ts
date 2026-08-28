@@ -70,9 +70,18 @@ describe('bipedMapping: the right stick is LOOK', () => {
     expect(i.cameraZoom).toBe(0)
   })
 
-  test('zoom moved to the d-pad, which sneak vacated', () => {
+  test('zoom moved to the d-pad, which sneak vacated — and it is SIGNED', () => {
     expect(bipedMapping(pad({ dpadUp: 1 }), 1 / 60).cameraZoom).toBe(1)
-    expect(bipedMapping(pad({ dpadDown: 1 }), 1 / 60).cameraZoom).toBe(0)
+    // Down must be NEGATIVE. This line read `.toBe(0)` and passed, because it
+    // was written next to a mapping wrapped in `Math.max(0, …)` — so the test
+    // pinned the bug instead of catching it, and the camera could only ever
+    // retreat. A test that agrees with the code it was written beside is worth
+    // less than no test: it converts a bug into a documented decision.
+    expect(bipedMapping(pad({ dpadDown: 1 }), 1 / 60).cameraZoom).toBe(-1)
+    // Both at once cancels, rather than one winning.
+    expect(
+      bipedMapping(pad({ dpadUp: 1, dpadDown: 1 }), 1 / 60).cameraZoom
+    ).toBe(0)
   })
 })
 

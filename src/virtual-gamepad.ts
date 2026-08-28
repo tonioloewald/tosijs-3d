@@ -357,7 +357,11 @@ export function bipedMapping(pad: VirtualGamepad, _dt: number): ControlInput {
   nothing to point DOWN with. Zoom moved to the d-pad, which sneak vacated.
   */
   input.lookY = pad.rightStickY
-  input.cameraZoom = Math.max(0, pad.dpadUp - pad.dpadDown)
+  // Signed: up zooms out, down zooms in. It was wrapped in `Math.max(0, …)`,
+  // which silently discarded the entire zoom-in half — down produced 0, not −1,
+  // so the camera could only ever retreat. Tonio: "d-pad up zooms out and I
+  // can't zoom in."
+  input.cameraZoom = pad.dpadUp - pad.dpadDown
   /*
   BUMPERS for the two vertical verbs: left bumper sneak, right bumper jump.
 

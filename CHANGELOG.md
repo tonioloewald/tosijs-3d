@@ -67,6 +67,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **Camera zoom-IN works.** `cameraZoom` was `Math.max(0, dpadUp - dpadDown)`,
+  which discarded the whole zoom-in half — down produced `0`, not `−1`, so the
+  camera could only retreat. The unit test asserted the broken value, having
+  been written beside the broken line.
 - **Vertical look moves the chase rig in XR.** Flat, `lookY` tilts the
   `FollowCamera` via `heightOffset`; in a headset there is no `FollowCamera`, so
   it did nothing. A regression from moving camera zoom onto the D-pad — XR
