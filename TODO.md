@@ -15,6 +15,51 @@
   PROVINCE-DESIGN.md — and it pays twice, since a procedural landscape can be
   asked for a 0.5 m shelf rather than having one sculpted into it.
 
+- **Wrist panels as the standard escape for inputs an XR controller lacks.**
+  **Queued for a headset session — do not build blind.** Tonio's design; agreed
+  as the right general course.
+
+  The facts, checked rather than recalled (2026-08-28):
+
+  | input     | XR status                                             |
+  | --------- | ----------------------------------------------------- |
+  | `menu`    | present — LEFT thumbstick **click**                   |
+  | `view`    | present — RIGHT thumbstick **click**                  |
+  | d-pad ×4  | **genuinely missing**, nothing maps to it             |
+  | `buttonY` | aliased to `view` (`Math.max(pad.view, pad.buttonY)`) |
+
+  So view/menu are not missing — they are on thumbstick clicks, which is
+  arguably _worse_ than missing: you fire them by accident, because clicking a
+  stick while pushing a direction is what moving feels like. That makes the
+  proposal a gain rather than a fill-in — moving them to a panel **frees both
+  thumbstick clicks** for something deliberate. The only truly absent input is
+  the d-pad, which today carries camera zoom, so zoom is unreachable in VR (the
+  separate entry above).
+
+  Plan: virtual view/menu and a virtual d-pad on wrist panels, mounted to the
+  `leftHand`/`rightHand` frames.
+
+  **Open question for the headset:** Tonio's split is d-pad left, view/menu
+  right. Worth trying the inverse — the d-pad drives ZOOM, which pairs with the
+  view controls on the right stick, so putting it on the right wrist keeps it
+  glanceable mid-action while the seldom-used view/menu park on the left. Only
+  wearing the thing settles it.
+
+  Most of the parts exist: `xr-frames` already senses `leftHand`/`rightHand`,
+  `frame-panel` pins a gaze-revealed SVG panel to a frame, and `touch-gamepad`
+  already maps `dpadUp/Down/Left/Right` off SVG `data-part` elements that
+  `gamepad-svg` draws.
+
+  **Build it as one UI with two mounts, not an XR branch** — same widget list as
+  the flat glass gamepad, mounted differently. UI-DESIGN-NOTES → "One UI, two
+  presentations": last time those diverged the XR panel grew its own refresh
+  path and became untargetable, because swapping an element's children detaches
+  the `handlePointer` closures.
+
+  Scope note: this is XR-specific, not a new lowest common denominator. A Steam
+  Deck has ABXY _and_ a d-pad, so it comes through the Gamepad API complete and
+  needs none of it.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
