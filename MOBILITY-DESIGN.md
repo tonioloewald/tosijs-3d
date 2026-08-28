@@ -149,6 +149,41 @@ lies.
 
 **A `_cover` suffix would be a bug, not a shortcut.**
 
+## Probes: one budgeted read of the surroundings, not a fan per feature
+
+Recorded 2026-08-28, when the first piece of this actually shipped (`mantle.ts`
+
+- the biped's `_readLedge`). Tonio, watching it go in: _"we're probably going to
+  need a bunch of raycasts (maybe not sampled constantly) to handle tomb-raider
+  style movement and cover discovery."_ Both halves are already true.
+
+**A bunch.** The first implementation used ONE forward ray at shin height and it
+failed against real terrain immediately: the canal bank's face existed only
+between 0.25 m and 1.25 m — undercut below, sloping away above — so the ray
+passed clean underneath a wall the character was visibly stuck against, and the
+climb never considered itself. Nothing was wrong except the height of one line.
+Five rays up the reachable band fixed it. Expect the same shape everywhere:
+**real geometry is not sampled correctly by a single ray**, and the failure is
+silent, because a miss is indistinguishable from "nothing there".
+
+**Not constantly.** A mantle check is eight casts (five for the face, three for
+top, headroom and landing). Vaulting, cover discovery and a "can I get there"
+query each want a similar read, and eight per frame per feature is how a
+character controller ends up dominating a frame budget. The mantle probe is
+throttled to 12 Hz — at a run that is ~0.4 m between samples, far finer than any
+ledge worth climbing — which costs a fifth of the naive version and misses
+nothing.
+
+The direction that follows: when the second consumer appears, **do not give it
+its own fan of rays.** One budgeted environmental read per tick, shared —
+"what is around me, at what heights, how far" — with features asking questions
+of the result. That also puts affordances in exactly the place the north star
+wants them (derived from a measurement of the world) rather than each feature
+inventing its own private idea of the world's shape.
+
+`COLLISION-DESIGN.md`'s rule already points here: a probe takes a POSE SOURCE,
+never a position. A shared read is the same argument one level up.
+
 ## What it needs that we do not have
 
 - **Affordance queries.** "Is this geometry cover, from where?" is the same

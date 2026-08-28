@@ -189,6 +189,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
+- https://3d.tosijs.net/mantle/ — mantle
+  the pure path: given what a probe saw in front of the character, is there a lip
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
   These conventions apply to all meshes entering the scene — via
 - https://3d.tosijs.net/medium/ — medium

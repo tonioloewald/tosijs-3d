@@ -67,6 +67,25 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **Mantling — the biped climbs onto a ledge too high to step onto.** No button:
+  push into it and the character solves it, which is the intent model rather
+  than the platform jumper. `mantle.ts` is the pure half (Babylon-free, 13
+  tests): `canMantle` (every clause a way of NOT being a ledge — too low is a
+  step, too high a wall, no landing is a fence you would be stranded on),
+  `mantlePath` (an ARC — rise leads translation, because a straight line drives
+  the body through the lip) and `mantleClip` (picks `ClimbUp_1m`/`_2m` by
+  MEASURING the ledge, since Quaternius indexes those clips by height).
+
+  It arrived as _"when you swim to the water's edge, you just pop instantly to
+  the surface onto the land"_, but it is not a water feature — climbing out of a
+  pond is mantling a lip of height h, so the bank, the low wall and the crate
+  are one verb. A swimmer's reach is measured from the **waterline**, not the
+  dangling feet: your hands are at the surface, and the feet reading made every
+  bank in the demo 3 m tall.
+
+  New attribute `climbReach` (2.2 m). The probe is throttled to 12 Hz — see
+  MOBILITY-DESIGN → "Probes: one budgeted read of the surroundings".
+
 - **The wade↔swim transition is verified** — it had been the one untestable
   case, because no water in the 0.2–0.9 m band existed anywhere in the demo.
   With the canal's variable depth it now does: walking deep → shelf → deep

@@ -109,6 +109,13 @@ document.body.append(
 import * as BABYLON from '@babylonjs/core'
 import { XRStuff, collidable, isOff } from './b3d-utils'
 import {
+  canMantle,
+  mantleClip,
+  mantlePath,
+  defaultMantleLimits,
+  type LedgeReading,
+} from './mantle'
+import {
   buoyantStep,
   submergedFraction,
   isSwimming,
@@ -203,6 +210,21 @@ export function ualAnimationStates(extra: AnimStateSpec[] = []): AnimState[] {
     { name: 'jump', animation: 'Jump_Start', loop: false },
     { name: 'jumpLoop', animation: 'Jump_Loop', loop: true },
     { name: 'jumpLand', animation: 'Jump_Land', loop: false },
+    /*
+    CLIMB clips are named for the HEIGHT they cover, not for the state that
+    preceded them — which is why `mantle.mantleClip` picks one by measuring the
+    ledge rather than by asking what the character was doing. A rig carrying
+    only `ClimbLedge` still works; one carrying none falls back to the jump and
+    the climb still happens, just plainly.
+
+    Split across both megafiles: `ClimbLedge` is UAL1, `ClimbUp_1m`/`_2m` are
+    UAL2. Listing all three is harmless — `setAnimationState` skips states whose
+    clip the loaded GLB does not contain — so a rig gains the better ones simply
+    by shipping them.
+    */
+    { name: 'ClimbLedge', animation: 'ClimbLedge', loop: false },
+    { name: 'ClimbUp_1m', animation: 'ClimbUp_1m', loop: false },
+    { name: 'ClimbUp_2m', animation: 'ClimbUp_2m', loop: false },
     { name: 'running-jump', animation: 'Jump_Loop', loop: false },
     { name: 'swim', animation: 'Swim_Fwd_Loop', loop: true },
     { name: 'tread-water', animation: 'Swim_Idle_Loop', loop: true },
@@ -354,6 +376,17 @@ export class B3dBiped extends B3dControllable {
      * Leaving the water uses a lower threshold (70% of this) so the boundary
      * does not flicker; see `buoyancy.isSwimming`.
      */
+    /**
+     * **How high a ledge the character can pull itself onto, metres.** Below
+     * `STEP_UP` (0.5) the walking code just steps up; above this it is a wall.
+     *
+     * `2.2` is a touch over shoulder height on a 1.83 m rig — a decent mantle
+     * for someone athletic. Lower it for a heavier or clumsier character; that
+     * is the mobility half of the skill dial AI-DESIGN argues for, and it costs
+     * nothing to expose because the band it defines is read from geometry
+     * rather than painted onto it.
+     */
+    climbReach: 2.2,
     wadeDepth: 0.45,
     strafing: 'off',
     /**
@@ -431,6 +464,19 @@ export class B3dBiped extends B3dControllable {
   >()
   /** Seconds the current clip has been playing — a pose needs settling before measuring. */
   private _poseAge = 0
+  /**
+   * The climb in progress, if any — a COMMITTED transition. Time-boxed by the
+   * clip and always exited, so it is not a mode you can be stuck in (the
+   * distinction MOBILITY-DESIGN draws about cover applies here too).
+   */
+  /** Seconds until the ledge probe may run again — see the note at `_tryMantle`. */
+  private _ledgeCooldown = 0
+  private _mantle: {
+    t: number
+    dur: number
+    from: BABYLON.Vector3
+    to: BABYLON.Vector3
+  } | null = null
   /** Samples in flight for the clip being measured — see `_currentPose`. */
   private _poseAccum: {
     key: string
@@ -748,6 +794,156 @@ export class B3dBiped extends B3dControllable {
     return Math.min(3, Math.max(1, pose.height / submergedDepth))
   }
 
+  /**
+   * **Look for a lip in front of the character.** Two rays: one forward at shin
+   * height to find the face of the thing, one down from above the far side to
+   * find what you would be standing on.
+   *
+   * Returns `null` when there is nothing to read. Everything it does return is
+   * a MEASUREMENT — see `mantle.canMantle` for the decision, which is pure and
+   * tested, and see MOBILITY-DESIGN for why a `_climbable` suffix would be a
+   * bug rather than a shortcut.
+   */
+  private _readLedge(
+    node: BABYLON.TransformNode,
+    feetY: number,
+    reach: number
+  ): LedgeReading | null {
+    const scene = this.owner?.scene
+    if (scene == null) return null
+    const fwd = node.forward.clone()
+    fwd.y = 0
+    if (fwd.lengthSquared() < 1e-6) return null
+    fwd.normalize()
+    const filter = collidable((m) => m === node || !m.checkCollisions)
+
+    /*
+    1. Is there a face in front of us at all?
+
+    SEVERAL heights, not one. A single shin-height ray is the obvious version
+    and it is too fragile for real terrain: measured at a canal bank in the
+    demo, the face existed only between 0.25 m and 1.25 m — undercut below,
+    sloping away above — so a ray at 0.05 m passed clean underneath a wall the
+    character was visibly stuck against, and the climb never even considered
+    itself. Nothing was wrong except the height of one line.
+
+    So sample up the reachable band and take the CLOSEST hit. That also handles
+    the cases a fixed height cannot: overhangs, sloped banks, and a lip whose
+    base is under water.
+    */
+    let face: BABYLON.PickingInfo | null = null
+    let distance = Infinity
+    let origin: BABYLON.Vector3 | null = null
+    for (let h = 0.2; h <= reach; h += 0.4) {
+      const from = new BABYLON.Vector3(
+        node.position.x,
+        feetY + h,
+        node.position.z
+      )
+      const hit = scene.pickWithRay(
+        new BABYLON.Ray(from, fwd, defaultMantleLimits.grabDistance),
+        filter
+      )
+      if (!hit?.hit || hit.pickedPoint == null) continue
+      const d = BABYLON.Vector3.Distance(from, hit.pickedPoint)
+      if (d < distance) {
+        distance = d
+        face = hit
+        origin = from
+      }
+    }
+    if (face?.pickedPoint == null || origin == null) return null
+
+    // 2. What is on top of it? Drop a ray just beyond the face, from above the
+    //    highest we could possibly climb.
+    const beyond = face.pickedPoint.add(fwd.scale(0.35))
+    const top = scene.pickWithRay(
+      new BABYLON.Ray(
+        new BABYLON.Vector3(beyond.x, feetY + reach + 0.5, beyond.z),
+        new BABYLON.Vector3(0, -1, 0),
+        reach + 1
+      ),
+      filter
+    )
+    if (!top?.hit || top.pickedPoint == null) return null
+    const height = top.pickedPoint.y - feetY
+
+    // 3. Is there room to stand there, and floor to stand ON? A second drop
+    //    further in distinguishes a ledge from the top of a fence.
+    const inward = face.pickedPoint.add(fwd.scale(0.75))
+    const landingHit = scene.pickWithRay(
+      new BABYLON.Ray(
+        new BABYLON.Vector3(inward.x, feetY + reach + 0.5, inward.z),
+        new BABYLON.Vector3(0, -1, 0),
+        reach + 1
+      ),
+      filter
+    )
+    const landing =
+      landingHit?.hit &&
+      landingHit.pickedPoint != null &&
+      Math.abs(landingHit.pickedPoint.y - top.pickedPoint.y) < 0.3
+        ? 0.75
+        : 0
+    const headHit = scene.pickWithRay(
+      new BABYLON.Ray(
+        top.pickedPoint.add(new BABYLON.Vector3(0, 0.05, 0)),
+        new BABYLON.Vector3(0, 1, 0),
+        defaultMantleLimits.clearance + 0.5
+      ),
+      filter
+    )
+    const headroom =
+      headHit?.hit && headHit.pickedPoint != null
+        ? headHit.pickedPoint.y - top.pickedPoint.y
+        : defaultMantleLimits.clearance + 0.5
+
+    return { height, distance, headroom, landing }
+  }
+
+  /**
+   * Try to start a climb. Returns true if one began, in which case the caller
+   * hands this frame over — a mantle owns the body until it finishes.
+   */
+  private _tryMantle(
+    node: BABYLON.TransformNode,
+    feetY: number,
+    reach: number,
+    stepUp: number
+  ): boolean {
+    const reading = this._readLedge(node, feetY, reach)
+    if (reading == null) return false
+    if (!canMantle(reading, { ...defaultMantleLimits, stepUp, reach }))
+      return false
+
+    const fwd = node.forward.clone()
+    fwd.y = 0
+    fwd.normalize()
+    const from = node.position.clone()
+    // Land far enough in that the character is standing ON the surface rather
+    // than balanced on its edge.
+    const to = new BABYLON.Vector3(
+      from.x + fwd.x * (reading.distance + 0.6),
+      from.y + reading.height,
+      from.z + fwd.z * (reading.distance + 0.6)
+    )
+
+    const clip = mantleClip(
+      reading.height,
+      this.animationStates?.map((a: AnimState) => a.animation ?? a.name) ?? [],
+      'jump'
+    )
+    this.setAnimationState(clip)
+    // The clip's own length, so the climb retimes itself when the animation
+    // set changes rather than needing a matching constant here.
+    const dur = Math.max(0.4, Math.min(2.5, this._clipSeconds(clip) || 0.9))
+    this._mantle = { t: 0, dur, from, to }
+    this._swimming = false
+    this._fallVel = 0
+    this._inAir = false
+    return true
+  }
+
   setAnimationState(name: string, speed = 1) {
     if (name == null) {
       throw new Error('setAnimationState failed, no animation name specified.')
@@ -834,6 +1030,27 @@ export class B3dBiped extends B3dControllable {
     if (this.entries == null) return
     const attrs = this as any
     this._poseAge += dt
+
+    /*
+    A CLIMB IN PROGRESS OWNS THE BODY.
+
+    Advance it and take the frame. It is time-boxed by the clip and always
+    ends, so there is nothing to be stuck in — the property MOBILITY-DESIGN
+    insists on for cover, and the reason this is a committed transition rather
+    than a mode.
+    */
+    if (this._mantle != null) {
+      const m = this._mantle
+      m.t += dt / m.dur
+      const node = this.entries.rootNodes[0] as BABYLON.TransformNode
+      const p = mantlePath(m.from, m.to, m.t)
+      node.position.set(p.x, p.y, p.z)
+      if (m.t >= 1) {
+        this._mantle = null
+        this._fallVel = 0
+      }
+      return
+    }
 
     // Camera toggle on the view button (edge-detected).
     const viewPressed = input.view > 0.5
@@ -1238,6 +1455,68 @@ export class B3dBiped extends B3dControllable {
       const moving = Math.abs(speed) > 0.1
       const canJump = grounded && standSubmerged <= 0 && this._fallVel <= 0
       const jumpLaunch = jumpPressed && canJump
+
+      /*
+      PUSH INTO A LEDGE AND YOU CLIMB IT.
+
+      No button. Tonio: *"we basically want the biped rig to sense we've hit a
+      ledge and it's too high to just step onto so let's climb onto it."* That
+      is the intent model in MOBILITY-DESIGN — you steer at the bank and the
+      character solves the terrain — and it is why this is checked from ordinary
+      forward movement rather than bound to a key.
+
+      It answers the swimming complaint as a side effect rather than as a case:
+      *"when you swim to the water's edge, you just pop instantly to the surface
+      onto the land."* Climbing out of a pond IS mantling a lip of height h, so
+      the bank, the low wall and the crate are one verb.
+
+      Gated on actually moving forward, so brushing a wall while strafing or
+      turning does not launch a climb.
+      */
+      /*
+      PROBES ARE RATIONED, not run every frame.
+
+      This costs eight raycasts — five up the face plus three for the top,
+      headroom and landing — and it is only the first of several features that
+      will want to read the environment this way. Tonio: *"we're probably going
+      to need a bunch of raycasts (maybe not sampled constantly) to handle
+      tomb-raider style movement and cover discovery."*
+
+      At 12 Hz a ledge cannot be missed (you cover ~0.4 m between probes at a
+      run) and the per-frame cost drops by four fifths. When cover discovery and
+      vaulting arrive they should share ONE budgeted read of the surroundings
+      rather than each growing their own fan of rays — see MOBILITY-DESIGN.
+      */
+      this._ledgeCooldown -= dt
+      if (
+        speed > 0.3 &&
+        this._mantle == null &&
+        this._ledgeCooldown <= 0 &&
+        (grounded || this._swimming) &&
+        ((this._ledgeCooldown = 1 / 12), true) &&
+        this._tryMantle(
+          node,
+          /*
+          A SWIMMER REACHES FROM THE WATERLINE, NOT FROM THEIR FEET.
+
+          Treading water the feet dangle ~1.4 m down, and measuring the bank
+          from there made every shore in the demo 3 m tall — beyond any
+          plausible reach, so the climb declined and you were left bumping the
+          wall. But you do not climb out of a pond with your legs; your hands
+          are at the surface, which is where the reach starts.
+
+          Measured here: the banks stand 1.45–1.80 m above the water, i.e. a
+          hard but possible pull-up from the waterline, and an impossible one
+          from the feet. Same geometry, and only one of the two readings
+          matches what a person would do.
+          */
+          this._swimming && surfaceY != null ? surfaceY : node.position.y,
+          attrs.climbReach,
+          STEP_UP
+        )
+      ) {
+        return
+      }
       if (jumpLaunch) this._jumpClip = moving ? 'running-jump' : 'jump'
 
       if (submerged > 0) {
