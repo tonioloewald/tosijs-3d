@@ -250,6 +250,23 @@ the IP usually returns 200 from the host. **It is almost always the NAME.**
 sessions in sibling repos, and that pattern matches their scratchpad processes too. Kill
 by PID from `pgrep -fl`, having read what you're about to kill.
 
+**`pkill -f 'bun bin/site.ts'` is the same footgun, and it is the one that actually
+fires.** It matches EVERY dev server on the machine regardless of directory — a sibling
+checkout (`../tosijs-3d-ensemble`) runs the identical command line, so restarting "your"
+server kills theirs. Observed five times in one day: a session would start cleanly, log
+`Listening on https://localhost:8030`, and take a SIGTERM seconds later, which from the
+other side looks exactly like the idle-timeout zombie (tosijs-ui#91) and wastes a
+diagnosis every time.
+
+Restart your own server by port, not by pattern:
+
+```sh
+kill $(lsof -nP -iTCP:8030 -sTCP:LISTEN -t)   # only the one bound to YOUR port
+```
+
+Ports are not the collision — the pattern is. Sibling checkouts already run on 8032/8042
+quite happily; it is the kill that ignores both port and directory.
+
 Live examples take ~20–30s to mount after a reload even on a healthy, visible tab. Be patient
 before concluding something is broken.
 
