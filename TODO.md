@@ -56,6 +56,21 @@
   path and became untargetable, because swapping an element's children detaches
   the `handlePointer` closures.
 
+  Refinement (Tonio, and worth designing toward rather than bolting on): the
+  wrist panel could carry a **toggle that reassigns the left stick between
+  d-pad and stick semantics**, so it is not only extra buttons but a way to
+  re-purpose an axis the device already has. That generalises well — the scarce
+  resource on an XR controller is distinct GESTURES more than buttons, and a
+  mode toggle buys a second set of them for one tap.
+
+  **The general principle, which is the part with leverage:** key the escape off
+  what the active device LACKS, not off "is this XR". Surface a virtual control
+  for what is missing, hide it otherwise. That makes it an answer to a class
+  rather than to Quest controllers — and the extreme case is already on the
+  roadmap, since PLATFORM.md names visionOS (eyes and hands, **no controllers at
+  all**) as the real strategic risk. A capability-driven escape is what stops
+  that arriving as a rewrite.
+
   Scope note: this is XR-specific, not a new lowest common denominator. A Steam
   Deck has ABXY _and_ a d-pad, so it comes through the Gamepad API complete and
   needs none of it.
