@@ -336,6 +336,25 @@ export class B3dBiped extends B3dControllable {
      * A string enum rather than a boolean because a boolean attribute cannot
      * default to true, and the useful default here is "strafing off".
      */
+    /**
+     * **How deep the water gets before you swim, as a fraction of standing
+     * height.** Below this you wade — feet on the bottom, walking; above it
+     * buoyancy takes over.
+     *
+     * `0.45` is about 0.8 m on a 1.83 m rig. Tonio set the band: *"make it
+     * about 0.4-0.5 (it's hard to swim in water less than waist deep)"* — which
+     * is the real constraint. Swimming shallower than that is not a choice a
+     * person gets to make; the bottom is in the way.
+     *
+     * A fraction rather than metres because it is a fact about the BODY — a
+     * smaller character should start swimming sooner in the same pond, and a
+     * fraction tracks that for free. Metres would be right for a fact about the
+     * WORLD; the two are easy to confuse and worth keeping apart.
+     *
+     * Leaving the water uses a lower threshold (70% of this) so the boundary
+     * does not flicker; see `buoyancy.isSwimming`.
+     */
+    wadeDepth: 0.45,
     strafing: 'off',
     /**
      * **How high this figure rides in the water, in METRES.** `0` (default)
@@ -1170,10 +1189,18 @@ export class B3dBiped extends B3dControllable {
         surfaceY == null
           ? 0
           : grounded
-          ? // Feet ON THE FLOOR, not the root — while swimming the root sits
-            // mid-torso, so measuring from it asks "how deep would it be if I
-            // stood with my feet where my chest is".
-            submergedFraction(groundY, standHeight, surfaceY)
+          ? /*
+            Feet ON THE FLOOR, not the root — while swimming the root sits
+            mid-torso, so measuring from it asks "how deep would it be if I
+            stood with my feet where my chest is".
+
+            Scaled so `wadeDepth` lands exactly on `isSwimming`'s 0.5 entry
+            threshold, which keeps that model's tested hysteresis — you stop
+            swimming at 0.7 × wadeDepth — while letting the threshold be stated
+            as the fraction it is.
+            */
+            submergedFraction(groundY, standHeight, surfaceY) /
+            (2 * Math.max(0.05, attrs.wadeDepth))
           : // NO FLOOR AT ALL ⇒ you cannot stand, and no position can argue
             // otherwise. Deriving this from where the body happens to be let
             // a swimmer who rode high read as barely submerged and walk off

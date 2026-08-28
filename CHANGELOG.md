@@ -67,6 +67,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
   character decides before you ask. `jumpWindup` and `jumpMinScale` are gone, and
   so is the `speedRatio` retiming — each clip now plays for as long as it is
   actually true instead of being stretched to fit a flight it could not know.
+- **`wadeDepth` is a biped attribute** (`0.45` = fraction of standing height,
+  ~0.8 m on a 1.83 m rig). Below it you wade; above it buoyancy takes over.
+  Tonio set the band — _"about 0.4-0.5 (it's hard to swim in water less than
+  waist deep)"_ — which is the real constraint: swimming shallower than that
+  is not a choice a person gets to make, the bottom is in the way. A fraction
+  rather than metres because it is a fact about the **body**, so a smaller
+  character starts swimming sooner in the same pond for free.
 - **Camera zoom-IN works.** `cameraZoom` was `Math.max(0, dpadUp - dpadDown)`,
   which discarded the whole zoom-in half — down produced `0`, not `−1`, so the
   camera could only retreat. The unit test asserted the broken value, having
