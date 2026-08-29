@@ -6,6 +6,34 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## Unreleased
+
+### Added
+
+- **`panel3d` sizes itself: `height: 'fit'` is the new default**, with
+  `maxHeight` to cap it (past the cap it scrolls rather than growing — fitting
+  and scrolling are the same mechanism seen from either side of a limit).
+- **`panel.measure()` → `{content, viewport, overflow, fits}`.** The panel has
+  always known this (`stackLayout` returns the total) and simply never said, so
+  every consumer sizing a panel was guessing at a number the panel could have
+  told them.
+
+  Both exist because **clipping is silent**: a panel too short for its content
+  looks exactly like a panel missing its last control. The ensemble editor got
+  three heights wrong in one sitting — a command hidden behind another panel, an
+  option cut in half, a list showing five of eight rows — and noticed none of
+  them at the time (tosijs-3d#37, item 6).
+
+  The ordering is the whole trick: widgets measure against the inner WIDTH,
+  which is known from `width` alone, so the stack can be measured before the
+  panel has a height and the height derived from it. The previous code fixed the
+  height first and had no way to discover it was wrong.
+
+  **Behaviour change:** a `panel3d` with no explicit `height` used to be 480 and
+  now fits its content. All nine call sites in this repo pass a height, so
+  nothing here changed; an adopter relying on the old default should pass
+  `height: 480`.
+
 ## 0.7.3
 
 ### Added

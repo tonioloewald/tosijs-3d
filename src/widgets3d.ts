@@ -254,6 +254,9 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 
 import { svgElements } from 'tosijs'
 import {
+  panelFit,
+  panelHeight,
+  type PanelFit,
   stackLayout,
   clampScroll,
   measureTextWrap,
@@ -1023,7 +1026,17 @@ export function list3d<T extends { label: string }>(config: {
 export function panel3d(
   config: {
     width?: number
-    height?: number
+    /**
+     * Fixed height, or `'fit'` to size to the content (the default).
+     *
+     * `'fit'` exists because clipping is SILENT — a panel too short for its
+     * content looks exactly like a panel missing its last control, so a
+     * hand-tuned constant is wrong the moment the content changes. See
+     * `panelHeight`.
+     */
+    height?: number | 'fit'
+    /** Upper bound for `height: 'fit'`. Past it the panel scrolls instead of growing. */
+    maxHeight?: number
     padding?: number
     /** Top padding, if it should differ from `padding` (e.g. to clear a close button). */
     paddingTop?: number
@@ -1033,11 +1046,29 @@ export function panel3d(
   ...widgets: Widget3d[]
 ): SVGSVGElement {
   const width = config.width ?? 360
-  const height = config.height ?? 480
   const padding = config.padding ?? 12
   const paddingTop = config.paddingTop ?? padding
   const gap = config.gap ?? GAP
   const innerW = width - padding * 2
+
+  /*
+  LAY OUT BEFORE CHOOSING THE HEIGHT.
+
+  Widgets measure themselves against the inner WIDTH, which is known from
+  `width` alone — so the whole stack can be measured before the panel has a
+  height, and the height can then be derived from it. That ordering is the
+  whole trick behind `height: 'fit'`; the previous code fixed the height first
+  and had no way to find out it was wrong.
+  */
+  const heights = widgets.map((w) => w.layout(innerW))
+  const { offsets, total } = stackLayout(heights, gap)
+  const height = panelHeight(
+    total,
+    paddingTop,
+    padding,
+    config.height ?? 'fit',
+    config.maxHeight
+  )
   const viewport = height - paddingTop - padding
 
   // Defend against a host page's global `svg { pointer-events: none }` (it's
@@ -1077,8 +1108,6 @@ export function panel3d(
   content.appendChild(scrollGroup)
   clipWrap.appendChild(content)
 
-  const heights = widgets.map((w) => w.layout(innerW))
-  const { offsets, total } = stackLayout(heights, gap)
   const rows = widgets.map((w, i) => ({
     w,
     top: offsets[i],
@@ -1214,6 +1243,16 @@ export function panel3d(
   // Whether the panel can scroll (content overflows) — so a host knows to route a
   // stick to it rather than to locomotion.
   ;(root as unknown as { scrollable: boolean }).scrollable = scrollable
+  /*
+  What the panel contains versus what it can show.
+  
+  The panel has always known this — `stackLayout` returns `total` — it simply
+  never said, so every consumer sizing a panel was guessing at a number the
+  panel could have told them. `fits: false` is the signal that something is
+  hidden, which is otherwise indistinguishable from not being there.
+  */
+  ;(root as unknown as { measure: () => PanelFit }).measure = () =>
+    panelFit(total, viewport)
 
   root.appendChild(bg)
   root.appendChild(clip)

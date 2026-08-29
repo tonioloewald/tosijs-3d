@@ -1,12 +1,14 @@
 import { describe, test, expect } from 'bun:test'
 import {
-  stackLayout,
   clampScroll,
-  wrapText,
-  wrapByMeasure,
   cssFont,
-  valueToFraction,
   fractionToValue,
+  panelFit,
+  panelHeight,
+  stackLayout,
+  valueToFraction,
+  wrapByMeasure,
+  wrapText,
 } from './widgets3d-layout'
 
 // A synthetic measurer: every character is 1 unit wide. Lets the pure wrapping
@@ -115,5 +117,51 @@ describe('value <-> fraction', () => {
   })
   test('degenerate range is safe', () => {
     expect(valueToFraction(5, 3, 3)).toBe(0)
+  })
+})
+
+describe('panelFit — clipping is silent, so measure it', () => {
+  test('reports overflow and fits', () => {
+    expect(panelFit(100, 200)).toEqual({
+      content: 100,
+      viewport: 200,
+      overflow: 0,
+      fits: true,
+    })
+    expect(panelFit(300, 200)).toEqual({
+      content: 300,
+      viewport: 200,
+      overflow: 100,
+      fits: false,
+    })
+  })
+
+  test('exact fit is not overflow', () => {
+    expect(panelFit(200, 200).fits).toBe(true)
+    expect(panelFit(200, 200).overflow).toBe(0)
+  })
+
+  test('overflow never goes negative — spare room is not negative overflow', () => {
+    expect(panelFit(10, 500).overflow).toBe(0)
+  })
+})
+
+describe('panelHeight — fitting and scrolling are one mechanism', () => {
+  test('an explicit number is honoured verbatim', () => {
+    expect(panelHeight(1000, 12, 12, 300)).toBe(300)
+  })
+
+  test("'fit' sizes to content plus both paddings", () => {
+    expect(panelHeight(100, 12, 12, 'fit')).toBe(124)
+  })
+
+  test("'fit' is clamped by maxHeight — beyond it you scroll, you do not grow", () => {
+    expect(panelHeight(1000, 12, 12, 'fit', 300)).toBe(300)
+    // and under the cap the cap is irrelevant
+    expect(panelHeight(100, 12, 12, 'fit', 300)).toBe(124)
+  })
+
+  test('defaults to fit when nothing is requested', () => {
+    expect(panelHeight(80, 10, 10)).toBe(100)
   })
 })

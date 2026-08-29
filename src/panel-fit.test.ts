@@ -1,54 +1,101 @@
-import { describe, test, expect } from 'bun:test'
-import { panelFitWidth } from './widgets3d-layout'
+import { describe, test, expect, beforeAll } from 'bun:test'
+import { Window } from 'happy-dom'
 
-/*
-A CENTRED PANEL MUST FIT THE VIEWPORT IT IS CENTRED IN.
+// widgets3d builds SVG at import time, so it needs a DOM first.
+let w3d: typeof import('./widgets3d')
 
-The pause panel is camera-relative and sized in world units, so its on-screen
-width depends on the camera's FOV and the viewport's ASPECT — and a number
-chosen on a 16:9 monitor is too wide on a phone held upright. Reported from a
-phone: the Continue button sat off-screen and had to be un-zoomed into reach,
-which is a pause panel you have to fight to dismiss.
+beforeAll(async () => {
+  const win = new Window() as any
+  const g = globalThis as any
+  g.window ??= win
+  for (const k of Object.getOwnPropertyNames(win)) {
+    try {
+      g[k] ??= win[k]
+    } catch {
+      /* off-document getters */
+    }
+  }
+  w3d = await import('./widgets3d')
+})
 
-This pins the sizing rule that replaced the constant. It is the same arithmetic
-`_showPausePanel` runs; keeping it here means the portrait case is checked
-without a device.
-*/
+const measureOf = (panel: SVGSVGElement) =>
+  (
+    panel as unknown as { measure: () => import('./widgets3d-layout').PanelFit }
+  ).measure()
 
-// The REAL function, not a copy of it: a test that mirrors the arithmetic can
-// only ever confirm that I typed it twice the same way. Both panels (pause and
-// death) call this one.
-const panelWidth = (fov: number, aspect: number, z = 2.2, want = 1.1) =>
-  panelFitWidth(fov, aspect, z, want)
+const rows = (n: number) =>
+  Array.from({ length: n }, (_, i) => w3d.button3d({ label: `row ${i}` }))
 
-const FOV = 0.8 // Babylon's default vertical FOV
-
-describe('pause panel fit', () => {
-  test('a desktop viewport gets the full intended width', () => {
-    expect(panelWidth(FOV, 16 / 9)).toBeCloseTo(1.1, 5)
-    expect(panelWidth(FOV, 4 / 3)).toBeCloseTo(1.1, 5)
+describe("panel3d height: 'fit' — a panel sized by what it holds", () => {
+  test('grows to its content, and reports that nothing is hidden', () => {
+    const panel = w3d.panel3d({ width: 300, height: 'fit' }, ...rows(4))
+    const m = measureOf(panel)
+    expect(m.fits).toBe(true)
+    expect(m.overflow).toBe(0)
+    // the rendered height really follows the content, rather than a constant
+    expect(Number(panel.getAttribute('height'))).toBeGreaterThan(m.content)
   })
 
-  test('a phone in PORTRAIT gets a narrower panel, not a clipped one', () => {
-    // iPhone-ish portrait: 390x844.
-    const w = panelWidth(FOV, 390 / 844)
-    expect(w).toBeLessThan(1.1)
-    // …and it stays inside the visible width, which is the whole point.
-    const visibleW = 2 * 2.2 * Math.tan(FOV / 2) * (390 / 844)
-    expect(w).toBeLessThanOrEqual(visibleW)
+  test('more content ⇒ a taller panel (the property, not a magic number)', () => {
+    const small = Number(
+      w3d
+        .panel3d({ width: 300, height: 'fit' }, ...rows(2))
+        .getAttribute('height')
+    )
+    const big = Number(
+      w3d
+        .panel3d({ width: 300, height: 'fit' }, ...rows(8))
+        .getAttribute('height')
+    )
+    expect(big).toBeGreaterThan(small)
   })
 
-  test('the old constant would NOT have fitted portrait — the bug, pinned', () => {
-    const visibleW = 2 * 2.2 * Math.tan(FOV / 2) * (390 / 844)
-    expect(visibleW).toBeLessThan(1.1) // 1.1 overflowed: the reported symptom
+  test('fit is the DEFAULT — the silent-clipping case has to be opted into', () => {
+    const fitted = w3d.panel3d({ width: 300 }, ...rows(3))
+    expect(measureOf(fitted).fits).toBe(true)
+  })
+})
+
+describe('panel3d measure() — clipping stops being silent', () => {
+  test('a too-short panel says so, instead of just cropping', () => {
+    // Exactly the ensemble failure: a height guessed too small looks identical
+    // to a control that was never added.
+    const panel = w3d.panel3d({ width: 300, height: 80 }, ...rows(8))
+    const m = measureOf(panel)
+    expect(m.fits).toBe(false)
+    expect(m.overflow).toBeGreaterThan(0)
+    expect(m.content).toBeGreaterThan(m.viewport)
   })
 
-  test('it never exceeds the intended width on an ultra-wide viewport', () => {
-    expect(panelWidth(FOV, 21 / 9)).toBeCloseTo(1.1, 5)
-    expect(panelWidth(FOV, 32 / 9)).toBeCloseTo(1.1, 5)
+  test('and such a panel is scrollable, so nothing is unreachable', () => {
+    const panel = w3d.panel3d({ width: 300, height: 80 }, ...rows(8))
+    expect((panel as unknown as { scrollable: boolean }).scrollable).toBe(true)
   })
 
-  test('a narrower FOV shrinks the panel with it', () => {
-    expect(panelWidth(0.4, 390 / 844)).toBeLessThan(panelWidth(0.8, 390 / 844))
+  test('an explicit height is still honoured verbatim', () => {
+    const panel = w3d.panel3d({ width: 300, height: 400 }, ...rows(2))
+    expect(Number(panel.getAttribute('height'))).toBe(400)
+  })
+})
+
+describe('maxHeight — fitting and scrolling are one mechanism', () => {
+  test('past the cap the panel scrolls rather than growing', () => {
+    const panel = w3d.panel3d(
+      { width: 300, height: 'fit', maxHeight: 150 },
+      ...rows(12)
+    )
+    expect(Number(panel.getAttribute('height'))).toBe(150)
+    const m = measureOf(panel)
+    expect(m.fits).toBe(false)
+    expect((panel as unknown as { scrollable: boolean }).scrollable).toBe(true)
+  })
+
+  test('under the cap it is simply ignored', () => {
+    const panel = w3d.panel3d(
+      { width: 300, height: 'fit', maxHeight: 5000 },
+      ...rows(3)
+    )
+    expect(Number(panel.getAttribute('height'))).toBeLessThan(5000)
+    expect(measureOf(panel).fits).toBe(true)
   })
 })

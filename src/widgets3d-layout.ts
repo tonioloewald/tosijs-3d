@@ -46,6 +46,58 @@ export function stackLayout(heights: number[], gap: number): StackLayout {
 }
 
 /** Clamp a scroll offset to [0, max] where max = content beyond the viewport. */
+/** What a panel's content needs versus what it can show. */
+export interface PanelFit {
+  /** Total height of the stacked content, in viewBox units. */
+  content: number
+  /** Height actually visible between the paddings. */
+  viewport: number
+  /** How much is hidden. `0` when everything fits. */
+  overflow: number
+  /** True when nothing is clipped. */
+  fits: boolean
+}
+
+/**
+ * Measure content against viewport.
+ *
+ * Exists because **clipping is silent**: a panel too short for its content
+ * looks exactly like a panel whose last control was never added, so every
+ * height ends up a hand-tuned constant that is wrong the moment the content
+ * changes. Reported by the ensemble editor, which got three heights wrong in
+ * one sitting — a command hidden behind another panel, an option cut in half,
+ * a list showing five of eight rows — and noticed none of them at the time.
+ */
+export function panelFit(content: number, viewport: number): PanelFit {
+  const over = content - viewport
+  return {
+    content,
+    viewport,
+    overflow: over > 0 ? over : 0,
+    fits: over <= 0,
+  }
+}
+
+/**
+ * The height a panel should be, given what it contains.
+ *
+ * `requested` is a number to honour it, or `'fit'` to size to the content.
+ * `'fit'` is clamped by `maxHeight` when given, so a panel that outgrows its
+ * space scrolls rather than growing without bound — fitting and scrolling are
+ * the same mechanism seen from either side of that limit, not two modes.
+ */
+export function panelHeight(
+  contentTotal: number,
+  paddingTop: number,
+  padding: number,
+  requested: number | 'fit' = 'fit',
+  maxHeight?: number
+): number {
+  if (typeof requested === 'number') return requested
+  const needed = contentTotal + paddingTop + padding
+  return maxHeight != null && needed > maxHeight ? maxHeight : needed
+}
+
 export function clampScroll(
   offset: number,
   contentHeight: number,
