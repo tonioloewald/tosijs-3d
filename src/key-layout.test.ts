@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test'
 import {
-  keyLayout,
   accentsFor,
+  commitValueForType,
   hasAccents,
+  isValidForType,
+  keyAt,
+  keyLayout,
   keyRects,
   keyboardHeight,
-  keyAt,
+  modeForType,
 } from './key-layout'
 
 describe('keyLayout — modes', () => {
@@ -348,4 +351,83 @@ describe('keyLayout — the alpha-family boards share one key size', () => {
       expect(widest).toBe(10)
     })
   }
+})
+
+describe('modeForType — the layouts existed, nothing chose between them', () => {
+  test('numeric types raise the numpad', () => {
+    expect(modeForType('number')).toBe('numpad')
+    expect(modeForType('integer')).toBe('numpad')
+  })
+
+  test('tel gets the dial pad, email and url their own layouts', () => {
+    expect(modeForType('tel')).toBe('dial')
+    expect(modeForType('email')).toBe('email')
+    expect(modeForType('url')).toBe('url')
+  })
+
+  test('text — and an unspecified field — get alpha', () => {
+    expect(modeForType('text')).toBe('alpha')
+    expect(modeForType()).toBe('alpha')
+  })
+})
+
+describe('isValidForType — validity WHILE TYPING', () => {
+  test('empty is always valid — a fresh field is not a wrong one', () => {
+    // Otherwise every untouched field is born red, and people learn to ignore
+    // the colour entirely.
+    for (const t of [
+      'text',
+      'number',
+      'integer',
+      'email',
+      'url',
+      'tel',
+    ] as const) {
+      expect(isValidForType('', t)).toBe(true)
+    }
+  })
+
+  test('a lone "-" and a trailing "." are IN PROGRESS, not wrong', () => {
+    // Rejecting these makes -5 and 0.5 impossible to type left to right.
+    expect(isValidForType('-', 'number')).toBe(true)
+    expect(isValidForType('1.', 'number')).toBe(true)
+    expect(isValidForType('-0.5', 'number')).toBe(true)
+  })
+
+  test('but letters are not a number at any point', () => {
+    expect(isValidForType('12a', 'number')).toBe(false)
+    expect(isValidForType('1.5', 'integer')).toBe(false)
+  })
+
+  test('url rejects whitespace; tel accepts the punctuation people actually type', () => {
+    expect(isValidForType('a b', 'url')).toBe(false)
+    expect(isValidForType('+1 (555) 010-9999', 'tel')).toBe(true)
+  })
+})
+
+describe('commitValueForType — validity AS AN ANSWER', () => {
+  test('the asymmetry: valid while typing, not valid as a final value', () => {
+    expect(isValidForType('-', 'number')).toBe(true)
+    expect(commitValueForType('-', 'number')).toBe(null)
+    expect(isValidForType('1.', 'number')).toBe(true)
+    expect(commitValueForType('1.', 'number')).toBe('1')
+  })
+
+  test('null means "restore the last good value", never NaN in the document', () => {
+    expect(commitValueForType('12a', 'number')).toBe(null)
+    expect(commitValueForType('1.5', 'integer')).toBe(null)
+  })
+
+  test('numbers are normalised on commit', () => {
+    expect(commitValueForType('007', 'number')).toBe('7')
+    expect(commitValueForType('-0.50', 'number')).toBe('-0.5')
+  })
+
+  test('empty commits as empty — clearing a field is a legitimate answer', () => {
+    expect(commitValueForType('', 'number')).toBe('')
+  })
+
+  test('text passes through untouched', () => {
+    expect(commitValueForType('  hi  ', 'text')).toBe('  hi  ')
+  })
 })

@@ -10,6 +10,27 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`inputField` has a `type`** — `'text' | 'number' | 'integer' | 'email' |
+'url' | 'tel'`, HTML's `inputmode` idea. **One property, three jobs**: the
+  host raises the matching keyboard layout on focus
+  (`field.keyboardMode` → `keyboard.setMode`), `commit()` normalises or refuses
+  the value, and `isValid()` answers without the host knowing the field's kind.
+  This is why there is no separate `numberField` — a number field is this one,
+  configured (tosijs-3d#37, item 2).
+
+  The layouts already existed (`numpad`, `dial`, `email`, `url`) and nothing
+  chose between them, so focusing a numeric field raised `alpha` and left you to
+  find the numpad — two deliberate taps per field, and worse in a headset where
+  there is no physical keyboard to fall back on.
+
+  **Validity while typing and validity as an answer are different questions**,
+  and conflating them is what makes typed fields either unusable or liars: `-`
+  and `1.` are legitimate things to have typed and illegitimate things to have
+  meant. So `isValid()` accepts them and `commit()` does not — and a refused
+  commit restores the last good value rather than writing `NaN` into the
+  document. Enter commits _before_ `onEnter` fires, so no handler has to re-do
+  the parse.
+
 - **`slider3d` can show its value permanently** — `showValue: 'peek' | 'always'
 | 'never'` (default `'peek'`, the existing behaviour) plus a `format` hook for
   units. ensemble's coordinates were unreadable because a handle position is not

@@ -116,6 +116,106 @@ export type KeyboardMode =
   | 'email'
   | 'url'
 
+/**
+ * What a field holds — the same idea as HTML's `inputmode`.
+ *
+ * It exists so a field can DESCRIBE ITSELF, which is the thing that was
+ * missing: without it a field cannot tell the keyboard what layout to raise, a
+ * parser what to accept, or a host what to validate. One property, three jobs
+ * (tosijs-3d#37).
+ */
+export type FieldType = 'text' | 'number' | 'integer' | 'email' | 'url' | 'tel'
+
+/**
+ * The keyboard layout a field type wants.
+ *
+ * The layouts already existed and nothing chose between them — focusing a
+ * numeric field raised `alpha` and left you to find the numpad yourself. That
+ * is two deliberate taps per field, and worse in a headset than flat, because
+ * there is no physical keyboard to fall back on.
+ */
+export function modeForType(type: FieldType = 'text'): KeyboardMode {
+  switch (type) {
+    case 'number':
+    case 'integer':
+      return 'numpad'
+    case 'tel':
+      return 'dial'
+    case 'email':
+      return 'email'
+    case 'url':
+      return 'url'
+    default:
+      return 'alpha'
+  }
+}
+
+/**
+ * Is `text` an acceptable value for this field type?
+ *
+ * **Empty is always valid.** A field you have not filled in yet is not wrong,
+ * and treating it as wrong means a fresh field is born red — which trains
+ * people to ignore the colour.
+ *
+ * Number accepts a lone `-` or a trailing `.` as *in progress*: rejecting them
+ * makes it impossible to type `-5` or `0.5` left to right, because validity is
+ * checked before you have finished. This is the classic mistake in typed
+ * fields, and the reason validation belongs at COMMIT rather than per
+ * keystroke.
+ */
+export function isValidForType(
+  text: string,
+  type: FieldType = 'text'
+): boolean {
+  if (text === '') return true
+  switch (type) {
+    case 'number':
+      return /^-?\d*\.?\d*$/.test(text)
+    case 'integer':
+      return /^-?\d*$/.test(text)
+    case 'email':
+      // Deliberately loose. A strict pattern rejects addresses that work, and
+      // the only real test of an address is sending to it.
+      return /^[^\s@]*@?[^\s@]*\.?[^\s@]*$/.test(text)
+    case 'url':
+      return !/\s/.test(text)
+    case 'tel':
+      return /^[-+()\d\s]*$/.test(text)
+    default:
+      return true
+  }
+}
+
+/**
+ * The value to keep when a field commits.
+ *
+ * Returns `null` when the text cannot stand as a final value, so the caller
+ * restores the last good one rather than writing `NaN` into the document —
+ * which is what ensemble had to implement themselves for every number field.
+ *
+ * Note the asymmetry with `isValidForType`: `-` and `1.` are valid *while
+ * typing* and are not valid *as an answer*. Conflating the two is what makes a
+ * typed field either unusable or a liar.
+ */
+export function commitValueForType(
+  text: string,
+  type: FieldType = 'text'
+): string | null {
+  if (text === '') return ''
+  if (!isValidForType(text, type)) return null
+  switch (type) {
+    case 'number':
+    case 'integer': {
+      const n = Number(text)
+      if (!Number.isFinite(n)) return null
+      if (type === 'integer' && !Number.isInteger(n)) return null
+      return String(n)
+    }
+    default:
+      return text
+  }
+}
+
 /** A non-inserting key's behaviour. */
 export type KeyAction =
   | 'shift'

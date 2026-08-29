@@ -259,6 +259,10 @@ import {
   type KeyboardMode,
   type KeyAction,
   type KeyRect,
+  modeForType,
+  isValidForType,
+  commitValueForType,
+  type FieldType,
 } from './key-layout'
 import {
   edit,
@@ -291,6 +295,20 @@ const FONT_FAMILY = w3dTheme.fontFamily
 export interface InputField extends Widget3d {
   /** Current text. */
   readonly value: string
+  /** What this field holds. Drives the keyboard layout, validation and commit. */
+  readonly type: FieldType
+  /** The keyboard layout this field wants — hand it to `keyboard.setMode`. */
+  readonly keyboardMode: KeyboardMode
+  /** Is the CURRENT text acceptable while typing? Empty is always valid. */
+  isValid: () => boolean
+  /**
+   * Settle the value: normalise it, or restore the last good one.
+   *
+   * Returns the value kept. Called on Enter automatically; a host should also
+   * call it when focus leaves, since a field abandoned mid-edit must not leave
+   * `1.` or `-` sitting in the document.
+   */
+  commit: () => string
   /** Insert text at the caret (what a key tap calls). */
   insert: (str: string) => void
   /** Apply a non-inserting key. */
@@ -346,6 +364,16 @@ export interface InputFieldOptions {
    * — the host's hook for exclusivity (dim the others) and for summoning the
    * keyboard overlay. */
   onFocus?: () => void
+  /**
+   * What this field holds — the same idea as HTML's `inputmode`.
+   *
+   * One property, three jobs: the host raises the matching keyboard layout on
+   * focus (`modeForType`), `commit()` normalises or refuses the value, and a
+   * host can ask `isValid()` without knowing what kind of field it has. It is
+   * why there is no separate `numberField` — a number field is this one,
+   * configured (tosijs-3d#37, item 2).
+   */
+  type?: FieldType
 }
 
 export function inputField(config: InputFieldOptions = {}): InputField {
@@ -354,7 +382,17 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   const PAD = 10
   const font: FontSpec = { size: SIZE, family: FONT_FAMILY, weight: '400' }
 
+  const fieldType: FieldType = config.type ?? 'text'
   let state: EditState = edit(config.value ?? '')
+  /*
+  The last value that could stand as an answer.
+  
+  Kept so a refused commit has somewhere to fall back to. ensemble had to build
+  this per field ("reject gibberish by restoring the last good value rather
+  than writing NaN into the document"); it belongs to the field, because the
+  field is what knows its own type.
+  */
+  let lastGood = commitValueForType(config.value ?? '', fieldType) ?? ''
   let width = 0
   let focused = false
   const activate = (): void => {
@@ -435,6 +473,25 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     }
   }
 
+  /**
+   * Settle the value, or put the last good one back.
+   *
+   * Validation happens HERE rather than per keystroke, because `-` and `1.` are
+   * legitimate things to have typed so far and illegitimate things to have
+   * meant. Blocking them as you type makes `-5` and `0.5` impossible to enter
+   * left to right; that asymmetry is the whole reason this is a separate step.
+   */
+  const commitField = (): string => {
+    const settled = commitValueForType(state.text, fieldType)
+    if (settled == null) {
+      if (state.text !== lastGood) change(edit(lastGood))
+      return lastGood
+    }
+    if (settled !== state.text) change(edit(settled))
+    lastGood = settled
+    return settled
+  }
+
   /** Nearest caret index to an x offset — a click places the caret between glyphs. */
   const indexAtX = (x: number): number => {
     const chars = Array.from(state.text)
@@ -476,9 +533,25 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       activate()
       if (a === 'backspace') change(editBackspace(state))
       else if (a === 'space') change(editInsert(state, ' '))
-      else if (a === 'enter') config.onEnter?.(state.text)
+      else if (a === 'enter') {
+        // Settle BEFORE reporting: a handler receiving `1.` or `-` from a
+        // number field would have to re-do this work, and every handler would
+        // have to remember to.
+        const kept = commitField()
+        config.onEnter?.(kept)
+      }
       // shift / mode / done are the keyboard's own business
     },
+    get type() {
+      return fieldType
+    },
+    get keyboardMode() {
+      return modeForType(fieldType)
+    },
+    isValid() {
+      return isValidForType(state.text, fieldType)
+    },
+    commit: commitField,
     setValue(v: string) {
       change(edit(v))
     },

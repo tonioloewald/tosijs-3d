@@ -813,3 +813,6 @@ export type {
 
 // Data table types (the value lives at ui.table)
 export type { Table, TableRow, TableOptions } from './table'
+
+export { modeForType, isValidForType, commitValueForType } from './key-layout'
+export type { FieldType } from './key-layout'

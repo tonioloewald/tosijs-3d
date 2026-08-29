@@ -701,3 +701,80 @@ describe('keyboard — a slow space tap is still a space', () => {
     expect(actions).toEqual([])
   })
 })
+
+describe('inputField type — one property, three jobs (#37)', () => {
+  test('the field tells you which keyboard layout to raise', () => {
+    expect(K.inputField({ type: 'number' }).keyboardMode).toBe('numpad')
+    expect(K.inputField({ type: 'email' }).keyboardMode).toBe('email')
+    expect(K.inputField({}).keyboardMode).toBe('alpha')
+  })
+
+  test('typing "-0.5" left to right is never blocked mid-way', () => {
+    // The classic typed-field bug: validating per keystroke makes a negative or
+    // fractional number impossible to enter, because it is invalid until done.
+    const f = K.inputField({ type: 'number' })
+    for (const ch of '-0.5') {
+      f.insert(ch)
+      expect(f.isValid()).toBe(true)
+    }
+    expect(f.value).toBe('-0.5')
+  })
+
+  test('commit REFUSES gibberish and restores the last good value', () => {
+    const f = K.inputField({ type: 'number', value: '42' })
+    f.setValue('12a')
+    expect(f.commit()).toBe('42')
+    expect(f.value).toBe('42')
+    // and never NaN, which is what a naive parse would have written
+    expect(f.value).not.toBe('NaN')
+  })
+
+  test('commit normalises rather than merely accepting', () => {
+    const f = K.inputField({ type: 'number' })
+    f.setValue('007')
+    expect(f.commit()).toBe('7')
+    f.setValue('1.')
+    expect(f.commit()).toBe('1')
+  })
+
+  test('the in-progress/answer asymmetry, stated directly', () => {
+    const f = K.inputField({ type: 'number', value: '3' })
+    f.setValue('-')
+    expect(f.isValid()).toBe(true) // fine to have typed
+    expect(f.commit()).toBe('3') // not fine to have meant
+  })
+
+  test('integer refuses a fraction at commit', () => {
+    const f = K.inputField({ type: 'integer', value: '5' })
+    f.setValue('2.5')
+    expect(f.commit()).toBe('5')
+  })
+
+  test('clearing a field is a legitimate answer, not gibberish', () => {
+    const f = K.inputField({ type: 'number', value: '9' })
+    f.setValue('')
+    expect(f.commit()).toBe('')
+  })
+
+  test('Enter settles the value BEFORE the handler sees it', () => {
+    // Otherwise every onEnter handler has to re-do the parse, and each one has
+    // to remember to.
+    let seen: string | null = null
+    const f = K.inputField({
+      type: 'number',
+      value: '1',
+      onEnter: (v) => {
+        seen = v
+      },
+    })
+    f.setValue('008')
+    f.action('enter')
+    expect(seen).toBe('8')
+  })
+
+  test('a text field is unaffected by any of it', () => {
+    const f = K.inputField({ value: '  hi  ' })
+    expect(f.type).toBe('text')
+    expect(f.commit()).toBe('  hi  ')
+  })
+})
