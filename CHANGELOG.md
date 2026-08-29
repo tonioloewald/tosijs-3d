@@ -10,6 +10,16 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`slider3d` can show its value permanently** — `showValue: 'peek' | 'always'
+| 'never'` (default `'peek'`, the existing behaviour) plus a `format` hook for
+  units. ensemble's coordinates were unreadable because a handle position is not
+  a number (tosijs-3d#37, item 3).
+
+  `'always'` reserves width for the **widest** value in the range (measured
+  through `format`, so units and precision count) and shortens the track to
+  clear it. Sizing to the _current_ value would make the track twitch mid-drag,
+  which reads as the slider fighting you.
+
 - **`row3d` — lay widgets side by side.** A panel only stacks, so a
   label-and-field pair cost two rows and eight fields became sixteen rows of
   mostly whitespace (tosijs-3d#37, item 5). `weights` give the usual label/field

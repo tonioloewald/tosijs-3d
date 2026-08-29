@@ -266,6 +266,7 @@ import {
   valueToFraction,
   fractionToValue,
   type FontSpec,
+  measureTextWidth,
 } from './widgets3d-layout'
 import { w3dTheme } from './w3d-theme'
 import { iconGlyph } from './svg-icons'
@@ -851,6 +852,21 @@ export function slider3d(config: {
   max?: number
   step?: number
   onChange?: (v: number) => void
+  /**
+   * Where the number lives.
+   *
+   * - `'peek'` (default) — shown in place of the label while you point at or
+   *   drag it. Right for a HUD or a settings panel, where the label matters
+   *   more than the digits and space is tight.
+   * - `'always'` — a permanent right-hand readout, with the track shortened to
+   *   make room. Right for anything you have to READ rather than just set:
+   *   ensemble's coordinates were unreadable because a handle position is not a
+   *   number (tosijs-3d#37, item 3).
+   * - `'never'` — no readout at all.
+   */
+  showValue?: 'peek' | 'always' | 'never'
+  /** Format the readout — units, precision, anything. Defaults to step-derived decimals. */
+  format?: (v: number) => string
 }): Widget3d {
   const min = config.min ?? 0
   const max = config.max ?? 1
@@ -869,12 +885,42 @@ export function slider3d(config: {
   // label stays visible beside it. Decimals follow the step.
   const decimals =
     step > 0 ? (step < 1 ? Math.min(4, -Math.floor(Math.log10(step))) : 0) : 2
+  const showValue = config.showValue ?? 'peek'
+  const format = config.format ?? ((v: number) => v.toFixed(decimals))
   const valText = baseText('', ACCENT)
   valText.setAttribute('text-anchor', 'start')
   valText.setAttribute('x', String(PAD_X))
   valText.setAttribute('y', String(ROW / 2))
   valText.setAttribute('font-weight', '600')
   valText.setAttribute('display', 'none')
+  /*
+  The ALWAYS readout is a separate element from the peek one, deliberately.
+
+  Peek replaces the LABEL and lives at the left; always sits at the right with
+  the track shortened to clear it. Trying to make one element do both means it
+  moves when you touch it, which is the one thing a number you are reading must
+  not do.
+  */
+  const fixedVal = baseText('', ACCENT)
+  fixedVal.setAttribute('text-anchor', 'end')
+  fixedVal.setAttribute('y', String(ROW / 2))
+  fixedVal.setAttribute('font-weight', '600')
+  if (showValue !== 'always') fixedVal.setAttribute('display', 'none')
+  /*
+  Reserve the width of the WIDEST value it can show, not of the current one --
+  measured at both ends of the range (and via `format`, so units and precision
+  are included). Sizing to the current value makes the track resize as you drag
+  it, which looks like the slider fighting you.
+  */
+  const readoutW =
+    showValue === 'always'
+      ? Math.ceil(
+          Math.max(
+            measureTextWidth(format(min), TEXT_FONT),
+            measureTextWidth(format(max), TEXT_FONT)
+          )
+        ) + 10
+      : 0
   const rowBg = rect({
     x: 0,
     y: 2,
@@ -890,7 +936,8 @@ export function slider3d(config: {
       trackEl,
       fillEl,
       knob,
-      valText
+      valText,
+      fixedVal
     ),
     'cursor:pointer'
   )
@@ -907,11 +954,14 @@ export function slider3d(config: {
     knob.setAttribute('cx', String(cx))
     fillEl.setAttribute('x', String(trackX))
     fillEl.setAttribute('width', String(Math.max(0, cx - trackX)))
-    valText.textContent = v.toFixed(decimals)
+    const shown = format(v)
+    valText.textContent = shown
+    fixedVal.textContent = shown
   }
   // Peek shows the exact value in place of the LABEL — the track and knob stay
   // visible, so you can still see and drag the slider while reading the number.
   const peek = (on: boolean) => {
+    if (showValue !== 'peek') return
     if (lbl) lbl.setAttribute('display', on ? 'none' : 'inline')
     valText.setAttribute('display', on ? 'inline' : 'none')
   }
@@ -928,7 +978,8 @@ export function slider3d(config: {
       rowBg.setAttribute('width', String(width))
       const labelW = lbl ? Math.min(width * 0.45, 150) : 0
       trackX = PAD_X + labelW
-      trackW = width - trackX - PAD_X - 12
+      trackW = width - trackX - PAD_X - 12 - readoutW
+      fixedVal.setAttribute('x', String(width - PAD_X))
       trackEl.setAttribute('x', String(trackX))
       trackEl.setAttribute('width', String(trackW))
       reflect()

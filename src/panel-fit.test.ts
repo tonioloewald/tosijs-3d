@@ -167,3 +167,83 @@ describe('row3d — the missing axis', () => {
     expect(w3d.row3d({}).layout(300)).toBe(0)
   })
 })
+
+describe('slider3d readout — a handle position is not a number', () => {
+  const textOf = (w: { el: SVGElement }) =>
+    [...w.el.querySelectorAll('text')].map((t) => t.textContent ?? '')
+
+  test("showValue:'always' renders the number without being touched", () => {
+    const s = w3d.slider3d({
+      label: 'x',
+      value: 12.5,
+      min: 0,
+      max: 100,
+      step: 0.5,
+      showValue: 'always',
+    })
+    s.layout(300)
+    expect(textOf(s)).toContain('12.5')
+  })
+
+  test('peek (the default) keeps it hidden until you interact', () => {
+    const s = w3d.slider3d({
+      label: 'x',
+      value: 12.5,
+      min: 0,
+      max: 100,
+      step: 0.5,
+    })
+    s.layout(300)
+    const shown = [...s.el.querySelectorAll('text')]
+      .filter((t) => t.getAttribute('display') !== 'none')
+      .map((t) => t.textContent)
+    expect(shown).toEqual(['x'])
+  })
+
+  test('format carries units, and decimals follow the step', () => {
+    const s = w3d.slider3d({
+      value: 8,
+      min: 0,
+      max: 24,
+      step: 1,
+      showValue: 'always',
+      format: (v) => `${v.toFixed(0)}h`,
+    })
+    s.layout(300)
+    expect(textOf(s)).toContain('8h')
+  })
+
+  test('THE READOUT DOES NOT RESIZE THE TRACK AS YOU DRAG', () => {
+    // Width is reserved for the widest value in the range, not the current one.
+    // Sizing to the current value makes the track twitch mid-drag, which reads
+    // as the slider fighting you.
+    const s = w3d.slider3d({
+      value: 1,
+      min: 1,
+      max: 1000,
+      step: 1,
+      showValue: 'always',
+    })
+    s.layout(300)
+    const track = s.el.querySelector('rect[fill]:not([fill=transparent])')
+    const wAt1 = track?.getAttribute('width')
+    ;(s as any).handle?.('down', 290, 20) // drag toward the max
+    s.layout(300)
+    expect(track?.getAttribute('width')).toBe(wAt1!)
+  })
+
+  test("'never' shows nothing at all", () => {
+    const s = w3d.slider3d({
+      label: 'x',
+      value: 5,
+      min: 0,
+      max: 10,
+      showValue: 'never',
+    })
+    s.layout(300)
+    const shown = [...s.el.querySelectorAll('text')]
+      .filter((t) => t.getAttribute('display') !== 'none')
+      .map((t) => t.textContent)
+    expect(shown).toEqual(['x'])
+  })
+})
