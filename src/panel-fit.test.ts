@@ -99,3 +99,71 @@ describe('maxHeight — fitting and scrolling are one mechanism', () => {
     expect(measureOf(panel).fits).toBe(true)
   })
 })
+
+describe('row3d — the missing axis', () => {
+  test('a label and a field share ONE row, not two', () => {
+    const stacked = w3d.panel3d(
+      { width: 320, height: 'fit' },
+      w3d.label3d({ text: 'name' }),
+      w3d.button3d({ label: 'edit' })
+    )
+    const inARow = w3d.panel3d(
+      { width: 320, height: 'fit' },
+      w3d.row3d(
+        { weights: [1, 2] },
+        w3d.label3d({ text: 'name' }),
+        w3d.button3d({ label: 'edit' })
+      )
+    )
+    expect(measureOf(inARow).content).toBeLessThan(measureOf(stacked).content)
+  })
+
+  test('a row is as tall as its tallest child, not their sum', () => {
+    const a = w3d.button3d({ label: 'a' })
+    const b = w3d.button3d({ label: 'b' })
+    const row = w3d.row3d({}, a, b)
+    const rowH = row.layout(300)
+    expect(rowH).toBe(Math.max(a.layout(150), b.layout(150)))
+  })
+
+  test('POINTER ROUTING: a click in the right column reaches the RIGHT child', () => {
+    // The bug this guards: routing by row rather than column fires the first
+    // child for every click, which reads as "the second button does nothing".
+    const hits: string[] = []
+    const row = w3d.row3d(
+      {},
+      w3d.button3d({ label: 'L', onClick: () => hits.push('L') }),
+      w3d.button3d({ label: 'R', onClick: () => hits.push('R') })
+    )
+    const panel = w3d.panel3d({ width: 324, height: 'fit' }, row)
+    const p = panel as unknown as {
+      handlePointer: (k: string, x: number, y: number) => void
+    }
+    // padding is 12, so the row spans x = 12..312; right column starts ~x=162
+    p.handlePointer('down', 260, 26)
+    p.handlePointer('up', 260, 26)
+    expect(hits).toEqual(['R'])
+  })
+
+  test('and the left column reaches the left child', () => {
+    const hits: string[] = []
+    const panel = w3d.panel3d(
+      { width: 324, height: 'fit' },
+      w3d.row3d(
+        {},
+        w3d.button3d({ label: 'L', onClick: () => hits.push('L') }),
+        w3d.button3d({ label: 'R', onClick: () => hits.push('R') })
+      )
+    )
+    const p = panel as unknown as {
+      handlePointer: (k: string, x: number, y: number) => void
+    }
+    p.handlePointer('down', 60, 26)
+    p.handlePointer('up', 60, 26)
+    expect(hits).toEqual(['L'])
+  })
+
+  test('an empty row is zero-height rather than a crash', () => {
+    expect(w3d.row3d({}).layout(300)).toBe(0)
+  })
+})

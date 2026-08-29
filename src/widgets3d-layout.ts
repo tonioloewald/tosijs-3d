@@ -46,6 +46,69 @@ export function stackLayout(heights: number[], gap: number): StackLayout {
 }
 
 /** Clamp a scroll offset to [0, max] where max = content beyond the viewport. */
+/** One column of a row: where it starts and how wide it is. */
+export interface RowColumn {
+  x: number
+  width: number
+}
+
+/**
+ * Split a row's width into columns.
+ *
+ * `weights` are proportional shares of the space left after the gaps; omit it
+ * (or pass all-zero) for equal columns. A negative or zero total weight falls
+ * back to equal rather than dividing by zero — a row that renders wrong is
+ * better than a row that renders `NaN`, which propagates into every downstream
+ * coordinate and takes the whole panel with it.
+ *
+ * Exists because a panel that only stacks makes a label-and-field pair cost two
+ * rows: the ensemble editor's eight fields became sixteen rows of mostly
+ * whitespace (tosijs-3d#37, item 5).
+ */
+export function rowColumns(
+  width: number,
+  count: number,
+  gap: number,
+  weights?: number[]
+): RowColumn[] {
+  if (count <= 0) return []
+  const usable = Math.max(0, width - gap * (count - 1))
+  const w =
+    weights != null && weights.length === count
+      ? weights.map((v) => (Number.isFinite(v) && v > 0 ? v : 0))
+      : []
+  const totalWeight = w.reduce((a, b) => a + b, 0)
+  const shares =
+    totalWeight > 0
+      ? w.map((v) => v / totalWeight)
+      : Array(count).fill(1 / count)
+  const out: RowColumn[] = []
+  let x = 0
+  for (let i = 0; i < count; i++) {
+    const cw = usable * shares[i]
+    out.push({ x, width: cw })
+    x += cw + gap
+  }
+  return out
+}
+
+/**
+ * Vertical offset for a child of `childHeight` inside a row of `rowHeight`.
+ *
+ * `'middle'` is the default because the common case is a short label beside a
+ * taller control, and top-aligning those makes the label look detached from the
+ * thing it names.
+ */
+export function alignOffset(
+  rowHeight: number,
+  childHeight: number,
+  align: 'top' | 'middle' | 'bottom' = 'middle'
+): number {
+  if (align === 'top') return 0
+  const slack = Math.max(0, rowHeight - childHeight)
+  return align === 'bottom' ? slack : slack / 2
+}
+
 /** What a panel's content needs versus what it can show. */
 export interface PanelFit {
   /** Total height of the stacked content, in viewBox units. */

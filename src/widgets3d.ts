@@ -254,8 +254,11 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 
 import { svgElements } from 'tosijs'
 import {
+  alignOffset,
   panelFit,
   panelHeight,
+  rowColumns,
+  type RowColumn,
   type PanelFit,
   stackLayout,
   clampScroll,
@@ -450,6 +453,88 @@ const baseText = (content: string, fill = TEXT, bold = false) =>
  * interactive-height ROW — for dense readouts (debug panels) where a 40px row per
  * short line is mostly wasted space.
  */
+/**
+ * **Lay widgets side by side on one row.**
+ *
+ * A panel only stacks, so a label-and-field pair costs two rows and eight
+ * fields become sixteen rows of mostly whitespace — the ensemble editor's
+ * report (tosijs-3d#37, item 5). A row is the missing axis.
+ *
+ * `weights` are proportional shares of the space left after the gaps, so
+ * `weights: [1, 2]` is the usual label/field split. Children are middle-aligned
+ * by default: the common case is a short label beside a taller control, and
+ * top-aligning those makes the label look detached from what it names.
+ *
+ * **Pointer routing is by column, and it delegates in the child's OWN
+ * coordinates** — a widget cannot know it has been put in a row, so it must
+ * still receive `(0,0)` at its own top-left. Hit-testing follows the same
+ * path, which is what keeps "grab between the controls to scroll" working
+ * inside a row as well as outside it.
+ */
+export function row3d(
+  config: {
+    gap?: number
+    /** Proportional shares of the post-gap space. Omit for equal columns. */
+    weights?: number[]
+    align?: 'top' | 'middle' | 'bottom'
+  },
+  ...children: Widget3d[]
+): Widget3d {
+  const gap = config.gap ?? GAP
+  const align = config.align ?? 'middle'
+  const el = g()
+  const wraps = children.map((c) => {
+    const wrap = g()
+    wrap.appendChild(c.el)
+    el.appendChild(wrap)
+    return wrap
+  })
+  // Column geometry from the last layout, so pointer routing uses exactly what
+  // was drawn rather than recomputing and risking a disagreement.
+  let cols: RowColumn[] = []
+  let tops: number[] = []
+  let rowHeight = 0
+
+  const at = (x: number, y: number) => {
+    for (let i = 0; i < cols.length; i++) {
+      const c = cols[i]
+      if (x >= c.x && x <= c.x + c.width) {
+        return { i, lx: x - c.x, ly: y - tops[i] }
+      }
+    }
+    return null
+  }
+
+  return {
+    el,
+    layout(width: number) {
+      cols = rowColumns(width, children.length, gap, config.weights)
+      const heights = children.map((c, i) => c.layout(cols[i].width))
+      rowHeight = heights.length ? Math.max(...heights) : 0
+      tops = heights.map((h) => alignOffset(rowHeight, h, align))
+      wraps.forEach((wrap, i) => {
+        wrap.setAttribute('transform', `translate(${cols[i].x}, ${tops[i]})`)
+      })
+      return rowHeight
+    },
+    handle(kind, x, y) {
+      const hit = at(x, y)
+      if (hit == null) return
+      children[hit.i].handle?.(kind, hit.lx, hit.ly)
+    },
+    hitTest(x, y) {
+      const hit = at(x, y)
+      if (hit == null) return false
+      const child = children[hit.i]
+      // No hitTest means "the whole row is the control" for that child — the
+      // same convention the panel uses one level up.
+      return child.hitTest
+        ? child.hitTest(hit.lx, hit.ly)
+        : child.handle != null
+    },
+  }
+}
+
 export function label3d(config: {
   text: string
   muted?: boolean

@@ -334,6 +334,7 @@ export { B3dAircraft, b3dAircraft } from './b3d-aircraft'
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
   panel3d,
+  row3d,
   label3d,
   text3d,
   textBlock3d,
@@ -347,6 +348,10 @@ export {
 export type { Widget3d } from './widgets3d'
 export {
   panelFitWidth,
+  panelFit,
+  panelHeight,
+  rowColumns,
+  alignOffset,
   stackLayout,
   clampScroll,
   wrapText,
@@ -358,7 +363,12 @@ export {
   valueToFraction,
   fractionToValue,
 } from './widgets3d-layout'
-export type { StackLayout, FontSpec } from './widgets3d-layout'
+export type {
+  StackLayout,
+  FontSpec,
+  PanelFit,
+  RowColumn,
+} from './widgets3d-layout'
 
 // SVG material system
 export { SvgTexture } from './svg-texture'

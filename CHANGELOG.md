@@ -10,6 +10,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`row3d` — lay widgets side by side.** A panel only stacks, so a
+  label-and-field pair cost two rows and eight fields became sixteen rows of
+  mostly whitespace (tosijs-3d#37, item 5). `weights` give the usual label/field
+  split; children are middle-aligned by default, since top-aligning a short
+  label beside a taller control makes it look detached from what it names.
+
+  Pointer routing is **by column**, delegating in each child's own coordinates —
+  a widget cannot know it has been put in a row, so it must still receive
+  `(0,0)` at its own top-left. Hit-testing follows the same path, which keeps
+  "grab between the controls to scroll" working inside a row.
+
 - **`panel3d` sizes itself: `height: 'fit'` is the new default**, with
   `maxHeight` to cap it (past the cap it scrolls rather than growing — fitting
   and scrolling are the same mechanism seen from either side of a limit).
