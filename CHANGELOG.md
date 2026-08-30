@@ -10,6 +10,23 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **⚠️ `b3dWater`'s normal map is now PROCEDURAL by default** (tosijs-3d#46).
+  It defaulted to `/waterbump.png` — a file that ships in this repo's `static/`
+  and **not in the published package** — so every consumer taking the default
+  pointed at something they had never been told to serve. Babylon falls back
+  when a texture will not decode, so the sea rendered as a **checkerboard**,
+  which reads as a style rather than a fault; it was reported as _"is the water
+  supposed to look like a checkerboard (it actually looks awesome…)"_.
+
+  Shipping the PNG would have fixed the missing file and left the real problem:
+  a default that depends on a fixed URL resolving in someone else's app. The
+  built-in map is now generated from this library's own Perlin noise — no file,
+  no network, no path, and it works offline and in a headset. It tiles by
+  construction (sampled on a torus), so there is no seam to hide.
+
+  An explicit `normalMap` that fails to load now **logs an error** instead of
+  silently becoming a checkerboard. Pass `normalMap` to override.
+
 - **`panel.openPopup()` — a popup is just another panel** (tosijs-3d#37, item
   4). This was the seam blocking a real `select`, the colour picker, and any
   in-panel menu: `panel3d` returned a bare `<svg>` while `openPopup`/`openMenu`
