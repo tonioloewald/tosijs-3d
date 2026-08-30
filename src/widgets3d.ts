@@ -226,6 +226,44 @@ const sceneEl = b3d(
 preview.append(sceneEl)
 ```
 
+## Widget reference
+
+Every widget's options in one place. This table is the fix for tosijs-3d#50:
+`slider3d` has always had `step` — it quantises the drag *and* the reported
+value — but nothing documented it, so a consumer generating panels from a JSON
+Schema reasonably concluded sliders were continuous and turned their snap
+settings into `select3d` cyclers to get discrete values.
+
+| widget | option | default | notes |
+| --- | --- | --- | --- |
+| `panel3d` | `width` | `360` | |
+| | `height` | `'fit'` | a number to fix it; `'fit'` sizes to content |
+| | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
+| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
+| | `background` | theme `panelBg` | |
+| `row3d` | `weights` | equal | proportional shares of the post-gap width |
+| | `align` | `'middle'` | `top` / `middle` / `bottom` |
+| | `gap` | `8` | |
+| `slider3d` | `min` / `max` | `0` / `1` | |
+| | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
+| | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
+| | `format` | step-derived | `(v) => string` — units, precision |
+| `toggle3d` | `label` / `value` | | |
+| `select3d` | `options` | | cycles; a popup select is coming (#37 item 4) |
+| `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
+| | `placeholder` / `value` / `height` / `fontSize` | | |
+| `list3d` | `items` / `onSelect` | | |
+| `button3d` | `label` / `onClick` | | |
+| `iconBar3d` | `items` | | `{icon, onClick}` |
+
+**On a panel** (not options — methods on the returned element):
+`measure()` → `{content, viewport, overflow, fits}`, `openPopup(config, …widgets)`,
+`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`.
+
+**On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
+protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
+several of them — exclusivity, commit-on-leave and keyboard layout.
+
 ## Theming
 
 Widget colours, font, and weights are driven by `--w3d-*` CSS variables with

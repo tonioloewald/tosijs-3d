@@ -364,6 +364,15 @@ export interface InputField extends Widget3d {
   onFocus?: () => void
 }
 
+/**
+ * Pixels of travel before a press becomes a scrub rather than a caret placement.
+ *
+ * Small, but not zero: a tap on a touchscreen or an XR ray always drifts a
+ * pixel or two, and treating that as a scrub would make the field impossible to
+ * click into.
+ */
+const SCRUB_SLOP = 3
+
 export interface InputFieldOptions {
   value?: string
   placeholder?: string
@@ -375,6 +384,21 @@ export interface InputFieldOptions {
    * — the host's hook for exclusivity (dim the others) and for summoning the
    * keyboard overlay. */
   onFocus?: () => void
+  /**
+   * Drag across a numeric field to change its value ("scrub"), in units per
+   * pixel. `0` (default) disables it.
+   *
+   * ensemble asked for "a number you can drag OR type" (tosijs-3d#50). Since a
+   * typed field already knows it is numeric, scrubbing belongs here rather than
+   * in a separate control — otherwise every numeric widget needs its own copy
+   * of parse, format and commit.
+   */
+  scrub?: number
+  /** Quantise a scrub (and a commit) to this. `0` = free. */
+  step?: number
+  /** Clamp a scrubbed value. */
+  min?: number
+  max?: number
   /**
    * What this field holds — the same idea as HTML's `inputmode`.
    *
@@ -493,6 +517,37 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   field is what knows its own type.
   */
   let lastGood = commitValueForType(config.value ?? '', fieldType) ?? ''
+  let scrubFrom = 0
+  let scrubBase = NaN
+  let scrubbing = false
+  /**
+   * Quantise and clamp a scrubbed value, then render it at the step's own
+   * precision — a scrub that produced `2.7000000000000006` would be technically
+   * right and useless to read.
+   */
+  const formatScrub = (raw: number): string => {
+    const step = config.step ?? 0
+    let v = step > 0 ? Math.round(raw / step) * step : raw
+    if (config.min != null) v = Math.max(config.min, v)
+    if (config.max != null) v = Math.min(config.max, v)
+    if (fieldType === 'integer') v = Math.round(v)
+    /*
+    Decimals come from the STEP'S OWN precision, not from a log.
+
+    `ceil(-log10(0.25))` is 1, so a correctly-quantised 1.25 was rendered as
+    "1.3" — the formatting silently un-did the quantisation, and a grid step of
+    0.25 was the exact case ensemble asked for. Reading the digits off the step
+    is right for every step anyone writes by hand (0.25, 22.5, 0.125).
+    */
+    const decimals = (n: number): number => {
+      const [, frac] = String(n).split('.')
+      // Exponent form (1e-7) has no fractional digits to count; fall back to
+      // printing the number as-is rather than rounding it to an integer.
+      return String(n).includes('e') ? -1 : frac?.length ?? 0
+    }
+    const dp = step > 0 ? decimals(step) : -1
+    return dp >= 0 ? v.toFixed(dp) : String(v)
+  }
   let width = 0
   let focused = false
   const activate = (): void => {
@@ -621,9 +676,34 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       return H
     },
     handle(kind: PointerKind, x: number) {
+      /*
+      DRAG TO SCRUB, TAP TO TYPE — and the difference is a threshold, not a mode.
+
+      A press that never moves places the caret, which is what a text field must
+      do; a press that travels scrubs. Deciding on movement rather than on a
+      modifier or a separate hit zone means the two never have to be aimed at
+      differently, which matters most in XR where aiming is the expensive part.
+      */
       if (kind === 'down') {
+        scrubFrom = x
+        scrubBase = Number(state.text)
+        scrubbing = false
         activate()
         change(moveTo(state, indexAtX(x)))
+        return
+      }
+      const canScrub = (config.scrub ?? 0) > 0 && Number.isFinite(scrubBase)
+      if (kind === 'move' && canScrub) {
+        const dx = x - scrubFrom
+        if (!scrubbing && Math.abs(dx) < SCRUB_SLOP) return
+        scrubbing = true
+        const raw = scrubBase + dx * (config.scrub as number)
+        change(edit(formatScrub(raw)))
+        return
+      }
+      if (kind === 'up' && scrubbing) {
+        scrubbing = false
+        commitField()
       }
     },
     insert(str: string) {

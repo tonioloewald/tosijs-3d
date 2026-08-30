@@ -10,6 +10,21 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **Numeric fields scrub** — `inputField({type:'number', scrub, step, min, max})`
+  drags to adjust and clicks to type (tosijs-3d#50). Scrubbing lives on the
+  field rather than in a separate control because a typed field already knows it
+  is numeric; otherwise every numeric widget needs its own copy of parse, format
+  and commit.
+
+  **Tap versus drag is a distance, not a mode** — a press that never travels
+  places the caret, one that moves scrubs. No modifier and no separate hit zone,
+  which matters most in XR where aiming is the expensive part.
+
+- **`slider3d`'s `step` is documented** — it always quantised the drag _and_ the
+  reported value, but nothing said so, so a consumer generating panels from JSON
+  Schema concluded sliders were continuous and turned snap settings into
+  cyclers. There is now a **widget reference table** covering every widget's
+  options, plus the methods on a panel and a field.
 - **⚠️ `b3dWater`'s normal map is now PROCEDURAL by default** (tosijs-3d#46).
   It defaulted to `/waterbump.png` — a file that ships in this repo's `static/`
   and **not in the published package** — so every consumer taking the default

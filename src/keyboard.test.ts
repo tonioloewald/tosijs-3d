@@ -868,3 +868,77 @@ describe('fieldGroup — the bookkeeping every host was writing (#37 items 1, 7)
     expect(name.value).toBe('')
   })
 })
+
+describe('numeric scrub — drag OR type, one control (#50)', () => {
+  const drag = (f: any, from: number, to: number) => {
+    f.handle('down', from, 20)
+    f.handle('move', to, 20)
+    f.handle('up', to, 20)
+  }
+
+  test('dragging changes the value', () => {
+    const f = K.inputField({ type: 'number', value: '10', scrub: 0.1 })
+    drag(f, 100, 200)
+    expect(Number(f.value)).toBeCloseTo(20, 6)
+  })
+
+  test('a TAP still places the caret rather than scrubbing', () => {
+    // The whole design: the difference is travel, not a mode or a hit zone —
+    // so the two never need to be aimed at differently.
+    const f = K.inputField({ type: 'number', value: '10', scrub: 0.1 })
+    f.handle('down', 100, 20)
+    f.handle('move', 101, 20) // within the slop
+    f.handle('up', 101, 20)
+    expect(f.value).toBe('10')
+  })
+
+  test('step quantises the scrub', () => {
+    const f = K.inputField({
+      type: 'number',
+      value: '0',
+      scrub: 0.01,
+      step: 0.25,
+    })
+    drag(f, 0, 137)
+    const v = Number(f.value)
+    expect(Math.abs(v / 0.25 - Math.round(v / 0.25))).toBeLessThan(1e-9)
+  })
+
+  test('and the text stays READABLE — no 2.7000000000000006', () => {
+    const f = K.inputField({
+      type: 'number',
+      value: '0',
+      scrub: 0.01,
+      step: 0.1,
+    })
+    drag(f, 0, 273)
+    expect(f.value).not.toContain('000000')
+    expect(f.value.split('.')[1]?.length ?? 0).toBeLessThanOrEqual(1)
+  })
+
+  test('min/max clamp a scrub', () => {
+    const f = K.inputField({
+      type: 'number',
+      value: '5',
+      scrub: 1,
+      min: 0,
+      max: 10,
+    })
+    drag(f, 0, 500)
+    expect(Number(f.value)).toBe(10)
+    drag(f, 500, 0)
+    expect(Number(f.value)).toBe(0)
+  })
+
+  test('an integer field scrubs in whole numbers', () => {
+    const f = K.inputField({ type: 'integer', value: '0', scrub: 0.1 })
+    drag(f, 0, 55)
+    expect(Number.isInteger(Number(f.value))).toBe(true)
+  })
+
+  test('scrub is OFF unless asked for — a text field must not change on drag', () => {
+    const f = K.inputField({ type: 'number', value: '10' })
+    drag(f, 100, 300)
+    expect(f.value).toBe('10')
+  })
+})
