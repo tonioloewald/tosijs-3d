@@ -116,6 +116,52 @@ export type KeyboardMode =
   | 'email'
   | 'url'
 
+/** What a physical key press means to a field. */
+export type KeyIntent =
+  | { insert: string }
+  | { action: KeyAction }
+  | { move: -1 | 1 }
+  | null
+
+/**
+ * Translate a DOM key name into a field intent.
+ *
+ * `inputField` deliberately listens to nothing — in a headset the keys come
+ * from the SVG keyboard, not the DOM — but that left every flat host writing
+ * this mapping itself, and a field you can click into that then refuses every
+ * character is a bad first impression (tosijs-3d#37, item 1).
+ *
+ * Takes the key NAME rather than the event, so it is pure and testable without
+ * a DOM. Returns `null` for anything the field should not consume, which
+ * matters: swallowing Tab or a browser shortcut because a text field happened
+ * to be focused is worse than not handling keys at all.
+ */
+export function keyIntent(
+  key: string,
+  mods: { ctrl?: boolean; meta?: boolean; alt?: boolean } = {}
+): KeyIntent {
+  // Never eat a shortcut. Ctrl/Cmd/Alt combinations belong to the browser or
+  // the app, not to whichever field happens to hold focus.
+  if (mods.ctrl || mods.meta || mods.alt) return null
+  switch (key) {
+    case 'Backspace':
+      return { action: 'backspace' }
+    case 'Enter':
+      return { action: 'enter' }
+    case ' ':
+    case 'Spacebar':
+      return { action: 'space' }
+    case 'ArrowLeft':
+      return { move: -1 }
+    case 'ArrowRight':
+      return { move: 1 }
+    default:
+      // A single code point is a character; anything longer is a named key
+      // (Tab, Escape, F5, ArrowUp…) and is none of our business.
+      return [...key].length === 1 ? { insert: key } : null
+  }
+}
+
 /**
  * What a field holds — the same idea as HTML's `inputmode`.
  *

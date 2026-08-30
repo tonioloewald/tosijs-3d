@@ -10,6 +10,27 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`fieldGroup` — one keyboard, many fields.** Three chores that always travel
+  together and were hand-rolled in every host (tosijs-3d#37, items 1 and 7):
+  **exclusivity** (focusing one un-focuses the rest — two lit fields both
+  claiming the keyboard is worse than none), **commit on leave** (so a
+  half-typed `1.` never survives the move), and **layout** (the incoming field's
+  `type` picks the keyboard mode, which is the point of having a type).
+
+  `handleKey(key, mods)` takes a key NAME rather than an event, so the same
+  routing serves a DOM listener, a synthetic source or a test — and it returns
+  whether the key was consumed, so a host knows when to `preventDefault`.
+  Attaching a real listener stays the host's choice; this library never grabs
+  the document.
+
+- **`keyIntent`** — pure DOM-key → field-intent mapping. Named keys (`Tab`,
+  `Escape`, `F5`) and anything with Ctrl/Cmd/Alt are **not consumed**: swallowing
+  a shortcut because a field happens to have focus is worse than handling no
+  keys at all.
+- **`inputField.onFocus` is settable on the object** (mirroring `onChange`), so
+  a manager learns about focus it did not initiate. Without it a tap and a
+  programmatic focus disagree about who is active, and keys go to the wrong
+  field — silently, and only sometimes.
 - **`inputField` has a `type`** — `'text' | 'number' | 'integer' | 'email' |
 'url' | 'tel'`, HTML's `inputmode` idea. **One property, three jobs**: the
   host raises the matching keyboard layout on focus

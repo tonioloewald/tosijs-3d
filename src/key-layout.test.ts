@@ -5,6 +5,7 @@ import {
   hasAccents,
   isValidForType,
   keyAt,
+  keyIntent,
   keyLayout,
   keyRects,
   keyboardHeight,
@@ -429,5 +430,40 @@ describe('commitValueForType — validity AS AN ANSWER', () => {
 
   test('text passes through untouched', () => {
     expect(commitValueForType('  hi  ', 'text')).toBe('  hi  ')
+  })
+})
+
+describe('keyIntent — a field you can click into must accept characters', () => {
+  test('printable characters insert, including non-ASCII', () => {
+    expect(keyIntent('a')).toEqual({ insert: 'a' })
+    expect(keyIntent('7')).toEqual({ insert: '7' })
+    expect(keyIntent('ö')).toEqual({ insert: 'ö' })
+    expect(keyIntent('é')).toEqual({ insert: 'é' })
+  })
+
+  test('an emoji is ONE code point to a user and must not be split', () => {
+    expect(keyIntent('🙂')).toEqual({ insert: '🙂' })
+  })
+
+  test('editing keys map to actions; arrows move the caret', () => {
+    expect(keyIntent('Backspace')).toEqual({ action: 'backspace' })
+    expect(keyIntent('Enter')).toEqual({ action: 'enter' })
+    expect(keyIntent(' ')).toEqual({ action: 'space' })
+    expect(keyIntent('ArrowLeft')).toEqual({ move: -1 })
+    expect(keyIntent('ArrowRight')).toEqual({ move: 1 })
+  })
+
+  test('NAMED keys are not the field’s business', () => {
+    // Swallowing these because a field has focus is worse than handling no keys
+    // at all — Tab stops traversing, Escape stops closing things.
+    for (const k of ['Tab', 'Escape', 'F5', 'ArrowUp', 'ArrowDown', 'Home']) {
+      expect(keyIntent(k)).toBe(null)
+    }
+  })
+
+  test('MODIFIED keys belong to the browser or the app, never the field', () => {
+    expect(keyIntent('a', { meta: true })).toBe(null)
+    expect(keyIntent('c', { ctrl: true })).toBe(null)
+    expect(keyIntent('r', { meta: true })).toBe(null) // cmd-R must still reload
   })
 })

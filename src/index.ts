@@ -816,3 +816,5 @@ export type { Table, TableRow, TableOptions } from './table'
 
 export { modeForType, isValidForType, commitValueForType } from './key-layout'
 export type { FieldType } from './key-layout'
+
+export { fieldGroup } from './keyboard'

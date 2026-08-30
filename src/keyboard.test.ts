@@ -778,3 +778,93 @@ describe('inputField type — one property, three jobs (#37)', () => {
     expect(f.commit()).toBe('  hi  ')
   })
 })
+
+describe('fieldGroup — the bookkeeping every host was writing (#37 items 1, 7)', () => {
+  const setup = () => {
+    const modes: string[] = []
+    const name = K.inputField({ type: 'text' })
+    const age = K.inputField({ type: 'number', value: '30' })
+    const group = K.fieldGroup({
+      fields: [name, age],
+      keyboard: { setMode: (m) => modes.push(m) },
+    })
+    return { name, age, group, modes }
+  }
+
+  test('EXCLUSIVITY: focusing one field un-focuses the rest', () => {
+    const { name, age, group } = setup()
+    group.focus(name)
+    expect(group.active).toBe(name)
+    group.focus(age)
+    expect(group.active).toBe(age)
+    // two lit fields both claiming the keyboard is worse than none
+    group.handleKey('7')
+    expect(name.value).toBe('')
+  })
+
+  test('the incoming field chooses the LAYOUT — the point of having a type', () => {
+    const { name, age, group, modes } = setup()
+    group.focus(name)
+    group.focus(age)
+    expect(modes).toEqual(['alpha', 'numpad'])
+  })
+
+  test('COMMIT ON LEAVE: a half-typed value never survives the move', () => {
+    const { name, age, group } = setup()
+    group.focus(age)
+    age.setValue('1.')
+    group.focus(name)
+    expect(age.value).toBe('1')
+  })
+
+  test('and gibberish is restored rather than carried away', () => {
+    const { name, age, group } = setup()
+    group.focus(age)
+    age.setValue('nope')
+    group.focus(name)
+    expect(age.value).toBe('30')
+  })
+
+  test('keys reach the active field, and report whether they were consumed', () => {
+    const { name, group } = setup()
+    group.focus(name)
+    expect(group.handleKey('h')).toBe(true)
+    expect(group.handleKey('i')).toBe(true)
+    expect(name.value).toBe('hi')
+    expect(group.handleKey('Backspace')).toBe(true)
+    expect(name.value).toBe('h')
+  })
+
+  test('with nothing focused, keys are NOT consumed', () => {
+    // So a page with fields on it still scrolls and traverses normally.
+    const { group } = setup()
+    expect(group.handleKey('a')).toBe(false)
+  })
+
+  test('shortcuts and named keys are never swallowed', () => {
+    const { name, group } = setup()
+    group.focus(name)
+    expect(group.handleKey('r', { meta: true })).toBe(false)
+    expect(group.handleKey('Tab')).toBe(false)
+    expect(name.value).toBe('')
+  })
+
+  test('blur commits too — an abandoned edit still settles', () => {
+    const { age, group } = setup()
+    group.focus(age)
+    age.setValue('007')
+    group.blur()
+    expect(age.value).toBe('7')
+    expect(group.active).toBe(null)
+  })
+
+  test('a TAPPED field becomes active, agreeing with programmatic focus', () => {
+    // If a tap did not register here, the keys would go to whichever field was
+    // focused last by code — silently, and only sometimes.
+    const { name, age, group } = setup()
+    group.focus(name)
+    age.setActive(true) // simulates the field reporting its own focus
+    group.handleKey('5')
+    expect(name.value).toBe('')
+  })
+})

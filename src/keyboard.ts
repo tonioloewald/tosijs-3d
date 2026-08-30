@@ -259,6 +259,7 @@ import {
   type KeyboardMode,
   type KeyAction,
   type KeyRect,
+  keyIntent,
   modeForType,
   isValidForType,
   commitValueForType,
@@ -351,6 +352,16 @@ export interface InputField extends Widget3d {
   }) => void
   /** Called whenever the text changes. */
   onChange?: (value: string) => void
+  /**
+   * Called whenever this field becomes the receiver — by tap, D-pad arrival or
+   * `setActive(true)`.
+   *
+   * Settable on the OBJECT as well as via config, mirroring `onChange`, so a
+   * manager can learn about focus it did not initiate. Without it a tap and a
+   * programmatic focus disagree about who is active, and keys go to the wrong
+   * field — silently, and only sometimes.
+   */
+  onFocus?: () => void
 }
 
 export interface InputFieldOptions {
@@ -374,6 +385,95 @@ export interface InputFieldOptions {
    * configured (tosijs-3d#37, item 2).
    */
   type?: FieldType
+}
+
+/**
+ * **One keyboard, many fields.** Owns which field is receiving, so hosts stop
+ * doing it by hand.
+ *
+ * Three jobs that always travel together, and were three separate chores in
+ * every consumer (tosijs-3d#37, items 1 and 7):
+ *
+ * - **Exclusivity.** Focusing one field un-focuses the rest. Two lit fields
+ *   both claiming the keyboard is worse than none, because the caret is
+ *   somewhere you are not looking.
+ * - **Commit on leave.** The field you are leaving settles, so a half-typed
+ *   `1.` or `-` never survives as a value. Nobody remembers to do this by hand
+ *   until they find a `NaN` in a document.
+ * - **Layout.** The incoming field's `type` chooses the keyboard mode, which is
+ *   the whole point of having a type — a numeric field raising the numpad
+ *   without anyone asking.
+ *
+ * `handleKey` takes a key NAME plus modifiers rather than an event, so the same
+ * routing works from a DOM listener, a synthetic source, or a test. Attaching a
+ * real listener stays the host's choice: this library never grabs the document.
+ */
+export function fieldGroup(config: {
+  fields: InputField[]
+  /** Told which layout to show when focus moves. Any object with `setMode`. */
+  keyboard?: { setMode: (m: KeyboardMode) => void }
+}): {
+  readonly active: InputField | null
+  focus: (field: InputField | null) => void
+  /** Route a key. Returns whether it was consumed — so a host can `preventDefault`. */
+  handleKey: (
+    key: string,
+    mods?: { ctrl?: boolean; meta?: boolean; alt?: boolean }
+  ) => boolean
+  /** Commit and un-focus whatever is active. */
+  blur: () => void
+} {
+  let active: InputField | null = null
+
+  const focus = (field: InputField | null): void => {
+    if (field === active) return
+    const leaving = active
+    /*
+    Claim `active` BEFORE touching the fields.
+
+    `setActive(true)` makes a field announce its own focus, which routes back
+    here — so with the assignment at the end, the re-entrant call still saw the
+    old value, recursed, and ran the whole body twice (the keyboard mode was set
+    twice per focus change, which a listener counting mode changes would see as
+    a flicker). Claiming first makes re-entry hit the guard above and return.
+    */
+    active = field
+    // Settle the outgoing field before the incoming one lights up, so a refused
+    // value is restored while the eye is still on it.
+    leaving?.commit()
+    for (const f of config.fields) f.setActive(f === field)
+    if (field) config.keyboard?.setMode(field.keyboardMode)
+  }
+
+  // A field can also be focused by being TAPPED, which the field reports and the
+  // group must not miss — otherwise a tap and a programmatic focus disagree
+  // about who is active, and the keys go to the wrong one.
+  for (const f of config.fields) {
+    const prior = f.onFocus
+    f.onFocus = () => {
+      prior?.()
+      focus(f)
+    }
+  }
+
+  return {
+    get active() {
+      return active
+    },
+    focus,
+    blur() {
+      focus(null)
+    },
+    handleKey(key, mods = {}) {
+      if (!active) return false
+      const intent = keyIntent(key, mods)
+      if (intent == null) return false
+      if ('insert' in intent) active.insert(intent.insert)
+      else if ('action' in intent) active.action(intent.action)
+      else active.moveCaret(intent.move)
+      return true
+    },
+  }
 }
 
 export function inputField(config: InputFieldOptions = {}): InputField {
@@ -400,6 +500,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     focused = true
     paintRef()
     config.onFocus?.()
+    api.onFocus?.()
   }
   // paint() is defined below; route through a ref so activate can be declared
   // here beside the state it guards.
