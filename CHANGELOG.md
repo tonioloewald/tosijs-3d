@@ -10,6 +10,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **20 more icons**, for the ensemble editor: `mousePointer`, `refreshCcw`/`Cw`,
+  `move`, `copy`, `delete`, `trash`/`trash2`, `plus`/`plusCircle`,
+  `rotateCw`/`Ccw`, and the complete `corner*` family (8). 61 total.
 - **`fieldGroup` — one keyboard, many fields.** Three chores that always travel
   together and were hand-rolled in every host (tosijs-3d#37, items 1 and 7):
   **exclusivity** (focusing one un-focuses the rest — two lit fields both

@@ -162,30 +162,20 @@
   Depends on `row3d` (shipped) for the row axis, and should report its height
   through the same `layout(width)` contract so `panel.measure()` keeps working.
 
-- **Icons for the ensemble editor — check before adding: they may already be
-  there.** Wanted: `mousePointer`, `refreshCcw`/`refreshCw`, `move`, `resize`,
-  `copy`, `delete`/`trash`/`trash2`, `plus`, `plusCircle`, `cornerUpLeft` (plus
-  aliases for the rest of that family), and more as ensemble grows.
+- **More icons as ensemble grows** — the first batch is DONE (20 copied from
+  tosijs-ui: `mousePointer`, `refreshCcw`/`Cw`, `move`, `copy`, `delete`,
+  `trash`/`trash2`, `plus`/`plusCircle`, `rotateCw`/`Ccw`, and the whole
+  `corner*` family). `resize` we already had. 61 icons total.
 
-  **All eleven already exist in `tosijs-ui`'s `icon-data`** — verified. Ours is a
-  separate, deliberately small set (25 feather marks in `icons/stroked/feather`
-  plus four brand/XR marks), and `svgIcons` resolves only against _our_
-  `icon-data`, so those names are unreachable from here today.
+  Method for next time: they are all in `tosijs-ui`'s `icon-data` (314 marks) —
+  extract the ones wanted into `icons/stroked/*.svg` and rerun `bun run icons`.
+  Two minutes, no drawing. `feather-icons` is NOT installed, so that is not the
+  source despite the folder name.
 
-  So the question is not "draw eleven icons" but **which set should
-  `svgIcons` resolve against**:
-
-  1. copy the eleven SVGs into `icons/stroked/feather` and rerun `bun run icons`
-     — trivial, but starts a divergent duplicate of an upstream set that will
-     drift;
-  2. have `svgIcons` **fall back** to tosijs-ui's `icons` for names we do not
-     define — one lookup, no duplication, and every future ensemble request is
-     already satisfied. Our set becomes "the marks tosijs-ui does not have"
-     rather than "all the marks we use".
-
-  (2) looks right and is barely more work, but it makes tosijs-ui's icon set a
-  load-bearing dependency of ours — worth a moment's thought before committing,
-  since we already keep tosijs-ui a peer rather than a hard dep.
+  The standing question stays open: at some point `svgIcons` falling back to
+  tosijs-ui's set beats copying, since copying quietly forks an upstream set.
+  Not urgent while the list is short, and it would make tosijs-ui's icons
+  load-bearing for a package that deliberately keeps it a peer.
 
 ## The queue
 
