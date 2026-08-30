@@ -131,6 +131,62 @@
   seam — that last one is structural, not a widget: `panel3d` returns a bare
   `SVGSVGElement` while `openPopup`/`openMenu` need a `Surface`.
 
+- **`iconGrid3d` — one control for segmented select, tool palette and mode
+  picker.** Tonio's design; the goal is to collapse three widgets and a lot of
+  panel clutter into one.
+
+  A grid of icons with optional text hints above or below. **The consumer
+  decides what it MEANS** — button bar (fire and forget), radio set (one of N),
+  or checkboxes (any of N) — and can supply a callback that intercepts a change
+  to impose something more particular (mutually-exclusive subgroups, a mode that
+  refuses to turn off, a tool that arms rather than toggles). The control owns
+  layout, hit-testing and focus; it does not own the semantics.
+
+  Named targets: the standard panel's buttons, ensemble's tool palettes, and
+  "many other cases where we have clutter".
+
+  **Sizing.** Default 4 columns and as deep as needed; wider when the consumer
+  opts out of captions, since the caption is what forces a narrow column. Cell
+  size is the real dial — Tonio: _"maybe it's based on the cell size, and that
+  might default to 48px (touch size) or 24px (decent click target) or even be
+  automatic based on whether we know if the user is using touch or a pointing
+  device."_
+
+  Worth doing the automatic version: 48 px is the touch minimum and 24 px is
+  fine for a mouse, but **XR is a third case and the largest** — a controller ray
+  at arm's length is less precise than a fingertip, so an in-scene panel wants
+  the touch size or more, not the pointer size. We already know which we are in
+  (`owner.xrActive`), and `perf-probe` already tiers the device, so the signal
+  exists. Guessing from `pointer: coarse` alone would get headsets wrong.
+
+  Depends on `row3d` (shipped) for the row axis, and should report its height
+  through the same `layout(width)` contract so `panel.measure()` keeps working.
+
+- **Icons for the ensemble editor — check before adding: they may already be
+  there.** Wanted: `mousePointer`, `refreshCcw`/`refreshCw`, `move`, `resize`,
+  `copy`, `delete`/`trash`/`trash2`, `plus`, `plusCircle`, `cornerUpLeft` (plus
+  aliases for the rest of that family), and more as ensemble grows.
+
+  **All eleven already exist in `tosijs-ui`'s `icon-data`** — verified. Ours is a
+  separate, deliberately small set (25 feather marks in `icons/stroked/feather`
+  plus four brand/XR marks), and `svgIcons` resolves only against _our_
+  `icon-data`, so those names are unreachable from here today.
+
+  So the question is not "draw eleven icons" but **which set should
+  `svgIcons` resolve against**:
+
+  1. copy the eleven SVGs into `icons/stroked/feather` and rerun `bun run icons`
+     — trivial, but starts a divergent duplicate of an upstream set that will
+     drift;
+  2. have `svgIcons` **fall back** to tosijs-ui's `icons` for names we do not
+     define — one lookup, no duplication, and every future ensemble request is
+     already satisfied. Our set becomes "the marks tosijs-ui does not have"
+     rather than "all the marks we use".
+
+  (2) looks right and is barely more work, but it makes tosijs-ui's icon set a
+  load-bearing dependency of ours — worth a moment's thought before committing,
+  since we already keep tosijs-ui a peer rather than a hard dep.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
