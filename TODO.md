@@ -152,12 +152,22 @@
   automatic based on whether we know if the user is using touch or a pointing
   device."_
 
-  Worth doing the automatic version: 48 px is the touch minimum and 24 px is
-  fine for a mouse, but **XR is a third case and the largest** — a controller ray
-  at arm's length is less precise than a fingertip, so an in-scene panel wants
-  the touch size or more, not the pointer size. We already know which we are in
-  (`owner.xrActive`), and `perf-probe` already tiers the device, so the signal
-  exists. Guessing from `pointer: coarse` alone would get headsets wrong.
+  **XR is NOT a third size.** My first note here said it was — that a
+  controller ray is imprecise so in-scene targets should be bigger. Tonio
+  overruled it, and the reasoning is better: _"we shouldn't make special size
+  allowances for XR UI targets, we should scale XR so that pointer or touch
+  targets make sense, since XR users also need to be able to read stuff."_
+
+  Enlarging the targets in UI units makes the TEXT relatively smaller — the
+  glyphs stay put while the buttons grow around them — so you buy hit accuracy
+  by making the panel harder to read, which is the wrong trade for the medium
+  with the lowest effective resolution. Scaling the whole panel in world space
+  moves both together: a 48 px target subtends a comfortable angle and the text
+  that goes with it is legible for the same reason.
+
+  So the cell size stays a two-case decision (touch/pointer), and **XR is a
+  transform on the panel, not a variant of it** — which also keeps one UI with
+  two presentations rather than two layouts to keep in sync.
 
   Depends on `row3d` (shipped) for the row axis, and should report its height
   through the same `layout(width)` contract so `panel.measure()` keeps working.
@@ -233,9 +243,22 @@
   So a picker wired to a material should expect the surface to change
   behaviour, not just hue, and `1.0` versus `0.999` is a real cliff.
 
-  Still open: whether the value round-trips as a string or a colour object, and
-  whether it needs an eyedropper — which in a SCENE means picking from the
-  rendered framebuffer, a genuinely different feature wearing the same word.
+  **An eyedropper is wanted** (Tonio: _"totally doable given we can render the
+  viewport very easily"_), and he is right that the hard part is already built.
+  `b3d.snapshot()` renders through an RTT, so sampling is `readPixels` on that
+  target plus a pointer position — no new rendering path.
+
+  Two things to get right, because an eyedropper that lies is worse than none:
+
+  - **It samples the RENDERED pixel, not the material colour.** That is the
+    point — you are picking what you can see, which includes lighting, fog and
+    tone mapping. A picker that returned the albedo would disagree with the
+    screen, and the screen is what the user is looking at.
+  - **Which means the value is not the material's value.** Eyedropping a lit
+    surface and assigning the result to that same material will not reproduce
+    it. Worth being explicit in the UI about which one you are taking.
+
+  Still open: whether the value round-trips as a string or a colour object.
 
 ## The queue
 
