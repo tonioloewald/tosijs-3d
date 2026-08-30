@@ -177,6 +177,52 @@
   package that deliberately keeps it a peer, which is a worse trade than a
   little duplication. Copy what is needed, when it is needed.
 
+- **`vector3d` / `euler3d` — one row for a coordinate, not three.** Tonio: so
+  displaying a position or a rotation stops costing three rows. This is the
+  densest single win left in the property panel, since almost everything an
+  editor shows is a triple.
+
+  Built from what now exists: `row3d` for the axis layout, `inputField` with
+  `type: 'number'` per axis. What it adds on top is the part worth getting
+  right:
+
+  - **One shared label, three fields**, with x/y/z hinted rather than labelled
+    — a full label per axis is what makes the three-row version wide as well as
+    tall.
+  - **Traversal across axes.** Right-arrow off the end of x should land in y,
+    not stop. `inputField.focusMove` deliberately consumes horizontal at the
+    ends (so a caret does not leap out of a field), so the vector has to own
+    axis-to-axis movement itself — and `fieldGroup` is the place that already
+    knows about focus moving between fields.
+  - **Commit is per FIELD, not per vector.** Leaving x must settle x; the whole
+    triple should not be rejected because y is mid-edit.
+  - **Euler is DEGREES**, per CLAUDE.md's angle convention — and the `Deg`
+    suffix rule means the display name carries no suffix precisely because it
+    is already degrees. A radians-valued rotation field would be a bug.
+  - Optional per-axis drag-to-scrub, which is how every 3D tool edits a
+    coordinate. Cheap here because the pointer model is already coordinate-based.
+
+- **Colour picker — HSV, with customisable swatches.** Tonio's ask; a popup is
+  inherent to it.
+
+  **Blocked on #37 item 4**, the last unresolved form-layer item: `panel3d`
+  returns a bare `SVGSVGElement` while `openPopup`/`openMenu` want a `Surface`,
+  so a control inside a panel currently has nowhere to put a popup. A colour
+  picker is the second consumer of that seam (a real `select` is the first),
+  which is a good argument for resolving the seam rather than special-casing
+  either.
+
+  Shape: HSV by default — a saturation/value square plus a hue strip is
+  straightforward in SVG and is what people expect from a picker, whereas HSL
+  makes "same colour, brighter" harder to find. Swatches alongside, consumer
+  supplied, defaulting to a decent set.
+
+  Open questions worth deciding before building: **alpha or not** (materials
+  want it, most UI colours do not), whether the value round-trips as hex or as
+  a colour object, and whether it needs an eyedropper — which in a SCENE means
+  picking from the rendered framebuffer, a genuinely different feature and
+  probably a separate one.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
