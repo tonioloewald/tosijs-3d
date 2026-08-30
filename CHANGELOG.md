@@ -10,6 +10,24 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **The SVG UI is themeable** — 21 tokens, up from 17. Added `focus`,
+  `selectedBg`, `disabledBg`, `disabledText`, `strokeWidth`, `roundedRadius`,
+  `spacing`, `lineHeight`, `codeFontFamily`, `codeFontWeight`, plus `overlay`,
+  `divider`, `placeholder` and `caret`.
+
+  **`setW3dTheme(partial)` overrides at runtime.** The `--w3d-*` variables are
+  read once at load and deliberately so — an SVG destined for a texture is
+  serialised away from the document, where `var(--w3d-text)` resolves against
+  nothing and paints black. This is the way back in, and what a theme editor
+  needs. Widgets read the theme when they are **built**, so rebuild them after
+  calling it; a widget that re-read its colours would have to re-resolve them
+  per rasterised texture, which is the cost this design exists to avoid.
+
+  The four interaction states (`rowHover`, `focus`, `selectedBg`, `disabledBg`)
+  are separate tokens because they must stay tellable apart — `focus` is a
+  **stroke** rather than a fill, since a focus ring has to be visible on a
+  hovered row _and_ a selected one. Live demo on the `w3d-theme` page.
+
 - **20 more icons**, for the ensemble editor: `mousePointer`, `refreshCcw`/`Cw`,
   `move`, `copy`, `delete`, `trash`/`trash2`, `plus`/`plusCircle`,
   `rotateCw`/`Ccw`, and the complete `corner*` family (8). 61 total.

@@ -1224,8 +1224,8 @@ export function panel3d(
     y: 0,
     width,
     height,
-    rx: 14,
-    ry: 14,
+    rx: w3dTheme.roundedRadius * 2,
+    ry: w3dTheme.roundedRadius * 2,
     fill: config.background ?? PANEL_BG,
   })
 

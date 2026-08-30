@@ -14,6 +14,67 @@ paints black. Reading the computed value at load and baking the literal into
 the SVG is what makes the same markup render identically in the DOM and on a
 plane. The cost: the theme is not live-reactive to later JS changes — restyle
 before the bundle loads (tosijs's `vars`/`StyleSheet` at startup is fine).
+
+## Demo
+
+Every token, live. Move a slider or pick a colour and the panel rebuilds —
+which is the point: the theme is read when a widget is BUILT, so a theme editor
+rebuilds rather than repaints. (See `setW3dTheme` below for why it works that
+way.)
+
+```js
+import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, select3d,
+         setW3dTheme, w3dTheme } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div, label, input } = elements
+
+const swatches = {
+  text: '#f0f0f0', accent: '#39c5ff', panelBg: 'rgba(20,22,28,0.94)',
+  rowHover: 'rgba(255,255,255,0.13)', focus: '#39c5ff',
+  selectedBg: 'rgba(57,197,255,0.18)', disabledBg: 'rgba(255,255,255,0.03)',
+}
+
+const host = div({ style: 'display:flex; gap:24px; padding:16px; background:#0c0e14' })
+const build = () => {
+  const p = panel3d(
+    { width: 320 },
+    label3d({ text: 'Themed panel' }),
+    row3d({ weights: [1, 2] }, label3d({ text: 'accent' }),
+      slider3d({ value: 0.6, showValue: 'always' })),
+    toggle3d({ label: 'a toggle' }),
+    select3d({ label: 'mode', value: 'one', options: ['one', 'two'] }),
+    button3d({ label: 'A button' }),
+  )
+  const old = host.querySelector('svg')
+  if (old) old.replaceWith(p); else host.append(p)
+}
+
+// One control per colour token — rebuild on change, since widgets bake their
+// colours at construction.
+const controls = div({ style: 'display:grid; gap:6px; color:#ccc; font:13px system-ui' })
+for (const [key, initial] of Object.entries(swatches)) {
+  const field = input({
+    type: initial.startsWith('#') ? 'color' : 'text',
+    value: initial,
+    style: 'width:170px',
+    onInput(evt) { setW3dTheme({ [key]: evt.target.value }); build() },
+  })
+  controls.append(label({ style: 'display:flex; gap:8px; justify-content:space-between' }, key, field))
+}
+for (const [key, min, max, step] of [['roundedRadius', 0, 20, 1], ['spacing', 0, 24, 1], ['strokeWidth', 0.5, 6, 0.5]]) {
+  const field = input({
+    type: 'range', min, max, step, value: String(w3dTheme[key]),
+    onInput(evt) { setW3dTheme({ [key]: Number(evt.target.value) }); build() },
+  })
+  controls.append(label({ style: 'display:flex; gap:8px; justify-content:space-between' }, key, field))
+}
+
+build()
+preview.append(host, controls)
+```
+```css
+tosi-example .preview { background: #0c0e14; }
+```
 */
 /*{ "parent": "UI", "order": 900 }*/
 
@@ -65,4 +126,87 @@ export const w3dTheme = {
   info: cssVar('--w3d-info', '#1d4e6b'),
   warning: cssVar('--w3d-warning', '#6b4a17'),
   error: cssVar('--w3d-error', '#6b2323'),
-} as const
+
+  /*
+  INTERACTION STATES — hover, focus, selected, disabled.
+
+  Four states that must stay TELLABLE APART, which is the whole reason they are
+  separate tokens rather than one "highlight". See UI-DESIGN-NOTES: selection is
+  drawn as an ICON precisely so it does not compete with hover and focus for
+  intensity; these give the same discipline to the surfaces underneath.
+
+  `focus` is a stroke, not a fill — a focus ring has to be visible ON a hovered
+  row and ON a selected one, so it cannot be another background or it
+  disappears exactly when it is needed.
+  */
+  focus: cssVar('--w3d-focus', '#39c5ff'),
+  selectedBg: cssVar('--w3d-selected-bg', 'rgba(57,197,255,0.18)'),
+  disabledBg: cssVar('--w3d-disabled-bg', 'rgba(255,255,255,0.03)'),
+  /*
+  Disabled needs its own TEXT colour too, not just a background. Dimming only
+  the surface leaves full-strength text on it, which reads as enabled — the
+  label is what people look at.
+  */
+  disabledText: cssVar('--w3d-disabled-text', '#5c6270'),
+
+  /*
+  SHAPE AND RHYTHM.
+
+  These were literals scattered across the widgets — `rx: 6` in seven places,
+  `rx: 8` in four, `rx: 14` for the panel — which is how a rounded corner ends
+  up subtly different in one widget only. Same failure the colour table was
+  created to stop.
+  */
+  strokeWidth: parseFloat(cssVar('--w3d-stroke-width', '2')) || 2,
+  roundedRadius: parseFloat(cssVar('--w3d-rounded-radius', '6')) || 6,
+  spacing: parseFloat(cssVar('--w3d-spacing', '8')) || 8,
+  lineHeight: parseFloat(cssVar('--w3d-line-height', '1.35')) || 1.35,
+
+  /*
+  CODE FACE — separate from the UI face on purpose.
+
+  A value you have to read character by character (a hex, a path, an id) wants
+  a monospace face even when the surrounding UI does not, and inheriting the UI
+  weight makes code look bolder than it is at small sizes.
+  */
+  codeFontFamily: cssVar(
+    '--w3d-code-font-family',
+    'ui-monospace, SFMono-Regular, Menlo, monospace'
+  ),
+  codeFontWeight: cssVar('--w3d-code-font-weight', '400'),
+
+  /*
+  Surfaces a popup needs and a panel does not: something to sit ON (`overlay`,
+  the scrim that makes a modal modal) and something to separate rows with
+  (`divider`) without drawing a full-strength line.
+  */
+  overlay: cssVar('--w3d-overlay', 'rgba(0,0,0,0.5)'),
+  divider: cssVar('--w3d-divider', 'rgba(255,255,255,0.10)'),
+  /** Placeholder and caret — the two field colours that were literals. */
+  placeholder: cssVar('--w3d-placeholder', '#6b7280'),
+  caret: cssVar('--w3d-caret', '#39c5ff'),
+}
+
+export type W3dTheme = typeof w3dTheme
+
+/**
+ * **Override the theme at runtime.**
+ *
+ * The `--w3d-*` variables are read ONCE at load, and deliberately so: an SVG
+ * destined to be rasterised onto a texture is serialised away from the
+ * document, where `var(--w3d-text)` resolves against nothing and paints black.
+ * Baking literals is what makes the same widget work in the DOM and in a scene.
+ *
+ * The cost of that is no live cascade — restyling the page after load changes
+ * nothing. This is the way back in, and it is what a theme editor (or the demo
+ * below) needs.
+ *
+ * **Widgets read the theme when they are BUILT**, so existing ones do not
+ * repaint. Rebuild them after calling this. That is a real constraint rather
+ * than an oversight: a widget that re-read its colours every frame would have
+ * to re-resolve them per rasterised texture too, which is the cost this design
+ * exists to avoid.
+ */
+export function setW3dTheme(partial: Partial<W3dTheme>): void {
+  Object.assign(w3dTheme, partial)
+}

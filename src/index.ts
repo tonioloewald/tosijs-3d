@@ -818,3 +818,5 @@ export { modeForType, isValidForType, commitValueForType } from './key-layout'
 export type { FieldType } from './key-layout'
 
 export { fieldGroup } from './keyboard'
+export { w3dTheme, setW3dTheme } from './w3d-theme'
+export type { W3dTheme } from './w3d-theme'

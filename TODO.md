@@ -172,10 +172,10 @@
   Two minutes, no drawing. `feather-icons` is NOT installed, so that is not the
   source despite the folder name.
 
-  The standing question stays open: at some point `svgIcons` falling back to
-  tosijs-ui's set beats copying, since copying quietly forks an upstream set.
-  Not urgent while the list is short, and it would make tosijs-ui's icons
-  load-bearing for a package that deliberately keeps it a peer.
+  **Settled: keep copying.** Tonio — _"we don't want tosijs-ui to be a
+  dependency (for now)."_ A fallback would make its icon set load-bearing for a
+  package that deliberately keeps it a peer, which is a worse trade than a
+  little duplication. Copy what is needed, when it is needed.
 
 ## The queue
 
