@@ -162,6 +162,31 @@ export default defineSiteConfig({
   },
 
   prebuild: async () => {
-    await $`cp node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js static/jolt-physics.wasm-compat.js`
+    /*
+    COPY ONLY IF IT CHANGED — an unconditional `cp` is a rebuild loop.
+
+    Since tosijs-ui 1.12.5 the dev server WATCHES `staticDirs` (the fix for
+    tosijs-ui#110, which we asked for). This prebuild writes into `static/`, so
+    an unconditional copy touched a watched file on every build, which triggered
+    the next build, which copied again — 30 rebuilds back to back before the
+    server's loop detector stopped it. A build that writes a file it also
+    watches never stops on its own.
+
+    Comparing bytes first makes the copy idempotent, so the steady state writes
+    nothing and the watcher stays quiet. That is better than adding the file to
+    an ignore list: an ignore would hide this instance and leave the next one to
+    be discovered the same way.
+    */
+    const from = 'node_modules/jolt-physics/dist/jolt-physics.wasm-compat.js'
+    const to = 'static/jolt-physics.wasm-compat.js'
+    const src = await Bun.file(from).arrayBuffer()
+    const dst = await Bun.file(to)
+      .arrayBuffer()
+      .catch(() => null)
+    const same =
+      dst != null &&
+      dst.byteLength === src.byteLength &&
+      Buffer.from(dst).equals(Buffer.from(src))
+    if (!same) await Bun.write(to, src)
   },
 })

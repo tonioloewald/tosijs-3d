@@ -258,10 +258,11 @@ server kills theirs. Observed five times in one day: a session would start clean
 other side looks exactly like the idle-timeout zombie (tosijs-ui#91) and wastes a
 diagnosis every time.
 
-Restart your own server by port, not by pattern:
+**Use `bun run stop`.** It asks the OS what is listening on this project's port
+and signals only that:
 
 ```sh
-kill $(lsof -nP -iTCP:8030 -sTCP:LISTEN -t)   # only the one bound to YOUR port
+bun run stop     # "Stopped dev server on 8030 (pid …)" or "No dev server listening on 8030."
 ```
 
 Ports are not the collision — the pattern is. Sibling checkouts already run on 8032/8042
