@@ -50,7 +50,7 @@
     "prettier": "^2.8.8",
     "tjs-lang": "^0.13.6",
     "tosijs": "^1.8.0",
-    "tosijs-ui": "1.12.4",
+    "tosijs-ui": "^1.12.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1"
   },

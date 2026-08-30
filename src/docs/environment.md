@@ -14,6 +14,7 @@
 - [carve](/carve/)
 - [Carved landforms](/sdf-lattice/)
 - [landform](/landform/)
+- [water-normal](/water-normal/)
 - [ambient-leaves](/ambient-leaves/)
 - [atmosphere](/atmosphere/)
 - [biome-chart](/biome-chart/)

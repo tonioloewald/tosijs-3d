@@ -254,6 +254,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
+- https://3d.tosijs.net/water-normal/ — water-normal
+  field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
 - https://3d.tosijs.net/widget-box/ — widget-box
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d
