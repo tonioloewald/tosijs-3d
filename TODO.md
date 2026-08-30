@@ -217,11 +217,28 @@
   makes "same colour, brighter" harder to find. Swatches alongside, consumer
   supplied, defaulting to a decent set.
 
-  Open questions worth deciding before building: **alpha or not** (materials
-  want it, most UI colours do not), whether the value round-trips as hex or as
-  a colour object, and whether it needs an eyedropper — which in a SCENE means
-  picking from the rendered framebuffer, a genuinely different feature and
-  probably a separate one.
+  **Alpha is required** (Tonio), and "proper" carries more than a fourth
+  slider:
+
+  - **A checkerboard behind the preview and the swatches.** Without it, 50%
+    alpha over a dark panel is indistinguishable from an opaque dark colour —
+    the picker would be lying about the one channel it was asked to support.
+  - **The alpha track must show the colour ramping to transparent**, not a grey
+    gradient, or you cannot see what you are choosing.
+  - **The value has to carry alpha end to end** — `#rrggbbaa` or `rgba()`, and
+    whichever we choose, round-tripping must not silently drop it. Dropping
+    alpha on a save is the classic failure here.
+  - Swatches carry alpha too, so a saved swatch means what it looked like.
+
+  Worth flagging for the 3D case: an alpha below 1 on a MATERIAL is not just a
+  colour, it changes how the thing renders — the loader already gives
+  translucent materials a depth pre-pass, double-siding and shadow exclusion.
+  So a picker wired to a material should expect the surface to change
+  behaviour, not just hue, and `1.0` versus `0.999` is a real cliff.
+
+  Still open: whether the value round-trips as a string or a colour object, and
+  whether it needs an eyedropper — which in a SCENE means picking from the
+  rendered framebuffer, a genuinely different feature wearing the same word.
 
 ## The queue
 
