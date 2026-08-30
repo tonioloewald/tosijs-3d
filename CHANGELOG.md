@@ -10,6 +10,22 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`panel.openPopup()` — a popup is just another panel** (tosijs-3d#37, item
+  4). This was the seam blocking a real `select`, the colour picker, and any
+  in-panel menu: `panel3d` returned a bare `<svg>` while `openPopup`/`openMenu`
+  wanted a `Surface`, so a control inside a panel had nowhere to put its list.
+
+  Nothing new was needed to build one — it is a `panel3d` with `height: 'fit'`
+  placed by `placePopup` (which already flips and clamps). It returns the panel
+  plus **where** it goes; mounting stays the host's job, because that is the
+  part that genuinely differs: flat it is a positioned sibling, in a scene it is
+  another plane. A popup living inside its opener would be clipped by the
+  opener's own viewBox, which is exactly why it has to be its own panel.
+
+  The popup is capped at its bounds, so a long list scrolls rather than growing
+  past the surface it must land on — flipping cannot rescue a popup that is
+  taller than both sides.
+
 - **The SVG UI is themeable** — 21 tokens, up from 17. Added `focus`,
   `selectedBg`, `disabledBg`, `disabledText`, `strokeWidth`, `roundedRadius`,
   `spacing`, `lineHeight`, `codeFontFamily`, `codeFontWeight`, plus `overlay`,

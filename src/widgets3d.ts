@@ -253,6 +253,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 /*{ "parent": "UI", "order": 100 }*/
 
 import { svgElements } from 'tosijs'
+import { placePopup, type PopupSide } from './flow-layout'
 import {
   alignOffset,
   panelFit,
@@ -1389,6 +1390,81 @@ export function panel3d(
   */
   ;(root as unknown as { measure: () => PanelFit }).measure = () =>
     panelFit(total, viewport)
+  /*
+  A POPUP IS JUST ANOTHER PANEL.
+
+  Tonio: "popups need to just be actual panels." That is the same argument
+  popup-surface already makes one level up — a popup is a new SURFACE, not a
+  decoration drawn inside the old one — and it resolves the seam that had a
+  real select, a colour picker and any in-panel menu blocked: `panel3d`
+  returned a bare `<svg>` while `openPopup`/`openMenu` wanted a `Surface`, so a
+  control inside a panel had nowhere to put its list.
+
+  Nothing new is needed to build one. It is a `panel3d` with `height: 'fit'`
+  (so it is exactly as tall as its options) placed by `placePopup` (which
+  already flips and clamps). What this returns is the panel plus WHERE it goes;
+  MOUNTING is deliberately the host's job, because that is the one part that
+  genuinely differs: flat it is a positioned sibling, in a scene it is another
+  plane. A popup that tried to live inside its opener would be clipped by the
+  opener's own viewBox — which is precisely why it has to be its own panel.
+  */
+  ;(
+    root as unknown as {
+      openPopup: (
+        config: {
+          anchor: { x: number; y: number; width: number; height: number }
+          side?: PopupSide
+          width?: number
+          maxHeight?: number
+          /** Space the popup must fit inside. Defaults to the opener's own box. */
+          bounds?: { width: number; height: number }
+        },
+        ...items: Widget3d[]
+      ) => {
+        el: SVGSVGElement
+        x: number
+        y: number
+        side: PopupSide
+        close: () => void
+      }
+    }
+  ).openPopup = (config, ...items) => {
+    const bounds = config.bounds ?? { width, height }
+    const popup = panel3d(
+      {
+        width: config.width ?? Math.min(width, 260),
+        height: 'fit',
+        /*
+        Never taller than the space it has to land in.
+        
+        Without this a popup with many options grows to fit them all and then
+        cannot be placed anywhere — flipping does not help, because both sides
+        are too small, so it just hangs off an edge. Capping at the bounds makes
+        the overflow scroll instead, which it can do for free by being a real
+        panel. Found by a test asserting the neither-side-fits case.
+        */
+        maxHeight: config.maxHeight ?? bounds.height,
+      },
+      ...items
+    )
+    const size = {
+      width: Number(popup.getAttribute('width')),
+      height: Number(popup.getAttribute('height')),
+    }
+    const placed = placePopup(
+      config.anchor,
+      size,
+      bounds,
+      config.side ?? 'below'
+    )
+    return {
+      el: popup,
+      x: placed.x,
+      y: placed.y,
+      side: placed.side,
+      close: () => popup.remove(),
+    }
+  }
 
   root.appendChild(bg)
   root.appendChild(clip)

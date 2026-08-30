@@ -205,12 +205,9 @@
 - **Colour picker — HSV, with customisable swatches.** Tonio's ask; a popup is
   inherent to it.
 
-  **Blocked on #37 item 4**, the last unresolved form-layer item: `panel3d`
-  returns a bare `SVGSVGElement` while `openPopup`/`openMenu` want a `Surface`,
-  so a control inside a panel currently has nowhere to put a popup. A colour
-  picker is the second consumer of that seam (a real `select` is the first),
-  which is a good argument for resolving the seam rather than special-casing
-  either.
+  **The popup seam is now open** — `panel.openPopup()` builds a real panel and
+  tells you where to put it (Tonio: _"popups need to just be actual panels"_).
+  So the picker is unblocked; what remains is the picker itself.
 
   Shape: HSV by default — a saturation/value square plus a hue strip is
   straightforward in SVG and is what people expect from a picker, whereas HSL

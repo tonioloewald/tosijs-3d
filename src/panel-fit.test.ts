@@ -247,3 +247,109 @@ describe('slider3d readout — a handle position is not a number', () => {
     expect(shown).toEqual(['x'])
   })
 })
+
+describe('panel.openPopup — a popup IS a panel (#37 item 4)', () => {
+  const openOn = (panel: SVGSVGElement) =>
+    (
+      panel as unknown as {
+        openPopup: (
+          c: any,
+          ...w: any[]
+        ) => {
+          el: SVGSVGElement
+          x: number
+          y: number
+          side: string
+          close: () => void
+        }
+      }
+    ).openPopup
+
+  test('the popup is a real panel — same contract, so it measures and scrolls', () => {
+    const panel = w3d.panel3d({ width: 320, height: 400 })
+    const pop = openOn(panel)(
+      { anchor: { x: 10, y: 10, width: 100, height: 40 } },
+      ...rows(3)
+    )
+    expect(pop.el.getAttribute('data-w3d')).toBe('panel')
+    expect(measureOf(pop.el).fits).toBe(true)
+  })
+
+  test('it sizes to its options rather than to a guess', () => {
+    const panel = w3d.panel3d({ width: 320, height: 400 })
+    const three = openOn(panel)(
+      { anchor: { x: 0, y: 0, width: 10, height: 10 } },
+      ...rows(3)
+    )
+    const eight = openOn(panel)(
+      { anchor: { x: 0, y: 0, width: 10, height: 10 } },
+      ...rows(8)
+    )
+    expect(Number(eight.el.getAttribute('height'))).toBeGreaterThan(
+      Number(three.el.getAttribute('height'))
+    )
+  })
+
+  test('it FLIPS rather than overflowing the bottom', () => {
+    // The whole reason placePopup exists: a select near the bottom edge must
+    // open upward, not off the panel.
+    const panel = w3d.panel3d({ width: 320, height: 400 })
+    const low = openOn(panel)(
+      { anchor: { x: 10, y: 380, width: 100, height: 20 } },
+      ...rows(3)
+    )
+    expect(low.side).toBe('above')
+    expect(low.y).toBeGreaterThanOrEqual(0)
+  })
+
+  test('when NEITHER side fits it keeps the preferred one and clamps on-surface', () => {
+    // A popup taller than the whole surface cannot be placed by flipping, so
+    // flipping would just move the problem. It lands on-surface and scrolls
+    // internally instead — which it can, being a real panel.
+    const panel = w3d.panel3d({ width: 320, height: 400 })
+    const huge = openOn(panel)(
+      { anchor: { x: 10, y: 380, width: 100, height: 20 } },
+      ...rows(20)
+    )
+    expect(huge.side).toBe('below')
+    expect(huge.y).toBe(0)
+    expect((huge.el as unknown as { scrollable: boolean }).scrollable).toBe(
+      true
+    )
+  })
+
+  test('and opens downward when there IS room', () => {
+    const panel = w3d.panel3d({ width: 320, height: 400 })
+    const high = openOn(panel)(
+      { anchor: { x: 10, y: 10, width: 100, height: 20 } },
+      ...rows(2)
+    )
+    expect(high.side).toBe('below')
+  })
+
+  test('bounds can be the HOST, not the opener — a popup may escape its panel', () => {
+    const panel = w3d.panel3d({ width: 320, height: 200 })
+    const escaping = openOn(panel)(
+      {
+        anchor: { x: 10, y: 180, width: 100, height: 20 },
+        bounds: { width: 1200, height: 900 },
+      },
+      ...rows(6)
+    )
+    // With the whole window to play with it no longer needs to flip
+    expect(escaping.side).toBe('below')
+  })
+
+  test('close() detaches it', () => {
+    const panel = w3d.panel3d({ width: 320, height: 400 })
+    const pop = openOn(panel)(
+      { anchor: { x: 0, y: 0, width: 10, height: 10 } },
+      ...rows(2)
+    )
+    const host = (globalThis as any).document.createElement('div')
+    host.append(pop.el)
+    expect(host.children.length).toBe(1)
+    pop.close()
+    expect(host.children.length).toBe(0)
+  })
+})
