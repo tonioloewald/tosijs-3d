@@ -258,12 +258,18 @@ server kills theirs. Observed five times in one day: a session would start clean
 other side looks exactly like the idle-timeout zombie (tosijs-ui#91) and wastes a
 diagnosis every time.
 
-**Use `bun run stop`.** It asks the OS what is listening on this project's port
-and signals only that:
+**Use `bun stop`** (or `bun run stop` — Bun runs a package.json script either
+way). It asks the OS what is listening on this project's port and signals only
+that:
 
 ```sh
-bun run stop     # "Stopped dev server on 8030 (pid …)" or "No dev server listening on 8030."
+bun stop     # "Stopped dev server on 8030 (pid …)" or "No dev server listening on 8030."
 ```
+
+It identifies the server by PORT, not by project — tosijs-ui's build lock
+records pid/port/root per project and is the better answer, but its reader is
+not exported from `tosijs-ui/site` (tosijs-ui#118), and re-deriving the lock
+path here would risk reporting "nothing running" while a server ran.
 
 Ports are not the collision — the pattern is. Sibling checkouts already run on 8032/8042
 quite happily; it is the kill that ignores both port and directory.
