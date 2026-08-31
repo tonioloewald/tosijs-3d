@@ -30,19 +30,31 @@ ours; the mechanism is theirs.
 */
 if (process.argv.includes('--stop')) {
   /*
-  Ask the OS what is listening, rather than matching a command line.
+  Stop THIS project's dev server, identified by PROJECT rather than by pattern.
 
-  Upstream's `bun run stop` reads the build lock — which records pid, port and
-  root per project — but `tosijs-ui/site` does not re-export the reader and the
-  package's `exports` map blocks a deep import, so a consumer cannot use it
-  (filed upstream). Re-deriving the lock PATH here would mean copying their
-  FNV-1a hash of the resolved root, and if that ever changed we would report
-  "nothing running" while a server ran: a silently wrong answer, which is worse
-  than no command.
+  tosijs-ui's build lock records `pid`, `role`, `root` and `port` per project,
+  with staleness decided by liveness rather than age — so a crashed server
+  cannot wedge the project and a sibling checkout is never touched. That is the
+  right answer to tosijs-ui#117, and `currentHolder` became reachable to
+  consumers in 1.12.6 (tosijs-ui#118, which we filed after finding the reader
+  existed but was not exported).
 
-  The port is a fact we own and the OS can be asked about directly. It cannot
-  drift, and when it finds nothing it is because nothing is listening.
+  The port fallback stays for a server started before the lock existed, or by a
+  different tool. It is weaker — it identifies by port, so two checkouts sharing
+  one would confuse it — which is exactly why it is the fallback and not the
+  mechanism.
   */
+  const { currentHolder } = await import('tosijs-ui/site')
+  const holder = currentHolder('.')
+  if (holder) {
+    process.kill(holder.pid, 'SIGTERM')
+    console.log(
+      `Stopped ${holder.role} for ${holder.root} (pid ${holder.pid}${
+        holder.port ? `, port ${holder.port}` : ''
+      }).`
+    )
+    process.exit(0)
+  }
   const port = config.port ?? 8030
   const found = await $`lsof -nP -iTCP:${port} -sTCP:LISTEN -t`
     .quiet()
@@ -53,11 +65,15 @@ if (process.argv.includes('--stop')) {
     .map((s) => s.trim())
     .filter(Boolean)
   if (pids.length === 0) {
-    console.log(`No dev server listening on ${port}.`)
+    console.log(`No dev server running for this project (nothing on ${port}).`)
     process.exit(0)
   }
   for (const pid of pids) process.kill(Number(pid), 'SIGTERM')
-  console.log(`Stopped dev server on ${port} (pid ${pids.join(', ')}).`)
+  console.log(
+    `Stopped a server on ${port} (pid ${pids.join(
+      ', '
+    )}) — no lock, so identified by port.`
+  )
   process.exit(0)
 }
 

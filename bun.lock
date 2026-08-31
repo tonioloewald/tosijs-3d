@@ -15,13 +15,13 @@
         "chokidar": "^4.0.3",
         "eslint": "^10.6.0",
         "globals": "^17.7.0",
-        "haltija": "^1.12.5",
+        "haltija": "^1.12.6",
         "happy-dom": "^20.10.6",
         "jolt-physics": "^1.1.0",
         "prettier": "^2.8.8",
         "tjs-lang": "^0.13.6",
         "tosijs": "^1.8.0",
-        "tosijs-ui": "^1.12.5",
+        "tosijs-ui": "^1.12.6",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.62.1",
       },
@@ -220,7 +220,7 @@
 
     "globals": ["globals@17.7.0", "", {}, "sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg=="],
 
-    "haltija": ["haltija@1.12.5", "", { "dependencies": { "tosijs-schema": "1.5.1" }, "bin": { "tosijs-dev": "bin/tosijs-dev.mjs", "haltija": "bin/tosijs-dev.mjs", "hj": "bin/hj.mjs", "haltija-mcp-setup": "bin/mcp-setup.mjs" } }, "sha512-6a7RtYLd8/7CSQ8WNextsVac8uUfXA3JCFQryjn6MkhNmWChsBnnkHA6gtTBKS6pNELUc+8c0aEVfn6RjBCwow=="],
+    "haltija": ["haltija@1.12.6", "", { "dependencies": { "tosijs-schema": "1.5.1" }, "bin": { "tosijs-dev": "bin/tosijs-dev.mjs", "haltija": "bin/tosijs-dev.mjs", "hj": "bin/hj.mjs", "haltija-mcp-setup": "bin/mcp-setup.mjs" } }, "sha512-20L0dXGLwo5Le+KBvbDhvsD0bqXfg0E755lLexearNAk8ZX/tzE2QJB7dlxqGg5Og37R6BiKSmqoul7VH5jtIw=="],
 
     "happy-dom": ["happy-dom@20.10.6", "", { "dependencies": { "@types/node": ">=20.0.0", "@types/whatwg-mimetype": "^3.0.2", "@types/ws": "^8.18.1", "buffer-image-size": "^0.6.4", "entities": "^7.0.1", "whatwg-mimetype": "^3.0.0", "ws": "^8.21.0" } }, "sha512-6QD0ilzDDt93tX44y8tbmZdAcdTRYDhUP+Asgi6pC8Pp5IA3cvaZGyoVN/EGtlq9ziT65iPuBBn3ASLr6hCgVw=="],
 
@@ -292,7 +292,7 @@
 
     "tosijs-schema": ["tosijs-schema@1.5.1", "", {}, "sha512-ovWLISVLE8LBHQhX8mr3JKH2/fYFDs55fbdpIUxuXQCYB0ugSu1pTj9wA4zhQtdkxHH+MBXT1Zo7yQrtm6zQKg=="],
 
-    "tosijs-ui": ["tosijs-ui@1.12.5", "", { "dependencies": { "@codemirror/autocomplete": "^6.20.3", "@codemirror/commands": "^6.10.4", "@codemirror/lang-css": "^6.3.1", "@codemirror/lang-html": "^6.4.11", "@codemirror/lang-javascript": "^6.2.5", "@codemirror/lang-markdown": "^6.5.1", "@codemirror/language": "^6.12.4", "@codemirror/lint": "^6.9.7", "@codemirror/search": "^6.7.1", "@codemirror/state": "^6.7.1", "@codemirror/theme-one-dark": "^6.1.3", "@codemirror/view": "^6.43.7" }, "peerDependencies": { "@resvg/resvg-js": "^2.6.2", "chokidar": "^4.0.3", "happy-dom": "^20.7.0", "marked": "^16.4.2 || ^17.0.0 || ^18.0.0", "tjs-lang": "^0.13.1", "tosijs": "^1.7.8", "tosijs-schema": "^1.8.0" }, "optionalPeers": ["@resvg/resvg-js", "chokidar", "happy-dom", "tjs-lang", "tosijs-schema"], "bin": { "tosijs-make-icons": "bin/make-icon-data.js", "tosijs-dev-certs": "tls/create-dev-certs.sh", "tosijs-tunnel": "bin/tunnel.ts", "tosijs-deploy": "bin/deploy-preview.ts", "tosijs-release-notes": "bin/release-notes.ts", "tosijs-caddy-install": "bin/caddy-install.ts" } }, "sha512-Ee/FgmrAD5WxMOKNL4eiCMrxLF50ZpAh7qitykbR/SFY6Ry869/uxOVK4WYCaRUcWO1D8bZ8KaB9MWqFpNUuKA=="],
+    "tosijs-ui": ["tosijs-ui@1.12.6", "", { "dependencies": { "@codemirror/autocomplete": "^6.20.3", "@codemirror/commands": "^6.10.4", "@codemirror/lang-css": "^6.3.1", "@codemirror/lang-html": "^6.4.11", "@codemirror/lang-javascript": "^6.2.5", "@codemirror/lang-markdown": "^6.5.1", "@codemirror/language": "^6.12.4", "@codemirror/lint": "^6.9.7", "@codemirror/search": "^6.7.1", "@codemirror/state": "^6.7.1", "@codemirror/theme-one-dark": "^6.1.3", "@codemirror/view": "^6.43.7" }, "peerDependencies": { "@resvg/resvg-js": "^2.6.2", "chokidar": "^4.0.3", "happy-dom": "^20.7.0", "marked": "^16.4.2 || ^17.0.0 || ^18.0.0", "tjs-lang": "^0.13.1", "tosijs": "^1.7.8", "tosijs-schema": "^1.8.0" }, "optionalPeers": ["@resvg/resvg-js", "chokidar", "happy-dom", "tjs-lang", "tosijs-schema"], "bin": { "tosijs-make-icons": "bin/make-icon-data.js", "tosijs-dev-certs": "tls/create-dev-certs.sh", "tosijs-tunnel": "bin/tunnel.ts", "tosijs-deploy": "bin/deploy-preview.ts", "tosijs-release-notes": "bin/release-notes.ts", "tosijs-caddy-install": "bin/caddy-install.ts" } }, "sha512-H9wEkBf/jfUbExbCP/Wwkgq/1zxY1XEBmvE2NZCGX+XFiyFd9lOCFDnm7uau7eYePZev4G632ccpHaa8gIKnWg=="],
 
     "ts-api-utils": ["ts-api-utils@2.5.0", "", { "peerDependencies": { "typescript": ">=4.8.4" } }, ""],
 
