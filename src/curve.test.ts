@@ -13,6 +13,9 @@ import {
   closePolygon,
   isStarShaped,
   polygonExtent,
+  messyNgon,
+  shelfAndMountains,
+  desertTerraces,
   moveVertex,
   ngon,
   normalizeCurve,
@@ -204,11 +207,69 @@ describe('evaluate', () => {
 })
 
 describe('presets are scoped to the kind they are valid for', () => {
-  test('constant is offered for a profile and NOT for a falloff', () => {
-    // Falls straight out of the endpoint rule: a constant falloff is weight 1 at
-    // the boundary, which is the step the pin exists to prevent.
-    expect(presetsFor('profile').map((p) => p.name)).toContain('constant')
-    expect(presetsFor('falloff').map((p) => p.name)).not.toContain('constant')
+  test('a flattening preset is offered for a profile and NOT for a falloff', () => {
+    // Falls straight out of the endpoint rule: a constant-valued falloff is
+    // weight 1 at the boundary, which is the step the pin exists to prevent.
+    // (The preset is named `flatten` now — named for what it does to terrain
+    // rather than for the shape of its graph.)
+    expect(presetsFor('profile').map((p) => p.name)).toContain('flatten')
+    for (const p of presetsFor('falloff')) {
+      const c = normalizeCurve(p.build(), 'falloff')
+      expect(evaluateCurve(c, 1)).toBe(0)
+    }
+  })
+
+  test('presets are named for what they are, not for their maths', () => {
+    // A menu offering "ease in-out" tells you the shape of a graph; "smooth
+    // edge" tells you what the province will look like, which is the question
+    // being asked. The maths names stay exported as building blocks.
+    const falloffs = presetsFor('falloff').map((p) => p.name)
+    expect(falloffs).toContain('plateau')
+    expect(falloffs).toContain('smooth edge')
+    expect(falloffs).toContain('abrupt edge')
+    const shapes = presetsFor('profile').map((p) => p.name)
+    expect(shapes).toContain('shelf + mountains')
+    expect(shapes).toContain('desert terraces')
+    expect(shapes).toContain('no change')
+  })
+
+  test('"no change" really is the identity', () => {
+    const c = normalizeCurve(
+      presetsFor('profile').find((p) => p.name === 'no change')!.build(),
+      'profile'
+    )
+    for (const t of [0, 0.3, 0.7, 1]) expect(evaluateCurve(c, t)).toBeCloseTo(t, 6)
+  })
+
+  test('shelf + mountains has a FLAT middle — that is what makes it read as Earth', () => {
+    // Real terrain spends most of its area near sea level; a monotonic ramp
+    // reads as noise.
+    const c = normalizeCurve(shelfAndMountains(), 'profile')
+    const shelf = [0.2, 0.3, 0.4].map((t) => evaluateCurve(c, t))
+    const spread = Math.max(...shelf) - Math.min(...shelf)
+    expect(spread).toBeLessThan(0.08)
+    // …and the top of the range climbs hard.
+    expect(evaluateCurve(c, 1) - evaluateCurve(c, 0.85)).toBeGreaterThan(0.25)
+  })
+
+  test('desert terraces steps, and never dips', () => {
+    const c = normalizeCurve(desertTerraces(), 'profile')
+    let last = -1
+    for (let i = 0; i <= 40; i++) {
+      const v = evaluateCurve(c, i / 40)
+      expect(v).toBeGreaterThanOrEqual(last - 1e-9)
+      last = v
+    }
+  })
+
+  test('messy circle is deterministic and still star-shaped', () => {
+    // A footprint that reshuffled on reload would make a province
+    // unreproducible, which is the one thing a seeded world cannot have.
+    expect(messyNgon()).toEqual(messyNgon())
+    expect(isStarShaped(messyNgon())).toBe(true)
+    // …and actually messy, or the name lies.
+    const rs = messyNgon().map((v) => v.y)
+    expect(Math.max(...rs) - Math.min(...rs)).toBeGreaterThan(0.05)
   })
 
   test('every falloff preset actually reaches zero at the edge', () => {

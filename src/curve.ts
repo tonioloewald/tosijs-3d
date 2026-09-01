@@ -463,6 +463,102 @@ export function polygonExtent(
   return 0
 }
 
+/**
+ * A jittered n-gon — a footprint that does not look drawn with a compass.
+ *
+ * Deterministic: the jitter comes from a hash of the vertex index, not
+ * `Math.random`, so the same call gives the same coastline every time. A
+ * footprint that reshuffled on reload would make a province unreproducible,
+ * which is the one thing a seeded world cannot have.
+ *
+ * Angles are jittered by less than a third of a gap, so the order — and with it
+ * the star-shape — survives without needing a clamp.
+ */
+export function messyNgon(sides = 16, jitter = 0.22, seed = 1): ControlPoint[] {
+  const n = Math.max(3, Math.round(sides))
+  const hash = (i: number): number => {
+    const v = Math.sin((i + 1) * 127.1 + seed * 311.7) * 43758.5453
+    return v - Math.floor(v)
+  }
+  const out: ControlPoint[] = []
+  for (let i = 0; i < n; i++) {
+    const wobble = (hash(i) - 0.5) * (1 / n) * 0.6
+    out.push({
+      x: ((i / n + wobble) % 1 + 1) % 1,
+      y: clamp01(1 - hash(i + n) * jitter),
+    })
+  }
+  out.sort((a, b) => a.x - b.x)
+  return out
+}
+
+/* --------------------------------------------------- named landform presets */
+
+/**
+ * Trench, continental shelf, then mountains — the shape of a real coastline in
+ * one levels map.
+ *
+ * The lowest ground drops away steeply (a trench), most of the middle is a broad
+ * FLAT (the shelf, which is why so much of the world is shallow sea and coastal
+ * plain), and only the top of the range climbs hard. It is the flat middle that
+ * makes it read as Earth rather than as noise: real terrain spends most of its
+ * area near sea level.
+ */
+export function shelfAndMountains(): ControlPoint[] {
+  return [
+    { x: 0, y: 0 },
+    { x: 0.06, y: 0.05 },
+    { x: 0.11, y: 0.28 },
+    { x: 0.46, y: 0.34 },
+    { x: 0.66, y: 0.46 },
+    { x: 0.85, y: 0.7 },
+    { x: 1, y: 1 },
+  ]
+}
+
+/**
+ * Old desert: a plain at one level, then terraces above it.
+ *
+ * Weathering cuts flats and leaves risers, so an old landscape is stepped where
+ * a young one is smooth — and everything below the plain is a single level
+ * because it has had time to fill in.
+ */
+export function desertTerraces(): ControlPoint[] {
+  return [
+    { x: 0, y: 0.3 },
+    { x: 0.4, y: 0.32 },
+    { x: 0.4, y: 0.45 },
+    { x: 0.62, y: 0.47 },
+    { x: 0.62, y: 0.6 },
+    { x: 0.82, y: 0.62 },
+    { x: 0.82, y: 0.74 },
+    { x: 1, y: 0.78 },
+  ]
+}
+
+/** Full weight across most of the province, then off — the flat-topped case. */
+export function plateauFalloff(hold = 0.62): ControlPoint[] {
+  return [
+    { x: 0, y: 1 },
+    { x: Math.min(0.9, hold), y: 1 },
+    { x: 1, y: 0 },
+  ]
+}
+
+/** Eased both ends — the province melts into its surroundings. */
+export function smoothEdge(): ControlPoint[] {
+  return flipCurve(easeInOut())
+}
+
+/** Holds, then drops in the last tenth: a rim, a crater wall, a quarry. */
+export function abruptEdge(hold = 0.88): ControlPoint[] {
+  return [
+    { x: 0, y: 1 },
+    { x: Math.min(0.97, hold), y: 0.94 },
+    { x: 1, y: 0 },
+  ]
+}
+
 /** A crater/volcano rim — non-monotonic, and the reason monotonicity is not enforced. */
 export function rim(peak = 0.7, height = 1): ControlPoint[] {
   const p = Math.min(0.95, Math.max(0.05, peak))
@@ -493,24 +589,36 @@ export interface CurvePreset {
  * exactly the step the `f(1) = 0` pin exists to prevent. Offering it for a
  * falloff would mean offering a seam.
  */
+/*
+Named for what they ARE, not for their maths.
+
+"ease in-out" tells you the shape of a graph; "smooth edge" tells you what the
+province will look like, which is the question actually being asked. The maths
+names survive as building blocks (`easeInOut` and friends are still exported) —
+they just are not what a menu should offer.
+*/
 export const curvePresets: CurvePreset[] = [
-  { name: 'linear', kinds: ['profile', 'falloff'], build: linear },
-  { name: 'ease in', kinds: ['profile', 'falloff'], build: easeIn },
-  { name: 'ease out', kinds: ['profile', 'falloff'], build: easeOut },
-  { name: 'ease in-out', kinds: ['profile', 'falloff'], build: easeInOut },
-  { name: 'stepped', kinds: ['profile', 'falloff'], build: () => stepped(4) },
-  // Profile only, and not an arbitrary exclusion: a constant flipped is still
-  // constant, so it still carries weight at the boundary. See `flipCurve`.
-  { name: 'constant', kinds: ['profile'], build: () => constant(0.6) },
-  // Falloff only, because a rim is a shape you want against DISTANCE and it has
-  // no useful reading as a value remap.
+  // ---- shape: a levels map from height sample to height
+  { name: 'no change', kinds: ['profile'], build: linear },
+  { name: 'shelf + mountains', kinds: ['profile'], build: shelfAndMountains },
+  { name: 'desert terraces', kinds: ['profile'], build: desertTerraces },
+  { name: 'terraced', kinds: ['profile'], build: () => stepped(4) },
+  { name: 'flatten', kinds: ['profile'], build: () => constant(0.6) },
+  { name: 'steepen', kinds: ['profile'], build: easeIn },
+  { name: 'soften', kinds: ['profile'], build: easeOut },
+  // ---- falloff: weight by distance. All reach 0 at the boundary.
+  { name: 'plateau', kinds: ['falloff'], build: () => plateauFalloff() },
+  { name: 'smooth edge', kinds: ['falloff'], build: smoothEdge },
+  { name: 'abrupt edge', kinds: ['falloff'], build: () => abruptEdge() },
+  { name: 'linear', kinds: ['falloff'], build: falloffDefault },
+  // A rim is a shape you want against DISTANCE and has no reading as a remap.
   { name: 'rim', kinds: ['falloff'], build: () => rim() },
-  // Footprints. `circle` is `constant(1)` — every direction alike — which is why
-  // a constant is meaningful here and meaningless as a falloff.
+  // ---- footprint
   { name: 'circle', kinds: ['radial'], build: circle },
-  { name: 'triangle', kinds: ['radial'], build: () => ngon(3) },
+  { name: 'messy circle', kinds: ['radial'], build: () => messyNgon() },
   { name: 'square', kinds: ['radial'], build: () => ngon(4) },
   { name: 'hexagon', kinds: ['radial'], build: () => ngon(6) },
+  { name: 'triangle', kinds: ['radial'], build: () => ngon(3) },
   { name: 'octagon', kinds: ['radial'], build: () => ngon(8) },
 ]
 
@@ -521,13 +629,11 @@ export const curvePresets: CurvePreset[] = [
  * the way round that kind needs it.
  */
 export function presetsFor(kind: CurveKind): CurvePreset[] {
-  return curvePresets
-    .filter((p) => p.kinds.includes(kind))
-    .map((p) =>
-      kind === 'falloff' && p.name !== 'rim'
-        ? { ...p, build: () => flipCurve(p.build()) }
-        : p
-    )
+  // No flipping any more: the falloff presets are written the way round they are
+  // used, because "smooth edge" is a thing in its own right rather than
+  // "ease in-out, upside down". `flipCurve` remains for callers converting a
+  // profile they already have.
+  return curvePresets.filter((p) => p.kinds.includes(kind))
 }
 
 /** The default curve for a kind — the plainest thing that obeys its rules. */

@@ -30,7 +30,7 @@ at each distance from its centre; the **falloff** says how strongly it overrides
 the terrain around it. Drag the points, or pick a preset.
 
 ```js
-import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, footprint3d, slider3d, PerlinNoise, attachBiomePlugin, blendSample } from 'tosijs-3d'
+import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, footprint3d, slider3d, select3d, presetsFor, PerlinNoise, attachBiomePlugin, blendSample } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div } = elements
@@ -51,7 +51,7 @@ const state = { height: 4.5, extent: 0.7, noise: 1 }
 // province is invisible — drag it off the diagonal and the terrain responds.
 // Try `constant` (flattens whatever is there: a plateau) or drag it the other
 // way up (maps low ground high, which lifts the whole province).
-const shape = curve3d({ kind: 'profile', label: 'shape — remaps the height sample', value: 'linear', aspect: 0.45 })
+const shape = curve3d({ kind: 'profile', label: 'shape — remaps the height sample', value: 'no change', aspect: 0.45 })
 const falloff = curve3d({ kind: 'falloff', label: 'falloff — weight by distance', aspect: 0.45 })
 // The FOOTPRINT, edited as the shape it is rather than as extent-against-angle
 // on a graph: a hexagon looks like a hexagon, and a corner is where the corner
@@ -167,14 +167,26 @@ const scene = b3d(
   b3dLight({ intensity: 0.95 })
 )
 
+// A preset menu per curve. Presets are the fastest way to learn what a curve
+// DOES — you pick "desert terraces", see terraces, then drag from there.
+const menu = (widget, kind, value) =>
+  select3d({
+    value,
+    options: presetsFor(kind).map((p) => p.name),
+    onChange: (name) => { widget.applyPreset(name); rebuild() },
+  })
+
 const panel = panel3d(
   { width: 320 },
   label3d({ text: 'province editor', bold: true }),
   shape,
+  menu(shape, 'profile', 'no change'),
   button3d({ label: 'delete selected point', onClick: () => shape.deleteSelected() }),
   falloff,
+  menu(falloff, 'falloff', 'linear'),
   button3d({ label: 'delete selected point', onClick: () => falloff.deleteSelected() }),
   footprint,
+  menu(footprint, 'radial', 'hexagon'),
   slider3d({ label: 'block height', min: 1, max: 16, value: state.height, onChange: (v) => { state.height = v; rebuild() } }),
   slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, onChange: (v) => { state.extent = v; rebuild() } }),
   slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, onChange: (v) => { state.noise = v; rebuild() } }),
