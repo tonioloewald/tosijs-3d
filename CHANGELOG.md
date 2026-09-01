@@ -64,6 +64,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Setting a token to one throws nothing — it stringifies, fails to parse, and
   the widget paints **black**. `themeEditor` now accepts either and ignores
   anything it cannot read as a colour.
+- **The scene panel updates when pause state changes elsewhere.** The transport
+  row picks its label and icon from `paused`, but nothing repainted the panel
+  when that flipped — so resuming from the pause _dialog_ left the panel still
+  offering **Play**. It only looked right before because the common path is
+  pressing the panel's own button, which reopens the panel afterwards; a second
+  route to the same state had no reason to.
+- **The `surface` demo's debug readout is a real 3D popup**, not an overlay
+  painted into the opener's own SVG — so in the scene it is a panel with depth
+  that can sit in front of the surface and be dragged in world space, rather
+  than a picture of one stuck to the plane. The flat view keeps the in-panel
+  form, because in a document a popup _is_ a box drawn over another box.
 - **`buttonActiveText`** — the label colour while a clickable is held or
   selected. Separate from `text` because the background under it has changed: a
   theme whose `buttonActive` is a strong accent needs a light label on it, and

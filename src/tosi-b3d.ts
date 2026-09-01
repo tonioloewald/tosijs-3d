@@ -975,6 +975,9 @@ export class B3d extends Component {
     if (this._paused) return
     this._paused = true
     this._showPausePanel()
+    // The transport row reads `paused` to choose its label and icon, so the
+    // panel has to be told the state moved — see `resume` for the report.
+    this._repaintPanels()
     this.dispatchEvent(
       new CustomEvent('pause', { detail: { reason }, bubbles: true })
     )
@@ -987,6 +990,19 @@ export class B3d extends Component {
     if (!this._paused) return
     this._paused = false
     this._hidePausePanel()
+    /*
+    REPAINT THE PANEL — the state it displays has changed underneath it.
+
+    The `__pause` row picks its label and icon from `this.paused`, but nothing
+    repainted the panel when that flipped, so resuming from the pause DIALOG
+    left the panel still offering Play. Tonio: "If you click continue, the PLAY
+    button remains visible on the panel (it doesn't update)."
+
+    It only looked right before because the common path was pressing the panel's
+    own button, which reopens the panel afterwards. A second route to the same
+    state — the dialog — had no reason to.
+    */
+    this._repaintPanels()
     // A resume must not deliver the whole absence as one frame. `frameDelta` is
     // already clamped to 0.1s, but resetting the baseline keeps even that away.
     this.lastRender = Date.now()

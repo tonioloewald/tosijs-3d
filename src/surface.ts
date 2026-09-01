@@ -24,7 +24,7 @@ Two popup kinds share the overlay:
 ## Demo
 
 ```js
-import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, openPopup, ui } from 'tosijs-3d'
 const { box, textBlock, button, surface, openMenu, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
@@ -57,10 +57,35 @@ const debugRows = () => box(
   textBlock('mem   84 MB', { font: mono, color: '#9fb0c3' })
 )
 
+// A DEBUG READOUT IS ITS OWN SURFACE, not an overlay drawn inside the opener.
+//
+// This demo used `openPanel`, which paints the panel into the SAME svg — so in
+// the 3D view it was a picture of a floating panel rather than a floating
+// panel, stuck to the plane and unable to sit in front of it. `openPopup` gives
+// it a plane of its own: real depth, draggable in world space, and it can be
+// torn off. See popup-surface → "Popups should be NEW SURFACES".
+//
+// The flat view keeps `openPanel`, because in a document a popup IS a box drawn
+// over another box; there is no second plane to give it.
+let scene3d = null
+const openDebug = (s) => {
+  if (scene3d == null) {
+    s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' })
+    return
+  }
+  const sheetSvg = svg({ viewBox: '0 0 150 96', width: 150, height: 96 }, debugRows().el)
+  openPopup(scene3d, {
+    svg: sheetSvg,
+    width: 1.1,
+    offset: { x: 1.5, y: 0.4, z: -0.25 },
+    draggable: true,
+  })
+}
+
 const make = () => {
   const s = surface({ width: W, height: H })
   const menuBtn = button('Menu  ▾', { onActivate: () => openMenu(s, s.__triggerRect, items, 'below') })
-  const dbgBtn = button('Debug  ▾', { onActivate: () => s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' }) })
+  const dbgBtn = button('Debug  ▾', { onActivate: () => openDebug(s) })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: '#12151c' },
     textBlock('Menus + panels', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
@@ -71,7 +96,8 @@ const make = () => {
   s.setContent(panel)
   const r = panel.childRect(2) // the Menu button
   s.__triggerRect = { x: r.x, y: r.y, width: r.width, height: r.height }
-  // pre-open a draggable/closable debug panel so it's visible at a glance
+  // pre-open one in the FLAT view so the feature is visible at a glance; the 3D
+  // one opens on click, since it needs a scene to exist first.
   s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' })
   return s
 }
@@ -99,6 +125,7 @@ const scene = b3d(
   b3dLight({ intensity: 1 }),
   plane
 )
+scene3d = scene
 
 preview.append(
   div(
