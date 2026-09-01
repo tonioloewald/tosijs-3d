@@ -44,6 +44,10 @@ if (process.argv.includes('--stop')) {
   one would confuse it — which is exactly why it is the fallback and not the
   mechanism.
   */
+  // A deliberate stop must stay stopped — drop the keeper's sentinel first, or
+  // it brings the server straight back and `bun stop` looks broken.
+  const { existsSync, unlinkSync } = await import('node:fs')
+  if (existsSync('.dev-keeper')) unlinkSync('.dev-keeper')
   const { currentHolder } = await import('tosijs-ui/site')
   const holder = currentHolder('.')
   if (holder) {

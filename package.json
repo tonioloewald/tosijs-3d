@@ -63,7 +63,8 @@
     "deploy": "tosijs-deploy",
     "format": "bun --bun eslint src bin --fix && bun --bun prettier --write .",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
-    "stop": "bun bin/site.ts --stop"
+    "stop": "bun bin/site.ts --stop",
+    "keep": "bun bin/keep.ts"
   },
   "peerDependencies": {
     "@babylonjs/core": "^9.0.0",

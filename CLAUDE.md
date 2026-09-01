@@ -284,6 +284,17 @@ server kills theirs. Observed five times in one day: a session would start clean
 other side looks exactly like the idle-timeout zombie (tosijs-ui#91) and wastes a
 diagnosis every time.
 
+**`bun run keep`** supervises the dev server: it watches the port and brings it
+back if something kills it. Opt-in on purpose — a process that resurrects a
+server would otherwise fight `bun stop`, and a supervisor you did not ask for is
+worse than a server that stays down. `bun stop` drops its sentinel first, so a
+deliberate stop stays stopped.
+
+Worth it because the server has been killed repeatedly by a `pkill -f 'bun
+bin/site.ts'` from a concurrent session in a sibling checkout, and each loss is
+invisible until someone reloads a page. The keeper does not fix that — it makes
+it not matter.
+
 **Use `bun stop`** (or `bun run stop` — Bun runs a package.json script either
 way). It asks the OS what is listening on this project's port and signals only
 that:
