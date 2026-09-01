@@ -649,7 +649,28 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
    * pulling a tab out of a window and is why an owned popup needs no separate
    * tear-off affordance to be discoverable.
    */
-  const attachDrag = (): void => {
+  function attachDrag(): void {
+    /*
+    A FUNCTION DECLARATION, DELIBERATELY — it has to HOIST.
+
+    This is called from the `whenMesh` block ABOVE, and as a `const` arrow it
+    sat in its temporal dead zone whenever that block ran synchronously. Which
+    is exactly the case that matters: `whenReady` fires immediately when the
+    scene is already up, and appending the plane to a live scene runs its
+    `sceneReady` synchronously too, so `plane.mesh` is non-null on the spot and
+    the whole chain completes inside `openPopup`.
+
+    So a popup opened at MOUNT worked (scene not ready, callback deferred, const
+    initialised by the time it ran) and a popup opened from a CLICK threw
+    `ReferenceError: Cannot access 'attachDrag' before initialization` — which,
+    minified, reads "Cannot access 'E' before initialization" and names nothing
+    you can search for.
+
+    The throw happened before `openPopup` returned, so the caller got no popup
+    and no drag, and any code after the call never ran. That is the whole of the
+    reverted demo's "the panel doesn't appear in the DOM" and "I can't drag it":
+    one exception, two symptoms, neither pointing here.
+    */
     const mesh = plane.mesh
     if (mesh == null || drag != null || !draggable) return
     /*

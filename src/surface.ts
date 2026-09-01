@@ -24,7 +24,7 @@ Two popup kinds share the overlay:
 ## Demo
 
 ```js
-import { b3d, b3dLight, panelScene, ui } from 'tosijs-3d'
+import { b3d, b3dLight, openPopup, panelScene, ui } from 'tosijs-3d'
 const { box, textBlock, button, surface, openMenu, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
@@ -60,7 +60,7 @@ const debugRows = () => box(
 const make = () => {
   const s = surface({ width: W, height: H })
   const menuBtn = button('Menu  ▾', { onActivate: () => openMenu(s, s.__triggerRect, items, 'below') })
-  const dbgBtn = button('Debug  ▾', { onActivate: () => s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' }) })
+  const dbgBtn = button('Debug  ▾', { onActivate: () => toggleDebug() })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: '#12151c' },
     textBlock('Menus + panels', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
@@ -71,9 +71,46 @@ const make = () => {
   s.setContent(panel)
   const r = panel.childRect(2) // the Menu button
   s.__triggerRect = { x: r.x, y: r.y, width: r.width, height: r.height }
-  // pre-open a draggable/closable debug panel so it's visible at a glance
-  s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' })
   return s
+}
+
+// A DEBUG READOUT IS ITS OWN SURFACE — IN BOTH VIEWS.
+//
+// `openPanel` paints into the SAME svg the plane rasterises, so the 3D view
+// showed a *picture* of a floating panel: welded to the plane, unable to sit in
+// front of it. And because one surface drives both views, there is no "3D only"
+// version of that overlay — it appears in the DOM as well.
+//
+// Tonio put the model precisely: a popup is a new element in a NEW LAYER,
+// positioned within the spawner's layout parent, relative to the spawner. That
+// is what it means in a document, and it maps straight onto the 3D case — its
+// own plane, placed relative to the opener, with real depth between them.
+//
+// (Line comments, not a block: this lives inside the `/*#` doc fence and a
+// nested block comment closes it. Second time — hence the note.)
+let sceneEl = null
+let pop3d = null
+let flatPop = null
+const debugSheet = () =>
+  svg({ viewBox: '0 0 150 96', width: 150, height: 96 }, debugRows().el)
+// The DOM's new layer: positioned against the sheet's own containing block.
+const flatLayer = div({ style: 'position:absolute;right:10px;top:44px' })
+
+const toggleDebug = () => {
+  // 3D — a real second surface: its own plane, draggable in world space.
+  if (pop3d != null) { pop3d.close(); pop3d = null }
+  else if (sceneEl != null && sceneEl.scene != null) {
+    pop3d = openPopup(sceneEl, {
+      svg: debugSheet(),
+      opener: plane.mesh,
+      width: 1.15,
+      offset: { x: 0.95, y: 0.35, z: -0.35 },
+      draggable: true,
+    })
+  }
+  // DOM — the same idea in the document's own terms.
+  if (flatPop != null) { flatPop.remove(); flatPop = null }
+  else flatPop = flatLayer.appendChild(debugSheet())
 }
 
 const sheet = (s) => svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
@@ -90,7 +127,7 @@ svgEl.addEventListener('pointerup', (e) => s.handlePointer('up', ...toXY(e)))
 
 // panelScene: plane + camera + pick routing + camera-yield, packaged.
 const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.6, camera: { radius: 3.4 } })
-const scene = b3d(
+const scene = (sceneEl = b3d(
   {
     // Cleaves to its container — see the note in box.ts's demo.
     style: 'border-radius:8px;overflow:hidden',
@@ -98,14 +135,14 @@ const scene = b3d(
   },
   b3dLight({ intensity: 1 }),
   plane
-)
+))
 
 preview.append(
   div(
     { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div(
       { style: 'display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px' },
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM — click; the 3D view mirrors it', svgEl),
+      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;position:relative' }, 'DOM — click; the 3D view mirrors it', svgEl, flatLayer),
       div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture — click the items', scene)
     ),
     readout

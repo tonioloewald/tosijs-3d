@@ -375,6 +375,23 @@ Child components find their parent `B3d` via `findB3dOwner(el)` which walks up t
 - `cb` sets `this.owner` and calls the subclass's **`sceneReady(owner, scene)`**. So `sceneReady` fires exactly once, only when the child is ready AND the scene exists.
 - On disconnect, `B3dChild.disconnectedCallback` calls the subclass's **`sceneDispose()`** and releases.
 
+**⚠️ `whenReady` runs SYNCHRONOUSLY when the scene is already up — mind the TDZ.**
+It defers only if the scene isn't ready yet. Append a child to a *live* scene and its
+`sceneReady` runs on the spot too, so a whole chain can complete inside the calling
+function. Any `const`/`let` declared *below* that call is then in its temporal dead zone,
+and you get `ReferenceError: Cannot access 'X' before initialization` — minified to a
+single letter that names nothing you can grep for.
+
+The tell is that it works at **mount** and throws on **interaction**: at mount the scene
+isn't ready, the callback defers, and the binding is initialised by the time it runs.
+`popup-surface` hit exactly this (`attachDrag` used at line 634, declared at 652), and
+because the throw escaped before the function returned, the caller silently got no popup
+and no drag — two symptoms, one exception, neither pointing at the declaration order.
+Use a hoisted `function` declaration for anything a `whenReady`/`whenMesh` callback calls.
+ESLint's `no-use-before-define` flags this family but can't tell a synchronous reach from a
+deferred one (a self-removing observer referencing its own `obs` is fine), so it stays off —
+27 hits in `src/`, mostly legitimate.
+
 Subclasses override **only** `sceneReady`/`sceneDispose` — never `connected`/`disconnectedCallback` (that plumbing is centralized so a lifecycle fix lands in one spot; if you must, `super` first and stay side-effect-free). `B3d` no longer pushes `sceneReady` at a guessed time or watches the subtree with a MutationObserver — that guessing was the source of races against tosijs's deferred attribute application. `B3dChild` is exported for consumers writing their own scene elements.
 
 ### Input Architecture
