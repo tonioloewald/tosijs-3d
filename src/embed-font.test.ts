@@ -37,7 +37,7 @@ describe('base64OfBytes', () => {
 
 describe('fontFaceCss', () => {
   test('inlines the bytes as a data URI with the right mime', async () => {
-    globalThis.fetch = (async () => fakeFont()) as typeof fetch
+    globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     const f = await ef.fontFaceCss('Rosario', '/x/rosario.woff2')
     expect(f.css).toContain("font-family:'Rosario'")
     expect(f.css).toContain('data:font/woff2;base64,')
@@ -46,7 +46,7 @@ describe('fontFaceCss', () => {
 
   test('caches per URL — the payload must not be refetched per panel', async () => {
     let fetches = 0
-    globalThis.fetch = (async () => { fetches++; return fakeFont() }) as typeof fetch
+    globalThis.fetch = (async () => { fetches++; return fakeFont() }) as unknown as typeof fetch
     await ef.fontFaceCss('Other', '/x/other.woff2')
     await ef.fontFaceCss('Other', '/x/other.woff2')
     expect(fetches).toBe(1)
@@ -58,7 +58,7 @@ describe('fontFaceCss', () => {
     globalThis.fetch = (async () => {
       n++
       return n === 1 ? new Response('', { status: 500 }) : fakeFont()
-    }) as typeof fetch
+    }) as unknown as typeof fetch
     await expect(ef.fontFaceCss('Other', '/x/flaky.woff2')).rejects.toThrow()
     const ok = await ef.fontFaceCss('Other', '/x/flaky.woff2')
     expect(ok.css).toContain('base64,')
@@ -71,7 +71,7 @@ describe('svgFontStyle — only what the markup uses', () => {
   })
 
   test('injects a registered face the markup mentions', async () => {
-    globalThis.fetch = (async () => fakeFont()) as typeof fetch
+    globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     await ef.registerSvgFont('Rosario', '/x/rosario.woff2')
     const out = ef.svgFontStyle('<svg><text font-family="Rosario, serif">hi</text></svg>')
     expect(out).toContain('<style>')
@@ -81,13 +81,13 @@ describe('svgFontStyle — only what the markup uses', () => {
   test('and NOT one it does not — a panel must not carry every font', async () => {
     // The payload is re-parsed on every rasterisation, so this is the
     // difference between one font per texture and all of them.
-    globalThis.fetch = (async () => fakeFont()) as typeof fetch
+    globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     await ef.registerSvgFont('Rosario', '/x/rosario.woff2')
     expect(ef.svgFontStyle('<svg><text font-family="Georgia, serif">hi</text></svg>')).toBe('')
   })
 
   test('unregister removes it', async () => {
-    globalThis.fetch = (async () => fakeFont()) as typeof fetch
+    globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     await ef.registerSvgFont('Rosario', '/x/rosario.woff2')
     ef.unregisterSvgFont('Rosario')
     expect(ef.svgFontStyle('<svg><text font-family="Rosario">hi</text></svg>')).toBe('')

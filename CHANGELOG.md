@@ -10,6 +10,90 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`curve3d` + `footprint3d` — author a terrain province instead of coding
+  one.** A province is a **footprint** (extent by direction) plus **one curve
+  per layer**: a `shape` that remaps the height sample, and a `falloff` that
+  says how far its say extends. The pure model is `curve.ts` (Babylon-free,
+  55 tests); the province editor demo lives on `/curve-field/`.
+
+  **The range is closed on purpose.** A curve maps `[0,1]` to `[0,1]` and a drag
+  clamps rather than pushing the range, because a profile that can return 1.4
+  silently changes the height a province occupies — which is exactly what
+  `carve`/`patch-field` must agree about, and it fails as *geometry* while
+  reporting nothing. Amplitude belongs to the block; shape belongs to the curve.
+  `blendSample` composes them convexly, so a tile's bounds are known before
+  anything is evaluated, however many provinces overlap.
+
+  **A falloff is pinned to 0 at its edge; a profile is not.** A province still
+  carrying weight at its boundary does not blend into the terrain around it —
+  another silent step. Not monotonic, though: a crater rim and a volcano cone
+  are non-monotonic falloffs, so the edge is pinned and the middle left alone.
+
+  **A footprint is a polygon, not a sampled curve.** `ngon(6)` is six vertices,
+  and `polygonExtent` casts a real ray at the straight edge — interpolating
+  radius against angle bows every edge inward, which is why an earlier draft
+  carried twelve samples per edge to avoid doing one intersection. A circle is
+  therefore the expensive shape: a 16-gon, indistinguishable at province scale.
+  Vertices cannot pass their neighbours or reach the centre, which keeps the
+  polygon star-shaped — the property that makes "extent in this direction" have
+  an answer.
+
+  Presets are named for what they **are**: `shelf + mountains`, `desert
+  terraces`, `plateau`, `smooth edge`, `abrupt edge`, `messy circle`. "ease
+  in-out" describes a graph; "smooth edge" describes a province.
+
+- **`vector3d` / `euler3d` — a coordinate on ONE row.** Three stacked labelled
+  fields is why an inspector panel ends up three times taller than it needs to
+  be. `euler3d` is not a styling variant: it **wraps** into `(-180, 180]` where
+  `vector3d` clamps, because a clamp fights you at exactly the angles you most
+  want to scrub through. Degrees, per the angle rule.
+
+  A row is **three tab stops**, not one: the host tracks focus per widget, so
+  the row keeps its own axis index and lights exactly one caret — all three at
+  once says focus is everywhere, which says nothing.
+
+### Fixed
+
+- **A yielded camera is always given back.** Dragging a popup detaches the
+  camera so it does not orbit inside the same gesture, but the restore sat
+  behind an empty-popup-list early return — so anything that emptied the list
+  mid-gesture stranded the camera detached, with no way back. A detached camera
+  is a dead scene, not a glitch. Also added a `window` pointerup/pointercancel
+  backstop, because a pointer released outside the canvas produces no scene
+  event at all, and dragging toward the edge is how you leave the canvas.
+
+- **`openPopup` threw when opened by a click.** It called `attachDrag()` from a
+  `whenMesh` callback declared above it — fine while that callback defers, which
+  is what happens at mount. But `whenReady` fires immediately when the scene is
+  already up, and appending a plane to a live scene runs its `sceneReady`
+  synchronously too, so opening a popup from a click completed the whole chain
+  inside `openPopup` and hit `attachDrag` in its temporal dead zone. Minified,
+  that reads `Cannot access 'E' before initialization`. The throw escaped before
+  the function returned, so the caller got no popup **and** no drag — one
+  exception, two symptoms, neither pointing at declaration order.
+
+- **Dragging a popup no longer re-centres it under the pointer.** Babylon's
+  `_startDrag` falls back to a ray from the camera position when `fromRay` is
+  omitted, so passing only `startPickedPoint` was not enough: it still
+  recomputed the drag plane from a default. Both are needed — the ray says where
+  the gesture points, the point says where on the panel it took hold.
+
+- **A panel owns its background.** It painted nothing of its own, so the seam
+  between the title bar and the content box leaked two ways: `box` draws its
+  background rounded, so its top corners curve away from the square-bottomed
+  bar, and it insets by `borderWidth / 2`, giving a hairline down both sides.
+  A panel is an opaque thing; the parts now sit on top of it. Panel chrome also
+  reads the theme, which it never did — it was hardcoded.
+
+- **Popups have a rim, since they cannot have a drop shadow.** The panel is
+  emissive so it is unlit, and a cast shadow needs a receiver — a popup floating
+  in front of a scene has nothing to fall on. Drawn at **double** stroke width
+  so the clip discards the outer half of a stroke that straddles its path,
+  leaving the intended width with no half-pixel arithmetic. `muted` is a mid
+  grey deliberately: the backdrop is arbitrary 3D, so a light rim vanishes on a
+  pale scene and a dark one on a dark scene.
+
+
 - **Numeric fields scrub** — `inputField({type:'number', scrub, step, min, max})`
   drags to adjust and clicks to type (tosijs-3d#50). Scrubbing lives on the
   field rather than in a separate control because a typed field already knows it

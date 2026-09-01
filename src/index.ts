@@ -365,10 +365,21 @@ export {
   moveVertex,
   isStarShaped,
   MIN_EXTENT,
-  // `ngon` only — `circle` is a bare common noun and shadows svgElements'
-  // `circle`, which is the barrel rule in CLAUDE.md. Reach it via
-  // `defaultCurve('radial')` or `presetsFor('radial')`.
+  // The PARAMETERISED builders, so a consumer is not stuck with the preset's
+  // frozen arguments — `plateauFalloff(0.8)` and `messyNgon(24, 0.3, 7)` are
+  // the point of them having parameters at all.
+  //
+  // `linear`/`constant`/`stepped`/`circle`/`rim`/`easeIn`… stay OUT: bare common
+  // nouns, and `circle` would shadow svgElements' `circle`. That is the barrel
+  // rule in CLAUDE.md, and they are reachable via `defaultCurve(kind)` and
+  // `presetsFor(kind)`.
   ngon,
+  messyNgon,
+  shelfAndMountains,
+  desertTerraces,
+  plateauFalloff,
+  smoothEdge,
+  abruptEdge,
 } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
 export { curve3d } from './curve-field'

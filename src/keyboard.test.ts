@@ -769,7 +769,10 @@ describe('inputField type — one property, three jobs (#37)', () => {
     })
     f.setValue('008')
     f.action('enter')
-    expect(seen).toBe('8')
+    // `seen as string | null` defeats control-flow narrowing: TS cannot know the
+    // onEnter callback ran, so it narrows `seen` back to `null` and the matcher
+    // stops accepting a string. The value is genuinely a string here.
+    expect(seen as string | null).toBe('8')
   })
 
   test('a text field is unaffected by any of it', () => {
@@ -871,9 +874,9 @@ describe('fieldGroup — the bookkeeping every host was writing (#37 items 1, 7)
 
 describe('numeric scrub — drag OR type, one control (#50)', () => {
   const drag = (f: any, from: number, to: number) => {
-    f.handle('down', from, 20)
-    f.handle('move', to, 20)
-    f.handle('up', to, 20)
+    f.handle!('down', from, 20)
+    f.handle!('move', to, 20)
+    f.handle!('up', to, 20)
   }
 
   test('dragging changes the value', () => {
@@ -886,9 +889,9 @@ describe('numeric scrub — drag OR type, one control (#50)', () => {
     // The whole design: the difference is travel, not a mode or a hit zone —
     // so the two never need to be aimed at differently.
     const f = K.inputField({ type: 'number', value: '10', scrub: 0.1 })
-    f.handle('down', 100, 20)
-    f.handle('move', 101, 20) // within the slop
-    f.handle('up', 101, 20)
+    f.handle!('down', 100, 20)
+    f.handle!('move', 101, 20) // within the slop
+    f.handle!('up', 101, 20)
     expect(f.value).toBe('10')
   })
 
