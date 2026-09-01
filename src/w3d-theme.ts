@@ -17,64 +17,71 @@ before the bundle loads (tosijs's `vars`/`StyleSheet` at startup is fine).
 
 ## Demo
 
-Every token, live. Move a slider or pick a colour and the panel rebuilds —
-which is the point: the theme is read when a widget is BUILT, so a theme editor
-rebuilds rather than repaints. (See `setW3dTheme` below for why it works that
-way.)
+Every token that currently **does** something, live. Change one and the panel
+rebuilds — which is the point: the theme is read when a widget is BUILT, so a
+theme editor rebuilds rather than repaints (see `setW3dTheme`).
+
+Colours use tosijs-ui's `colorInput` rather than `<input type="color">`, because
+the native one **cannot express alpha** and half this palette is translucent —
+`panelBg`, `rowHover` and `selectedBg` are all `rgba()`. A picker that silently
+drops the alpha channel would make those tokens look broken rather than
+untouched.
 
 ```js
-import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, select3d,
+import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, inputField,
          setW3dTheme, w3dTheme } from 'tosijs-3d'
+import { colorInput } from 'tosijs-ui'
 import { elements } from 'tosijs'
-const { div, label, input } = elements
+const { div, label, select, option } = elements
 
-const swatches = {
-  text: '#f0f0f0', accent: '#39c5ff', panelBg: 'rgba(20,22,28,0.94)',
-  rowHover: 'rgba(255,255,255,0.13)', focus: '#39c5ff',
-  selectedBg: 'rgba(57,197,255,0.18)', disabledBg: 'rgba(255,255,255,0.03)',
-}
+// Only tokens with a live consumer — a control that cannot change anything is
+// worse than an absent one, because it reads as a broken theme.
+const colours = ['panelBg', 'text', 'accent', 'rowBg', 'rowHover', 'buttonBg', 'caret', 'placeholder']
+const numbers = [['roundedRadius', 0, 24, 1], ['spacing', 0, 24, 1], ['strokeWidth', 0.5, 6, 0.5], ['lineHeight', 1, 2, 0.05], ['fontSize', 10, 28, 1]]
+const fonts = ['system-ui, sans-serif', 'Georgia, serif', 'ui-monospace, Menlo, monospace', 'Impact, sans-serif']
 
-const host = div({ style: 'display:flex; gap:24px; padding:16px; background:#0c0e14' })
+const stage = div({ style: 'padding:20px; background:#5a6472; border-radius:8px' })
 const build = () => {
   const p = panel3d(
-    { width: 320 },
+    { width: 300 },
     label3d({ text: 'Themed panel' }),
-    row3d({ weights: [1, 2] }, label3d({ text: 'accent' }),
-      slider3d({ value: 0.6, showValue: 'always' })),
+    row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
+      slider3d({ value: 0.6, showValue: 'always', format: (v) => v.toFixed(2) })),
+    row3d({ weights: [1, 2] }, label3d({ text: 'name' }), inputField({ placeholder: 'placeholder…' })),
     toggle3d({ label: 'a toggle' }),
-    select3d({ label: 'mode', value: 'one', options: ['one', 'two'] }),
     button3d({ label: 'A button' }),
   )
-  const old = host.querySelector('svg')
-  if (old) old.replaceWith(p); else host.append(p)
+  const old = stage.querySelector('svg')
+  old ? old.replaceWith(p) : stage.append(p)
 }
 
-// One control per colour token — rebuild on change, since widgets bake their
-// colours at construction.
-const controls = div({ style: 'display:grid; gap:6px; color:#ccc; font:13px system-ui' })
-for (const [key, initial] of Object.entries(swatches)) {
-  const field = input({
-    type: initial.startsWith('#') ? 'color' : 'text',
-    value: initial,
-    style: 'width:170px',
-    onInput(evt) { setW3dTheme({ [key]: evt.target.value }); build() },
-  })
-  controls.append(label({ style: 'display:flex; gap:8px; justify-content:space-between' }, key, field))
+const controls = div({ style: 'display:grid; gap:5px; font:13px system-ui; color:#ddd; min-width:230px' })
+const row = (name, control) =>
+  controls.append(label({ style: 'display:flex; gap:10px; align-items:center; justify-content:space-between' }, name, control))
+
+for (const key of colours) {
+  row(key, colorInput({
+    value: w3dTheme[key],
+    onChange(evt) { setW3dTheme({ [key]: evt.target.value }); build() },
+  }))
 }
-for (const [key, min, max, step] of [['roundedRadius', 0, 20, 1], ['spacing', 0, 24, 1], ['strokeWidth', 0.5, 6, 0.5]]) {
-  const field = input({
+for (const [key, min, max, step] of numbers) {
+  row(key, elements.input({
     type: 'range', min, max, step, value: String(w3dTheme[key]),
     onInput(evt) { setW3dTheme({ [key]: Number(evt.target.value) }); build() },
-  })
-  controls.append(label({ style: 'display:flex; gap:8px; justify-content:space-between' }, key, field))
+  }))
 }
+row('fontFamily', select({
+  onChange(evt) { setW3dTheme({ fontFamily: evt.target.value }); build() },
+}, ...fonts.map((f) => option({ value: f }, f.split(',')[0]))))
 
 build()
-preview.append(host, controls)
+preview.append(div({ style: 'display:flex; gap:22px; padding:16px; align-items:flex-start; flex-wrap:wrap' }, stage, controls))
 ```
 ```css
-tosi-example .preview { background: #0c0e14; }
+tosi-example .preview { background: #1b1f27; }
 ```
+
 */
 /*{ "parent": "UI", "order": 900 }*/
 
@@ -188,6 +195,26 @@ export const w3dTheme = {
 }
 
 export type W3dTheme = typeof w3dTheme
+
+/*
+RESERVED — declared, documented, and not yet consumed by any widget:
+
+  focus  selectedBg  disabledBg  disabledText  overlay  divider
+  codeFontFamily  codeFontWeight
+
+They are here because the palette should be decided once rather than grown a
+colour at a time, and because a consumer theming an app wants to set them
+before the widgets that need them exist. But **setting one currently changes
+nothing**, which is why the demo above does not offer controls for them: a knob
+that cannot move anything reads as a broken theme rather than an unfinished
+one, and that is a worse first impression than an absent control.
+
+Each has a named consumer waiting: `focus`/`strokeWidth` for a focus ring,
+`selectedBg` for selection, `disabledBg`/`disabledText` for a disabled state
+(no widget has one yet), `overlay` for a modal scrim now that `openPopup`
+exists, `divider` for row separators, and the code face for anything that
+displays a value you read character by character.
+*/
 
 /**
  * **Override the theme at runtime.**

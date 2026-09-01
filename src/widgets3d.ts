@@ -317,7 +317,7 @@ const { svg, g, rect, text, circle, clipPath } = svgElements
 const ROW = 40
 const PAD_X = 12
 const PAD_Y = 8
-const GAP = 8
+const GAP = w3dTheme.spacing
 
 // Widget styling comes from the `--w3d-*` CSS variables, resolved ONCE at load
 // in w3d-theme (the full rationale — texture rasterization can't see the page's
@@ -339,7 +339,7 @@ const ROW_HOVER = w3dTheme.rowHover
 
 // Compact line height for stacked text (text3d / textBlock3d) — a fraction of a full
 // interactive ROW, which is what buys the vertical space back on text-heavy panels.
-const LINE_H = Math.round(FONT * 1.35)
+const LINE_H = Math.round(FONT * w3dTheme.lineHeight)
 // One FontSpec, used BOTH to measure and to stamp the matching font-* attributes on
 // the <text>, so measurement and rendering can't drift out of sync.
 const TEXT_FONT: FontSpec = {

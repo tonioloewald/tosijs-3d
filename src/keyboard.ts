@@ -283,12 +283,12 @@ const { g, rect, text } = svgElements
 // Theme reads live in ONE module (w3d-theme) — see the review-caught
 // triplication; the local names keep this file's paint code readable.
 const TEXT = w3dTheme.text
-const MUTED = w3dTheme.muted
 const ACCENT = w3dTheme.accent
 const KEY_BG = w3dTheme.buttonBg
 const KEY_ACTION_BG = w3dTheme.track
 const KEY_DOWN = w3dTheme.buttonActive
 const FIELD_BG = w3dTheme.rowBg
+const PLACEHOLDER = w3dTheme.placeholder
 const PANEL_BG = w3dTheme.panelBg
 const FONT_FAMILY = w3dTheme.fontFamily
 
@@ -570,7 +570,15 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     'font-family': FONT_FAMILY,
     fill: TEXT,
   })
-  const caret = rect({ y: 8, width: 2, height: H - 16, fill: ACCENT })
+  // The caret gets its own token rather than borrowing ACCENT: it is the one
+  // mark that must stay findable against a themed field background, and a theme
+  // that tones the accent down for calm should not make the caret vanish.
+  const caret = rect({
+    y: 8,
+    width: w3dTheme.strokeWidth,
+    height: H - 16,
+    fill: w3dTheme.caret,
+  })
   const el = g({ 'data-w3d': 'input' }, bg, label, caret) as SVGGElement
 
   /** x offset of the caret, measured through the same measurer that draws. */
@@ -609,7 +617,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   const paint = (): void => {
     const empty = state.text.length === 0
     label.textContent = empty ? config.placeholder ?? '' : state.text
-    label.setAttribute('fill', empty ? MUTED : TEXT)
+    label.setAttribute('fill', empty ? PLACEHOLDER : TEXT)
     caret.setAttribute('x', String(caretX()))
     // Always visible, DIM when unfocused: with two fields on a panel the caret
     // is the focus indicator, and a vanished caret reads as "focus is lost and
