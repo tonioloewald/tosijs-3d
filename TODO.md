@@ -219,10 +219,32 @@
   editor over stops along an axis, and `PiecewiseLinearFilter` is already the
   thing both would edit. Look hard at sharing before writing a second one.
 
+  **Two uses, one widget: the PROFILE and the FALLOFF.** Tonio: "provinces should
+  also have falloff controlled by a similar curve." That falls out for free —
+  a falloff is also `[0,1] → [0,1]`, and PROVINCE-DESIGN.md's "a province is a
+  COORDINATE SYSTEM" is what makes it exact: the domain is normalised local
+  space already, so x is 0 at the centre and 1 at the edge with no rescaling
+  anywhere. Only the meaning of the axes differs — a profile remaps HEIGHT, a
+  falloff gives WEIGHT against normalised distance.
+
+  They differ in one constraint, and it is worth encoding rather than
+  documenting:
+
+  - **A falloff must reach 0 at x = 1; a profile need not.** A province whose
+    falloff still has weight at its boundary does not blend into the terrain
+    around it, and the result is a visible step at the footprint edge — again a
+    geometry failure that reports nothing. So pin that endpoint for a falloff
+    and leave it free for a profile.
+  - **Do NOT force monotonic.** Tempting, and wrong: a crater rim and a volcano's
+    cone ARE non-monotonic falloffs (rise, then fall), and those are exactly the
+    cases PROVINCE-DESIGN.md says break the shared falloff deliberately —
+    `landform.ts` already ships both. Pin the edge; leave the middle alone.
+
   Shape: a `Widget3d` like everything else (so it works flat, in-scene and in a
   headset), pure model separated from the drawing per the usual discipline, and
-  unit-tested — monotonic-in-x invariant, endpoint pinning, clamped drags, and
-  round-tripping each named preset through the editor unchanged.
+  unit-tested — endpoint pinning (required for falloff, absent for profile),
+  clamped drags, sorted-in-x invariant, and round-tripping each named preset
+  through the editor unchanged.
 
 - **DONE (0.7.4) — `vector3d` / `euler3d` — one row for a coordinate, not
   three.** Shipped as `src/vector-field.ts` (20 tests, demo at `/vector-field/`).
