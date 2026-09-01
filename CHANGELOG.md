@@ -58,6 +58,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   past the surface it must land on — flipping cannot rescue a popup that is
   taller than both sides.
 
+- **Fixed: injected colour controls set tokens to `[object Event]`.** A tosijs
+  `Component` binds any `on*` prop as a **DOM event listener**, so an injected
+  `colorInput({onChange})` calls back with an `Event` rather than a colour.
+  Setting a token to one throws nothing — it stringifies, fails to parse, and
+  the widget paints **black**. `themeEditor` now accepts either and ignores
+  anything it cannot read as a colour.
 - **`themeEditor()` — the palette editor is a component**, not demo code. An
   adopter theming an app wants exactly this UI, and copying it out of a doc
   comment is how it drifts from the palette it edits. Its own module, so it

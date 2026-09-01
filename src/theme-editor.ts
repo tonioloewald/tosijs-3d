@@ -112,7 +112,8 @@ export interface ThemeEditorOptions {
    */
   colorInput?: (config: {
     value: string
-    onChange: (value: string) => void
+    /** Called with the new colour — or with a DOM event, which is unwrapped for you. */
+    onChange: (value: string | Event) => void
   }) => HTMLElement
   /** Restrict to a subset of tokens. Defaults to everything live. */
   colours?: Array<keyof W3dTheme>
@@ -136,6 +137,27 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
 
   const changed = (): void => onChange?.(w3dTheme)
 
+  /**
+   * Accept either a value or a DOM event from an injected control.
+   *
+   * The contract is easy to get wrong in one specific way, and I got it wrong
+   * first: a tosijs `Component` binds any `on*` prop as a **DOM event
+   * listener** (CLAUDE.md names this footgun explicitly), so an injected
+   * `colorInput({onChange})` calls back with an `Event`, not a string. Setting
+   * a token to an event object is not an error anywhere — it stringifies, fails
+   * to parse as a colour, and the widget paints **black**. Tonio: "some of the
+   * colors are just turning black once I set them."
+   *
+   * Normalising here rather than documenting the contract is deliberate: the
+   * failure is silent and looks like a theme bug rather than a wiring bug, and
+   * every consumer injecting a control would meet it once.
+   */
+  const asColor = (v: unknown): string | null => {
+    if (typeof v === 'string') return v || null
+    const target = (v as { target?: { value?: unknown } } | null)?.target
+    return typeof target?.value === 'string' ? target.value : null
+  }
+
   const nativeColor = (c: { value: string; onChange: (v: string) => void }) =>
     input({
       type: 'color',
@@ -158,19 +180,25 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
   })
   if (title) {
     grid.append(
-      h3({
-        style: {
-          gridColumn: '1 / -1',
-          margin: '0 0 4px',
-          font: '600 14px system-ui',
-          opacity: '0.85',
+      h3(
+        {
+          style: {
+            gridColumn: '1 / -1',
+            margin: '0 0 4px',
+            font: '600 14px system-ui',
+            opacity: '0.85',
+          },
         },
-      }, title)
+        title
+      )
     )
   }
 
   const row = (name: string, control: Node): void => {
-    grid.append(label({ style: { justifySelf: 'end', opacity: '0.8' } }, name), control)
+    grid.append(
+      label({ style: { justifySelf: 'end', opacity: '0.8' } }, name),
+      control
+    )
   }
 
   for (const key of colours) {
@@ -179,8 +207,10 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
       key,
       makeColor({
         value: current,
-        onChange: (v) => {
-          setW3dTheme({ [key]: v } as Partial<W3dTheme>)
+        onChange: (v: unknown) => {
+          const colour = asColor(v)
+          if (colour == null) return
+          setW3dTheme({ [key]: colour } as Partial<W3dTheme>)
           changed()
         },
       })

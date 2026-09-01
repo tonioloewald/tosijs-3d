@@ -9,7 +9,11 @@ beforeAll(async () => {
   const g = globalThis as any
   g.window ??= win
   for (const k of Object.getOwnPropertyNames(win)) {
-    try { g[k] ??= win[k] } catch { /* off-document getters */ }
+    try {
+      g[k] ??= win[k]
+    } catch {
+      /* off-document getters */
+    }
   }
   w3d = await import('./widgets3d')
   theme = await import('./w3d-theme')
@@ -54,11 +58,22 @@ describe('setW3dTheme reaches widgets built AFTER it (#the-theme-demo-did-nothin
   })
 
   test('spacing changes panel layout, not just paint', () => {
-    const rows = () => [w3d.button3d({ label: 'a' }), w3d.button3d({ label: 'b' })]
+    const rows = () => [
+      w3d.button3d({ label: 'a' }),
+      w3d.button3d({ label: 'b' }),
+    ]
     theme.setW3dTheme({ spacing: 4 })
-    const tight = Number(w3d.panel3d({ width: 200, height: 'fit' }, ...rows()).getAttribute('height'))
+    const tight = Number(
+      w3d
+        .panel3d({ width: 200, height: 'fit' }, ...rows())
+        .getAttribute('height')
+    )
     theme.setW3dTheme({ spacing: 24 })
-    const loose = Number(w3d.panel3d({ width: 200, height: 'fit' }, ...rows()).getAttribute('height'))
+    const loose = Number(
+      w3d
+        .panel3d({ width: 200, height: 'fit' }, ...rows())
+        .getAttribute('height')
+    )
     expect(loose).toBeGreaterThan(tight)
     theme.setW3dTheme({ spacing: 8 })
   })

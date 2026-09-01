@@ -710,7 +710,14 @@ export function button3d(config: {
   label: string
   onClick?: () => void
 }): Widget3d {
-  const bg = rect({ x: 0, y: 4, rx: 8, ry: 8, height: ROW - 8, fill: TH.BTN_BG })
+  const bg = rect({
+    x: 0,
+    y: 4,
+    rx: 8,
+    ry: 8,
+    height: ROW - 8,
+    fill: TH.BTN_BG,
+  })
   const lbl = baseText(config.label)
   lbl.setAttribute('text-anchor', 'middle')
   lbl.setAttribute('y', String(ROW / 2))
@@ -970,8 +977,20 @@ export function slider3d(config: {
     lbl.setAttribute('x', String(PAD_X))
     lbl.setAttribute('y', String(ROW / 2))
   }
-  const trackEl = rect({ height: 6, rx: 3, ry: 3, fill: TH.TRACK, y: ROW / 2 - 3 })
-  const fillEl = rect({ height: 6, rx: 3, ry: 3, fill: TH.ACCENT, y: ROW / 2 - 3 })
+  const trackEl = rect({
+    height: 6,
+    rx: 3,
+    ry: 3,
+    fill: TH.TRACK,
+    y: ROW / 2 - 3,
+  })
+  const fillEl = rect({
+    height: 6,
+    rx: 3,
+    ry: 3,
+    fill: TH.ACCENT,
+    y: ROW / 2 - 3,
+  })
   const knob = circle({ cy: ROW / 2, r: 10, fill: '#fff' })
   // Exact-value readout: shown (in place of the track) while you point at or drag
   // the slider, so the precise number is legible even at low XR texture res. The
