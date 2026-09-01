@@ -39,7 +39,24 @@ const { div, label, select, option, span, input } = elements
 const colours = ['panelBg', 'text', 'muted', 'accent', 'rowBg', 'rowHover',
   'buttonBg', 'buttonHover', 'track', 'caret', 'placeholder']
 const numbers = [['roundedRadius', 0, 24, 1], ['spacing', 0, 24, 1], ['strokeWidth', 0.5, 6, 0.5], ['lineHeight', 1, 2, 0.05], ['fontSize', 10, 28, 1]]
-const fonts = ['system-ui, sans-serif', 'Georgia, serif', 'ui-monospace, Menlo, monospace', 'Impact, sans-serif']
+// The generic families first (always resolvable, whatever the platform), then
+// faces that actually ship on both macOS and Windows — each with a fallback
+// chain ending in a generic, because "installed on both" is a weaker promise
+// than it sounds and Linux keeps none of these guarantees.
+const fonts = [
+  'system-ui, sans-serif',
+  'sans-serif',
+  'serif',
+  'monospace',
+  'Georgia, serif',
+  'Helvetica, Arial, sans-serif',        // Helvetica on Mac, Arial on Windows
+  '"Times New Roman", Times, serif',
+  '"Courier New", Courier, monospace',
+  'Verdana, Geneva, sans-serif',
+  '"Trebuchet MS", Tahoma, sans-serif',
+  'Palatino, "Palatino Linotype", "Book Antiqua", serif',
+  'Impact, Haettenschweiler, sans-serif',
+]
 
 const stage = div({ style: 'padding:20px; background:#5a6472; border-radius:8px' })
 const build = () => {
@@ -76,9 +93,14 @@ for (const [key, min, max, step] of numbers) {
     style: 'width:64px', onChange(evt) { apply(evt.target.value) } })
   row(key, span({ style: 'display:flex; gap:8px; align-items:center' }, range, num))
 }
+// Each option is rendered IN its own face — a font menu that lists names in a
+// single face makes you pick by memory rather than by looking.
 row('fontFamily', select({
   onChange(evt) { setW3dTheme({ fontFamily: evt.target.value }); build() },
-}, ...fonts.map((f) => option({ value: f }, f.split(',')[0]))))
+}, ...fonts.map((f) => option(
+  { value: f, style: `font-family:${f}` },
+  f.split(',')[0].replace(/"/g, ''),
+))))
 
 build()
 preview.append(div({ style: 'display:flex; gap:22px; padding:16px; align-items:flex-start; flex-wrap:wrap' }, stage, controls))
