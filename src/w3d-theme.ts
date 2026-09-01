@@ -230,3 +230,60 @@ displays a value you read character by character.
 export function setW3dTheme(partial: Partial<W3dTheme>): void {
   Object.assign(w3dTheme, partial)
 }
+
+/**
+ * **Build something under a different theme**, then put the old one back.
+ *
+ * The theme is global — one table, read by every widget — and that is usually
+ * what you want: a palette exists so a UI looks like one UI. But an inspector
+ * beside a toolbar, a warning panel, or a preview of a theme you are editing
+ * all want to differ from their surroundings without becoming a second design
+ * system.
+ *
+ * This works because of the property that makes the global table safe in the
+ * first place: **a widget reads the theme when it is BUILT.** So a scope is
+ * just "set, build, restore" — no plumbing through every widget, no second
+ * table, and a widget built inside keeps its colours forever after, because
+ * they were baked into its attributes.
+ *
+ * ```js
+ * // `setW3dTheme` is the DEFAULT; this is the override for one panel.
+ * const warning = withTheme({ panelBg: '#6b2323', text: '#ffd7d7' }, () =>
+ *   panel3d({ width: 300 }, label3d({ text: 'Careful' })))
+ * ```
+ *
+ * **Why this rather than `panel3d({ theme })`.** A panel's children are
+ * constructed as ARGUMENTS, so they are already built by the time the panel
+ * function runs — an option on the panel could only re-colour the panel's own
+ * background while its contents kept the default, which is worse than not
+ * offering it. Wrapping the construction puts the children inside the scope,
+ * because that is when they evaluate.
+ *
+ * The unit that gets its own palette is therefore a panel, not a widget: you
+ * theme a thing you build, and a panel is the thing you build.
+ *
+ * **Synchronous only, and deliberately not enforced.** `build` must not await:
+ * the restore happens when it returns, so an async build would leak its theme
+ * into whatever ran next. Enforcing that would mean rejecting a function that
+ * merely returns a promise for an unrelated reason, and the honest constraint
+ * is "build synchronously", which is what widget construction already is.
+ *
+ * Only the keys you override are saved and restored, so nested scopes compose
+ * and an unrelated `setW3dTheme` from elsewhere is not clobbered on the way
+ * out.
+ */
+export function withTheme<T>(partial: Partial<W3dTheme>, build: () => T): T {
+  const saved: Partial<W3dTheme> = {}
+  for (const key of Object.keys(partial) as Array<keyof W3dTheme>) {
+    saved[key] = w3dTheme[key] as never
+  }
+  setW3dTheme(partial)
+  try {
+    return build()
+  } finally {
+    // `finally`, so a throw inside `build` cannot leave the palette changed —
+    // a theme that silently persists after an error is the worst version of
+    // this bug, because the next widget looks wrong for no visible reason.
+    setW3dTheme(saved)
+  }
+}

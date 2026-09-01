@@ -64,6 +64,24 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Setting a token to one throws nothing — it stringifies, fails to parse, and
   the widget paints **black**. `themeEditor` now accepts either and ignores
   anything it cannot read as a colour.
+- **`withTheme(partial, build)` — one default, per-panel overrides.**
+  `setW3dTheme` sets the default; this builds something under an override and
+  restores it afterwards (in a `finally`, so a throw cannot leave the palette
+  changed — a theme that silently persists after an error makes the _next_
+  widget look wrong for no visible reason).
+
+  It works because of the property that makes a single global table safe: a
+  widget reads the theme when it is **built**. So a scope is just set-build-
+  restore — no plumbing, no second table, and a widget built inside keeps its
+  colours forever, since they were baked into its attributes.
+
+  **Why not `panel3d({ theme })`:** a panel's children are constructed as
+  _arguments_, so they already exist by the time the panel function runs. An
+  option on the panel could only recolour the panel's own background while its
+  contents kept the default — worse than not offering it. Wrapping the
+  construction puts the children inside the scope, because that is when they
+  evaluate.
+
 - **`themeEditor()` — the palette editor is a component**, not demo code. An
   adopter theming an app wants exactly this UI, and copying it out of a doc
   comment is how it drifts from the palette it edits. Its own module, so it

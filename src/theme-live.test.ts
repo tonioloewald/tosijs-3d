@@ -88,3 +88,60 @@ describe('setW3dTheme reaches widgets built AFTER it (#the-theme-demo-did-nothin
     theme.setW3dTheme({ panelBg: atBuild! })
   })
 })
+
+describe('withTheme — one default, per-panel overrides', () => {
+  const bgOf = (el: SVGElement) => el.querySelector('rect')?.getAttribute('fill')
+
+  test('a panel built inside the scope differs from one built outside', () => {
+    const normal = w3d.panel3d({ width: 200 })
+    const warning = theme.withTheme({ panelBg: '#6b2323' }, () =>
+      w3d.panel3d({ width: 200 })
+    )
+    expect(bgOf(warning)).toBe('#6b2323')
+    expect(bgOf(normal)).not.toBe('#6b2323')
+  })
+
+  test('THE POINT: children built as arguments are inside the scope too', () => {
+    // This is why the override is a wrapper and not `panel3d({theme})` — the
+    // children evaluate as arguments, so an option on the panel would recolour
+    // the panel and leave its contents on the default.
+    const lbl = theme.withTheme({ text: '#abcdef' }, () => {
+      const l = w3d.label3d({ text: 'scoped' })
+      l.layout(200)
+      return l
+    })
+    expect(lbl.el.querySelector('text')?.getAttribute('fill')).toBe('#abcdef')
+  })
+
+  test('the default is restored afterwards', () => {
+    const before = theme.w3dTheme.panelBg
+    theme.withTheme({ panelBg: '#000fff' }, () => w3d.panel3d({ width: 100 }))
+    expect(theme.w3dTheme.panelBg).toBe(before)
+  })
+
+  test('and restored even when the build THROWS', () => {
+    // A theme that silently persists after an error is the worst version of
+    // this bug: the next widget looks wrong for no visible reason.
+    const before = theme.w3dTheme.accent
+    expect(() =>
+      theme.withTheme({ accent: '#ff0000' }, () => {
+        throw new Error('boom')
+      })
+    ).toThrow('boom')
+    expect(theme.w3dTheme.accent).toBe(before)
+  })
+
+  test('scopes nest, and only the overridden keys are touched', () => {
+    const before = { ...theme.w3dTheme }
+    theme.withTheme({ accent: '#111111' }, () => {
+      theme.withTheme({ text: '#222222' }, () => {
+        expect(theme.w3dTheme.accent).toBe('#111111')
+        expect(theme.w3dTheme.text).toBe('#222222')
+      })
+      // inner scope restored, outer still in force
+      expect(theme.w3dTheme.text).toBe(before.text)
+      expect(theme.w3dTheme.accent).toBe('#111111')
+    })
+    expect(theme.w3dTheme.accent).toBe(before.accent)
+  })
+})
