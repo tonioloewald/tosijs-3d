@@ -37,8 +37,9 @@ console.log(
 )
 
 const listening = async (): Promise<boolean> =>
-  (await $`lsof -nP -iTCP:${PORT} -sTCP:LISTEN -t`.quiet().nothrow().text())
-    .trim().length > 0
+  (
+    await $`lsof -nP -iTCP:${PORT} -sTCP:LISTEN -t`.quiet().nothrow().text()
+  ).trim().length > 0
 
 let restarts = 0
 while (existsSync(SENTINEL)) {

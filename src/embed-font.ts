@@ -91,8 +91,12 @@ export async function fontFaceCss(
     const b64 = base64OfBytes(bytes)
     const css =
       `@font-face{font-family:'${family}';` +
-      `src:url(data:${mimeFor(url)};base64,${b64}) format('${mimeFor(url).split('/')[1]}');` +
-      `font-weight:${opts.weight ?? 'normal'};font-style:${opts.style ?? 'normal'};}`
+      `src:url(data:${mimeFor(url)};base64,${b64}) format('${
+        mimeFor(url).split('/')[1]
+      }');` +
+      `font-weight:${opts.weight ?? 'normal'};font-style:${
+        opts.style ?? 'normal'
+      };}`
     return { family, css, bytes: b64.length }
   })()
   cache.set(key, task)
@@ -143,9 +147,7 @@ export function unregisterSvgFont(family: string): void {
  */
 export function svgFontStyle(markup: string): string {
   if (registered.size === 0) return ''
-  const used = [...registered.values()].filter((f) =>
-    markup.includes(f.family)
-  )
+  const used = [...registered.values()].filter((f) => markup.includes(f.family))
   if (used.length === 0) return ''
   // Dedupe by rule: two weights of one family are separate faces, but the same
   // face registered twice should not be inlined twice.

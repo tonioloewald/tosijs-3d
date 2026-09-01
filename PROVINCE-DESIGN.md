@@ -86,8 +86,8 @@ system."_ Which is the claim worth stating plainly, because it is falsifiable:
 **Direction lives in the footprint; response lives in the curve.** That split is
 what makes a scalar curve general enough to mean it. A single `[0,1] → [0,1]` has
 no notion of angle, so a valley, a ridge or a river cannot come out of one — but
-none of those are asking for an angular *response*, they are asking for a
-non-circular *footprint*. Any domain that can yield a normalised distance (box,
+none of those are asking for an angular _response_, they are asking for a
+non-circular _footprint_. Any domain that can yield a normalised distance (box,
 capsule, spline-swept tube, an SDF) drives the identical curve. The curve never
 needs to know the shape it is falling off from.
 

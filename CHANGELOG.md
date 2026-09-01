@@ -19,7 +19,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
   **The range is closed on purpose.** A curve maps `[0,1]` to `[0,1]` and a drag
   clamps rather than pushing the range, because a profile that can return 1.4
   silently changes the height a province occupies — which is exactly what
-  `carve`/`patch-field` must agree about, and it fails as *geometry* while
+  `carve`/`patch-field` must agree about, and it fails as _geometry_ while
   reporting nothing. Amplitude belongs to the block; shape belongs to the curve.
   `blendSample` composes them convexly, so a tile's bounds are known before
   anything is evaluated, however many provinces overlap.
@@ -39,7 +39,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
   an answer.
 
   Presets are named for what they **are**: `shelf + mountains`, `desert
-  terraces`, `plateau`, `smooth edge`, `abrupt edge`, `messy circle`. "ease
+terraces`, `plateau`, `smooth edge`, `abrupt edge`, `messy circle`. "ease
   in-out" describes a graph; "smooth edge" describes a province.
 
 - **`vector3d` / `euler3d` — a coordinate on ONE row.** Three stacked labelled
@@ -92,7 +92,6 @@ versions may carry breaking peer-dependency changes — each is called out in a
   leaving the intended width with no half-pixel arithmetic. `muted` is a mid
   grey deliberately: the backdrop is arbitrary 3D, so a light rim vanishes on a
   pale scene and a dark one on a dark scene.
-
 
 - **Numeric fields scrub** — `inputField({type:'number', scrub, step, min, max})`
   drags to adjust and clicks to type (tosijs-3d#50). Scrubbing lives on the

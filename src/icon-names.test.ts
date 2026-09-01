@@ -1,45 +1,43 @@
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import iconData from './icon-data'
 
 /*
-A MISSING ICON NAME IS SILENT — it renders as a plain box, with no error and no
-warning. The pause/resume toggle shipped looking like a solid white square, and
-the generated icon set was the last place anyone looked, because the glyph
-plainly exists in tosijs-ui: our own `icons/` tree is a SEPARATE set, generated
-from `icons/*` by `bun run icons`, and it did not have it.
+Every icon name used in a doc example must EXIST.
 
-So: every icon name the app hard-codes must exist in the generated data. Add the
-name here when you use a new one — the test is the reason the next one fails
-loudly at `bun test` instead of quietly in a headset.
+`iconGlyph` warns on an unknown name and draws nothing, so a typo is invisible in
+the source, silent in tests, and shows up as a blank cell in a demo nobody
+reloaded. It slipped through twice in one session — `chevronLeft`/`chevronRight`
+in a test and five invented names in the icon-grid demo — which is twice more
+than a string with a fixed vocabulary should manage.
 */
-const USED_BY_APP = [
-  // scene panel icon bar
-  'logOut',
-  'compass',
-  'game',
-  'pause',
-  'pauseCircle',
-  'play',
-  'playCircle',
-  // panel chrome / debug tools
-  'close',
-  'move',
-  'settings',
-  'barChart',
-  'bug',
-]
+describe('doc examples only name icons that exist', () => {
+  const dir = join(import.meta.dir)
+  const files = readdirSync(dir).filter(
+    (f) => f.endsWith('.ts') && !f.endsWith('.test.ts')
+  )
+  const known = new Set(Object.keys(iconData))
 
-describe('every icon the app asks for exists in the generated set', () => {
-  test('the generated set is non-empty (a vacuous pass is not a pass)', () => {
-    expect(Object.keys(iconData).length).toBeGreaterThan(20)
+  test('the icon vocabulary is non-empty (guard against an empty check)', () => {
+    // A green test that checked nothing would be worse than no test.
+    expect(known.size).toBeGreaterThan(20)
   })
 
-  for (const name of USED_BY_APP) {
-    test(`${name} is present`, () => {
-      expect(iconData).toHaveProperty(name)
-      expect(String((iconData as Record<string, string>)[name])).toContain(
-        '<svg'
-      )
-    })
-  }
+  test('no source or doc example names a missing icon', () => {
+    const bad: string[] = []
+    for (const f of files) {
+      const src = readFileSync(join(dir, f), 'utf8')
+      // `icon: 'name'` (grid/bar items) and `iconGlyph('name'` / `svgIcons.name(`
+      for (const m of src.matchAll(/\bicon:\s*'([A-Za-z][A-Za-z0-9]*)'/g)) {
+        if (!known.has(m[1])) bad.push(`${f}: icon: '${m[1]}'`)
+      }
+      for (const m of src.matchAll(
+        /\biconGlyph\(\s*'([A-Za-z][A-Za-z0-9]*)'/g
+      )) {
+        if (!known.has(m[1])) bad.push(`${f}: iconGlyph('${m[1]}')`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
 })

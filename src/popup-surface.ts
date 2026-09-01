@@ -834,7 +834,14 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       says where on the panel it took hold. Cloned for the same reason as the
       point — Babylon reuses its pick info between events.
       */
-      const grabRay = ray != null ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), ray.length) : undefined
+      const grabRay =
+        ray != null
+          ? new BABYLON.Ray(
+              ray.origin.clone(),
+              ray.direction.clone(),
+              ray.length
+            )
+          : undefined
       queueMicrotask(() => {
         if (drag == null || closed) return
         drag.startDrag(id, grabRay, grab)

@@ -8,7 +8,11 @@ beforeAll(async () => {
   const g = globalThis as any
   g.window ??= win
   for (const k of Object.getOwnPropertyNames(win)) {
-    try { g[k] ??= win[k] } catch { /* off-document getters */ }
+    try {
+      g[k] ??= win[k]
+    } catch {
+      /* off-document getters */
+    }
   }
   ef = await import('./embed-font')
 })
@@ -46,7 +50,10 @@ describe('fontFaceCss', () => {
 
   test('caches per URL — the payload must not be refetched per panel', async () => {
     let fetches = 0
-    globalThis.fetch = (async () => { fetches++; return fakeFont() }) as unknown as typeof fetch
+    globalThis.fetch = (async () => {
+      fetches++
+      return fakeFont()
+    }) as unknown as typeof fetch
     await ef.fontFaceCss('Other', '/x/other.woff2')
     await ef.fontFaceCss('Other', '/x/other.woff2')
     expect(fetches).toBe(1)
@@ -73,7 +80,9 @@ describe('svgFontStyle — only what the markup uses', () => {
   test('injects a registered face the markup mentions', async () => {
     globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     await ef.registerSvgFont('Rosario', '/x/rosario.woff2')
-    const out = ef.svgFontStyle('<svg><text font-family="Rosario, serif">hi</text></svg>')
+    const out = ef.svgFontStyle(
+      '<svg><text font-family="Rosario, serif">hi</text></svg>'
+    )
     expect(out).toContain('<style>')
     expect(out).toContain('@font-face')
   })
@@ -83,13 +92,17 @@ describe('svgFontStyle — only what the markup uses', () => {
     // difference between one font per texture and all of them.
     globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     await ef.registerSvgFont('Rosario', '/x/rosario.woff2')
-    expect(ef.svgFontStyle('<svg><text font-family="Georgia, serif">hi</text></svg>')).toBe('')
+    expect(
+      ef.svgFontStyle('<svg><text font-family="Georgia, serif">hi</text></svg>')
+    ).toBe('')
   })
 
   test('unregister removes it', async () => {
     globalThis.fetch = (async () => fakeFont()) as unknown as typeof fetch
     await ef.registerSvgFont('Rosario', '/x/rosario.woff2')
     ef.unregisterSvgFont('Rosario')
-    expect(ef.svgFontStyle('<svg><text font-family="Rosario">hi</text></svg>')).toBe('')
+    expect(
+      ef.svgFontStyle('<svg><text font-family="Rosario">hi</text></svg>')
+    ).toBe('')
   })
 })

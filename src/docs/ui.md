@@ -6,6 +6,7 @@
 - [vector-field](/vector-field/)
 - [curve-field](/curve-field/)
 - [footprint-field](/footprint-field/)
+- [icon-grid](/icon-grid/)
 - [surface](/surface/)
 - [popup-surface](/popup-surface/)
 - [rounded-rect](/rounded-rect/)

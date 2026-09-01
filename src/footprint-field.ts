@@ -86,9 +86,7 @@ function initialVertices(value: Footprint3dOptions['value']): ControlPoint[] {
  * fp.evaluate(0.25)   // extent a quarter-turn round
  * ```
  */
-export function footprint3d(
-  config: Footprint3dOptions = {}
-): FootprintField {
+export function footprint3d(config: Footprint3dOptions = {}): FootprintField {
   let verts = initialVertices(config.value)
   let selected = -1
   let dragging = -1
@@ -125,13 +123,16 @@ export function footprint3d(
   /** Polar (turns, 0..1 radius) → widget pixels. y is negated: SVG y grows down. */
   const toPx = (v: ControlPoint) => {
     const a = v.x * Math.PI * 2
-    return { x: cx + Math.cos(a) * v.y * unit, y: cy - Math.sin(a) * v.y * unit }
+    return {
+      x: cx + Math.cos(a) * v.y * unit,
+      y: cy - Math.sin(a) * v.y * unit,
+    }
   }
   const toPolar = (px: number, py: number) => {
     const dx = px - cx
     const dy = cy - py
     return {
-      x: ((Math.atan2(dy, dx) / (Math.PI * 2)) % 1 + 1) % 1,
+      x: (((Math.atan2(dy, dx) / (Math.PI * 2)) % 1) + 1) % 1,
       y: Math.min(1, Math.hypot(dx, dy) / unit),
     }
   }

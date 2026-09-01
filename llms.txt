@@ -181,6 +181,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
 - https://3d.tosijs.net/hud-math/ — hud-math
   Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
+- https://3d.tosijs.net/icon-grid/ — icon-grid
+  picker.** A grid of icons with optional captions, as a `Widget3d`, so it works
 - https://3d.tosijs.net/icon-name/ — icon-name
   Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/input/ — Input

@@ -131,6 +131,12 @@
   seam — that last one is structural, not a widget: `panel3d` returns a bare
   `SVGSVGElement` while `openPopup`/`openMenu` need a `Surface`.
 
+- **DONE (post-0.7.4) — `iconGrid3d`.** Shipped as `src/icon-grid.ts` (16
+  tests, demo at `/icon-grid/`). Built to the spec below; the one addition is a
+  guard test (`icon-names.test.ts`) that every icon named in source or a doc
+  example actually exists, after invented names slipped through twice in one
+  session.
+
 - **`iconGrid3d` — one control for segmented select, tool palette and mode
   picker.** Tonio's design; the goal is to collapse three widgets and a lot of
   panel clutter into one.
@@ -1873,15 +1879,15 @@ DOM analogue is a toolbar that `preventDefault`s on `pointerdown` so the caret
 stays in the field; here it is two separate things, because we have two focus
 systems:
 
-  - **Surface focus.** A press on the keyboard must not move `focus` off the
-    field it is typing into, or the first keystroke has nowhere to go. Our focus
-    is explicit state rather than the browser's, so this is a flag to honour and
-    not a default to fight.
-  - **The 3D pick.** Picking the keyboard's plane must not blur the opener's
-    surface, and `wirePointer`'s outside-press handling has to count the
-    keyboard as INSIDE the field's world. A keyboard that dismisses the thing it
-    types into is the failure mode, and it will look like "the field loses its
-    value" rather than like a focus bug.
+- **Surface focus.** A press on the keyboard must not move `focus` off the
+  field it is typing into, or the first keystroke has nowhere to go. Our focus
+  is explicit state rather than the browser's, so this is a flag to honour and
+  not a default to fight.
+- **The 3D pick.** Picking the keyboard's plane must not blur the opener's
+  surface, and `wirePointer`'s outside-press handling has to count the
+  keyboard as INSIDE the field's world. A keyboard that dismisses the thing it
+  types into is the failure mode, and it will look like "the field loses its
+  value" rather than like a focus bug.
 
 **AMENDED after reading the code — most of this is already true.** `box.ts`
 keeps `focused` as per-box closure state (set on press, at `box.ts:706`/`726`),
@@ -1890,19 +1896,19 @@ reach the field's focus. The isolation is structural, not something to add.
 
 What that leaves is smaller and more concrete:
 
-  - **Wiring, not focus.** Keys reach the field through an explicit callback
-    (`field.insert` / `field.action`), the way `fieldGroup` already does within
-    one surface. Across two surfaces it is the same callback with no focus
-    involved — so the keyboard needs to REMEMBER its target field, which is the
-    actual state to add.
-  - **The dismissal risk is `surface.ts`, not `popup-surface.ts`.** An
-    outside-press dismisses MENUS in the overlay layer; popup-surface planes have
-    no such rule, so a keyboard on its own plane does not dismiss anything. If
-    the keyboard is ever hosted as an overlay popup instead, that rule applies
-    and this warning comes back.
-  - **The keyboard's own box will focus its keys** on press, drawing a focus
-    ring inside the keyboard. Harmless, possibly wanted for D-pad use — but
-    check it does not read as "focus moved here".
+- **Wiring, not focus.** Keys reach the field through an explicit callback
+  (`field.insert` / `field.action`), the way `fieldGroup` already does within
+  one surface. Across two surfaces it is the same callback with no focus
+  involved — so the keyboard needs to REMEMBER its target field, which is the
+  actual state to add.
+- **The dismissal risk is `surface.ts`, not `popup-surface.ts`.** An
+  outside-press dismisses MENUS in the overlay layer; popup-surface planes have
+  no such rule, so a keyboard on its own plane does not dismiss anything. If
+  the keyboard is ever hosted as an overlay popup instead, that rule applies
+  and this warning comes back.
+- **The keyboard's own box will focus its keys** on press, drawing a focus
+  ring inside the keyboard. Harmless, possibly wanted for D-pad use — but
+  check it does not read as "focus moved here".
 
 So: no `activates` flag needed for the plane case. Build it, and only add one if
 the overlay case turns up.

@@ -383,6 +383,13 @@ export {
 } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
 export { curve3d } from './curve-field'
+export { iconGrid3d } from './icon-grid'
+export type {
+  IconGrid,
+  IconGrid3dOptions,
+  IconGridItem,
+  IconGridChange,
+} from './icon-grid'
 export { footprint3d } from './footprint-field'
 export type { Footprint3dOptions, FootprintField } from './footprint-field'
 export type { Curve3dOptions, CurveField } from './curve-field'

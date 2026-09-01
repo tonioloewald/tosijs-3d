@@ -390,7 +390,14 @@ describe('iconBar3d colours like a button', () => {
     // looking held.
     let seen: string | null = null
     const b = w3d.iconBar3d({
-      items: [{ icon: 'plus', onClick: () => { seen = fillOf(b, 0) } }],
+      items: [
+        {
+          icon: 'plus',
+          onClick: () => {
+            seen = fillOf(b, 0)
+          },
+        },
+      ],
     })
     b.layout(200)
     b.handle!('down', 8, 10)

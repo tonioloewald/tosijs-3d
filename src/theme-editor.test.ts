@@ -9,7 +9,11 @@ beforeAll(async () => {
   const g = globalThis as any
   g.window ??= win
   for (const k of Object.getOwnPropertyNames(win)) {
-    try { g[k] ??= win[k] } catch { /* off-document getters */ }
+    try {
+      g[k] ??= win[k]
+    } catch {
+      /* off-document getters */
+    }
   }
   te = await import('./theme-editor')
   theme = await import('./w3d-theme')
@@ -90,6 +94,10 @@ describe('themeEditor — structure', () => {
   })
 
   test('title can be suppressed', () => {
-    expect(te.themeEditor({ title: '', colours: [], metrics: [] }).querySelector('h3')).toBe(null)
+    expect(
+      te
+        .themeEditor({ title: '', colours: [], metrics: [] })
+        .querySelector('h3')
+    ).toBe(null)
   })
 })

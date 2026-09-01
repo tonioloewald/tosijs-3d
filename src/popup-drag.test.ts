@@ -147,7 +147,14 @@ describe('the grab point is passed to startDrag (offset preserved)', () => {
         calls.push([id, ray, point])
       },
     }
-    const grab = { x: 1, y: 2, z: 3, clone() { return { ...this } } }
+    const grab = {
+      x: 1,
+      y: 2,
+      z: 3,
+      clone() {
+        return { ...this }
+      },
+    }
     // what beginDrag does, reduced to its essentials
     const cloned = grab.clone()
     drag.startDrag(7, undefined, cloned)
@@ -159,7 +166,14 @@ describe('the grab point is passed to startDrag (offset preserved)', () => {
   test('the grab point is CLONED, not held live', () => {
     // Babylon reuses its pick info, so holding the live vector means the grab
     // point silently becomes wherever the pointer is now — the same bug again.
-    const live = { x: 1, y: 2, z: 3, clone() { return { ...this } } }
+    const live = {
+      x: 1,
+      y: 2,
+      z: 3,
+      clone() {
+        return { ...this }
+      },
+    }
     const captured = live.clone()
     live.x = 999
     expect(captured.x).toBe(1)

@@ -376,9 +376,9 @@ Child components find their parent `B3d` via `findB3dOwner(el)` which walks up t
 - On disconnect, `B3dChild.disconnectedCallback` calls the subclass's **`sceneDispose()`** and releases.
 
 **⚠️ `whenReady` runs SYNCHRONOUSLY when the scene is already up — mind the TDZ.**
-It defers only if the scene isn't ready yet. Append a child to a *live* scene and its
+It defers only if the scene isn't ready yet. Append a child to a _live_ scene and its
 `sceneReady` runs on the spot too, so a whole chain can complete inside the calling
-function. Any `const`/`let` declared *below* that call is then in its temporal dead zone,
+function. Any `const`/`let` declared _below_ that call is then in its temporal dead zone,
 and you get `ReferenceError: Cannot access 'X' before initialization` — minified to a
 single letter that names nothing you can grep for.
 
@@ -546,9 +546,10 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/w3d-theme.ts`                             | The ONE module that reads the `--w3d-*` theme variables (resolved once at load — texture rasterization can't see the page cascade, so literals are deliberately baked)                                                                                                  |
 | `src/theme-editor.ts`                          | `themeEditor()` — a live editor for the `--w3d-*` palette (colours, metrics with a synced slider+number field, font menu). Its own module, so it tree-shakes out; the colour control is INJECTED so alpha works without depending on tosijs-ui                          |
 | `src/flow-layout.ts`                           | Pure CSS block/inline-block **flow-layout** core (`flowLayout`) + `nearestInDirection` (spatial focus nav) + `placePopup` (flip/clamp); Babylon/DOM-free, unit-tested                                                                                                   |
-| `src/vector-field.ts` | `vector3d`/`euler3d` — a coordinate on ONE row (three fields + axis letters). `euler3d` WRAPS into (-180,180] where `vector3d` clamps; a row is three tab stops, so it owns its own axis focus |
-| `src/curve-field.ts` | `curve3d` — editor for a continuous `[0,1] → [0,1]`. Tap to add, drag to move, DELETE IS A BUTTON (no reliable third gesture on a controller). Hosts the province-editor demo |
-| `src/footprint-field.ts` | `footprint3d` — the same data in POLAR: a polygon in a square, corners dragged where they are. A hexagon looks like a hexagon |
+| `src/vector-field.ts`                          | `vector3d`/`euler3d` — a coordinate on ONE row (three fields + axis letters). `euler3d` WRAPS into (-180,180] where `vector3d` clamps; a row is three tab stops, so it owns its own axis focus                                                                          |
+| `src/icon-grid.ts` | `iconGrid3d` — one control for a segmented select, tool palette and mode picker. The grid owns LAYOUT, the consumer owns MEANING (`mode` + a `change` interceptor). Cell size is touch/pointer only — XR scales the PANEL, not the targets |
+| `src/curve-field.ts`                           | `curve3d` — editor for a continuous `[0,1] → [0,1]`. Tap to add, drag to move, DELETE IS A BUTTON (no reliable third gesture on a controller). Hosts the province-editor demo                                                                                           |
+| `src/footprint-field.ts`                       | `footprint3d` — the same data in POLAR: a polygon in a square, corners dragged where they are. A hexagon looks like a hexagon                                                                                                                                           |
 | `src/box.ts`                                   | The **flow `box`** — resizable SVG container: wraps text, scrolls, pointer + focus-traversal event model. Also `svgPoint` (client→SVG coords via CTM — **use it instead of `getBoundingClientRect` arithmetic**, which breaks under `preserveAspectRatio` letterboxing) |
 | `src/surface.ts`                               | **UI surface** — content box + overlay layer: cascade **menus** and persistent draggable/closable **panels**                                                                                                                                                            |
 | `src/widget-box.ts`                            | The seam letting `widgets3d` controls live inside a `box`/`surface` (they **compose**, not compete) — `BoxChild.handlePointer` capture is what makes a slider drag survive leaving the track                                                                            |

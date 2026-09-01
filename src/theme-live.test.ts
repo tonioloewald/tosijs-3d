@@ -90,7 +90,8 @@ describe('setW3dTheme reaches widgets built AFTER it (#the-theme-demo-did-nothin
 })
 
 describe('withTheme — one default, per-panel overrides', () => {
-  const bgOf = (el: SVGElement) => el.querySelector('rect')?.getAttribute('fill')
+  const bgOf = (el: SVGElement) =>
+    el.querySelector('rect')?.getAttribute('fill')
 
   test('a panel built inside the scope differs from one built outside', () => {
     const normal = w3d.panel3d({ width: 200 })
@@ -174,11 +175,22 @@ describe('padding and lineHeight reach CONTROLS, not just text', () => {
     // padding is inside a control, spacing is the gap between them — a dense
     // inspector wants small padding and comfortable spacing, so one number
     // cannot serve both.
-    const rows = () => [w3d.button3d({ label: 'a' }), w3d.button3d({ label: 'b' })]
+    const rows = () => [
+      w3d.button3d({ label: 'a' }),
+      w3d.button3d({ label: 'b' }),
+    ]
     theme.setW3dTheme({ padding: 12, spacing: 2 })
-    const tightGaps = Number(w3d.panel3d({ width: 240, height: 'fit' }, ...rows()).getAttribute('height'))
+    const tightGaps = Number(
+      w3d
+        .panel3d({ width: 240, height: 'fit' }, ...rows())
+        .getAttribute('height')
+    )
     theme.setW3dTheme({ padding: 12, spacing: 24 })
-    const looseGaps = Number(w3d.panel3d({ width: 240, height: 'fit' }, ...rows()).getAttribute('height'))
+    const looseGaps = Number(
+      w3d
+        .panel3d({ width: 240, height: 'fit' }, ...rows())
+        .getAttribute('height')
+    )
     expect(looseGaps).toBeGreaterThan(tightGaps)
     theme.setW3dTheme({ spacing: 8 })
   })
@@ -225,7 +237,9 @@ describe('buttonActiveText — "button" means any clickable', () => {
     theme.setW3dTheme({ buttonActiveText: '#00ffcc' })
     const bar = w3d.iconBar3d({ items: [{ icon: 'plus', active: true }] })
     bar.layout(200)
-    expect(bar.el.querySelector('g[stroke]')?.getAttribute('stroke')).toBe('#00ffcc')
+    expect(bar.el.querySelector('g[stroke]')?.getAttribute('stroke')).toBe(
+      '#00ffcc'
+    )
     theme.setW3dTheme({ buttonActiveText: '#ffffff', text: '#f0f0f0' })
   })
 })

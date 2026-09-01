@@ -235,10 +235,13 @@ describe('presets are scoped to the kind they are valid for', () => {
 
   test('"no change" really is the identity', () => {
     const c = normalizeCurve(
-      presetsFor('profile').find((p) => p.name === 'no change')!.build(),
+      presetsFor('profile')
+        .find((p) => p.name === 'no change')!
+        .build(),
       'profile'
     )
-    for (const t of [0, 0.3, 0.7, 1]) expect(evaluateCurve(c, t)).toBeCloseTo(t, 6)
+    for (const t of [0, 0.3, 0.7, 1])
+      expect(evaluateCurve(c, t)).toBeCloseTo(t, 6)
   })
 
   test('shelf + mountains has a FLAT middle — that is what makes it read as Earth', () => {
@@ -313,7 +316,8 @@ describe('the plateau: a constant profile with an eased falloff', () => {
     // which is what landform.pad(radius, level, blend) already hand-writes.
     const profile = constant(0.6)
     const falloff = falloffDefault()
-    const at = (r: number) => evaluateCurve(profile, r) * evaluateCurve(falloff, r)
+    const at = (r: number) =>
+      evaluateCurve(profile, r) * evaluateCurve(falloff, r)
 
     // Flat and at full level in the core…
     expect(evaluateCurve(profile, 0)).toBeCloseTo(0.6, 6)
@@ -360,7 +364,11 @@ describe('blendSample — why the closed range buys anything', () => {
         const fall = normalizeCurve(f.build(), 'falloff')
         for (let i = 0; i <= 10; i++) {
           const r = i / 10
-          const out = blendSample(0.5, evaluateCurve(shape, r), evaluateCurve(fall, r))
+          const out = blendSample(
+            0.5,
+            evaluateCurve(shape, r),
+            evaluateCurve(fall, r)
+          )
           expect(out).toBeGreaterThanOrEqual(0)
           expect(out).toBeLessThanOrEqual(1)
         }
@@ -413,7 +421,10 @@ describe('radial — the FOOTPRINT, and it has to close', () => {
     for (const n of [3, 4, 6, 8]) {
       const v = ngon(n)
       expect(polygonExtent(v, 0)).toBeCloseTo(1, 6)
-      expect(polygonExtent(v, 1 / (2 * n))).toBeCloseTo(Math.cos(Math.PI / n), 6)
+      expect(polygonExtent(v, 1 / (2 * n))).toBeCloseTo(
+        Math.cos(Math.PI / n),
+        6
+      )
     }
   })
 
@@ -424,7 +435,7 @@ describe('radial — the FOOTPRINT, and it has to close', () => {
     // would be visibly short in the middle.
     const sq = ngon(4)
     for (const frac of [0.1, 0.25, 0.5, 0.75, 0.9]) {
-      const t = frac / 4                       // along the first edge
+      const t = frac / 4 // along the first edge
       const a = t * Math.PI * 2
       const exact = Math.cos(Math.PI / 4) / Math.cos(a - Math.PI / 4)
       expect(polygonExtent(sq, t)).toBeCloseTo(exact, 6)
@@ -452,7 +463,8 @@ describe('radial — the FOOTPRINT, and it has to close', () => {
     // Every direction must return a positive radius; a sign slip here would
     // silently mirror the footprint for half the compass.
     const v = ngon(5)
-    for (let i = 0; i < 40; i++) expect(polygonExtent(v, i / 40)).toBeGreaterThan(0)
+    for (let i = 0; i < 40; i++)
+      expect(polygonExtent(v, i / 40)).toBeGreaterThan(0)
   })
 
   test('points stay monotonic in theta', () => {
@@ -475,7 +487,7 @@ describe('footprint polygons — monotonic in theta, and enclosing the centre', 
     // rejected — a drag that stops shows you the limit; one that refuses looks
     // broken.
     const v = square()
-    const target = v[2].x        // try to land exactly on the next vertex
+    const target = v[2].x // try to land exactly on the next vertex
     const { vertices: moved } = moveVertex(v, 1, target, v[1].y)
     expect(moved[1].x).toBeLessThan(v[2].x)
     expect(moved[1].x).toBeGreaterThan(v[0].x)
@@ -539,10 +551,9 @@ describe('a profile is a LEVELS MAP, not a second radial curve', () => {
     for (let i = 0; i <= 20; i++) {
       const sample = i / 20
       for (const w of [0, 0.25, 0.5, 0.75, 1]) {
-        expect(blendSample(sample, evaluateCurve(identity, sample), w)).toBeCloseTo(
-          sample,
-          6
-        )
+        expect(
+          blendSample(sample, evaluateCurve(identity, sample), w)
+        ).toBeCloseTo(sample, 6)
       }
     }
   })
