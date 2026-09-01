@@ -224,9 +224,35 @@ export function easeInOut(): ControlPoint[] {
   return sampled((t) => t * t * (3 - 2 * t))
 }
 
-/** The default falloff: full weight at the centre, eased to nothing at the edge. */
+/**
+ * Turn a profile preset into a falloff one: same shape, other way up.
+ *
+ * Tonio: _"0,1 to 1,0 works fine as well if we just think the other way up and
+ * it makes the same presets work for both."_ Which collapses what were two
+ * preset sets into one — and the endpoint rule survives the flip for free,
+ * because a preset ending at y = 1 flips to one ending at y = 0, which is
+ * exactly what a falloff must do.
+ *
+ * `constant` is the one that does not survive, and that is the same exclusion
+ * already documented: a constant flipped is still constant, so it still carries
+ * weight at the boundary. The rule holds; the preset was always the exception.
+ *
+ * A y-flip cannot reorder x, so no re-sort is needed.
+ */
+export function flipCurve(points: ControlPoint[]): ControlPoint[] {
+  return points.map((p) => ({ x: p.x, y: clamp01(1 - p.y) }))
+}
+
+/**
+ * The default falloff — a straight line from `(0,1)` to `(1,0)`.
+ *
+ * The mirror of `linear()`'s role for a profile: the plainest thing that obeys
+ * the rules, so what you start from says nothing you did not ask for. It was a
+ * smoothstep first, which quietly asserted a taste before the author had
+ * expressed one.
+ */
 export function falloffDefault(): ControlPoint[] {
-  return sampled((t) => 1 - t * t * (3 - 2 * t))
+  return flipCurve(linear())
 }
 
 /** A crater/volcano rim — non-monotonic, and the reason monotonicity is not enforced. */
@@ -260,17 +286,31 @@ export interface CurvePreset {
  * falloff would mean offering a seam.
  */
 export const curvePresets: CurvePreset[] = [
-  { name: 'linear', kinds: ['profile'], build: linear },
+  { name: 'linear', kinds: ['profile', 'falloff'], build: linear },
   { name: 'ease in', kinds: ['profile', 'falloff'], build: easeIn },
   { name: 'ease out', kinds: ['profile', 'falloff'], build: easeOut },
   { name: 'ease in-out', kinds: ['profile', 'falloff'], build: easeInOut },
-  { name: 'stepped', kinds: ['profile'], build: () => stepped(4) },
+  { name: 'stepped', kinds: ['profile', 'falloff'], build: () => stepped(4) },
+  // Profile only, and not an arbitrary exclusion: a constant flipped is still
+  // constant, so it still carries weight at the boundary. See `flipCurve`.
   { name: 'constant', kinds: ['profile'], build: () => constant(0.6) },
-  { name: 'falloff', kinds: ['falloff'], build: falloffDefault },
+  // Falloff only, because a rim is a shape you want against DISTANCE and it has
+  // no useful reading as a value remap.
   { name: 'rim', kinds: ['falloff'], build: () => rim() },
 ]
 
-/** The presets valid for a kind — what a menu should offer. */
+/**
+ * The presets valid for a kind — what a menu should offer.
+ *
+ * A falloff gets the SAME set, flipped: one definition of "ease in", presented
+ * the way round that kind needs it.
+ */
 export function presetsFor(kind: CurveKind): CurvePreset[] {
-  return curvePresets.filter((p) => p.kinds.includes(kind))
+  return curvePresets
+    .filter((p) => p.kinds.includes(kind))
+    .map((p) =>
+      kind === 'falloff' && p.name !== 'rim'
+        ? { ...p, build: () => flipCurve(p.build()) }
+        : p
+    )
 }

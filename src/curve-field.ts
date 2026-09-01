@@ -129,7 +129,6 @@ import {
   linear,
   movePoint,
   normalizeCurve,
-  pointAt,
   presetsFor,
   falloffDefault,
   type ControlPoint,
@@ -218,8 +217,22 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
 
   // Plot geometry from the last layout, so the pointer maps through exactly what
   // was drawn — the rule row3d and vector-field both follow.
+  //
+  // FRAME is the drawn box; PLOT is inset within it, so the x = 0 and x = 1
+  // points sit INSIDE the interactive area instead of straddling its edge.
+  // Tonio: "I'm finding it very hard to move the edge points or even select
+  // them." Half of each end handle's grab area fell outside `hitTest`, and a
+  // near-miss did not just fail — it INSERTED a point, which is the worst
+  // available outcome for a mis-aimed press.
+  let frame = { x: 0, y: 0, w: 1, h: 1 }
   let plot = { x: 0, y: 0, w: 1, h: 1 }
   let rowHeight = 0
+
+  /** Handle radius, and the inset that keeps a whole handle inside the frame. */
+  const HANDLE = 5
+  const INSET = HANDLE + 4
+  /** Grab radius in PIXELS — see `nearestPx`. */
+  const GRAB = 16
 
   // Curve space ↔ widget space. y is flipped: 1 is the TOP of the plot.
   const toPx = (p: ControlPoint) => ({
@@ -230,6 +243,29 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
     x: (x - plot.x) / Math.max(1, plot.w),
     y: 1 - (y - plot.y) / Math.max(1, plot.h),
   })
+
+  /**
+   * Nearest point within `GRAB` PIXELS, or -1.
+   *
+   * Deliberately not `curve.pointAt`, which measures in curve units: the plot is
+   * wider than it is tall, so one radius in curve space is an ELLIPSE on screen —
+   * generous horizontally, mean vertically, and the asymmetry is invisible until
+   * you try to grab something. Pixels are what the finger and the ray both work
+   * in.
+   */
+  const nearestPx = (px: number, py: number): number => {
+    let best = -1
+    let bestD = GRAB * GRAB
+    points.forEach((p, i) => {
+      const c = toPx(p)
+      const d = (c.x - px) * (c.x - px) + (c.y - py) * (c.y - py)
+      if (d <= bestD) {
+        bestD = d
+        best = i
+      }
+    })
+    return best
+  }
 
   const emit = (): void => {
     api.onChange?.(points.map((p) => ({ ...p })))
@@ -243,7 +279,7 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
         circle({
           cx: c.x,
           cy: c.y,
-          r: i === selected ? 5 : 3.5,
+          r: i === selected ? HANDLE : HANDLE - 1.5,
           fill: i === selected ? w3dTheme.accent : w3dTheme.panelBg,
           stroke: w3dTheme.accent,
           'stroke-width': String(w3dTheme.strokeWidth),
@@ -253,10 +289,10 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   }
 
   const draw = (): void => {
-    bg.setAttribute('x', String(plot.x))
-    bg.setAttribute('y', String(plot.y))
-    bg.setAttribute('width', String(plot.w))
-    bg.setAttribute('height', String(plot.h))
+    bg.setAttribute('x', String(frame.x))
+    bg.setAttribute('y', String(frame.y))
+    bg.setAttribute('width', String(frame.w))
+    bg.setAttribute('height', String(frame.h))
     bg.setAttribute('fill', w3dTheme.rowBg)
     bg.setAttribute('stroke', w3dTheme.divider)
     bg.setAttribute('stroke-width', String(w3dTheme.strokeWidth))
@@ -298,11 +334,17 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5))
       const capH = config.label ? Math.round(w3dTheme.fontSize * 1.2) : 0
       const plotH = Math.round(width * aspect)
-      plot = {
+      frame = {
         x: pad,
         y: capH,
         w: Math.max(8, width - pad * 2),
         h: Math.max(8, plotH),
+      }
+      plot = {
+        x: frame.x + INSET,
+        y: frame.y + INSET,
+        w: Math.max(8, frame.w - INSET * 2),
+        h: Math.max(8, frame.h - INSET * 2),
       }
       if (config.label) {
         caption.setAttribute('x', String(pad))
@@ -315,12 +357,8 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
 
     handle(kind_: PointerKind, x: number, y: number) {
       if (kind_ === 'down') {
+        const hit = nearestPx(x, y)
         const c = toCurve(x, y)
-        // Grab radius in CURVE units, derived from the drawn size so it is the
-        // same physical distance whatever the panel's scale — a fixed 0.05 is
-        // huge on a wide plot and unusable on a narrow one.
-        const grab = 10 / Math.max(1, plot.w)
-        const hit = pointAt(points, c.x, c.y, grab)
         if (hit >= 0) {
           selected = hit
           dragging = hit
@@ -350,11 +388,13 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
     },
 
     hitTest(x: number, y: number) {
+      // The FRAME, not the plot: an end handle sits on the plot boundary, so a
+      // plot-bounded test rejects half of every press aimed at one.
       return (
-        x >= plot.x &&
-        x <= plot.x + plot.w &&
-        y >= plot.y &&
-        y <= plot.y + plot.h
+        x >= frame.x &&
+        x <= frame.x + frame.w &&
+        y >= frame.y &&
+        y <= frame.y + frame.h
       )
     },
 
