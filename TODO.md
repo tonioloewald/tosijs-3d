@@ -272,10 +272,24 @@
 
   So `w3dTheme.fontFamily` reaches a scene panel only for families **installed
   on the device**, which is why the shipped list is generics plus macOS/Windows
-  faces. Fix is to inline the face as a data-URI `@font-face` in the serialised
-  SVG — self-contained, same discipline as the literals. Not done because it
-  means fetching and base64-ing a font per texture, and that cost wants
-  measuring first; a large face is easily 100 KB+ per panel.
+  faces.
+
+  **Not impossible — the font has to ship WITH the SVG.** Tonio asked whether it
+  is genuinely unsupportable or just wants more injected into the renderer, and
+  it is the second. A serialised SVG can carry its own `@font-face` with the
+  face as a data URI, at which point the standalone document has everything it
+  needs — the same discipline the CSS literals already follow, for the same
+  reason.
+
+  Sketch: fetch the woff2, base64 it, prepend a `<style>` to the serialised copy
+  so only the texture pays and the DOM element is untouched. Cache per family,
+  since panels sharing a theme share the face.
+
+  Costs to measure before paying: a woff2 is easily 20–100 KB, base64 adds a
+  third, and it lands in every rasterisation unless cached. Subsetting to the
+  glyphs actually drawn would cut it hard but needs a shaper. Until then the
+  font menu labels Rosario as a web font, so the limitation is visible rather
+  than surprising.
 
 ## The queue
 
