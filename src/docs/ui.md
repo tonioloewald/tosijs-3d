@@ -16,6 +16,7 @@
 - [svg-icons](/svg-icons/)
 - [svg-texture](/svg-texture/)
 - [table](/table/)
+- [theme-editor](/theme-editor/)
 - [flow-layout](/flow-layout/)
 - [key-layout](/key-layout/)
 - [table-layout](/table-layout/)

@@ -243,6 +243,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **pure geometry behind a data table** — column widths, and which rows are worth
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
+- https://3d.tosijs.net/theme-editor/ — theme-editor
+  consumes, as a grid of controls: colours, metrics with a slider *and* a number
 - https://3d.tosijs.net/ — tosijs-3d
   what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad

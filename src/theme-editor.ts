@@ -1,0 +1,272 @@
+/*#
+# theme-editor
+
+**A live editor for the `--w3d-*` palette.** Every token that a widget actually
+consumes, as a grid of controls: colours, metrics with a slider *and* a number
+field, and a font menu. Change one and your rebuild callback fires.
+
+## Why it is a component rather than a demo
+
+It started as the demo on [[w3d-theme]], and a demo is the wrong home for it —
+an adopter theming an app wants exactly this UI, and copying it out of a doc
+comment is how it drifts from the palette it edits. `w3dTheme` is the one place
+the tokens are declared; this is the one place they are edited.
+
+It is a plain DOM component in its own module, so it tree-shakes out of a build
+that never imports it. Nothing else in the library depends on it.
+
+## Rebuilding is the caller's job, deliberately
+
+The theme is read when a widget is **built** — see `setW3dTheme` for why that is
+not an oversight (an SVG bound for a texture is serialised away from the
+document, so `var(--w3d-text)` resolves against nothing and paints black). So
+this cannot repaint your UI, and does not pretend to: it applies the change and
+calls `onChange`, and you rebuild whatever you are showing.
+
+## The colour input is injected
+
+Alpha matters here — `panelBg`, `rowHover` and `selectedBg` are all `rgba()` —
+and the native `<input type="color">` **cannot express it**, silently dropping
+the channel so a translucent token looks broken rather than untouched.
+
+But tosijs-ui is deliberately not a dependency of this library, and the SVG UI
+has no colour picker of its own yet. So the control is a parameter: pass
+`colorInput` (tosijs-ui's does alpha), or accept the native fallback and know
+what it costs. When the SVG UI grows its own picker this defaults to that
+instead.
+*/
+/*{ "parent": "UI" }*/
+
+import { elements } from 'tosijs'
+import { setW3dTheme, w3dTheme, type W3dTheme } from './w3d-theme'
+
+const { div, label, select, option, span, input, h3 } = elements
+
+/** A field that reads the same on a light or a dark host. */
+const FIELD_STYLE = {
+  background: '#fff',
+  color: '#111',
+  border: '1px solid #8b8b8b',
+  borderRadius: '4px',
+  padding: '1px 4px',
+}
+
+/** Tokens the widgets read today. Reserved ones are deliberately absent — see `w3d-theme`. */
+const COLOURS: Array<keyof W3dTheme> = [
+  'panelBg',
+  'text',
+  'muted',
+  'accent',
+  'rowBg',
+  'rowHover',
+  'buttonBg',
+  'buttonHover',
+  'buttonActive',
+  'track',
+  'caret',
+  'placeholder',
+]
+
+/** `[token, min, max, step]` — the metrics, all live. */
+const METRICS: Array<[keyof W3dTheme, number, number, number]> = [
+  ['fontSize', 10, 28, 1],
+  ['roundedRadius', 0, 24, 1],
+  ['spacing', 0, 24, 1],
+  ['strokeWidth', 0.5, 6, 0.5],
+  ['lineHeight', 1, 2, 0.05],
+]
+
+/**
+ * Generic families first — they always resolve, whatever the platform — then
+ * faces that ship on both macOS and Windows.
+ *
+ * Every chain ends in a generic on purpose: "installed on both" is a weaker
+ * promise than it sounds even across OS versions, and elsewhere it is no
+ * promise at all. A chain ending in `serif` degrades to something readable
+ * rather than to whatever the browser happens to pick.
+ */
+export const FONT_STACKS = [
+  'system-ui, sans-serif',
+  'sans-serif',
+  'serif',
+  'monospace',
+  'Georgia, serif',
+  'Helvetica, Arial, sans-serif',
+  '"Times New Roman", Times, serif',
+  '"Courier New", Courier, monospace',
+  'Verdana, Geneva, sans-serif',
+  '"Trebuchet MS", Tahoma, sans-serif',
+  'Palatino, "Palatino Linotype", "Book Antiqua", serif',
+  'Impact, Haettenschweiler, sans-serif',
+]
+
+export interface ThemeEditorOptions {
+  /** Heading above the grid. Pass `''` for none. */
+  title?: string
+  /** Fired after each change, so you can rebuild whatever you are showing. */
+  onChange?: (theme: W3dTheme) => void
+  /**
+   * Colour control factory. Defaults to `<input type="color">`, which **cannot
+   * express alpha** — pass tosijs-ui's `colorInput` (or any alpha-capable
+   * control) when you have one.
+   */
+  colorInput?: (config: {
+    value: string
+    onChange: (value: string) => void
+  }) => HTMLElement
+  /** Restrict to a subset of tokens. Defaults to everything live. */
+  colours?: Array<keyof W3dTheme>
+  metrics?: Array<[keyof W3dTheme, number, number, number]>
+}
+
+/**
+ * Build the editor. Returns a plain element — put it wherever you like.
+ *
+ * The grid is two columns (label, control) so the controls line up down the
+ * page; a list of `label: control` pairs at natural width does not, and a
+ * palette you are comparing values across is exactly where that shows.
+ */
+export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
+  const {
+    title = 'Theme Editor',
+    onChange,
+    colours = COLOURS,
+    metrics = METRICS,
+  } = config
+
+  const changed = (): void => onChange?.(w3dTheme)
+
+  const nativeColor = (c: { value: string; onChange: (v: string) => void }) =>
+    input({
+      type: 'color',
+      value: c.value,
+      onInput(evt: Event) {
+        c.onChange((evt.target as HTMLInputElement).value)
+      },
+    }) as HTMLElement
+  const makeColor = config.colorInput ?? nativeColor
+
+  const grid = div({
+    class: 'w3d-theme-editor',
+    style: {
+      display: 'grid',
+      gridTemplateColumns: 'auto 1fr',
+      gap: '6px 12px',
+      alignItems: 'center',
+      font: '13px system-ui',
+    },
+  })
+  if (title) {
+    grid.append(
+      h3({
+        style: {
+          gridColumn: '1 / -1',
+          margin: '0 0 4px',
+          font: '600 14px system-ui',
+          opacity: '0.85',
+        },
+      }, title)
+    )
+  }
+
+  const row = (name: string, control: Node): void => {
+    grid.append(label({ style: { justifySelf: 'end', opacity: '0.8' } }, name), control)
+  }
+
+  for (const key of colours) {
+    const current = String(w3dTheme[key])
+    row(
+      key,
+      makeColor({
+        value: current,
+        onChange: (v) => {
+          setW3dTheme({ [key]: v } as Partial<W3dTheme>)
+          changed()
+        },
+      })
+    )
+  }
+
+  for (const [key, min, max, step] of metrics) {
+    /*
+    SLIDER AND NUMBER FIELD, KEPT IN SYNC.
+
+    A slider alone hides the value you are setting — you can see a handle
+    position but not the figure under it, which is the same complaint that put
+    a readout on `slider3d`. The number field also lets you type an exact value,
+    which dragging cannot do at a step of 0.05.
+
+    Each writes the other, so they can never disagree; a pair that drifts is
+    worse than a slider alone, because now two things claim to be the value.
+    */
+    const apply = (v: number | string): void => {
+      const n = Number(v)
+      if (!Number.isFinite(n)) return
+      setW3dTheme({ [key]: n } as Partial<W3dTheme>)
+      range.value = String(n)
+      num.value = String(n)
+      changed()
+    }
+    const range = input({
+      type: 'range',
+      min,
+      max,
+      step,
+      value: String(w3dTheme[key]),
+      style: { width: '120px' },
+      onInput(evt: Event) {
+        apply((evt.target as HTMLInputElement).value)
+      },
+    }) as HTMLInputElement
+    const num = input({
+      type: 'number',
+      min,
+      max,
+      step,
+      value: String(w3dTheme[key]),
+      /*
+      Explicit colours, not inherited.
+
+      The editor is dropped onto whatever surface a host has, and a number
+      field that inherits a pale text colour from a dark page renders as
+      light-grey-on-white — legible in theory and not in practice. A field
+      styled like a field works on either kind of page.
+      */
+      style: { ...FIELD_STYLE, width: '64px' },
+      onChange(evt: Event) {
+        apply((evt.target as HTMLInputElement).value)
+      },
+    }) as HTMLInputElement
+    row(
+      key,
+      span(
+        { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+        range,
+        num
+      )
+    )
+  }
+
+  // Each option renders in its own face — a font menu listing names in one face
+  // makes you pick by memory rather than by looking.
+  row(
+    'fontFamily',
+    select(
+      {
+        style: { ...FIELD_STYLE, maxWidth: '190px' },
+        onChange(evt: Event) {
+          setW3dTheme({ fontFamily: (evt.target as HTMLSelectElement).value })
+          changed()
+        },
+      },
+      ...FONT_STACKS.map((f) =>
+        option(
+          { value: f, style: { fontFamily: f } },
+          f.split(',')[0].replace(/"/g, '')
+        )
+      )
+    )
+  )
+
+  return grid as HTMLElement
+}

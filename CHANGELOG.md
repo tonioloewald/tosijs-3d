@@ -58,6 +58,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
   past the surface it must land on — flipping cannot rescue a popup that is
   taller than both sides.
 
+- **`themeEditor()` — the palette editor is a component**, not demo code. An
+  adopter theming an app wants exactly this UI, and copying it out of a doc
+  comment is how it drifts from the palette it edits. Its own module, so it
+  tree-shakes out of a build that never imports it.
+
+  Every metric has a **slider and a number field, kept in sync** — a slider
+  alone hides the value you are setting, and you cannot drag an exact 0.05.
+  The colour control is **injected**: alpha matters (`panelBg`, `rowHover` and
+  `selectedBg` are `rgba()`) and `<input type="color">` silently drops it, but
+  tosijs-ui is deliberately not a dependency — so pass its `colorInput`, or take
+  the native fallback knowing what it costs.
+
 - **⚠️ The theme now actually reaches the widgets.** Every `--w3d-*` value was
   captured in a module-level `const` at **import** time, so `setW3dTheme` could
   never affect anything — colours, fonts and metrics alike. Only

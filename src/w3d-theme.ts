@@ -17,96 +17,62 @@ before the bundle loads (tosijs's `vars`/`StyleSheet` at startup is fine).
 
 ## Demo
 
-Every token that currently **does** something, live. Change one and the panel
-rebuilds — which is the point: the theme is read when a widget is BUILT, so a
-theme editor rebuilds rather than repaints (see `setW3dTheme`).
+**The same panel twice — flat DOM (top left) and as a texture in a 3D scene
+(bottom left) — with the editor on the right.** Change a token and both
+rebuild, which is the point: one UI, two presentations, and a theme that has to
+reach them identically or the pair drifts.
 
-Colours use tosijs-ui's `colorInput` rather than `<input type="color">`, because
-the native one **cannot express alpha** and half this palette is translucent —
-`panelBg`, `rowHover` and `selectedBg` are all `rgba()`. A picker that silently
-drops the alpha channel would make those tokens look broken rather than
-untouched.
+The editor is [[theme-editor]], a component rather than demo code, so an adopter
+gets this UI instead of copying it. Alpha comes from tosijs-ui's `colorInput`
+passed in — the native `<input type="color">` cannot express it, and half this
+palette is `rgba()`.
 
 ```js
-import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, ui,
-         setW3dTheme, w3dTheme } from 'tosijs-3d'
+import { b3d, b3dLight, panelScene, panel3d, row3d, label3d, slider3d,
+         toggle3d, button3d, ui, themeEditor } from 'tosijs-3d'
 import { colorInput } from 'tosijs-ui'
 import { elements } from 'tosijs'
-const { div, label, select, option, span, input } = elements
+const { div } = elements
 
-// Only tokens with a live consumer — a control that cannot change anything is
-// worse than an absent one, because it reads as a broken theme.
-const colours = ['panelBg', 'text', 'muted', 'accent', 'rowBg', 'rowHover',
-  'buttonBg', 'buttonHover', 'track', 'caret', 'placeholder']
-const numbers = [['roundedRadius', 0, 24, 1], ['spacing', 0, 24, 1], ['strokeWidth', 0.5, 6, 0.5], ['lineHeight', 1, 2, 0.05], ['fontSize', 10, 28, 1]]
-// The generic families first (always resolvable, whatever the platform), then
-// faces that actually ship on both macOS and Windows — each with a fallback
-// chain ending in a generic, because "installed on both" is a weaker promise
-// than it sounds and Linux keeps none of these guarantees.
-const fonts = [
-  'system-ui, sans-serif',
-  'sans-serif',
-  'serif',
-  'monospace',
-  'Georgia, serif',
-  'Helvetica, Arial, sans-serif',        // Helvetica on Mac, Arial on Windows
-  '"Times New Roman", Times, serif',
-  '"Courier New", Courier, monospace',
-  'Verdana, Geneva, sans-serif',
-  '"Trebuchet MS", Tahoma, sans-serif',
-  'Palatino, "Palatino Linotype", "Book Antiqua", serif',
-  'Impact, Haettenschweiler, sans-serif',
-]
+const makePanel = () => panel3d(
+  { width: 300 },
+  label3d({ text: 'Themed panel' }),
+  row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
+    slider3d({ value: 0.6, showValue: 'always', format: (v) => v.toFixed(2) })),
+  row3d({ weights: [1, 2] }, label3d({ text: 'name' }),
+    ui.inputField({ placeholder: 'placeholder…' })),
+  toggle3d({ label: 'a toggle' }),
+  button3d({ label: 'A button' }),
+)
 
-const stage = div({ style: 'padding:20px; background:#5a6472; border-radius:8px' })
+const flat = div({ style: { padding: '16px', background: '#5a6472', borderRadius: '8px' } })
+const stage = div({ style: { width: '320px', height: '260px' } })
+let scene = null
+
 const build = () => {
-  const p = panel3d(
-    { width: 300 },
-    label3d({ text: 'Themed panel' }),
-    row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
-      slider3d({ value: 0.6, showValue: 'always', format: (v) => v.toFixed(2) })),
-    row3d({ weights: [1, 2] }, label3d({ text: 'name' }), ui.inputField({ placeholder: 'placeholder…' })),
-    toggle3d({ label: 'a toggle' }),
-    button3d({ label: 'A button' }),
-  )
-  const old = stage.querySelector('svg')
-  old ? old.replaceWith(p) : stage.append(p)
-}
+  const panel = makePanel()
+  const old = flat.querySelector('svg')
+  old ? old.replaceWith(panel) : flat.append(panel)
 
-const controls = div({ style: 'display:grid; gap:5px; font:13px system-ui; color:#ddd; min-width:230px' })
-const row = (name, control) =>
-  controls.append(label({ style: 'display:flex; gap:10px; align-items:center; justify-content:space-between' }, name, control))
-
-for (const key of colours) {
-  row(key, colorInput({
-    value: w3dTheme[key],
-    onChange(evt) { setW3dTheme({ [key]: evt.target.value }); build() },
-  }))
+  // The 3D half rebuilds too — same widget list, different mount. If the two
+  // ever disagree, that is the bug "one UI, two presentations" exists to catch.
+  const twin = makePanel()
+  const { plane, sceneCreated } = panelScene({ svg: twin, target: twin, width: 2.4 })
+  const next = b3d({ sceneCreated }, b3dLight({ y: 1, intensity: 0.9 }), plane)
+  scene ? scene.replaceWith(next) : stage.append(next)
+  scene = next
 }
-// A slider alone hides the value you are setting — pair it with a number field
-// so you can read the exact figure and type one in.
-for (const [key, min, max, step] of numbers) {
-  const apply = (v) => { setW3dTheme({ [key]: Number(v) }); build(); num.value = String(v); range.value = String(v) }
-  const range = input({ type: 'range', min, max, step, value: String(w3dTheme[key]),
-    onInput(evt) { apply(evt.target.value) } })
-  const num = input({ type: 'number', min, max, step, value: String(w3dTheme[key]),
-    style: 'width:64px', onChange(evt) { apply(evt.target.value) } })
-  row(key, span({ style: 'display:flex; gap:8px; align-items:center' }, range, num))
-}
-// Each option is rendered IN its own face — a font menu that lists names in a
-// single face makes you pick by memory rather than by looking.
-row('fontFamily', select({
-  onChange(evt) { setW3dTheme({ fontFamily: evt.target.value }); build() },
-}, ...fonts.map((f) => option(
-  { value: f, style: `font-family:${f}` },
-  f.split(',')[0].replace(/"/g, ''),
-))))
 
 build()
-preview.append(div({ style: 'display:flex; gap:22px; padding:16px; align-items:flex-start; flex-wrap:wrap' }, stage, controls))
+preview.append(div(
+  { style: { display: 'flex', gap: '24px', padding: '16px', alignItems: 'flex-start', flexWrap: 'wrap' } },
+  div({ style: { display: 'grid', gap: '16px' } }, flat, stage),
+  themeEditor({ colorInput, onChange: build }),
+))
 ```
 ```css
-tosi-example .preview { background: #1b1f27; }
+tosi-example .preview { background: #1b1f27; color: #e6e6e6; }
+tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
 ```
 
 */
