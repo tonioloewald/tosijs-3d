@@ -101,6 +101,32 @@ tarball in the cwd; loose ones in `/tmp` are worse than useless because an
 un-suffixed `tosijs-3d-0.7.0.tgz` can be OLDER than `…-0.7.0-beta.1.tgz` and
 reads as the final release. (Ours was, by 15 minutes. manta found it.)
 
+### ⚠️ The system `node` is ancient — run tooling under Bun
+
+`/usr/local/bin/node` is **v14.17.3**, and the toolchain has moved past it:
+`eslint` 10 requires `>=20.19`, and haltija 1.12.6 needs a modern Node too.
+Both ship `#!/usr/bin/env node` shebangs, so they pick up that v14 and die with
+errors that name **their own internals**, not the cause:
+
+```
+Cannot find module 'node:module'          # eslint, from eslint/bin/eslint.js
+at ModuleJob.run (internal/modules/esm/…)  # hj
+```
+
+Neither says "your Node is too old", and `bun format` failing takes the dev
+server with it — which surfaces as the documented "the server won't start"
+really meaning "lint failed", one layer deeper than that note anticipated.
+
+**Run them under Bun's own runtime** — `bun --bun <tool>` ignores the shebang:
+
+```sh
+bun --bun eslint src bin --fix     # what `bun format` now does
+bun --bun hj eval '…'              # instead of `bunx hj`
+```
+
+Updating the system Node would fix it at the source; until then, `--bun` is
+the reliable form and the one the scripts use.
+
 ### Driving the live page (haltija / `hj`)
 
 `bun start` runs a [haltija](https://github.com/tonioloewald/haltija) dev-channel so an agent can

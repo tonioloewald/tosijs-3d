@@ -1,7 +1,7 @@
 {
   "name": "tosijs-3d",
   "version": "0.7.3",
-  "description": "Declarative 3D/XR components for the web — Babylon.js and tosijs, composable as custom elements.",
+  "description": "Declarative 3D/XR components for the web \u2014 Babylon.js and tosijs, composable as custom elements.",
   "license": "Apache-2.0",
   "homepage": "https://3d.tosijs.net",
   "bugs": {
@@ -50,7 +50,7 @@
     "prettier": "^2.8.8",
     "tjs-lang": "^0.13.6",
     "tosijs": "^1.8.0",
-    "tosijs-ui": "^1.12.6",
+    "tosijs-ui": "^1.12.7",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1"
   },
@@ -61,7 +61,7 @@
     "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
     "tunnel": "tosijs-tunnel",
     "deploy": "tosijs-deploy",
-    "format": "bun eslint src bin --fix && bun prettier --write .",
+    "format": "bun --bun eslint src bin --fix && bun --bun prettier --write .",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "stop": "bun bin/site.ts --stop"
   },
