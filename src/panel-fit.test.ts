@@ -422,8 +422,8 @@ describe('panels live outside the world by default', () => {
     expect(both).toContain('_noshadow')
   })
 
-  test('and they are INDEPENDENT — a cockpit instrument receives but need not cast', () => {
-    const { conventionName } = require('./b3d-utils')
+  test('and they are INDEPENDENT — a cockpit instrument receives but need not cast', async () => {
+    const { conventionName } = await import('./b3d-utils')
     const receivesOnly = conventionName('svg-plane_nocast')
     expect(receivesOnly).toContain('_nocast')
     expect(receivesOnly).not.toContain('_noshadow')
