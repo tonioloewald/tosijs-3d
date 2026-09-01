@@ -169,9 +169,32 @@ export const w3dTheme = {
   headingWeight: cssVar('--w3d-heading-weight', '700'),
   textWeight: cssVar('--w3d-text-weight', '400'),
   panelBg: cssVar('--w3d-panel-bg', 'rgba(20,22,28,0.94)'),
+  /*
+  "BUTTON" MEANS ANY CLICKABLE, not just `button3d`.
+
+  `buttonBg`, `buttonHover`, `buttonActive` and `buttonActiveText` style every
+  widget you can press: buttons, icon buttons, toggles, list rows, select
+  cyclers. Naming them `widget*` would be vaguer — a label is a widget and has
+  no press state — and `clickable*` is what they mean but longer than anyone
+  will type. So `button` is the shorthand, and this note is the contract.
+
+  The practical consequence: theming a button themes the whole interactive
+  surface. That is the intent — a panel where a list row and a button disagree
+  about what "pressed" looks like reads as two design systems.
+  */
   buttonBg: cssVar('--w3d-button-bg', '#2a2f3a'),
   buttonHover: cssVar('--w3d-button-hover', '#333b49'),
   buttonActive: cssVar('--w3d-button-active', '#3a4150'),
+  /**
+   * Label colour while a clickable is HELD or selected.
+   *
+   * Separate from `text` because the background under it has changed: a theme
+   * whose `buttonActive` is a strong accent needs a light label on it, and one
+   * whose active state is a subtle tint needs the ordinary text colour. Baking
+   * that choice into `text` would force every label in the panel to follow a
+   * decision that is only about buttons.
+   */
+  buttonActiveText: cssVar('--w3d-button-active-text', '#ffffff'),
   track: cssVar('--w3d-track', '#3a3f4a'),
   accent: cssVar('--w3d-accent', '#39c5ff'),
   rowBg: cssVar('--w3d-row-bg', 'rgba(255,255,255,0.05)'),

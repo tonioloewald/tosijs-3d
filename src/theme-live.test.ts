@@ -206,3 +206,26 @@ describe('strokeWidth reaches ICONS, not only the caret', () => {
     theme.setW3dTheme({ strokeWidth: 2 })
   })
 })
+
+describe('buttonActiveText — "button" means any clickable', () => {
+  test('a held button takes the active label colour, and gives it back', () => {
+    theme.setW3dTheme({ buttonActiveText: '#ff00ff', text: '#eeeeee' })
+    const b = w3d.button3d({ label: 'go' })
+    b.layout(200)
+    const label = () => b.el.querySelector('text')?.getAttribute('fill')
+    b.handle!('down', 10, 10)
+    expect(label()).toBe('#ff00ff')
+    b.handle!('leave', 10, 10)
+    expect(label()).toBe('#eeeeee')
+  })
+
+  test('a SELECTED icon takes it too — the token spans clickables', () => {
+    // The point of the naming note: buttonBg/Hover/Active/ActiveText style
+    // every pressable widget, not just button3d.
+    theme.setW3dTheme({ buttonActiveText: '#00ffcc' })
+    const bar = w3d.iconBar3d({ items: [{ icon: 'plus', active: true }] })
+    bar.layout(200)
+    expect(bar.el.querySelector('g[stroke]')?.getAttribute('stroke')).toBe('#00ffcc')
+    theme.setW3dTheme({ buttonActiveText: '#ffffff', text: '#f0f0f0' })
+  })
+})

@@ -79,6 +79,7 @@ const COLOURS: Array<keyof W3dTheme> = [
   'buttonBg',
   'buttonHover',
   'buttonActive',
+  'buttonActiveText',
   'track',
   'caret',
   'placeholder',

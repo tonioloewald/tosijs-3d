@@ -751,10 +751,18 @@ export function button3d(config: {
       return TH.ROW
     },
     handle(kind) {
-      if (kind === 'down') bg.setAttribute('fill', TH.BTN_ACTIVE)
-      else if (kind === 'leave') bg.setAttribute('fill', TH.BTN_BG)
-      else {
+      // The LABEL follows too — on a strongly-coloured active background the
+      // ordinary text colour may not read, which is the whole reason
+      // `buttonActiveText` is a separate token.
+      if (kind === 'down') {
+        bg.setAttribute('fill', TH.BTN_ACTIVE)
+        lbl.setAttribute('fill', w3dTheme.buttonActiveText)
+      } else if (kind === 'leave') {
+        bg.setAttribute('fill', TH.BTN_BG)
+        lbl.setAttribute('fill', TH.TEXT)
+      } else {
         bg.setAttribute('fill', TH.BTN_HOVER) // hover / move / up
+        lbl.setAttribute('fill', TH.TEXT)
         if (kind === 'up') config.onClick?.()
       }
     },
@@ -822,7 +830,9 @@ export function iconBar3d(config: {
       fill: item.active ? TH.ACCENT : 'transparent',
     })
     const glyph = iconGlyph(item.icon, {
-      color: TH.TEXT,
+      // Baked at creation (texture-safe), so a SELECTED icon takes the active
+      // label colour here rather than being repainted later.
+      color: item.active ? w3dTheme.buttonActiveText : TH.TEXT,
       size: ICON,
       x: (BS - ICON) / 2,
       y: (BS - ICON) / 2,

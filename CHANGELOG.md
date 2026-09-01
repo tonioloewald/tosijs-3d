@@ -64,6 +64,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Setting a token to one throws nothing — it stringifies, fails to parse, and
   the widget paints **black**. `themeEditor` now accepts either and ignores
   anything it cannot read as a colour.
+- **`buttonActiveText`** — the label colour while a clickable is held or
+  selected. Separate from `text` because the background under it has changed: a
+  theme whose `buttonActive` is a strong accent needs a light label on it, and
+  baking that into `text` would force every label in the panel to follow a
+  decision that is only about buttons. A held `button3d` and a selected icon
+  both take it.
+- **"button" means any CLICKABLE**, and now says so in the source.
+  `buttonBg`/`buttonHover`/`buttonActive`/`buttonActiveText` style every widget
+  you can press — buttons, icon buttons, toggles, list rows, select cyclers.
+  `widget*` would be vaguer (a label is a widget and has no press state) and
+  `clickable*` is what they mean but longer than anyone will type.
 - **`iconBar3d` colours like a button.** It used `buttonActive` — the _press_
   colour — for the selected item, so a selected icon looked permanently held and
   pressing one showed nothing new. Now three escalating states (`buttonBg` →
