@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import {
+  blendSample,
+  circle,
   constant,
   deletePoint,
   easeInOut,
@@ -8,6 +10,7 @@ import {
   insertPoint,
   linear,
   movePoint,
+  ngon,
   normalizeCurve,
   pointAt,
   presetsFor,
@@ -252,5 +255,117 @@ describe('the plateau: a constant profile with an eased falloff', () => {
     // …and gone by the boundary, so it blends rather than stepping.
     expect(at(1)).toBe(0)
     expect(at(0)).toBeGreaterThan(at(0.9))
+  })
+})
+
+describe('blendSample — why the closed range buys anything', () => {
+  test('a convex blend of in-range values cannot leave the range', () => {
+    // The point of the whole exercise: a tile's bounds are known BEFORE anything
+    // is evaluated, so a carve can be authored against a real height rather than
+    // against "usually about this tall".
+    for (let i = 0; i <= 20; i++) {
+      for (let j = 0; j <= 20; j++) {
+        const a = i / 20
+        const b = j / 20
+        for (const w of [0, 0.13, 0.5, 0.87, 1]) {
+          const out = blendSample(a, b, w)
+          expect(out).toBeGreaterThanOrEqual(0)
+          expect(out).toBeLessThanOrEqual(1)
+        }
+      }
+    }
+  })
+
+  test('the endpoints are exactly the two inputs', () => {
+    expect(blendSample(0.2, 0.9, 0)).toBeCloseTo(0.2, 6)
+    expect(blendSample(0.2, 0.9, 1)).toBeCloseTo(0.9, 6)
+  })
+
+  test('out-of-range inputs are clamped, not trusted', () => {
+    // The guarantee is worth more than the caller's arithmetic.
+    expect(blendSample(5, -5, 0.5)).toBeCloseTo(0.5, 6)
+    expect(blendSample(NaN, 1, 1)).toBe(1)
+  })
+
+  test('composing a whole province stays in range for every preset pair', () => {
+    for (const p of presetsFor('profile')) {
+      for (const f of presetsFor('falloff')) {
+        const shape = normalizeCurve(p.build(), 'profile')
+        const fall = normalizeCurve(f.build(), 'falloff')
+        for (let i = 0; i <= 10; i++) {
+          const r = i / 10
+          const out = blendSample(0.5, evaluateCurve(shape, r), evaluateCurve(fall, r))
+          expect(out).toBeGreaterThanOrEqual(0)
+          expect(out).toBeLessThanOrEqual(1)
+        }
+      }
+    }
+  })
+})
+
+describe('radial — the FOOTPRINT, and it has to close', () => {
+  test('the two ends are the same point, one turn apart', () => {
+    // Disagreeing ends put a discontinuity along one bearing, which reads as a
+    // crack in the province rather than as a curve that needed pinning.
+    const c = normalizeCurve(
+      [
+        { x: 0, y: 0.4 },
+        { x: 0.5, y: 1 },
+        { x: 1, y: 0.9 },
+      ],
+      'radial'
+    )
+    expect(c[c.length - 1].y).toBe(c[0].y)
+  })
+
+  test('dragging either end moves BOTH — they are one point seen twice', () => {
+    const start = normalizeCurve(circle(), 'radial')
+    const moved = movePoint(start, 0, 0, 0.3, 'radial')
+    expect(moved.points[0].y).toBeCloseTo(0.3, 6)
+    expect(moved.points[moved.points.length - 1].y).toBeCloseTo(0.3, 6)
+
+    const other = movePoint(start, start.length - 1, 1, 0.7, 'radial')
+    expect(other.points[0].y).toBeCloseTo(0.7, 6)
+    expect(other.points[other.points.length - 1].y).toBeCloseTo(0.7, 6)
+  })
+
+  test('a circle is every direction alike', () => {
+    const c = normalizeCurve(circle(), 'radial')
+    for (const t of [0, 0.2, 0.5, 0.8, 1]) {
+      expect(evaluateCurve(c, t)).toBeCloseTo(1, 6)
+    }
+  })
+
+  test('an n-gon reaches full extent at its vertices and less on its edges', () => {
+    // Circumradius 1: the vertices touch the declared extent, the edges fall
+    // inside it. cos(pi/n) is the edge-midpoint radius.
+    for (const n of [3, 4, 6, 8]) {
+      const c = normalizeCurve(ngon(n), 'radial')
+      const vertex = evaluateCurve(c, 0)
+      const edgeMid = evaluateCurve(c, 1 / (2 * n))
+      expect(vertex).toBeGreaterThan(edgeMid)
+      expect(edgeMid).toBeCloseTo(Math.cos(Math.PI / n), 1)
+    }
+  })
+
+  test('an n-gon has n-fold symmetry', () => {
+    const c = normalizeCurve(ngon(6), 'radial')
+    for (const t of [0.03, 0.09, 0.14]) {
+      expect(evaluateCurve(c, t)).toBeCloseTo(evaluateCurve(c, t + 1 / 6), 2)
+    }
+  })
+
+  test('every radial preset closes', () => {
+    for (const p of presetsFor('radial')) {
+      const c = normalizeCurve(p.build(), 'radial')
+      expect(c[c.length - 1].y).toBeCloseTo(c[0].y, 6)
+    }
+  })
+
+  test('points stay monotonic in theta', () => {
+    // Tonio: "it's just a closed ngon and its points are monotonic in theta" —
+    // which the sort gives for free, but it is the property the footprint relies
+    // on, so it is pinned rather than assumed.
+    expect(sortedByX(normalizeCurve(ngon(5), 'radial'))).toBe(true)
   })
 })

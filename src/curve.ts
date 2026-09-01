@@ -46,8 +46,15 @@ import { PiecewiseLinearFilter, type ControlPoint } from './gradient-filter'
 
 export type { ControlPoint }
 
-/** What the curve means, which is what decides its endpoint rules. */
-export type CurveKind = 'profile' | 'falloff'
+/**
+ * What the curve means, which is what decides its endpoint rules.
+ *
+ * - `profile` — remaps a value. Both ends free.
+ * - `falloff` — weight against normalised distance. Pinned to 0 at x = 1.
+ * - `radial` — the FOOTPRINT: extent in each direction, x being angle over a
+ *   full turn. **Periodic**, so the two ends are the same point.
+ */
+export type CurveKind = 'profile' | 'falloff' | 'radial'
 
 const clamp01 = (n: number): number =>
   !Number.isFinite(n) ? 0 : n < 0 ? 0 : n > 1 ? 1 : n
@@ -76,7 +83,46 @@ export function normalizeCurve(
   if (out[0].x > 0) out.unshift({ x: 0, y: out[0].y })
   if (out[out.length - 1].x < 1) out.push({ x: 1, y: out[out.length - 1].y })
   if (kind === 'falloff') out[out.length - 1] = { x: 1, y: 0 }
+  /*
+  A radial curve WRAPS: x = 0 and x = 1 are the same direction, one full turn
+  apart. If the ends disagree the footprint has a discontinuity along the +x
+  axis — a slice out of the province at exactly one bearing, which reads as a
+  crack rather than as a curve that needed pinning.
+
+  So the last point is not a free point at all; it is a readout of the first.
+  */
+  if (kind === 'radial' && out.length > 1) {
+    out[out.length - 1] = { x: 1, y: out[0].y }
+  }
   return out
+}
+
+/**
+ * Compose a base sample with a province's, by the province's weight.
+ *
+ * **This is the whole reason the range is closed.** A convex combination of two
+ * values in `[0,1]`, by a weight in `[0,1]`, is in `[0,1]` — so a tile's bounds
+ * are known BEFORE anything is evaluated, however many provinces overlap and
+ * whatever curves they carry. That is what [[carve]] and [[patch-field]] need:
+ * not "the terrain is usually about this tall", but a height a bore can be
+ * authored against.
+ *
+ * Amplitude is then a single multiply on the composed result — it scales the
+ * whole block, and cannot push one province through the top of it. Tonio, on a
+ * first draft of the province demo that got this backwards: _"shouldn't height
+ * just scale the whole terrain tile? If it pulls polygons outside the bounds
+ * then it doesn't play nicely with carving, does it?"_ It does not.
+ *
+ * Inputs are clamped rather than trusted, because the guarantee is worth more
+ * than the caller's arithmetic.
+ */
+export function blendSample(
+  base: number,
+  province: number,
+  weight: number
+): number {
+  const w = clamp01(weight)
+  return clamp01(base) * (1 - w) + clamp01(province) * w
 }
 
 /** Sample the curve. Input clamped, so a caller cannot read off the ends. */
@@ -109,6 +155,12 @@ export function movePoint(
   if (kind === 'falloff' && index === last) moved.y = 0
 
   const next = points.map((p, i) => (i === index ? moved : { ...p }))
+  // Dragging either end of a PERIODIC curve moves both — they are one point seen
+  // twice, and letting them diverge is how the seam gets in.
+  if (kind === 'radial' && (index === 0 || index === last)) {
+    next[0] = { x: 0, y: moved.y }
+    next[next.length - 1] = { x: 1, y: moved.y }
+  }
   // Identity by reference, so the index survives the sort exactly.
   const target = next[index]
   next.sort((a, b) => a.x - b.x)
@@ -255,6 +307,32 @@ export function falloffDefault(): ControlPoint[] {
   return flipCurve(linear())
 }
 
+/**
+ * A regular n-gon's extent by direction — the footprint presets.
+ *
+ * Circumradius 1, so the VERTICES reach the province's declared extent and the
+ * edges fall inside it. (Inscribing instead is equally defensible and means
+ * "extent" stops matching the number you set, which is worse.)
+ *
+ * Sampled finely enough that the flats read as flat: a square on 8 samples is a
+ * rounded blob, which would look like the model failing rather than the sampling
+ * being coarse.
+ */
+export function ngon(sides: number): ControlPoint[] {
+  const n = Math.max(3, Math.round(sides))
+  const seg = (Math.PI * 2) / n
+  return sampled((t) => {
+    const theta = t * Math.PI * 2
+    const local = theta - Math.floor(theta / seg) * seg
+    return (Math.cos(Math.PI / n) / Math.cos(local - Math.PI / n)) * 0.999
+  }, n * 12)
+}
+
+/** Every direction alike — the default footprint. */
+export function circle(): ControlPoint[] {
+  return constant(1)
+}
+
 /** A crater/volcano rim — non-monotonic, and the reason monotonicity is not enforced. */
 export function rim(peak = 0.7, height = 1): ControlPoint[] {
   const p = Math.min(0.95, Math.max(0.05, peak))
@@ -297,6 +375,13 @@ export const curvePresets: CurvePreset[] = [
   // Falloff only, because a rim is a shape you want against DISTANCE and it has
   // no useful reading as a value remap.
   { name: 'rim', kinds: ['falloff'], build: () => rim() },
+  // Footprints. `circle` is `constant(1)` — every direction alike — which is why
+  // a constant is meaningful here and meaningless as a falloff.
+  { name: 'circle', kinds: ['radial'], build: circle },
+  { name: 'triangle', kinds: ['radial'], build: () => ngon(3) },
+  { name: 'square', kinds: ['radial'], build: () => ngon(4) },
+  { name: 'hexagon', kinds: ['radial'], build: () => ngon(6) },
+  { name: 'octagon', kinds: ['radial'], build: () => ngon(8) },
 ]
 
 /**
@@ -313,4 +398,11 @@ export function presetsFor(kind: CurveKind): CurvePreset[] {
         ? { ...p, build: () => flipCurve(p.build()) }
         : p
     )
+}
+
+/** The default curve for a kind — the plainest thing that obeys its rules. */
+export function defaultCurve(kind: CurveKind): ControlPoint[] {
+  if (kind === 'falloff') return falloffDefault()
+  if (kind === 'radial') return circle()
+  return linear()
 }

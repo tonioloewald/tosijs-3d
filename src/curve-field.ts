@@ -30,28 +30,51 @@ at each distance from its centre; the **falloff** says how strongly it overrides
 the terrain around it. Drag the points, or pick a preset.
 
 ```js
-import { b3d, b3dLight, panel3d, label3d, button3d, curve3d, slider3d } from 'tosijs-3d'
+import { b3d, b3dLight, panel3d, label3d, button3d, curve3d, slider3d, PerlinNoise } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div } = elements
 
 const SIZE = 24   // metres across
 const SUBS = 110  // grid resolution
-const state = { height: 4, extent: 0.7 }
+// `height` scales the whole BLOCK, not the province inside it — see `rebuild`.
+const state = { height: 9, extent: 0.7 }
 
 // A province is a footprint plus one curve per layer. SHAPE says what height it
 // wants at each distance from its centre; FALLOFF says how strongly it overrides
 // the terrain around it. Both are [0,1] -> [0,1] over normalised distance: 0 at
 // the centre, 1 at the extent.
-const shape = curve3d({ kind: 'profile', label: 'shape — height it wants', value: 'constant', aspect: 0.45 })
-const falloff = curve3d({ kind: 'falloff', label: 'falloff — how much it wins', aspect: 0.45 })
+const shape = curve3d({ kind: 'profile', label: 'shape — height by distance', value: 'constant', aspect: 0.45 })
+const falloff = curve3d({ kind: 'falloff', label: 'falloff — weight by distance', aspect: 0.45 })
+// The FOOTPRINT: extent by direction, x being one full turn. Periodic, so its
+// two ends are one point. "circle" is every direction alike; try square/hexagon.
+const footprint = curve3d({ kind: 'radial', label: 'footprint — extent by direction', value: 'hexagon', aspect: 0.45 })
 
 let ground = null
 
-// Base terrain, so the province has something to blend INTO — over a flat plane
-// every seam hides.
+// Base terrain: seeded fBm, NORMALISED to [0,1] like everything else here.
+//
+// Four octaves rather than a couple of sine waves — smooth ground gives the eye
+// no scale reference, so the province's edge has nothing to be crisp against and
+// the whole thing reads as a bulge in a bedsheet. Detail in the base is what
+// makes the blend legible.
+const noise = new PerlinNoise(1337)
+const fbm = (x, z) => {
+  let sum = 0, amp = 1, freq = 0.055, norm = 0
+  for (let o = 0; o < 4; o++) {
+    sum += noise.noise2D(x * freq, z * freq) * amp
+    norm += amp
+    amp *= 0.5
+    freq *= 2.1   // not exactly 2, so octaves do not line up into visible grain
+  }
+  return sum / norm   // roughly [-1, 1]
+}
 const base = (x, z) =>
-  Math.sin(x * 0.34) * 0.5 + Math.cos(z * 0.27) * 0.45 + Math.sin((x + z) * 0.15) * 0.35
+  // Into a BAND (0.12 … 0.5) rather than the full block: normalising to the
+  // whole [0,1] is equally correct and reads far worse, because a province at
+  // 0.6 then sits down among the hills instead of standing clear of them. The
+  // rolling ground is scenery; the province is the subject.
+  Math.min(1, Math.max(0, 0.12 + (fbm(x, z) * 0.5 + 0.5) * 0.38))
 
 const rebuild = () => {
   if (ground == null) return
@@ -61,10 +84,24 @@ const rebuild = () => {
   const reach = SIZE * 0.5 * state.extent
   for (let i = 0; i < pos.length; i += 3) {
     const x = pos[i], z = pos[i + 2]
-    const r = Math.min(1, Math.hypot(x, z) / reach)
+    // Direction first: the footprint says how far the province reaches THIS way,
+    // and distance is normalised against that. Direction lives in the footprint;
+    // response lives in the other two curves.
+    const theta = (Math.atan2(z, x) / (Math.PI * 2) + 1) % 1
+    const spread = Math.max(0.05, footprint.evaluate(theta))
+    const r = Math.min(1, Math.hypot(x, z) / (reach * spread))
     const w = falloff.evaluate(r)
-    const want = shape.evaluate(r) * state.height
-    pos[i + 1] = base(x, z) * (1 - w) + want * w
+    // EVERYTHING is normalised, and the blend is CONVEX: two values in [0,1]
+    // mixed by a weight in [0,1] cannot leave [0,1]. So the tile's bounds are
+    // known before anything is evaluated, and `height` scales the whole block
+    // rather than pushing one province through the top of it.
+    //
+    // Tonio: "shouldn't height just scale the whole terrain tile? If it pulls
+    // polygons outside the bounds then it doesn't play nicely with carving,
+    // does it?" — it does not, and the first draft of this demo did exactly
+    // that while the module next door documented the opposite.
+    const h = base(x, z) * (1 - w) + shape.evaluate(r) * w
+    pos[i + 1] = h * state.height
   }
   ground.updateVerticesData('position', pos)
   ground.createNormals(true)
@@ -72,6 +109,7 @@ const rebuild = () => {
 
 shape.onChange = rebuild
 falloff.onChange = rebuild
+footprint.onChange = rebuild
 
 const scene = b3d(
   {
@@ -80,7 +118,7 @@ const scene = b3d(
     // and renders a 0x296 canvas that looks exactly like a broken scene.
     style: 'flex:1;min-width:0;border-radius:8px;overflow:hidden',
     sceneCreated(el) {
-      orbitCam(el, { radius: 30, beta: 1.05, alpha: -1.15, target: [0, 1, 0] })
+      orbitCam(el, { radius: 27, beta: 1.0, alpha: -1.15, target: [0, 2, 0] })
       ground = el.make.ground({
         width: SIZE,
         height: SIZE,
@@ -101,7 +139,8 @@ const panel = panel3d(
   button3d({ label: 'delete selected point', onClick: () => shape.deleteSelected() }),
   falloff,
   button3d({ label: 'delete selected point', onClick: () => falloff.deleteSelected() }),
-  slider3d({ label: 'height', min: 0, max: 8, value: state.height, onChange: (v) => { state.height = v; rebuild() } }),
+  footprint,
+  slider3d({ label: 'block height', min: 1, max: 16, value: state.height, onChange: (v) => { state.height = v; rebuild() } }),
   slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, onChange: (v) => { state.extent = v; rebuild() } })
 )
 

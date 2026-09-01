@@ -350,12 +350,19 @@ export {
 export {
   normalizeCurve,
   evaluateCurve,
+  blendSample,
+  flipCurve,
   movePoint,
   insertPoint,
   deletePoint,
   pointAt,
   curvePresets,
   presetsFor,
+  defaultCurve,
+  // `ngon` only — `circle` is a bare common noun and shadows svgElements'
+  // `circle`, which is the barrel rule in CLAUDE.md. Reach it via
+  // `defaultCurve('radial')` or `presetsFor('radial')`.
+  ngon,
 } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
 export { curve3d } from './curve-field'
