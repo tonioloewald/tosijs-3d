@@ -1757,6 +1757,28 @@ scene button), and COLLAPSIBLE.
 
 ### Improvements and future work
 
+[ ] **Panel REAL ESTATE — tabs or sections — before embedding editors in 3D.**
+Deferred deliberately, not forgotten. The province editor (`/curve-field/`) is
+flat-only today: every control in it is a `Widget3d` and would work in-scene
+unchanged, but the demo never asks it to.
+
+Tonio: _"let's worry about embedding the UI in 3D later, because we probably
+want a tab selector or other system for managing real estate first."_ Right
+order — that panel is three plots, three menus, two buttons and four sliders,
+and hanging it in a scene before there is a way to manage vertical space would
+mostly demonstrate that it is too tall. Flat pages scroll comfortably; a panel
+two metres away does not, and `maxHeight` + scroll is a workaround rather than
+an answer.
+
+So the real work is a way to SECTION a panel — tabs, disclosure, or a stack of
+named pages — and the province editor is the case to design against because its
+groups are already obvious (shape / falloff / footprint / block).
+
+Note the standing risk while it stays flat-only: an unexercised in-scene path is
+exactly how the "one UI, two presentations" divergence got in last time (see
+UI-DESIGN-NOTES). Worth a smoke check that the panel still rasterises even
+before it is a demo.
+
 [ ] **Use popups for the debug panel** — "it's crying out for popups". The
 clipped-to-parent-rect overlay with drop shadows on a flat surface is
 exactly what a 3D world should not be doing. Post-0.7.
