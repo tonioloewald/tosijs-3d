@@ -1805,6 +1805,20 @@ the overlay case turns up.
 [ ] **`select` widgets instead of left/right steppers** — library demo, and the
 b3d spin picker. (This is TODO's existing `select3d` entry; the popup
 mechanism is now the way to build it.)
+
+**Concrete customers as of 0.7.4: the three preset pickers in the province
+editor** (`/curve-field/`). They are the right test case because they are
+awkward in the ways that matter — the footprint picker has six options and the
+shape picker seven, so stepping through them to find one is exactly the failure
+the steppers have; and the panel has to work in a headset, so the popup lands
+as its own surface rather than as a list grown inside the panel (which would
+shove every control below it down the page, the reflow problem
+`popup-surface.ts` opens with).
+
+Worth keeping the steppers as well, not replacing them: nudging to the next
+preset while watching the terrain is a different gesture from picking a named
+one out of a list, and the stepper is better at it. Same argument as keeping
+the arrows on a mode select alongside its menu.
 [ ] **Exploder: click the object to explode it**, and explode the SCOUT — a
 hierarchy, which is the interesting case. Bigger ground.
 [ ] **Reflections: put a mirrored platform on the ground** so planar reflection
