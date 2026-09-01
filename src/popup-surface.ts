@@ -127,6 +127,28 @@ is nobody's child, stays where it is, and — if `draggable` — can be grabbed 
 moved. Ownership is a lifetime statement, not a position one; that split is the
 same one `SPATIAL-DESIGN.md` draws for riding an elevator.
 
+## Why parenting to the opener is fine here
+
+The DOM habit is to portal a popup OUT to a positioned ancestor, and it is worth
+being clear that the reason does not survive the trip. A DOM parent **crops**
+(`overflow`) and traps you in its **stacking context**; you escape it to avoid
+being clipped and to control what sits in front. A Babylon parent does neither —
+it is a transform and nothing else — so there is nothing to escape, and
+ownership costs nothing.
+
+Tonio, arriving at it from the other side: _"parenting in 3d is merely
+positional and not cropping."_
+
+The cropping constraint is real, though; it just lives one level down. **The
+TEXTURE is the crop.** An `openPanel` overlay is clipped by the surface's viewBox
+exactly the way a child is clipped by `overflow: hidden`, and no amount of
+re-parenting changes that, because it was never a scene-graph problem. That is
+why the fix is a second PLANE rather than a different parent.
+
+Inheriting the opener's scale and rotation is then a feature rather than a leak:
+a panel scaled down onto a wrist should take its popups with it, at its size and
+its angle. `tearOff()` remains the way to opt out, and it is a deliberate act.
+
 ## Budget
 
 Every surface is a texture. Two or three floating panels are nothing; twenty is
