@@ -654,9 +654,23 @@ export class B3d extends Component {
       cursor: 'default',
       pointerEvents: 'none',
     },
+    /*
+    TOP-LEFT, inset equally — not hanging below the gear.
+
+    It sat at `top: 60px` to clear the button that opens it, which meant the
+    panel started a lozenge-height down the viewport and pushed its own content
+    off the bottom on a short scene. Tonio: "since the scene panel has its own
+    close box we might as well just place the panel top-left ... it just pushes
+    stuff out of view."
+
+    Covering the gear is fine precisely because the panel closes itself: the
+    control that dismisses it is IN it, so the one underneath is not needed
+    while it is open. Equal inset top and left so it reads as anchored to the
+    corner rather than parked under something.
+    */
     ':host .scene-panel-overlay': {
       position: 'absolute',
-      top: '60px',
+      top: '12px',
       left: '12px',
       zIndex: '20',
       filter: 'drop-shadow(0 6px 16px rgba(0,0,0,0.5))',

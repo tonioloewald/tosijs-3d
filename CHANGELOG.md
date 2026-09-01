@@ -75,6 +75,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   culls. Set `castShadow` for a panel that really is scenery — a sign on a wall,
   a screen in a room.
 
+- **The scene panel sits in the top-left corner**, inset equally from top and
+  left, instead of hanging below the gear button. It sat clear of the button
+  that opens it, which pushed its own content off the bottom on a short scene —
+  and covering the gear is fine, because the panel carries its own close box.
 - **The scene panel updates when pause state changes elsewhere.** The transport
   row picks its label and icon from `paused`, but nothing repainted the panel
   when that flipped — so resuming from the pause _dialog_ left the panel still
