@@ -31,47 +31,59 @@ palette is `rgba()`.
 import { b3d, b3dLight, panelScene, panel3d, row3d, label3d, slider3d,
          toggle3d, button3d, ui, themeEditor } from 'tosijs-3d'
 import { colorInput } from 'tosijs-ui'
-import { elements } from 'tosijs'
+import { elements, tosi } from 'tosijs'
 const { div } = elements
 
-// A field only accepts keys if something routes them to it. `inputField`
-// listens to nothing by design — in a headset the keys come from the SVG
-// keyboard, not the DOM — so a flat host has to bridge. `fieldGroup` is that
-// bridge: it owns which field is receiving, commits the one you leave, and
-// `attach()` wires real keydown events.
-// (Line comments, not a block comment — a block comment's terminator inside a
-// doc fence closes the fence, which is how this line broke the file once.)
-const field = ui.inputField({ placeholder: 'type here…' })
-const group = ui.fieldGroup({ fields: [field] })
-group.attach()
-// Click the field first — the group learns about the focus and routes to it.
+// Bound state, as the other widget demos do — so a rebuild does not reset what
+// you set, and the values survive every theme change.
+const { demo } = tosi({ demo: { size: 0.6, sound: false, name: '' } })
 
-const makePanel = () => panel3d(
-  { width: 300 },
-  label3d({ text: 'Themed panel' }),
-  row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
-    slider3d({ value: 0.6, showValue: 'always', format: (v) => v.toFixed(2) })),
-  row3d({ weights: [1, 2] }, label3d({ text: 'name' }), field),
-  toggle3d({ label: 'a toggle' }),
-  button3d({ label: 'A button' }),
-)
+// ONE panel, shown twice. `panelScene` rasterises the SAME svg element onto the
+// plane, so the 3D view is a render of the flat one rather than a copy of it —
+// which is what makes "one UI, two presentations" literal here: there is
+// nothing that can drift, because there is only one thing.
+//
+// A field accepts no keys by itself: `inputField` listens to nothing by design,
+// because in a headset the keys come from the SVG keyboard rather than the DOM.
+// `fieldGroup` bridges that, and `attach()` wires real keydown events.
+const makePanel = () => {
+  const field = ui.inputField({
+    placeholder: 'type here…',
+    value: demo.name.value,
+    onChange: (v) => { demo.name = v },
+  })
+  const panel = panel3d(
+    { width: 300 },
+    label3d({ text: 'Themed panel' }),
+    row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
+      slider3d({ value: demo.size, showValue: 'always', format: (v) => v.toFixed(2) })),
+    row3d({ weights: [1, 2] }, label3d({ text: 'name' }), field),
+    toggle3d({ label: 'sound', value: demo.sound }),
+    button3d({ label: 'A button' }),
+  )
+  return { panel, field }
+}
 
 const flat = div({ style: { padding: '16px', background: '#5a6472', borderRadius: '8px' } })
 const stage = div({ style: { width: '320px', height: '260px' } })
 let scene = null
 
+let detach = null
 const build = () => {
-  const panel = makePanel()
+  const { panel, field } = makePanel()
   const old = flat.querySelector('svg')
   old ? old.replaceWith(panel) : flat.append(panel)
 
-  // The 3D half rebuilds too — same widget list, different mount. If the two
-  // ever disagree, that is the bug "one UI, two presentations" exists to catch.
-  const twin = makePanel()
-  const { plane, sceneCreated } = panelScene({ svg: twin, target: twin, width: 2.4 })
+  // The plane takes the very same element as its texture.
+  const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, width: 2.4 })
   const next = b3d({ sceneCreated }, b3dLight({ y: 1, intensity: 0.9 }), plane)
   scene ? scene.replaceWith(next) : stage.append(next)
   scene = next
+
+  // Re-bind after every rebuild: the old field is gone, and a group holding a
+  // detached field routes keys to nothing.
+  detach?.()
+  detach = ui.fieldGroup({ fields: [field] }).attach()
 }
 
 build()
