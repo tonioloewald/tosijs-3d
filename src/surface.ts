@@ -123,6 +123,7 @@ preview.append(
 import { svgElements } from 'tosijs'
 import { placePopup, type FlowBox, type PopupSide } from './flow-layout'
 import { box, button, NO_SELECT_STYLE, type Box, type PointerKind } from './box'
+import { w3dTheme } from './w3d-theme'
 
 /** A live popup on a {@link Surface}. */
 export interface Popup {
@@ -284,15 +285,60 @@ export function surface(opts: { width: number; height: number }): Surface {
   ): Popup => {
     const w = contentBox.width
     const draggable = o.draggable ?? true
+    const panelH = TITLE_H + contentBox.viewportHeight
+    const radius = w3dTheme.roundedRadius
+
+    /*
+    A BACKING RECT, BEHIND EVERYTHING.
+
+    Without it the panel paints nothing of its own: the title bar covers the top
+    strip and `box` covers the rest, and the seam between them leaks. Two ways,
+    both reported as "a gap between its header and the background so you can see
+    some of the panel behind it" —
+
+      - `box` draws its background ROUNDED (`rx: radius`), so its top corners
+        curve away from the square-bottomed bar, leaving a notch at each end;
+      - and it insets that background by `borderWidth / 2`, so there is a
+        hairline down both sides as well.
+
+    Chasing either one at the seam is the wrong fix, because the panel would
+    still be transparent everywhere the content did not happen to reach. A panel
+    is an opaque THING; it should own its own background and let the parts sit on
+    top. Then no alignment between bar and content can leak, whatever the theme's
+    radius or the box's border does next.
+    */
+    const backing = svgElements.rect({
+      'data-panel-bg': '',
+      x: 0,
+      y: 0,
+      width: w,
+      height: panelH,
+      rx: radius,
+      ry: radius,
+      fill: w3dTheme.panelBg,
+    })
+
     // chrome: title bar (drag zone + close ×) over the content box.
     const bar = svgElements.g({ 'data-panel-bar': '' })
+    // Rounded like the backing rect so the top corners agree, then squared off
+    // along the bottom edge — otherwise the bar curves away from the content and
+    // reintroduces the same seam it is here to cover.
     bar.append(
       svgElements.rect({
         x: 0,
         y: 0,
         width: w,
         height: TITLE_H,
-        fill: '#1c2230',
+        rx: radius,
+        ry: radius,
+        fill: w3dTheme.rowBg,
+      }),
+      svgElements.rect({
+        x: 0,
+        y: Math.max(0, TITLE_H - radius),
+        width: w,
+        height: Math.min(TITLE_H, radius),
+        fill: w3dTheme.rowBg,
       })
     )
     bar.append(
@@ -300,9 +346,9 @@ export function surface(opts: { width: number; height: number }): Surface {
         {
           x: 12,
           y: TITLE_H / 2 + 5,
-          fill: '#e6e6e6',
-          'font-family': 'system-ui, sans-serif',
-          'font-size': '14',
+          fill: w3dTheme.text,
+          'font-family': w3dTheme.fontFamily,
+          'font-size': String(w3dTheme.fontSize),
           'font-weight': '600',
         },
         o.title ?? ''
@@ -326,19 +372,20 @@ export function surface(opts: { width: number; height: number }): Surface {
         d: `M${cx + 6} ${cy + 6} L${cx + 14} ${cy + 14} M${cx + 14} ${
           cy + 6
         } L${cx + 6} ${cy + 14}`,
-        stroke: '#9fb0c3',
-        'stroke-width': '2',
+        stroke: w3dTheme.muted,
+        'stroke-width': String(w3dTheme.strokeWidth),
         'stroke-linecap': 'round',
         fill: 'none',
       })
     )
     const panelEl = svgElements.g({ 'data-panel': '' })
+    panelEl.append(backing)
     panelEl.append(bar)
     const contentWrap = svgElements.g({ transform: `translate(0 ${TITLE_H})` })
     contentWrap.append(contentBox.el)
     panelEl.append(contentWrap)
 
-    const size = { width: w, height: TITLE_H + contentBox.viewportHeight }
+    const size = { width: w, height: panelH }
     const pos =
       'width' in at
         ? placePopup(at, size, { width, height }, 'below')
