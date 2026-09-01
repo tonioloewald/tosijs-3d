@@ -166,6 +166,7 @@ preview.append(
 }
 ```
 */
+import { w3dTheme } from './w3d-theme';
 import { elements, svgElements, varDefault } from 'tosijs';
 import iconData from './icon-data';
 import { parseStyleSuffixes, mergeIconStyle } from './icon-name';
@@ -327,7 +328,18 @@ const DEFAULT_MAP = {
  * on {@link svgIcons}; passing one here warns rather than silently mis-rendering.
  */
 export function iconGlyph(name, opts = {}) {
-    const { color = '#000', size = 24, x = 0, y = 0, strokeWidth = 2 } = opts;
+    /*
+    Stroke width comes from the THEME by default.
+  
+    It was hardcoded to 2, so `w3dTheme.strokeWidth` reached nothing but the text
+    caret — a themed panel could not make its icons match its own line weight.
+    Tonio: "it should be impacted by strokeWidth -- the only thing currently
+    impacted is the text caret."
+  
+    An explicit option still wins, since an icon used as a mark rather than as UI
+    chrome may want its own weight.
+    */
+    const { color = '#000', size = 24, x = 0, y = 0, strokeWidth = w3dTheme.strokeWidth, } = opts;
     const resolved = resolveToMarkup(DEFAULT_MAP, name);
     if (!resolved)
         console.warn(`iconGlyph: unknown icon "${name}"`);

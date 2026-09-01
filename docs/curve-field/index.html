@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>curve-field — tosijs-3d</title>
+  <meta name="description" content="Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing." />
+  <link rel="canonical" href="https://3d.tosijs.net/curve-field/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="curve-field — tosijs-3d" />
+  <meta property="og:description" content="Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing." />
+  <meta property="og:url" content="https://3d.tosijs.net/curve-field/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"curve-field","description":"Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing.","url":"https://3d.tosijs.net/curve-field/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>curve-field</h1>
+<p><strong><code>curve3d</code> — an editor for a continuous <code>[0,1] → [0,1]</code>.</strong> A <code>Widget3d</code>, so it
+works as a flat DOM overlay, on an in-scene panel, and in a headset without
+changing. The rules live in <a href="/curve/" class="wikilink">curve.ts</a>; this draws them and routes the
+pointer.</p>
+<p>Its reason for existing is terrain <strong>provinces</strong>: a province is a footprint plus
+one curve per layer, so this is how you author a plateau, a crater rim or a
+treeline without writing code. See <code>PROVINCE-DESIGN.md</code> → &quot;every one of those
+responses IS a curve&quot;, and the <a href="/b3d-terrain/" class="wikilink">province editor</a> demo below.</p>
+<h2>Deleting a point is a BUTTON, not a gesture</h2>
+<p>Adding is a tap on empty space and moving is a drag, which leaves deleting with
+no obvious third gesture. The usual answers all fail somewhere that matters
+here: right-click does not exist on a controller, double-tap is unreliable when
+the pointer is a ray from two metres away, and drag-off-the-edge collides with
+the clamp that keeps the curve in range.</p>
+<p>So the widget exposes <code>selected</code> and <code>deleteSelected()</code>, and the host puts a
+button somewhere honest. A discoverable button beats a gesture you have to be
+told about — which is the same argument the popup title bar makes for its grip.</p>
+<h2>Demo — a province editor</h2>
+<p>Two curves and a terrain block. The <strong>shape</strong> says what height the province wants
+at each distance from its centre; the <strong>falloff</strong> says how strongly it overrides
+the terrain around it. Drag the points, or pick a preset.</p>
+<pre><code class="language-js">import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, footprint3d, slider3d, select3d, presetsFor, PerlinNoise, attachBiomePlugin, blendSample } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
+import { elements } from &#39;tosijs&#39;
+const { div } = elements
+
+const SIZE = 24   // metres across
+const SUBS = 110  // grid resolution
+// `height` scales the whole BLOCK, not the province inside it — see `rebuild`.
+// 4.5 over a 24 m tile: the field now spans the whole block, so the old 9 (tuned
+// when the base was squeezed into a third of the range) came out as alps.
+const state = { height: 4.5, extent: 0.7, noise: 1 }
+
+// A province is a footprint plus one curve per layer. SHAPE says what height it
+// wants at each distance from its centre; FALLOFF says how strongly it overrides
+// the terrain around it. Both are [0,1] -&gt; [0,1] over normalised distance: 0 at
+// the centre, 1 at the extent.
+// SHAPE is a levels adjustment: it maps the height SAMPLE to a height, exactly
+// like slope-profile&#39;s cliff/beach/mesa. It starts as the IDENTITY, so a fresh
+// province is invisible — drag it off the diagonal and the terrain responds.
+// Try `constant` (flattens whatever is there: a plateau) or drag it the other
+// way up (maps low ground high, which lifts the whole province).
+const shape = curve3d({ kind: &#39;profile&#39;, label: &#39;shape — remaps the height sample&#39;, value: &#39;no change&#39;, aspect: 0.45 })
+const falloff = curve3d({ kind: &#39;falloff&#39;, label: &#39;falloff — weight by distance&#39;, aspect: 0.45 })
+// The FOOTPRINT, edited as the shape it is rather than as extent-against-angle
+// on a graph: a hexagon looks like a hexagon, and a corner is where the corner
+// is. The square is the province&#39;s bounds.
+const footprint = footprint3d({ value: &#39;hexagon&#39;, label: &#39;footprint — drag the corners&#39; })
+
+let ground = null
+let biome = null
+
+// Base terrain: seeded fBm, NORMALISED to [0,1] like everything else here.
+//
+// Four octaves rather than a couple of sine waves — smooth ground gives the eye
+// no scale reference, so the province&#39;s edge has nothing to be crisp against and
+// the whole thing reads as a bulge in a bedsheet. Detail in the base is what
+// makes the blend legible.
+const noise = new PerlinNoise(1337)
+const fbm = (x, z) =&gt; {
+  let sum = 0, amp = 1, freq = 0.055 * state.noise, norm = 0
+  for (let o = 0; o &lt; 4; o++) {
+    sum += noise.noise2D(x * freq, z * freq) * amp
+    norm += amp
+    amp *= 0.5
+    freq *= 2.1   // not exactly 2, so octaves do not line up into visible grain
+  }
+  return sum / norm   // roughly [-1, 1]
+}
+// The FULL [0,1], because that is the shape curve&#39;s DOMAIN.
+//
+// This was banded to 0.12 … 0.5 for legibility, which quietly broke the remap:
+// the editor offers you the whole domain while the terrain only ever asks about
+// the bottom third, so a threshold drawn at 0.5 answered 0 for every sample and
+// the province went flat. Tonio: &quot;[0,0]-[0.5,0][0.5,1]-[1,1] does NOT work as
+// expected&quot; — the curve was right and could not be reached.
+//
+// A control whose input range does not match its data is worse than a coarse
+// one, because it fails silently and looks like the model being wrong.
+// …and normalised against its OWN measured range, not against fBm&#39;s theoretical
+// one. Four octaves of Perlin almost never reach +/-1, so `fbm * 0.5 + 0.5`
+// spans about 0.28 to 0.62 — the same domain mismatch, just smaller and harder
+// to notice. Measuring the field costs one extra pass over a grid we are
+// building anyway.
+const base = (x, z) =&gt; fbm(x, z)
+const normalise = (raw, lo, hi) =&gt; (hi - lo &lt; 1e-6 ? 0.5 : (raw - lo) / (hi - lo))
+
+const rebuild = () =&gt; {
+  if (ground == null) return
+  // Read x/z back out of the buffer and write y: order-independent, so it does
+  // not matter how CreateGround laid the grid out.
+  const pos = ground.getVerticesData(&#39;position&#39;)
+  const reach = SIZE * 0.5 * state.extent
+  // Pass one: the raw field and its extremes, so the shape curve&#39;s [0,1] domain
+  // maps onto terrain that actually spans [0,1].
+  const raw = new Float32Array(pos.length / 3)
+  let lo = Infinity
+  let hi = -Infinity
+  for (let i = 0, k = 0; i &lt; pos.length; i += 3, k++) {
+    raw[k] = base(pos[i], pos[i + 2])
+    if (raw[k] &lt; lo) lo = raw[k]
+    if (raw[k] &gt; hi) hi = raw[k]
+  }
+  for (let i = 0, k = 0; i &lt; pos.length; i += 3, k++) {
+    const x = pos[i], z = pos[i + 2]
+    // Direction first: the footprint says how far the province reaches THIS way,
+    // and distance is normalised against that. Direction lives in the footprint;
+    // response lives in the other two curves.
+    const theta = (Math.atan2(z, x) / (Math.PI * 2) + 1) % 1
+    const spread = Math.max(0.05, footprint.evaluate(theta))
+    const r = Math.min(1, Math.hypot(x, z) / (reach * spread))
+    const w = falloff.evaluate(r)
+    // THE HEIGHT SAMPLE goes through the shape curve — a levels adjustment, not
+    // a function of distance. Tonio: &quot;shape isn&#39;t working properly. It&#39;s being
+    // treated as an output constant NOT as a map from height field to terrain
+    // height.&quot; It was `shape.evaluate(r)`, which made a profile into a second
+    // radial curve and quietly threw away the terrain underneath it.
+    //
+    // The falloff still works on DISTANCE — that is the split: what the province
+    // does to a sample, versus how far its say extends.
+    //
+    // `blendSample` is convex, so two values in [0,1] mixed by a weight in [0,1]
+    // cannot leave [0,1]: the tile&#39;s bounds are known before anything is
+    // evaluated, and `height` scales the whole block rather than pushing one
+    // province through the top of it.
+    const sample = normalise(raw[k], lo, hi)
+    const h = blendSample(sample, shape.evaluate(sample), w)
+    pos[i + 1] = h * state.height
+  }
+  ground.updateVerticesData(&#39;position&#39;, pos)
+  ground.createNormals(true)
+}
+
+shape.onChange = rebuild
+falloff.onChange = rebuild
+footprint.onChange = rebuild
+
+const scene = b3d(
+  {
+    // `flex:1` on the ELEMENT, not just its wrapper: a &lt;tosi-b3d&gt; in a flex row
+    // has no flex-grow of its own, so it shrinks to content width — which is 0,
+    // and renders a 0x296 canvas that looks exactly like a broken scene.
+    style: &#39;flex:1;min-width:0;border-radius:8px;overflow:hidden&#39;,
+    sceneCreated(el) {
+      orbitCam(el, { radius: 32, beta: 1.02, alpha: -1.15, target: [0, 1.5, 0] })
+      ground = el.make.ground({
+        width: SIZE,
+        height: SIZE,
+        subdivisions: SUBS,
+        updatable: true,
+        color: &#39;#6d7a58&#39;,
+      })
+      rebuild()
+    },
+  },
+  b3dLight({ intensity: 0.95 })
+)
+
+// A preset menu per curve. Presets are the fastest way to learn what a curve
+// DOES — you pick &quot;desert terraces&quot;, see terraces, then drag from there.
+const menu = (widget, kind, value) =&gt;
+  select3d({
+    value,
+    options: presetsFor(kind).map((p) =&gt; p.name),
+    onChange: (name) =&gt; { widget.applyPreset(name); rebuild() },
+  })
+
+const panel = panel3d(
+  { width: 320 },
+  label3d({ text: &#39;province editor&#39;, bold: true }),
+  shape,
+  menu(shape, &#39;profile&#39;, &#39;no change&#39;),
+  button3d({ label: &#39;delete selected point&#39;, onClick: () =&gt; shape.deleteSelected() }),
+  falloff,
+  menu(falloff, &#39;falloff&#39;, &#39;linear&#39;),
+  button3d({ label: &#39;delete selected point&#39;, onClick: () =&gt; falloff.deleteSelected() }),
+  footprint,
+  menu(footprint, &#39;radial&#39;, &#39;hexagon&#39;),
+  slider3d({ label: &#39;block height&#39;, min: 1, max: 16, value: state.height, onChange: (v) =&gt; { state.height = v; rebuild() } }),
+  slider3d({ label: &#39;extent&#39;, min: 0.2, max: 1, value: state.extent, onChange: (v) =&gt; { state.extent = v; rebuild() } }),
+  slider3d({ label: &#39;noise scale&#39;, min: 0.2, max: 4, value: state.noise, onChange: (v) =&gt; { state.noise = v; rebuild() } }),
+  toggle3d({ label: &#39;wireframe&#39;, value: false, onChange: (v) =&gt; { if (ground?.material) ground.material.wireframe = v } }),
+  // The real biome shader, on this block&#39;s material — the same one b3d-terrain
+  // puts on a tile, so the province is judged against how it will actually look
+  // rather than against a flat green.
+  toggle3d({ label: &#39;terrain shader&#39;, value: false, onChange: (v) =&gt; {
+    if (ground?.material == null) return
+    if (biome == null) biome = attachBiomePlugin(ground.material)
+    biome.isEnabled = v
+  } })
+)
+
+preview.append(
+  div(
+    { style: &#39;display:flex;gap:16px;height:100%;padding:12px;background:#0c0e14;box-sizing:border-box&#39; },
+    div({ style: &#39;flex:0 0 320px;overflow:auto&#39; }, panel),
+    div({ style: &#39;flex:1;min-width:0;display:flex&#39; }, scene)
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview {
+  height: 100%;
+}
+</code></pre>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link current" href="../curve-field/" aria-current="page">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

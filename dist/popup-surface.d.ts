@@ -80,7 +80,11 @@ export interface PopupSurface {
     vbHeight: number;
     chromeLayout: ReturnType<typeof chromeLayout>;
     /** Internal: start the move gesture (called after the grip hit test). */
-    beginDrag(pointerId: number): void;
+    /**
+     * Internal: start a drag, grabbing at `pickedPoint` so the panel keeps the
+     * offset you grabbed it by instead of jumping to centre on the pointer.
+     */
+    beginDrag(pointerId: number, pickedPoint?: BABYLON.Vector3, ray?: BABYLON.Ray): void;
     /** Internal: end it on pointerup — the behaviour's own release is disabled. */
     endDrag(): void;
     /** Bring this popup to the front of the stack. */

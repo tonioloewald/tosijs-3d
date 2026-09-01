@@ -58,6 +58,127 @@ paints black. Reading the computed value at load and baking the literal into
 the SVG is what makes the same markup render identically in the DOM and on a
 plane. The cost: the theme is not live-reactive to later JS changes — restyle
 before the bundle loads (tosijs&#39;s <code>vars</code>/<code>StyleSheet</code> at startup is fine).</p>
+<h2>Demo</h2>
+<p><strong>The same panel twice — flat DOM (top left) and as a texture in a 3D scene
+(bottom left) — with the editor on the right.</strong> Change a token and both
+rebuild, which is the point: one UI, two presentations, and a theme that has to
+reach them identically or the pair drifts.</p>
+<p>The editor is <a href="/theme-editor/" class="wikilink">theme-editor</a>, a component rather than demo code, so an adopter
+gets this UI instead of copying it. Alpha comes from tosijs-ui&#39;s <code>colorInput</code>
+passed in — the native <code>&lt;input type=&quot;color&quot;&gt;</code> cannot express it, and half this
+palette is <code>rgba()</code>.</p>
+<pre><code class="language-js">import { b3d, b3dLight, panelScene, panel3d, row3d, label3d, slider3d,
+         toggle3d, button3d, iconBar3d, ui, themeEditor } from &#39;tosijs-3d&#39;
+import { colorInput } from &#39;tosijs-ui&#39;
+import { elements, tosi } from &#39;tosijs&#39;
+const { div } = elements
+
+// Bound state, as the other widget demos do — so a rebuild does not reset what
+// you set, and the values survive every theme change.
+const { demo } = tosi({ demo: { size: 0.6, sound: false, name: &#39;&#39; } })
+
+// Load a WEB font so the menu&#39;s Rosario entry has something to render. A theme
+// names a family; loading it is the host&#39;s job, which is exactly the point of
+// showing one here.
+if (!document.getElementById(&#39;rosario-font&#39;)) {
+  document.head.append(elements.link({
+    id: &#39;rosario-font&#39;,
+    rel: &#39;stylesheet&#39;,
+    href: &#39;https://fonts.googleapis.com/css2?family=Rosario:wght@400;600&amp;display=swap&#39;,
+  }))
+}
+
+// ONE panel, shown twice. `panelScene` rasterises the SAME svg element onto the
+// plane, so the 3D view is a render of the flat one rather than a copy of it —
+// which is what makes &quot;one UI, two presentations&quot; literal here: there is
+// nothing that can drift, because there is only one thing.
+//
+// A field accepts no keys by itself: `inputField` listens to nothing by design,
+// because in a headset the keys come from the SVG keyboard rather than the DOM.
+// `fieldGroup` bridges that, and `attach()` wires real keydown events.
+const makePanel = () =&gt; {
+  const field = ui.inputField({
+    placeholder: &#39;type here…&#39;,
+    value: demo.name.value,
+    onChange: (v) =&gt; { demo.name = v },
+  })
+  const panel = panel3d(
+    { width: 300 },
+    label3d({ text: &#39;Themed panel&#39; }),
+    row3d({ weights: [1, 2] }, label3d({ text: &#39;size&#39; }),
+      slider3d({ value: demo.size, showValue: &#39;always&#39;, format: (v) =&gt; v.toFixed(2) })),
+    row3d({ weights: [1, 2] }, label3d({ text: &#39;name&#39; }), field),
+    toggle3d({ label: &#39;sound&#39;, value: demo.sound }),
+    // Stroked icons, so `strokeWidth` has something to act on besides the caret.
+    iconBar3d({ items: [
+      { icon: &#39;mousePointer&#39; }, { icon: &#39;move&#39; }, { icon: &#39;rotateCw&#39; },
+      { icon: &#39;plusCircle&#39; }, { icon: &#39;trash2&#39; },
+    ] }),
+    button3d({ label: &#39;A button&#39; }),
+  )
+  return { panel, field }
+}
+
+// Four equal cells. The panels take the left column (DOM above, 3D below) and
+// the editor spans the right — so the two renders of the same panel sit one
+// above the other, which is where a difference between them would be obvious.
+const cell = { display: &#39;grid&#39;, placeItems: &#39;center&#39;, minWidth: &#39;0&#39;, minHeight: &#39;0&#39;, overflow: &#39;auto&#39; }
+const flat = div({ style: { ...cell, background: &#39;#5a6472&#39;, borderRadius: &#39;8px&#39;, padding: &#39;12px&#39; } })
+const stage = div({ style: { ...cell, background: &#39;#11141a&#39;, borderRadius: &#39;8px&#39; } })
+let scene = null
+
+let detach = null
+const build = () =&gt; {
+  const { panel, field } = makePanel()
+  const old = flat.querySelector(&#39;svg&#39;)
+  old ? old.replaceWith(panel) : flat.append(panel)
+
+  // The plane takes the very same element as its texture.
+  // `camera` gives the scene an orbit camera that YIELDS during a press on the
+  // panel — so you can drag the view and still use the controls, which is what
+  // the other side-by-side demos do and this one was missing.
+  const { plane, sceneCreated } = panelScene({
+    svg: panel,
+    target: panel,
+    width: 2.4,
+    camera: { beta: Math.PI / 2.4, radius: 3.4 },
+  })
+  const next = b3d({ sceneCreated }, b3dLight({ y: 1, intensity: 0.9 }), plane)
+  scene ? scene.replaceWith(next) : stage.append(next)
+  scene = next
+
+  // Re-bind after every rebuild: the old field is gone, and a group holding a
+  // detached field routes keys to nothing.
+  detach?.()
+  detach = ui.fieldGroup({ fields: [field] }).attach()
+}
+
+build()
+preview.append(div(
+  {
+    style: {
+      display: &#39;grid&#39;,
+      gridTemplateColumns: &#39;1fr 1fr&#39;,
+      gridTemplateRows: &#39;1fr 1fr&#39;,
+      gap: &#39;16px&#39;,
+      padding: &#39;16px&#39;,
+      height: &#39;100%&#39;,
+      boxSizing: &#39;border-box&#39;,
+    },
+  },
+  flat,
+  // The editor spans both rows of the right column — it is a tall list, and
+  // splitting it across a cell boundary would make it scroll twice.
+  div(
+    { style: { ...cell, gridRow: &#39;1 / 3&#39;, gridColumn: &#39;2&#39;, alignContent: &#39;start&#39;, justifyItems: &#39;start&#39; } },
+    themeEditor({ colorInput, onChange: build })
+  ),
+  stage,
+))
+</code></pre>
+<pre><code class="language-css">tosi-example .preview { background: #1b1f27; color: #e6e6e6; min-height: 620px; }
+tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -120,6 +241,7 @@ before the bundle loads (tosijs&#39;s <code>vars</code>/<code>StyleSheet</code> 
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
@@ -167,6 +289,9 @@ before the bundle loads (tosijs&#39;s <code>vars</code>/<code>StyleSheet</code> 
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
@@ -175,11 +300,13 @@ before the bundle loads (tosijs&#39;s <code>vars</code>/<code>StyleSheet</code> 
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
@@ -191,6 +318,7 @@ before the bundle loads (tosijs&#39;s <code>vars</code>/<code>StyleSheet</code> 
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>

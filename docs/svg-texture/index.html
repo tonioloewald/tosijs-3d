@@ -87,6 +87,23 @@ const scene = b3d(
 preview.append(scene)
 </code></pre>
 <p>Call <code>tex.dispose()</code> when done to stop the interval and release GPU memory.</p>
+<h2>⚠️ Web fonts do NOT survive rasterisation</h2>
+<p>A face the <em>document</em> has loaded is not available here. The SVG is serialised
+to a standalone <code>Image</code>, which the browser treats as its own document: it does
+not inherit the page&#39;s font faces any more than it inherits the page&#39;s CSS
+custom properties (the reason <code>w3d-theme</code> bakes literals in the first place).</p>
+<p>Confirmed by looking rather than reasoning — the theme demo shows the same
+panel flat and as a texture, and selecting Rosario changes the DOM panel and
+leaves the textured one on its fallback.</p>
+<p>So a <code>fontFamily</code> in a theme reaches an in-scene panel <strong>only if the family is
+installed on the device</strong>. That is why the shipped font list is generic
+families plus faces that ship with macOS and Windows: those are the ones that
+work in both presentations.</p>
+<p>The fix, when it is wanted, is to inline the face as a data-URI <code>@font-face</code>
+inside the serialised SVG — self-contained, and the same discipline the CSS
+literals already follow. Filed in TODO rather than done, because it means
+fetching and base64-ing a font per texture and the cost should be measured
+before it is paid.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -149,6 +166,7 @@ preview.append(scene)
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
@@ -196,6 +214,9 @@ preview.append(scene)
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
@@ -204,11 +225,13 @@ preview.append(scene)
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link current" href="../svg-texture/" aria-current="page">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
@@ -220,6 +243,7 @@ preview.append(scene)
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>

@@ -158,6 +158,23 @@ pose</strong> (Babylon&#39;s <code>setParent(null)</code> does that arithmetic f
 is nobody&#39;s child, stays where it is, and — if <code>draggable</code> — can be grabbed and
 moved. Ownership is a lifetime statement, not a position one; that split is the
 same one <code>SPATIAL-DESIGN.md</code> draws for riding an elevator.</p>
+<h2>Why parenting to the opener is fine here</h2>
+<p>The DOM habit is to portal a popup OUT to a positioned ancestor, and it is worth
+being clear that the reason does not survive the trip. A DOM parent <strong>crops</strong>
+(<code>overflow</code>) and traps you in its <strong>stacking context</strong>; you escape it to avoid
+being clipped and to control what sits in front. A Babylon parent does neither —
+it is a transform and nothing else — so there is nothing to escape, and
+ownership costs nothing.</p>
+<p>Tonio, arriving at it from the other side: <em>&quot;parenting in 3d is merely
+positional and not cropping.&quot;</em></p>
+<p>The cropping constraint is real, though; it just lives one level down. <strong>The
+TEXTURE is the crop.</strong> An <code>openPanel</code> overlay is clipped by the surface&#39;s viewBox
+exactly the way a child is clipped by <code>overflow: hidden</code>, and no amount of
+re-parenting changes that, because it was never a scene-graph problem. That is
+why the fix is a second PLANE rather than a different parent.</p>
+<p>Inheriting the opener&#39;s scale and rotation is then a feature rather than a leak:
+a panel scaled down onto a wrist should take its popups with it, at its size and
+its angle. <code>tearOff()</code> remains the way to opt out, and it is a deliberate act.</p>
 <h2>Budget</h2>
 <p>Every surface is a texture. Two or three floating panels are nothing; twenty is
 a VRAM problem on a Quest, and VR is the tier with the least headroom. Callers
@@ -226,6 +243,7 @@ rather than degrade.</p>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
@@ -273,6 +291,9 @@ rather than degrade.</p>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link current" href="../popup-surface/" aria-current="page">popup-surface</a></li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
@@ -281,11 +302,13 @@ rather than degrade.</p>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
@@ -297,6 +320,7 @@ rather than degrade.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>

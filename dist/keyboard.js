@@ -249,29 +249,204 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 */
 /*{ "parent": "UI" }*/
 import { svgElements } from 'tosijs';
-import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, } from './key-layout';
+import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout';
 import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit';
 import { measureTextWidth } from './widgets3d-layout';
 import { nearestInDirection } from './flow-layout';
 import { w3dTheme } from './w3d-theme';
 const { g, rect, text } = svgElements;
-// Theme reads live in ONE module (w3d-theme) — see the review-caught
-// triplication; the local names keep this file's paint code readable.
-const TEXT = w3dTheme.text;
-const MUTED = w3dTheme.muted;
-const ACCENT = w3dTheme.accent;
-const KEY_BG = w3dTheme.buttonBg;
-const KEY_ACTION_BG = w3dTheme.track;
-const KEY_DOWN = w3dTheme.buttonActive;
-const FIELD_BG = w3dTheme.rowBg;
-const PANEL_BG = w3dTheme.panelBg;
-const FONT_FAMILY = w3dTheme.fontFamily;
+/*
+LIVE THEME READS — see the same note in widgets3d.
+
+`const X = w3dTheme.x` at module scope captured the palette at IMPORT, so
+`setW3dTheme` could not reach it and a theme editor changed nothing.
+*/
+const TH = {
+    get TEXT() {
+        return w3dTheme.text;
+    },
+    get ACCENT() {
+        return w3dTheme.accent;
+    },
+    get KEY_BG() {
+        return w3dTheme.buttonBg;
+    },
+    get KEY_ACTION_BG() {
+        return w3dTheme.track;
+    },
+    get KEY_DOWN() {
+        return w3dTheme.buttonActive;
+    },
+    get FIELD_BG() {
+        return w3dTheme.rowBg;
+    },
+    get PLACEHOLDER() {
+        return w3dTheme.placeholder;
+    },
+    get PANEL_BG() {
+        return w3dTheme.panelBg;
+    },
+    get FONT_FAMILY() {
+        return w3dTheme.fontFamily;
+    },
+};
+/**
+ * Pixels of travel before a press becomes a scrub rather than a caret placement.
+ *
+ * Small, but not zero: a tap on a touchscreen or an XR ray always drifts a
+ * pixel or two, and treating that as a scrub would make the field impossible to
+ * click into.
+ */
+const SCRUB_SLOP = 3;
+/**
+ * **One keyboard, many fields.** Owns which field is receiving, so hosts stop
+ * doing it by hand.
+ *
+ * Three jobs that always travel together, and were three separate chores in
+ * every consumer (tosijs-3d#37, items 1 and 7):
+ *
+ * - **Exclusivity.** Focusing one field un-focuses the rest. Two lit fields
+ *   both claiming the keyboard is worse than none, because the caret is
+ *   somewhere you are not looking.
+ * - **Commit on leave.** The field you are leaving settles, so a half-typed
+ *   `1.` or `-` never survives as a value. Nobody remembers to do this by hand
+ *   until they find a `NaN` in a document.
+ * - **Layout.** The incoming field's `type` chooses the keyboard mode, which is
+ *   the whole point of having a type — a numeric field raising the numpad
+ *   without anyone asking.
+ *
+ * `handleKey` takes a key NAME plus modifiers rather than an event, so the same
+ * routing works from a DOM listener, a synthetic source, or a test. Attaching a
+ * real listener stays the host's choice: this library never grabs the document.
+ */
+export function fieldGroup(config) {
+    let active = null;
+    const focus = (field) => {
+        if (field === active)
+            return;
+        const leaving = active;
+        /*
+        Claim `active` BEFORE touching the fields.
+    
+        `setActive(true)` makes a field announce its own focus, which routes back
+        here — so with the assignment at the end, the re-entrant call still saw the
+        old value, recursed, and ran the whole body twice (the keyboard mode was set
+        twice per focus change, which a listener counting mode changes would see as
+        a flicker). Claiming first makes re-entry hit the guard above and return.
+        */
+        active = field;
+        // Settle the outgoing field before the incoming one lights up, so a refused
+        // value is restored while the eye is still on it.
+        leaving?.commit();
+        for (const f of config.fields)
+            f.setActive(f === field);
+        if (field)
+            config.keyboard?.setMode(field.keyboardMode);
+    };
+    // A field can also be focused by being TAPPED, which the field reports and the
+    // group must not miss — otherwise a tap and a programmatic focus disagree
+    // about who is active, and the keys go to the wrong one.
+    for (const f of config.fields) {
+        const prior = f.onFocus;
+        f.onFocus = () => {
+            prior?.();
+            focus(f);
+        };
+    }
+    const api = {
+        get active() {
+            return active;
+        },
+        focus,
+        blur() {
+            focus(null);
+        },
+        attach(target = globalThis.window) {
+            const onKey = (evt) => {
+                const e = evt;
+                // Only claim the key if a field consumed it — otherwise Tab still
+                // traverses, Escape still closes, and cmd-R still reloads.
+                // Map the event's modifier flags explicitly rather than passing the
+                // event — `keyIntent` takes a plain shape so it stays testable without
+                // a DOM, and a KeyboardEvent does not structurally match it.
+                const consumed = api.handleKey(e.key, {
+                    ctrl: e.ctrlKey,
+                    meta: e.metaKey,
+                    alt: e.altKey,
+                });
+                if (consumed)
+                    e.preventDefault();
+            };
+            target.addEventListener('keydown', onKey);
+            return () => target.removeEventListener('keydown', onKey);
+        },
+        handleKey(key, mods = {}) {
+            if (!active)
+                return false;
+            const intent = keyIntent(key, mods);
+            if (intent == null)
+                return false;
+            if ('insert' in intent)
+                active.insert(intent.insert);
+            else if ('action' in intent)
+                active.action(intent.action);
+            else
+                active.moveCaret(intent.move);
+            return true;
+        },
+    };
+    return api;
+}
 export function inputField(config = {}) {
     const H = config.height ?? 40;
     const SIZE = config.fontSize ?? 16;
     const PAD = 10;
-    const font = { size: SIZE, family: FONT_FAMILY, weight: '400' };
+    const font = { size: SIZE, family: TH.FONT_FAMILY, weight: '400' };
+    const fieldType = config.type ?? 'text';
     let state = edit(config.value ?? '');
+    /*
+    The last value that could stand as an answer.
+    
+    Kept so a refused commit has somewhere to fall back to. ensemble had to build
+    this per field ("reject gibberish by restoring the last good value rather
+    than writing NaN into the document"); it belongs to the field, because the
+    field is what knows its own type.
+    */
+    let lastGood = commitValueForType(config.value ?? '', fieldType) ?? '';
+    let scrubFrom = 0;
+    let scrubBase = NaN;
+    let scrubbing = false;
+    /**
+     * Quantise and clamp a scrubbed value, then render it at the step's own
+     * precision — a scrub that produced `2.7000000000000006` would be technically
+     * right and useless to read.
+     */
+    const formatScrub = (raw) => {
+        const step = config.step ?? 0;
+        let v = step > 0 ? Math.round(raw / step) * step : raw;
+        if (config.min != null)
+            v = Math.max(config.min, v);
+        if (config.max != null)
+            v = Math.min(config.max, v);
+        if (fieldType === 'integer')
+            v = Math.round(v);
+        /*
+        Decimals come from the STEP'S OWN precision, not from a log.
+    
+        `ceil(-log10(0.25))` is 1, so a correctly-quantised 1.25 was rendered as
+        "1.3" — the formatting silently un-did the quantisation, and a grid step of
+        0.25 was the exact case ensemble asked for. Reading the digits off the step
+        is right for every step anyone writes by hand (0.25, 22.5, 0.125).
+        */
+        const decimals = (n) => {
+            const [, frac] = String(n).split('.');
+            // Exponent form (1e-7) has no fractional digits to count; fall back to
+            // printing the number as-is rather than rounding it to an integer.
+            return String(n).includes('e') ? -1 : frac?.length ?? 0;
+        };
+        const dp = step > 0 ? decimals(step) : -1;
+        return dp >= 0 ? v.toFixed(dp) : String(v);
+    };
     let width = 0;
     let focused = false;
     const activate = () => {
@@ -280,20 +455,29 @@ export function inputField(config = {}) {
         focused = true;
         paintRef();
         config.onFocus?.();
+        api.onFocus?.();
     };
     // paint() is defined below; route through a ref so activate can be declared
     // here beside the state it guards.
     let paintRef = () => { };
-    const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: FIELD_BG });
+    const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: TH.FIELD_BG });
     const label = text({
         x: PAD,
         y: H / 2,
         'dominant-baseline': 'middle',
         'font-size': SIZE,
-        'font-family': FONT_FAMILY,
-        fill: TEXT,
+        'font-family': TH.FONT_FAMILY,
+        fill: TH.TEXT,
     });
-    const caret = rect({ y: 8, width: 2, height: H - 16, fill: ACCENT });
+    // The caret gets its own token rather than borrowing TH.ACCENT: it is the one
+    // mark that must stay findable against a themed field background, and a theme
+    // that tones the accent down for calm should not make the caret vanish.
+    const caret = rect({
+        y: 8,
+        width: w3dTheme.strokeWidth,
+        height: H - 16,
+        fill: w3dTheme.caret,
+    });
     const el = g({ 'data-w3d': 'input' }, bg, label, caret);
     /** x offset of the caret, measured through the same measurer that draws. */
     /**
@@ -331,7 +515,7 @@ export function inputField(config = {}) {
     const paint = () => {
         const empty = state.text.length === 0;
         label.textContent = empty ? config.placeholder ?? '' : state.text;
-        label.setAttribute('fill', empty ? MUTED : TEXT);
+        label.setAttribute('fill', empty ? TH.PLACEHOLDER : TH.TEXT);
         caret.setAttribute('x', String(caretX()));
         // Always visible, DIM when unfocused: with two fields on a panel the caret
         // is the focus indicator, and a vanished caret reads as "focus is lost and
@@ -347,6 +531,26 @@ export function inputField(config = {}) {
             config.onChange?.(state.text);
             api.onChange?.(state.text);
         }
+    };
+    /**
+     * Settle the value, or put the last good one back.
+     *
+     * Validation happens HERE rather than per keystroke, because `-` and `1.` are
+     * legitimate things to have typed so far and illegitimate things to have
+     * meant. Blocking them as you type makes `-5` and `0.5` impossible to enter
+     * left to right; that asymmetry is the whole reason this is a separate step.
+     */
+    const commitField = () => {
+        const settled = commitValueForType(state.text, fieldType);
+        if (settled == null) {
+            if (state.text !== lastGood)
+                change(edit(lastGood));
+            return lastGood;
+        }
+        if (settled !== state.text)
+            change(edit(settled));
+        lastGood = settled;
+        return settled;
     };
     /** Nearest caret index to an x offset — a click places the caret between glyphs. */
     const indexAtX = (x) => {
@@ -375,9 +579,35 @@ export function inputField(config = {}) {
             return H;
         },
         handle(kind, x) {
+            /*
+            DRAG TO SCRUB, TAP TO TYPE — and the difference is a threshold, not a mode.
+      
+            A press that never moves places the caret, which is what a text field must
+            do; a press that travels scrubs. Deciding on movement rather than on a
+            modifier or a separate hit zone means the two never have to be aimed at
+            differently, which matters most in XR where aiming is the expensive part.
+            */
             if (kind === 'down') {
+                scrubFrom = x;
+                scrubBase = Number(state.text);
+                scrubbing = false;
                 activate();
                 change(moveTo(state, indexAtX(x)));
+                return;
+            }
+            const canScrub = (config.scrub ?? 0) > 0 && Number.isFinite(scrubBase);
+            if (kind === 'move' && canScrub) {
+                const dx = x - scrubFrom;
+                if (!scrubbing && Math.abs(dx) < SCRUB_SLOP)
+                    return;
+                scrubbing = true;
+                const raw = scrubBase + dx * config.scrub;
+                change(edit(formatScrub(raw)));
+                return;
+            }
+            if (kind === 'up' && scrubbing) {
+                scrubbing = false;
+                commitField();
             }
         },
         insert(str) {
@@ -390,10 +620,25 @@ export function inputField(config = {}) {
                 change(editBackspace(state));
             else if (a === 'space')
                 change(editInsert(state, ' '));
-            else if (a === 'enter')
-                config.onEnter?.(state.text);
+            else if (a === 'enter') {
+                // Settle BEFORE reporting: a handler receiving `1.` or `-` from a
+                // number field would have to re-do this work, and every handler would
+                // have to remember to.
+                const kept = commitField();
+                config.onEnter?.(kept);
+            }
             // shift / mode / done are the keyboard's own business
         },
+        get type() {
+            return fieldType;
+        },
+        get keyboardMode() {
+            return modeForType(fieldType);
+        },
+        isValid() {
+            return isValidForType(state.text, fieldType);
+        },
+        commit: commitField,
         setValue(v) {
             change(edit(v));
         },
@@ -450,7 +695,7 @@ export function keyboard(config = {}) {
     const focusRing = rect({
         'data-kb-focus': '',
         fill: 'none',
-        stroke: ACCENT,
+        stroke: TH.ACCENT,
         'stroke-width': 2,
         rx: 8,
         visibility: 'hidden',
@@ -467,7 +712,7 @@ export function keyboard(config = {}) {
         const bg = cell?.firstChild;
         if (!bg)
             return;
-        bg.setAttribute('fill', on ? KEY_DOWN : r.key.action ? KEY_ACTION_BG : KEY_BG);
+        bg.setAttribute('fill', on ? TH.KEY_DOWN : r.key.action ? TH.KEY_ACTION_BG : TH.KEY_BG);
     };
     const paintFocus = () => {
         const r = rects[focusIdx];
@@ -508,7 +753,7 @@ export function keyboard(config = {}) {
         if (r && bg)
             bg.setAttribute('fill', fill ?? keyFill(r));
     };
-    const pressVis = (i, on) => setKeyFill(i, on ? KEY_DOWN : null);
+    const pressVis = (i, on) => setKeyFill(i, on ? TH.KEY_DOWN : null);
     const endPressVis = () => {
         if (pressedVis >= 0) {
             pressVis(pressedVis, false);
@@ -519,11 +764,11 @@ export function keyboard(config = {}) {
     const spaceHint = (on) => {
         const i = rects.findIndex((r) => r.key.action === 'space');
         if (i >= 0)
-            setKeyFill(i, on ? ACCENT : null);
+            setKeyFill(i, on ? TH.ACCENT : null);
     };
     // The in-flight press. `accents` is non-empty once the popup is open.
     let press = null;
-    const keyFill = (r) => r.key.action ? KEY_ACTION_BG : KEY_BG;
+    const keyFill = (r) => r.key.action ? TH.KEY_ACTION_BG : TH.KEY_BG;
     const paintKeys = () => {
         keysLayer.replaceChildren();
         for (const r of rects) {
@@ -541,8 +786,8 @@ export function keyboard(config = {}) {
                 'text-anchor': 'middle',
                 'dominant-baseline': 'middle',
                 'font-size': r.key.action ? 13 : 16,
-                'font-family': FONT_FAMILY,
-                fill: TEXT,
+                'font-family': TH.FONT_FAMILY,
+                fill: TH.TEXT,
             });
             lbl.textContent = r.key.label;
             const cell = g({ 'data-key': r.key.label }, bg, lbl);
@@ -567,8 +812,8 @@ export function keyboard(config = {}) {
                     y: r.y + r.height - 6,
                     'text-anchor': 'middle',
                     'font-size': 12,
-                    'font-family': FONT_FAMILY,
-                    fill: TEXT,
+                    'font-family': TH.FONT_FAMILY,
+                    fill: TH.TEXT,
                     opacity: 0.5,
                 });
                 h.textContent = hint;
@@ -626,8 +871,8 @@ export function keyboard(config = {}) {
                 width: w,
                 height: CH + 8,
                 rx: 8,
-                fill: PANEL_BG,
-                stroke: KEY_DOWN,
+                fill: TH.PANEL_BG,
+                stroke: TH.KEY_DOWN,
             }),
         ];
         accents.forEach((c, i) => {
@@ -638,7 +883,7 @@ export function keyboard(config = {}) {
                 width: CW - 2,
                 height: CH,
                 rx: 5,
-                fill: KEY_BG,
+                fill: TH.KEY_BG,
             });
             cells.push(cell);
             const lbl = text({
@@ -647,8 +892,8 @@ export function keyboard(config = {}) {
                 'text-anchor': 'middle',
                 'dominant-baseline': 'middle',
                 'font-size': 17,
-                'font-family': FONT_FAMILY,
-                fill: TEXT,
+                'font-family': TH.FONT_FAMILY,
+                fill: TH.TEXT,
             });
             lbl.textContent = c;
             kids.push(cell, lbl);
@@ -690,7 +935,7 @@ export function keyboard(config = {}) {
         if (pick === press.pick)
             return;
         press.pick = pick;
-        press.cells.forEach((c, j) => c.setAttribute('fill', j === pick ? ACCENT : KEY_BG));
+        press.cells.forEach((c, j) => c.setAttribute('fill', j === pick ? TH.ACCENT : TH.KEY_BG));
     };
     const fireKey = (r) => {
         const k = r.key;

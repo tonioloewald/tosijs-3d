@@ -41,7 +41,85 @@ export function stackLayout(heights, gap) {
     }
     return { offsets, total: y };
 }
-/** Clamp a scroll offset to [0, max] where max = content beyond the viewport. */
+/**
+ * Split a row's width into columns.
+ *
+ * `weights` are proportional shares of the space left after the gaps; omit it
+ * (or pass all-zero) for equal columns. A negative or zero total weight falls
+ * back to equal rather than dividing by zero — a row that renders wrong is
+ * better than a row that renders `NaN`, which propagates into every downstream
+ * coordinate and takes the whole panel with it.
+ *
+ * Exists because a panel that only stacks makes a label-and-field pair cost two
+ * rows: the ensemble editor's eight fields became sixteen rows of mostly
+ * whitespace (tosijs-3d#37, item 5).
+ */
+export function rowColumns(width, count, gap, weights) {
+    if (count <= 0)
+        return [];
+    const usable = Math.max(0, width - gap * (count - 1));
+    const w = weights != null && weights.length === count
+        ? weights.map((v) => (Number.isFinite(v) && v > 0 ? v : 0))
+        : [];
+    const totalWeight = w.reduce((a, b) => a + b, 0);
+    const shares = totalWeight > 0
+        ? w.map((v) => v / totalWeight)
+        : Array(count).fill(1 / count);
+    const out = [];
+    let x = 0;
+    for (let i = 0; i < count; i++) {
+        const cw = usable * shares[i];
+        out.push({ x, width: cw });
+        x += cw + gap;
+    }
+    return out;
+}
+/**
+ * Vertical offset for a child of `childHeight` inside a row of `rowHeight`.
+ *
+ * `'middle'` is the default because the common case is a short label beside a
+ * taller control, and top-aligning those makes the label look detached from the
+ * thing it names.
+ */
+export function alignOffset(rowHeight, childHeight, align = 'middle') {
+    if (align === 'top')
+        return 0;
+    const slack = Math.max(0, rowHeight - childHeight);
+    return align === 'bottom' ? slack : slack / 2;
+}
+/**
+ * Measure content against viewport.
+ *
+ * Exists because **clipping is silent**: a panel too short for its content
+ * looks exactly like a panel whose last control was never added, so every
+ * height ends up a hand-tuned constant that is wrong the moment the content
+ * changes. Reported by the ensemble editor, which got three heights wrong in
+ * one sitting — a command hidden behind another panel, an option cut in half,
+ * a list showing five of eight rows — and noticed none of them at the time.
+ */
+export function panelFit(content, viewport) {
+    const over = content - viewport;
+    return {
+        content,
+        viewport,
+        overflow: over > 0 ? over : 0,
+        fits: over <= 0,
+    };
+}
+/**
+ * The height a panel should be, given what it contains.
+ *
+ * `requested` is a number to honour it, or `'fit'` to size to the content.
+ * `'fit'` is clamped by `maxHeight` when given, so a panel that outgrows its
+ * space scrolls rather than growing without bound — fitting and scrolling are
+ * the same mechanism seen from either side of that limit, not two modes.
+ */
+export function panelHeight(contentTotal, paddingTop, padding, requested = 'fit', maxHeight) {
+    if (typeof requested === 'number')
+        return requested;
+    const needed = contentTotal + paddingTop + padding;
+    return maxHeight != null && needed > maxHeight ? maxHeight : needed;
+}
 export function clampScroll(offset, contentHeight, viewportHeight) {
     const max = Math.max(0, contentHeight - viewportHeight);
     return Math.min(Math.max(offset, 0), max);

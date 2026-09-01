@@ -67,7 +67,7 @@ document.body.append(
   b3d({},
     b3dSun({}),
     b3dSkybox({ timeOfDay: 12 }),
-    b3dWater({ y: -0.2, twoSided: true, waterSize: 1024, normalMap: '/waterbump.png' })
+    b3dWater({ y: -0.2, twoSided: true, waterSize: 1024 })
   )
 )
 ```
@@ -75,6 +75,7 @@ document.body.append(
 /*{ "parent": "Environment" }*/
 import { plane as mediumPlane } from './medium';
 import * as BABYLON from '@babylonjs/core';
+import { waterNormalTexture } from './water-normal';
 import { WaterMaterial } from '@babylonjs/materials';
 import { AbstractMesh } from './b3d-utils';
 import { band } from './atmosphere';
@@ -97,10 +98,27 @@ export class B3dWater extends AbstractMesh {
         // dragged along), and the reflection map refreshes every few frames instead of every one
         // (a moving sea doesn't need a perfect mirror). Off by default (a small pond doesn't need it).
         follow: false,
-        // Root-absolute, NOT './waterbump.png': doc pages are served at /{slug}/, so a
-        // relative path resolves to /{slug}/waterbump.png (404). Root-absolute loads
-        // the same everywhere (matches the "root-absolute asset paths" convention).
-        normalMap: '/waterbump.png',
+        /*
+        EMPTY MEANS PROCEDURAL, and that is the default on purpose.
+    
+        It used to default to `/waterbump.png` — root-absolute so it resolved the
+        same from every `/{slug}/` doc page, which was correct reasoning about the
+        wrong problem: **the file ships in this repo's `static/`, not in the
+        package**. So every consumer taking the documented default pointed at a file
+        they had never been told to serve.
+    
+        And the failure is silent in the worst way. Babylon's `Texture` falls back
+        when a fetch does not decode, so the sea renders as a CHECKERBOARD — which
+        reads as a deliberate style rather than a missing asset. ensemble's owner
+        asked whether it was intentional and said it looked awesome (tosijs-3d#46).
+    
+        A 59 KB PNG could have been shipped, but a path that must resolve at a
+        fixed URL is the footgun itself, not the file. `waterNormalTexture` builds
+        one from the Perlin noise this library already has: no file, no network, no
+        path to get wrong, and it works offline and inside a headset. Set
+        `normalMap` to override with something prettier.
+        */
+        normalMap: '',
         windForce: -5,
         waveHeight: 0,
         bumpHeight: 0.1,
@@ -182,7 +200,15 @@ export class B3dWater extends AbstractMesh {
         */
         this.mesh.metadata = { ...(this.mesh.metadata ?? {}), b3dWater: true };
         this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(attrs.textureSize, attrs.textureSize));
-        this.waterMaterial.bumpTexture = new BABYLON.Texture(attrs.normalMap, scene);
+        this.waterMaterial.bumpTexture = attrs.normalMap
+            ? // An explicit path: load it, but SAY SO if it fails. The checkerboard
+                // fallback is indistinguishable from a style choice, so silence here is
+                // what cost ensemble the confusion in the first place.
+                new BABYLON.Texture(attrs.normalMap, scene, undefined, undefined, undefined, undefined, () => {
+                    console.error(`b3d-water: normalMap "${attrs.normalMap}" failed to load — the sea will render as a checkerboard. ` +
+                        `Leave normalMap unset for the built-in procedural map.`);
+                })
+            : waterNormalTexture(scene);
         this.updateWater();
         this.mesh.material = this.waterMaterial;
         this._callback = this.waterCallback.bind(this);

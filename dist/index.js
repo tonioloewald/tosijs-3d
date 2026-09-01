@@ -105,8 +105,25 @@ export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './
 export { B3dCar, b3dCar } from './b3d-car';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft';
 // SVG widgets (DOM-overlay or in-scene panels)
-export { panel3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
-export { panelFitWidth, stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout';
+export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
+// Curve editing — the pure model, and the `curve3d` widget over it. A province
+// is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
+export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, 
+// The PARAMETERISED builders, so a consumer is not stuck with the preset's
+// frozen arguments — `plateauFalloff(0.8)` and `messyNgon(24, 0.3, 7)` are
+// the point of them having parameters at all.
+//
+// `linear`/`constant`/`stepped`/`circle`/`rim`/`easeIn`… stay OUT: bare common
+// nouns, and `circle` would shadow svgElements' `circle`. That is the barrel
+// rule in CLAUDE.md, and they are reachable via `defaultCurve(kind)` and
+// `presetsFor(kind)`.
+ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve';
+export { curve3d } from './curve-field';
+export { footprint3d } from './footprint-field';
+// A coordinate on ONE row — the density win for inspector panels. Its own
+// module so it tree-shakes, and top-level like the other `*3d` widgets.
+export { vector3d, euler3d, wrapDegrees } from './vector-field';
+export { panelFitWidth, panelFit, panelHeight, rowColumns, alignOffset, stackLayout, clampScroll, wrapText, wrapByMeasure, cssFont, textMeasurer, measureTextWrap, measureTextWidth, valueToFraction, fractionToValue, } from './widgets3d-layout';
 // SVG material system
 export { SvgTexture } from './svg-texture';
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
@@ -130,7 +147,7 @@ import { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, s
 import { selectionIcon, applySelection } from './selection';
 import { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, } from './table-layout';
 import { gamepadFocus, createFocusPulse } from './gamepad-focus';
-import { keyboard, inputField } from './keyboard';
+import { keyboard, inputField, fieldGroup } from './keyboard';
 import { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, } from './key-layout';
 import { table } from './table';
 export const ui = {
@@ -163,6 +180,7 @@ export const ui = {
     // on-screen keyboard + input field, and the pure keyboard model
     keyboard,
     inputField,
+    fieldGroup,
     keyLayout,
     accentsFor,
     hasAccents,
@@ -276,4 +294,9 @@ export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale,
 export { canonicalize, normalizeScale, findCenterOfGravity, applyCenterOfGravity, } from './model-transform';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics';
+export { modeForType, isValidForType, commitValueForType } from './key-layout';
+export { w3dTheme, setW3dTheme, withTheme } from './w3d-theme';
+export { waterNormalTexture, tileHeight, writeNormalMap } from './water-normal';
+export { themeEditor, FONT_STACKS } from './theme-editor';
+export { registerSvgFont, unregisterSvgFont, fontFaceCss, svgFontStyle, base64OfBytes, } from './embed-font';
 //# sourceMappingURL=index.js.map

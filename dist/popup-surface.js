@@ -127,6 +127,28 @@ is nobody's child, stays where it is, and — if `draggable` — can be grabbed 
 moved. Ownership is a lifetime statement, not a position one; that split is the
 same one `SPATIAL-DESIGN.md` draws for riding an elevator.
 
+## Why parenting to the opener is fine here
+
+The DOM habit is to portal a popup OUT to a positioned ancestor, and it is worth
+being clear that the reason does not survive the trip. A DOM parent **crops**
+(`overflow`) and traps you in its **stacking context**; you escape it to avoid
+being clipped and to control what sits in front. A Babylon parent does neither —
+it is a transform and nothing else — so there is nothing to escape, and
+ownership costs nothing.
+
+Tonio, arriving at it from the other side: _"parenting in 3d is merely
+positional and not cropping."_
+
+The cropping constraint is real, though; it just lives one level down. **The
+TEXTURE is the crop.** An `openPanel` overlay is clipped by the surface's viewBox
+exactly the way a child is clipped by `overflow: hidden`, and no amount of
+re-parenting changes that, because it was never a scene-graph problem. That is
+why the fix is a second PLANE rather than a different parent.
+
+Inheriting the opener's scale and rotation is then a feature rather than a leak:
+a panel scaled down onto a wrist should take its popups with it, at its size and
+its angle. `tearOff()` remains the way to opt out, and it is a deliberate act.
+
 ## Budget
 
 Every surface is a texture. Two or three floating panels are nothing; twenty is
@@ -139,7 +161,9 @@ rather than degrade.
 /*{ "parent": "UI", "order": 400 }*/
 import * as BABYLON from '@babylonjs/core';
 import { b3dSvgPlane } from './b3d-svg-plane';
+import { svgElements } from 'tosijs';
 import { iconGlyph } from './svg-icons';
+import { w3dTheme } from './w3d-theme';
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome';
 import { cameraIsAttached } from './b3d-utils';
 /**
@@ -289,23 +313,69 @@ function wirePointer(owner) {
         yielded.attachControl(scene.getEngine().getRenderingCanvas(), true);
         yielded = null;
     };
+    /*
+    AND A BACKSTOP ON `window`, because the scene never hears every release.
+  
+    A pointer that goes up OUTSIDE the canvas — off the edge mid-drag, over
+    another element, or on a window that loses focus — produces no scene pointer
+    event, so the observable above never runs and the camera stays detached. That
+    is the same dead scene by a different route, and it is the LIKELIER one in
+    practice: dragging a panel toward the edge is exactly how you leave the canvas.
+  
+    `pointercancel` too — the OS steals the pointer for gestures and scrolls, and
+    a cancelled drag is still a drag that took the camera.
+  
+    This is deliberately a blunt "if we hold it, give it back" rather than an
+    attempt to decide whether the release was ours. Restoring a camera nobody
+    yielded is a no-op (`yielded` is null); failing to restore one we did costs the
+    user the scene.
+    */
+    const releaseAnywhere = () => {
+        if (yielded != null)
+            restoreCamera();
+    };
+    window.addEventListener('pointerup', releaseAnywhere);
+    window.addEventListener('pointercancel', releaseAnywhere);
+    scene.onDisposeObservable.add(() => {
+        window.removeEventListener('pointerup', releaseAnywhere);
+        window.removeEventListener('pointercancel', releaseAnywhere);
+        wired.delete(owner);
+    });
     scene.onPointerObservable.add((info) => {
         const list = openPopups.get(owner);
-        if (list == null || list.length === 0)
-            return;
-        // ONLY on a press. This used to pick on every pointer event, moves
-        // included — a scene pick per mouse-move, for a question that can only be
-        // answered by a click. Blocking is handled by `isPickable` now, so nothing
-        // here needs to run while you are merely moving the mouse.
+        /*
+        RELEASE FIRST, AND UNCONDITIONALLY — before any "is there a popup?" test.
+    
+        Restoring the camera used to sit BEHIND the empty-list guard, so the release
+        depended on a popup still being open at the moment the button came up. It
+        usually is, which is why this survived: drag a panel, let go, the list is
+        non-empty, the camera comes back.
+    
+        But the yield and the restore then had different conditions, and anything
+        that emptied the list mid-gesture stranded the camera detached — with no way
+        back, because every subsequent press took the same early return. Tonio: "the
+        3d view seizes up so I can't rotate the view any more."
+    
+        A detached camera is a DEAD SCENE, not a cosmetic glitch, so this must not be
+        conditional on anything. Whoever took the camera is responsible for giving it
+        back; asking permission of the popup list is how it got lost.
+        */
         if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
             // With `startAndReleaseDragOnPointerEvents` off, the behaviour's own
             // release branch is gated off too — so nothing would ever end the drag
             // and the panel would stick to the cursor forever.
-            for (const p of list)
-                p.endDrag();
+            if (list != null)
+                for (const p of list)
+                    p.endDrag();
             restoreCamera();
             return;
         }
+        // ONLY on a press. This used to pick on every pointer event, moves
+        // included — a scene pick per mouse-move, for a question that can only be
+        // answered by a click. Blocking is handled by `isPickable` now, so nothing
+        // here needs to run while you are merely moving the mouse.
+        if (list == null || list.length === 0)
+            return;
         if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN)
             return;
         // Un-pickable panels are skipped by the pick itself, so a modal's blocking
@@ -348,7 +418,10 @@ function wirePointer(owner) {
             }
             // Yield BEFORE starting: the camera must not have the press either.
             yieldCamera();
-            target.beginDrag(info.event?.pointerId ?? 0);
+            target.beginDrag(info.event?.pointerId ?? 0, 
+            // The point on the panel actually under the pointer, and the ray that
+            // found it — see beginDrag for why both are required.
+            info.pickInfo?.pickedPoint ?? undefined, info.pickInfo?.ray ?? undefined);
         }
     });
 }
@@ -369,6 +442,12 @@ export function openPopup(owner, opts) {
     */
     const vbW = vb && vb.width > 0 ? vb.width : 100;
     const vbH = vb && vb.height > 0 ? vb.height : 100;
+    /*
+    The mesh's rounding, shared with the plane below so the drawn rim and the cut
+    silhouette agree. A rim on a radius the mesh does not have is worse than none:
+    it draws a corner where the geometry has an edge.
+    */
+    const cornerRadius = Math.min(0.05, width * 0.06);
     // ONE layout, used by the drawing below AND by the hit test in `wirePointer`.
     const layout = chromeLayout(vbW, vbH, gripHeight, draggable);
     if (chrome && layout.barHeight > 0) {
@@ -387,6 +466,44 @@ export function openPopup(owner, opts) {
             y: layout.close.y,
         }));
     }
+    /*
+    A RIM, because we cannot have a drop shadow.
+  
+    Flat UI separates a popup from what is behind it with a shadow, and that is not
+    available here: the panel is emissive so it is unlit, and a real cast shadow
+    needs a receiver at a sensible distance — a popup floating in front of a scene
+    has nothing to fall on. Tonio: "Since we can't do nice drop shadows around pop
+    ups, I wonder if there's some other way we can make them stand out."
+  
+    So: an edge instead of a shadow. `muted` is a mid grey deliberately — a light
+    rim vanishes on a pale scene and a dark one vanishes on a dark scene, while a
+    mid tone holds an edge against both, which matters because the backdrop here is
+    arbitrary 3D rather than a known page colour.
+  
+    DOUBLE STROKE WIDTH, and the clip does the rest. An SVG stroke straddles its
+    path — half inside, half out — so on a rect at the viewBox bounds the outer
+    half falls outside the texture and is discarded. Drawing at 2× leaves exactly
+    the intended width visible, with no half-pixel inset arithmetic to get wrong.
+    Tonio again: "so it should be roughly correct thanks to clipping".
+  
+    Rounded to match the MESH, converted through the same mapping the texture uses:
+    the plane is `width` world units across and `vbW` viewBox units, so the world
+    radius scales by `vbW / width`.
+    */
+    if (chrome) {
+        svg.appendChild(svgElements.rect({
+            'data-popup-rim': '',
+            x: 0,
+            y: 0,
+            width: vbW,
+            height: vbH,
+            rx: (cornerRadius / width) * vbW,
+            ry: (cornerRadius / width) * vbW,
+            fill: 'none',
+            stroke: w3dTheme.muted,
+            'stroke-width': String(w3dTheme.strokeWidth * 2),
+        }));
+    }
     const plane = b3dSvgPlane({
         width,
         height: width * aspect,
@@ -396,7 +513,7 @@ export function openPopup(owner, opts) {
         // near-coplanar popups swap order as you orbit — the "z-chasing" that no
         // amount of correct depth ordering fixed. Geometry for the silhouette,
         // z-buffer for the ordering.
-        cornerRadius: Math.min(0.05, width * 0.06),
+        cornerRadius,
         transparent: 'off',
         // Self-lit: a UI panel should read the same under any scene lighting.
         materialChannel: 'emissive',
@@ -485,7 +602,28 @@ export function openPopup(owner, opts) {
      * pulling a tab out of a window and is why an owned popup needs no separate
      * tear-off affordance to be discoverable.
      */
-    const attachDrag = () => {
+    function attachDrag() {
+        /*
+        A FUNCTION DECLARATION, DELIBERATELY — it has to HOIST.
+    
+        This is called from the `whenMesh` block ABOVE, and as a `const` arrow it
+        sat in its temporal dead zone whenever that block ran synchronously. Which
+        is exactly the case that matters: `whenReady` fires immediately when the
+        scene is already up, and appending the plane to a live scene runs its
+        `sceneReady` synchronously too, so `plane.mesh` is non-null on the spot and
+        the whole chain completes inside `openPopup`.
+    
+        So a popup opened at MOUNT worked (scene not ready, callback deferred, const
+        initialised by the time it ran) and a popup opened from a CLICK threw
+        `ReferenceError: Cannot access 'attachDrag' before initialization` — which,
+        minified, reads "Cannot access 'E' before initialization" and names nothing
+        you can search for.
+    
+        The throw happened before `openPopup` returned, so the caller got no popup
+        and no drag, and any code after the call never ran. That is the whole of the
+        reverted demo's "the panel doesn't appear in the DOM" and "I can't drag it":
+        one exception, two symptoms, neither pointing here.
+        */
         const mesh = plane.mesh;
         if (mesh == null || drag != null || !draggable)
             return;
@@ -522,14 +660,14 @@ export function openPopup(owner, opts) {
             plane.y = mesh.position.y;
             plane.z = mesh.position.z;
         });
-    };
+    }
     const api = {
         plane,
         modal,
         vbWidth: vbW,
         vbHeight: vbH,
         chromeLayout: layout,
-        beginDrag(pointerId) {
+        beginDrag(pointerId, pickedPoint, ray) {
             if (drag == null || !draggable)
                 return;
             /*
@@ -549,10 +687,39 @@ export function openPopup(owner, opts) {
             one is to leave the event entirely.
             */
             const id = pointerId;
+            /*
+            PASS THE GRAB POINT, or the panel jumps.
+      
+            `startDrag(id)` alone leaves Babylon with no start point, so it grabs at
+            the MESH ORIGIN — the panel snaps until its centre is under the pointer
+            and then follows. Tonio: "when you click on an element it drifts to
+            centre the mouse pointer rather than preserving the offset." Handing it
+            the point actually under the pointer makes the panel stay where you took
+            hold of it, which is what every drag anywhere else does.
+      
+            Cloned because the pick info is reused by the scene: keeping the live
+            vector means the grab point quietly becomes wherever the pointer is now,
+            which is the same bug wearing a disguise.
+            */
+            const grab = pickedPoint?.clone();
+            /*
+            THE RAY MATTERS AS MUCH AS THE POINT.
+      
+            Passing only `startPickedPoint` was not enough — Babylon's `_startDrag`
+            falls back to a ray built from `activeCamera.position` when `fromRay` is
+            omitted, so it still had no idea where the POINTER was and recomputed the
+            drag plane from that default. The panel kept snapping to centre. Tonio,
+            after the first attempt: "the popup-surface is still drifting to center."
+      
+            Both are needed: the ray says where the gesture is pointing, the point
+            says where on the panel it took hold. Cloned for the same reason as the
+            point — Babylon reuses its pick info between events.
+            */
+            const grabRay = ray != null ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), ray.length) : undefined;
             queueMicrotask(() => {
                 if (drag == null || closed)
                     return;
-                drag.startDrag(id);
+                drag.startDrag(id, grabRay, grab);
             });
         },
         endDrag() {

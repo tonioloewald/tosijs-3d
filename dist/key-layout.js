@@ -105,6 +105,128 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
 ```
 */
 /*{ "parent": "UI", "order": 900 }*/
+/**
+ * Translate a DOM key name into a field intent.
+ *
+ * `inputField` deliberately listens to nothing — in a headset the keys come
+ * from the SVG keyboard, not the DOM — but that left every flat host writing
+ * this mapping itself, and a field you can click into that then refuses every
+ * character is a bad first impression (tosijs-3d#37, item 1).
+ *
+ * Takes the key NAME rather than the event, so it is pure and testable without
+ * a DOM. Returns `null` for anything the field should not consume, which
+ * matters: swallowing Tab or a browser shortcut because a text field happened
+ * to be focused is worse than not handling keys at all.
+ */
+export function keyIntent(key, mods = {}) {
+    // Never eat a shortcut. Ctrl/Cmd/Alt combinations belong to the browser or
+    // the app, not to whichever field happens to hold focus.
+    if (mods.ctrl || mods.meta || mods.alt)
+        return null;
+    switch (key) {
+        case 'Backspace':
+            return { action: 'backspace' };
+        case 'Enter':
+            return { action: 'enter' };
+        case ' ':
+        case 'Spacebar':
+            return { action: 'space' };
+        case 'ArrowLeft':
+            return { move: -1 };
+        case 'ArrowRight':
+            return { move: 1 };
+        default:
+            // A single code point is a character; anything longer is a named key
+            // (Tab, Escape, F5, ArrowUp…) and is none of our business.
+            return [...key].length === 1 ? { insert: key } : null;
+    }
+}
+/**
+ * The keyboard layout a field type wants.
+ *
+ * The layouts already existed and nothing chose between them — focusing a
+ * numeric field raised `alpha` and left you to find the numpad yourself. That
+ * is two deliberate taps per field, and worse in a headset than flat, because
+ * there is no physical keyboard to fall back on.
+ */
+export function modeForType(type = 'text') {
+    switch (type) {
+        case 'number':
+        case 'integer':
+            return 'numpad';
+        case 'tel':
+            return 'dial';
+        case 'email':
+            return 'email';
+        case 'url':
+            return 'url';
+        default:
+            return 'alpha';
+    }
+}
+/**
+ * Is `text` an acceptable value for this field type?
+ *
+ * **Empty is always valid.** A field you have not filled in yet is not wrong,
+ * and treating it as wrong means a fresh field is born red — which trains
+ * people to ignore the colour.
+ *
+ * Number accepts a lone `-` or a trailing `.` as *in progress*: rejecting them
+ * makes it impossible to type `-5` or `0.5` left to right, because validity is
+ * checked before you have finished. This is the classic mistake in typed
+ * fields, and the reason validation belongs at COMMIT rather than per
+ * keystroke.
+ */
+export function isValidForType(text, type = 'text') {
+    if (text === '')
+        return true;
+    switch (type) {
+        case 'number':
+            return /^-?\d*\.?\d*$/.test(text);
+        case 'integer':
+            return /^-?\d*$/.test(text);
+        case 'email':
+            // Deliberately loose. A strict pattern rejects addresses that work, and
+            // the only real test of an address is sending to it.
+            return /^[^\s@]*@?[^\s@]*\.?[^\s@]*$/.test(text);
+        case 'url':
+            return !/\s/.test(text);
+        case 'tel':
+            return /^[-+()\d\s]*$/.test(text);
+        default:
+            return true;
+    }
+}
+/**
+ * The value to keep when a field commits.
+ *
+ * Returns `null` when the text cannot stand as a final value, so the caller
+ * restores the last good one rather than writing `NaN` into the document —
+ * which is what ensemble had to implement themselves for every number field.
+ *
+ * Note the asymmetry with `isValidForType`: `-` and `1.` are valid *while
+ * typing* and are not valid *as an answer*. Conflating the two is what makes a
+ * typed field either unusable or a liar.
+ */
+export function commitValueForType(text, type = 'text') {
+    if (text === '')
+        return '';
+    if (!isValidForType(text, type))
+        return null;
+    switch (type) {
+        case 'number':
+        case 'integer': {
+            const n = Number(text);
+            if (!Number.isFinite(n))
+                return null;
+            if (type === 'integer' && !Number.isInteger(n))
+                return null;
+            return String(n);
+        }
+        default:
+            return text;
+    }
+}
 const row = (chars) => Array.from(chars).map((c) => ({ label: c, value: c }));
 const SHIFT = { label: '⇧', action: 'shift', width: 1.5 };
 const BACK = { label: '⌫', action: 'backspace', width: 1.5 };

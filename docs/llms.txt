@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.3
+# tosijs-3d v0.7.4
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -141,6 +141,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/control-input/ — control-input
   Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
 - https://3d.tosijs.net/core/ — Core
+- https://3d.tosijs.net/curve/ — curve
+  `[0,1]` to itself, as sorted control points, with the editing rules that keep it
+- https://3d.tosijs.net/curve-field/ — curve-field
+  works as a flat DOM overlay, on an in-scene panel, and in a headset without
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
@@ -148,9 +152,13 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
   faces** — the pure half of world-placed dialogs, plus the one function every
 - https://3d.tosijs.net/effects/ — Effects
+- https://3d.tosijs.net/embed-font/ — embed-font
+  hand back an `@font-face` rule that can travel *inside* a serialised SVG.
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math — the CSS block + inline-block model, in SVG user
+- https://3d.tosijs.net/footprint-field/ — footprint-field
+  drawn inside a square, vertices you drag where they actually are. The rules live
 - https://3d.tosijs.net/formations/ — formations
   Pure, deterministic **placement patterns** — where the members of an encounter stand relative
 - https://3d.tosijs.net/frame-panel/ — frame-panel
@@ -243,17 +251,23 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **pure geometry behind a data table** — column widths, and which rows are worth
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
+- https://3d.tosijs.net/theme-editor/ — theme-editor
+  consumes, as a grid of controls: colours, metrics with a slider *and* a number
 - https://3d.tosijs.net/ — tosijs-3d
   what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - https://3d.tosijs.net/ui/ — UI
 - https://3d.tosijs.net/utilities/ — Utilities
+- https://3d.tosijs.net/vector-field/ — vector-field
+  orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
 - https://3d.tosijs.net/vehicles/ — Vehicles
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
 - https://3d.tosijs.net/w3d-theme/ — w3d-theme
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
+- https://3d.tosijs.net/water-normal/ — water-normal
+  field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
 - https://3d.tosijs.net/widget-box/ — widget-box
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d

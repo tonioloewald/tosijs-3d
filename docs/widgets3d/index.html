@@ -253,6 +253,142 @@ const sceneEl = b3d(
 )
 preview.append(sceneEl)
 </code></pre>
+<h2>Widget reference</h2>
+<p>Every widget&#39;s options in one place. This table is the fix for tosijs-3d#50:
+<code>slider3d</code> has always had <code>step</code> — it quantises the drag <em>and</em> the reported
+value — but nothing documented it, so a consumer generating panels from a JSON
+Schema reasonably concluded sliders were continuous and turned their snap
+settings into <code>select3d</code> cyclers to get discrete values.</p>
+<table>
+<thead>
+<tr>
+<th>widget</th>
+<th>option</th>
+<th>default</th>
+<th>notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>panel3d</code></td>
+<td><code>width</code></td>
+<td><code>360</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>height</code></td>
+<td><code>&#39;fit&#39;</code></td>
+<td>a number to fix it; <code>&#39;fit&#39;</code> sizes to content</td>
+</tr>
+<tr>
+<td></td>
+<td><code>maxHeight</code></td>
+<td>—</td>
+<td>cap for <code>&#39;fit&#39;</code>; past it the panel scrolls</td>
+</tr>
+<tr>
+<td></td>
+<td><code>padding</code> / <code>paddingTop</code> / <code>gap</code></td>
+<td><code>12</code>/<code>padding</code>/<code>8</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>background</code></td>
+<td>theme <code>panelBg</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>row3d</code></td>
+<td><code>weights</code></td>
+<td>equal</td>
+<td>proportional shares of the post-gap width</td>
+</tr>
+<tr>
+<td></td>
+<td><code>align</code></td>
+<td><code>&#39;middle&#39;</code></td>
+<td><code>top</code> / <code>middle</code> / <code>bottom</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>gap</code></td>
+<td><code>8</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>slider3d</code></td>
+<td><code>min</code> / <code>max</code></td>
+<td><code>0</code> / <code>1</code></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><strong><code>step</code></strong></td>
+<td><code>0</code></td>
+<td><strong>quantises the drag and the value</strong>; <code>0</code> is continuous</td>
+</tr>
+<tr>
+<td></td>
+<td><code>showValue</code></td>
+<td><code>&#39;peek&#39;</code></td>
+<td><code>peek</code> (on touch/drag) / <code>always</code> / <code>never</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>format</code></td>
+<td>step-derived</td>
+<td><code>(v) =&gt; string</code> — units, precision</td>
+</tr>
+<tr>
+<td><code>toggle3d</code></td>
+<td><code>label</code> / <code>value</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>select3d</code></td>
+<td><code>options</code></td>
+<td></td>
+<td>cycles; a popup select is coming (#37 item 4)</td>
+</tr>
+<tr>
+<td><code>inputField</code></td>
+<td><strong><code>type</code></strong></td>
+<td><code>&#39;text&#39;</code></td>
+<td><code>text</code>/<code>number</code>/<code>integer</code>/<code>email</code>/<code>url</code>/<code>tel</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>placeholder</code> / <code>value</code> / <code>height</code> / <code>fontSize</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>list3d</code></td>
+<td><code>items</code> / <code>onSelect</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>button3d</code></td>
+<td><code>label</code> / <code>onClick</code></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>iconBar3d</code></td>
+<td><code>items</code></td>
+<td></td>
+<td><code>{icon, onClick}</code></td>
+</tr>
+</tbody></table>
+<p><strong>On a panel</strong> (not options — methods on the returned element):
+<code>measure()</code> → <code>{content, viewport, overflow, fits}</code>, <code>openPopup(config, …widgets)</code>,
+<code>handlePointer(kind, x, y)</code>, <code>scrollBy(dy)</code>, <code>scrollable</code>.</p>
+<p><strong>On a field</strong>: <code>type</code>, <code>keyboardMode</code>, <code>isValid()</code>, <code>commit()</code>, plus the edit
+protocol (<code>insert</code>, <code>action</code>, <code>setValue</code>, <code>moveCaret</code>). <code>fieldGroup</code> manages
+several of them — exclusivity, commit-on-leave and keyboard layout.</p>
 <h2>Theming</h2>
 <p>Widget colours, font, and weights are driven by <code>--w3d-*</code> CSS variables with
 sensible defaults. Set them on <code>:root</code> (or any ancestor of the flat overlay)
@@ -387,6 +523,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
@@ -434,6 +571,9 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <ul>
       <li><a class="doc-link current" href="../widgets3d/" aria-current="page">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
@@ -442,11 +582,13 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
@@ -458,6 +600,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>

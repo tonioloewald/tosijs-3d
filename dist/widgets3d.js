@@ -226,6 +226,44 @@ const sceneEl = b3d(
 preview.append(sceneEl)
 ```
 
+## Widget reference
+
+Every widget's options in one place. This table is the fix for tosijs-3d#50:
+`slider3d` has always had `step` — it quantises the drag *and* the reported
+value — but nothing documented it, so a consumer generating panels from a JSON
+Schema reasonably concluded sliders were continuous and turned their snap
+settings into `select3d` cyclers to get discrete values.
+
+| widget | option | default | notes |
+| --- | --- | --- | --- |
+| `panel3d` | `width` | `360` | |
+| | `height` | `'fit'` | a number to fix it; `'fit'` sizes to content |
+| | `maxHeight` | — | cap for `'fit'`; past it the panel scrolls |
+| | `padding` / `paddingTop` / `gap` | `12`/`padding`/`8` | |
+| | `background` | theme `panelBg` | |
+| `row3d` | `weights` | equal | proportional shares of the post-gap width |
+| | `align` | `'middle'` | `top` / `middle` / `bottom` |
+| | `gap` | `8` | |
+| `slider3d` | `min` / `max` | `0` / `1` | |
+| | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
+| | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
+| | `format` | step-derived | `(v) => string` — units, precision |
+| `toggle3d` | `label` / `value` | | |
+| `select3d` | `options` | | cycles; a popup select is coming (#37 item 4) |
+| `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
+| | `placeholder` / `value` / `height` / `fontSize` | | |
+| `list3d` | `items` / `onSelect` | | |
+| `button3d` | `label` / `onClick` | | |
+| `iconBar3d` | `items` | | `{icon, onClick}` |
+
+**On a panel** (not options — methods on the returned element):
+`measure()` → `{content, viewport, overflow, fits}`, `openPopup(config, …widgets)`,
+`handlePointer(kind, x, y)`, `scrollBy(dy)`, `scrollable`.
+
+**On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
+protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
+several of them — exclusivity, commit-on-leave and keyboard layout.
+
 ## Theming
 
 Widget colours, font, and weights are driven by `--w3d-*` CSS variables with
@@ -252,43 +290,115 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 */
 /*{ "parent": "UI", "order": 100 }*/
 import { svgElements } from 'tosijs';
-import { stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, } from './widgets3d-layout';
+import { placePopup } from './flow-layout';
+import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, measureTextWidth, } from './widgets3d-layout';
 import { w3dTheme } from './w3d-theme';
 import { iconGlyph } from './svg-icons';
 const { svg, g, rect, text, circle, clipPath } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
-const ROW = 40;
-const PAD_X = 12;
+/*
+ROW AND PAD_X ARE DERIVED, not fixed.
+
+They were 40 and 12, so `padding` and `lineHeight` could not affect a button or
+a field — Tonio: "lineHeight doesn't seem to have any effect. We also need a
+padding value that makes buttons and fields more spacious." Both were true: the
+one place `lineHeight` reached was stacked text, and nothing set a control's
+inner padding at all.
+
+A row is now one line of text plus padding above and below, which is what a
+control's height actually is — so raising `padding` makes controls roomier in
+both axes, and `lineHeight` reaches everything rather than only text blocks.
+Defaults (16 × 1.35 + 12 × 2 ≈ 46) sit close to the old 40.
+*/
 const PAD_Y = 8;
-const GAP = 8;
 // Widget styling comes from the `--w3d-*` CSS variables, resolved ONCE at load
 // in w3d-theme (the full rationale — texture rasterization can't see the page's
 // custom properties — lives there). Local names keep the paint code brief.
-const FONT = w3dTheme.fontSize;
-const FONT_FAMILY = w3dTheme.fontFamily;
-const TEXT = w3dTheme.text;
-const MUTED = w3dTheme.muted;
-const HEADING_WEIGHT = w3dTheme.headingWeight;
-const TEXT_WEIGHT = w3dTheme.textWeight;
-const PANEL_BG = w3dTheme.panelBg;
-const BTN_BG = w3dTheme.buttonBg;
-const BTN_HOVER = w3dTheme.buttonHover;
-const BTN_ACTIVE = w3dTheme.buttonActive;
-const TRACK = w3dTheme.track;
-const ACCENT = w3dTheme.accent;
-const ROW_BG = w3dTheme.rowBg;
-const ROW_HOVER = w3dTheme.rowHover;
 // Compact line height for stacked text (text3d / textBlock3d) — a fraction of a full
 // interactive ROW, which is what buys the vertical space back on text-heavy panels.
-const LINE_H = Math.round(FONT * 1.35);
 // One FontSpec, used BOTH to measure and to stamp the matching font-* attributes on
 // the <text>, so measurement and rendering can't drift out of sync.
-const TEXT_FONT = {
-    size: FONT,
-    family: FONT_FAMILY,
-    weight: TEXT_WEIGHT,
+/*
+LIVE THEME READS — these were `const X = w3dTheme.x` at module scope.
+
+That captured the palette the instant the module was IMPORTED, so
+`setW3dTheme` could never reach them: the constants already held the old
+values, and a theme editor changed nothing. Only `roundedRadius` appeared to
+work, because it happened to be read inline at construction.
+
+Getters make every read happen when a widget is BUILT, which is the contract
+the theme documents. The names stay so the paint code reads the same.
+*/
+const TH = {
+    get GAP() {
+        return w3dTheme.spacing;
+    },
+    get FONT() {
+        return w3dTheme.fontSize;
+    },
+    get FONT_FAMILY() {
+        return w3dTheme.fontFamily;
+    },
+    get TEXT() {
+        return w3dTheme.text;
+    },
+    get MUTED() {
+        return w3dTheme.muted;
+    },
+    get HEADING_WEIGHT() {
+        return w3dTheme.headingWeight;
+    },
+    get TEXT_WEIGHT() {
+        return w3dTheme.textWeight;
+    },
+    get PANEL_BG() {
+        return w3dTheme.panelBg;
+    },
+    get BTN_BG() {
+        return w3dTheme.buttonBg;
+    },
+    get BTN_HOVER() {
+        return w3dTheme.buttonHover;
+    },
+    get BTN_ACTIVE() {
+        return w3dTheme.buttonActive;
+    },
+    get TRACK() {
+        return w3dTheme.track;
+    },
+    get ACCENT() {
+        return w3dTheme.accent;
+    },
+    get ROW_BG() {
+        return w3dTheme.rowBg;
+    },
+    get ROW_HOVER() {
+        return w3dTheme.rowHover;
+    },
+    get PAD_X() {
+        return w3dTheme.padding;
+    },
+    /** One line of text plus padding above and below — what a control's height is. */
+    get ROW() {
+        return Math.round(w3dTheme.fontSize * w3dTheme.lineHeight + w3dTheme.padding * 2);
+    },
+    /** Compact line height for stacked text — a fraction of a full interactive ROW. */
+    get LINE_H() {
+        return Math.round(w3dTheme.fontSize * w3dTheme.lineHeight);
+    },
+    /** One FontSpec used BOTH to measure and to stamp font-* attributes, so the
+     * two cannot drift. */
+    get TEXT_FONT() {
+        return {
+            size: w3dTheme.fontSize,
+            family: w3dTheme.fontFamily,
+            weight: w3dTheme.textWeight,
+        };
+    },
+    get BOLD_FONT() {
+        return { ...TH.TEXT_FONT, weight: w3dTheme.headingWeight };
+    },
 };
-const BOLD_FONT = { ...TEXT_FONT, weight: HEADING_WEIGHT };
 let clipSeq = 0;
 /**
  * Set an inline CSS string and return the element. svgElements types `style`
@@ -344,11 +454,11 @@ function localPoint(el, clientX, clientY) {
     const p = pt.matrixTransform(ctm.inverse());
     return { x: p.x, y: p.y };
 }
-const baseText = (content, fill = TEXT, bold = false) => text({
+const baseText = (content, fill = TH.TEXT, bold = false) => text({
     'dominant-baseline': 'middle',
-    'font-size': FONT,
-    'font-family': FONT_FAMILY,
-    'font-weight': bold ? HEADING_WEIGHT : TEXT_WEIGHT,
+    'font-size': TH.FONT,
+    'font-family': TH.FONT_FAMILY,
+    'font-weight': bold ? TH.HEADING_WEIGHT : TH.TEXT_WEIGHT,
     fill,
 }, content);
 // --- Widgets ---------------------------------------------------------------
@@ -356,14 +466,87 @@ const baseText = (content, fill = TEXT, bold = false) => text({
  * A static caption row. `color` overrides the default text colour (e.g. an
  * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
  * is set). `compact` shrinks the row to one text line instead of a full
- * interactive-height ROW — for dense readouts (debug panels) where a 40px row per
+ * interactive-height TH.ROW — for dense readouts (debug panels) where a 40px row per
  * short line is mostly wasted space.
  */
+/**
+ * **Lay widgets side by side on one row.**
+ *
+ * A panel only stacks, so a label-and-field pair costs two rows and eight
+ * fields become sixteen rows of mostly whitespace — the ensemble editor's
+ * report (tosijs-3d#37, item 5). A row is the missing axis.
+ *
+ * `weights` are proportional shares of the space left after the gaps, so
+ * `weights: [1, 2]` is the usual label/field split. Children are middle-aligned
+ * by default: the common case is a short label beside a taller control, and
+ * top-aligning those makes the label look detached from what it names.
+ *
+ * **Pointer routing is by column, and it delegates in the child's OWN
+ * coordinates** — a widget cannot know it has been put in a row, so it must
+ * still receive `(0,0)` at its own top-left. Hit-testing follows the same
+ * path, which is what keeps "grab between the controls to scroll" working
+ * inside a row as well as outside it.
+ */
+export function row3d(config, ...children) {
+    const gap = config.gap ?? TH.GAP;
+    const align = config.align ?? 'middle';
+    const el = g();
+    const wraps = children.map((c) => {
+        const wrap = g();
+        wrap.appendChild(c.el);
+        el.appendChild(wrap);
+        return wrap;
+    });
+    // Column geometry from the last layout, so pointer routing uses exactly what
+    // was drawn rather than recomputing and risking a disagreement.
+    let cols = [];
+    let tops = [];
+    let rowHeight = 0;
+    const at = (x, y) => {
+        for (let i = 0; i < cols.length; i++) {
+            const c = cols[i];
+            if (x >= c.x && x <= c.x + c.width) {
+                return { i, lx: x - c.x, ly: y - tops[i] };
+            }
+        }
+        return null;
+    };
+    return {
+        el,
+        layout(width) {
+            cols = rowColumns(width, children.length, gap, config.weights);
+            const heights = children.map((c, i) => c.layout(cols[i].width));
+            rowHeight = heights.length ? Math.max(...heights) : 0;
+            tops = heights.map((h) => alignOffset(rowHeight, h, align));
+            wraps.forEach((wrap, i) => {
+                wrap.setAttribute('transform', `translate(${cols[i].x}, ${tops[i]})`);
+            });
+            return rowHeight;
+        },
+        handle(kind, x, y) {
+            const hit = at(x, y);
+            if (hit == null)
+                return;
+            children[hit.i].handle?.(kind, hit.lx, hit.ly);
+        },
+        hitTest(x, y) {
+            const hit = at(x, y);
+            if (hit == null)
+                return false;
+            const child = children[hit.i];
+            // No hitTest means "the whole row is the control" for that child — the
+            // same convention the panel uses one level up.
+            return child.hitTest
+                ? child.hitTest(hit.lx, hit.ly)
+                : child.handle != null;
+        },
+    };
+}
 export function label3d(config) {
-    const fill = config.color ?? (config.muted ? MUTED : TEXT);
+    const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT);
     const t = baseText(config.text, fill, config.bold);
-    const h = config.compact ? LINE_H : ROW;
-    t.setAttribute('x', String(PAD_X));
+    const h = config.compact ? TH.LINE_H : TH.ROW;
+    t.setAttribute('x', String(TH.PAD_X));
     t.setAttribute('y', String(h / 2));
     return { el: g({ 'data-w3d': 'label' }, t), layout: () => h };
 }
@@ -388,8 +571,8 @@ export function text3d(config) {
  */
 export function textBlock3d(config) {
     const el = g({ 'data-w3d': 'textblock' });
-    const fill = config.color ?? (config.muted ? MUTED : TEXT);
-    const font = config.bold ? BOLD_FONT : TEXT_FONT;
+    const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT);
+    const font = config.bold ? TH.BOLD_FONT : TH.TEXT_FONT;
     let lines = config.lines;
     let lastWidth = 0;
     const paint = (width) => {
@@ -398,17 +581,17 @@ export function textBlock3d(config) {
         const wrapped = [];
         for (const line of lines) {
             // Empty line stays empty (keeps blank-line rhythm); else wrap it.
-            const w = measureTextWrap(line, width - PAD_X * 2, font);
+            const w = measureTextWrap(line, width - TH.PAD_X * 2, font);
             for (const ln of w)
                 wrapped.push(ln);
         }
         wrapped.forEach((ln, i) => {
             const t = baseText(ln, fill, config.bold);
-            t.setAttribute('x', String(PAD_X));
-            t.setAttribute('y', String(PAD_Y + LINE_H * (i + 0.6)));
+            t.setAttribute('x', String(TH.PAD_X));
+            t.setAttribute('y', String(PAD_Y + TH.LINE_H * (i + 0.6)));
             el.appendChild(t);
         });
-        return Math.max(LINE_H, wrapped.length * LINE_H + PAD_Y * 2);
+        return Math.max(TH.LINE_H, wrapped.length * TH.LINE_H + PAD_Y * 2);
     };
     return {
         el,
@@ -425,25 +608,40 @@ export function textBlock3d(config) {
 }
 /** A pressable button. */
 export function button3d(config) {
-    const bg = rect({ x: 0, y: 4, rx: 8, ry: 8, height: ROW - 8, fill: BTN_BG });
+    const bg = rect({
+        x: 0,
+        y: 4,
+        rx: 8,
+        ry: 8,
+        height: TH.ROW - 8,
+        fill: TH.BTN_BG,
+    });
     const lbl = baseText(config.label);
     lbl.setAttribute('text-anchor', 'middle');
-    lbl.setAttribute('y', String(ROW / 2));
+    lbl.setAttribute('y', String(TH.ROW / 2));
     const el = css(g({ 'data-w3d': 'button' }, bg, lbl), 'cursor:pointer');
     return {
         el,
         layout(width) {
             bg.setAttribute('width', String(width));
             lbl.setAttribute('x', String(width / 2));
-            return ROW;
+            return TH.ROW;
         },
         handle(kind) {
-            if (kind === 'down')
-                bg.setAttribute('fill', BTN_ACTIVE);
-            else if (kind === 'leave')
-                bg.setAttribute('fill', BTN_BG);
+            // The LABEL follows too — on a strongly-coloured active background the
+            // ordinary text colour may not read, which is the whole reason
+            // `buttonActiveText` is a separate token.
+            if (kind === 'down') {
+                bg.setAttribute('fill', TH.BTN_ACTIVE);
+                lbl.setAttribute('fill', w3dTheme.buttonActiveText);
+            }
+            else if (kind === 'leave') {
+                bg.setAttribute('fill', TH.BTN_BG);
+                lbl.setAttribute('fill', TH.TEXT);
+            }
             else {
-                bg.setAttribute('fill', BTN_HOVER); // hover / move / up
+                bg.setAttribute('fill', TH.BTN_HOVER); // hover / move / up
+                lbl.setAttribute('fill', TH.TEXT);
                 if (kind === 'up')
                     config.onClick?.();
             }
@@ -464,10 +662,25 @@ export function button3d(config) {
  */
 export function iconBar3d(config) {
     const BS = 32; // button size
-    const GAP = 6;
+    // Tighter than the panel gap on purpose — an icon bar reads as one control.
+    const ICON_GAP = 6;
     const ICON = 20;
-    const SELECTED = BTN_ACTIVE;
-    const by = (ROW - BS) / 2;
+    /*
+    SELECTED IS NOT PRESSED.
+  
+    This used `buttonActive` for the selected item, which is the PRESS colour — so
+    a selected icon looked permanently pressed, and pressing one showed nothing
+    new because it was already wearing the press. Tonio: "the buttons in the
+    iconButtonBar don't color like buttons (e.g. active)."
+  
+    Three states, three tokens, in the order they escalate: `buttonBg` at rest,
+    `buttonHover` under the pointer, `buttonActive` while held — and `selectedBg`
+    for "this one is on", which is a different axis entirely and is why the theme
+    has a separate token for it. See UI-DESIGN-NOTES: selection must not compete
+    with hover and focus for intensity.
+    */
+    const SELECTED = w3dTheme.selectedBg;
+    const by = (TH.ROW - BS) / 2;
     // Per-item background + accent underline. The glyph itself bakes its colour at
     // creation (texture-safe), so state is shown by the background, not the icon.
     const cells = config.items.map((item) => {
@@ -478,7 +691,7 @@ export function iconBar3d(config) {
             height: BS,
             rx: 8,
             ry: 8,
-            fill: item.active ? SELECTED : BTN_BG,
+            fill: item.active ? SELECTED : TH.BTN_BG,
         });
         const underline = rect({
             x: 6,
@@ -486,10 +699,12 @@ export function iconBar3d(config) {
             width: BS - 12,
             height: 2,
             rx: 1,
-            fill: item.active ? ACCENT : 'transparent',
+            fill: item.active ? TH.ACCENT : 'transparent',
         });
         const glyph = iconGlyph(item.icon, {
-            color: TEXT,
+            // Baked at creation (texture-safe), so a SELECTED icon takes the active
+            // label colour here rather than being repainted later.
+            color: item.active ? w3dTheme.buttonActiveText : TH.TEXT,
             size: ICON,
             x: (BS - ICON) / 2,
             y: (BS - ICON) / 2,
@@ -517,9 +732,9 @@ export function iconBar3d(config) {
                 'dominant-baseline': 'hanging',
                 'text-anchor': 'middle',
                 'font-size': 9,
-                'font-family': FONT_FAMILY,
-                'font-weight': TEXT_WEIGHT,
-                fill: MUTED,
+                'font-family': TH.FONT_FAMILY,
+                'font-weight': TH.TEXT_WEIGHT,
+                fill: TH.MUTED,
                 x: BS / 2,
                 y: BS + 3,
             }, item.title.split(' ')[0]), 'pointer-events:none')
@@ -531,18 +746,20 @@ export function iconBar3d(config) {
     const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell));
     const hasCaptions = config.items.some((i) => i.title);
     const CAPTION_H = 12;
-    const step = BS + GAP;
+    const step = BS + ICON_GAP;
     const indexAt = (x) => {
         const i = Math.floor(x / step);
         if (i < 0 || i >= cells.length)
             return -1;
-        // Reject the GAP dead-zone between buttons.
+        // Reject the ICON_GAP dead-zone between buttons.
         return x - i * step <= BS ? i : -1;
     };
+    let pressed = -1;
     const paint = (hover) => {
         cells.forEach((c, i) => {
-            const base = c.item.active ? SELECTED : BTN_BG;
-            c.bg.setAttribute('fill', i === hover ? BTN_HOVER : base);
+            const base = c.item.active ? SELECTED : TH.BTN_BG;
+            const fill = i === pressed ? TH.BTN_ACTIVE : i === hover ? TH.BTN_HOVER : base;
+            c.bg.setAttribute('fill', fill);
         });
     };
     return {
@@ -553,19 +770,27 @@ export function iconBar3d(config) {
             });
             // Captions live BELOW the button, so the row has to grow or the next
             // widget lands on top of them.
-            return hasCaptions ? ROW + CAPTION_H : ROW;
+            return hasCaptions ? TH.ROW + CAPTION_H : TH.ROW;
         },
         hitTest(x) {
             return indexAt(x) >= 0;
         },
         handle(kind, x) {
             if (kind === 'leave') {
+                pressed = -1;
                 paint(-1);
                 return;
             }
             const i = indexAt(x);
+            if (kind === 'down')
+                pressed = i;
+            // Release BEFORE firing, so a handler that rebuilds the panel does not
+            // leave a button stuck looking held.
+            const fired = kind === 'up' && i >= 0 && i === pressed;
+            if (kind === 'up')
+                pressed = -1;
             paint(i);
-            if (kind === 'up' && i >= 0)
+            if (fired)
                 cells[i].item.onClick?.();
         },
     };
@@ -574,24 +799,24 @@ export function iconBar3d(config) {
 export function toggle3d(config) {
     const bound = boundValue(config.value, config.onChange);
     const lbl = baseText(config.label);
-    lbl.setAttribute('x', String(PAD_X));
-    lbl.setAttribute('y', String(ROW / 2));
+    lbl.setAttribute('x', String(TH.PAD_X));
+    lbl.setAttribute('y', String(TH.ROW / 2));
     const trackW = 46;
     const trackH = 24;
     const knobR = 9;
     const track = rect({
-        y: (ROW - trackH) / 2,
+        y: (TH.ROW - trackH) / 2,
         width: trackW,
         height: trackH,
         rx: trackH / 2,
         ry: trackH / 2,
-        fill: TRACK,
+        fill: TH.TRACK,
     });
-    const knob = circle({ cy: ROW / 2, r: knobR, fill: '#fff' });
+    const knob = circle({ cy: TH.ROW / 2, r: knobR, fill: '#fff' });
     const rowBg = rect({
         x: 0,
         y: 2,
-        height: ROW - 4,
+        height: TH.ROW - 4,
         rx: 6,
         fill: 'transparent',
     });
@@ -599,7 +824,7 @@ export function toggle3d(config) {
     let trackX = 0;
     const reflect = () => {
         const on = bound.get();
-        track.setAttribute('fill', on ? ACCENT : TRACK);
+        track.setAttribute('fill', on ? TH.ACCENT : TH.TRACK);
         knob.setAttribute('cx', String(on ? trackX + trackW - knobR - 3 : trackX + knobR + 3));
     };
     const flip = () => {
@@ -611,10 +836,10 @@ export function toggle3d(config) {
         el,
         layout(width) {
             rowBg.setAttribute('width', String(width));
-            trackX = width - trackW - PAD_X;
+            trackX = width - trackW - TH.PAD_X;
             track.setAttribute('x', String(trackX));
             reflect();
-            return ROW;
+            return TH.ROW;
         },
         // Only the switch is interactive; the label area is scroll surface.
         hitTest(x) {
@@ -624,7 +849,7 @@ export function toggle3d(config) {
             if (kind === 'leave')
                 rowBg.setAttribute('fill', 'transparent');
             else {
-                rowBg.setAttribute('fill', ROW_HOVER);
+                rowBg.setAttribute('fill', TH.ROW_HOVER);
                 if (kind === 'up')
                     flip();
             }
@@ -639,30 +864,67 @@ export function slider3d(config) {
     const bound = boundValue(config.value, config.onChange);
     const lbl = config.label ? baseText(config.label) : null;
     if (lbl) {
-        lbl.setAttribute('x', String(PAD_X));
-        lbl.setAttribute('y', String(ROW / 2));
+        lbl.setAttribute('x', String(TH.PAD_X));
+        lbl.setAttribute('y', String(TH.ROW / 2));
     }
-    const trackEl = rect({ height: 6, rx: 3, ry: 3, fill: TRACK, y: ROW / 2 - 3 });
-    const fillEl = rect({ height: 6, rx: 3, ry: 3, fill: ACCENT, y: ROW / 2 - 3 });
-    const knob = circle({ cy: ROW / 2, r: 10, fill: '#fff' });
+    const trackEl = rect({
+        height: 6,
+        rx: 3,
+        ry: 3,
+        fill: TH.TRACK,
+        y: TH.ROW / 2 - 3,
+    });
+    const fillEl = rect({
+        height: 6,
+        rx: 3,
+        ry: 3,
+        fill: TH.ACCENT,
+        y: TH.ROW / 2 - 3,
+    });
+    const knob = circle({ cy: TH.ROW / 2, r: 10, fill: '#fff' });
     // Exact-value readout: shown (in place of the track) while you point at or drag
     // the slider, so the precise number is legible even at low XR texture res. The
     // label stays visible beside it. Decimals follow the step.
     const decimals = step > 0 ? (step < 1 ? Math.min(4, -Math.floor(Math.log10(step))) : 0) : 2;
-    const valText = baseText('', ACCENT);
+    const showValue = config.showValue ?? 'peek';
+    const format = config.format ?? ((v) => v.toFixed(decimals));
+    const valText = baseText('', TH.ACCENT);
     valText.setAttribute('text-anchor', 'start');
-    valText.setAttribute('x', String(PAD_X));
-    valText.setAttribute('y', String(ROW / 2));
+    valText.setAttribute('x', String(TH.PAD_X));
+    valText.setAttribute('y', String(TH.ROW / 2));
     valText.setAttribute('font-weight', '600');
     valText.setAttribute('display', 'none');
+    /*
+    The ALWAYS readout is a separate element from the peek one, deliberately.
+  
+    Peek replaces the LABEL and lives at the left; always sits at the right with
+    the track shortened to clear it. Trying to make one element do both means it
+    moves when you touch it, which is the one thing a number you are reading must
+    not do.
+    */
+    const fixedVal = baseText('', TH.ACCENT);
+    fixedVal.setAttribute('text-anchor', 'end');
+    fixedVal.setAttribute('y', String(TH.ROW / 2));
+    fixedVal.setAttribute('font-weight', '600');
+    if (showValue !== 'always')
+        fixedVal.setAttribute('display', 'none');
+    /*
+    Reserve the width of the WIDEST value it can show, not of the current one --
+    measured at both ends of the range (and via `format`, so units and precision
+    are included). Sizing to the current value makes the track resize as you drag
+    it, which looks like the slider fighting you.
+    */
+    const readoutW = showValue === 'always'
+        ? Math.ceil(Math.max(measureTextWidth(format(min), TH.TEXT_FONT), measureTextWidth(format(max), TH.TEXT_FONT))) + 10
+        : 0;
     const rowBg = rect({
         x: 0,
         y: 2,
-        height: ROW - 4,
+        height: TH.ROW - 4,
         rx: 6,
         fill: 'transparent',
     });
-    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [lbl] : []), trackEl, fillEl, knob, valText), 'cursor:pointer');
+    const el = css(g({ 'data-w3d': 'slider' }, rowBg, ...(lbl ? [lbl] : []), trackEl, fillEl, knob, valText, fixedVal), 'cursor:pointer');
     let trackX = 0;
     let trackW = 0;
     const reflect = () => {
@@ -676,11 +938,15 @@ export function slider3d(config) {
         knob.setAttribute('cx', String(cx));
         fillEl.setAttribute('x', String(trackX));
         fillEl.setAttribute('width', String(Math.max(0, cx - trackX)));
-        valText.textContent = v.toFixed(decimals);
+        const shown = format(v);
+        valText.textContent = shown;
+        fixedVal.textContent = shown;
     };
     // Peek shows the exact value in place of the LABEL — the track and knob stay
     // visible, so you can still see and drag the slider while reading the number.
     const peek = (on) => {
+        if (showValue !== 'peek')
+            return;
         if (lbl)
             lbl.setAttribute('display', on ? 'none' : 'inline');
         valText.setAttribute('display', on ? 'inline' : 'none');
@@ -697,12 +963,13 @@ export function slider3d(config) {
         layout(width) {
             rowBg.setAttribute('width', String(width));
             const labelW = lbl ? Math.min(width * 0.45, 150) : 0;
-            trackX = PAD_X + labelW;
-            trackW = width - trackX - PAD_X - 12;
+            trackX = TH.PAD_X + labelW;
+            trackW = width - trackX - TH.PAD_X - 12 - readoutW;
+            fixedVal.setAttribute('x', String(width - TH.PAD_X));
             trackEl.setAttribute('x', String(trackX));
             trackEl.setAttribute('width', String(trackW));
             reflect();
-            return ROW;
+            return TH.ROW;
         },
         // Only the track is interactive; the label area is scroll surface.
         hitTest(x) {
@@ -714,7 +981,7 @@ export function slider3d(config) {
                 peek(false);
             }
             else {
-                rowBg.setAttribute('fill', ROW_HOVER);
+                rowBg.setAttribute('fill', TH.ROW_HOVER);
                 peek(true); // pointing at it (hover/press) → show the exact value
                 if (kind === 'down' || kind === 'move')
                     setFromX(x); // hover/up don't set
@@ -736,20 +1003,20 @@ export function select3d(config) {
     const bound = boundValue(config.value, config.onChange);
     const lbl = config.label ? baseText(config.label) : null;
     if (lbl) {
-        lbl.setAttribute('x', String(PAD_X));
-        lbl.setAttribute('y', String(ROW / 2));
+        lbl.setAttribute('x', String(TH.PAD_X));
+        lbl.setAttribute('y', String(TH.ROW / 2));
     }
-    const prev = baseText('‹', ACCENT);
-    const next = baseText('›', ACCENT);
+    const prev = baseText('‹', TH.ACCENT);
+    const next = baseText('›', TH.ACCENT);
     const val = baseText('');
     for (const t of [prev, next, val]) {
         t.setAttribute('text-anchor', 'middle');
-        t.setAttribute('y', String(ROW / 2));
+        t.setAttribute('y', String(TH.ROW / 2));
     }
     const rowBg = rect({
         x: 0,
         y: 2,
-        height: ROW - 4,
+        height: TH.ROW - 4,
         rx: 6,
         fill: 'transparent',
     });
@@ -778,12 +1045,12 @@ export function select3d(config) {
         layout(width) {
             rowBg.setAttribute('width', String(width));
             clusterW = Math.min(width * 0.55, 180);
-            clusterX = width - PAD_X - clusterW;
+            clusterX = width - TH.PAD_X - clusterW;
             prev.setAttribute('x', String(clusterX + 14));
             next.setAttribute('x', String(clusterX + clusterW - 14));
             val.setAttribute('x', String(clusterX + clusterW / 2));
             reflect();
-            return ROW;
+            return TH.ROW;
         },
         // Only the cluster steps; the label area stays a scroll surface.
         hitTest(x) {
@@ -793,18 +1060,18 @@ export function select3d(config) {
             const onLeft = x < clusterX + clusterW / 2;
             if (kind === 'leave') {
                 rowBg.setAttribute('fill', 'transparent');
-                prev.setAttribute('fill', ACCENT);
-                next.setAttribute('fill', ACCENT);
+                prev.setAttribute('fill', TH.ACCENT);
+                next.setAttribute('fill', TH.ACCENT);
                 return;
             }
-            rowBg.setAttribute('fill', ROW_HOVER);
+            rowBg.setAttribute('fill', TH.ROW_HOVER);
             if (kind === 'down') {
-                prev.setAttribute('fill', onLeft ? '#fff' : ACCENT);
-                next.setAttribute('fill', onLeft ? ACCENT : '#fff');
+                prev.setAttribute('fill', onLeft ? '#fff' : TH.ACCENT);
+                next.setAttribute('fill', onLeft ? TH.ACCENT : '#fff');
             }
             else if (kind === 'up') {
-                prev.setAttribute('fill', ACCENT);
-                next.setAttribute('fill', ACCENT);
+                prev.setAttribute('fill', TH.ACCENT);
+                next.setAttribute('fill', TH.ACCENT);
                 step(onLeft ? -1 : 1);
             }
         },
@@ -812,10 +1079,10 @@ export function select3d(config) {
 }
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export function list3d(config) {
-    const rowH = config.rowHeight ?? ROW;
+    const rowH = config.rowHeight ?? TH.ROW;
     const el = css(g({ 'data-w3d': 'list' }), 'cursor:pointer');
     const rowBgs = [];
-    const highlight = (i) => rowBgs.forEach((bg, j) => bg.setAttribute('fill', j === i ? ROW_HOVER : ROW_BG));
+    const highlight = (i) => rowBgs.forEach((bg, j) => bg.setAttribute('fill', j === i ? TH.ROW_HOVER : TH.ROW_BG));
     return {
         el,
         layout(width) {
@@ -831,10 +1098,10 @@ export function list3d(config) {
                     height: rowH - 4,
                     rx: 6,
                     ry: 6,
-                    fill: ROW_BG,
+                    fill: TH.ROW_BG,
                 });
                 const t = baseText(item.label);
-                t.setAttribute('x', String(PAD_X));
+                t.setAttribute('x', String(TH.PAD_X));
                 t.setAttribute('y', String(y + rowH / 2));
                 rowBgs.push(bg);
                 el.appendChild(bg);
@@ -865,11 +1132,22 @@ export function list3d(config) {
  */
 export function panel3d(config, ...widgets) {
     const width = config.width ?? 360;
-    const height = config.height ?? 480;
     const padding = config.padding ?? 12;
     const paddingTop = config.paddingTop ?? padding;
-    const gap = config.gap ?? GAP;
+    const gap = config.gap ?? TH.GAP;
     const innerW = width - padding * 2;
+    /*
+    LAY OUT BEFORE CHOOSING THE HEIGHT.
+  
+    Widgets measure themselves against the inner WIDTH, which is known from
+    `width` alone — so the whole stack can be measured before the panel has a
+    height, and the height can then be derived from it. That ordering is the
+    whole trick behind `height: 'fit'`; the previous code fixed the height first
+    and had no way to find out it was wrong.
+    */
+    const heights = widgets.map((w) => w.layout(innerW));
+    const { offsets, total } = stackLayout(heights, gap);
+    const height = panelHeight(total, paddingTop, padding, config.height ?? 'fit', config.maxHeight);
     const viewport = height - paddingTop - padding;
     // Defend against a host page's global `svg { pointer-events: none }` (it's
     // inherited, so re-enabling the root re-enables the whole subtree).
@@ -885,9 +1163,9 @@ export function panel3d(config, ...widgets) {
         y: 0,
         width,
         height,
-        rx: 14,
-        ry: 14,
-        fill: config.background ?? PANEL_BG,
+        rx: w3dTheme.roundedRadius * 2,
+        ry: w3dTheme.roundedRadius * 2,
+        fill: config.background ?? TH.PANEL_BG,
     });
     const clipId = `w3d-clip-${clipSeq++}`;
     const clip = clipPath({ id: clipId }, rect({ x: padding, y: paddingTop, width: innerW, height: viewport }));
@@ -900,8 +1178,6 @@ export function panel3d(config, ...widgets) {
     const scrollGroup = g();
     content.appendChild(scrollGroup);
     clipWrap.appendChild(content);
-    const heights = widgets.map((w) => w.layout(innerW));
-    const { offsets, total } = stackLayout(heights, gap);
     const rows = widgets.map((w, i) => ({
         w,
         top: offsets[i],
@@ -1029,6 +1305,36 @@ export function panel3d(config, ...widgets) {
         applyScroll();
     };
     root.scrollable = scrollable;
+    root.measure = () => panelFit(total, viewport);
+    root.openPopup = (config, ...items) => {
+        const bounds = config.bounds ?? { width, height };
+        const popup = panel3d({
+            width: config.width ?? Math.min(width, 260),
+            height: 'fit',
+            /*
+            Never taller than the space it has to land in.
+            
+            Without this a popup with many options grows to fit them all and then
+            cannot be placed anywhere — flipping does not help, because both sides
+            are too small, so it just hangs off an edge. Capping at the bounds makes
+            the overflow scroll instead, which it can do for free by being a real
+            panel. Found by a test asserting the neither-side-fits case.
+            */
+            maxHeight: config.maxHeight ?? bounds.height,
+        }, ...items);
+        const size = {
+            width: Number(popup.getAttribute('width')),
+            height: Number(popup.getAttribute('height')),
+        };
+        const placed = placePopup(config.anchor, size, bounds, config.side ?? 'below');
+        return {
+            el: popup,
+            x: placed.x,
+            y: placed.y,
+            side: placed.side,
+            close: () => popup.remove(),
+        };
+    };
     root.appendChild(bg);
     root.appendChild(clip);
     root.appendChild(clipWrap);

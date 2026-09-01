@@ -51,6 +51,352 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.4</h2>
+<h3>Added</h3>
+<ul>
+<li><p><strong><code>curve3d</code> + <code>footprint3d</code> — author a terrain province instead of coding
+one.</strong> A province is a <strong>footprint</strong> (extent by direction) plus <strong>one curve
+per layer</strong>: a <code>shape</code> that remaps the height sample, and a <code>falloff</code> that
+says how far its say extends. The pure model is <code>curve.ts</code> (Babylon-free,
+55 tests); the province editor demo lives on <code>/curve-field/</code>.</p>
+<p><strong>The range is closed on purpose.</strong> A curve maps <code>[0,1]</code> to <code>[0,1]</code> and a drag
+clamps rather than pushing the range, because a profile that can return 1.4
+silently changes the height a province occupies — which is exactly what
+<code>carve</code>/<code>patch-field</code> must agree about, and it fails as <em>geometry</em> while
+reporting nothing. Amplitude belongs to the block; shape belongs to the curve.
+<code>blendSample</code> composes them convexly, so a tile&#39;s bounds are known before
+anything is evaluated, however many provinces overlap.</p>
+<p><strong>A falloff is pinned to 0 at its edge; a profile is not.</strong> A province still
+carrying weight at its boundary does not blend into the terrain around it —
+another silent step. Not monotonic, though: a crater rim and a volcano cone
+are non-monotonic falloffs, so the edge is pinned and the middle left alone.</p>
+<p><strong>A footprint is a polygon, not a sampled curve.</strong> <code>ngon(6)</code> is six vertices,
+and <code>polygonExtent</code> casts a real ray at the straight edge — interpolating
+radius against angle bows every edge inward, which is why an earlier draft
+carried twelve samples per edge to avoid doing one intersection. A circle is
+therefore the expensive shape: a 16-gon, indistinguishable at province scale.
+Vertices cannot pass their neighbours or reach the centre, which keeps the
+polygon star-shaped — the property that makes &quot;extent in this direction&quot; have
+an answer.</p>
+<p>Presets are named for what they <strong>are</strong>: <code>shelf + mountains</code>, <code>desert terraces</code>, <code>plateau</code>, <code>smooth edge</code>, <code>abrupt edge</code>, <code>messy circle</code>. &quot;ease
+in-out&quot; describes a graph; &quot;smooth edge&quot; describes a province.</p>
+</li>
+<li><p><strong><code>vector3d</code> / <code>euler3d</code> — a coordinate on ONE row.</strong> Three stacked labelled
+fields is why an inspector panel ends up three times taller than it needs to
+be. <code>euler3d</code> is not a styling variant: it <strong>wraps</strong> into <code>(-180, 180]</code> where
+<code>vector3d</code> clamps, because a clamp fights you at exactly the angles you most
+want to scrub through. Degrees, per the angle rule.</p>
+<p>A row is <strong>three tab stops</strong>, not one: the host tracks focus per widget, so
+the row keeps its own axis index and lights exactly one caret — all three at
+once says focus is everywhere, which says nothing.</p>
+</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>A yielded camera is always given back.</strong> Dragging a popup detaches the
+camera so it does not orbit inside the same gesture, but the restore sat
+behind an empty-popup-list early return — so anything that emptied the list
+mid-gesture stranded the camera detached, with no way back. A detached camera
+is a dead scene, not a glitch. Also added a <code>window</code> pointerup/pointercancel
+backstop, because a pointer released outside the canvas produces no scene
+event at all, and dragging toward the edge is how you leave the canvas.</p>
+</li>
+<li><p><strong><code>openPopup</code> threw when opened by a click.</strong> It called <code>attachDrag()</code> from a
+<code>whenMesh</code> callback declared above it — fine while that callback defers, which
+is what happens at mount. But <code>whenReady</code> fires immediately when the scene is
+already up, and appending a plane to a live scene runs its <code>sceneReady</code>
+synchronously too, so opening a popup from a click completed the whole chain
+inside <code>openPopup</code> and hit <code>attachDrag</code> in its temporal dead zone. Minified,
+that reads <code>Cannot access &#39;E&#39; before initialization</code>. The throw escaped before
+the function returned, so the caller got no popup <strong>and</strong> no drag — one
+exception, two symptoms, neither pointing at declaration order.</p>
+</li>
+<li><p><strong>Dragging a popup no longer re-centres it under the pointer.</strong> Babylon&#39;s
+<code>_startDrag</code> falls back to a ray from the camera position when <code>fromRay</code> is
+omitted, so passing only <code>startPickedPoint</code> was not enough: it still
+recomputed the drag plane from a default. Both are needed — the ray says where
+the gesture points, the point says where on the panel it took hold.</p>
+</li>
+<li><p><strong>A panel owns its background.</strong> It painted nothing of its own, so the seam
+between the title bar and the content box leaked two ways: <code>box</code> draws its
+background rounded, so its top corners curve away from the square-bottomed
+bar, and it insets by <code>borderWidth / 2</code>, giving a hairline down both sides.
+A panel is an opaque thing; the parts now sit on top of it. Panel chrome also
+reads the theme, which it never did — it was hardcoded.</p>
+</li>
+<li><p><strong>Popups have a rim, since they cannot have a drop shadow.</strong> The panel is
+emissive so it is unlit, and a cast shadow needs a receiver — a popup floating
+in front of a scene has nothing to fall on. Drawn at <strong>double</strong> stroke width
+so the clip discards the outer half of a stroke that straddles its path,
+leaving the intended width with no half-pixel arithmetic. <code>muted</code> is a mid
+grey deliberately: the backdrop is arbitrary 3D, so a light rim vanishes on a
+pale scene and a dark one on a dark scene.</p>
+</li>
+<li><p><strong>Numeric fields scrub</strong> — <code>inputField({type:&#39;number&#39;, scrub, step, min, max})</code>
+drags to adjust and clicks to type (tosijs-3d#50). Scrubbing lives on the
+field rather than in a separate control because a typed field already knows it
+is numeric; otherwise every numeric widget needs its own copy of parse, format
+and commit.</p>
+<p><strong>Tap versus drag is a distance, not a mode</strong> — a press that never travels
+places the caret, one that moves scrubs. No modifier and no separate hit zone,
+which matters most in XR where aiming is the expensive part.</p>
+</li>
+<li><p><strong><code>slider3d</code>&#39;s <code>step</code> is documented</strong> — it always quantised the drag <em>and</em> the
+reported value, but nothing said so, so a consumer generating panels from JSON
+Schema concluded sliders were continuous and turned snap settings into
+cyclers. There is now a <strong>widget reference table</strong> covering every widget&#39;s
+options, plus the methods on a panel and a field.</p>
+</li>
+<li><p><strong>⚠️ <code>b3dWater</code>&#39;s normal map is now PROCEDURAL by default</strong> (tosijs-3d#46).
+It defaulted to <code>/waterbump.png</code> — a file that ships in this repo&#39;s <code>static/</code>
+and <strong>not in the published package</strong> — so every consumer taking the default
+pointed at something they had never been told to serve. Babylon falls back
+when a texture will not decode, so the sea rendered as a <strong>checkerboard</strong>,
+which reads as a style rather than a fault; it was reported as <em>&quot;is the water
+supposed to look like a checkerboard (it actually looks awesome…)&quot;</em>.</p>
+<p>Shipping the PNG would have fixed the missing file and left the real problem:
+a default that depends on a fixed URL resolving in someone else&#39;s app. The
+built-in map is now generated from this library&#39;s own Perlin noise — no file,
+no network, no path, and it works offline and in a headset. It tiles by
+construction (sampled on a torus), so there is no seam to hide.</p>
+<p>An explicit <code>normalMap</code> that fails to load now <strong>logs an error</strong> instead of
+silently becoming a checkerboard. Pass <code>normalMap</code> to override.</p>
+</li>
+<li><p><strong><code>panel.openPopup()</code> — a popup is just another panel</strong> (tosijs-3d#37, item
+4). This was the seam blocking a real <code>select</code>, the colour picker, and any
+in-panel menu: <code>panel3d</code> returned a bare <code>&lt;svg&gt;</code> while <code>openPopup</code>/<code>openMenu</code>
+wanted a <code>Surface</code>, so a control inside a panel had nowhere to put its list.</p>
+<p>Nothing new was needed to build one — it is a <code>panel3d</code> with <code>height: &#39;fit&#39;</code>
+placed by <code>placePopup</code> (which already flips and clamps). It returns the panel
+plus <strong>where</strong> it goes; mounting stays the host&#39;s job, because that is the
+part that genuinely differs: flat it is a positioned sibling, in a scene it is
+another plane. A popup living inside its opener would be clipped by the
+opener&#39;s own viewBox, which is exactly why it has to be its own panel.</p>
+<p>The popup is capped at its bounds, so a long list scrolls rather than growing
+past the surface it must land on — flipping cannot rescue a popup that is
+taller than both sides.</p>
+</li>
+<li><p><strong>Fixed: injected colour controls set tokens to <code>[object Event]</code>.</strong> A tosijs
+<code>Component</code> binds any <code>on*</code> prop as a <strong>DOM event listener</strong>, so an injected
+<code>colorInput({onChange})</code> calls back with an <code>Event</code> rather than a colour.
+Setting a token to one throws nothing — it stringifies, fails to parse, and
+the widget paints <strong>black</strong>. <code>themeEditor</code> now accepts either and ignores
+anything it cannot read as a colour.</p>
+</li>
+<li><p><strong>⚠️ Panels no longer cast shadows by default.</strong> <code>register()</code> is the
+shadow-caster contract and a panel registers like any other mesh, so every
+in-scene panel threw a hard-edged rectangle across whatever it faced.</p>
+<p>It is the right default for what a panel <em>is</em>: UI is not scenery — a HUD or an
+inspector is something you look <strong>through</strong> the world at, and a shadow makes
+it furniture. It is also the worst case for the shadow map, being a large flat
+quad that (when camera-relative) never leaves <code>activeDistance</code> and so never
+culls. Set <code>castShadow</code> for a panel that really is scenery — a sign on a wall,
+a screen in a room.</p>
+</li>
+<li><p><strong>The scene panel sits in the top-left corner</strong>, inset equally from top and
+left, instead of hanging below the gear button. It sat clear of the button
+that opens it, which pushed its own content off the bottom on a short scene —
+and covering the gear is fine, because the panel carries its own close box.</p>
+</li>
+<li><p><strong>The scene panel updates when pause state changes elsewhere.</strong> The transport
+row picks its label and icon from <code>paused</code>, but nothing repainted the panel
+when that flipped — so resuming from the pause <em>dialog</em> left the panel still
+offering <strong>Play</strong>. It only looked right before because the common path is
+pressing the panel&#39;s own button, which reopens the panel afterwards; a second
+route to the same state had no reason to.</p>
+</li>
+<li><p><strong>The <code>surface</code> demo&#39;s debug readout is a real 3D popup</strong>, not an overlay
+painted into the opener&#39;s own SVG — so in the scene it is a panel with depth
+that can sit in front of the surface and be dragged in world space, rather
+than a picture of one stuck to the plane. The flat view keeps the in-panel
+form, because in a document a popup <em>is</em> a box drawn over another box.</p>
+</li>
+<li><p><strong><code>buttonActiveText</code></strong> — the label colour while a clickable is held or
+selected. Separate from <code>text</code> because the background under it has changed: a
+theme whose <code>buttonActive</code> is a strong accent needs a light label on it, and
+baking that into <code>text</code> would force every label in the panel to follow a
+decision that is only about buttons. A held <code>button3d</code> and a selected icon
+both take it.</p>
+</li>
+<li><p><strong>&quot;button&quot; means any CLICKABLE</strong>, and now says so in the source.
+<code>buttonBg</code>/<code>buttonHover</code>/<code>buttonActive</code>/<code>buttonActiveText</code> style every widget
+you can press — buttons, icon buttons, toggles, list rows, select cyclers.
+<code>widget*</code> would be vaguer (a label is a widget and has no press state) and
+<code>clickable*</code> is what they mean but longer than anyone will type.</p>
+</li>
+<li><p><strong><code>iconBar3d</code> colours like a button.</strong> It used <code>buttonActive</code> — the <em>press</em>
+colour — for the selected item, so a selected icon looked permanently held and
+pressing one showed nothing new. Now three escalating states (<code>buttonBg</code> →
+<code>buttonHover</code> → <code>buttonActive</code> while held) plus <strong><code>selectedBg</code></strong> for &quot;this one
+is on&quot;, which is a different axis and why the theme has a separate token for
+it. Release clears the pressed look <em>before</em> the handler runs, so a handler
+that rebuilds the panel cannot leave a button stuck looking held; and a press
+that drifts off its button no longer fires it.</p>
+</li>
+<li><p><strong><code>strokeWidth</code> reaches icons.</strong> <code>iconGlyph</code> hardcoded <code>2</code>, so the token
+affected nothing but the text caret — a themed panel could not make its icons
+match its own line weight. It now defaults to <code>w3dTheme.strokeWidth</code>, and an
+explicit option still wins (an icon used as a mark may want its own weight).</p>
+</li>
+<li><p><strong>Web fonts now reach in-scene panels</strong> — <code>registerSvgFont(family, url)</code>
+fetches the face, base64s it, and injects an <code>@font-face</code> <strong>into the
+serialised SVG</strong>, which is the only place a rasterised copy can find it.</p>
+<p>A serialised SVG is its own document: it inherits neither the page&#39;s font
+faces nor its custom properties (the second half is why <code>w3d-theme</code> bakes
+literals). The symptom was quiet — a scene panel in the fallback family while
+the identical flat panel rendered correctly.</p>
+<p>Only faces the markup actually mentions are injected, because the payload is
+re-parsed on every rasterisation; a woff2 is 20–100 KB and base64 adds a
+third, so carrying every registered font on every texture would be the real
+cost. Cached per URL, and a failed fetch is not cached as the answer.</p>
+</li>
+<li><p><strong><code>withTheme(partial, build)</code> — one default, per-panel overrides.</strong>
+<code>setW3dTheme</code> sets the default; this builds something under an override and
+restores it afterwards (in a <code>finally</code>, so a throw cannot leave the palette
+changed — a theme that silently persists after an error makes the <em>next</em>
+widget look wrong for no visible reason).</p>
+<p>It works because of the property that makes a single global table safe: a
+widget reads the theme when it is <strong>built</strong>. So a scope is just set-build-
+restore — no plumbing, no second table, and a widget built inside keeps its
+colours forever, since they were baked into its attributes.</p>
+<p><strong>Why not <code>panel3d({ theme })</code>:</strong> a panel&#39;s children are constructed as
+<em>arguments</em>, so they already exist by the time the panel function runs. An
+option on the panel could only recolour the panel&#39;s own background while its
+contents kept the default — worse than not offering it. Wrapping the
+construction puts the children inside the scope, because that is when they
+evaluate.</p>
+</li>
+<li><p><strong><code>themeEditor()</code> — the palette editor is a component</strong>, not demo code. An
+adopter theming an app wants exactly this UI, and copying it out of a doc
+comment is how it drifts from the palette it edits. Its own module, so it
+tree-shakes out of a build that never imports it.</p>
+<p>Every metric has a <strong>slider and a number field, kept in sync</strong> — a slider
+alone hides the value you are setting, and you cannot drag an exact 0.05.
+The colour control is <strong>injected</strong>: alpha matters (<code>panelBg</code>, <code>rowHover</code> and
+<code>selectedBg</code> are <code>rgba()</code>) and <code>&lt;input type=&quot;color&quot;&gt;</code> silently drops it, but
+tosijs-ui is deliberately not a dependency — so pass its <code>colorInput</code>, or take
+the native fallback knowing what it costs.</p>
+</li>
+<li><p><strong>⚠️ The theme now actually reaches the widgets.</strong> Every <code>--w3d-*</code> value was
+captured in a module-level <code>const</code> at <strong>import</strong> time, so <code>setW3dTheme</code> could
+never affect anything — colours, fonts and metrics alike. Only
+<code>roundedRadius</code> appeared to work, because it happened to be read inline.
+Reads are now live (getters), so a widget takes the theme in force when it is
+<strong>built</strong>, which is what the docs always claimed.</p>
+</li>
+<li><p><strong>The SVG UI is themeable</strong> — 21 tokens, up from 17. Added <code>focus</code>,
+<code>selectedBg</code>, <code>disabledBg</code>, <code>disabledText</code>, <code>strokeWidth</code>, <code>roundedRadius</code>,
+<code>spacing</code>, <code>lineHeight</code>, <code>codeFontFamily</code>, <code>codeFontWeight</code>, plus <code>overlay</code>,
+<code>divider</code>, <code>placeholder</code> and <code>caret</code>.</p>
+<p><strong><code>setW3dTheme(partial)</code> overrides at runtime.</strong> The <code>--w3d-*</code> variables are
+read once at load and deliberately so — an SVG destined for a texture is
+serialised away from the document, where <code>var(--w3d-text)</code> resolves against
+nothing and paints black. This is the way back in, and what a theme editor
+needs. Widgets read the theme when they are <strong>built</strong>, so rebuild them after
+calling it; a widget that re-read its colours would have to re-resolve them
+per rasterised texture, which is the cost this design exists to avoid.</p>
+<p>The four interaction states (<code>rowHover</code>, <code>focus</code>, <code>selectedBg</code>, <code>disabledBg</code>)
+are separate tokens because they must stay tellable apart — <code>focus</code> is a
+<strong>stroke</strong> rather than a fill, since a focus ring has to be visible on a
+hovered row <em>and</em> a selected one. Live demo on the <code>w3d-theme</code> page.</p>
+</li>
+<li><p><strong>20 more icons</strong>, for the ensemble editor: <code>mousePointer</code>, <code>refreshCcw</code>/<code>Cw</code>,
+<code>move</code>, <code>copy</code>, <code>delete</code>, <code>trash</code>/<code>trash2</code>, <code>plus</code>/<code>plusCircle</code>,
+<code>rotateCw</code>/<code>Ccw</code>, and the complete <code>corner*</code> family (8). 61 total.</p>
+</li>
+<li><p><strong><code>fieldGroup.attach(target?)</code></strong> wires real <code>keydown</code> events to the focused
+field and returns a detacher. Opt-in — the library still never grabs the
+document by itself — but without it every flat host writes the same six lines,
+and a field you can click into that then refuses every character is a bad
+first impression. It was one: the theme demo shipped with an unusable field.</p>
+<p>It maps the event&#39;s modifier flags explicitly rather than passing the event,
+so <code>keyIntent</code> keeps taking a plain shape and stays testable without a DOM.</p>
+</li>
+<li><p><strong>⚠️ <code>fieldGroup</code> moved under <code>ui.*</code></strong> (<code>ui.fieldGroup</code>), alongside
+<code>ui.inputField</code> and <code>ui.keyboard</code> — it is part of the same SVG UI surface and
+was inconsistently top-level. Unreleased, so nothing external moves.</p>
+</li>
+<li><p><strong><code>fieldGroup</code> — one keyboard, many fields.</strong> Three chores that always travel
+together and were hand-rolled in every host (tosijs-3d#37, items 1 and 7):
+<strong>exclusivity</strong> (focusing one un-focuses the rest — two lit fields both
+claiming the keyboard is worse than none), <strong>commit on leave</strong> (so a
+half-typed <code>1.</code> never survives the move), and <strong>layout</strong> (the incoming field&#39;s
+<code>type</code> picks the keyboard mode, which is the point of having a type).</p>
+<p><code>handleKey(key, mods)</code> takes a key NAME rather than an event, so the same
+routing serves a DOM listener, a synthetic source or a test — and it returns
+whether the key was consumed, so a host knows when to <code>preventDefault</code>.
+Attaching a real listener stays the host&#39;s choice; this library never grabs
+the document.</p>
+</li>
+<li><p><strong><code>keyIntent</code></strong> — pure DOM-key → field-intent mapping. Named keys (<code>Tab</code>,
+<code>Escape</code>, <code>F5</code>) and anything with Ctrl/Cmd/Alt are <strong>not consumed</strong>: swallowing
+a shortcut because a field happens to have focus is worse than handling no
+keys at all.</p>
+</li>
+<li><p><strong><code>inputField.onFocus</code> is settable on the object</strong> (mirroring <code>onChange</code>), so
+a manager learns about focus it did not initiate. Without it a tap and a
+programmatic focus disagree about who is active, and keys go to the wrong
+field — silently, and only sometimes.</p>
+</li>
+<li><p><strong><code>inputField</code> has a <code>type</code></strong> — <code>&#39;text&#39; | &#39;number&#39; | &#39;integer&#39; | &#39;email&#39; | &#39;url&#39; | &#39;tel&#39;</code>, HTML&#39;s <code>inputmode</code> idea. <strong>One property, three jobs</strong>: the
+host raises the matching keyboard layout on focus
+(<code>field.keyboardMode</code> → <code>keyboard.setMode</code>), <code>commit()</code> normalises or refuses
+the value, and <code>isValid()</code> answers without the host knowing the field&#39;s kind.
+This is why there is no separate <code>numberField</code> — a number field is this one,
+configured (tosijs-3d#37, item 2).</p>
+<p>The layouts already existed (<code>numpad</code>, <code>dial</code>, <code>email</code>, <code>url</code>) and nothing
+chose between them, so focusing a numeric field raised <code>alpha</code> and left you to
+find the numpad — two deliberate taps per field, and worse in a headset where
+there is no physical keyboard to fall back on.</p>
+<p><strong>Validity while typing and validity as an answer are different questions</strong>,
+and conflating them is what makes typed fields either unusable or liars: <code>-</code>
+and <code>1.</code> are legitimate things to have typed and illegitimate things to have
+meant. So <code>isValid()</code> accepts them and <code>commit()</code> does not — and a refused
+commit restores the last good value rather than writing <code>NaN</code> into the
+document. Enter commits <em>before</em> <code>onEnter</code> fires, so no handler has to re-do
+the parse.</p>
+</li>
+<li><p><strong><code>slider3d</code> can show its value permanently</strong> — <code>showValue: &#39;peek&#39; | &#39;always&#39; | &#39;never&#39;</code> (default <code>&#39;peek&#39;</code>, the existing behaviour) plus a <code>format</code> hook for
+units. ensemble&#39;s coordinates were unreadable because a handle position is not
+a number (tosijs-3d#37, item 3).</p>
+<p><code>&#39;always&#39;</code> reserves width for the <strong>widest</strong> value in the range (measured
+through <code>format</code>, so units and precision count) and shortens the track to
+clear it. Sizing to the <em>current</em> value would make the track twitch mid-drag,
+which reads as the slider fighting you.</p>
+</li>
+<li><p><strong><code>row3d</code> — lay widgets side by side.</strong> A panel only stacks, so a
+label-and-field pair cost two rows and eight fields became sixteen rows of
+mostly whitespace (tosijs-3d#37, item 5). <code>weights</code> give the usual label/field
+split; children are middle-aligned by default, since top-aligning a short
+label beside a taller control makes it look detached from what it names.</p>
+<p>Pointer routing is <strong>by column</strong>, delegating in each child&#39;s own coordinates —
+a widget cannot know it has been put in a row, so it must still receive
+<code>(0,0)</code> at its own top-left. Hit-testing follows the same path, which keeps
+&quot;grab between the controls to scroll&quot; working inside a row.</p>
+</li>
+<li><p><strong><code>panel3d</code> sizes itself: <code>height: &#39;fit&#39;</code> is the new default</strong>, with
+<code>maxHeight</code> to cap it (past the cap it scrolls rather than growing — fitting
+and scrolling are the same mechanism seen from either side of a limit).</p>
+</li>
+<li><p><strong><code>panel.measure()</code> → <code>{content, viewport, overflow, fits}</code>.</strong> The panel has
+always known this (<code>stackLayout</code> returns the total) and simply never said, so
+every consumer sizing a panel was guessing at a number the panel could have
+told them.</p>
+<p>Both exist because <strong>clipping is silent</strong>: a panel too short for its content
+looks exactly like a panel missing its last control. The ensemble editor got
+three heights wrong in one sitting — a command hidden behind another panel, an
+option cut in half, a list showing five of eight rows — and noticed none of
+them at the time (tosijs-3d#37, item 6).</p>
+<p>The ordering is the whole trick: widgets measure against the inner WIDTH,
+which is known from <code>width</code> alone, so the stack can be measured before the
+panel has a height and the height derived from it. The previous code fixed the
+height first and had no way to discover it was wrong.</p>
+<p><strong>Behaviour change:</strong> a <code>panel3d</code> with no explicit <code>height</code> used to be 480 and
+now fits its content. All nine call sites in this repo pass a height, so
+nothing here changed; an adopter relying on the old default should pass
+<code>height: 480</code>.</p>
+</li>
+</ul>
 <h2>0.7.3</h2>
 <h3>Added</h3>
 <ul>
@@ -115,6 +461,24 @@ what you pressed, now; anticipation belongs to the intent model, where the
 character decides before you ask. <code>jumpWindup</code> and <code>jumpMinScale</code> are gone, and
 so is the <code>speedRatio</code> retiming — each clip now plays for as long as it is
 actually true instead of being stretched to fit a flight it could not know.</p>
+</li>
+<li><p><strong><code>b3d-library</code> surfaces the glb&#39;s own catalogue</strong> (#45). <code>getManifest()</code>
+returns <code>{count, categories, items:[{name, category, tags, size}]}</code> built from
+the loaded nodes; <code>getInfo(name)</code> answers <code>{category, tags, clips}</code> <strong>without
+instantiating</strong>, which is what a clip picker needs (<code>metadata.animationGroups</code>
+requires an instance to exist first). <code>getNames()</code> now narrows to the declared
+items when a catalogue is present — the data-driven twin of the <code>.model</code>
+convention, and a packed kit badly over-reports without it (measured: 559 raw
+nodes vs 131 declared items). <code>getRootNames()</code>/<code>getHierarchy()</code> still expose
+everything, so sub-part targets keep working, and <code>instantiate()</code> carries the
+extras onto what it returns — including the <code>canonical: true</code> wrapper, which
+was the actual reason the data looked unreachable.</p>
+</li>
+<li><p><strong><code>glb-manifest</code></strong> — the pure half: category/tag/size queries over a library
+catalogue, plus GLB JSON-chunk parsing for the case where you want a
+library&#39;s contents <em>without</em> loading it into a scene. Note Babylon surfaces
+per-<strong>node</strong> extras and drops per-<strong>scene</strong> ones, so <code>manifestFromNodes</code> is
+the path that needs no parsing at all.</p>
 </li>
 <li><p><strong>Mantling — the biped climbs onto a ledge too high to step onto.</strong> No button:
 push into it and the character solves it, which is the intent model rather
@@ -2006,6 +2370,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
@@ -2053,6 +2418,9 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
@@ -2061,11 +2429,13 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
@@ -2077,6 +2447,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>

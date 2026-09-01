@@ -15,6 +15,10 @@
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
   <url><loc>https://3d.tosijs.net/make-mesh/</loc></url>
+  <url><loc>https://3d.tosijs.net/vector-field/</loc></url>
+  <url><loc>https://3d.tosijs.net/curve/</loc></url>
+  <url><loc>https://3d.tosijs.net/curve-field/</loc></url>
+  <url><loc>https://3d.tosijs.net/footprint-field/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc></url>
   <url><loc>https://3d.tosijs.net/rounded-rect/</loc></url>
@@ -61,6 +65,7 @@
   <url><loc>https://3d.tosijs.net/cloud-shadows/</loc></url>
   <url><loc>https://3d.tosijs.net/demo-utils/</loc></url>
   <url><loc>https://3d.tosijs.net/dialog-placement/</loc></url>
+  <url><loc>https://3d.tosijs.net/embed-font/</loc></url>
   <url><loc>https://3d.tosijs.net/environment/</loc></url>
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/game-controller/</loc></url>
@@ -83,9 +88,11 @@
   <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/swim-aim/</loc></url>
   <url><loc>https://3d.tosijs.net/table/</loc></url>
+  <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/ui/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/vehicles/</loc></url>
+  <url><loc>https://3d.tosijs.net/water-normal/</loc></url>
   <url><loc>https://3d.tosijs.net/world-sim/</loc></url>
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
   <url><loc>https://3d.tosijs.net/wreck-fall/</loc></url>

@@ -407,6 +407,16 @@ import { SvgTexture } from './svg-texture';
 export class B3dSvgPlane extends AbstractMesh {
     static styleSpec = { ':host': { display: 'none' } };
     static initAttributes = {
+        /** Cast shadows onto the scene. Off by default — see `_meshName`. */
+        castShadow: false,
+        /**
+         * Take the world's shading. Off by default, so a panel reads the same
+         * whatever passes in front of the sun.
+         *
+         * Turn it on for UI that genuinely IS in the world — a cockpit instrument
+         * surface lit by the same sun as the dashboard around it.
+         */
+        receiveShadows: false,
         ...AbstractMesh.initAttributes,
         width: 1,
         height: 1,
@@ -679,6 +689,38 @@ export class B3dSvgPlane extends AbstractMesh {
         });
     }
     content = () => '';
+    /**
+     * The mesh name, which is how a panel opts into the world's lighting.
+     *
+     * **By default a panel neither casts nor receives.** Both fell out of
+     * `register()` rather than from a decision: registering is the shadow-caster
+     * contract AND makes `b3d-shadows` set `receiveShadows`, so a panel joined
+     * the lighting merely by existing — throwing a hard-edged rectangle across
+     * whatever it faced, and picking up shadows from scenery in front of it.
+     *
+     * Tonio's framing, which is the right one: *"by default the UI should live
+     * outside the world."* A HUD or an inspector is something you look THROUGH
+     * the world at. Shading it as though it were furniture makes it ambiguous
+     * whether it is IN the scene — and worse, unreadable exactly when something
+     * passes between it and the sun.
+     *
+     * Casting is also the worst case for the shadow map: a large flat quad which,
+     * camera-relative, sits permanently inside `activeDistance` and never culls.
+     *
+     * The two are separate because the cases are. A **cockpit instrument
+     * surface** genuinely is in the world and should receive — it is lit by the
+     * same sun as the dashboard around it — while still not needing to cast. A
+     * sign on a wall or a screen in a room wants both.
+     */
+    _meshName() {
+        const attrs = this;
+        let name = 'svg-plane';
+        if (attrs.castShadow !== true)
+            name += '_nocast';
+        if (attrs.receiveShadows !== true)
+            name += '_noshadow';
+        return name;
+    }
     sceneReady(owner, scene) {
         super.sceneReady(owner, scene);
         const attrs = this;
@@ -690,7 +732,7 @@ export class B3dSvgPlane extends AbstractMesh {
                 height: attrs.height,
                 radius: attrs.cornerRadius,
             });
-            const mesh = new BABYLON.Mesh('svg-plane', scene);
+            const mesh = new BABYLON.Mesh(this._meshName(), scene);
             const data = new BABYLON.VertexData();
             data.positions = g.positions;
             data.indices = g.indices;
@@ -700,7 +742,7 @@ export class B3dSvgPlane extends AbstractMesh {
             this.mesh = mesh;
         }
         else {
-            this.mesh = BABYLON.MeshBuilder.CreatePlane('svg-plane', {
+            this.mesh = BABYLON.MeshBuilder.CreatePlane(this._meshName(), {
                 width: attrs.width,
                 height: attrs.height,
                 sideOrientation: isOff(attrs.doubleSided)

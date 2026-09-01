@@ -53,9 +53,33 @@ export interface Widget3d {
  * A static caption row. `color` overrides the default text colour (e.g. an
  * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
  * is set). `compact` shrinks the row to one text line instead of a full
- * interactive-height ROW — for dense readouts (debug panels) where a 40px row per
+ * interactive-height TH.ROW — for dense readouts (debug panels) where a 40px row per
  * short line is mostly wasted space.
  */
+/**
+ * **Lay widgets side by side on one row.**
+ *
+ * A panel only stacks, so a label-and-field pair costs two rows and eight
+ * fields become sixteen rows of mostly whitespace — the ensemble editor's
+ * report (tosijs-3d#37, item 5). A row is the missing axis.
+ *
+ * `weights` are proportional shares of the space left after the gaps, so
+ * `weights: [1, 2]` is the usual label/field split. Children are middle-aligned
+ * by default: the common case is a short label beside a taller control, and
+ * top-aligning those makes the label look detached from what it names.
+ *
+ * **Pointer routing is by column, and it delegates in the child's OWN
+ * coordinates** — a widget cannot know it has been put in a row, so it must
+ * still receive `(0,0)` at its own top-left. Hit-testing follows the same
+ * path, which is what keeps "grab between the controls to scroll" working
+ * inside a row as well as outside it.
+ */
+export declare function row3d(config: {
+    gap?: number;
+    /** Proportional shares of the post-gap space. Omit for equal columns. */
+    weights?: number[];
+    align?: 'top' | 'middle' | 'bottom';
+}, ...children: Widget3d[]): Widget3d;
 export declare function label3d(config: {
     text: string;
     muted?: boolean;
@@ -130,6 +154,21 @@ export declare function slider3d(config: {
     max?: number;
     step?: number;
     onChange?: (v: number) => void;
+    /**
+     * Where the number lives.
+     *
+     * - `'peek'` (default) — shown in place of the label while you point at or
+     *   drag it. Right for a HUD or a settings panel, where the label matters
+     *   more than the digits and space is tight.
+     * - `'always'` — a permanent right-hand readout, with the track shortened to
+     *   make room. Right for anything you have to READ rather than just set:
+     *   ensemble's coordinates were unreadable because a handle position is not a
+     *   number (tosijs-3d#37, item 3).
+     * - `'never'` — no readout at all.
+     */
+    showValue?: 'peek' | 'always' | 'never';
+    /** Format the readout — units, precision, anything. Defaults to step-derived decimals. */
+    format?: (v: number) => string;
 }): Widget3d;
 /**
  * A compact cycler: `label      ‹ value ›`. Tap the left/right half to step to the
@@ -162,7 +201,17 @@ export declare function list3d<T extends {
  */
 export declare function panel3d(config: {
     width?: number;
-    height?: number;
+    /**
+     * Fixed height, or `'fit'` to size to the content (the default).
+     *
+     * `'fit'` exists because clipping is SILENT — a panel too short for its
+     * content looks exactly like a panel missing its last control, so a
+     * hand-tuned constant is wrong the moment the content changes. See
+     * `panelHeight`.
+     */
+    height?: number | 'fit';
+    /** Upper bound for `height: 'fit'`. Past it the panel scrolls instead of growing. */
+    maxHeight?: number;
     padding?: number;
     /** Top padding, if it should differ from `padding` (e.g. to clear a close button). */
     paddingTop?: number;

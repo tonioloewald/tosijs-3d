@@ -505,6 +505,7 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/b3d-shadows.ts` | `B3dSun` — directional light with cascaded shadow maps (CSM) |
 | `src/b3d-skybox.ts` | Procedural sky with day/night cycle, sun positioning |
 | `src/b3d-water.ts` | Water surface using WaterMaterial with waves/wind |
+| `src/water-normal.ts` | Procedural water normal map from our own Perlin — tiles by construction (sampled on a torus), so `b3dWater` needs no file, no network and no URL that must resolve in someone else's app |
 | `src/b3d-reflections.ts` | Automatic reflection probes for `_mirror` meshes |
 | `src/b3d-light.ts` | Hemispheric ambient light |
 | `src/b3d-fog.ts` | Fog configuration |
@@ -545,6 +546,9 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/w3d-theme.ts`                             | The ONE module that reads the `--w3d-*` theme variables (resolved once at load — texture rasterization can't see the page cascade, so literals are deliberately baked)                                                                                                  |
 | `src/theme-editor.ts`                          | `themeEditor()` — a live editor for the `--w3d-*` palette (colours, metrics with a synced slider+number field, font menu). Its own module, so it tree-shakes out; the colour control is INJECTED so alpha works without depending on tosijs-ui                          |
 | `src/flow-layout.ts`                           | Pure CSS block/inline-block **flow-layout** core (`flowLayout`) + `nearestInDirection` (spatial focus nav) + `placePopup` (flip/clamp); Babylon/DOM-free, unit-tested                                                                                                   |
+| `src/vector-field.ts` | `vector3d`/`euler3d` — a coordinate on ONE row (three fields + axis letters). `euler3d` WRAPS into (-180,180] where `vector3d` clamps; a row is three tab stops, so it owns its own axis focus |
+| `src/curve-field.ts` | `curve3d` — editor for a continuous `[0,1] → [0,1]`. Tap to add, drag to move, DELETE IS A BUTTON (no reliable third gesture on a controller). Hosts the province-editor demo |
+| `src/footprint-field.ts` | `footprint3d` — the same data in POLAR: a polygon in a square, corners dragged where they are. A hexagon looks like a hexagon |
 | `src/box.ts`                                   | The **flow `box`** — resizable SVG container: wraps text, scrolls, pointer + focus-traversal event model. Also `svgPoint` (client→SVG coords via CTM — **use it instead of `getBoundingClientRect` arithmetic**, which breaks under `preserveAspectRatio` letterboxing) |
 | `src/surface.ts`                               | **UI surface** — content box + overlay layer: cascade **menus** and persistent draggable/closable **panels**                                                                                                                                                            |
 | `src/widget-box.ts`                            | The seam letting `widgets3d` controls live inside a `box`/`surface` (they **compose**, not compete) — `BoxChild.handlePointer` capture is what makes a slider drag survive leaving the track                                                                            |
@@ -572,6 +576,7 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 | `src/perlin-noise.ts` | Seeded 2D/3D Perlin noise |
 | `src/mersenne-twister.ts` | Seeded PRNG |
 | `src/gradient-filter.ts` | Gradient-based color mapping |
+| `src/curve.ts` | Pure curve model behind `curve3d`/`footprint3d` — closed `[0,1]` range (amplitude belongs to the BLOCK, see `blendSample`), falloff pinned to 0 at its edge, NOT monotonic (rims), polygon ray-cast so n-gon edges are straight. Unit-tested |
 | `src/surface-sampler.ts` | Surface point sampling |
 | `src/terrain-grid.ts` | Pure LOD terrain-tile grid math (placement/sampling/culling), unit-tested |
 | `src/carve.ts` | The SUBTRACTIVE HALF of a province (a volcano is a mount minus lava tubes; an arch is a mound minus a cylinder) — exported as **`carve.*`** (never bare — `box`/`sphere`/`tube`/`union` are common nouns and `box` would shadow the UI container): `carve.sphere`/`capsule`/`tube`/`box` (positive inside the air), `smoothUnion` for excavated-looking junctions, `subtract`/`intersect`, and the two perturbations: `roughen` (texture the wall) vs `warp` (bend the space so nothing reads as a primitive). Pure, unit-tested |

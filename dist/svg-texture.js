@@ -46,9 +46,32 @@ preview.append(scene)
 ```
 
 Call `tex.dispose()` when done to stop the interval and release GPU memory.
+
+## ⚠️ Web fonts do NOT survive rasterisation
+
+A face the *document* has loaded is not available here. The SVG is serialised
+to a standalone `Image`, which the browser treats as its own document: it does
+not inherit the page's font faces any more than it inherits the page's CSS
+custom properties (the reason `w3d-theme` bakes literals in the first place).
+
+Confirmed by looking rather than reasoning — the theme demo shows the same
+panel flat and as a texture, and selecting Rosario changes the DOM panel and
+leaves the textured one on its fallback.
+
+So a `fontFamily` in a theme reaches an in-scene panel **only if the family is
+installed on the device**. That is why the shipped font list is generic
+families plus faces that ship with macOS and Windows: those are the ones that
+work in both presentations.
+
+The fix, when it is wanted, is to inline the face as a data-URI `@font-face`
+inside the serialised SVG — self-contained, and the same discipline the CSS
+literals already follow. Filed in TODO rather than done, because it means
+fetching and base64-ing a font per texture and the cost should be measured
+before it is paid.
 */
 /*{ "parent": "UI" }*/
 import * as BABYLON from '@babylonjs/core';
+import { svgFontStyle } from './embed-font';
 /**
  * Rasterize an SVG element onto a canvas context via Blob URL.
  * Reuses the provided Image instance to avoid per-frame allocation.
@@ -118,7 +141,23 @@ export class SvgTexture {
             return;
         const el = this._element.cloneNode(true);
         el.removeAttribute('style');
-        const xml = new XMLSerializer().serializeToString(el);
+        let xml = new XMLSerializer().serializeToString(el);
+        /*
+        Inline any registered web font.
+    
+        The serialised copy is its own document: it inherits no font faces from the
+        page, so a `font-family` naming a web font falls back silently — the flat
+        panel renders it and the textured one does not. `svgFontStyle` returns an
+        `@font-face` with the bytes base64'd in, and only for families this markup
+        actually mentions.
+    
+        Injected AFTER serialisation rather than into the live element, so the DOM
+        panel is untouched and only the texture pays.
+        */
+        const fontStyle = svgFontStyle(xml);
+        if (fontStyle !== '') {
+            xml = xml.replace(/(<svg[^>]*>)/, `$1${fontStyle}`);
+        }
         // Skip the expensive rasterize + GPU upload when the SVG is unchanged. A
         // mostly-static panel settles after one render and then costs nothing;
         // genuinely animated SVGs (e.g. a radar) still update every cycle. This is

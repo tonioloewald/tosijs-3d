@@ -1,9 +1,23 @@
-import { type KeyboardMode, type KeyAction, type KeyRect } from './key-layout';
+import { type KeyboardMode, type KeyAction, type KeyRect, type FieldType } from './key-layout';
 import type { Widget3d } from './widgets3d';
 /** A text field driven by the pure edit model. Tap to place the caret. */
 export interface InputField extends Widget3d {
     /** Current text. */
     readonly value: string;
+    /** What this field holds. Drives the keyboard layout, validation and commit. */
+    readonly type: FieldType;
+    /** The keyboard layout this field wants — hand it to `keyboard.setMode`. */
+    readonly keyboardMode: KeyboardMode;
+    /** Is the CURRENT text acceptable while typing? Empty is always valid. */
+    isValid: () => boolean;
+    /**
+     * Settle the value: normalise it, or restore the last good one.
+     *
+     * Returns the value kept. Called on Enter automatically; a host should also
+     * call it when focus leaves, since a field abandoned mid-edit must not leave
+     * `1.` or `-` sitting in the document.
+     */
+    commit: () => string;
     /** Insert text at the caret (what a key tap calls). */
     insert: (str: string) => void;
     /** Apply a non-inserting key. */
@@ -46,6 +60,16 @@ export interface InputField extends Widget3d {
     }) => void;
     /** Called whenever the text changes. */
     onChange?: (value: string) => void;
+    /**
+     * Called whenever this field becomes the receiver — by tap, D-pad arrival or
+     * `setActive(true)`.
+     *
+     * Settable on the OBJECT as well as via config, mirroring `onChange`, so a
+     * manager can learn about focus it did not initiate. Without it a tap and a
+     * programmatic focus disagree about who is active, and keys go to the wrong
+     * field — silently, and only sometimes.
+     */
+    onFocus?: () => void;
 }
 export interface InputFieldOptions {
     value?: string;
@@ -58,7 +82,82 @@ export interface InputFieldOptions {
      * — the host's hook for exclusivity (dim the others) and for summoning the
      * keyboard overlay. */
     onFocus?: () => void;
+    /**
+     * Drag across a numeric field to change its value ("scrub"), in units per
+     * pixel. `0` (default) disables it.
+     *
+     * ensemble asked for "a number you can drag OR type" (tosijs-3d#50). Since a
+     * typed field already knows it is numeric, scrubbing belongs here rather than
+     * in a separate control — otherwise every numeric widget needs its own copy
+     * of parse, format and commit.
+     */
+    scrub?: number;
+    /** Quantise a scrub (and a commit) to this. `0` = free. */
+    step?: number;
+    /** Clamp a scrubbed value. */
+    min?: number;
+    max?: number;
+    /**
+     * What this field holds — the same idea as HTML's `inputmode`.
+     *
+     * One property, three jobs: the host raises the matching keyboard layout on
+     * focus (`modeForType`), `commit()` normalises or refuses the value, and a
+     * host can ask `isValid()` without knowing what kind of field it has. It is
+     * why there is no separate `numberField` — a number field is this one,
+     * configured (tosijs-3d#37, item 2).
+     */
+    type?: FieldType;
 }
+/**
+ * **One keyboard, many fields.** Owns which field is receiving, so hosts stop
+ * doing it by hand.
+ *
+ * Three jobs that always travel together, and were three separate chores in
+ * every consumer (tosijs-3d#37, items 1 and 7):
+ *
+ * - **Exclusivity.** Focusing one field un-focuses the rest. Two lit fields
+ *   both claiming the keyboard is worse than none, because the caret is
+ *   somewhere you are not looking.
+ * - **Commit on leave.** The field you are leaving settles, so a half-typed
+ *   `1.` or `-` never survives as a value. Nobody remembers to do this by hand
+ *   until they find a `NaN` in a document.
+ * - **Layout.** The incoming field's `type` chooses the keyboard mode, which is
+ *   the whole point of having a type — a numeric field raising the numpad
+ *   without anyone asking.
+ *
+ * `handleKey` takes a key NAME plus modifiers rather than an event, so the same
+ * routing works from a DOM listener, a synthetic source, or a test. Attaching a
+ * real listener stays the host's choice: this library never grabs the document.
+ */
+export declare function fieldGroup(config: {
+    fields: InputField[];
+    /** Told which layout to show when focus moves. Any object with `setMode`. */
+    keyboard?: {
+        setMode: (m: KeyboardMode) => void;
+    };
+}): {
+    readonly active: InputField | null;
+    focus: (field: InputField | null) => void;
+    /** Route a key. Returns whether it was consumed — so a host can `preventDefault`. */
+    handleKey: (key: string, mods?: {
+        ctrl?: boolean;
+        meta?: boolean;
+        alt?: boolean;
+    }) => boolean;
+    /** Commit and un-focus whatever is active. */
+    blur: () => void;
+    /**
+     * Route real keyboard events from `target` (default `window`). Returns a
+     * function that detaches.
+     *
+     * Opt-in, and the library still never grabs the document on its own — but
+     * without this every flat host writes the same six lines, and a field you can
+     * click into that then refuses every character is a bad first impression. It
+     * was one: the theme demo shipped with an unusable field because nothing was
+     * wired to it.
+     */
+    attach: (target?: EventTarget) => () => void;
+};
 export declare function inputField(config?: InputFieldOptions): InputField;
 /**
  * The on-screen keyboard. Emits `onKey(text)` for inserting keys and `onAction()`

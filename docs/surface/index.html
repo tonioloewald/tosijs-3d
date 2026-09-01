@@ -64,11 +64,11 @@ whole cascade; an outside press dismisses it.</li>
 An outside press does NOT dismiss it — ideal for a pinned debug/inspector panel.</li>
 </ul>
 <h2>Demo</h2>
-<pre><code class="language-js">import { b3d, b3dLight, panelScene, ui } from &#39;tosijs-3d&#39;
+<pre><code class="language-js">import { b3d, b3dLight, openPopup, panelScene, ui } from &#39;tosijs-3d&#39;
 const { box, textBlock, button, surface, openMenu, svgPoint } = ui
 import { svgElements, elements } from &#39;tosijs&#39;
 
-const { svg } = svgElements
+const { svg, rect } = svgElements
 const { div } = elements
 const W = 300
 const H = 260
@@ -100,7 +100,7 @@ const debugRows = () =&gt; box(
 const make = () =&gt; {
   const s = surface({ width: W, height: H })
   const menuBtn = button(&#39;Menu  ▾&#39;, { onActivate: () =&gt; openMenu(s, s.__triggerRect, items, &#39;below&#39;) })
-  const dbgBtn = button(&#39;Debug  ▾&#39;, { onActivate: () =&gt; s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: &#39;Debug&#39; }) })
+  const dbgBtn = button(&#39;Debug  ▾&#39;, { onActivate: () =&gt; toggleDebug() })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: &#39;#12151c&#39; },
     textBlock(&#39;Menus + panels&#39;, { font: { size: 18, weight: 600 }, color: &#39;#e6e6e6&#39; }),
@@ -111,9 +111,53 @@ const make = () =&gt; {
   s.setContent(panel)
   const r = panel.childRect(2) // the Menu button
   s.__triggerRect = { x: r.x, y: r.y, width: r.width, height: r.height }
-  // pre-open a draggable/closable debug panel so it&#39;s visible at a glance
-  s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: &#39;Debug&#39; })
   return s
+}
+
+// A DEBUG READOUT IS ITS OWN SURFACE — IN BOTH VIEWS.
+//
+// `openPanel` paints into the SAME svg the plane rasterises, so the 3D view
+// showed a *picture* of a floating panel: welded to the plane, unable to sit in
+// front of it. And because one surface drives both views, there is no &quot;3D only&quot;
+// version of that overlay — it appears in the DOM as well.
+//
+// Tonio put the model precisely: a popup is a new element in a NEW LAYER,
+// positioned within the spawner&#39;s layout parent, relative to the spawner. That
+// is what it means in a document, and it maps straight onto the 3D case — its
+// own plane, placed relative to the opener, with real depth between them.
+//
+// (Line comments, not a block: this lives inside the `/*#` doc fence and a
+// nested block comment closes it. Second time — hence the note.)
+let sceneEl = null
+let pop3d = null
+let flatPop = null
+// The same rim `openPopup` draws, so both views read as one kind of object: a
+// rect at the viewBox bounds, stroked at DOUBLE width because the clip discards
+// the outer half of a stroke that straddles its path.
+const debugSheet = () =&gt;
+  svg(
+    { viewBox: &#39;0 0 150 96&#39;, width: 150, height: 96 },
+    debugRows().el,
+    rect({ x: 0, y: 0, width: 150, height: 96, rx: 8, fill: &#39;none&#39;, stroke: &#39;#9aa0a6&#39;, &#39;stroke-width&#39;: 4 })
+  )
+// The DOM&#39;s new layer: positioned against the sheet&#39;s own containing block.
+const flatLayer = div({ style: &#39;position:absolute;right:10px;top:44px&#39; })
+
+const toggleDebug = () =&gt; {
+  // 3D — a real second surface: its own plane, draggable in world space.
+  if (pop3d != null) { pop3d.close(); pop3d = null }
+  else if (sceneEl != null &amp;&amp; sceneEl.scene != null) {
+    pop3d = openPopup(sceneEl, {
+      svg: debugSheet(),
+      opener: plane.mesh,
+      width: 1.15,
+      offset: { x: 0.95, y: 0.35, z: -0.35 },
+      draggable: true,
+    })
+  }
+  // DOM — the same idea in the document&#39;s own terms.
+  if (flatPop != null) { flatPop.remove(); flatPop = null }
+  else flatPop = flatLayer.appendChild(debugSheet())
 }
 
 const sheet = (s) =&gt; svg({ viewBox: `0 0 ${W} ${H}`, width: W, height: H }, s.el)
@@ -130,7 +174,7 @@ svgEl.addEventListener(&#39;pointerup&#39;, (e) =&gt; s.handlePointer(&#39;up&#3
 
 // panelScene: plane + camera + pick routing + camera-yield, packaged.
 const { plane, sceneCreated } = panelScene({ svg: svgEl, target: s, width: 2.6, camera: { radius: 3.4 } })
-const scene = b3d(
+const scene = (sceneEl = b3d(
   {
     // Cleaves to its container — see the note in box.ts&#39;s demo.
     style: &#39;border-radius:8px;overflow:hidden&#39;,
@@ -138,14 +182,14 @@ const scene = b3d(
   },
   b3dLight({ intensity: 1 }),
   plane
-)
+))
 
 preview.append(
   div(
     { style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
     div(
       { style: &#39;display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px&#39; },
-      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;DOM — click; the 3D view mirrors it&#39;, svgEl),
+      div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;position:relative&#39; }, &#39;DOM — click; the 3D view mirrors it&#39;, svgEl, flatLayer),
       div({ style: &#39;color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0&#39; }, &#39;3D texture — click the items&#39;, scene)
     ),
     readout
@@ -218,6 +262,7 @@ preview.append(
       <li><a class="doc-link" href="../carve/">carve</a></li>
       <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
       <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
       <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
       <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
       <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
@@ -265,6 +310,9 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link current" href="../surface/" aria-current="page">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
@@ -273,11 +321,13 @@ preview.append(
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
@@ -289,6 +339,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
       <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
