@@ -187,6 +187,49 @@
   package that deliberately keeps it a peer, which is a worse trade than a
   little duplication. Copy what is needed, when it is needed.
 
+- **Province CHANNELS — water, temperature, volcanism — as bipolar curves.**
+  Tonio: "another line graph where 0.5 is leave it alone, 0 is push it down, 1
+  is push it up".
+
+  **This wants its own `CurveKind` (`bipolar`), because its no-op is a constant
+  0.5 line, not the identity.** Every rule the existing kinds carry is keyed to
+  that: the reference mark a profile plot draws is its diagonal, a falloff pins
+  its edge to 0 — a bipolar curve pins nothing and should draw a NEUTRAL LINE
+  across the middle, so "leave it alone" has a picture the way "no change" now
+  does. Getting this wrong is cheap to do and expensive to notice: a bipolar
+  curve defaulting to `linear` would silently drain water on one side of the
+  province and flood it on the other.
+
+  And note what this confirms: these are literally PROVINCE-DESIGN's "one curve
+  per layer", arriving as the second and third and fourth layers. The shape
+  layer was not a special case.
+
+- **Carving support in the province editor.** The subtractive half — `carve.ts`
+  and `patch-field.ts` are already the machinery. Worth doing precisely because
+  the closed `[0,1]` range and `blendSample`'s convexity exist so a bore can be
+  authored against KNOWN bounds; carving is what cashes that in, and until it
+  ships the invariant is a promise rather than a payoff.
+
+- **Save / load presets.** A curve is control points, so the format is trivial —
+  the work is everything around it: naming, listing, where they live
+  (localStorage is not shareable; a file is not reachable from a headset), and
+  what happens when a saved preset references a kind or a channel that no longer
+  exists. An editor that cannot save is a toy — the same note already stands
+  against the panel editor.
+
+- **Componentize the province editor**, the way `themeEditor()` became a
+  component: an adopter wants exactly this UI, and copying it out of a doc
+  comment is how it drifts from the model it edits. Its own module so it
+  tree-shakes.
+
+- **A terrain-shader preset editor** — colour, texture, banding. Tonio: "by the
+  same token". Same shape of problem as the province editor and probably the
+  same substrate: `biome-chart.ts` already holds the pure classification model
+  and `biome-plugin.ts` the GLSL mirror, so the editor edits the chart and the
+  shader follows. The hard part is that the chart is 2-D (two axes into cells),
+  so it is not a curve editor — closer to the footprint editor's "edit it as the
+  thing it is".
+
 - **DONE (0.7.4) — `curve3d`, plus the pure model and a province-editor demo.**
   Shipped as `src/curve.ts` (26 tests) + `src/curve-field.ts`; demo at
   `/curve-field/` drives a live terrain block from a shape curve and a falloff
