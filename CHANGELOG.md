@@ -121,6 +121,18 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **20 more icons**, for the ensemble editor: `mousePointer`, `refreshCcw`/`Cw`,
   `move`, `copy`, `delete`, `trash`/`trash2`, `plus`/`plusCircle`,
   `rotateCw`/`Ccw`, and the complete `corner*` family (8). 61 total.
+- **`fieldGroup.attach(target?)`** wires real `keydown` events to the focused
+  field and returns a detacher. Opt-in — the library still never grabs the
+  document by itself — but without it every flat host writes the same six lines,
+  and a field you can click into that then refuses every character is a bad
+  first impression. It was one: the theme demo shipped with an unusable field.
+
+  It maps the event's modifier flags explicitly rather than passing the event,
+  so `keyIntent` keeps taking a plain shape and stays testable without a DOM.
+
+- **⚠️ `fieldGroup` moved under `ui.*`** (`ui.fieldGroup`), alongside
+  `ui.inputField` and `ui.keyboard` — it is part of the same SVG UI surface and
+  was inconsistently top-level. Unreleased, so nothing external moves.
 - **`fieldGroup` — one keyboard, many fields.** Three chores that always travel
   together and were hand-rolled in every host (tosijs-3d#37, items 1 and 7):
   **exclusivity** (focusing one un-focuses the rest — two lit fields both

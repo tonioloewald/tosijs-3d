@@ -942,3 +942,32 @@ describe('numeric scrub — drag OR type, one control (#50)', () => {
     expect(f.value).toBe('10')
   })
 })
+
+describe('fieldGroup.attach — a field you can actually type into', () => {
+  test('routes real keydown events to the focused field', () => {
+    const f = K.inputField({})
+    const group = K.fieldGroup({ fields: [f] })
+    const target = new (globalThis as any).EventTarget()
+    const detach = group.attach(target)
+    group.focus(f)
+    for (const key of ['h', 'i']) {
+      target.dispatchEvent(
+        Object.assign(new (globalThis as any).Event('keydown'), { key })
+      )
+    }
+    expect(f.value).toBe('hi')
+    detach()
+  })
+
+  test('detach really detaches', () => {
+    const f = K.inputField({})
+    const group = K.fieldGroup({ fields: [f] })
+    const target = new (globalThis as any).EventTarget()
+    group.attach(target)()
+    group.focus(f)
+    target.dispatchEvent(
+      Object.assign(new (globalThis as any).Event('keydown'), { key: 'x' })
+    )
+    expect(f.value).toBe('')
+  })
+})

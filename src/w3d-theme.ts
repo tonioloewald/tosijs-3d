@@ -34,13 +34,24 @@ import { colorInput } from 'tosijs-ui'
 import { elements } from 'tosijs'
 const { div } = elements
 
+// A field only accepts keys if something routes them to it. `inputField`
+// listens to nothing by design — in a headset the keys come from the SVG
+// keyboard, not the DOM — so a flat host has to bridge. `fieldGroup` is that
+// bridge: it owns which field is receiving, commits the one you leave, and
+// `attach()` wires real keydown events.
+// (Line comments, not a block comment — a block comment's terminator inside a
+// doc fence closes the fence, which is how this line broke the file once.)
+const field = ui.inputField({ placeholder: 'type here…' })
+const group = ui.fieldGroup({ fields: [field] })
+group.attach()
+// Click the field first — the group learns about the focus and routes to it.
+
 const makePanel = () => panel3d(
   { width: 300 },
   label3d({ text: 'Themed panel' }),
   row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
     slider3d({ value: 0.6, showValue: 'always', format: (v) => v.toFixed(2) })),
-  row3d({ weights: [1, 2] }, label3d({ text: 'name' }),
-    ui.inputField({ placeholder: 'placeholder…' })),
+  row3d({ weights: [1, 2] }, label3d({ text: 'name' }), field),
   toggle3d({ label: 'a toggle' }),
   button3d({ label: 'A button' }),
 )

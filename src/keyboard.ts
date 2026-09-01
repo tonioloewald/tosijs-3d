@@ -473,6 +473,17 @@ export function fieldGroup(config: {
   ) => boolean
   /** Commit and un-focus whatever is active. */
   blur: () => void
+  /**
+   * Route real keyboard events from `target` (default `window`). Returns a
+   * function that detaches.
+   *
+   * Opt-in, and the library still never grabs the document on its own — but
+   * without this every flat host writes the same six lines, and a field you can
+   * click into that then refuses every character is a bad first impression. It
+   * was one: the theme demo shipped with an unusable field because nothing was
+   * wired to it.
+   */
+  attach: (target?: EventTarget) => () => void
 } {
   let active: InputField | null = null
 
@@ -507,7 +518,7 @@ export function fieldGroup(config: {
     }
   }
 
-  return {
+  const api = {
     get active() {
       return active
     },
@@ -515,7 +526,28 @@ export function fieldGroup(config: {
     blur() {
       focus(null)
     },
-    handleKey(key, mods = {}) {
+    attach(target: EventTarget = globalThis.window) {
+      const onKey = (evt: Event): void => {
+        const e = evt as KeyboardEvent
+        // Only claim the key if a field consumed it — otherwise Tab still
+        // traverses, Escape still closes, and cmd-R still reloads.
+        // Map the event's modifier flags explicitly rather than passing the
+        // event — `keyIntent` takes a plain shape so it stays testable without
+        // a DOM, and a KeyboardEvent does not structurally match it.
+        const consumed = api.handleKey(e.key, {
+          ctrl: e.ctrlKey,
+          meta: e.metaKey,
+          alt: e.altKey,
+        })
+        if (consumed) e.preventDefault()
+      }
+      target.addEventListener('keydown', onKey)
+      return () => target.removeEventListener('keydown', onKey)
+    },
+    handleKey(
+      key: string,
+      mods: { ctrl?: boolean; meta?: boolean; alt?: boolean } = {}
+    ): boolean {
       if (!active) return false
       const intent = keyIntent(key, mods)
       if (intent == null) return false
@@ -525,6 +557,7 @@ export function fieldGroup(config: {
       return true
     },
   }
+  return api
 }
 
 export function inputField(config: InputFieldOptions = {}): InputField {

@@ -441,7 +441,7 @@ import {
   columnAt,
 } from './table-layout'
 import { gamepadFocus, createFocusPulse } from './gamepad-focus'
-import { keyboard, inputField } from './keyboard'
+import { keyboard, inputField, fieldGroup } from './keyboard'
 import {
   keyLayout,
   accentsFor,
@@ -482,6 +482,7 @@ export const ui = {
   // on-screen keyboard + input field, and the pure keyboard model
   keyboard,
   inputField,
+  fieldGroup,
   keyLayout,
   accentsFor,
   hasAccents,
@@ -817,7 +818,6 @@ export type { Table, TableRow, TableOptions } from './table'
 export { modeForType, isValidForType, commitValueForType } from './key-layout'
 export type { FieldType } from './key-layout'
 
-export { fieldGroup } from './keyboard'
 export { w3dTheme, setW3dTheme, withTheme } from './w3d-theme'
 export type { W3dTheme } from './w3d-theme'
 export { waterNormalTexture, tileHeight, writeNormalMap } from './water-normal'
