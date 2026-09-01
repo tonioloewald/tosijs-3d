@@ -918,3 +918,38 @@ world-object contract. Reading is retinal; your vestibular system does not rotat
 text recogniser. The rule that falls out and generalises: **the more a surface belongs
 to the world, the more world-referenced its roll; the more it is addressed to the
 player, the more retinal.** A sign on a wall stays world-up; a modal dialog does not.
+
+## ensemble is the forcing function (2026-09-01)
+
+Everything in the SVG UI this cycle came from one adopter building a real
+editor on it, and it is worth naming why that worked so well.
+
+A game exercises this UI shallowly — a HUD and a pause menu. An editor is a
+dense forms application, and it hit all seven of #37's items in its first
+property panel. Then building our own theme editor, which is the same kind of
+customer, found six more defects in a day: the theme reaching nothing at all,
+colours arriving as `Event` objects, ragged control metrics, `lineHeight` and
+`padding` inert, web fonts dying in rasterisation, icons ignoring
+`strokeWidth`. None would have surfaced from a demo that shows a widget
+working.
+
+Tonio: _"ensemble will keep us honest here and also make building more complex
+stuff with tosijs-3d (including demos) MUCH easier."_ Both halves matter — the
+honesty is the part we feel now, and the leverage is the part that pays later.
+
+**The lesson to keep: build the hardest customer yourself.** A dense, genuinely
+useful piece of UI is worth more than any number of one-widget examples, and it
+is worth shipping as a component rather than a demo, because a demo drifts from
+the thing it demonstrates.
+
+### Corollary: our layout model is an asset, not a shortfall
+
+HTML's layout rules are, as Tonio puts it, "almost diabolically weird" — margin
+collapsing, percentage heights against unsized parents, `min-width: auto` on
+flex children, stacking contexts. A drawing tool over HTML must either
+reimplement CSS faithfully or lie about what you drew.
+
+The SVG UI has its own model (`flow-layout`, `stackLayout`, `rowColumns`,
+`panelFit`), pure and tested. That looked like a cost when it was written. For
+a panel editor it is the enabling property: **what the editor shows and what
+the runtime does can be the same code.**

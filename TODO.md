@@ -320,6 +320,48 @@
   Keep the DOM version until the SVG one is at least as good; replacing a
   working editor with a worse one to make a point is not progress.
 
+- **A panel editor — layout you draw, not layout you fight.** Tonio's idea, and
+  the natural next ambition after the theme editor.
+
+  Two layout models, and it wants both because they answer different questions:
+
+  - **Stacks and rows** — what `panel3d` and `row3d` already do. Composition:
+    "these, in order, sharing the width." Right for a property panel, an
+    inspector, a form.
+  - **Pinned / constraint layout** — an element fixed to an edge, a corner, or
+    stretched between two. Right for a HUD, a toolbar over a viewport, anything
+    where position is meaningful rather than incidental.
+
+  A drawing tool needs the second and most UI needs the first, which is why
+  offering only one has always felt wrong.
+
+  **Why this is more tractable for us than for an HTML tool**, which is the part
+  worth writing down. Tonio: _"one of the obstacles to building really good UI
+  drawing tools in HTML is that HTML's layout rules are almost diabolically
+  weird."_ That is true and it is not incidental — margin collapsing, `%` height
+  resolving against a parent that has none, flex-basis vs width, `min-width:
+auto` on flex children, stacking contexts. A tool must either implement CSS
+  faithfully (nobody does) or lie to you about what you drew.
+
+  We are not in that position. The SVG UI has its **own** layout model, already
+  pure and already tested: `flow-layout` (block/inline-block flow,
+  `nearestInDirection`, `placePopup`), `stackLayout`, `rowColumns`,
+  `panelFit`/`panelHeight`. A pinned model is a small addition to that rather
+  than a fight with a browser — and because it is our model, **what the editor
+  shows and what the runtime does are the same code**, which is the property
+  that makes a drawing tool trustworthy.
+
+  Prerequisites, mostly built: measurement (`panel.measure()`) so the editor can
+  show overflow; `row3d` for the row axis; `withTheme` so a panel previews in
+  its own theme. Missing: the pinned model itself, and a way to serialise a
+  layout (an editor that cannot save is a toy).
+
+  **Sequencing note.** `vector3d`/`euler3d` comes first regardless — ensemble's
+  UI is "an utter mess right now because simple things like XYZ coords take up
+  huge amounts of space", and a coordinate on one row is the single densest win
+  available. A panel editor helps arrange panels; it does not help a panel that
+  is three times too tall.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
