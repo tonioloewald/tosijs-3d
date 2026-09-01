@@ -240,6 +240,33 @@
     cases PROVINCE-DESIGN.md says break the shared falloff deliberately —
     `landform.ts` already ships both. Pin the edge; leave the middle alone.
 
+  **Presets, and they are not all valid for both uses.** Tonio's list: `linear`
+  (0→1), `stepped`, `easeIn`, `easeOut`, `easeInOut`, and `constant` (pick a
+  value).
+
+  Scoping falls straight out of the endpoint rule above, and is a nice
+  consistency check on it: **`constant` is a PROFILE preset and cannot be a
+  falloff one** — a constant falloff is weight 1 at the boundary, which is
+  exactly the step the `f(1) = 0` pin exists to prevent. Offer it only where it
+  means something rather than letting it produce a seam.
+
+  Some already exist in another form and should be reconciled, not duplicated:
+  `stepped` is `mesaProfile`/`terraceProfile`, and the ease family is what the
+  shared smoothstep falloff helper already is.
+
+  **The composition Tonio pointed at is worth building the presets to serve.**
+  "A constant province with a gradual fallout gives you a plateau" — and that is
+  precisely `landform.pad(radius, level, blend)`, which we already hand-wrote.
+  So a constant profile plus an eased falloff REPRODUCES an existing authored
+  landform out of two curves.
+
+  That is the strongest evidence the model is right, and it points somewhere:
+  `pad` could eventually BE that composition rather than separate code, which
+  would make the editor a way to author landforms instead of a way to tweak one
+  parameter of them. Check the reproduction is exact before believing it —
+  matching in spirit and differing at the blend edge would be worse than not
+  claiming the equivalence.
+
   Shape: a `Widget3d` like everything else (so it works flat, in-scene and in a
   headset), pure model separated from the drawing per the usual discipline, and
   unit-tested — endpoint pinning (required for falloff, absent for profile),
