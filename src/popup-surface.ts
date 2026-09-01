@@ -220,7 +220,11 @@ export interface PopupSurface {
    * Internal: start a drag, grabbing at `pickedPoint` so the panel keeps the
    * offset you grabbed it by instead of jumping to centre on the pointer.
    */
-  beginDrag(pointerId: number, pickedPoint?: BABYLON.Vector3): void
+  beginDrag(
+    pointerId: number,
+    pickedPoint?: BABYLON.Vector3,
+    ray?: BABYLON.Ray
+  ): void
   /** Internal: end it on pointerup — the behaviour's own release is disabled. */
   endDrag(): void
   /** Bring this popup to the front of the stack. */
@@ -438,8 +442,10 @@ function wirePointer(owner: B3d): void {
       yieldCamera()
       target.beginDrag(
         (info.event as PointerEvent | undefined)?.pointerId ?? 0,
-        // The point on the panel actually under the pointer — see beginDrag.
-        info.pickInfo?.pickedPoint ?? undefined
+        // The point on the panel actually under the pointer, and the ray that
+        // found it — see beginDrag for why both are required.
+        info.pickInfo?.pickedPoint ?? undefined,
+        info.pickInfo?.ray ?? undefined
       )
     }
   })
@@ -638,7 +644,11 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     vbWidth: vbW,
     vbHeight: vbH,
     chromeLayout: layout,
-    beginDrag(pointerId: number, pickedPoint?: BABYLON.Vector3) {
+    beginDrag(
+      pointerId: number,
+      pickedPoint?: BABYLON.Vector3,
+      ray?: BABYLON.Ray
+    ) {
       if (drag == null || !draggable) return
       /*
       AFTER THE WHOLE EVENT, not merely after our own handler.
@@ -672,9 +682,23 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       which is the same bug wearing a disguise.
       */
       const grab = pickedPoint?.clone()
+      /*
+      THE RAY MATTERS AS MUCH AS THE POINT.
+
+      Passing only `startPickedPoint` was not enough — Babylon's `_startDrag`
+      falls back to a ray built from `activeCamera.position` when `fromRay` is
+      omitted, so it still had no idea where the POINTER was and recomputed the
+      drag plane from that default. The panel kept snapping to centre. Tonio,
+      after the first attempt: "the popup-surface is still drifting to center."
+
+      Both are needed: the ray says where the gesture is pointing, the point
+      says where on the panel it took hold. Cloned for the same reason as the
+      point — Babylon reuses its pick info between events.
+      */
+      const grabRay = ray != null ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), ray.length) : undefined
       queueMicrotask(() => {
         if (drag == null || closed) return
-        drag.startDrag(id, undefined, grab)
+        drag.startDrag(id, grabRay, grab)
       })
     },
     endDrag() {

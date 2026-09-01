@@ -57,35 +57,43 @@ const debugRows = () => box(
   textBlock('mem   84 MB', { font: mono, color: '#9fb0c3' })
 )
 
-// A DEBUG READOUT IS ITS OWN SURFACE, not an overlay drawn inside the opener.
+// A DEBUG READOUT IS ITS OWN SURFACE, in BOTH views.
 //
-// This demo used `openPanel`, which paints the panel into the SAME svg — so in
-// the 3D view it was a picture of a floating panel rather than a floating
-// panel, stuck to the plane and unable to sit in front of it. `openPopup` gives
-// it a plane of its own: real depth, draggable in world space, and it can be
-// torn off. See popup-surface → "Popups should be NEW SURFACES".
+// This demo used `openPanel`, which paints into the SAME svg the plane
+// rasterises — so the 3D view showed a picture of a floating panel rather than
+// a floating panel: stuck to the plane, unable to sit in front of it. And
+// because one surface drives both views, there is no "3D only" version of that
+// overlay; it appears in the DOM as well.
 //
-// The flat view keeps `openPanel`, because in a document a popup IS a box drawn
-// over another box; there is no second plane to give it.
+// So each view gets a real second surface: a plane of its own in the scene
+// (depth, world-space dragging, tear-off), and a separate positioned svg in the
+// DOM — which is exactly what a popup is in a document. See popup-surface →
+// "Popups should be NEW SURFACES".
 let scene3d = null
-const openDebug = (s) => {
-  if (scene3d == null) {
-    s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' })
-    return
+let flatHost = null
+const debugSheet = () =>
+  svg({ viewBox: '0 0 150 96', width: 150, height: 96 }, debugRows().el)
+
+const openDebug = () => {
+  if (scene3d != null) {
+    openPopup(scene3d, {
+      svg: debugSheet(),
+      width: 1.1,
+      offset: { x: 1.5, y: 0.4, z: -0.25 },
+      draggable: true,
+    })
   }
-  const sheetSvg = svg({ viewBox: '0 0 150 96', width: 150, height: 96 }, debugRows().el)
-  openPopup(scene3d, {
-    svg: sheetSvg,
-    width: 1.1,
-    offset: { x: 1.5, y: 0.4, z: -0.25 },
-    draggable: true,
-  })
+  if (flatHost != null) {
+    const existing = flatHost.querySelector('svg')
+    if (existing) existing.remove()
+    else flatHost.append(debugSheet())
+  }
 }
 
 const make = () => {
   const s = surface({ width: W, height: H })
   const menuBtn = button('Menu  ▾', { onActivate: () => openMenu(s, s.__triggerRect, items, 'below') })
-  const dbgBtn = button('Debug  ▾', { onActivate: () => openDebug(s) })
+  const dbgBtn = button('Debug  ▾', { onActivate: () => openDebug() })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: '#12151c' },
     textBlock('Menus + panels', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
@@ -96,9 +104,11 @@ const make = () => {
   s.setContent(panel)
   const r = panel.childRect(2) // the Menu button
   s.__triggerRect = { x: r.x, y: r.y, width: r.width, height: r.height }
-  // pre-open one in the FLAT view so the feature is visible at a glance; the 3D
-  // one opens on click, since it needs a scene to exist first.
-  s.openPanel({ x: W - 168, y: 92 }, debugRows(), { title: 'Debug' })
+  // Deliberately NOT pre-opened. One surface drives both views, so an
+  // `openPanel` overlay lives inside the shared svg and therefore appears in
+  // the 3D texture too — which is the thing this demo is trying to stop
+  // showing. Press Debug and it opens as its own surface in whichever view you
+  // are looking at.
   return s
 }
 
@@ -132,7 +142,14 @@ preview.append(
     { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
     div(
       { style: 'display:flex;gap:24px;flex:1;min-height:0;padding:16px 16px 4px' },
-      div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, 'DOM — click; the 3D view mirrors it', svgEl),
+      div(
+        { style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0;position:relative' },
+        'DOM — click; the 3D view mirrors it',
+        svgEl,
+        // The flat popup's own surface: a positioned sibling, not an overlay
+        // painted into the sheet the plane rasterises.
+        (flatHost = div({ style: 'position:absolute;right:8px;top:34px;filter:drop-shadow(0 6px 16px rgba(0,0,0,0.5))' }))
+      ),
       div({ style: 'color:#9ab;font:12px system-ui;display:flex;flex-direction:column;gap:6px;flex:1;min-width:0' }, '3D texture — click the items', scene)
     ),
     readout
