@@ -42,13 +42,30 @@ import { setW3dTheme, w3dTheme, type W3dTheme } from './w3d-theme'
 
 const { div, label, select, option, span, input, h3 } = elements
 
-/** A field that reads the same on a light or a dark host. */
+/**
+ * One metric for every control, so the rows line up.
+ *
+ * A palette editor is read DOWN a column — you are comparing values, not using
+ * one control — and controls at their natural heights make that a ragged list
+ * where every row costs a little attention. `boxSizing` is what makes the
+ * height actually equal across an input, a select and a colour swatch, whose
+ * default padding and borders differ.
+ *
+ * Explicit colours rather than inherited: the editor lands on whatever surface
+ * a host has, and a field inheriting a pale text colour from a dark page
+ * renders light-grey-on-white.
+ */
+const CONTROL_HEIGHT = '26px'
 const FIELD_STYLE = {
   background: '#fff',
   color: '#111',
   border: '1px solid #8b8b8b',
   borderRadius: '4px',
-  padding: '1px 4px',
+  padding: '0 5px',
+  height: CONTROL_HEIGHT,
+  boxSizing: 'border-box',
+  font: '13px system-ui',
+  minWidth: '0',
 }
 
 /** Tokens the widgets read today. Reserved ones are deliberately absent — see `w3d-theme`. */
@@ -98,6 +115,16 @@ export const FONT_STACKS = [
   '"Trebuchet MS", Tahoma, sans-serif',
   'Palatino, "Palatino Linotype", "Book Antiqua", serif',
   'Impact, Haettenschweiler, sans-serif',
+  /*
+  A WEB font, to show that a theme is not limited to what is installed.
+
+  It only renders if the host has actually loaded it — a font family is a
+  request, not a guarantee, and `w3dTheme.fontFamily` is just a string handed to
+  SVG. The demo loads it from Google Fonts; a consumer picking this stack
+  without loading the face gets the `serif` fallback, which is the honest
+  outcome rather than a broken one.
+  */
+  'Rosario, serif',
 ]
 
 export interface ThemeEditorOptions {
@@ -112,6 +139,8 @@ export interface ThemeEditorOptions {
    */
   colorInput?: (config: {
     value: string
+    /** Passed so an injected control can match the editor's row height. */
+    height?: string
     /** Called with the new colour — or with a DOM event, which is unwrapped for you. */
     onChange: (value: string | Event) => void
   }) => HTMLElement
@@ -172,9 +201,13 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
     class: 'w3d-theme-editor',
     style: {
       display: 'grid',
-      gridTemplateColumns: 'auto 1fr',
-      gap: '6px 12px',
+      // `max-content` for labels so they never wrap, `1fr` for controls so the
+      // editor FILLS its column instead of sitting at some natural width.
+      gridTemplateColumns: 'max-content 1fr',
+      gap: '7px 12px',
       alignItems: 'center',
+      width: '100%',
+      maxWidth: '380px',
       font: '13px system-ui',
     },
   })
@@ -184,9 +217,10 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
         {
           style: {
             gridColumn: '1 / -1',
-            margin: '0 0 4px',
+            margin: '0 0 6px',
             font: '600 14px system-ui',
             opacity: '0.85',
+            textAlign: 'center',
           },
         },
         title
@@ -194,7 +228,20 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
     )
   }
 
-  const row = (name: string, control: Node): void => {
+  const row = (name: string, control: HTMLElement): void => {
+    // Stretch, so a colour swatch, a select and a slider all end the same
+    // distance from the right edge. Ragged right-hand ends are what make a list
+    // of controls read as untidy even when each one is fine on its own.
+    // Height too, not just width. An injected control (tosijs-ui's colour input)
+    // and a native range both come with their own intrinsic height, so asking
+    // politely via a config option is not enough — measured 32 / 30 / 26 before
+    // this line. The row owns the metric.
+    Object.assign(control.style, {
+      justifySelf: 'stretch',
+      width: '100%',
+      height: CONTROL_HEIGHT,
+      boxSizing: 'border-box',
+    })
     grid.append(
       label({ style: { justifySelf: 'end', opacity: '0.8' } }, name),
       control
@@ -206,6 +253,7 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
     row(
       key,
       makeColor({
+        height: CONTROL_HEIGHT,
         value: current,
         onChange: (v: unknown) => {
           const colour = asColor(v)
@@ -243,7 +291,7 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
       max,
       step,
       value: String(w3dTheme[key]),
-      style: { width: '120px' },
+      style: { width: '100%', minWidth: '0', height: CONTROL_HEIGHT },
       onInput(evt: Event) {
         apply((evt.target as HTMLInputElement).value)
       },
@@ -262,15 +310,24 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
       light-grey-on-white — legible in theory and not in practice. A field
       styled like a field works on either kind of page.
       */
-      style: { ...FIELD_STYLE, width: '64px' },
+      style: { ...FIELD_STYLE, width: '64px', textAlign: 'right' },
       onChange(evt: Event) {
         apply((evt.target as HTMLInputElement).value)
       },
     }) as HTMLInputElement
     row(
       key,
+      // A sub-grid rather than flex: `1fr 64px` puts every number field at the
+      // same x, so the figures form a column you can read down.
       span(
-        { style: { display: 'flex', gap: '8px', alignItems: 'center' } },
+        {
+          style: {
+            display: 'grid',
+            gridTemplateColumns: '1fr 64px',
+            gap: '8px',
+            alignItems: 'center',
+          },
+        },
         range,
         num
       )
@@ -283,7 +340,7 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
     'fontFamily',
     select(
       {
-        style: { ...FIELD_STYLE, maxWidth: '190px' },
+        style: { ...FIELD_STYLE },
         onChange(evt: Event) {
           setW3dTheme({ fontFamily: (evt.target as HTMLSelectElement).value })
           changed()

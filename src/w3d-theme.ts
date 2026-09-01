@@ -38,6 +38,17 @@ const { div } = elements
 // you set, and the values survive every theme change.
 const { demo } = tosi({ demo: { size: 0.6, sound: false, name: '' } })
 
+// Load a WEB font so the menu's Rosario entry has something to render. A theme
+// names a family; loading it is the host's job, which is exactly the point of
+// showing one here.
+if (!document.getElementById('rosario-font')) {
+  document.head.append(elements.link({
+    id: 'rosario-font',
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Rosario:wght@400;600&display=swap',
+  }))
+}
+
 // ONE panel, shown twice. `panelScene` rasterises the SAME svg element onto the
 // plane, so the 3D view is a render of the flat one rather than a copy of it —
 // which is what makes "one UI, two presentations" literal here: there is
