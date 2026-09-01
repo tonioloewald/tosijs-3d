@@ -95,7 +95,15 @@ const build = () => {
   old ? old.replaceWith(panel) : flat.append(panel)
 
   // The plane takes the very same element as its texture.
-  const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, width: 2.4 })
+  // `camera` gives the scene an orbit camera that YIELDS during a press on the
+  // panel — so you can drag the view and still use the controls, which is what
+  // the other side-by-side demos do and this one was missing.
+  const { plane, sceneCreated } = panelScene({
+    svg: panel,
+    target: panel,
+    width: 2.4,
+    camera: { beta: Math.PI / 2.4, radius: 3.4 },
+  })
   const next = b3d({ sceneCreated }, b3dLight({ y: 1, intensity: 0.9 }), plane)
   scene ? scene.replaceWith(next) : stage.append(next)
   scene = next
