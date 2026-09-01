@@ -64,8 +64,12 @@ const makePanel = () => {
   return { panel, field }
 }
 
-const flat = div({ style: { padding: '16px', background: '#5a6472', borderRadius: '8px' } })
-const stage = div({ style: { width: '320px', height: '260px' } })
+// Four equal cells. The panels take the left column (DOM above, 3D below) and
+// the editor spans the right — so the two renders of the same panel sit one
+// above the other, which is where a difference between them would be obvious.
+const cell = { display: 'grid', placeItems: 'center', minWidth: '0', minHeight: '0', overflow: 'auto' }
+const flat = div({ style: { ...cell, background: '#5a6472', borderRadius: '8px', padding: '12px' } })
+const stage = div({ style: { ...cell, background: '#11141a', borderRadius: '8px' } })
 let scene = null
 
 let detach = null
@@ -88,13 +92,29 @@ const build = () => {
 
 build()
 preview.append(div(
-  { style: { display: 'flex', gap: '24px', padding: '16px', alignItems: 'flex-start', flexWrap: 'wrap' } },
-  div({ style: { display: 'grid', gap: '16px' } }, flat, stage),
-  themeEditor({ colorInput, onChange: build }),
+  {
+    style: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gridTemplateRows: '1fr 1fr',
+      gap: '16px',
+      padding: '16px',
+      height: '100%',
+      boxSizing: 'border-box',
+    },
+  },
+  flat,
+  // The editor spans both rows of the right column — it is a tall list, and
+  // splitting it across a cell boundary would make it scroll twice.
+  div(
+    { style: { ...cell, gridRow: '1 / 3', gridColumn: '2', alignContent: 'start', justifyItems: 'start' } },
+    themeEditor({ colorInput, onChange: build })
+  ),
+  stage,
 ))
 ```
 ```css
-tosi-example .preview { background: #1b1f27; color: #e6e6e6; }
+tosi-example .preview { background: #1b1f27; color: #e6e6e6; min-height: 620px; }
 tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
 ```
 
