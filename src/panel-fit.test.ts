@@ -411,12 +411,21 @@ describe('iconBar3d colours like a button', () => {
   })
 })
 
-describe('panels do not cast shadows by default', () => {
-  test('the mesh name carries the _nocast convention', async () => {
-    // `register()` is the shadow-caster contract, so a panel opted IN simply by
-    // existing. The name is how b3d-shadows is told otherwise.
+describe('panels live outside the world by default', () => {
+  test('both conventions are recognised on one name', async () => {
+    // Registering opted a panel into BOTH: casting (the shadow-caster
+    // contract) and receiving (b3d-shadows sets receiveShadows unless told
+    // otherwise). Neither was a decision — they fell out of register().
     const { conventionName } = await import('./b3d-utils')
-    expect(conventionName('svg-plane_nocast')).toContain('_nocast')
-    expect(conventionName('svg-plane')).not.toContain('_nocast')
+    const both = conventionName('svg-plane_nocast_noshadow')
+    expect(both).toContain('_nocast')
+    expect(both).toContain('_noshadow')
+  })
+
+  test('and they are INDEPENDENT — a cockpit instrument receives but need not cast', () => {
+    const { conventionName } = require('./b3d-utils')
+    const receivesOnly = conventionName('svg-plane_nocast')
+    expect(receivesOnly).toContain('_nocast')
+    expect(receivesOnly).not.toContain('_noshadow')
   })
 })

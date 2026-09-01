@@ -426,8 +426,16 @@ export class B3dSvgPlane extends AbstractMesh {
   static styleSpec = { ':host': { display: 'none' } }
 
   static initAttributes = {
-    /** Cast shadows. Off by default — a panel is UI, not scenery (see `_meshName`). */
+    /** Cast shadows onto the scene. Off by default — see `_meshName`. */
     castShadow: false,
+    /**
+     * Take the world's shading. Off by default, so a panel reads the same
+     * whatever passes in front of the sun.
+     *
+     * Turn it on for UI that genuinely IS in the world — a cockpit instrument
+     * surface lit by the same sun as the dashboard around it.
+     */
+    receiveShadows: false,
     ...AbstractMesh.initAttributes,
     width: 1,
     height: 1,
@@ -741,24 +749,34 @@ export class B3dSvgPlane extends AbstractMesh {
   content = () => ''
 
   /**
-   * The mesh name, which is also how it opts out of shadow casting.
+   * The mesh name, which is how a panel opts into the world's lighting.
    *
-   * **Panels do not cast by default.** `register()` is the shadow-caster
-   * contract and a panel registers like any other mesh, so before this every
-   * panel threw a hard-edged rectangle across whatever it faced. Tonio: "our
-   * panels should be `_nocast`."
+   * **By default a panel neither casts nor receives.** Both fell out of
+   * `register()` rather than from a decision: registering is the shadow-caster
+   * contract AND makes `b3d-shadows` set `receiveShadows`, so a panel joined
+   * the lighting merely by existing — throwing a hard-edged rectangle across
+   * whatever it faced, and picking up shadows from scenery in front of it.
    *
-   * It is the right default for what a panel IS. UI is not scenery — a HUD or
-   * an inspector is something you look THROUGH the world at, and a shadow makes
-   * it furniture. It is also the worst case for the shadow map: a large flat
-   * quad which, when camera-relative, sits permanently inside `activeDistance`
-   * and so never culls, unlike world props that drop out with distance.
+   * Tonio's framing, which is the right one: *"by default the UI should live
+   * outside the world."* A HUD or an inspector is something you look THROUGH
+   * the world at. Shading it as though it were furniture makes it ambiguous
+   * whether it is IN the scene — and worse, unreadable exactly when something
+   * passes between it and the sun.
    *
-   * Set `castShadow` for a panel that really is scenery — a sign on a wall, a
-   * screen in a room — where the shadow is the point.
+   * Casting is also the worst case for the shadow map: a large flat quad which,
+   * camera-relative, sits permanently inside `activeDistance` and never culls.
+   *
+   * The two are separate because the cases are. A **cockpit instrument
+   * surface** genuinely is in the world and should receive — it is lit by the
+   * same sun as the dashboard around it — while still not needing to cast. A
+   * sign on a wall or a screen in a room wants both.
    */
   private _meshName(): string {
-    return (this as any).castShadow === true ? 'svg-plane' : 'svg-plane_nocast'
+    const attrs = this as any
+    let name = 'svg-plane'
+    if (attrs.castShadow !== true) name += '_nocast'
+    if (attrs.receiveShadows !== true) name += '_noshadow'
+    return name
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
