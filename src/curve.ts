@@ -219,6 +219,86 @@ export function pointAt(
   return best
 }
 
+/* ------------------------------------------------------- footprint polygons */
+
+/**
+ * Closest a vertex may come to the centre.
+ *
+ * Not a taste: with every radius positive and the angles monotonic over one
+ * turn, the polygon is **star-shaped about its centre**, which is what makes
+ * "normalised distance in this direction" well defined at all. A vertex at the
+ * origin collapses two edges onto each other and the direction lookup stops
+ * having an answer.
+ */
+export const MIN_EXTENT = 0.05
+
+/** Smallest angular gap between neighbouring vertices, as a fraction of a turn. */
+const MIN_GAP = 0.005
+
+/** The closed radial curve as N distinct vertices — the last point is the first. */
+export function polygonVertices(points: ControlPoint[]): ControlPoint[] {
+  const c = normalizeCurve(points, 'radial')
+  return c.slice(0, -1).map((p) => ({ ...p }))
+}
+
+/** N vertices as a closed radial curve, ready to `evaluateCurve`. */
+export function closePolygon(vertices: ControlPoint[]): ControlPoint[] {
+  return normalizeCurve(vertices, 'radial')
+}
+
+/**
+ * Move one vertex, keeping the polygon valid.
+ *
+ * Tonio: _"you can't move a point to make an edge degenerate (i.e. the ngon has
+ * to have points monotonic in theta and enclose the center)."_ Both are clamps
+ * rather than rejections — a drag that stops at the limit tells you where the
+ * limit is, whereas a drag that refuses to move looks broken.
+ *
+ * The angle is clamped **between its neighbours the short way round**, so a
+ * vertex can slide anywhere in its own gap and never through one.
+ *
+ * It returns the vertex's NEW index, because the list is a CYCLIC sequence being
+ * stored in a linear array: vertex 0 dragged backwards past x = 0 is a perfectly
+ * legal move that lands it at the far end. Keeping the array canonically sorted
+ * and reporting where the point went beats leaving it unsorted — a sweep over
+ * every vertex and a spread of angles found exactly this, and an unsorted
+ * footprint breaks the direction lookup that is the whole point of it.
+ */
+export function moveVertex(
+  vertices: ControlPoint[],
+  index: number,
+  theta: number,
+  r: number
+): { vertices: ControlPoint[]; index: number } {
+  const n = vertices.length
+  if (n < 3 || index < 0 || index >= n) return { vertices, index }
+  const turn = (t: number): number => ((t % 1) + 1) % 1
+  const prev = vertices[(index - 1 + n) % n].x
+  const next = vertices[(index + 1) % n].x
+  // Everything measured as a distance FORWARD from the previous vertex, so the
+  // wrap at x = 1 needs no special case.
+  const gap = turn(next - prev) || 1
+  const want = turn(turn(theta) - prev)
+  const lo = MIN_GAP
+  const hi = Math.max(lo, gap - MIN_GAP)
+  const t = Math.min(hi, Math.max(lo, want))
+  const next_ = vertices.map((v, i) =>
+    i === index
+      ? { x: turn(prev + t), y: Math.max(MIN_EXTENT, clamp01(r)) }
+      : { ...v }
+  )
+  const target = next_[index]
+  next_.sort((a, b) => a.x - b.x)
+  return { vertices: next_, index: next_.indexOf(target) }
+}
+
+/** Does every vertex clear the centre, with angles in order? */
+export function isStarShaped(vertices: ControlPoint[]): boolean {
+  if (vertices.length < 3) return false
+  if (!vertices.every((v) => v.y >= MIN_EXTENT && v.y <= 1)) return false
+  return vertices.every((v, i) => i === 0 || vertices[i - 1].x < v.x)
+}
+
 /* ------------------------------------------------------------------ presets */
 
 /** Sample a continuous easing into control points a piecewise-linear can hold. */

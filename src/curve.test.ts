@@ -10,8 +10,12 @@ import {
   insertPoint,
   linear,
   movePoint,
+  closePolygon,
+  isStarShaped,
+  moveVertex,
   ngon,
   normalizeCurve,
+  polygonVertices,
   pointAt,
   presetsFor,
   rim,
@@ -367,5 +371,73 @@ describe('radial — the FOOTPRINT, and it has to close', () => {
     // which the sort gives for free, but it is the property the footprint relies
     // on, so it is pinned rather than assumed.
     expect(sortedByX(normalizeCurve(ngon(5), 'radial'))).toBe(true)
+  })
+})
+
+describe('footprint polygons — monotonic in theta, and enclosing the centre', () => {
+  const square = () => polygonVertices(ngon(4))
+
+  test('vertices round-trip through the closed form', () => {
+    const v = square()
+    expect(closePolygon(v)[0].y).toBeCloseTo(v[0].y, 6)
+    expect(polygonVertices(closePolygon(v))).toHaveLength(v.length)
+  })
+
+  test('a vertex cannot be dragged through its neighbour', () => {
+    // Tonio: "you can't move a point to make an edge degenerate". Clamped, not
+    // rejected — a drag that stops shows you the limit; one that refuses looks
+    // broken.
+    const v = square()
+    const target = v[2].x        // try to land exactly on the next vertex
+    const { vertices: moved } = moveVertex(v, 1, target, v[1].y)
+    expect(moved[1].x).toBeLessThan(v[2].x)
+    expect(moved[1].x).toBeGreaterThan(v[0].x)
+    expect(isStarShaped(moved)).toBe(true)
+  })
+
+  test('and cannot be dragged backwards through the previous one either', () => {
+    const v = square()
+    const { vertices: moved } = moveVertex(v, 2, v[1].x, v[2].y)
+    expect(moved[2].x).toBeGreaterThan(v[1].x)
+    expect(isStarShaped(moved)).toBe(true)
+  })
+
+  test('a vertex cannot reach the centre', () => {
+    // At the origin two edges collapse onto each other and "distance in this
+    // direction" stops having an answer.
+    const { vertices: moved } = moveVertex(square(), 0, 0, 0)
+    expect(moved[0].y).toBeGreaterThanOrEqual(0.05)
+    expect(isStarShaped(moved)).toBe(true)
+  })
+
+  test('the wrap needs no special case — vertex 0 clamps against the last', () => {
+    const v = square()
+    // Drag vertex 0 backwards past x = 0, i.e. through the wrap.
+    const { vertices: moved, index } = moveVertex(v, 0, 0.99, 0.8)
+    // It wrapped to the far end of the array and says so — the list is a CYCLIC
+    // sequence in a linear array, and reporting the new index is what keeps a
+    // drag holding the point it started on.
+    expect(moved).toHaveLength(v.length)
+    expect(isStarShaped(moved)).toBe(true)
+    expect(moved[index].y).toBeCloseTo(0.8, 6)
+  })
+
+  test('every n-gon preset is star-shaped to begin with', () => {
+    for (const n of [3, 4, 6, 8]) {
+      expect(isStarShaped(polygonVertices(ngon(n)))).toBe(true)
+    }
+  })
+
+  test('no drag can make a polygon un-star-shaped', () => {
+    // Sweep: every vertex, dragged to a spread of angles and radii.
+    let v = polygonVertices(ngon(6))
+    for (let i = 0; i < v.length; i++) {
+      for (const t of [0, 0.17, 0.4, 0.83, 1.2, -0.3]) {
+        for (const r of [-1, 0, 0.3, 1, 4]) {
+          v = moveVertex(v, i, t, r).vertices
+          expect(isStarShaped(v)).toBe(true)
+        }
+      }
+    }
   })
 })

@@ -30,7 +30,7 @@ at each distance from its centre; the **falloff** says how strongly it overrides
 the terrain around it. Drag the points, or pick a preset.
 
 ```js
-import { b3d, b3dLight, panel3d, label3d, button3d, curve3d, slider3d, PerlinNoise } from 'tosijs-3d'
+import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, slider3d, PerlinNoise, attachBiomePlugin } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div } = elements
@@ -38,7 +38,7 @@ const { div } = elements
 const SIZE = 24   // metres across
 const SUBS = 110  // grid resolution
 // `height` scales the whole BLOCK, not the province inside it — see `rebuild`.
-const state = { height: 9, extent: 0.7 }
+const state = { height: 9, extent: 0.7, noise: 1 }
 
 // A province is a footprint plus one curve per layer. SHAPE says what height it
 // wants at each distance from its centre; FALLOFF says how strongly it overrides
@@ -51,6 +51,7 @@ const falloff = curve3d({ kind: 'falloff', label: 'falloff — weight by distanc
 const footprint = curve3d({ kind: 'radial', label: 'footprint — extent by direction', value: 'hexagon', aspect: 0.45 })
 
 let ground = null
+let biome = null
 
 // Base terrain: seeded fBm, NORMALISED to [0,1] like everything else here.
 //
@@ -60,7 +61,7 @@ let ground = null
 // makes the blend legible.
 const noise = new PerlinNoise(1337)
 const fbm = (x, z) => {
-  let sum = 0, amp = 1, freq = 0.055, norm = 0
+  let sum = 0, amp = 1, freq = 0.055 * state.noise, norm = 0
   for (let o = 0; o < 4; o++) {
     sum += noise.noise2D(x * freq, z * freq) * amp
     norm += amp
@@ -141,7 +142,17 @@ const panel = panel3d(
   button3d({ label: 'delete selected point', onClick: () => falloff.deleteSelected() }),
   footprint,
   slider3d({ label: 'block height', min: 1, max: 16, value: state.height, onChange: (v) => { state.height = v; rebuild() } }),
-  slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, onChange: (v) => { state.extent = v; rebuild() } })
+  slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, onChange: (v) => { state.extent = v; rebuild() } }),
+  slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, onChange: (v) => { state.noise = v; rebuild() } }),
+  toggle3d({ label: 'wireframe', value: false, onChange: (v) => { if (ground?.material) ground.material.wireframe = v } }),
+  // The real biome shader, on this block's material — the same one b3d-terrain
+  // puts on a tile, so the province is judged against how it will actually look
+  // rather than against a flat green.
+  toggle3d({ label: 'terrain shader', value: false, onChange: (v) => {
+    if (ground?.material == null) return
+    if (biome == null) biome = attachBiomePlugin(ground.material)
+    biome.isEnabled = v
+  } })
 )
 
 preview.append(
