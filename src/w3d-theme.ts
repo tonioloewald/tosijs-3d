@@ -28,7 +28,7 @@ drops the alpha channel would make those tokens look broken rather than
 untouched.
 
 ```js
-import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, inputField,
+import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, ui,
          setW3dTheme, w3dTheme } from 'tosijs-3d'
 import { colorInput } from 'tosijs-ui'
 import { elements } from 'tosijs'
@@ -47,7 +47,7 @@ const build = () => {
     label3d({ text: 'Themed panel' }),
     row3d({ weights: [1, 2] }, label3d({ text: 'size' }),
       slider3d({ value: 0.6, showValue: 'always', format: (v) => v.toFixed(2) })),
-    row3d({ weights: [1, 2] }, label3d({ text: 'name' }), inputField({ placeholder: 'placeholder…' })),
+    row3d({ weights: [1, 2] }, label3d({ text: 'name' }), ui.inputField({ placeholder: 'placeholder…' })),
     toggle3d({ label: 'a toggle' }),
     button3d({ label: 'A button' }),
   )
