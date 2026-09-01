@@ -388,29 +388,79 @@ export function falloffDefault(): ControlPoint[] {
 }
 
 /**
- * A regular n-gon's extent by direction — the footprint presets.
+ * A regular n-gon — exactly `n` VERTICES, not a sampled curve.
  *
- * Circumradius 1, so the VERTICES reach the province's declared extent and the
- * edges fall inside it. (Inscribing instead is equally defensible and means
- * "extent" stops matching the number you set, which is worse.)
+ * Tonio: _"a hexagon would just be a hexagon. A circle becomes the expensive
+ * shape but even that could be a 16 gon and work quite well."_ Which is the
+ * right data: six numbers for a hexagon, and every vertex a thing you can grab.
  *
- * Sampled finely enough that the flats read as flat: a square on 8 samples is a
- * rounded blob, which would look like the model failing rather than the sampling
- * being coarse.
+ * This only works because `polygonExtent` casts a ray at the real straight EDGE
+ * rather than interpolating radius against angle. A straight edge is NOT linear
+ * in polar — interpolating in (θ, r) bows it inward — and an earlier version
+ * papered over that by sampling each edge twelve times, which is a lot of points
+ * to carry to avoid doing the intersection once.
+ *
+ * Circumradius 1, so the VERTICES reach the declared extent and the edges fall
+ * inside it. (Inscribing is equally defensible and makes "extent" stop matching
+ * the number you set, which is worse.)
  */
 export function ngon(sides: number): ControlPoint[] {
   const n = Math.max(3, Math.round(sides))
-  const seg = (Math.PI * 2) / n
-  return sampled((t) => {
-    const theta = t * Math.PI * 2
-    const local = theta - Math.floor(theta / seg) * seg
-    return (Math.cos(Math.PI / n) / Math.cos(local - Math.PI / n)) * 0.999
-  }, n * 12)
+  const out: ControlPoint[] = []
+  for (let i = 0; i < n; i++) out.push({ x: i / n, y: 1 })
+  return out
 }
 
-/** Every direction alike — the default footprint. */
+/**
+ * Every direction alike. A circle is the EXPENSIVE footprint — there is no
+ * finite polygon that is one — so it is a 16-gon, which at province scale is
+ * indistinguishable and costs sixteen numbers.
+ */
 export function circle(): ControlPoint[] {
-  return constant(1)
+  return ngon(16)
+}
+
+/**
+ * Where the ray at `theta` (a fraction of a turn) leaves the polygon.
+ *
+ * Real ray/segment intersection against the straight edge, so the flats are
+ * flat. Interpolating r against θ instead — the obvious thing, and what a
+ * piecewise-linear curve does — bows every edge inward toward the centre, which
+ * reads as the model failing rather than as an interpolation choice.
+ *
+ * Returns 0 for a degenerate polygon rather than throwing: a caller sampling a
+ * terrain grid wants a number, and `moveVertex` already makes degeneracy
+ * unreachable through the editor.
+ */
+export function polygonExtent(
+  vertices: ControlPoint[],
+  theta: number
+): number {
+  const n = vertices.length
+  if (n < 3) return 0
+  const a = ((theta % 1) + 1) % 1 * Math.PI * 2
+  const dx = Math.cos(a)
+  const dy = Math.sin(a)
+  const pt = (v: ControlPoint) => ({
+    x: v.y * Math.cos(v.x * Math.PI * 2),
+    y: v.y * Math.sin(v.x * Math.PI * 2),
+  })
+  for (let i = 0; i < n; i++) {
+    const p = pt(vertices[i])
+    const q = pt(vertices[(i + 1) % n])
+    const ex = q.x - p.x
+    const ey = q.y - p.y
+    // Cross the segment with the ray direction; parallel means this edge is not
+    // the one the ray leaves through.
+    const denom = ex * dy - ey * dx
+    if (Math.abs(denom) < 1e-12) continue
+    const t = -(p.x * dy - p.y * dx) / denom
+    if (t < -1e-9 || t > 1 + 1e-9) continue
+    const r = (p.x + t * ex) * dx + (p.y + t * ey) * dy
+    // Forward along the ray only — the opposite edge also intersects the LINE.
+    if (r > 0) return r
+  }
+  return 0
 }
 
 /** A crater/volcano rim — non-monotonic, and the reason monotonicity is not enforced. */

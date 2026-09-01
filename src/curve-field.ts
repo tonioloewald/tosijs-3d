@@ -30,7 +30,7 @@ at each distance from its centre; the **falloff** says how strongly it overrides
 the terrain around it. Drag the points, or pick a preset.
 
 ```js
-import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, slider3d, PerlinNoise, attachBiomePlugin } from 'tosijs-3d'
+import { b3d, b3dLight, panel3d, label3d, button3d, toggle3d, curve3d, footprint3d, slider3d, PerlinNoise, attachBiomePlugin, blendSample } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div } = elements
@@ -44,11 +44,16 @@ const state = { height: 9, extent: 0.7, noise: 1 }
 // wants at each distance from its centre; FALLOFF says how strongly it overrides
 // the terrain around it. Both are [0,1] -> [0,1] over normalised distance: 0 at
 // the centre, 1 at the extent.
-const shape = curve3d({ kind: 'profile', label: 'shape — height by distance', value: 'constant', aspect: 0.45 })
+// SHAPE is a levels adjustment: it maps the height SAMPLE to a height, exactly
+// like slope-profile's cliff/beach/mesa. `linear` is the identity, so a fresh
+// province passes the terrain through untouched; `constant` flattens whatever
+// is there, which is why constant + a gradual falloff IS a plateau.
+const shape = curve3d({ kind: 'profile', label: 'shape — remaps the height sample', value: 'constant', aspect: 0.45 })
 const falloff = curve3d({ kind: 'falloff', label: 'falloff — weight by distance', aspect: 0.45 })
-// The FOOTPRINT: extent by direction, x being one full turn. Periodic, so its
-// two ends are one point. "circle" is every direction alike; try square/hexagon.
-const footprint = curve3d({ kind: 'radial', label: 'footprint — extent by direction', value: 'hexagon', aspect: 0.45 })
+// The FOOTPRINT, edited as the shape it is rather than as extent-against-angle
+// on a graph: a hexagon looks like a hexagon, and a corner is where the corner
+// is. The square is the province's bounds.
+const footprint = footprint3d({ value: 'hexagon', label: 'footprint — drag the corners' })
 
 let ground = null
 let biome = null
@@ -92,16 +97,21 @@ const rebuild = () => {
     const spread = Math.max(0.05, footprint.evaluate(theta))
     const r = Math.min(1, Math.hypot(x, z) / (reach * spread))
     const w = falloff.evaluate(r)
-    // EVERYTHING is normalised, and the blend is CONVEX: two values in [0,1]
-    // mixed by a weight in [0,1] cannot leave [0,1]. So the tile's bounds are
-    // known before anything is evaluated, and `height` scales the whole block
-    // rather than pushing one province through the top of it.
+    // THE HEIGHT SAMPLE goes through the shape curve — a levels adjustment, not
+    // a function of distance. Tonio: "shape isn't working properly. It's being
+    // treated as an output constant NOT as a map from height field to terrain
+    // height." It was `shape.evaluate(r)`, which made a profile into a second
+    // radial curve and quietly threw away the terrain underneath it.
     //
-    // Tonio: "shouldn't height just scale the whole terrain tile? If it pulls
-    // polygons outside the bounds then it doesn't play nicely with carving,
-    // does it?" — it does not, and the first draft of this demo did exactly
-    // that while the module next door documented the opposite.
-    const h = base(x, z) * (1 - w) + shape.evaluate(r) * w
+    // The falloff still works on DISTANCE — that is the split: what the province
+    // does to a sample, versus how far its say extends.
+    //
+    // `blendSample` is convex, so two values in [0,1] mixed by a weight in [0,1]
+    // cannot leave [0,1]: the tile's bounds are known before anything is
+    // evaluated, and `height` scales the whole block rather than pushing one
+    // province through the top of it.
+    const sample = base(x, z)
+    const h = blendSample(sample, shape.evaluate(sample), w)
     pos[i + 1] = h * state.height
   }
   ground.updateVerticesData('position', pos)

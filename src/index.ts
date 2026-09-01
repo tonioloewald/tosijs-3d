@@ -359,6 +359,12 @@ export {
   curvePresets,
   presetsFor,
   defaultCurve,
+  polygonExtent,
+  polygonVertices,
+  closePolygon,
+  moveVertex,
+  isStarShaped,
+  MIN_EXTENT,
   // `ngon` only — `circle` is a bare common noun and shadows svgElements'
   // `circle`, which is the barrel rule in CLAUDE.md. Reach it via
   // `defaultCurve('radial')` or `presetsFor('radial')`.
@@ -366,6 +372,8 @@ export {
 } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
 export { curve3d } from './curve-field'
+export { footprint3d } from './footprint-field'
+export type { Footprint3dOptions, FootprintField } from './footprint-field'
 export type { Curve3dOptions, CurveField } from './curve-field'
 
 // A coordinate on ONE row — the density win for inspector panels. Its own

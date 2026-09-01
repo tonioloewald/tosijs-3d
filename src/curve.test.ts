@@ -12,6 +12,7 @@ import {
   movePoint,
   closePolygon,
   isStarShaped,
+  polygonExtent,
   moveVertex,
   ngon,
   normalizeCurve,
@@ -340,36 +341,61 @@ describe('radial — the FOOTPRINT, and it has to close', () => {
     }
   })
 
+  test('an n-gon is exactly n vertices — a hexagon is six numbers', () => {
+    // Tonio: "a hexagon would just be a hexagon."
+    for (const n of [3, 4, 6, 8, 16]) expect(ngon(n)).toHaveLength(n)
+  })
+
   test('an n-gon reaches full extent at its vertices and less on its edges', () => {
     // Circumradius 1: the vertices touch the declared extent, the edges fall
-    // inside it. cos(pi/n) is the edge-midpoint radius.
+    // inside it, and cos(pi/n) is exactly the edge-midpoint radius.
     for (const n of [3, 4, 6, 8]) {
-      const c = normalizeCurve(ngon(n), 'radial')
-      const vertex = evaluateCurve(c, 0)
-      const edgeMid = evaluateCurve(c, 1 / (2 * n))
-      expect(vertex).toBeGreaterThan(edgeMid)
-      expect(edgeMid).toBeCloseTo(Math.cos(Math.PI / n), 1)
+      const v = ngon(n)
+      expect(polygonExtent(v, 0)).toBeCloseTo(1, 6)
+      expect(polygonExtent(v, 1 / (2 * n))).toBeCloseTo(Math.cos(Math.PI / n), 6)
     }
+  })
+
+  test('EDGES ARE STRAIGHT — the reason for ray-casting', () => {
+    // Interpolating radius against angle (what a piecewise-linear curve does)
+    // bows every edge inward. Checked against the true straight-edge radius at
+    // several points along one edge of a square, to six places: an interpolation
+    // would be visibly short in the middle.
+    const sq = ngon(4)
+    for (const frac of [0.1, 0.25, 0.5, 0.75, 0.9]) {
+      const t = frac / 4                       // along the first edge
+      const a = t * Math.PI * 2
+      const exact = Math.cos(Math.PI / 4) / Math.cos(a - Math.PI / 4)
+      expect(polygonExtent(sq, t)).toBeCloseTo(exact, 6)
+    }
+  })
+
+  test('a circle is a 16-gon, and is round enough to pass for one', () => {
+    // Tonio: "a circle becomes the expensive shape but even that could be a 16
+    // gon and work quite well." Worst case is the edge midpoint, cos(pi/16).
+    const c = circle()
+    expect(c).toHaveLength(16)
+    let lo = 1
+    for (let i = 0; i <= 200; i++) lo = Math.min(lo, polygonExtent(c, i / 200))
+    expect(lo).toBeGreaterThan(0.98)
   })
 
   test('an n-gon has n-fold symmetry', () => {
-    const c = normalizeCurve(ngon(6), 'radial')
+    const v = ngon(6)
     for (const t of [0.03, 0.09, 0.14]) {
-      expect(evaluateCurve(c, t)).toBeCloseTo(evaluateCurve(c, t + 1 / 6), 2)
+      expect(polygonExtent(v, t)).toBeCloseTo(polygonExtent(v, t + 1 / 6), 6)
     }
   })
 
-  test('every radial preset closes', () => {
-    for (const p of presetsFor('radial')) {
-      const c = normalizeCurve(p.build(), 'radial')
-      expect(c[c.length - 1].y).toBeCloseTo(c[0].y, 6)
-    }
+  test('the ray goes FORWARD — the opposite edge crosses the line too', () => {
+    // Every direction must return a positive radius; a sign slip here would
+    // silently mirror the footprint for half the compass.
+    const v = ngon(5)
+    for (let i = 0; i < 40; i++) expect(polygonExtent(v, i / 40)).toBeGreaterThan(0)
   })
 
   test('points stay monotonic in theta', () => {
-    // Tonio: "it's just a closed ngon and its points are monotonic in theta" —
-    // which the sort gives for free, but it is the property the footprint relies
-    // on, so it is pinned rather than assumed.
+    // Tonio: "it's just a closed ngon and its points are monotonic in theta."
     expect(sortedByX(normalizeCurve(ngon(5), 'radial'))).toBe(true)
   })
 })
@@ -437,6 +463,47 @@ describe('footprint polygons — monotonic in theta, and enclosing the centre', 
           v = moveVertex(v, i, t, r).vertices
           expect(isStarShaped(v)).toBe(true)
         }
+      }
+    }
+  })
+})
+
+describe('a profile is a LEVELS MAP, not a second radial curve', () => {
+  test('a linear profile passes the height sample through, at ANY weight', () => {
+    // Tonio: "the default province would be a line from 0,0 to 1,1 and this
+    // would just pass the height sample through directly." That is the identity
+    // property, and it holds for every falloff weight — which is what makes a
+    // fresh province invisible until you shape it.
+    const identity = linear()
+    for (let i = 0; i <= 20; i++) {
+      const sample = i / 20
+      for (const w of [0, 0.25, 0.5, 0.75, 1]) {
+        expect(blendSample(sample, evaluateCurve(identity, sample), w)).toBeCloseTo(
+          sample,
+          6
+        )
+      }
+    }
+  })
+
+  test('a constant profile FLATTENS whatever terrain is there — the plateau', () => {
+    // …and this is why constant + a gradual falloff reproduces `pad`: at full
+    // weight every sample maps to one height, so the ground goes flat.
+    const flat = constant(0.6)
+    const heights = [0, 0.2, 0.5, 0.9, 1].map((sample) =>
+      blendSample(sample, evaluateCurve(flat, sample), 1)
+    )
+    for (const h of heights) expect(h).toBeCloseTo(0.6, 6)
+  })
+
+  test('at zero weight the province has no say, whatever its profile', () => {
+    for (const p of presetsFor('profile')) {
+      const c = normalizeCurve(p.build(), 'profile')
+      for (const sample of [0.1, 0.4, 0.8]) {
+        expect(blendSample(sample, evaluateCurve(c, sample), 0)).toBeCloseTo(
+          sample,
+          6
+        )
       }
     }
   })

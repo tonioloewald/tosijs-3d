@@ -157,6 +157,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math — the CSS block + inline-block model, in SVG user
+- https://3d.tosijs.net/footprint-field/ — footprint-field
+  drawn inside a square, vertices you drag where they actually are. The rules live
 - https://3d.tosijs.net/formations/ — formations
   Pure, deterministic **placement patterns** — where the members of an encounter stand relative
 - https://3d.tosijs.net/frame-panel/ — frame-panel
