@@ -72,6 +72,7 @@ before it is paid.
 /*{ "parent": "UI" }*/
 
 import * as BABYLON from '@babylonjs/core'
+import { svgFontStyle } from './embed-font'
 
 export type SvgTextureOptions = {
   /** The Babylon scene that owns this texture. */
@@ -169,7 +170,23 @@ export class SvgTexture {
     if (!dt?.getContext) return
     const el = this._element.cloneNode(true) as SVGSVGElement
     el.removeAttribute('style')
-    const xml = new XMLSerializer().serializeToString(el)
+    let xml = new XMLSerializer().serializeToString(el)
+    /*
+    Inline any registered web font.
+
+    The serialised copy is its own document: it inherits no font faces from the
+    page, so a `font-family` naming a web font falls back silently — the flat
+    panel renders it and the textured one does not. `svgFontStyle` returns an
+    `@font-face` with the bytes base64'd in, and only for families this markup
+    actually mentions.
+
+    Injected AFTER serialisation rather than into the live element, so the DOM
+    panel is untouched and only the texture pays.
+    */
+    const fontStyle = svgFontStyle(xml)
+    if (fontStyle !== '') {
+      xml = xml.replace(/(<svg[^>]*>)/, `$1${fontStyle}`)
+    }
     // Skip the expensive rasterize + GPU upload when the SVG is unchanged. A
     // mostly-static panel settles after one render and then costs nothing;
     // genuinely animated SVGs (e.g. a radar) still update every cycle. This is

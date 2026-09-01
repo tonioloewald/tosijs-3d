@@ -823,3 +823,11 @@ export type { W3dTheme } from './w3d-theme'
 export { waterNormalTexture, tileHeight, writeNormalMap } from './water-normal'
 export { themeEditor, FONT_STACKS } from './theme-editor'
 export type { ThemeEditorOptions } from './theme-editor'
+export {
+  registerSvgFont,
+  unregisterSvgFont,
+  fontFaceCss,
+  svgFontStyle,
+  base64OfBytes,
+} from './embed-font'
+export type { EmbeddedFont } from './embed-font'

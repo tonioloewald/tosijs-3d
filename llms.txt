@@ -148,6 +148,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/dialog-placement/ — dialog-placement
   faces** — the pure half of world-placed dialogs, plus the one function every
 - https://3d.tosijs.net/effects/ — Effects
+- https://3d.tosijs.net/embed-font/ — embed-font
+  hand back an `@font-face` rule that can travel *inside* a serialised SVG.
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math — the CSS block + inline-block model, in SVG user

@@ -64,6 +64,20 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Setting a token to one throws nothing — it stringifies, fails to parse, and
   the widget paints **black**. `themeEditor` now accepts either and ignores
   anything it cannot read as a colour.
+- **Web fonts now reach in-scene panels** — `registerSvgFont(family, url)`
+  fetches the face, base64s it, and injects an `@font-face` **into the
+  serialised SVG**, which is the only place a rasterised copy can find it.
+
+  A serialised SVG is its own document: it inherits neither the page's font
+  faces nor its custom properties (the second half is why `w3d-theme` bakes
+  literals). The symptom was quiet — a scene panel in the fallback family while
+  the identical flat panel rendered correctly.
+
+  Only faces the markup actually mentions are injected, because the payload is
+  re-parsed on every rasterisation; a woff2 is 20–100 KB and base64 adds a
+  third, so carrying every registered font on every texture would be the real
+  cost. Cached per URL, and a failed fetch is not cached as the answer.
+
 - **`withTheme(partial, build)` — one default, per-panel overrides.**
   `setW3dTheme` sets the default; this builds something under an override and
   restores it afterwards (in a `finally`, so a throw cannot leave the palette

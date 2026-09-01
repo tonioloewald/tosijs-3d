@@ -11,6 +11,7 @@
 - [b3d-panel](/b3d-panel/)
 - [b3d-svg-plane](/b3d-svg-plane/)
 - [dialog-placement](/dialog-placement/)
+- [embed-font](/embed-font/)
 - [keyboard](/keyboard/)
 - [selection](/selection/)
 - [svg-icons](/svg-icons/)
