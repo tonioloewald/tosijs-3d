@@ -1757,6 +1757,45 @@ scene button), and COLLAPSIBLE.
 
 ### Improvements and future work
 
+[ ] **`tabs3d` — a tab selector, icons OR text.** The concrete first answer to
+the real-estate problem below.
+
+**Both label kinds, and mixed.** Tonio: it must "allow for icons as tabs as well
+as text items". Text tabs say what they are; icon tabs cost a fraction of the
+width, which is the entire point when a panel is 320px and a headset wants it
+narrower. A row should be able to mix them — an icon-only `⚙` beside worded
+tabs is a normal thing to want.
+
+**An icon-only tab is UNLABELLED, and in a headset there is no hover to fix
+that.** A tooltip is a flat-screen affordance; a ray from two metres has no
+hover state worth the name. So either the selected tab shows its name somewhere
+persistent, or icon tabs are only for a set small and conventional enough to be
+learned. Decide which — do not ship it as "hover to find out".
+
+**Reuse before building.** `iconBar3d` is already a row of icons with
+three-state colouring and `selectedBg`; `selection.ts` already models selection
+as an ICON so it never competes with hover/focus for intensity. A tab bar is
+close enough to `iconBar3d` that starting from it is probably right, and far
+enough (one-of-N, owns content below it) that it is not just a flag on it. Look
+hard before forking.
+
+**Overflow is the part that gets skipped.** More tabs than fit is the normal
+case eventually, and the answers are scroll, wrap, or spill into a menu — the
+last one wants the popup select, so this and that are related. Whatever it does,
+`log`-style silence is not acceptable: a tab you cannot reach and cannot see is
+worse than a crowded row.
+
+**And tabs may be the WRONG shape for the province editor**, which is worth
+settling before assuming. Tabs trade context for space: you would edit the shape
+curve without seeing the falloff, and those two are read together — a plateau is
+a constant shape AND a gradual falloff. Sections/disclosure keeps both visible
+while still collapsing what you are not using. Build the selector, but test it
+against a panel whose groups genuinely are independent before converting the one
+whose groups are not.
+
+D-pad traversal via `focusMove` and one-of-N selection semantics come free from
+the existing widget contract; the layout is the work.
+
 [ ] **Panel REAL ESTATE — tabs or sections — before embedding editors in 3D.**
 Deferred deliberately, not forgotten. The province editor (`/curve-field/`) is
 flat-only today: every control in it is a `Widget3d` and would work in-scene
