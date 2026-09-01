@@ -38,17 +38,20 @@ const { div } = elements
 const SIZE = 24   // metres across
 const SUBS = 110  // grid resolution
 // `height` scales the whole BLOCK, not the province inside it — see `rebuild`.
-const state = { height: 9, extent: 0.7, noise: 1 }
+// 4.5 over a 24 m tile: the field now spans the whole block, so the old 9 (tuned
+// when the base was squeezed into a third of the range) came out as alps.
+const state = { height: 4.5, extent: 0.7, noise: 1 }
 
 // A province is a footprint plus one curve per layer. SHAPE says what height it
 // wants at each distance from its centre; FALLOFF says how strongly it overrides
 // the terrain around it. Both are [0,1] -> [0,1] over normalised distance: 0 at
 // the centre, 1 at the extent.
 // SHAPE is a levels adjustment: it maps the height SAMPLE to a height, exactly
-// like slope-profile's cliff/beach/mesa. `linear` is the identity, so a fresh
-// province passes the terrain through untouched; `constant` flattens whatever
-// is there, which is why constant + a gradual falloff IS a plateau.
-const shape = curve3d({ kind: 'profile', label: 'shape — remaps the height sample', value: 'constant', aspect: 0.45 })
+// like slope-profile's cliff/beach/mesa. It starts as the IDENTITY, so a fresh
+// province is invisible — drag it off the diagonal and the terrain responds.
+// Try `constant` (flattens whatever is there: a plateau) or drag it the other
+// way up (maps low ground high, which lifts the whole province).
+const shape = curve3d({ kind: 'profile', label: 'shape — remaps the height sample', value: 'linear', aspect: 0.45 })
 const falloff = curve3d({ kind: 'falloff', label: 'falloff — weight by distance', aspect: 0.45 })
 // The FOOTPRINT, edited as the shape it is rather than as extent-against-angle
 // on a graph: a hexagon looks like a hexagon, and a corner is where the corner
@@ -75,12 +78,23 @@ const fbm = (x, z) => {
   }
   return sum / norm   // roughly [-1, 1]
 }
-const base = (x, z) =>
-  // Into a BAND (0.12 … 0.5) rather than the full block: normalising to the
-  // whole [0,1] is equally correct and reads far worse, because a province at
-  // 0.6 then sits down among the hills instead of standing clear of them. The
-  // rolling ground is scenery; the province is the subject.
-  Math.min(1, Math.max(0, 0.12 + (fbm(x, z) * 0.5 + 0.5) * 0.38))
+// The FULL [0,1], because that is the shape curve's DOMAIN.
+//
+// This was banded to 0.12 … 0.5 for legibility, which quietly broke the remap:
+// the editor offers you the whole domain while the terrain only ever asks about
+// the bottom third, so a threshold drawn at 0.5 answered 0 for every sample and
+// the province went flat. Tonio: "[0,0]-[0.5,0][0.5,1]-[1,1] does NOT work as
+// expected" — the curve was right and could not be reached.
+//
+// A control whose input range does not match its data is worse than a coarse
+// one, because it fails silently and looks like the model being wrong.
+// …and normalised against its OWN measured range, not against fBm's theoretical
+// one. Four octaves of Perlin almost never reach +/-1, so `fbm * 0.5 + 0.5`
+// spans about 0.28 to 0.62 — the same domain mismatch, just smaller and harder
+// to notice. Measuring the field costs one extra pass over a grid we are
+// building anyway.
+const base = (x, z) => fbm(x, z)
+const normalise = (raw, lo, hi) => (hi - lo < 1e-6 ? 0.5 : (raw - lo) / (hi - lo))
 
 const rebuild = () => {
   if (ground == null) return
@@ -88,7 +102,17 @@ const rebuild = () => {
   // not matter how CreateGround laid the grid out.
   const pos = ground.getVerticesData('position')
   const reach = SIZE * 0.5 * state.extent
-  for (let i = 0; i < pos.length; i += 3) {
+  // Pass one: the raw field and its extremes, so the shape curve's [0,1] domain
+  // maps onto terrain that actually spans [0,1].
+  const raw = new Float32Array(pos.length / 3)
+  let lo = Infinity
+  let hi = -Infinity
+  for (let i = 0, k = 0; i < pos.length; i += 3, k++) {
+    raw[k] = base(pos[i], pos[i + 2])
+    if (raw[k] < lo) lo = raw[k]
+    if (raw[k] > hi) hi = raw[k]
+  }
+  for (let i = 0, k = 0; i < pos.length; i += 3, k++) {
     const x = pos[i], z = pos[i + 2]
     // Direction first: the footprint says how far the province reaches THIS way,
     // and distance is normalised against that. Direction lives in the footprint;
@@ -110,7 +134,7 @@ const rebuild = () => {
     // cannot leave [0,1]: the tile's bounds are known before anything is
     // evaluated, and `height` scales the whole block rather than pushing one
     // province through the top of it.
-    const sample = base(x, z)
+    const sample = normalise(raw[k], lo, hi)
     const h = blendSample(sample, shape.evaluate(sample), w)
     pos[i + 1] = h * state.height
   }
@@ -129,7 +153,7 @@ const scene = b3d(
     // and renders a 0x296 canvas that looks exactly like a broken scene.
     style: 'flex:1;min-width:0;border-radius:8px;overflow:hidden',
     sceneCreated(el) {
-      orbitCam(el, { radius: 27, beta: 1.0, alpha: -1.15, target: [0, 2, 0] })
+      orbitCam(el, { radius: 32, beta: 1.02, alpha: -1.15, target: [0, 1.5, 0] })
       ground = el.make.ground({
         width: SIZE,
         height: SIZE,
@@ -259,6 +283,19 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   const el = g()
   const bg = rect({ 'data-curve-bg': '', x: 0, y: 0, rx: 4, ry: 4 })
   const grid = path({ 'data-curve-grid': '', fill: 'none' })
+  /*
+  THE IDENTITY, drawn faintly — the single most useful mark on a profile plot.
+
+  Without it the plot has no orientation cue at all: which corner is (0,0) is a
+  guess, and a curve drawn from top-left to bottom-right looks as reasonable as
+  its mirror while meaning the opposite (it maps low ground HIGH). Tonio drew
+  exactly that, expected a no-op, and got a raised province — a reading error the
+  plot invited by saying nothing.
+
+  With the diagonal there, "no change" has a picture: on the line. Only for a
+  profile — a falloff is not a remap, so its diagonal would mean nothing.
+  */
+  const identityLine = path({ 'data-curve-identity': '', fill: 'none' })
   const line = path({ 'data-curve-line': '', fill: 'none' })
   const caption = text(
     {
@@ -270,6 +307,7 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   )
   el.appendChild(bg)
   el.appendChild(grid)
+  if (kind === 'profile') el.appendChild(identityLine)
   el.appendChild(line)
   el.appendChild(caption)
   const handles = g({ 'data-curve-points': '' })
@@ -368,6 +406,16 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
     grid.setAttribute('d', lines.join(''))
     grid.setAttribute('stroke', w3dTheme.divider)
     grid.setAttribute('stroke-width', '1')
+
+    if (kind === 'profile') {
+      const a = toPx({ x: 0, y: 0 })
+      const b = toPx({ x: 1, y: 1 })
+      identityLine.setAttribute('d', `M${a.x} ${a.y}L${b.x} ${b.y}`)
+      identityLine.setAttribute('stroke', w3dTheme.muted)
+      identityLine.setAttribute('stroke-width', '1')
+      identityLine.setAttribute('stroke-dasharray', '4 4')
+      identityLine.setAttribute('opacity', '0.5')
+    }
 
     // The curve IS piecewise linear, so the control points are the polyline —
     // no sampling, and what you see is exactly what `evaluate` returns.
