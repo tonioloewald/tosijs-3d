@@ -1806,6 +1806,39 @@ scene button), and COLLAPSIBLE.
 
 ### Improvements and future work
 
+[ ] **A PINNING utility — one set of heuristics, DOM and 3D.** Tonio: tosijs-ui
+"has this really nice utility library that lets you pin a popup to another
+element using simple heuristics. It might be useful to build an equivalent for
+both the DOM and 3d contexts."
+
+**The pure core already exists** — `placePopup` in `flow-layout.ts` flips near an
+edge and clamps into bounds, and it is what `panel.openPopup`, `surface`'s menus
+and now `select3d`'s dropdown all place with. So this is not a new mechanism; it
+is the heuristics layer on top:
+
+  - **Preferred side ORDER**, not one side plus a flip. "below, else above, else
+    right" is what you actually want; a single flip picks the wrong survivor
+    when neither vertical side fits.
+  - **Align, separately from side.** Start/centre/end along the anchor's edge —
+    a menu under a narrow control usually wants its left edges flush, not its
+    centres.
+  - **Shift-to-fit before flipping.** Sliding a popup along its edge to stay
+    inside is far less disruptive than throwing it to the other side, and it is
+    what makes long menus near a corner feel calm.
+  - **Offset / gap**, so a popup does not sit flush against what opened it.
+
+**What is NOT shared is what a rect comes from, and that is the whole design
+question.** Flat it is `getBoundingClientRect`; inside a panel it is the widget's
+box in panel coordinates (see `hostFor` — the panel translates, because a widget
+knows its own insides and nothing about where it sits); in world space it is a
+mesh and a camera, where "fits on screen" is a projection rather than a
+comparison. Take the rect as an ARGUMENT and all three collapse onto one pure
+function; try to take an "element" and they never will.
+
+Worth reading tosijs-ui's implementation before writing ours — and if the maths
+is genuinely general, that is an argument for it living THERE and us consuming
+it, rather than a fourth copy of flip-and-clamp in the ecosystem.
+
 [ ] **`tabs3d` — a tab selector, icons OR text.** The concrete first answer to
 the real-estate problem below.
 
