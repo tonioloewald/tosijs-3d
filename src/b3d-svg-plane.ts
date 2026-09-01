@@ -426,6 +426,8 @@ export class B3dSvgPlane extends AbstractMesh {
   static styleSpec = { ':host': { display: 'none' } }
 
   static initAttributes = {
+    /** Cast shadows. Off by default — a panel is UI, not scenery (see `_meshName`). */
+    castShadow: false,
     ...AbstractMesh.initAttributes,
     width: 1,
     height: 1,
@@ -738,6 +740,27 @@ export class B3dSvgPlane extends AbstractMesh {
 
   content = () => ''
 
+  /**
+   * The mesh name, which is also how it opts out of shadow casting.
+   *
+   * **Panels do not cast by default.** `register()` is the shadow-caster
+   * contract and a panel registers like any other mesh, so before this every
+   * panel threw a hard-edged rectangle across whatever it faced. Tonio: "our
+   * panels should be `_nocast`."
+   *
+   * It is the right default for what a panel IS. UI is not scenery — a HUD or
+   * an inspector is something you look THROUGH the world at, and a shadow makes
+   * it furniture. It is also the worst case for the shadow map: a large flat
+   * quad which, when camera-relative, sits permanently inside `activeDistance`
+   * and so never culls, unlike world props that drop out with distance.
+   *
+   * Set `castShadow` for a panel that really is scenery — a sign on a wall, a
+   * screen in a room — where the shadow is the point.
+   */
+  private _meshName(): string {
+    return (this as any).castShadow === true ? 'svg-plane' : 'svg-plane_nocast'
+  }
+
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
@@ -750,7 +773,7 @@ export class B3dSvgPlane extends AbstractMesh {
         height: attrs.height,
         radius: attrs.cornerRadius,
       })
-      const mesh = new BABYLON.Mesh('svg-plane', scene)
+      const mesh = new BABYLON.Mesh(this._meshName(), scene)
       const data = new BABYLON.VertexData()
       data.positions = g.positions
       data.indices = g.indices
@@ -760,7 +783,7 @@ export class B3dSvgPlane extends AbstractMesh {
       this.mesh = mesh
     } else {
       this.mesh = BABYLON.MeshBuilder.CreatePlane(
-        'svg-plane',
+        this._meshName(),
         {
           width: attrs.width,
           height: attrs.height,

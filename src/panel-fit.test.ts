@@ -410,3 +410,13 @@ describe('iconBar3d colours like a button', () => {
     expect(fired).toBe(0)
   })
 })
+
+describe('panels do not cast shadows by default', () => {
+  test('the mesh name carries the _nocast convention', async () => {
+    // `register()` is the shadow-caster contract, so a panel opted IN simply by
+    // existing. The name is how b3d-shadows is told otherwise.
+    const { conventionName } = await import('./b3d-utils')
+    expect(conventionName('svg-plane_nocast')).toContain('_nocast')
+    expect(conventionName('svg-plane')).not.toContain('_nocast')
+  })
+})

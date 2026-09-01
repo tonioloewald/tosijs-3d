@@ -64,6 +64,17 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Setting a token to one throws nothing — it stringifies, fails to parse, and
   the widget paints **black**. `themeEditor` now accepts either and ignores
   anything it cannot read as a colour.
+- **⚠️ Panels no longer cast shadows by default.** `register()` is the
+  shadow-caster contract and a panel registers like any other mesh, so every
+  in-scene panel threw a hard-edged rectangle across whatever it faced.
+
+  It is the right default for what a panel _is_: UI is not scenery — a HUD or an
+  inspector is something you look **through** the world at, and a shadow makes
+  it furniture. It is also the worst case for the shadow map, being a large flat
+  quad that (when camera-relative) never leaves `activeDistance` and so never
+  culls. Set `castShadow` for a panel that really is scenery — a sign on a wall,
+  a screen in a room.
+
 - **The scene panel updates when pause state changes elsewhere.** The transport
   row picks its label and icon from `paused`, but nothing repainted the panel
   when that flipped — so resuming from the pause _dialog_ left the panel still
