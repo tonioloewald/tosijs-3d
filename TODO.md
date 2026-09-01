@@ -1662,7 +1662,28 @@ scene button), and COLLAPSIBLE.
 [ ] **Use popups for the debug panel** — "it's crying out for popups". The
 clipped-to-parent-rect overlay with drop shadows on a flat surface is
 exactly what a 3D world should not be doing. Post-0.7.
-[ ] **Build the on-screen keyboard as a popup.**
+[ ] **Build the on-screen keyboard as a popup.** The popup mechanism exists now
+(0.7.4), so this is mostly a focus question.
+
+**It has to be a NON-ACTIVATING popup — one that never takes focus.** Tonio:
+"the keyboard needs to be a special kind of popup that never gets focus." The
+DOM analogue is a toolbar that `preventDefault`s on `pointerdown` so the caret
+stays in the field; here it is two separate things, because we have two focus
+systems:
+
+  - **Surface focus.** A press on the keyboard must not move `focus` off the
+    field it is typing into, or the first keystroke has nowhere to go. Our focus
+    is explicit state rather than the browser's, so this is a flag to honour and
+    not a default to fight.
+  - **The 3D pick.** Picking the keyboard's plane must not blur the opener's
+    surface, and `wirePointer`'s outside-press handling has to count the
+    keyboard as INSIDE the field's world. A keyboard that dismisses the thing it
+    types into is the failure mode, and it will look like "the field loses its
+    value" rather than like a focus bug.
+
+Shape: an option on `PopupSurfaceOptions` (`activates: false`, or similar) plus
+the matching rule in the surface focus model. Worth settling BEFORE writing the
+keyboard, because retrofitting it means unpicking every focus call site.
 [ ] **`select` widgets instead of left/right steppers** — library demo, and the
 b3d spin picker. (This is TODO's existing `select3d` entry; the popup
 mechanism is now the way to build it.)
