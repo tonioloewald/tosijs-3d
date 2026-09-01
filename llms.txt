@@ -253,6 +253,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - https://3d.tosijs.net/ui/ — UI
 - https://3d.tosijs.net/utilities/ — Utilities
+- https://3d.tosijs.net/vector-field/ — vector-field
+  orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
 - https://3d.tosijs.net/vehicles/ — Vehicles
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,

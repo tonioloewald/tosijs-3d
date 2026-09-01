@@ -345,6 +345,9 @@ export {
   select3d,
   list3d,
 } from './widgets3d'
+// A coordinate on ONE row — the density win for inspector panels. Its own
+// module so it tree-shakes, and top-level like the other `*3d` widgets.
+export { vector3d, euler3d, wrapDegrees } from './vector-field'
 export type { Widget3d } from './widgets3d'
 export {
   panelFitWidth,
@@ -778,6 +781,7 @@ export { roundedRectGeometry, signedArea } from './rounded-rect'
 export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect'
 export { openPopup } from './popup-surface'
 export type { PopupSurface, PopupSurfaceOptions } from './popup-surface'
+export type { Vector3dOptions, VectorField } from './vector-field'
 export type { Makers, MakeOptions, MakeOwner } from './make-mesh'
 export { B3dTurret, b3dTurret } from './b3d-turret'
 export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip'
