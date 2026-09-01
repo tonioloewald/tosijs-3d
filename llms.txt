@@ -141,6 +141,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/control-input/ — control-input
   Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
 - https://3d.tosijs.net/core/ — Core
+- https://3d.tosijs.net/curve/ — curve
+  `[0,1]` to itself, as sorted control points, with the editing rules that keep it
+- https://3d.tosijs.net/curve-field/ — curve-field
+  works as a flat DOM overlay, on an in-scene panel, and in a headset without
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior

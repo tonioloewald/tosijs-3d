@@ -1,6 +1,7 @@
 # Utilities
 
 <!-- toc -->
+- [curve](/curve/)
 - [b3d-physics](/b3d-physics/)
 - [demo-utils](/demo-utils/)
 - [glb-manifest](/glb-manifest/)

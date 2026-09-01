@@ -187,6 +187,14 @@
   package that deliberately keeps it a peer, which is a worse trade than a
   little duplication. Copy what is needed, when it is needed.
 
+- **DONE (0.7.4) — `curve3d`, plus the pure model and a province-editor demo.**
+  Shipped as `src/curve.ts` (26 tests) + `src/curve-field.ts`; demo at
+  `/curve-field/` drives a live terrain block from a shape curve and a falloff
+  curve. STILL OPEN from the entry below: the falsification test (re-express
+  `pad`/`volcano`/`impactCrater` as curve sets and diff), and reconciling
+  `gradient-editor.ts`/`slope-profile.ts`'s named profiles against the presets
+  rather than having two spellings of one curve.
+
 - **`curve3d` — an editor for a profile, i.e. a continuous `[0,1] → [0,1]`.**
   Tonio's ask, for authoring terrain **province** profiles rather than picking
   from the five we shipped.

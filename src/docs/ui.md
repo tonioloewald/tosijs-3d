@@ -4,6 +4,7 @@
 - [widgets3d](/widgets3d/)
 - [box](/box/)
 - [vector-field](/vector-field/)
+- [curve-field](/curve-field/)
 - [surface](/surface/)
 - [popup-surface](/popup-surface/)
 - [rounded-rect](/rounded-rect/)

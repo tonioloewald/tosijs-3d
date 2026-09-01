@@ -345,6 +345,22 @@ export {
   select3d,
   list3d,
 } from './widgets3d'
+// Curve editing — the pure model, and the `curve3d` widget over it. A province
+// is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
+export {
+  normalizeCurve,
+  evaluateCurve,
+  movePoint,
+  insertPoint,
+  deletePoint,
+  pointAt,
+  curvePresets,
+  presetsFor,
+} from './curve'
+export type { CurveKind, CurvePreset } from './curve'
+export { curve3d } from './curve-field'
+export type { Curve3dOptions, CurveField } from './curve-field'
+
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field'
