@@ -28,7 +28,7 @@ import { b3d, b3dLight, openPopup, panelScene, ui } from 'tosijs-3d'
 const { box, textBlock, button, surface, openMenu, svgPoint } = ui
 import { svgElements, elements } from 'tosijs'
 
-const { svg } = svgElements
+const { svg, rect } = svgElements
 const { div } = elements
 const W = 300
 const H = 260
@@ -91,8 +91,15 @@ const make = () => {
 let sceneEl = null
 let pop3d = null
 let flatPop = null
+// The same rim `openPopup` draws, so both views read as one kind of object: a
+// rect at the viewBox bounds, stroked at DOUBLE width because the clip discards
+// the outer half of a stroke that straddles its path.
 const debugSheet = () =>
-  svg({ viewBox: '0 0 150 96', width: 150, height: 96 }, debugRows().el)
+  svg(
+    { viewBox: '0 0 150 96', width: 150, height: 96 },
+    debugRows().el,
+    rect({ x: 0, y: 0, width: 150, height: 96, rx: 8, fill: 'none', stroke: '#9aa0a6', 'stroke-width': 4 })
+  )
 // The DOM's new layer: positioned against the sheet's own containing block.
 const flatLayer = div({ style: 'position:absolute;right:10px;top:44px' })
 
@@ -344,8 +351,16 @@ export function surface(opts: { width: number; height: number }): Surface {
     top. Then no alignment between bar and content can leak, whatever the theme's
     radius or the box's border does next.
     */
+    /*
+    A rim here too, so an in-surface panel and a popup-surface panel read as the
+    same kind of object. Single stroke width, NOT the doubled one a popup uses:
+    that trick relies on the outer half falling outside the texture, and this
+    rect sits somewhere inside a larger surface where nothing clips it.
+    */
     const backing = svgElements.rect({
       'data-panel-bg': '',
+      stroke: w3dTheme.muted,
+      'stroke-width': String(w3dTheme.strokeWidth),
       x: 0,
       y: 0,
       width: w,

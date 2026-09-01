@@ -162,7 +162,9 @@ rather than degrade.
 
 import * as BABYLON from '@babylonjs/core'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
+import { svgElements } from 'tosijs'
 import { iconGlyph } from './svg-icons'
+import { w3dTheme } from './w3d-theme'
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome'
 import { cameraIsAttached } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
@@ -550,6 +552,12 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
   */
   const vbW = vb && vb.width > 0 ? vb.width : 100
   const vbH = vb && vb.height > 0 ? vb.height : 100
+  /*
+  The mesh's rounding, shared with the plane below so the drawn rim and the cut
+  silhouette agree. A rim on a radius the mesh does not have is worse than none:
+  it draws a corner where the geometry has an edge.
+  */
+  const cornerRadius = Math.min(0.05, width * 0.06)
   // ONE layout, used by the drawing below AND by the hit test in `wirePointer`.
   const layout = chromeLayout(vbW, vbH, gripHeight, draggable)
   if (chrome && layout.barHeight > 0) {
@@ -573,6 +581,47 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     )
   }
 
+  /*
+  A RIM, because we cannot have a drop shadow.
+
+  Flat UI separates a popup from what is behind it with a shadow, and that is not
+  available here: the panel is emissive so it is unlit, and a real cast shadow
+  needs a receiver at a sensible distance — a popup floating in front of a scene
+  has nothing to fall on. Tonio: "Since we can't do nice drop shadows around pop
+  ups, I wonder if there's some other way we can make them stand out."
+
+  So: an edge instead of a shadow. `muted` is a mid grey deliberately — a light
+  rim vanishes on a pale scene and a dark one vanishes on a dark scene, while a
+  mid tone holds an edge against both, which matters because the backdrop here is
+  arbitrary 3D rather than a known page colour.
+
+  DOUBLE STROKE WIDTH, and the clip does the rest. An SVG stroke straddles its
+  path — half inside, half out — so on a rect at the viewBox bounds the outer
+  half falls outside the texture and is discarded. Drawing at 2× leaves exactly
+  the intended width visible, with no half-pixel inset arithmetic to get wrong.
+  Tonio again: "so it should be roughly correct thanks to clipping".
+
+  Rounded to match the MESH, converted through the same mapping the texture uses:
+  the plane is `width` world units across and `vbW` viewBox units, so the world
+  radius scales by `vbW / width`.
+  */
+  if (chrome) {
+    svg.appendChild(
+      svgElements.rect({
+        'data-popup-rim': '',
+        x: 0,
+        y: 0,
+        width: vbW,
+        height: vbH,
+        rx: (cornerRadius / width) * vbW,
+        ry: (cornerRadius / width) * vbW,
+        fill: 'none',
+        stroke: w3dTheme.muted,
+        'stroke-width': String(w3dTheme.strokeWidth * 2),
+      })
+    )
+  }
+
   const plane = b3dSvgPlane({
     width,
     height: width * aspect,
@@ -582,7 +631,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     // near-coplanar popups swap order as you orbit — the "z-chasing" that no
     // amount of correct depth ordering fixed. Geometry for the silhouette,
     // z-buffer for the ordering.
-    cornerRadius: Math.min(0.05, width * 0.06),
+    cornerRadius,
     transparent: 'off',
     // Self-lit: a UI panel should read the same under any scene lighting.
     materialChannel: 'emissive',
