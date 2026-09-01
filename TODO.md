@@ -1744,9 +1744,29 @@ systems:
     types into is the failure mode, and it will look like "the field loses its
     value" rather than like a focus bug.
 
-Shape: an option on `PopupSurfaceOptions` (`activates: false`, or similar) plus
-the matching rule in the surface focus model. Worth settling BEFORE writing the
-keyboard, because retrofitting it means unpicking every focus call site.
+**AMENDED after reading the code — most of this is already true.** `box.ts`
+keeps `focused` as per-box closure state (set on press, at `box.ts:706`/`726`),
+and each surface has its own box, so a press on the keyboard's surface cannot
+reach the field's focus. The isolation is structural, not something to add.
+
+What that leaves is smaller and more concrete:
+
+  - **Wiring, not focus.** Keys reach the field through an explicit callback
+    (`field.insert` / `field.action`), the way `fieldGroup` already does within
+    one surface. Across two surfaces it is the same callback with no focus
+    involved — so the keyboard needs to REMEMBER its target field, which is the
+    actual state to add.
+  - **The dismissal risk is `surface.ts`, not `popup-surface.ts`.** An
+    outside-press dismisses MENUS in the overlay layer; popup-surface planes have
+    no such rule, so a keyboard on its own plane does not dismiss anything. If
+    the keyboard is ever hosted as an overlay popup instead, that rule applies
+    and this warning comes back.
+  - **The keyboard's own box will focus its keys** on press, drawing a focus
+    ring inside the keyboard. Harmless, possibly wanted for D-pad use — but
+    check it does not read as "focus moved here".
+
+So: no `activates` flag needed for the plane case. Build it, and only add one if
+the overlay case turns up.
 [ ] **`select` widgets instead of left/right steppers** — library demo, and the
 b3d spin picker. (This is TODO's existing `select3d` entry; the popup
 mechanism is now the way to build it.)
