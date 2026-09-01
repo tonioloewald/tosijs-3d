@@ -29,7 +29,7 @@ palette is `rgba()`.
 
 ```js
 import { b3d, b3dLight, panelScene, panel3d, row3d, label3d, slider3d,
-         toggle3d, button3d, ui, themeEditor } from 'tosijs-3d'
+         toggle3d, button3d, iconBar3d, ui, themeEditor } from 'tosijs-3d'
 import { colorInput } from 'tosijs-ui'
 import { elements, tosi } from 'tosijs'
 const { div } = elements
@@ -70,6 +70,11 @@ const makePanel = () => {
       slider3d({ value: demo.size, showValue: 'always', format: (v) => v.toFixed(2) })),
     row3d({ weights: [1, 2] }, label3d({ text: 'name' }), field),
     toggle3d({ label: 'sound', value: demo.sound }),
+    // Stroked icons, so `strokeWidth` has something to act on besides the caret.
+    iconBar3d({ items: [
+      { icon: 'mousePointer' }, { icon: 'move' }, { icon: 'rotateCw' },
+      { icon: 'plusCircle' }, { icon: 'trash2' },
+    ] }),
     button3d({ label: 'A button' }),
   )
   return { panel, field }

@@ -183,3 +183,26 @@ describe('padding and lineHeight reach CONTROLS, not just text', () => {
     theme.setW3dTheme({ spacing: 8 })
   })
 })
+
+describe('strokeWidth reaches ICONS, not only the caret', () => {
+  test('an icon glyph takes its stroke width from the theme', async () => {
+    const { iconGlyph } = await import('./svg-icons')
+    theme.setW3dTheme({ strokeWidth: 1 })
+    const thin = iconGlyph('plus', { size: 24 })
+    theme.setW3dTheme({ strokeWidth: 5 })
+    const thick = iconGlyph('plus', { size: 24 })
+    // The width lands on the returned <g>, not inside the markup.
+    const widthOf = (g: SVGGElement) => g.getAttribute('stroke-width')
+    expect(widthOf(thin)).toBe('1')
+    expect(widthOf(thick)).toBe('5')
+    theme.setW3dTheme({ strokeWidth: 2 })
+  })
+
+  test('an explicit option still wins over the theme', async () => {
+    const { iconGlyph } = await import('./svg-icons')
+    theme.setW3dTheme({ strokeWidth: 5 })
+    const g = iconGlyph('plus', { size: 24, strokeWidth: 1 })
+    expect(g.getAttribute('stroke-width')).toBe('1')
+    theme.setW3dTheme({ strokeWidth: 2 })
+  })
+})

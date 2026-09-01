@@ -64,6 +64,10 @@ versions may carry breaking peer-dependency changes — each is called out in a
   Setting a token to one throws nothing — it stringifies, fails to parse, and
   the widget paints **black**. `themeEditor` now accepts either and ignores
   anything it cannot read as a colour.
+- **`strokeWidth` reaches icons.** `iconGlyph` hardcoded `2`, so the token
+  affected nothing but the text caret — a themed panel could not make its icons
+  match its own line weight. It now defaults to `w3dTheme.strokeWidth`, and an
+  explicit option still wins (an icon used as a mark may want its own weight).
 - **Web fonts now reach in-scene panels** — `registerSvgFont(family, url)`
   fetches the face, base64s it, and injects an `@font-face` **into the
   serialised SVG**, which is the only place a rasterised copy can find it.
