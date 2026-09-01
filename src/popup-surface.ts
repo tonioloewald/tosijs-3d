@@ -382,21 +382,68 @@ function wirePointer(owner: B3d): void {
     yielded = null
   }
 
+  /*
+  AND A BACKSTOP ON `window`, because the scene never hears every release.
+
+  A pointer that goes up OUTSIDE the canvas — off the edge mid-drag, over
+  another element, or on a window that loses focus — produces no scene pointer
+  event, so the observable above never runs and the camera stays detached. That
+  is the same dead scene by a different route, and it is the LIKELIER one in
+  practice: dragging a panel toward the edge is exactly how you leave the canvas.
+
+  `pointercancel` too — the OS steals the pointer for gestures and scrolls, and
+  a cancelled drag is still a drag that took the camera.
+
+  This is deliberately a blunt "if we hold it, give it back" rather than an
+  attempt to decide whether the release was ours. Restoring a camera nobody
+  yielded is a no-op (`yielded` is null); failing to restore one we did costs the
+  user the scene.
+  */
+  const releaseAnywhere = (): void => {
+    if (yielded != null) restoreCamera()
+  }
+  window.addEventListener('pointerup', releaseAnywhere)
+  window.addEventListener('pointercancel', releaseAnywhere)
+  scene.onDisposeObservable.add(() => {
+    window.removeEventListener('pointerup', releaseAnywhere)
+    window.removeEventListener('pointercancel', releaseAnywhere)
+    wired.delete(owner)
+  })
+
   scene.onPointerObservable.add((info) => {
     const list = openPopups.get(owner)
-    if (list == null || list.length === 0) return
-    // ONLY on a press. This used to pick on every pointer event, moves
-    // included — a scene pick per mouse-move, for a question that can only be
-    // answered by a click. Blocking is handled by `isPickable` now, so nothing
-    // here needs to run while you are merely moving the mouse.
+
+    /*
+    RELEASE FIRST, AND UNCONDITIONALLY — before any "is there a popup?" test.
+
+    Restoring the camera used to sit BEHIND the empty-list guard, so the release
+    depended on a popup still being open at the moment the button came up. It
+    usually is, which is why this survived: drag a panel, let go, the list is
+    non-empty, the camera comes back.
+
+    But the yield and the restore then had different conditions, and anything
+    that emptied the list mid-gesture stranded the camera detached — with no way
+    back, because every subsequent press took the same early return. Tonio: "the
+    3d view seizes up so I can't rotate the view any more."
+
+    A detached camera is a DEAD SCENE, not a cosmetic glitch, so this must not be
+    conditional on anything. Whoever took the camera is responsible for giving it
+    back; asking permission of the popup list is how it got lost.
+    */
     if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
       // With `startAndReleaseDragOnPointerEvents` off, the behaviour's own
       // release branch is gated off too — so nothing would ever end the drag
       // and the panel would stick to the cursor forever.
-      for (const p of list) p.endDrag()
+      if (list != null) for (const p of list) p.endDrag()
       restoreCamera()
       return
     }
+
+    // ONLY on a press. This used to pick on every pointer event, moves
+    // included — a scene pick per mouse-move, for a question that can only be
+    // answered by a click. Blocking is handled by `isPickable` now, so nothing
+    // here needs to run while you are merely moving the mouse.
+    if (list == null || list.length === 0) return
     if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
 
     // Un-pickable panels are skipped by the pick itself, so a modal's blocking
