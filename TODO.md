@@ -291,6 +291,35 @@
   font menu labels Rosario as a web font, so the limitation is visible rather
   than surprising.
 
+- **A `widgets3d` version of the theme editor — eventually the only version.**
+  Tonio's call, and the right end state: the editor is currently plain DOM, so
+  it cannot be used from inside a headset, which is the one place a theme most
+  needs adjusting (colours that read on a screen do not necessarily read at
+  arm's length on a lower-resolution display).
+
+  Everything it needs now exists, which is the argument for doing it: `row3d`
+  for the label/control rows, `slider3d` with `showValue: 'always'` for the
+  metrics, `inputField` with `type: 'number'` and `scrub` for typed values,
+  `select3d` (or the popup select, once built) for the font menu, and
+  `panel.openPopup()` for the colour picker. The one genuinely missing piece is
+  the **colour picker itself** — filed separately, and the SVG UI's biggest
+  remaining gap.
+
+  Two things it would prove, beyond being useful:
+
+  - **It is the SVG UI's hardest customer, again.** Building the DOM editor
+    found six real defects in a day (the theme reaching nothing, colours
+    becoming Events, ragged control metrics, `lineHeight` and `padding` inert,
+    web fonts dying in rasterisation, icons ignoring `strokeWidth`). A
+    widgets3d version would exercise the same density against the SVG surface
+    rather than against the DOM.
+  - **A theme editor that renders in its own theme is self-demonstrating** —
+    change a token and the editor changes with the panel, which no amount of
+    documentation matches.
+
+  Keep the DOM version until the SVG one is at least as good; replacing a
+  working editor with a worse one to make a point is not progress.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,

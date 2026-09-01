@@ -353,3 +353,60 @@ describe('panel.openPopup — a popup IS a panel (#37 item 4)', () => {
     expect(host.children.length).toBe(0)
   })
 })
+
+describe('iconBar3d colours like a button', () => {
+  const fillOf = (w: { el: SVGElement }, i: number) =>
+    w.el.querySelectorAll('rect')[i * 2]?.getAttribute('fill')
+
+  const bar = (active = false) =>
+    w3d.iconBar3d({ items: [{ icon: 'plus', active }, { icon: 'move' }] })
+
+  test('rest → hover → pressed are three DIFFERENT colours', () => {
+    // Previously pressing showed nothing new, because the selected colour and
+    // the press colour were the same token.
+    const b = bar()
+    b.layout(200)
+    const rest = fillOf(b, 0)
+    b.handle!('move', 8, 10)
+    const hover = fillOf(b, 0)
+    b.handle!('down', 8, 10)
+    const held = fillOf(b, 0)
+    expect(new Set([rest, hover, held]).size).toBe(3)
+  })
+
+  test('SELECTED is its own colour, not the press colour', () => {
+    // Selection is a different axis from press — a selected button must not
+    // look permanently held.
+    const plain = bar(false)
+    const chosen = bar(true)
+    plain.layout(200)
+    chosen.layout(200)
+    plain.handle!('down', 8, 10)
+    expect(fillOf(chosen, 0)).not.toBe(fillOf(plain, 0))
+  })
+
+  test('release clears the pressed look before the handler runs', () => {
+    // A handler that rebuilds the panel would otherwise leave a button stuck
+    // looking held.
+    let seen: string | null = null
+    const b = w3d.iconBar3d({
+      items: [{ icon: 'plus', onClick: () => { seen = fillOf(b, 0) } }],
+    })
+    b.layout(200)
+    b.handle!('down', 8, 10)
+    const held = fillOf(b, 0)
+    b.handle!('up', 8, 10)
+    expect(seen).not.toBe(held)
+  })
+
+  test('a press that drifts off the button does not fire it', () => {
+    let fired = 0
+    const b = w3d.iconBar3d({
+      items: [{ icon: 'plus', onClick: () => fired++ }, { icon: 'move' }],
+    })
+    b.layout(200)
+    b.handle!('down', 8, 10)
+    b.handle!('up', 60, 10) // released over the second button
+    expect(fired).toBe(0)
+  })
+})

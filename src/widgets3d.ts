@@ -785,7 +785,21 @@ export function iconBar3d(config: {
   // Tighter than the panel gap on purpose — an icon bar reads as one control.
   const ICON_GAP = 6
   const ICON = 20
-  const SELECTED = TH.BTN_ACTIVE
+  /*
+  SELECTED IS NOT PRESSED.
+
+  This used `buttonActive` for the selected item, which is the PRESS colour — so
+  a selected icon looked permanently pressed, and pressing one showed nothing
+  new because it was already wearing the press. Tonio: "the buttons in the
+  iconButtonBar don't color like buttons (e.g. active)."
+
+  Three states, three tokens, in the order they escalate: `buttonBg` at rest,
+  `buttonHover` under the pointer, `buttonActive` while held — and `selectedBg`
+  for "this one is on", which is a different axis entirely and is why the theme
+  has a separate token for it. See UI-DESIGN-NOTES: selection must not compete
+  with hover and focus for intensity.
+  */
+  const SELECTED = w3dTheme.selectedBg
   const by = (TH.ROW - BS) / 2
   // Per-item background + accent underline. The glyph itself bakes its colour at
   // creation (texture-safe), so state is shown by the background, not the icon.
@@ -864,10 +878,13 @@ export function iconBar3d(config: {
     // Reject the ICON_GAP dead-zone between buttons.
     return x - i * step <= BS ? i : -1
   }
+  let pressed = -1
   const paint = (hover: number) => {
     cells.forEach((c, i) => {
       const base = c.item.active ? SELECTED : TH.BTN_BG
-      c.bg.setAttribute('fill', i === hover ? TH.BTN_HOVER : base)
+      const fill =
+        i === pressed ? TH.BTN_ACTIVE : i === hover ? TH.BTN_HOVER : base
+      c.bg.setAttribute('fill', fill)
     })
   }
   return {
@@ -885,12 +902,18 @@ export function iconBar3d(config: {
     },
     handle(kind, x) {
       if (kind === 'leave') {
+        pressed = -1
         paint(-1)
         return
       }
       const i = indexAt(x)
+      if (kind === 'down') pressed = i
+      // Release BEFORE firing, so a handler that rebuilds the panel does not
+      // leave a button stuck looking held.
+      const fired = kind === 'up' && i >= 0 && i === pressed
+      if (kind === 'up') pressed = -1
       paint(i)
-      if (kind === 'up' && i >= 0) cells[i].item.onClick?.()
+      if (fired) cells[i].item.onClick?.()
     },
   }
 }
