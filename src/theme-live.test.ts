@@ -145,3 +145,41 @@ describe('withTheme — one default, per-panel overrides', () => {
     expect(theme.w3dTheme.accent).toBe(before.accent)
   })
 })
+
+describe('padding and lineHeight reach CONTROLS, not just text', () => {
+  const heightOf = (w: { layout: (n: number) => number }) => w.layout(240)
+
+  test('padding makes a button taller', () => {
+    // Both were fixed constants (ROW 40, PAD_X 12), so neither token could
+    // affect a button or a field: "lineHeight doesn't seem to have any effect.
+    // We also need a padding value that makes buttons and fields more spacious."
+    theme.setW3dTheme({ padding: 4 })
+    const tight = heightOf(w3d.button3d({ label: 'x' }))
+    theme.setW3dTheme({ padding: 20 })
+    const roomy = heightOf(w3d.button3d({ label: 'x' }))
+    expect(roomy).toBeGreaterThan(tight)
+    theme.setW3dTheme({ padding: 12 })
+  })
+
+  test('lineHeight does too', () => {
+    theme.setW3dTheme({ lineHeight: 1 })
+    const tight = heightOf(w3d.button3d({ label: 'x' }))
+    theme.setW3dTheme({ lineHeight: 2 })
+    const tall = heightOf(w3d.button3d({ label: 'x' }))
+    expect(tall).toBeGreaterThan(tight)
+    theme.setW3dTheme({ lineHeight: 1.35 })
+  })
+
+  test('padding and spacing are DIFFERENT things', () => {
+    // padding is inside a control, spacing is the gap between them — a dense
+    // inspector wants small padding and comfortable spacing, so one number
+    // cannot serve both.
+    const rows = () => [w3d.button3d({ label: 'a' }), w3d.button3d({ label: 'b' })]
+    theme.setW3dTheme({ padding: 12, spacing: 2 })
+    const tightGaps = Number(w3d.panel3d({ width: 240, height: 'fit' }, ...rows()).getAttribute('height'))
+    theme.setW3dTheme({ padding: 12, spacing: 24 })
+    const looseGaps = Number(w3d.panel3d({ width: 240, height: 'fit' }, ...rows()).getAttribute('height'))
+    expect(looseGaps).toBeGreaterThan(tightGaps)
+    theme.setW3dTheme({ spacing: 8 })
+  })
+})

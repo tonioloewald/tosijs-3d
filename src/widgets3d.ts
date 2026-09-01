@@ -314,8 +314,20 @@ const { svg, g, rect, text, circle, clipPath } = svgElements
 
 // --- Theme (configurable later) --------------------------------------------
 
-const ROW = 40
-const PAD_X = 12
+/*
+ROW AND PAD_X ARE DERIVED, not fixed.
+
+They were 40 and 12, so `padding` and `lineHeight` could not affect a button or
+a field — Tonio: "lineHeight doesn't seem to have any effect. We also need a
+padding value that makes buttons and fields more spacious." Both were true: the
+one place `lineHeight` reached was stacked text, and nothing set a control's
+inner padding at all.
+
+A row is now one line of text plus padding above and below, which is what a
+control's height actually is — so raising `padding` makes controls roomier in
+both axes, and `lineHeight` reaches everything rather than only text blocks.
+Defaults (16 × 1.35 + 12 × 2 ≈ 46) sit close to the old 40.
+*/
 const PAD_Y = 8
 
 // Widget styling comes from the `--w3d-*` CSS variables, resolved ONCE at load
@@ -383,6 +395,15 @@ const TH = {
   },
   get ROW_HOVER() {
     return w3dTheme.rowHover
+  },
+  get PAD_X() {
+    return w3dTheme.padding
+  },
+  /** One line of text plus padding above and below — what a control's height is. */
+  get ROW() {
+    return Math.round(
+      w3dTheme.fontSize * w3dTheme.lineHeight + w3dTheme.padding * 2
+    )
   },
   /** Compact line height for stacked text — a fraction of a full interactive ROW. */
   get LINE_H() {
@@ -543,7 +564,7 @@ const baseText = (content: string, fill = TH.TEXT, bold = false) =>
  * A static caption row. `color` overrides the default text colour (e.g. an
  * accent heading); `bold` renders it bold; `muted` dims it (ignored if `color`
  * is set). `compact` shrinks the row to one text line instead of a full
- * interactive-height ROW — for dense readouts (debug panels) where a 40px row per
+ * interactive-height TH.ROW — for dense readouts (debug panels) where a 40px row per
  * short line is mostly wasted space.
  */
 /**
@@ -637,8 +658,8 @@ export function label3d(config: {
 }): Widget3d {
   const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT)
   const t = baseText(config.text, fill, config.bold)
-  const h = config.compact ? TH.LINE_H : ROW
-  t.setAttribute('x', String(PAD_X))
+  const h = config.compact ? TH.LINE_H : TH.ROW
+  t.setAttribute('x', String(TH.PAD_X))
   t.setAttribute('y', String(h / 2))
   return { el: g({ 'data-w3d': 'label' }, t), layout: () => h }
 }
@@ -680,12 +701,12 @@ export function textBlock3d(config: {
     const wrapped: string[] = []
     for (const line of lines) {
       // Empty line stays empty (keeps blank-line rhythm); else wrap it.
-      const w = measureTextWrap(line, width - PAD_X * 2, font)
+      const w = measureTextWrap(line, width - TH.PAD_X * 2, font)
       for (const ln of w) wrapped.push(ln)
     }
     wrapped.forEach((ln, i) => {
       const t = baseText(ln, fill, config.bold)
-      t.setAttribute('x', String(PAD_X))
+      t.setAttribute('x', String(TH.PAD_X))
       t.setAttribute('y', String(PAD_Y + TH.LINE_H * (i + 0.6)))
       el.appendChild(t)
     })
@@ -715,19 +736,19 @@ export function button3d(config: {
     y: 4,
     rx: 8,
     ry: 8,
-    height: ROW - 8,
+    height: TH.ROW - 8,
     fill: TH.BTN_BG,
   })
   const lbl = baseText(config.label)
   lbl.setAttribute('text-anchor', 'middle')
-  lbl.setAttribute('y', String(ROW / 2))
+  lbl.setAttribute('y', String(TH.ROW / 2))
   const el = css(g({ 'data-w3d': 'button' }, bg, lbl), 'cursor:pointer')
   return {
     el,
     layout(width) {
       bg.setAttribute('width', String(width))
       lbl.setAttribute('x', String(width / 2))
-      return ROW
+      return TH.ROW
     },
     handle(kind) {
       if (kind === 'down') bg.setAttribute('fill', TH.BTN_ACTIVE)
@@ -765,7 +786,7 @@ export function iconBar3d(config: {
   const ICON_GAP = 6
   const ICON = 20
   const SELECTED = TH.BTN_ACTIVE
-  const by = (ROW - BS) / 2
+  const by = (TH.ROW - BS) / 2
   // Per-item background + accent underline. The glyph itself bakes its colour at
   // creation (texture-safe), so state is shown by the background, not the icon.
   const cells = config.items.map((item) => {
@@ -857,7 +878,7 @@ export function iconBar3d(config: {
       })
       // Captions live BELOW the button, so the row has to grow or the next
       // widget lands on top of them.
-      return hasCaptions ? ROW + CAPTION_H : ROW
+      return hasCaptions ? TH.ROW + CAPTION_H : TH.ROW
     },
     hitTest(x) {
       return indexAt(x) >= 0
@@ -882,24 +903,24 @@ export function toggle3d(config: {
 }): Widget3d {
   const bound = boundValue<boolean>(config.value, config.onChange)
   const lbl = baseText(config.label)
-  lbl.setAttribute('x', String(PAD_X))
-  lbl.setAttribute('y', String(ROW / 2))
+  lbl.setAttribute('x', String(TH.PAD_X))
+  lbl.setAttribute('y', String(TH.ROW / 2))
   const trackW = 46
   const trackH = 24
   const knobR = 9
   const track = rect({
-    y: (ROW - trackH) / 2,
+    y: (TH.ROW - trackH) / 2,
     width: trackW,
     height: trackH,
     rx: trackH / 2,
     ry: trackH / 2,
     fill: TH.TRACK,
   })
-  const knob = circle({ cy: ROW / 2, r: knobR, fill: '#fff' })
+  const knob = circle({ cy: TH.ROW / 2, r: knobR, fill: '#fff' })
   const rowBg = rect({
     x: 0,
     y: 2,
-    height: ROW - 4,
+    height: TH.ROW - 4,
     rx: 6,
     fill: 'transparent',
   })
@@ -925,10 +946,10 @@ export function toggle3d(config: {
     el,
     layout(width) {
       rowBg.setAttribute('width', String(width))
-      trackX = width - trackW - PAD_X
+      trackX = width - trackW - TH.PAD_X
       track.setAttribute('x', String(trackX))
       reflect()
-      return ROW
+      return TH.ROW
     },
     // Only the switch is interactive; the label area is scroll surface.
     hitTest(x) {
@@ -974,24 +995,24 @@ export function slider3d(config: {
   const bound = boundValue<number>(config.value, config.onChange)
   const lbl = config.label ? baseText(config.label) : null
   if (lbl) {
-    lbl.setAttribute('x', String(PAD_X))
-    lbl.setAttribute('y', String(ROW / 2))
+    lbl.setAttribute('x', String(TH.PAD_X))
+    lbl.setAttribute('y', String(TH.ROW / 2))
   }
   const trackEl = rect({
     height: 6,
     rx: 3,
     ry: 3,
     fill: TH.TRACK,
-    y: ROW / 2 - 3,
+    y: TH.ROW / 2 - 3,
   })
   const fillEl = rect({
     height: 6,
     rx: 3,
     ry: 3,
     fill: TH.ACCENT,
-    y: ROW / 2 - 3,
+    y: TH.ROW / 2 - 3,
   })
-  const knob = circle({ cy: ROW / 2, r: 10, fill: '#fff' })
+  const knob = circle({ cy: TH.ROW / 2, r: 10, fill: '#fff' })
   // Exact-value readout: shown (in place of the track) while you point at or drag
   // the slider, so the precise number is legible even at low XR texture res. The
   // label stays visible beside it. Decimals follow the step.
@@ -1001,8 +1022,8 @@ export function slider3d(config: {
   const format = config.format ?? ((v: number) => v.toFixed(decimals))
   const valText = baseText('', TH.ACCENT)
   valText.setAttribute('text-anchor', 'start')
-  valText.setAttribute('x', String(PAD_X))
-  valText.setAttribute('y', String(ROW / 2))
+  valText.setAttribute('x', String(TH.PAD_X))
+  valText.setAttribute('y', String(TH.ROW / 2))
   valText.setAttribute('font-weight', '600')
   valText.setAttribute('display', 'none')
   /*
@@ -1015,7 +1036,7 @@ export function slider3d(config: {
   */
   const fixedVal = baseText('', TH.ACCENT)
   fixedVal.setAttribute('text-anchor', 'end')
-  fixedVal.setAttribute('y', String(ROW / 2))
+  fixedVal.setAttribute('y', String(TH.ROW / 2))
   fixedVal.setAttribute('font-weight', '600')
   if (showValue !== 'always') fixedVal.setAttribute('display', 'none')
   /*
@@ -1036,7 +1057,7 @@ export function slider3d(config: {
   const rowBg = rect({
     x: 0,
     y: 2,
-    height: ROW - 4,
+    height: TH.ROW - 4,
     rx: 6,
     fill: 'transparent',
   })
@@ -1089,13 +1110,13 @@ export function slider3d(config: {
     layout(width) {
       rowBg.setAttribute('width', String(width))
       const labelW = lbl ? Math.min(width * 0.45, 150) : 0
-      trackX = PAD_X + labelW
-      trackW = width - trackX - PAD_X - 12 - readoutW
-      fixedVal.setAttribute('x', String(width - PAD_X))
+      trackX = TH.PAD_X + labelW
+      trackW = width - trackX - TH.PAD_X - 12 - readoutW
+      fixedVal.setAttribute('x', String(width - TH.PAD_X))
       trackEl.setAttribute('x', String(trackX))
       trackEl.setAttribute('width', String(trackW))
       reflect()
-      return ROW
+      return TH.ROW
     },
     // Only the track is interactive; the label area is scroll surface.
     hitTest(x) {
@@ -1137,20 +1158,20 @@ export function select3d(config: {
 
   const lbl = config.label ? baseText(config.label) : null
   if (lbl) {
-    lbl.setAttribute('x', String(PAD_X))
-    lbl.setAttribute('y', String(ROW / 2))
+    lbl.setAttribute('x', String(TH.PAD_X))
+    lbl.setAttribute('y', String(TH.ROW / 2))
   }
   const prev = baseText('‹', TH.ACCENT)
   const next = baseText('›', TH.ACCENT)
   const val = baseText('')
   for (const t of [prev, next, val]) {
     t.setAttribute('text-anchor', 'middle')
-    t.setAttribute('y', String(ROW / 2))
+    t.setAttribute('y', String(TH.ROW / 2))
   }
   const rowBg = rect({
     x: 0,
     y: 2,
-    height: ROW - 4,
+    height: TH.ROW - 4,
     rx: 6,
     fill: 'transparent',
   })
@@ -1182,12 +1203,12 @@ export function select3d(config: {
     layout(width) {
       rowBg.setAttribute('width', String(width))
       clusterW = Math.min(width * 0.55, 180)
-      clusterX = width - PAD_X - clusterW
+      clusterX = width - TH.PAD_X - clusterW
       prev.setAttribute('x', String(clusterX + 14))
       next.setAttribute('x', String(clusterX + clusterW - 14))
       val.setAttribute('x', String(clusterX + clusterW / 2))
       reflect()
-      return ROW
+      return TH.ROW
     },
     // Only the cluster steps; the label area stays a scroll surface.
     hitTest(x) {
@@ -1220,7 +1241,7 @@ export function list3d<T extends { label: string }>(config: {
   onSelect?: (item: T, index: number) => void
   rowHeight?: number
 }): Widget3d {
-  const rowH = config.rowHeight ?? ROW
+  const rowH = config.rowHeight ?? TH.ROW
   const el = css(g({ 'data-w3d': 'list' }), 'cursor:pointer')
   const rowBgs: SVGElement[] = []
   const highlight = (i: number) =>
@@ -1244,7 +1265,7 @@ export function list3d<T extends { label: string }>(config: {
           fill: TH.ROW_BG,
         })
         const t = baseText(item.label)
-        t.setAttribute('x', String(PAD_X))
+        t.setAttribute('x', String(TH.PAD_X))
         t.setAttribute('y', String(y + rowH / 2))
         rowBgs.push(bg)
         el.appendChild(bg)

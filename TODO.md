@@ -260,6 +260,23 @@
 
   Still open: whether the value round-trips as a string or a colour object.
 
+- **Web fonts do not reach in-scene panels.** Confirmed on the theme demo,
+  which shows one panel flat and as a texture: selecting Rosario (loaded from
+  Google Fonts) changes the DOM panel and leaves the textured one on its
+  fallback.
+
+  `svg-texture` serialises the SVG to a standalone `Image`, which the browser
+  treats as its own document — so it inherits neither the page's font faces nor
+  its CSS custom properties. The second half is why `w3d-theme` bakes literals;
+  the first half had not been noticed.
+
+  So `w3dTheme.fontFamily` reaches a scene panel only for families **installed
+  on the device**, which is why the shipped list is generics plus macOS/Windows
+  faces. Fix is to inline the face as a data-URI `@font-face` in the serialised
+  SVG — self-contained, same discipline as the literals. Not done because it
+  means fetching and base64-ing a font per texture, and that cost wants
+  measuring first; a large face is easily 100 KB+ per panel.
+
 ## The queue
 
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,

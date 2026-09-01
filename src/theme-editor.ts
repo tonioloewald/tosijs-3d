@@ -88,6 +88,7 @@ const COLOURS: Array<keyof W3dTheme> = [
 const METRICS: Array<[keyof W3dTheme, number, number, number]> = [
   ['fontSize', 10, 28, 1],
   ['roundedRadius', 0, 24, 1],
+  ['padding', 0, 24, 1],
   ['spacing', 0, 24, 1],
   ['strokeWidth', 0.5, 6, 0.5],
   ['lineHeight', 1, 2, 0.05],
@@ -126,6 +127,17 @@ export const FONT_STACKS = [
   */
   'Rosario, serif',
 ]
+
+/**
+ * Labels where the family name alone would mislead.
+ *
+ * Rosario is the only entry that needs the host to have loaded something, and
+ * it is the only one that will not render on an in-scene panel — so the menu
+ * says so rather than leaving you to discover it.
+ */
+const FONT_LABELS: Record<string, string> = {
+  'Rosario, serif': 'Rosario (Google Web Font)',
+}
 
 export interface ThemeEditorOptions {
   /** Heading above the grid. Pass `''` for none. */
@@ -349,7 +361,7 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
       ...FONT_STACKS.map((f) =>
         option(
           { value: f, style: { fontFamily: f } },
-          f.split(',')[0].replace(/"/g, '')
+          FONT_LABELS[f] ?? f.split(',')[0].replace(/"/g, '')
         )
       )
     )

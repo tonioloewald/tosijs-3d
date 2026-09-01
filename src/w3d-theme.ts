@@ -212,6 +212,17 @@ export const w3dTheme = {
   created to stop.
   */
   strokeWidth: parseFloat(cssVar('--w3d-stroke-width', '2')) || 2,
+  /**
+   * Padding INSIDE a control — what makes a button or a field feel roomy or
+   * cramped. Distinct from `spacing`, which is the gap BETWEEN them: a dense
+   * inspector wants small padding and comfortable spacing, and a touch UI
+   * usually wants the opposite, so one number cannot serve both.
+   *
+   * Row height derives from it (with `fontSize` and `lineHeight`), so raising
+   * it makes controls taller as well as wider — which is what "more spacious"
+   * means and what a single width-only padding fails to deliver.
+   */
+  padding: parseFloat(cssVar('--w3d-padding', '12')) || 12,
   roundedRadius: parseFloat(cssVar('--w3d-rounded-radius', '6')) || 6,
   spacing: parseFloat(cssVar('--w3d-spacing', '8')) || 8,
   lineHeight: parseFloat(cssVar('--w3d-line-height', '1.35')) || 1.35,
