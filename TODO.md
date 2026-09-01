@@ -187,7 +187,48 @@
   package that deliberately keeps it a peer, which is a worse trade than a
   little duplication. Copy what is needed, when it is needed.
 
-- **`vector3d` / `euler3d` — one row for a coordinate, not three.** Tonio: so
+- **`curve3d` — an editor for a profile, i.e. a continuous `[0,1] → [0,1]`.**
+  Tonio's ask, for authoring terrain **province** profiles rather than picking
+  from the five we shipped.
+
+  **The representation is already decided, by what terrain consumes.** Tonio:
+  "spline based or piece wise linear or whatever, it doesn't really matter" —
+  and it does not, EXCEPT that `slope-profile.ts` already hands terrain a
+  `PiecewiseLinearFilter` (an array of `{x, y}` control points, kept sorted),
+  and `cliff`/`beach`/`rolling`/`mesa`/`terrace` are already written in exactly
+  that form. So the editor edits control points, the five named profiles become
+  its presets/starting points, and nothing needs a conversion layer. A spline
+  would be a nicer curve and a new type for terrain to learn.
+
+  **The range is CLOSED on purpose, and this is the load-bearing decision.**
+  Tonio: "let's assume we don't allow mapping outside of `[0,1]` and instead
+  scale the terrain block to avoid playing badly with carving". A profile that
+  can return 1.4 silently changes the height a province occupies, which is the
+  one thing `carve`/`patch-field` need to agree about — a bore cut against a
+  heightfield that has since grown is a hole in the wrong place, and it fails as
+  geometry rather than as an error. Amplitude is a property of the block; shape
+  is a property of the curve. Keep them apart.
+
+  Consequences worth stating so they are not rediscovered: dragging a point
+  clamps in y rather than pushing the range; the editor cannot express "twice as
+  tall", so the block needs a height control beside it; and an imported profile
+  that exceeds the range is normalised WITH its scale hoisted into that control,
+  not truncated.
+
+  **Prior art in the repo**: `gradient-editor.ts` is already an interactive
+  editor over stops along an axis, and `PiecewiseLinearFilter` is already the
+  thing both would edit. Look hard at sharing before writing a second one.
+
+  Shape: a `Widget3d` like everything else (so it works flat, in-scene and in a
+  headset), pure model separated from the drawing per the usual discipline, and
+  unit-tested — monotonic-in-x invariant, endpoint pinning, clamped drags, and
+  round-tripping each named preset through the editor unchanged.
+
+- **DONE (0.7.4) — `vector3d` / `euler3d` — one row for a coordinate, not
+  three.** Shipped as `src/vector-field.ts` (20 tests, demo at `/vector-field/`).
+  The focus note below turned out to be the real work: the host tracks focus per
+  WIDGET, so the row keeps its own axis index and reflects state onto exactly one
+  field, plus `focusMove` for x → y → z traversal. Tonio: so
   displaying a position or a rotation stops costing three rows. This is the
   densest single win left in the property panel, since almost everything an
   editor shows is a triple.
