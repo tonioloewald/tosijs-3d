@@ -67,6 +67,47 @@ provides the coordinate system and a good default makes them a one-line
 override. The rule is only that they are all speaking the same coordinates —
 which is what stops the disagreement from being _accidental_.
 
+### And every one of those responses IS a curve
+
+Look again at that list — glow reaching past the slope, a treeline stopping short
+of the edge, carving confined to the core, a hard margin where everything else is
+soft. Each is a different **weight against normalised distance**: a function from
+`[0,1]` to `[0,1]`, authored per layer, all reading the same coordinate.
+
+So "a curve per layer" is not a restriction imposed on that list. It is the
+general form OF it.
+
+Tonio: _"basically this should turn all provinces into simple instances of this
+system."_ Which is the claim worth stating plainly, because it is falsifiable:
+
+> A province is a **footprint** plus **one curve per layer**. `volcano`,
+> `impactCrater` and `pad` stop being bespoke code and become curve sets.
+
+**Direction lives in the footprint; response lives in the curve.** That split is
+what makes a scalar curve general enough to mean it. A single `[0,1] → [0,1]` has
+no notion of angle, so a valley, a ridge or a river cannot come out of one — but
+none of those are asking for an angular *response*, they are asking for a
+non-circular *footprint*. Any domain that can yield a normalised distance (box,
+capsule, spline-swept tube, an SDF) drives the identical curve. The curve never
+needs to know the shape it is falling off from.
+
+**The evidence so far.** `pad(radius, level, blend)` — which we hand-wrote — is a
+constant profile plus an eased falloff. Tonio, arriving at it from the other
+direction: _"a constant province with a gradual fallout gives you a plateau."_ An
+existing authored landform reproduced by composing two curves is the strongest
+support the model has.
+
+**The test that would settle it**, and it should be run before this is believed:
+re-express `pad`, `volcano` and `impactCrater` as curve sets and diff them
+against the current output. Exact agreement makes the claim; anything that needs
+a special case has NAMED the thing the model is missing, which is worth more than
+the unification would have been. Matching in spirit and differing at the blend
+edge is the outcome to guard against — two things that look interchangeable and
+are not.
+
+The payoff, if it holds: one editor authors every layer of every province, and a
+new landform is **data rather than code**.
+
 ## The shape layer has TWO modes, and they are both already built
 
 Different provinces shape land in different — but closely related — ways, and the
