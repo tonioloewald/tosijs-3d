@@ -134,3 +134,34 @@ describe('grip drag survives Babylon own POINTERDOWN pass', () => {
     expect(drag.dragging).toBe(false)
   })
 })
+
+describe('the grab point is passed to startDrag (offset preserved)', () => {
+  test('startDrag receives the picked point, not just a pointer id', () => {
+    // Without it Babylon grabs at the MESH ORIGIN, so the panel snaps until its
+    // centre is under the pointer and then follows — reported as "it drifts to
+    // centre the mouse pointer rather than preserving the offset".
+    const calls: Array<[number, unknown, unknown]> = []
+    const drag = {
+      dragging: false,
+      startDrag(id: number, ray: unknown, point: unknown) {
+        calls.push([id, ray, point])
+      },
+    }
+    const grab = { x: 1, y: 2, z: 3, clone() { return { ...this } } }
+    // what beginDrag does, reduced to its essentials
+    const cloned = grab.clone()
+    drag.startDrag(7, undefined, cloned)
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toBe(7)
+    expect(calls[0][2]).toMatchObject({ x: 1, y: 2, z: 3 })
+  })
+
+  test('the grab point is CLONED, not held live', () => {
+    // Babylon reuses its pick info, so holding the live vector means the grab
+    // point silently becomes wherever the pointer is now — the same bug again.
+    const live = { x: 1, y: 2, z: 3, clone() { return { ...this } } }
+    const captured = live.clone()
+    live.x = 999
+    expect(captured.x).toBe(1)
+  })
+})

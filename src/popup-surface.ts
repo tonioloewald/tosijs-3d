@@ -216,7 +216,11 @@ export interface PopupSurface {
   vbHeight: number
   chromeLayout: ReturnType<typeof chromeLayout>
   /** Internal: start the move gesture (called after the grip hit test). */
-  beginDrag(pointerId: number): void
+  /**
+   * Internal: start a drag, grabbing at `pickedPoint` so the panel keeps the
+   * offset you grabbed it by instead of jumping to centre on the pointer.
+   */
+  beginDrag(pointerId: number, pickedPoint?: BABYLON.Vector3): void
   /** Internal: end it on pointerup — the behaviour's own release is disabled. */
   endDrag(): void
   /** Bring this popup to the front of the stack. */
@@ -432,7 +436,11 @@ function wirePointer(owner: B3d): void {
       }
       // Yield BEFORE starting: the camera must not have the press either.
       yieldCamera()
-      target.beginDrag((info.event as PointerEvent | undefined)?.pointerId ?? 0)
+      target.beginDrag(
+        (info.event as PointerEvent | undefined)?.pointerId ?? 0,
+        // The point on the panel actually under the pointer — see beginDrag.
+        info.pickInfo?.pickedPoint ?? undefined
+      )
     }
   })
 }
@@ -630,7 +638,7 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     vbWidth: vbW,
     vbHeight: vbH,
     chromeLayout: layout,
-    beginDrag(pointerId: number) {
+    beginDrag(pointerId: number, pickedPoint?: BABYLON.Vector3) {
       if (drag == null || !draggable) return
       /*
       AFTER THE WHOLE EVENT, not merely after our own handler.
@@ -649,9 +657,24 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
       one is to leave the event entirely.
       */
       const id = pointerId
+      /*
+      PASS THE GRAB POINT, or the panel jumps.
+
+      `startDrag(id)` alone leaves Babylon with no start point, so it grabs at
+      the MESH ORIGIN — the panel snaps until its centre is under the pointer
+      and then follows. Tonio: "when you click on an element it drifts to
+      centre the mouse pointer rather than preserving the offset." Handing it
+      the point actually under the pointer makes the panel stay where you took
+      hold of it, which is what every drag anywhere else does.
+
+      Cloned because the pick info is reused by the scene: keeping the live
+      vector means the grab point quietly becomes wherever the pointer is now,
+      which is the same bug wearing a disguise.
+      */
+      const grab = pickedPoint?.clone()
       queueMicrotask(() => {
         if (drag == null || closed) return
-        drag.startDrag(id)
+        drag.startDrag(id, undefined, grab)
       })
     },
     endDrag() {
