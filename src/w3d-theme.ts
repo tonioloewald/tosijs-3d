@@ -32,11 +32,12 @@ import { panel3d, row3d, label3d, slider3d, toggle3d, button3d, ui,
          setW3dTheme, w3dTheme } from 'tosijs-3d'
 import { colorInput } from 'tosijs-ui'
 import { elements } from 'tosijs'
-const { div, label, select, option } = elements
+const { div, label, select, option, span, input } = elements
 
 // Only tokens with a live consumer — a control that cannot change anything is
 // worse than an absent one, because it reads as a broken theme.
-const colours = ['panelBg', 'text', 'accent', 'rowBg', 'rowHover', 'buttonBg', 'caret', 'placeholder']
+const colours = ['panelBg', 'text', 'muted', 'accent', 'rowBg', 'rowHover',
+  'buttonBg', 'buttonHover', 'track', 'caret', 'placeholder']
 const numbers = [['roundedRadius', 0, 24, 1], ['spacing', 0, 24, 1], ['strokeWidth', 0.5, 6, 0.5], ['lineHeight', 1, 2, 0.05], ['fontSize', 10, 28, 1]]
 const fonts = ['system-ui, sans-serif', 'Georgia, serif', 'ui-monospace, Menlo, monospace', 'Impact, sans-serif']
 
@@ -65,11 +66,15 @@ for (const key of colours) {
     onChange(evt) { setW3dTheme({ [key]: evt.target.value }); build() },
   }))
 }
+// A slider alone hides the value you are setting — pair it with a number field
+// so you can read the exact figure and type one in.
 for (const [key, min, max, step] of numbers) {
-  row(key, elements.input({
-    type: 'range', min, max, step, value: String(w3dTheme[key]),
-    onInput(evt) { setW3dTheme({ [key]: Number(evt.target.value) }); build() },
-  }))
+  const apply = (v) => { setW3dTheme({ [key]: Number(v) }); build(); num.value = String(v); range.value = String(v) }
+  const range = input({ type: 'range', min, max, step, value: String(w3dTheme[key]),
+    onInput(evt) { apply(evt.target.value) } })
+  const num = input({ type: 'number', min, max, step, value: String(w3dTheme[key]),
+    style: 'width:64px', onChange(evt) { apply(evt.target.value) } })
+  row(key, span({ style: 'display:flex; gap:8px; align-items:center' }, range, num))
 }
 row('fontFamily', select({
   onChange(evt) { setW3dTheme({ fontFamily: evt.target.value }); build() },

@@ -58,6 +58,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
   past the surface it must land on — flipping cannot rescue a popup that is
   taller than both sides.
 
+- **⚠️ The theme now actually reaches the widgets.** Every `--w3d-*` value was
+  captured in a module-level `const` at **import** time, so `setW3dTheme` could
+  never affect anything — colours, fonts and metrics alike. Only
+  `roundedRadius` appeared to work, because it happened to be read inline.
+  Reads are now live (getters), so a widget takes the theme in force when it is
+  **built**, which is what the docs always claimed.
 - **The SVG UI is themeable** — 21 tokens, up from 17. Added `focus`,
   `selectedBg`, `disabledBg`, `disabledText`, `strokeWidth`, `roundedRadius`,
   `spacing`, `lineHeight`, `codeFontFamily`, `codeFontWeight`, plus `overlay`,

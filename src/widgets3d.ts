@@ -317,37 +317,90 @@ const { svg, g, rect, text, circle, clipPath } = svgElements
 const ROW = 40
 const PAD_X = 12
 const PAD_Y = 8
-const GAP = w3dTheme.spacing
 
 // Widget styling comes from the `--w3d-*` CSS variables, resolved ONCE at load
 // in w3d-theme (the full rationale — texture rasterization can't see the page's
 // custom properties — lives there). Local names keep the paint code brief.
-const FONT = w3dTheme.fontSize
-const FONT_FAMILY = w3dTheme.fontFamily
-const TEXT = w3dTheme.text
-const MUTED = w3dTheme.muted
-const HEADING_WEIGHT = w3dTheme.headingWeight
-const TEXT_WEIGHT = w3dTheme.textWeight
-const PANEL_BG = w3dTheme.panelBg
-const BTN_BG = w3dTheme.buttonBg
-const BTN_HOVER = w3dTheme.buttonHover
-const BTN_ACTIVE = w3dTheme.buttonActive
-const TRACK = w3dTheme.track
-const ACCENT = w3dTheme.accent
-const ROW_BG = w3dTheme.rowBg
-const ROW_HOVER = w3dTheme.rowHover
 
 // Compact line height for stacked text (text3d / textBlock3d) — a fraction of a full
 // interactive ROW, which is what buys the vertical space back on text-heavy panels.
-const LINE_H = Math.round(FONT * w3dTheme.lineHeight)
 // One FontSpec, used BOTH to measure and to stamp the matching font-* attributes on
 // the <text>, so measurement and rendering can't drift out of sync.
-const TEXT_FONT: FontSpec = {
-  size: FONT,
-  family: FONT_FAMILY,
-  weight: TEXT_WEIGHT,
+
+/*
+LIVE THEME READS — these were `const X = w3dTheme.x` at module scope.
+
+That captured the palette the instant the module was IMPORTED, so
+`setW3dTheme` could never reach them: the constants already held the old
+values, and a theme editor changed nothing. Only `roundedRadius` appeared to
+work, because it happened to be read inline at construction.
+
+Getters make every read happen when a widget is BUILT, which is the contract
+the theme documents. The names stay so the paint code reads the same.
+*/
+const TH = {
+  get GAP() {
+    return w3dTheme.spacing
+  },
+  get FONT() {
+    return w3dTheme.fontSize
+  },
+  get FONT_FAMILY() {
+    return w3dTheme.fontFamily
+  },
+  get TEXT() {
+    return w3dTheme.text
+  },
+  get MUTED() {
+    return w3dTheme.muted
+  },
+  get HEADING_WEIGHT() {
+    return w3dTheme.headingWeight
+  },
+  get TEXT_WEIGHT() {
+    return w3dTheme.textWeight
+  },
+  get PANEL_BG() {
+    return w3dTheme.panelBg
+  },
+  get BTN_BG() {
+    return w3dTheme.buttonBg
+  },
+  get BTN_HOVER() {
+    return w3dTheme.buttonHover
+  },
+  get BTN_ACTIVE() {
+    return w3dTheme.buttonActive
+  },
+  get TRACK() {
+    return w3dTheme.track
+  },
+  get ACCENT() {
+    return w3dTheme.accent
+  },
+  get ROW_BG() {
+    return w3dTheme.rowBg
+  },
+  get ROW_HOVER() {
+    return w3dTheme.rowHover
+  },
+  /** Compact line height for stacked text — a fraction of a full interactive ROW. */
+  get LINE_H() {
+    return Math.round(w3dTheme.fontSize * w3dTheme.lineHeight)
+  },
+  /** One FontSpec used BOTH to measure and to stamp font-* attributes, so the
+   * two cannot drift. */
+  get TEXT_FONT(): FontSpec {
+    return {
+      size: w3dTheme.fontSize,
+      family: w3dTheme.fontFamily,
+      weight: w3dTheme.textWeight,
+    }
+  },
+  get BOLD_FONT(): FontSpec {
+    return { ...TH.TEXT_FONT, weight: w3dTheme.headingWeight }
+  },
 }
-const BOLD_FONT: FontSpec = { ...TEXT_FONT, weight: HEADING_WEIGHT }
 
 let clipSeq = 0
 
@@ -472,13 +525,13 @@ function localPoint(el: SVGElement, clientX: number, clientY: number) {
   return { x: p.x, y: p.y }
 }
 
-const baseText = (content: string, fill = TEXT, bold = false) =>
+const baseText = (content: string, fill = TH.TEXT, bold = false) =>
   text(
     {
       'dominant-baseline': 'middle',
-      'font-size': FONT,
-      'font-family': FONT_FAMILY,
-      'font-weight': bold ? HEADING_WEIGHT : TEXT_WEIGHT,
+      'font-size': TH.FONT,
+      'font-family': TH.FONT_FAMILY,
+      'font-weight': bold ? TH.HEADING_WEIGHT : TH.TEXT_WEIGHT,
       fill,
     },
     content
@@ -520,7 +573,7 @@ export function row3d(
   },
   ...children: Widget3d[]
 ): Widget3d {
-  const gap = config.gap ?? GAP
+  const gap = config.gap ?? TH.GAP
   const align = config.align ?? 'middle'
   const el = g()
   const wraps = children.map((c) => {
@@ -582,9 +635,9 @@ export function label3d(config: {
   color?: string
   compact?: boolean
 }): Widget3d {
-  const fill = config.color ?? (config.muted ? MUTED : TEXT)
+  const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT)
   const t = baseText(config.text, fill, config.bold)
-  const h = config.compact ? LINE_H : ROW
+  const h = config.compact ? TH.LINE_H : ROW
   t.setAttribute('x', String(PAD_X))
   t.setAttribute('y', String(h / 2))
   return { el: g({ 'data-w3d': 'label' }, t), layout: () => h }
@@ -617,8 +670,8 @@ export function textBlock3d(config: {
   color?: string
 }): Widget3d & { update(lines: string[]): void } {
   const el = g({ 'data-w3d': 'textblock' })
-  const fill = config.color ?? (config.muted ? MUTED : TEXT)
-  const font = config.bold ? BOLD_FONT : TEXT_FONT
+  const fill = config.color ?? (config.muted ? TH.MUTED : TH.TEXT)
+  const font = config.bold ? TH.BOLD_FONT : TH.TEXT_FONT
   let lines = config.lines
   let lastWidth = 0
 
@@ -633,10 +686,10 @@ export function textBlock3d(config: {
     wrapped.forEach((ln, i) => {
       const t = baseText(ln, fill, config.bold)
       t.setAttribute('x', String(PAD_X))
-      t.setAttribute('y', String(PAD_Y + LINE_H * (i + 0.6)))
+      t.setAttribute('y', String(PAD_Y + TH.LINE_H * (i + 0.6)))
       el.appendChild(t)
     })
-    return Math.max(LINE_H, wrapped.length * LINE_H + PAD_Y * 2)
+    return Math.max(TH.LINE_H, wrapped.length * TH.LINE_H + PAD_Y * 2)
   }
 
   return {
@@ -657,7 +710,7 @@ export function button3d(config: {
   label: string
   onClick?: () => void
 }): Widget3d {
-  const bg = rect({ x: 0, y: 4, rx: 8, ry: 8, height: ROW - 8, fill: BTN_BG })
+  const bg = rect({ x: 0, y: 4, rx: 8, ry: 8, height: ROW - 8, fill: TH.BTN_BG })
   const lbl = baseText(config.label)
   lbl.setAttribute('text-anchor', 'middle')
   lbl.setAttribute('y', String(ROW / 2))
@@ -670,10 +723,10 @@ export function button3d(config: {
       return ROW
     },
     handle(kind) {
-      if (kind === 'down') bg.setAttribute('fill', BTN_ACTIVE)
-      else if (kind === 'leave') bg.setAttribute('fill', BTN_BG)
+      if (kind === 'down') bg.setAttribute('fill', TH.BTN_ACTIVE)
+      else if (kind === 'leave') bg.setAttribute('fill', TH.BTN_BG)
       else {
-        bg.setAttribute('fill', BTN_HOVER) // hover / move / up
+        bg.setAttribute('fill', TH.BTN_HOVER) // hover / move / up
         if (kind === 'up') config.onClick?.()
       }
     },
@@ -701,9 +754,10 @@ export function iconBar3d(config: {
   }>
 }): Widget3d {
   const BS = 32 // button size
-  const GAP = 6
+  // Tighter than the panel gap on purpose — an icon bar reads as one control.
+  const ICON_GAP = 6
   const ICON = 20
-  const SELECTED = BTN_ACTIVE
+  const SELECTED = TH.BTN_ACTIVE
   const by = (ROW - BS) / 2
   // Per-item background + accent underline. The glyph itself bakes its colour at
   // creation (texture-safe), so state is shown by the background, not the icon.
@@ -715,7 +769,7 @@ export function iconBar3d(config: {
       height: BS,
       rx: 8,
       ry: 8,
-      fill: item.active ? SELECTED : BTN_BG,
+      fill: item.active ? SELECTED : TH.BTN_BG,
     })
     const underline = rect({
       x: 6,
@@ -723,10 +777,10 @@ export function iconBar3d(config: {
       width: BS - 12,
       height: 2,
       rx: 1,
-      fill: item.active ? ACCENT : 'transparent',
+      fill: item.active ? TH.ACCENT : 'transparent',
     })
     const glyph = iconGlyph(item.icon, {
-      color: TEXT,
+      color: TH.TEXT,
       size: ICON,
       x: (BS - ICON) / 2,
       y: (BS - ICON) / 2,
@@ -758,9 +812,9 @@ export function iconBar3d(config: {
               'dominant-baseline': 'hanging',
               'text-anchor': 'middle',
               'font-size': 9,
-              'font-family': FONT_FAMILY,
-              'font-weight': TEXT_WEIGHT,
-              fill: MUTED,
+              'font-family': TH.FONT_FAMILY,
+              'font-weight': TH.TEXT_WEIGHT,
+              fill: TH.MUTED,
               x: BS / 2,
               y: BS + 3,
             },
@@ -775,17 +829,17 @@ export function iconBar3d(config: {
   const el = g({ 'data-w3d': 'iconbar' }, ...cells.map((c) => c.cell))
   const hasCaptions = config.items.some((i) => i.title)
   const CAPTION_H = 12
-  const step = BS + GAP
+  const step = BS + ICON_GAP
   const indexAt = (x: number): number => {
     const i = Math.floor(x / step)
     if (i < 0 || i >= cells.length) return -1
-    // Reject the GAP dead-zone between buttons.
+    // Reject the ICON_GAP dead-zone between buttons.
     return x - i * step <= BS ? i : -1
   }
   const paint = (hover: number) => {
     cells.forEach((c, i) => {
-      const base = c.item.active ? SELECTED : BTN_BG
-      c.bg.setAttribute('fill', i === hover ? BTN_HOVER : base)
+      const base = c.item.active ? SELECTED : TH.BTN_BG
+      c.bg.setAttribute('fill', i === hover ? TH.BTN_HOVER : base)
     })
   }
   return {
@@ -832,7 +886,7 @@ export function toggle3d(config: {
     height: trackH,
     rx: trackH / 2,
     ry: trackH / 2,
-    fill: TRACK,
+    fill: TH.TRACK,
   })
   const knob = circle({ cy: ROW / 2, r: knobR, fill: '#fff' })
   const rowBg = rect({
@@ -849,7 +903,7 @@ export function toggle3d(config: {
   let trackX = 0
   const reflect = () => {
     const on = bound.get()
-    track.setAttribute('fill', on ? ACCENT : TRACK)
+    track.setAttribute('fill', on ? TH.ACCENT : TH.TRACK)
     knob.setAttribute(
       'cx',
       String(on ? trackX + trackW - knobR - 3 : trackX + knobR + 3)
@@ -876,7 +930,7 @@ export function toggle3d(config: {
     handle(kind) {
       if (kind === 'leave') rowBg.setAttribute('fill', 'transparent')
       else {
-        rowBg.setAttribute('fill', ROW_HOVER)
+        rowBg.setAttribute('fill', TH.ROW_HOVER)
         if (kind === 'up') flip()
       }
     },
@@ -916,8 +970,8 @@ export function slider3d(config: {
     lbl.setAttribute('x', String(PAD_X))
     lbl.setAttribute('y', String(ROW / 2))
   }
-  const trackEl = rect({ height: 6, rx: 3, ry: 3, fill: TRACK, y: ROW / 2 - 3 })
-  const fillEl = rect({ height: 6, rx: 3, ry: 3, fill: ACCENT, y: ROW / 2 - 3 })
+  const trackEl = rect({ height: 6, rx: 3, ry: 3, fill: TH.TRACK, y: ROW / 2 - 3 })
+  const fillEl = rect({ height: 6, rx: 3, ry: 3, fill: TH.ACCENT, y: ROW / 2 - 3 })
   const knob = circle({ cy: ROW / 2, r: 10, fill: '#fff' })
   // Exact-value readout: shown (in place of the track) while you point at or drag
   // the slider, so the precise number is legible even at low XR texture res. The
@@ -926,7 +980,7 @@ export function slider3d(config: {
     step > 0 ? (step < 1 ? Math.min(4, -Math.floor(Math.log10(step))) : 0) : 2
   const showValue = config.showValue ?? 'peek'
   const format = config.format ?? ((v: number) => v.toFixed(decimals))
-  const valText = baseText('', ACCENT)
+  const valText = baseText('', TH.ACCENT)
   valText.setAttribute('text-anchor', 'start')
   valText.setAttribute('x', String(PAD_X))
   valText.setAttribute('y', String(ROW / 2))
@@ -940,7 +994,7 @@ export function slider3d(config: {
   moves when you touch it, which is the one thing a number you are reading must
   not do.
   */
-  const fixedVal = baseText('', ACCENT)
+  const fixedVal = baseText('', TH.ACCENT)
   fixedVal.setAttribute('text-anchor', 'end')
   fixedVal.setAttribute('y', String(ROW / 2))
   fixedVal.setAttribute('font-weight', '600')
@@ -955,8 +1009,8 @@ export function slider3d(config: {
     showValue === 'always'
       ? Math.ceil(
           Math.max(
-            measureTextWidth(format(min), TEXT_FONT),
-            measureTextWidth(format(max), TEXT_FONT)
+            measureTextWidth(format(min), TH.TEXT_FONT),
+            measureTextWidth(format(max), TH.TEXT_FONT)
           )
         ) + 10
       : 0
@@ -1033,7 +1087,7 @@ export function slider3d(config: {
         rowBg.setAttribute('fill', 'transparent')
         peek(false)
       } else {
-        rowBg.setAttribute('fill', ROW_HOVER)
+        rowBg.setAttribute('fill', TH.ROW_HOVER)
         peek(true) // pointing at it (hover/press) → show the exact value
         if (kind === 'down' || kind === 'move') setFromX(x) // hover/up don't set
       }
@@ -1067,8 +1121,8 @@ export function select3d(config: {
     lbl.setAttribute('x', String(PAD_X))
     lbl.setAttribute('y', String(ROW / 2))
   }
-  const prev = baseText('‹', ACCENT)
-  const next = baseText('›', ACCENT)
+  const prev = baseText('‹', TH.ACCENT)
+  const next = baseText('›', TH.ACCENT)
   const val = baseText('')
   for (const t of [prev, next, val]) {
     t.setAttribute('text-anchor', 'middle')
@@ -1124,17 +1178,17 @@ export function select3d(config: {
       const onLeft = x < clusterX + clusterW / 2
       if (kind === 'leave') {
         rowBg.setAttribute('fill', 'transparent')
-        prev.setAttribute('fill', ACCENT)
-        next.setAttribute('fill', ACCENT)
+        prev.setAttribute('fill', TH.ACCENT)
+        next.setAttribute('fill', TH.ACCENT)
         return
       }
-      rowBg.setAttribute('fill', ROW_HOVER)
+      rowBg.setAttribute('fill', TH.ROW_HOVER)
       if (kind === 'down') {
-        prev.setAttribute('fill', onLeft ? '#fff' : ACCENT)
-        next.setAttribute('fill', onLeft ? ACCENT : '#fff')
+        prev.setAttribute('fill', onLeft ? '#fff' : TH.ACCENT)
+        next.setAttribute('fill', onLeft ? TH.ACCENT : '#fff')
       } else if (kind === 'up') {
-        prev.setAttribute('fill', ACCENT)
-        next.setAttribute('fill', ACCENT)
+        prev.setAttribute('fill', TH.ACCENT)
+        next.setAttribute('fill', TH.ACCENT)
         step(onLeft ? -1 : 1)
       }
     },
@@ -1152,7 +1206,7 @@ export function list3d<T extends { label: string }>(config: {
   const rowBgs: SVGElement[] = []
   const highlight = (i: number) =>
     rowBgs.forEach((bg, j) =>
-      bg.setAttribute('fill', j === i ? ROW_HOVER : ROW_BG)
+      bg.setAttribute('fill', j === i ? TH.ROW_HOVER : TH.ROW_BG)
     )
   return {
     el,
@@ -1168,7 +1222,7 @@ export function list3d<T extends { label: string }>(config: {
           height: rowH - 4,
           rx: 6,
           ry: 6,
-          fill: ROW_BG,
+          fill: TH.ROW_BG,
         })
         const t = baseText(item.label)
         t.setAttribute('x', String(PAD_X))
@@ -1223,7 +1277,7 @@ export function panel3d(
   const width = config.width ?? 360
   const padding = config.padding ?? 12
   const paddingTop = config.paddingTop ?? padding
-  const gap = config.gap ?? GAP
+  const gap = config.gap ?? TH.GAP
   const innerW = width - padding * 2
 
   /*
@@ -1265,7 +1319,7 @@ export function panel3d(
     height,
     rx: w3dTheme.roundedRadius * 2,
     ry: w3dTheme.roundedRadius * 2,
-    fill: config.background ?? PANEL_BG,
+    fill: config.background ?? TH.PANEL_BG,
   })
 
   const clipId = `w3d-clip-${clipSeq++}`

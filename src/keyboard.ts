@@ -282,15 +282,6 @@ const { g, rect, text } = svgElements
 
 // Theme reads live in ONE module (w3d-theme) — see the review-caught
 // triplication; the local names keep this file's paint code readable.
-const TEXT = w3dTheme.text
-const ACCENT = w3dTheme.accent
-const KEY_BG = w3dTheme.buttonBg
-const KEY_ACTION_BG = w3dTheme.track
-const KEY_DOWN = w3dTheme.buttonActive
-const FIELD_BG = w3dTheme.rowBg
-const PLACEHOLDER = w3dTheme.placeholder
-const PANEL_BG = w3dTheme.panelBg
-const FONT_FAMILY = w3dTheme.fontFamily
 
 /** A text field driven by the pure edit model. Tap to place the caret. */
 export interface InputField extends Widget3d {
@@ -362,6 +353,42 @@ export interface InputField extends Widget3d {
    * field — silently, and only sometimes.
    */
   onFocus?: () => void
+}
+
+/*
+LIVE THEME READS — see the same note in widgets3d.
+
+`const X = w3dTheme.x` at module scope captured the palette at IMPORT, so
+`setW3dTheme` could not reach it and a theme editor changed nothing.
+*/
+const TH = {
+  get TEXT() {
+    return w3dTheme.text
+  },
+  get ACCENT() {
+    return w3dTheme.accent
+  },
+  get KEY_BG() {
+    return w3dTheme.buttonBg
+  },
+  get KEY_ACTION_BG() {
+    return w3dTheme.track
+  },
+  get KEY_DOWN() {
+    return w3dTheme.buttonActive
+  },
+  get FIELD_BG() {
+    return w3dTheme.rowBg
+  },
+  get PLACEHOLDER() {
+    return w3dTheme.placeholder
+  },
+  get PANEL_BG() {
+    return w3dTheme.panelBg
+  },
+  get FONT_FAMILY() {
+    return w3dTheme.fontFamily
+  },
 }
 
 /**
@@ -504,7 +531,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   const H = config.height ?? 40
   const SIZE = config.fontSize ?? 16
   const PAD = 10
-  const font: FontSpec = { size: SIZE, family: FONT_FAMILY, weight: '400' }
+  const font: FontSpec = { size: SIZE, family: TH.FONT_FAMILY, weight: '400' }
 
   const fieldType: FieldType = config.type ?? 'text'
   let state: EditState = edit(config.value ?? '')
@@ -561,16 +588,16 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   // here beside the state it guards.
   let paintRef: () => void = () => {}
 
-  const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: FIELD_BG })
+  const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: TH.FIELD_BG })
   const label = text({
     x: PAD,
     y: H / 2,
     'dominant-baseline': 'middle',
     'font-size': SIZE,
-    'font-family': FONT_FAMILY,
-    fill: TEXT,
+    'font-family': TH.FONT_FAMILY,
+    fill: TH.TEXT,
   })
-  // The caret gets its own token rather than borrowing ACCENT: it is the one
+  // The caret gets its own token rather than borrowing TH.ACCENT: it is the one
   // mark that must stay findable against a themed field background, and a theme
   // that tones the accent down for calm should not make the caret vanish.
   const caret = rect({
@@ -617,7 +644,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   const paint = (): void => {
     const empty = state.text.length === 0
     label.textContent = empty ? config.placeholder ?? '' : state.text
-    label.setAttribute('fill', empty ? PLACEHOLDER : TEXT)
+    label.setAttribute('fill', empty ? TH.PLACEHOLDER : TH.TEXT)
     caret.setAttribute('x', String(caretX()))
     // Always visible, DIM when unfocused: with two fields on a panel the caret
     // is the focus indicator, and a vanished caret reads as "focus is lost and
@@ -838,7 +865,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   const focusRing = rect({
     'data-kb-focus': '',
     fill: 'none',
-    stroke: ACCENT,
+    stroke: TH.ACCENT,
     'stroke-width': 2,
     rx: 8,
     visibility: 'hidden',
@@ -863,7 +890,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     if (!bg) return
     bg.setAttribute(
       'fill',
-      on ? KEY_DOWN : r.key.action ? KEY_ACTION_BG : KEY_BG
+      on ? TH.KEY_DOWN : r.key.action ? TH.KEY_ACTION_BG : TH.KEY_BG
     )
   }
 
@@ -915,7 +942,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   }
 
   const pressVis = (i: number, on: boolean): void =>
-    setKeyFill(i, on ? KEY_DOWN : null)
+    setKeyFill(i, on ? TH.KEY_DOWN : null)
 
   const endPressVis = (): void => {
     if (pressedVis >= 0) {
@@ -927,7 +954,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   /** Tint the spacebar while it's acting as a trackpad, so the mode is visible. */
   const spaceHint = (on: boolean): void => {
     const i = rects.findIndex((r) => r.key.action === 'space')
-    if (i >= 0) setKeyFill(i, on ? ACCENT : null)
+    if (i >= 0) setKeyFill(i, on ? TH.ACCENT : null)
   }
 
   // The in-flight press. `accents` is non-empty once the popup is open.
@@ -940,7 +967,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   } | null = null
 
   const keyFill = (r: KeyRect): string =>
-    r.key.action ? KEY_ACTION_BG : KEY_BG
+    r.key.action ? TH.KEY_ACTION_BG : TH.KEY_BG
 
   const paintKeys = (): void => {
     keysLayer.replaceChildren()
@@ -959,8 +986,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         'text-anchor': 'middle',
         'dominant-baseline': 'middle',
         'font-size': r.key.action ? 13 : 16,
-        'font-family': FONT_FAMILY,
-        fill: TEXT,
+        'font-family': TH.FONT_FAMILY,
+        fill: TH.TEXT,
       })
       lbl.textContent = r.key.label
       const cell = g({ 'data-key': r.key.label }, bg, lbl) as SVGGElement
@@ -986,8 +1013,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           y: r.y + r.height - 6,
           'text-anchor': 'middle',
           'font-size': 12,
-          'font-family': FONT_FAMILY,
-          fill: TEXT,
+          'font-family': TH.FONT_FAMILY,
+          fill: TH.TEXT,
           opacity: 0.5,
         })
         h.textContent = hint
@@ -1046,8 +1073,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         width: w,
         height: CH + 8,
         rx: 8,
-        fill: PANEL_BG,
-        stroke: KEY_DOWN,
+        fill: TH.PANEL_BG,
+        stroke: TH.KEY_DOWN,
       }),
     ]
     accents.forEach((c, i) => {
@@ -1058,7 +1085,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         width: CW - 2,
         height: CH,
         rx: 5,
-        fill: KEY_BG,
+        fill: TH.KEY_BG,
       })
       cells.push(cell as SVGRectElement)
       const lbl = text({
@@ -1067,8 +1094,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         'text-anchor': 'middle',
         'dominant-baseline': 'middle',
         'font-size': 17,
-        'font-family': FONT_FAMILY,
-        fill: TEXT,
+        'font-family': TH.FONT_FAMILY,
+        fill: TH.TEXT,
       })
       lbl.textContent = c
       kids.push(cell, lbl)
@@ -1114,7 +1141,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     if (pick === press.pick) return
     press.pick = pick
     press.cells.forEach((c, j) =>
-      c.setAttribute('fill', j === pick ? ACCENT : KEY_BG)
+      c.setAttribute('fill', j === pick ? TH.ACCENT : TH.KEY_BG)
     )
   }
 
