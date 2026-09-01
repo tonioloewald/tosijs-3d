@@ -476,6 +476,44 @@ export interface Widget3d {
   focusActivate?(): void
   /** Drop inner focus — the host's focus left this widget. */
   focusClear?(): void
+  /**
+   * Called once by the containing panel, handing the widget the services only
+   * the panel can provide.
+   *
+   * A widget cannot reach its own panel otherwise — it is constructed BEFORE the
+   * panel that will hold it (`panel3d({}, select3d(...))`), so it cannot be
+   * passed one, and it is not a DOM child in any useful sense. This is the seam
+   * that lets a control open a popup without the consumer wiring it up.
+   */
+  setHost?(host: WidgetHost): void
+}
+
+/** What a panel offers the widgets inside it. */
+export interface WidgetHost {
+  /**
+   * Open a popup ABOVE the panel's content and mount it, returning a closer.
+   *
+   * Mounting is done here rather than left to the caller — the general
+   * `panel.openPopup` deliberately does not mount, because a free-floating popup
+   * differs flat (a positioned sibling) from in-scene (another plane). This one
+   * can, because it is capped to the panel's own bounds: it lands inside the
+   * panel's viewBox by construction, which is identical in both presentations.
+   * The cost is that it cannot exceed the panel, which for a dropdown is the
+   * right trade — and `maxHeight` makes a long list scroll rather than overflow.
+   */
+  showPopup: (
+    config: {
+      anchor: { x: number; y: number; width: number; height: number }
+      side?: PopupSide
+      width?: number
+      maxHeight?: number
+    },
+    ...items: Widget3d[]
+  ) => { close: () => void }
+  /** Close whatever popup is open, if any. */
+  closePopup: () => void
+  /** Ask the panel to re-run layout — a widget that changed height needs this. */
+  relayout: () => void
 }
 
 /**
@@ -1231,8 +1269,45 @@ export function select3d(config: {
     reflect()
   }
   bound.subscribe(reflect)
+
+  /*
+  THREE ZONES, not two: ‹ steps back, › steps forward, and the VALUE between
+  them opens a menu.
+
+  The steppers stay rather than being replaced. Nudging to the next option while
+  watching what it does is a different gesture from picking a named one out of a
+  list, and a stepper is better at it — the menu is for "I know which one I
+  want" and the arrows are for "show me". Tonio made the same argument for
+  keeping arrows on a mode select alongside its menu.
+  */
+  const ARROW = 30
+  let host: WidgetHost | null = null
+
+  const openMenu = (): void => {
+    if (host == null || opts.length === 0) return
+    host.showPopup(
+      {
+        // Anchored to the VALUE, not to the whole row: a menu that drops from
+        // the far left of a wide row looks unrelated to what it changes.
+        anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
+        width: Math.max(clusterW, 140),
+      },
+      list3d({
+        items: opts.map((o) => ({ label: String(o.label) })),
+        onSelect: (_item, i) => {
+          bound.set(opts[i].value)
+          reflect()
+          host?.closePopup()
+        },
+      })
+    )
+  }
+
   return {
     el,
+    setHost(h) {
+      host = h
+    },
     layout(width) {
       rowBg.setAttribute('width', String(width))
       clusterW = Math.min(width * 0.55, 180)
@@ -1248,7 +1323,10 @@ export function select3d(config: {
       return x >= clusterX - 6
     },
     handle(kind, x) {
-      const onLeft = x < clusterX + clusterW / 2
+      // Zones measured from the cluster's own ends, so a wide row does not make
+      // the arrows enormous and the value a sliver.
+      const onPrev = x < clusterX + ARROW
+      const onNext = x > clusterX + clusterW - ARROW
       if (kind === 'leave') {
         rowBg.setAttribute('fill', 'transparent')
         prev.setAttribute('fill', TH.ACCENT)
@@ -1257,12 +1335,17 @@ export function select3d(config: {
       }
       rowBg.setAttribute('fill', TH.ROW_HOVER)
       if (kind === 'down') {
-        prev.setAttribute('fill', onLeft ? '#fff' : TH.ACCENT)
-        next.setAttribute('fill', onLeft ? TH.ACCENT : '#fff')
+        prev.setAttribute('fill', onPrev ? '#fff' : TH.ACCENT)
+        next.setAttribute('fill', onNext ? '#fff' : TH.ACCENT)
       } else if (kind === 'up') {
         prev.setAttribute('fill', TH.ACCENT)
         next.setAttribute('fill', TH.ACCENT)
-        step(onLeft ? -1 : 1)
+        if (onPrev) step(-1)
+        else if (onNext) step(1)
+        // The middle: a menu, if the panel can host one. Without a host it
+        // stays a stepper rather than doing nothing — a control that is inert
+        // in some containers is worse than one that is merely plainer.
+        else if (host != null) openMenu()
       }
     },
   }
@@ -1454,7 +1537,144 @@ export function panel3d(
       hovered = next ? { w: next.w, top: next.top } : null
     }
   }
+  /*
+  THE OVERLAY: at most one popup, mounted above the content.
+
+  One, not a stack — a dropdown opening a dropdown is a cascade, and a cascade
+  wants `surface.ts`, which already does it properly. Pretending to support one
+  here would be a worse cascade than no cascade.
+  */
+  let overlay: {
+    el: SVGSVGElement & {
+      handlePointer?: (k: PointerKind, x: number, y: number) => void
+    }
+    x: number
+    y: number
+    w: number
+    h: number
+  } | null = null
+
+  const closeOverlay = (): void => {
+    if (overlay == null) return
+    overlay.el.remove()
+    overlay = null
+  }
+
+  /*
+  A host PER WIDGET, so the anchor can be given in the widget's own coordinates.
+
+  A widget knows where things are inside itself and nothing about where it sits
+  in the panel, so an anchor in panel coordinates is a number it cannot produce.
+  The first version made select3d pass `y: 0` and the menu opened at the top of
+  the panel, over an unrelated control — right list, wrong place.
+
+  The panel is the only thing that knows both, so it translates: widget-local in,
+  panel coordinates out, including the current scroll. Each widget gets a host
+  closed over its own index rather than sharing one, which is also what lets
+  `showPopup` need no "which widget is calling" argument.
+  */
+  const hostFor = (index: number): WidgetHost => ({
+    showPopup(config, ...items) {
+      const top = offsets[index] ?? 0
+      return baseHost.showPopup(
+        {
+          ...config,
+          anchor: {
+            ...config.anchor,
+            x: config.anchor.x + padding,
+            y: config.anchor.y + paddingTop + top - scroll,
+          },
+        },
+        ...items
+      )
+    },
+    closePopup: () => baseHost.closePopup(),
+    relayout: () => baseHost.relayout(),
+  })
+
+  const baseHost: WidgetHost = {
+    showPopup(config, ...items) {
+      // One at a time: opening a second while the first is up would leave the
+      // first unreachable but still drawn, which reads as a stuck panel.
+      closeOverlay()
+      const opened = (
+        root as unknown as {
+          openPopup: (
+            c: typeof config,
+            ...i: Widget3d[]
+          ) => {
+            el: SVGSVGElement
+            x: number
+            y: number
+            side: PopupSide
+            close: () => void
+          }
+        }
+      ).openPopup(config, ...items)
+      const el = opened.el as SVGSVGElement & {
+        handlePointer?: (k: PointerKind, x: number, y: number) => void
+      }
+      el.setAttribute('x', String(opened.x))
+      el.setAttribute('y', String(opened.y))
+      // Appended to ROOT, after the clipped content — so it is not clipped by
+      // the content's clip path, but is still inside the panel's viewBox.
+      root.appendChild(el)
+      overlay = {
+        el,
+        x: opened.x,
+        y: opened.y,
+        w: Number(el.getAttribute('width')),
+        h: Number(el.getAttribute('height')),
+      }
+      return { close: closeOverlay }
+    },
+    closePopup: closeOverlay,
+    relayout: () => {
+      // Re-running the panel's own layout is not exposed; the cheap correct
+      // thing is to let the caller redraw, and widgets that change height are
+      // rare enough that this is honest rather than lazy.
+      closeOverlay()
+    },
+  }
+
+  /*
+  Handed out HERE, after `host` exists — not up beside the layout loop, which
+  runs earlier and would read it in its temporal dead zone.
+
+  That is the second time today: `popup-surface` had the identical shape this
+  morning (`attachDrag` used above its own `const`). Same lesson, and this time a
+  test caught it rather than a person, which is the difference between a bug and
+  a five-minute detour.
+  */
+  widgets.forEach((w, i) => w.setHost?.(hostFor(i)))
+
   const handlePointer = (kind: PointerKind, x: number, y: number) => {
+    /*
+    THE OVERLAY WINS, and an outside press dismisses.
+
+    Checked before anything else, because the popup is drawn on top: routing by
+    what is underneath would let you press a control through an open menu, which
+    is the "it clicked the wrong thing" bug in its purest form.
+    */
+    if (overlay != null) {
+      const inside =
+        x >= overlay.x &&
+        x <= overlay.x + overlay.w &&
+        y >= overlay.y &&
+        y <= overlay.y + overlay.h
+      if (inside) {
+        overlay.el.handlePointer?.(kind, x - overlay.x, y - overlay.y)
+        return
+      }
+      // Dismiss on PRESS, not on release: a press that starts outside was never
+      // meant for the menu, and waiting for the release leaves it open under a
+      // pointer that has already moved on.
+      if (kind === 'down') {
+        closeOverlay()
+        return
+      }
+      if (kind !== 'move') return
+    }
     const localX = x - padding
     const contentY = y - paddingTop + scroll
     if (kind === 'leave') return setHover(undefined)

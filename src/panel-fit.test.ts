@@ -436,3 +436,77 @@ describe('panels live outside the world by default', () => {
     expect(receivesOnly).not.toContain('_noshadow')
   })
 })
+
+describe('select3d opens a MENU from its value, and keeps its steppers', () => {
+  const OPTIONS = ['alpha', 'beta', 'gamma', 'delta']
+
+  /** A panel wrapping one select, laid out — which is what supplies the host. */
+  const build = (onChange?: (v: string | number) => void) => {
+    const sel = w3d.select3d({ value: 'alpha', options: OPTIONS, onChange })
+    const panel = w3d.panel3d({ width: 300 }, sel) as any
+    return { sel, panel }
+  }
+
+  const press = (panel: any, x: number, y: number) => {
+    panel.handlePointer('down', x, y)
+    panel.handlePointer('up', x, y)
+  }
+
+  test('the arrows still step — the menu does not replace them', () => {
+    let seen: unknown = null
+    const { panel } = build((v) => (seen = v))
+    // Far right of the row is the › stepper.
+    press(panel, 285, 30)
+    expect(seen).toBe('beta')
+  })
+
+  test('pressing the VALUE opens a popup', () => {
+    const { panel } = build()
+    expect(panel.querySelectorAll('svg').length).toBe(0)
+    press(panel, 200, 30) // between the arrows
+    expect(panel.querySelectorAll('svg').length).toBe(1)
+  })
+
+  test('the popup lists every option', () => {
+    const { panel } = build()
+    press(panel, 200, 30)
+    const labels = [...panel.querySelectorAll('svg text')].map((t: any) =>
+      t.textContent
+    )
+    for (const o of OPTIONS) expect(labels).toContain(o)
+  })
+
+  test('a press OUTSIDE the popup dismisses it, and does not reach what is under it', () => {
+    // Routing by what is underneath would let you press a control through an
+    // open menu — the "it clicked the wrong thing" bug in its purest form.
+    let seen: unknown = null
+    const { panel } = build((v) => (seen = v))
+    press(panel, 200, 30)
+    expect(panel.querySelectorAll('svg').length).toBe(1)
+    panel.handlePointer('down', 285, 30) // the › stepper, under the menu's row
+    expect(panel.querySelectorAll('svg').length).toBe(0)
+    expect(seen).toBe(null)
+  })
+
+  test('only ONE popup at a time', () => {
+    const { panel } = build()
+    press(panel, 200, 30)
+    press(panel, 200, 30)
+    expect(panel.querySelectorAll('svg').length).toBeLessThanOrEqual(1)
+  })
+
+  test('without a host it stays a stepper rather than going inert', () => {
+    // A control that does nothing in some containers is worse than one that is
+    // merely plainer.
+    let seen: unknown = null
+    const sel = w3d.select3d({
+      value: 'alpha',
+      options: OPTIONS,
+      onChange: (v) => (seen = v),
+    })
+    sel.layout(300)
+    sel.handle!('down', 285, 30)
+    sel.handle!('up', 285, 30)
+    expect(seen).toBe('beta')
+  })
+})
