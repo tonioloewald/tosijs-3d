@@ -1809,7 +1809,26 @@ export function panel3d(
   // route unconditionally so hover feedback works without a press.
   const toViewBox = (clientX: number, clientY: number) =>
     localPoint(root, clientX, clientY)
+  /*
+  STOP AT THE PANEL BOUNDARY.
+
+  A panel can be nested inside another — a popup opened by `showPopup` IS a
+  `panel3d` mounted in its opener's SVG — and it carries its own DOM listeners.
+  Without this, one real pointer event is handled TWICE: once by the inner panel,
+  then again when it bubbles to the outer one, which routes it straight back into
+  the inner panel by coordinates.
+
+  A tap survives being doubled. A HOLD does not: two `down`s restart the timer,
+  so press-hold-drag on the spacebar never fired. Tonio: "press hold and drag on
+  spacebar to move the selection doesn't work in the DOM ui, only in the 3D
+  view" — and 3D worked precisely because a texture has no DOM events, leaving
+  exactly one route.
+
+  The event is the panel's own, on the panel's own element, so ending it here is
+  what a nested interactive component should do.
+  */
   root.addEventListener('pointerdown', (e) => {
+    e.stopPropagation()
     const pe = e as PointerEvent
     const p = toViewBox(pe.clientX, pe.clientY)
     try {
@@ -1820,11 +1839,13 @@ export function panel3d(
     handlePointer('down', p.x, p.y)
   })
   root.addEventListener('pointermove', (e) => {
+    e.stopPropagation()
     const pe = e as PointerEvent
     const p = toViewBox(pe.clientX, pe.clientY)
     handlePointer('move', p.x, p.y)
   })
   root.addEventListener('pointerup', (e) => {
+    e.stopPropagation()
     const pe = e as PointerEvent
     const p = toViewBox(pe.clientX, pe.clientY)
     handlePointer('up', p.x, p.y)
