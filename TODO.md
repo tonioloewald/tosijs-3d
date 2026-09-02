@@ -1851,8 +1851,7 @@ cosmetic.** Reported by Tonio; diagnosed but not yet fixed.
      edit. Worth doing once and consistently, since the demos are what an
      adopter copies.
 
-[ ] **Popup chrome is dead in the DOM — and the general fix is a PRESENTATION
-CLASS.** Tonio: "the move and close affordances in the panel do not work in the
+[x] **DONE — popup chrome in the DOM, via a PRESENTATION MARKER.** Tonio: "the move and close affordances in the panel do not work in the
 DOM. We probably just want a 'class' that hides things in the DOM but shows them
 in texture renders and vice versa."
 
@@ -1874,14 +1873,14 @@ its logic, which is the trap `UI-DESIGN-NOTES` → "One UI, two presentations"
 warns about. Differing in what you DRAW is safe; differing in what you DO is how
 the two drift.
 
-[ ] **The keyboard should dismiss when focus leaves a typable field.** Tonio:
+[x] **DONE — the keyboard dismisses when focus leaves a typable field.** Tonio:
 "if I mess with a different field the keyboard should disappear until I focus a
 keyboardable field." It currently persists, because nothing tells it that focus
 moved to a widget that cannot use it — the panel routes presses to widgets and
 `inputField` only learns about its OWN. Wants the panel to say "focus went
 elsewhere", which is close to what `focusClear` already means.
 
-[ ] **The keyboard should be placed relative to the FIELD, not the panel.**
+[x] **DONE (scene layer) — the keyboard is placed relative to the FIELD.**
 Tonio's report, and the flat and scene layers differ today: the DOM layer honours
 `config.anchor` (so it does follow the field), while `panelScene`'s layer ignores
 it and pins the keyboard to the panel's bottom edge. Fixing it properly is the

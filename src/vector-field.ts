@@ -333,6 +333,10 @@ function coordinateRow(
       active = next
       return true
     },
+    // A composite forwards what it was given — the same rule as `setHost`.
+    setActive(v: boolean) {
+      for (const f of fields) f.setActive?.(v)
+    },
     focusClear() {
       active = 0
       for (const f of fields) {

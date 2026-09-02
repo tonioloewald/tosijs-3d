@@ -1319,7 +1319,12 @@ export function panelScene(opts: PanelSceneOptions): {
       openPopup?: (o: Record<string, unknown>) => { close: () => void }
     }
     if (typeof panelEl.addLayerHost === 'function' && owner.openPopup) {
-      panelEl.addLayerHost((sheet: SVGSVGElement) => {
+      panelEl.addLayerHost((
+        sheet: SVGSVGElement,
+        config: {
+          anchor: { x: number; y: number; width: number; height: number }
+        }
+      ) => {
         /*
         Place it against the panel's EDGE, from measured sizes.
 
@@ -1336,6 +1341,27 @@ export function panelScene(opts: PanelSceneOptions): {
         const popH = Number(sheet.getAttribute('height')) || 200
         const worldW = width * 0.95
         const worldH = worldW * (popH / popW)
+
+        /*
+        PROJECT THE ANCHOR into the plane's own space.
+
+        This ignored `config.anchor` entirely and pinned the popup to the panel's
+        bottom edge, so the keyboard sat over the numeric fields and far below
+        the text one — Tonio: "the 3d keyboard appears OVER the numeric fields
+        and way below the text field (in both cases it's kind of bottom aligned
+        with the panel)". The DOM layer honoured the anchor and looked right,
+        which is what made the two disagree.
+
+        The plane shows the panel's viewBox across `width` x `planeH`, so a panel
+        coordinate maps linearly: x centred, y flipped because SVG y grows down
+        and world y grows up.
+        */
+        const vb = (opts.svg as SVGSVGElement).viewBox?.baseVal
+        // Only the vertical mapping is needed: the popup is centred in x.
+        const panelH = vb && vb.height > 0 ? vb.height : popH
+        const a = config.anchor
+        // The field's BOTTOM edge, in plane-local world units.
+        const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH
         const pop = owner.openPopup!({
           svg: sheet,
           opener: plane.mesh,
@@ -1351,7 +1377,19 @@ export function panelScene(opts: PanelSceneOptions): {
             its keyboard below the app either; it lays it OVER the bottom of it,
             which is what the z-separation is for.
             */
-            y: -planeH / 2 + worldH / 2,
+            /*
+            Hang it from the field, then keep it on the panel.
+
+            Below the anchor is where a keyboard belongs — but a field near the
+            bottom would push it off the plane entirely, so it is clamped to the
+            panel's own extent. Clamping rather than flipping: a keyboard that
+            jumped above the field for the last two rows would be a second
+            behaviour to learn, and it can simply overlap instead.
+            */
+            y: Math.max(
+              -planeH / 2 + worldH / 2,
+              anchorBottomY - worldH / 2
+            ),
             // NEARER the viewer — the z-separation is the point, not a nicety:
             // coplanar panels re-sort as you orbit.
             z: -0.08,

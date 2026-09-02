@@ -482,6 +482,16 @@ export interface Widget3d {
   /** Drop inner focus — the host's focus left this widget. */
   focusClear?(): void
   /**
+   * The host made something else the receiver.
+   *
+   * Distinct from `focusClear`, which means D-pad focus moved on — that does NOT
+   * stop text arriving at a field, because tapping the on-screen keyboard's keys
+   * moves box focus to the keyboard while the text keeps landing where it was.
+   * This one is the real end of an interaction, and is what puts a summoned
+   * keyboard away.
+   */
+  setActive?(active: boolean): void
+  /**
    * Called once by the containing panel, handing the widget the services only
    * the panel can provide.
    *
@@ -1613,6 +1623,8 @@ export function panel3d(
   // scroll-drags from empty area. Coordinate-based, so the overlay and the
   // in-scene/VR host feed it the same way.
   let captured: { w: Widget3d; top: number } | null = null
+  /** The widget that last took a press — see the `focusClear` note below. */
+  let lastPressed: Widget3d | null = null
   let hovered: { w: Widget3d; top: number } | null = null
   let scrollFrom = 0
   let scrolling = false
@@ -1847,6 +1859,21 @@ export function panel3d(
     const row = rowAt(localX, contentY)
     if (kind === 'down') {
       if (row) {
+        /*
+        A PRESS ELSEWHERE CLEARS THE LAST WIDGET'S INNER FOCUS.
+
+        Without this a keyboard stayed up after you touched something that
+        cannot use it — Tonio: "not disappearing if I click the lights checkbox".
+        The panel is the only thing that knows focus moved, since each widget
+        only ever hears about its own presses.
+
+        `focusClear` already means "the host's focus left you", so this is the
+        existing contract being honoured rather than a new one.
+        */
+        if (lastPressed != null && lastPressed !== row.w) {
+          lastPressed.setActive?.(false)
+        }
+        lastPressed = row.w
         captured = { w: row.w, top: row.top }
         row.w.handle?.('down', localX, contentY - row.top)
       } else if (scrollable) {
@@ -2070,6 +2097,13 @@ export function panel3d(
       const box = container.getBoundingClientRect()
       // Panel units -> CSS px, since a panel is usually rendered scaled.
       const scale = rect.height / Math.max(1, Number(root.getAttribute('height')))
+      // The DOM half of the presentation marker: `svg-texture` strips
+      // `dom`-only nodes when rasterising, and this hides `texture`-only ones
+      // here. Set inline rather than via a stylesheet so a popup mounted into
+      // any container carries the rule with it.
+      for (const n of sheet.querySelectorAll('[data-presentation="texture"]')) {
+        ;(n as SVGElement).style.display = 'none'
+      }
       const holder = document.createElement('div')
       holder.style.position = 'absolute'
       holder.style.zIndex = '10'

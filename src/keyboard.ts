@@ -1135,6 +1135,17 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       if (v) activate()
       else {
         focused = false
+        /*
+        Text no longer lands here, so a keyboard summoned FOR this field has
+        nothing to type into — put it away. Tonio: it was "not disappearing if I
+        click the lights checkbox".
+
+        `setActive(false)` and not `focusClear`: the latter means D-pad focus
+        moved on, which explicitly does NOT stop text arriving here (tapping the
+        keyboard's own keys moves box focus to the keyboard). This one means the
+        host made something else the receiver, which is the real end of typing.
+        */
+        kbOpen?.close()
         paint()
       }
     },
