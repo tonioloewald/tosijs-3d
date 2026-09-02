@@ -61,7 +61,7 @@
     "icons": "tosijs-make-icons --input ./icons --output ./src/icon-data.ts",
     "tunnel": "tosijs-tunnel",
     "deploy": "tosijs-deploy",
-    "format": "bun --bun eslint src bin --fix && bun --bun prettier --write .",
+    "format": "bun --bun eslint --cache --cache-location node_modules/.cache/eslint src bin --fix && bun --bun prettier --cache --write .",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "stop": "bun bin/site.ts --stop",
     "keep": "bun bin/keep.ts"

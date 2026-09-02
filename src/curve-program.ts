@@ -44,46 +44,106 @@ here.
 
 ## Demo
 
-Four channels over one shared pair of markers. Drag a marker in any plot and it
-moves in all of them; the readout shows the committed program, which is what
-would reach a document.
+**The editor drives a real lamp.** Drag a point or a split and the light changes
+under it; hit the switch and watch the program's attack and decay play out on
+the actual scene, which is the only way to tell whether a curve you drew is the
+curve you wanted.
 
 ```js
-import { curveProgram3d, panel3d, label3d } from 'tosijs-3d'
+import {
+  curveProgram3d, panel3d, label3d, button3d,
+  b3d, b3dLight, b3dPointLight,
+} from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
-const { div, pre } = elements
+const { div } = elements
 
-const out = pre({ style: 'margin:0;padding:8px 12px;color:#8ea;font:11px ui-monospace,monospace;white-space:pre-wrap' }, '')
-
-// A fluorescent: strikes in stutters, hums, fades out and reddens.
+// A fluorescent: strikes in stutters, hums, then dies to a red ember.
 const program = {
   brightness: [
     { x: 0, y: 0 }, { x: 0.06, y: 0.85 }, { x: 0.1, y: 0.05 },
-    { x: 0.17, y: 1 }, { x: 0.23, y: 0.08 }, { x: 0.35, y: 1 },
-    { x: 0.5, y: 0.93 }, { x: 0.75, y: 1 },
-    { x: 0.88, y: 0.25 }, { x: 1, y: 0 },
+    { x: 0.17, y: 1 }, { x: 0.23, y: 0.08 }, { x: 0.3, y: 0.95 },
+    { x: 0.35, y: 1 }, { x: 0.45, y: 0.93 }, { x: 0.52, y: 1 },
+    { x: 0.63, y: 0.9 }, { x: 0.75, y: 1 },
+    { x: 0.8, y: 0.34 }, { x: 0.95, y: 0.26 }, { x: 1, y: 0 },
   ],
-  hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
-  saturation: [{ x: 0, y: 1 }, { x: 0.75, y: 1 }, { x: 1, y: 0.3 }],
+  hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 0.85, y: 0.04 }, { x: 1, y: 0 }],
+  saturation: [{ x: 0, y: 0.2 }, { x: 0.75, y: 0.2 }, { x: 0.9, y: 1 }, { x: 1, y: 1 }],
   hueShiftDeg: 190,
+  saturationScale: 5,
   attackEnd: 0.35, sustainEnd: 0.75,
-  attack: 1.3, period: 3, decay: 2.2,
+  attack: 1.3, period: 3, decay: 3.2,
 }
+
+const lamp = b3dPointLight({
+  x: 0, y: 4.2, z: 0, diffuse: '#cfe8ff', range: 15, intensity: 2.1,
+  shadows: 'on', program,
+})
 
 const editor = curveProgram3d({
   value: program,
-  handleCommit: (next, describe) => {
-    out.textContent = `${describe}\n\n${JSON.stringify(next, null, 1)}`
-  },
+  // LIVE, so the lamp follows the drag. The commit is what a document would
+  // record; a preview wants every frame of the gesture.
+  handleChange: (next) => { lamp.program = next },
 })
-out.textContent = 'drag a point or a split marker\n\n' + JSON.stringify(program, null, 1)
+
+// `on` is an 'on'|'off' STRING, not a boolean — an absent boolean attribute
+// reads false, so a default-true boolean is not expressible in HTML.
+const power = button3d({
+  label: 'power — strike / decay',
+  onClick: () => { lamp.on = lamp.on === 'off' ? 'on' : 'off' },
+})
+
+const scene = b3d(
+  {
+    style: 'flex:1;min-width:0;border-radius:8px;overflow:hidden',
+    sceneCreated(el, BABYLON) {
+      el.scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.03, 1)
+
+      const checker = new BABYLON.DynamicTexture('checker', 512, el.scene, false)
+      const ctx = checker.getContext()
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          ctx.fillStyle = (x + y) % 2 ? '#3a3f47' : '#2d323a'
+          ctx.fillRect(x * 32, y * 32, 32, 32)
+        }
+      }
+      checker.update()
+      checker.uScale = checker.vScale = 2
+
+      const mat = new BABYLON.StandardMaterial('floor', el.scene)
+      mat.diffuseTexture = checker
+      mat.specularColor = BABYLON.Color3.Black()
+      const floor = BABYLON.MeshBuilder.CreateGround('floor', { width: 16, height: 16 }, el.scene)
+      floor.material = mat
+
+      const propMat = new BABYLON.StandardMaterial('prop', el.scene)
+      propMat.diffuseColor = new BABYLON.Color3(0.62, 0.6, 0.58)
+      propMat.specularColor = BABYLON.Color3.Black()
+      const props = [
+        BABYLON.MeshBuilder.CreateBox('prop', { width: 1.2, height: 2.4, depth: 1.2 }, el.scene),
+        BABYLON.MeshBuilder.CreateBox('prop', { size: 1 }, el.scene),
+        BABYLON.MeshBuilder.CreateSphere('prop', { diameter: 1.5 }, el.scene),
+      ]
+      props[0].position.set(-2.2, 1.2, 0.6)
+      props[1].position.set(1.6, 0.5, -1.4)
+      props[2].position.set(2.4, 0.75, 1.6)
+      for (const m of props) m.material = propMat
+
+      el.register({ meshes: [floor, ...props] })
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3.2, radius: 13, target: [0, 1, 0] })
+    },
+  },
+  b3dLight({ intensity: 0.06 }),
+  lamp
+)
 
 preview.append(
   div(
-    { style: 'display:flex;height:100%;background:#0c0e14' },
-    div({ style: 'flex:0 0 360px;overflow:auto;padding:12px' },
-      panel3d({ width: 340 }, label3d({ text: 'Light program' }), editor)),
-    div({ style: 'flex:1;min-width:0;overflow:auto' }, out)
+    { style: 'display:flex;gap:14px;height:100%;padding:12px;background:#0c0e14;box-sizing:border-box' },
+    div({ style: 'flex:0 0 330px;overflow:auto' },
+      panel3d({ width: 310 }, label3d({ text: 'Light program' }), power, editor)),
+    div({ style: 'flex:1;min-width:0;display:flex' }, scene)
   )
 )
 ```

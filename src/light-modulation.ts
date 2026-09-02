@@ -76,8 +76,15 @@ rather than bugs:
 | --- | --- | --- |
 | `brightness` | **multiplies** the base intensity — `0` off, `1` as declared | "off" has to be reachable; it is the value you flicker to |
 | `range` | **multiplies** the base range | a range of zero is a light that lights nothing |
-| `saturation` | **multiplies** saturation — `0` is white | saturation has a meaningful zero and reaching it is the point |
+| `saturation` | **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means | saturation has a meaningful zero and reaching it is the point |
 | `hue` | **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg` | hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose |
+
+**A pale lamp cannot be reddened by hue alone.** Rotating a hue preserves
+saturation, so `#cfe8ff` — saturation 0.19 — becomes a pale orange however far
+you turn it. To make a washed-out tube die as a red ember you have to raise
+saturation too, which needs `saturationScale` above 1, because the curve itself
+is `[0,1]` and can only desaturate. Found by measuring a demo that looked wrong:
+the light reported `[1, 0.92, 0.87]`, which is warm white.
 
 **The hue shift is RELATIVE, and that catches people.** "Fade out and go red" is
 a small shift from a warm white and a very large one from a cool one: `#cfe8ff`
@@ -119,8 +126,25 @@ export interface ChannelCurves {
   brightness?: ModulationCurve
   /** Multiplies range/falloff distance. */
   range?: ModulationCurve
-  /** Multiplies saturation. `1` as declared, `0` washes to white. */
+  /**
+   * Saturation, as a fraction of `saturationScale`. `1` as declared (at the
+   * default scale), `0` washes to white.
+   */
   saturation?: ModulationCurve
+  /**
+   * What the `saturation` curve's `1.0` means, as a multiplier. Default `1`.
+   *
+   * Exists because a curve is `[0,1]`, so on its own the channel can only ever
+   * DESATURATE — and that makes "a pale tube dies as a red ember" impossible to
+   * express. `#cfe8ff` carries a saturation of 0.19, and rotating its hue
+   * preserves that, so it becomes a pale orange however far you turn it.
+   * Caught on the live demo doing exactly that: the light that looked red was
+   * emitting warm white.
+   *
+   * Set it above 1 to let the curve saturate as well as wash out. The default
+   * keeps the curve the multiplier directly, so nothing changes for anyone.
+   */
+  saturationScale?: number
   /** Bipolar hue shift: `0.5` unchanged, `0` is `-hueShiftDeg`, `1` is `+hueShiftDeg`. */
   hue?: ModulationCurve
   /** How far the `hue` curve can push, in degrees. Default 30. */
@@ -312,7 +336,9 @@ export function sampleLight(
     // own setting.
     brightness: Math.max(0, sampleCurve(p!.brightness, at, 1)),
     range: Math.max(0, sampleCurve(p!.range, at, 1)),
-    saturation: Math.max(0, sampleCurve(p!.saturation, at, 1)),
+    saturation:
+      Math.max(0, sampleCurve(p!.saturation, at, 1)) *
+      (p!.saturationScale ?? 1),
     hueShiftDeg: (sampleCurve(p!.hue, at, 0.5) - 0.5) * 2 * amp,
   }
 }

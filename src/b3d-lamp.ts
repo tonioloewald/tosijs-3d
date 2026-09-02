@@ -94,118 +94,149 @@ work altogether.
 
 ## Demo
 
-Four lamps over a floor, each with its own program: a soft fade, a fluorescent
-that strikes in stutters, a pulsing beacon, and a spot with an SVG gel. The
-switch runs every program at once, so you can watch them come up and die
-differently.
+A dark room with a **matte, patterned floor** — the two things a lighting demo
+needs and the first version of this had neither. A glossy untextured plane
+reflects the lamp back at you and shows nothing about falloff; a lit scene with
+no shadow receivers lets every light shine straight through the objects.
+
+Three zones so the lamps do not wash each other out: a warm lamp with hard
+shadows, a fluorescent that strikes and dies, and a gelled spot throwing a
+window pattern across a clear patch of floor. Switch them off to watch each
+one's decay.
 
 ```js
 import {
-  b3d, b3dLight, b3dGround, b3dSphere, b3dBox,
-  b3dPointLight, b3dSpotLight, b3dAreaLight,
+  b3d, b3dLight, b3dPointLight, b3dSpotLight,
   label3d, toggle3d, slider3d,
 } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
-const { lamps } = tosi({ lamps: { on: true, geometry: true, intensity: 1 } })
+const { lamps } = tosi({ lamps: { on: true, geometry: true, ambient: 0.06 } })
 
-// ONE curve per lamp, split into attack / sustain / decay by two markers.
-// A fluorescent striking: stutters up, then a steady hum, then out.
 const FLUORESCENT = {
   brightness: [
     { x: 0, y: 0 }, { x: 0.06, y: 0.85 }, { x: 0.1, y: 0.05 },
     { x: 0.17, y: 1 }, { x: 0.23, y: 0.08 }, { x: 0.3, y: 0.95 },
-    // The SUSTAIN segment, 0.35 -> 0.75: a faint mains hum. Both ends sit at
-    // the same value on purpose — that is what makes the loop seamless AND
-    // keeps the jump to the decay invisible.
     { x: 0.35, y: 1 }, { x: 0.45, y: 0.93 }, { x: 0.52, y: 1 },
-    { x: 0.63, y: 0.9 }, { x: 0.68, y: 0.99 }, { x: 0.75, y: 1 },
-    { x: 0.88, y: 0.25 }, { x: 1, y: 0 },
+    { x: 0.63, y: 0.9 }, { x: 0.75, y: 1 },
+    // THE DECAY REGION. It drops fast to an EMBER and holds there before going
+    // out, rather than fading straight to zero — otherwise the hue shift below
+    // arrives at red exactly when there is no light left to be red, and the
+    // whole effect is invisible. Tonio: "the light that looks red doesn't seem
+    // to produce red light."
+    { x: 0.8, y: 0.34 }, { x: 0.95, y: 0.26 }, { x: 1, y: 0 },
   ],
-  // Holds its colour while lit; reddens only across the decay region.
-  hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
-  saturation: [{ x: 0, y: 1 }, { x: 0.75, y: 1 }, { x: 1, y: 0.3 }],
+  // Reaches red EARLY in the decay, so the ember above is already red while it
+  // still has something to light with.
+  hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 0.85, y: 0.04 }, { x: 1, y: 0 }],
+  // Saturation RISES into the decay, and needs a scale above 1 to do it: the
+  // base #cfe8ff is only 0.19 saturated, so hue alone would give a pale orange.
+  saturation: [{ x: 0, y: 0.2 }, { x: 0.75, y: 0.2 }, { x: 0.9, y: 1 }, { x: 1, y: 1 }],
+  saturationScale: 5,
   hueShiftDeg: 190,
   attackEnd: 0.35, sustainEnd: 0.75,
-  attack: 1.3, period: 3, decay: 2.2,
+  attack: 1.3, period: 3, decay: 3.2,
 }
 
-// A beacon: no attack worth speaking of, a big slow pulse, a quick fade.
-const BEACON = {
-  brightness: [
-    { x: 0, y: 0.15 }, { x: 0.1, y: 0.2 },
-    { x: 0.45, y: 1 }, { x: 0.8, y: 0.2 },
-    { x: 1, y: 0 },
-  ],
-  hue: [{ x: 0, y: 0.5 }, { x: 0.45, y: 1 }, { x: 0.8, y: 0.5 }, { x: 1, y: 0.5 }],
-  hueShiftDeg: 40,
-  attackEnd: 0.1, sustainEnd: 0.8,
-  attack: 0.3, period: 2.4, decay: 0.8,
-}
-
-// A plain lamp that simply fades up and down.
 const SOFT = {
   brightness: [{ x: 0, y: 0 }, { x: 0.35, y: 1 }, { x: 0.7, y: 1 }, { x: 1, y: 0 }],
   attackEnd: 0.35, sustainEnd: 0.7,
-  attack: 1, decay: 1.5,
+  attack: 0.9, decay: 1.6,
 }
 
 preview.append(
   b3d(
     {
       style: 'width:100%;height:100%',
-      glowLayerIntensity: 0.6,
       scenePanel: () => [
         label3d({ text: 'Lamps' }),
-        toggle3d({ label: 'on (runs the envelopes)', value: lamps.on }),
+        toggle3d({ label: 'on — watch the attack / decay', value: lamps.on }),
         toggle3d({ label: 'show fixtures', value: lamps.geometry }),
-        slider3d({ label: 'intensity', value: lamps.intensity, min: 0, max: 2, step: 0.05 }),
+        slider3d({ label: 'ambient', value: lamps.ambient, min: 0, max: 0.4, step: 0.01 }),
       ],
-      sceneCreated(el) {
-        orbitCam(el, { alpha: -Math.PI / 2.2, beta: Math.PI / 3, radius: 14, target: [0, 1.5, 0] })
+      sceneCreated(el, BABYLON) {
+        const scene = el.scene
+        // A DARK room, or nothing the lamps do is visible.
+        scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.03, 1)
+
+        // MATTE and PATTERNED. Specular black kills the mirror-highlight that
+        // made the old floor reflect the lamps; the checker gives falloff and
+        // shadow edges something to fall across.
+        const checker = new BABYLON.DynamicTexture('checker', 512, scene, false)
+        const ctx = checker.getContext()
+        for (let y = 0; y < 16; y++) {
+          for (let x = 0; x < 16; x++) {
+            ctx.fillStyle = (x + y) % 2 ? '#3a3f47' : '#2d323a'
+            ctx.fillRect(x * 32, y * 32, 32, 32)
+          }
+        }
+        checker.update()
+        checker.uScale = checker.vScale = 3
+
+        const floorMat = new BABYLON.StandardMaterial('floor', scene)
+        floorMat.diffuseTexture = checker
+        floorMat.specularColor = BABYLON.Color3.Black()
+        const floor = BABYLON.MeshBuilder.CreateGround('floor', { width: 34, height: 20 }, scene)
+        floor.material = floorMat
+
+        // Blockers, so shadows have something to be cast BY.
+        const props = []
+        const prop = (x, z, w, h, d) => {
+          const m = BABYLON.MeshBuilder.CreateBox('prop', { width: w, height: h, depth: d }, scene)
+          m.position.set(x, h / 2, z)
+          const mat = new BABYLON.StandardMaterial('prop', scene)
+          mat.diffuseColor = new BABYLON.Color3(0.62, 0.6, 0.58)
+          mat.specularColor = BABYLON.Color3.Black()
+          m.material = mat
+          props.push(m)
+          return m
+        }
+        prop(-9, 0.6, 1.4, 2.2, 1.4)
+        prop(-7.2, -1.6, 1, 1, 1)
+        prop(0, 1.2, 1.2, 1.6, 1.2)
+        prop(-1.6, -1.4, 0.9, 2.6, 0.9)
+        const ball = BABYLON.MeshBuilder.CreateSphere('prop', { diameter: 1.6 }, scene)
+        ball.position.set(9.5, 0.8, 1.5)
+        ball.material = props[0].material
+        props.push(ball)
+
+        // Register so every lamp's shadow generator picks them up as casters
+        // AND marks them as receivers.
+        el.register({ meshes: [floor, ...props] })
+
+        orbitCam(el, {
+          alpha: -Math.PI / 2, beta: Math.PI / 3.1, radius: 24,
+          target: [0, 1, 0], maxElevationDeg: 78,
+        })
       },
     },
-    b3dLight({ intensity: 0.12 }),
-    b3dGround({ width: 20, height: 20, color: '#3a3f46' }),
-    b3dBox({ x: -4.5, y: 0.75, width: 1.5, height: 1.5, depth: 1.5, color: '#8899aa' }),
-    b3dSphere({ x: 0, y: 0.9, diameter: 1.8, color: '#aa8866' }),
-    b3dBox({ x: 4.5, y: 0.75, width: 1.5, height: 1.5, depth: 1.5, color: '#99aa88' }),
+    b3dLight({ intensity: lamps.ambient }),
 
-    // A soft fade up and down, with a shadow.
+    // WARM LAMP, hard shadows. Its own corner, so the shadow reads.
     b3dPointLight({
-      x: -4.5, y: 3.2, diffuse: '#ffe6c0', range: 12,
-      intensity: lamps.intensity, on: lamps.on, shadows: 'on',
-      geometry: lamps.geometry, program: SOFT,
+      x: -8, y: 4.2, z: 0, diffuse: '#ffd9a0', range: 16, intensity: 1.8,
+      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: SOFT,
     }),
-    // A fluorescent striking: stutters to life, hums, dies red and washed out.
+
+    // FLUORESCENT: strikes in stutters, hums, dies red and washed out.
     b3dPointLight({
-      x: 0, y: 3.4, diffuse: '#cfe8ff', range: 12,
-      intensity: lamps.intensity, on: lamps.on,
-      geometry: lamps.geometry,
-      // hueShiftDeg is RELATIVE, so reddening a cool tube is a long way to
-      // travel: #cfe8ff sits near 207 degrees, and 45 would only reach cyan.
-      // 190 takes it round to amber-red as it dies.
-      program: FLUORESCENT,
+      x: 0, y: 4.4, z: 0, diffuse: '#cfe8ff', range: 15, intensity: 2.1,
+      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: FLUORESCENT,
     }),
-    // A beacon: slow pulse with a hue swing at the top.
-    b3dPointLight({
-      x: 4.5, y: 3.2, diffuse: '#ff9060', range: 12,
-      intensity: lamps.intensity, on: lamps.on,
-      geometry: lamps.geometry,
-      program: BEACON,
-    }),
-    // A spot with an SVG gel — a window, projected.
+
+    // GELLED SPOT over CLEAR floor, so the window pattern is legible.
     b3dSpotLight({
-      y: 7, z: -3, angle: 55, intensity: 120, diffuse: '#fff4e0',
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on',
+      x: 9, y: 8, z: -1, angle: 46, exponent: 6,
+      diffuse: '#fff2dc', intensity: 620, range: 24,
+      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: SOFT,
       gelSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
         <rect width="64" height="64" fill="black"/>
         <g fill="white">
-          <rect x="6"  y="6"  width="23" height="23"/>
-          <rect x="35" y="6"  width="23" height="23"/>
-          <rect x="6"  y="35" width="23" height="23"/>
-          <rect x="35" y="35" width="23" height="23"/>
+          <rect x="7"  y="7"  width="22" height="22"/>
+          <rect x="35" y="7"  width="22" height="22"/>
+          <rect x="7"  y="35" width="22" height="22"/>
+          <rect x="35" y="35" width="22" height="22"/>
         </g></svg>`,
     })
   )
@@ -246,7 +277,7 @@ for parenting your own geometry).
 /*{ "parent": "Environment", "order": 60 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, isOff } from './b3d-utils'
+import { B3dChild, conventionName, isOff } from './b3d-utils'
 import type { B3d } from './tosi-b3d'
 import { SvgTexture } from './svg-texture'
 import { canonicalize } from './model-transform'
@@ -440,12 +471,32 @@ export abstract class B3dLamp extends B3dChild {
     gen.usePercentageCloserFiltering = true
     this.shadowGenerator = gen
     this._disposables.push(gen)
-    // Casters arrive over time (loaders, spawners), so subscribe rather than
-    // snapshotting the scene once — the same contract b3d-shadows uses.
+    /*
+    Casters arrive over time (loaders, spawners), so subscribe rather than
+    snapshotting the scene once — the same contract b3d-shadows uses.
+
+    AND MARK RECEIVERS. Adding casters alone renders a shadow map that nothing
+    reads: the lamp pays for a whole extra render pass and shows nothing. That
+    is how this first shipped, and it does not present as "a flag is missing" —
+    it presents as lights shining straight through solid objects, which is what
+    Tonio saw in the demo.
+
+    Same conventions as B3dSun: `_nocast` opts out of casting, `_noshadow` out
+    of receiving, and an InstancedMesh is skipped because it INHERITS the flag
+    from its source — writing it there is a no-op Babylon warns about once per
+    instance, which drowned a console in ~10,000 messages (#53).
+    */
     const add = (additions: { meshes?: BABYLON.AbstractMesh[] }) => {
       for (const mesh of additions.meshes ?? []) {
-        if (mesh.getTotalVertices() > 0)
+        if (mesh.getTotalVertices() === 0) continue
+        const name = conventionName(mesh.name)
+        if (!name.includes('_nocast') && !name.includes('-nocast')) {
           gen.addShadowCaster(mesh as BABYLON.Mesh)
+        }
+        if (mesh instanceof BABYLON.InstancedMesh) continue
+        if (!name.includes('_noshadow') && !name.includes('-noshadow')) {
+          mesh.receiveShadows = true
+        }
       }
     }
     this.owner?.addSceneListener(add)
