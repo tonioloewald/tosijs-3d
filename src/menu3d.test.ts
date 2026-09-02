@@ -253,3 +253,104 @@ describe('an icon-grid cell can open a menu', () => {
     expect(w.selection).toEqual([0])
   })
 })
+
+/*
+`disabled` AS A PREDICATE — what makes a menu a reusable object.
+
+Tonio: "disabled should be a callback function not a static value. This allows a
+menu to be a reusable object and not have to be built per use."
+
+With a boolean, `{ label: 'Revert', disabled: !dirty }` captures `dirty` at
+construction, so the only way to keep it honest is to rebuild the array — which
+means the menu cannot be a constant, and every consumer reinvents
+rebuild-on-change. With a predicate the same array is correct forever.
+*/
+describe('disabled is asked, not remembered', () => {
+  // Declared ONCE, at "module scope", exactly as a consumer would.
+  const doc = { dirty: false }
+  const FILE_MENU = [
+    { label: 'Save', handleSelect: () => fired.push('save') },
+    {
+      label: 'Revert',
+      disabled: () => !doc.dirty,
+      handleSelect: () => fired.push('revert'),
+    },
+  ]
+  let fired: string[] = []
+
+  test('the SAME menu object follows the state it closes over', () => {
+    const h = fakeHost()
+
+    fired = []
+    doc.dirty = false
+    widgets.openMenu3d(h.host, { x: 0, y: 0, width: 40, height: 40 }, FILE_MENU)
+    h.pick(1)
+    expect(fired).toEqual([]) // clean: Revert is inert
+
+    fired = []
+    doc.dirty = true
+    widgets.openMenu3d(h.host, { x: 0, y: 0, width: 40, height: 40 }, FILE_MENU)
+    h.pick(1)
+    expect(fired).toEqual(['revert']) // dirty: same array, now live
+  })
+
+  test('it is re-asked WHILE the menu is open, not frozen at layout', () => {
+    // A menu is short-lived but not instantaneous, and the state behind it can
+    // move underneath. What governs is the reading at the moment of firing.
+    const h = fakeHost()
+    fired = []
+    doc.dirty = true
+    widgets.openMenu3d(h.host, { x: 0, y: 0, width: 40, height: 40 }, FILE_MENU)
+    doc.dirty = false // becomes unavailable after opening
+    h.pick(1)
+    expect(fired).toEqual([])
+  })
+
+  test('a plain boolean still works — a genuinely constant item stays simple', () => {
+    const h = fakeHost()
+    const log: string[] = []
+    widgets.openMenu3d(h.host, { x: 0, y: 0, width: 40, height: 40 }, [
+      { label: 'Nope', disabled: true, handleSelect: () => log.push('nope') },
+    ])
+    h.pick(0)
+    expect(log).toEqual([])
+  })
+})
+
+describe('an icon-grid palette can be a constant too', () => {
+  test('a cell disabled by predicate follows live state', () => {
+    const sel = { count: 0 }
+    // Built once; never rebuilt.
+    const PALETTE = [
+      { icon: 'move', label: 'move' },
+      { icon: 'trash', label: 'delete', disabled: () => sel.count === 0 },
+    ]
+    const w = grid.iconGrid3d({ items: PALETTE, mode: 'buttons' })
+    const press = (i: number) => {
+      w.layout(200)
+      const x = (i % 2) * 100 + 4
+      w.handle!('down', x, 4)
+      w.handle!('up', x, 4)
+    }
+    const fired: number[] = []
+    const w2 = grid.iconGrid3d({
+      items: PALETTE,
+      mode: 'buttons',
+      handleActivate: (i) => fired.push(i),
+    })
+    const press2 = (i: number) => {
+      w2.layout(200)
+      const x = (i % 2) * 100 + 4
+      w2.handle!('down', x, 4)
+      w2.handle!('up', x, 4)
+    }
+
+    press2(1)
+    expect(fired).toEqual([]) // nothing selected — delete is inert
+
+    sel.count = 1
+    press2(1)
+    expect(fired).toEqual([1]) // same palette object, now live
+    expect(() => press(0)).not.toThrow()
+  })
+})

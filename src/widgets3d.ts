@@ -281,12 +281,22 @@ could do this only because it held a host privately, so an icon in a tool
 palette had no route to a menu at all.
 
 ```javascript
-openMenu3d(host, cellRect, [
+// Declared ONCE — `disabled` is a predicate, so this constant never goes stale.
+const FILE_MENU = [
   { label: 'Recent scene', icon: 'star', handleSelect: loadRecent },
   { label: 'From file…', icon: 'uploadCloud', handleSelect: pickFile },
-  { label: 'Revert', icon: 'rotateCcw', disabled: !dirty, handleSelect: revert },
-])
+  { label: 'Revert', icon: 'rotateCcw', disabled: () => !doc.dirty, handleSelect: revert },
+]
+openMenu3d(host, cellRect, FILE_MENU)
 ```
+
+**`disabled` takes a predicate, and usually should.** A boolean captures the
+state at construction, so the only way to keep it honest is to rebuild the
+array — which means the menu cannot be a constant, and every consumer reinvents
+rebuild-on-change plumbing. A predicate is asked each time it matters, so one
+array stays correct forever. (A plain boolean still works, for something
+genuinely constant.) Same for `IconGridItem.disabled`, so a tool palette can be
+a constant for the same reason.
 
 Three rules it enforces, each of which is a bug if you get it wrong:
 
@@ -294,7 +304,8 @@ Three rules it enforces, each of which is a bug if you get it wrong:
   items come and go reflows under you, so the same command is at a different
   place depending on state and muscle memory never forms. It is also checked at
   activation rather than at hover, so an item that becomes unavailable
-  mid-gesture cannot fire.
+  mid-gesture cannot fire — which only means anything *because* `disabled` can
+  be a predicate that changed while the menu was open.
 - **The menu closes before any handler runs.** An action that opens something of
   its own — a confirm, a file picker, another menu — would otherwise be torn
   down a moment later by its parent closing on top of it.
@@ -480,6 +491,27 @@ let clipSeq = 0
 export type PointerKind = 'down' | 'move' | 'up' | 'hover' | 'leave'
 
 /** A laid-out widget: its SVG group, sizing, and coordinate-based interaction. */
+/**
+ * A value, or a function that produces it when asked.
+ *
+ * The point is that a menu, a palette or a toolbar can be a **constant** — built
+ * once at module scope and reused — instead of being rebuilt every time the
+ * state it depends on moves. Tonio: _"disabled should be a callback function not
+ * a static value. This allows a menu to be a reusable object and not have to be
+ * built per use."_
+ *
+ * With a static boolean, `{ label: 'Revert', disabled: !dirty }` captures
+ * `dirty` at construction, so the only way to keep it honest is to rebuild the
+ * array — which means the menu cannot be a constant, and every consumer invents
+ * their own rebuild-on-change plumbing.
+ */
+export type Dynamic<T> = T | (() => T)
+
+/** Read a `Dynamic`, falling back when it was never given. */
+export function resolveDynamic<T>(v: Dynamic<T> | undefined, fallback: T): T {
+  return typeof v === 'function' ? (v as () => T)() : v ?? fallback
+}
+
 export interface Widget3d {
   el: SVGElement
   /** Lay out internals to `width`px; return the height consumed (px). */
@@ -1524,7 +1556,7 @@ export function select3d(config: {
 
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export function list3d<
-  T extends { label: string; icon?: string; disabled?: boolean }
+  T extends { label: string; icon?: string; disabled?: Dynamic<boolean> }
 >(config: {
   items: T[]
   onSelect?: (item: T, index: number) => void
@@ -1533,7 +1565,11 @@ export function list3d<
   const rowH = config.rowHeight ?? TH.ROW
   const el = css(g({ 'data-w3d': 'list' }), 'cursor:pointer')
   const rowBgs: SVGElement[] = []
-  const enabled = (i: number) => config.items[i]?.disabled !== true
+  // ASKED EVERY TIME, never cached. `disabled` may be a predicate over live
+  // state, so a remembered answer is a stale one — and the two readings that
+  // matter (may this row highlight, may it fire) happen at different moments.
+  const enabled = (i: number) =>
+    resolveDynamic(config.items[i]?.disabled, false) !== true
   // A disabled row never highlights. Highlight is a promise that a press will
   // do something, so lighting a row that cannot fire is a lie the pointer tells
   // before the finger finds out.
@@ -1561,7 +1597,7 @@ export function list3d<
           ry: 6,
           fill: TH.ROW_BG,
         })
-        const dim = item.disabled === true
+        const dim = !enabled(i)
         const t = baseText(item.label, dim ? TH.MUTED : TH.TEXT)
         t.setAttribute('x', String(TH.PAD_X + gutter))
         t.setAttribute('y', String(y + rowH / 2))
@@ -1615,8 +1651,19 @@ export interface MenuAction {
    * Greyed, unhighlighted and unfirable — but still PRESENT. A menu whose items
    * come and go teaches you nothing about where things are; one that greys them
    * shows you the command exists and is unavailable right now.
+   *
+   * **Give a PREDICATE, not a boolean**, unless it is genuinely constant. It is
+   * asked each time it matters, so the menu can be a module-level constant
+   * instead of being rebuilt whenever the state it depends on moves:
+   *
+   * ```javascript
+   * const FILE_MENU = [
+   *   { label: 'Save', handleSelect: save },
+   *   { label: 'Revert', disabled: () => !doc.dirty, handleSelect: revert },
+   * ]
+   * ```
    */
-  disabled?: boolean
+  disabled?: Dynamic<boolean>
   /** What this item does. `handleSelect` on the menu fires too, if given. */
   handleSelect?: () => void
 }

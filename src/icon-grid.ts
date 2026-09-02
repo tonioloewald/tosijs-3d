@@ -73,6 +73,11 @@ const LAYERS = [
 // selection — so in a radio palette it cannot steal the lit slot from the
 // active tool. Disabled items stay PRESENT: "revert" greys out when there is
 // nothing to revert, rather than vanishing and reflowing the menu under you.
+//
+// `disabled` is a PREDICATE, which is what lets this array be a constant —
+// declared once here and never rebuilt, yet always telling the truth about
+// `state.log`. Toggle it with "copy" and re-open the menu to watch Revert wake
+// up, without a line of rebuild-on-change plumbing anywhere.
 const ACTIONS = [
   { icon: 'copy', label: 'copy' },
   { icon: 'downloadCloud', label: 'save' },
@@ -82,7 +87,7 @@ const ACTIONS = [
     menu: [
       { label: 'Recent scene', icon: 'star' },
       { label: 'From file…', icon: 'uploadCloud' },
-      { label: 'Revert', icon: 'rotateCcw', disabled: true },
+      { label: 'Revert', icon: 'rotateCcw', disabled: () => state.log === '' },
     ],
   },
 ]
@@ -193,7 +198,8 @@ preview.append(
 import { svgElements } from 'tosijs'
 import { iconGlyph } from './svg-icons'
 import { w3dTheme } from './w3d-theme'
-import { openMenu3d } from './widgets3d'
+import { openMenu3d, resolveDynamic } from './widgets3d'
+import type { Dynamic } from './widgets3d'
 import type { MenuAction, PointerKind, Widget3d, WidgetHost } from './widgets3d'
 
 const { g, rect, text } = svgElements
@@ -203,8 +209,15 @@ export interface IconGridItem {
   icon: string
   /** Caption under the icon. Omit for an icon-only cell. */
   label?: string
-  /** Greyed and unclickable, but still occupies its cell so the grid holds shape. */
-  disabled?: boolean
+  /**
+   * Greyed and unclickable, but still occupies its cell so the grid holds shape.
+   *
+   * A `Dynamic` for the same reason menus are: give `() => !hasSelection` and
+   * the palette can be a constant, rather than being rebuilt every time the
+   * thing it depends on changes. Asked at draw AND at press, so it is never a
+   * remembered answer.
+   */
+  disabled?: Dynamic<boolean>
   /**
    * Make this cell open an action menu, anchored to the cell.
    *
@@ -348,6 +361,13 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
   }
 
   const isOn = (i: number): boolean => selection.includes(i)
+  /**
+   * Asked at draw AND at press, never remembered — `disabled` may be a
+   * predicate over live state, and the whole point of allowing one is that the
+   * answer is allowed to change without the palette being rebuilt.
+   */
+  const isDisabled = (i: number): boolean =>
+    resolveDynamic(items[i]?.disabled, false) === true
 
   const draw = (): void => {
     cells.forEach((wrap, i) => {
@@ -356,6 +376,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
       if (b == null) return
       const item = items[i]
       const on = isOn(i)
+      const off = isDisabled(i)
       /*
       Three states that never compete: SELECTED is a background, hover/press are
       also backgrounds but transient, and the glyph colour carries the pressed
@@ -364,7 +385,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
       permanently held down and pressing it show nothing. Same bug iconBar3d
       had.
       */
-      const bg = item.disabled
+      const bg = off
         ? 'transparent'
         : i === pressed
         ? w3dTheme.buttonActive
@@ -387,7 +408,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
       const size = Math.round(cell * 0.58)
       wrap.appendChild(
         iconGlyph(item.icon, {
-          color: item.disabled
+          color: off
             ? w3dTheme.disabledText
             : i === pressed
             ? w3dTheme.buttonActiveText
@@ -408,7 +429,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
               'text-anchor': 'middle',
               'font-family': w3dTheme.fontFamily,
               'font-size': String(Math.round(w3dTheme.fontSize * 0.8)),
-              fill: item.disabled ? w3dTheme.disabledText : w3dTheme.muted,
+              fill: off ? w3dTheme.disabledText : w3dTheme.muted,
             },
             item.label
           )
@@ -420,7 +441,7 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
   /** Apply a press: derive the selection the mode implies, then let `change` rule. */
   const activate = (i: number): void => {
     const item = items[i]
-    if (item == null || item.disabled) return
+    if (item == null || isDisabled(i)) return
 
     /*
     A MENU CELL NEVER JOINS THE SELECTION, whatever the grid's mode.

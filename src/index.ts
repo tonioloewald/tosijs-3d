@@ -404,7 +404,7 @@ export { vector3d, euler3d, wrapDegrees } from './vector-field'
 custom widget must name to implement `setHost`, and without it a consumer
 could receive a host but never declare the parameter (tosijs-3d#59).
 */
-export type { Widget3d, WidgetHost, MenuAction } from './widgets3d'
+export type { Widget3d, WidgetHost, MenuAction, Dynamic } from './widgets3d'
 export {
   panelFitWidth,
   panelFit,
