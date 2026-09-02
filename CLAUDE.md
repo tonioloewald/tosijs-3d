@@ -375,6 +375,25 @@ Child components find their parent `B3d` via `findB3dOwner(el)` which walks up t
 - `cb` sets `this.owner` and calls the subclass's **`sceneReady(owner, scene)`**. So `sceneReady` fires exactly once, only when the child is ready AND the scene exists.
 - On disconnect, `B3dChild.disconnectedCallback` calls the subclass's **`sceneDispose()`** and releases.
 
+**Moved is not removed, and `disconnected` means GONE.** Re-parenting fires
+`disconnectedCallback` then `connectedCallback` in the same task — and moving any
+_ancestor_ does it to every descendant, so a `<tosi-b3d>` nested in someone's shadow
+root gets reconnected by a layout change that never mentions it (that was #58, and the
+real cause of #51's black sky: a second Engine whose disposal deleted the first scene's
+shader programs, leaving a black material that still reported `isReady()`). So `B3d`
+**defers teardown by a task**: a same-task reconnect cancels it and reuses the engine;
+anything else disposes the scene AND the engine outright. No pooling, nothing kept warm
+— a leaked WebGL context is not just memory, Chrome caps them near 16 per page and
+force-loses the oldest, so an SPA works for a dozen route changes and then goes black.
+
+The two owner hooks are durable enough to build on, under one rule — **subscriptions
+are durable, scene state is not**: `whenReady(cb)` never silently drops a queued
+callback (it fires against the next scene if this one dies first), and
+`whenSceneDisposed(cb)` → unsubscribe fires on a genuine disposal but **not** on a move.
+Use the latter for anything holding a reference _into_ the scene that `sceneDispose()`
+doesn't cover. `pastAdditions` IS cleared on teardown — replaying it would hand a new
+`addSceneListener` dead nodes from the disposed scene.
+
 **⚠️ `whenReady` runs SYNCHRONOUSLY when the scene is already up — mind the TDZ.**
 It defers only if the scene isn't ready yet. Append a child to a _live_ scene and its
 `sceneReady` runs on the spot too, so a whole chain can complete inside the calling

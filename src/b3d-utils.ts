@@ -459,6 +459,29 @@ Do **not** override `connectedCallback` / `disconnectedCallback` — the pull-mo
 plumbing is centralized in `B3dChild` so a lifecycle fix lands in exactly one spot.
 (If you must, call `super` first and keep it side-effect-free.)
 
+## Moved is not removed
+
+Re-parenting an element fires `disconnectedCallback` then `connectedCallback` in
+the **same task**, and it need not touch your element at all — moving any
+*ancestor* disconnects and reconnects everything beneath it. So the scene treats
+a same-task reconnect as a move and keeps the engine; anything else is a genuine
+removal and the engine is disposed outright. There is no pooling and nothing
+kept warm: **disconnected means gone.**
+
+That makes the two owner-level hooks trustworthy enough to build on, under one
+rule — **subscriptions are durable, scene state is not**:
+
+| Call | Guarantee |
+|------|-----------|
+| `owner.whenReady(cb)` | Runs now if the scene is up, else the instant it is. A callback still waiting when a scene is torn down is **not dropped** — it fires against the next scene, or never runs at all because the element never came back. |
+| `owner.whenSceneDisposed(cb)` | Runs when the scene is genuinely disposed, **not** on a move. Returns an unsubscribe. Survives a rebuild, so register once. |
+
+Reach for `whenSceneDisposed` for anything holding a reference *into* the scene
+that `sceneDispose()` does not already cover — a timer closing over a mesh, a
+cache of materials, an observer on a node. After disposal those point at a dead
+scene, and Babylon's failure there is a black material that still reports
+`isReady()`: silent, not loud.
+
 Why a base class rather than parent orchestration? On connect the child discovers its
 owner via [findB3dOwner](?b3d-utils.ts) and asks to attach: `owner.whenReady(cb)` runs
 `cb` immediately if the scene is already up, otherwise the instant it becomes ready.

@@ -1332,12 +1332,45 @@ export class B3d extends Component {
   // connectedCallback to insert themselves once the scene is up. Runs the callback
   // immediately if the scene is already ready, else queues it for the flush below.
   private _readyQueue: Array<() => void> = []
+  // Durable — see whenSceneDisposed. NOT cleared by teardown, so a handler
+  // registered once still fires for the scene after next.
+  private _disposeHandlers: Array<() => void> = []
   private _libraries = new Map<string, Set<any>>()
 
-  /** Run `cb` when the scene is ready — now if it already is, else on scene-ready. */
+  /**
+   * Run `cb` when the scene is ready — now if it already is, else on scene-ready.
+   *
+   * **It is a promise, not a hope.** A queued callback survives a teardown and
+   * fires against the NEXT scene, because the alternative is the failure this
+   * whole area specialises in: register, have the scene torn down before it was
+   * ready, and your callback is dropped with no error and nothing to observe.
+   * If the element is never re-added the callback is simply garbage along with
+   * it, which costs nothing.
+   */
   whenReady(cb: () => void): void {
     if (this._sceneReady) cb()
     else this._readyQueue.push(cb)
+  }
+
+  /**
+   * Run `cb` when the scene is torn down — the other half of `whenReady`, and
+   * the half that did not exist. Returns an unsubscribe.
+   *
+   * Anything holding a reference INTO the scene (a mesh, a material, an
+   * observer, a timer closing over one) needs this: after teardown those
+   * references are to a disposed scene, and Babylon's failure mode there is a
+   * black material that still reports `isReady()` — silent, not loud.
+   *
+   * Subscriptions are durable across a rebuild; scene STATE is not. So a
+   * handler registered once keeps working for every subsequent scene, and does
+   * not need re-registering.
+   */
+  whenSceneDisposed(cb: () => void): () => void {
+    this._disposeHandlers.push(cb)
+    return () => {
+      const i = this._disposeHandlers.indexOf(cb)
+      if (i > -1) this._disposeHandlers.splice(i, 1)
+    }
   }
 
   addSceneListener(callback: SceneAdditionHandler): void {
@@ -4350,7 +4383,32 @@ export class B3d extends Component {
     // Descendant B3dChild components self-dispose via their own
     // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
     this._sceneReady = false
-    this._readyQueue = []
+
+    /*
+    SUBSCRIPTIONS ARE DURABLE; SCENE STATE IS NOT. That is the whole rule.
+
+    `_readyQueue` is deliberately NOT cleared: a callback waiting on a scene
+    that got torn down before it was ready is still waiting, and dropping it
+    silently is the exact bug shape this file keeps producing. It fires against
+    the next scene, or never (garbage with the element), and either way nobody
+    is left holding a callback that will not run.
+
+    `pastAdditions` IS cleared, because it is scene state — meshes and lights
+    belonging to the scene we just disposed. Replaying those to the next
+    `addSceneListener` hands a new listener dead nodes from a dead scene.
+
+    Handlers run BEFORE disposal so they can still read what they are releasing,
+    and each is isolated: one consumer throwing must not strand the rest, nor
+    abort the engine disposal below it.
+    */
+    for (const cb of [...this._disposeHandlers]) {
+      try {
+        cb()
+      } catch (err) {
+        console.warn('b3d whenSceneDisposed handler failed', err)
+      }
+    }
+    this.pastAdditions = []
 
     /*
     OBLITERATE THE ENGINE. A WebGL context is not memory — Chrome caps them at
