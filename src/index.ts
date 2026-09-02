@@ -425,6 +425,14 @@ export {
 export type { SerializedCurve, CurveIssue } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
 export { curve3d, curveMarkers } from './curve-field'
+// The composite: several curves sharing ONE pair of split markers, so the
+// invariant lives where it can be enforced (see #61 Q5a).
+export { curveProgram3d, PROGRAM_CHANNELS } from './curve-program'
+export type {
+  CurveProgram3dOptions,
+  CurveProgramField,
+  ProgramChannel,
+} from './curve-program'
 export { iconGrid3d } from './icon-grid'
 export type {
   IconGrid,

@@ -480,7 +480,9 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   let selected = -1
   let dragging = -1
 
-  const el = g()
+  // Tagged like every other widget, so a container can find its children and a
+  // stylesheet or a test can name them.
+  const el = g({ 'data-w3d': 'curve' })
   const bg = rect({ 'data-curve-bg': '', x: 0, y: 0, rx: 4, ry: 4 })
   const grid = path({ 'data-curve-grid': '', fill: 'none' })
   /*
@@ -757,7 +759,23 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       if (kind_ === 'down') {
         const hit = nearestPx(x, y)
         const c = toCurve(x, y)
-        if (hit >= 0) {
+        /*
+        THE TAB BAND WINS OUTRIGHT.
+
+        A point normally beats a marker, because you aimed at that point. But a
+        curve very often has a control point sitting exactly ON a split — a
+        light program's brightness has one at `attackEnd` almost by
+        construction — and there the point swallows every press, including the
+        one aimed at the tab drawn above the plot for this very purpose. The
+        marker then cannot be grabbed at all.
+
+        So inside the tab's own band, above the plot, the marker wins. Below it
+        the ordinary priority stands.
+        */
+        const inTabBand = y < plot.y + 4 && nearestMarkerPx(x) >= 0
+        if (inTabBand) {
+          draggingMarker = nearestMarkerPx(x)
+        } else if (hit >= 0) {
           selected = hit
           dragging = hit
         } else if (nearestMarkerPx(x) >= 0) {

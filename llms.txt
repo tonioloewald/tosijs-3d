@@ -147,6 +147,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   `[0,1]` to itself, as sorted control points, with the editing rules that keep it
 - https://3d.tosijs.net/curve-field/ — curve-field
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
+- https://3d.tosijs.net/curve-program/ — curve-program
+  several curves that share one pair of split markers.** One `Widget3d`, one
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
