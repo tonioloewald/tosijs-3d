@@ -263,9 +263,45 @@ settings into `select3d` cyclers to get discrete values.
 | `select3d` | `options` | | cycles; a popup select is coming (#37 item 4) |
 | `inputField` | **`type`** | `'text'` | `text`/`number`/`integer`/`email`/`url`/`tel` |
 | | `placeholder` / `value` / `height` / `fontSize` | | |
-| `list3d` | `items` / `onSelect` | | |
+| `list3d` | `items` / `onSelect` | | items may carry `icon` and `disabled` |
 | `button3d` | `label` / `onClick` | | |
+| | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
+| `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
 | `iconBar3d` | `items` | | `{icon, onClick}` |
+
+## Menus are for ACTIONS; a select is for a VALUE
+
+`select3d` keeps and displays what you chose. A menu item **happens** and leaves
+nothing behind — so using a picker for a one-shot reads wrong, showing a
+lingering "value" for something that was an event (tosijs-3d#59).
+
+`openMenu3d(host, anchor, items)` is the whole API. Any widget handed a
+`WidgetHost` via `setHost` can open one, which is what was missing: `select3d`
+could do this only because it held a host privately, so an icon in a tool
+palette had no route to a menu at all.
+
+```javascript
+openMenu3d(host, cellRect, [
+  { label: 'Recent scene', icon: 'star', handleSelect: loadRecent },
+  { label: 'From file…', icon: 'uploadCloud', handleSelect: pickFile },
+  { label: 'Revert', icon: 'rotateCcw', disabled: !dirty, handleSelect: revert },
+])
+```
+
+Three rules it enforces, each of which is a bug if you get it wrong:
+
+- **A disabled item is present, greyed, and inert.** Not hidden — a menu whose
+  items come and go reflows under you, so the same command is at a different
+  place depending on state and muscle memory never forms. It is also checked at
+  activation rather than at hover, so an item that becomes unavailable
+  mid-gesture cannot fire.
+- **The menu closes before any handler runs.** An action that opens something of
+  its own — a confirm, a file picker, another menu — would otherwise be torn
+  down a moment later by its parent closing on top of it.
+- **A menu cell in an `iconGrid3d` never joins the selection**, whatever the
+  grid's mode. Otherwise opening "Load ▾" in a radio palette silently deselects
+  your active tool, and dismissing without choosing leaves the palette lying
+  about which tool is live.
 
 **On a panel** (not options — methods on the returned element):
 `measure()` → `{content, viewport, overflow, fits}`, `openPopup(config, …widgets)`,
@@ -881,6 +917,14 @@ export function textBlock3d(config: {
 export function button3d(config: {
   label: string
   onClick?: () => void
+  /**
+   * Make this a MENU button: pressing it opens these actions anchored to the
+   * button, instead of (not as well as) firing `onClick`.
+   *
+   * Both would be a trap — a control that sometimes acts and sometimes opens
+   * has no reliable meaning, and you find out which by pressing it.
+   */
+  menu?: MenuAction[]
 }): Widget3d {
   const bg = rect({
     x: 0,
@@ -894,9 +938,15 @@ export function button3d(config: {
   lbl.setAttribute('text-anchor', 'middle')
   lbl.setAttribute('y', String(TH.ROW / 2))
   const el = css(g({ 'data-w3d': 'button' }, bg, lbl), 'cursor:pointer')
+  let host: WidgetHost | null = null
+  let btnWidth = 0
   return {
     el,
+    setHost(h) {
+      host = h
+    },
     layout(width) {
+      btnWidth = width
       bg.setAttribute('width', String(width))
       lbl.setAttribute('x', String(width / 2))
       return TH.ROW
@@ -914,7 +964,15 @@ export function button3d(config: {
       } else {
         bg.setAttribute('fill', TH.BTN_HOVER) // hover / move / up
         lbl.setAttribute('fill', TH.TEXT)
-        if (kind === 'up') config.onClick?.()
+        if (kind === 'up') {
+          if (config.menu != null && host != null) {
+            openMenu3d(
+              host,
+              { x: 0, y: 0, width: btnWidth, height: TH.ROW },
+              config.menu
+            )
+          } else config.onClick?.()
+        }
       }
     },
   }
@@ -1465,7 +1523,9 @@ export function select3d(config: {
 }
 
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
-export function list3d<T extends { label: string }>(config: {
+export function list3d<
+  T extends { label: string; icon?: string; disabled?: boolean }
+>(config: {
   items: T[]
   onSelect?: (item: T, index: number) => void
   rowHeight?: number
@@ -1473,15 +1533,23 @@ export function list3d<T extends { label: string }>(config: {
   const rowH = config.rowHeight ?? TH.ROW
   const el = css(g({ 'data-w3d': 'list' }), 'cursor:pointer')
   const rowBgs: SVGElement[] = []
+  const enabled = (i: number) => config.items[i]?.disabled !== true
+  // A disabled row never highlights. Highlight is a promise that a press will
+  // do something, so lighting a row that cannot fire is a lie the pointer tells
+  // before the finger finds out.
   const highlight = (i: number) =>
     rowBgs.forEach((bg, j) =>
-      bg.setAttribute('fill', j === i ? TH.ROW_HOVER : TH.ROW_BG)
+      bg.setAttribute('fill', j === i && enabled(j) ? TH.ROW_HOVER : TH.ROW_BG)
     )
   return {
     el,
     layout(width) {
       while (el.firstChild) el.removeChild(el.firstChild)
       rowBgs.length = 0
+      // Reserve the icon gutter across the WHOLE list when any row has an icon,
+      // so labels line up in a mixed menu rather than stepping in and out.
+      const iconSize = Math.round(TH.ROW * 0.5)
+      const gutter = config.items.some((it) => it.icon) ? iconSize + 8 : 0
       config.items.forEach((item, i) => {
         const y = i * rowH
         const bg = rect({
@@ -1493,11 +1561,22 @@ export function list3d<T extends { label: string }>(config: {
           ry: 6,
           fill: TH.ROW_BG,
         })
-        const t = baseText(item.label)
-        t.setAttribute('x', String(TH.PAD_X))
+        const dim = item.disabled === true
+        const t = baseText(item.label, dim ? TH.MUTED : TH.TEXT)
+        t.setAttribute('x', String(TH.PAD_X + gutter))
         t.setAttribute('y', String(y + rowH / 2))
         rowBgs.push(bg)
         el.appendChild(bg)
+        if (item.icon) {
+          el.appendChild(
+            iconGlyph(item.icon, {
+              size: iconSize,
+              x: TH.PAD_X,
+              y: y + (rowH - iconSize) / 2,
+              color: dim ? TH.MUTED : TH.TEXT,
+            })
+          )
+        }
         el.appendChild(t)
       })
       return Math.max(rowH, config.items.length * rowH)
@@ -1508,10 +1587,128 @@ export function list3d<T extends { label: string }>(config: {
       if (i < 0 || i >= config.items.length) return highlight(-1)
       if (kind === 'up') {
         highlight(-1)
-        config.onSelect?.(config.items[i], i)
+        // Checked at ACTIVATION, not at hover: an item can become disabled
+        // during the gesture, and what matters is whether it was allowed at the
+        // moment it fired. Same rule as `interaction.ts`'s vetoes.
+        if (enabled(i)) config.onSelect?.(config.items[i], i)
       } else highlight(i) // down / move / hover → highlight the row under it
     },
   }
+}
+
+// --- Action menu -----------------------------------------------------------
+
+/**
+ * One row of an action menu.
+ *
+ * Distinct from `select3d`'s options, which are VALUES the control then keeps
+ * and displays. A menu item is a thing that HAPPENS: it fires and the menu
+ * closes, leaving nothing behind. Ensemble put it exactly right — a picker
+ * showing a lingering "value" for what was a one-shot action reads wrong
+ * (tosijs-3d#59).
+ */
+export interface MenuAction {
+  label: string
+  /** Icon name, as `svgIcons`/`iconGlyph` know it. Optional, and mixed lists align. */
+  icon?: string
+  /**
+   * Greyed, unhighlighted and unfirable — but still PRESENT. A menu whose items
+   * come and go teaches you nothing about where things are; one that greys them
+   * shows you the command exists and is unavailable right now.
+   */
+  disabled?: boolean
+  /** What this item does. `handleSelect` on the menu fires too, if given. */
+  handleSelect?: () => void
+}
+
+/**
+ * The rows of an action menu, as a `Widget3d`.
+ *
+ * You rarely want this directly — `openMenu3d` puts it in a popup, which is
+ * where a menu belongs. It is separate so a menu can also be embedded in a
+ * panel (a permanently-visible command list) without a popup at all.
+ */
+export function menu3d(config: {
+  items: MenuAction[]
+  /** Fired for any item, after that item's own `handleSelect`. */
+  handleSelect?: (item: MenuAction, index: number) => void
+  rowHeight?: number
+}): Widget3d {
+  return list3d({
+    items: config.items,
+    rowHeight: config.rowHeight,
+    onSelect: (item, i) => {
+      // The item's own handler first, then the menu-wide one: the specific
+      // before the general, so a menu-level handler can log or close over the
+      // top of whatever the item did.
+      item.handleSelect?.()
+      config.handleSelect?.(item, i)
+    },
+  })
+}
+
+/**
+ * Open an action menu as a popup anchored to something, and close it on pick.
+ *
+ * This is the piece that was missing. `select3d` could open a menu because it
+ * holds a `WidgetHost` privately; nothing else could, so an icon in a tool
+ * palette had no route to one (tosijs-3d#59). Any widget that gets a host can
+ * now open a menu in one call.
+ *
+ * ```javascript
+ * openMenu3d(host, anchorRect, [
+ *   { label: 'Load…', icon: 'uploadCloud', handleSelect: load },
+ *   { label: 'Revert', icon: 'rotateCcw', disabled: !dirty, handleSelect: revert },
+ * ])
+ * ```
+ *
+ * Dismissal is the host's: a press outside closes it, exactly as it does for a
+ * select. `width` defaults to the anchor's, floored so a menu hanging off a
+ * narrow icon is still readable rather than a column of clipped words.
+ */
+export function openMenu3d(
+  host: WidgetHost,
+  anchor: { x: number; y: number; width: number; height: number },
+  items: MenuAction[],
+  opts: {
+    side?: PopupSide
+    width?: number
+    maxHeight?: number
+    /** Fired after an item is chosen (the menu has already closed). */
+    handleSelect?: (item: MenuAction, index: number) => void
+    onClose?: () => void
+  } = {}
+): { close: () => void } | null {
+  // An empty menu opens nothing rather than an empty box. Returning null says
+  // "no menu happened" so a caller can fall back instead of guessing from a
+  // popup handle that closes onto nothing.
+  if (items.length === 0) return null
+  return host.showPopup(
+    {
+      anchor,
+      side: opts.side,
+      width: opts.width ?? Math.max(anchor.width, 160),
+      maxHeight: opts.maxHeight,
+      onClose: opts.onClose,
+    },
+    menu3d({
+      /*
+      The item's own `handleSelect` is STRIPPED and dispatched below instead of
+      by `menu3d`, so that every handler runs after the close.
+
+      That ordering is the point: an action that opens another popup — a
+      confirm, a nested menu, a file picker — would otherwise be torn down a
+      moment later by its own parent closing on top of it. Leaving the handler
+      on the item would run it first and reintroduce exactly that.
+      */
+      items: items.map(({ handleSelect: _drop, ...rest }) => rest),
+      handleSelect: (_stripped, i) => {
+        host.closePopup()
+        items[i].handleSelect?.()
+        opts.handleSelect?.(items[i], i)
+      },
+    })
+  )
 }
 
 // --- Container -------------------------------------------------------------

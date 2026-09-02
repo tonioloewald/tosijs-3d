@@ -68,10 +68,23 @@ const LAYERS = [
   { icon: 'cloud', label: 'sky' },
   { icon: 'camera', label: 'cam' },
 ]
+// A MENU CELL sits in the same strip as ordinary buttons. `load` opens actions
+// instead of firing one, and because it has a `menu` it never joins the
+// selection — so in a radio palette it cannot steal the lit slot from the
+// active tool. Disabled items stay PRESENT: "revert" greys out when there is
+// nothing to revert, rather than vanishing and reflowing the menu under you.
 const ACTIONS = [
   { icon: 'copy', label: 'copy' },
   { icon: 'downloadCloud', label: 'save' },
-  { icon: 'bug', label: 'debug' },
+  {
+    icon: 'uploadCloud',
+    label: 'load',
+    menu: [
+      { label: 'Recent scene', icon: 'star' },
+      { label: 'From file…', icon: 'uploadCloud' },
+      { label: 'Revert', icon: 'rotateCcw', disabled: true },
+    ],
+  },
 ]
 
 // NO CAPTIONS, 2-D — which is the point of the control. Saving space is why you
@@ -139,6 +152,9 @@ const panel = panel3d(
   iconGrid3d({
     items: ACTIONS, mode: 'buttons',
     handleActivate: (i, item) => { state.log = `fired: ${item.label}`; show() },
+    handleMenuSelect: (action, i, cell) => {
+      state.log = `menu: ${action.label} (from ${ACTIONS[cell].label})`; show()
+    },
   }),
   label3d({ text: 'no captions — 12 tools in the space of 4', muted: true, compact: true }),
   iconGrid3d({ items: PALETTE, mode: 'radio', selected: 0, columns: 6 }),
@@ -177,7 +193,8 @@ preview.append(
 import { svgElements } from 'tosijs'
 import { iconGlyph } from './svg-icons'
 import { w3dTheme } from './w3d-theme'
-import type { PointerKind, Widget3d } from './widgets3d'
+import { openMenu3d } from './widgets3d'
+import type { MenuAction, PointerKind, Widget3d, WidgetHost } from './widgets3d'
 
 const { g, rect, text } = svgElements
 
@@ -188,6 +205,14 @@ export interface IconGridItem {
   label?: string
   /** Greyed and unclickable, but still occupies its cell so the grid holds shape. */
   disabled?: boolean
+  /**
+   * Make this cell open an action menu, anchored to the cell.
+   *
+   * The cell then behaves as a one-shot button whatever the grid's `mode` — it
+   * never joins the selection, so a "Load ▾" beside a select/move/rotate/scale
+   * tool group cannot steal the lit slot from the active tool.
+   */
+  menu?: MenuAction[]
 }
 
 /** What a press WOULD do, handed to `handleChange` before it happens. */
@@ -214,8 +239,24 @@ export interface IconGrid3dOptions {
   columns?: number
   /** Cell size in px. Defaults to 48 for touch, 24 for a pointer. */
   cellSize?: number
-  /** Fired on every press, selected or not — this is the "button bar" path. */
-  handleActivate?: (index: number, item: IconGridItem) => void
+  /**
+   * Fired on every press, selected or not — this is the "button bar" path.
+   *
+   * The third argument is the panel host, when there is one. It is what lets a
+   * consumer open something the grid does not model — a confirm, a colour
+   * picker, a menu built on the spot — using `openMenu3d` or `host.showPopup`
+   * directly. Undefined when the grid is not inside a panel that provides one.
+   */
+  handleActivate?: (
+    index: number,
+    item: IconGridItem,
+    host?: WidgetHost
+  ) => void
+  /**
+   * Fired when an item is chosen from a cell's `menu`. `cell` is the grid index
+   * the menu belongs to, so one handler can serve every menu in the palette.
+   */
+  handleMenuSelect?: (action: MenuAction, index: number, cell: number) => void
   /** Fired when the selection actually changes. */
   handleSelect?: (selection: number[]) => void
   /** Impose your own rule. Return the selection to apply; return `previous` to veto. */
@@ -289,6 +330,9 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
   // Geometry from the last layout, so the pointer routes through what was drawn.
   let boxes: Array<{ x: number; y: number; w: number; h: number }> = []
   let rowHeight = 0
+  // The panel that hosts this grid, when there is one. It is how a cell opens a
+  // menu — the route tosijs-3d#59 found missing.
+  let host: WidgetHost | null = null
   let hovered = -1
   let pressed = -1
 
@@ -377,6 +421,40 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
   const activate = (i: number): void => {
     const item = items[i]
     if (item == null || item.disabled) return
+
+    /*
+    A MENU CELL NEVER JOINS THE SELECTION, whatever the grid's mode.
+
+    The palette that motivated this (tosijs-3d#59) mixes both: select / move /
+    rotate / scale are a mode — one of them is true at a time and stays lit —
+    while "Load ▾" and "Save ▾" sit in the same strip and are one-shot. If a
+    menu cell took the radio slot, opening Load would silently deselect your
+    tool, and closing the menu without choosing would leave the palette lying
+    about which tool is active.
+
+    So it behaves like a `buttons` cell regardless: it fires, it opens, nothing
+    lights. `handleActivate` still runs — the press really did happen — and it
+    receives the host, so a consumer can open something of their own instead.
+    */
+    if (item.menu != null && item.menu.length > 0) {
+      config.handleActivate?.(i, item, host ?? undefined)
+      if (host != null) {
+        const b = boxes[i]
+        openMenu3d(
+          host,
+          b != null
+            ? { x: b.x, y: b.y, width: b.w, height: b.h }
+            : { x: 0, y: 0, width: 0, height: 0 },
+          item.menu,
+          {
+            handleSelect: (action, k) =>
+              config.handleMenuSelect?.(action, k, i),
+          }
+        )
+      }
+      return
+    }
+
     const previous = [...selection]
     let next: number[]
     if (mode === 'radio') next = [i]
@@ -395,13 +473,17 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
     selection = next
     // handleActivate fires on EVERY press — that is the button-bar path, and it must
     // not depend on whether the selection happened to move.
-    config.handleActivate?.(i, item)
+    config.handleActivate?.(i, item, host ?? undefined)
     if (changed) config.handleSelect?.([...selection])
     draw()
   }
 
   return {
     el,
+
+    setHost(h: WidgetHost) {
+      host = h
+    },
 
     layout(width: number) {
       const gap = Math.max(2, Math.round(w3dTheme.spacing * 0.4))

@@ -344,6 +344,8 @@ export {
   slider3d,
   select3d,
   list3d,
+  menu3d,
+  openMenu3d,
 } from './widgets3d'
 // Curve editing — the pure model, and the `curve3d` widget over it. A province
 // is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
@@ -397,7 +399,12 @@ export type { Curve3dOptions, CurveField } from './curve-field'
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
 export { vector3d, euler3d, wrapDegrees } from './vector-field'
-export type { Widget3d } from './widgets3d'
+/*
+`WidgetHost` is exported deliberately, not incidentally: it is the type a
+custom widget must name to implement `setHost`, and without it a consumer
+could receive a host but never declare the parameter (tosijs-3d#59).
+*/
+export type { Widget3d, WidgetHost, MenuAction } from './widgets3d'
 export {
   panelFitWidth,
   panelFit,
