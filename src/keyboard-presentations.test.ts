@@ -148,3 +148,74 @@ describe('hardware keys reach a field with NO fieldGroup', () => {
     detach()
   })
 })
+
+describe('inside a SHADOW ROOT — the ensemble topology', () => {
+  /*
+  Diagnosed by tosijs-ensemble, and it was ours: the mounter appended to
+  `root.parentElement`, which in their app is a shadow HOST. Light-DOM children
+  of a host with no `<slot>` are never rendered, so the keyboard existed,
+  reported 360x209, and painted nothing.
+
+  Two fixes, both pinned here: insert as a SIBLING of the panel (whatever renders
+  the panel renders the node beside it), and reach for `parentNode` rather than
+  `parentElement` (a panel inside a ShadowRoot has no parent ELEMENT at all —
+  `parentElement` is null, so the layer was never even installed).
+  */
+  // `document.querySelector` does NOT pierce a shadow root, so each test builds
+  // its own and queries THAT — the first draft looked in the document and found
+  // nothing, which is the same mistake the bug itself is about.
+  const inShadow = () => {
+    kb.setAutoKeyboard(false)
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const shadow = host.attachShadow({ mode: 'open' })
+    const field = kb.inputField({ value: 'hi' })
+    const panel: any = w3d.panel3d({ width: 320 }, field)
+    shadow.appendChild(panel)
+    panel.handlePointer('down', 300, 20)
+    panel.handlePointer('up', 300, 20)
+    return {
+      shadow,
+      holder: shadow.querySelector('[data-w3d-dom-layer]') as HTMLElement | null,
+    }
+  }
+
+  test('a panel in a shadow root gets a keyboard, beside itself', () => {
+    kb.setAutoKeyboard(false)
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const shadow = host.attachShadow({ mode: 'open' })
+    const field = kb.inputField({ value: 'hi' })
+    const panel: any = w3d.panel3d({ width: 320 }, field)
+    shadow.appendChild(panel)
+
+    panel.handlePointer('down', 300, 20)
+    panel.handlePointer('up', 300, 20)
+
+    const holder = shadow.querySelector('[data-w3d-dom-layer]')
+    expect(holder).not.toBe(null)
+    // In the SHADOW root, beside the panel — not in the host's light DOM, where
+    // it would never render.
+    expect(holder!.parentNode).toBe(shadow)
+    expect(holder!.querySelectorAll('[data-key]').length).toBeGreaterThan(20)
+  })
+
+  test('the holder carries an explicit size', () => {
+    // A consumer stylesheet with fluid `svg { width: 100% }` would otherwise
+    // collapse the sheet against a shrink-to-fit holder — each sizing to the
+    // other, resolving to zero.
+    const { holder } = inShadow()
+    expect(holder).not.toBe(null)
+    expect(holder!.style.width).not.toBe('')
+    expect(holder!.style.height).not.toBe('')
+    expect(parseFloat(holder!.style.width)).toBeGreaterThan(0)
+  })
+
+  test('positioned ABSOLUTE, so it scrolls with the field', () => {
+    // `fixed` needs no positioned ancestor and is tempting for that reason, but
+    // it pins the popup to the viewport — one scroll and the keyboard is no
+    // longer near the field it types into.
+    const { holder } = inShadow()
+    expect(holder!.style.position).toBe('absolute')
+  })
+})
