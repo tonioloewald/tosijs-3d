@@ -915,13 +915,15 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     // plane, a sibling or a surface is right here.
     if (config.openKeyboard != null) {
       const close = config.openKeyboard(api)
-      kbOpen = {
+      const mine: { close: () => void } = {
         close: () => {
           close?.()
-          if (liveKeyboard === kbOpen) liveKeyboard = null
+          if (liveKeyboard === mine) liveKeyboard = null
+          if (kbOpen === mine) kbOpen = null
         },
       }
-      liveKeyboard = kbOpen
+      kbOpen = mine
+      liveKeyboard = mine
       return
     }
 
@@ -957,13 +959,22 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       },
       kb
     )
-    kbOpen = {
+    const mine: { close: () => void } = {
       close: () => {
         opened.close()
-        if (liveKeyboard === kbOpen) liveKeyboard = null
+        if (liveKeyboard === mine) liveKeyboard = null
+        // CLEAR OUR OWN RECORD TOO.
+        //
+        // A takeover closes the previous owner's keyboard, and without this that
+        // field still believed it had one — so returning to it did nothing and
+        // the layout never changed back. Tonio: "if I go from the name field to
+        // a number field the keyboard changes, but it doesn't change back if I
+        // return to the text field."
+        if (kbOpen === mine) kbOpen = null
       },
     }
-    liveKeyboard = kbOpen
+    kbOpen = mine
+    liveKeyboard = mine
   }
 
   const api: InputField = {

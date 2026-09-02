@@ -521,9 +521,22 @@ export type LayerHost = (
   }
 ) => { close: () => void }
 
-/** Build the SVG a layer mounts. Separate so every presentation shares one. */
+/**
+ * Build the SVG a layer mounts. Separate so every presentation shares one.
+ *
+ * `paddingTop` reserves HEADROOM for the popup chrome. `popup-surface` draws its
+ * move and close glyphs into the top of whatever SVG it is given, so without a
+ * band kept clear they land on the content — Tonio: "the move affordance
+ * overlaps the 'q' and the close overlaps another key". The chrome is drawn by
+ * the mounting layer and the sheet is built here, so the sheet is the only place
+ * that can leave room for it.
+ */
+const POPUP_CHROME_BAND = 30
 function panelPopupSheet(width: number, items: Widget3d[]): SVGSVGElement {
-  return panel3d({ width, height: 'fit' }, ...items)
+  return panel3d(
+    { width, height: 'fit', paddingTop: POPUP_CHROME_BAND },
+    ...items
+  )
 }
 
 /** What a panel offers the widgets inside it. */
