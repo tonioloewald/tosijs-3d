@@ -232,6 +232,65 @@ export function pointAt(
  */
 export const MIN_EXTENT = 0.05
 
+/**
+ * Smallest gap between two split markers, in curve x.
+ *
+ * Not zero: two markers at the same place make a segment of zero width, which
+ * is a region you can never see, edit or get back — the marker under it becomes
+ * ungrabbable because its neighbour is exactly on top of it.
+ */
+export const MIN_SPLIT_GAP = 0.02
+
+/**
+ * Move split marker `i` to `x`, keeping the set ascending and inside `[0,1]`.
+ *
+ * Markers divide ONE curve into regions — a light's attack / sustain / decay
+ * ([[light-modulation]]) is the first user. They are clamped rather than
+ * refused: a drag that stops at its neighbour shows you the limit, where one
+ * that ignores you looks broken. Same rule as a footprint vertex.
+ *
+ * Returns a new array; the input is untouched.
+ */
+export function moveMarker(
+  markers: number[],
+  i: number,
+  x: number,
+  minGap = MIN_SPLIT_GAP
+): number[] {
+  if (i < 0 || i >= markers.length) return [...markers]
+  const lo = i === 0 ? 0 : markers[i - 1] + minGap
+  const hi = i === markers.length - 1 ? 1 : markers[i + 1] - minGap
+  const next = [...markers]
+  // `lo` can exceed `hi` when neighbours are already tighter than two gaps
+  // apart. Clamping high-then-low leaves the marker pinned against its lower
+  // neighbour rather than jumping past it.
+  next[i] = Math.max(0, Math.min(1, Math.min(hi, Math.max(lo, x))))
+  return next
+}
+
+/** Force a marker set ascending and in range — for values arriving from outside. */
+export function normalizeMarkers(
+  markers: number[],
+  minGap = MIN_SPLIT_GAP
+): number[] {
+  const out = [...markers]
+    .map((v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0)))
+    .sort((a, b) => a - b)
+  for (let i = 1; i < out.length; i++) {
+    if (out[i] < out[i - 1] + minGap) out[i] = out[i - 1] + minGap
+  }
+  // A set too wide for [0,1] gets pushed back from the top, which can violate
+  // the lower bound again — accept the squeeze rather than returning something
+  // out of range.
+  for (let i = out.length - 1; i >= 0; i--) {
+    if (out[i] > 1) out[i] = 1
+    if (i > 0 && out[i] - out[i - 1] < minGap) {
+      out[i - 1] = Math.max(0, out[i] - minGap)
+    }
+  }
+  return out
+}
+
 /** Smallest angular gap between neighbouring vertices, as a fraction of a turn. */
 const MIN_GAP = 0.005
 

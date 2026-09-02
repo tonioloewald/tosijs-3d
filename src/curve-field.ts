@@ -214,6 +214,68 @@ preview.append(
   height: 100%;
 }
 ```
+
+## Shared split markers — a light program editor
+
+A [[light-modulation|light program]] is one curve per channel divided into
+attack / sustain / decay by two markers. Those boundaries belong to the **lamp**,
+not to any one channel, so both curves below are given the SAME `curveMarkers()`
+object: drag a marker in either and both move.
+
+Tonio: _"the attack and decay should be shared by the various curves or it just
+becomes nutty."_ It is not only tidier — per-curve markers would let brightness
+and hue disagree about where the attack ends, which is not a state the model can
+represent, so the editor would be able to author something the runtime cannot
+run.
+
+```js
+import { curve3d, curveMarkers, panel3d, label3d } from 'tosijs-3d'
+import { elements } from 'tosijs'
+const { div, pre } = elements
+
+const out = pre({ style: 'margin:0;padding:8px 12px;color:#8ea;font:12px ui-monospace,monospace' }, '')
+
+// ONE marker set, shared. This is the whole point.
+const splits = curveMarkers([0.35, 0.75], {
+  labels: ['attack', 'decay'],
+  handleChange: (v) => {
+    out.textContent = `attackEnd ${v[0].toFixed(3)}   sustainEnd ${v[1].toFixed(3)}`
+  },
+})
+out.textContent = 'attackEnd 0.350   sustainEnd 0.750'
+
+const brightness = curve3d({
+  label: 'brightness — strike, hum, fade',
+  markers: splits,
+  value: [
+    { x: 0, y: 0 }, { x: 0.08, y: 0.9 }, { x: 0.12, y: 0.05 },
+    { x: 0.2, y: 1 }, { x: 0.26, y: 0.1 }, { x: 0.35, y: 1 },
+    { x: 0.5, y: 0.93 }, { x: 0.75, y: 1 },
+    { x: 0.9, y: 0.3 }, { x: 1, y: 0 },
+  ],
+})
+const hue = curve3d({
+  label: 'hue — 0.5 leaves the colour alone',
+  markers: splits,
+  value: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
+})
+
+preview.append(
+  div(
+    { style: 'display:flex;flex-direction:column;height:100%;background:#0c0e14' },
+    div(
+      { style: 'flex:1;min-height:0;overflow:auto;padding:12px' },
+      panel3d({ width: 340 }, label3d({ text: 'Light program' }), brightness, hue)
+    ),
+    out
+  )
+)
+```
+```css
+.preview {
+  height: 100%;
+}
+```
 */
 /*{ "parent": "UI", "order": 260 }*/
 
@@ -224,6 +286,8 @@ import {
   insertPoint,
   linear,
   movePoint,
+  moveMarker,
+  normalizeMarkers,
   normalizeCurve,
   presetsFor,
   falloffDefault,
@@ -246,6 +310,82 @@ export interface Curve3dOptions {
   aspect?: number
   /** Fired after any edit that changes the curve. */
   onChange?: (points: ControlPoint[]) => void
+  /**
+   * Draggable vertical split markers, SHARED between curves.
+   *
+   * A light's attack/sustain/decay boundaries belong to the lamp, not to any
+   * one channel — Tonio: _"the attack and decay should be shared by the various
+   * curves or it just becomes nutty."_ So this takes a `curveMarkers()` object
+   * and several `curve3d`s given the SAME one drag together and redraw
+   * together. Per-curve markers would let brightness and hue disagree about
+   * where the attack ends, which is not a state the model can even represent.
+   */
+  markers?: CurveMarkers
+}
+
+/**
+ * Split markers shared by several curves.
+ *
+ * Deliberately a tiny observable rather than a plain array: the sharing has to
+ * survive a drag, so every subscriber has to hear about a move as it happens,
+ * not on the next layout.
+ */
+export interface CurveMarkers {
+  readonly values: number[]
+  /** Optional captions, drawn at the top of each marker. */
+  readonly labels: string[]
+  /** Move marker `i`, clamped between its neighbours. */
+  move: (i: number, x: number) => void
+  set: (values: number[]) => void
+  /** Called on every change; returns an unsubscribe. */
+  subscribe: (cb: () => void) => () => void
+  handleChange?: (values: number[]) => void
+}
+
+/**
+ * Make a shared marker set.
+ *
+ * ```js
+ * const splits = curveMarkers([0.35, 0.75], { labels: ['attack', 'decay'] })
+ * const brightness = curve3d({ label: 'brightness', markers: splits })
+ * const hue = curve3d({ label: 'hue', markers: splits })
+ * // drag either one's markers; both move.
+ * ```
+ */
+export function curveMarkers(
+  values: number[],
+  opts: { labels?: string[]; handleChange?: (values: number[]) => void } = {}
+): CurveMarkers {
+  let vals = normalizeMarkers(values)
+  const subs = new Set<() => void>()
+  const fire = () => {
+    for (const cb of [...subs]) cb()
+    api.handleChange?.([...vals])
+  }
+  const api: CurveMarkers = {
+    get values() {
+      return vals
+    },
+    get labels() {
+      return opts.labels ?? []
+    },
+    move(i, x) {
+      const next = moveMarker(vals, i, x)
+      if (next[i] === vals[i]) return
+      vals = next
+      fire()
+    },
+    set(next) {
+      vals = normalizeMarkers(next)
+      fire()
+    },
+    subscribe(cb) {
+      subs.add(cb)
+      return () => subs.delete(cb)
+    },
+    handleChange: opts.handleChange,
+  }
+  return api
 }
 
 export interface CurveField extends Widget3d {
@@ -324,6 +464,10 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   el.appendChild(caption)
   const handles = g({ 'data-curve-points': '' })
   el.appendChild(handles)
+  // Above the handles: a split marker must stay grabbable even where a control
+  // point sits on it.
+  const markerLayer = g({ 'data-curve-markers': '' })
+  el.appendChild(markerLayer)
 
   // Plot geometry from the last layout, so the pointer maps through exactly what
   // was drawn — the rule row3d and vector-field both follow.
@@ -343,6 +487,16 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   const INSET = HANDLE + 4
   /** Grab radius in PIXELS — see `nearestPx`. */
   const GRAB = 16
+  /**
+   * Horizontal grab distance for a split marker, in pixels.
+   *
+   * Wider than it looks because a marker is a 1px line — but a POINT still wins
+   * a contested press, since a point is a specific thing you aimed at and a
+   * marker spans the whole height of the plot.
+   */
+  const MARKER_GRAB = 10
+  let draggingMarker = -1
+  const markers = config.markers ?? null
 
   // Curve space ↔ widget space. y is flipped: 1 is the TOP of the plot.
   const toPx = (p: ControlPoint) => ({
@@ -398,6 +552,68 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
     })
   }
 
+  /** Vertical split lines + their grab tabs, redrawn from the shared model. */
+  const drawMarkers = (): void => {
+    while (markerLayer.firstChild) {
+      markerLayer.removeChild(markerLayer.firstChild)
+    }
+    if (markers == null) return
+    markers.values.forEach((v, i) => {
+      const px = plot.x + v * plot.w
+      markerLayer.appendChild(
+        path({
+          d: `M${px} ${plot.y}V${plot.y + plot.h}`,
+          stroke: w3dTheme.warning ?? w3dTheme.accent,
+          'stroke-width': String(Math.max(1, w3dTheme.strokeWidth)),
+          'stroke-dasharray': '3 3',
+          opacity: i === draggingMarker ? '1' : '0.75',
+        })
+      )
+      // A grab TAB at the top, so the marker can be picked up without competing
+      // with the control points spread along the line's whole height.
+      markerLayer.appendChild(
+        rect({
+          x: px - 4,
+          y: plot.y - 3,
+          width: 8,
+          height: 7,
+          rx: 2,
+          fill: w3dTheme.warning ?? w3dTheme.accent,
+        })
+      )
+      const caption = markers.labels[i]
+      if (caption) {
+        markerLayer.appendChild(
+          text(
+            {
+              x: px + 5,
+              y: plot.y + 9,
+              'font-family': w3dTheme.fontFamily,
+              'font-size': String(Math.round(w3dTheme.fontSize * 0.7)),
+              fill: w3dTheme.muted,
+            },
+            caption
+          )
+        )
+      }
+    })
+  }
+
+  /** Nearest marker within `MARKER_GRAB` pixels, or -1. */
+  const nearestMarkerPx = (x: number): number => {
+    if (markers == null) return -1
+    let best = -1
+    let bestD = MARKER_GRAB
+    markers.values.forEach((v, i) => {
+      const d = Math.abs(plot.x + v * plot.w - x)
+      if (d <= bestD) {
+        bestD = d
+        best = i
+      }
+    })
+    return best
+  }
+
   const draw = (): void => {
     bg.setAttribute('x', String(frame.x))
     bg.setAttribute('y', String(frame.y))
@@ -444,7 +660,12 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       String(Math.max(1.5, w3dTheme.strokeWidth))
     )
     drawHandles()
+    drawMarkers()
   }
+
+  // Redraw whenever the SHARED markers move — including when the drag is
+  // happening in a sibling curve, which is the whole point of sharing them.
+  markers?.subscribe(() => draw())
 
   const api: CurveField = {
     el,
@@ -482,6 +703,12 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
         if (hit >= 0) {
           selected = hit
           dragging = hit
+        } else if (nearestMarkerPx(x) >= 0) {
+          // Markers lose to a point (you aimed at that point) but beat
+          // INSERTING one — otherwise reaching for a split silently adds a
+          // control point, the same worst-outcome-for-a-near-miss the plot
+          // inset exists to prevent.
+          draggingMarker = nearestMarkerPx(x)
         } else {
           const added = insertPoint(points, c.x, c.y, kind)
           points = added.points
@@ -490,6 +717,12 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
           emit()
         }
         draw()
+        return
+      }
+      if (kind_ === 'move' && draggingMarker >= 0) {
+        // The shared model fires, so sibling curves redraw too — this widget's
+        // own redraw comes back through its own subscription.
+        markers?.move(draggingMarker, toCurve(x, y).x)
         return
       }
       if (kind_ === 'move' && dragging >= 0) {
@@ -504,7 +737,13 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
         emit()
         return
       }
-      if (kind_ === 'up' || kind_ === 'leave') dragging = -1
+      if (kind_ === 'up' || kind_ === 'leave') {
+        dragging = -1
+        if (draggingMarker >= 0) {
+          draggingMarker = -1
+          draw()
+        }
+      }
     },
 
     hitTest(x: number, y: number) {

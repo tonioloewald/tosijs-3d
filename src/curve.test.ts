@@ -25,6 +25,9 @@ import {
   rim,
   stepped,
   type ControlPoint,
+  moveMarker,
+  normalizeMarkers,
+  MIN_SPLIT_GAP,
 } from './curve'
 
 const xs = (pts: ControlPoint[]) => pts.map((p) => p.x)
@@ -578,5 +581,82 @@ describe('a profile is a LEVELS MAP, not a second radial curve', () => {
         )
       }
     }
+  })
+})
+
+/*
+SPLIT MARKERS — the boundaries that divide ONE curve into regions.
+
+A light's attack / sustain / decay are three regions of one curve
+(light-modulation), and the markers belong to the LAMP, not to any single
+channel. Tonio: "the attack and decay should be shared by the various curves or
+it just becomes nutty."
+*/
+describe('moveMarker', () => {
+  test('a marker cannot pass its neighbours', () => {
+    const m = [0.3, 0.7]
+    expect(moveMarker(m, 0, 0.9)[0]).toBeCloseTo(0.7 - MIN_SPLIT_GAP)
+    expect(moveMarker(m, 1, 0.1)[1]).toBeCloseTo(0.3 + MIN_SPLIT_GAP)
+  })
+
+  test('the ends are 0 and 1', () => {
+    const m = [0.3, 0.7]
+    expect(moveMarker(m, 0, -5)[0]).toBe(0)
+    expect(moveMarker(m, 1, 5)[1]).toBe(1)
+  })
+
+  test('clamped, not refused — a drag that stops shows you the limit', () => {
+    // A control that ignores you looks broken; one that stops looks like a
+    // rule. Same choice as a footprint vertex.
+    const m = [0.3, 0.7]
+    expect(moveMarker(m, 0, 0.5)[0]).toBeCloseTo(0.5)
+  })
+
+  test('it never returns markers out of order', () => {
+    for (const x of [-1, 0, 0.31, 0.69, 0.7, 1, 2]) {
+      for (const i of [0, 1]) {
+        const out = moveMarker([0.3, 0.7], i, x)
+        expect(out[0]).toBeLessThan(out[1])
+      }
+    }
+  })
+
+  test('an out-of-range index is a no-op, not a crash', () => {
+    expect(moveMarker([0.3, 0.7], 5, 0.5)).toEqual([0.3, 0.7])
+    expect(moveMarker([0.3, 0.7], -1, 0.5)).toEqual([0.3, 0.7])
+  })
+
+  test('the input array is not mutated', () => {
+    const m = [0.3, 0.7]
+    moveMarker(m, 0, 0.1)
+    expect(m).toEqual([0.3, 0.7])
+  })
+})
+
+describe('normalizeMarkers, for values arriving from outside', () => {
+  test('sorts and separates', () => {
+    const out = normalizeMarkers([0.8, 0.2])
+    expect(out[0]).toBeCloseTo(0.2)
+    expect(out[1]).toBeCloseTo(0.8)
+  })
+
+  test('two markers at the same place are pushed apart', () => {
+    // A zero-width region is one you can never see, edit, or get back — and the
+    // marker under it is ungrabbable, because its neighbour is on top of it.
+    const out = normalizeMarkers([0.5, 0.5])
+    expect(out[1] - out[0]).toBeGreaterThanOrEqual(MIN_SPLIT_GAP - 1e-9)
+  })
+
+  test('out-of-range and non-finite values are brought back', () => {
+    const out = normalizeMarkers([-2, 5, NaN])
+    for (const v of out) {
+      expect(Number.isFinite(v)).toBe(true)
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThanOrEqual(1)
+    }
+  })
+
+  test('an empty set is fine', () => {
+    expect(normalizeMarkers([])).toEqual([])
   })
 })

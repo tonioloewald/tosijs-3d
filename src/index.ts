@@ -409,8 +409,9 @@ export {
   smoothEdge,
   abruptEdge,
 } from './curve'
+export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
-export { curve3d } from './curve-field'
+export { curve3d, curveMarkers } from './curve-field'
 export { iconGrid3d } from './icon-grid'
 export type {
   IconGrid,
@@ -420,7 +421,7 @@ export type {
 } from './icon-grid'
 export { footprint3d } from './footprint-field'
 export type { Footprint3dOptions, FootprintField } from './footprint-field'
-export type { Curve3dOptions, CurveField } from './curve-field'
+export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field'
 
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
