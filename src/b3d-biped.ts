@@ -1381,6 +1381,25 @@ export class B3dBiped extends B3dControllable {
       const bodyBottom = pose ? pose.bottom : 0
       const bodyHeight = pose ? pose.height : standHeight
       const feetY = node.position.y + bodyBottom
+      /*
+      HOW DEEP THE HEAD IS — computed ONCE.
+
+      This was derived twice and the two disagreed: the up-thrust gate used
+      `feetY + bodyHeight` (right) while the up-AIM clamp used
+      `node.position.y + bodyHeight`, dropping `bodyBottom`. A swim pose puts
+      the ROOT at the waterline with the body hanging below it, so `bodyBottom`
+      is negative and the aim clamp therefore believed the head was a body-length
+      shallower than it was — clamping upward aim to nothing while the thrust
+      gate was happily allowing it.
+
+      Tonio: "in first person I don't seem to be able to swim upwards." You could
+      thrust up but not AIM up, so nothing rose.
+
+      Two derivations of one quantity is the bug, not the arithmetic; deriving it
+      once is the fix.
+      */
+      const headDepth =
+        surfaceY == null ? 0 : surfaceY - (feetY + bodyHeight)
       const submerged =
         surfaceY == null ? 0 : submergedFraction(feetY, bodyHeight, surfaceY)
       const grounded = hit?.hit === true && hit.pickedPoint != null
@@ -1539,7 +1558,6 @@ export class B3dBiped extends B3dControllable {
         upward by default." Note you also GLIDE a little deeper after releasing
         the control; that is momentum, not a bug, and letting go is not a brake.
         */
-        const headDepth = surfaceY! - (feetY + bodyHeight)
         /*
         YOU CANNOT PUSH YOURSELF OUT OF WATER.
 
@@ -1697,10 +1715,7 @@ export class B3dBiped extends B3dControllable {
       Downward is never capped, so diving always works.
       */
       if (this._swimming) {
-        const up = surfaceAimLimit(
-          surfaceY! - (node.position.y + bodyHeight),
-          attrs.maxLookPitch
-        )
+        const up = surfaceAimLimit(headDepth, attrs.maxLookPitch)
         if (this._swimAim < -up) this._swimAim = -up
       }
       const target = aimTarget(this._swimming, this._swimAim)
