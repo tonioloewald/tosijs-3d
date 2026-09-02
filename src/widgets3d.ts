@@ -48,7 +48,12 @@ const panel = panel3d(
 
 preview.append(
   div(
-    { style: 'display:flex; gap:24px; padding:16px; background:#11131a; align-items:flex-start' },
+    { style: {
+      display: 'flex',
+      gap: 24,
+      padding: 16,
+      alignItems: 'flex-start'
+    } },
     panel,
     label('native, same binding ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: ui.time }))
   )

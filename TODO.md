@@ -1824,14 +1824,27 @@ cosmetic.** Reported by Tonio; diagnosed but not yet fixed.
      will hit this, and the symptom (a demo that looks wrong) points nowhere
      near the cause. Worth a tosijs-ui issue once we have decided which.
 
-  2. **Native controls have terrible contrast** — the `<input type="range">` and
+  2. **DONE — native controls had terrible contrast.** Fixed by Tonio's own
+     rewrite (below), which drops the hardcoded `background:#11131a`: the native
+     control then sits on the PAGE's background instead of fighting it, so the
+     contrast fix and the style fix turned out to be the same edit. Original
+     report kept for the sweep — **check the other demos**, since anything
+     relying on inherited colour is only correct by accident of the page it
+     happens to be on.
+
+     ~~Native controls have terrible contrast~~ — the `<input type="range">` and
      its label inherit nothing, so they render near-invisible on the demo's dark
      `#11131a`. Needs an explicit colour. Check the other demos for the same:
      anything relying on inherited colour is only correct by accident of the
      page it happens to be on, which is the same trap `theme-editor`'s fields
      fell into.
 
-  3. **`style` is passed as a STRING, which is not good tosijs.** tosijs takes a
+  3. **DONE for this demo — `style` as a STRING.** Now a style object, in the
+     form Tonio wrote: bare numbers (`gap: 24`) resolve to `24px`, verified
+     against computed style. STILL A SWEEP: the other doc examples mostly pass
+     strings, and they are what an adopter copies.
+
+     ~~`style` is passed as a STRING, which is not good tosijs.~~ tosijs takes a
      style OBJECT (typed, camelCase); a string works but opts out of the typing
      and of everything CLAUDE.md's styling section is about. Tonio: "this may
      apply elsewhere" — so this is a sweep across the doc examples, not one
