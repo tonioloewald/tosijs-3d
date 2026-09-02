@@ -66,7 +66,7 @@ describe('the consumer owns MEANING; the grid owns layout', () => {
     const w = mod.iconGrid3d({
       items: ITEMS,
       mode: 'buttons',
-      onActivate: (i) => fired.push(i),
+      handleActivate: (i) => fired.push(i),
     })
     click(w, 0)
     click(w, 2)
@@ -74,7 +74,7 @@ describe('the consumer owns MEANING; the grid owns layout', () => {
     expect(fired).toEqual([0, 2])
   })
 
-  test('onActivate fires on EVERY press, even when the selection does not move', () => {
+  test('handleActivate fires on EVERY press, even when the selection does not move', () => {
     // The button-bar path must not depend on whether selection happened to
     // change — pressing the already-selected radio is still a press.
     const fired: number[] = []
@@ -82,20 +82,20 @@ describe('the consumer owns MEANING; the grid owns layout', () => {
       items: ITEMS,
       mode: 'radio',
       selected: 1,
-      onActivate: (i) => fired.push(i),
+      handleActivate: (i) => fired.push(i),
     })
     click(w, 1)
     click(w, 1)
     expect(fired).toEqual([1, 1])
   })
 
-  test('onSelect fires only when the selection actually changes', () => {
+  test('handleSelect fires only when the selection actually changes', () => {
     let calls = 0
     const w = mod.iconGrid3d({
       items: ITEMS,
       mode: 'radio',
       selected: 1,
-      onSelect: () => calls++,
+      handleSelect: () => calls++,
     })
     click(w, 1) // same cell — no change
     expect(calls).toBe(0)
@@ -104,14 +104,14 @@ describe('the consumer owns MEANING; the grid owns layout', () => {
   })
 })
 
-describe('`change` — impose your own rule', () => {
+describe('`handleChange` — impose your own rule', () => {
   test('returning `previous` is a veto', () => {
     // One way to say no, rather than a separate cancel flag.
     const w = mod.iconGrid3d({
       items: ITEMS,
       mode: 'radio',
       selected: 0,
-      change: ({ previous }) => previous,
+      handleChange: ({ previous }) => previous,
     })
     click(w, 2)
     expect(w.selection).toEqual([0])
@@ -122,7 +122,7 @@ describe('`change` — impose your own rule', () => {
       items: ITEMS,
       mode: 'checkbox',
       selected: [1],
-      change: ({ selection, previous }) =>
+      handleChange: ({ selection, previous }) =>
         selection.length === 0 ? previous : selection,
     })
     click(w, 1) // would empty it
@@ -137,7 +137,7 @@ describe('`change` — impose your own rule', () => {
       items: ITEMS,
       mode: 'radio',
       selected: 0,
-      change: (c) => {
+      handleChange: (c) => {
         seen = c
         return c.selection
       },
@@ -154,7 +154,7 @@ describe('presses behave like buttons', () => {
     // So a mis-aimed press can be aborted by sliding off, rather than being
     // committed on release — which matters most where aiming is expensive.
     const fired: number[] = []
-    const w = mod.iconGrid3d({ items: ITEMS, onActivate: (i) => fired.push(i) })
+    const w = mod.iconGrid3d({ items: ITEMS, handleActivate: (i) => fired.push(i) })
     w.layout(320)
     w.handle!('down', 4, 4) // cell 0
     w.handle!('up', 300, 4) // cell 3
@@ -167,7 +167,7 @@ describe('presses behave like buttons', () => {
     const w = mod.iconGrid3d({
       items,
       mode: 'checkbox',
-      onActivate: (i) => fired.push(i),
+      handleActivate: (i) => fired.push(i),
     })
     click(w, 1, items.length)
     expect(fired).toEqual([])
@@ -229,7 +229,7 @@ describe('D-pad traversal escapes rather than trapping', () => {
     const w = mod.iconGrid3d({
       items: ITEMS,
       columns: 2,
-      onActivate: (i) => fired.push(i),
+      handleActivate: (i) => fired.push(i),
     })
     w.layout(320)
     w.focusClear!()

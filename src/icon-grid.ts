@@ -9,11 +9,11 @@ flat, on an in-scene panel and in a headset unchanged.
 
 Three widgets collapse into one because the difference between them was never
 layout — it was semantics. So `mode` picks the common case (`buttons` fire and
-forget, `radio` is one-of-N, `checkbox` is any-of-N) and `change` lets a consumer
+forget, `radio` is one-of-N, `checkbox` is any-of-N) and `handleChange` lets a consumer
 impose something more particular: mutually exclusive subgroups, a mode that
 refuses to turn itself off, a tool that arms rather than toggles.
 
-`change` receives what WOULD happen and returns what should. Returning the
+`handleChange` receives what WOULD happen and returns what should. Returning the
 previous selection is a veto; there is no separate cancel flag, because one way
 to say no is easier to get right than two.
 
@@ -50,9 +50,11 @@ import { elements } from 'tosijs'
 const { div, pre } = elements
 
 const out = pre({ style: 'margin:8px 16px;color:#8ea;font:12px ui-monospace,monospace' }, '')
-const state = { tool: 'move', shown: ['map'], log: '' }
+const state = { tool: 'move', shown: ['map'], log: '', tools: ['select', 'move'] }
 const show = () => {
-  out.textContent = `tool: ${state.tool}\nshown: ${state.shown.join(', ') || '(none)'}\n${state.log}`
+  out.textContent =
+    `tool: ${state.tool}\nshown: ${state.shown.join(', ') || '(none)'}\n` +
+    `tools: ${state.tools.join(' + ') || '(none)'}\n${state.log}`
 }
 
 const TOOLS = [
@@ -72,24 +74,79 @@ const ACTIONS = [
   { icon: 'bug', label: 'debug' },
 ]
 
+// NO CAPTIONS, 2-D — which is the point of the control. Saving space is why you
+// reach for a grid, and a caption is what forces a narrow column: without them
+// the same items fit six across instead of four. (Tooltips are the missing half;
+// see TODO — there is no hover in a headset, so it is not just a title attr.)
+const PALETTE = [
+  'move', 'rotateCw', 'resize', 'trash',
+  'copy', 'camera', 'map', 'cloud',
+  'star', 'compass', 'settings', 'bug',
+].map((icon) => ({ icon }))
+
+// THE RULE ENSEMBLE ACTUALLY WANTS, and it is none of the three modes.
+//
+// Tonio: "select move rotate scale, where scale turns off move and rotate, and
+// move and rotate turn off scale but can coexist and select is independent."
+//
+// So: two mutually exclusive GROUPS that are each internally free, plus one
+// member that ignores the whole arrangement. `checkbox` gets the coexistence and
+// none of the exclusion; `radio` gets the exclusion and none of the coexistence.
+// This is what `handleChange` is for — the grid owns layout, the consumer owns
+// meaning.
+//
+// (Line comments: a block comment would close the enclosing `/*#` doc fence.
+// Third time I have done that, hence the note.)
+const TOOLBOX = [
+  { icon: 'mousePointer', label: 'select' },
+  { icon: 'move', label: 'move' },
+  { icon: 'rotateCw', label: 'rotate' },
+  { icon: 'resize', label: 'scale' },
+]
+const SELECT = 0, MOVE = 1, ROTATE = 2, SCALE = 3
+
+const toolRule = ({ index, selection }) => {
+  const has = (i) => selection.includes(i)
+  // `select` answers to nobody.
+  if (index === SELECT) return selection
+  if (index === SCALE && has(SCALE)) {
+    // Scale just came on: it evicts the pair.
+    return selection.filter((i) => i !== MOVE && i !== ROTATE)
+  }
+  if ((index === MOVE || index === ROTATE) && has(index)) {
+    // Either of the pair came on: it evicts scale, and they may coexist.
+    return selection.filter((i) => i !== SCALE)
+  }
+  // Turning something OFF needs no adjudication.
+  return selection
+}
+
 const panel = panel3d(
   { width: 300 },
   label3d({ text: 'radio — one tool at a time', muted: true, compact: true }),
   iconGrid3d({
     items: TOOLS, mode: 'radio', selected: 0,
-    onSelect: ([i]) => { state.tool = TOOLS[i].label; show() },
+    handleSelect: ([i]) => { state.tool = TOOLS[i].label; show() },
   }),
   label3d({ text: 'checkbox — any layers, but never none', muted: true, compact: true }),
   iconGrid3d({
     items: LAYERS, mode: 'checkbox', selected: [0],
     // The rule the modes do not have: refuse to empty the set.
-    change: ({ selection, previous }) => (selection.length ? selection : previous),
-    onSelect: (sel) => { state.shown = sel.map((i) => LAYERS[i].label); show() },
+    handleChange: ({ selection, previous }) => (selection.length ? selection : previous),
+    handleSelect: (sel) => { state.shown = sel.map((i) => LAYERS[i].label); show() },
   }),
   label3d({ text: 'buttons — fire and forget', muted: true, compact: true }),
   iconGrid3d({
     items: ACTIONS, mode: 'buttons',
-    onActivate: (i, item) => { state.log = `fired: ${item.label}`; show() },
+    handleActivate: (i, item) => { state.log = `fired: ${item.label}`; show() },
+  }),
+  label3d({ text: 'no captions — 12 tools in the space of 4', muted: true, compact: true }),
+  iconGrid3d({ items: PALETTE, mode: 'radio', selected: 0, columns: 6 }),
+  label3d({ text: "ensemble's tool rule — scale fights move+rotate", muted: true, compact: true }),
+  iconGrid3d({
+    items: TOOLBOX, mode: 'checkbox', selected: [SELECT, MOVE],
+    handleChange: toolRule,
+    handleSelect: (sel) => { state.tools = sel.map((i) => TOOLBOX[i].label); show() },
   })
 )
 show()
@@ -133,7 +190,7 @@ export interface IconGridItem {
   disabled?: boolean
 }
 
-/** What a press WOULD do, handed to `change` before it happens. */
+/** What a press WOULD do, handed to `handleChange` before it happens. */
 export interface IconGridChange {
   /** The cell pressed. */
   index: number
@@ -158,11 +215,20 @@ export interface IconGrid3dOptions {
   /** Cell size in px. Defaults to 48 for touch, 24 for a pointer. */
   cellSize?: number
   /** Fired on every press, selected or not — this is the "button bar" path. */
-  onActivate?: (index: number, item: IconGridItem) => void
+  handleActivate?: (index: number, item: IconGridItem) => void
   /** Fired when the selection actually changes. */
-  onSelect?: (selection: number[]) => void
+  handleSelect?: (selection: number[]) => void
   /** Impose your own rule. Return the selection to apply; return `previous` to veto. */
-  change?: (change: IconGridChange) => number[]
+  /**
+   * Impose your own rule. Return the selection to apply; return `previous` to
+   * veto.
+   *
+   * `handleX` rather than `onX` — the tosijs convention for a callback handler,
+   * and the one that stays safe if this ever becomes a component, where the
+   * element creator binds any `on*` prop as a DOM event LISTENER and the class
+   * field is silently never called.
+   */
+  handleChange?: (change: IconGridChange) => number[]
 }
 
 export interface IconGrid extends Widget3d {
@@ -201,7 +267,7 @@ const toArray = (v: number | number[] | undefined): number[] =>
  *   mode: 'radio',
  *   selected: 0,
  *   items: [{ icon: 'move', label: 'move' }, { icon: 'rotateCw', label: 'turn' }],
- *   onSelect: ([i]) => setTool(i),
+ *   handleSelect: ([i]) => setTool(i),
  * })
  * ```
  */
@@ -320,16 +386,16 @@ export function iconGrid3d(config: IconGrid3dOptions): IconGrid {
         : [...selection, i].sort((a, b) => a - b)
     else next = previous // buttons: nothing stays lit
 
-    if (config.change != null) {
-      next = config.change({ index: i, selection: next, previous }) ?? previous
+    if (config.handleChange != null) {
+      next = config.handleChange({ index: i, selection: next, previous }) ?? previous
     }
     const changed =
       next.length !== previous.length || next.some((v, k) => v !== previous[k])
     selection = next
-    // onActivate fires on EVERY press — that is the button-bar path, and it must
+    // handleActivate fires on EVERY press — that is the button-bar path, and it must
     // not depend on whether the selection happened to move.
-    config.onActivate?.(i, item)
-    if (changed) config.onSelect?.([...selection])
+    config.handleActivate?.(i, item)
+    if (changed) config.handleSelect?.([...selection])
     draw()
   }
 
