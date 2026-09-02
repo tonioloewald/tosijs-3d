@@ -223,12 +223,33 @@ export class B3dSkybox extends AbstractMesh {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
+    /*
+    ADVANCE BY MEASURED TIME, not by the interval we asked for.
+
+    This added `realtimeScale * updateFrequencyMs` per tick — i.e. it assumed
+    every tick arrived exactly `updateFrequencyMs` apart. Browsers throttle
+    timers in a BACKGROUNDED tab to a second or more, so the tick still added its
+    100 ms of sky while ~1000 ms of real time passed: the sky quietly ran an
+    order of magnitude slow, and only looked wrong when you came back to the tab
+    and compared it with what the scene was doing.
+
+    Silent, and it never self-corrects — nothing anywhere measures the drift, so
+    it accumulates for as long as the tab is hidden.
+
+    The elapsed time is CLAMPED because the alternative is a teleporting sun: a
+    tab hidden for an hour would otherwise apply an hour of sky in a single
+    frame. Clamping means a long absence resumes smoothly rather than jumping,
+    at the cost of the clock lagging real time — which is the right trade for a
+    day/night cycle that is scenery, not a simulation.
+    */
+    const MAX_STEP_MS = 250
+    let lastTick = Date.now()
     this.interval = window.setInterval(() => {
+      const now = Date.now()
+      const elapsed = Math.min(MAX_STEP_MS, Math.max(0, now - lastTick))
+      lastTick = now
       attrs.timeOfDay =
-        (((attrs.timeOfDay +
-          attrs.realtimeScale * attrs.updateFrequencyMs * 1e-6) /
-          24) %
-          1) *
+        (((attrs.timeOfDay + attrs.realtimeScale * elapsed * 1e-6) / 24) % 1) *
         24
     }, attrs.updateFrequencyMs)
 
