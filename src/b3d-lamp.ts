@@ -43,41 +43,61 @@ The default geometry is deliberately plain and **unlit** (`emissiveColor`,
 a grey lump exactly when its light is off — which is when you most need to see
 where it is.
 
-## Modulation is curves over a period
+## One curve is the whole lamp
 
-Everything time-varying comes from [[light-modulation]]: a `period` in seconds
-plus curves for `brightness`, `hue`, `saturation` and `range`, and an optional
-**ADSR envelope** for turning on and off — `attack` rises to full, `decay`
-settles to the held `sustain` level, `release` fades to dark. Those are the same
-`[0,1] → [0,1]` curves the
-province editor edits, so [[curve-field|curve3d]] is already the editor for a
-lamp's flicker.
+Everything time-varying comes from [[light-modulation]]: **one curve per channel**
+(`brightness`, `hue`, `saturation`, `range`) spanning the lamp's entire
+behaviour, split into three regions by two markers.
+
+```
+   0 ─────────── attackEnd ──────────── sustainEnd ─────────── 1
+   |   ATTACK        |       SUSTAIN         |      DECAY      |
+   | once, on        | loops while on,       | once, on        |
+   | switch-on       | one pass per `period` | switch-off      |
+```
+
+The seams cannot jump, because there is only one curve — the attack arrives at
+`attackEnd` and the sustain starts there. It follows that **the curve's value at
+`attackEnd` IS the sustain level**: there is nothing else to declare and nothing
+to keep in sync.
 
 ```javascript
 b3dSpotLight({
   y: 4, intensity: 60, diffuse: '#ffd9a0',
-  // A tube that stutters to life, settles, hums, then dies washed-out and red.
-  modulation: { period: 0.12, brightness: stepped(3) },
-  envelope: {
-    attack: 1.2, attackCurves: { brightness: stepped(5) },
-    decay: 0.4, sustain: 0.85,
-    release: 2.5,
-    releaseCurves: { hue: constant(0), hueShiftDeg: 190, saturation: constant(0.3) },
+  // A fluorescent: strikes in stutters, hums steadily, fades out and reddens.
+  program: {
+    brightness: [
+      { x: 0, y: 0 }, { x: 0.08, y: 0.9 }, { x: 0.12, y: 0.05 },
+      { x: 0.2, y: 1 }, { x: 0.26, y: 0.1 }, { x: 0.35, y: 0.95 },
+      { x: 0.75, y: 1 }, { x: 0.9, y: 0.3 }, { x: 1, y: 0 },
+    ],
+    hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
+    hueShiftDeg: 190,
+    attackEnd: 0.35, sustainEnd: 0.75,
+    attack: 1.2, period: 2, decay: 1.5,
   },
 })
 ```
 
-`on` is what runs the envelope: setting it false starts the RELEASE rather than
-killing the light, and the release begins from the level the lamp had actually
-reached — so a lamp switched off mid-attack does not flash brighter in order to
-start dying. A lamp that has finished releasing stops doing per-frame work
-altogether.
+Those are the same `[0,1] → [0,1]` curves the province editor edits, so
+[[curve-field|curve3d]] is already the editor for a lamp — the two markers are
+the only thing it does not draw yet.
+
+**Flicker does not compose across regions**, deliberately: if you want a lamp
+flickering as it dies, draw that into the decay region. See
+[[light-modulation]] for why that trade was taken and the two discontinuities
+it leaves.
+
+`on` is what runs the program: setting it false plays the DECAY region rather
+than killing the light. A lamp that has finished decaying stops doing per-frame
+work altogether.
 
 ## Demo
 
-Four lamps over a floor: a steady one, a flickering fluorescent, a pulsing
-beacon with a hue cycle, and a spot with an SVG gel. The switch runs every
-envelope at once, so you can watch them come up and die differently.
+Four lamps over a floor, each with its own program: a soft fade, a fluorescent
+that strikes in stutters, a pulsing beacon, and a spot with an SVG gel. The
+switch runs every program at once, so you can watch them come up and die
+differently.
 
 ```js
 import {
@@ -90,13 +110,46 @@ import { tosi } from 'tosijs'
 
 const { lamps } = tosi({ lamps: { on: true, geometry: true, intensity: 1 } })
 
-// Curves are plain control points — the same shape curve3d edits.
-const stepped3 = [
-  { x: 0, y: 1 }, { x: 0.3, y: 1 }, { x: 0.32, y: 0.15 },
-  { x: 0.5, y: 0.15 }, { x: 0.52, y: 1 }, { x: 1, y: 1 },
-]
-const pulse = [{ x: 0, y: 0.15 }, { x: 0.5, y: 1 }, { x: 1, y: 0.15 }]
-const cycle = [{ x: 0, y: 0 }, { x: 0.5, y: 1 }, { x: 1, y: 0 }]
+// ONE curve per lamp, split into attack / sustain / decay by two markers.
+// A fluorescent striking: stutters up, then a steady hum, then out.
+const FLUORESCENT = {
+  brightness: [
+    { x: 0, y: 0 }, { x: 0.06, y: 0.85 }, { x: 0.1, y: 0.05 },
+    { x: 0.17, y: 1 }, { x: 0.23, y: 0.08 }, { x: 0.3, y: 0.95 },
+    // The SUSTAIN segment, 0.35 -> 0.75: a faint mains hum. Both ends sit at
+    // the same value on purpose — that is what makes the loop seamless AND
+    // keeps the jump to the decay invisible.
+    { x: 0.35, y: 1 }, { x: 0.45, y: 0.93 }, { x: 0.52, y: 1 },
+    { x: 0.63, y: 0.9 }, { x: 0.68, y: 0.99 }, { x: 0.75, y: 1 },
+    { x: 0.88, y: 0.25 }, { x: 1, y: 0 },
+  ],
+  // Holds its colour while lit; reddens only across the decay region.
+  hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
+  saturation: [{ x: 0, y: 1 }, { x: 0.75, y: 1 }, { x: 1, y: 0.3 }],
+  hueShiftDeg: 190,
+  attackEnd: 0.35, sustainEnd: 0.75,
+  attack: 1.3, period: 3, decay: 2.2,
+}
+
+// A beacon: no attack worth speaking of, a big slow pulse, a quick fade.
+const BEACON = {
+  brightness: [
+    { x: 0, y: 0.15 }, { x: 0.1, y: 0.2 },
+    { x: 0.45, y: 1 }, { x: 0.8, y: 0.2 },
+    { x: 1, y: 0 },
+  ],
+  hue: [{ x: 0, y: 0.5 }, { x: 0.45, y: 1 }, { x: 0.8, y: 0.5 }, { x: 1, y: 0.5 }],
+  hueShiftDeg: 40,
+  attackEnd: 0.1, sustainEnd: 0.8,
+  attack: 0.3, period: 2.4, decay: 0.8,
+}
+
+// A plain lamp that simply fades up and down.
+const SOFT = {
+  brightness: [{ x: 0, y: 0 }, { x: 0.35, y: 1 }, { x: 0.7, y: 1 }, { x: 1, y: 0 }],
+  attackEnd: 0.35, sustainEnd: 0.7,
+  attack: 1, decay: 1.5,
+}
 
 preview.append(
   b3d(
@@ -119,37 +172,28 @@ preview.append(
     b3dSphere({ x: 0, y: 0.9, diameter: 1.8, color: '#aa8866' }),
     b3dBox({ x: 4.5, y: 0.75, width: 1.5, height: 1.5, depth: 1.5, color: '#99aa88' }),
 
-    // Steady, with a shadow.
+    // A soft fade up and down, with a shadow.
     b3dPointLight({
       x: -4.5, y: 3.2, diffuse: '#ffe6c0', range: 12,
       intensity: lamps.intensity, on: lamps.on, shadows: 'on',
-      geometry: lamps.geometry,
+      geometry: lamps.geometry, program: SOFT,
     }),
-    // A failing fluorescent: fast stepped flicker, stutters up, dies red.
+    // A fluorescent striking: stutters to life, hums, dies red and washed out.
     b3dPointLight({
       x: 0, y: 3.4, diffuse: '#cfe8ff', range: 12,
       intensity: lamps.intensity, on: lamps.on,
       geometry: lamps.geometry,
-      modulation: { period: 0.5, brightness: stepped3 },
-      envelope: {
-        attack: 1.4, attackCurves: { brightness: stepped3 },
-        decay: 0.4, sustain: 0.85,
-        // hueShiftDeg is RELATIVE, so reddening a cool tube is a long way to
-        // travel: #cfe8ff sits near 207 degrees, and 45 would only reach cyan.
-        // 190 takes it round to amber-red as it dies, washing out on the way.
-        release: 2.6,
-        releaseCurves: {
-          hue: [{ x: 0, y: 0.5 }, { x: 1, y: 0 }], hueShiftDeg: 190,
-          saturation: [{ x: 0, y: 1 }, { x: 1, y: 0.25 }],
-        },
-      },
+      // hueShiftDeg is RELATIVE, so reddening a cool tube is a long way to
+      // travel: #cfe8ff sits near 207 degrees, and 45 would only reach cyan.
+      // 190 takes it round to amber-red as it dies.
+      program: FLUORESCENT,
     }),
-    // A beacon: slow pulse plus a hue cycle.
+    // A beacon: slow pulse with a hue swing at the top.
     b3dPointLight({
       x: 4.5, y: 3.2, diffuse: '#ff9060', range: 12,
       intensity: lamps.intensity, on: lamps.on,
       geometry: lamps.geometry,
-      modulation: { period: 2.4, brightness: pulse, hue: cycle, hueShiftDeg: 40 },
+      program: BEACON,
     }),
     // A spot with an SVG gel — a window, projected.
     b3dSpotLight({
@@ -183,7 +227,7 @@ Shared by all three unless noted.
 | `diffuse` | `'#ffffff'` | Colour |
 | `specular` | `'#ffffff'` | Specular colour |
 | `range` | `10` | Falloff distance (point / spot) |
-| `on` | `true` | `false` runs the RELEASE; it does not kill the light |
+| `on` | `true` | `false` plays the DECAY region; it does not kill the light |
 | `geometry` | `'on'` | `'off'` for no fixture |
 | `geometryScale` | `1` | Size multiplier for the default fixture |
 | `url` | — | GLB fixture, in place of the primitive |
@@ -195,9 +239,8 @@ Shared by all three unless noted.
 | `gelSvg` | — | **spot** — inline SVG source or an `SVGElement` |
 | `width` / `height` | `2`/`1` | **area** — panel size |
 
-**Properties** (JS only — objects, not attributes): `modulation`
-([[light-modulation|LightModulation]]), `envelope`
-([[light-modulation|LightEnvelope]]), and `node` (the fixture's `TransformNode`,
+**Properties** (JS only — objects, not attributes): `program`
+([[light-modulation|LightProgram]]) and `node` (the fixture's `TransformNode`,
 for parenting your own geometry).
 */
 /*{ "parent": "Environment", "order": 60 }*/
@@ -209,12 +252,11 @@ import { SvgTexture } from './svg-texture'
 import { canonicalize } from './model-transform'
 import { resolveBudget } from './b3d-quality'
 import {
-  isModulated,
+  isAnimated,
   lightPhase,
   sampleLight,
   shiftHue,
-  type LightEnvelope,
-  type LightModulation,
+  type LightProgram,
 } from './light-modulation'
 
 /** Warn once per message — a per-frame warning is a performance bug of its own. */
@@ -279,26 +321,26 @@ export abstract class B3dLamp extends B3dChild {
   node?: BABYLON.TransformNode
   shadowGenerator?: BABYLON.ShadowGenerator
 
-  /** Curves over a period — flicker, pulse, colour cycle. */
-  modulation: LightModulation | null = null
-  /** Attack / decay shape for switching on and off. */
-  envelope: LightEnvelope | null = null
+  /**
+   * The lamp's whole behaviour as one curve per channel — attack, sustain and
+   * decay are regions of it, split by `attackEnd` / `sustainEnd`.
+   */
+  program: LightProgram | null = null
 
   protected baseIntensity = 1
   protected baseRange = 10
   protected baseColor = new BABYLON.Color3(1, 1, 1)
 
+  /*
+  ONE accumulator, and a timestamp for the last switch.
+
+  `sinceChange` is derived (`_elapsed - _switchAt`) rather than accumulated in
+  its own right: a second accumulator would drift against the first, and the
+  whole point of reading position from a clock is that it cannot.
+  */
   private _elapsed = 0
-  private _sinceChange = 0
+  private _switchAt = 0
   private _wasOn = true
-  /**
-   * The brightness multiplier at the instant of switch-off, handed to the
-   * release so it starts from where the lamp ACTUALLY was. Without it a lamp
-   * killed mid-attack jumps up to the sustain level in order to begin dying —
-   * a flash at exactly the moment you turned it off.
-   */
-  private _releaseFrom = 1
-  private _lastBrightness = 1
   private _tick?: BABYLON.Observer<BABYLON.Scene>
   private _disposables: Array<{ dispose: () => void }> = []
 
@@ -322,8 +364,8 @@ export abstract class B3dLamp extends B3dChild {
     this.baseColor = BABYLON.Color3.FromHexString(this.diffuse)
     this._wasOn = this.isOn
     // A lamp that starts OFF must not play its decay on the first frame — it
-    // was never on. Start it past the window so the phase resolves to `off`.
-    this._sinceChange = this._wasOn ? 0 : (this.envelope?.decay ?? 0) + 1
+    // was never on. Backdate the switch past the window so it resolves to `off`.
+    this._switchAt = this._wasOn ? 0 : -((this.program?.decay ?? 0) + 1)
 
     this.buildFixture(scene)
     this.setupShadows()
@@ -412,48 +454,32 @@ export abstract class B3dLamp extends B3dChild {
     })
   }
 
-  /** Per-frame: run the envelope clock and apply the sampled light. */
+  /** Per-frame: advance the clock and apply the sampled program. */
   private update(scene: BABYLON.Scene): void {
     const light = this.light
     if (light == null) return
-    const dt = sceneDeltaSeconds(scene)
-    this._elapsed += dt
+    this._elapsed += sceneDeltaSeconds(scene)
 
     const on = this.isOn
     if (on !== this._wasOn) {
-      if (!on) this._releaseFrom = this._lastBrightness
       this._wasOn = on
-      this._sinceChange = 0
-    } else {
-      this._sinceChange += dt
+      this._switchAt = this._elapsed
     }
+    const sinceChange = this._elapsed - this._switchAt
 
-    const phase = lightPhase(this.envelope, on, this._sinceChange)
-    // Nothing is animating, nothing is switching, and the steady state is full:
-    // leave the light exactly as `render()` set it, and do no work. A `sustain`
-    // below 1 still has to be applied, so it is not part of this shortcut.
-    if (
-      phase === 'sustain' &&
-      !isModulated(this.modulation) &&
-      (this.envelope?.sustain ?? 1) === 1
-    ) {
-      light.setEnabled(true)
-      this._lastBrightness = 1
+    // No program: `render()` owns the light entirely, and a lamp that is simply
+    // switched off is simply disabled.
+    if (!isAnimated(this.program)) {
+      light.setEnabled(on)
       return
     }
-    if (phase === 'off') {
+    if (lightPhase(this.program, on, sinceChange) === 'off') {
       light.setEnabled(false)
       return
     }
     light.setEnabled(true)
 
-    const s = sampleLight(this.modulation, this.envelope, {
-      on,
-      sinceChange: this._sinceChange,
-      time: this._elapsed,
-      from: this._releaseFrom,
-    })
-    this._lastBrightness = s.brightness
+    const s = sampleLight(this.program, on, sinceChange)
     light.intensity = this.baseIntensity * s.brightness
     if (s.hueShiftDeg !== 0 || s.saturation !== 1) {
       const c = shiftHue(this.baseColor, s.hueShiftDeg, s.saturation)
@@ -477,7 +503,7 @@ export abstract class B3dLamp extends B3dChild {
     this.light.specular = BABYLON.Color3.FromHexString(this.specular)
     // Only write through when nothing is animating; otherwise `update` owns
     // these and a render mid-flicker would fight it for a frame.
-    if (!isModulated(this.modulation) && this.envelope == null) {
+    if (!isAnimated(this.program)) {
       this.light.intensity = this.intensity
       this.light.diffuse = this.baseColor.clone()
       const ranged = this.light as unknown as { range?: number }

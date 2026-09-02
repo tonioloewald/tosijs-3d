@@ -224,20 +224,18 @@ export {
   B3dAreaLight,
   b3dAreaLight,
 } from './b3d-lamp'
-// Curves over a period — the model behind a lamp's flicker, pulse and fade.
+// A lamp's whole life as ONE curve per channel, split into attack / sustain /
+// decay by two markers — the model behind its flicker, pulse and fade.
 export {
   sampleLight,
-  sampleModulation,
-  sampleEnvelope,
-  modulationPhase,
+  programPosition,
   lightPhase,
-  isModulated,
+  isAnimated,
   shiftHue,
   NO_MODULATION,
 } from './light-modulation'
 export type {
-  LightModulation,
-  LightEnvelope,
+  LightProgram,
   LightPhase,
   ChannelCurves,
   ModulationCurve,

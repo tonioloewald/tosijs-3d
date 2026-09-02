@@ -202,7 +202,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
 - https://3d.tosijs.net/light-modulation/ — light-modulation
-  deterministic, Babylon-free — the model behind [[b3d-lamp]]'s flicker, pulse,
+  model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
 - https://3d.tosijs.net/mantle/ — mantle

@@ -1,56 +1,86 @@
 /*#
 # light-modulation
 
-**A light that changes over time, described as curves over a period.** Pure,
-deterministic, Babylon-free — the model behind [[b3d-lamp]]'s flicker, pulse,
-beacon and colour-cycle.
+**A light's whole life as one curve.** Pure, deterministic, Babylon-free — the
+model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
 
-## One period, one phase, three channels
+## One curve, two split points
 
-A modulation is a `period` in seconds and up to three curves from
-[[curve|curve.ts]] — the same `[0,1] → [0,1]` control-point curves the province
-editor edits, so the curve widget is already the editor for this. Time becomes a
-phase (`t / period`, wrapped), each curve is sampled at that phase, and the
-result is applied to the light.
+A channel is a single `[0,1] → [0,1]` curve from [[curve|curve.ts]] spanning the
+lamp's entire behaviour, divided by two markers:
 
-Because phase is derived from absolute time rather than accumulated per frame, a
-lamp does not drift, two lamps given the same period stay in step, and a frame
-hitch changes nothing. Determinism is the point: same time in, same light out.
+```
+   0 ─────────── attackEnd ──────────── sustainEnd ─────────── 1
+   |   ATTACK        |       SUSTAIN         |      DECAY      |
+   | plays once,     | loops while on,       | plays once,     |
+   | on switch-on    | one pass per `period` | on switch-off   |
+```
+
+Tonio: _"if one curve covers attack - sustain - decay and you simply move the
+point where attack becomes sustain and sustain becomes decay then the only real
+discontinuities will occur mid-loop shut off or shut off while spinning up."_
+
+That is exactly right, and it is why this shape is worth the constraint it
+imposes. **The seams cannot be discontinuous, because there is only one curve** —
+the value at `attackEnd` is reached from the left by the attack and held from the
+right by the sustain, so they agree by construction rather than by two numbers
+being kept in sync by hand.
+
+It follows that **the curve's value at `attackEnd` IS the sustain level.** There
+is no separate level to declare, and none to get wrong.
+
+## What it gives up, and why that is fine
+
+A separate loop multiplied by an envelope would let a flicker keep flickering
+*through* the fade for free. Here it does not: the decay segment plays what the
+decay segment draws.
+
+Tonio, choosing this deliberately: _"you might not want flicker to compose. The
+classic fluorescent light flickers to life. And if you want the lamp to flicker
+as it dies, make it flicker as it dies. OK you won't get some kind of organic
+composition, but that's something we can always come down to and this case is
+both simple and extremely powerful."_
+
+So: author the tail you want. Composition remains available later as an addition,
+which is the safe direction to leave a door open in.
+
+## The two discontinuities that remain
+
+Both are named above and neither is fixable in this model, so they are contracts
+rather than bugs:
+
+- **Shut off mid-loop.** The sustain is somewhere inside its segment; the decay
+  begins at `sustainEnd`. Keep the two ends of the sustain segment near each
+  other in value and the jump is invisible — a loop that returns near where it
+  started is a better loop anyway.
+- **Shut off while spinning up.** The decay starts at `sustainEnd` regardless of
+  how far the attack had climbed.
 
 ## The channels do NOT share a convention, deliberately
 
 | channel | curve value means | why |
 | --- | --- | --- |
-| `brightness` | **multiplies** the base intensity — `0` is off, `1` is as declared | "off" has to be reachable, and it is the value you flicker to |
-| `range` | **multiplies** the base range — `0` collapses the falloff | same shape as brightness; a range of zero is a light that lights nothing |
-| `hue` | **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg` | hue is circular and has no meaningful zero, so an absolute mapping would throw away the colour you chose |
+| `brightness` | **multiplies** the base intensity — `0` off, `1` as declared | "off" has to be reachable; it is the value you flicker to |
+| `range` | **multiplies** the base range | a range of zero is a light that lights nothing |
+| `saturation` | **multiplies** saturation — `0` is white | saturation has a meaningful zero and reaching it is the point |
+| `hue` | **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg` | hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose |
 
-**The hue shift is RELATIVE, and that has a consequence worth stating.** "Fade
-out and go red" is a small shift from a warm white and a very large one from a
-cool one: `#cfe8ff` sits near 207°, so a plausible-looking `hueShiftDeg: 45`
-takes a dying fluorescent to *cyan*, not red — it needs about 190 to travel
-round to amber. Caught in the shipped demo, on the live page, doing exactly
-that. Check where your base colour actually is before picking an amplitude;
-the default 30 is for leaning, not for changing a lamp's mind.
-
-Mixing conventions looks careless until you try the alternatives. A
-*multiplicative* hue is meaningless (hue 0 is red, not "no hue"). An
-*absolute* brightness curve cannot express "flicker around whatever the
-designer set" without restating the intensity inside the curve. The bipolar
-`0.5`-is-neutral form for `hue` is the same convention provinces use for their
-water/temperature/volcanism channels, so it is not a new idea to learn.
+**The hue shift is RELATIVE, and that catches people.** "Fade out and go red" is
+a small shift from a warm white and a very large one from a cool one: `#cfe8ff`
+sits near 207°, so a plausible-looking `hueShiftDeg: 45` takes a dying
+fluorescent to *cyan* — it needs about 190 to reach amber. Caught on the live
+page doing exactly that. The default 30 is for leaning, not for changing a
+lamp's mind.
 
 ## Flicker is a curve, not a random number
 
-A stepped curve strobes. A short period with a spiky curve is a failing
-fluorescent. A slow `easeInOut` is a beacon. All of it is authored, repeatable,
-and editable in the curve widget — where a `Math.random()` flicker would be none
-of those, and would also break the "no `Math.random` in a pure model" rule that
-makes this testable at all.
+A stepped curve strobes. A spiky attack segment is a fluorescent striking. A slow
+`easeInOut` sustain is a beacon. All authored, repeatable, and editable in
+[[curve-field|curve3d]] — where a `Math.random()` flicker would be none of those,
+and would break the no-`Math.random` rule that makes this testable at all.
 
-For flicker that should NOT look periodic, give a curve with several dissimilar
-peaks and a period that is not a round number; the eye reads a long
-non-obvious cycle as irregular.
+For flicker that should not read as periodic, give the sustain segment several
+dissimilar peaks and a period that is not a round number.
 */
 /*{ "parent": "Effects", "order": 120 }*/
 
@@ -60,27 +90,15 @@ import { evaluateCurve, type ControlPoint } from './curve'
 export type ModulationCurve = ControlPoint[] | number
 
 /**
- * The three channels, without saying WHEN they are sampled.
- *
- * Shared by the looping modulation and by each end of the envelope, so
- * "brightness multiplies, hue shifts about 0.5" is learned once and true
- * everywhere — a turn-on ramp and a steady flicker are the same vocabulary
- * pointed at different clocks.
+ * The four channels. Each spans the WHOLE program — attack, sustain and decay
+ * are regions of one curve, not three curves.
  */
 export interface ChannelCurves {
   /** Multiplies intensity. `0` off, `1` as declared. */
   brightness?: ModulationCurve
   /** Multiplies range/falloff distance. */
   range?: ModulationCurve
-  /**
-   * Multiplies saturation. `1` as declared, `0` washes to white.
-   *
-   * The other half of `hue`, and usually wanted with it: a dying filament goes
-   * red AND washes out, an overdriven lamp blows toward white without changing
-   * its hue at all. Multiplicative like brightness rather than bipolar like
-   * hue, because saturation HAS a meaningful zero — white — and reaching it is
-   * the point.
-   */
+  /** Multiplies saturation. `1` as declared, `0` washes to white. */
   saturation?: ModulationCurve
   /** Bipolar hue shift: `0.5` unchanged, `0` is `-hueShiftDeg`, `1` is `+hueShiftDeg`. */
   hue?: ModulationCurve
@@ -88,65 +106,36 @@ export interface ChannelCurves {
   hueShiftDeg?: number
 }
 
-export interface LightModulation extends ChannelCurves {
+/** A lamp's whole behaviour: the curves, where they split, and how fast. */
+export interface LightProgram extends ChannelCurves {
   /**
-   * Seconds for one full pass through the curves. `0` or absent disables
-   * modulation entirely (the light sits at its declared values).
-   */
-  period?: number
-  /**
-   * Where in the cycle this lamp starts, in turns (`0.5` is half a period in).
+   * Where the attack ends and the sustain begins, in curve x. Default `0` —
+   * no attack segment.
    *
-   * This is what stops a row of identical lamps pulsing as one organism —
-   * give each a different phase and the same three lines of config become a
-   * crowd rather than a chorus.
+   * The curve's value here is the sustain level; there is nothing else to set.
+   */
+  attackEnd?: number
+  /** Where the sustain ends and the decay begins, in curve x. Default `1` — no decay segment. */
+  sustainEnd?: number
+  /** Seconds to play the attack segment once, on switch-on. */
+  attack?: number
+  /** Seconds for ONE pass of the sustain segment. `0` holds at `attackEnd`. */
+  period?: number
+  /** Seconds to play the decay segment once, on switch-off. */
+  decay?: number
+  /**
+   * Where in the sustain loop this lamp starts, in turns.
+   *
+   * What stops a row of identical lamps pulsing as one organism — give each a
+   * different phase and the same config becomes a crowd rather than a chorus.
    */
   phase?: number
 }
 
-/**
- * A one-shot shape for turning ON and turning OFF, wrapped around the loop.
- *
- * Tonio: _"you can have lights that flicker to life and then fade slowly and go
- * red."_ That is three different clocks in one sentence — a turn-on transient,
- * a steady state, and a turn-off transient — and only the middle one repeats.
- *
- * The envelope MULTIPLIES the loop (and its hue shift ADDS), rather than
- * replacing it. That is what makes "a flickering lamp being switched off" a
- * composition instead of a fourth case: the flicker keeps flickering while the
- * fade takes it down, which is what a dying fluorescent actually does. Replacing
- * would make the flicker vanish the instant you hit the switch.
- */
-export interface LightEnvelope {
-  /** Seconds from dark to full. Absent or `0` means instantly on. */
-  attack?: number
-  /** Seconds from full down to `sustain`. The overshoot-and-settle segment. */
-  decay?: number
-  /**
-   * The level held for as long as the lamp is on, `0..1`. Default `1`.
-   *
-   * This is a LEVEL, not a duration — the one piece of ADSR that is not a time,
-   * and the piece that was missing. Without it there is nothing for `attack` to
-   * arrive AT: an attack curve ending at 0.6 handed straight to a loop sitting
-   * at 1.0 jumps, and the lamp visibly snaps at the moment it finishes turning
-   * on. With it, attack rises to full, decay settles to `sustain`, and the loop
-   * is scaled by `sustain` so the seam is continuous by construction.
-   */
-  sustain?: number
-  /** Seconds from `sustain` to dark, once switched off. */
-  release?: number
-  /** Shape of the rise. Default is a linear ramp; give a spiky curve to flicker to life. */
-  attackCurves?: ChannelCurves
-  /** Shape of the settle. Default interpolates full down to `sustain`. */
-  decayCurves?: ChannelCurves
-  /** Shape of the fall. Default fades to dark; add `hue`/`saturation` to die red and wash out. */
-  releaseCurves?: ChannelCurves
-}
+/** Which segment is playing. */
+export type LightPhase = 'attack' | 'sustain' | 'decay' | 'off'
 
-/** Which clock is governing right now. */
-export type LightPhase = 'attack' | 'decay' | 'sustain' | 'release' | 'off'
-
-/** What a modulation says the light should be doing right now. */
+/** What the program says the light should be doing right now. */
 export interface ModulationSample {
   /** Multiplier for intensity, `>= 0`. */
   brightness: number
@@ -158,7 +147,7 @@ export interface ModulationSample {
   hueShiftDeg: number
 }
 
-/** The identity sample — what an unmodulated light gets. */
+/** The identity sample — what an unprogrammed light gets. */
 export const NO_MODULATION: ModulationSample = {
   brightness: 1,
   range: 1,
@@ -167,26 +156,82 @@ export const NO_MODULATION: ModulationSample = {
 }
 
 const DEFAULT_HUE_SHIFT = 30
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 
 /**
- * Phase for a time, in `[0, 1)`.
+ * Is there a program at all?
  *
- * Derived from absolute time, never accumulated — accumulation drifts, and two
- * lamps that should be in step would slowly separate for no reason a user could
- * see or fix. A non-finite or non-positive period is "not modulating", which is
- * the honest answer for `period: 0`.
+ * Requires both a curve AND a clock. A curve with no timing has nowhere to be
+ * read from, and returning the identity for it is what stops an incomplete
+ * config producing a black lamp — which is indistinguishable from a broken one.
  */
-export function modulationPhase(
-  timeSeconds: number,
-  period: number,
-  phaseOffset = 0
-): number {
-  if (!(period > 0) || !Number.isFinite(period)) return 0
-  const raw = timeSeconds / period + phaseOffset
-  // `%` keeps the sign of the dividend, so a negative time (or a negative
-  // phase offset, which is a legitimate way to say "start earlier") would land
-  // outside [0,1) and read off the wrong end of the curve.
-  return ((raw % 1) + 1) % 1
+export function isAnimated(p: LightProgram | null | undefined): boolean {
+  if (p == null) return false
+  const hasClock =
+    (p.attack ?? 0) > 0 || (p.period ?? 0) > 0 || (p.decay ?? 0) > 0
+  const hasCurve =
+    p.brightness != null ||
+    p.range != null ||
+    p.saturation != null ||
+    p.hue != null
+  return hasClock && hasCurve
+}
+
+/** Split points, ordered and clamped, so a bad pair cannot invert a segment. */
+function splits(p: LightProgram): { a: number; b: number } {
+  const a = clamp01(p.attackEnd ?? 0)
+  // `b` cannot precede `a`: an inverted sustain segment would make the loop run
+  // backwards through the attack, which is a silent wrong rather than an error.
+  return { a, b: Math.max(a, clamp01(p.sustainEnd ?? 1)) }
+}
+
+/** Which segment is playing, given switch state and time since it changed. */
+export function lightPhase(
+  p: LightProgram | null | undefined,
+  on: boolean,
+  sinceChange: number
+): LightPhase {
+  if (on) {
+    const attack = p?.attack ?? 0
+    return attack > 0 && sinceChange < attack ? 'attack' : 'sustain'
+  }
+  const decay = p?.decay ?? 0
+  return decay > 0 && sinceChange < decay ? 'decay' : 'off'
+}
+
+/**
+ * Where on the curve to read, in `[0,1]` — or `null` when the lamp is off.
+ *
+ * This is the whole model in one function, and the reason the seams hold: the
+ * attack arrives at exactly `attackEnd`, the sustain starts there, and the decay
+ * starts at exactly `sustainEnd`.
+ */
+export function programPosition(
+  p: LightProgram | null | undefined,
+  on: boolean,
+  sinceChange: number
+): number | null {
+  if (p == null) return on ? 1 : null
+  const { a, b } = splits(p)
+  const phase = lightPhase(p, on, sinceChange)
+  if (phase === 'off') return null
+  if (phase === 'attack') {
+    return Math.min(1, sinceChange / (p.attack ?? 1)) * a || 0
+  }
+  if (phase === 'decay') {
+    const t = Math.min(1, sinceChange / (p.decay ?? 1))
+    return b + t * (1 - b)
+  }
+  // Sustain. With no period, or no segment to loop over, hold where the attack
+  // left off — which IS the sustain level, by construction.
+  const period = p.period ?? 0
+  if (!(period > 0) || b <= a) return a
+  const since = sinceChange - (p.attack ?? 0)
+  const turns = since / period + (p.phase ?? 0)
+  // `%` keeps the sign of the dividend, so a negative phase offset (a legitimate
+  // "start earlier") would read off the wrong end of the segment.
+  const u = ((turns % 1) + 1) % 1
+  return a + u * (b - a)
 }
 
 function sampleCurve(
@@ -201,179 +246,47 @@ function sampleCurve(
 }
 
 /**
- * Sample a modulation at a time, in seconds.
- *
- * ```js
- * const flicker = { period: 0.7, brightness: stepped(3) }
- * sampleModulation(flicker, scene.getEngine().getTimeStep() * frame)
- * ```
- *
- * Always returns a usable sample: an absent modulation, a zero period and an
- * empty curve all resolve to the identity rather than to a dark light. A light
- * that goes black because its configuration was incomplete is indistinguishable
- * from one that is broken.
- */
-export function sampleModulation(
-  mod: LightModulation | null | undefined,
-  timeSeconds: number
-): ModulationSample {
-  if (mod == null || !(mod.period ?? 0)) return NO_MODULATION
-  const at = modulationPhase(timeSeconds, mod.period ?? 0, mod.phase ?? 0)
-  const amp = mod.hueShiftDeg ?? DEFAULT_HUE_SHIFT
-  return {
-    // Clamped at zero, not at one: a curve is `[0,1]` by construction so it
-    // cannot exceed the declared intensity, and that is the contract — the
-    // declared value is the MAXIMUM, so a lamp never surprises you by getting
-    // brighter than its own setting.
-    brightness: Math.max(0, sampleCurve(mod.brightness, at, 1)),
-    range: Math.max(0, sampleCurve(mod.range, at, 1)),
-    saturation: Math.max(0, sampleCurve(mod.saturation, at, 1)),
-    // Bipolar around 0.5 — see the doc note on why this channel differs.
-    hueShiftDeg: (sampleCurve(mod.hue, at, 0.5) - 0.5) * 2 * amp,
-  }
-}
-
-/** Sample a `ChannelCurves` at a normalised position, with explicit fallbacks. */
-function sampleChannels(
-  c: ChannelCurves | undefined,
-  at: number,
-  fallbackBrightness: number
-): ModulationSample {
-  const amp = c?.hueShiftDeg ?? DEFAULT_HUE_SHIFT
-  return {
-    brightness: Math.max(0, sampleCurve(c?.brightness, at, fallbackBrightness)),
-    range: Math.max(0, sampleCurve(c?.range, at, 1)),
-    saturation: Math.max(0, sampleCurve(c?.saturation, at, 1)),
-    hueShiftDeg: (sampleCurve(c?.hue, at, 0.5) - 0.5) * 2 * amp,
-  }
-}
-
-const sustainLevel = (env: LightEnvelope | null | undefined): number =>
-  Math.max(0, Math.min(1, env?.sustain ?? 1))
-
-/**
- * Which phase a lamp is in, given whether it is switched on and how long since
- * that changed.
- *
- * Proper ADSR: **attack** rises to full, **decay** settles to `sustain`,
- * **sustain** holds while it stays on, **release** falls to dark once it is
- * switched off. `off` is distinct from `release` so a lamp can stop doing
- * per-frame work once it has finished dying, rather than integrating a curve
- * forever at zero.
- */
-export function lightPhase(
-  env: LightEnvelope | null | undefined,
-  on: boolean,
-  sinceChange: number
-): LightPhase {
-  if (on) {
-    const attack = env?.attack ?? 0
-    if (attack > 0 && sinceChange < attack) return 'attack'
-    const decay = env?.decay ?? 0
-    if (decay > 0 && sinceChange < attack + decay) return 'decay'
-    return 'sustain'
-  }
-  const release = env?.release ?? 0
-  return release > 0 && sinceChange < release ? 'release' : 'off'
-}
-
-/**
- * The envelope's contribution on its own.
- *
- * Defaults make an envelope usable as bare numbers: with no curves, `attack` is
- * a linear ramp to full, `decay` interpolates full down to `sustain`, and
- * `release` fades from `from` to dark. `off` is hard zero — a lamp that is off
- * is off, not "very dim".
- *
- * `from` is the level the release starts at, and it matters because a lamp can
- * be switched off DURING its attack. Releasing from `sustain` when the lamp had
- * only reached 0.3 makes it jump brighter in order to start dying, which reads
- * as a flash at the exact moment you turned it off. Defaults to `sustain`, which
- * is correct for the common case of releasing from the steady state.
- */
-export function sampleEnvelope(
-  env: LightEnvelope | null | undefined,
-  on: boolean,
-  sinceChange: number,
-  from?: number
-): ModulationSample {
-  const phase = lightPhase(env, on, sinceChange)
-  const sustain = sustainLevel(env)
-  if (phase === 'off') {
-    return { brightness: 0, range: 1, saturation: 1, hueShiftDeg: 0 }
-  }
-  if (phase === 'sustain') {
-    // NOT the identity any more: the loop is scaled by the held level, which is
-    // what makes the attack -> sustain seam continuous.
-    return { brightness: sustain, range: 1, saturation: 1, hueShiftDeg: 0 }
-  }
-  if (phase === 'attack') {
-    const t = Math.min(1, sinceChange / (env?.attack ?? 1))
-    // Fallback `t`: with no curve the ramp IS the phase position.
-    return sampleChannels(env?.attackCurves, t, t)
-  }
-  if (phase === 'decay') {
-    const attack = env?.attack ?? 0
-    const t = Math.min(1, (sinceChange - attack) / (env?.decay ?? 1))
-    // Full down to the held level — the settle after an overshoot.
-    return sampleChannels(env?.decayCurves, t, 1 + (sustain - 1) * t)
-  }
-  const t = Math.min(1, sinceChange / (env?.release ?? 1))
-  const start = from ?? sustain
-  // A release curve is read left-to-right like any other, so its own shape says
-  // how it falls — the interpolation is only the FALLBACK, for an envelope
-  // given no curve.
-  return sampleChannels(env?.releaseCurves, t, start * (1 - t))
-}
-
-/**
- * Everything at once: the loop, shaped by the envelope. This is what a lamp
- * calls each frame.
+ * Sample the program. This is what a lamp calls each frame.
  *
  * ```javascript
- * // A tube that stutters on, settles, hums, then dies to a washed-out ember.
- * const mod = { period: 0.12, brightness: stepped(3) }
- * const env = {
- *   attack: 1.2, attackCurves: { brightness: stepped(5) },
- *   decay: 0.4, sustain: 0.8,
- *   release: 2.5,
- *   releaseCurves: { hue: constant(0), hueShiftDeg: 190, saturation: constant(0.2) },
+ * // A fluorescent: strikes in stutters, then a steady faint hum, then out.
+ * const program = {
+ *   brightness: [
+ *     { x: 0, y: 0 }, { x: 0.08, y: 0.9 }, { x: 0.12, y: 0.05 },
+ *     { x: 0.2, y: 1 }, { x: 0.26, y: 0.1 }, { x: 0.35, y: 1 },
+ *     { x: 0.6, y: 0.95 }, { x: 0.75, y: 1 },
+ *     { x: 0.9, y: 0.3 }, { x: 1, y: 0 },
+ *   ],
+ *   attackEnd: 0.35, sustainEnd: 0.75,
+ *   attack: 1.2, period: 2, decay: 1.5,
  * }
- * sampleLight(mod, env, { on, sinceChange, time })
+ * sampleLight(program, on, sinceChange)
  * ```
  *
- * Brightness, range and saturation multiply; hue shifts add. Multiplication is
- * what makes the composition read correctly — a lamp mid-flicker that gets
- * switched off keeps flickering as it fades, rather than the flicker
- * disappearing at the instant of the switch.
+ * An off lamp is hard zero — off is off, not "very dim".
  */
 export function sampleLight(
-  mod: LightModulation | null | undefined,
-  env: LightEnvelope | null | undefined,
-  at: { on: boolean; sinceChange: number; time: number; from?: number }
+  p: LightProgram | null | undefined,
+  on: boolean,
+  sinceChange: number
 ): ModulationSample {
-  const e = sampleEnvelope(env, at.on, at.sinceChange, at.from)
-  // Nothing to loop once it is fully off — and sampling the loop there would
-  // only multiply by zero anyway.
-  if (lightPhase(env, at.on, at.sinceChange) === 'off') return e
-  const m = sampleModulation(mod, at.time)
-  return {
-    brightness: m.brightness * e.brightness,
-    range: m.range * e.range,
-    saturation: m.saturation * e.saturation,
-    hueShiftDeg: m.hueShiftDeg + e.hueShiftDeg,
+  if (!isAnimated(p)) {
+    return on ? NO_MODULATION : { ...NO_MODULATION, brightness: 1 }
   }
-}
-
-/** Is there anything to do? Lets a lamp skip per-frame work entirely. */
-export function isModulated(mod: LightModulation | null | undefined): boolean {
-  if (mod == null || !(mod.period ?? 0)) return false
-  return (
-    mod.brightness != null ||
-    mod.range != null ||
-    mod.hue != null ||
-    mod.saturation != null
-  )
+  const at = programPosition(p, on, sinceChange)
+  if (at == null) {
+    return { brightness: 0, range: 1, saturation: 1, hueShiftDeg: 0 }
+  }
+  const amp = p!.hueShiftDeg ?? DEFAULT_HUE_SHIFT
+  return {
+    // Clamped at zero only: curves are `[0,1]` by construction, so the declared
+    // intensity is a MAXIMUM and a lamp never surprises you by exceeding its
+    // own setting.
+    brightness: Math.max(0, sampleCurve(p!.brightness, at, 1)),
+    range: Math.max(0, sampleCurve(p!.range, at, 1)),
+    saturation: Math.max(0, sampleCurve(p!.saturation, at, 1)),
+    hueShiftDeg: (sampleCurve(p!.hue, at, 0.5) - 0.5) * 2 * amp,
+  }
 }
 
 /**
@@ -381,10 +294,10 @@ export function isModulated(mod: LightModulation | null | undefined): boolean {
  * `[0,1]`.
  *
  * Kept here rather than reaching for Babylon's `Color3.toHSV` so the whole model
- * stays engine-free and testable. VALUE is always preserved — brightness is the
+ * stays engine-free and testable. VALUE is always preserved — dimming is the
  * `brightness` channel's job, and a colour operation that quietly dimmed the
- * lamp would make the two fight. With the default `satScale` of 1, saturation
- * is preserved too, so shifting a warm white leaves a white that leans.
+ * lamp would make the two fight. With the default `satScale` of 1, saturation is
+ * preserved too, so shifting a warm white leaves a white that leans.
  */
 export function shiftHue(
   rgb: { r: number; g: number; b: number },
@@ -406,7 +319,7 @@ export function shiftHue(
   else h = (r - g) / d + 4
   h = (((h * 60 + deg) % 360) + 360) % 360
 
-  const s = Math.max(0, Math.min(1, (max === 0 ? 0 : d / max) * satScale))
+  const s = clamp01((max === 0 ? 0 : d / max) * satScale)
   const v = max
   const c = v * s
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
