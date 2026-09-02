@@ -1851,6 +1851,44 @@ cosmetic.** Reported by Tonio; diagnosed but not yet fixed.
      edit. Worth doing once and consistently, since the demos are what an
      adopter copies.
 
+[ ] **Popup chrome is dead in the DOM — and the general fix is a PRESENTATION
+CLASS.** Tonio: "the move and close affordances in the panel do not work in the
+DOM. We probably just want a 'class' that hides things in the DOM but shows them
+in texture renders and vice versa."
+
+The chrome (move glyph, close ×) is drawn by `popup-surface` and handled by
+PICKING — uv → viewBox → `chromeHit`. That path exists only in the scene, so in
+the DOM the glyphs are painted and inert. Two things to decide:
+
+  - **Handle them flat**, since the DOM layer mounts the same sheet and could
+    route its own presses to the same `chromeHit`; or
+  - **Hide them flat**, because a DOM popup can be dragged and closed by the
+    page's own means and the glyphs are then noise.
+
+Tonio's class idea is the better general answer and applies well beyond chrome:
+a marker (`data-presentation="dom" | "texture"`) that `svg-texture` STRIPS when
+serialising, and CSS hides in the DOM. That is cheap — the serialiser already
+clones before rasterising, so removing marked nodes there costs one query — and
+it gives every widget a way to differ between presentations WITHOUT branching
+its logic, which is the trap `UI-DESIGN-NOTES` → "One UI, two presentations"
+warns about. Differing in what you DRAW is safe; differing in what you DO is how
+the two drift.
+
+[ ] **The keyboard should dismiss when focus leaves a typable field.** Tonio:
+"if I mess with a different field the keyboard should disappear until I focus a
+keyboardable field." It currently persists, because nothing tells it that focus
+moved to a widget that cannot use it — the panel routes presses to widgets and
+`inputField` only learns about its OWN. Wants the panel to say "focus went
+elsewhere", which is close to what `focusClear` already means.
+
+[ ] **The keyboard should be placed relative to the FIELD, not the panel.**
+Tonio's report, and the flat and scene layers differ today: the DOM layer honours
+`config.anchor` (so it does follow the field), while `panelScene`'s layer ignores
+it and pins the keyboard to the panel's bottom edge. Fixing it properly is the
+placement library below — the scene layer needs the anchor projected into world
+space, which is exactly the "where does a rect come from" question that entry
+raises.
+
 [ ] **A PLACEMENT library — `popFloat`'s job, for DOM and 3D.** Tonio: "we
 should have a standard library for placing popups etc. relative to things in an
 intelligent way (per tosijs-ui's similar popFloat)". **Read tosijs-ui's
