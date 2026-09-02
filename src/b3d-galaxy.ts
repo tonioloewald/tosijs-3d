@@ -246,7 +246,7 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Click a star to zoom in. Esc to return. Generation settings in the ⚙ (VR too).'),
+    p('Click a star to zoom in. Esc to return. Generation settings in the scene panel (VR too).'),
     starLabel,
     backBtn,
     label(

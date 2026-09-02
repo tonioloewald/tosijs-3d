@@ -82,7 +82,7 @@ preview.append(
   scene,
   div(
     { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
-    p('Shatter the sphere via the ⚙ (works in VR).'),
+    p('Shatter the sphere via the scene panel (works in VR).'),
   ),
 )
 ```

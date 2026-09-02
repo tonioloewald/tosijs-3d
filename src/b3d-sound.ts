@@ -54,7 +54,7 @@ preview.append(
   ),
   div(
     { style: 'position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.6); color:white; padding:8px 12px; border-radius:6px; font:12px monospace' },
-    p('Orbit the camera to hear spatial panning. Play/Stop in the ⚙ (VR too).'),
+    p('Orbit the camera to hear spatial panning. Play/Stop in the scene panel (VR too).'),
   ),
 )
 ```
