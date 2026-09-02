@@ -273,8 +273,39 @@ export type KeyAction =
 
 /** One key. `value` inserts; `action` does something else. */
 export interface KeyDef {
-  /** What's drawn on the key. */
+  /** What's drawn on the key — used when `icon` is absent, and as its name. */
   label: string
+  /**
+   * Draw an SVG icon instead of the label.
+   *
+   * Tonio: "we should ditch the unicode glyphs for shift, return, and delete and
+   * use SVG icons." A unicode glyph is at the mercy of whatever font the panel
+   * resolved — and on a rasterised texture that is a different font from the
+   * page's, so `⏎` can arrive as a box, or centred differently on every
+   * platform. An icon is geometry and renders the same everywhere.
+   *
+   * `label` is still required and still carries the NAME, which the hit-test
+   * key (`data-key`) and the tests both use.
+   */
+  icon?: string
+  /**
+   * Degrees to rotate `icon`, about its own centre.
+   *
+   * Exists because `iconGlyph` does NOT apply composition suffixes — verified by
+   * asking it for a `chevronUp`, which logs "unknown icon" and falls back to a
+   * BOX. On a shift key that is worse than the `⇧` it replaced. Suffixes work on
+   * the DOM path (`svgIcons`); the keyboard is the texture path.
+   *
+   * (Written without the call syntax on purpose: `icon-names.test.ts` scans
+   * prose as well as code and cannot tell them apart, so naming a deliberately
+   * invalid icon in a comment trips it. A crude guard that occasionally objects
+   * to a sentence is a fair price for one that cannot miss a real typo.)
+   *
+   * So the base glyph plus an angle, which both paths can do. Tonio: "chevronUp
+   * will work for SHIFT until I add a specific glyph" — this is that, by the
+   * route that survives rasterisation.
+   */
+  iconRotate?: number
   /** Text inserted when tapped. Absent for action keys. */
   value?: string
   /** Behaviour for a non-inserting key. */
@@ -297,10 +328,27 @@ export interface KeyRect {
 const row = (chars: string): KeyDef[] =>
   Array.from(chars).map((c) => ({ label: c, value: c }))
 
-const SHIFT: KeyDef = { label: '⇧', action: 'shift', width: 1.5 }
-const BACK: KeyDef = { label: '⌫', action: 'backspace', width: 1.5 }
+const SHIFT: KeyDef = {
+  label: '⇧',
+  // `chevron` points RIGHT (9,6 → 15,12 → 9,18), so -90° aims it up.
+  icon: 'chevron',
+  iconRotate: -90,
+  action: 'shift',
+  width: 1.5,
+}
+const BACK: KeyDef = {
+  label: '⌫',
+  icon: 'delete',
+  action: 'backspace',
+  width: 1.5,
+}
 const SPACE: KeyDef = { label: 'space', action: 'space', width: 5 }
-const ENTER: KeyDef = { label: '⏎', action: 'enter', width: 1.5 }
+const ENTER: KeyDef = {
+  label: '⏎',
+  icon: 'cornerDownLeft',
+  action: 'enter',
+  width: 1.5,
+}
 const DONE: KeyDef = { label: 'done', action: 'done', width: 1.5 }
 
 const toSymbols: KeyDef = {
@@ -310,9 +358,13 @@ const toSymbols: KeyDef = {
   width: 1.5,
 }
 /** Backspace at plain width — a grid pad needs every cell to be one unit. */
-const BACK1: KeyDef = { label: '⌫', action: 'backspace' }
+const BACK1: KeyDef = { label: '⌫', icon: 'delete', action: 'backspace' }
 /** Enter at plain width — for a grid pad where every cell is one unit. */
-const ENTER1: KeyDef = { label: '⏎', action: 'enter' }
+const ENTER1: KeyDef = {
+  label: '⏎',
+  icon: 'cornerDownLeft',
+  action: 'enter',
+}
 
 const toAlpha: KeyDef = {
   label: 'ABC',
@@ -350,7 +402,11 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
     key back to numpad — so a stray tap stranded you in letters. Mode is the
     host's call (`config.mode` / `setMode`), not the pad's.
     */
-    const enter: KeyDef = { label: '⏎', action: 'enter' }
+    const enter: KeyDef = {
+      label: '⏎',
+      icon: 'cornerDownLeft',
+      action: 'enter',
+    }
     return [
       [...row('123'), BACK1], // 4
       [...row('456'), enter], // 4

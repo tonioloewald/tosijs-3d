@@ -610,6 +610,21 @@ is exported so an app that wants to remember it can.
 let autoKeyboard: boolean | null = null
 const autoKeyboardListeners = new Set<() => void>()
 
+/*
+ONE on-screen keyboard, and it FOLLOWS focus.
+
+Tonio: "when I focus a different field with the keyboard [up] I am not getting
+the keyboard for that field, so now I need to toggle keyboard off and on."
+
+Two fields each owning their own keyboard is not a second keyboard, it is a
+second WRONG keyboard: the layout is chosen per field (a number field wants the
+numpad), so the one on screen would type into the wrong place with the wrong
+keys. So the open keyboard is module state, and a field taking focus takes it
+over — closing the previous one is part of opening yours, not a separate step
+the caller has to remember.
+*/
+let liveKeyboard: { close: () => void } | null = null
+
 /** Is the on-screen keyboard set to appear on its own? */
 export function autoKeyboardEnabled(): boolean {
   // Unset means "not decided yet", so fall back to the sniff — a touch device
@@ -885,6 +900,10 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       kbOpen = null
       return
     }
+    // Take it over rather than adding a second: see `liveKeyboard`.
+    liveKeyboard?.close()
+    liveKeyboard = null
+
     const kb = keyboard({
       mode: api.keyboardMode,
       onKey: (k) => api.insert(k),
@@ -896,7 +915,13 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     // plane, a sibling or a surface is right here.
     if (config.openKeyboard != null) {
       const close = config.openKeyboard(api)
-      kbOpen = { close: () => close?.() }
+      kbOpen = {
+        close: () => {
+          close?.()
+          if (liveKeyboard === kbOpen) liveKeyboard = null
+        },
+      }
+      liveKeyboard = kbOpen
       return
     }
 
@@ -912,9 +937,14 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     honest, and `openKeyboard` is the documented way out. Sized from the ROOM
     below the field, not from the panel, since that is what it has to fit in.
     */
-    const roomBelow = (host?.bounds?.height ?? 0) - (host?.top ?? 0) - H
-    if (host == null || roomBelow < KB_MIN_HEIGHT) return
-    kbOpen = host.showPopup(
+    if (host == null) return
+    /*
+    A REAL layer has no bounds to run out of, so the refusal only applies to the
+    fallback. Checking regardless would decline in exactly the case that works.
+    */
+    const roomBelow = host.bounds.height - host.top - H
+    if (!host.hasLayer && roomBelow < KB_MIN_HEIGHT) return
+    const opened = host.showLayer(
       {
         anchor: { x: 0, y: 0, width, height: H },
         side: 'below',
@@ -922,11 +952,18 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         // panel is simply clipped at the right edge, so the last column of keys
         // — enter, backspace — becomes unreachable. Measured: 360 in a 320 panel
         // lost a column in both the flat and the textured view.
-        width: Math.min(360, host.bounds.width),
-        maxHeight: roomBelow,
+        width: host.hasLayer ? 360 : Math.min(360, host.bounds.width),
+        maxHeight: host.hasLayer ? undefined : roomBelow,
       },
       kb
     )
+    kbOpen = {
+      close: () => {
+        opened.close()
+        if (liveKeyboard === kbOpen) liveKeyboard = null
+      },
+    }
+    liveKeyboard = kbOpen
   }
 
   const api: InputField = {
@@ -1023,6 +1060,12 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         pressedInField = false
         // `always` is what an XR panel passes; `auto` follows the shared
         // preference, which the glyph sets and a touch device seeds.
+        /*
+        `kbOpen == null` means THIS field has none — another field may still own
+        the one on screen, and taking it over is exactly what should happen.
+        Guarding on `liveKeyboard` instead would make focus unable to move it,
+        which is the bug being fixed.
+        */
         if (
           wasTap &&
           kbOpen == null &&
@@ -1280,8 +1323,31 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         'font-family': TH.FONT_FAMILY,
         fill: TH.TEXT,
       })
-      lbl.textContent = r.key.label
+      lbl.textContent = r.key.icon ? '' : r.key.label
       const cell = g({ 'data-key': r.key.label }, bg, lbl) as SVGGElement
+      if (r.key.icon) {
+        // Geometry rather than a codepoint: a rasterised texture is its own
+        // document with its own font fallback, so `⏎` could arrive as a box.
+        const size = Math.min(20, Math.round(r.height * 0.45))
+        const ix = r.x + (r.width - size) / 2
+        const iy = r.y + (r.height - size) / 2
+        const glyph = iconGlyph(r.key.icon, {
+          color: TH.TEXT,
+          size,
+          x: ix,
+          y: iy,
+        })
+        if (r.key.iconRotate) {
+          // About the icon's own centre, so rotating cannot also move it.
+          const wrap = g({
+            transform: `rotate(${r.key.iconRotate} ${ix + size / 2} ${iy + size / 2})`,
+          }) as SVGGElement
+          wrap.appendChild(glyph)
+          cell.appendChild(wrap)
+        } else {
+          cell.appendChild(glyph)
+        }
+      }
       /*
       Discoverability signifier: hold-capable keys carry a faint glyph in the
       corner — ▾ for a long-press accent strip, ↔ for the spacebar's

@@ -420,6 +420,9 @@ import { roundedRectGeometry } from './rounded-rect'
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3
 import { SvgTexture } from './svg-texture'
+// Safe: widgets3d imports nothing from the b3d side, so this direction is
+// acyclic. The reverse (importing openPopup here) would NOT be.
+import { panel3d, type Widget3d } from './widgets3d'
 import type { B3d } from './tosi-b3d'
 
 export class B3dSvgPlane extends AbstractMesh {
@@ -1294,6 +1297,49 @@ export function panelScene(opts: PanelSceneOptions): {
   }
 
   const sceneCreated = (el: B3d): void => {
+    /*
+    GIVE THE PANEL A REAL LAYER.
+
+    `panel3d`'s own `showPopup` mounts inside the panel's viewBox, so anything
+    BIGGER than the panel gets capped — a keyboard on a short panel came out
+    squeezed flat and sitting on the field it types into. Only something above
+    the panel can do better, and `panelScene` is the first thing that qualifies:
+    it holds the B3d AND the plane, so it can open a surface of its own.
+
+    Tonio: "shouldn't the keyboard be in its own layer, like a popup?" — yes, and
+    this is where that becomes possible rather than merely desirable.
+
+    Via `el.openPopup` rather than importing `openPopup`: popup-surface already
+    imports this module, so the import would be a cycle — and we have had two
+    temporal-dead-zone bugs today without adding one on purpose.
+    */
+    const panelEl = opts.svg as unknown as {
+      setLayerHost?: (fn: unknown) => void
+    }
+    const owner = el as unknown as {
+      openPopup?: (o: Record<string, unknown>) => { close: () => void }
+    }
+    if (typeof panelEl.setLayerHost === 'function' && owner.openPopup) {
+      panelEl.setLayerHost(
+        (
+          config: { width?: number },
+          ...items: Widget3d[]
+        ) => {
+          const w = config.width ?? 360
+          const sheet = panel3d({ width: w, height: 'fit' }, ...items)
+          const pop = owner.openPopup!({
+            svg: sheet,
+            opener: plane.mesh,
+            width: width * 0.95,
+            // Below and slightly nearer the viewer, so it reads as in front of
+            // the panel rather than fighting it for the same depth.
+            offset: { y: -planeH * 0.75, z: -0.06 },
+          })
+          return { close: () => pop.close() }
+        }
+      )
+    }
+
     const canvas = el.scene.getEngine().getRenderingCanvas()
     const cam = new BABYLON.ArcRotateCamera(
       'panel-cam',

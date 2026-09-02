@@ -493,6 +493,20 @@ export interface Widget3d {
   setHost?(host: WidgetHost): void
 }
 
+/**
+ * Mounts an unbounded layer over a panel. Installed by whatever owns the panel's
+ * presentation — `panelScene` in a scene, the app when flat.
+ */
+export type LayerHost = (
+  config: {
+    anchor: { x: number; y: number; width: number; height: number }
+    side?: PopupSide
+    width?: number
+    maxHeight?: number
+  },
+  ...items: Widget3d[]
+) => { close: () => void }
+
 /** What a panel offers the widgets inside it. */
 export interface WidgetHost {
   /**
@@ -529,6 +543,38 @@ export interface WidgetHost {
    */
   readonly bounds: { width: number; height: number }
   readonly top: number
+  /**
+   * Is `showLayer` a REAL layer, or will it fall back to a bounded popup?
+   *
+   * A caller that can be refused needs to know which it is getting. The keyboard
+   * declines rather than squeezing itself into a short panel — but that check is
+   * pointless, and wrong, when an unbounded plane is available.
+   */
+  readonly hasLayer: boolean
+  /**
+   * Open something in a layer ABOVE the panel, unbounded by it.
+   *
+   * `showPopup` mounts inside the panel's own viewBox, which is right for a
+   * dropdown — it is guaranteed to fit and it rasterises identically flat and
+   * in-scene. It is wrong for anything BIGGER than the panel. A keyboard is
+   * bigger than most panels: on a 64px panel it came out 64px tall and sat on
+   * the field it types into.
+   *
+   * Only something ABOVE the panel can provide a real layer, because mounting is
+   * what differs — flat it is a positioned sibling, in a scene it is another
+   * plane. `panelScene` installs one (an `openPopup` plane on the B3d); a bare
+   * `panel3d` has nothing above it, so this **falls back to `showPopup`** and the
+   * caller must still cope with being refused.
+   */
+  showLayer: (
+    config: {
+      anchor: { x: number; y: number; width: number; height: number }
+      side?: PopupSide
+      width?: number
+      maxHeight?: number
+    },
+    ...items: Widget3d[]
+  ) => { close: () => void }
 }
 
 /**
@@ -1605,6 +1651,32 @@ export function panel3d(
     },
     closePopup: () => baseHost.closePopup(),
     relayout: () => baseHost.relayout(),
+    showLayer(config, ...items) {
+      // Delegate upward when something above the panel has volunteered a layer;
+      // otherwise this is just a popup, with all the bounding that implies.
+      const install = (root as unknown as { __layerHost?: LayerHost }).__layerHost
+      if (install != null) {
+        const top = offsets[index] ?? 0
+        return install(
+          {
+            ...config,
+            anchor: {
+              ...config.anchor,
+              x: config.anchor.x + padding,
+              y: config.anchor.y + paddingTop + top - scroll,
+            },
+          },
+          ...items
+        )
+      }
+      return hostFor(index).showPopup(config, ...items)
+    },
+    get hasLayer() {
+      return (
+        (root as unknown as { __layerHost?: LayerHost | null }).__layerHost !=
+        null
+      )
+    },
     // Live getters: both change when the panel re-lays-out or scrolls, and a
     // widget that cached them would decide against stale geometry.
     get bounds() {
@@ -1615,7 +1687,12 @@ export function panel3d(
     },
   })
 
-  const baseHost: Omit<WidgetHost, 'bounds' | 'top'> = {
+  // `showLayer` is per-widget (it needs the widget's offset), so the shared base
+  // deliberately does not carry it.
+  const baseHost: Omit<
+    WidgetHost,
+    'bounds' | 'top' | 'showLayer' | 'hasLayer'
+  > = {
     showPopup(config, ...items) {
       // One at a time: opening a second while the first is up would leave the
       // first unreachable but still drawn, which reads as a stuck panel.
@@ -1872,6 +1949,17 @@ export function panel3d(
       side: placed.side,
       close: () => popup.remove(),
     }
+  }
+
+  /*
+  How something ABOVE the panel volunteers a layer. `panelScene` calls this with
+  a mounter that opens a real plane; without it `showLayer` degrades to
+  `showPopup`, which is bounded — see `WidgetHost.showLayer`.
+  */
+  ;(
+    root as unknown as { setLayerHost: (fn: LayerHost | null) => void }
+  ).setLayerHost = (fn) => {
+    ;(root as unknown as { __layerHost?: LayerHost | null }).__layerHost = fn
   }
 
   root.appendChild(bg)

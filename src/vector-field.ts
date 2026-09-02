@@ -247,7 +247,7 @@ function coordinateRow(
     return null
   }
 
-  return {
+  const api: VectorField = {
     el,
     layout(width: number) {
       const letterW = Math.round(fontSize * 0.7)
@@ -273,8 +273,16 @@ function coordinateRow(
       const hit = at(x, y)
       if (hit == null) return
       // A press is what moves focus between the fields, exactly as clicking one
-      // input in a form row does.
-      if (kind === 'down') active = hit.i
+      // input in a form row does — and the caret has to follow IMMEDIATELY.
+      //
+      // Pushing it only on the host's next `setState` left the previous field
+      // lit: the host has no reason to call again, because the ROW's focus never
+      // changed. Tonio: "blurred fields aren't consistently fading their carets
+      // so the xyz field shows three carets in random states."
+      if (kind === 'down' && active !== hit.i) {
+        active = hit.i
+        api.setState?.({ hovered: false, pressed: true, focused: true })
+      }
       fields[hit.i].handle?.(kind, hit.lx, hit.ly)
     },
     hitTest(x: number, y: number) {
@@ -282,6 +290,21 @@ function coordinateRow(
       if (hit == null) return false
       const f = fields[hit.i]
       return f.hitTest ? f.hitTest(hit.lx, hit.ly) : f.handle != null
+    },
+    /*
+    FORWARD THE HOST to the fields inside.
+
+    `panel3d` hands a host to the widget it HOLDS, which here is the row — so the
+    three fields never got one, and `inputField.openKeyboard` returns early
+    without a host. Tonio: "I am not getting the keyboard for that field … and I
+    guess you haven't implemented the numeric field keyboards yet." Both were the
+    same omission: no host, so no keyboard, so never a numpad.
+
+    Any composite widget has to do this. A widget that wraps others owns passing
+    on what it was given.
+    */
+    setHost(h) {
+      for (const f of fields) f.setHost?.(h)
     },
     setState(state) {
       fields.forEach((f, i) => {
@@ -330,6 +353,8 @@ function coordinateRow(
       return fields
     },
   }
+
+  return api
 }
 
 /** Identity settle — a plain coordinate clamps (if asked) but never wraps. */
