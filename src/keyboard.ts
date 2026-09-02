@@ -247,7 +247,7 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 }
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 210 }*/
 
 import { svgElements } from 'tosijs'
 import {
@@ -918,7 +918,11 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       {
         anchor: { x: 0, y: 0, width, height: H },
         side: 'below',
-        width: 360,
+        // FIT THE HOST, don't ask for a nominal 360: a wider keyboard than the
+        // panel is simply clipped at the right edge, so the last column of keys
+        // — enter, backspace — becomes unreachable. Measured: 360 in a 320 panel
+        // lost a column in both the flat and the textured view.
+        width: Math.min(360, host.bounds.width),
         maxHeight: roomBelow,
       },
       kb

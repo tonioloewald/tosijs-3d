@@ -25,7 +25,7 @@ Two derivations of the same rectangle will drift. One derivation, used by both,
 cannot — so this returns the geometry, the drawing code places glyphs at it, and
 the pointer code tests against it.
 */
-/*{ "parent": "UI", "order": 420 }*/
+/*{ "parent": "UI", "order": 900 }*/
 
 /** A rectangle in viewBox units. */
 export interface ChromeRect {

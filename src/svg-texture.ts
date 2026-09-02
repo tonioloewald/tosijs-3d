@@ -69,7 +69,7 @@ literals already follow. Filed in TODO rather than done, because it means
 fetching and base64-ing a font per texture and the cost should be measured
 before it is paid.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 530 }*/
 
 import * as BABYLON from '@babylonjs/core'
 import { svgFontStyle } from './embed-font'

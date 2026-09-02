@@ -35,7 +35,7 @@ has no colour picker of its own yet. So the control is a parameter: pass
 what it costs. When the SVG UI grows its own picker this defaults to that
 instead.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 270 }*/
 
 import { elements } from 'tosijs'
 import { setW3dTheme, w3dTheme, type W3dTheme } from './w3d-theme'

@@ -260,6 +260,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - https://3d.tosijs.net/ui/ — UI
+  SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/utilities/ — Utilities
 - https://3d.tosijs.net/vector-field/ — vector-field
   orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
