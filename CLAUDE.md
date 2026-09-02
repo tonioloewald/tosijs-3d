@@ -851,9 +851,26 @@ So **whenever you find a performance-sensitive default, make it `auto` instead o
   is the browser retaining GPU memory; growing deltas means it is ours and the
   numbers say which kind. This exists because after ~20 enter/exits in one pass
   everything was crawling _including back in the flat view_, and there was no way
-  to tell from inside a headset which side owned it. (Our teardown was audited at
-  the same time and is complete: `frame-panel` disposes texture, material and
-  plane; `SvgTexture.dispose` clears its interval and releases the GPU texture.)
+  to tell from inside a headset which side owned it.
+
+  ⚠️ **That audit's "our teardown is complete" verdict was WRONG, and the way it
+  was wrong is the lesson.** It checked per-XR-session resources — `frame-panel`
+  disposes texture, material and plane; `SvgTexture.dispose` clears its interval
+  — and those really are clean. It never asked the other question: **does a
+  removed scene stop rendering?** It did not. Until 2026-09-02 `_teardown` called
+  neither `stopRenderLoop` nor `engine.dispose`, so every demo you navigated away
+  from left a live engine rendering a detached canvas **forever**. Ten demos
+  visited, ten render loops competing for frame time — which fits "crawling
+  _including back in the flat view_" far better than browser VRAM retention,
+  because retained VRAM costs no frame time and a running render loop does.
+  A headset feels it first: tighter VRAM, fewer contexts, and reticle →
+  checkerboard is the out-of-VRAM symptom.
+
+  So treat a flat delta as evidence about **the resources it counts**, not a
+  clean bill of health: it says meshes/materials/textures are balanced, and says
+  nothing about loops, contexts or engines. Repeated enter/exit within ONE page
+  never disconnects, so it was never explained by this — if degradation shows up
+  without navigating between demos, it is still unaccounted for.
 - **VRAM across sessions:** the Quest browser does not reliably release WebXR GPU resources between enter/exit, so repeated sessions can exhaust VRAM (reticle → checkerboard). Our per-session teardown (`_startDefaultXrExperience`'s disposer) IS complete — verify any new per-session resource is disposed there — but the browser-level retention isn't ours to fix; keep baseline XR VRAM low (render scaling, modest panel/texture resolution).
 
 ### Styling — use tosijs's CSS facilities, never hand-roll it
