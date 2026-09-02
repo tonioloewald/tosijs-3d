@@ -309,6 +309,15 @@ export interface Curve3dOptions {
   label?: string
   /** Plot height as a fraction of width. Default 0.62. */
   aspect?: number
+  /**
+   * Name used in the commit's verb phrase — `'brightness'` gives
+   * `'edit brightness curve'`. Falls back to `label`, then to nothing.
+   *
+   * Separate from `label` because a label is prose for a human reading the
+   * panel ("brightness — strike, hum, fade") and this is a token in an undo
+   * history, where the prose would be noise.
+   */
+  name?: string
   /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
   onChange?: (points: ControlPoint[]) => void
   /**
@@ -323,8 +332,14 @@ export interface Curve3dOptions {
    *
    * Ensemble hit exactly this with transform drags: write the live body during
    * the drag, commit to the document once, on release. Same shape.
+   *
+   * `describe` is a bare VERB PHRASE — lowercase, no subject, no punctuation
+   * (`'edit brightness curve'`, `'apply preset'`). Ensemble's history entries
+   * are verb + subject and they attach the subject themselves, because they
+   * know the piece id and we cannot. Passing a whole sentence would give them
+   * something to strip.
    */
-  handleCommit?: (points: ControlPoint[]) => void
+  handleCommit?: (points: ControlPoint[], describe: string) => void
   /**
    * Draggable vertical split markers, SHARED between curves.
    *
@@ -357,9 +372,9 @@ export interface CurveMarkers {
   /** Live, including mid-drag. */
   handleChange?: (values: number[]) => void
   /** Once, when a marker drag ends — the undo-step boundary. */
-  handleCommit?: (values: number[]) => void
+  handleCommit?: (values: number[], describe: string) => void
   /** Called by an editor when its marker gesture finishes. */
-  commit: () => void
+  commit: (describe?: string) => void
 }
 
 /**
@@ -377,7 +392,7 @@ export function curveMarkers(
   opts: {
     labels?: string[]
     handleChange?: (values: number[]) => void
-    handleCommit?: (values: number[]) => void
+    handleCommit?: (values: number[], describe: string) => void
   } = {}
 ): CurveMarkers {
   let vals = normalizeMarkers(values)
@@ -409,8 +424,11 @@ export function curveMarkers(
     },
     handleChange: opts.handleChange,
     handleCommit: opts.handleCommit,
-    commit() {
-      api.handleCommit?.(vals.map((v) => Math.round(v * 1e4) / 1e4))
+    commit(describe = 'move split') {
+      api.handleCommit?.(
+        vals.map((v) => Math.round(v * 1e4) / 1e4),
+        describe
+      )
     },
   }
   return api
@@ -430,7 +448,7 @@ export interface CurveField extends Widget3d {
   /** Settable so a demo can wire it after construction. */
   onChange?: (points: ControlPoint[]) => void
   /** Settable likewise — fires once per gesture, with canonical points. */
-  handleCommit?: (points: ControlPoint[]) => void
+  handleCommit?: (points: ControlPoint[], describe: string) => void
 }
 
 /** Resolve the `value` option, which may name a preset. */
@@ -697,9 +715,12 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   // happening in a sibling curve, which is the whole point of sharing them.
   markers?.subscribe(() => draw())
 
+  /** The curve's name in a commit verb phrase. Prose labels are not it. */
+  const curveName = config.name ?? config.label ?? ''
+
   /** One commit per gesture, canonical — see `handleCommit`. */
-  const commit = (): void => {
-    api.handleCommit?.(canonicalCurve(points, kind))
+  const commit = (describe: string): void => {
+    api.handleCommit?.(canonicalCurve(points, kind), describe)
   }
 
   const api: CurveField = {
@@ -778,11 +799,12 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
         // place a document should be written.
         if (dragging >= 0) {
           dragging = -1
-          commit()
+          commit(curveName ? `edit ${curveName} curve` : 'edit curve')
         }
         if (draggingMarker >= 0) {
+          const label = markers?.labels[draggingMarker]
           draggingMarker = -1
-          markers?.commit()
+          markers?.commit(label ? `move ${label} split` : 'move split')
           draw()
         }
       }
@@ -823,7 +845,7 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       emit()
       // A discrete edit IS a complete gesture — there is no release to wait
       // for, so it is its own undo step.
-      commit()
+      commit('delete point')
     },
     applyPreset(name: string) {
       const preset = presetsFor(kind).find((p) => p.name === name)
@@ -832,7 +854,7 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       selected = -1
       draw()
       emit()
-      commit()
+      commit('apply preset')
     },
   }
 

@@ -366,3 +366,57 @@ describe('the fluorescent, end to end', () => {
     expect(sampleLight(program, false, 1.5).brightness).toBe(0)
   })
 })
+
+/*
+THE COLLAPSE IS A CONTRACT.
+
+Ensemble's validator reports inverted splits as a WARNING rather than an error,
+and that is only correct while the behaviour is deterministic and specified —
+their condition: "if it were unspecified, it should be an error, because then
+the document really does not mean one thing."
+
+So this pins the collapse itself, not merely that it does not crash.
+*/
+describe('inverted splits collapse, deterministically', () => {
+  const inverted = {
+    brightness: [
+      { x: 0, y: 0 },
+      { x: 0.6, y: 0.6 },
+      { x: 1, y: 1 },
+    ],
+    attackEnd: 0.6,
+    sustainEnd: 0.2, // precedes attackEnd
+    attack: 1,
+    period: 2,
+    decay: 1,
+  }
+
+  test('the sustain collapses to zero width AT attackEnd', () => {
+    for (let t = 1; t < 20; t += 0.31) {
+      expect(programPosition(inverted, true, t)).toBeCloseTo(0.6)
+    }
+  })
+
+  test('the attack still plays normally up to it', () => {
+    expect(programPosition(inverted, true, 0)).toBeCloseTo(0)
+    expect(programPosition(inverted, true, 0.5)).toBeCloseTo(0.3)
+    expect(programPosition(inverted, true, 1)).toBeCloseTo(0.6)
+  })
+
+  test('the decay still plays from sustainEnd to 1', () => {
+    expect(programPosition(inverted, false, 0)).toBeCloseTo(0.6)
+    expect(programPosition(inverted, false, 1)).toBeNull()
+  })
+
+  test('the program still RUNS — which is why it is a warning', () => {
+    // An error would say "this ensemble cannot be loaded", and that is false.
+    expect(() => sampleLight(inverted, true, 5)).not.toThrow()
+    expect(sampleLight(inverted, true, 5).brightness).toBeGreaterThan(0)
+  })
+
+  test('same input, same result — no version- or platform-dependence', () => {
+    const a = programPosition(inverted, true, 7)
+    const b = programPosition({ ...inverted }, true, 7)
+    expect(a).toBe(b)
+  })
+})

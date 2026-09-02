@@ -250,3 +250,115 @@ describe('markers commit once per drag too', () => {
     }
   })
 })
+
+/*
+THE `describe` VERB PHRASE.
+
+Ensemble's history entries are `verb + subject`, lowercase, no punctuation —
+"insert barrel", "translate rock". They attach the subject (the piece id), which
+we cannot know and they always can. So we pass the verb phrase ALONE: anything
+more would be something for them to strip.
+*/
+describe('commit describes the gesture', () => {
+  const drag = (c: any, from = 150, to = 160) => {
+    c.layout(300)
+    c.handle('down', from, 60)
+    c.handle('move', to, 62)
+    c.handle('up', to, 62)
+  }
+
+  test('a curve drag names the curve', () => {
+    let said = ''
+    const c = mod.curve3d({
+      name: 'brightness',
+      handleCommit: (_p, d) => (said = d),
+    })
+    drag(c)
+    expect(said).toBe('edit brightness curve')
+  })
+
+  test('`name` beats a prose `label`', () => {
+    // A label is prose for a human reading the panel; a describe is a token in
+    // an undo history, where the prose would be noise.
+    let said = ''
+    const c = mod.curve3d({
+      label: 'brightness — strike, hum, fade',
+      name: 'brightness',
+      handleCommit: (_p, d) => (said = d),
+    })
+    drag(c)
+    expect(said).toBe('edit brightness curve')
+  })
+
+  test('with no name it still says something usable', () => {
+    let said = ''
+    const c = mod.curve3d({ handleCommit: (_p, d) => (said = d) })
+    drag(c)
+    expect(said).toBe('edit curve')
+  })
+
+  test('discrete edits name themselves', () => {
+    const said: string[] = []
+    const c = mod.curve3d({ handleCommit: (_p, d) => said.push(d) })
+    c.layout(300)
+    c.applyPreset('flatten')
+    expect(said).toEqual(['apply preset'])
+  })
+
+  test('a marker drag names WHICH split moved', () => {
+    // "move attack split" vs "move decay split" — the distinction that makes a
+    // history scrubbable.
+    let said = ''
+    const markers = mod.curveMarkers([0.35, 0.75], {
+      labels: ['attack', 'decay'],
+      handleCommit: (_v, d) => (said = d),
+    })
+    const c = mod.curve3d({ markers })
+    c.layout(300)
+    const px = (v: number) => 4 + v * (300 - 8)
+    c.handle!('down', px(0.75), 60)
+    c.handle!('move', px(0.8), 60)
+    c.handle!('up', px(0.8), 60)
+    expect(said).toBe('move decay split')
+  })
+
+  test('unlabelled markers fall back rather than saying "undefined"', () => {
+    let said = ''
+    const markers = mod.curveMarkers([0.35, 0.75], {
+      handleCommit: (_v, d) => (said = d),
+    })
+    const c = mod.curve3d({ markers })
+    c.layout(300)
+    const px = (v: number) => 4 + v * (300 - 8)
+    c.handle!('down', px(0.35), 60)
+    c.handle!('move', px(0.4), 60)
+    c.handle!('up', px(0.4), 60)
+    expect(said).toBe('move split')
+  })
+
+  test('every phrase is a bare verb phrase — no subject, no capital, no stop', () => {
+    // The format contract, checked rather than assumed.
+    const said: string[] = []
+    const markers = mod.curveMarkers([0.35, 0.75], {
+      labels: ['attack', 'decay'],
+      handleCommit: (_v, d) => said.push(d),
+    })
+    const c = mod.curve3d({
+      name: 'hue',
+      markers,
+      handleCommit: (_p, d) => said.push(d),
+    })
+    c.layout(300)
+    c.applyPreset('flatten')
+    const px = (v: number) => 4 + v * (300 - 8)
+    c.handle!('down', px(0.35), 60)
+    c.handle!('move', px(0.4), 60)
+    c.handle!('up', px(0.4), 60)
+    expect(said.length).toBeGreaterThan(1)
+    for (const d of said) {
+      expect(d).toBe(d.toLowerCase())
+      expect(d).not.toMatch(/[.!?]$/)
+      expect(d.trim()).toBe(d)
+    }
+  })
+})

@@ -44,6 +44,20 @@ both simple and extremely powerful."_
 So: author the tail you want. Composition remains available later as an addition,
 which is the safe direction to leave a door open in.
 
+## Inverted splits collapse — a specified contract, not an accident
+
+If `sustainEnd` precedes `attackEnd` (only reachable by hand-editing a file —
+the editor clamps a drag so it cannot happen), the sustain segment **collapses to
+zero width at `attackEnd`**: the lamp plays its attack, then holds at
+`attackEnd` for as long as it is on, then plays the decay from `sustainEnd`.
+
+Stated here because ensemble's validator calls this a WARNING rather than an
+error, and that is only correct while the behaviour is deterministic and
+specified. Their condition, and it is a fair one: _"if it were unspecified —
+different results across versions or platforms — it should be an error, because
+then the document really does not mean one thing."_ So this paragraph is part of
+the contract, and changing what the collapse does is a breaking change.
+
 ## The two discontinuities that remain
 
 Both are named above and neither is fixable in this model, so they are contracts
@@ -184,7 +198,14 @@ export function isAnimated(p: LightProgram | null | undefined): boolean {
   return hasClock && hasCurve
 }
 
-/** Split points, ordered and clamped, so a bad pair cannot invert a segment. */
+/**
+ * Split points, ordered and clamped, so a bad pair cannot invert a segment.
+ *
+ * The collapse is SPECIFIED (see the doc above): an inverted pair yields a
+ * zero-width sustain at `attackEnd`, deterministically. That is what lets
+ * ensemble's validator report it as a warning rather than refusing the
+ * document.
+ */
 function splits(p: LightProgram): { a: number; b: number } {
   const a = clamp01(p.attackEnd ?? 0)
   // `b` cannot precede `a`: an inverted sustain segment would make the loop run
