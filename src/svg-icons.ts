@@ -320,7 +320,7 @@ export function createSvgIcons(
       return (...parts: ElementPart[]) => {
         const resolved = resolveToMarkup(map, prop)
         if (!resolved) {
-          console.warn(`svgIcons: unknown icon "${prop}"`)
+          warnOnce(`svgIcons: unknown icon "${prop}"`)
           return buildSvgIcon(FALLBACK, parts)
         }
         return buildSvgIcon(resolved.spec, parts, resolved.style)
@@ -356,6 +356,24 @@ const DEFAULT_MAP: IconMap = {
  * `color`. Base names only — composition suffixes (rotate/flip/…) stay DOM-only
  * on {@link svgIcons}; passing one here warns rather than silently mis-rendering.
  */
+/*
+ONE WARNING PER PROBLEM, not per draw.
+
+These fire from DRAWING code — `iconGlyph` runs on every repaint of a keyboard,
+an icon grid or a panel, so a single wrong name produced dozens of identical
+lines a second and buried everything else in the console. The name is the whole
+message, so the second copy carries no information the first did not.
+
+Keyed by the full text rather than the icon name, so the "unknown icon" and
+"composition suffix" cases for the same name still both get said once.
+*/
+const warned = new Set<string>()
+function warnOnce(message: string): void {
+  if (warned.has(message)) return
+  warned.add(message)
+  console.warn(message)
+}
+
 export function iconGlyph(
   name: string,
   opts: {
@@ -385,9 +403,9 @@ export function iconGlyph(
     strokeWidth = w3dTheme.strokeWidth,
   } = opts
   const resolved = resolveToMarkup(DEFAULT_MAP, name)
-  if (!resolved) console.warn(`iconGlyph: unknown icon "${name}"`)
+  if (!resolved) warnOnce(`iconGlyph: unknown icon "${name}"`)
   if (resolved && Object.keys(resolved.style).length > 0) {
-    console.warn(
+    warnOnce(
       `iconGlyph("${name}"): composition suffixes aren't applied here — use a base name (or svgIcons for DOM).`
     )
   }

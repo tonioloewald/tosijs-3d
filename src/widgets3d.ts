@@ -42,9 +42,14 @@ const panel = panel3d(
   text3d({ text: 'Drag the slider — the native control below is bound to the same value.' }),
   list3d({
     items: [{ label: 'Talk' }, { label: 'Trade' }, { label: 'Leave' }],
-    onSelect: (item) => console.log('picked', item.label),
+    // Reports on the PAGE, not to the console: a demo you must open devtools to
+    // read is one most people never see the output of — and it spams the console
+    // of every page that embeds it.
+    onSelect: (item) => (readout.textContent = `picked: ${item.label}`),
   })
 )
+
+const readout = div({ style: { padding: '0 16px 12px', font: '13px system-ui', opacity: '0.75' } }, 'Pick a list item.')
 
 preview.append(
   div(
@@ -56,7 +61,8 @@ preview.append(
     } },
     panel,
     label('native, same binding ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: ui.time }))
-  )
+  ),
+  readout
 )
 ```
 ```test
