@@ -133,3 +133,28 @@ describe('uvToViewBox — the flip that hides a title bar at the bottom', () => 
     expect(chromeHit(centre.x, centre.y, l)).toBe('close')
   })
 })
+
+describe('the close TARGET does not shrink with the glyph', () => {
+  test('a smaller glyph keeps a target at least as wide as the bar is tall', () => {
+    // `chromeHit` tests `x >= closeHitX`, not `close.x` — so drawing the glyph
+    // smaller (which Tonio asked for) must not quietly make the corner harder to
+    // hit. That is the wrong trade for a controller ray.
+    const l = chromeLayout(300, 200, 0.2, true)
+    expect(l.closeHitX).toBeLessThanOrEqual(l.close.x)
+    expect(300 - l.closeHitX).toBeGreaterThanOrEqual(l.barHeight)
+  })
+
+  test('a press in the corner still closes, at the glyph or beside it', () => {
+    const l = chromeLayout(300, 200, 0.2, true)
+    expect(chromeHit(299, 2, l)).toBe('close')
+    expect(chromeHit(l.closeHitX + 1, l.barHeight / 2, l)).toBe('close')
+    // …and just left of the target is still a drag, not a close.
+    expect(chromeHit(l.closeHitX - 2, l.barHeight / 2, l)).toBe('drag')
+  })
+
+  test('the glyph is drawn inside its own target', () => {
+    const l = chromeLayout(300, 200, 0.2, true)
+    expect(l.close.x).toBeGreaterThanOrEqual(l.closeHitX)
+    expect(l.close.x + l.close.size).toBeLessThanOrEqual(300)
+  })
+})
