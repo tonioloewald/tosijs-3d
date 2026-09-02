@@ -1400,8 +1400,7 @@ export class B3dBiped extends B3dControllable {
       Two derivations of one quantity is the bug, not the arithmetic; deriving it
       once is the fix.
       */
-      const headDepth =
-        surfaceY == null ? 0 : surfaceY - (feetY + bodyHeight)
+      const headDepth = surfaceY == null ? 0 : surfaceY - (feetY + bodyHeight)
       const submerged =
         surfaceY == null ? 0 : submergedFraction(feetY, bodyHeight, surfaceY)
       const grounded = hit?.hit === true && hit.pickedPoint != null

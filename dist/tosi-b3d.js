@@ -1171,13 +1171,46 @@ export class B3d extends Component {
     // connectedCallback to insert themselves once the scene is up. Runs the callback
     // immediately if the scene is already ready, else queues it for the flush below.
     _readyQueue = [];
+    // Durable — see whenDisposed. NOT cleared by teardown, so a handler
+    // registered once still fires for the scene after next.
+    _disposeHandlers = [];
     _libraries = new Map();
-    /** Run `cb` when the scene is ready — now if it already is, else on scene-ready. */
+    /**
+     * Run `cb` when the scene is ready — now if it already is, else on scene-ready.
+     *
+     * **It is a promise, not a hope.** A queued callback survives a teardown and
+     * fires against the NEXT scene, because the alternative is the failure this
+     * whole area specialises in: register, have the scene torn down before it was
+     * ready, and your callback is dropped with no error and nothing to observe.
+     * If the element is never re-added the callback is simply garbage along with
+     * it, which costs nothing.
+     */
     whenReady(cb) {
         if (this._sceneReady)
             cb();
         else
             this._readyQueue.push(cb);
+    }
+    /**
+     * Run `cb` when the scene is torn down — the other half of `whenReady`, and
+     * the half that did not exist. Returns an unsubscribe.
+     *
+     * Anything holding a reference INTO the scene (a mesh, a material, an
+     * observer, a timer closing over one) needs this: after teardown those
+     * references are to a disposed scene, and Babylon's failure mode there is a
+     * black material that still reports `isReady()` — silent, not loud.
+     *
+     * Subscriptions are durable across a rebuild; scene STATE is not. So a
+     * handler registered once keeps working for every subsequent scene, and does
+     * not need re-registering.
+     */
+    whenDisposed(cb) {
+        this._disposeHandlers.push(cb);
+        return () => {
+            const i = this._disposeHandlers.indexOf(cb);
+            if (i > -1)
+                this._disposeHandlers.splice(i, 1);
+        };
     }
     addSceneListener(callback) {
         this.sceneListeners.push(callback);
@@ -2403,6 +2436,33 @@ export class B3d extends Component {
     }
     connectedCallback() {
         super.connectedCallback();
+        /*
+        A MOVE MUST NOT COST A SCENE.
+    
+        Re-parenting an element fires `disconnectedCallback` then
+        `connectedCallback` in the SAME task, and this method builds an Engine and a
+        Scene unconditionally — so a move built a second one. The first is then
+        disposed, which disposes its materials, which deletes their shader programs,
+        and the SURVIVING scene renders black while every uniform reads correct and
+        `isReady()` returns true. `gl.isProgram()` is false and nothing says so.
+    
+        Reported by tosijs-3d-ensemble (#58) with the measurement that pins it: two
+        Scene objects 43ms apart, a SkyMaterial rebuilt across the boundary, a
+        `deleteProgram`, and NO add/remove recorded on the element itself — because
+        the move was of an ancestor HOST, which disconnects everything in its shadow
+        root. This is also the real cause of the intermittent black sky in #51.
+    
+        A move need not touch this element at all, and it is ordinary DOM: SPA
+        routers, layout changes, re-parenting. So teardown is DEFERRED (see
+        `disconnectedCallback`) and a reconnect in the same task simply cancels it —
+        the scene never stopped existing, and there is nothing to rebuild.
+        */
+        if (this._teardownTimer != null) {
+            clearTimeout(this._teardownTimer);
+            this._teardownTimer = null;
+            return;
+        }
+        // Reconnected after teardown already ran, or connected for the first time.
         const cnv = this.parts.canvas;
         cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
         // Input focus follows the pointer: hovering or pressing anywhere in this scene
@@ -3881,6 +3941,23 @@ export class B3d extends Component {
         };
     }
     disconnectedCallback() {
+        /*
+        DEFER, so a move can cancel it. See `connectedCallback`.
+    
+        `super.disconnectedCallback()` still runs immediately — tosijs owns its own
+        bookkeeping and a move is normal to it; only OUR teardown (engine, timers,
+        XR, the ready flag) waits to find out whether this was a removal or a move.
+        */
+        super.disconnectedCallback();
+        if (this._teardownTimer != null)
+            return;
+        this._teardownTimer = setTimeout(() => {
+            this._teardownTimer = null;
+            this._teardown();
+        }, 0);
+    }
+    _teardownTimer = null;
+    _teardown() {
         this._errorCaptureOff?.();
         this._errorCaptureOff = null;
         this._pauseWatch?.();
@@ -3909,11 +3986,72 @@ export class B3d extends Component {
         // Descendant B3dChild components self-dispose via their own
         // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
         this._sceneReady = false;
-        this._readyQueue = [];
-        super.disconnectedCallback();
+        /*
+        SUBSCRIPTIONS ARE DURABLE; SCENE STATE IS NOT. That is the whole rule.
+    
+        `_readyQueue` is deliberately NOT cleared: a callback waiting on a scene
+        that got torn down before it was ready is still waiting, and dropping it
+        silently is the exact bug shape this file keeps producing. It fires against
+        the next scene, or never (garbage with the element), and either way nobody
+        is left holding a callback that will not run.
+    
+        `pastAdditions` IS cleared, because it is scene state — meshes and lights
+        belonging to the scene we just disposed. Replaying those to the next
+        `addSceneListener` hands a new listener dead nodes from a dead scene.
+    
+        Handlers run BEFORE disposal so they can still read what they are releasing,
+        and each is isolated: one consumer throwing must not strand the rest, nor
+        abort the engine disposal below it.
+        */
+        for (const cb of [...this._disposeHandlers]) {
+            try {
+                cb();
+            }
+            catch (err) {
+                console.warn('b3d whenDisposed handler failed', err);
+            }
+        }
+        this.pastAdditions = [];
+        /*
+        OBLITERATE THE ENGINE. A WebGL context is not memory — Chrome caps them at
+        about sixteen per page and force-loses the OLDEST when you exceed it, so a
+        leaked engine doesn't degrade an SPA gradually: it works for a dozen route
+        changes and then a scene that was fine goes black. That is #51's symptom
+        arriving by a second road, and until now this method released the XR helper,
+        the quality subscription and the debug timers but never the engine or the
+        scene it holds.
+    
+        Safe to be absolute here because this only runs on a GENUINE removal: a
+        re-parent (an ancestor moving, which disconnects every descendant as
+        collateral) cancels this in `connectedCallback` before it fires. So there is
+        one rule — disconnected means gone — and no pooling, no reuse, no engine
+        kept warm on the chance somebody comes back.
+    
+        Order matters: stop the loop first, or the next frame renders a scene that is
+        being disposed underneath it.
+        */
+        this.glowLayer = undefined;
+        this.gui = undefined;
+        try {
+            this.engine?.stopRenderLoop();
+            this.scene?.dispose();
+            this.engine?.dispose();
+        }
+        catch (err) {
+            // A half-built scene (disconnected mid-init) can throw on the way down.
+            // Never let teardown propagate — the element is going away regardless,
+            // and a throw here would strand whatever the caller was doing.
+            console.warn('b3d teardown', err);
+        }
     }
     render() {
         super.render();
+        // A render can be queued on rAF and land AFTER teardown disposed the engine.
+        // Building a GlowLayer on a disposed scene is how that would surface — as a
+        // GL error from a component that looks fine, which is the failure mode this
+        // whole area has been generating.
+        if (this.scene == null || this.scene.isDisposed)
+            return;
         const intensity = this.glowLayerIntensity;
         if (intensity > 0) {
             if (!this.glowLayer) {

@@ -154,7 +154,10 @@ describe('presses behave like buttons', () => {
     // So a mis-aimed press can be aborted by sliding off, rather than being
     // committed on release — which matters most where aiming is expensive.
     const fired: number[] = []
-    const w = mod.iconGrid3d({ items: ITEMS, handleActivate: (i) => fired.push(i) })
+    const w = mod.iconGrid3d({
+      items: ITEMS,
+      handleActivate: (i) => fired.push(i),
+    })
     w.layout(320)
     w.handle!('down', 4, 4) // cell 0
     w.handle!('up', 300, 4) // cell 3

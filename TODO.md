@@ -511,6 +511,28 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
+[ ] **Triage 11 stale `UPSTREAM.md` Open rows** (found by the 0.7.7 step-5a0
+sweep, 2026-09-02). These reference issues upstream has since CLOSED, so the
+table currently asserts workarounds are still needed when they may not be:
+
+`tjs-lang#22` · `tosijs#22` `#24` `#27` · `tosijs-ui#72` `#92` `#95` `#97`
+`#111` `#112` `#117`
+
+Deliberately NOT bulk-resolved: **closed upstream is not the same as released in
+the version we depend on**, so each row needs its own check — is the fix in our
+dependency range, and does our workaround still earn its place? Two are load-
+bearing in CLAUDE.md and want care: `tosijs#24` (a wrong-typed prop is silently
+discarded — the `'on'|'off'` conversion rule leans on it) and `tosijs#27`
+(computed attributes, which is why a `Deg` alias can't be an attribute).
+
+Worth doing as one pass: an Open row that is quietly fixed is worse than no row,
+because it is read as current.
+
+The sweep is a one-liner — list each upstream's closed issues and intersect with
+the refs in the Open section (`gh issue list -R tonioloewald/<repo> --state
+closed --limit 200 --json number -q '.[].number'`). Cheap enough to run every
+release rather than only on minors, which is when it caught these.
+
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are
@@ -1809,47 +1831,47 @@ scene button), and COLLAPSIBLE.
 [ ] **The top `widgets3d` demo needs a pass — three faults, one of them not
 cosmetic.** Reported by Tonio; diagnosed but not yet fixed.
 
-  1. **Test blocks pile SVG panels into the visible demo.** Counted on a live
-     page: preview #1 holds **7** `data-w3d="panel"` svgs where it should hold
-     one (the other two previews hold 1 and 0). Cause: each of the six ` ```test `
-     blocks calls `preview.append(panel)` into the SAME `preview` element the
-     demo above it renders into, and none removes what it appended. Tonio: "a
-     bunch of SVG elements are appended to the demo (you need to maximize) …
-     it seems wrong." It is deterministic, not accumulating — 7 on every reload.
+1. **Test blocks pile SVG panels into the visible demo.** Counted on a live
+   page: preview #1 holds **7** `data-w3d="panel"` svgs where it should hold
+   one (the other two previews hold 1 and 0). Cause: each of the six ` ```test `
+   blocks calls `preview.append(panel)` into the SAME `preview` element the
+   demo above it renders into, and none removes what it appended. Tonio: "a
+   bunch of SVG elements are appended to the demo (you need to maximize) …
+   it seems wrong." It is deterministic, not accumulating — 7 on every reload.
 
-     Our fix is for each test to clean up after itself (or mount into a detached
-     node). But the sharper question is upstream: should a doc TEST get the same
-     visible `preview` as the demo at all? If it must, it wants an automatic
-     reset between blocks — every consumer writing tests that mount something
-     will hit this, and the symptom (a demo that looks wrong) points nowhere
-     near the cause. Worth a tosijs-ui issue once we have decided which.
+   Our fix is for each test to clean up after itself (or mount into a detached
+   node). But the sharper question is upstream: should a doc TEST get the same
+   visible `preview` as the demo at all? If it must, it wants an automatic
+   reset between blocks — every consumer writing tests that mount something
+   will hit this, and the symptom (a demo that looks wrong) points nowhere
+   near the cause. Worth a tosijs-ui issue once we have decided which.
 
-  2. **DONE — native controls had terrible contrast.** Fixed by Tonio's own
-     rewrite (below), which drops the hardcoded `background:#11131a`: the native
-     control then sits on the PAGE's background instead of fighting it, so the
-     contrast fix and the style fix turned out to be the same edit. Original
-     report kept for the sweep — **check the other demos**, since anything
-     relying on inherited colour is only correct by accident of the page it
-     happens to be on.
+2. **DONE — native controls had terrible contrast.** Fixed by Tonio's own
+   rewrite (below), which drops the hardcoded `background:#11131a`: the native
+   control then sits on the PAGE's background instead of fighting it, so the
+   contrast fix and the style fix turned out to be the same edit. Original
+   report kept for the sweep — **check the other demos**, since anything
+   relying on inherited colour is only correct by accident of the page it
+   happens to be on.
 
-     ~~Native controls have terrible contrast~~ — the `<input type="range">` and
-     its label inherit nothing, so they render near-invisible on the demo's dark
-     `#11131a`. Needs an explicit colour. Check the other demos for the same:
-     anything relying on inherited colour is only correct by accident of the
-     page it happens to be on, which is the same trap `theme-editor`'s fields
-     fell into.
+   ~~Native controls have terrible contrast~~ — the `<input type="range">` and
+   its label inherit nothing, so they render near-invisible on the demo's dark
+   `#11131a`. Needs an explicit colour. Check the other demos for the same:
+   anything relying on inherited colour is only correct by accident of the
+   page it happens to be on, which is the same trap `theme-editor`'s fields
+   fell into.
 
-  3. **DONE for this demo — `style` as a STRING.** Now a style object, in the
-     form Tonio wrote: bare numbers (`gap: 24`) resolve to `24px`, verified
-     against computed style. STILL A SWEEP: the other doc examples mostly pass
-     strings, and they are what an adopter copies.
+3. **DONE for this demo — `style` as a STRING.** Now a style object, in the
+   form Tonio wrote: bare numbers (`gap: 24`) resolve to `24px`, verified
+   against computed style. STILL A SWEEP: the other doc examples mostly pass
+   strings, and they are what an adopter copies.
 
-     ~~`style` is passed as a STRING, which is not good tosijs.~~ tosijs takes a
-     style OBJECT (typed, camelCase); a string works but opts out of the typing
-     and of everything CLAUDE.md's styling section is about. Tonio: "this may
-     apply elsewhere" — so this is a sweep across the doc examples, not one
-     edit. Worth doing once and consistently, since the demos are what an
-     adopter copies.
+   ~~`style` is passed as a STRING, which is not good tosijs.~~ tosijs takes a
+   style OBJECT (typed, camelCase); a string works but opts out of the typing
+   and of everything CLAUDE.md's styling section is about. Tonio: "this may
+   apply elsewhere" — so this is a sweep across the doc examples, not one
+   edit. Worth doing once and consistently, since the demos are what an
+   adopter copies.
 
 [x] **DONE — popup chrome in the DOM, via a PRESENTATION MARKER.** Tonio: "the move and close affordances in the panel do not work in the
 DOM. We probably just want a 'class' that hides things in the DOM but shows them
@@ -1859,10 +1881,10 @@ The chrome (move glyph, close ×) is drawn by `popup-surface` and handled by
 PICKING — uv → viewBox → `chromeHit`. That path exists only in the scene, so in
 the DOM the glyphs are painted and inert. Two things to decide:
 
-  - **Handle them flat**, since the DOM layer mounts the same sheet and could
-    route its own presses to the same `chromeHit`; or
-  - **Hide them flat**, because a DOM popup can be dragged and closed by the
-    page's own means and the glyphs are then noise.
+- **Handle them flat**, since the DOM layer mounts the same sheet and could
+  route its own presses to the same `chromeHit`; or
+- **Hide them flat**, because a DOM popup can be dragged and closed by the
+  page's own means and the glyphs are then noise.
 
 Tonio's class idea is the better general answer and applies well beyond chrome:
 a marker (`data-presentation="dom" | "texture"`) that `svg-texture` STRIPS when
@@ -1890,19 +1912,19 @@ raises.
 
 [ ] **Swap in tosijs-ui's new icons when they ship** — cosmetic, not blocking.
 
-  - **A proper SHIFT glyph.** We draw `chevron` rotated -90 degrees, because
-    `iconGlyph` does not apply composition suffixes (asking it for a `chevronUp`
-    logs "unknown icon" and falls back to a BOX). Drop `iconRotate` from the
-    shift KeyDef once a real one exists; keep the `iconRotate`/`iconFlipX`
-    machinery, since `cornerDownLeft` is still a mirror REFERENCE and enter
-    depends on the flip.
-  - **A TAB glyph**, for moving between fields. Nothing uses it yet — worth
-    pairing with `fieldGroup`, which already knows the traversal order and is
-    the obvious owner of a "next field" key.
+- **A proper SHIFT glyph.** We draw `chevron` rotated -90 degrees, because
+  `iconGlyph` does not apply composition suffixes (asking it for a `chevronUp`
+  logs "unknown icon" and falls back to a BOX). Drop `iconRotate` from the
+  shift KeyDef once a real one exists; keep the `iconRotate`/`iconFlipX`
+  machinery, since `cornerDownLeft` is still a mirror REFERENCE and enter
+  depends on the flip.
+- **A TAB glyph**, for moving between fields. Nothing uses it yet — worth
+  pairing with `fieldGroup`, which already knows the traversal order and is
+  the obvious owner of a "next field" key.
 
-  Re-run `bun run icons` after copying, and check `icon-names.test.ts` still
-  passes: it now verifies an icon RENDERS (real markup, not a mirror reference)
-  as well as existing, which is exactly the trap `cornerDownLeft` fell into.
+Re-run `bun run icons` after copying, and check `icon-names.test.ts` still
+passes: it now verifies an icon RENDERS (real markup, not a mirror reference)
+as well as existing, which is exactly the trap `cornerDownLeft` fell into.
 
 [ ] **0.8.0: rename every `onX` callback to `handleX`.** Tonio: "the tosijs
 convention is a callback event handler is called handleChange" — and it is a
@@ -1954,16 +1976,16 @@ edge and clamps into bounds, and it is what `panel.openPopup`, `surface`'s menus
 and now `select3d`'s dropdown all place with. So this is not a new mechanism; it
 is the heuristics layer on top:
 
-  - **Preferred side ORDER**, not one side plus a flip. "below, else above, else
-    right" is what you actually want; a single flip picks the wrong survivor
-    when neither vertical side fits.
-  - **Align, separately from side.** Start/centre/end along the anchor's edge —
-    a menu under a narrow control usually wants its left edges flush, not its
-    centres.
-  - **Shift-to-fit before flipping.** Sliding a popup along its edge to stay
-    inside is far less disruptive than throwing it to the other side, and it is
-    what makes long menus near a corner feel calm.
-  - **Offset / gap**, so a popup does not sit flush against what opened it.
+- **Preferred side ORDER**, not one side plus a flip. "below, else above, else
+  right" is what you actually want; a single flip picks the wrong survivor
+  when neither vertical side fits.
+- **Align, separately from side.** Start/centre/end along the anchor's edge —
+  a menu under a narrow control usually wants its left edges flush, not its
+  centres.
+- **Shift-to-fit before flipping.** Sliding a popup along its edge to stay
+  inside is far less disruptive than throwing it to the other side, and it is
+  what makes long menus near a corner feel calm.
+- **Offset / gap**, so a popup does not sit flush against what opened it.
 
 **What is NOT shared is what a rect comes from, and that is the whole design
 question.** Flat it is `getBoundingClientRect`; inside a panel it is the widget's

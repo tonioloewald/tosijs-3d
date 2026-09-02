@@ -51,6 +51,57 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.7</h2>
+<p>A lifecycle release. <code>&lt;tosi-b3d&gt;</code> now distinguishes being <strong>moved</strong> from being
+<strong>removed</strong>, which fixes an engine leak and a scene-corruption bug that were the
+same root cause seen from two ends.</p>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>A MOVE no longer costs a scene</strong> (#58, and the real cause of the black sky
+in #51). <code>connectedCallback</code> built an Engine and a Scene unconditionally, so
+re-parenting built a SECOND pair — and disposing the first deleted its
+materials&#39; shader programs, after which the surviving scene rendered black
+while every uniform read correct and <code>isReady()</code> returned <code>true</code>.</p>
+<p>Re-parenting fires <code>disconnectedCallback</code> then <code>connectedCallback</code> in the same
+task, and it need not touch the element at all: moving any <strong>ancestor</strong> does it
+to every descendant. Ensemble hit this with a <code>&lt;tosi-b3d&gt;</code> inside their own
+shadow root, re-parented by the doc system — their MutationObserver recorded no
+<code>tosi-b3d</code> add or remove at all while two scenes were being built.</p>
+<p>Teardown is now deferred by a task, so a reconnect cancels it and reuses the
+engine.</p>
+</li>
+<li><p><strong>A genuine removal disposes the Engine and Scene.</strong> Teardown released the XR
+helper, the quality subscription and the debug timers, but never the engine —
+so every removed scene left a live render loop turning over a detached canvas
+forever. A WebGL context is not just memory: Chrome caps them near 16 per page
+and force-loses the <em>oldest</em>, so an SPA that visits scene pages works for a
+dozen route changes and then a scene that was fine goes black.</p>
+<p>This is also the better explanation for doc-site slowdown after visiting
+several demos, and possibly for headset degradation — N abandoned render loops
+compete for frame time, which retained VRAM does not.</p>
+</li>
+<li><p><strong><code>whenReady</code> no longer drops queued callbacks.</strong> Asking for the scene and
+having it torn down before it was ready lost the callback silently — no call,
+no error, nothing to observe. It now survives and fires against the next scene.</p>
+</li>
+<li><p><strong><code>addSceneListener</code> is no longer handed dead meshes.</strong> Past additions outlived
+their scene, so after a rebuild a late subscriber received nodes belonging to
+the disposed one.</p>
+</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><p><strong><code>b3d.whenDisposed(cb)</code> → unsubscribe</strong> — the other half of <code>whenReady</code>, and
+the half that did not exist. Fires on a genuine disposal, <strong>not</strong> on a move.
+Durable across rebuilds, so register once.</p>
+<p>Use it for anything holding a reference <em>into</em> the scene that a child&#39;s
+<code>sceneDispose()</code> does not cover — a timer closing over a mesh, a material
+cache, an observer on a node. After disposal those point at a dead scene, and
+Babylon&#39;s failure mode there is a black material that still reports
+<code>isReady()</code>: silent, not loud.</p>
+<p>One rule governs both hooks: <strong>subscriptions are durable, scene state is not.</strong></p>
+</li>
+</ul>
 <h2>0.7.6</h2>
 <p>An adoption-feedback release: everything here came from <code>tosijs-3d-ensemble</code>
 hitting it for real.</p>

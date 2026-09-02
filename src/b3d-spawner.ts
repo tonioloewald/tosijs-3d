@@ -252,4 +252,6 @@ export class B3dSpawner extends B3dChild {
   }
 }
 
-export const b3dSpawner = B3dSpawner.elementCreator() as (...args: unknown[]) => B3dSpawner
+export const b3dSpawner = B3dSpawner.elementCreator() as (
+  ...args: unknown[]
+) => B3dSpawner

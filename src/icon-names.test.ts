@@ -66,7 +66,9 @@ describe('every icon name in the source RESOLVES', () => {
       for (const m of src.matchAll(/\bicon:\s*'([A-Za-z][A-Za-z0-9]*)'/g)) {
         names.add(m[1])
       }
-      for (const m of src.matchAll(/\biconGlyph\(\s*'([A-Za-z][A-Za-z0-9]*)'/g)) {
+      for (const m of src.matchAll(
+        /\biconGlyph\(\s*'([A-Za-z][A-Za-z0-9]*)'/g
+      )) {
         names.add(m[1])
       }
       for (const n of names) if (!iconExists(n)) bad.push(`${f}: '${n}'`)

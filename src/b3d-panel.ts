@@ -187,4 +187,6 @@ export class B3dPanel extends Component {
   }
 }
 
-export const b3dPanel = B3dPanel.elementCreator() as (...args: unknown[]) => B3dPanel
+export const b3dPanel = B3dPanel.elementCreator() as (
+  ...args: unknown[]
+) => B3dPanel

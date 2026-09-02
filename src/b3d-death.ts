@@ -813,4 +813,6 @@ export class B3dDeath extends B3dChild {
   }
 }
 
-export const b3dDeath = B3dDeath.elementCreator() as (...args: unknown[]) => B3dDeath
+export const b3dDeath = B3dDeath.elementCreator() as (
+  ...args: unknown[]
+) => B3dDeath

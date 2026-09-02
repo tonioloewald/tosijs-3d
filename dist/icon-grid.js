@@ -314,7 +314,8 @@ export function iconGrid3d(config) {
         else
             next = previous; // buttons: nothing stays lit
         if (config.handleChange != null) {
-            next = config.handleChange({ index: i, selection: next, previous }) ?? previous;
+            next =
+                config.handleChange({ index: i, selection: next, previous }) ?? previous;
         }
         const changed = next.length !== previous.length || next.some((v, k) => v !== previous[k]);
         selection = next;

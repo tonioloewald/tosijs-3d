@@ -95,10 +95,7 @@ export function chromeLayout(
   */
   const CORNER_PULL = 0.6
   const insetY = ((barHeight - size) / 2) * CORNER_PULL
-  const insetX = Math.max(
-    0,
-    Math.min(insetY, (vbWidth - 2 * size) / 3)
-  )
+  const insetX = Math.max(0, Math.min(insetY, (vbWidth - 2 * size) / 3))
   /*
   The close TARGET, sized independently of the glyph.
 

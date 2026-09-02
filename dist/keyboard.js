@@ -363,6 +363,10 @@ export function fieldGroup(config) {
             focus(null);
         },
         attach(target = globalThis.window) {
+            // Stand the global listener down while a group is attached — a group does
+            // more than type (Tab traversal, mode switching), so it must win, and two
+            // handlers would double every character.
+            groupAttachments += 1;
             const onKey = (evt) => {
                 const e = evt;
                 // Only claim the key if a field consumed it — otherwise Tab still
@@ -379,7 +383,10 @@ export function fieldGroup(config) {
                     e.preventDefault();
             };
             target.addEventListener('keydown', onKey);
-            return () => target.removeEventListener('keydown', onKey);
+            return () => {
+                groupAttachments = Math.max(0, groupAttachments - 1);
+                target.removeEventListener('keydown', onKey);
+            };
         },
         handleKey(key, mods = {}) {
             if (!active)
@@ -433,14 +440,58 @@ over — closing the previous one is part of opening yours, not a separate step
 the caller has to remember.
 */
 let liveKeyboard = null;
+/*
+HARDWARE KEYS REACH THE FIELD THAT HAS FOCUS, with no wiring.
+
+A bare `inputField` never heard the keyboard: only `fieldGroup.attach()`
+installed a listener, so a field dropped into a `panel3d` — which is what an
+adopter does — could be tapped, show a caret, and then ignore every keystroke.
+Reproduced on our own kitchen sink: tap the name field, type, nothing happens.
+`w3d-theme`'s demo works only because it builds a one-field group by hand.
+
+So: ONE listener, installed on first focus, routing to whichever field is the
+receiver. Not per field — N fields would mean N listeners all deciding whether a
+key is theirs.
+
+It STANDS DOWN while a `fieldGroup` is attached. A group does more than type (Tab
+traversal, keyboard-mode switching), so it must win; two handlers would double
+every character, which is worse than the bug being fixed.
+*/
+let activeField = null;
+let groupAttachments = 0;
+let globalKeyListener = null;
+function ensureGlobalKeyListener() {
+    if (globalKeyListener != null || globalThis.window == null)
+        return;
+    globalKeyListener = (evt) => {
+        if (groupAttachments > 0 || activeField == null)
+            return;
+        const e = evt;
+        const intent = keyIntent(e.key, {
+            ctrl: e.ctrlKey,
+            meta: e.metaKey,
+            alt: e.altKey,
+        });
+        if (intent == null)
+            return;
+        if ('insert' in intent)
+            activeField.insert(intent.insert);
+        else if ('action' in intent)
+            activeField.action(intent.action);
+        else
+            return;
+        // Only claim keys a field consumed — Tab still traverses, cmd-R reloads.
+        e.preventDefault();
+    };
+    globalThis.window.addEventListener('keydown', globalKeyListener);
+}
 /** Is the on-screen keyboard set to appear on its own? */
 export function autoKeyboardEnabled() {
     // Unset means "not decided yet", so fall back to the sniff — a touch device
     // should not need to be told.
     if (autoKeyboard != null)
         return autoKeyboard;
-    const mm = globalThis
-        .matchMedia;
+    const mm = globalThis.matchMedia;
     if (typeof mm !== 'function')
         return false;
     try {
@@ -509,6 +560,11 @@ export function inputField(config = {}) {
     let width = 0;
     let focused = false;
     const activate = () => {
+        // A tap makes this the receiver even with no `fieldGroup` in play — that is
+        // the case a bare panel3d hits, and it is the whole point of the global
+        // listener above.
+        activeField = api;
+        ensureGlobalKeyListener();
         if (focused)
             return;
         focused = true;
@@ -664,7 +720,9 @@ export function inputField(config = {}) {
     preference shared, every field's glyph has to agree, so they all repaint when
     any one of them is pressed.
     */
-    const kbGlyph = kbMode === 'never' ? null : svgElements.g({ 'data-kb-toggle': '' });
+    const kbGlyph = kbMode === 'never'
+        ? null
+        : svgElements.g({ 'data-kb-toggle': '' });
     if (kbGlyph)
         el.appendChild(kbGlyph);
     const paintGlyph = () => {
@@ -820,8 +878,7 @@ export function inputField(config = {}) {
             the argument for having had them.
             */
             if (kind === 'down') {
-                glyphPress =
-                    kbGlyph != null && width > 0 && x >= width - KB_ZONE;
+                glyphPress = kbGlyph != null && width > 0 && x >= width - KB_ZONE;
                 if (glyphPress)
                     return;
             }
@@ -938,8 +995,11 @@ export function inputField(config = {}) {
             // dims it: "who has the D-pad" and "where text goes" are different facts.
         },
         setActive(v) {
-            if (v)
+            if (v) {
                 activate();
+                activeField = api;
+                ensureGlobalKeyListener();
+            }
             else {
                 focused = false;
                 /*
@@ -953,6 +1013,11 @@ export function inputField(config = {}) {
                 host made something else the receiver, which is the real end of typing.
                 */
                 kbOpen?.close();
+                // Release the receiver slot, but only if it is OURS — a field being
+                // deactivated after another has already taken focus must not clear the
+                // new one.
+                if (activeField === api)
+                    activeField = null;
                 paint();
             }
         },

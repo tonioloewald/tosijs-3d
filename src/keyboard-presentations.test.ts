@@ -48,7 +48,10 @@ const layerKeys = () =>
 describe('DOM only — no scene anywhere', () => {
   test("a `height: 'fit'` panel still gets a full keyboard", () => {
     // The case ensemble hit. Short panel, no `useDomLayer` call, nothing else.
-    const panel: any = w3d.panel3d({ width: 320 }, kb.inputField({ value: 'hi' }))
+    const panel: any = w3d.panel3d(
+      { width: 320 },
+      kb.inputField({ value: 'hi' })
+    )
     document.body.appendChild(panel)
     summon(panel)
     expect(layerKeys()).toBeGreaterThan(20)
@@ -70,12 +73,16 @@ describe('DOM only — no scene anywhere', () => {
   test('an explicit useDomLayer still wins — it chooses the CONTAINER', () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
-    const panel: any = w3d.panel3d({ width: 320 }, kb.inputField({ value: 'hi' }))
+    const panel: any = w3d.panel3d(
+      { width: 320 },
+      kb.inputField({ value: 'hi' })
+    )
     host.appendChild(panel)
     panel.useDomLayer(host)
     summon(panel)
-    expect(host.querySelectorAll('[data-w3d-dom-layer] [data-key]').length)
-      .toBeGreaterThan(20)
+    expect(
+      host.querySelectorAll('[data-w3d-dom-layer] [data-key]').length
+    ).toBeGreaterThan(20)
   })
 })
 
@@ -176,7 +183,9 @@ describe('inside a SHADOW ROOT — the ensemble topology', () => {
     panel.handlePointer('up', 300, 20)
     return {
       shadow,
-      holder: shadow.querySelector('[data-w3d-dom-layer]') as HTMLElement | null,
+      holder: shadow.querySelector(
+        '[data-w3d-dom-layer]'
+      ) as HTMLElement | null,
     }
   }
 

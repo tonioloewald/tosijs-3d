@@ -999,4 +999,6 @@ export class B3dLauncher extends AbstractMesh {
   }
 }
 
-export const b3dLauncher = B3dLauncher.elementCreator() as (...args: unknown[]) => B3dLauncher
+export const b3dLauncher = B3dLauncher.elementCreator() as (
+  ...args: unknown[]
+) => B3dLauncher

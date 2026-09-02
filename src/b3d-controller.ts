@@ -162,4 +162,6 @@ export class B3dController extends B3dControllable {
   }
 }
 
-export const b3dController = B3dController.elementCreator() as (...args: unknown[]) => B3dController
+export const b3dController = B3dController.elementCreator() as (
+  ...args: unknown[]
+) => B3dController

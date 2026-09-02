@@ -794,4 +794,6 @@ export class B3dClouds extends B3dChild {
   }
 }
 
-export const b3dClouds = B3dClouds.elementCreator() as (...args: unknown[]) => B3dClouds
+export const b3dClouds = B3dClouds.elementCreator() as (
+  ...args: unknown[]
+) => B3dClouds

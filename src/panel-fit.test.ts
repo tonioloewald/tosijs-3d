@@ -472,8 +472,8 @@ describe('select3d opens a MENU from its value, and keeps its steppers', () => {
   test('the popup lists every option', () => {
     const { panel } = build()
     press(panel, 200, 30)
-    const labels = [...panel.querySelectorAll('svg text')].map((t: any) =>
-      t.textContent
+    const labels = [...panel.querySelectorAll('svg text')].map(
+      (t: any) => t.textContent
     )
     for (const o of OPTIONS) expect(labels).toContain(o)
   })
@@ -584,7 +584,7 @@ describe('the keyboard affordance — summon it without reaching for a real one'
     expect(panel.querySelectorAll('svg').length).toBe(1)
   })
 
-  test("`always` opens on a tap anywhere in the field — what an XR panel wants", () => {
+  test('`always` opens on a tap anywhere in the field — what an XR panel wants', () => {
     const { panel } = build('always')
     tapAt(panel, 60)
     expect(panel.querySelectorAll('svg').length).toBe(1)

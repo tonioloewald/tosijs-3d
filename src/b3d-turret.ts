@@ -363,4 +363,6 @@ export class B3dTurret extends AbstractMesh {
   }
 }
 
-export const b3dTurret = B3dTurret.elementCreator() as (...args: unknown[]) => B3dTurret
+export const b3dTurret = B3dTurret.elementCreator() as (
+  ...args: unknown[]
+) => B3dTurret

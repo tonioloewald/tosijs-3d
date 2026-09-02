@@ -146,6 +146,36 @@ position/rotation syncing) and override two hooks:</p>
 <p>Do <strong>not</strong> override <code>connectedCallback</code> / <code>disconnectedCallback</code> — the pull-model
 plumbing is centralized in <code>B3dChild</code> so a lifecycle fix lands in exactly one spot.
 (If you must, call <code>super</code> first and keep it side-effect-free.)</p>
+<h2>Moved is not removed</h2>
+<p>Re-parenting an element fires <code>disconnectedCallback</code> then <code>connectedCallback</code> in
+the <strong>same task</strong>, and it need not touch your element at all — moving any
+<em>ancestor</em> disconnects and reconnects everything beneath it. So the scene treats
+a same-task reconnect as a move and keeps the engine; anything else is a genuine
+removal and the engine is disposed outright. There is no pooling and nothing
+kept warm: <strong>disconnected means gone.</strong></p>
+<p>That makes the two owner-level hooks trustworthy enough to build on, under one
+rule — <strong>subscriptions are durable, scene state is not</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Call</th>
+<th>Guarantee</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>owner.whenReady(cb)</code></td>
+<td>Runs now if the scene is up, else the instant it is. A callback still waiting when a scene is torn down is <strong>not dropped</strong> — it fires against the next scene, or never runs at all because the element never came back.</td>
+</tr>
+<tr>
+<td><code>owner.whenDisposed(cb)</code></td>
+<td>Runs when the scene is genuinely disposed, <strong>not</strong> on a move. Returns an unsubscribe. Survives a rebuild, so register once.</td>
+</tr>
+</tbody></table>
+<p>Reach for <code>whenDisposed</code> for anything holding a reference <em>into</em> the scene
+that <code>sceneDispose()</code> does not already cover — a timer closing over a mesh, a
+cache of materials, an observer on a node. After disposal those point at a dead
+scene, and Babylon&#39;s failure there is a black material that still reports
+<code>isReady()</code>: silent, not loud.</p>
 <p>Why a base class rather than parent orchestration? On connect the child discovers its
 owner via <a href="../b3d-utils/">findB3dOwner</a> and asks to attach: <code>owner.whenReady(cb)</code> runs
 <code>cb</code> immediately if the scene is already up, otherwise the instant it becomes ready.

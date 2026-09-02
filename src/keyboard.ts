@@ -678,8 +678,9 @@ export function autoKeyboardEnabled(): boolean {
   // Unset means "not decided yet", so fall back to the sniff — a touch device
   // should not need to be told.
   if (autoKeyboard != null) return autoKeyboard
-  const mm = (globalThis as { matchMedia?: (q: string) => { matches: boolean } })
-    .matchMedia
+  const mm = (
+    globalThis as { matchMedia?: (q: string) => { matches: boolean } }
+  ).matchMedia
   if (typeof mm !== 'function') return false
   try {
     return mm('(pointer: coarse)').matches
@@ -903,7 +904,6 @@ export function inputField(config: InputFieldOptions = {}): InputField {
    */
   let pressedInField = false
 
-
   /*
   The glyph SHOWS the shared preference, because it sets it.
 
@@ -912,7 +912,9 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   any one of them is pressed.
   */
   const kbGlyph =
-    kbMode === 'never' ? null : (svgElements.g({ 'data-kb-toggle': '' }) as SVGGElement)
+    kbMode === 'never'
+      ? null
+      : (svgElements.g({ 'data-kb-toggle': '' }) as SVGGElement)
   if (kbGlyph) el.appendChild(kbGlyph)
 
   const paintGlyph = (): void => {
@@ -1071,8 +1073,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       the argument for having had them.
       */
       if (kind === 'down') {
-        glyphPress =
-          kbGlyph != null && width > 0 && x >= width - KB_ZONE
+        glyphPress = kbGlyph != null && width > 0 && x >= width - KB_ZONE
         if (glyphPress) return
       }
       if (glyphPress) {
@@ -1189,8 +1190,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         activate()
         activeField = api
         ensureGlobalKeyListener()
-      }
-      else {
+      } else {
         focused = false
         /*
         Text no longer lands here, so a keyboard summoned FOR this field has
@@ -1434,8 +1434,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           // Caps lock is a MODE, and a mode you cannot see is a mode you will be
           // surprised by — the accent tint is how every other latched state in
           // this UI reads (selection, the keyboard toggle glyph).
-          color:
-            r.key.action === 'shift' && capsLock ? TH.ACCENT : TH.TEXT,
+          color: r.key.action === 'shift' && capsLock ? TH.ACCENT : TH.TEXT,
           size,
           x: ix,
           y: iy,

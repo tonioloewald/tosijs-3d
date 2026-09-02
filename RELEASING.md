@@ -99,13 +99,19 @@ one that silently rots. Quick check:
 ```sh
 for f in $(git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test \
              | xargs -n1 basename | sed 's/\.ts$//'); do
-  grep -q "\`$f\.ts\`" CLAUDE.md || echo "MISSING: $f"
+  grep -q "$f\.ts" CLAUDE.md || echo "MISSING: $f"
 done
 ```
 
-Match on `` `<name>.ts` `` rather than `` `src/<name>.ts` `` — some rows document
-two files together (`` `src/b3d-star.ts` / `b3d-star-system.ts` ``), and the
-stricter pattern reports the second one missing when it is right there.
+Match on the bare `<name>.ts`, with **no surrounding backticks**. Rows are
+written both ways — `` `src/keyboard.ts` `` for most, and a bare
+`` `b3d-star-system.ts` `` where one row documents two files — so any pattern
+anchoring on a leading backtick misses the `src/`-prefixed majority.
+
+That is not hypothetical: the previous version of this gate grepped for
+`` `$f.ts` `` and reported `keyboard` and `tosi-b3d` MISSING while both sat in
+the table (0.7.7). A gate that cries wolf on its most common input is worse than
+no gate — it teaches you to skim past the one time it is right.
 
 4. **Full build** — regenerates `docs/` (doc site + `iife.js`) **and** `dist/` (the
    library: `tsc -p tsconfig.build.json`, run by `buildSite()` because

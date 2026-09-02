@@ -1149,35 +1149,35 @@ export function panelScene(opts) {
         if (typeof panelEl.addLayerHost === 'function' && owner.openPopup) {
             panelEl.addLayerHost((sheet, config) => {
                 /*
-                Place it against the panel's EDGE, from measured sizes.
-        
-                The first version used a guessed fraction of the panel height
-                (`-planeH * 0.7`) and put the keyboard at y = -2.41 on a camera looking
-                at y = 0 — off screen. Tonio: "the keyboard is appearing below the whole
-                panel and with no content."
-        
-                Both halves are now derived: the popup's world height comes from its own
-                aspect at the width we give it, and the offset is half of each plus a
-                gap. Nothing to tune, and it cannot drift when a panel changes shape.
-                */
+              Place it against the panel's EDGE, from measured sizes.
+      
+              The first version used a guessed fraction of the panel height
+              (`-planeH * 0.7`) and put the keyboard at y = -2.41 on a camera looking
+              at y = 0 — off screen. Tonio: "the keyboard is appearing below the whole
+              panel and with no content."
+      
+              Both halves are now derived: the popup's world height comes from its own
+              aspect at the width we give it, and the offset is half of each plus a
+              gap. Nothing to tune, and it cannot drift when a panel changes shape.
+              */
                 const popW = Number(sheet.getAttribute('width')) || 360;
                 const popH = Number(sheet.getAttribute('height')) || 200;
                 const worldW = width * 0.95;
                 const worldH = worldW * (popH / popW);
                 /*
-                PROJECT THE ANCHOR into the plane's own space.
-        
-                This ignored `config.anchor` entirely and pinned the popup to the panel's
-                bottom edge, so the keyboard sat over the numeric fields and far below
-                the text one — Tonio: "the 3d keyboard appears OVER the numeric fields
-                and way below the text field (in both cases it's kind of bottom aligned
-                with the panel)". The DOM layer honoured the anchor and looked right,
-                which is what made the two disagree.
-        
-                The plane shows the panel's viewBox across `width` x `planeH`, so a panel
-                coordinate maps linearly: x centred, y flipped because SVG y grows down
-                and world y grows up.
-                */
+              PROJECT THE ANCHOR into the plane's own space.
+      
+              This ignored `config.anchor` entirely and pinned the popup to the panel's
+              bottom edge, so the keyboard sat over the numeric fields and far below
+              the text one — Tonio: "the 3d keyboard appears OVER the numeric fields
+              and way below the text field (in both cases it's kind of bottom aligned
+              with the panel)". The DOM layer honoured the anchor and looked right,
+              which is what made the two disagree.
+      
+              The plane shows the panel's viewBox across `width` x `planeH`, so a panel
+              coordinate maps linearly: x centred, y flipped because SVG y grows down
+              and world y grows up.
+              */
                 const vb = opts.svg.viewBox?.baseVal;
                 // Only the vertical mapping is needed: the popup is centred in x.
                 const panelH = vb && vb.height > 0 ? vb.height : popH;
@@ -1190,30 +1190,30 @@ export function panelScene(opts) {
                     width: worldW,
                     offset: {
                         /*
-                        Aligned to the panel's BOTTOM EDGE, overlapping upward — not pushed
-                        out below it.
-            
-                        Placing it wholly below was geometrically right and useless: the
-                        panel is ~3.5 world units tall, so anything under it is outside the
-                        frame, and the keyboard was simply off screen. A phone does not put
-                        its keyboard below the app either; it lays it OVER the bottom of it,
-                        which is what the z-separation is for.
-                        */
+                      Aligned to the panel's BOTTOM EDGE, overlapping upward — not pushed
+                      out below it.
+          
+                      Placing it wholly below was geometrically right and useless: the
+                      panel is ~3.5 world units tall, so anything under it is outside the
+                      frame, and the keyboard was simply off screen. A phone does not put
+                      its keyboard below the app either; it lays it OVER the bottom of it,
+                      which is what the z-separation is for.
+                      */
                         /*
-                        Hang it from the field. NO CLAMP.
-            
-                        This was clamped to the panel's own extent, which pushed the keyboard
-                        back UP over any field in the lower part of the panel — Tonio: "it
-                        still places the numeric keypad over the field. I think it's refusing
-                        to push it past the bottom of the panel still (which is more of a 2D
-                        / DOM constraint)."
-            
-                        Exactly right, and I had carried a flat-layout instinct into a place
-                        it does not apply: a popup in the DOM is bounded by something, but a
-                        PLANE is not. Nothing crops it, nothing reflows around it, and
-                        hanging below the panel costs nothing — which is the whole reason
-                        the scene layer exists rather than reusing the panel overlay.
-                        */
+                      Hang it from the field. NO CLAMP.
+          
+                      This was clamped to the panel's own extent, which pushed the keyboard
+                      back UP over any field in the lower part of the panel — Tonio: "it
+                      still places the numeric keypad over the field. I think it's refusing
+                      to push it past the bottom of the panel still (which is more of a 2D
+                      / DOM constraint)."
+          
+                      Exactly right, and I had carried a flat-layout instinct into a place
+                      it does not apply: a popup in the DOM is bounded by something, but a
+                      PLANE is not. Nothing crops it, nothing reflows around it, and
+                      hanging below the panel costs nothing — which is the whole reason
+                      the scene layer exists rather than reusing the panel overlay.
+                      */
                         y: anchorBottomY - worldH / 2,
                         // NEARER the viewer — the z-separation is the point, not a nicety:
                         // coplanar panels re-sort as you orbit.

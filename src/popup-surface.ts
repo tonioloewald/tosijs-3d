@@ -577,21 +577,25 @@ export function openPopup(owner: B3d, opts: PopupSurfaceOptions): PopupSurface {
     */
     if (layout.move != null) {
       svg.appendChild(
-        markPresentation(iconGlyph('move', {
-          color: '#8fa3ba',
-          size: layout.move.size,
-          x: layout.move.x,
-          y: layout.move.y,
-        }))
+        markPresentation(
+          iconGlyph('move', {
+            color: '#8fa3ba',
+            size: layout.move.size,
+            x: layout.move.x,
+            y: layout.move.y,
+          })
+        )
       )
     }
     svg.appendChild(
-      markPresentation(iconGlyph('close', {
-        color: '#8fa3ba',
-        size: layout.close.size,
-        x: layout.close.x,
-        y: layout.close.y,
-      }))
+      markPresentation(
+        iconGlyph('close', {
+          color: '#8fa3ba',
+          size: layout.close.size,
+          x: layout.close.x,
+          y: layout.close.y,
+        })
+      )
     )
   }
 

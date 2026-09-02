@@ -816,4 +816,6 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   }
 }
 
-export const b3dAmbient = B3dAmbient.elementCreator() as (...args: unknown[]) => B3dAmbient
+export const b3dAmbient = B3dAmbient.elementCreator() as (
+  ...args: unknown[]
+) => B3dAmbient

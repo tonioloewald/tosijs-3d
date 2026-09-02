@@ -163,4 +163,6 @@ function readPos(el: HTMLElement): PosLike | null {
   return null
 }
 
-export const b3dRadarBlip = B3dRadarBlip.elementCreator() as (...args: unknown[]) => B3dRadarBlip
+export const b3dRadarBlip = B3dRadarBlip.elementCreator() as (
+  ...args: unknown[]
+) => B3dRadarBlip

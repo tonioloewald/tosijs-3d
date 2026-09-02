@@ -1368,9 +1368,11 @@ export function panel3d(config, ...widgets) {
             most people do not have. `useDomLayer(container)` remains, for choosing a
             DIFFERENT container than the panel's own parent.
             */
-            if (hosts.length === 0 && root.isConnected && root.parentElement != null) {
+            // `parentNode`, not `parentElement`: a panel inside a ShadowRoot has no
+            // parent ELEMENT, and that is exactly the case that rendered nothing.
+            if (hosts.length === 0 && root.isConnected && root.parentNode != null) {
                 ;
-                root.useDomLayer(root.parentElement);
+                root.useDomLayer();
                 hosts =
                     root.__layerHosts ?? [];
             }
@@ -1413,7 +1415,7 @@ export function panel3d(config, ...widgets) {
             would have made the check unnecessary was never installed. Measured as a
             `height: 'fit'` panel producing no keyboard at all.
             */
-            return root.isConnected && root.parentElement != null;
+            return root.isConnected && root.parentNode != null;
         },
         // Live getters: both change when the panel re-lays-out or scrolls, and a
         // widget that cached them would decide against stale geometry.
@@ -1646,44 +1648,68 @@ export function panel3d(config, ...widgets) {
         };
     };
     root.useDomLayer = (container) => {
-        // One deduped sheet however many layers exist — see the note at the mount.
         StyleSheet('w3d-dom-layer', {
             '[data-w3d-dom-layer] [data-presentation="texture"]': {
                 display: 'none',
             },
         });
-        const style = getComputedStyle(container);
-        // `absolute` needs a positioned ancestor; without this the popup lands
-        // relative to the page and appears somewhere else entirely.
-        if (style.position === 'static')
-            container.style.position = 'relative';
         return root.addLayerHost((sheet, config) => {
             const rect = root.getBoundingClientRect();
-            const box = container.getBoundingClientRect();
-            // Panel units -> CSS px, since a panel is usually rendered scaled.
-            const scale = rect.height / Math.max(1, Number(root.getAttribute('height')));
             /*
-            HIDE TEXTURE-ONLY NODES WITH CSS, NOT BY TOUCHING THEM.
+            A ZERO SCALE IS A ZERO-SIZE KEYBOARD, so never take one.
       
-            The first version set `style.display = 'none'` on the nodes — and the sheet
-            is SHARED, so hiding them for the DOM hid them in the texture too. Tonio:
-            "the affordances have disappeared from the 3D keyboard panel (they're also
-            gone from the DOM version, but we do want them in the 3d panel)."
+            `getBoundingClientRect()` returns all zeros for a panel that has not been
+            laid out yet, is `display:none`, or sits in a hidden tab — and dividing by
+            the panel's height then gives scale 0, so the popup is mounted at 0x0. It
+            is present, correct, connected, and invisible, which is the hardest kind of
+            wrong to diagnose (tosijs-ensemble reported exactly "the keyboard but it's
+            zero size").
       
-            A stylesheet rule is the right tool precisely BECAUSE of the quirk that
-            makes rasterising awkward: a serialised SVG is its own document and
-            inherits none of the page's CSS (the same reason `w3d-theme` bakes
-            literals). So the rule hides them flat and the texture still draws them —
-            one sheet, two appearances, without mutating anything either side shares.
+            Unscaled is the honest fallback: the sheet is authored in the panel's own
+            units, so 1:1 is right whenever we cannot measure, and it is visible —
+            which a reader can then correct.
             */
+            const panelH = Math.max(1, Number(root.getAttribute('height')));
+            const scale = rect.height > 0 ? rect.height / panelH : 1;
             const holder = document.createElement('div');
             holder.setAttribute('data-w3d-dom-layer', '');
             holder.style.position = 'absolute';
             holder.style.zIndex = '10';
-            holder.style.left = `${rect.left - box.left}px`;
-            holder.style.top = `${rect.top - box.top + config.anchor.y * scale + config.anchor.height * scale}px`;
+            // An explicit size, so a consumer stylesheet with fluid `svg { width:100% }`
+            // cannot collapse the sheet against a shrink-to-fit holder.
+            const w = Number(sheet.getAttribute('width')) || 360;
+            const h = Number(sheet.getAttribute('height')) || 200;
+            holder.style.width = `${w * scale}px`;
+            holder.style.height = `${h * scale}px`;
+            sheet.setAttribute('width', String(w * scale));
+            sheet.setAttribute('height', String(h * scale));
             holder.appendChild(sheet);
-            container.appendChild(holder);
+            // Beside the panel — see the note above on shadow hosts.
+            const parent = container ?? root.parentNode;
+            if (parent == null)
+                return { close: () => { } };
+            /*
+            `absolute` resolves against the nearest POSITIONED ancestor, so give the
+            insertion point one if it lacks it — otherwise the popup is placed relative
+            to the page and lands somewhere unrelated. A `ShadowRoot` has no style, so
+            the host is the thing to reach for there.
+            */
+            const positioned = container ??
+                (parent instanceof ShadowRoot
+                    ? parent.host
+                    : parent);
+            if (positioned?.style != null &&
+                getComputedStyle(positioned).position === 'static') {
+                positioned.style.position = 'relative';
+            }
+            // Offsets are relative to that ancestor, so measure both.
+            const box = positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
+            holder.style.left = `${rect.left - box.left}px`;
+            holder.style.top = `${rect.top - box.top + (config.anchor.y + config.anchor.height) * scale}px`;
+            if (container != null)
+                container.appendChild(holder);
+            else
+                parent.insertBefore(holder, root.nextSibling);
             return { close: () => holder.remove() };
         });
     };

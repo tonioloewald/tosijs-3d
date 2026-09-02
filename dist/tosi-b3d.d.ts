@@ -445,9 +445,33 @@ export declare class B3d extends Component {
     private pastAdditions;
     private _sceneReady;
     private _readyQueue;
+    private _disposeHandlers;
     private _libraries;
-    /** Run `cb` when the scene is ready — now if it already is, else on scene-ready. */
+    /**
+     * Run `cb` when the scene is ready — now if it already is, else on scene-ready.
+     *
+     * **It is a promise, not a hope.** A queued callback survives a teardown and
+     * fires against the NEXT scene, because the alternative is the failure this
+     * whole area specialises in: register, have the scene torn down before it was
+     * ready, and your callback is dropped with no error and nothing to observe.
+     * If the element is never re-added the callback is simply garbage along with
+     * it, which costs nothing.
+     */
     whenReady(cb: () => void): void;
+    /**
+     * Run `cb` when the scene is torn down — the other half of `whenReady`, and
+     * the half that did not exist. Returns an unsubscribe.
+     *
+     * Anything holding a reference INTO the scene (a mesh, a material, an
+     * observer, a timer closing over one) needs this: after teardown those
+     * references are to a disposed scene, and Babylon's failure mode there is a
+     * black material that still reports `isReady()` — silent, not loud.
+     *
+     * Subscriptions are durable across a rebuild; scene STATE is not. So a
+     * handler registered once keeps working for every subsequent scene, and does
+     * not need re-registering.
+     */
+    whenDisposed(cb: () => void): () => void;
     addSceneListener(callback: SceneAdditionHandler): void;
     removeSceneListener(callback: SceneAdditionHandler): void;
     register(additions: SceneAdditions): void;
@@ -765,6 +789,8 @@ export declare class B3d extends Component {
     private _setupGamepad;
     private _attachXrPanel;
     disconnectedCallback(): void;
+    private _teardownTimer;
+    private _teardown;
     render(): void;
 }
 export declare const b3d: import("tosijs").ElementCreator<B3d>;

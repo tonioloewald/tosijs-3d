@@ -959,7 +959,7 @@ the runtime does can be the same code.**
 Tonio: _"The entire AmigaDOS OS fired events on mousedown and I couldn't explain
 to Amiga-philes why this was incredibly stupid :)"_
 
-The reason is that a press is a *proposal* and a release is the *commitment*.
+The reason is that a press is a _proposal_ and a release is the _commitment_.
 Firing on press removes the only chance to change your mind — you cannot slide
 off a button you aimed at badly, so every mis-aim is a committed action. That
 matters more here than on a desktop: aiming a controller ray from two metres, or
@@ -971,12 +971,12 @@ bug found rather than a principle applied:
 - **`iconGrid3d`** — a release landing off the pressed cell does not fire, so a
   mis-aimed press can be aborted by sliding away.
 - **`inputField`'s keyboard glyph** — the first version tested the live x, so a
-  scrub that merely *ended* near the right edge got swallowed by the glyph zone.
+  scrub that merely _ended_ near the right edge got swallowed by the glyph zone.
   The gesture now latches on the press.
 - **`inputField`'s auto-open** — the panel overlay dismisses on `down` (the
   conventional menu behaviour, and the Amiga mistake in miniature), so the
   matching `up` arrived at the field with the preference newly on and
-  *re-summoned* the keyboard that press had just dismissed. A release with no
+  _re-summoned_ the keyboard that press had just dismissed. A release with no
   matching press is not a tap, and must not act.
 
 The third is the interesting one, because dismiss-on-press is genuinely

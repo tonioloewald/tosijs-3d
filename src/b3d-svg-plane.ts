@@ -1319,13 +1319,14 @@ export function panelScene(opts: PanelSceneOptions): {
       openPopup?: (o: Record<string, unknown>) => { close: () => void }
     }
     if (typeof panelEl.addLayerHost === 'function' && owner.openPopup) {
-      panelEl.addLayerHost((
-        sheet: SVGSVGElement,
-        config: {
-          anchor: { x: number; y: number; width: number; height: number }
-        }
-      ) => {
-        /*
+      panelEl.addLayerHost(
+        (
+          sheet: SVGSVGElement,
+          config: {
+            anchor: { x: number; y: number; width: number; height: number }
+          }
+        ) => {
+          /*
         Place it against the panel's EDGE, from measured sizes.
 
         The first version used a guessed fraction of the panel height
@@ -1337,12 +1338,12 @@ export function panelScene(opts: PanelSceneOptions): {
         aspect at the width we give it, and the offset is half of each plus a
         gap. Nothing to tune, and it cannot drift when a panel changes shape.
         */
-        const popW = Number(sheet.getAttribute('width')) || 360
-        const popH = Number(sheet.getAttribute('height')) || 200
-        const worldW = width * 0.95
-        const worldH = worldW * (popH / popW)
+          const popW = Number(sheet.getAttribute('width')) || 360
+          const popH = Number(sheet.getAttribute('height')) || 200
+          const worldW = width * 0.95
+          const worldH = worldW * (popH / popW)
 
-        /*
+          /*
         PROJECT THE ANCHOR into the plane's own space.
 
         This ignored `config.anchor` entirely and pinned the popup to the panel's
@@ -1356,18 +1357,18 @@ export function panelScene(opts: PanelSceneOptions): {
         coordinate maps linearly: x centred, y flipped because SVG y grows down
         and world y grows up.
         */
-        const vb = (opts.svg as SVGSVGElement).viewBox?.baseVal
-        // Only the vertical mapping is needed: the popup is centred in x.
-        const panelH = vb && vb.height > 0 ? vb.height : popH
-        const a = config.anchor
-        // The field's BOTTOM edge, in plane-local world units.
-        const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH
-        const pop = owner.openPopup!({
-          svg: sheet,
-          opener: plane.mesh,
-          width: worldW,
-          offset: {
-            /*
+          const vb = (opts.svg as SVGSVGElement).viewBox?.baseVal
+          // Only the vertical mapping is needed: the popup is centred in x.
+          const panelH = vb && vb.height > 0 ? vb.height : popH
+          const a = config.anchor
+          // The field's BOTTOM edge, in plane-local world units.
+          const anchorBottomY = (0.5 - (a.y + a.height) / panelH) * planeH
+          const pop = owner.openPopup!({
+            svg: sheet,
+            opener: plane.mesh,
+            width: worldW,
+            offset: {
+              /*
             Aligned to the panel's BOTTOM EDGE, overlapping upward — not pushed
             out below it.
 
@@ -1377,7 +1378,7 @@ export function panelScene(opts: PanelSceneOptions): {
             its keyboard below the app either; it lays it OVER the bottom of it,
             which is what the z-separation is for.
             */
-            /*
+              /*
             Hang it from the field. NO CLAMP.
 
             This was clamped to the panel's own extent, which pushed the keyboard
@@ -1392,14 +1393,15 @@ export function panelScene(opts: PanelSceneOptions): {
             hanging below the panel costs nothing — which is the whole reason
             the scene layer exists rather than reusing the panel overlay.
             */
-            y: anchorBottomY - worldH / 2,
-            // NEARER the viewer — the z-separation is the point, not a nicety:
-            // coplanar panels re-sort as you orbit.
-            z: -0.08,
-          },
-        })
-        return { close: () => pop.close() }
-      })
+              y: anchorBottomY - worldH / 2,
+              // NEARER the viewer — the z-separation is the point, not a nicety:
+              // coplanar panels re-sort as you orbit.
+              z: -0.08,
+            },
+          })
+          return { close: () => pop.close() }
+        }
+      )
     }
 
     const canvas = el.scene.getEngine().getRenderingCanvas()

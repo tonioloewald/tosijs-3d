@@ -474,6 +474,4 @@ export class B3dHud extends B3dChild {
   }
 }
 
-export const b3dHud = B3dHud.elementCreator() as (
-  ...args: unknown[]
-) => B3dHud
+export const b3dHud = B3dHud.elementCreator() as (...args: unknown[]) => B3dHud

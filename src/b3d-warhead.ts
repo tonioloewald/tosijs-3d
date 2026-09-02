@@ -182,7 +182,9 @@ export class B3dWarhead extends AbstractMesh {
   }
 }
 
-export const b3dWarhead = B3dWarhead.elementCreator() as (...args: unknown[]) => B3dWarhead
+export const b3dWarhead = B3dWarhead.elementCreator() as (
+  ...args: unknown[]
+) => B3dWarhead
 
 /**
  * Resolve + apply an AOE blast over the scene's destroyables (LOS-gated when

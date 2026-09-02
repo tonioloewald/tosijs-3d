@@ -2220,7 +2220,6 @@ export function panel3d(
       return { close: () => holder.remove() }
     })
   }
-
   ;(
     root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
   ).addLayerHost = (fn) => {
