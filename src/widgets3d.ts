@@ -1723,11 +1723,35 @@ export function panel3d(
       places. Closing closes them together, because they are one popup wearing
       two faces — exactly as the panel is.
       */
-      const hosts =
+      let hosts =
         (root as unknown as { __layerHosts?: LayerHost[] }).__layerHosts ?? []
+
+      /*
+      AUTO-INSTALL THE DOM LAYER when the panel is on the page and nobody has
+      volunteered one.
+
+      `useDomLayer` was opt-in, and that was wrong: a consumer rendering a panel
+      flat has no reason to know the method exists, so they got the degraded path
+      — a popup mounted INSIDE the panel, cropped by its viewBox, and refused
+      outright on a short panel. Reported from ensemble, which is DOM-only:
+      measured 0 popups on a `height: 'fit'` panel and a clipped one on a tall
+      one.
+
+      A feature that only works if you know a second call exists is a feature
+      most people do not have. `useDomLayer(container)` remains, for choosing a
+      DIFFERENT container than the panel's own parent.
+      */
+      if (hosts.length === 0 && root.isConnected && root.parentElement != null) {
+        ;(
+          root as unknown as { useDomLayer: (c: HTMLElement) => () => void }
+        ).useDomLayer(root.parentElement)
+        hosts =
+          (root as unknown as { __layerHosts?: LayerHost[] }).__layerHosts ?? []
+      }
+
       if (hosts.length === 0) {
-        // Nothing above the panel volunteered, so this degrades to a popup —
-        // bounded by the panel, with everything that implies.
+        // Genuinely nowhere to put it — a detached panel, or one whose parent
+        // has gone. Degrades to a popup bounded by the panel.
         return hostFor(index).showPopup(config, ...items)
       }
       const top = offsets[index] ?? 0
@@ -1752,7 +1776,18 @@ export function panel3d(
     get hasLayer() {
       const hosts =
         (root as unknown as { __layerHosts?: LayerHost[] }).__layerHosts ?? []
-      return hosts.length > 0
+      if (hosts.length > 0) return true
+      /*
+      A DOM layer will be installed ON DEMAND (see `showLayer`), so a panel on
+      the page effectively has one already.
+
+      Reporting `false` here created a chicken-and-egg: the keyboard consults
+      this to decide whether the room check applies, that check refused on a
+      short panel, and `showLayer` was therefore never called — so the layer that
+      would have made the check unnecessary was never installed. Measured as a
+      `height: 'fit'` panel producing no keyboard at all.
+      */
+      return root.isConnected && root.parentElement != null
     },
     // Live getters: both change when the panel re-lays-out or scrolls, and a
     // widget that cached them would decide against stale geometry.
