@@ -84,7 +84,14 @@ dissimilar peaks and a period that is not a round number.
 */
 /*{ "parent": "Effects", "order": 120 }*/
 
-import { evaluateCurve, type ControlPoint } from './curve'
+import {
+  canonicalCurve,
+  curveSchema,
+  evaluateCurve,
+  validateCurve,
+  type ControlPoint,
+  type CurveIssue,
+} from './curve'
 
 /** A curve, or a flat value. A number is the constant curve at that value. */
 export type ModulationCurve = ControlPoint[] | number
@@ -335,4 +342,119 @@ export function shiftHue(
   ]
   const [rr, gg, bb] = table[seg]
   return { r: rr + m, g: gg + m, b: bb + m }
+}
+
+/**
+ * JSON Schema for a whole `LightProgram`, as ONE field.
+ *
+ * Marked with `x-widget: 'curve-program'` so a generated panel hands the entire
+ * object to one editor rather than rendering six siblings. Ensemble confirmed
+ * their `schemaWidgets` dispatches on the widget token BEFORE any type-based
+ * branch, so an `object`-typed property takes the same path an `array`-typed one
+ * already does.
+ *
+ * One field, not six, for a reason worth restating: `attackEnd`/`sustainEnd` are
+ * shared by every channel, so six sibling fields would let brightness and hue be
+ * edited into disagreement about where the attack ends — a program the runtime
+ * cannot run. Ensemble's rule is that the JSON is the truth, and a truth that
+ * cannot be executed is worse than a coarser panel. It also makes one gesture
+ * one commit, rather than six callbacks nobody can tell belonged together.
+ */
+export function lightProgramSchema(
+  extra: Record<string, unknown> = {}
+): Record<string, unknown> {
+  const channel = (title: string, kind: 'profile' | 'falloff' = 'profile') => ({
+    ...curveSchema(kind),
+    title,
+  })
+  return {
+    type: 'object',
+    title: 'Light program',
+    properties: {
+      brightness: channel('Brightness'),
+      hue: channel('Hue'),
+      saturation: channel('Saturation'),
+      range: channel('Range'),
+      hueShiftDeg: { type: 'number', title: 'Hue shift', 'x-unit': 'deg' },
+      attackEnd: { type: 'number', minimum: 0, maximum: 1 },
+      sustainEnd: { type: 'number', minimum: 0, maximum: 1 },
+      attack: { type: 'number', minimum: 0, 'x-unit': 's' },
+      period: { type: 'number', minimum: 0, 'x-unit': 's' },
+      decay: { type: 'number', minimum: 0, 'x-unit': 's' },
+      phase: { type: 'number', minimum: 0, maximum: 1 },
+    },
+    'x-widget': 'curve-program',
+    ...extra,
+  }
+}
+
+/** Canonical bytes for a program: every curve rounded, keys in a fixed order. */
+export function canonicalProgram(p: LightProgram): LightProgram {
+  const out: LightProgram = {}
+  for (const k of ['brightness', 'hue', 'saturation', 'range'] as const) {
+    const c = p[k]
+    if (c == null) continue
+    out[k] = typeof c === 'number' ? c : canonicalCurve(c)
+  }
+  // Numbers after curves, and in the order they appear in the timeline, so a
+  // diff reads the way the lamp behaves.
+  for (const k of [
+    'hueShiftDeg',
+    'attackEnd',
+    'sustainEnd',
+    'attack',
+    'period',
+    'decay',
+    'phase',
+  ] as const) {
+    if (p[k] != null) out[k] = Math.round(p[k]! * 1e4) / 1e4 + 0
+  }
+  return out
+}
+
+/** Report what is wrong with a program without throwing or fixing it. */
+export function validateProgram(value: unknown): CurveIssue[] {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+    return [
+      {
+        severity: 'error',
+        code: 'light-program/not-an-object',
+        message: 'A light program is an object of curves and timings.',
+        path: '',
+      },
+    ]
+  }
+  const p = value as Record<string, unknown>
+  const issues: CurveIssue[] = []
+  for (const k of ['brightness', 'hue', 'saturation', 'range']) {
+    const c = p[k]
+    if (c == null || typeof c === 'number') continue
+    for (const i of validateCurve(c)) {
+      issues.push({ ...i, path: `/${k}${i.path}` })
+    }
+  }
+  const a = typeof p.attackEnd === 'number' ? p.attackEnd : 0
+  const b = typeof p.sustainEnd === 'number' ? p.sustainEnd : 1
+  if (b < a) {
+    // A warning, not an error: `splits()` collapses it rather than running the
+    // sustain backwards through the attack, so the program still runs.
+    issues.push({
+      severity: 'warning',
+      code: 'light-program/inverted-splits',
+      message: `sustainEnd (${b}) precedes attackEnd (${a}); the sustain will collapse.`,
+      path: '/sustainEnd',
+    })
+  }
+  for (const k of ['attack', 'period', 'decay']) {
+    const v = p[k]
+    if (v != null && (typeof v !== 'number' || !(v >= 0))) {
+      issues.push({
+        severity: 'error',
+        code: 'light-program/bad-duration',
+        message: `${k} must be a number of seconds, zero or more.`,
+        path: `/${k}`,
+      })
+    }
+  }
+  return issues
 }

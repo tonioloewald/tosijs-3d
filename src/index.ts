@@ -227,6 +227,9 @@ export {
 // A lamp's whole life as ONE curve per channel, split into attack / sustain /
 // decay by two markers — the model behind its flicker, pulse and fade.
 export {
+  lightProgramSchema,
+  canonicalProgram,
+  validateProgram,
   sampleLight,
   programPosition,
   lightPhase,
@@ -410,6 +413,16 @@ export {
   abruptEdge,
 } from './curve'
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve'
+// Serialisation contract with tosijs-3d-ensemble (#61): plain JSON, canonical
+// bytes, a validator that never throws, and a schema fragment to dispatch on.
+export {
+  readCurve,
+  canonicalCurve,
+  validateCurve,
+  curveSchema,
+  CURVE_PRECISION,
+} from './curve'
+export type { SerializedCurve, CurveIssue } from './curve'
 export type { CurveKind, CurvePreset } from './curve'
 export { curve3d, curveMarkers } from './curve-field'
 export { iconGrid3d } from './icon-grid'

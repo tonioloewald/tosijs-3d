@@ -131,3 +131,122 @@ describe('two curves given the same markers move together', () => {
     }).not.toThrow()
   })
 })
+
+/*
+#7/#8 — CONTROLLED, AND ONE COMMIT PER GESTURE.
+
+Ensemble records one undo step per edit and the JSON is their truth, so a curve
+editor that emitted per pointer-move would put fifty entries in the history for
+one drag. But a 3D preview has to follow the drag continuously. Both are served
+because they are different callbacks, not one compromise.
+*/
+describe('live vs commit', () => {
+  const dragCurve = () => {
+    const live: number[] = []
+    const commits: number[] = []
+    const c = mod.curve3d({
+      value: [
+        { x: 0, y: 0 },
+        { x: 0.5, y: 0.5 },
+        { x: 1, y: 1 },
+      ],
+      onChange: () => live.push(1),
+      handleCommit: () => commits.push(1),
+    })
+    c.layout(300)
+    return { c, live, commits }
+  }
+
+  test('a drag emits live many times and commits ONCE', () => {
+    const { c, live, commits } = dragCurve()
+    c.handle!('down', 150, 60)
+    c.handle!('move', 155, 62)
+    c.handle!('move', 160, 65)
+    c.handle!('move', 165, 68)
+    c.handle!('up', 165, 68)
+    expect(live.length).toBeGreaterThan(1)
+    expect(commits).toHaveLength(1)
+  })
+
+  test('commit carries CANONICAL points — rounded, so the diff is small', () => {
+    let committed: any = null
+    const c = mod.curve3d({
+      value: [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+      handleCommit: (p) => (committed = p),
+    })
+    c.layout(300)
+    c.handle!('down', 150, 61)
+    c.handle!('move', 151, 63)
+    c.handle!('up', 151, 63)
+    for (const p of committed) {
+      const dp = (n: number) => (String(n).split('.')[1] ?? '').length
+      expect(dp(p.x)).toBeLessThanOrEqual(4)
+      expect(dp(p.y)).toBeLessThanOrEqual(4)
+    }
+  })
+
+  test('a discrete edit is its own gesture, so it commits immediately', () => {
+    // There is no release to wait for when you pick a preset.
+    const commits: any[] = []
+    const c = mod.curve3d({ handleCommit: (p) => commits.push(p) })
+    c.layout(300)
+    c.applyPreset('flatten')
+    expect(commits).toHaveLength(1)
+  })
+
+  test('a gesture that ends by LEAVING still commits', () => {
+    // Otherwise dragging off the widget loses the edit from the document while
+    // leaving it on screen — two truths, which is the thing to avoid.
+    const { c, commits } = dragCurve()
+    c.handle!('down', 150, 60)
+    c.handle!('move', 160, 65)
+    c.handle!('leave', 160, 65)
+    expect(commits).toHaveLength(1)
+  })
+
+  test('no commit without a gesture', () => {
+    const { c, commits } = dragCurve()
+    c.handle!('move', 160, 65)
+    c.handle!('up', 160, 65)
+    expect(commits).toHaveLength(0)
+  })
+})
+
+describe('markers commit once per drag too', () => {
+  test('many moves, one commit', () => {
+    const live: number[][] = []
+    const commits: number[][] = []
+    const markers = mod.curveMarkers([0.35, 0.75], {
+      handleChange: (v) => live.push(v),
+      handleCommit: (v) => commits.push(v),
+    })
+    const c = mod.curve3d({ markers })
+    c.layout(300)
+    const px = (v: number) => 4 + v * (300 - 8)
+    c.handle!('down', px(0.35), 60)
+    c.handle!('move', px(0.4), 60)
+    c.handle!('move', px(0.45), 60)
+    c.handle!('up', px(0.45), 60)
+    expect(live.length).toBeGreaterThan(1)
+    expect(commits).toHaveLength(1)
+  })
+
+  test('the committed values are rounded like the curve', () => {
+    let got: number[] | null = null
+    const markers = mod.curveMarkers([0.35, 0.75], {
+      handleCommit: (v) => (got = v),
+    })
+    const c = mod.curve3d({ markers })
+    c.layout(300)
+    const px = (v: number) => 4 + v * (300 - 8)
+    c.handle!('down', px(0.35), 60)
+    c.handle!('move', px(0.4137291), 60)
+    c.handle!('up', px(0.4137291), 60)
+    for (const v of got!) {
+      expect((String(v).split('.')[1] ?? '').length).toBeLessThanOrEqual(4)
+    }
+  })
+})

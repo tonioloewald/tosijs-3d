@@ -289,6 +289,7 @@ import {
   moveMarker,
   normalizeMarkers,
   normalizeCurve,
+  canonicalCurve,
   presetsFor,
   falloffDefault,
   type ControlPoint,
@@ -308,8 +309,22 @@ export interface Curve3dOptions {
   label?: string
   /** Plot height as a fraction of width. Default 0.62. */
   aspect?: number
-  /** Fired after any edit that changes the curve. */
+  /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
   onChange?: (points: ControlPoint[]) => void
+  /**
+   * Fired once when a gesture ENDS, with the canonical (rounded, sorted) points.
+   *
+   * The pair exists because two consumers want different things from the same
+   * drag and neither can be served by the other's answer (tosijs-3d#61 §8):
+   *
+   * - a 3D preview must follow the drag continuously, so `onChange` is live;
+   * - a DOCUMENT records one undo step per edit, so committing per pointer-move
+   *   would put fifty entries in the history for one drag.
+   *
+   * Ensemble hit exactly this with transform drags: write the live body during
+   * the drag, commit to the document once, on release. Same shape.
+   */
+  handleCommit?: (points: ControlPoint[]) => void
   /**
    * Draggable vertical split markers, SHARED between curves.
    *
@@ -339,7 +354,12 @@ export interface CurveMarkers {
   set: (values: number[]) => void
   /** Called on every change; returns an unsubscribe. */
   subscribe: (cb: () => void) => () => void
+  /** Live, including mid-drag. */
   handleChange?: (values: number[]) => void
+  /** Once, when a marker drag ends — the undo-step boundary. */
+  handleCommit?: (values: number[]) => void
+  /** Called by an editor when its marker gesture finishes. */
+  commit: () => void
 }
 
 /**
@@ -354,7 +374,11 @@ export interface CurveMarkers {
  */
 export function curveMarkers(
   values: number[],
-  opts: { labels?: string[]; handleChange?: (values: number[]) => void } = {}
+  opts: {
+    labels?: string[]
+    handleChange?: (values: number[]) => void
+    handleCommit?: (values: number[]) => void
+  } = {}
 ): CurveMarkers {
   let vals = normalizeMarkers(values)
   const subs = new Set<() => void>()
@@ -384,6 +408,10 @@ export function curveMarkers(
       return () => subs.delete(cb)
     },
     handleChange: opts.handleChange,
+    handleCommit: opts.handleCommit,
+    commit() {
+      api.handleCommit?.(vals.map((v) => Math.round(v * 1e4) / 1e4))
+    },
   }
   return api
 }
@@ -401,6 +429,8 @@ export interface CurveField extends Widget3d {
   applyPreset: (name: string) => void
   /** Settable so a demo can wire it after construction. */
   onChange?: (points: ControlPoint[]) => void
+  /** Settable likewise — fires once per gesture, with canonical points. */
+  handleCommit?: (points: ControlPoint[]) => void
 }
 
 /** Resolve the `value` option, which may name a preset. */
@@ -667,9 +697,15 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   // happening in a sibling curve, which is the whole point of sharing them.
   markers?.subscribe(() => draw())
 
+  /** One commit per gesture, canonical — see `handleCommit`. */
+  const commit = (): void => {
+    api.handleCommit?.(canonicalCurve(points, kind))
+  }
+
   const api: CurveField = {
     el,
     onChange: config.onChange,
+    handleCommit: config.handleCommit,
 
     layout(width: number) {
       const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5))
@@ -738,9 +774,15 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
         return
       }
       if (kind_ === 'up' || kind_ === 'leave') {
-        dragging = -1
+        // THE UNDO-STEP BOUNDARY. Everything above emits live; this is the one
+        // place a document should be written.
+        if (dragging >= 0) {
+          dragging = -1
+          commit()
+        }
         if (draggingMarker >= 0) {
           draggingMarker = -1
+          markers?.commit()
           draw()
         }
       }
@@ -779,6 +821,9 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       selected = -1
       draw()
       emit()
+      // A discrete edit IS a complete gesture — there is no release to wait
+      // for, so it is its own undo step.
+      commit()
     },
     applyPreset(name: string) {
       const preset = presetsFor(kind).find((p) => p.name === name)
@@ -787,6 +832,7 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
       selected = -1
       draw()
       emit()
+      commit()
     },
   }
 
