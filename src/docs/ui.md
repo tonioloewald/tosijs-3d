@@ -102,17 +102,24 @@ const scene = b3d(
   plane
 )
 
+// The flat presentation's own popup layer: a positioned sibling ABOVE the panel,
+// outside its <svg>, so a keyboard is not cropped by the panel it belongs to.
+// `panelScene` adds the scene's layer (a plane) separately — a popup opens in
+// both, because the panel is on screen twice.
+const flatHost = div({ style: { flex: '0 0 320px', overflow: 'visible' } }, panel)
+
 preview.append(
   div(
     { style: { display: 'flex', flexDirection: 'column', height: '100%' } },
     div(
       { style: { display: 'flex', gap: 20, flex: 1, minHeight: 0, padding: 14 } },
-      div({ style: { flex: '0 0 320px', overflow: 'auto' } }, panel),
+      flatHost,
       div({ style: { display: 'flex', flex: 1, minWidth: 0 } }, scene)
     ),
     out
   )
 )
+panel.useDomLayer(flatHost)
 ```
 ```css
 .preview {

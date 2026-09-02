@@ -1851,7 +1851,18 @@ cosmetic.** Reported by Tonio; diagnosed but not yet fixed.
      edit. Worth doing once and consistently, since the demos are what an
      adopter copies.
 
-[ ] **A PINNING utility — one set of heuristics, DOM and 3D.** Tonio: tosijs-ui
+[ ] **A PLACEMENT library — `popFloat`'s job, for DOM and 3D.** Tonio: "we
+should have a standard library for placing popups etc. relative to things in an
+intelligent way (per tosijs-ui's similar popFloat)". **Read tosijs-ui's
+`popFloat` first** — if its maths is general, this should live THERE and we
+consume it, rather than a fourth copy of flip-and-clamp in the ecosystem.
+
+Now urgent rather than tidy: popups escape their panel (0.7.5), so nothing
+bounds them any more and naive placement shows. The keyboard in the UI page's
+kitchen sink lands over the 3D pane, because the only rule is "below the anchor,
+or above if there is more room" — which knows nothing about what it lands ON.
+
+[ ] ~~A PINNING utility — one set of heuristics, DOM and 3D.~~ Tonio: tosijs-ui
 "has this really nice utility library that lets you pin a popup to another
 element using simple heuristics. It might be useful to build an equivalent for
 both the DOM and 3d contexts."

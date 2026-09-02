@@ -574,6 +574,8 @@ export interface WidgetHost {
       side?: PopupSide
       width?: number
       maxHeight?: number
+      /** Called when it goes away, however it went. */
+      onClose?: () => void
     },
     ...items: Widget3d[]
   ) => { close: () => void }
@@ -1663,30 +1665,50 @@ export function panel3d(
     closePopup: () => baseHost.closePopup(),
     relayout: () => baseHost.relayout(),
     showLayer(config, ...items) {
-      // Delegate upward when something above the panel has volunteered a layer;
-      // otherwise this is just a popup, with all the bounding that implies.
-      const install = (root as unknown as { __layerHost?: LayerHost }).__layerHost
-      if (install != null) {
-        const top = offsets[index] ?? 0
-        return install(
-          {
-            ...config,
-            anchor: {
-              ...config.anchor,
-              x: config.anchor.x + padding,
-              y: config.anchor.y + paddingTop + top - scroll,
-            },
-          },
-          ...items
-        )
+      /*
+      FAN OUT TO EVERY PRESENTATION.
+
+      A panel is usually on screen twice — flat in the DOM and rasterised onto a
+      plane — and a layer belongs to a PRESENTATION, not to the panel. The first
+      version took a single host, `panelScene` installed it, and the keyboard
+      moved onto a plane and disappeared from the DOM: measured as 0 popups flat,
+      2 planes in the scene.
+
+      So each presentation adds its own mounter and a popup opens in all of them,
+      which is the same arrangement that makes the panel itself work in both
+      places. Closing closes them together, because they are one popup wearing
+      two faces — exactly as the panel is.
+      */
+      const hosts =
+        (root as unknown as { __layerHosts?: LayerHost[] }).__layerHosts ?? []
+      if (hosts.length === 0) {
+        // Nothing above the panel volunteered, so this degrades to a popup —
+        // bounded by the panel, with everything that implies.
+        return hostFor(index).showPopup(config, ...items)
       }
-      return hostFor(index).showPopup(config, ...items)
+      const top = offsets[index] ?? 0
+      const placed = {
+        ...config,
+        anchor: {
+          ...config.anchor,
+          x: config.anchor.x + padding,
+          y: config.anchor.y + paddingTop + top - scroll,
+        },
+      }
+      // Each host gets its OWN widget instances: two presentations cannot share
+      // one SVG node, and handing the same objects to both would move them.
+      const opened = hosts.map((h) => h(placed, ...items))
+      return {
+        close: () => {
+          for (const o of opened) o.close()
+          config.onClose?.()
+        },
+      }
     },
     get hasLayer() {
-      return (
-        (root as unknown as { __layerHost?: LayerHost | null }).__layerHost !=
-        null
-      )
+      const hosts =
+        (root as unknown as { __layerHosts?: LayerHost[] }).__layerHosts ?? []
+      return hosts.length > 0
     },
     // Live getters: both change when the panel re-lays-out or scrolls, and a
     // widget that cached them would decide against stale geometry.
@@ -1989,10 +2011,59 @@ export function panel3d(
   a mounter that opens a real plane; without it `showLayer` degrades to
   `showPopup`, which is bounded — see `WidgetHost.showLayer`.
   */
+  /**
+   * Mount popups as positioned siblings in the DOM, above the panel.
+   *
+   * The flat counterpart of `panelScene`'s plane: outside the panel's `<svg>`,
+   * so it is not cropped by the viewBox, and on top of it, so the separation is
+   * real rather than drawn. Call it once with the element the panel sits in.
+   *
+   * Kept here rather than left to every demo because getting it wrong is
+   * invisible — a popup inside the SVG merely looks *clipped*, which reads as a
+   * layout bug rather than a mounting one.
+   */
   ;(
-    root as unknown as { setLayerHost: (fn: LayerHost | null) => void }
-  ).setLayerHost = (fn) => {
-    ;(root as unknown as { __layerHost?: LayerHost | null }).__layerHost = fn
+    root as unknown as {
+      useDomLayer: (container: HTMLElement) => () => void
+    }
+  ).useDomLayer = (container) => {
+    const style = getComputedStyle(container)
+    // `absolute` needs a positioned ancestor; without this the popup lands
+    // relative to the page and appears somewhere else entirely.
+    if (style.position === 'static') container.style.position = 'relative'
+    return (
+      root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
+    ).addLayerHost((config, ...items) => {
+      const sheet = panel3d(
+        { width: config.width ?? 360, height: 'fit' },
+        ...items
+      )
+      const rect = root.getBoundingClientRect()
+      const box = container.getBoundingClientRect()
+      // Panel units -> CSS px, since a panel is usually rendered scaled.
+      const scale = rect.height / Math.max(1, Number(root.getAttribute('height')))
+      const holder = document.createElement('div')
+      holder.style.position = 'absolute'
+      holder.style.zIndex = '10'
+      holder.style.left = `${rect.left - box.left}px`
+      holder.style.top = `${rect.top - box.top + config.anchor.y * scale + config.anchor.height * scale}px`
+      holder.appendChild(sheet)
+      container.appendChild(holder)
+      return { close: () => holder.remove() }
+    })
+  }
+
+  ;(
+    root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
+  ).addLayerHost = (fn) => {
+    const list = ((
+      root as unknown as { __layerHosts?: LayerHost[] }
+    ).__layerHosts ??= [])
+    list.push(fn)
+    return () => {
+      const i = list.indexOf(fn)
+      if (i >= 0) list.splice(i, 1)
+    }
   }
 
   root.appendChild(bg)

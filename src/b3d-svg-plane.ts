@@ -420,6 +420,8 @@ import { roundedRectGeometry } from './rounded-rect'
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3
 import { SvgTexture } from './svg-texture'
+// Acyclic: widgets3d imports nothing from the b3d side (the reverse would not be).
+import { panel3d, type Widget3d } from './widgets3d'
 import type { B3d } from './tosi-b3d'
 
 export class B3dSvgPlane extends AbstractMesh {
@@ -1295,26 +1297,49 @@ export function panelScene(opts: PanelSceneOptions): {
 
   const sceneCreated = (el: B3d): void => {
     /*
-    NO LAYER HOST INSTALLED HERE — and that is a correction, not an omission.
+    THE SCENE'S LAYER: a plane of its own, z-separated from the panel.
 
-    It was installed, and it broke the flat view. `panelScene` is handed a panel
-    that is usually ALSO shown in the DOM (that is the whole "one UI, two
-    presentations" arrangement — `SvgTexture` clones the live element, so the
-    same object is both). A popup mounted inside that SVG appears in BOTH views
-    for free. A plane exists only in the scene, so installing a layer host moved
-    the keyboard out of the DOM entirely: measured afterwards as 0 popups in the
-    flat panel and 2 planes in the scene.
+    A popup that lives inside the panel's SVG is cropped by it — which is why a
+    keyboard came out squeezed, and why it refused on a short panel. On a plane
+    it is bounded by nothing and sits genuinely IN FRONT, which is what depth is
+    for. Tonio: "aren't we making the keyboard a proper popup with
+    z-separation?"
 
-    So a layer is right for a panel that lives ONLY in a scene, and wrong for one
-    with two presentations — and `panelScene` cannot tell which it has. The
-    machinery stays (`setLayerHost` on the panel, `WidgetHost.showLayer`), and
-    installing it is the app's call, because the app knows whether its panel is
-    also on screen.
+    Registered with `addLayerHost`, not `setLayerHost`: a panel is usually shown
+    TWICE (flat and rasterised), a layer belongs to a PRESENTATION, and an
+    earlier version that installed a single host moved the keyboard onto a plane
+    and out of the DOM entirely. Each presentation adds its own; the popup opens
+    in both.
 
-    Tonio asked "shouldn't the keyboard be in its own layer, like a popup?" — it
-    should, for a scene-only panel. For a dual-presentation one, staying in the
-    shared SVG is what keeps the two views the same UI.
+    `el.openPopup` rather than importing `openPopup`: popup-surface already
+    imports this module, so that direction would be a cycle.
     */
+    const panelEl = opts.svg as unknown as {
+      addLayerHost?: (fn: unknown) => () => void
+    }
+    const owner = el as unknown as {
+      openPopup?: (o: Record<string, unknown>) => { close: () => void }
+    }
+    if (typeof panelEl.addLayerHost === 'function' && owner.openPopup) {
+      panelEl.addLayerHost(
+        (config: { width?: number }, ...items: Widget3d[]) => {
+          const sheet = panel3d(
+            { width: config.width ?? 360, height: 'fit' },
+            ...items
+          )
+          const pop = owner.openPopup!({
+            svg: sheet,
+            opener: plane.mesh,
+            width: width * 0.95,
+            // Below the panel and NEARER the viewer — the z-separation is the
+            // point, not a nicety: coplanar panels re-sort as you orbit.
+            offset: { y: -planeH * 0.7, z: -0.08 },
+          })
+          return { close: () => pop.close() }
+        }
+      )
+    }
+
     const canvas = el.scene.getEngine().getRenderingCanvas()
     const cam = new BABYLON.ArcRotateCamera(
       'panel-cam',
