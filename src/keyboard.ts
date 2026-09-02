@@ -275,7 +275,8 @@ import {
 } from './text-edit'
 import { measureTextWidth, type FontSpec } from './widgets3d-layout'
 import { nearestInDirection } from './flow-layout'
-import type { Widget3d, PointerKind } from './widgets3d'
+import type { Widget3d, WidgetHost, PointerKind } from './widgets3d'
+import { iconGlyph } from './svg-icons'
 import { w3dTheme } from './w3d-theme'
 
 const { g, rect, text } = svgElements
@@ -436,6 +437,33 @@ export interface InputFieldOptions {
    * configured (tosijs-3d#37, item 2).
    */
   type?: FieldType
+  /**
+   * Should tapping this field summon an on-screen keyboard?
+   *
+   * - `auto` (default) — the AFFORDANCE is always drawn, and a tap auto-opens
+   *   only on a coarse pointer (touch). See below for why those differ.
+   * - `always` — auto-open on any pointer. What an XR panel wants.
+   * - `never` — no affordance, no auto-open.
+   *
+   * Needs somewhere to PUT a keyboard — see `openKeyboard`.
+   */
+  keyboard?: 'auto' | 'always' | 'never'
+  /**
+   * Where the keyboard goes. Return a closer.
+   *
+   * **A short panel cannot host one, and this is why the option exists.** The
+   * panel-overlay route (`WidgetHost.showPopup`) caps a popup to the panel's own
+   * bounds, which is right for a dropdown and wrong for a keyboard: on a 64px
+   * panel the keyboard was squeezed to 64px AND placed over the field it types
+   * into. Measured, not guessed.
+   *
+   * So the field asks and the app answers. Flat that might be a positioned
+   * sibling; in a scene it wants `openPopup` on the B3d — a plane of its own,
+   * unbounded by the panel. Omit it and the field uses the panel overlay only
+   * when there is genuinely room below, and otherwise leaves the glyph inert
+   * rather than showing you something broken.
+   */
+  openKeyboard?: (field: InputField) => (() => void) | void
 }
 
 /**
@@ -732,14 +760,119 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     return best
   }
 
+  /*
+  A KEYBOARD AFFORDANCE, always drawn — auto-open is the convenience, not the
+  feature.
+
+  Auto-opening on touch and never on a mouse is the obvious rule and it is wrong
+  at the edges. Tonio: _"if you're playing on a computer plugged into a TV there
+  may BE a keyboard but you'd rather not have to get it."_ The device says
+  nothing about whether the keyboard is within reach — a games console, a
+  laptop docked to a screen across the room, a headset with a desk somewhere
+  under it. Sniffing gets those all wrong in the same direction: it decides you
+  do not need what you cannot reach.
+
+  So the glyph is always there and always works, and the sniff only chooses
+  whether you ALSO get it without asking. That way the guess can be wrong
+  without stranding anyone.
+  */
+  const kbMode = config.keyboard ?? 'auto'
+  const KB_ZONE = 26
+  let host: WidgetHost | null = null
+  let kbOpen: { close: () => void } | null = null
+  /** Latched on press: the gesture belongs to where it started. */
+  let glyphPress = false
+
+  const coarsePointer = (): boolean => {
+    const mm = (
+      globalThis as { matchMedia?: (q: string) => { matches: boolean } }
+    ).matchMedia
+    if (typeof mm !== 'function') return false
+    try {
+      return mm('(pointer: coarse)').matches
+    } catch {
+      return false
+    }
+  }
+
+  const kbGlyph =
+    kbMode === 'never'
+      ? null
+      : iconGlyph('keyboard', {
+          color: TH.PLACEHOLDER,
+          size: 16,
+          x: 0,
+          y: Math.round((H - 16) / 2),
+        })
+  if (kbGlyph) el.appendChild(kbGlyph)
+
+  /** A keyboard needs about this much room, or it is not a keyboard. */
+  const KB_MIN_HEIGHT = 150
+
+  const openKeyboard = (): void => {
+    if (kbMode === 'never') return
+    if (kbOpen != null) {
+      // Tapping the glyph again puts it away — a summoned panel you cannot
+      // dismiss the same way you called it is a panel in your way.
+      kbOpen.close()
+      kbOpen = null
+      return
+    }
+    const kb = keyboard({
+      mode: api.keyboardMode,
+      onKey: (k) => api.insert(k),
+      onAction: (a) => api.action(a),
+      onCaretMove: (d) => api.moveCaret(d),
+    })
+
+    // The app's own answer wins: it is the only thing that knows whether a
+    // plane, a sibling or a surface is right here.
+    if (config.openKeyboard != null) {
+      const close = config.openKeyboard(api)
+      kbOpen = { close: () => close?.() }
+      return
+    }
+
+    /*
+    Otherwise the panel overlay — but ONLY with room to land below.
+
+    `showPopup` caps to the panel's bounds, so on a short panel this produced a
+    keyboard squeezed to the panel's height and placed ON TOP of the field. A
+    keyboard covering what it types into is the one placement that cannot be
+    allowed, and half a keyboard is not a degraded mode.
+
+    Refusing leaves the glyph visibly doing nothing, which is poor — but it is
+    honest, and `openKeyboard` is the documented way out. Sized from the ROOM
+    below the field, not from the panel, since that is what it has to fit in.
+    */
+    const roomBelow = (host?.bounds?.height ?? 0) - (host?.top ?? 0) - H
+    if (host == null || roomBelow < KB_MIN_HEIGHT) return
+    kbOpen = host.showPopup(
+      {
+        anchor: { x: 0, y: 0, width, height: H },
+        side: 'below',
+        width: 360,
+        maxHeight: roomBelow,
+      },
+      kb
+    )
+  }
+
   const api: InputField = {
     el,
+    setHost(h) {
+      host = h
+    },
     get value() {
       return state.text
     },
     layout(w: number) {
       width = w
       bg.setAttribute('width', String(w))
+      kbGlyph?.setAttribute(
+        'transform',
+        `translate(${Math.round(w - KB_ZONE + 4)}, 0)`
+      )
       paint()
       return H
     },
@@ -752,6 +885,33 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       modifier or a separate hit zone means the two never have to be aimed at
       differently, which matters most in XR where aiming is the expensive part.
       */
+      /*
+      The glyph zone is not the field. A press there must not place a caret and
+      must not start a scrub — a numeric field would otherwise leap as you
+      reached for the keyboard, which is not something you can undo by letting
+      go.
+
+      The gesture belongs to where it BEGAN, so this latches on the press. The
+      first version tested the live x and broke scrubbing twice over: a drag that
+      merely ENDED near the right edge was swallowed, and before `layout()` ran
+      `width` was 0, so `x >= width - KB_ZONE` was true everywhere and the whole
+      field became the glyph. Both caught by the existing scrub tests, which is
+      the argument for having had them.
+      */
+      if (kind === 'down') {
+        glyphPress =
+          kbGlyph != null && width > 0 && x >= width - KB_ZONE
+        if (glyphPress) return
+      }
+      if (glyphPress) {
+        if (kind === 'up') {
+          glyphPress = false
+          openKeyboard()
+        } else if (kind === 'leave') {
+          glyphPress = false
+        }
+        return
+      }
       if (kind === 'down') {
         scrubFrom = x
         scrubBase = Number(state.text)
@@ -772,6 +932,24 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       if (kind === 'up' && scrubbing) {
         scrubbing = false
         commitField()
+        return
+      }
+      /*
+      A TAP in the field auto-opens — but only where the sniff says a hardware
+      keyboard probably is not to hand.
+
+      `always` is what an XR panel passes; `auto` opens on a coarse pointer and
+      otherwise leaves it to the glyph. A field that sprouted a keyboard on every
+      desktop click would be worse than one that never did, which is why the
+      default errs toward not.
+
+      Guarded on `!scrubbing` so a scrub that ends inside the field does not also
+      summon a panel over what you were just adjusting.
+      */
+      if (kind === 'up' && kbOpen == null) {
+        if (kbMode === 'always' || (kbMode === 'auto' && coarsePointer())) {
+          openKeyboard()
+        }
       }
     },
     insert(str: string) {

@@ -3,6 +3,7 @@ import { Window } from 'happy-dom'
 
 // widgets3d builds SVG at import time, so it needs a DOM first.
 let w3d: typeof import('./widgets3d')
+let w3d_kb: typeof import('./keyboard')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -16,6 +17,7 @@ beforeAll(async () => {
     }
   }
   w3d = await import('./widgets3d')
+  w3d_kb = await import('./keyboard')
 })
 
 const measureOf = (panel: SVGSVGElement) =>
@@ -508,5 +510,115 @@ describe('select3d opens a MENU from its value, and keeps its steppers', () => {
     sel.handle!('down', 285, 30)
     sel.handle!('up', 285, 30)
     expect(seen).toBe('beta')
+  })
+})
+
+describe('the keyboard affordance — summon it without reaching for a real one', () => {
+  // TALL, because a keyboard needs room — on a fit-height panel (64px) it would
+  // be capped to 64px and land on top of the field, which is why it now refuses.
+  const build = (keyboard?: 'auto' | 'always' | 'never') => {
+    const field = w3d_kb.inputField({ value: 'hi', keyboard })
+    const panel = w3d.panel3d({ width: 300, height: 400 }, field) as any
+    return { field, panel }
+  }
+  const tapAt = (panel: any, x: number) => {
+    panel.handlePointer('down', x, 20)
+    panel.handlePointer('up', x, 20)
+  }
+
+  test('the glyph is drawn by default, and not when disabled', () => {
+    // Always present, because the device cannot tell you whether a keyboard is
+    // within REACH. Tonio: a computer plugged into a TV has one you would rather
+    // not get up for.
+    // `iconGlyph` returns a bare <g> with no data- marker, so compare structure
+    // rather than selecting one.
+    const on = build()
+    const off = build('never')
+    expect(on.field.el.children.length).toBeGreaterThan(
+      off.field.el.children.length
+    )
+  })
+
+  test('pressing the glyph opens a keyboard popup', () => {
+    const { panel } = build()
+    expect(panel.querySelectorAll('svg').length).toBe(0)
+    tapAt(panel, 288) // the glyph sits at the right edge
+    expect(panel.querySelectorAll('svg').length).toBe(1)
+  })
+
+  test('pressing it again puts the keyboard away', () => {
+    // A summoned panel you cannot dismiss the way you called it is in your way.
+    const { panel } = build()
+    tapAt(panel, 288)
+    tapAt(panel, 288)
+    expect(panel.querySelectorAll('svg').length).toBe(0)
+  })
+
+  test('a tap in the FIELD does not auto-open on a fine pointer', () => {
+    // The default errs toward not: a field that sprouted a keyboard on every
+    // desktop click would be worse than one that never did.
+    const { panel } = build()
+    tapAt(panel, 60)
+    expect(panel.querySelectorAll('svg').length).toBe(0)
+  })
+
+  test("`always` opens on a tap anywhere in the field — what an XR panel wants", () => {
+    const { panel } = build('always')
+    tapAt(panel, 60)
+    expect(panel.querySelectorAll('svg').length).toBe(1)
+  })
+
+  test('it REFUSES rather than opening a keyboard with nowhere to go', () => {
+    // Measured before this existed: on a 64px panel the popup was capped to
+    // 64px and placed at y=0, i.e. squeezed flat and covering the field it types
+    // into. Half a keyboard is not a degraded mode.
+    const field = w3d_kb.inputField({ value: 'hi' })
+    const panel = w3d.panel3d({ width: 300 }, field) as any // height: 'fit' -> 64
+    panel.handlePointer('down', 288, 20)
+    panel.handlePointer('up', 288, 20)
+    expect(panel.querySelectorAll('svg').length).toBe(0)
+  })
+
+  test('`openKeyboard` lets the app put it somewhere that fits', () => {
+    // The documented way out of the refusal above: the app knows whether a
+    // plane, a sibling or a surface is right here; the field does not.
+    let opened = 0
+    let closed = 0
+    const field = w3d_kb.inputField({
+      value: 'hi',
+      openKeyboard: () => {
+        opened++
+        return () => closed++
+      },
+    })
+    const panel = w3d.panel3d({ width: 300 }, field) as any
+    panel.handlePointer('down', 288, 20)
+    panel.handlePointer('up', 288, 20)
+    expect(opened).toBe(1)
+    // …and toggling off calls the closer it handed back.
+    panel.handlePointer('down', 288, 20)
+    panel.handlePointer('up', 288, 20)
+    expect(closed).toBe(1)
+  })
+
+  test('the glyph does NOT hijack a scrub that ends near it', () => {
+    // The gesture belongs to where it BEGAN. Testing the live x swallowed any
+    // drag finishing at the right edge.
+    const field = w3d_kb.inputField({ type: 'number', value: '0', scrub: 0.1 })
+    w3d.panel3d({ width: 300 }, field)
+    field.layout(300)
+    field.handle!('down', 40, 20)
+    field.handle!('move', 290, 20) // ends inside the glyph zone
+    field.handle!('up', 290, 20)
+    expect(Number(field.value)).toBeGreaterThan(0)
+  })
+
+  test('and does not swallow the whole field before layout runs', () => {
+    // `width` starts at 0, so `x >= width - KB_ZONE` was true everywhere.
+    const field = w3d_kb.inputField({ type: 'number', value: '0', scrub: 0.1 })
+    field.handle!('down', 10, 20)
+    field.handle!('move', 110, 20)
+    field.handle!('up', 110, 20)
+    expect(Number(field.value)).toBeGreaterThan(0)
   })
 })

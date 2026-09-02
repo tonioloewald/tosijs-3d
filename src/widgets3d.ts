@@ -519,6 +519,16 @@ export interface WidgetHost {
   closePopup: () => void
   /** Ask the panel to re-run layout — a widget that changed height needs this. */
   relayout: () => void
+  /**
+   * The panel's inner size, and this widget's top within it.
+   *
+   * A widget cannot otherwise tell whether what it wants to open will FIT. The
+   * keyboard needed exactly this: `showPopup` caps to the panel's bounds, so on
+   * a short panel it produced a keyboard squeezed flat and placed over the
+   * field. Without these it had no way to decline.
+   */
+  readonly bounds: { width: number; height: number }
+  readonly top: number
 }
 
 /**
@@ -1595,9 +1605,17 @@ export function panel3d(
     },
     closePopup: () => baseHost.closePopup(),
     relayout: () => baseHost.relayout(),
+    // Live getters: both change when the panel re-lays-out or scrolls, and a
+    // widget that cached them would decide against stale geometry.
+    get bounds() {
+      return { width, height }
+    },
+    get top() {
+      return (offsets[index] ?? 0) + paddingTop - scroll
+    },
   })
 
-  const baseHost: WidgetHost = {
+  const baseHost: Omit<WidgetHost, 'bounds' | 'top'> = {
     showPopup(config, ...items) {
       // One at a time: opening a second while the first is up would leave the
       // first unreachable but still drawn, which reads as a stuck panel.
