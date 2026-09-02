@@ -2654,6 +2654,33 @@ export class B3d extends Component {
 
   connectedCallback(): void {
     super.connectedCallback()
+    /*
+    A MOVE MUST NOT COST A SCENE.
+
+    Re-parenting an element fires `disconnectedCallback` then
+    `connectedCallback` in the SAME task, and this method builds an Engine and a
+    Scene unconditionally — so a move built a second one. The first is then
+    disposed, which disposes its materials, which deletes their shader programs,
+    and the SURVIVING scene renders black while every uniform reads correct and
+    `isReady()` returns true. `gl.isProgram()` is false and nothing says so.
+
+    Reported by tosijs-3d-ensemble (#58) with the measurement that pins it: two
+    Scene objects 43ms apart, a SkyMaterial rebuilt across the boundary, a
+    `deleteProgram`, and NO add/remove recorded on the element itself — because
+    the move was of an ancestor HOST, which disconnects everything in its shadow
+    root. This is also the real cause of the intermittent black sky in #51.
+
+    A move need not touch this element at all, and it is ordinary DOM: SPA
+    routers, layout changes, re-parenting. So teardown is DEFERRED (see
+    `disconnectedCallback`) and a reconnect in the same task simply cancels it —
+    the scene never stopped existing, and there is nothing to rebuild.
+    */
+    if (this._teardownTimer != null) {
+      clearTimeout(this._teardownTimer)
+      this._teardownTimer = null
+      return
+    }
+    // Reconnected after teardown already ran, or connected for the first time.
     const cnv = this.parts.canvas as HTMLCanvasElement
     cnv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
     // Input focus follows the pointer: hovering or pressing anywhere in this scene
@@ -4278,6 +4305,24 @@ export class B3d extends Component {
   }
 
   disconnectedCallback(): void {
+    /*
+    DEFER, so a move can cancel it. See `connectedCallback`.
+
+    `super.disconnectedCallback()` still runs immediately — tosijs owns its own
+    bookkeeping and a move is normal to it; only OUR teardown (engine, timers,
+    XR, the ready flag) waits to find out whether this was a removal or a move.
+    */
+    super.disconnectedCallback()
+    if (this._teardownTimer != null) return
+    this._teardownTimer = setTimeout(() => {
+      this._teardownTimer = null
+      this._teardown()
+    }, 0) as unknown as number
+  }
+
+  private _teardownTimer: number | null = null
+
+  private _teardown(): void {
     this._errorCaptureOff?.()
     this._errorCaptureOff = null
     this._pauseWatch?.()
@@ -4306,7 +4351,6 @@ export class B3d extends Component {
     // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
     this._sceneReady = false
     this._readyQueue = []
-    super.disconnectedCallback()
   }
 
   render(): void {
