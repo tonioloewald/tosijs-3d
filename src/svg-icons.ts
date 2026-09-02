@@ -193,7 +193,18 @@ function resolveToMarkup(
   const style: IconStyle = {}
   let cur = name
   for (let i = 0; i < MAX_REDIRECTS; i++) {
-    const entry = data[cur]
+    /*
+    TRIM. The generated `icon-data` stores every value with a trailing space,
+    markup and redirects alike — and a redirect is then parsed as a NAME, where
+    that space is fatal: `parseStyleSuffixes('cornerUpRight0f ')` returns null
+    while the trimmed form returns base `cornerUpRight` + `scaleX(-1)`.
+
+    So every MIRRORED icon failed to resolve — which is most of the left-facing
+    set, since they are all stored as `<rightVariant>0f`. It looked like the
+    icons were missing; they were one space away from working. Reported from
+    ensemble as "the icon language isn't working" (tosijs-3d#54).
+    */
+    const entry = data[cur]?.trim()
     if (entry && entry.startsWith('<')) return { spec: entry, style }
     // A trailing suffix run? Peel it off (base may itself be a redirect).
     const parsed = parseStyleSuffixes(cur)
@@ -374,6 +385,22 @@ function warnOnce(message: string): void {
   console.warn(message)
 }
 
+/**
+ * Can this name be drawn?
+ *
+ * Asks the same resolver the drawing code uses, so it answers for the whole icon
+ * LANGUAGE — a plain name, a composed one (`chevron270r`), or a mirror reference
+ * (`cornerDownLeft`, stored as `cornerDownRight0f`) all answer honestly.
+ *
+ * Exists because the alternative is guessing: checking `name in iconData` says
+ * no for every composed name, and inspecting the stored value says no for every
+ * mirror. Both were doing exactly that here, and both were wrong once mirrors
+ * started resolving.
+ */
+export function iconExists(name: string): boolean {
+  return resolveToMarkup(DEFAULT_MAP, name) !== null
+}
+
 export function iconGlyph(
   name: string,
   opts: {
@@ -404,11 +431,6 @@ export function iconGlyph(
   } = opts
   const resolved = resolveToMarkup(DEFAULT_MAP, name)
   if (!resolved) warnOnce(`iconGlyph: unknown icon "${name}"`)
-  if (resolved && Object.keys(resolved.style).length > 0) {
-    warnOnce(
-      `iconGlyph("${name}"): composition suffixes aren't applied here — use a base name (or svgIcons for DOM).`
-    )
-  }
   const holder = elements.div()
   // `currentColor` doesn't resolve in a rasterized texture, so bake it to `color`
   // up front. Harmless for hex-coloured multicolour icons; it's what lets a
@@ -423,8 +445,38 @@ export function iconGlyph(
     .map(Number)
   const scale = size / Math.max(vb[2] || 24, vb[3] || 24)
   const classes = new Set(src.classList)
+  /*
+  APPLY THE COMPOSED TRANSFORM, rather than warning that we cannot.
+
+  `resolveToMarkup` already returns the style a composed name implies —
+  `chevron90r` gives `rotate(90deg)`, `cornerUpLeft` redirects to
+  `cornerUpRight0f` and gives `scaleX(-1)`. This threw that away and told the
+  caller to use a base name, which for a MIRROR meant the glyph did not exist in
+  any usable form: every left-facing arrow was unreachable on the texture path.
+
+  The style is CSS (that is what the DOM path consumes), so it is translated to
+  an SVG transform here. About the icon's own centre in its own viewBox units,
+  so it composes with the translate+scale above rather than fighting it.
+  */
+  const cx = (vb[2] || 24) / 2
+  const cy = (vb[3] || 24) / 2
+  const composed: string[] = []
+  const css = resolved?.style.transform ?? ''
+  for (const m of css.matchAll(/rotate\(\s*(-?[\d.]+)deg\s*\)/g)) {
+    composed.push(`rotate(${m[1]} ${cx} ${cy})`)
+  }
+  if (/scaleX\(\s*-1\s*\)/.test(css)) {
+    composed.push(`translate(${cx * 2} 0) scale(-1 1)`)
+  }
+  if (/scaleY\(\s*-1\s*\)/.test(css)) {
+    composed.push(`translate(0 ${cy * 2}) scale(1 -1)`)
+  }
   const g = svgElements.g(
-    { transform: `translate(${x} ${y}) scale(${scale})` },
+    {
+      transform: `translate(${x} ${y}) scale(${scale})${
+        composed.length ? ' ' + composed.join(' ') : ''
+      }`,
+    },
     ...Array.from(src.children)
   ) as unknown as SVGGElement
   if (classes.has('color')) {

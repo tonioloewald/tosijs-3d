@@ -278,44 +278,15 @@ export interface KeyDef {
   /**
    * Draw an SVG icon instead of the label.
    *
-   * Tonio: "we should ditch the unicode glyphs for shift, return, and delete and
-   * use SVG icons." A unicode glyph is at the mercy of whatever font the panel
-   * resolved — and on a rasterised texture that is a different font from the
-   * page's, so `⏎` can arrive as a box, or centred differently on every
-   * platform. An icon is geometry and renders the same everywhere.
+   * Accepts the full icon LANGUAGE — `chevron270r` rotates, `cornerDownLeft`
+   * resolves through its mirror. There is no widget-level rotate/flip because
+   * there no longer needs to be: `iconGlyph` applies a composed name's transform
+   * itself, so the name says everything.
    *
-   * `label` is still required and still carries the NAME, which the hit-test
-   * key (`data-key`) and the tests both use.
+   * `label` is still required and still carries the NAME, which the hit-test key
+   * (`data-key`) and the tests both use.
    */
   icon?: string
-  /**
-   * Degrees to rotate `icon`, about its own centre.
-   *
-   * Exists because `iconGlyph` does NOT apply composition suffixes — verified by
-   * asking it for a `chevronUp`, which logs "unknown icon" and falls back to a
-   * BOX. On a shift key that is worse than the `⇧` it replaced. Suffixes work on
-   * the DOM path (`svgIcons`); the keyboard is the texture path.
-   *
-   * (Written without the call syntax on purpose: `icon-names.test.ts` scans
-   * prose as well as code and cannot tell them apart, so naming a deliberately
-   * invalid icon in a comment trips it. A crude guard that occasionally objects
-   * to a sentence is a fair price for one that cannot miss a real typo.)
-   *
-   * So the base glyph plus an angle, which both paths can do. Tonio: "chevronUp
-   * will work for SHIFT until I add a specific glyph" — this is that, by the
-   * route that survives rasterisation.
-   */
-  iconRotate?: number
-  /**
-   * Mirror `icon` horizontally.
-   *
-   * Some icon entries are MIRROR REFERENCES rather than markup — 
-   * `icons/stroked/corner-down-left.svg` is an 18-byte file containing the text
-   * `cornerDownRight0f`, which `svgIcons` resolves on the DOM path and
-   * `iconGlyph` cannot. So the return key drew the fallback BOX. Flipping the
-   * real `cornerDownRight` gets the same glyph by a route that rasterises.
-   */
-  iconFlipX?: boolean
   /** Text inserted when tapped. Absent for action keys. */
   value?: string
   /** Behaviour for a non-inserting key. */
@@ -340,9 +311,10 @@ const row = (chars: string): KeyDef[] =>
 
 const SHIFT: KeyDef = {
   label: '⇧',
-  // `chevron` points RIGHT (9,6 → 15,12 → 9,18), so -90° aims it up.
-  icon: 'chevron',
-  iconRotate: -90,
+  // `chevron270r` — the icon LANGUAGE now works on the texture path, so this is
+  // a name rather than a widget-level workaround. Points right by default; 270°
+  // clockwise aims it up.
+  icon: 'chevron270r',
   action: 'shift',
   width: 1.5,
 }
@@ -355,9 +327,7 @@ const BACK: KeyDef = {
 const SPACE: KeyDef = { label: 'space', action: 'space', width: 5 }
 const ENTER: KeyDef = {
   label: '⏎',
-  // `cornerDownLeft` is a mirror REFERENCE, not markup — see `iconFlipX`.
-  icon: 'cornerDownRight',
-  iconFlipX: true,
+  icon: 'cornerDownLeft',
   action: 'enter',
   width: 1.5,
 }
@@ -374,8 +344,7 @@ const BACK1: KeyDef = { label: '⌫', icon: 'delete', action: 'backspace' }
 /** Enter at plain width — for a grid pad where every cell is one unit. */
 const ENTER1: KeyDef = {
   label: '⏎',
-  icon: 'cornerDownRight',
-  iconFlipX: true,
+  icon: 'cornerDownLeft',
   action: 'enter',
 }
 
@@ -417,8 +386,7 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
     */
     const enter: KeyDef = {
       label: '⏎',
-      icon: 'cornerDownRight',
-      iconFlipX: true,
+      icon: 'cornerDownLeft',
       action: 'enter',
     }
     return [

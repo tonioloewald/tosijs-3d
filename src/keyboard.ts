@@ -1379,20 +1379,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           x: ix,
           y: iy,
         })
-        if (r.key.iconRotate || r.key.iconFlipX) {
-          // About the icon's own centre, so rotating cannot also move it.
-          const cx = ix + size / 2
-          const cy = iy + size / 2
-          const parts: string[] = []
-          if (r.key.iconRotate) parts.push(`rotate(${r.key.iconRotate} ${cx} ${cy})`)
-          // Mirror about the icon's own centre, so flipping cannot also move it.
-          if (r.key.iconFlipX) parts.push(`translate(${cx * 2} 0) scale(-1 1)`)
-          const wrap = g({ transform: parts.join(' ') }) as SVGGElement
-          wrap.appendChild(glyph)
-          cell.appendChild(wrap)
-        } else {
-          cell.appendChild(glyph)
-        }
+        cell.appendChild(glyph)
       }
       /*
       Discoverability signifier: hold-capable keys carry a faint glyph in the
