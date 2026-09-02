@@ -1378,18 +1378,21 @@ export function panelScene(opts: PanelSceneOptions): {
             which is what the z-separation is for.
             */
             /*
-            Hang it from the field, then keep it on the panel.
+            Hang it from the field. NO CLAMP.
 
-            Below the anchor is where a keyboard belongs — but a field near the
-            bottom would push it off the plane entirely, so it is clamped to the
-            panel's own extent. Clamping rather than flipping: a keyboard that
-            jumped above the field for the last two rows would be a second
-            behaviour to learn, and it can simply overlap instead.
+            This was clamped to the panel's own extent, which pushed the keyboard
+            back UP over any field in the lower part of the panel — Tonio: "it
+            still places the numeric keypad over the field. I think it's refusing
+            to push it past the bottom of the panel still (which is more of a 2D
+            / DOM constraint)."
+
+            Exactly right, and I had carried a flat-layout instinct into a place
+            it does not apply: a popup in the DOM is bounded by something, but a
+            PLANE is not. Nothing crops it, nothing reflows around it, and
+            hanging below the panel costs nothing — which is the whole reason
+            the scene layer exists rather than reusing the panel overlay.
             */
-            y: Math.max(
-              -planeH / 2 + worldH / 2,
-              anchorBottomY - worldH / 2
-            ),
+            y: anchorBottomY - worldH / 2,
             // NEARER the viewer — the z-separation is the point, not a nicety:
             // coplanar panels re-sort as you orbit.
             z: -0.08,
