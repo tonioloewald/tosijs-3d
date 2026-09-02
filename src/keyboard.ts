@@ -588,6 +588,49 @@ export function fieldGroup(config: {
   return api
 }
 
+/*
+THE ON-SCREEN KEYBOARD PREFERENCE IS SHARED, not per field.
+
+Tonio: _"the glyph might also be treated as a toggle. If you click it, you start
+getting the on screen keyboard automatically until you toggle it off."_ — which
+is the better model: you are not asking for a keyboard once, you are telling the
+app that reaching a real one is inconvenient, and that stays true for the next
+field too.
+
+It therefore cannot live on a field. Per-field state would mean toggling it on
+for every field you touch, and — worse — two glyphs on one panel showing
+contradictory states, which is the same "two things claiming to be the value"
+fault as a slider disagreeing with its readout.
+
+In memory for the session, deliberately: `localStorage` is not available
+everywhere this renders, and a preference that silently persisted across an app's
+own sessions is a decision for the app, not for a text field. `setAutoKeyboard`
+is exported so an app that wants to remember it can.
+*/
+let autoKeyboard: boolean | null = null
+const autoKeyboardListeners = new Set<() => void>()
+
+/** Is the on-screen keyboard set to appear on its own? */
+export function autoKeyboardEnabled(): boolean {
+  // Unset means "not decided yet", so fall back to the sniff — a touch device
+  // should not need to be told.
+  if (autoKeyboard != null) return autoKeyboard
+  const mm = (globalThis as { matchMedia?: (q: string) => { matches: boolean } })
+    .matchMedia
+  if (typeof mm !== 'function') return false
+  try {
+    return mm('(pointer: coarse)').matches
+  } catch {
+    return false
+  }
+}
+
+/** Turn the on-screen keyboard on or off for every field at once. */
+export function setAutoKeyboard(on: boolean): void {
+  autoKeyboard = on
+  for (const fn of autoKeyboardListeners) fn()
+}
+
 export function inputField(config: InputFieldOptions = {}): InputField {
   const H = config.height ?? 40
   const SIZE = config.fontSize ?? 16
@@ -782,32 +825,56 @@ export function inputField(config: InputFieldOptions = {}): InputField {
   let kbOpen: { close: () => void } | null = null
   /** Latched on press: the gesture belongs to where it started. */
   let glyphPress = false
+  /**
+   * Did THIS gesture start in the field?
+   *
+   * An outside press dismisses the keyboard on `down` and then the `up` arrives
+   * here with the preference switched on — which auto-reopened it, so the
+   * keyboard could never be put away. A release with no matching press is not a
+   * tap, and must not act.
+   */
+  let pressedInField = false
 
-  const coarsePointer = (): boolean => {
-    const mm = (
-      globalThis as { matchMedia?: (q: string) => { matches: boolean } }
-    ).matchMedia
-    if (typeof mm !== 'function') return false
-    try {
-      return mm('(pointer: coarse)').matches
-    } catch {
-      return false
-    }
-  }
 
+  /*
+  The glyph SHOWS the shared preference, because it sets it.
+
+  A toggle that does not show its state is a button that lies — and with the
+  preference shared, every field's glyph has to agree, so they all repaint when
+  any one of them is pressed.
+  */
   const kbGlyph =
-    kbMode === 'never'
-      ? null
-      : iconGlyph('keyboard', {
-          color: TH.PLACEHOLDER,
-          size: 16,
-          x: 0,
-          y: Math.round((H - 16) / 2),
-        })
+    kbMode === 'never' ? null : (svgElements.g({ 'data-kb-toggle': '' }) as SVGGElement)
   if (kbGlyph) el.appendChild(kbGlyph)
+
+  const paintGlyph = (): void => {
+    if (kbGlyph == null) return
+    while (kbGlyph.firstChild) kbGlyph.removeChild(kbGlyph.firstChild)
+    kbGlyph.appendChild(
+      iconGlyph('keyboard', {
+        color: autoKeyboardEnabled() ? TH.ACCENT : TH.PLACEHOLDER,
+        size: 16,
+        x: 0,
+        y: Math.round((H - 16) / 2),
+      })
+    )
+  }
+  paintGlyph()
+  if (kbGlyph) autoKeyboardListeners.add(paintGlyph)
 
   /** A keyboard needs about this much room, or it is not a keyboard. */
   const KB_MIN_HEIGHT = 150
+
+  /**
+   * The glyph's job: flip the shared preference, and make this field match it
+   * immediately — turning it on should show you a keyboard now, not next time.
+   */
+  const toggleAutoKeyboard = (): void => {
+    const next = !autoKeyboardEnabled()
+    setAutoKeyboard(next)
+    if (next && kbOpen == null) openKeyboard()
+    else if (!next && kbOpen != null) openKeyboard() // closes, see below
+  }
 
   const openKeyboard = (): void => {
     if (kbMode === 'never') return
@@ -906,13 +973,14 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       if (glyphPress) {
         if (kind === 'up') {
           glyphPress = false
-          openKeyboard()
+          toggleAutoKeyboard()
         } else if (kind === 'leave') {
           glyphPress = false
         }
         return
       }
       if (kind === 'down') {
+        pressedInField = true
         scrubFrom = x
         scrubBase = Number(state.text)
         scrubbing = false
@@ -946,8 +1014,16 @@ export function inputField(config: InputFieldOptions = {}): InputField {
       Guarded on `!scrubbing` so a scrub that ends inside the field does not also
       summon a panel over what you were just adjusting.
       */
-      if (kind === 'up' && kbOpen == null) {
-        if (kbMode === 'always' || (kbMode === 'auto' && coarsePointer())) {
+      if (kind === 'up') {
+        const wasTap = pressedInField
+        pressedInField = false
+        // `always` is what an XR panel passes; `auto` follows the shared
+        // preference, which the glyph sets and a touch device seeds.
+        if (
+          wasTap &&
+          kbOpen == null &&
+          (kbMode === 'always' || (kbMode === 'auto' && autoKeyboardEnabled()))
+        ) {
           openKeyboard()
         }
       }

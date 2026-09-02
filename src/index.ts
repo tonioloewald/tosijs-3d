@@ -493,7 +493,13 @@ import {
   columnAt,
 } from './table-layout'
 import { gamepadFocus, createFocusPulse } from './gamepad-focus'
-import { keyboard, inputField, fieldGroup } from './keyboard'
+import {
+  keyboard,
+  inputField,
+  fieldGroup,
+  autoKeyboardEnabled,
+  setAutoKeyboard,
+} from './keyboard'
 import {
   keyLayout,
   accentsFor,
@@ -535,6 +541,10 @@ export const ui = {
   keyboard,
   inputField,
   fieldGroup,
+  // The SHARED on-screen-keyboard preference the field glyph toggles — exported
+  // so an app can seed it, persist it, or drive it from its own settings.
+  autoKeyboardEnabled,
+  setAutoKeyboard,
   keyLayout,
   accentsFor,
   hasAccents,

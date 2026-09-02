@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from 'bun:test'
+import { describe, test, expect, beforeAll, beforeEach } from 'bun:test'
 import { Window } from 'happy-dom'
 
 // widgets3d builds SVG at import time, so it needs a DOM first.
@@ -514,6 +514,10 @@ describe('select3d opens a MENU from its value, and keeps its steppers', () => {
 })
 
 describe('the keyboard affordance — summon it without reaching for a real one', () => {
+  // The preference is SHARED and lives at module scope — which is the point of
+  // it, and means a test that flips it would leak into the next. Reset per test.
+  beforeEach(() => w3d_kb.setAutoKeyboard(false))
+
   // TALL, because a keyboard needs room — on a fit-height panel (64px) it would
   // be capped to 64px and land on top of the field, which is why it now refuses.
   const build = (keyboard?: 'auto' | 'always' | 'never') => {
@@ -560,6 +564,24 @@ describe('the keyboard affordance — summon it without reaching for a real one'
     const { panel } = build()
     tapAt(panel, 60)
     expect(panel.querySelectorAll('svg').length).toBe(0)
+  })
+
+  test('the glyph is a TOGGLE — it flips the shared preference for every field', () => {
+    // Tonio: "if you click it, you start getting the on screen keyboard
+    // automatically until you toggle it off." So it is a mode, not a one-shot,
+    // and it cannot be per-field: two glyphs on one panel would disagree.
+    const { panel } = build()
+    expect(w3d_kb.autoKeyboardEnabled()).toBe(false)
+    panel.handlePointer('down', 288, 20)
+    panel.handlePointer('up', 288, 20)
+    expect(w3d_kb.autoKeyboardEnabled()).toBe(true)
+  })
+
+  test('once toggled on, a tap in the FIELD summons it', () => {
+    const { panel } = build()
+    w3d_kb.setAutoKeyboard(true)
+    tapAt(panel, 60)
+    expect(panel.querySelectorAll('svg').length).toBe(1)
   })
 
   test("`always` opens on a tap anywhere in the field — what an XR panel wants", () => {
