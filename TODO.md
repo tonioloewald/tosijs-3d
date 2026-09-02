@@ -1888,6 +1888,22 @@ placement library below — the scene layer needs the anchor projected into worl
 space, which is exactly the "where does a rect come from" question that entry
 raises.
 
+[ ] **Swap in tosijs-ui's new icons when they ship** — cosmetic, not blocking.
+
+  - **A proper SHIFT glyph.** We draw `chevron` rotated -90 degrees, because
+    `iconGlyph` does not apply composition suffixes (asking it for a `chevronUp`
+    logs "unknown icon" and falls back to a BOX). Drop `iconRotate` from the
+    shift KeyDef once a real one exists; keep the `iconRotate`/`iconFlipX`
+    machinery, since `cornerDownLeft` is still a mirror REFERENCE and enter
+    depends on the flip.
+  - **A TAB glyph**, for moving between fields. Nothing uses it yet — worth
+    pairing with `fieldGroup`, which already knows the traversal order and is
+    the obvious owner of a "next field" key.
+
+  Re-run `bun run icons` after copying, and check `icon-names.test.ts` still
+  passes: it now verifies an icon RENDERS (real markup, not a mirror reference)
+  as well as existing, which is exactly the trap `cornerDownLeft` fell into.
+
 [ ] **0.8.0: rename every `onX` callback to `handleX`.** Tonio: "the tosijs
 convention is a callback event handler is called handleChange" — and it is a
 breaking rename, so it waits for a minor.
