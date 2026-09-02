@@ -215,6 +215,34 @@ export { B3dReflections, b3dReflections } from './b3d-reflections'
 export { B3dSkybox, b3dSkybox } from './b3d-skybox'
 export { B3dWater, b3dWater } from './b3d-water'
 export { B3dLight, b3dLight } from './b3d-light'
+export {
+  B3dLamp,
+  B3dPointLight,
+  b3dPointLight,
+  B3dSpotLight,
+  b3dSpotLight,
+  B3dAreaLight,
+  b3dAreaLight,
+} from './b3d-lamp'
+// Curves over a period — the model behind a lamp's flicker, pulse and fade.
+export {
+  sampleLight,
+  sampleModulation,
+  sampleEnvelope,
+  modulationPhase,
+  lightPhase,
+  isModulated,
+  shiftHue,
+  NO_MODULATION,
+} from './light-modulation'
+export type {
+  LightModulation,
+  LightEnvelope,
+  LightPhase,
+  ChannelCurves,
+  ModulationCurve,
+  ModulationSample,
+} from './light-modulation'
 export { B3dFog, b3dFog } from './b3d-fog'
 export { B3dClouds, b3dClouds } from './b3d-clouds'
 export {

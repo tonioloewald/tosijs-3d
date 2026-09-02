@@ -527,6 +527,8 @@ Panels build on this: `frame-panel.ts` (`attachFramePanel`) pins an SVG panel to
 | `src/water-normal.ts` | Procedural water normal map from our own Perlin — tiles by construction (sampled on a torus), so `b3dWater` needs no file, no network and no URL that must resolve in someone else's app |
 | `src/b3d-reflections.ts` | Automatic reflection probes for `_mirror` meshes |
 | `src/b3d-light.ts` | Hemispheric ambient light |
+| `src/b3d-lamp.ts` | **Lights you can see** — `b3dPointLight`/`b3dSpotLight`/`b3dAreaLight`: a placed light WITH its fixture geometry (toggle it, scale it, or bring a GLB / parent to `node`). Shadows where Babylon allows (point/spot; `RectAreaLight` is not a `ShadowLight`), **gels** where it allows (spot only — `projectionTexture`, bitmap or SVG via `SvgTexture`). The two ❌ cases warn once rather than being faked |
+| `src/light-modulation.ts` | Pure model behind a lamp's flicker/pulse/fade — a `period` plus `[0,1]→[0,1]` curves for brightness/hue/range, and an attack/decay **envelope** that MULTIPLIES the loop (so a flickering lamp keeps flickering as it fades). Brightness and range multiply, hue shifts bipolar about 0.5. Unit-tested |
 | `src/b3d-fog.ts` | Fog configuration |
 | `src/b3d-clouds.ts` | `<tosi-b3d-clouds>` — opaque blob cloud layer you can fly into (fog whiteout), `coverage` weather dial, `insideCloud` tactic |
 | `src/cloud-shadows.ts` | Projected cloud-shadow texture (world-XZ sampled in a material plugin) — conforms to terrain, falls on elevated receivers |

@@ -1,6 +1,7 @@
 # Environment
 
 <!-- toc -->
+- [b3d-lamp](/b3d-lamp/)
 - [b3d-terrain](/b3d-terrain/)
 - [b3d-ambient](/b3d-ambient/)
 - [b3d-clouds](/b3d-clouds/)

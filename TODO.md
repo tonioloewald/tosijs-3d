@@ -533,6 +533,27 @@ the refs in the Open section (`gh issue list -R tonioloewald/<repo> --state
 closed --limit 200 --json number -q '.[].number'`). Cheap enough to run every
 release rather than only on minors, which is when it caught these.
 
+[ ] **Water: a vertex channel for "something is intersecting me", driving surf.**
+Tonio, 2026-09-02: _"can we have a water mesh use a vertex channel to track
+whether there is something intersecting the water (terrain or a boat say) and add
+turbulence (like surf) in those areas?"_
+
+The appeal is that it unifies two effects usually built separately — a shoreline
+and a wake are the same question asked of different objects, and the answer is a
+scalar per vertex. Shore surf falls out of the terrain intersection for free,
+which is the case that currently has no answer at all.
+
+Shape it as: compute an **intersection/proximity scalar per water vertex**
+(terrain height vs water plane is cheap and static per tile; dynamic bodies are
+the harder half), write it to a vertex attribute or a coarse texture, and let the
+water material read it to add chop, foam and spray. Static and dynamic sources
+want different update rates — terrain solves once per tile, a boat every frame —
+so the channel probably wants to be the SUM of a baked layer and a live one.
+
+Fits [[MEDIUM-DESIGN.md]]'s framing (water as a medium with optics), and it is
+behaviour-over-vertices in the north-star sense: surf that responds to what is
+actually there beats more triangles of static wave.
+
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are
