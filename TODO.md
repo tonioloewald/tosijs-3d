@@ -1806,6 +1806,38 @@ scene button), and COLLAPSIBLE.
 
 ### Improvements and future work
 
+[ ] **The top `widgets3d` demo needs a pass — three faults, one of them not
+cosmetic.** Reported by Tonio; diagnosed but not yet fixed.
+
+  1. **Test blocks pile SVG panels into the visible demo.** Counted on a live
+     page: preview #1 holds **7** `data-w3d="panel"` svgs where it should hold
+     one (the other two previews hold 1 and 0). Cause: each of the six ` ```test `
+     blocks calls `preview.append(panel)` into the SAME `preview` element the
+     demo above it renders into, and none removes what it appended. Tonio: "a
+     bunch of SVG elements are appended to the demo (you need to maximize) …
+     it seems wrong." It is deterministic, not accumulating — 7 on every reload.
+
+     Our fix is for each test to clean up after itself (or mount into a detached
+     node). But the sharper question is upstream: should a doc TEST get the same
+     visible `preview` as the demo at all? If it must, it wants an automatic
+     reset between blocks — every consumer writing tests that mount something
+     will hit this, and the symptom (a demo that looks wrong) points nowhere
+     near the cause. Worth a tosijs-ui issue once we have decided which.
+
+  2. **Native controls have terrible contrast** — the `<input type="range">` and
+     its label inherit nothing, so they render near-invisible on the demo's dark
+     `#11131a`. Needs an explicit colour. Check the other demos for the same:
+     anything relying on inherited colour is only correct by accident of the
+     page it happens to be on, which is the same trap `theme-editor`'s fields
+     fell into.
+
+  3. **`style` is passed as a STRING, which is not good tosijs.** tosijs takes a
+     style OBJECT (typed, camelCase); a string works but opts out of the typing
+     and of everything CLAUDE.md's styling section is about. Tonio: "this may
+     apply elsewhere" — so this is a sweep across the doc examples, not one
+     edit. Worth doing once and consistently, since the demos are what an
+     adopter copies.
+
 [ ] **A PINNING utility — one set of heuristics, DOM and 3D.** Tonio: tosijs-ui
 "has this really nice utility library that lets you pin a popup to another
 element using simple heuristics. It might be useful to build an equivalent for
