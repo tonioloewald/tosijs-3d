@@ -197,6 +197,7 @@ export declare function spawnMissile(owner: B3d, opts: MissileOpts): {
     dispose: () => void;
 };
 export declare class B3dLauncher extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         muzzleSpeed: number;

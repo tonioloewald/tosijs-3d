@@ -98,6 +98,7 @@ import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud';
 import { glassUV, hudPointFromUV, hudSizePx } from './hud-math';
 import * as BABYLON from '@babylonjs/core';
 export class B3dHud extends B3dChild {
+    static preferredTagName = 'tosi-b3d-hud';
     static initAttributes = {
         // Empty = the built-in code HUD (fully wired). Set to a designer SVG to load one.
         url: '',
@@ -408,5 +409,5 @@ export class B3dHud extends B3dChild {
         this.controller.setTraces(points);
     }
 }
-export const b3dHud = B3dHud.elementCreator({ tag: 'tosi-b3d-hud' });
+export const b3dHud = B3dHud.elementCreator();
 //# sourceMappingURL=b3d-hud.js.map

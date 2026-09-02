@@ -51,6 +51,60 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.6</h2>
+<p>An adoption-feedback release: everything here came from <code>tosijs-3d-ensemble</code>
+hitting it for real.</p>
+<h3>Fixed</h3>
+<ul>
+<li><p><strong>The icon LANGUAGE now works on the texture path</strong> (#54). <code>icon-data</code> stores
+every value with a trailing space, and a redirect is re-parsed as a <em>name</em>
+where that space is fatal — so <code>parseStyleSuffixes(&#39;cornerUpRight0f &#39;)</code>
+returned <code>null</code> while the trimmed form resolves. Every <strong>mirrored</strong> icon failed
+to resolve, which is the whole left-facing set (they are all stored as
+<code>&lt;rightVariant&gt;0f</code>), on both the DOM and texture paths.</p>
+<p><code>iconGlyph</code> also computed the composed style and then discarded it with a
+warning; it now applies it as an SVG transform. So a plain NAME carries the
+whole language everywhere — <code>cornerUpLeft</code>, <code>chevron270r</code> — and the
+<code>KeyDef.iconRotate</code>/<code>iconFlipX</code> workaround is deleted rather than copied into
+<code>IconGridItem</code>.</p>
+</li>
+<li><p><strong><code>iconExists(name)</code></strong> is exported, because the alternative is guessing:
+<code>name in iconData</code> says no to every composed name, and inspecting the stored
+value says no to every mirror.</p>
+</li>
+<li><p><strong><code>b3d-shadows</code> no longer writes <code>receiveShadows</code> on instanced meshes</strong> (#53) —
+Babylon warns once per instance and ensemble measured ~10,000 messages on one
+load. The write was already a no-op (an instance takes the flag from its
+source), so nothing that received shadows before stops now.</p>
+</li>
+<li><p><strong>You can swim up again.</strong> Head depth was derived twice and the two disagreed:
+the up-thrust gate included <code>bodyBottom</code>, the up-AIM clamp did not. A swim pose
+puts the root at the waterline with the body below it, so the aim clamp thought
+the head was a body-length shallower than it was and clamped upward aim to
+nothing — you could push up but not aim up.</p>
+</li>
+<li><p><strong>The keyboard works with ONE presentation.</strong> <code>useDomLayer</code> was opt-in, so a
+flat-only consumer got no keyboard at all on a <code>height: &#39;fit&#39;</code> panel and a
+cropped one on a tall panel. The DOM layer now installs itself when the panel
+is on the page.</p>
+</li>
+<li><p><strong>The sky advances by measured time</strong>, not by the interval it asked for — a
+backgrounded tab throttles timers, so the day cycle ran ~10x slow and never
+caught up.</p>
+</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>Underwater fog eases toward the surface</strong> rather than being full-strength
+until the crossing band.</li>
+<li><strong>Console hygiene</strong>: icon warnings fire once per problem rather than once per
+draw (they run from drawing code), demos report on the page instead of logging,
+and our own deprecated tosijs usages are gone — <code>elementCreator({tag})</code> →
+<code>static preferredTagName</code>, <code>static styleSpec</code> → <code>shadowStyleSpec</code>.</li>
+<li><strong><code>b3d-physics</code> imports <code>PhysicsViewer</code> from the barrel</strong> rather than mixing a
+deep path with it in the same module — the classic route to two Babylon module
+instances in a consumer&#39;s bundle.</li>
+</ul>
 <h2>0.7.5</h2>
 <h3>Added</h3>
 <ul>

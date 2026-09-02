@@ -3,7 +3,8 @@ import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import { type StarData, type GalaxyData, type StarSystemData } from './galaxy-data';
 export declare class B3dGalaxy extends B3dChild {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

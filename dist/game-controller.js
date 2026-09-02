@@ -95,6 +95,7 @@ const DEFAULT_BUTTONS = [
     { field: 'dpadDown', keys: ['G'], attack: 5, decay: 10, type: 'toggle' },
 ];
 export class GameController extends Component {
+    static preferredTagName = 'tosi-game-controller';
     static initAttributes = {
         wheelSensitivity: 1,
         updateIntervalMs: 33,
@@ -242,7 +243,5 @@ export class GameController extends Component {
         super.disconnectedCallback();
     }
 }
-export const gameController = GameController.elementCreator({
-    tag: 'tosi-game-controller',
-});
+export const gameController = GameController.elementCreator();
 //# sourceMappingURL=game-controller.js.map

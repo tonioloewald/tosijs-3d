@@ -46,6 +46,7 @@ export const primitiveMaterial = (meshName, scene, attrs) => {
     return material;
 };
 export class B3dSphere extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-sphere';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'sphere',
@@ -76,8 +77,9 @@ export class B3dSphere extends AbstractMesh {
         owner.register({ meshes: [this.mesh] });
     }
 }
-export const b3dSphere = B3dSphere.elementCreator({ tag: 'tosi-b3d-sphere' });
+export const b3dSphere = B3dSphere.elementCreator();
 export class B3dBox extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-box';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'box',
@@ -112,8 +114,9 @@ export class B3dBox extends AbstractMesh {
         owner.register({ meshes: [this.mesh] });
     }
 }
-export const b3dBox = B3dBox.elementCreator({ tag: 'tosi-b3d-box' });
+export const b3dBox = B3dBox.elementCreator();
 export class B3dGround extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-ground';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'ground',
@@ -155,5 +158,5 @@ export class B3dGround extends AbstractMesh {
         owner.register({ meshes: [this.mesh] });
     }
 }
-export const b3dGround = B3dGround.elementCreator({ tag: 'tosi-b3d-ground' });
+export const b3dGround = B3dGround.elementCreator();
 //# sourceMappingURL=b3d-primitives.js.map

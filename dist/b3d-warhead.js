@@ -136,6 +136,7 @@ import { resolveAoe } from './warhead';
 // boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.
 const BOOM_DURATION = 0.35;
 export class B3dWarhead extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-warhead';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         damage: 20,
@@ -167,9 +168,7 @@ export class B3dWarhead extends AbstractMesh {
         detonateWarhead(this.owner, c, this.spec, !isOff(this.los));
     }
 }
-export const b3dWarhead = B3dWarhead.elementCreator({
-    tag: 'tosi-b3d-warhead',
-});
+export const b3dWarhead = B3dWarhead.elementCreator();
 /**
  * Resolve + apply an AOE blast over the scene's destroyables (LOS-gated when
  * `useLos`) and spawn a flash. Shared by `<tosi-b3d-warhead>` and by projectiles /

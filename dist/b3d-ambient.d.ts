@@ -4,6 +4,7 @@ import type { AmbientEffect, AmbientRequest } from './ambient-budget';
 import type { PerfTier } from './perf-probe';
 import type { B3d } from './tosi-b3d';
 export declare class B3dAmbient extends B3dChild implements AmbientEffect {
+    static preferredTagName: string;
     static initAttributes: {
         preset: string;
         where: "always" | "underwater" | "above";

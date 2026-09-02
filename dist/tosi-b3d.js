@@ -336,6 +336,7 @@ const noopRefresh = () => { };
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const XR_RIGHT = new BABYLON.Vector3(1, 0, 0);
 export class B3d extends Component {
+    static preferredTagName = 'tosi-b3d';
     static initAttributes = {
         glowLayerIntensity: 0,
         frameRate: 30,
@@ -422,7 +423,7 @@ export class B3d extends Component {
          */
         enterXrOnResume: 'off',
     };
-    static styleSpec = {
+    static shadowStyleSpec = {
         ':host': {
             display: 'block',
             position: 'relative',
@@ -3934,5 +3935,5 @@ export class B3d extends Component {
         }
     }
 }
-export const b3d = B3d.elementCreator({ tag: 'tosi-b3d' });
+export const b3d = B3d.elementCreator();
 //# sourceMappingURL=tosi-b3d.js.map

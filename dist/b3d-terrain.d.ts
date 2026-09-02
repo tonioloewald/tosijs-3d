@@ -4,7 +4,8 @@ import type { B3d } from './tosi-b3d';
 import type { GradientFilter } from './gradient-filter';
 import { BiomePlugin } from './biome-plugin';
 export declare class B3dTerrain extends B3dChild {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

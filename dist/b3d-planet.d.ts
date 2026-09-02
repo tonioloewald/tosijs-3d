@@ -4,7 +4,8 @@ import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 import type { GradientFilter } from './gradient-filter';
 export declare class B3dPlanet extends B3dChild {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

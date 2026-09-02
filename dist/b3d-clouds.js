@@ -177,6 +177,7 @@ function makeEggMesh(name, scene, bias = 0.3) {
     return m;
 }
 export class B3dClouds extends B3dChild {
+    static preferredTagName = 'tosi-b3d-clouds';
     static initAttributes = {
         count: 36,
         // Authored lobe mesh (GLB). Its geometry replaces the procedural lobe —
@@ -713,7 +714,5 @@ export class B3dClouds extends B3dChild {
         }
     }
 }
-export const b3dClouds = B3dClouds.elementCreator({
-    tag: 'tosi-b3d-clouds',
-});
+export const b3dClouds = B3dClouds.elementCreator();
 //# sourceMappingURL=b3d-clouds.js.map

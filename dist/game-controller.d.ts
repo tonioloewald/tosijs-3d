@@ -3,6 +3,7 @@ import type { VirtualGamepad, GamepadSource, InputMapping } from './virtual-game
 import { MappedInputProvider } from './virtual-gamepad';
 import { HardwareGamepadSource } from './hardware-gamepad';
 export declare class GameController extends Component implements GamepadSource {
+    static preferredTagName: string;
     static initAttributes: {
         wheelSensitivity: number;
         updateIntervalMs: number;

@@ -28,6 +28,7 @@ export declare function runProbe(opts?: {
 /** `<tosi-b3d-probe>` — a thin element wrapper around `runProbe` for declarative
  * use. It fires a `profile` event when done; the measurement itself mounts nothing. */
 export declare class B3dProbe extends Component {
+    static preferredTagName: string;
     static initAttributes: {
         /** Ignore the cache and re-measure (for testing / calibration). */
         force: boolean;

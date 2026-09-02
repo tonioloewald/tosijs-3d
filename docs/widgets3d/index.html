@@ -80,9 +80,14 @@ const panel = panel3d(
   text3d({ text: &#39;Drag the slider — the native control below is bound to the same value.&#39; }),
   list3d({
     items: [{ label: &#39;Talk&#39; }, { label: &#39;Trade&#39; }, { label: &#39;Leave&#39; }],
-    onSelect: (item) =&gt; console.log(&#39;picked&#39;, item.label),
+    // Reports on the PAGE, not to the console: a demo you must open devtools to
+    // read is one most people never see the output of — and it spams the console
+    // of every page that embeds it.
+    onSelect: (item) =&gt; (readout.textContent = `picked: ${item.label}`),
   })
 )
+
+const readout = div({ style: { padding: &#39;0 16px 12px&#39;, font: &#39;13px system-ui&#39;, opacity: &#39;0.75&#39; } }, &#39;Pick a list item.&#39;)
 
 preview.append(
   div(
@@ -94,7 +99,8 @@ preview.append(
     } },
     panel,
     label(&#39;native, same binding &#39;, input({ type: &#39;range&#39;, min: 0, max: 24, step: 0.5, bindValue: ui.time }))
-  )
+  ),
+  readout
 )
 </code></pre>
 <pre><code class="language-test">import { tosi, updates } from &#39;tosijs&#39;

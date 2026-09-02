@@ -3,7 +3,8 @@ import * as BABYLON from '@babylonjs/core';
 import { JoltPlugin } from './jolt-plugin';
 import type { B3d } from './tosi-b3d';
 export declare class B3dPhysics extends B3dChild {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

@@ -266,6 +266,7 @@ export function cloneNodeAnimations(container, source, clone, instanceName) {
     return out;
 }
 export class B3dLibrary extends B3dChild {
+    static preferredTagName = 'tosi-b3d-library';
     static initAttributes = {
         url: '',
         type: '',
@@ -566,7 +567,5 @@ export class B3dLibrary extends B3dChild {
         this.owner = null;
     }
 }
-export const b3dLibrary = B3dLibrary.elementCreator({
-    tag: 'tosi-b3d-library',
-});
+export const b3dLibrary = B3dLibrary.elementCreator();
 //# sourceMappingURL=b3d-library.js.map

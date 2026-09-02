@@ -89,6 +89,7 @@ const DEFAULT_BUTTONS = [
     { field: 'dpadRight', keys: ['K'], attack: 5, decay: 10 },
 ];
 export class KeyboardGamepadSource extends Component {
+    static preferredTagName = 'tosi-keyboard-gamepad';
     kind = 'keyboard';
     static initAttributes = {
         wheelSensitivity: 1,
@@ -237,7 +238,5 @@ export class KeyboardGamepadSource extends Component {
         super.disconnectedCallback();
     }
 }
-export const keyboardGamepad = KeyboardGamepadSource.elementCreator({
-    tag: 'tosi-keyboard-gamepad',
-});
+export const keyboardGamepad = KeyboardGamepadSource.elementCreator();
 //# sourceMappingURL=keyboard-gamepad.js.map

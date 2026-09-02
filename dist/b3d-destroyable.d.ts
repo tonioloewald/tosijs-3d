@@ -4,6 +4,7 @@ import type { B3d } from './tosi-b3d';
 import type { CombatEvent, ChainLink } from './destroyable';
 import { type Prefab } from './prefab';
 export declare class B3dDestroyable extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         /**

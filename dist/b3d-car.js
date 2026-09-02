@@ -44,6 +44,7 @@ import * as BABYLON from '@babylonjs/core';
 import { B3dControllable } from './b3d-controllable';
 import { carMapping } from './virtual-gamepad';
 export class B3dCar extends B3dControllable {
+    static preferredTagName = 'tosi-b3d-car';
     inputMapping = carMapping;
     static initAttributes = {
         ...B3dControllable.initAttributes,
@@ -163,5 +164,5 @@ export class B3dCar extends B3dControllable {
         super.sceneDispose();
     }
 }
-export const b3dCar = B3dCar.elementCreator({ tag: 'tosi-b3d-car' });
+export const b3dCar = B3dCar.elementCreator();
 //# sourceMappingURL=b3d-car.js.map

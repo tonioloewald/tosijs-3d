@@ -315,6 +315,7 @@ async function loadCluster(url) {
  * and adds it to the active input provider.
  */
 export class B3dGamepad extends Component {
+    static preferredTagName = 'tosi-b3d-gamepad';
     kind = 'glass';
     static initAttributes = {
         /** Spec string: `''`/`true` = full layout, else e.g. `"a,b,left_stick"`. */
@@ -518,7 +519,5 @@ export class B3dGamepad extends Component {
         super.disconnectedCallback();
     }
 }
-export const b3dGamepad = B3dGamepad.elementCreator({
-    tag: 'tosi-b3d-gamepad',
-});
+export const b3dGamepad = B3dGamepad.elementCreator();
 //# sourceMappingURL=glass-gamepad.js.map

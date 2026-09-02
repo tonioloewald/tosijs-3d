@@ -8,6 +8,7 @@ const MAPPINGS = {
     aircraft: () => aircraftMapping(),
 };
 export class B3dController extends B3dControllable {
+    static preferredTagName = 'tosi-b3d-controller';
     static initAttributes = {
         ...B3dControllable.initAttributes,
         mapping: 'biped',
@@ -62,7 +63,5 @@ export class B3dController extends B3dControllable {
         super.sceneDispose();
     }
 }
-export const b3dController = B3dController.elementCreator({
-    tag: 'tosi-b3d-controller',
-});
+export const b3dController = B3dController.elementCreator();
 //# sourceMappingURL=b3d-controller.js.map

@@ -346,7 +346,8 @@ const emptyTileProfile = () => ({
     frameTimeCapped: false,
 });
 export class B3dTerrain extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-terrain';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -1410,7 +1411,5 @@ export class B3dTerrain extends B3dChild {
         this.update(this.pool.length);
     }
 }
-export const b3dTerrain = B3dTerrain.elementCreator({
-    tag: 'tosi-b3d-terrain',
-});
+export const b3dTerrain = B3dTerrain.elementCreator();
 //# sourceMappingURL=b3d-terrain.js.map

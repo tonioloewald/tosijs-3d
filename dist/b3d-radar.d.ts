@@ -3,6 +3,7 @@ import { B3dChild } from './b3d-utils';
 import type { RadarTrack } from './radar';
 import type { B3d, RadarBlip } from './tosi-b3d';
 export declare class B3dRadar extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         range: number;
         coneDeg: number;

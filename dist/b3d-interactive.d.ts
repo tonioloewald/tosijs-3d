@@ -3,7 +3,8 @@ import { B3dChild } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
 import { type InteractionInfo } from './interactive-behavior';
 export declare class B3dInteractive extends B3dChild {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

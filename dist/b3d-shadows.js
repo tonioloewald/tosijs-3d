@@ -87,6 +87,7 @@ import * as BABYLON from '@babylonjs/core';
 import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils';
 import { resolveBudget } from './b3d-quality';
 export class B3dSun extends B3dChild {
+    static preferredTagName = 'tosi-b3d-sun';
     static initAttributes = {
         shadowMaxZ: 100,
         shadowDarkness: 0.1,
@@ -147,6 +148,26 @@ export class B3dSun extends B3dChild {
                 !this.shadowCasters.includes(mesh)) {
                 this.shadowCasters.push(mesh);
             }
+            /*
+            AN INSTANCE INHERITS THIS FROM ITS SOURCE — do not write it.
+      
+            Babylon warns "Setting receiveShadows on an instanced mesh has no effect"
+            once PER INSTANCE, and a library-backed scene has thousands: ensemble
+            measured ~10,000 messages on a single load, mostly in one burst, which
+            drowns the console outright (tosijs-3d#53).
+      
+            Skipping it cannot regress anything, and that is the point: the write was
+            ALREADY a no-op. An `InstancedMesh` takes the flag from the mesh it
+            instances, so Babylon ignored the assignment and only warned. Nothing that
+            received shadows before stops now — a source mesh that is registered still
+            gets the flag here, and one that is not never got it anyway.
+      
+            (`actualMeshes` does not filter these out: it tests `geometry != null`, and
+            an instance proxies its source's geometry, so instances arrive here looking
+            exactly like meshes. That is why the guard has to be explicit.)
+            */
+            if (mesh instanceof BABYLON.InstancedMesh)
+                continue;
             mesh.receiveShadows =
                 !conventionName(mesh.name).includes('_noshadow') &&
                     !conventionName(mesh.name).includes('-noshadow');
@@ -281,5 +302,5 @@ export class B3dSun extends B3dChild {
         this.configureShadows();
     }
 }
-export const b3dSun = B3dSun.elementCreator({ tag: 'tosi-b3d-sun' });
+export const b3dSun = B3dSun.elementCreator();
 //# sourceMappingURL=b3d-shadows.js.map

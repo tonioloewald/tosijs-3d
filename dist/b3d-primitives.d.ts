@@ -23,6 +23,7 @@ export declare const primitiveMaterial: (meshName: string, scene: BABYLON.Scene,
     glowColor?: string;
 }) => BABYLON.Material;
 export declare class B3dSphere extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         segments: number;
@@ -51,6 +52,7 @@ export declare class B3dSphere extends AbstractMesh {
 }
 export declare const b3dSphere: import("tosijs").ElementCreator<B3dSphere>;
 export declare class B3dBox extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         size: number;
@@ -81,6 +83,7 @@ export declare class B3dBox extends AbstractMesh {
 }
 export declare const b3dBox: import("tosijs").ElementCreator<B3dBox>;
 export declare class B3dGround extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         size: number;

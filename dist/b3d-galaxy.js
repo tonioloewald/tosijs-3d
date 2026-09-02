@@ -319,7 +319,8 @@ import * as BABYLON from '@babylonjs/core';
 import { generateGalaxy, generateStarSystem, } from './galaxy-data';
 import { b3dBlackHole } from './b3d-black-hole';
 export class B3dGalaxy extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-galaxy';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -706,7 +707,5 @@ export class B3dGalaxy extends B3dChild {
         this.buildBlackHole();
     }
 }
-export const b3dGalaxy = B3dGalaxy.elementCreator({
-    tag: 'tosi-b3d-galaxy',
-});
+export const b3dGalaxy = B3dGalaxy.elementCreator();
 //# sourceMappingURL=b3d-galaxy.js.map

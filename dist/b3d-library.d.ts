@@ -66,6 +66,7 @@ export interface InstantiateOptions {
     canonical?: boolean;
 }
 export declare class B3dLibrary extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         url: string;
         type: string;

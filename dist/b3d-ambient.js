@@ -304,6 +304,7 @@ let nextAmbientId = 0;
 /** Fallback view direction when no camera can be asked. */
 const FORWARD_Z = new BABYLON.Vector3(0, 0, 1);
 export class B3dAmbient extends B3dChild {
+    static preferredTagName = 'tosi-b3d-ambient';
     static initAttributes = {
         preset: 'motes',
         where: 'always',
@@ -714,7 +715,5 @@ export class B3dAmbient extends B3dChild {
         return m ? m.absolutePosition.y : null;
     }
 }
-export const b3dAmbient = B3dAmbient.elementCreator({
-    tag: 'tosi-b3d-ambient',
-});
+export const b3dAmbient = B3dAmbient.elementCreator();
 //# sourceMappingURL=b3d-ambient.js.map

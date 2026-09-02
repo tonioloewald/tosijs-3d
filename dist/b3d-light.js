@@ -58,6 +58,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 export class B3dLight extends B3dChild {
+    static preferredTagName = 'tosi-b3d-light';
     static initAttributes = {
         x: 0,
         y: 1,
@@ -92,5 +93,5 @@ export class B3dLight extends B3dChild {
         }
     }
 }
-export const b3dLight = B3dLight.elementCreator({ tag: 'tosi-b3d-light' });
+export const b3dLight = B3dLight.elementCreator();
 //# sourceMappingURL=b3d-light.js.map

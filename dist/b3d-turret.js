@@ -107,6 +107,7 @@ import { spawnProjectile } from './b3d-launcher';
 import { steerToward, gNormalize, gSub } from './guidance';
 const RAD_TO_DEG = 180 / Math.PI;
 export class B3dTurret extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-turret';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'turret',
@@ -289,7 +290,5 @@ export class B3dTurret extends AbstractMesh {
         super.sceneDispose();
     }
 }
-export const b3dTurret = B3dTurret.elementCreator({
-    tag: 'tosi-b3d-turret',
-});
+export const b3dTurret = B3dTurret.elementCreator();
 //# sourceMappingURL=b3d-turret.js.map

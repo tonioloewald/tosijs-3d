@@ -145,6 +145,7 @@ import { DestroyableBehavior } from './destroyable-behavior';
 import { spawnPrefab } from './prefab';
 import { b3dSound } from './b3d-sound';
 export class B3dDestroyable extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-destroyable';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'target',
@@ -420,7 +421,5 @@ export class B3dDestroyable extends AbstractMesh {
         super.sceneDispose();
     }
 }
-export const b3dDestroyable = B3dDestroyable.elementCreator({
-    tag: 'tosi-b3d-destroyable',
-});
+export const b3dDestroyable = B3dDestroyable.elementCreator();
 //# sourceMappingURL=b3d-destroyable.js.map

@@ -347,6 +347,7 @@ const GROUND_FRICTION = 1.2;
 // wobbly VTOL liftoff (rise a little, tip, settle back) from exploding on takeoff.
 const TAKEOFF_MARGIN = 2.5;
 export class B3dAircraft extends B3dControllable {
+    static preferredTagName = 'tosi-b3d-aircraft';
     inputMapping = aircraftMapping();
     static initAttributes = {
         ...B3dControllable.initAttributes,
@@ -1779,7 +1780,5 @@ export class B3dAircraft extends B3dControllable {
         super.sceneDispose();
     }
 }
-export const b3dAircraft = B3dAircraft.elementCreator({
-    tag: 'tosi-b3d-aircraft',
-});
+export const b3dAircraft = B3dAircraft.elementCreator();
 //# sourceMappingURL=b3d-aircraft.js.map

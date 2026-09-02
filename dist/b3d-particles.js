@@ -166,7 +166,8 @@ function hexToColor4(hex) {
     return new BABYLON.Color4(c.r, c.g, c.b, a);
 }
 export class B3dParticles extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-particles';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -338,7 +339,5 @@ export class B3dParticles extends B3dChild {
         }
     }
 }
-export const b3dParticles = B3dParticles.elementCreator({
-    tag: 'tosi-b3d-particles',
-});
+export const b3dParticles = B3dParticles.elementCreator();
 //# sourceMappingURL=b3d-particles.js.map

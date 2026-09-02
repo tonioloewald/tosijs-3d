@@ -80,6 +80,7 @@ import { WaterMaterial } from '@babylonjs/materials';
 import { AbstractMesh } from './b3d-utils';
 import { band } from './atmosphere';
 export class B3dWater extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-water';
     static initAttributes = {
         // Underwater fog: how thick, and how sharply it takes over as you cross the surface.
         // The transition is deliberately TIGHT (see the fog layer below): killing the "thunk"
@@ -293,10 +294,32 @@ export class B3dWater extends AbstractMesh {
             this._fogTheSky(w > 0);
             if (w <= 0)
                 return null;
-            // Full sea-fog immediately on entry, then keep thickening as you go deeper (murk with
-            // depth is both true and useful — it hides what's below you).
+            // Murk with depth is both true and useful — it hides what's below you.
             const deeper = Math.min(1, Math.max(0, depth / 30));
-            const density = attrs.underwaterFog + attrs.underwaterMurk * deeper;
+            /*
+            AND THE BASE FOG EASES OFF AS YOU APPROACH THE SURFACE.
+      
+            It used to be full-strength the instant you were under, so the whole
+            transition happened in the 20 cm crossing band: fog, then no fog. Tonio:
+            "we should make the water fog attenuate slightly as we approach the
+            surface."
+      
+            Physically it is light getting in — the last couple of metres are the
+            brightest water there is — and it reads as the surface becoming visible
+            *before* you reach it rather than arriving all at once. `SHALLOW_EASE`
+            keeps it slight: a bit over half strength at the surface, full by two
+            metres, which is enough to feel without making shallow water look clear.
+      
+            Deliberately separate from the crossing band above: that one is about not
+            flickering the fog mode at the plane, this one is about how the medium
+            looks. Folding them together would tie a visual choice to a numerical
+            guard.
+            */
+            const SHALLOW_EASE = 0.55;
+            const SHALLOW_DEPTH = 2;
+            const lit = Math.min(1, Math.max(0, depth / SHALLOW_DEPTH));
+            const nearSurface = SHALLOW_EASE + (1 - SHALLOW_EASE) * lit;
+            const density = attrs.underwaterFog * nearSurface + attrs.underwaterMurk * deeper;
             return {
                 weight: w,
                 color: { r: 0, g: 0.15, b: 0.3 },
@@ -426,5 +449,5 @@ export class B3dWater extends AbstractMesh {
             this._applyFollow();
     }
 }
-export const b3dWater = B3dWater.elementCreator({ tag: 'tosi-b3d-water' });
+export const b3dWater = B3dWater.elementCreator();
 //# sourceMappingURL=b3d-water.js.map

@@ -405,7 +405,8 @@ import { roundedRectGeometry } from './rounded-rect';
 const SYNTHETIC_POINTER_ID = 0x53b3;
 import { SvgTexture } from './svg-texture';
 export class B3dSvgPlane extends AbstractMesh {
-    static styleSpec = { ':host': { display: 'none' } };
+    static preferredTagName = 'tosi-b3d-svg-plane';
+    static shadowStyleSpec = { ':host': { display: 'none' } };
     static initAttributes = {
         /** Cast shadows onto the scene. Off by default — see `_meshName`. */
         castShadow: false,
@@ -1008,9 +1009,7 @@ export class B3dSvgPlane extends AbstractMesh {
         }));
     }
 }
-export const b3dSvgPlane = B3dSvgPlane.elementCreator({
-    tag: 'tosi-b3d-svg-plane',
-});
+export const b3dSvgPlane = B3dSvgPlane.elementCreator();
 /**
  * The common **dual-presentation wiring, packaged**: a plane textured from a
  * live `svg` plus a `sceneCreated` hook that sets up an orbit camera and routes

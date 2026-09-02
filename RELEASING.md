@@ -94,8 +94,18 @@ peer-dependency range change (what moved, and what the consumer must do). A
 3b. **Map-drift gate** — every new `src/*.ts` this release must be in **both**
 `CLAUDE.md`'s "Key Files" table **and** its category doc toc (`src/docs/*.md`).
 The tocs are easy to remember (they gate the doc build); the CLAUDE.md map is the
-one that silently rots. Quick check: `git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test`
-and confirm each is mentioned in `CLAUDE.md`.
+one that silently rots. Quick check:
+
+```sh
+for f in $(git diff --name-only <lasttag>..HEAD -- 'src/*.ts' | grep -v test \
+             | xargs -n1 basename | sed 's/\.ts$//'); do
+  grep -q "\`$f\.ts\`" CLAUDE.md || echo "MISSING: $f"
+done
+```
+
+Match on `` `<name>.ts` `` rather than `` `src/<name>.ts` `` — some rows document
+two files together (`` `src/b3d-star.ts` / `b3d-star-system.ts` ``), and the
+stricter pattern reports the second one missing when it is right there.
 
 4. **Full build** — regenerates `docs/` (doc site + `iife.js`) **and** `dist/` (the
    library: `tsc -p tsconfig.build.json`, run by `buildSite()` because

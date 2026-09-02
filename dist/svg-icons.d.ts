@@ -23,16 +23,18 @@ export declare function createSvgIcons(data?: IconMap, aliases?: IconMap): Recor
 /** Names of the icons with real artwork (excludes pure redirect entries). */
 export declare function iconNames(data?: IconMap): string[];
 /**
- * A **texture-safe** icon: an `svgElements` `<g>` with EXPLICIT colours baked in
- * (no `currentColor` / CSS vars), scaled and positioned for embedding directly in
- * a [[widgets3d]] SVG tree. Those trees rasterize to a Babylon texture in VR,
- * where `currentColor` and custom properties DON'T resolve — so use this, not
- * {@link svgIcons}, for in-scene / in-panel glyphs.
+ * Can this name be drawn?
  *
- * `color` icons keep their baked palette; `stroked`/`filled` icons are tinted to
- * `color`. Base names only — composition suffixes (rotate/flip/…) stay DOM-only
- * on {@link svgIcons}; passing one here warns rather than silently mis-rendering.
+ * Asks the same resolver the drawing code uses, so it answers for the whole icon
+ * LANGUAGE — a plain name, a composed one (`chevron270r`), or a mirror reference
+ * (`cornerDownLeft`, stored as `cornerDownRight0f`) all answer honestly.
+ *
+ * Exists because the alternative is guessing: checking `name in iconData` says
+ * no for every composed name, and inspecting the stored value says no for every
+ * mirror. Both were doing exactly that here, and both were wrong once mirrors
+ * started resolving.
  */
+export declare function iconExists(name: string): boolean;
 export declare function iconGlyph(name: string, opts?: {
     color?: string;
     size?: number;

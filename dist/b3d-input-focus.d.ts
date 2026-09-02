@@ -4,6 +4,7 @@ import type { B3d } from './tosi-b3d';
 import { B3dControllable } from './b3d-controllable';
 import { MappedInputProvider } from './virtual-gamepad';
 export declare class B3dInputFocus extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         enterDistance: number;
     };

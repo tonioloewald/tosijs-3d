@@ -292,6 +292,7 @@ export async function runProbe(opts = {}) {
 /** `<tosi-b3d-probe>` — a thin element wrapper around `runProbe` for declarative
  * use. It fires a `profile` event when done; the measurement itself mounts nothing. */
 export class B3dProbe extends Component {
+    static preferredTagName = 'tosi-b3d-probe';
     static initAttributes = {
         /** Ignore the cache and re-measure (for testing / calibration). */
         force: false,
@@ -318,5 +319,5 @@ export class B3dProbe extends Component {
         });
     }
 }
-export const b3dProbe = B3dProbe.elementCreator({ tag: 'tosi-b3d-probe' });
+export const b3dProbe = B3dProbe.elementCreator();
 //# sourceMappingURL=b3d-probe.js.map

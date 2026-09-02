@@ -64,6 +64,7 @@ type B3dCallback = ((element: B3d, BABYLON: typeof import('@babylonjs/core')) =>
 /** A registered fog contributor: underwater, cloud, space… (see atmosphere.ts). */
 type FogContributor = () => FogLayer | null;
 export declare class B3d extends Component {
+    static preferredTagName: string;
     static initAttributes: {
         glowLayerIntensity: number;
         frameRate: number;
@@ -110,7 +111,7 @@ export declare class B3d extends Component {
          */
         enterXrOnResume: "on" | "off";
     };
-    static styleSpec: {
+    static shadowStyleSpec: {
         ':host': {
             display: string;
             position: string;

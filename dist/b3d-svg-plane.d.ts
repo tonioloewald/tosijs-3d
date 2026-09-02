@@ -3,7 +3,8 @@ import { AbstractMesh } from './b3d-utils';
 import { SvgTexture } from './svg-texture';
 import type { B3d } from './tosi-b3d';
 export declare class B3dSvgPlane extends AbstractMesh {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

@@ -4,6 +4,7 @@ import { type Widget3d } from './widgets3d';
 import type { B3d } from './tosi-b3d';
 import type { B3dControllable } from './b3d-controllable';
 export declare class B3dDeath extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         title: string;
         delay: number;

@@ -156,6 +156,7 @@ deferred attribute application.</p>
 import * as BABYLON from &#39;@babylonjs/core&#39;
 
 class MyThing extends B3dChild {
+  static preferredTagName = &#39;my-thing&#39;
   static initAttributes = { color: &#39;#ff8800&#39; }
   declare color: string
   mesh?: BABYLON.Mesh
@@ -170,7 +171,7 @@ class MyThing extends B3dChild {
     this.mesh = undefined
   }
 }
-export const myThing = MyThing.elementCreator({ tag: &#39;my-thing&#39; })
+export const myThing = MyThing.elementCreator()
 </code></pre>
 
   </article>

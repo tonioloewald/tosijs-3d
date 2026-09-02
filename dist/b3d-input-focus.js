@@ -43,6 +43,7 @@ import { B3dControllable } from './b3d-controllable';
 import { bipedMapping, } from './virtual-gamepad';
 import { CompositeInputProvider } from './control-input';
 export class B3dInputFocus extends B3dChild {
+    static preferredTagName = 'tosi-b3d-input-focus';
     static initAttributes = {
         enterDistance: 3,
     };
@@ -299,7 +300,5 @@ export class B3dInputFocus extends B3dChild {
         this.owner = null;
     }
 }
-export const inputFocus = B3dInputFocus.elementCreator({
-    tag: 'tosi-b3d-input-focus',
-});
+export const inputFocus = B3dInputFocus.elementCreator();
 //# sourceMappingURL=b3d-input-focus.js.map

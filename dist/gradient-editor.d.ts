@@ -1,11 +1,12 @@
 import { Component } from 'tosijs';
 import { PiecewiseLinearFilter } from './gradient-filter';
 export declare class GradientEditor extends Component {
+    static preferredTagName: string;
     static initAttributes: {
         width: number;
         height: number;
     };
-    static styleSpec: {
+    static shadowStyleSpec: {
         ':host': {
             display: string;
             position: string;

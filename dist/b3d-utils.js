@@ -415,6 +415,7 @@ import { B3dChild } from 'tosijs-3d'
 import * as BABYLON from '@babylonjs/core'
 
 class MyThing extends B3dChild {
+  static preferredTagName = 'my-thing'
   static initAttributes = { color: '#ff8800' }
   declare color: string
   mesh?: BABYLON.Mesh
@@ -429,7 +430,7 @@ class MyThing extends B3dChild {
     this.mesh = undefined
   }
 }
-export const myThing = MyThing.elementCreator({ tag: 'my-thing' })
+export const myThing = MyThing.elementCreator()
 ```
 */
 /*{ "parent": "Core" }*/

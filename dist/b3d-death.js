@@ -128,6 +128,7 @@ function sootDot(scene) {
     return tex;
 }
 export class B3dDeath extends B3dChild {
+    static preferredTagName = 'tosi-b3d-death';
     static initAttributes = {
         title: 'DOWN',
         delay: 1.4,
@@ -724,7 +725,5 @@ export class B3dDeath extends B3dChild {
         });
     }
 }
-export const b3dDeath = B3dDeath.elementCreator({
-    tag: 'tosi-b3d-death',
-});
+export const b3dDeath = B3dDeath.elementCreator();
 //# sourceMappingURL=b3d-death.js.map

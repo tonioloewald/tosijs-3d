@@ -4,6 +4,7 @@ import type { B3d } from './tosi-b3d';
 import { type ControlInput } from './control-input';
 import { MappedInputProvider } from './virtual-gamepad';
 export declare class B3dController extends B3dControllable {
+    static preferredTagName: string;
     static initAttributes: {
         mapping: string;
         player: boolean;

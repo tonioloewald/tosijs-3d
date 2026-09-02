@@ -182,7 +182,18 @@ function resolveToMarkup(data, name) {
     const style = {};
     let cur = name;
     for (let i = 0; i < MAX_REDIRECTS; i++) {
-        const entry = data[cur];
+        /*
+        TRIM. The generated `icon-data` stores every value with a trailing space,
+        markup and redirects alike — and a redirect is then parsed as a NAME, where
+        that space is fatal: `parseStyleSuffixes('cornerUpRight0f ')` returns null
+        while the trimmed form returns base `cornerUpRight` + `scaleX(-1)`.
+    
+        So every MIRRORED icon failed to resolve — which is most of the left-facing
+        set, since they are all stored as `<rightVariant>0f`. It looked like the
+        icons were missing; they were one space away from working. Reported from
+        ensemble as "the icon language isn't working" (tosijs-3d#54).
+        */
+        const entry = data[cur]?.trim();
         if (entry && entry.startsWith('<'))
             return { spec: entry, style };
         // A trailing suffix run? Peel it off (base may itself be a redirect).
@@ -296,7 +307,7 @@ export function createSvgIcons(data = iconData, aliases = iconAliases) {
             return (...parts) => {
                 const resolved = resolveToMarkup(map, prop);
                 if (!resolved) {
-                    console.warn(`svgIcons: unknown icon "${prop}"`);
+                    warnOnce(`svgIcons: unknown icon "${prop}"`);
                     return buildSvgIcon(FALLBACK, parts);
                 }
                 return buildSvgIcon(resolved.spec, parts, resolved.style);
@@ -327,6 +338,39 @@ const DEFAULT_MAP = {
  * `color`. Base names only — composition suffixes (rotate/flip/…) stay DOM-only
  * on {@link svgIcons}; passing one here warns rather than silently mis-rendering.
  */
+/*
+ONE WARNING PER PROBLEM, not per draw.
+
+These fire from DRAWING code — `iconGlyph` runs on every repaint of a keyboard,
+an icon grid or a panel, so a single wrong name produced dozens of identical
+lines a second and buried everything else in the console. The name is the whole
+message, so the second copy carries no information the first did not.
+
+Keyed by the full text rather than the icon name, so the "unknown icon" and
+"composition suffix" cases for the same name still both get said once.
+*/
+const warned = new Set();
+function warnOnce(message) {
+    if (warned.has(message))
+        return;
+    warned.add(message);
+    console.warn(message);
+}
+/**
+ * Can this name be drawn?
+ *
+ * Asks the same resolver the drawing code uses, so it answers for the whole icon
+ * LANGUAGE — a plain name, a composed one (`chevron270r`), or a mirror reference
+ * (`cornerDownLeft`, stored as `cornerDownRight0f`) all answer honestly.
+ *
+ * Exists because the alternative is guessing: checking `name in iconData` says
+ * no for every composed name, and inspecting the stored value says no for every
+ * mirror. Both were doing exactly that here, and both were wrong once mirrors
+ * started resolving.
+ */
+export function iconExists(name) {
+    return resolveToMarkup(DEFAULT_MAP, name) !== null;
+}
 export function iconGlyph(name, opts = {}) {
     /*
     Stroke width comes from the THEME by default.
@@ -342,10 +386,7 @@ export function iconGlyph(name, opts = {}) {
     const { color = '#000', size = 24, x = 0, y = 0, strokeWidth = w3dTheme.strokeWidth, } = opts;
     const resolved = resolveToMarkup(DEFAULT_MAP, name);
     if (!resolved)
-        console.warn(`iconGlyph: unknown icon "${name}"`);
-    if (resolved && Object.keys(resolved.style).length > 0) {
-        console.warn(`iconGlyph("${name}"): composition suffixes aren't applied here — use a base name (or svgIcons for DOM).`);
-    }
+        warnOnce(`iconGlyph: unknown icon "${name}"`);
     const holder = elements.div();
     // `currentColor` doesn't resolve in a rasterized texture, so bake it to `color`
     // up front. Harmless for hex-coloured multicolour icons; it's what lets a
@@ -357,7 +398,35 @@ export function iconGlyph(name, opts = {}) {
         .map(Number);
     const scale = size / Math.max(vb[2] || 24, vb[3] || 24);
     const classes = new Set(src.classList);
-    const g = svgElements.g({ transform: `translate(${x} ${y}) scale(${scale})` }, ...Array.from(src.children));
+    /*
+    APPLY THE COMPOSED TRANSFORM, rather than warning that we cannot.
+  
+    `resolveToMarkup` already returns the style a composed name implies —
+    `chevron90r` gives `rotate(90deg)`, `cornerUpLeft` redirects to
+    `cornerUpRight0f` and gives `scaleX(-1)`. This threw that away and told the
+    caller to use a base name, which for a MIRROR meant the glyph did not exist in
+    any usable form: every left-facing arrow was unreachable on the texture path.
+  
+    The style is CSS (that is what the DOM path consumes), so it is translated to
+    an SVG transform here. About the icon's own centre in its own viewBox units,
+    so it composes with the translate+scale above rather than fighting it.
+    */
+    const cx = (vb[2] || 24) / 2;
+    const cy = (vb[3] || 24) / 2;
+    const composed = [];
+    const css = resolved?.style.transform ?? '';
+    for (const m of css.matchAll(/rotate\(\s*(-?[\d.]+)deg\s*\)/g)) {
+        composed.push(`rotate(${m[1]} ${cx} ${cy})`);
+    }
+    if (/scaleX\(\s*-1\s*\)/.test(css)) {
+        composed.push(`translate(${cx * 2} 0) scale(-1 1)`);
+    }
+    if (/scaleY\(\s*-1\s*\)/.test(css)) {
+        composed.push(`translate(0 ${cy * 2}) scale(1 -1)`);
+    }
+    const g = svgElements.g({
+        transform: `translate(${x} ${y}) scale(${scale})${composed.length ? ' ' + composed.join(' ') : ''}`,
+    }, ...Array.from(src.children));
     if (classes.has('color')) {
         // baked per-path colours — leave them
     }

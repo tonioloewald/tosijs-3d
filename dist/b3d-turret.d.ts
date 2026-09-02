@@ -4,6 +4,7 @@ import type { B3d } from './tosi-b3d';
 import { type BallisticParams } from './ballistics';
 import type { WarheadSpec } from './warhead';
 export declare class B3dTurret extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         meshName: string;
         muzzleSpeed: number;

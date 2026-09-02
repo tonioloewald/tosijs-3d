@@ -20,6 +20,7 @@ so a scene is visible with zero assets; pass your own `factory` to swap in
 import {
   b3d, b3dSun, b3dSkybox, b3dGround, WorldStore, WorldView, sceneDelta,
 } from 'tosijs-3d'
+import { elements } from 'tosijs'
 
 // A stand-in "director" sets up a scene by writing to the store.
 const store = new WorldStore()
@@ -32,7 +33,19 @@ store.spawn({ kind: 'item', position: { x: -2, y: 0.25, z: 1 } })
 store.spawn({ kind: 'container', position: { x: 0, y: 0.4, z: -4 } })
 
 // The driver only ever observes events + queries; it never blocks the sim.
-store.subscribe((event) => console.log('event:', event))
+//
+// Shown on the PAGE rather than logged: an event stream in the console is spam
+// in every page that embeds this demo, and invisible to anyone who has not
+// opened devtools — which for a demo about "what the driver sees" is the one
+// thing worth showing.
+const eventLog = elements.div({
+  style: { padding: '0 16px 12px', font: '12px ui-monospace, monospace', opacity: '0.75' },
+}, 'events will appear here')
+const seen = []
+store.subscribe((event) => {
+  seen.unshift(`${event.type} ${event.entity ?? ''}`)
+  eventLog.textContent = seen.slice(0, 4).join('   |   ')
+})
 const FORGET_AFTER = 15 // seconds; a real driver would use minutes/hours
 
 const keys = new Set()
@@ -40,6 +53,7 @@ window.addEventListener('keydown', (e) => keys.add(e.key.toLowerCase()))
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()))
 
 preview.append(
+  eventLog,
   b3d(
     {
       sceneCreated(el) {

@@ -161,7 +161,8 @@ function getSpectralColor(cls) {
     return SPECTRAL_COLORS[cls.toUpperCase()] || SPECTRAL_COLORS.G;
 }
 export class B3dStar extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-star';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -473,7 +474,5 @@ export class B3dStar extends B3dChild {
         this.buildLight();
     }
 }
-export const b3dStar = B3dStar.elementCreator({
-    tag: 'tosi-b3d-star',
-});
+export const b3dStar = B3dStar.elementCreator();
 //# sourceMappingURL=b3d-star.js.map

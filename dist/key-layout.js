@@ -230,9 +230,10 @@ export function commitValueForType(text, type = 'text') {
 const row = (chars) => Array.from(chars).map((c) => ({ label: c, value: c }));
 const SHIFT = {
     label: '⇧',
-    // `chevron` points RIGHT (9,6 → 15,12 → 9,18), so -90° aims it up.
-    icon: 'chevron',
-    iconRotate: -90,
+    // `chevron270r` — the icon LANGUAGE now works on the texture path, so this is
+    // a name rather than a widget-level workaround. Points right by default; 270°
+    // clockwise aims it up.
+    icon: 'chevron270r',
     action: 'shift',
     width: 1.5,
 };
@@ -245,9 +246,7 @@ const BACK = {
 const SPACE = { label: 'space', action: 'space', width: 5 };
 const ENTER = {
     label: '⏎',
-    // `cornerDownLeft` is a mirror REFERENCE, not markup — see `iconFlipX`.
-    icon: 'cornerDownRight',
-    iconFlipX: true,
+    icon: 'cornerDownLeft',
     action: 'enter',
     width: 1.5,
 };
@@ -263,8 +262,7 @@ const BACK1 = { label: '⌫', icon: 'delete', action: 'backspace' };
 /** Enter at plain width — for a grid pad where every cell is one unit. */
 const ENTER1 = {
     label: '⏎',
-    icon: 'cornerDownRight',
-    iconFlipX: true,
+    icon: 'cornerDownLeft',
     action: 'enter',
 };
 const toAlpha = {
@@ -302,8 +300,7 @@ export function keyLayout(mode, shift = false) {
         */
         const enter = {
             label: '⏎',
-            icon: 'cornerDownRight',
-            iconFlipX: true,
+            icon: 'cornerDownLeft',
             action: 'enter',
         };
         return [

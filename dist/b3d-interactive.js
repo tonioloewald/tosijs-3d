@@ -169,7 +169,8 @@ import * as BABYLON from '@babylonjs/core';
 import { B3dChild, semanticParent } from './b3d-utils';
 import { InteractiveBehavior, } from './interactive-behavior';
 export class B3dInteractive extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-interactive';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -278,7 +279,5 @@ export class B3dInteractive extends B3dChild {
         return this._cache;
     }
 }
-export const b3dInteractive = B3dInteractive.elementCreator({
-    tag: 'tosi-b3d-interactive',
-});
+export const b3dInteractive = B3dInteractive.elementCreator();
 //# sourceMappingURL=b3d-interactive.js.map

@@ -4,6 +4,7 @@ import { B3dControllable } from './b3d-controllable';
 import type { ControlInput } from './control-input';
 import { carMapping } from './virtual-gamepad';
 export declare class B3dCar extends B3dControllable {
+    static preferredTagName: string;
     inputMapping: typeof carMapping;
     static initAttributes: {
         url: string;

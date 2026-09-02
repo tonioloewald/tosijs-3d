@@ -101,6 +101,7 @@ so you have full control:
 /*{ "parent": "UI", "order": 500 }*/
 import { Component } from 'tosijs';
 export class B3dPanel extends Component {
+    static preferredTagName = 'tosi-b3d-panel';
     static initAttributes = {
         frame: 'eye',
         preset: '',
@@ -119,7 +120,7 @@ export class B3dPanel extends Component {
         revealFull: 25,
         maxDistance: 0,
     };
-    static styleSpec = {
+    static shadowStyleSpec = {
         ':host': { display: 'none' }, // config-only element, no visual presence
     };
     /** Build the FramePanelSpec this element declares. */
@@ -163,7 +164,5 @@ export class B3dPanel extends Component {
         };
     }
 }
-export const b3dPanel = B3dPanel.elementCreator({
-    tag: 'tosi-b3d-panel',
-});
+export const b3dPanel = B3dPanel.elementCreator();
 //# sourceMappingURL=b3d-panel.js.map

@@ -4,6 +4,7 @@ import { B3dControllable } from './b3d-controllable';
 import type { ControlInput } from './control-input';
 import type { B3dRadar } from './b3d-radar';
 export declare class B3dAircraft extends B3dControllable {
+    static preferredTagName: string;
     inputMapping: import("./virtual-gamepad").InputMapping;
     static initAttributes: {
         url: string;

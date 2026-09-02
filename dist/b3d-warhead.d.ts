@@ -3,6 +3,7 @@ import { AbstractMesh } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
 import { type WarheadSpec } from './warhead';
 export declare class B3dWarhead extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         damage: number;
         fullRadius: number;

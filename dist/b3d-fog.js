@@ -68,6 +68,7 @@ const FOG_MODES = {
     exp2: BABYLON.Scene.FOGMODE_EXP2,
 };
 export class B3dFog extends B3dChild {
+    static preferredTagName = 'tosi-b3d-fog';
     static initAttributes = {
         mode: 'linear',
         color: '#bfd9f2',
@@ -147,5 +148,5 @@ export class B3dFog extends B3dChild {
         this.publishBase();
     }
 }
-export const b3dFog = B3dFog.elementCreator({ tag: 'tosi-b3d-fog' });
+export const b3dFog = B3dFog.elementCreator();
 //# sourceMappingURL=b3d-fog.js.map

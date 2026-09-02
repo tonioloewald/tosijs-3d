@@ -3,6 +3,7 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import type { B3d } from './tosi-b3d';
 export declare class B3dButton extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         caption: string;
         textColor: string;

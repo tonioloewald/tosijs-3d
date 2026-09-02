@@ -179,7 +179,6 @@ preview.append(
 /*{ "parent": "Utilities" }*/
 import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
-import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer';
 import { JoltPlugin } from './jolt-plugin';
 // jolt-physics is loaded lazily inside sceneReady() (see comment there) so that
 // bundlers can leave it as an external resolved at runtime via an importmap
@@ -188,7 +187,8 @@ import { JoltPlugin } from './jolt-plugin';
 // whole ~3MB loader even when no scene uses physics, and would also fight with
 // Bun's IIFE external shim, which can't resolve a synchronous require.
 export class B3dPhysics extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-physics';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -267,7 +267,7 @@ export class B3dPhysics extends B3dChild {
     enableDebug() {
         if (!this.owner || this._viewer)
             return;
-        this._viewer = new PhysicsViewer(this.owner.scene);
+        this._viewer = new BABYLON.PhysicsViewer(this.owner.scene);
         // Show all existing bodies
         for (const mesh of this.owner.scene.meshes) {
             const body = mesh.physicsBody;
@@ -302,7 +302,5 @@ export class B3dPhysics extends B3dChild {
         }
     };
 }
-export const b3dPhysics = B3dPhysics.elementCreator({
-    tag: 'tosi-b3d-physics',
-});
+export const b3dPhysics = B3dPhysics.elementCreator();
 //# sourceMappingURL=b3d-physics.js.map

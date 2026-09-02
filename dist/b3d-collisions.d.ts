@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 export declare class B3dCollisions extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         debug: boolean;
     };

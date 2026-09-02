@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
 export declare class B3dSkybox extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         turbidity: number;
         luminance: number;

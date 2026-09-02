@@ -8,6 +8,7 @@ type PosLike = {
     z: number;
 };
 export declare class B3dRadarBlip extends B3dChild implements RadarBlip {
+    static preferredTagName: string;
     static initAttributes: {
         profile: number;
         faction: RadarFaction;

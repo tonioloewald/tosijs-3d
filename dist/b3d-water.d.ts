@@ -3,6 +3,7 @@ import { WaterMaterial } from '@babylonjs/materials';
 import { AbstractMesh } from './b3d-utils';
 import type { B3d } from './tosi-b3d';
 export declare class B3dWater extends AbstractMesh {
+    static preferredTagName: string;
     static initAttributes: {
         spherical: boolean;
         waterSize: number;

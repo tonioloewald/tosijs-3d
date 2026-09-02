@@ -165,7 +165,8 @@ function _fbmNoise(x, y, octaves) {
     return val;
 }
 export class B3dBlackHole extends B3dChild {
-    static styleSpec = {
+    static preferredTagName = 'tosi-b3d-black-hole';
+    static shadowStyleSpec = {
         ':host': {
             display: 'none',
         },
@@ -660,7 +661,5 @@ export class B3dBlackHole extends B3dChild {
         this.buildPhotonRing();
     }
 }
-export const b3dBlackHole = B3dBlackHole.elementCreator({
-    tag: 'tosi-b3d-black-hole',
-});
+export const b3dBlackHole = B3dBlackHole.elementCreator();
 //# sourceMappingURL=b3d-black-hole.js.map

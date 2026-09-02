@@ -2,6 +2,7 @@ import { B3dChild } from './b3d-utils';
 import { type Prefab } from './prefab';
 import type { B3d } from './tosi-b3d';
 export declare class B3dSpawner extends B3dChild {
+    static preferredTagName: string;
     static initAttributes: {
         prefab: string;
         maxAlive: number;

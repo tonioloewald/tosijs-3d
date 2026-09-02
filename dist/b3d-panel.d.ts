@@ -1,6 +1,7 @@
 import { Component } from 'tosijs';
 import type { FramePanelSpec } from './frame-panel';
 export declare class B3dPanel extends Component {
+    static preferredTagName: string;
     static initAttributes: {
         frame: string;
         preset: string;
@@ -19,7 +20,7 @@ export declare class B3dPanel extends Component {
         revealFull: number;
         maxDistance: number;
     };
-    static styleSpec: {
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

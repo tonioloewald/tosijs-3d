@@ -131,6 +131,7 @@ import { B3dChild, sceneDelta } from './b3d-utils';
 import { MersenneTwister } from './mersenne-twister';
 import { spawnPrefab } from './prefab';
 export class B3dSpawner extends B3dChild {
+    static preferredTagName = 'tosi-b3d-spawner';
     static initAttributes = {
         prefab: '',
         maxAlive: 2,
@@ -226,7 +227,5 @@ export class B3dSpawner extends B3dChild {
         return p ? { x: p.x, z: p.z } : { x: 0, z: 0 };
     }
 }
-export const b3dSpawner = B3dSpawner.elementCreator({
-    tag: 'tosi-b3d-spawner',
-});
+export const b3dSpawner = B3dSpawner.elementCreator();
 //# sourceMappingURL=b3d-spawner.js.map

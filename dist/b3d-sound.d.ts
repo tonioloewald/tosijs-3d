@@ -2,7 +2,8 @@ import { B3dChild } from './b3d-utils';
 import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d';
 export declare class B3dSound extends B3dChild {
-    static styleSpec: {
+    static preferredTagName: string;
+    static shadowStyleSpec: {
         ':host': {
             display: string;
         };

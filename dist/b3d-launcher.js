@@ -529,6 +529,7 @@ export function spawnMissile(owner, opts) {
     });
 }
 export class B3dLauncher extends AbstractMesh {
+    static preferredTagName = 'tosi-b3d-launcher';
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'launcher',
@@ -719,7 +720,5 @@ export class B3dLauncher extends AbstractMesh {
         super.sceneDispose();
     }
 }
-export const b3dLauncher = B3dLauncher.elementCreator({
-    tag: 'tosi-b3d-launcher',
-});
+export const b3dLauncher = B3dLauncher.elementCreator();
 //# sourceMappingURL=b3d-launcher.js.map
