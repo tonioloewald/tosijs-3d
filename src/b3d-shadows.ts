@@ -90,6 +90,8 @@ import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dSun extends B3dChild {
+  static preferredTagName = 'tosi-b3d-sun'
+
   static initAttributes = {
     shadowMaxZ: 100,
     shadowDarkness: 0.1,
@@ -314,4 +316,4 @@ export class B3dSun extends B3dChild {
   }
 }
 
-export const b3dSun = B3dSun.elementCreator({ tag: 'tosi-b3d-sun' })
+export const b3dSun = B3dSun.elementCreator()

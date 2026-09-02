@@ -92,6 +92,8 @@ const MAPPINGS: Record<string, () => InputMapping> = {
 }
 
 export class B3dController extends B3dControllable {
+  static preferredTagName = 'tosi-b3d-controller'
+
   static initAttributes = {
     ...B3dControllable.initAttributes,
     mapping: 'biped',
@@ -160,6 +162,4 @@ export class B3dController extends B3dControllable {
   }
 }
 
-export const b3dController = B3dController.elementCreator({
-  tag: 'tosi-b3d-controller',
-}) as (...args: unknown[]) => B3dController
+export const b3dController = B3dController.elementCreator() as (...args: unknown[]) => B3dController

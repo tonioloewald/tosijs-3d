@@ -139,6 +139,8 @@ function sootDot(scene: BABYLON.Scene): BABYLON.DynamicTexture {
 }
 
 export class B3dDeath extends B3dChild {
+  static preferredTagName = 'tosi-b3d-death'
+
   static initAttributes = {
     title: 'DOWN',
     delay: 1.4,
@@ -811,6 +813,4 @@ export class B3dDeath extends B3dChild {
   }
 }
 
-export const b3dDeath = B3dDeath.elementCreator({
-  tag: 'tosi-b3d-death',
-}) as (...args: unknown[]) => B3dDeath
+export const b3dDeath = B3dDeath.elementCreator() as (...args: unknown[]) => B3dDeath

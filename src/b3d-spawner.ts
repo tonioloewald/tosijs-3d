@@ -136,6 +136,8 @@ import type { B3d } from './tosi-b3d'
 type Group = { elements: Element[] }
 
 export class B3dSpawner extends B3dChild {
+  static preferredTagName = 'tosi-b3d-spawner'
+
   static initAttributes = {
     prefab: '',
     maxAlive: 2,
@@ -250,6 +252,4 @@ export class B3dSpawner extends B3dChild {
   }
 }
 
-export const b3dSpawner = B3dSpawner.elementCreator({
-  tag: 'tosi-b3d-spawner',
-}) as (...args: unknown[]) => B3dSpawner
+export const b3dSpawner = B3dSpawner.elementCreator() as (...args: unknown[]) => B3dSpawner

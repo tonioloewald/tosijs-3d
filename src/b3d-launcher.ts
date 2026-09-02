@@ -776,6 +776,8 @@ export function spawnMissile(
 }
 
 export class B3dLauncher extends AbstractMesh {
+  static preferredTagName = 'tosi-b3d-launcher'
+
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     meshName: 'launcher',
@@ -997,6 +999,4 @@ export class B3dLauncher extends AbstractMesh {
   }
 }
 
-export const b3dLauncher = B3dLauncher.elementCreator({
-  tag: 'tosi-b3d-launcher',
-}) as (...args: unknown[]) => B3dLauncher
+export const b3dLauncher = B3dLauncher.elementCreator() as (...args: unknown[]) => B3dLauncher

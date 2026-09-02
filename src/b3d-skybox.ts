@@ -78,6 +78,8 @@ const HORIZON_WHITE = new BABYLON.Color3(0.95, 0.95, 0.97)
 const NIGHT_HORIZON = new BABYLON.Color3(0.08, 0.1, 0.18)
 
 export class B3dSkybox extends AbstractMesh {
+  static preferredTagName = 'tosi-b3d-skybox'
+
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     turbidity: 10,
@@ -319,4 +321,4 @@ export class B3dSkybox extends AbstractMesh {
   }
 }
 
-export const b3dSkybox = B3dSkybox.elementCreator({ tag: 'tosi-b3d-skybox' })
+export const b3dSkybox = B3dSkybox.elementCreator()

@@ -351,6 +351,8 @@ let nextAmbientId = 0
 const FORWARD_Z = new BABYLON.Vector3(0, 0, 1)
 
 export class B3dAmbient extends B3dChild implements AmbientEffect {
+  static preferredTagName = 'tosi-b3d-ambient'
+
   static initAttributes = {
     preset: 'motes',
     where: 'always' as 'always' | 'underwater' | 'above',
@@ -814,6 +816,4 @@ export class B3dAmbient extends B3dChild implements AmbientEffect {
   }
 }
 
-export const b3dAmbient = B3dAmbient.elementCreator({
-  tag: 'tosi-b3d-ambient',
-}) as (...args: unknown[]) => B3dAmbient
+export const b3dAmbient = B3dAmbient.elementCreator() as (...args: unknown[]) => B3dAmbient

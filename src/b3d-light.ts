@@ -61,6 +61,8 @@ import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
 export class B3dLight extends B3dChild {
+  static preferredTagName = 'tosi-b3d-light'
+
   static initAttributes = {
     x: 0,
     y: 1,
@@ -104,4 +106,4 @@ export class B3dLight extends B3dChild {
   }
 }
 
-export const b3dLight = B3dLight.elementCreator({ tag: 'tosi-b3d-light' })
+export const b3dLight = B3dLight.elementCreator()

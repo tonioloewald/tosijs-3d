@@ -266,6 +266,8 @@ const _fwdScratch = new BABYLON.Vector3()
 const _rightScratch = new BABYLON.Vector3()
 
 export class B3dBiped extends B3dControllable {
+  static preferredTagName = 'tosi-b3d-biped'
+
   static initAttributes = {
     ...B3dControllable.initAttributes,
     url: '',
@@ -2338,4 +2340,4 @@ export class B3dBiped extends B3dControllable {
   }
 }
 
-export const b3dBiped = B3dBiped.elementCreator({ tag: 'tosi-b3d-biped' })
+export const b3dBiped = B3dBiped.elementCreator()

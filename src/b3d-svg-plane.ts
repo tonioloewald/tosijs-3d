@@ -423,7 +423,9 @@ import { SvgTexture } from './svg-texture'
 import type { B3d } from './tosi-b3d'
 
 export class B3dSvgPlane extends AbstractMesh {
-  static styleSpec = { ':host': { display: 'none' } }
+  static preferredTagName = 'tosi-b3d-svg-plane'
+
+  static shadowStyleSpec = { ':host': { display: 'none' } }
 
   static initAttributes = {
     /** Cast shadows onto the scene. Off by default — see `_meshName`. */
@@ -1094,9 +1096,7 @@ export class B3dSvgPlane extends AbstractMesh {
   }
 }
 
-export const b3dSvgPlane = B3dSvgPlane.elementCreator({
-  tag: 'tosi-b3d-svg-plane',
-})
+export const b3dSvgPlane = B3dSvgPlane.elementCreator()
 
 /**
  * The common **dual-presentation wiring, packaged**: a plane textured from a

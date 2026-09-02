@@ -49,6 +49,8 @@ type MeshLike = {
 }
 
 export class B3dRadarBlip extends B3dChild implements RadarBlip {
+  static preferredTagName = 'tosi-b3d-radar-blip'
+
   static initAttributes = {
     // Detectability multiplier (see the doc table). 0 sentinel isn't meaningful
     // here — a 0-profile blip is simply never detected; use a small value for
@@ -161,6 +163,4 @@ function readPos(el: HTMLElement): PosLike | null {
   return null
 }
 
-export const b3dRadarBlip = B3dRadarBlip.elementCreator({
-  tag: 'tosi-b3d-radar-blip',
-}) as (...args: unknown[]) => B3dRadarBlip
+export const b3dRadarBlip = B3dRadarBlip.elementCreator() as (...args: unknown[]) => B3dRadarBlip

@@ -183,7 +183,9 @@ const CUBE_FACES: { origin: number[]; right: number[]; up: number[] }[] = [
 ]
 
 export class B3dPlanet extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-planet'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -731,6 +733,4 @@ export class B3dPlanet extends B3dChild {
   }
 }
 
-export const b3dPlanet = B3dPlanet.elementCreator({
-  tag: 'tosi-b3d-planet',
-})
+export const b3dPlanet = B3dPlanet.elementCreator()

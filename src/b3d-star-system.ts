@@ -164,7 +164,9 @@ import {
 import { PerlinNoise } from './perlin-noise'
 
 export class B3dStarSystem extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-star-system'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -733,6 +735,4 @@ export class B3dStarSystem extends B3dChild {
   }
 }
 
-export const b3dStarSystem = B3dStarSystem.elementCreator({
-  tag: 'tosi-b3d-star-system',
-})
+export const b3dStarSystem = B3dStarSystem.elementCreator()

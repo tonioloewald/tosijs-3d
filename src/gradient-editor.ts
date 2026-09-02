@@ -7,12 +7,14 @@ const POINT_RADIUS = 6
 const PADDING = 12
 
 export class GradientEditor extends Component {
+  static preferredTagName = 'tosi-gradient-editor'
+
   static initAttributes = {
     width: 200,
     height: 120,
   }
 
-  static styleSpec = {
+  static shadowStyleSpec = {
     ':host': {
       display: 'inline-block',
       position: 'relative',
@@ -253,6 +255,4 @@ export class GradientEditor extends Component {
   }
 }
 
-export const gradientEditor = GradientEditor.elementCreator({
-  tag: 'tosi-gradient-editor',
-})
+export const gradientEditor = GradientEditor.elementCreator()

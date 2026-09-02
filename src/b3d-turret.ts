@@ -111,6 +111,8 @@ import type { WarheadSpec } from './warhead'
 const RAD_TO_DEG = 180 / Math.PI
 
 export class B3dTurret extends AbstractMesh {
+  static preferredTagName = 'tosi-b3d-turret'
+
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     meshName: 'turret',
@@ -361,6 +363,4 @@ export class B3dTurret extends AbstractMesh {
   }
 }
 
-export const b3dTurret = B3dTurret.elementCreator({
-  tag: 'tosi-b3d-turret',
-}) as (...args: unknown[]) => B3dTurret
+export const b3dTurret = B3dTurret.elementCreator() as (...args: unknown[]) => B3dTurret

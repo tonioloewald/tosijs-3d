@@ -178,6 +178,8 @@ import { conventionName } from './b3d-utils'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dCollisions extends B3dChild {
+  static preferredTagName = 'tosi-b3d-collisions'
+
   static initAttributes = {
     debug: false,
   }
@@ -451,6 +453,4 @@ export class B3dCollisions extends B3dChild {
   }
 }
 
-export const b3dCollisions = B3dCollisions.elementCreator({
-  tag: 'tosi-b3d-collisions',
-})
+export const b3dCollisions = B3dCollisions.elementCreator()

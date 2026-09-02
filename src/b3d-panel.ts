@@ -105,6 +105,8 @@ import type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel'
 import type { FrameName } from './xr-frames'
 
 export class B3dPanel extends Component {
+  static preferredTagName = 'tosi-b3d-panel'
+
   static initAttributes = {
     frame: 'eye',
     preset: '',
@@ -124,7 +126,7 @@ export class B3dPanel extends Component {
     maxDistance: 0,
   }
 
-  static styleSpec = {
+  static shadowStyleSpec = {
     ':host': { display: 'none' }, // config-only element, no visual presence
   }
 
@@ -185,6 +187,4 @@ export class B3dPanel extends Component {
   }
 }
 
-export const b3dPanel = B3dPanel.elementCreator({
-  tag: 'tosi-b3d-panel',
-}) as (...args: unknown[]) => B3dPanel
+export const b3dPanel = B3dPanel.elementCreator() as (...args: unknown[]) => B3dPanel

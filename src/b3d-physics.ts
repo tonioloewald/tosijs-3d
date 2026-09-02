@@ -192,7 +192,9 @@ import type { B3d } from './tosi-b3d'
 // Bun's IIFE external shim, which can't resolve a synchronous require.
 
 export class B3dPhysics extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-physics'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -328,6 +330,4 @@ export class B3dPhysics extends B3dChild {
   }
 }
 
-export const b3dPhysics = B3dPhysics.elementCreator({
-  tag: 'tosi-b3d-physics',
-})
+export const b3dPhysics = B3dPhysics.elementCreator()

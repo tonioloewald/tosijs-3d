@@ -112,6 +112,8 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
 ]
 
 export class KeyboardGamepadSource extends Component implements GamepadSource {
+  static preferredTagName = 'tosi-keyboard-gamepad'
+
   readonly kind = 'keyboard'
 
   static initAttributes = {
@@ -275,6 +277,4 @@ export class KeyboardGamepadSource extends Component implements GamepadSource {
   }
 }
 
-export const keyboardGamepad = KeyboardGamepadSource.elementCreator({
-  tag: 'tosi-keyboard-gamepad',
-})
+export const keyboardGamepad = KeyboardGamepadSource.elementCreator()

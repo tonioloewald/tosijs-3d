@@ -126,6 +126,8 @@ const DEFAULT_BUTTONS: ButtonDef[] = [
 ]
 
 export class GameController extends Component implements GamepadSource {
+  static preferredTagName = 'tosi-game-controller'
+
   static initAttributes = {
     wheelSensitivity: 1,
     updateIntervalMs: 33,
@@ -291,6 +293,4 @@ export class GameController extends Component implements GamepadSource {
   }
 }
 
-export const gameController = GameController.elementCreator({
-  tag: 'tosi-game-controller',
-})
+export const gameController = GameController.elementCreator()

@@ -140,6 +140,8 @@ import type { B3dDestroyable } from './b3d-destroyable'
 const BOOM_DURATION = 0.35
 
 export class B3dWarhead extends AbstractMesh {
+  static preferredTagName = 'tosi-b3d-warhead'
+
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     damage: 20,
@@ -180,9 +182,7 @@ export class B3dWarhead extends AbstractMesh {
   }
 }
 
-export const b3dWarhead = B3dWarhead.elementCreator({
-  tag: 'tosi-b3d-warhead',
-}) as (...args: unknown[]) => B3dWarhead
+export const b3dWarhead = B3dWarhead.elementCreator() as (...args: unknown[]) => B3dWarhead
 
 /**
  * Resolve + apply an AOE blast over the scene's destroyables (LOS-gated when

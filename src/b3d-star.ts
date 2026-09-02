@@ -167,7 +167,9 @@ function getSpectralColor(cls: string): [number, number, number] {
 }
 
 export class B3dStar extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-star'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -556,6 +558,4 @@ export class B3dStar extends B3dChild {
   }
 }
 
-export const b3dStar = B3dStar.elementCreator({
-  tag: 'tosi-b3d-star',
-})
+export const b3dStar = B3dStar.elementCreator()

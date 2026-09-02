@@ -85,7 +85,9 @@ import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
 export class B3dSound extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-sound'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -207,6 +209,4 @@ export class B3dSound extends B3dChild {
   }
 }
 
-export const b3dSound = B3dSound.elementCreator({
-  tag: 'tosi-b3d-sound',
-})
+export const b3dSound = B3dSound.elementCreator()

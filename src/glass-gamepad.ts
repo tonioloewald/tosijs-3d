@@ -349,6 +349,8 @@ async function loadCluster(url: string): Promise<SVGSVGElement> {
  * and adds it to the active input provider.
  */
 export class B3dGamepad extends Component implements GamepadSource {
+  static preferredTagName = 'tosi-b3d-gamepad'
+
   readonly kind = 'glass'
 
   static initAttributes = {
@@ -571,6 +573,4 @@ export class B3dGamepad extends Component implements GamepadSource {
   }
 }
 
-export const b3dGamepad = B3dGamepad.elementCreator({
-  tag: 'tosi-b3d-gamepad',
-})
+export const b3dGamepad = B3dGamepad.elementCreator()

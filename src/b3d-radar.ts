@@ -113,6 +113,8 @@ import type { B3d, RadarBlip } from './tosi-b3d'
 const LOCAL_Z = new BABYLON.Vector3(0, 0, 1)
 
 export class B3dRadar extends B3dChild {
+  static preferredTagName = 'tosi-b3d-radar'
+
   static initAttributes = {
     range: 250,
     coneDeg: 90, // MAINTENANCE half-angle; 90 = front hemisphere (holds a lock)
@@ -237,6 +239,6 @@ export class B3dRadar extends B3dChild {
   }
 }
 
-export const b3dRadar = B3dRadar.elementCreator({ tag: 'tosi-b3d-radar' }) as (
+export const b3dRadar = B3dRadar.elementCreator() as (
   ...args: unknown[]
 ) => B3dRadar

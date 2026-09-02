@@ -83,6 +83,8 @@ import { band } from './atmosphere'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dWater extends AbstractMesh {
+  static preferredTagName = 'tosi-b3d-water'
+
   static initAttributes = {
     // Underwater fog: how thick, and how sharply it takes over as you cross the surface.
     // The transition is deliberately TIGHT (see the fog layer below): killing the "thunk"
@@ -478,4 +480,4 @@ export class B3dWater extends AbstractMesh {
   }
 }
 
-export const b3dWater = B3dWater.elementCreator({ tag: 'tosi-b3d-water' })
+export const b3dWater = B3dWater.elementCreator()

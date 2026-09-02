@@ -402,7 +402,9 @@ const emptyTileProfile = (): TileProfile => ({
 })
 
 export class B3dTerrain extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-terrain'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -1602,6 +1604,4 @@ export class B3dTerrain extends B3dChild {
   }
 }
 
-export const b3dTerrain = B3dTerrain.elementCreator({
-  tag: 'tosi-b3d-terrain',
-})
+export const b3dTerrain = B3dTerrain.elementCreator()

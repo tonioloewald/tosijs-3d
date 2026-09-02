@@ -48,6 +48,8 @@ import type { ControlInput } from './control-input'
 import { carMapping } from './virtual-gamepad'
 
 export class B3dCar extends B3dControllable {
+  static preferredTagName = 'tosi-b3d-car'
+
   inputMapping = carMapping
   static initAttributes = {
     ...B3dControllable.initAttributes,
@@ -189,4 +191,4 @@ export class B3dCar extends B3dControllable {
   }
 }
 
-export const b3dCar = B3dCar.elementCreator({ tag: 'tosi-b3d-car' })
+export const b3dCar = B3dCar.elementCreator()

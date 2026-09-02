@@ -102,6 +102,8 @@ import { DestroyableBehavior } from './destroyable-behavior'
 import type { CombatEvent, ChainLink } from './destroyable'
 
 export class B3dLoader extends B3dChild {
+  static preferredTagName = 'tosi-b3d-loader'
+
   static initAttributes = {
     url: '',
     lightIntensityScale: 0.05,
@@ -248,4 +250,4 @@ export class B3dLoader extends B3dChild {
   }
 }
 
-export const b3dLoader = B3dLoader.elementCreator({ tag: 'tosi-b3d-loader' })
+export const b3dLoader = B3dLoader.elementCreator()

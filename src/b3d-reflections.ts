@@ -74,6 +74,8 @@ import { resolveBudget } from './b3d-quality'
 import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
 
 export class B3dReflections extends B3dChild {
+  static preferredTagName = 'tosi-b3d-reflections'
+
   static initAttributes = {
     refreshRate: 5,
     // 0 = auto: resolved from the device quality tier (see b3d-quality). Set an
@@ -237,6 +239,4 @@ export class B3dReflections extends B3dChild {
   }
 }
 
-export const b3dReflections = B3dReflections.elementCreator({
-  tag: 'tosi-b3d-reflections',
-})
+export const b3dReflections = B3dReflections.elementCreator()

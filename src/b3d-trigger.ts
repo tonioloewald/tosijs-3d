@@ -142,7 +142,9 @@ import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d'
 
 export class B3dTrigger extends B3dChild {
-  static styleSpec = {
+  static preferredTagName = 'tosi-b3d-trigger'
+
+  static shadowStyleSpec = {
     ':host': {
       display: 'none',
     },
@@ -316,6 +318,4 @@ export class B3dTrigger extends B3dChild {
   }
 }
 
-export const b3dTrigger = B3dTrigger.elementCreator({
-  tag: 'tosi-b3d-trigger',
-})
+export const b3dTrigger = B3dTrigger.elementCreator()

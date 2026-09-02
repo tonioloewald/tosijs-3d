@@ -111,6 +111,8 @@ import type { B3d } from './tosi-b3d'
 import * as BABYLON from '@babylonjs/core'
 
 export class B3dHud extends B3dChild {
+  static preferredTagName = 'tosi-b3d-hud'
+
   static initAttributes = {
     // Empty = the built-in code HUD (fully wired). Set to a designer SVG to load one.
     url: '',
@@ -472,6 +474,6 @@ export class B3dHud extends B3dChild {
   }
 }
 
-export const b3dHud = B3dHud.elementCreator({ tag: 'tosi-b3d-hud' }) as (
+export const b3dHud = B3dHud.elementCreator() as (
   ...args: unknown[]
 ) => B3dHud

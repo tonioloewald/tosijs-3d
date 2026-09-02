@@ -4,6 +4,8 @@ import * as GUI from '@babylonjs/gui'
 import type { B3d } from './tosi-b3d'
 
 export class B3dButton extends B3dChild {
+  static preferredTagName = 'tosi-b3d-button'
+
   static initAttributes = {
     caption: 'click me',
     textColor: '#ffffff',
@@ -60,4 +62,4 @@ export class B3dButton extends B3dChild {
   }
 }
 
-export const b3dButton = B3dButton.elementCreator({ tag: 'tosi-b3d-button' })
+export const b3dButton = B3dButton.elementCreator()

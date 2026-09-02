@@ -392,6 +392,8 @@ type HudSink = {
 }
 
 export class B3dAircraft extends B3dControllable {
+  static preferredTagName = 'tosi-b3d-aircraft'
+
   inputMapping = aircraftMapping()
 
   static initAttributes = {
@@ -1998,6 +2000,4 @@ export class B3dAircraft extends B3dControllable {
   }
 }
 
-export const b3dAircraft = B3dAircraft.elementCreator({
-  tag: 'tosi-b3d-aircraft',
-})
+export const b3dAircraft = B3dAircraft.elementCreator()

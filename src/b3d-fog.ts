@@ -73,6 +73,8 @@ const FOG_MODES: Record<string, number> = {
 }
 
 export class B3dFog extends B3dChild {
+  static preferredTagName = 'tosi-b3d-fog'
+
   static initAttributes = {
     mode: 'linear',
     color: '#bfd9f2',
@@ -162,4 +164,4 @@ export class B3dFog extends B3dChild {
   }
 }
 
-export const b3dFog = B3dFog.elementCreator({ tag: 'tosi-b3d-fog' })
+export const b3dFog = B3dFog.elementCreator()
