@@ -953,3 +953,34 @@ The SVG UI has its own model (`flow-layout`, `stackLayout`, `rowColumns`,
 `panelFit`), pure and tested. That looked like a cost when it was written. For
 a panel editor it is the enabling property: **what the editor shows and what
 the runtime does can be the same code.**
+
+## A gesture belongs to where it BEGAN (and AmigaDOS did not)
+
+Tonio: _"The entire AmigaDOS OS fired events on mousedown and I couldn't explain
+to Amiga-philes why this was incredibly stupid :)"_
+
+The reason is that a press is a *proposal* and a release is the *commitment*.
+Firing on press removes the only chance to change your mind — you cannot slide
+off a button you aimed at badly, so every mis-aim is a committed action. That
+matters more here than on a desktop: aiming a controller ray from two metres, or
+a fingertip on a moving panel, misses far more often than a mouse does.
+
+The rule has now paid for itself three times in this codebase, each time as a
+bug found rather than a principle applied:
+
+- **`iconGrid3d`** — a release landing off the pressed cell does not fire, so a
+  mis-aimed press can be aborted by sliding away.
+- **`inputField`'s keyboard glyph** — the first version tested the live x, so a
+  scrub that merely *ended* near the right edge got swallowed by the glyph zone.
+  The gesture now latches on the press.
+- **`inputField`'s auto-open** — the panel overlay dismisses on `down` (the
+  conventional menu behaviour, and the Amiga mistake in miniature), so the
+  matching `up` arrived at the field with the preference newly on and
+  *re-summoned* the keyboard that press had just dismissed. A release with no
+  matching press is not a tap, and must not act.
+
+The third is the interesting one, because dismiss-on-press is genuinely
+conventional and defensible — a menu should be gone before you act on what is
+behind it. The lesson is not "never act on press", it is that **a press-handler
+and a release-handler must agree about whose gesture it was.** Ours did not, and
+the symptom was a control that would not turn off.
