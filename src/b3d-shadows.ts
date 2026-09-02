@@ -156,6 +156,25 @@ export class B3dSun extends B3dChild {
       ) {
         this.shadowCasters.push(mesh)
       }
+      /*
+      AN INSTANCE INHERITS THIS FROM ITS SOURCE — do not write it.
+
+      Babylon warns "Setting receiveShadows on an instanced mesh has no effect"
+      once PER INSTANCE, and a library-backed scene has thousands: ensemble
+      measured ~10,000 messages on a single load, mostly in one burst, which
+      drowns the console outright (tosijs-3d#53).
+
+      Skipping it cannot regress anything, and that is the point: the write was
+      ALREADY a no-op. An `InstancedMesh` takes the flag from the mesh it
+      instances, so Babylon ignored the assignment and only warned. Nothing that
+      received shadows before stops now — a source mesh that is registered still
+      gets the flag here, and one that is not never got it anyway.
+
+      (`actualMeshes` does not filter these out: it tests `geometry != null`, and
+      an instance proxies its source's geometry, so instances arrive here looking
+      exactly like meshes. That is why the guard has to be explicit.)
+      */
+      if (mesh instanceof BABYLON.InstancedMesh) continue
       mesh.receiveShadows =
         !conventionName(mesh.name).includes('_noshadow') &&
         !conventionName(mesh.name).includes('-noshadow')
