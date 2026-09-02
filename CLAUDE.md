@@ -389,7 +389,7 @@ force-loses the oldest, so an SPA works for a dozen route changes and then goes 
 The two owner hooks are durable enough to build on, under one rule — **subscriptions
 are durable, scene state is not**: `whenReady(cb)` never silently drops a queued
 callback (it fires against the next scene if this one dies first), and
-`whenSceneDisposed(cb)` → unsubscribe fires on a genuine disposal but **not** on a move.
+`whenDisposed(cb)` → unsubscribe fires on a genuine disposal but **not** on a move.
 Use the latter for anything holding a reference _into_ the scene that `sceneDispose()`
 doesn't cover. `pastAdditions` IS cleared on teardown — replaying it would hand a new
 `addSceneListener` dead nodes from the disposed scene.

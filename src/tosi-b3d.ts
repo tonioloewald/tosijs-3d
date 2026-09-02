@@ -1332,7 +1332,7 @@ export class B3d extends Component {
   // connectedCallback to insert themselves once the scene is up. Runs the callback
   // immediately if the scene is already ready, else queues it for the flush below.
   private _readyQueue: Array<() => void> = []
-  // Durable — see whenSceneDisposed. NOT cleared by teardown, so a handler
+  // Durable — see whenDisposed. NOT cleared by teardown, so a handler
   // registered once still fires for the scene after next.
   private _disposeHandlers: Array<() => void> = []
   private _libraries = new Map<string, Set<any>>()
@@ -1365,7 +1365,7 @@ export class B3d extends Component {
    * handler registered once keeps working for every subsequent scene, and does
    * not need re-registering.
    */
-  whenSceneDisposed(cb: () => void): () => void {
+  whenDisposed(cb: () => void): () => void {
     this._disposeHandlers.push(cb)
     return () => {
       const i = this._disposeHandlers.indexOf(cb)
@@ -4405,7 +4405,7 @@ export class B3d extends Component {
       try {
         cb()
       } catch (err) {
-        console.warn('b3d whenSceneDisposed handler failed', err)
+        console.warn('b3d whenDisposed handler failed', err)
       }
     }
     this.pastAdditions = []

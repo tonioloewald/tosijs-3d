@@ -474,9 +474,9 @@ rule — **subscriptions are durable, scene state is not**:
 | Call | Guarantee |
 |------|-----------|
 | `owner.whenReady(cb)` | Runs now if the scene is up, else the instant it is. A callback still waiting when a scene is torn down is **not dropped** — it fires against the next scene, or never runs at all because the element never came back. |
-| `owner.whenSceneDisposed(cb)` | Runs when the scene is genuinely disposed, **not** on a move. Returns an unsubscribe. Survives a rebuild, so register once. |
+| `owner.whenDisposed(cb)` | Runs when the scene is genuinely disposed, **not** on a move. Returns an unsubscribe. Survives a rebuild, so register once. |
 
-Reach for `whenSceneDisposed` for anything holding a reference *into* the scene
+Reach for `whenDisposed` for anything holding a reference *into* the scene
 that `sceneDispose()` does not already cover — a timer closing over a mesh, a
 cache of materials, an observer on a node. After disposal those point at a dead
 scene, and Babylon's failure there is a black material that still reports

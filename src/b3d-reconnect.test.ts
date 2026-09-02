@@ -28,7 +28,7 @@ class MoveLifecycle {
     else this.readyQueue.push(cb)
   }
 
-  whenSceneDisposed(cb: () => void): () => void {
+  whenDisposed(cb: () => void): () => void {
     this.disposeHandlers.push(cb)
     return () => {
       const i = this.disposeHandlers.indexOf(cb)
@@ -147,12 +147,12 @@ describe('whenReady is a promise, not a hope', () => {
   })
 })
 
-describe('whenSceneDisposed', () => {
+describe('whenDisposed', () => {
   test('fires on a genuine removal', async () => {
     const el = new MoveLifecycle()
     el.connected()
     let disposed = 0
-    el.whenSceneDisposed(() => disposed++)
+    el.whenDisposed(() => disposed++)
     el.disconnected()
     await settle()
     expect(disposed).toBe(1)
@@ -164,7 +164,7 @@ describe('whenSceneDisposed', () => {
     const el = new MoveLifecycle()
     el.connected()
     let disposed = 0
-    el.whenSceneDisposed(() => disposed++)
+    el.whenDisposed(() => disposed++)
     el.disconnected()
     el.connected()
     await settle()
@@ -175,7 +175,7 @@ describe('whenSceneDisposed', () => {
     const el = new MoveLifecycle()
     el.connected()
     let disposed = 0
-    el.whenSceneDisposed(() => disposed++)
+    el.whenDisposed(() => disposed++)
     el.disconnected()
     await settle()
     el.connected() // second scene
@@ -188,7 +188,7 @@ describe('whenSceneDisposed', () => {
     const el = new MoveLifecycle()
     el.connected()
     let disposed = 0
-    const off = el.whenSceneDisposed(() => disposed++)
+    const off = el.whenDisposed(() => disposed++)
     off()
     el.disconnected()
     await settle()
