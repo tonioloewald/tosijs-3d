@@ -91,3 +91,60 @@ describe('detached — genuinely nowhere to put it', () => {
     expect(panel.querySelectorAll('svg').length).toBe(1)
   })
 })
+
+describe('hardware keys reach a field with NO fieldGroup', () => {
+  /*
+  The case an adopter actually builds: an `inputField` dropped into a `panel3d`.
+  It could be tapped, showed a caret, and ignored every keystroke — because only
+  `fieldGroup.attach()` ever installed a listener, and nothing in `panel3d` does.
+  Reproduced on our own kitchen sink before the fix: tap, type, nothing.
+  */
+  const press = (key: string) =>
+    globalThis.window.dispatchEvent(
+      new (globalThis as any).KeyboardEvent('keydown', {
+        key,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+
+  test('a tapped field receives typing', () => {
+    const field = kb.inputField({ value: '' })
+    const panel: any = w3d.panel3d({ width: 320 }, field)
+    document.body.appendChild(panel)
+    panel.handlePointer('down', 60, 20)
+    panel.handlePointer('up', 60, 20)
+    press('a')
+    press('b')
+    expect(field.value).toBe('ab')
+  })
+
+  test('typing does NOT leak to a field that lost focus', () => {
+    // Two fields, no group: the second tap must move the receiver.
+    const a = kb.inputField({ value: '' })
+    const b = kb.inputField({ value: '' })
+    const panel: any = w3d.panel3d({ width: 320 }, a, b)
+    document.body.appendChild(panel)
+    panel.handlePointer('down', 60, 20) // a
+    panel.handlePointer('up', 60, 20)
+    press('1')
+    panel.handlePointer('down', 60, 60) // b
+    panel.handlePointer('up', 60, 60)
+    press('2')
+    expect(a.value).toBe('1')
+    expect(b.value).toBe('2')
+  })
+
+  test('an attached fieldGroup WINS — no double characters', () => {
+    // A group does more than type (Tab traversal, mode switching), so it must
+    // win; two handlers would double every keystroke, which is worse than the
+    // bug being fixed.
+    const field = kb.inputField({ value: '' })
+    const group = kb.fieldGroup({ fields: [field] })
+    const detach = group.attach()
+    group.focus(field)
+    press('z')
+    expect(field.value).toBe('z')
+    detach()
+  })
+})
