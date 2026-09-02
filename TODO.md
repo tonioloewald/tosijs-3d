@@ -511,21 +511,6 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
-[ ] **A genuinely removed `<tosi-b3d>` never disposes its Engine or Scene.**
-Found 2026-09-02 while fixing #58 (reuse on reconnect), and NOT introduced by it —
-`_teardown()` (the old `disconnectedCallback` body) releases the XR helper, the
-quality subscription, the debug timers and the ready queue, but never touches
-`this.scene` or `this.engine`. So a real removal leaves a live WebGL context with
-its render loop still turning over a detached canvas, and a re-add builds a
-SECOND one beside it (verified live: after remove → re-add, `sameEngine: false`
-and the first engine is still undisposed).
-
-Not urgent, and deliberately not folded into the #58 fix: disposal is a
-behaviour change for anyone holding `el.scene` across a removal, and #58's whole
-point was to stop conflating "moved" with "removed". Now that the two paths are
-actually separate, `_teardown` is the right and safe place to dispose — it only
-runs when the element really went away.
-
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are

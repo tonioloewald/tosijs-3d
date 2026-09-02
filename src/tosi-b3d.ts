@@ -4351,10 +4351,46 @@ export class B3d extends Component {
     // disconnectedCallback when this subtree is removed — b3d doesn't dispose them.
     this._sceneReady = false
     this._readyQueue = []
+
+    /*
+    OBLITERATE THE ENGINE. A WebGL context is not memory — Chrome caps them at
+    about sixteen per page and force-loses the OLDEST when you exceed it, so a
+    leaked engine doesn't degrade an SPA gradually: it works for a dozen route
+    changes and then a scene that was fine goes black. That is #51's symptom
+    arriving by a second road, and until now this method released the XR helper,
+    the quality subscription and the debug timers but never the engine or the
+    scene it holds.
+
+    Safe to be absolute here because this only runs on a GENUINE removal: a
+    re-parent (an ancestor moving, which disconnects every descendant as
+    collateral) cancels this in `connectedCallback` before it fires. So there is
+    one rule — disconnected means gone — and no pooling, no reuse, no engine
+    kept warm on the chance somebody comes back.
+
+    Order matters: stop the loop first, or the next frame renders a scene that is
+    being disposed underneath it.
+    */
+    this.glowLayer = undefined
+    this.gui = undefined
+    try {
+      this.engine?.stopRenderLoop()
+      this.scene?.dispose()
+      this.engine?.dispose()
+    } catch (err) {
+      // A half-built scene (disconnected mid-init) can throw on the way down.
+      // Never let teardown propagate — the element is going away regardless,
+      // and a throw here would strand whatever the caller was doing.
+      console.warn('b3d teardown', err)
+    }
   }
 
   render(): void {
     super.render()
+    // A render can be queued on rAF and land AFTER teardown disposed the engine.
+    // Building a GlowLayer on a disposed scene is how that would surface — as a
+    // GL error from a component that looks fine, which is the failure mode this
+    // whole area has been generating.
+    if (this.scene == null || this.scene.isDisposed) return
     const intensity = (this as any).glowLayerIntensity
     if (intensity > 0) {
       if (!this.glowLayer) {
