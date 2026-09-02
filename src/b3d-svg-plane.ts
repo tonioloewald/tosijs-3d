@@ -420,8 +420,6 @@ import { roundedRectGeometry } from './rounded-rect'
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3
 import { SvgTexture } from './svg-texture'
-// Acyclic: widgets3d imports nothing from the b3d side (the reverse would not be).
-import { panel3d, type Widget3d } from './widgets3d'
 import type { B3d } from './tosi-b3d'
 
 export class B3dSvgPlane extends AbstractMesh {
@@ -1321,23 +1319,46 @@ export function panelScene(opts: PanelSceneOptions): {
       openPopup?: (o: Record<string, unknown>) => { close: () => void }
     }
     if (typeof panelEl.addLayerHost === 'function' && owner.openPopup) {
-      panelEl.addLayerHost(
-        (config: { width?: number }, ...items: Widget3d[]) => {
-          const sheet = panel3d(
-            { width: config.width ?? 360, height: 'fit' },
-            ...items
-          )
-          const pop = owner.openPopup!({
-            svg: sheet,
-            opener: plane.mesh,
-            width: width * 0.95,
-            // Below the panel and NEARER the viewer — the z-separation is the
-            // point, not a nicety: coplanar panels re-sort as you orbit.
-            offset: { y: -planeH * 0.7, z: -0.08 },
-          })
-          return { close: () => pop.close() }
-        }
-      )
+      panelEl.addLayerHost((sheet: SVGSVGElement) => {
+        /*
+        Place it against the panel's EDGE, from measured sizes.
+
+        The first version used a guessed fraction of the panel height
+        (`-planeH * 0.7`) and put the keyboard at y = -2.41 on a camera looking
+        at y = 0 — off screen. Tonio: "the keyboard is appearing below the whole
+        panel and with no content."
+
+        Both halves are now derived: the popup's world height comes from its own
+        aspect at the width we give it, and the offset is half of each plus a
+        gap. Nothing to tune, and it cannot drift when a panel changes shape.
+        */
+        const popW = Number(sheet.getAttribute('width')) || 360
+        const popH = Number(sheet.getAttribute('height')) || 200
+        const worldW = width * 0.95
+        const worldH = worldW * (popH / popW)
+        const pop = owner.openPopup!({
+          svg: sheet,
+          opener: plane.mesh,
+          width: worldW,
+          offset: {
+            /*
+            Aligned to the panel's BOTTOM EDGE, overlapping upward — not pushed
+            out below it.
+
+            Placing it wholly below was geometrically right and useless: the
+            panel is ~3.5 world units tall, so anything under it is outside the
+            frame, and the keyboard was simply off screen. A phone does not put
+            its keyboard below the app either; it lays it OVER the bottom of it,
+            which is what the z-separation is for.
+            */
+            y: -planeH / 2 + worldH / 2,
+            // NEARER the viewer — the z-separation is the point, not a nicety:
+            // coplanar panels re-sort as you orbit.
+            z: -0.08,
+          },
+        })
+        return { close: () => pop.close() }
+      })
     }
 
     const canvas = el.scene.getEngine().getRenderingCanvas()

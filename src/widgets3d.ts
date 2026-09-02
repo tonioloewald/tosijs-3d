@@ -498,14 +498,33 @@ export interface Widget3d {
  * presentation — `panelScene` in a scene, the app when flat.
  */
 export type LayerHost = (
+  /**
+   * The popup's SVG, already built — each presentation MOUNTS it rather than
+   * building its own.
+   *
+   * Handing every host the same widget INSTANCES did not work and could not:
+   * `appendChild` moves a node, so whichever host built last stole the widgets
+   * and the others got an empty sheet. (Observed as a keyboard plane that
+   * mounted with no content on it.)
+   *
+   * One sheet, mounted more than once, is also how the panel itself already
+   * works — `SvgTexture` CLONES the live element per frame, so a sheet can be in
+   * the DOM and on a plane at once and stay a single UI rather than two that
+   * drift.
+   */
+  sheet: SVGSVGElement,
   config: {
     anchor: { x: number; y: number; width: number; height: number }
     side?: PopupSide
     width?: number
     maxHeight?: number
-  },
-  ...items: Widget3d[]
+  }
 ) => { close: () => void }
+
+/** Build the SVG a layer mounts. Separate so every presentation shares one. */
+function panelPopupSheet(width: number, items: Widget3d[]): SVGSVGElement {
+  return panel3d({ width, height: 'fit' }, ...items)
+}
 
 /** What a panel offers the widgets inside it. */
 export interface WidgetHost {
@@ -1695,9 +1714,9 @@ export function panel3d(
           y: config.anchor.y + paddingTop + top - scroll,
         },
       }
-      // Each host gets its OWN widget instances: two presentations cannot share
-      // one SVG node, and handing the same objects to both would move them.
-      const opened = hosts.map((h) => h(placed, ...items))
+      // ONE sheet, mounted by each presentation — see `LayerHost`.
+      const sheet = panelPopupSheet(config.width ?? 360, items)
+      const opened = hosts.map((h) => h(sheet, placed))
       return {
         close: () => {
           for (const o of opened) o.close()
@@ -2033,11 +2052,7 @@ export function panel3d(
     if (style.position === 'static') container.style.position = 'relative'
     return (
       root as unknown as { addLayerHost: (fn: LayerHost) => () => void }
-    ).addLayerHost((config, ...items) => {
-      const sheet = panel3d(
-        { width: config.width ?? 360, height: 'fit' },
-        ...items
-      )
+    ).addLayerHost((sheet, config) => {
       const rect = root.getBoundingClientRect()
       const box = container.getBoundingClientRect()
       // Panel units -> CSS px, since a panel is usually rendered scaled.
