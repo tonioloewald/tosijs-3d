@@ -45,6 +45,40 @@ cutting a release.**
    both deterministically, so churn there before the build means nothing. A
    dirty tree **after** steps 4–5 is the signal that matters.
 
+2a. **⚠️ GATE: the PREVIOUS tag must be on npm before you cut a new one.**
+
+```sh
+npm view tosijs-3d version          # what the registry has
+git tag --list 'v*' | sort -V | tail -1   # what we last claimed
+```
+
+Tonio: _"you shouldn't cut new tags if the previous one hasn't been published."_
+
+A tag is a claim that a released artifact exists. Cutting the next one over an
+unpublished tag makes that claim false and leaves an orphan nobody notices —
+`v0.7.3` was tagged and never published, and it only surfaced two releases later
+when the tag list and the registry were compared side by side. The content was
+not lost (0.7.4 is cumulative, so mantling and the swim rewrite shipped inside
+it), which is exactly why nothing complained: **the failure is silent, and the
+artifact being fine is what keeps it silent.**
+
+If the previous tag is unpublished, decide before going further:
+
+- **publish it** if it should exist; or
+- **delete the tag** (`git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z`)
+  and roll its changelog into the next version.
+
+Checking every tag rather than only the last one is a one-liner, and worth it:
+
+```sh
+npm view tosijs-3d versions --json | tr -d ' "\n[]' | tr ',' '\n' | sort -V > /tmp/pub
+git tag --list 'v*' | sed 's/^v//' | sort -V > /tmp/tags
+comm -23 /tmp/tags /tmp/pub          # tags with no published artifact
+```
+
+Prerelease tags (`-beta.N`) may legitimately have no artifact — they are gates,
+not releases. A bare `vX.Y.Z` with none is the thing to catch.
+
 3. **Bump the version** in `package.json` (`"version"`). This is a `0.x` package, so
    semver is loose, but as a rule of thumb: new/changed public API or an
    architectural shift → **minor** (`0.N.0`); pure fixes → **patch** (`0.N.M`). The
