@@ -107,6 +107,33 @@ export interface InputFieldOptions {
      * configured (tosijs-3d#37, item 2).
      */
     type?: FieldType;
+    /**
+     * Should tapping this field summon an on-screen keyboard?
+     *
+     * - `auto` (default) — the AFFORDANCE is always drawn, and a tap auto-opens
+     *   only on a coarse pointer (touch). See below for why those differ.
+     * - `always` — auto-open on any pointer. What an XR panel wants.
+     * - `never` — no affordance, no auto-open.
+     *
+     * Needs somewhere to PUT a keyboard — see `openKeyboard`.
+     */
+    keyboard?: 'auto' | 'always' | 'never';
+    /**
+     * Where the keyboard goes. Return a closer.
+     *
+     * **A short panel cannot host one, and this is why the option exists.** The
+     * panel-overlay route (`WidgetHost.showPopup`) caps a popup to the panel's own
+     * bounds, which is right for a dropdown and wrong for a keyboard: on a 64px
+     * panel the keyboard was squeezed to 64px AND placed over the field it types
+     * into. Measured, not guessed.
+     *
+     * So the field asks and the app answers. Flat that might be a positioned
+     * sibling; in a scene it wants `openPopup` on the B3d — a plane of its own,
+     * unbounded by the panel. Omit it and the field uses the panel overlay only
+     * when there is genuinely room below, and otherwise leaves the glyph inert
+     * rather than showing you something broken.
+     */
+    openKeyboard?: (field: InputField) => (() => void) | void;
 }
 /**
  * **One keyboard, many fields.** Owns which field is receiving, so hosts stop
@@ -158,6 +185,10 @@ export declare function fieldGroup(config: {
      */
     attach: (target?: EventTarget) => () => void;
 };
+/** Is the on-screen keyboard set to appear on its own? */
+export declare function autoKeyboardEnabled(): boolean;
+/** Turn the on-screen keyboard on or off for every field at once. */
+export declare function setAutoKeyboard(on: boolean): void;
 export declare function inputField(config?: InputFieldOptions): InputField;
 /**
  * The on-screen keyboard. Emits `onKey(text)` for inserting keys and `onAction()`

@@ -86,7 +86,12 @@ const panel = panel3d(
 
 preview.append(
   div(
-    { style: &#39;display:flex; gap:24px; padding:16px; background:#11131a; align-items:flex-start&#39; },
+    { style: {
+      display: &#39;flex&#39;,
+      gap: 24,
+      padding: 16,
+      alignItems: &#39;flex-start&#39;
+    } },
     panel,
     label(&#39;native, same binding &#39;, input({ type: &#39;range&#39;, min: 0, max: 24, step: 0.5, bindValue: ui.time }))
   )
@@ -571,29 +576,30 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <ul>
       <li><a class="doc-link current" href="../widgets3d/" aria-current="page">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
       <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
+      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
-      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
-      <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
-      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-      <li><a class="doc-link" href="../table/">table</a></li>
-      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>

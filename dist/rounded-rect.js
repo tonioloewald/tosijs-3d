@@ -50,7 +50,7 @@ const { positions, indices, uvs, normals } = roundedRectGeometry({
 })
 ```
 */
-/*{ "parent": "UI", "order": 410 }*/
+/*{ "parent": "UI", "order": 900 }*/
 /**
  * Vertices for a rounded rectangle in the XY plane, facing +Z, centred on the
  * origin.

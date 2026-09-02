@@ -117,7 +117,7 @@ preview.append(
 .preview { height: 100%; }
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 220 }*/
 import { svgElements } from 'tosijs';
 import { resolveColumns, visibleRows, maxScroll, rowAt, } from './table-layout';
 import { selectionIcon, applySelection } from './selection';

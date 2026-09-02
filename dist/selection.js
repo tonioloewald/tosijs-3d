@@ -110,7 +110,7 @@ icon layer, which imports tosijs, which needs a DOM — and then this module cou
 longer be unit-tested without one. The names are the part worth pinning; the caller
 already has an icon helper.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 240 }*/
 /**
  * The icon name for a selection state. Kept as a pure name lookup (rather than
  * going straight to a glyph) so a caller can theme, swap or test it without

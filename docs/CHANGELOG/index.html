@@ -51,6 +51,100 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.5</h2>
+<h3>Added</h3>
+<ul>
+<li><p><strong><code>iconGrid3d</code> — segmented select, tool palette and mode picker in one.</strong>
+Three widgets collapse into one because the difference between them was never
+layout, it was <strong>semantics</strong>: the grid owns layout, hit-testing and focus, and
+<code>handleChange</code> lets you impose your own rule. It receives what <em>would</em> happen
+and returns what should; returning <code>previous</code> is the veto, because one way to
+say no is easier to get right than two.</p>
+<p>Cell size is two cases — 48px touch, 24px pointer, from <code>(pointer: coarse)</code>.
+<strong>XR is deliberately not a third size</strong>: growing targets in UI units leaves the
+glyphs where they are and inflates the buttons around them, buying hit accuracy
+by making the panel harder to read. Scale the panel in world space instead and
+both move together.</p>
+</li>
+<li><p><strong>An on-screen keyboard you can summon.</strong> <code>inputField</code> draws a ⌨ affordance,
+and it is a <strong>toggle</strong> for a shared preference rather than a one-shot: you are
+not asking for a keyboard once, you are saying that reaching a real one is
+inconvenient, and that stays true for the next field. Auto-open follows the
+same preference (<code>autoKeyboardEnabled</code>/<code>setAutoKeyboard</code>, both exported).</p>
+<p>The glyph is always drawn because the DEVICE cannot tell you whether a keyboard
+is within REACH — a console, a laptop docked to a screen across the room, a
+headset with a desk under it. Sniffing gets all of those wrong in the same
+direction.</p>
+<p><strong>Caps lock by holding shift.</strong> A tap stays one-shot; a hold locks; a tap while
+locked unlocks. The key tints accent while locked, because a mode you cannot
+see is a mode you will be surprised by.</p>
+</li>
+<li><p><strong>Popups can escape their panel — a real layer, in both presentations.</strong>
+<code>panel3d.useDomLayer(container)</code> mounts flat popups as positioned siblings
+outside the panel&#39;s <code>&lt;svg&gt;</code>; <code>panelScene</code> mounts them as their own plane, with
+genuine z-separation. A layer belongs to a PRESENTATION, and there are two of
+them, so <code>showLayer</code> fans out and closing closes both — one popup wearing two
+faces, exactly as the panel already is.</p>
+</li>
+<li><p><strong><code>data-presentation</code> — one UI, two appearances.</strong> Mark a node <code>dom</code> or
+<code>texture</code>: <code>svg-texture</code> strips <code>dom</code>-only nodes when it rasterises, and the
+DOM layer hides <code>texture</code>-only ones by stylesheet (a serialised SVG inherits no
+page CSS, which is what makes that work). Popup chrome uses it — the move and
+close glyphs are handled by picking, which exists only in the scene, so flat
+they were decoration you could press with no effect.</p>
+<p>It deliberately cannot make a widget <em>behave</em> differently between
+presentations. Differing in what you draw is safe; differing in what you do is
+how the two drift.</p>
+</li>
+<li><p><strong><code>select3d</code> opens a menu from its value</strong>, keeping its steppers. Nudging to
+the next option while watching it is a different gesture from picking a named
+one out of a list, and a stepper is better at it.</p>
+<p>This needed a seam: a widget cannot reach its own panel, because it is
+constructed before the panel that will hold it. <code>Widget3d.setHost()</code> and
+<code>WidgetHost</code> (<code>showPopup</code>/<code>showLayer</code>/<code>closePopup</code>/<code>bounds</code>/<code>top</code>/<code>hasLayer</code>)
+are that seam.</p>
+</li>
+<li><p><strong>A kitchen-sink demo and an overview on the UI page</strong>, with the doc order
+sorted so features come first and the pure models sort to the bottom.</p>
+</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>The scene-panel button wears the tosijs-3d owl</strong>, not a gear. The
+<code>scenePanelGear</code> part name is unchanged — a consumer may be styling it, and a
+part is an anchor rather than a description.</li>
+<li><strong>Keyboard keys use SVG icons</strong> for enter, backspace and shift instead of
+unicode glyphs. A codepoint is at the mercy of whatever font the panel
+resolved, and a rasterised texture is its own document with its own fallback,
+so <code>⏎</code> could arrive as a box.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Nested panel pointer events were handled twice</strong> — once by the inner panel,
+then again when they bubbled to the outer one, which routed them back in by
+coordinates. A tap survives that; a HOLD does not, so press-hold-drag on the
+spacebar never fired in the DOM (3D worked, because a texture has no DOM
+events).</li>
+<li><strong><code>vector3d</code> did not forward its host</strong>, so the fields inside a coordinate row
+could never summon a keyboard — and therefore never showed a numpad.</li>
+<li><strong>The keyboard follows focus</strong> between fields, and its layout reverts: a
+takeover cleared the shared record but not the previous owner&#39;s, so returning
+to a text field left the numpad up.</li>
+<li><strong>It dismisses</strong> when the host makes something else the receiver
+(<code>setActive(false)</code>, which is distinct from <code>focusClear</code> — D-pad focus moving
+on does not stop text arriving).</li>
+<li><strong>Placement follows the FIELD, not the panel</strong>, and the scene layer no longer
+clamps to the panel: a plane is not cropped by anything, so a keyboard for a
+field low in the panel hangs below it rather than being pushed up over the
+field it types into.</li>
+<li><strong>The popup close target no longer shrinks with its glyph.</strong> <code>chromeHit</code> tests
+a boundary, not the glyph box, so making the × smaller quietly made it harder
+to hit — wrong for a controller ray. The target is now sized on its own terms.</li>
+<li><strong>The return key drew a box.</strong> <code>icons/stroked/corner-down-left.svg</code> is an
+18-byte file containing the TEXT <code>cornerDownRight0f</code> — a mirror reference that
+<code>svgIcons</code> resolves and <code>iconGlyph</code> cannot. The icon guard now checks that a
+name RENDERS, not merely that it exists.</li>
+</ul>
 <h2>0.7.4</h2>
 <h3>Added</h3>
 <ul>
@@ -78,9 +172,12 @@ therefore the expensive shape: a 16-gon, indistinguishable at province scale.
 Vertices cannot pass their neighbours or reach the centre, which keeps the
 polygon star-shaped — the property that makes &quot;extent in this direction&quot; have
 an answer.</p>
-<p>Presets are named for what they <strong>are</strong>: <code>shelf + mountains</code>, <code>desert terraces</code>, <code>plateau</code>, <code>smooth edge</code>, <code>abrupt edge</code>, <code>messy circle</code>. &quot;ease
-in-out&quot; describes a graph; &quot;smooth edge&quot; describes a province.</p>
+<p>Presets are named for what they <strong>are</strong>: <code>shelf + mountains</code>, `desert</p>
 </li>
+</ul>
+<p>terraces<code>, </code>plateau<code>, </code>smooth edge<code>, </code>abrupt edge<code>, </code>messy circle`. &quot;ease
+  in-out&quot; describes a graph; &quot;smooth edge&quot; describes a province.</p>
+<ul>
 <li><p><strong><code>vector3d</code> / <code>euler3d</code> — a coordinate on ONE row.</strong> Three stacked labelled
 fields is why an inspector panel ends up three times taller than it needs to
 be. <code>euler3d</code> is not a styling variant: it <strong>wraps</strong> into <code>(-180, 180]</code> where
@@ -2418,29 +2515,30 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
       <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
+      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
-      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
-      <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
-      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-      <li><a class="doc-link" href="../table/">table</a></li>
-      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>

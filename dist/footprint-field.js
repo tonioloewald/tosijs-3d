@@ -87,13 +87,16 @@ export function footprint3d(config = {}) {
     /** Polar (turns, 0..1 radius) → widget pixels. y is negated: SVG y grows down. */
     const toPx = (v) => {
         const a = v.x * Math.PI * 2;
-        return { x: cx + Math.cos(a) * v.y * unit, y: cy - Math.sin(a) * v.y * unit };
+        return {
+            x: cx + Math.cos(a) * v.y * unit,
+            y: cy - Math.sin(a) * v.y * unit,
+        };
     };
     const toPolar = (px, py) => {
         const dx = px - cx;
         const dy = cy - py;
         return {
-            x: ((Math.atan2(dy, dx) / (Math.PI * 2)) % 1 + 1) % 1,
+            x: (((Math.atan2(dy, dx) / (Math.PI * 2)) % 1) + 1) % 1,
             y: Math.min(1, Math.hypot(dx, dy) / unit),
         };
     };

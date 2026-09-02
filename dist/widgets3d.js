@@ -48,7 +48,12 @@ const panel = panel3d(
 
 preview.append(
   div(
-    { style: 'display:flex; gap:24px; padding:16px; background:#11131a; align-items:flex-start' },
+    { style: {
+      display: 'flex',
+      gap: 24,
+      padding: 16,
+      alignItems: 'flex-start'
+    } },
     panel,
     label('native, same binding ', input({ type: 'range', min: 0, max: 24, step: 0.5, bindValue: ui.time }))
   )
@@ -289,7 +294,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 | `--w3d-row-bg` / `--w3d-row-hover` | subtle whites | Row background / hover |
 */
 /*{ "parent": "UI", "order": 100 }*/
-import { svgElements } from 'tosijs';
+import { svgElements, StyleSheet } from 'tosijs';
 import { placePopup } from './flow-layout';
 import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, measureTextWidth, } from './widgets3d-layout';
 import { w3dTheme } from './w3d-theme';
@@ -400,6 +405,20 @@ const TH = {
     },
 };
 let clipSeq = 0;
+/**
+ * Build the SVG a layer mounts. Separate so every presentation shares one.
+ *
+ * `paddingTop` reserves HEADROOM for the popup chrome. `popup-surface` draws its
+ * move and close glyphs into the top of whatever SVG it is given, so without a
+ * band kept clear they land on the content — Tonio: "the move affordance
+ * overlaps the 'q' and the close overlaps another key". The chrome is drawn by
+ * the mounting layer and the sheet is built here, so the sheet is the only place
+ * that can leave room for it.
+ */
+const POPUP_CHROME_BAND = 30;
+function panelPopupSheet(width, items) {
+    return panel3d({ width, height: 'fit', paddingTop: POPUP_CHROME_BAND }, ...items);
+}
 /**
  * Set an inline CSS string and return the element. svgElements types `style`
  * as a style object, not a string, so we apply it via setAttribute instead.
@@ -1040,8 +1059,40 @@ export function select3d(config) {
         reflect();
     };
     bound.subscribe(reflect);
+    /*
+    THREE ZONES, not two: ‹ steps back, › steps forward, and the VALUE between
+    them opens a menu.
+  
+    The steppers stay rather than being replaced. Nudging to the next option while
+    watching what it does is a different gesture from picking a named one out of a
+    list, and a stepper is better at it — the menu is for "I know which one I
+    want" and the arrows are for "show me". Tonio made the same argument for
+    keeping arrows on a mode select alongside its menu.
+    */
+    const ARROW = 30;
+    let host = null;
+    const openMenu = () => {
+        if (host == null || opts.length === 0)
+            return;
+        host.showPopup({
+            // Anchored to the VALUE, not to the whole row: a menu that drops from
+            // the far left of a wide row looks unrelated to what it changes.
+            anchor: { x: clusterX, y: 0, width: clusterW, height: TH.ROW },
+            width: Math.max(clusterW, 140),
+        }, list3d({
+            items: opts.map((o) => ({ label: String(o.label) })),
+            onSelect: (_item, i) => {
+                bound.set(opts[i].value);
+                reflect();
+                host?.closePopup();
+            },
+        }));
+    };
     return {
         el,
+        setHost(h) {
+            host = h;
+        },
         layout(width) {
             rowBg.setAttribute('width', String(width));
             clusterW = Math.min(width * 0.55, 180);
@@ -1057,7 +1108,10 @@ export function select3d(config) {
             return x >= clusterX - 6;
         },
         handle(kind, x) {
-            const onLeft = x < clusterX + clusterW / 2;
+            // Zones measured from the cluster's own ends, so a wide row does not make
+            // the arrows enormous and the value a sliver.
+            const onPrev = x < clusterX + ARROW;
+            const onNext = x > clusterX + clusterW - ARROW;
             if (kind === 'leave') {
                 rowBg.setAttribute('fill', 'transparent');
                 prev.setAttribute('fill', TH.ACCENT);
@@ -1066,13 +1120,21 @@ export function select3d(config) {
             }
             rowBg.setAttribute('fill', TH.ROW_HOVER);
             if (kind === 'down') {
-                prev.setAttribute('fill', onLeft ? '#fff' : TH.ACCENT);
-                next.setAttribute('fill', onLeft ? TH.ACCENT : '#fff');
+                prev.setAttribute('fill', onPrev ? '#fff' : TH.ACCENT);
+                next.setAttribute('fill', onNext ? '#fff' : TH.ACCENT);
             }
             else if (kind === 'up') {
                 prev.setAttribute('fill', TH.ACCENT);
                 next.setAttribute('fill', TH.ACCENT);
-                step(onLeft ? -1 : 1);
+                if (onPrev)
+                    step(-1);
+                else if (onNext)
+                    step(1);
+                // The middle: a menu, if the panel can host one. Without a host it
+                // stays a stepper rather than doing nothing — a control that is inert
+                // in some containers is worse than one that is merely plainer.
+                else if (host != null)
+                    openMenu();
             }
         },
     };
@@ -1200,6 +1262,8 @@ export function panel3d(config, ...widgets) {
     // scroll-drags from empty area. Coordinate-based, so the overlay and the
     // in-scene/VR host feed it the same way.
     let captured = null;
+    /** The widget that last took a press — see the `focusClear` note below. */
+    let lastPressed = null;
     let hovered = null;
     let scrollFrom = 0;
     let scrolling = false;
@@ -1218,7 +1282,178 @@ export function panel3d(config, ...widgets) {
             hovered = next ? { w: next.w, top: next.top } : null;
         }
     };
+    /*
+    THE OVERLAY: at most one popup, mounted above the content.
+  
+    One, not a stack — a dropdown opening a dropdown is a cascade, and a cascade
+    wants `surface.ts`, which already does it properly. Pretending to support one
+    here would be a worse cascade than no cascade.
+    */
+    let overlay = null;
+    const closeOverlay = () => {
+        if (overlay == null)
+            return;
+        overlay.el.remove();
+        const notify = overlay.onClose;
+        overlay = null;
+        /*
+        TELL THE OPENER. An outside press dismisses the overlay directly, so without
+        this the opener still believes its popup is up — and a field that thinks its
+        keyboard is open refuses to reopen it, which presents as "focusing the field
+        does nothing".
+        */
+        notify?.();
+    };
+    /*
+    A host PER WIDGET, so the anchor can be given in the widget's own coordinates.
+  
+    A widget knows where things are inside itself and nothing about where it sits
+    in the panel, so an anchor in panel coordinates is a number it cannot produce.
+    The first version made select3d pass `y: 0` and the menu opened at the top of
+    the panel, over an unrelated control — right list, wrong place.
+  
+    The panel is the only thing that knows both, so it translates: widget-local in,
+    panel coordinates out, including the current scroll. Each widget gets a host
+    closed over its own index rather than sharing one, which is also what lets
+    `showPopup` need no "which widget is calling" argument.
+    */
+    const hostFor = (index) => ({
+        showPopup(config, ...items) {
+            const top = offsets[index] ?? 0;
+            return baseHost.showPopup({
+                ...config,
+                anchor: {
+                    ...config.anchor,
+                    x: config.anchor.x + padding,
+                    y: config.anchor.y + paddingTop + top - scroll,
+                },
+            }, ...items);
+        },
+        closePopup: () => baseHost.closePopup(),
+        relayout: () => baseHost.relayout(),
+        showLayer(config, ...items) {
+            /*
+            FAN OUT TO EVERY PRESENTATION.
+      
+            A panel is usually on screen twice — flat in the DOM and rasterised onto a
+            plane — and a layer belongs to a PRESENTATION, not to the panel. The first
+            version took a single host, `panelScene` installed it, and the keyboard
+            moved onto a plane and disappeared from the DOM: measured as 0 popups flat,
+            2 planes in the scene.
+      
+            So each presentation adds its own mounter and a popup opens in all of them,
+            which is the same arrangement that makes the panel itself work in both
+            places. Closing closes them together, because they are one popup wearing
+            two faces — exactly as the panel is.
+            */
+            const hosts = root.__layerHosts ?? [];
+            if (hosts.length === 0) {
+                // Nothing above the panel volunteered, so this degrades to a popup —
+                // bounded by the panel, with everything that implies.
+                return hostFor(index).showPopup(config, ...items);
+            }
+            const top = offsets[index] ?? 0;
+            const placed = {
+                ...config,
+                anchor: {
+                    ...config.anchor,
+                    x: config.anchor.x + padding,
+                    y: config.anchor.y + paddingTop + top - scroll,
+                },
+            };
+            // ONE sheet, mounted by each presentation — see `LayerHost`.
+            const sheet = panelPopupSheet(config.width ?? 360, items);
+            const opened = hosts.map((h) => h(sheet, placed));
+            return {
+                close: () => {
+                    for (const o of opened)
+                        o.close();
+                    config.onClose?.();
+                },
+            };
+        },
+        get hasLayer() {
+            const hosts = root.__layerHosts ?? [];
+            return hosts.length > 0;
+        },
+        // Live getters: both change when the panel re-lays-out or scrolls, and a
+        // widget that cached them would decide against stale geometry.
+        get bounds() {
+            return { width, height };
+        },
+        get top() {
+            return (offsets[index] ?? 0) + paddingTop - scroll;
+        },
+    });
+    // `showLayer` is per-widget (it needs the widget's offset), so the shared base
+    // deliberately does not carry it.
+    const baseHost = {
+        showPopup(config, ...items) {
+            // One at a time: opening a second while the first is up would leave the
+            // first unreachable but still drawn, which reads as a stuck panel.
+            closeOverlay();
+            const opened = root.openPopup(config, ...items);
+            const el = opened.el;
+            el.setAttribute('x', String(opened.x));
+            el.setAttribute('y', String(opened.y));
+            // Appended to ROOT, after the clipped content — so it is not clipped by
+            // the content's clip path, but is still inside the panel's viewBox.
+            root.appendChild(el);
+            overlay = {
+                el,
+                x: opened.x,
+                y: opened.y,
+                w: Number(el.getAttribute('width')),
+                h: Number(el.getAttribute('height')),
+                onClose: config.onClose,
+            };
+            return { close: closeOverlay };
+        },
+        closePopup: closeOverlay,
+        relayout: () => {
+            // Re-running the panel's own layout is not exposed; the cheap correct
+            // thing is to let the caller redraw, and widgets that change height are
+            // rare enough that this is honest rather than lazy.
+            closeOverlay();
+        },
+    };
+    /*
+    Handed out HERE, after `host` exists — not up beside the layout loop, which
+    runs earlier and would read it in its temporal dead zone.
+  
+    That is the second time today: `popup-surface` had the identical shape this
+    morning (`attachDrag` used above its own `const`). Same lesson, and this time a
+    test caught it rather than a person, which is the difference between a bug and
+    a five-minute detour.
+    */
+    widgets.forEach((w, i) => w.setHost?.(hostFor(i)));
     const handlePointer = (kind, x, y) => {
+        /*
+        THE OVERLAY WINS, and an outside press dismisses.
+    
+        Checked before anything else, because the popup is drawn on top: routing by
+        what is underneath would let you press a control through an open menu, which
+        is the "it clicked the wrong thing" bug in its purest form.
+        */
+        if (overlay != null) {
+            const inside = x >= overlay.x &&
+                x <= overlay.x + overlay.w &&
+                y >= overlay.y &&
+                y <= overlay.y + overlay.h;
+            if (inside) {
+                overlay.el.handlePointer?.(kind, x - overlay.x, y - overlay.y);
+                return;
+            }
+            // Dismiss on PRESS, not on release: a press that starts outside was never
+            // meant for the menu, and waiting for the release leaves it open under a
+            // pointer that has already moved on.
+            if (kind === 'down') {
+                closeOverlay();
+                return;
+            }
+            if (kind !== 'move')
+                return;
+        }
         const localX = x - padding;
         const contentY = y - paddingTop + scroll;
         if (kind === 'leave')
@@ -1226,6 +1461,21 @@ export function panel3d(config, ...widgets) {
         const row = rowAt(localX, contentY);
         if (kind === 'down') {
             if (row) {
+                /*
+                A PRESS ELSEWHERE CLEARS THE LAST WIDGET'S INNER FOCUS.
+        
+                Without this a keyboard stayed up after you touched something that
+                cannot use it — Tonio: "not disappearing if I click the lights checkbox".
+                The panel is the only thing that knows focus moved, since each widget
+                only ever hears about its own presses.
+        
+                `focusClear` already means "the host's focus left you", so this is the
+                existing contract being honoured rather than a new one.
+                */
+                if (lastPressed != null && lastPressed !== row.w) {
+                    lastPressed.setActive?.(false);
+                }
+                lastPressed = row.w;
                 captured = { w: row.w, top: row.top };
                 row.w.handle?.('down', localX, contentY - row.top);
             }
@@ -1257,7 +1507,26 @@ export function panel3d(config, ...widgets) {
     // Overlay: map native pointer coords → viewBox via the CTM, then route. Moves
     // route unconditionally so hover feedback works without a press.
     const toViewBox = (clientX, clientY) => localPoint(root, clientX, clientY);
+    /*
+    STOP AT THE PANEL BOUNDARY.
+  
+    A panel can be nested inside another — a popup opened by `showPopup` IS a
+    `panel3d` mounted in its opener's SVG — and it carries its own DOM listeners.
+    Without this, one real pointer event is handled TWICE: once by the inner panel,
+    then again when it bubbles to the outer one, which routes it straight back into
+    the inner panel by coordinates.
+  
+    A tap survives being doubled. A HOLD does not: two `down`s restart the timer,
+    so press-hold-drag on the spacebar never fired. Tonio: "press hold and drag on
+    spacebar to move the selection doesn't work in the DOM ui, only in the 3D
+    view" — and 3D worked precisely because a texture has no DOM events, leaving
+    exactly one route.
+  
+    The event is the panel's own, on the panel's own element, so ending it here is
+    what a nested interactive component should do.
+    */
     root.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
         const pe = e;
         const p = toViewBox(pe.clientX, pe.clientY);
         try {
@@ -1269,11 +1538,13 @@ export function panel3d(config, ...widgets) {
         handlePointer('down', p.x, p.y);
     });
     root.addEventListener('pointermove', (e) => {
+        e.stopPropagation();
         const pe = e;
         const p = toViewBox(pe.clientX, pe.clientY);
         handlePointer('move', p.x, p.y);
     });
     root.addEventListener('pointerup', (e) => {
+        e.stopPropagation();
         const pe = e;
         const p = toViewBox(pe.clientX, pe.clientY);
         handlePointer('up', p.x, p.y);
@@ -1333,6 +1604,57 @@ export function panel3d(config, ...widgets) {
             y: placed.y,
             side: placed.side,
             close: () => popup.remove(),
+        };
+    };
+    root.useDomLayer = (container) => {
+        // One deduped sheet however many layers exist — see the note at the mount.
+        StyleSheet('w3d-dom-layer', {
+            '[data-w3d-dom-layer] [data-presentation="texture"]': {
+                display: 'none',
+            },
+        });
+        const style = getComputedStyle(container);
+        // `absolute` needs a positioned ancestor; without this the popup lands
+        // relative to the page and appears somewhere else entirely.
+        if (style.position === 'static')
+            container.style.position = 'relative';
+        return root.addLayerHost((sheet, config) => {
+            const rect = root.getBoundingClientRect();
+            const box = container.getBoundingClientRect();
+            // Panel units -> CSS px, since a panel is usually rendered scaled.
+            const scale = rect.height / Math.max(1, Number(root.getAttribute('height')));
+            /*
+            HIDE TEXTURE-ONLY NODES WITH CSS, NOT BY TOUCHING THEM.
+      
+            The first version set `style.display = 'none'` on the nodes — and the sheet
+            is SHARED, so hiding them for the DOM hid them in the texture too. Tonio:
+            "the affordances have disappeared from the 3D keyboard panel (they're also
+            gone from the DOM version, but we do want them in the 3d panel)."
+      
+            A stylesheet rule is the right tool precisely BECAUSE of the quirk that
+            makes rasterising awkward: a serialised SVG is its own document and
+            inherits none of the page's CSS (the same reason `w3d-theme` bakes
+            literals). So the rule hides them flat and the texture still draws them —
+            one sheet, two appearances, without mutating anything either side shares.
+            */
+            const holder = document.createElement('div');
+            holder.setAttribute('data-w3d-dom-layer', '');
+            holder.style.position = 'absolute';
+            holder.style.zIndex = '10';
+            holder.style.left = `${rect.left - box.left}px`;
+            holder.style.top = `${rect.top - box.top + config.anchor.y * scale + config.anchor.height * scale}px`;
+            holder.appendChild(sheet);
+            container.appendChild(holder);
+            return { close: () => holder.remove() };
+        });
+    };
+    root.addLayerHost = (fn) => {
+        const list = (root.__layerHosts ??= []);
+        list.push(fn);
+        return () => {
+            const i = list.indexOf(fn);
+            if (i >= 0)
+                list.splice(i, 1);
         };
     };
     root.appendChild(bg);

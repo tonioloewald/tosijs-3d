@@ -368,7 +368,7 @@ export function polygonExtent(vertices, theta) {
     const n = vertices.length;
     if (n < 3)
         return 0;
-    const a = ((theta % 1) + 1) % 1 * Math.PI * 2;
+    const a = (((theta % 1) + 1) % 1) * Math.PI * 2;
     const dx = Math.cos(a);
     const dy = Math.sin(a);
     const pt = (v) => ({
@@ -416,7 +416,7 @@ export function messyNgon(sides = 16, jitter = 0.22, seed = 1) {
     for (let i = 0; i < n; i++) {
         const wobble = (hash(i) - 0.5) * (1 / n) * 0.6;
         out.push({
-            x: ((i / n + wobble) % 1 + 1) % 1,
+            x: (((i / n + wobble) % 1) + 1) % 1,
             y: clamp01(1 - hash(i + n) * jitter),
         });
     }

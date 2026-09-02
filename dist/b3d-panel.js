@@ -98,7 +98,7 @@ so you have full control:
 | `reveal-start` / `reveal-full` | `50` / `25` | Gaze half-angles (deg) where the reveal begins / completes |
 | `max-distance` | `0` | Hide beyond this distance (m); 0 = no limit |
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 500 }*/
 import { Component } from 'tosijs';
 export class B3dPanel extends Component {
     static initAttributes = {

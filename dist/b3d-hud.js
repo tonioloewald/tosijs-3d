@@ -91,7 +91,7 @@ tosi-b3d { width: 100%; height: 100%; }
 | `size` | `70` | HUD height as a % of the canvas's smaller dimension |
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 520 }*/
 import { B3dChild } from './b3d-utils';
 import { SvgTexture } from './svg-texture';
 import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud';

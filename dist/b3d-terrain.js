@@ -155,7 +155,7 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank. Tweak terrain via the ⚙ (works in VR too).'),
+    p('Pull back to climb, triggers up/down (throttle when fast), turn to bank. Tweak terrain via the scene panel (works in VR too).'),
     posDisplay,
   )
 )

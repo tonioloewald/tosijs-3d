@@ -15,14 +15,19 @@
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
   <url><loc>https://3d.tosijs.net/make-mesh/</loc></url>
+  <url><loc>https://3d.tosijs.net/keyboard/</loc></url>
+  <url><loc>https://3d.tosijs.net/table/</loc></url>
+  <url><loc>https://3d.tosijs.net/svg-icons/</loc></url>
+  <url><loc>https://3d.tosijs.net/selection/</loc></url>
   <url><loc>https://3d.tosijs.net/vector-field/</loc></url>
   <url><loc>https://3d.tosijs.net/curve/</loc></url>
   <url><loc>https://3d.tosijs.net/curve-field/</loc></url>
   <url><loc>https://3d.tosijs.net/footprint-field/</loc></url>
+  <url><loc>https://3d.tosijs.net/icon-grid/</loc></url>
+  <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
+  <url><loc>https://3d.tosijs.net/w3d-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc></url>
-  <url><loc>https://3d.tosijs.net/rounded-rect/</loc></url>
-  <url><loc>https://3d.tosijs.net/popup-chrome/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-aircraft/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-biped/</loc></url>
@@ -34,7 +39,6 @@
   <url><loc>https://3d.tosijs.net/b3d-exploder/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-fog/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-galaxy/</loc></url>
-  <url><loc>https://3d.tosijs.net/b3d-hud/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-input-focus/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-interactive/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-launcher/</loc></url>
@@ -54,7 +58,6 @@
   <url><loc>https://3d.tosijs.net/b3d-spawner/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-star/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-star-system/</loc></url>
-  <url><loc>https://3d.tosijs.net/b3d-svg-plane/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-trigger/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-turret/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-warhead/</loc></url>
@@ -64,8 +67,6 @@
   <url><loc>https://3d.tosijs.net/sdf-lattice/</loc></url>
   <url><loc>https://3d.tosijs.net/cloud-shadows/</loc></url>
   <url><loc>https://3d.tosijs.net/demo-utils/</loc></url>
-  <url><loc>https://3d.tosijs.net/dialog-placement/</loc></url>
-  <url><loc>https://3d.tosijs.net/embed-font/</loc></url>
   <url><loc>https://3d.tosijs.net/environment/</loc></url>
   <url><loc>https://3d.tosijs.net/frame-panel/</loc></url>
   <url><loc>https://3d.tosijs.net/game-controller/</loc></url>
@@ -74,21 +75,15 @@
   <url><loc>https://3d.tosijs.net/hud/</loc></url>
   <url><loc>https://3d.tosijs.net/input/</loc></url>
   <url><loc>https://3d.tosijs.net/interaction/</loc></url>
-  <url><loc>https://3d.tosijs.net/keyboard/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/landform/</loc></url>
   <url><loc>https://3d.tosijs.net/mantle/</loc></url>
   <url><loc>https://3d.tosijs.net/medium/</loc></url>
   <url><loc>https://3d.tosijs.net/performance/</loc></url>
   <url><loc>https://3d.tosijs.net/portal-transform/</loc></url>
-  <url><loc>https://3d.tosijs.net/selection/</loc></url>
   <url><loc>https://3d.tosijs.net/shadow-decal/</loc></url>
   <url><loc>https://3d.tosijs.net/space/</loc></url>
-  <url><loc>https://3d.tosijs.net/svg-icons/</loc></url>
-  <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/swim-aim/</loc></url>
-  <url><loc>https://3d.tosijs.net/table/</loc></url>
-  <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/ui/</loc></url>
   <url><loc>https://3d.tosijs.net/utilities/</loc></url>
   <url><loc>https://3d.tosijs.net/vehicles/</loc></url>
@@ -97,6 +92,9 @@
   <url><loc>https://3d.tosijs.net/world-view/</loc></url>
   <url><loc>https://3d.tosijs.net/wreck-fall/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-frames/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-svg-plane/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-hud/</loc></url>
+  <url><loc>https://3d.tosijs.net/svg-texture/</loc></url>
   <url><loc>https://3d.tosijs.net/ambient-budget/</loc></url>
   <url><loc>https://3d.tosijs.net/ambient-leaves/</loc></url>
   <url><loc>https://3d.tosijs.net/asset-url/</loc></url>
@@ -107,6 +105,8 @@
   <url><loc>https://3d.tosijs.net/biome-plugin/</loc></url>
   <url><loc>https://3d.tosijs.net/control-input/</loc></url>
   <url><loc>https://3d.tosijs.net/destroyable-behavior/</loc></url>
+  <url><loc>https://3d.tosijs.net/dialog-placement/</loc></url>
+  <url><loc>https://3d.tosijs.net/embed-font/</loc></url>
   <url><loc>https://3d.tosijs.net/flow-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/formations/</loc></url>
   <url><loc>https://3d.tosijs.net/galaxy-data/</loc></url>
@@ -122,15 +122,16 @@
   <url><loc>https://3d.tosijs.net/min-sim-conformance/</loc></url>
   <url><loc>https://3d.tosijs.net/patch-field/</loc></url>
   <url><loc>https://3d.tosijs.net/perf-probe/</loc></url>
+  <url><loc>https://3d.tosijs.net/popup-chrome/</loc></url>
   <url><loc>https://3d.tosijs.net/prefab/</loc></url>
   <url><loc>https://3d.tosijs.net/radar/</loc></url>
+  <url><loc>https://3d.tosijs.net/rounded-rect/</loc></url>
   <url><loc>https://3d.tosijs.net/slope-profile/</loc></url>
   <url><loc>https://3d.tosijs.net/spatial-transform/</loc></url>
   <url><loc>https://3d.tosijs.net/table-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/text-edit/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc></url>
-  <url><loc>https://3d.tosijs.net/w3d-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/widget-box/</loc></url>
   <url><loc>https://3d.tosijs.net/widgets3d-layout/</loc></url>
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>

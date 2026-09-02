@@ -376,5 +376,5 @@ export function iconGlyph(name, opts = {}) {
 }
 /** The default icon proxy, over tosijs-3d's generated icon set. */
 export const svgIcons = createSvgIcons();
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 230 }*/
 //# sourceMappingURL=svg-icons.js.map

@@ -89,6 +89,8 @@ export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, togg
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve';
 export type { CurveKind, CurvePreset } from './curve';
 export { curve3d } from './curve-field';
+export { iconGrid3d } from './icon-grid';
+export type { IconGrid, IconGrid3dOptions, IconGridItem, IconGridChange, } from './icon-grid';
 export { footprint3d } from './footprint-field';
 export type { Footprint3dOptions, FootprintField } from './footprint-field';
 export type { Curve3dOptions, CurveField } from './curve-field';
@@ -111,7 +113,7 @@ import { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, s
 import { selectionIcon, applySelection } from './selection';
 import { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt } from './table-layout';
 import { gamepadFocus, createFocusPulse } from './gamepad-focus';
-import { keyboard, inputField, fieldGroup } from './keyboard';
+import { keyboard, inputField, fieldGroup, autoKeyboardEnabled, setAutoKeyboard } from './keyboard';
 import { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt } from './key-layout';
 import { table } from './table';
 export declare const ui: {
@@ -139,6 +141,8 @@ export declare const ui: {
     keyboard: typeof keyboard;
     inputField: typeof inputField;
     fieldGroup: typeof fieldGroup;
+    autoKeyboardEnabled: typeof autoKeyboardEnabled;
+    setAutoKeyboard: typeof setAutoKeyboard;
     keyLayout: typeof keyLayout;
     accentsFor: typeof accentsFor;
     hasAccents: typeof hasAccents;

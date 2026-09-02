@@ -649,7 +649,15 @@ export class B3d extends Component {
             hidden: true,
             // Disabled until the scene finishes loading (reveal() enables it).
             disabled: true,
-        }, svgIcons.settings()), button({
+        }, 
+        // The tosijs-3d owl (goggles, no cube) rather than a gear: this is the
+        // button that opens OUR panel, so it should look like us. The cube-less
+        // mark reads at 20px where the full logo does not.
+        //
+        // The `scenePanelGear` part name stays — a consumer may be styling
+        // `::part(scenePanelGear)`, and renaming it to match the artwork would
+        // break that for nothing.
+        svgIcons.tosiXr()), button({
             class: 'lozenge-button',
             part: 'enterVrButton',
             type: 'button',

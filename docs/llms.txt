@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.4
+# tosijs-3d v0.7.5
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -181,6 +181,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
 - https://3d.tosijs.net/hud-math/ — hud-math
   Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
+- https://3d.tosijs.net/icon-grid/ — icon-grid
+  picker.** A grid of icons with optional captions, as a `Widget3d`, so it works
 - https://3d.tosijs.net/icon-name/ — icon-name
   Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
 - https://3d.tosijs.net/input/ — Input
@@ -258,6 +260,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - https://3d.tosijs.net/ui/ — UI
+  SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/utilities/ — Utilities
 - https://3d.tosijs.net/vector-field/ — vector-field
   orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a

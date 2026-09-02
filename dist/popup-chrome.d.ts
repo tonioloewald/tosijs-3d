@@ -11,6 +11,14 @@ export interface ChromeLayout {
     move: ChromeRect | null;
     /** Where the close glyph goes (right of the bar). */
     close: ChromeRect;
+    /**
+     * Left edge of the close TARGET — everything right of this closes.
+     *
+     * Separate from `close.x` because the glyph is drawn small and the target must
+     * not follow it down: a shrunken × on a controller ray is a miss waiting to
+     * happen. At least as wide as the bar is tall.
+     */
+    closeHitX: number;
 }
 /**
  * Lay out the title bar's glyphs.

@@ -30,15 +30,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
   <title>UI — tosijs-3d</title>
-  <meta name="description" content="- widgets3d - box - vector-field - curve-field - footprint-field - surface" />
+  <meta name="description" content="One UI that renders twice. Every control here is a Widget3d: it draws to SVG and takes pointer input as coordinates, never as DOM events." />
   <link rel="canonical" href="https://3d.tosijs.net/ui/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="UI — tosijs-3d" />
-  <meta property="og:description" content="- widgets3d - box - vector-field - curve-field - footprint-field - surface" />
+  <meta property="og:description" content="One UI that renders twice. Every control here is a Widget3d: it draws to SVG and takes pointer input as coordinates, never as DOM events." />
   <meta property="og:url" content="https://3d.tosijs.net/ui/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"UI","description":"- widgets3d - box - vector-field - curve-field - footprint-field - surface","url":"https://3d.tosijs.net/ui/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"UI","description":"One UI that renders twice. Every control here is a Widget3d: it draws to SVG and takes pointer input as coordinates, never as DOM events.","url":"https://3d.tosijs.net/ui/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
@@ -46,33 +46,154 @@
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
 <h1>UI</h1>
+<p><strong>One UI that renders twice.</strong> Every control here is a <code>Widget3d</code>: it draws to
+SVG and takes pointer input as <em>coordinates</em>, never as DOM events. That single
+choice is what lets the same object be a flat overlay, a texture on a panel in
+the scene, and something you poke with a controller in a headset — without a
+second implementation, and so without the two drifting apart.</p>
+<p>The pieces, roughly outermost first:</p>
+<ul>
+<li><strong><a href="/widgets3d/">widgets3d</a></strong> — the controls (<code>panel3d</code>, <code>slider3d</code>, <code>toggle3d</code>,
+<code>select3d</code>, <code>button3d</code>, <code>list3d</code>, <code>row3d</code>, <code>label3d</code>) and the <code>Widget3d</code>
+contract they all satisfy.</li>
+<li><strong><a href="/box/">box</a></strong> and <strong><a href="/surface/">surface</a></strong> — the containers. A box wraps,
+scrolls and traverses; a surface adds an overlay layer for menus and panels.</li>
+<li><strong><a href="/popup-surface/">popup-surface</a></strong> — a popup is <em>another surface</em>, on its own
+plane. Depth replaces z-index, and tearing one off is re-parenting rather than
+new machinery.</li>
+<li><strong>Editors</strong> — <a href="/vector-field/">vector-field</a> (a coordinate on one row),
+<a href="/curve-field/">curve-field</a> and <a href="/footprint-field/">footprint-field</a> (author a
+terrain province), <a href="/icon-grid/">icon-grid</a> (segmented select, tool palette and
+mode picker in one), <a href="/keyboard/">keyboard</a>, <a href="/table/">table</a>.</li>
+<li><strong><a href="/w3d-theme/">w3d-theme</a></strong> — the tokens everything reads, and
+<a href="/theme-editor/">theme-editor</a> to push them around live.</li>
+</ul>
+<p>Below the fold: the pure models and support modules — geometry, layout maths,
+text editing — which have no demos because they have no pixels.</p>
+<h2>Kitchen sink</h2>
+<p>Every family at once, flat and on a plane, bound to the same state. Type in the
+field (the ⌨ glyph toggles the on-screen keyboard), drag the curve, pick a tool.</p>
+<pre><code class="language-js">import {
+  b3d, b3dLight, panelScene, panel3d, label3d, slider3d, toggle3d, select3d,
+  button3d, row3d, vector3d, curve3d, iconGrid3d, ui,
+} from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, pre } = elements
+
+const out = pre({ style: { margin: &#39;8px 16px&#39;, color: &#39;#8ea&#39;, font: &#39;12px ui-monospace,monospace&#39; } }, &#39;&#39;)
+const state = {
+  name: &#39;scout&#39;,
+  speed: 40,
+  lights: true,
+  material: &#39;matte&#39;,
+  pos: { x: 0, y: 1.8, z: -4 },
+  tool: &#39;move&#39;,
+}
+const show = () =&gt; {
+  out.textContent =
+    `name ${state.name}   speed ${state.speed}   lights ${state.lights}\n` +
+    `material ${state.material}   tool ${state.tool}\n` +
+    `pos ${state.pos.x}, ${state.pos.y}, ${state.pos.z}`
+}
+
+// The field is near the TOP on purpose: the on-screen keyboard opens below it,
+// and refuses if there is not room — so a field at the bottom of a panel shows
+// an inert glyph.
+const nameField = ui.inputField({ value: state.name, onChange: (v) =&gt; { state.name = v; show() } })
+
+const TOOLS = [
+  { icon: &#39;move&#39;, label: &#39;move&#39; },
+  { icon: &#39;rotateCw&#39;, label: &#39;turn&#39; },
+  { icon: &#39;resize&#39;, label: &#39;scale&#39; },
+  { icon: &#39;trash&#39;, label: &#39;delete&#39; },
+]
+
+const panel = panel3d(
+  { width: 320, height: 460 },
+  label3d({ text: &#39;Kitchen sink&#39;, bold: true }),
+  label3d({ text: &#39;name — tap the ⌨ glyph&#39;, muted: true, compact: true }),
+  nameField,
+  slider3d({ label: &#39;speed&#39;, value: state.speed, min: 0, max: 100, showValue: &#39;always&#39;, onChange: (v) =&gt; { state.speed = v; show() } }),
+  toggle3d({ label: &#39;lights&#39;, value: state.lights, onChange: (v) =&gt; { state.lights = v; show() } }),
+  select3d({
+    label: &#39;material&#39;,
+    value: state.material,
+    options: [&#39;matte&#39;, &#39;gloss&#39;, &#39;metal&#39;, &#39;glass&#39;],
+    onChange: (v) =&gt; { state.material = v; show() },
+  }),
+  label3d({ text: &#39;position&#39;, muted: true, compact: true }),
+  vector3d({ value: state.pos, step: 0.25, scrub: 0.02, onChange: (v) =&gt; { state.pos = v; show() } }),
+  label3d({ text: &#39;tool&#39;, muted: true, compact: true }),
+  iconGrid3d({
+    items: TOOLS, mode: &#39;radio&#39;, selected: 0,
+    onSelect: ([i]) =&gt; { state.tool = TOOLS[i].label; show() },
+  }),
+  curve3d({ kind: &#39;profile&#39;, label: &#39;response curve&#39;, aspect: 0.4 }),
+  row3d({},
+    button3d({ label: &#39;Reset&#39;, onClick: () =&gt; { state.speed = 40; show() } }),
+    button3d({ label: &#39;Apply&#39;, onClick: () =&gt; { state.tool = &#39;applied&#39;; show() } })
+  )
+)
+show()
+
+const { plane, sceneCreated } = panelScene({ svg: panel, target: panel, width: 2.4, camera: { radius: 3.4 } })
+const scene = b3d(
+  { style: { flex: 1, minWidth: 0, borderRadius: 8, overflow: &#39;hidden&#39; }, sceneCreated },
+  b3dLight({ intensity: 1 }),
+  plane
+)
+
+// The flat presentation&#39;s own popup layer: a positioned sibling ABOVE the panel,
+// outside its &lt;svg&gt;, so a keyboard is not cropped by the panel it belongs to.
+// `panelScene` adds the scene&#39;s layer (a plane) separately — a popup opens in
+// both, because the panel is on screen twice.
+const flatHost = div({ style: { flex: &#39;0 0 320px&#39;, overflow: &#39;visible&#39; } }, panel)
+
+preview.append(
+  div(
+    { style: { display: &#39;flex&#39;, flexDirection: &#39;column&#39;, height: &#39;100%&#39; } },
+    div(
+      { style: { display: &#39;flex&#39;, gap: 20, flex: 1, minHeight: 0, padding: 14 } },
+      flatHost,
+      div({ style: { display: &#39;flex&#39;, flex: 1, minWidth: 0 } }, scene)
+    ),
+    out
+  )
+)
+panel.useDomLayer(flatHost)
+</code></pre>
+<pre><code class="language-css">.preview {
+  height: 100%;
+}
+</code></pre>
 <!-- toc -->
 <ul>
 <li><a href="/widgets3d/">widgets3d</a></li>
 <li><a href="/box/">box</a></li>
+<li><a href="/keyboard/">keyboard</a></li>
+<li><a href="/table/">table</a></li>
+<li><a href="/svg-icons/">svg-icons</a></li>
+<li><a href="/selection/">selection</a></li>
 <li><a href="/vector-field/">vector-field</a></li>
 <li><a href="/curve-field/">curve-field</a></li>
 <li><a href="/footprint-field/">footprint-field</a></li>
+<li><a href="/icon-grid/">icon-grid</a></li>
+<li><a href="/theme-editor/">theme-editor</a></li>
+<li><a href="/w3d-theme/">w3d-theme</a></li>
 <li><a href="/surface/">surface</a></li>
 <li><a href="/popup-surface/">popup-surface</a></li>
-<li><a href="/rounded-rect/">rounded-rect</a></li>
-<li><a href="/popup-chrome/">popup-chrome</a></li>
-<li><a href="/b3d-hud/">b3d-hud</a></li>
 <li><a href="/b3d-panel/">b3d-panel</a></li>
 <li><a href="/b3d-svg-plane/">b3d-svg-plane</a></li>
+<li><a href="/b3d-hud/">b3d-hud</a></li>
+<li><a href="/svg-texture/">svg-texture</a></li>
 <li><a href="/dialog-placement/">dialog-placement</a></li>
 <li><a href="/embed-font/">embed-font</a></li>
-<li><a href="/keyboard/">keyboard</a></li>
-<li><a href="/selection/">selection</a></li>
-<li><a href="/svg-icons/">svg-icons</a></li>
-<li><a href="/svg-texture/">svg-texture</a></li>
-<li><a href="/table/">table</a></li>
-<li><a href="/theme-editor/">theme-editor</a></li>
 <li><a href="/flow-layout/">flow-layout</a></li>
 <li><a href="/key-layout/">key-layout</a></li>
+<li><a href="/popup-chrome/">popup-chrome</a></li>
+<li><a href="/rounded-rect/">rounded-rect</a></li>
 <li><a href="/table-layout/">table-layout</a></li>
 <li><a href="/text-edit/">text-edit</a></li>
-<li><a href="/w3d-theme/">w3d-theme</a></li>
 <li><a href="/widget-box/">widget-box</a></li>
 <li><a href="/widgets3d-layout/">widgets3d-layout</a></li>
 </ul>
@@ -187,29 +308,30 @@
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
       <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
       <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
+      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
-      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
-      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
-      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
       <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
       <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
       <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
-      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
-      <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
-      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
-      <li><a class="doc-link" href="../table/">table</a></li>
-      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
       <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
-      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
       <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>

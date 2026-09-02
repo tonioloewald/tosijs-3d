@@ -25,7 +25,7 @@ Two derivations of the same rectangle will drift. One derivation, used by both,
 cannot — so this returns the geometry, the drawing code places glyphs at it, and
 the pointer code tests against it.
 */
-/*{ "parent": "UI", "order": 420 }*/
+/*{ "parent": "UI", "order": 900 }*/
 /**
  * Lay out the title bar's glyphs.
  *
@@ -37,7 +37,16 @@ export function chromeLayout(vbWidth, vbHeight, gripHeight, draggable = true) {
     const barHeight = Math.max(0, Math.min(1, gripHeight)) * vbHeight;
     // Bounded by the bar AND the width: a tall grip on a narrow panel would
     // otherwise size the glyphs off the ends.
-    const size = Math.max(0, Math.min(barHeight * 0.62, vbWidth / 4));
+    /*
+    Glyph size, and it is deliberately modest.
+  
+    Was `barHeight * 0.62`. Tonio, once the chrome was legible in the scene: "make
+    the affordances about 75% the size and a smidge closer to the corners." Chrome
+    is not the content — it should be findable and then get out of the way, and
+    the HIT region is set separately below, so shrinking the glyph costs no
+    targeting accuracy.
+    */
+    const size = Math.max(0, Math.min(barHeight * 0.62 * 0.75, vbWidth / 4));
     /*
     TWO INSETS, because they answer different questions. The vertical one CENTRES
     the glyph in the bar; the horizontal one is a margin from the edge, and it has
@@ -47,12 +56,29 @@ export function chromeLayout(vbWidth, vbHeight, gripHeight, draggable = true) {
     with a 300-tall bar it came out at 130, putting the close glyph at x = -50 —
     outside the panel entirely. Height told the width where to sit.
     */
-    const insetY = (barHeight - size) / 2;
+    /*
+    Tucked toward the corners: 60% of the centring inset rather than all of it.
+  
+    Centring the glyph in the bar was correct and read as floaty — a corner
+    affordance wants to look anchored to its corner. Still an inset rather than
+    flush, because a glyph touching the edge reads as clipped.
+    */
+    const CORNER_PULL = 0.6;
+    const insetY = ((barHeight - size) / 2) * CORNER_PULL;
     const insetX = Math.max(0, Math.min(insetY, (vbWidth - 2 * size) / 3));
+    /*
+    The close TARGET, sized independently of the glyph.
+  
+    At least as wide as the bar is tall — a roughly square target at the corner,
+    which is what a finger or a ray needs regardless of how small the × is drawn.
+    */
+    const closeX = vbWidth - size - insetX;
+    const closeHitX = Math.min(closeX, vbWidth - Math.max(barHeight, size * 2));
     return {
         barHeight,
+        closeHitX,
         move: draggable ? { x: insetX, y: insetY, size } : null,
-        close: { x: vbWidth - size - insetX, y: insetY, size },
+        close: { x: closeX, y: insetY, size },
     };
 }
 /**
@@ -69,7 +95,8 @@ export function chromeHit(x, y, layout) {
         return 'drag'; // no bar: the whole panel drags
     if (y > layout.barHeight)
         return 'content';
-    if (x >= layout.close.x)
+    // The TARGET, not the glyph — see `closeHitX`.
+    if (x >= layout.closeHitX)
         return 'close';
     return 'drag';
 }

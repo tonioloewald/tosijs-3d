@@ -119,6 +119,7 @@ export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, inser
 // `presetsFor(kind)`.
 ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve';
 export { curve3d } from './curve-field';
+export { iconGrid3d } from './icon-grid';
 export { footprint3d } from './footprint-field';
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
@@ -147,7 +148,7 @@ import { edit, insert, backspace, deleteForward, moveCaret, moveTo, selectAll, s
 import { selectionIcon, applySelection } from './selection';
 import { resolveColumns, visibleRows, contentHeight as tableContentHeight, maxScroll as tableMaxScroll, rowAt, columnAt, } from './table-layout';
 import { gamepadFocus, createFocusPulse } from './gamepad-focus';
-import { keyboard, inputField, fieldGroup } from './keyboard';
+import { keyboard, inputField, fieldGroup, autoKeyboardEnabled, setAutoKeyboard, } from './keyboard';
 import { keyLayout, accentsFor, hasAccents, keyRects, keyboardHeight, keyAt, } from './key-layout';
 import { table } from './table';
 export const ui = {
@@ -181,6 +182,10 @@ export const ui = {
     keyboard,
     inputField,
     fieldGroup,
+    // The SHARED on-screen-keyboard preference the field glyph toggles — exported
+    // so an app can seed it, persist it, or drive it from its own settings.
+    autoKeyboardEnabled,
+    setAutoKeyboard,
     keyLayout,
     accentsFor,
     hasAccents,

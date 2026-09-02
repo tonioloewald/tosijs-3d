@@ -228,10 +228,29 @@ export function commitValueForType(text, type = 'text') {
     }
 }
 const row = (chars) => Array.from(chars).map((c) => ({ label: c, value: c }));
-const SHIFT = { label: '⇧', action: 'shift', width: 1.5 };
-const BACK = { label: '⌫', action: 'backspace', width: 1.5 };
+const SHIFT = {
+    label: '⇧',
+    // `chevron` points RIGHT (9,6 → 15,12 → 9,18), so -90° aims it up.
+    icon: 'chevron',
+    iconRotate: -90,
+    action: 'shift',
+    width: 1.5,
+};
+const BACK = {
+    label: '⌫',
+    icon: 'delete',
+    action: 'backspace',
+    width: 1.5,
+};
 const SPACE = { label: 'space', action: 'space', width: 5 };
-const ENTER = { label: '⏎', action: 'enter', width: 1.5 };
+const ENTER = {
+    label: '⏎',
+    // `cornerDownLeft` is a mirror REFERENCE, not markup — see `iconFlipX`.
+    icon: 'cornerDownRight',
+    iconFlipX: true,
+    action: 'enter',
+    width: 1.5,
+};
 const DONE = { label: 'done', action: 'done', width: 1.5 };
 const toSymbols = {
     label: '?123',
@@ -240,9 +259,14 @@ const toSymbols = {
     width: 1.5,
 };
 /** Backspace at plain width — a grid pad needs every cell to be one unit. */
-const BACK1 = { label: '⌫', action: 'backspace' };
+const BACK1 = { label: '⌫', icon: 'delete', action: 'backspace' };
 /** Enter at plain width — for a grid pad where every cell is one unit. */
-const ENTER1 = { label: '⏎', action: 'enter' };
+const ENTER1 = {
+    label: '⏎',
+    icon: 'cornerDownRight',
+    iconFlipX: true,
+    action: 'enter',
+};
 const toAlpha = {
     label: 'ABC',
     action: 'mode',
@@ -276,7 +300,12 @@ export function keyLayout(mode, shift = false) {
         key back to numpad — so a stray tap stranded you in letters. Mode is the
         host's call (`config.mode` / `setMode`), not the pad's.
         */
-        const enter = { label: '⏎', action: 'enter' };
+        const enter = {
+            label: '⏎',
+            icon: 'cornerDownRight',
+            iconFlipX: true,
+            action: 'enter',
+        };
         return [
             [...row('123'), BACK1], // 4
             [...row('456'), enter], // 4

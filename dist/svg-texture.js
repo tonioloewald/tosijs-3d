@@ -69,7 +69,7 @@ literals already follow. Filed in TODO rather than done, because it means
 fetching and base64-ing a font per texture and the cost should be measured
 before it is paid.
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 530 }*/
 import * as BABYLON from '@babylonjs/core';
 import { svgFontStyle } from './embed-font';
 /**
@@ -141,6 +141,28 @@ export class SvgTexture {
             return;
         const el = this._element.cloneNode(true);
         el.removeAttribute('style');
+        /*
+        PRESENTATION-ONLY NODES.
+    
+        One UI drawn twice still has parts that belong to one side. Popup chrome is
+        the case that forced this: the move and close glyphs are handled by PICKING
+        (uv -> viewBox -> chromeHit), which exists only in the scene, so in the DOM
+        they were painted and inert — Tonio: "the move and close affordances are
+        still rendering in the DOM".
+    
+        Tonio's suggestion, and the right shape: mark a node with the presentation it
+        belongs to. Here we strip anything marked `dom`; a stylesheet hides anything
+        marked `texture` on the flat side. It costs one query on a clone we were
+        making anyway.
+    
+        Note what this deliberately does NOT allow: differing in what you DO. This
+        hides and shows nodes only. Branching behaviour between presentations is how
+        the two drift apart, which is the whole warning in UI-DESIGN-NOTES → "One
+        UI, two presentations".
+        */
+        for (const n of el.querySelectorAll('[data-presentation="dom"]')) {
+            n.remove();
+        }
         let xml = new XMLSerializer().serializeToString(el);
         /*
         Inline any registered web font.

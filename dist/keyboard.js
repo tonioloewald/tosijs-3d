@@ -247,12 +247,13 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 }
 ```
 */
-/*{ "parent": "UI" }*/
+/*{ "parent": "UI", "order": 210 }*/
 import { svgElements } from 'tosijs';
 import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout';
 import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit';
 import { measureTextWidth } from './widgets3d-layout';
 import { nearestInDirection } from './flow-layout';
+import { iconGlyph } from './svg-icons';
 import { w3dTheme } from './w3d-theme';
 const { g, rect, text } = svgElements;
 /*
@@ -396,6 +397,64 @@ export function fieldGroup(config) {
         },
     };
     return api;
+}
+/*
+THE ON-SCREEN KEYBOARD PREFERENCE IS SHARED, not per field.
+
+Tonio: _"the glyph might also be treated as a toggle. If you click it, you start
+getting the on screen keyboard automatically until you toggle it off."_ — which
+is the better model: you are not asking for a keyboard once, you are telling the
+app that reaching a real one is inconvenient, and that stays true for the next
+field too.
+
+It therefore cannot live on a field. Per-field state would mean toggling it on
+for every field you touch, and — worse — two glyphs on one panel showing
+contradictory states, which is the same "two things claiming to be the value"
+fault as a slider disagreeing with its readout.
+
+In memory for the session, deliberately: `localStorage` is not available
+everywhere this renders, and a preference that silently persisted across an app's
+own sessions is a decision for the app, not for a text field. `setAutoKeyboard`
+is exported so an app that wants to remember it can.
+*/
+let autoKeyboard = null;
+const autoKeyboardListeners = new Set();
+/*
+ONE on-screen keyboard, and it FOLLOWS focus.
+
+Tonio: "when I focus a different field with the keyboard [up] I am not getting
+the keyboard for that field, so now I need to toggle keyboard off and on."
+
+Two fields each owning their own keyboard is not a second keyboard, it is a
+second WRONG keyboard: the layout is chosen per field (a number field wants the
+numpad), so the one on screen would type into the wrong place with the wrong
+keys. So the open keyboard is module state, and a field taking focus takes it
+over — closing the previous one is part of opening yours, not a separate step
+the caller has to remember.
+*/
+let liveKeyboard = null;
+/** Is the on-screen keyboard set to appear on its own? */
+export function autoKeyboardEnabled() {
+    // Unset means "not decided yet", so fall back to the sniff — a touch device
+    // should not need to be told.
+    if (autoKeyboard != null)
+        return autoKeyboard;
+    const mm = globalThis
+        .matchMedia;
+    if (typeof mm !== 'function')
+        return false;
+    try {
+        return mm('(pointer: coarse)').matches;
+    }
+    catch {
+        return false;
+    }
+}
+/** Turn the on-screen keyboard on or off for every field at once. */
+export function setAutoKeyboard(on) {
+    autoKeyboard = on;
+    for (const fn of autoKeyboardListeners)
+        fn();
 }
 export function inputField(config = {}) {
     const H = config.height ?? 40;
@@ -567,14 +626,174 @@ export function inputField(config = {}) {
         }
         return best;
     };
+    /*
+    A KEYBOARD AFFORDANCE, always drawn — auto-open is the convenience, not the
+    feature.
+  
+    Auto-opening on touch and never on a mouse is the obvious rule and it is wrong
+    at the edges. Tonio: _"if you're playing on a computer plugged into a TV there
+    may BE a keyboard but you'd rather not have to get it."_ The device says
+    nothing about whether the keyboard is within reach — a games console, a
+    laptop docked to a screen across the room, a headset with a desk somewhere
+    under it. Sniffing gets those all wrong in the same direction: it decides you
+    do not need what you cannot reach.
+  
+    So the glyph is always there and always works, and the sniff only chooses
+    whether you ALSO get it without asking. That way the guess can be wrong
+    without stranding anyone.
+    */
+    const kbMode = config.keyboard ?? 'auto';
+    const KB_ZONE = 26;
+    let host = null;
+    let kbOpen = null;
+    /** Latched on press: the gesture belongs to where it started. */
+    let glyphPress = false;
+    /**
+     * Did THIS gesture start in the field?
+     *
+     * An outside press dismisses the keyboard on `down` and then the `up` arrives
+     * here with the preference switched on — which auto-reopened it, so the
+     * keyboard could never be put away. A release with no matching press is not a
+     * tap, and must not act.
+     */
+    let pressedInField = false;
+    /*
+    The glyph SHOWS the shared preference, because it sets it.
+  
+    A toggle that does not show its state is a button that lies — and with the
+    preference shared, every field's glyph has to agree, so they all repaint when
+    any one of them is pressed.
+    */
+    const kbGlyph = kbMode === 'never' ? null : svgElements.g({ 'data-kb-toggle': '' });
+    if (kbGlyph)
+        el.appendChild(kbGlyph);
+    const paintGlyph = () => {
+        if (kbGlyph == null)
+            return;
+        while (kbGlyph.firstChild)
+            kbGlyph.removeChild(kbGlyph.firstChild);
+        kbGlyph.appendChild(iconGlyph('keyboard', {
+            color: autoKeyboardEnabled() ? TH.ACCENT : TH.PLACEHOLDER,
+            size: 16,
+            x: 0,
+            y: Math.round((H - 16) / 2),
+        }));
+    };
+    paintGlyph();
+    if (kbGlyph)
+        autoKeyboardListeners.add(paintGlyph);
+    /** A keyboard needs about this much room, or it is not a keyboard. */
+    const KB_MIN_HEIGHT = 150;
+    /**
+     * The glyph's job: flip the shared preference, and make this field match it
+     * immediately — turning it on should show you a keyboard now, not next time.
+     */
+    const toggleAutoKeyboard = () => {
+        const next = !autoKeyboardEnabled();
+        setAutoKeyboard(next);
+        if (next && kbOpen == null)
+            openKeyboard();
+        else if (!next && kbOpen != null)
+            openKeyboard(); // closes, see below
+    };
+    const openKeyboard = () => {
+        if (kbMode === 'never')
+            return;
+        if (kbOpen != null) {
+            // Tapping the glyph again puts it away — a summoned panel you cannot
+            // dismiss the same way you called it is a panel in your way.
+            kbOpen.close();
+            kbOpen = null;
+            return;
+        }
+        // Take it over rather than adding a second: see `liveKeyboard`.
+        liveKeyboard?.close();
+        liveKeyboard = null;
+        const kb = keyboard({
+            mode: api.keyboardMode,
+            onKey: (k) => api.insert(k),
+            onAction: (a) => api.action(a),
+            onCaretMove: (d) => api.moveCaret(d),
+        });
+        // The app's own answer wins: it is the only thing that knows whether a
+        // plane, a sibling or a surface is right here.
+        if (config.openKeyboard != null) {
+            const close = config.openKeyboard(api);
+            const mine = {
+                close: () => {
+                    close?.();
+                    if (liveKeyboard === mine)
+                        liveKeyboard = null;
+                    if (kbOpen === mine)
+                        kbOpen = null;
+                },
+            };
+            kbOpen = mine;
+            liveKeyboard = mine;
+            return;
+        }
+        /*
+        Otherwise the panel overlay — but ONLY with room to land below.
+    
+        `showPopup` caps to the panel's bounds, so on a short panel this produced a
+        keyboard squeezed to the panel's height and placed ON TOP of the field. A
+        keyboard covering what it types into is the one placement that cannot be
+        allowed, and half a keyboard is not a degraded mode.
+    
+        Refusing leaves the glyph visibly doing nothing, which is poor — but it is
+        honest, and `openKeyboard` is the documented way out. Sized from the ROOM
+        below the field, not from the panel, since that is what it has to fit in.
+        */
+        if (host == null)
+            return;
+        /*
+        A REAL layer has no bounds to run out of, so the refusal only applies to the
+        fallback. Checking regardless would decline in exactly the case that works.
+        */
+        const roomBelow = host.bounds.height - host.top - H;
+        if (!host.hasLayer && roomBelow < KB_MIN_HEIGHT)
+            return;
+        const opened = host.showLayer({
+            anchor: { x: 0, y: 0, width, height: H },
+            side: 'below',
+            // FIT THE HOST, don't ask for a nominal 360: a wider keyboard than the
+            // panel is simply clipped at the right edge, so the last column of keys
+            // — enter, backspace — becomes unreachable. Measured: 360 in a 320 panel
+            // lost a column in both the flat and the textured view.
+            width: host.hasLayer ? 360 : Math.min(360, host.bounds.width),
+            maxHeight: host.hasLayer ? undefined : roomBelow,
+        }, kb);
+        const mine = {
+            close: () => {
+                opened.close();
+                if (liveKeyboard === mine)
+                    liveKeyboard = null;
+                // CLEAR OUR OWN RECORD TOO.
+                //
+                // A takeover closes the previous owner's keyboard, and without this that
+                // field still believed it had one — so returning to it did nothing and
+                // the layout never changed back. Tonio: "if I go from the name field to
+                // a number field the keyboard changes, but it doesn't change back if I
+                // return to the text field."
+                if (kbOpen === mine)
+                    kbOpen = null;
+            },
+        };
+        kbOpen = mine;
+        liveKeyboard = mine;
+    };
     const api = {
         el,
+        setHost(h) {
+            host = h;
+        },
         get value() {
             return state.text;
         },
         layout(w) {
             width = w;
             bg.setAttribute('width', String(w));
+            kbGlyph?.setAttribute('transform', `translate(${Math.round(w - KB_ZONE + 4)}, 0)`);
             paint();
             return H;
         },
@@ -587,7 +806,37 @@ export function inputField(config = {}) {
             modifier or a separate hit zone means the two never have to be aimed at
             differently, which matters most in XR where aiming is the expensive part.
             */
+            /*
+            The glyph zone is not the field. A press there must not place a caret and
+            must not start a scrub — a numeric field would otherwise leap as you
+            reached for the keyboard, which is not something you can undo by letting
+            go.
+      
+            The gesture belongs to where it BEGAN, so this latches on the press. The
+            first version tested the live x and broke scrubbing twice over: a drag that
+            merely ENDED near the right edge was swallowed, and before `layout()` ran
+            `width` was 0, so `x >= width - KB_ZONE` was true everywhere and the whole
+            field became the glyph. Both caught by the existing scrub tests, which is
+            the argument for having had them.
+            */
             if (kind === 'down') {
+                glyphPress =
+                    kbGlyph != null && width > 0 && x >= width - KB_ZONE;
+                if (glyphPress)
+                    return;
+            }
+            if (glyphPress) {
+                if (kind === 'up') {
+                    glyphPress = false;
+                    toggleAutoKeyboard();
+                }
+                else if (kind === 'leave') {
+                    glyphPress = false;
+                }
+                return;
+            }
+            if (kind === 'down') {
+                pressedInField = true;
                 scrubFrom = x;
                 scrubBase = Number(state.text);
                 scrubbing = false;
@@ -608,6 +857,36 @@ export function inputField(config = {}) {
             if (kind === 'up' && scrubbing) {
                 scrubbing = false;
                 commitField();
+                return;
+            }
+            /*
+            A TAP in the field auto-opens — but only where the sniff says a hardware
+            keyboard probably is not to hand.
+      
+            `always` is what an XR panel passes; `auto` opens on a coarse pointer and
+            otherwise leaves it to the glyph. A field that sprouted a keyboard on every
+            desktop click would be worse than one that never did, which is why the
+            default errs toward not.
+      
+            Guarded on `!scrubbing` so a scrub that ends inside the field does not also
+            summon a panel over what you were just adjusting.
+            */
+            if (kind === 'up') {
+                const wasTap = pressedInField;
+                pressedInField = false;
+                // `always` is what an XR panel passes; `auto` follows the shared
+                // preference, which the glyph sets and a touch device seeds.
+                /*
+                `kbOpen == null` means THIS field has none — another field may still own
+                the one on screen, and taking it over is exactly what should happen.
+                Guarding on `liveKeyboard` instead would make focus unable to move it,
+                which is the bug being fixed.
+                */
+                if (wasTap &&
+                    kbOpen == null &&
+                    (kbMode === 'always' || (kbMode === 'auto' && autoKeyboardEnabled()))) {
+                    openKeyboard();
+                }
             }
         },
         insert(str) {
@@ -663,6 +942,17 @@ export function inputField(config = {}) {
                 activate();
             else {
                 focused = false;
+                /*
+                Text no longer lands here, so a keyboard summoned FOR this field has
+                nothing to type into — put it away. Tonio: it was "not disappearing if I
+                click the lights checkbox".
+        
+                `setActive(false)` and not `focusClear`: the latter means D-pad focus
+                moved on, which explicitly does NOT stop text arriving here (tapping the
+                keyboard's own keys moves box focus to the keyboard). This one means the
+                host made something else the receiver, which is the real end of typing.
+                */
+                kbOpen?.close();
                 paint();
             }
         },
@@ -687,6 +977,20 @@ export function keyboard(config = {}) {
     const CARET_STEP = config.caretStepPx ?? 12;
     let mode = config.mode ?? 'alpha';
     let shift = false;
+    /*
+    CAPS LOCK, engaged by HOLDING shift.
+  
+    Tonio: "press and hold on shift should CAPSLOCK." It is the phone gesture, and
+    it fits what is already here: a tap is one-shot (type A, carry on in lower
+    case), so the only thing missing was a way to say "no, keep it". Hold is the
+    natural way to say that, and shift is the one action key whose long-press had
+    no other meaning.
+  
+    Separate from `shift` rather than a third state of it, because they answer
+    different questions: `shift` is "is the NEXT key upper case", `capsLock` is
+    "does typing one clear it".
+    */
+    let capsLock = false;
     let width = 0;
     let rects = [];
     const keysLayer = g({ 'data-kb': 'keys' });
@@ -789,8 +1093,41 @@ export function keyboard(config = {}) {
                 'font-family': TH.FONT_FAMILY,
                 fill: TH.TEXT,
             });
-            lbl.textContent = r.key.label;
+            lbl.textContent = r.key.icon ? '' : r.key.label;
             const cell = g({ 'data-key': r.key.label }, bg, lbl);
+            if (r.key.icon) {
+                // Geometry rather than a codepoint: a rasterised texture is its own
+                // document with its own font fallback, so `⏎` could arrive as a box.
+                const size = Math.min(20, Math.round(r.height * 0.45));
+                const ix = r.x + (r.width - size) / 2;
+                const iy = r.y + (r.height - size) / 2;
+                const glyph = iconGlyph(r.key.icon, {
+                    // Caps lock is a MODE, and a mode you cannot see is a mode you will be
+                    // surprised by — the accent tint is how every other latched state in
+                    // this UI reads (selection, the keyboard toggle glyph).
+                    color: r.key.action === 'shift' && capsLock ? TH.ACCENT : TH.TEXT,
+                    size,
+                    x: ix,
+                    y: iy,
+                });
+                if (r.key.iconRotate || r.key.iconFlipX) {
+                    // About the icon's own centre, so rotating cannot also move it.
+                    const cx = ix + size / 2;
+                    const cy = iy + size / 2;
+                    const parts = [];
+                    if (r.key.iconRotate)
+                        parts.push(`rotate(${r.key.iconRotate} ${cx} ${cy})`);
+                    // Mirror about the icon's own centre, so flipping cannot also move it.
+                    if (r.key.iconFlipX)
+                        parts.push(`translate(${cx * 2} 0) scale(-1 1)`);
+                    const wrap = g({ transform: parts.join(' ') });
+                    wrap.appendChild(glyph);
+                    cell.appendChild(wrap);
+                }
+                else {
+                    cell.appendChild(glyph);
+                }
+            }
             /*
             Discoverability signifier: hold-capable keys carry a faint glyph in the
             corner — ▾ for a long-press accent strip, ↔ for the spacebar's
@@ -942,14 +1279,23 @@ export function keyboard(config = {}) {
         if (k.value !== undefined) {
             config.onKey?.(k.value);
             // A shift is one-shot, like a phone: type A, then keep typing lower case.
-            if (shift) {
+            // Caps lock is precisely the exception — it survives typing.
+            if (shift && !capsLock) {
                 shift = false;
                 relayout();
             }
             return;
         }
         if (k.action === 'shift') {
-            shift = !shift;
+            // A tap RELEASES caps lock rather than dropping to one-shot shift: having
+            // held to lock it, the obvious way to unlock is to press the same key.
+            if (capsLock) {
+                capsLock = false;
+                shift = false;
+            }
+            else {
+                shift = !shift;
+            }
             relayout();
             return;
         }
@@ -1042,7 +1388,14 @@ export function keyboard(config = {}) {
                 // orphaned the click-then-Space flow — visible beats quiet.)
                 focusIdx = rects.indexOf(r);
                 paintFocus();
-                press = { rect: r, timer: null, accents: [], pick: -1, cells: [] };
+                press = {
+                    rect: r,
+                    timer: null,
+                    accents: [],
+                    pick: -1,
+                    cells: [],
+                    caps: false,
+                };
                 pressedVis = rects.indexOf(r);
                 pressVis(pressedVis, true);
                 const alts = r.key.value ? accentsFor(r.key.value) : [];
@@ -1050,6 +1403,18 @@ export function keyboard(config = {}) {
                     press.timer = setTimeout(() => {
                         if (press)
                             openPopup(r, alts);
+                    }, HOLD);
+                }
+                else if (r.key.action === 'shift') {
+                    press.timer = setTimeout(() => {
+                        if (!press)
+                            return;
+                        capsLock = true;
+                        shift = true;
+                        // Mark it so the release does NOT then run `fireKey`, which would
+                        // read the lock as a tap and turn it straight back off.
+                        press.caps = true;
+                        relayout();
                     }, HOLD);
                 }
                 else if (r.key.action === 'space' && config.onCaretMove) {
@@ -1157,6 +1522,9 @@ export function keyboard(config = {}) {
                             cells: press.cells,
                         };
                     }
+                }
+                else if (press.caps) {
+                    // The hold already did the work; releasing is not also a tap.
                 }
                 else if (keyAt(rects, x, y) === press.rect) {
                     // A tap RELOCATES focus that is already active, so switching pointer →

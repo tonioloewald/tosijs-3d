@@ -165,6 +165,11 @@ import { svgElements } from 'tosijs';
 import { iconGlyph } from './svg-icons';
 import { w3dTheme } from './w3d-theme';
 import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome';
+/** Tag a node as belonging to the TEXTURE presentation only. */
+function markPresentation(el) {
+    el.setAttribute('data-presentation', 'texture');
+    return el;
+}
 import { cameraIsAttached } from './b3d-utils';
 /**
  * Open a popup as its own surface.
@@ -451,20 +456,28 @@ export function openPopup(owner, opts) {
     // ONE layout, used by the drawing below AND by the hit test in `wirePointer`.
     const layout = chromeLayout(vbW, vbH, gripHeight, draggable);
     if (chrome && layout.barHeight > 0) {
+        /*
+        TEXTURE ONLY. These glyphs are handled by picking — uv -> viewBox ->
+        `chromeHit` — which happens in the scene and nowhere else. Drawn flat they
+        are decoration you can press with no effect, which is worse than absent.
+    
+        Marked rather than omitted, because the same sheet is shown in BOTH places:
+        `svg-texture` keeps `texture` nodes and the DOM side hides them.
+        */
         if (layout.move != null) {
-            svg.appendChild(iconGlyph('move', {
+            svg.appendChild(markPresentation(iconGlyph('move', {
                 color: '#8fa3ba',
                 size: layout.move.size,
                 x: layout.move.x,
                 y: layout.move.y,
-            }));
+            })));
         }
-        svg.appendChild(iconGlyph('close', {
+        svg.appendChild(markPresentation(iconGlyph('close', {
             color: '#8fa3ba',
             size: layout.close.size,
             x: layout.close.x,
             y: layout.close.y,
-        }));
+        })));
     }
     /*
     A RIM, because we cannot have a drop shadow.
@@ -715,7 +728,9 @@ export function openPopup(owner, opts) {
             says where on the panel it took hold. Cloned for the same reason as the
             point — Babylon reuses its pick info between events.
             */
-            const grabRay = ray != null ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), ray.length) : undefined;
+            const grabRay = ray != null
+                ? new BABYLON.Ray(ray.origin.clone(), ray.direction.clone(), ray.length)
+                : undefined;
             queueMicrotask(() => {
                 if (drag == null || closed)
                     return;

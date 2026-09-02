@@ -1,3 +1,4 @@
+import { type PopupSide } from './flow-layout';
 /**
  * A pointer phase, routed by the panel in the widget's local SVG coords.
  * `hover`/`leave` give feedback without a press (e.g. a VR controller ray
@@ -48,6 +49,142 @@ export interface Widget3d {
     focusActivate?(): void;
     /** Drop inner focus — the host's focus left this widget. */
     focusClear?(): void;
+    /**
+     * The host made something else the receiver.
+     *
+     * Distinct from `focusClear`, which means D-pad focus moved on — that does NOT
+     * stop text arriving at a field, because tapping the on-screen keyboard's keys
+     * moves box focus to the keyboard while the text keeps landing where it was.
+     * This one is the real end of an interaction, and is what puts a summoned
+     * keyboard away.
+     */
+    setActive?(active: boolean): void;
+    /**
+     * Called once by the containing panel, handing the widget the services only
+     * the panel can provide.
+     *
+     * A widget cannot reach its own panel otherwise — it is constructed BEFORE the
+     * panel that will hold it (`panel3d({}, select3d(...))`), so it cannot be
+     * passed one, and it is not a DOM child in any useful sense. This is the seam
+     * that lets a control open a popup without the consumer wiring it up.
+     */
+    setHost?(host: WidgetHost): void;
+}
+/**
+ * Mounts an unbounded layer over a panel. Installed by whatever owns the panel's
+ * presentation — `panelScene` in a scene, the app when flat.
+ */
+export type LayerHost = (
+/**
+ * The popup's SVG, already built — each presentation MOUNTS it rather than
+ * building its own.
+ *
+ * Handing every host the same widget INSTANCES did not work and could not:
+ * `appendChild` moves a node, so whichever host built last stole the widgets
+ * and the others got an empty sheet. (Observed as a keyboard plane that
+ * mounted with no content on it.)
+ *
+ * One sheet, mounted more than once, is also how the panel itself already
+ * works — `SvgTexture` CLONES the live element per frame, so a sheet can be in
+ * the DOM and on a plane at once and stay a single UI rather than two that
+ * drift.
+ */
+sheet: SVGSVGElement, config: {
+    anchor: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+    side?: PopupSide;
+    width?: number;
+    maxHeight?: number;
+}) => {
+    close: () => void;
+};
+/** What a panel offers the widgets inside it. */
+export interface WidgetHost {
+    /**
+     * Open a popup ABOVE the panel's content and mount it, returning a closer.
+     *
+     * Mounting is done here rather than left to the caller — the general
+     * `panel.openPopup` deliberately does not mount, because a free-floating popup
+     * differs flat (a positioned sibling) from in-scene (another plane). This one
+     * can, because it is capped to the panel's own bounds: it lands inside the
+     * panel's viewBox by construction, which is identical in both presentations.
+     * The cost is that it cannot exceed the panel, which for a dropdown is the
+     * right trade — and `maxHeight` makes a long list scroll rather than overflow.
+     */
+    showPopup: (config: {
+        anchor: {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        };
+        side?: PopupSide;
+        width?: number;
+        maxHeight?: number;
+        /** Called when this popup goes away — including dismissal from outside. */
+        onClose?: () => void;
+    }, ...items: Widget3d[]) => {
+        close: () => void;
+    };
+    /** Close whatever popup is open, if any. */
+    closePopup: () => void;
+    /** Ask the panel to re-run layout — a widget that changed height needs this. */
+    relayout: () => void;
+    /**
+     * The panel's inner size, and this widget's top within it.
+     *
+     * A widget cannot otherwise tell whether what it wants to open will FIT. The
+     * keyboard needed exactly this: `showPopup` caps to the panel's bounds, so on
+     * a short panel it produced a keyboard squeezed flat and placed over the
+     * field. Without these it had no way to decline.
+     */
+    readonly bounds: {
+        width: number;
+        height: number;
+    };
+    readonly top: number;
+    /**
+     * Is `showLayer` a REAL layer, or will it fall back to a bounded popup?
+     *
+     * A caller that can be refused needs to know which it is getting. The keyboard
+     * declines rather than squeezing itself into a short panel — but that check is
+     * pointless, and wrong, when an unbounded plane is available.
+     */
+    readonly hasLayer: boolean;
+    /**
+     * Open something in a layer ABOVE the panel, unbounded by it.
+     *
+     * `showPopup` mounts inside the panel's own viewBox, which is right for a
+     * dropdown — it is guaranteed to fit and it rasterises identically flat and
+     * in-scene. It is wrong for anything BIGGER than the panel. A keyboard is
+     * bigger than most panels: on a 64px panel it came out 64px tall and sat on
+     * the field it types into.
+     *
+     * Only something ABOVE the panel can provide a real layer, because mounting is
+     * what differs — flat it is a positioned sibling, in a scene it is another
+     * plane. `panelScene` installs one (an `openPopup` plane on the B3d); a bare
+     * `panel3d` has nothing above it, so this **falls back to `showPopup`** and the
+     * caller must still cope with being refused.
+     */
+    showLayer: (config: {
+        anchor: {
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        };
+        side?: PopupSide;
+        width?: number;
+        maxHeight?: number;
+        /** Called when it goes away, however it went. */
+        onClose?: () => void;
+    }, ...items: Widget3d[]) => {
+        close: () => void;
+    };
 }
 /**
  * A static caption row. `color` overrides the default text colour (e.g. an

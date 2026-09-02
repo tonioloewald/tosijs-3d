@@ -80,7 +80,7 @@ preview.append(
   scene,
   div(
     { class: 'debug-panel' },
-    p('Open the ⚙ to spawn library meshes — works in VR too.'),
+    p('Open the scene panel to spawn library meshes — works in VR too.'),
   ),
 )
 ```
