@@ -180,7 +180,6 @@ preview.append(
 
 import { B3dChild } from './b3d-utils'
 import * as BABYLON from '@babylonjs/core'
-import { PhysicsViewer } from '@babylonjs/core/Debug/physicsViewer'
 import { JoltPlugin } from './jolt-plugin'
 import type { B3d } from './tosi-b3d'
 
@@ -218,7 +217,7 @@ export class B3dPhysics extends B3dChild {
   plugin: JoltPlugin | null = null
   ready: Promise<void>
   private _resolveReady!: () => void
-  private _viewer: PhysicsViewer | null = null
+  private _viewer: BABYLON.PhysicsViewer | null = null
   private _shownBodies = new Set<BABYLON.PhysicsBody>()
 
   content = () => ''
@@ -294,7 +293,7 @@ export class B3dPhysics extends B3dChild {
   /** Show wireframe debug shapes for all physics bodies */
   enableDebug() {
     if (!this.owner || this._viewer) return
-    this._viewer = new PhysicsViewer(this.owner.scene)
+    this._viewer = new BABYLON.PhysicsViewer(this.owner.scene)
     // Show all existing bodies
     for (const mesh of this.owner.scene.meshes) {
       const body = mesh.physicsBody
