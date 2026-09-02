@@ -526,6 +526,8 @@ export interface WidgetHost {
       side?: PopupSide
       width?: number
       maxHeight?: number
+      /** Called when this popup goes away — including dismissal from outside. */
+      onClose?: () => void
     },
     ...items: Widget3d[]
   ) => { close: () => void }
@@ -1613,12 +1615,21 @@ export function panel3d(
     y: number
     w: number
     h: number
+    onClose?: () => void
   } | null = null
 
   const closeOverlay = (): void => {
     if (overlay == null) return
     overlay.el.remove()
+    const notify = overlay.onClose
     overlay = null
+    /*
+    TELL THE OPENER. An outside press dismisses the overlay directly, so without
+    this the opener still believes its popup is up — and a field that thinks its
+    keyboard is open refuses to reopen it, which presents as "focusing the field
+    does nothing".
+    */
+    notify?.()
   }
 
   /*
@@ -1725,6 +1736,7 @@ export function panel3d(
         y: opened.y,
         w: Number(el.getAttribute('width')),
         h: Number(el.getAttribute('height')),
+        onClose: config.onClose,
       }
       return { close: closeOverlay }
     },

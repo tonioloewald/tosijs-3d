@@ -974,3 +974,93 @@ describe('fieldGroup.attach — a field you can actually type into', () => {
     expect(f.value).toBe('')
   })
 })
+
+describe('caps lock — hold shift', () => {
+  const kb = (onKey: (k: string) => void) => {
+    const k = K.keyboard({ mode: 'alpha', onKey, holdMs: 10 })
+    k.layout(360)
+    return k
+  }
+  const shiftAt = (k: any) => {
+    // The shift key, found by the label it still carries under the icon.
+    const cell = [...k.el.querySelectorAll('[data-key]')].find(
+      (c: any) => c.getAttribute('data-key') === '⇧'
+    ) as any
+    const r = cell.querySelector('rect')
+    return {
+      x: Number(r.getAttribute('x')) + 2,
+      y: Number(r.getAttribute('y')) + 2,
+    }
+  }
+  const letterAt = (k: any, ch: string) => {
+    const cell = [...k.el.querySelectorAll('[data-key]')].find(
+      (c: any) => c.getAttribute('data-key') === ch
+    ) as any
+    const r = cell.querySelector('rect')
+    return {
+      x: Number(r.getAttribute('x')) + 2,
+      y: Number(r.getAttribute('y')) + 2,
+    }
+  }
+
+  test('a TAP on shift is one-shot: one capital, then lower case', () => {
+    const typed: string[] = []
+    const k = kb((c) => typed.push(c))
+    const s = shiftAt(k)
+    k.handle!('down', s.x, s.y)
+    k.handle!('up', s.x, s.y)
+    const a = letterAt(k, 'A')
+    k.handle!('down', a.x, a.y)
+    k.handle!('up', a.x, a.y)
+    const a2 = letterAt(k, 'a')
+    k.handle!('down', a2.x, a2.y)
+    k.handle!('up', a2.x, a2.y)
+    expect(typed).toEqual(['A', 'a'])
+  })
+
+  test('HOLDING shift locks it — typing no longer clears it', async () => {
+    // Tonio: "press and hold on shift should CAPSLOCK."
+    const typed: string[] = []
+    const k = kb((c) => typed.push(c))
+    const s = shiftAt(k)
+    k.handle!('down', s.x, s.y)
+    await new Promise((r) => setTimeout(r, 25)) // past holdMs
+    k.handle!('up', s.x, s.y)
+    for (const ch of ['A', 'B']) {
+      const p = letterAt(k, ch)
+      k.handle!('down', p.x, p.y)
+      k.handle!('up', p.x, p.y)
+    }
+    expect(typed).toEqual(['A', 'B'])
+  })
+
+  test('the release after a locking hold is not ALSO a tap', async () => {
+    // Otherwise the hold locks it and the release immediately unlocks it.
+    const typed: string[] = []
+    const k = kb((c) => typed.push(c))
+    const s = shiftAt(k)
+    k.handle!('down', s.x, s.y)
+    await new Promise((r) => setTimeout(r, 25))
+    k.handle!('up', s.x, s.y)
+    const a = letterAt(k, 'A')
+    k.handle!('down', a.x, a.y)
+    k.handle!('up', a.x, a.y)
+    expect(typed).toEqual(['A'])
+  })
+
+  test('tapping shift again releases the lock', async () => {
+    const typed: string[] = []
+    const k = kb((c) => typed.push(c))
+    let s = shiftAt(k)
+    k.handle!('down', s.x, s.y)
+    await new Promise((r) => setTimeout(r, 25))
+    k.handle!('up', s.x, s.y)
+    s = shiftAt(k)
+    k.handle!('down', s.x, s.y)
+    k.handle!('up', s.x, s.y)
+    const a = letterAt(k, 'a')
+    k.handle!('down', a.x, a.y)
+    k.handle!('up', a.x, a.y)
+    expect(typed).toEqual(['a'])
+  })
+})

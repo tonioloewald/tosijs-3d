@@ -1190,6 +1190,20 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
 
   let mode: KeyboardMode = config.mode ?? 'alpha'
   let shift = false
+  /*
+  CAPS LOCK, engaged by HOLDING shift.
+
+  Tonio: "press and hold on shift should CAPSLOCK." It is the phone gesture, and
+  it fits what is already here: a tap is one-shot (type A, carry on in lower
+  case), so the only thing missing was a way to say "no, keep it". Hold is the
+  natural way to say that, and shift is the one action key whose long-press had
+  no other meaning.
+
+  Separate from `shift` rather than a third state of it, because they answer
+  different questions: `shift` is "is the NEXT key upper case", `capsLock` is
+  "does typing one clear it".
+  */
+  let capsLock = false
   let width = 0
   let rects: KeyRect[] = []
 
@@ -1298,6 +1312,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     accents: string[]
     pick: number
     cells: SVGRectElement[]
+    /** The hold engaged caps lock, so the release must not also fire the key. */
+    caps: boolean
   } | null = null
 
   const keyFill = (r: KeyRect): string =>
@@ -1332,16 +1348,24 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         const ix = r.x + (r.width - size) / 2
         const iy = r.y + (r.height - size) / 2
         const glyph = iconGlyph(r.key.icon, {
-          color: TH.TEXT,
+          // Caps lock is a MODE, and a mode you cannot see is a mode you will be
+          // surprised by — the accent tint is how every other latched state in
+          // this UI reads (selection, the keyboard toggle glyph).
+          color:
+            r.key.action === 'shift' && capsLock ? TH.ACCENT : TH.TEXT,
           size,
           x: ix,
           y: iy,
         })
-        if (r.key.iconRotate) {
+        if (r.key.iconRotate || r.key.iconFlipX) {
           // About the icon's own centre, so rotating cannot also move it.
-          const wrap = g({
-            transform: `rotate(${r.key.iconRotate} ${ix + size / 2} ${iy + size / 2})`,
-          }) as SVGGElement
+          const cx = ix + size / 2
+          const cy = iy + size / 2
+          const parts: string[] = []
+          if (r.key.iconRotate) parts.push(`rotate(${r.key.iconRotate} ${cx} ${cy})`)
+          // Mirror about the icon's own centre, so flipping cannot also move it.
+          if (r.key.iconFlipX) parts.push(`translate(${cx * 2} 0) scale(-1 1)`)
+          const wrap = g({ transform: parts.join(' ') }) as SVGGElement
           wrap.appendChild(glyph)
           cell.appendChild(wrap)
         } else {
@@ -1507,14 +1531,22 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
     if (k.value !== undefined) {
       config.onKey?.(k.value)
       // A shift is one-shot, like a phone: type A, then keep typing lower case.
-      if (shift) {
+      // Caps lock is precisely the exception — it survives typing.
+      if (shift && !capsLock) {
         shift = false
         relayout()
       }
       return
     }
     if (k.action === 'shift') {
-      shift = !shift
+      // A tap RELEASES caps lock rather than dropping to one-shot shift: having
+      // held to lock it, the obvious way to unlock is to press the same key.
+      if (capsLock) {
+        capsLock = false
+        shift = false
+      } else {
+        shift = !shift
+      }
       relayout()
       return
     }
@@ -1605,13 +1637,30 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         // orphaned the click-then-Space flow — visible beats quiet.)
         focusIdx = rects.indexOf(r)
         paintFocus()
-        press = { rect: r, timer: null, accents: [], pick: -1, cells: [] }
+        press = {
+          rect: r,
+          timer: null,
+          accents: [],
+          pick: -1,
+          cells: [],
+          caps: false,
+        }
         pressedVis = rects.indexOf(r)
         pressVis(pressedVis, true)
         const alts = r.key.value ? accentsFor(r.key.value) : []
         if (alts.length > 0) {
           press.timer = setTimeout(() => {
             if (press) openPopup(r, alts)
+          }, HOLD)
+        } else if (r.key.action === 'shift') {
+          press.timer = setTimeout(() => {
+            if (!press) return
+            capsLock = true
+            shift = true
+            // Mark it so the release does NOT then run `fireKey`, which would
+            // read the lock as a tap and turn it straight back off.
+            press.caps = true
+            relayout()
           }, HOLD)
         } else if (r.key.action === 'space' && config.onCaretMove) {
           /*
@@ -1713,6 +1762,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
               cells: press.cells,
             }
           }
+        } else if (press.caps) {
+          // The hold already did the work; releasing is not also a tap.
         } else if (keyAt(rects, x, y) === press.rect) {
           // A tap RELOCATES focus that is already active, so switching pointer →
           // D-pad resumes from what you touched. It does NOT summon the ring when

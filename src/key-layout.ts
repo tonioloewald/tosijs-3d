@@ -306,6 +306,16 @@ export interface KeyDef {
    * route that survives rasterisation.
    */
   iconRotate?: number
+  /**
+   * Mirror `icon` horizontally.
+   *
+   * Some icon entries are MIRROR REFERENCES rather than markup — 
+   * `icons/stroked/corner-down-left.svg` is an 18-byte file containing the text
+   * `cornerDownRight0f`, which `svgIcons` resolves on the DOM path and
+   * `iconGlyph` cannot. So the return key drew the fallback BOX. Flipping the
+   * real `cornerDownRight` gets the same glyph by a route that rasterises.
+   */
+  iconFlipX?: boolean
   /** Text inserted when tapped. Absent for action keys. */
   value?: string
   /** Behaviour for a non-inserting key. */
@@ -345,7 +355,9 @@ const BACK: KeyDef = {
 const SPACE: KeyDef = { label: 'space', action: 'space', width: 5 }
 const ENTER: KeyDef = {
   label: '⏎',
-  icon: 'cornerDownLeft',
+  // `cornerDownLeft` is a mirror REFERENCE, not markup — see `iconFlipX`.
+  icon: 'cornerDownRight',
+  iconFlipX: true,
   action: 'enter',
   width: 1.5,
 }
@@ -362,7 +374,8 @@ const BACK1: KeyDef = { label: '⌫', icon: 'delete', action: 'backspace' }
 /** Enter at plain width — for a grid pad where every cell is one unit. */
 const ENTER1: KeyDef = {
   label: '⏎',
-  icon: 'cornerDownLeft',
+  icon: 'cornerDownRight',
+  iconFlipX: true,
   action: 'enter',
 }
 
@@ -404,7 +417,8 @@ export function keyLayout(mode: KeyboardMode, shift = false): KeyDef[][] {
     */
     const enter: KeyDef = {
       label: '⏎',
-      icon: 'cornerDownLeft',
+      icon: 'cornerDownRight',
+      iconFlipX: true,
       action: 'enter',
     }
     return [

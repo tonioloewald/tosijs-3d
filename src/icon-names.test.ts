@@ -24,6 +24,41 @@ describe('doc examples only name icons that exist', () => {
     expect(known.size).toBeGreaterThan(20)
   })
 
+  test('every icon used with iconGlyph is real MARKUP, not a mirror reference', () => {
+    /*
+    Existing is not the same as rendering.
+
+    Some entries are MIRROR REFERENCES rather than markup:
+    `icons/stroked/corner-down-left.svg` is an 18-byte file containing the text
+    `cornerDownRight0f`, so `icon-data` stores that string. `svgIcons` resolves
+    such a reference on the DOM path; `iconGlyph` cannot, and quietly draws the
+    fallback BOX instead — which is what put a box on the return key.
+
+    The name-existence check above passed it, because the key was there. This
+    checks the VALUE looks like markup.
+    */
+    const bad: string[] = []
+    for (const [name, spec] of Object.entries(iconData as Record<string, string>)) {
+      if (typeof spec === 'string' && !spec.trimStart().startsWith('<')) {
+        bad.push(`${name} -> ${spec.trim()}`)
+      }
+    }
+    // These exist and are legitimate as DOM icons — the point is that anything
+    // drawn through `iconGlyph` must not be one of them.
+    const usedWithGlyph = new Set<string>()
+    for (const f of files) {
+      const src = readFileSync(join(dir, f), 'utf8')
+      for (const m of src.matchAll(/\bicon:\s*'([A-Za-z][A-Za-z0-9]*)'/g)) {
+        usedWithGlyph.add(m[1])
+      }
+      for (const m of src.matchAll(/\biconGlyph\(\s*'([A-Za-z][A-Za-z0-9]*)'/g)) {
+        usedWithGlyph.add(m[1])
+      }
+    }
+    const offenders = bad.filter((b) => usedWithGlyph.has(b.split(' ->')[0]))
+    expect(offenders).toEqual([])
+  })
+
   test('no source or doc example names a missing icon', () => {
     const bad: string[] = []
     for (const f of files) {
