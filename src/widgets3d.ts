@@ -295,7 +295,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 */
 /*{ "parent": "UI", "order": 100 }*/
 
-import { svgElements } from 'tosijs'
+import { svgElements, StyleSheet } from 'tosijs'
 import { placePopup, type PopupSide } from './flow-layout'
 import {
   alignOffset,
@@ -2086,6 +2086,12 @@ export function panel3d(
       useDomLayer: (container: HTMLElement) => () => void
     }
   ).useDomLayer = (container) => {
+    // One deduped sheet however many layers exist — see the note at the mount.
+    StyleSheet('w3d-dom-layer', {
+      '[data-w3d-dom-layer] [data-presentation="texture"]': {
+        display: 'none',
+      },
+    })
     const style = getComputedStyle(container)
     // `absolute` needs a positioned ancestor; without this the popup lands
     // relative to the page and appears somewhere else entirely.
@@ -2097,14 +2103,22 @@ export function panel3d(
       const box = container.getBoundingClientRect()
       // Panel units -> CSS px, since a panel is usually rendered scaled.
       const scale = rect.height / Math.max(1, Number(root.getAttribute('height')))
-      // The DOM half of the presentation marker: `svg-texture` strips
-      // `dom`-only nodes when rasterising, and this hides `texture`-only ones
-      // here. Set inline rather than via a stylesheet so a popup mounted into
-      // any container carries the rule with it.
-      for (const n of sheet.querySelectorAll('[data-presentation="texture"]')) {
-        ;(n as SVGElement).style.display = 'none'
-      }
+      /*
+      HIDE TEXTURE-ONLY NODES WITH CSS, NOT BY TOUCHING THEM.
+
+      The first version set `style.display = 'none'` on the nodes — and the sheet
+      is SHARED, so hiding them for the DOM hid them in the texture too. Tonio:
+      "the affordances have disappeared from the 3D keyboard panel (they're also
+      gone from the DOM version, but we do want them in the 3d panel)."
+
+      A stylesheet rule is the right tool precisely BECAUSE of the quirk that
+      makes rasterising awkward: a serialised SVG is its own document and
+      inherits none of the page's CSS (the same reason `w3d-theme` bakes
+      literals). So the rule hides them flat and the texture still draws them —
+      one sheet, two appearances, without mutating anything either side shares.
+      */
       const holder = document.createElement('div')
+      holder.setAttribute('data-w3d-dom-layer', '')
       holder.style.position = 'absolute'
       holder.style.zIndex = '10'
       holder.style.left = `${rect.left - box.left}px`

@@ -1888,6 +1888,35 @@ placement library below — the scene layer needs the anchor projected into worl
 space, which is exactly the "where does a rect come from" question that entry
 raises.
 
+[ ] **0.8.0: rename every `onX` callback to `handleX`.** Tonio: "the tosijs
+convention is a callback event handler is called handleChange" — and it is a
+breaking rename, so it waits for a minor.
+
+`iconGrid3d` already ships `handleChange`/`handleSelect`/`handleActivate`,
+because it was unpublished when the convention came up. Everything older still
+uses `onX` and a panel can currently hold both spellings, which is the worst
+state to leave it in.
+
+The list, from `widgets3d` outward: `slider3d.onChange`, `toggle3d.onChange`,
+`select3d.onChange`, `button3d.onClick`, `list3d.onSelect`, `iconBar3d`'s
+per-item `onClick`, `inputField`'s `onChange`/`onEnter`/`onFocus`,
+`keyboard`'s `onKey`/`onAction`/`onCaretMove`, `curve3d`/`footprint3d`/
+`vector3d`'s `onChange`, `table`'s selection callbacks, `box`/`surface`'s
+`onActivate`/`onSelect`.
+
+**Why it is worth the churn rather than a style preference.** These are factory
+functions today, where `onX` is harmless — but the moment any of them becomes a
+tosijs COMPONENT, the element creator binds an `on*` prop as a DOM event
+LISTENER and the class field is silently never called. No error, no warning, a
+callback that simply never fires: CLAUDE.md names it as a footgun that has
+already cost this project a long debugging detour. `handleX` cannot be
+mistaken for an event name, so the rename removes the trap rather than
+documenting it.
+
+Do it in ONE pass with the deprecation shim (accept both, warn on `onX`) so an
+adopter is not chasing renames one widget at a time — and update every doc
+example, since those are what people copy.
+
 [ ] **A PLACEMENT library — `popFloat`'s job, for DOM and 3D.** Tonio: "we
 should have a standard library for placing popups etc. relative to things in an
 intelligent way (per tosijs-ui's similar popFloat)". **Read tosijs-ui's
