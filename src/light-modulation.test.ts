@@ -195,27 +195,29 @@ describe('shiftHue keeps the colour you chose', () => {
 })
 
 /*
-THE ENVELOPE — three clocks, only one of which repeats.
+THE ENVELOPE — proper ADSR, after Tonio asked whether we had actually done
+attack-sustain-decay. We had `attack`/`sustain`/`decay` as PHASES, but the
+"decay" was really a RELEASE and there was no held LEVEL, which left a real
+seam: an attack curve ending at 0.6 handed to a loop sitting at 1.0 jumps.
 
-Tonio: "you can have lights that flicker to life and then fade slowly and go
-red." A turn-on transient, a steady state, and a turn-off transient. The
-envelope multiplies the loop rather than replacing it, which is what makes the
-combination a composition instead of a fourth case.
+Now: attack rises to full, decay settles to `sustain`, sustain holds (and scales
+the loop, so the seam is continuous by construction), release falls to dark.
 */
 import { lightPhase, sampleEnvelope, sampleLight } from './light-modulation'
 
 describe('which clock is running', () => {
-  const env = { attack: 2, decay: 4 }
-  test('on: attack until it is up, then sustain forever', () => {
+  const env = { attack: 2, decay: 0.5, sustain: 0.8, release: 4 }
+  test('on: attack, then the settle, then sustain forever', () => {
     expect(lightPhase(env, true, 0)).toBe('attack')
     expect(lightPhase(env, true, 1.9)).toBe('attack')
-    expect(lightPhase(env, true, 2)).toBe('sustain')
+    expect(lightPhase(env, true, 2.1)).toBe('decay')
+    expect(lightPhase(env, true, 2.5)).toBe('sustain')
     expect(lightPhase(env, true, 1000)).toBe('sustain')
   })
 
-  test('off: decay until it is done, then off', () => {
-    expect(lightPhase(env, false, 0)).toBe('decay')
-    expect(lightPhase(env, false, 3.9)).toBe('decay')
+  test('off: release until it is done, then off', () => {
+    expect(lightPhase(env, false, 0)).toBe('release')
+    expect(lightPhase(env, false, 3.9)).toBe('release')
     expect(lightPhase(env, false, 4)).toBe('off')
   })
 
@@ -225,10 +227,45 @@ describe('which clock is running', () => {
     expect(lightPhase({}, true, 0)).toBe('sustain')
   })
 
-  test('`off` is distinct from `decay`, so a dead lamp can stop working', () => {
-    // Not cosmetic: it is what lets a lamp skip per-frame integration once it
-    // has finished dying, instead of evaluating curves forever at zero.
-    expect(lightPhase({ decay: 1 }, false, 5)).toBe('off')
+  test('`off` is distinct from `release`, so a dead lamp can stop working', () => {
+    expect(lightPhase({ release: 1 }, false, 5)).toBe('off')
+  })
+})
+
+describe('the seam that `sustain` exists to close', () => {
+  test('attack arrives at full and sustain holds it — no jump', () => {
+    const env = { attack: 2 }
+    expect(sampleEnvelope(env, true, 2).brightness).toBeCloseTo(1)
+    expect(sampleEnvelope(env, true, 2.001).brightness).toBeCloseTo(1)
+  })
+
+  test('with a sustain level, decay lands exactly on it', () => {
+    const env = { attack: 1, decay: 1, sustain: 0.6 }
+    expect(sampleEnvelope(env, true, 1).brightness).toBeCloseTo(1) // full
+    expect(sampleEnvelope(env, true, 1.5).brightness).toBeCloseTo(0.8) // halfway down
+    expect(sampleEnvelope(env, true, 2).brightness).toBeCloseTo(0.6) // settled
+    expect(sampleEnvelope(env, true, 50).brightness).toBeCloseTo(0.6) // held
+  })
+
+  test('sustain SCALES the loop rather than sitting beside it', () => {
+    // This is what keeps the seam continuous: the steady state is one number,
+    // and both the envelope and the loop are measured against it.
+    const mod = { period: 1, brightness: constant(1) }
+    const s = sampleLight(
+      mod,
+      { sustain: 0.5 },
+      {
+        on: true,
+        sinceChange: 10,
+        time: 0,
+      }
+    )
+    expect(s.brightness).toBeCloseTo(0.5)
+  })
+
+  test('sustain is clamped to [0,1] — a level, not a gain', () => {
+    expect(sampleEnvelope({ sustain: 5 }, true, 9).brightness).toBeCloseTo(1)
+    expect(sampleEnvelope({ sustain: -1 }, true, 9).brightness).toBeCloseTo(0)
   })
 })
 
@@ -239,89 +276,116 @@ describe('an envelope with no curves is still useful', () => {
     expect(sampleEnvelope({ attack: 2 }, true, 2).brightness).toBeCloseTo(1)
   })
 
-  test('decay fades linearly and reaches zero', () => {
-    expect(sampleEnvelope({ decay: 4 }, false, 0).brightness).toBeCloseTo(1)
-    expect(sampleEnvelope({ decay: 4 }, false, 2).brightness).toBeCloseTo(0.5)
-    expect(sampleEnvelope({ decay: 4 }, false, 4).brightness).toBe(0)
+  test('release fades linearly and reaches zero', () => {
+    expect(sampleEnvelope({ release: 4 }, false, 0).brightness).toBeCloseTo(1)
+    expect(sampleEnvelope({ release: 4 }, false, 2).brightness).toBeCloseTo(0.5)
+    expect(sampleEnvelope({ release: 4 }, false, 4).brightness).toBe(0)
   })
 
   test('off is hard zero — off is off, not "very dim"', () => {
-    expect(sampleEnvelope({ decay: 1 }, false, 99).brightness).toBe(0)
+    expect(sampleEnvelope({ release: 1 }, false, 99).brightness).toBe(0)
     expect(sampleEnvelope(undefined, false, 0).brightness).toBe(0)
-  })
-
-  test('sustain leaves the loop entirely alone', () => {
-    expect(sampleEnvelope({ attack: 1 }, true, 5)).toEqual(NO_MODULATION)
   })
 })
 
-describe('a decay curve reads left-to-right like every other curve', () => {
-  test('linear() as a decay curve RISES — its own shape governs', () => {
-    // `1 - t` is only the fallback for an envelope given no curve. Silently
-    // flipping an author's curve would make the one curve mean two things.
-    const env = { decay: 2, decayCurves: { brightness: linear() } }
+describe('release starts from where the lamp ACTUALLY was', () => {
+  test('switched off mid-attack, it does not jump brighter in order to die', () => {
+    // Releasing from `sustain` when the lamp had only reached 0.3 flashes at
+    // the exact moment you turned it off — the one artefact the caller cannot
+    // fix from outside, because only it knows the level it was at.
+    const env = { release: 2, sustain: 1 }
+    expect(sampleEnvelope(env, false, 0, 0.3).brightness).toBeCloseTo(0.3)
+    expect(sampleEnvelope(env, false, 1, 0.3).brightness).toBeCloseTo(0.15)
+  })
+
+  test('with no `from`, it releases from the sustain level', () => {
+    expect(
+      sampleEnvelope({ release: 2, sustain: 0.4 }, false, 0).brightness
+    ).toBeCloseTo(0.4)
+  })
+})
+
+describe('a release curve reads left-to-right like every other curve', () => {
+  test('linear() as a release curve RISES — its own shape governs', () => {
+    const env = { release: 2, releaseCurves: { brightness: linear() } }
     expect(sampleEnvelope(env, false, 0).brightness).toBeCloseTo(0)
-    // Sampled just INSIDE the window: at exactly `decay` the lamp is already
-    // `off`, and off wins over any curve. See the boundary test below.
     expect(sampleEnvelope(env, false, 1.999).brightness).toBeCloseTo(1, 2)
   })
 
-  test('"go red as it dies" is a hue curve on the decay', () => {
-    const env = {
-      decay: 2,
-      decayCurves: { hue: linear(), hueShiftDeg: 40 },
-    }
-    expect(sampleEnvelope(env, false, 0).hueShiftDeg).toBeCloseTo(-40)
-    expect(sampleEnvelope(env, false, 1.999).hueShiftDeg).toBeCloseTo(40, 1)
-  })
-
   test('the end of the window is OFF, not the end of the curve', () => {
-    // The boundary is exclusive on purpose: a lamp that has finished dying is
-    // dark, whatever its curve happened to be doing at t = 1. Without this, a
-    // decay curve ending high would leave the lamp stuck on.
-    const env = { decay: 2, decayCurves: { brightness: linear() } }
+    const env = { release: 2, releaseCurves: { brightness: linear() } }
     expect(sampleEnvelope(env, false, 2).brightness).toBe(0)
     expect(lightPhase(env, false, 2)).toBe('off')
   })
 })
 
+describe('saturation — the other half of hue', () => {
+  test('it multiplies, so 0 washes to white and 1 leaves it alone', () => {
+    expect(
+      sampleModulation({ period: 1, saturation: constant(0) }, 0).saturation
+    ).toBe(0)
+    expect(sampleModulation({ period: 1 }, 0).saturation).toBe(1)
+  })
+
+  test('it composes across loop and envelope like brightness does', () => {
+    const mod = { period: 1, saturation: constant(0.5) }
+    const env = { release: 2, releaseCurves: { saturation: constant(0.5) } }
+    const s = sampleLight(mod, env, { on: false, sinceChange: 0, time: 0 })
+    expect(s.saturation).toBeCloseTo(0.25)
+  })
+
+  test('isModulated notices a saturation-only modulation', () => {
+    expect(isModulated({ period: 2, saturation: constant(0.5) })).toBe(true)
+  })
+
+  test('shiftHue can desaturate without touching brightness', () => {
+    // VALUE is preserved on purpose — dimming is the brightness channel's job,
+    // and a colour op that also dimmed would fight it.
+    const c = { r: 1, g: 0.2, b: 0.2 }
+    const out = shiftHue(c, 0, 0)
+    expect(Math.max(out.r, out.g, out.b)).toBeCloseTo(1, 5)
+    expect(out.r).toBeCloseTo(out.g, 5)
+    expect(out.g).toBeCloseTo(out.b, 5)
+  })
+
+  test('half saturation moves halfway to white', () => {
+    const out = shiftHue({ r: 1, g: 0, b: 0 }, 0, 0.5)
+    expect(out.r).toBeCloseTo(1, 5)
+    expect(out.g).toBeCloseTo(0.5, 5)
+    expect(out.b).toBeCloseTo(0.5, 5)
+  })
+})
+
 describe('the envelope MULTIPLIES the loop, and that is the point', () => {
   test('a flickering lamp keeps flickering while it fades', () => {
-    // The composition the design turns on. If the envelope replaced the loop,
-    // the flicker would vanish at the instant of the switch — which is not what
-    // a dying tube does.
     const mod = { period: 1, brightness: constant(0.5) }
-    const env = { decay: 2 }
-    const half = sampleLight(mod, env, { on: false, sinceChange: 1, time: 0 })
-    expect(half.brightness).toBeCloseTo(0.5 * 0.5) // loop 0.5 x fade 0.5
+    const half = sampleLight(
+      mod,
+      { release: 2 },
+      {
+        on: false,
+        sinceChange: 1,
+        time: 0,
+      }
+    )
+    expect(half.brightness).toBeCloseTo(0.5 * 0.5)
   })
 
   test('hue shifts ADD, so a colour cycle can still go red as it dies', () => {
-    const mod = { period: 1, hue: constant(1), hueShiftDeg: 10 } // +10
-    const env = { decay: 2, decayCurves: { hue: constant(0), hueShiftDeg: 30 } } // -30
+    const mod = { period: 1, hue: constant(1), hueShiftDeg: 10 }
+    const env = {
+      release: 2,
+      releaseCurves: { hue: constant(0), hueShiftDeg: 30 },
+    }
     const s = sampleLight(mod, env, { on: false, sinceChange: 0, time: 0 })
     expect(s.hueShiftDeg).toBeCloseTo(-20)
-  })
-
-  test('during sustain the loop is untouched', () => {
-    const mod = { period: 2, brightness: constant(0.25) }
-    const s = sampleLight(
-      mod,
-      { attack: 1 },
-      {
-        on: true,
-        sinceChange: 10,
-        time: 3,
-      }
-    )
-    expect(s.brightness).toBeCloseTo(0.25)
   })
 
   test('fully off beats any loop — a switched-off lamp is dark', () => {
     const mod = { period: 1, brightness: constant(1) }
     const s = sampleLight(
       mod,
-      { decay: 1 },
+      { release: 1 },
       {
         on: false,
         sinceChange: 99,
@@ -339,32 +403,36 @@ describe('the envelope MULTIPLIES the loop, and that is the point', () => {
 })
 
 describe('the whole brief, as one config', () => {
-  test('flickers to life, hums, then fades slowly and goes red', () => {
+  test('flickers to life, settles, hums, then dies red and washed out', () => {
     const mod = { period: 0.12, brightness: stepped(3) }
     const env = {
       attack: 1.2,
       attackCurves: { brightness: stepped(5) },
-      decay: 2.5,
-      decayCurves: {
+      decay: 0.4,
+      sustain: 0.85,
+      release: 2.5,
+      releaseCurves: {
         brightness: easeInOut(),
         hue: constant(0),
-        hueShiftDeg: 40,
+        hueShiftDeg: 190,
+        saturation: constant(0.3),
       },
     }
     const at = (on: boolean, sinceChange: number, time: number) =>
       sampleLight(mod, env, { on, sinceChange, time })
 
-    // Coming up: never brighter than declared, and it does get there.
-    for (let t = 0; t <= 1.2; t += 0.1) {
+    for (let t = 0; t <= 1.6; t += 0.1) {
       const s = at(true, t, t)
       expect(s.brightness).toBeGreaterThanOrEqual(0)
       expect(s.brightness).toBeLessThanOrEqual(1)
     }
-    // Dying: leaning red the whole way down.
+    // Settled at the held level, scaled by whatever the loop is doing.
+    expect(at(true, 5, 0).brightness).toBeLessThanOrEqual(0.85)
+    // Dying: leaning hard red and washing out, all the way down.
     for (let t = 0; t < 2.5; t += 0.25) {
-      expect(at(false, t, t).hueShiftDeg).toBeCloseTo(-40)
+      expect(at(false, t, t).hueShiftDeg).toBeCloseTo(-190)
+      expect(at(false, t, t).saturation).toBeCloseTo(0.3)
     }
-    // And finally out.
     expect(at(false, 2.5, 9).brightness).toBe(0)
   })
 })

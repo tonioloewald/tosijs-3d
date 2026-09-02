@@ -46,25 +46,31 @@ where it is.
 ## Modulation is curves over a period
 
 Everything time-varying comes from [[light-modulation]]: a `period` in seconds
-plus curves for `brightness`, `hue` and `range`, and an optional attack/decay
-envelope for turning on and off. Those are the same `[0,1] → [0,1]` curves the
+plus curves for `brightness`, `hue`, `saturation` and `range`, and an optional
+**ADSR envelope** for turning on and off — `attack` rises to full, `decay`
+settles to the held `sustain` level, `release` fades to dark. Those are the same
+`[0,1] → [0,1]` curves the
 province editor edits, so [[curve-field|curve3d]] is already the editor for a
 lamp's flicker.
 
 ```javascript
 b3dSpotLight({
   y: 4, intensity: 60, diffuse: '#ffd9a0',
-  // A tube that stutters to life, hums, then dies down to a red ember.
+  // A tube that stutters to life, settles, hums, then dies washed-out and red.
   modulation: { period: 0.12, brightness: stepped(3) },
   envelope: {
     attack: 1.2, attackCurves: { brightness: stepped(5) },
-    decay: 2.5, decayCurves: { hue: constant(0), hueShiftDeg: 40 },
+    decay: 0.4, sustain: 0.85,
+    release: 2.5,
+    releaseCurves: { hue: constant(0), hueShiftDeg: 190, saturation: constant(0.3) },
   },
 })
 ```
 
-`on` is what runs the envelope: setting it false starts the decay rather than
-killing the light. A lamp that has finished decaying stops doing per-frame work
+`on` is what runs the envelope: setting it false starts the RELEASE rather than
+killing the light, and the release begins from the level the lamp had actually
+reached — so a lamp switched off mid-attack does not flash brighter in order to
+start dying. A lamp that has finished releasing stops doing per-frame work
 altogether.
 
 ## Demo
@@ -127,10 +133,15 @@ preview.append(
       modulation: { period: 0.5, brightness: stepped3 },
       envelope: {
         attack: 1.4, attackCurves: { brightness: stepped3 },
+        decay: 0.4, sustain: 0.85,
         // hueShiftDeg is RELATIVE, so reddening a cool tube is a long way to
         // travel: #cfe8ff sits near 207 degrees, and 45 would only reach cyan.
-        // 190 takes it round to amber-red as it dies.
-        decay: 2.6, decayCurves: { hue: [{ x: 0, y: 0.5 }, { x: 1, y: 0 }], hueShiftDeg: 190 },
+        // 190 takes it round to amber-red as it dies, washing out on the way.
+        release: 2.6,
+        releaseCurves: {
+          hue: [{ x: 0, y: 0.5 }, { x: 1, y: 0 }], hueShiftDeg: 190,
+          saturation: [{ x: 0, y: 1 }, { x: 1, y: 0.25 }],
+        },
       },
     }),
     // A beacon: slow pulse plus a hue cycle.
@@ -172,7 +183,7 @@ Shared by all three unless noted.
 | `diffuse` | `'#ffffff'` | Colour |
 | `specular` | `'#ffffff'` | Specular colour |
 | `range` | `10` | Falloff distance (point / spot) |
-| `on` | `true` | `false` runs the decay; it does not kill the light |
+| `on` | `true` | `false` runs the RELEASE; it does not kill the light |
 | `geometry` | `'on'` | `'off'` for no fixture |
 | `geometryScale` | `1` | Size multiplier for the default fixture |
 | `url` | — | GLB fixture, in place of the primitive |
@@ -280,6 +291,14 @@ export abstract class B3dLamp extends B3dChild {
   private _elapsed = 0
   private _sinceChange = 0
   private _wasOn = true
+  /**
+   * The brightness multiplier at the instant of switch-off, handed to the
+   * release so it starts from where the lamp ACTUALLY was. Without it a lamp
+   * killed mid-attack jumps up to the sustain level in order to begin dying —
+   * a flash at exactly the moment you turned it off.
+   */
+  private _releaseFrom = 1
+  private _lastBrightness = 1
   private _tick?: BABYLON.Observer<BABYLON.Scene>
   private _disposables: Array<{ dispose: () => void }> = []
 
@@ -402,6 +421,7 @@ export abstract class B3dLamp extends B3dChild {
 
     const on = this.isOn
     if (on !== this._wasOn) {
+      if (!on) this._releaseFrom = this._lastBrightness
       this._wasOn = on
       this._sinceChange = 0
     } else {
@@ -409,10 +429,16 @@ export abstract class B3dLamp extends B3dChild {
     }
 
     const phase = lightPhase(this.envelope, on, this._sinceChange)
-    // Nothing is animating and nothing is switching: leave the light exactly as
-    // `render()` set it, and do no work.
-    if (phase === 'sustain' && !isModulated(this.modulation)) {
+    // Nothing is animating, nothing is switching, and the steady state is full:
+    // leave the light exactly as `render()` set it, and do no work. A `sustain`
+    // below 1 still has to be applied, so it is not part of this shortcut.
+    if (
+      phase === 'sustain' &&
+      !isModulated(this.modulation) &&
+      (this.envelope?.sustain ?? 1) === 1
+    ) {
       light.setEnabled(true)
+      this._lastBrightness = 1
       return
     }
     if (phase === 'off') {
@@ -425,10 +451,12 @@ export abstract class B3dLamp extends B3dChild {
       on,
       sinceChange: this._sinceChange,
       time: this._elapsed,
+      from: this._releaseFrom,
     })
+    this._lastBrightness = s.brightness
     light.intensity = this.baseIntensity * s.brightness
-    if (s.hueShiftDeg !== 0) {
-      const c = shiftHue(this.baseColor, s.hueShiftDeg)
+    if (s.hueShiftDeg !== 0 || s.saturation !== 1) {
+      const c = shiftHue(this.baseColor, s.hueShiftDeg, s.saturation)
       light.diffuse.set(c.r, c.g, c.b)
     } else {
       light.diffuse.copyFrom(this.baseColor)
