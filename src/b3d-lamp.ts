@@ -364,14 +364,24 @@ export abstract class B3dLamp extends B3dChild {
     /*
     WHICH CLOCK the program runs on. `'real'` (default) or `'sim'`.
 
-    Real time is the default because a lamp is AMBIENCE, not simulation: a
-    fluorescent should keep stuttering while the world is paused or in slow
-    motion, the same way a UI animation does. Freezing a flicker mid-flicker is
-    what makes a paused game look broken rather than paused.
+    `'real'` — actual elapsed seconds, immune to pause and to time scaling. A
+    lamp is AMBIENCE, and freezing a flicker mid-flicker is what makes a paused
+    game look broken rather than paused.
 
-    `'sim'` puts the lamp back on `sceneDelta`, so it stops when the world stops
-    and stretches when the world does — right for a lamp that is part of the
-    simulation (a muzzle flash, a beacon whose period a player is timing).
+    `'sim'` — the WORLD's clock. It stops when the world stops and, once a
+    scaled clock exists, compresses when the world is fast-forwarded. Tonio's
+    case is the decisive one: _"consider if you wanted to show a time lapse, the
+    way they do in some GTA IV and GTA V scenes... you don't want lights to
+    slowly fade in while cars are appearing and disappearing."_ A lamp that is
+    part of the SIMULATION rather than the ambience wants this — street lights
+    coming on at dusk, a beacon whose period a player is timing.
+
+    ⚠️ **Only pausing is implemented, not scaling**, because there is no
+    scene-owned scaled clock yet (tosijs-3d#41). When one lands it must arrive
+    through `sceneDelta` and NOT through a second channel: lamps then obey it
+    with no change here, and there is still exactly one answer to "what time is
+    it". A parallel key would be a second source of truth, which is the one
+    thing this area cannot afford.
 
     Real time is measured from `performance.now()` rather than the engine
     delta, because `engine.getDeltaTime()` inside a scene observer is the WHOLE
@@ -716,6 +726,13 @@ export abstract class B3dLamp extends B3dChild {
    * the whole thing on the frame you came back.
    */
   private tickSeconds(scene: BABYLON.Scene): number {
+    /*
+    `sceneDelta` and nothing else — deliberately no private channel for a
+    scaled clock. Reading some other key would give the scene two answers to
+    "what time is it", and lamps are not the right place to decide which wins.
+    When tosijs-3d#41 lands, the scale arrives through this one delta and lamps
+    obey it with no change here.
+    */
     if (this.timeSource === 'sim') return sceneDeltaSeconds(scene)
     const now =
       typeof performance !== 'undefined' ? performance.now() : Date.now()
