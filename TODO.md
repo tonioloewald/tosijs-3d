@@ -554,6 +554,45 @@ Fits [[MEDIUM-DESIGN.md]]'s framing (water as a medium with optics), and it is
 behaviour-over-vertices in the north-star sense: surf that responds to what is
 actually there beats more triangles of static wave.
 
+[ ] **INSERTED CONTENT vs. per-light shadows and reflection probes — arbitration.**
+Tonio, 2026-09-03: _"if lights are going to be inserted into scenes from
+ensembles, we need to think about how they will operate vis-a-vis shadow setups.
+Similarly if I insert something that needs a reflection probe…"_
+
+The problem is that both are **per-instance render passes with no ceiling**, and
+insertion is exactly the path that has no author watching the total:
+
+- every `b3d-lamp` with `shadows="on"` builds its own `ShadowGenerator` — one
+  extra full render of the caster list, per lamp, per frame
+- every `_mirror` mesh gets a reflection probe — SIX faces, per probe
+- worse, our caster list is currently GLOBAL: the lamp's scene listener adds
+  every registered mesh to every generator, so cost is lamps × meshes and an
+  inserted lamp silently re-renders the whole world
+
+An author placing three lamps by hand notices. A generator dropping forty pieces
+into a scene, each carrying a lit fixture, does not — and neither does the
+person who assembled the ensemble from parts that were each fine alone.
+
+**The precedent to copy is [[ambient-budget]]**, which already solved the same
+shape for garnish: everything competes for ONE pool, and an effect that cannot
+be afforded switches **off** rather than thinning into a lie. Shadows want the
+same: a scene-level budget of shadow-casting lights, allocated by something
+defensible (distance to camera, declared importance, whether the lamp is even
+on), with the losers still lighting but not casting. Same for probes.
+
+Two questions to answer before building, because they decide the shape:
+
+- **Does an inserted lamp REQUEST shadows or DECLARE them?** A request is
+  arbitrable; a declaration is not, and `shadows="on"` currently reads as a
+  declaration. Probably wants to become a priority hint.
+- **Should a lamp's casters be SCOPED?** A lamp lighting one room has no
+  business re-rendering the terrain. Scoping by distance or by an explicit group
+  is what turns lamps × meshes back into something bounded.
+
+Not urgent while scenes are hand-built; **blocking the moment ensembles insert
+lit content**, which is the direction it is heading. Worth deciding before
+`lightEditor3d` teaches people that `shadows` is a free checkbox.
+
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are
