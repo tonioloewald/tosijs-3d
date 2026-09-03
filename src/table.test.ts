@@ -428,3 +428,51 @@ describe('table — scroll within the window is transform-only (the promised beh
     expect(bg3.getAttribute('fill')).not.toBe('transparent')
   })
 })
+
+/*
+AN ICON COLUMN — a piece list says what KIND of thing a row is before it says
+its name, and `sun`, `sea`, `skybox` and `lantern` are identical rows of text
+without one (tosijs-3d#64).
+*/
+describe('kind: icon columns', () => {
+  const rows = [
+    { id: 'a', kind: 'star', name: 'sun' },
+    { id: 'b', kind: 'cloud', name: 'sky' },
+    { id: 'c', kind: 'definitely-not-an-icon', name: 'mystery' },
+  ]
+  const build = () => {
+    const t = T.table({
+      rows,
+      columns: [
+        { key: 'kind', width: 28, kind: 'icon' as const },
+        { key: 'name', flex: 1 },
+      ],
+      height: 120,
+    })
+    t.layout(240)
+    return t
+  }
+
+  test('an icon cell draws a glyph, not the name as text', () => {
+    const t = build()
+    const texts = [...t.el.querySelectorAll('text')].map((n) => n.textContent)
+    expect(texts).toContain('sun')
+    expect(texts).not.toContain('star') // the icon NAME never appears as text
+  })
+
+  test('a text column is untouched', () => {
+    expect(
+      [...build().el.querySelectorAll('text')].map((n) => n.textContent)
+    ).toContain('mystery')
+  })
+
+  test('an unresolvable name draws a fallback rather than throwing', () => {
+    // A table is the wrong place to discover a typo, and losing half a list is
+    // worse than one wrong glyph.
+    expect(() => build()).not.toThrow()
+  })
+
+  test('every row still renders when one icon is bad', () => {
+    expect(build().el.querySelectorAll('[data-row]').length).toBe(3)
+  })
+})

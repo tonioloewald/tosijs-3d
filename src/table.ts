@@ -387,6 +387,24 @@ export function table(config: TableOptions): Table {
       }
       for (const c of cols) {
         const v = row[c.key]
+        if (c.kind === 'icon') {
+          /*
+          The row's own colour, not a fixed one, so a kind glyph dims and
+          highlights with everything else in the row. Centred in the column
+          because an icon has no baseline to align to and a left-aligned glyph
+          in a narrow column reads as a mistake.
+          */
+          const size = 16
+          kids.push(
+            iconGlyph(v == null ? '' : String(v), {
+              size,
+              color: TEXT,
+              x: SEL_W + c.x + (c.width - size) / 2,
+              y: y + (ROW_H - size) / 2,
+            }) as unknown as SVGElement
+          )
+          continue
+        }
         kids.push(
           cell(
             v == null ? '' : String(v),

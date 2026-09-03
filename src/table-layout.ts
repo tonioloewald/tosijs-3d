@@ -100,6 +100,22 @@ export interface ColumnSpec {
   align?: 'left' | 'center' | 'right'
   /** Header caption; defaults to `key`. */
   label?: string
+  /**
+   * How the cell's value is DRAWN. Default `'text'`.
+   *
+   * `'icon'` reads the value as an [[svg-icons|iconGlyph]] NAME and centres the
+   * glyph in the column, in the row's own foreground colour so selection and
+   * hover carry through unchanged. A name that will not resolve draws
+   * `iconGlyph`'s fallback box rather than throwing — a table is the wrong
+   * place to discover a typo, and losing half a list is worse than one wrong
+   * glyph.
+   *
+   * `'icon'` is the value ITSELF, not a decoration on text: a kind column says
+   * what a row is, and the name is already the word. Icon-plus-text and a
+   * separately clickable icon are both plausible next wants, which is why this
+   * is an enum and not a boolean.
+   */
+  kind?: 'text' | 'icon'
 }
 
 /** A column after layout: where it starts and how wide it is. */
