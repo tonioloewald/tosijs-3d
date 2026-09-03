@@ -667,6 +667,41 @@ function panelPopupSheet(width: number, items: Widget3d[]): SVGSVGElement {
 }
 
 /** What a panel offers the widgets inside it. */
+/**
+ * A host translated by a child's offset inside its container.
+ *
+ * A widget anchors its popup in ITS OWN coordinates — `select3d` uses `y: 0`
+ * meaning "the top of my row" — and `panel3d` translates that by the child's
+ * offset before passing it on. A nested container has to do the same hop, or
+ * the popup lands at the top of the CONTAINER instead of beside the control
+ * that opened it, which is what a light editor's preset menu did.
+ *
+ * `offsetOf` is called at popup time, not at wiring time, because the offsets
+ * come from layout and layout happens later — and again on every resize.
+ */
+export function offsetHost(
+  host: WidgetHost,
+  offsetOf: () => { x: number; y: number }
+): WidgetHost {
+  return {
+    ...host,
+    showPopup(config, ...items) {
+      const d = offsetOf()
+      return host.showPopup(
+        {
+          ...config,
+          anchor: {
+            ...config.anchor,
+            x: config.anchor.x + d.x,
+            y: config.anchor.y + d.y,
+          },
+        },
+        ...items
+      )
+    },
+  }
+}
+
 export interface WidgetHost {
   /**
    * Open a popup ABOVE the panel's content and mount it, returning a closer.

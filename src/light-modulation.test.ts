@@ -428,6 +428,7 @@ The markers already say how the time divides, so stating it three times is three
 chances to disagree.
 */
 import {
+  canonicalProgram,
   segmentTimes,
   lightPreset,
   lightPresets,
@@ -561,5 +562,58 @@ describe('presets', () => {
 
   test('an unknown name gives undefined rather than throwing', () => {
     expect(lightPreset('disco')).toBeUndefined()
+  })
+})
+
+/*
+CANONICALISING MUST NOT CHANGE WHAT A LAMP DOES.
+
+`canonicalProgram` enumerated its scalar fields by hand, and `duration` was
+added to `LightProgram` afterwards and never added to the list. So committing an
+edit silently dropped it, `isAnimated` went false, and a flickering lamp came
+back on STEADY — intermittent, because only a COMMITTED gesture goes through the
+canonical form.
+
+These guard the class rather than the instance: any future field gets the same
+treatment or a test fails.
+*/
+describe('canonical round-trip preserves behaviour', () => {
+  test('every preset still animates after canonicalising', () => {
+    for (const p of lightPresets) {
+      expect(isAnimated(canonicalProgram(p.build()))).toBe(true)
+    }
+  })
+
+  test('no field present in the original goes missing', () => {
+    for (const p of lightPresets) {
+      const before = p.build()
+      const after = canonicalProgram(before)
+      for (const key of Object.keys(before)) {
+        expect(after).toHaveProperty(key)
+      }
+    }
+  })
+
+  test('and the lamp behaves the same at every point in its life', () => {
+    // The property that actually matters: same curve, same timings, same light.
+    for (const p of lightPresets) {
+      const before = p.build()
+      const after = canonicalProgram(before)
+      for (const t of [0, 0.13, 0.5, 1.1, 2.7, 6]) {
+        for (const on of [true, false]) {
+          expect(sampleLight(after, on, t).brightness).toBeCloseTo(
+            sampleLight(before, on, t).brightness,
+            3
+          )
+        }
+      }
+    }
+  })
+
+  test('it is idempotent', () => {
+    for (const p of lightPresets) {
+      const a = canonicalProgram(p.build())
+      expect(JSON.stringify(canonicalProgram(a))).toBe(JSON.stringify(a))
+    }
   })
 })

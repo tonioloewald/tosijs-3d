@@ -63,3 +63,78 @@ describe('the editor emits no prose of its own', () => {
     expect(prose).toEqual([])
   })
 })
+
+/*
+A NESTED WIDGET'S POPUP MUST OPEN BESIDE THE CONTROL, not at the top of its
+container.
+
+A widget anchors in ITS OWN coordinates — `select3d` uses `y: 0` for "the top of
+my row" — and every container it sits inside owes it a translation. `panel3d`
+already did this; `lightEditor3d` and `curveProgram3d` forwarded the host
+untouched, so the preset menu opened at the top of the editor.
+*/
+describe('popup anchoring through a container', () => {
+  const hostSpy = () => {
+    const opened: Array<{ x: number; y: number }> = []
+    const host: any = {
+      showPopup: (config: any) => {
+        opened.push({ x: config.anchor.x, y: config.anchor.y })
+        return { close: () => {} }
+      },
+      closePopup: () => {},
+      relayout: () => {},
+      bounds: () => ({ x: 0, y: 0, width: 320, height: 600 }),
+      top: () => null,
+      hasLayer: () => false,
+      showLayer: () => ({ close: () => {} }),
+    }
+    return { host, opened }
+  }
+
+  /** Press the `›` stepper of the Nth select, in editor-local coordinates. */
+  const openPresetMenu = (w: any) => {
+    const selects = [...w.el.querySelectorAll('[data-w3d="select"]')]
+    const sel = selects[selects.length - 1] // preset is the last select
+    const t = [...sel.querySelectorAll('text')].find(
+      (n: any) => n.textContent === '›'
+    )!
+    // Walk up to find this row's offset inside the editor.
+    const m = /translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(
+      sel.getAttribute('transform') ?? ''
+    )
+    const rowY = m ? Number(m[2]) : 0
+    // Press the VALUE zone, which is what opens the menu.
+    const vx = Number(t.getAttribute('x')) - 40
+    w.handle('down', vx, rowY + 22)
+    w.handle('up', vx, rowY + 22)
+    return rowY
+  }
+
+  test('the popup anchor is translated by the row offset', () => {
+    const { host, opened } = hostSpy()
+    const w = mod.lightEditor3d({})
+    w.setHost!(host)
+    w.layout!(320)
+    const rowY = openPresetMenu(w)
+    expect(opened.length).toBeGreaterThan(0)
+    // The bug: anchor.y came through as 0 regardless of where the row was.
+    expect(rowY).toBeGreaterThan(0)
+    expect(opened[0].y).toBeGreaterThanOrEqual(rowY)
+  })
+
+  test('it is read at POPUP time, not at wiring time', () => {
+    // Offsets come from layout, which happens after setHost — and again on
+    // every resize.
+    const { host, opened } = hostSpy()
+    const w = mod.lightEditor3d({})
+    w.setHost!(host)
+    w.layout!(320)
+    openPresetMenu(w)
+    const narrow = opened[0].y
+    w.layout!(200) // relayout: rows may move
+    opened.length = 0
+    const rowY = openPresetMenu(w)
+    expect(opened[0].y).toBeGreaterThanOrEqual(rowY)
+    expect(Number.isFinite(narrow)).toBe(true)
+  })
+})

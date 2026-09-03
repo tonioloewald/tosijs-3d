@@ -514,6 +514,27 @@ export function lightProgramSchema(
   }
 }
 
+/**
+ * The non-curve fields of a program, in the order a diff reads best.
+ *
+ * ONE list, used by the canonical form — because it was two lists and they
+ * disagreed. `duration` was added to `LightProgram` after `canonicalProgram`
+ * was written and never added here, so committing an edit silently dropped it,
+ * `isAnimated` went false, and a flickering lamp came back on STEADY. Tonio hit
+ * it twice before it was reproducible, which is what a silent drop buys you.
+ */
+const PROGRAM_SCALARS = [
+  'hueShiftDeg',
+  'saturationScale',
+  'attackEnd',
+  'sustainEnd',
+  'duration',
+  'attack',
+  'period',
+  'decay',
+  'phase',
+] as const
+
 /** Canonical bytes for a program: every curve rounded, keys in a fixed order. */
 export function canonicalProgram(p: LightProgram): LightProgram {
   const out: LightProgram = {}
@@ -524,15 +545,7 @@ export function canonicalProgram(p: LightProgram): LightProgram {
   }
   // Numbers after curves, and in the order they appear in the timeline, so a
   // diff reads the way the lamp behaves.
-  for (const k of [
-    'hueShiftDeg',
-    'attackEnd',
-    'sustainEnd',
-    'attack',
-    'period',
-    'decay',
-    'phase',
-  ] as const) {
+  for (const k of PROGRAM_SCALARS) {
     if (p[k] != null) out[k] = Math.round(p[k]! * 1e4) / 1e4 + 0
   }
   return out

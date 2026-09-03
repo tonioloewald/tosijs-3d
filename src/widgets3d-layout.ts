@@ -353,7 +353,9 @@ const ZERO_SLICE = 0.06
  * So: the bottom slice IS zero, and the rest is logarithmic from `min` up.
  */
 const withZeroStop = {
-  toFraction(value: number, min: number, max: number, scale: SliderScale) {
+  // `scale` is deliberately absent: the base cancels in the position mapping,
+  // so a zero-stopped log2 track places its handle exactly like log10 does.
+  toFraction(value: number, min: number, max: number) {
     if (!(value > 0)) return 0
     const f =
       (Math.log(Math.max(min, value)) - Math.log(min)) /
@@ -381,7 +383,7 @@ export function valueToFraction(
 ): number {
   if (max <= min) return 0
   if (zeroStop && useLog(scale, min, max)) {
-    return withZeroStop.toFraction(value, min, max, scale)
+    return withZeroStop.toFraction(value, min, max)
   }
   if (useLog(scale, min, max)) {
     const f =

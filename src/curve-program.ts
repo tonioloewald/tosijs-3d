@@ -209,6 +209,7 @@ import {
   type CurveMarkers,
 } from './curve-field'
 import { stackLayout } from './widgets3d-layout'
+import { offsetHost } from './widgets3d'
 import type { PointerKind, Widget3d, WidgetHost } from './widgets3d'
 
 const { g } = svgElements
@@ -361,7 +362,11 @@ export function curveProgram3d(
     el,
 
     setHost(host: WidgetHost) {
-      for (const f of fields) f.setHost?.(host)
+      // Same offset hop as the light editor: a child anchors in its own
+      // coordinates and the container owes it the translation.
+      fields.forEach((f, i) =>
+        f.setHost?.(offsetHost(host, () => ({ x: 0, y: offsets[i] ?? 0 })))
+      )
     },
 
     layout(width: number) {

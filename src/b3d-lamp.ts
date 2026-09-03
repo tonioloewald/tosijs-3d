@@ -33,6 +33,19 @@ import { tosi } from 'tosijs'
 
 const { lamps } = tosi({ lamps: { on: true, geometry: true, ambient: 0.06 } })
 
+// `on` and `geometry` are 'on'|'off' STRINGS, not booleans — an absent boolean
+// attribute reads false, so a default-true boolean is not expressible in HTML.
+// Binding a boolean leaf straight to them looks right and does nothing: tosijs
+// silently discards a wrong-typed prop write (tosijs#24). So observe and map.
+const applyToggles = () => {
+  for (const el of document.querySelectorAll('tosi-b3d-point-light, tosi-b3d-spot-light')) {
+    el.on = lamps.on.value ? 'on' : 'off'
+    el.geometry = lamps.geometry.value ? 'on' : 'off'
+  }
+}
+lamps.on.observe(applyToggles)
+lamps.geometry.observe(applyToggles)
+
 const FLUORESCENT = {
   brightness: [
     { x: 0, y: 0 }, { x: 0.06, y: 0.85 }, { x: 0.1, y: 0.05 },
@@ -135,20 +148,20 @@ preview.append(
     // WARM LAMP, hard shadows. Its own corner, so the shadow reads.
     b3dPointLight({
       x: -8, y: 4.2, z: 0, diffuse: '#ffd9a0', range: 16, intensity: 1.8,
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: SOFT,
+      shadows: 'on', program: SOFT,
     }),
 
     // FLUORESCENT: strikes in stutters, hums, dies red and washed out.
     b3dPointLight({
       x: 0, y: 4.4, z: 0, diffuse: '#cfe8ff', range: 15, intensity: 2.1,
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: FLUORESCENT,
+      shadows: 'on', program: FLUORESCENT,
     }),
 
     // GELLED SPOT over CLEAR floor, so the window pattern is legible.
     b3dSpotLight({
       x: 9, y: 8, z: -1, angle: 46, exponent: 6,
       diffuse: '#fff2dc', intensity: 620, range: 24,
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: SOFT,
+      shadows: 'on', program: SOFT,
       gelSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
         <rect width="64" height="64" fill="black"/>
         <g fill="white">
@@ -444,6 +457,8 @@ export abstract class B3dLamp extends B3dChild {
   private _shadowOff: (() => void) | null = null
   /** Fixture materials, repainted each frame to track the light. */
   private _fixtureMats: BABYLON.StandardMaterial[] = []
+  /** Built once, then shown/hidden — see `syncGeometry`. */
+  private _fixtureBuilt = false
 
   /**
    * The lamp's whole behaviour as one curve per channel — attack, sustain and
@@ -493,11 +508,34 @@ export abstract class B3dLamp extends B3dChild {
     // was never on. Backdate the switch past the window so it resolves to `off`.
     this._switchAt = this._wasOn ? 0 : -((this.program?.decay ?? 0) + 1)
 
-    this.buildFixture(scene)
+    this.syncGeometry(scene)
     this.syncShadows()
     owner.register({ lights: [this.light] })
 
     this._tick = scene.onBeforeRenderObservable.add(() => this.update(scene))
+  }
+
+  /**
+   * Show, hide, or lazily build the fixture to match `geometry`.
+   *
+   * Called every render, because `geometry` was read once at scene-ready and
+   * toggling it did nothing — the THIRD attribute in this component to accept a
+   * write and quietly ignore it (`shadows` and the gel were the others). The
+   * pattern is worth naming: anything read only in `sceneReady` is a set-once
+   * attribute wearing a live attribute's clothes.
+   *
+   * Hiding rather than disposing, because the fixture is cheap to keep and a
+   * rebuild would drop a `url` fixture's loaded meshes and re-fetch them. Built
+   * lazily on first show so a lamp that starts `geometry="off"` never pays for
+   * geometry it was told not to make.
+   */
+  private syncGeometry(scene: BABYLON.Scene): void {
+    const want = !isOff(this.geometry)
+    if (want && !this._fixtureBuilt) {
+      this._fixtureBuilt = true
+      this.buildFixture(scene)
+    }
+    this.node?.setEnabled(want)
   }
 
   private buildFixture(scene: BABYLON.Scene): void {
@@ -700,6 +738,7 @@ export abstract class B3dLamp extends B3dChild {
     this.baseColor = BABYLON.Color3.FromHexString(this.diffuse)
     this.light.specular = BABYLON.Color3.FromHexString(this.specular)
     this.syncShadows()
+    if (this.owner?.scene != null) this.syncGeometry(this.owner.scene)
     if (!isAnimated(this.program)) {
       this.paintFixture(this.baseColor, this.isOn ? 1 : 0)
     }

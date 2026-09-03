@@ -43,6 +43,7 @@ the switch it was.
 
 import { svgElements } from 'tosijs'
 import {
+  offsetHost,
   label3d,
   slider3d,
   toggle3d,
@@ -266,7 +267,11 @@ export function lightEditor3d(
     el,
 
     setHost(host: WidgetHost) {
-      for (const r of rows) r.setHost?.(host)
+      // Each child gets the host translated by ITS row offset, so a popup
+      // opens beside the control rather than at the top of the editor.
+      rows.forEach((r, i) =>
+        r.setHost?.(offsetHost(host, () => ({ x: 0, y: offsets[i] ?? 0 })))
+      )
     },
 
     layout(width: number) {
