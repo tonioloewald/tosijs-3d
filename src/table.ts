@@ -9,6 +9,39 @@ and rasterized onto a plane.
 The arithmetic is [[table-layout]] — column resolution and the visible-row window —
 so this file is paint plus interaction.
 
+## Filtering and row actions
+
+`filter` (or `setFilter`) shows only the rows a predicate matches, and `counts`
+reports `{ visible, total }` so a search box can say "3 of 128".
+
+**A filter never drops a selection.** Hiding is a view state; losing a selection
+to it would make typing in a search box quietly destructive. The table keeps the
+full set and filters a view of it, so a selected row that scrolls out of the
+filter is still selected when it comes back — and `setRows` checks selections
+against ALL rows for the same reason.
+
+A **`button` column** gives each row an action of its own. With `menu` it opens
+an action menu anchored to the cell; with `handlePress` it just fires. The
+button takes the press instead of the row, so a row's ⋯ does not also select
+it — two things from one tap, and the selection is the one nobody asked for.
+
+```javascript
+table({
+  rows,
+  columns: [
+    { key: 'kind', width: 28, kind: 'icon' },
+    { key: 'name', flex: 1 },
+    { key: 'act', width: 30, kind: 'button', menu: (row) => [
+      { label: 'Duplicate', icon: 'copy', handleSelect: () => duplicate(row) },
+      { label: 'Delete', icon: 'trash', disabled: () => row.locked },
+    ] },
+  ],
+})
+```
+
+An empty menu falls through to `handlePress` rather than opening nothing, and a
+table with no host is inert rather than throwing.
+
 ## Virtualized by default
 
 Only the rows in view are built. That matters more on a texture than in the DOM,
@@ -130,7 +163,8 @@ import {
 } from './table-layout'
 import { selectionIcon, applySelection, type SelectionMode } from './selection'
 import { iconGlyph } from './svg-icons'
-import type { Widget3d, PointerKind } from './widgets3d'
+import { openMenu3d } from './widgets3d'
+import type { Widget3d, PointerKind, WidgetHost } from './widgets3d'
 import { w3dTheme } from './w3d-theme'
 
 const { g, rect, text, clipPath } = svgElements
@@ -155,6 +189,16 @@ export interface Table extends Widget3d {
   readonly selected: string[]
   /** Replace the rows (keeps scroll, drops selections that no longer exist). */
   setRows: (rows: TableRow[]) => void
+  /**
+   * Show only rows matching a predicate; pass `null` to show everything.
+   *
+   * Filtering does NOT drop selections. A row you selected and then filtered
+   * out is still selected when it comes back — hiding is a view state, and
+   * losing a selection to it would make a search box destructive.
+   */
+  setFilter: (filter: ((row: TableRow) => boolean) | null) => void
+  /** How many rows the filter is currently showing, out of how many exist. */
+  readonly counts: { visible: number; total: number }
 
   // --- Focus traversal (D-pad / keyboard) ---------------------------------
   // A gamepad user has NO pointer, and in a headset there is no keyboard either, so
@@ -194,6 +238,15 @@ export interface TableOptions {
   selection?: SelectionMode
   /** Let a single-select tap on the selected row clear it. See `applySelection`. */
   allowDeselect?: boolean
+  /**
+   * Show only the rows this returns true for.
+   *
+   * A PREDICATE rather than a filtered array, so the table keeps owning the
+   * full set: selection survives a filter that hides a selected row, and
+   * clearing the filter brings it back rather than requiring the consumer to
+   * re-supply everything. Set `filter` on the returned table to change it.
+   */
+  filter?: (row: TableRow) => boolean
   onSelect?: (ids: string[]) => void
   /** Row activated (a second click / Enter) — distinct from selecting it. */
   onActivate?: (row: TableRow) => void
@@ -207,7 +260,15 @@ export function table(config: TableOptions): Table {
   const SEL_W = config.selection ? 26 : 0
   const FONT = 13
 
-  let rows = config.rows.slice()
+  /*
+  ALL rows, and the subset currently shown. Kept apart on purpose: selection,
+  `setRows` and the row ids all speak about `allRows`, while scrolling,
+  virtualization and hit-testing speak about `rows`. Collapsing them would make
+  a filter destructive — hiding a selected row would deselect it.
+  */
+  let allRows = config.rows.slice()
+  let filter: ((row: TableRow) => boolean) | null = config.filter ?? null
+  let rows = filter ? allRows.filter(filter) : allRows.slice()
   let width = 0
   let cols: ColumnRect[] = []
   let scroll = 0
@@ -217,8 +278,14 @@ export function table(config: TableOptions): Table {
   let selected = new Set<string>()
   /** In-flight press: where it started, and whether it has become a scroll. */
   let drag: { y: number; scroll0: number; moved: boolean } | null = null
+  /** Set by the panel; a button column needs it to open a menu. */
+  let host: WidgetHost | null = null
   /** Movement past this many px turns a press into a scroll rather than a click. */
   const DRAG_SLOP = 4
+
+  const applyFilter = (): void => {
+    rows = filter ? allRows.filter(filter) : allRows.slice()
+  }
 
   const clipId = `tbl-clip-${seq++}`
   const clip = clipPath({ id: clipId }, rect({ x: 0, y: 0 }))
@@ -387,6 +454,23 @@ export function table(config: TableOptions): Table {
       }
       for (const c of cols) {
         const v = row[c.key]
+        if (c.kind === 'button') {
+          /*
+          A button cell is an icon in a hit target, drawn dimmer than a kind
+          glyph so it reads as an affordance rather than as data — the row's
+          own colour would make it look like another field.
+          */
+          const size = 16
+          kids.push(
+            iconGlyph(v == null ? 'moreVertical' : String(v), {
+              size,
+              color: MUTED,
+              x: SEL_W + c.x + (c.width - size) / 2,
+              y: y + (ROW_H - size) / 2,
+            }) as unknown as SVGElement
+          )
+          continue
+        }
         if (c.kind === 'icon') {
           /*
           The row's own colour, not a fixed one, so a kind glyph dims and
@@ -543,8 +627,12 @@ export function table(config: TableOptions): Table {
       paintBody()
     },
     setRows(next: TableRow[]) {
-      rows = next.slice()
-      const live = new Set(rows.map((r) => r.id))
+      allRows = next.slice()
+      applyFilter()
+      // Selections are checked against ALL rows, not the visible ones — a row
+      // hidden by a filter still exists, and dropping its selection would make
+      // typing in a search box quietly destructive.
+      const live = new Set(allRows.map((r) => r.id))
       // Drop selections whose rows are gone — otherwise onSelect reports ids that no
       // longer exist and the count disagrees with what's on screen.
       let changed = false
@@ -556,6 +644,21 @@ export function table(config: TableOptions): Table {
       scroll = clampScroll(scroll)
       paintBody()
       if (changed) config.onSelect?.([...selected])
+    },
+    setHost(h: WidgetHost) {
+      host = h
+    },
+    setFilter(next: ((row: TableRow) => boolean) | null) {
+      filter = next
+      applyFilter()
+      // Scrolled past the end of a shorter list is a blank table that looks
+      // broken, so come back into range rather than leaving it there.
+      scroll = clampScroll(scroll)
+      focused = -1
+      paintBody()
+    },
+    get counts() {
+      return { visible: rows.length, total: allRows.length }
     },
     handle(kind: PointerKind, x: number, y: number) {
       if (kind === 'leave') {
@@ -607,6 +710,39 @@ export function table(config: TableOptions): Table {
       }
       drag = null
       if (kind === 'up' && i >= 0) {
+        /*
+        A BUTTON COLUMN takes the press instead of the row.
+
+        Otherwise a row's ⋯ button both opens its menu and selects the row —
+        two things happening from one tap, and the selection is the one nobody
+        asked for. Checked by x against the column rect, so the rest of the row
+        behaves exactly as before.
+        */
+        const btn = cols.find(
+          (c) =>
+            c.kind === 'button' &&
+            x >= SEL_W + c.x &&
+            x <= SEL_W + c.x + c.width
+        )
+        if (btn != null) {
+          const row = rows[i]
+          const items = btn.menu?.(row)
+          if (items != null && items.length > 0 && host != null) {
+            openMenu3d(
+              host,
+              {
+                x: SEL_W + btn.x,
+                y: HEAD_H + GAP + i * ROW_H - scroll,
+                width: btn.width,
+                height: ROW_H,
+              },
+              items
+            )
+          } else {
+            btn.handlePress?.(row)
+          }
+          return
+        }
         // A pointer tap also moves focus there, so switching from mouse to D-pad
         // resumes from the row you last touched rather than jumping somewhere else.
         focused = i

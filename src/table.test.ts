@@ -476,3 +476,174 @@ describe('kind: icon columns', () => {
     expect(build().el.querySelectorAll('[data-row]').length).toBe(3)
   })
 })
+
+/*
+FILTERED TABLES AND BUTTON COLUMNS.
+
+A scene-graph list needs to be searchable, and each row needs an action of its
+own — Tonio: "filtered tables and possibly button columns on tables… and button
+columns in tables should be able to pop menus."
+*/
+describe('filtering', () => {
+  const rows = [
+    { id: 'a', name: 'sun', kind: 'light' },
+    { id: 'b', name: 'sea', kind: 'water' },
+    { id: 'c', name: 'lantern', kind: 'light' },
+  ]
+  const build = (over: any = {}) => {
+    const t = T.table({
+      rows,
+      columns: [{ key: 'name', flex: 1 }],
+      height: 200,
+      ...over,
+    })
+    t.layout(240)
+    return t
+  }
+  const names = (t: any) =>
+    [...t.el.querySelectorAll('text')].map((n: any) => n.textContent)
+
+  test('a predicate shows only matching rows', () => {
+    const t = build({ filter: (r: any) => r.kind === 'light' })
+    expect(names(t)).toContain('sun')
+    expect(names(t)).not.toContain('sea')
+  })
+
+  test('setFilter narrows and clearing restores', () => {
+    const t = build()
+    t.setFilter((r: any) => r.name.startsWith('s'))
+    expect(t.counts).toEqual({ visible: 2, total: 3 })
+    t.setFilter(null)
+    expect(t.counts).toEqual({ visible: 3, total: 3 })
+    expect(names(t)).toContain('lantern')
+  })
+
+  test('FILTERING DOES NOT DROP A SELECTION', () => {
+    // Hiding is a view state. Losing a selection to it would make typing in a
+    // search box quietly destructive.
+    const t = build({ selection: 'multi' })
+    t.layout(240)
+    t.handle!('down', 40, 40)
+    t.handle!('up', 40, 40)
+    expect(t.selected).toEqual(['a'])
+    t.setFilter((r: any) => r.id === 'c')
+    expect(t.selected).toEqual(['a'])
+    t.setFilter(null)
+    expect(t.selected).toEqual(['a'])
+  })
+
+  test('setRows checks selections against ALL rows, not the visible ones', () => {
+    const t = build({ selection: 'multi' })
+    t.handle!('down', 40, 40)
+    t.handle!('up', 40, 40)
+    t.setFilter((r: any) => r.id === 'b')
+    // 'a' is hidden but still exists, so it stays selected.
+    t.setRows(rows)
+    expect(t.selected).toEqual(['a'])
+    // …and genuinely removing it does drop it.
+    t.setRows(rows.filter((r) => r.id !== 'a'))
+    expect(t.selected).toEqual([])
+  })
+
+  test('a filter that hides everything is empty, not broken', () => {
+    const t = build()
+    expect(() => t.setFilter(() => false)).not.toThrow()
+    expect(t.counts.visible).toBe(0)
+  })
+})
+
+describe('button columns', () => {
+  const rows = [{ id: 'a', name: 'sun', act: 'moreVertical' }]
+  const spyHost = () => {
+    const opened: any[] = []
+    return {
+      opened,
+      host: {
+        showPopup: (c: any, ...items: any[]) => {
+          opened.push({ anchor: c.anchor, items })
+          return { close: () => {} }
+        },
+        closePopup: () => {},
+        relayout: () => {},
+        bounds: () => ({ x: 0, y: 0, width: 240, height: 200 }),
+        top: () => null,
+        hasLayer: () => false,
+        showLayer: () => ({ close: () => {} }),
+      } as any,
+    }
+  }
+  const build = (col: any, selection?: any) => {
+    const t = T.table({
+      rows,
+      columns: [{ key: 'name', flex: 1 }, { key: 'act', width: 30, ...col }],
+      height: 200,
+      selection,
+    })
+    t.layout(240)
+    return t
+  }
+
+  test('pressing a button cell opens its menu', () => {
+    const { host, opened } = spyHost()
+    const t = build({
+      kind: 'button',
+      menu: () => [{ label: 'Delete' }, { label: 'Duplicate' }],
+    })
+    t.setHost!(host)
+    t.handle!('down', 225, 40)
+    t.handle!('up', 225, 40)
+    expect(opened.length).toBe(1)
+  })
+
+  test('and does NOT also select the row', () => {
+    // Two things from one tap, and the selection is the one nobody asked for.
+    const { host } = spyHost()
+    const t = build({ kind: 'button', menu: () => [{ label: 'x' }] }, 'multi')
+    t.setHost!(host)
+    t.handle!('down', 225, 40)
+    t.handle!('up', 225, 40)
+    expect(t.selected).toEqual([])
+  })
+
+  test('a press elsewhere in the row still selects', () => {
+    const { host } = spyHost()
+    const t = build({ kind: 'button', menu: () => [{ label: 'x' }] }, 'multi')
+    t.setHost!(host)
+    t.handle!('down', 40, 40)
+    t.handle!('up', 40, 40)
+    expect(t.selected).toEqual(['a'])
+  })
+
+  test('without a menu it fires handlePress', () => {
+    const fired: string[] = []
+    const t = build({
+      kind: 'button',
+      handlePress: (r: any) => fired.push(r.id),
+    })
+    t.handle!('down', 225, 40)
+    t.handle!('up', 225, 40)
+    expect(fired).toEqual(['a'])
+  })
+
+  test('an empty menu falls through to handlePress rather than opening nothing', () => {
+    const { host } = spyHost()
+    const fired: string[] = []
+    const t = build({
+      kind: 'button',
+      menu: () => [],
+      handlePress: (r: any) => fired.push(r.id),
+    })
+    t.setHost!(host)
+    t.handle!('down', 225, 40)
+    t.handle!('up', 225, 40)
+    expect(fired).toEqual(['a'])
+  })
+
+  test('with no host it is inert rather than throwing', () => {
+    const t = build({ kind: 'button', menu: () => [{ label: 'x' }] })
+    expect(() => {
+      t.handle!('down', 225, 40)
+      t.handle!('up', 225, 40)
+    }).not.toThrow()
+  })
+})
