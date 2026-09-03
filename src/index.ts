@@ -227,6 +227,10 @@ export {
 // A lamp's whole life as ONE curve per channel, split into attack / sustain /
 // decay by two markers — the model behind its flicker, pulse and fade.
 export {
+  segmentTimes,
+  lightPreset,
+  lightPresets,
+  DEFAULT_PROGRAM,
   lightProgramSchema,
   canonicalProgram,
   validateProgram,
@@ -238,6 +242,7 @@ export {
   NO_MODULATION,
 } from './light-modulation'
 export type {
+  LightPreset,
   LightProgram,
   LightPhase,
   ChannelCurves,

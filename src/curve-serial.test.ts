@@ -295,7 +295,12 @@ describe('light settings: schema, canonical, validate', () => {
     const { validateLight } = await import('./light-settings')
     const issues = validateLight({
       kind: 'point',
-      program: { brightness: [{ x: 0, y: 5 }, { x: 1, y: 1 }] },
+      program: {
+        brightness: [
+          { x: 0, y: 5 },
+          { x: 1, y: 1 },
+        ],
+      },
     })
     expect(issues[0].path).toBe('/program/brightness/0/y')
   })

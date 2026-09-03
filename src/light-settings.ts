@@ -162,7 +162,9 @@ export function validateLight(value: unknown): CurveIssue[] {
     issues.push({
       severity: 'error',
       code: 'light/unknown-kind',
-      message: `Unknown light kind ${JSON.stringify(v.kind)}; expected point, spot or area.`,
+      message: `Unknown light kind ${JSON.stringify(
+        v.kind
+      )}; expected point, spot or area.`,
       path: '/kind',
     })
   }
@@ -176,7 +178,8 @@ export function validateLight(value: unknown): CurveIssue[] {
     issues.push({
       severity: 'warning',
       code: 'light/shadows-unsupported',
-      message: 'An area light cannot cast shadows; the setting will be ignored.',
+      message:
+        'An area light cannot cast shadows; the setting will be ignored.',
       path: '/shadows',
     })
   }

@@ -236,6 +236,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   see-through portals: a doorway that shows another place, and shows it *while you
 - https://3d.tosijs.net/prefab/ — prefab
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
+- https://3d.tosijs.net/province-climate/ — province-climate
+  a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect

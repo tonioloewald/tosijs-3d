@@ -7,7 +7,7 @@ import {
   shiftHue,
   NO_MODULATION,
 } from './light-modulation'
-import { constant, linear } from './curve'
+import { constant, evaluateCurve, linear } from './curve'
 
 /*
 ONE CURVE, TWO SPLIT POINTS.
@@ -418,5 +418,148 @@ describe('inverted splits collapse, deterministically', () => {
     const a = programPosition(inverted, true, 7)
     const b = programPosition({ ...inverted }, true, 7)
     expect(a).toBe(b)
+  })
+})
+
+/*
+DURATION — one number, divided by the split points.
+
+The markers already say how the time divides, so stating it three times is three
+chances to disagree.
+*/
+import {
+  segmentTimes,
+  lightPreset,
+  lightPresets,
+  DEFAULT_PROGRAM,
+} from './light-modulation'
+
+describe('duration divides by the split points', () => {
+  test('a segment takes the share of time it takes of the curve', () => {
+    const t = segmentTimes({ attackEnd: 0.2, sustainEnd: 0.7, duration: 10 })
+    expect(t.attack).toBeCloseTo(2)
+    expect(t.period).toBeCloseTo(5)
+    expect(t.decay).toBeCloseTo(3)
+  })
+
+  test('the shares always sum to the duration', () => {
+    for (const [a, b] of [
+      [0, 1],
+      [0.1, 0.9],
+      [0.5, 0.5],
+      [0.33, 0.66],
+    ]) {
+      const t = segmentTimes({ attackEnd: a, sustainEnd: b, duration: 4 })
+      expect(t.attack + t.period + t.decay).toBeCloseTo(4)
+    }
+  })
+
+  test('an explicit segment time WINS — a slow fade off a fast strike', () => {
+    const t = segmentTimes({
+      attackEnd: 0.2,
+      sustainEnd: 0.7,
+      duration: 10,
+      decay: 0.25,
+    })
+    expect(t.attack).toBeCloseTo(2) // still derived
+    expect(t.decay).toBeCloseTo(0.25) // overridden
+  })
+
+  test('no duration and no times is not a program at all', () => {
+    expect(isAnimated({ brightness: linear(), attackEnd: 0.2 })).toBe(false)
+    expect(isAnimated({ brightness: linear(), duration: 1 })).toBe(true)
+  })
+
+  test('dragging a marker RETIMES the lamp without touching a number', () => {
+    // The property that makes a split marker feel like it edits behaviour
+    // rather than shape.
+    const early = segmentTimes({ attackEnd: 0.1, sustainEnd: 0.9, duration: 2 })
+    const late = segmentTimes({ attackEnd: 0.5, sustainEnd: 0.9, duration: 2 })
+    expect(late.attack).toBeGreaterThan(early.attack)
+    expect(late.period).toBeLessThan(early.period)
+  })
+})
+
+describe('the default program', () => {
+  test('up fast, hold, down fast, in a second', () => {
+    const t = segmentTimes(DEFAULT_PROGRAM)
+    expect(t.attack).toBeCloseTo(0.1)
+    expect(t.decay).toBeCloseTo(0.1)
+    expect(t.attack + t.period + t.decay).toBeCloseTo(1)
+  })
+
+  test('it reaches full and holds there', () => {
+    // A lamp with no program switches instantly, which is right for a torch and
+    // wrong for almost everything else.
+    expect(sampleLight(DEFAULT_PROGRAM, true, 0).brightness).toBeCloseTo(0)
+    expect(sampleLight(DEFAULT_PROGRAM, true, 0.1).brightness).toBeCloseTo(1)
+    expect(sampleLight(DEFAULT_PROGRAM, true, 5).brightness).toBeCloseTo(1)
+  })
+
+  test('and goes out when switched off', () => {
+    expect(sampleLight(DEFAULT_PROGRAM, false, 0).brightness).toBeGreaterThan(0)
+    expect(sampleLight(DEFAULT_PROGRAM, false, 0.1).brightness).toBe(0)
+  })
+})
+
+describe('presets', () => {
+  test('every one is a runnable program', () => {
+    for (const p of lightPresets) {
+      const prog = p.build()
+      expect(isAnimated(prog)).toBe(true)
+      for (let t = 0; t < 8; t += 0.13) {
+        const s = sampleLight(prog, true, t)
+        expect(s.brightness).toBeGreaterThanOrEqual(0)
+        expect(s.brightness).toBeLessThanOrEqual(1)
+        expect(Number.isFinite(s.hueShiftDeg)).toBe(true)
+      }
+    }
+  })
+
+  test('each one LOOKS different from the others while lit', () => {
+    // A preset list where two entries are indistinguishable is a list with a
+    // mistake in it.
+    const signature = (name: string) => {
+      const prog = lightPreset(name)!
+      return Array.from({ length: 24 }, (_, i) =>
+        sampleLight(prog, true, 2 + i * 0.11).brightness.toFixed(2)
+      ).join()
+    }
+    const sigs = lightPresets.map((p) => signature(p.name))
+    expect(new Set(sigs).size).toBe(sigs.length)
+  })
+
+  test('the restless ones actually vary; steady does not', () => {
+    const spread = (name: string) => {
+      const prog = lightPreset(name)!
+      const vs = Array.from(
+        { length: 40 },
+        (_, i) => sampleLight(prog, true, 3 + i * 0.07).brightness
+      )
+      return Math.max(...vs) - Math.min(...vs)
+    }
+    expect(spread('steady')).toBeCloseTo(0)
+    for (const name of ['flickery', 'candle', 'fireplace', 'brownout']) {
+      expect(spread(name)).toBeGreaterThan(0.1)
+    }
+  })
+
+  test('the sustain loop returns near where it started, so the loop is seamless', () => {
+    // Both ends of the sustain segment should agree in value — otherwise the
+    // loop clicks every pass AND the jump into the decay is visible.
+    for (const p of lightPresets) {
+      const prog = p.build()
+      const a = prog.attackEnd ?? 0
+      const b = prog.sustainEnd ?? 1
+      const at = (x: number) =>
+        typeof prog.brightness === 'number'
+          ? prog.brightness
+          : evaluateCurve(prog.brightness!, x)
+      expect(Math.abs(at(a) - at(b))).toBeLessThan(0.2)
+    }
+  })
+
+  test('an unknown name gives undefined rather than throwing', () => {
+    expect(lightPreset('disco')).toBeUndefined()
   })
 })

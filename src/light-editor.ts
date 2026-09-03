@@ -52,10 +52,9 @@ import {
   type WidgetHost,
 } from './widgets3d'
 import { curveProgram3d } from './curve-program'
-import type { LightProgram } from './light-modulation'
+import { lightPreset, lightPresets } from './light-modulation'
 import {
   DEFAULT_LIGHT,
-  lightColor,
   type LightKind,
   type LightSettings,
 } from './light-settings'
@@ -195,6 +194,23 @@ export function lightEditor3d(
       },
     }),
     label3d({ text: 'program — attack · sustain · decay', muted: true }),
+    /*
+    A preset PICKER, not a menu of curves to copy: picking one replaces the
+    program wholesale and the plots redraw, so it is a starting point you then
+    drag rather than a thing you have to accept.
+    */
+    select3d({
+      label: 'preset',
+      value: 'steady',
+      options: lightPresets.map((p) => ({ label: p.name, value: p.name })),
+      onChange: (name) => {
+        const next = lightPreset(String(name))
+        if (next == null) return
+        s = { ...s, program: next }
+        program.setValue(next)
+        emit('apply light preset', true)
+      },
+    }),
   ]
 
   const program = curveProgram3d({
@@ -265,4 +281,3 @@ export function lightEditor3d(
     },
   }
 }
-

@@ -361,6 +361,24 @@ export abstract class B3dLamp extends B3dChild {
     rather than a default — see TODO ("arbitration for inserted lights").
     */
     shadows: 'off',
+    /*
+    WHICH CLOCK the program runs on. `'real'` (default) or `'sim'`.
+
+    Real time is the default because a lamp is AMBIENCE, not simulation: a
+    fluorescent should keep stuttering while the world is paused or in slow
+    motion, the same way a UI animation does. Freezing a flicker mid-flicker is
+    what makes a paused game look broken rather than paused.
+
+    `'sim'` puts the lamp back on `sceneDelta`, so it stops when the world stops
+    and stretches when the world does — right for a lamp that is part of the
+    simulation (a muzzle flash, a beacon whose period a player is timing).
+
+    Real time is measured from `performance.now()` rather than the engine
+    delta, because `engine.getDeltaTime()` inside a scene observer is the WHOLE
+    frame and runs once per active camera — the documented 2x/4x footgun that
+    `sceneDelta` exists to fix.
+    */
+    timeSource: 'real',
     /** `0` = auto — resolved against the device tier, like every other budget. */
     shadowTextureSize: 0,
   }
@@ -377,6 +395,7 @@ export abstract class B3dLamp extends B3dChild {
   declare geometryScale: number
   declare url: string
   declare shadows: string
+  declare timeSource: string
   declare shadowTextureSize: number
 
   owner: B3d | null = null
@@ -407,6 +426,8 @@ export abstract class B3dLamp extends B3dChild {
   whole point of reading position from a clock is that it cannot.
   */
   private _elapsed = 0
+  /** Last real-time reading, for the `'real'` clock. */
+  private _lastRealMs = 0
   private _switchAt = 0
   private _wasOn = true
   private _tick?: BABYLON.Observer<BABYLON.Scene>
@@ -595,7 +616,7 @@ export abstract class B3dLamp extends B3dChild {
   private update(scene: BABYLON.Scene): void {
     const light = this.light
     if (light == null) return
-    this._elapsed += sceneDeltaSeconds(scene)
+    this._elapsed += this.tickSeconds(scene)
 
     const on = this.isOn
     if (on !== this._wasOn) {
@@ -685,6 +706,26 @@ export abstract class B3dLamp extends B3dChild {
     this.node?.dispose()
     this.node = undefined
     this.owner = null
+  }
+
+  /**
+   * Seconds to advance the program by, on whichever clock this lamp uses.
+   *
+   * Clamped like every other delta here: a tab that was backgrounded for a
+   * minute would otherwise hand the program a 60-second step and fast-forward
+   * the whole thing on the frame you came back.
+   */
+  private tickSeconds(scene: BABYLON.Scene): number {
+    if (this.timeSource === 'sim') return sceneDeltaSeconds(scene)
+    const now =
+      typeof performance !== 'undefined' ? performance.now() : Date.now()
+    if (this._lastRealMs === 0) {
+      this._lastRealMs = now
+      return 0
+    }
+    const dt = (now - this._lastRealMs) / 1000
+    this._lastRealMs = now
+    return Math.min(0.1, Math.max(0, dt))
   }
 }
 
