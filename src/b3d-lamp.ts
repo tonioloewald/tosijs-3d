@@ -198,6 +198,14 @@ The default geometry is deliberately plain and **unlit** (`emissiveColor`,
 a grey lump exactly when its light is off — which is when you most need to see
 where it is.
 
+**It TRACKS the light.** The emitter's colour and brightness follow whatever the
+program is doing, so a fluorescent's bulb stutters as it strikes and dims to a
+red ember as it dies. A flickering lamp with a steadily-glowing bulb is wrong in
+the way that is hardest to unsee: the one part of the scene not participating in
+the light is the part emitting it. There is a small emissive floor so a
+switched-off fixture stays locatable rather than vanishing outright — which is
+the same concern that made it unlit to begin with.
+
 ## One curve is the whole lamp
 
 Everything time-varying comes from [[light-modulation]]: **one curve per channel**
@@ -290,6 +298,14 @@ import {
   type LightProgram,
 } from './light-modulation'
 
+/**
+ * Lowest the fixture's emissive goes, as a fraction of full.
+ *
+ * Not zero: an unlit black fixture disappears entirely, and being able to see
+ * where a switched-off lamp is was the whole reason for making it unlit.
+ */
+const FIXTURE_FLOOR = 0.06
+
 /** Warn once per message — a per-frame warning is a performance bug of its own. */
 const warned = new Set<string>()
 function warnOnce(message: string): void {
@@ -327,6 +343,23 @@ export abstract class B3dLamp extends B3dChild {
     geometry: 'on',
     geometryScale: 1,
     url: '',
+    /*
+    ⚠️ NOT FREE, and the cost is worst exactly where it is least visible.
+
+    Every lamp with `shadows="on"` builds its own ShadowGenerator — a full
+    extra render of the caster list, per lamp, per frame. Three lamps placed by
+    hand is fine and you would notice if it were not. Forty pieces inserted
+    from a library, each carrying a lit fixture, is forty extra passes and
+    nobody is watching the total.
+
+    RANGE makes it worse: a large-range lamp sweeps more of the world into its
+    shadow map, so the two knobs multiply.
+
+    So: prefer `shadows="off"` for anything DYNAMICALLY INSERTED, and reserve
+    it for the few lights whose shadows a viewer would actually miss. A tool
+    that inserts lit content should make this an explicit, resisted choice
+    rather than a default — see TODO ("arbitration for inserted lights").
+    */
     shadows: 'off',
     /** `0` = auto — resolved against the device tier, like every other budget. */
     shadowTextureSize: 0,
@@ -353,6 +386,8 @@ export abstract class B3dLamp extends B3dChild {
   shadowGenerator?: BABYLON.ShadowGenerator
   /** Undo for the current shadow setup — see `syncShadows`. */
   private _shadowOff: (() => void) | null = null
+  /** Fixture materials, repainted each frame to track the light. */
+  private _fixtureMats: BABYLON.StandardMaterial[] = []
 
   /**
    * The lamp's whole behaviour as one curve per channel — attack, sustain and
@@ -454,7 +489,31 @@ export abstract class B3dLamp extends B3dChild {
     mat.specularColor = BABYLON.Color3.Black()
     mat.disableLighting = true
     this._disposables.push(mat)
+    // Tracked, so the emitter follows what the light is actually doing.
+    this._fixtureMats.push(mat)
     return mat
+  }
+
+  /**
+   * Paint the fixture to match the light — colour AND brightness.
+   *
+   * A flickering lamp with a steadily-glowing bulb is wrong in the way that is
+   * hardest to unsee: the thing emitting the light is the one part of the
+   * scene not participating in it. Tonio: _"the built-in geometry should mirror
+   * the light's brightness etc."_
+   *
+   * The FLOOR is why this is not simply `colour × brightness`. At zero the
+   * fixture is pure black and, being unlit, vanishes completely — and the
+   * reason it is unlit in the first place was so you could still see where a
+   * switched-off lamp IS. A few percent keeps it locatable in a dark room
+   * while reading as off, and is physically defensible anyway: a real bulb
+   * still catches the light around it.
+   */
+  protected paintFixture(color: BABYLON.Color3, brightness: number): void {
+    const b = Math.max(FIXTURE_FLOOR, brightness)
+    for (const mat of this._fixtureMats) {
+      mat.emissiveColor.set(color.r * b, color.g * b, color.b * b)
+    }
   }
 
   /**
@@ -549,10 +608,12 @@ export abstract class B3dLamp extends B3dChild {
     // switched off is simply disabled.
     if (!isAnimated(this.program)) {
       light.setEnabled(on)
+      this.paintFixture(this.baseColor, on ? 1 : 0)
       return
     }
     if (lightPhase(this.program, on, sinceChange) === 'off') {
       light.setEnabled(false)
+      this.paintFixture(this.baseColor, 0)
       return
     }
     light.setEnabled(true)
@@ -565,6 +626,7 @@ export abstract class B3dLamp extends B3dChild {
     } else {
       light.diffuse.copyFrom(this.baseColor)
     }
+    this.paintFixture(light.diffuse, s.brightness)
     const ranged = light as unknown as { range?: number }
     if (typeof ranged.range === 'number') {
       ranged.range = this.baseRange * s.range
@@ -580,6 +642,9 @@ export abstract class B3dLamp extends B3dChild {
     this.baseColor = BABYLON.Color3.FromHexString(this.diffuse)
     this.light.specular = BABYLON.Color3.FromHexString(this.specular)
     this.syncShadows()
+    if (!isAnimated(this.program)) {
+      this.paintFixture(this.baseColor, this.isOn ? 1 : 0)
+    }
     // Only write through when nothing is animating; otherwise `update` owns
     // these and a render mid-flicker would fight it for a frame.
     if (!isAnimated(this.program)) {

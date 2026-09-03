@@ -589,6 +589,18 @@ Two questions to answer before building, because they decide the shape:
   business re-rendering the terrain. Scoping by distance or by an explicit group
   is what turns lamps × meshes back into something bounded.
 
+**Meanwhile, caution beats machinery.** Tonio: _"in general people should be
+cautioned against inserting shadow casters (especially with large ranges) into
+dynamically inserted components. We might even want to child-proof it in
+ensemble (ARE YOU SURE?!)"_ — and range is the multiplier, since a large-range
+lamp sweeps more of the world into its shadow map. The warning now lives on the
+`shadows` attribute in `b3d-lamp`, where someone reaching for it will hit it.
+
+The child-proofing is ensemble's to build and worth raising with them: an
+insert-time confirm on a piece carrying a shadow-casting light is cheap, needs
+no budget system, and is the kind of friction that belongs at the moment of the
+decision rather than in a performance post-mortem.
+
 Not urgent while scenes are hand-built; **blocking the moment ensembles insert
 lit content**, which is the direction it is heading. Worth deciding before
 `lightEditor3d` teaches people that `shadows` is a free checkbox.

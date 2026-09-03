@@ -256,6 +256,8 @@ settings into `select3d` cyclers to get discrete values.
 | | `align` | `'middle'` | `top` / `middle` / `bottom` |
 | | `gap` | `8` | |
 | `slider3d` | `min` / `max` | `0` / `1` | |
+| | **`scale`** | `'linear'` | `'log'` / `'log2'` — equal travel per decade / octave |
+| | **`snap`** | `0` | quantise the VALUE (e.g. `1` for whole grid sizes) |
 | | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
@@ -322,6 +324,35 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
 several of them — exclusivity, commit-on-leave and keyboard layout.
 
+## Log sliders — for anything spanning orders of magnitude
+
+`scale: 'log'` gives every DECADE equal travel; `scale: 'log2'` every octave.
+Reach for one whenever the useful values are multiplicative rather than
+additive — a light's intensity, a **noise scale**, a grid or texture size, a
+frequency, a zoom factor.
+
+The tell is a linear slider where everything you want lives in the first few
+percent of the track. Tonio, on the light editor: _"the intensity slider goes
+from 0 to 1000 with very little wiggle-room in 0-1."_
+
+```javascript
+slider3d({ label: 'intensity', value: 2, min: 0.01, max: 1000, scale: 'log' })
+slider3d({ label: 'noise scale', value: 0.05, min: 0.001, max: 10, scale: 'log' })
+slider3d({ label: 'grid', value: 16, min: 1, max: 256, scale: 'log2', step: 1 })
+```
+
+**`step` and `snap` answer different questions**, and both are useful:
+
+- `step` is how far one notch moves you, in the SCALE's units — octaves on
+  `log2`, so `step: 1` walks 1, 2, 4, 8.
+- `snap` is which values are legal at all, in plain units — `snap: 1` keeps a
+  grid size a whole number however it was reached.
+
+`log` and `log2` place the handle identically (the base cancels in the mapping);
+they differ only in what a step means. A range including zero falls back to
+linear rather than producing NaN, because a slider that silently stops working
+is worse than one that is merely the wrong shape.
+
 ## Theming
 
 Widget colours, font, and weights are driven by `--w3d-*` CSS variables with
@@ -362,6 +393,7 @@ import {
   measureTextWrap,
   valueToFraction,
   fractionToValue,
+  type SliderScale,
   type FontSpec,
   measureTextWidth,
 } from './widgets3d-layout'
@@ -1245,7 +1277,34 @@ export function slider3d(config: {
   value: number
   min?: number
   max?: number
+  /** On a `log` scale this is in DECADES, not units. */
   step?: number
+  /**
+   * Snap the VALUE to a multiple of this, after the scale is applied.
+   *
+   * Different question from `step`, and both are useful: `step` is how far one
+   * notch moves you (in the scale's units — octaves on `log2`); `snap` is which
+   * values are legal at all. `scale: 'log2', snap: 1` gives a grid size that is
+   * always a whole number but still easy to set at both ends of its range.
+   */
+  snap?: number
+  /**
+   * `linear` (default), `log`, or `log2`.
+   *
+   * `log` and `log2` place the handle identically — the base cancels in the
+   * mapping — and differ only in what one `step` means: a decade versus an
+   * octave. Use `log2` when the meaningful values double (grid sizes, texture
+   * sizes); `log` when they scale by orders of magnitude.
+   *
+   * Reach for `log` when the range spans orders of magnitude — a light's
+   * intensity, a frequency, a scale factor. On a linear 0..1000 track every
+   * value below 1 lives in the first thousandth of the travel, so the numbers
+   * people actually want are the ones they cannot set.
+   *
+   * Requires `min > 0`; a range including zero falls back to linear rather
+   * than producing NaN.
+   */
+  scale?: SliderScale
   onChange?: (v: number) => void
   /**
    * Where the number lives.
@@ -1266,6 +1325,8 @@ export function slider3d(config: {
   const min = config.min ?? 0
   const max = config.max ?? 1
   const step = config.step ?? 0
+  const scale: SliderScale = config.scale ?? 'linear'
+  const snap = config.snap ?? 0
   const bound = boundValue<number>(config.value, config.onChange)
   const lbl = config.label ? baseText(config.label) : null
   if (lbl) {
@@ -1293,7 +1354,24 @@ export function slider3d(config: {
   const decimals =
     step > 0 ? (step < 1 ? Math.min(4, -Math.floor(Math.log10(step))) : 0) : 2
   const showValue = config.showValue ?? 'peek'
-  const format = config.format ?? ((v: number) => v.toFixed(decimals))
+  /*
+  A LOG slider formats by significant figures, not by decimals.
+
+  Decimals come from `step`, which on a log scale is in decades — so the linear
+  rule would print "1000.00" and "0.01" from the same setting, padding the big
+  end with noise while barely resolving the small one. Three significant
+  figures reads correctly across the whole range, which is the point of using
+  the scale at all.
+  */
+  const logFormat = (v: number) =>
+    v === 0
+      ? '0'
+      : Math.abs(v) >= 100
+      ? String(Math.round(v))
+      : String(Number(v.toPrecision(3)))
+  const format =
+    config.format ??
+    (scale === 'log' ? logFormat : (v: number) => v.toFixed(decimals))
   const valText = baseText('', TH.ACCENT)
   valText.setAttribute('text-anchor', 'start')
   valText.setAttribute('x', String(TH.PAD_X))
@@ -1356,7 +1434,7 @@ export function slider3d(config: {
     // back to min so we never write cx="NaN".
     const raw = Number(bound.get())
     const v = Number.isNaN(raw) ? min : raw
-    const f = valueToFraction(v, min, max)
+    const f = valueToFraction(v, min, max, scale)
     const cx = trackX + f * trackW
     knob.setAttribute('cx', String(cx))
     fillEl.setAttribute('x', String(trackX))
@@ -1375,7 +1453,7 @@ export function slider3d(config: {
   // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
   const setFromX = (x: number) => {
     const f = (x - trackX) / (trackW || 1)
-    bound.set(fractionToValue(f, min, max, step))
+    bound.set(fractionToValue(f, min, max, step, scale, snap))
     reflect()
   }
   bound.subscribe(reflect)

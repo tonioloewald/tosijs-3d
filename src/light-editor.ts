@@ -163,7 +163,12 @@ export function lightEditor3d(
     key: 'intensity' | 'range' | 'angle' | 'hue' | 'saturation',
     min: number,
     max: number,
-    step: number
+    step: number,
+    extra: {
+      scale?: 'linear' | 'log' | 'log2'
+      snap?: number
+      format?: (v: number) => string
+    } = {}
   ) =>
     slider3d({
       label,
@@ -172,6 +177,7 @@ export function lightEditor3d(
       max,
       step,
       showValue: 'always',
+      ...extra,
       onChange: (v) => {
         s = { ...s, [key]: v }
         emit(`set light ${key}`, true)
@@ -207,7 +213,27 @@ export function lightEditor3d(
     }),
     num('hue', 'hue', 0, 360, 1),
     num('saturation', 'saturation', 0, 1, 0.01),
-    num('intensity', 'intensity', 0, 1000, 1),
+    /*
+    LOG, because a lamp's useful range spans five orders of magnitude: a point
+    light lives near 1 and a spot near 600, and on a linear 0..1000 track
+    everything below 1 sits in the first thousandth of the travel — the values
+    you actually reach for are the ones you cannot set.
+
+    Plain decimals rather than significant figures: it is a number people
+    compare against other numbers, and "0.05" reads better than "0.0523".
+
+    But the decimals are DROPPED past 100, and that is not cosmetic.
+    `showValue: 'always'` reserves the width of the widest value it could
+    show, so formatting the top of the range as "1000.00" squeezed the track to
+    51px against 81-91px for its neighbours — five decades in fifty pixels,
+    which is the same unusable-at-one-end problem the log scale was added to
+    fix, arriving from the other direction. "1000" costs three characters less
+    and gives the travel back.
+    */
+    num('intensity', 'intensity', 0.01, 1000, 0, {
+      scale: 'log',
+      format: (v) => (v >= 100 ? v.toFixed(0) : v.toFixed(2)),
+    }),
     num('range', 'range', 1, 60, 1),
     num('cone angle (spot)', 'angle', 5, 160, 1),
     toggle3d({

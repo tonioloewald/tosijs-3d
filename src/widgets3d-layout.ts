@@ -298,26 +298,106 @@ export function measureTextWidth(text: string, font: FontSpec): number {
 }
 
 /** Map a value in [min, max] to a 0..1 fraction (clamped, step-snapped). */
+/**
+ * How a slider's travel maps to its value.
+ *
+ * `log` exists because a range like intensity 0..1000 puts everything below 1
+ * in the first thousandth of the track — you cannot set 0.5, and the values
+ * people actually reach for are the ones the control cannot express. Tonio, on
+ * the light editor: _"the intensity slider goes from 0 to 1000 with very little
+ * wiggle-room in 0-1."_
+ *
+ * On a log scale each DECADE gets equal travel, so 0.01→0.1 is as easy to hit
+ * as 100→1000.
+ */
+export type SliderScale = 'linear' | 'log' | 'log2'
+
+/**
+ * The base a log scale's STEP is measured in — and only its step.
+ *
+ * The position mapping is base-independent: `log_b(x) = ln(x)/ln(b)`, so the
+ * base cancels in the fraction. `log` and `log2` therefore put the handle in
+ * exactly the same place; they differ only in what one `step` means — a DECADE
+ * versus an OCTAVE. Which is the useful distinction: `log2` with `step: 1`
+ * gives you 1, 2, 4, 8, 16 — grid sizes, texture sizes, buffer counts.
+ */
+const logBase = (scale: SliderScale): number => (scale === 'log2' ? 2 : 10)
+
+/**
+ * A log scale has no meaning at or below zero, so a bad range falls back to
+ * linear rather than producing NaN. A slider that silently stops working is
+ * worse than one that is merely the wrong shape.
+ */
+const useLog = (scale: SliderScale, min: number, max: number): boolean =>
+  (scale === 'log' || scale === 'log2') && min > 0 && max > min
+
 export function valueToFraction(
   value: number,
   min: number,
-  max: number
+  max: number,
+  scale: SliderScale = 'linear'
 ): number {
   if (max <= min) return 0
+  if (useLog(scale, min, max)) {
+    const f =
+      (Math.log(Math.max(min, value)) - Math.log(min)) /
+      (Math.log(max) - Math.log(min))
+    return Math.min(1, Math.max(0, f))
+  }
   return Math.min(1, Math.max(0, (value - min) / (max - min)))
 }
 
-/** Inverse of valueToFraction, snapped to `step` (0 = continuous). */
+/**
+ * Inverse of valueToFraction, snapped to `step` (0 = continuous).
+ *
+ * On a LOG scale `step` is in **decades**, not in units — a step of 1 gives you
+ * 0.01, 0.1, 1, 10; a step of 0.5 gives half-decades. Units would be
+ * meaningless here, since a fixed increment is enormous at one end of the range
+ * and invisible at the other, which is the problem the log scale exists to fix.
+ */
 export function fractionToValue(
   fraction: number,
   min: number,
   max: number,
-  step = 0
+  step = 0,
+  scale: SliderScale = 'linear',
+  snap = 0
 ): number {
   const clamped = Math.min(1, Math.max(0, fraction))
-  const raw = min + clamped * (max - min)
-  if (step <= 0) return raw
-  return Math.round((raw - min) / step) * step + min
+  let out: number
+  if (useLog(scale, min, max)) {
+    const b = logBase(scale)
+    const lo = Math.log(min) / Math.log(b)
+    const hi = Math.log(max) / Math.log(b)
+    let e = lo + clamped * (hi - lo)
+    if (step > 0) e = Math.round(e / step) * step
+    /*
+    Exponentiating a float leaves noise — 0.01 comes back as
+    0.010000000000000009 and 1000 as 999.999999999999. Harmless on screen,
+    NOT harmless in a document: these are values a consumer serialises and
+    diffs, and the same slider position would produce different bytes on
+    different runs. Twelve significant digits is far beyond any control's
+    resolution and lands exactly on the round numbers a log scale is made of.
+    */
+    out = Number((b ** Math.min(hi, Math.max(lo, e))).toPrecision(12))
+  } else {
+    out = min + clamped * (max - min)
+    if (step > 0) out = Math.round((out - min) / step) * step + min
+  }
+  /*
+  `snap` quantises the VALUE, after the scale has been applied — which is a
+  different question from `step`, and both are wanted.
+
+  `step` asks "how far does one notch move me", in the scale's own units:
+  octaves on log2, so `step: 1` walks 1, 2, 4, 8. `snap` asks "what values are
+  legal at all", in plain units: `snap: 1` keeps a grid size a whole number
+  however it was reached. Tonio wanted both — "a log 2 scale that snaps to
+  integers for grid size".
+
+  Clamped afterwards, because rounding at the top of a range can overshoot it.
+  */
+  if (snap > 0) out = Math.round(out / snap) * snap
+  return Math.min(max, Math.max(min, out))
 }
 
 /**
