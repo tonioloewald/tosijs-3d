@@ -194,6 +194,73 @@ const smoothRim = (p: LocalVec3) => 1 - smoothstep(0.7, 1, length(p))
 `volcano()` already returns two of those five. Growing it into the bundle is
 mostly moving code that exists.
 
+## TWO editors, because base and override are different things
+
+Tonio, 2026-09-03: _"we want distinct terrain (base) and province (local
+override) editors because the latter also needs to include carve-outs… So a
+province can include any of local terrain overrides, mesh decoration, and
+carveouts. And terrain config sets this globally but probably doesn't include
+carveouts."_
+
+That is the missing architectural line, and it is a clean one:
+
+|                              | terrain (BASE)                   | province (OVERRIDE)              |
+| ---------------------------- | -------------------------------- | -------------------------------- |
+| shape / height               | ✅ the global profile            | ✅ local, composed over the base |
+| material (volcanism…)        | ✅ global bias                   | ✅ local                         |
+| climate (water, temperature) | ✅ global — sea level lives here | ✅ local                         |
+| **decoration**               | ✅ global scatter rules          | ✅ local, and the same mechanism |
+| **volume / carve-outs**      | ❌                               | ✅ **province only**             |
+
+**Carving is province-only for a reason worth stating**, not merely by
+convention: a carve is a bounded subtraction authored in a LOCAL space, and a
+global carve has no such space — it would be a hole in everywhere, which is
+either nothing or a bug. The domain is what makes a carve meaningful, and only
+provinces have one.
+
+**Decoration appearing in both columns is the interesting case.** It is the same
+mechanism at two scopes: the terrain says "pines above this altitude, on slopes
+under 30°", the province says "and not here, because it is a lava field". That
+is why the composition rule for decoration is **multiply** — the province
+suppresses rather than replaces, and two reasons nothing grows still leaves
+nothing growing.
+
+### The climate channels are the first concrete piece
+
+Water, temperature and volcanism, each a curve over normalised distance, using
+the **bipolar** convention Tonio set for exactly this: `0.5` leaves the base
+alone, `0` pushes it down, `1` pushes it up. Same shape as the light program's
+`hue` channel, and the same reason — these MODIFY an existing value rather than
+declaring one, so they need a neutral point and a signed amplitude.
+
+Water needs one thing the others do not: a **presence toggle and a height**.
+Whether a province has water at all is a different question from how much it
+biases the global wetness, and a curve cannot express "there is a lake here, its
+surface is at 12 m". Presence and height are scalars on the province; the curve
+biases the climate around them.
+
+### Why the editors can be built now
+
+Everything under the layers already exists as pure, tested models — `curve`,
+`landform`, `carve`, `patch-field`, `biome-chart` — and
+[[curve-program|curveProgram3d]] just proved the pattern for the widget: several
+curves over one shared coordinate, controlled, one commit per gesture. A
+province editor is that widget with a falloff instead of split markers, plus
+scalars.
+
+The order that gets value soonest:
+
+1. **Province climate channels** (water / temperature / volcanism) — pure
+   bipolar curves, no new substrate, and they make a province look like a place
+   rather than a shape.
+2. **Water presence + height** — scalars, and the first thing that reads as
+   somewhere rather than something.
+3. **Split the editors** — terrain-base and province-override as separate
+   components, sharing the channel widget.
+4. **Carve-outs in the province editor** — `carve.ts` exists; this is UI over it.
+5. **Decoration** — needs the scatter work in "What has to be built" below, so
+   it comes last despite being wanted in both scopes.
+
 ## What has to be built
 
 1. **The registry.** `provinceField` is a single function today. It needs a list,

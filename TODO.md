@@ -644,6 +644,31 @@ Two other halves of the same problem:
 Deferred to 0.8.0 deliberately: it is a vocabulary decision, it wants doing all
 at once, and 0.7.x is carrying adopter fixes that should not wait behind it.
 
+[ ] **Terrain + province editors — see PROVINCE-DESIGN.md → "TWO editors".**
+Tonio, 2026-09-03, specifying the shape: climate channels (water, volcanism,
+temperature) with water also carrying a PRESENCE toggle and a height; distinct
+terrain-base and province-override editors; carve-outs in the province one only;
+and mesh decoration in both, because it is the same mechanism at two scopes.
+
+The architectural line, now written into the design doc: **terrain is the global
+base, a province is a local override, and carving is province-only** — a carve
+is a bounded subtraction authored in a local space, and a global carve has no
+such space, so it would be a hole in everywhere.
+
+Build order, soonest value first:
+
+1. climate channels as BIPOLAR curves (0.5 leaves the base alone) — no new
+   substrate, and they make a province read as a place rather than a shape
+2. water presence + height (scalars; a curve cannot say "there is a lake here
+   and its surface is at 12 m")
+3. split terrain-base and province-override editors, sharing the channel widget
+4. carve-outs in the province editor — `carve.ts` exists, this is UI over it
+5. decoration, which needs the scatter work already listed in PROVINCE-DESIGN
+
+`curveProgram3d` proved the widget pattern (several curves over one shared
+coordinate, controlled, one commit per gesture); a province editor is that with
+a falloff in place of split markers, plus scalars.
+
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are
