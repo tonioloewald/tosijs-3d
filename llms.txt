@@ -242,6 +242,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
+- https://3d.tosijs.net/scene-schemas/ — scene-schemas
+  attributes.** No DOM, no Babylon — importable from a headless runner.
 - https://3d.tosijs.net/selection/ — selection
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
 - https://3d.tosijs.net/shadow-decal/ — shadow-decal

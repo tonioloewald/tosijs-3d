@@ -270,6 +270,23 @@ export type {
   ClimateCurve,
   ClimateAmounts,
 } from './province-climate'
+/*
+JSON Schema for the scene primitives — no DOM, no Babylon, so a consumer's
+headless runner can read them. Exists so nobody hand-copies our attributes:
+ensemble's hand-written skybox schema carried 6 of 16 and disagreed on a
+default (#63). Drift is caught by a test, not promised.
+*/
+export {
+  skyboxSchema,
+  sunSchema,
+  waterSchema,
+  fogSchema,
+  cloudsSchema,
+  ambientSchema,
+  hemisphericLightSchema,
+  sceneSchemas,
+  SCENE_OMITTED,
+} from './scene-schemas'
 export { B3dFog, b3dFog } from './b3d-fog'
 export { B3dClouds, b3dClouds } from './b3d-clouds'
 export {
