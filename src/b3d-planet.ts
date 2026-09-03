@@ -65,7 +65,7 @@ const scene = b3d(
         ? (() => {
             const p = planet.biomePlugin.params
             const bind = (label, key, min, max, step) =>
-              slider3d({ label, value: p[key], min, max, step, onChange: (v) => { p[key] = v } })
+              slider3d({ label, value: p[key], min, max, step, handleChange: (v) => { p[key] = v } })
             return [
               bind('equator temp', 'equatorTemp', 0, 1, 0.01),
               bind('temperate temp', 'temperateTemp', 0, 1, 0.01),

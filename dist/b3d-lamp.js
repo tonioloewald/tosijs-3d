@@ -1,5 +1,5 @@
 /*#
-# b3d-lamp
+# Lamps
 
 **Lights you can see.** `b3dPointLight`, `b3dSpotLight` and `b3dAreaLight` are
 placed lights that come with their own fixture geometry, cast shadows where
@@ -32,6 +32,19 @@ import { orbitCam } from 'tosijs-3d/demo-utils'
 import { tosi } from 'tosijs'
 
 const { lamps } = tosi({ lamps: { on: true, geometry: true, ambient: 0.06 } })
+
+// `on` and `geometry` are 'on'|'off' STRINGS, not booleans — an absent boolean
+// attribute reads false, so a default-true boolean is not expressible in HTML.
+// Binding a boolean leaf straight to them looks right and does nothing: tosijs
+// silently discards a wrong-typed prop write (tosijs#24). So observe and map.
+const applyToggles = () => {
+  for (const el of document.querySelectorAll('tosi-b3d-point-light, tosi-b3d-spot-light')) {
+    el.on = lamps.on.value ? 'on' : 'off'
+    el.geometry = lamps.geometry.value ? 'on' : 'off'
+  }
+}
+lamps.on.observe(applyToggles)
+lamps.geometry.observe(applyToggles)
 
 const FLUORESCENT = {
   brightness: [
@@ -135,20 +148,20 @@ preview.append(
     // WARM LAMP, hard shadows. Its own corner, so the shadow reads.
     b3dPointLight({
       x: -8, y: 4.2, z: 0, diffuse: '#ffd9a0', range: 16, intensity: 1.8,
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: SOFT,
+      shadows: 'on', program: SOFT,
     }),
 
     // FLUORESCENT: strikes in stutters, hums, dies red and washed out.
     b3dPointLight({
       x: 0, y: 4.4, z: 0, diffuse: '#cfe8ff', range: 15, intensity: 2.1,
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: FLUORESCENT,
+      shadows: 'on', program: FLUORESCENT,
     }),
 
     // GELLED SPOT over CLEAR floor, so the window pattern is legible.
     b3dSpotLight({
       x: 9, y: 8, z: -1, angle: 46, exponent: 6,
       diffuse: '#fff2dc', intensity: 620, range: 24,
-      on: lamps.on, geometry: lamps.geometry, shadows: 'on', program: SOFT,
+      shadows: 'on', program: SOFT,
       gelSvg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
         <rect width="64" height="64" fill="black"/>
         <g fill="white">
@@ -172,9 +185,32 @@ Decided by Babylon, not by us, and worth knowing before you pick:
 
 | | shadows | gel (`projectionTexture`) | geometry |
 | --- | --- | --- | --- |
-| `b3dPointLight` | ✅ cube shadow map | ❌ not supported by the engine | glowing sphere |
-| `b3dSpotLight` | ✅ | ✅ **native** — bitmap or SVG | cone housing |
+| `b3dPointLight` | ✅ cube shadow map | ❌ not supported — model the blocker instead (below) | glowing sphere |
+| `b3dSpotLight` | ✅ | ✅ **native** — bitmap, SVG, or a generated `shape` | cone housing |
 | `b3dAreaLight` | ❌ `RectAreaLight` is not a `ShadowLight` | ❌ | emissive panel |
+
+### A lantern behind a grill — model it, do not gel it
+
+Tonio: _"can we do gels on point lights (I would assume provide a cylindrical
+gel) e.g. if I wanted to make a lamp shaped like it's behind a grill like an old
+lantern)?"_ Babylon has no projection texture on a point light, and the honest
+answer is that you do not want one: **give the lamp a `url` fixture with the
+grill modelled, and turn `shadows` on.**
+
+The cube shadow map then projects the grill in every direction, for real. That
+beats a gel outright — the pattern is correct from any viewpoint, it falls
+across uneven ground properly, and it moves when the lantern swings. A
+cylindrical gel would be a flat approximation that breaks the moment you look
+at it from above.
+
+It already works, because a `url` fixture is registered with the scene and every
+lamp's shadow generator picks up registered meshes as casters. Mark the glass
+and the flame `_nocast` in the model so only the metal casts — otherwise the
+bulb shadows its own light, which is the one thing the built-in primitives
+avoid by not being casters at all.
+
+The cost is a cube shadow map (six faces), so this is a per-lantern decision
+rather than something to switch on across a street. See the ⚠️ on `shadows`.
 
 Rather than fake the two ❌ cases, they warn once and carry on lit. A gel faked
 on a point light would be a shadow-map hack with different behaviour, different
@@ -273,7 +309,11 @@ Shared by all three unless noted.
 | `shadows` | `'off'` | `'on'` for a shadow generator (point / spot only) |
 | `shadowTextureSize` | `0` (auto) | Resolves against the device budget |
 | `angle` | `60` | **spot** — cone angle in degrees |
-| `exponent` | `2` | **spot** — falloff sharpness |
+| `exponent` | `2` | **spot** — falloff sharpness (standard falloff) |
+| `innerAngle` | `0` | **spot** — inner cone in degrees; above `0` gives a true penumbra and switches to glTF falloff |
+| `shape` | `'circle'` | **spot** — cone cross-section: `circle` / `square` / `none`. Projected as a gel, so an explicit `gel` wins |
+| `shapeAspect` | `1` | **spot** — width/height; `2` is an ellipse or letterbox |
+| `shapeSoftness` | `0.25` | **spot** — edge feather, as a fraction of the radius |
 | `gel` | — | **spot** — projection texture URL (bitmap or SVG file) |
 | `gelSvg` | — | **spot** — inline SVG source or an `SVGElement` |
 | `width` / `height` | `2`/`1` | **area** — panel size |
@@ -351,6 +391,34 @@ export class B3dLamp extends B3dChild {
         rather than a default — see TODO ("arbitration for inserted lights").
         */
         shadows: 'off',
+        /*
+        WHICH CLOCK the program runs on. `'real'` (default) or `'sim'`.
+    
+        `'real'` — actual elapsed seconds, immune to pause and to time scaling. A
+        lamp is AMBIENCE, and freezing a flicker mid-flicker is what makes a paused
+        game look broken rather than paused.
+    
+        `'sim'` — the WORLD's clock. It stops when the world stops and, once a
+        scaled clock exists, compresses when the world is fast-forwarded. Tonio's
+        case is the decisive one: _"consider if you wanted to show a time lapse, the
+        way they do in some GTA IV and GTA V scenes... you don't want lights to
+        slowly fade in while cars are appearing and disappearing."_ A lamp that is
+        part of the SIMULATION rather than the ambience wants this — street lights
+        coming on at dusk, a beacon whose period a player is timing.
+    
+        ⚠️ **Only pausing is implemented, not scaling**, because there is no
+        scene-owned scaled clock yet (tosijs-3d#41). When one lands it must arrive
+        through `sceneDelta` and NOT through a second channel: lamps then obey it
+        with no change here, and there is still exactly one answer to "what time is
+        it". A parallel key would be a second source of truth, which is the one
+        thing this area cannot afford.
+    
+        Real time is measured from `performance.now()` rather than the engine
+        delta, because `engine.getDeltaTime()` inside a scene observer is the WHOLE
+        frame and runs once per active camera — the documented 2x/4x footgun that
+        `sceneDelta` exists to fix.
+        */
+        timeSource: 'real',
         /** `0` = auto — resolved against the device tier, like every other budget. */
         shadowTextureSize: 0,
     };
@@ -363,6 +431,8 @@ export class B3dLamp extends B3dChild {
     _shadowOff = null;
     /** Fixture materials, repainted each frame to track the light. */
     _fixtureMats = [];
+    /** Built once, then shown/hidden — see `syncGeometry`. */
+    _fixtureBuilt = false;
     /**
      * The lamp's whole behaviour as one curve per channel — attack, sustain and
      * decay are regions of it, split by `attackEnd` / `sustainEnd`.
@@ -379,6 +449,8 @@ export class B3dLamp extends B3dChild {
     whole point of reading position from a clock is that it cannot.
     */
     _elapsed = 0;
+    /** Last real-time reading, for the `'real'` clock. */
+    _lastRealMs = 0;
     _switchAt = 0;
     _wasOn = true;
     _tick;
@@ -398,10 +470,32 @@ export class B3dLamp extends B3dChild {
         // A lamp that starts OFF must not play its decay on the first frame — it
         // was never on. Backdate the switch past the window so it resolves to `off`.
         this._switchAt = this._wasOn ? 0 : -((this.program?.decay ?? 0) + 1);
-        this.buildFixture(scene);
+        this.syncGeometry(scene);
         this.syncShadows();
         owner.register({ lights: [this.light] });
         this._tick = scene.onBeforeRenderObservable.add(() => this.update(scene));
+    }
+    /**
+     * Show, hide, or lazily build the fixture to match `geometry`.
+     *
+     * Called every render, because `geometry` was read once at scene-ready and
+     * toggling it did nothing — the THIRD attribute in this component to accept a
+     * write and quietly ignore it (`shadows` and the gel were the others). The
+     * pattern is worth naming: anything read only in `sceneReady` is a set-once
+     * attribute wearing a live attribute's clothes.
+     *
+     * Hiding rather than disposing, because the fixture is cheap to keep and a
+     * rebuild would drop a `url` fixture's loaded meshes and re-fetch them. Built
+     * lazily on first show so a lamp that starts `geometry="off"` never pays for
+     * geometry it was told not to make.
+     */
+    syncGeometry(scene) {
+        const want = !isOff(this.geometry);
+        if (want && !this._fixtureBuilt) {
+            this._fixtureBuilt = true;
+            this.buildFixture(scene);
+        }
+        this.node?.setEnabled(want);
     }
     buildFixture(scene) {
         if (this.url) {
@@ -553,7 +647,7 @@ export class B3dLamp extends B3dChild {
         const light = this.light;
         if (light == null)
             return;
-        this._elapsed += sceneDeltaSeconds(scene);
+        this._elapsed += this.tickSeconds(scene);
         const on = this.isOn;
         if (on !== this._wasOn) {
             this._wasOn = on;
@@ -598,6 +692,8 @@ export class B3dLamp extends B3dChild {
         this.baseColor = BABYLON.Color3.FromHexString(this.diffuse);
         this.light.specular = BABYLON.Color3.FromHexString(this.specular);
         this.syncShadows();
+        if (this.owner?.scene != null)
+            this.syncGeometry(this.owner.scene);
         if (!isAnimated(this.program)) {
             this.paintFixture(this.baseColor, this.isOn ? 1 : 0);
         }
@@ -643,6 +739,32 @@ export class B3dLamp extends B3dChild {
         this.node = undefined;
         this.owner = null;
     }
+    /**
+     * Seconds to advance the program by, on whichever clock this lamp uses.
+     *
+     * Clamped like every other delta here: a tab that was backgrounded for a
+     * minute would otherwise hand the program a 60-second step and fast-forward
+     * the whole thing on the frame you came back.
+     */
+    tickSeconds(scene) {
+        /*
+        `sceneDelta` and nothing else — deliberately no private channel for a
+        scaled clock. Reading some other key would give the scene two answers to
+        "what time is it", and lamps are not the right place to decide which wins.
+        When tosijs-3d#41 lands, the scale arrives through this one delta and lamps
+        obey it with no change here.
+        */
+        if (this.timeSource === 'sim')
+            return sceneDeltaSeconds(scene);
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (this._lastRealMs === 0) {
+            this._lastRealMs = now;
+            return 0;
+        }
+        const dt = (now - this._lastRealMs) / 1000;
+        this._lastRealMs = now;
+        return Math.min(0.1, Math.max(0, dt));
+    }
 }
 /**
  * Seconds since the last render, honouring a paused scene.
@@ -685,6 +807,44 @@ export class B3dSpotLight extends B3dLamp {
         /** Cone angle in DEGREES — the authoring unit (see CLAUDE.md's Deg rule). */
         angle: 60,
         exponent: 2,
+        /**
+         * Inner cone angle in DEGREES — where the edge starts to fade.
+         *
+         * `0` (default) leaves the cone on Babylon's standard falloff, shaped by
+         * `exponent`. Anything above `0` gives a true PENUMBRA: full brightness
+         * inside `innerAngle`, fading to nothing at `angle`. Bring them together
+         * for a hard-edged theatre spot; spread them for a soft pool.
+         *
+         * Setting it switches the light to the glTF falloff model, because that is
+         * the only one Babylon reads `innerAngle` in — exposing the number without
+         * the switch would be an attribute that accepts a write and does nothing,
+         * which this component has already shipped once (see `shadows`).
+         */
+        innerAngle: 0,
+        /**
+         * Cone cross-section: `'circle'` (default), `'square'`, or `'none'`.
+         *
+         * Babylon's spot is ALWAYS a circular cone — there is no square spot — so
+         * a shape is projected as a gel. `'none'` leaves the cone bare.
+         *
+         * ⚠️ It therefore uses the same slot as `gel`/`gelSvg`. An explicit gel
+         * wins and the shape is ignored, because a gel is a picture the author
+         * chose and a shape is a default we generated.
+         */
+        shape: 'circle',
+        /**
+         * Width / height of the shape. `1` is round or square; `2` is twice as
+         * wide as it is tall, which is how you get an ellipse or a letterbox.
+         */
+        shapeAspect: 1,
+        /**
+         * How soft the shape's edge is, `0..1` as a fraction of its radius.
+         *
+         * A generated shape needs its own softness because it is a stencil: a hard
+         * white square on black gives a hard edge no matter what `exponent` or
+         * `innerAngle` say, so the cone's falloff and the gel's would disagree.
+         */
+        shapeSoftness: 0.25,
         /** Direction the cone points. Default is straight down. */
         dirX: 0,
         dirY: -1,
@@ -695,11 +855,14 @@ export class B3dSpotLight extends B3dLamp {
         gelSvg: '',
     };
     _gelTexture;
+    /** Source signature of the current gel — see `syncGel`. */
+    _gelKey = '';
     createLight(scene) {
         const light = new BABYLON.SpotLight('spot-light', new BABYLON.Vector3(this.x, this.y, this.z), new BABYLON.Vector3(this.dirX, this.dirY, this.dirZ), (this.angle * Math.PI) / 180, this.exponent, scene);
         light.intensity = this.intensity;
         light.range = this.range;
         light.diffuse = BABYLON.Color3.FromHexString(this.diffuse);
+        this._gelKey = this.gelKey();
         this.applyGel(light, scene);
         return light;
     }
@@ -710,8 +873,77 @@ export class B3dSpotLight extends B3dLamp {
      * panel can be a window, a leaf canopy or a venetian blind. Rasterized once
      * (`updateInterval: 0`) because a gel is a stencil, not a live surface.
      */
+    /**
+     * An SVG stencil for the cone's cross-section.
+     *
+     * White is lit, black is not — a projection texture multiplies the light, so
+     * the shape is literally a mask. The soft edge is a Gaussian blur rather than
+     * a gradient so the SAME code feathers a square and a circle; a gradient
+     * would need a different construction per shape and they would not match.
+     *
+     * Drawn oversized and blurred INWARD from a margin, because a blur at the
+     * viewBox edge clips and leaves a hard line exactly where the softness was
+     * supposed to be.
+     */
+    shapeGelSvg() {
+        const kind = this.shape;
+        if (kind !== 'circle' && kind !== 'square')
+            return null;
+        const S = 128;
+        const margin = 12;
+        const soft = Math.max(0, Math.min(1, this.shapeSoftness));
+        const blur = (soft * (S / 2 - margin)) / 2;
+        const aspect = Math.max(0.05, this.shapeAspect || 1);
+        // Fit the shape inside the margin, squashed by the aspect on whichever
+        // axis needs it, so a wide ellipse never leaves the box.
+        const rx = (S / 2 - margin) * Math.min(1, aspect);
+        const ry = (S / 2 - margin) / Math.max(1, aspect);
+        const body = kind === 'circle'
+            ? `<ellipse cx="${S / 2}" cy="${S / 2}" rx="${rx}" ry="${ry}" fill="white"/>`
+            : `<rect x="${S / 2 - rx}" y="${S / 2 - ry}" width="${rx * 2}" height="${ry * 2}" fill="white"/>`;
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S} ${S}">
+      <defs><filter id="s" x="-25%" y="-25%" width="150%" height="150%">
+        <feGaussianBlur stdDeviation="${blur.toFixed(2)}"/>
+      </filter></defs>
+      <rect width="${S}" height="${S}" fill="black"/>
+      <g filter="url(#s)">${body}</g>
+    </svg>`;
+    }
+    /**
+     * Rebuild the gel only when its SOURCE changed.
+     *
+     * Called every render, because `shape` / `shapeAspect` / `gel` / `gelSvg` all
+     * look like editable attributes and would otherwise be set-once — the exact
+     * "accepts a write, keeps the value, does nothing" failure this component
+     * already shipped with `shadows`. Keyed on the source string, so a repaint
+     * costs a string comparison rather than a texture.
+     */
+    syncGel(scene) {
+        const light = this.light;
+        if (light == null)
+            return;
+        const key = this.gelKey();
+        if (key === this._gelKey)
+            return;
+        this._gelKey = key;
+        this._gelTexture?.dispose();
+        this._gelTexture = undefined;
+        light.projectionTexture = null;
+        this.applyGel(light, scene);
+    }
+    gelKey() {
+        return [
+            this.gelSvg || '',
+            this.gel,
+            this.shape,
+            this.shapeAspect,
+            this.shapeSoftness,
+        ].join('|');
+    }
     applyGel(light, scene) {
-        const svg = this.gelSvg;
+        // An explicit gel WINS: it is a picture the author chose, where a shape is
+        // a default we generated.
+        const svg = this.gelSvg || (this.gel ? '' : this.shapeGelSvg() ?? '');
         if (svg) {
             const element = (typeof svg === 'string'
                 ? new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement
@@ -757,8 +989,25 @@ export class B3dSpotLight extends B3dLamp {
             return;
         light.position.set(this.x, this.y, this.z);
         light.direction.set(this.dirX, this.dirY, this.dirZ);
+        if (this.owner?.scene != null)
+            this.syncGel(this.owner.scene);
         light.angle = (this.angle * Math.PI) / 180;
         light.exponent = this.exponent;
+        /*
+        `innerAngle` is only read in the glTF falloff model, so setting it without
+        switching would be a number that does nothing. Switching only when it is
+        used keeps the default cone on Babylon's standard falloff, which is what
+        every existing lamp was tuned against.
+        */
+        if (this.innerAngle > 0) {
+            light.falloffType = BABYLON.Light.FALLOFF_GLTF;
+            // Clamped below the outer angle: equal or greater is a division by zero
+            // in the penumbra term and the cone renders black.
+            light.innerAngle = Math.min((this.innerAngle * Math.PI) / 180, light.angle * 0.999);
+        }
+        else if (light.falloffType === BABYLON.Light.FALLOFF_GLTF) {
+            light.falloffType = BABYLON.Light.FALLOFF_DEFAULT;
+        }
     }
     sceneDispose() {
         this._gelTexture?.dispose();

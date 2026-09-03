@@ -5,6 +5,8 @@ export interface Footprint3dOptions {
     value?: ControlPoint[] | string | number;
     label?: string;
     /** Fired after any edit. */
+    handleChange?: (vertices: ControlPoint[]) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (vertices: ControlPoint[]) => void;
 }
 export interface FootprintField extends Widget3d {
@@ -15,6 +17,9 @@ export interface FootprintField extends Widget3d {
     readonly selected: number;
     deleteSelected: () => void;
     applyPreset: (name: string) => void;
+    /** Fired after any edit. */
+    handleChange?: (vertices: ControlPoint[]) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (vertices: ControlPoint[]) => void;
 }
 /**

@@ -38,14 +38,14 @@ const panel = panel3d(
   label3d({ text: 'Scene settings' }),
   slider3d({ label: 'time of day', value: ui.time, min: 0, max: 24, step: 0.5 }),
   toggle3d({ label: 'fog', value: ui.fog }),
-  button3d({ label: 'Reset', onClick: () => { ui.time.value = 8; ui.fog.value = true } }),
+  button3d({ label: 'Reset', handleClick: () => { ui.time.value = 8; ui.fog.value = true } }),
   text3d({ text: 'Drag the slider — the native control below is bound to the same value.' }),
   list3d({
     items: [{ label: 'Talk' }, { label: 'Trade' }, { label: 'Leave' }],
     // Reports on the PAGE, not to the console: a demo you must open devtools to
     // read is one most people never see the output of — and it spams the console
     // of every page that embeds it.
-    onSelect: (item) => (readout.textContent = `picked: ${item.label}`),
+    handleSelect: (item) => (readout.textContent = `picked: ${item.label}`),
   })
 )
 
@@ -98,7 +98,7 @@ test('toggle flips its bound value when the switch is clicked', async () => {
 
 test('button fires onClick on release', () => {
   let clicked = false
-  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: 'Go', onClick: () => { clicked = true } }))
+  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: 'Go', handleClick: () => { clicked = true } }))
   preview.append(panel)
   panel.handlePointer('down', 150, 30)
   panel.handlePointer('up', 150, 30)
@@ -109,8 +109,8 @@ test('iconBar toggles the icon under the pointer on release', () => {
   const hits = []
   const panel = panel3d({ width: 300, height: 100 }, iconBar3d({
     items: [
-      { icon: 'barChart2', onClick: () => hits.push('perf') },
-      { icon: 'bug', onClick: () => hits.push('bug') },
+      { icon: 'barChart2', handleClick: () => hits.push('perf') },
+      { icon: 'bug', handleClick: () => hits.push('bug') },
     ],
   }))
   preview.append(panel)
@@ -125,7 +125,7 @@ test('list selects the clicked row', () => {
   const picks = []
   const panel = panel3d({ width: 300, height: 200 }, list3d({
     items: [{ label: 'A' }, { label: 'B' }],
-    onSelect: (item) => picks.push(item.label),
+    handleSelect: (item) => picks.push(item.label),
   }))
   preview.append(panel)
   // The second 40px row: viewBox y = padding(12) + ~58 lands in row B.
@@ -169,7 +169,7 @@ const panel = panel3d(
   slider3d({ label: 'hue', value: hud.hue, min: 0, max: 360, step: 1 }),
   toggle3d({ label: 'glow', value: hud.glow }),
   // independent of the slider while debugging — just logs which row was picked.
-  list3d({ items: Object.keys(HUES).map((label) => ({ label })), onSelect: (i) => console.log('list picked:', i.label) })
+  list3d({ items: Object.keys(HUES).map((label) => ({ label })), handleSelect: (i) => console.log('list picked:', i.label) })
 )
 // Show it as a DOM overlay too (top-right) — the SAME panel object, so you can
 // compare the in-DOM and on-plane surfaces side by side. It's also the texture
@@ -258,6 +258,7 @@ settings into `select3d` cyclers to get discrete values.
 | `slider3d` | `min` / `max` | `0` / `1` | |
 | | **`scale`** | `'linear'` | `'log'` / `'log2'` — equal travel per decade / octave |
 | | **`snap`** | `0` | quantise the VALUE (e.g. `1` for whole grid sizes) |
+| | **`zeroStop`** | `false` | an explicit `0` at the bottom of a log track; `min` becomes the log floor |
 | | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
@@ -324,6 +325,21 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
 several of them — exclusivity, commit-on-leave and keyboard layout.
 
+## Callbacks are `handleX`, not `onX`
+
+`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings still
+work through 0.8.x and warn once, and are removed in 0.9.
+
+Not a style preference. These are plain factory functions today, where `onX` is
+harmless — but the moment one becomes a tosijs COMPONENT, the element creator
+binds an `on*` prop as a DOM event **listener** and the class field is silently
+never called. No error, no warning, a callback that simply never fires; it has
+already cost this project a long debugging detour. `handleX` cannot be mistaken
+for an event name, so the rename removes the trap rather than documenting it.
+
+Giving both, the new one wins and the old one is not called — so there is no
+ambiguity about which fires and no double-firing.
+
 ## Log sliders — for anything spanning orders of magnitude
 
 `scale: 'log'` gives every DECADE equal travel; `scale: 'log2'` every octave.
@@ -337,6 +353,8 @@ from 0 to 1000 with very little wiggle-room in 0-1."_
 
 ```javascript
 slider3d({ label: 'intensity', value: 2, min: 0.01, max: 1000, scale: 'log' })
+// A rate that can also be OFF — 0 is the default and must stay reachable.
+slider3d({ label: 'sky speed', value: 0, min: 0.1, max: 3600, scale: 'log', zeroStop: true })
 slider3d({ label: 'noise scale', value: 0.05, min: 0.001, max: 10, scale: 'log' })
 slider3d({ label: 'grid', value: 16, min: 1, max: 256, scale: 'log2', step: 1 })
 ```
@@ -352,6 +370,14 @@ slider3d({ label: 'grid', value: 16, min: 1, max: 256, scale: 'log2', step: 1 })
 they differ only in what a step means. A range including zero falls back to
 linear rather than producing NaN, because a slider that silently stops working
 is worse than one that is merely the wrong shape.
+
+**`zeroStop` when the quantity has an explicit OFF.** A log scale cannot
+represent zero, but plenty of decade-spanning values can be switched off — a
+sky's `realtimeScale` (0 is a still sky, and it is the default), fog density,
+wind speed, any rate. Without it the default becomes unreachable the moment you
+touch the control. With it, the bottom slice of the track IS zero and `min`
+means the log floor; the handle catches at off rather than approaching it
+asymptotically.
 
 ## Theming
 
@@ -489,6 +515,37 @@ const TH = {
     },
 };
 let clipSeq = 0;
+const warnedHandlers = new Set();
+/**
+ * Read a callback under its NEW name, falling back to the deprecated `onX`.
+ *
+ * `handleX` is the convention (Tonio: _"the tosijs convention is a callback
+ * event handler is called handleChange"_), and it is not a style preference.
+ * These are plain factory functions today, where `onX` is harmless — but the
+ * moment one becomes a tosijs COMPONENT, the element creator binds an `on*`
+ * prop as a DOM event LISTENER and the class field is silently never called.
+ * No error, no warning, a callback that simply never fires. `handleX` cannot be
+ * mistaken for an event name, so the rename removes the trap rather than
+ * documenting it.
+ *
+ * Both spellings work through 0.8.x. The old one warns ONCE per name, because
+ * a slider reads its callback on every pointer move and a warning per frame is
+ * a performance bug wearing a helpful hat.
+ */
+export function handlerOf(config, handleName, onName) {
+    const next = config[handleName];
+    if (typeof next === 'function')
+        return next;
+    const old = config[onName];
+    if (typeof old === 'function') {
+        if (!warnedHandlers.has(onName)) {
+            warnedHandlers.add(onName);
+            console.warn(`tosijs-3d: \`${onName}\` is deprecated — use \`${handleName}\`. Both work in 0.8.x; \`${onName}\` is removed in 0.9.`);
+        }
+        return old;
+    }
+    return undefined;
+}
 /** Read a `Dynamic`, falling back when it was never given. */
 export function resolveDynamic(v, fallback) {
     return typeof v === 'function' ? v() : v ?? fallback;
@@ -506,6 +563,35 @@ export function resolveDynamic(v, fallback) {
 const POPUP_CHROME_BAND = 30;
 function panelPopupSheet(width, items) {
     return panel3d({ width, height: 'fit', paddingTop: POPUP_CHROME_BAND }, ...items);
+}
+/** What a panel offers the widgets inside it. */
+/**
+ * A host translated by a child's offset inside its container.
+ *
+ * A widget anchors its popup in ITS OWN coordinates — `select3d` uses `y: 0`
+ * meaning "the top of my row" — and `panel3d` translates that by the child's
+ * offset before passing it on. A nested container has to do the same hop, or
+ * the popup lands at the top of the CONTAINER instead of beside the control
+ * that opened it, which is what a light editor's preset menu did.
+ *
+ * `offsetOf` is called at popup time, not at wiring time, because the offsets
+ * come from layout and layout happens later — and again on every resize.
+ */
+export function offsetHost(host, offsetOf) {
+    return {
+        ...host,
+        showPopup(config, ...items) {
+            const d = offsetOf();
+            return host.showPopup({
+                ...config,
+                anchor: {
+                    ...config.anchor,
+                    x: config.anchor.x + d.x,
+                    y: config.anchor.y + d.y,
+                },
+            }, ...items);
+        },
+    };
 }
 /**
  * Set an inline CSS string and return the element. svgElements types `style`
@@ -759,8 +845,9 @@ export function button3d(config) {
                     if (config.menu != null && host != null) {
                         openMenu3d(host, { x: 0, y: 0, width: btnWidth, height: TH.ROW }, config.menu);
                     }
-                    else
-                        config.onClick?.();
+                    else {
+                        handlerOf(config, 'handleClick', 'onClick')?.();
+                    }
                 }
             }
         },
@@ -908,14 +995,16 @@ export function iconBar3d(config) {
             if (kind === 'up')
                 pressed = -1;
             paint(i);
-            if (fired)
-                cells[i].item.onClick?.();
+            if (fired) {
+                const it = cells[i].item;
+                handlerOf(it, 'handleClick', 'onClick')?.();
+            }
         },
     };
 }
 /** A labelled on/off switch bound to a boolean. */
 export function toggle3d(config) {
-    const bound = boundValue(config.value, config.onChange);
+    const bound = boundValue(config.value, handlerOf(config, 'handleChange', 'onChange'));
     const lbl = baseText(config.label);
     lbl.setAttribute('x', String(TH.PAD_X));
     lbl.setAttribute('y', String(TH.ROW / 2));
@@ -981,7 +1070,8 @@ export function slider3d(config) {
     const step = config.step ?? 0;
     const scale = config.scale ?? 'linear';
     const snap = config.snap ?? 0;
-    const bound = boundValue(config.value, config.onChange);
+    const zeroStop = config.zeroStop ?? false;
+    const bound = boundValue(config.value, handlerOf(config, 'handleChange', 'onChange'));
     const lbl = config.label ? baseText(config.label) : null;
     if (lbl) {
         lbl.setAttribute('x', String(TH.PAD_X));
@@ -1068,7 +1158,7 @@ export function slider3d(config) {
         // back to min so we never write cx="NaN".
         const raw = Number(bound.get());
         const v = Number.isNaN(raw) ? min : raw;
-        const f = valueToFraction(v, min, max, scale);
+        const f = valueToFraction(v, min, max, scale, zeroStop);
         const cx = trackX + f * trackW;
         knob.setAttribute('cx', String(cx));
         fillEl.setAttribute('x', String(trackX));
@@ -1089,7 +1179,7 @@ export function slider3d(config) {
     // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
     const setFromX = (x) => {
         const f = (x - trackX) / (trackW || 1);
-        bound.set(fractionToValue(f, min, max, step, scale, snap));
+        bound.set(fractionToValue(f, min, max, step, scale, snap, zeroStop));
         reflect();
     };
     bound.subscribe(reflect);
@@ -1135,7 +1225,7 @@ export function select3d(config) {
         ? { label: o.label, value: o.value }
         : { label: String(o), value: o });
     const wrap = config.wrap ?? true;
-    const bound = boundValue(config.value, config.onChange);
+    const bound = boundValue(config.value, handlerOf(config, 'handleChange', 'onChange'));
     const lbl = config.label ? baseText(config.label) : null;
     if (lbl) {
         lbl.setAttribute('x', String(TH.PAD_X));
@@ -1197,7 +1287,7 @@ export function select3d(config) {
             width: Math.max(clusterW, 140),
         }, list3d({
             items: opts.map((o) => ({ label: String(o.label) })),
-            onSelect: (_item, i) => {
+            handleSelect: (_item, i) => {
                 bound.set(opts[i].value);
                 reflect();
                 host?.closePopup();
@@ -1318,8 +1408,9 @@ export function list3d(config) {
                 // Checked at ACTIVATION, not at hover: an item can become disabled
                 // during the gesture, and what matters is whether it was allowed at the
                 // moment it fired. Same rule as `interaction.ts`'s vetoes.
-                if (enabled(i))
-                    config.onSelect?.(config.items[i], i);
+                if (enabled(i)) {
+                    handlerOf(config, 'handleSelect', 'onSelect')?.(config.items[i], i);
+                }
             }
             else
                 highlight(i); // down / move / hover → highlight the row under it
@@ -1337,7 +1428,7 @@ export function menu3d(config) {
     return list3d({
         items: config.items,
         rowHeight: config.rowHeight,
-        onSelect: (item, i) => {
+        handleSelect: (item, i) => {
             // The item's own handler first, then the menu-wide one: the specific
             // before the general, so a menu-level handler can log or close over the
             // top of whatever the item did.

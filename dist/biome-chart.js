@@ -114,7 +114,7 @@ const scene = b3d(
       const bind = (label, key, min, max, step) =>
         // onChange, not onInput — slider3d's callback name (a wrong option is
         // silently ignored in an untyped demo; found live by Tonio)
-        slider3d({ label, value: p[key], min, max, step, onChange: (v) => { p[key] = v } })
+        slider3d({ label, value: p[key], min, max, step, handleChange: (v) => { p[key] = v } })
       return [
         label3d({ text: 'Climate', bold: true, compact: true }),
         bind('temperature', 'baseTemperature', 0, 1, 0.01),
@@ -125,7 +125,7 @@ const scene = b3d(
         // reef, drowned forests become seagrass. The two values must always
         // agree; this slider is the demonstration of why.
         slider3d({ label: 'sea level', value: 0, min: -12, max: 20, step: 0.5,
-          onChange: (v) => { p.seaLevel = v; water.y = v } }),
+          handleChange: (v) => { p.seaLevel = v; water.y = v } }),
         label3d({ text: 'Chart', bold: true, compact: true }),
         bind('lapse rate', 'lapseRate', 0, 0.02, 0.0005),
         bind('dither amount', 'ditherAmp', 0, 0.15, 0.005),
@@ -140,7 +140,7 @@ const scene = b3d(
         bind('strata scale', 'strataScale', 0.01, 0.3, 0.005),
         // same ladder, different chemistry: molten WATER on a frozen world
         toggle3d({ label: 'cryovolcanic', value: false,
-          onChange: (v) => { p.volcanicPalette = v ? CRYOVOLCANIC_PALETTE : LAVA_PALETTE } }),
+          handleChange: (v) => { p.volcanicPalette = v ? CRYOVOLCANIC_PALETTE : LAVA_PALETTE } }),
       ]
     },
   },

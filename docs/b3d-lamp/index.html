@@ -28,24 +28,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
-  <title>b3d-lamp — tosijs-3d</title>
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <title>Lamps — tosijs-3d</title>
   <meta name="description" content="Lights you can see. b3dPointLight, b3dSpotLight and b3dAreaLight are placed lights that come with their own fixture geometry, cast shadows where Babylon…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-lamp/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="b3d-lamp — tosijs-3d" />
+  <meta property="og:title" content="Lamps — tosijs-3d" />
   <meta property="og:description" content="Lights you can see. b3dPointLight, b3dSpotLight and b3dAreaLight are placed lights that come with their own fixture geometry, cast shadows where Babylon…" />
   <meta property="og:url" content="https://3d.tosijs.net/b3d-lamp/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-lamp","description":"Lights you can see. b3dPointLight, b3dSpotLight and b3dAreaLight are placed lights that come with their own fixture geometry, cast shadows where Babylon…","url":"https://3d.tosijs.net/b3d-lamp/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Lamps","description":"Lights you can see. b3dPointLight, b3dSpotLight and b3dAreaLight are placed lights that come with their own fixture geometry, cast shadows where Babylon…","url":"https://3d.tosijs.net/b3d-lamp/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
-<h1>b3d-lamp</h1>
+<h1>Lamps</h1>
 <p><strong>Lights you can see.</strong> <code>b3dPointLight</code>, <code>b3dSpotLight</code> and <code>b3dAreaLight</code> are
 placed lights that come with their own fixture geometry, cast shadows where
 Babylon supports it, take a <strong>gel</strong> where Babylon supports it, and can be
@@ -71,6 +71,19 @@ import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
 import { tosi } from &#39;tosijs&#39;
 
 const { lamps } = tosi({ lamps: { on: true, geometry: true, ambient: 0.06 } })
+
+// `on` and `geometry` are &#39;on&#39;|&#39;off&#39; STRINGS, not booleans — an absent boolean
+// attribute reads false, so a default-true boolean is not expressible in HTML.
+// Binding a boolean leaf straight to them looks right and does nothing: tosijs
+// silently discards a wrong-typed prop write (tosijs#24). So observe and map.
+const applyToggles = () =&gt; {
+  for (const el of document.querySelectorAll(&#39;tosi-b3d-point-light, tosi-b3d-spot-light&#39;)) {
+    el.on = lamps.on.value ? &#39;on&#39; : &#39;off&#39;
+    el.geometry = lamps.geometry.value ? &#39;on&#39; : &#39;off&#39;
+  }
+}
+lamps.on.observe(applyToggles)
+lamps.geometry.observe(applyToggles)
 
 const FLUORESCENT = {
   brightness: [
@@ -174,20 +187,20 @@ preview.append(
     // WARM LAMP, hard shadows. Its own corner, so the shadow reads.
     b3dPointLight({
       x: -8, y: 4.2, z: 0, diffuse: &#39;#ffd9a0&#39;, range: 16, intensity: 1.8,
-      on: lamps.on, geometry: lamps.geometry, shadows: &#39;on&#39;, program: SOFT,
+      shadows: &#39;on&#39;, program: SOFT,
     }),
 
     // FLUORESCENT: strikes in stutters, hums, dies red and washed out.
     b3dPointLight({
       x: 0, y: 4.4, z: 0, diffuse: &#39;#cfe8ff&#39;, range: 15, intensity: 2.1,
-      on: lamps.on, geometry: lamps.geometry, shadows: &#39;on&#39;, program: FLUORESCENT,
+      shadows: &#39;on&#39;, program: FLUORESCENT,
     }),
 
     // GELLED SPOT over CLEAR floor, so the window pattern is legible.
     b3dSpotLight({
       x: 9, y: 8, z: -1, angle: 46, exponent: 6,
       diffuse: &#39;#fff2dc&#39;, intensity: 620, range: 24,
-      on: lamps.on, geometry: lamps.geometry, shadows: &#39;on&#39;, program: SOFT,
+      shadows: &#39;on&#39;, program: SOFT,
       gelSvg: `&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 64 64&quot;&gt;
         &lt;rect width=&quot;64&quot; height=&quot;64&quot; fill=&quot;black&quot;/&gt;
         &lt;g fill=&quot;white&quot;&gt;
@@ -217,13 +230,13 @@ preview.append(
 <tbody><tr>
 <td><code>b3dPointLight</code></td>
 <td>✅ cube shadow map</td>
-<td>❌ not supported by the engine</td>
+<td>❌ not supported — model the blocker instead (below)</td>
 <td>glowing sphere</td>
 </tr>
 <tr>
 <td><code>b3dSpotLight</code></td>
 <td>✅</td>
-<td>✅ <strong>native</strong> — bitmap or SVG</td>
+<td>✅ <strong>native</strong> — bitmap, SVG, or a generated <code>shape</code></td>
 <td>cone housing</td>
 </tr>
 <tr>
@@ -233,6 +246,24 @@ preview.append(
 <td>emissive panel</td>
 </tr>
 </tbody></table>
+<h3>A lantern behind a grill — model it, do not gel it</h3>
+<p>Tonio: <em>&quot;can we do gels on point lights (I would assume provide a cylindrical
+gel) e.g. if I wanted to make a lamp shaped like it&#39;s behind a grill like an old
+lantern)?&quot;</em> Babylon has no projection texture on a point light, and the honest
+answer is that you do not want one: <strong>give the lamp a <code>url</code> fixture with the
+grill modelled, and turn <code>shadows</code> on.</strong></p>
+<p>The cube shadow map then projects the grill in every direction, for real. That
+beats a gel outright — the pattern is correct from any viewpoint, it falls
+across uneven ground properly, and it moves when the lantern swings. A
+cylindrical gel would be a flat approximation that breaks the moment you look
+at it from above.</p>
+<p>It already works, because a <code>url</code> fixture is registered with the scene and every
+lamp&#39;s shadow generator picks up registered meshes as casters. Mark the glass
+and the flame <code>_nocast</code> in the model so only the metal casts — otherwise the
+bulb shadows its own light, which is the one thing the built-in primitives
+avoid by not being casters at all.</p>
+<p>The cost is a cube shadow map (six faces), so this is a per-lantern decision
+rather than something to switch on across a street. See the ⚠️ on <code>shadows</code>.</p>
 <p>Rather than fake the two ❌ cases, they warn once and carry on lit. A gel faked
 on a point light would be a shadow-map hack with different behaviour, different
 cost and different bugs from the real thing — a worse outcome than the honest
@@ -368,7 +399,27 @@ work altogether.</p>
 <tr>
 <td><code>exponent</code></td>
 <td><code>2</code></td>
-<td><strong>spot</strong> — falloff sharpness</td>
+<td><strong>spot</strong> — falloff sharpness (standard falloff)</td>
+</tr>
+<tr>
+<td><code>innerAngle</code></td>
+<td><code>0</code></td>
+<td><strong>spot</strong> — inner cone in degrees; above <code>0</code> gives a true penumbra and switches to glTF falloff</td>
+</tr>
+<tr>
+<td><code>shape</code></td>
+<td><code>&#39;circle&#39;</code></td>
+<td><strong>spot</strong> — cone cross-section: <code>circle</code> / <code>square</code> / <code>none</code>. Projected as a gel, so an explicit <code>gel</code> wins</td>
+</tr>
+<tr>
+<td><code>shapeAspect</code></td>
+<td><code>1</code></td>
+<td><strong>spot</strong> — width/height; <code>2</code> is an ellipse or letterbox</td>
+</tr>
+<tr>
+<td><code>shapeSoftness</code></td>
+<td><code>0.25</code></td>
+<td><strong>spot</strong> — edge feather, as a fraction of the radius</td>
 </tr>
 <tr>
 <td><code>gel</code></td>
@@ -400,6 +451,7 @@ for parenting your own geometry).</p>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
@@ -415,7 +467,7 @@ for parenting your own geometry).</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -439,8 +491,9 @@ for parenting your own geometry).</p>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link current" href="../b3d-lamp/" aria-current="page">b3d-lamp</a></li>
+      <li><a class="doc-link current" href="../b3d-lamp/" aria-current="page">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -505,13 +558,13 @@ for parenting your own geometry).</p>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
-      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
-      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
-      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
-      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -528,8 +581,8 @@ for parenting your own geometry).</p>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
@@ -576,6 +629,6 @@ for parenting your own geometry).</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js"></script>
+  <script type="module" src="../hydrate.js?v=0.8.0"></script>
 </body>
 </html>

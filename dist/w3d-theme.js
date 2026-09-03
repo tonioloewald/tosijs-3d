@@ -61,7 +61,7 @@ const makePanel = () => {
   const field = ui.inputField({
     placeholder: 'type here…',
     value: demo.name.value,
-    onChange: (v) => { demo.name = v },
+    handleChange: (v) => { demo.name = v },
   })
   const panel = panel3d(
     { width: 300 },
@@ -132,7 +132,7 @@ preview.append(div(
   // splitting it across a cell boundary would make it scroll twice.
   div(
     { style: { ...cell, gridRow: '1 / 3', gridColumn: '2', alignContent: 'start', justifyItems: 'start' } },
-    themeEditor({ colorInput, onChange: build })
+    themeEditor({ colorInput, handleChange: build })
   ),
   stage,
 ))

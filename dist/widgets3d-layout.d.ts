@@ -127,7 +127,7 @@ export declare function measureTextWidth(text: string, font: FontSpec): number;
  * as 100→1000.
  */
 export type SliderScale = 'linear' | 'log' | 'log2';
-export declare function valueToFraction(value: number, min: number, max: number, scale?: SliderScale): number;
+export declare function valueToFraction(value: number, min: number, max: number, scale?: SliderScale, zeroStop?: boolean): number;
 /**
  * Inverse of valueToFraction, snapped to `step` (0 = continuous).
  *
@@ -136,7 +136,7 @@ export declare function valueToFraction(value: number, min: number, max: number,
  * meaningless here, since a fixed increment is enormous at one end of the range
  * and invisible at the other, which is the problem the log scale exists to fix.
  */
-export declare function fractionToValue(fraction: number, min: number, max: number, step?: number, scale?: SliderScale, snap?: number): number;
+export declare function fractionToValue(fraction: number, min: number, max: number, step?: number, scale?: SliderScale, snap?: number, zeroStop?: boolean): number;
 /**
  * How wide a camera-relative panel may be, in world units, to stay on screen.
  *

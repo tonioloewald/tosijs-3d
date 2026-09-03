@@ -65,7 +65,20 @@ export { B3dLight, b3dLight } from './b3d-light';
 export { B3dLamp, B3dPointLight, b3dPointLight, B3dSpotLight, b3dSpotLight, B3dAreaLight, b3dAreaLight, } from './b3d-lamp';
 // A lamp's whole life as ONE curve per channel, split into attack / sustain /
 // decay by two markers — the model behind its flicker, pulse and fade.
-export { lightProgramSchema, canonicalProgram, validateProgram, sampleLight, programPosition, lightPhase, isAnimated, shiftHue, NO_MODULATION, } from './light-modulation';
+export { segmentTimes, lightPreset, lightPresets, DEFAULT_PROGRAM, lightProgramSchema, canonicalProgram, validateProgram, sampleLight, programPosition, lightPhase, isAnimated, shiftHue, NO_MODULATION, } from './light-modulation';
+/*
+A province's climate layer as DATA — bipolar bias curves plus the two water
+scalars. Pure (no DOM, no Babylon) so a consumer can validate and serialise one
+headlessly; see PROVINCE-DESIGN.md -> "TWO editors".
+*/
+export { sampleClimate, composeClimate, applyClimate, provinceClimateSchema, canonicalClimate, validateClimate, DEFAULT_AMOUNTS, NO_CLIMATE, } from './province-climate';
+/*
+JSON Schema for the scene primitives — no DOM, no Babylon, so a consumer's
+headless runner can read them. Exists so nobody hand-copies our attributes:
+ensemble's hand-written skybox schema carried 6 of 16 and disagreed on a
+default (#63). Drift is caught by a test, not promised.
+*/
+export { skyboxSchema, sunSchema, waterSchema, fogSchema, cloudsSchema, ambientSchema, hemisphericLightSchema, sceneSchemas, SCENE_OMITTED, } from './scene-schemas';
 export { B3dFog, b3dFog } from './b3d-fog';
 export { B3dClouds, b3dClouds } from './b3d-clouds';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal';
@@ -150,7 +163,10 @@ export { SvgTexture } from './svg-texture';
 export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane';
 export { panelGesture, uvToViewBox, planeLocalToViewBox } from './b3d-svg-plane';
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
-export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, } from './svg-icons';
+export { svgIcons, createSvgIcons, iconGlyph, iconNames, iconAliases, iconData, 
+// Consumers own icons too: `registerIcons` adds names every WIDGET can
+// resolve, which a private `createSvgIcons` set cannot do.
+registerIcons, iconExists, isRegisteredIcon, } from './svg-icons';
 export { parseStyleSuffixes, mergeIconStyle, } from './icon-name';
 // ---------------------------------------------------------------------------
 // The SVG UI surface, namespaced as `ui.*` — `ui.box`, `ui.table`, `ui.keyboard`.

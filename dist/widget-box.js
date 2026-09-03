@@ -63,7 +63,7 @@ s.openPanel(
     label3d({ text: 'Scene', bold: true, compact: true }),
     slider3d({ label: 'time of day', value: wb.time, min: 0, max: 24, step: 0.5 }),
     toggle3d({ label: 'fog', value: wb.fog }),
-    button3d({ label: 'Reset', onClick: () => { wb.time.value = 14; wb.fog.value = true } }),
+    button3d({ label: 'Reset', handleClick: () => { wb.time.value = 14; wb.fog.value = true } }),
   ]),
   { title: 'Scene', draggable: true }
 )

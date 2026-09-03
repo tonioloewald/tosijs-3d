@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -51,6 +51,95 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.0</h2>
+<p>Lights, editors, and the schema surface <code>tosijs-3d-ensemble</code> asked for — plus
+the two renames that were waiting for a minor.</p>
+<h3>⚠️ Breaking</h3>
+<ul>
+<li><p><strong>Peer dependency: <code>tosijs</code> is now <code>^1.9.2</code></strong> (was <code>^1.7.8</code>). Upgrade tosijs
+alongside this. The floor moved because 1.9 fixes five issues we filed
+(tosijs#14/#15/#22/#24/#27) and holding it down only defers the work.</p>
+<p>Behaviour that changed with it, verified rather than assumed: a wrong-typed
+write to an <code>initAttributes</code> prop used to be <strong>silently discarded</strong> and now
+<strong>warns and applies the value</strong>. So <code>foo: false</code> on an <code>&#39;on&#39;|&#39;off&#39;</code> attribute
+genuinely sets <code>false</code> where it used to quietly default — use <code>isOff()</code>,
+which accepts <code>&#39;off&#39;</code>, <code>false</code> and <code>&#39;false&#39;</code>.</p>
+</li>
+<li><p><strong>Callbacks are <code>handleX</code>, not <code>onX</code>.</strong> <code>handleChange</code>, <code>handleClick</code>,
+<code>handleSelect</code>. <strong>Both spellings work through 0.8.x</strong> and the old one warns
+once per name; <code>onX</code> is removed in 0.9.</p>
+<p>Not a style preference: these are plain factories today, but the moment one
+becomes a tosijs component the element creator binds an <code>on*</code> prop as a DOM
+event <strong>listener</strong> and the class field is silently never called. <code>handleX</code>
+cannot be mistaken for an event name. Giving both, the new one wins.</p>
+<p>Not yet renamed (still <code>onX</code>, and unaffected): <code>inputField</code>, <code>keyboard</code>,
+<code>table</code>, <code>box</code>/<code>surface</code>.</p>
+</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><p><strong>Lamps</strong> — <code>b3dPointLight</code>, <code>b3dSpotLight</code>, <code>b3dAreaLight</code>: a placed light
+with its own fixture geometry, which <strong>tracks the light</strong> (a fluorescent&#39;s
+bulb stutters as it strikes and dims to a red ember as it dies). Shadows where
+Babylon allows, <strong>gels</strong> where it allows (spot only), and a generated cone
+<code>shape</code> (<code>circle</code>/<code>square</code> + <code>shapeAspect</code>, <code>shapeSoftness</code>) plus a true
+<code>innerAngle</code> penumbra.</p>
+</li>
+<li><p><strong>Light programs</strong> — one curve per channel (brightness, hue, saturation,
+range) split into attack / sustain / decay by two markers. <code>duration</code> divides
+by those markers, so dragging one <strong>retimes</strong> the lamp. Presets: <code>steady</code>,
+<code>fluorescent</code>, <code>flickery</code>, <code>brownout</code>, <code>candle</code>, <code>fireplace</code>. <code>timeSource</code>
+picks the real clock (default — a flicker should not freeze when the world
+pauses) or the world&#39;s.</p>
+</li>
+<li><p><strong>Editors</strong> — <code>curveProgram3d</code> (several curves sharing one pair of draggable
+split markers), <code>lightEditor3d</code> (the whole lamp), and <code>curveMarkers</code>.
+Controlled, with <code>handleCommit(value, describe)</code> once per gesture carrying
+canonical values and a verb phrase, so a document records one undo step.</p>
+</li>
+<li><p><strong><code>scene-schemas</code></strong> — JSON Schema for skybox, sun, water, fog, clouds, ambient
+and the hemispheric light. <strong>No DOM, no Babylon.</strong> So nobody hand-copies our
+attributes: a consumer&#39;s hand-written skybox schema carried 6 of 16 and
+disagreed on a default. Drift is caught by a test, not promised.</p>
+</li>
+<li><p><strong><code>province-climate</code></strong> — water, temperature and volcanism as bipolar bias
+curves (<code>0.5</code> leaves the base alone) plus water presence and level as scalars,
+because &quot;there is a lake here at 12 m&quot; is not something a curve can say.</p>
+</li>
+<li><p><strong><code>registerIcons</code></strong> — consumers add icons every widget resolves by name.</p>
+</li>
+<li><p><strong>Log sliders</strong> — <code>scale: &#39;log&#39; | &#39;log2&#39;</code>, <code>snap</code>, and <code>zeroStop</code> for a
+quantity that spans decades and can still be switched off.</p>
+</li>
+<li><p><strong>Action menus</strong> — <code>openMenu3d</code>, <code>button3d({ menu })</code>, <code>iconGrid3d</code> menu
+cells; <code>disabled</code> takes a predicate so a menu can be a constant.</p>
+</li>
+<li><p><strong><code>table</code></strong> — <code>ColumnSpec.kind: &#39;icon&#39;</code>.</p>
+</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>A <strong>move</strong> no longer costs a scene, and a genuine removal now disposes the
+engine — a leaked WebGL context is not just memory (Chrome caps them near 16
+and force-loses the oldest).</li>
+<li><code>shadows</code>, the gel and <code>geometry</code> each accepted a write and did nothing; all
+three now sync per render. Lamps also never marked shadow <strong>receivers</strong>, so a
+shadow map was rendered that nothing read.</li>
+<li><code>canonicalProgram</code> silently dropped <code>duration</code>, so a committed edit turned a
+flickering lamp steady.</li>
+<li>A nested widget&#39;s popup opened at the top of its container rather than beside
+the control.</li>
+<li><code>lightEditor3d</code> shipped demo copy into every consumer&#39;s panel; the hint is now
+opt-in.</li>
+<li>The aircraft chase camera sat too close after content moved to human scale.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Doc pages are named for what they are (<code>Light program editor</code>, <code>Curve editor</code>, <code>Lamps</code>) rather than for their module. URLs are unchanged.</li>
+<li>⚠️ <code>shadows=&quot;on&quot;</code> is not free — one extra render of the caster list per lamp
+per frame, worse with a large <code>range</code>. Prefer <code>off</code> for dynamically inserted
+content.</li>
+</ul>
 <h2>0.7.8</h2>
 <p>Lights you can see, edit and animate — and the editor surface <code>tosijs-3d-ensemble</code>
 asked for, built to their spec so they can adopt it without writing widgets.</p>
@@ -2596,6 +2685,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
@@ -2611,7 +2701,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -2635,8 +2725,9 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -2701,13 +2792,13 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
-      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
-      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
-      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
-      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -2724,8 +2815,8 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
@@ -2772,6 +2863,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js"></script>
+  <script type="module" src="../hydrate.js?v=0.8.0"></script>
 </body>
 </html>

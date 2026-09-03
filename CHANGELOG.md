@@ -6,6 +6,96 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.8.0
+
+Lights, editors, and the schema surface `tosijs-3d-ensemble` asked for — plus
+the two renames that were waiting for a minor.
+
+### ⚠️ Breaking
+
+- **Peer dependency: `tosijs` is now `^1.9.2`** (was `^1.7.8`). Upgrade tosijs
+  alongside this. The floor moved because 1.9 fixes five issues we filed
+  (tosijs#14/#15/#22/#24/#27) and holding it down only defers the work.
+
+  Behaviour that changed with it, verified rather than assumed: a wrong-typed
+  write to an `initAttributes` prop used to be **silently discarded** and now
+  **warns and applies the value**. So `foo: false` on an `'on'|'off'` attribute
+  genuinely sets `false` where it used to quietly default — use `isOff()`,
+  which accepts `'off'`, `false` and `'false'`.
+
+- **Callbacks are `handleX`, not `onX`.** `handleChange`, `handleClick`,
+  `handleSelect`. **Both spellings work through 0.8.x** and the old one warns
+  once per name; `onX` is removed in 0.9.
+
+  Not a style preference: these are plain factories today, but the moment one
+  becomes a tosijs component the element creator binds an `on*` prop as a DOM
+  event **listener** and the class field is silently never called. `handleX`
+  cannot be mistaken for an event name. Giving both, the new one wins.
+
+  Not yet renamed (still `onX`, and unaffected): `inputField`, `keyboard`,
+  `table`, `box`/`surface`.
+
+### Added
+
+- **Lamps** — `b3dPointLight`, `b3dSpotLight`, `b3dAreaLight`: a placed light
+  with its own fixture geometry, which **tracks the light** (a fluorescent's
+  bulb stutters as it strikes and dims to a red ember as it dies). Shadows where
+  Babylon allows, **gels** where it allows (spot only), and a generated cone
+  `shape` (`circle`/`square` + `shapeAspect`, `shapeSoftness`) plus a true
+  `innerAngle` penumbra.
+
+- **Light programs** — one curve per channel (brightness, hue, saturation,
+  range) split into attack / sustain / decay by two markers. `duration` divides
+  by those markers, so dragging one **retimes** the lamp. Presets: `steady`,
+  `fluorescent`, `flickery`, `brownout`, `candle`, `fireplace`. `timeSource`
+  picks the real clock (default — a flicker should not freeze when the world
+  pauses) or the world's.
+
+- **Editors** — `curveProgram3d` (several curves sharing one pair of draggable
+  split markers), `lightEditor3d` (the whole lamp), and `curveMarkers`.
+  Controlled, with `handleCommit(value, describe)` once per gesture carrying
+  canonical values and a verb phrase, so a document records one undo step.
+
+- **`scene-schemas`** — JSON Schema for skybox, sun, water, fog, clouds, ambient
+  and the hemispheric light. **No DOM, no Babylon.** So nobody hand-copies our
+  attributes: a consumer's hand-written skybox schema carried 6 of 16 and
+  disagreed on a default. Drift is caught by a test, not promised.
+
+- **`province-climate`** — water, temperature and volcanism as bipolar bias
+  curves (`0.5` leaves the base alone) plus water presence and level as scalars,
+  because "there is a lake here at 12 m" is not something a curve can say.
+
+- **`registerIcons`** — consumers add icons every widget resolves by name.
+- **Log sliders** — `scale: 'log' | 'log2'`, `snap`, and `zeroStop` for a
+  quantity that spans decades and can still be switched off.
+- **Action menus** — `openMenu3d`, `button3d({ menu })`, `iconGrid3d` menu
+  cells; `disabled` takes a predicate so a menu can be a constant.
+- **`table`** — `ColumnSpec.kind: 'icon'`.
+
+### Fixed
+
+- A **move** no longer costs a scene, and a genuine removal now disposes the
+  engine — a leaked WebGL context is not just memory (Chrome caps them near 16
+  and force-loses the oldest).
+- `shadows`, the gel and `geometry` each accepted a write and did nothing; all
+  three now sync per render. Lamps also never marked shadow **receivers**, so a
+  shadow map was rendered that nothing read.
+- `canonicalProgram` silently dropped `duration`, so a committed edit turned a
+  flickering lamp steady.
+- A nested widget's popup opened at the top of its container rather than beside
+  the control.
+- `lightEditor3d` shipped demo copy into every consumer's panel; the hint is now
+  opt-in.
+- The aircraft chase camera sat too close after content moved to human scale.
+
+### Changed
+
+- Doc pages are named for what they are (`Light program editor`, `Curve
+  editor`, `Lamps`) rather than for their module. URLs are unchanged.
+- ⚠️ `shadows="on"` is not free — one extra render of the caster list per lamp
+  per frame, worse with a large `range`. Prefer `off` for dynamically inserted
+  content.
+
 ## 0.7.8
 
 Lights you can see, edit and animate — and the editor surface `tosijs-3d-ensemble`

@@ -146,7 +146,7 @@ describe('a button can be a menu button', () => {
     let clicked = 0
     const b = widgets.button3d({
       label: 'File',
-      onClick: () => clicked++,
+      handleClick: () => clicked++,
       menu: [{ label: 'Load' }],
     })
     b.setHost!(h.host)
@@ -158,7 +158,7 @@ describe('a button can be a menu button', () => {
 
   test('without a menu it still just clicks', () => {
     let clicked = 0
-    const b = widgets.button3d({ label: 'Go', onClick: () => clicked++ })
+    const b = widgets.button3d({ label: 'Go', handleClick: () => clicked++ })
     b.layout!(120)
     b.handle!('up', 10, 10)
     expect(clicked).toBe(1)

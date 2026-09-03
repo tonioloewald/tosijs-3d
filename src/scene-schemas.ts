@@ -1,5 +1,5 @@
 /*#
-# scene-schemas
+# Scene schemas
 
 **JSON Schema for the scene primitives, so a consumer never hand-copies our
 attributes.** No DOM, no Babylon — importable from a headless runner.

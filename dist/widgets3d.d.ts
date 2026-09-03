@@ -22,6 +22,23 @@ export type PointerKind = 'down' | 'move' | 'up' | 'hover' | 'leave';
  * their own rebuild-on-change plumbing.
  */
 export type Dynamic<T> = T | (() => T);
+/**
+ * Read a callback under its NEW name, falling back to the deprecated `onX`.
+ *
+ * `handleX` is the convention (Tonio: _"the tosijs convention is a callback
+ * event handler is called handleChange"_), and it is not a style preference.
+ * These are plain factory functions today, where `onX` is harmless — but the
+ * moment one becomes a tosijs COMPONENT, the element creator binds an `on*`
+ * prop as a DOM event LISTENER and the class field is silently never called.
+ * No error, no warning, a callback that simply never fires. `handleX` cannot be
+ * mistaken for an event name, so the rename removes the trap rather than
+ * documenting it.
+ *
+ * Both spellings work through 0.8.x. The old one warns ONCE per name, because
+ * a slider reads its callback on every pointer move and a warning per frame is
+ * a performance bug wearing a helpful hat.
+ */
+export declare function handlerOf<T>(config: Record<string, unknown>, handleName: string, onName: string): T | undefined;
 /** Read a `Dynamic`, falling back when it was never given. */
 export declare function resolveDynamic<T>(v: Dynamic<T> | undefined, fallback: T): T;
 export interface Widget3d {
@@ -121,6 +138,22 @@ sheet: SVGSVGElement, config: {
     close: () => void;
 };
 /** What a panel offers the widgets inside it. */
+/**
+ * A host translated by a child's offset inside its container.
+ *
+ * A widget anchors its popup in ITS OWN coordinates — `select3d` uses `y: 0`
+ * meaning "the top of my row" — and `panel3d` translates that by the child's
+ * offset before passing it on. A nested container has to do the same hop, or
+ * the popup lands at the top of the CONTAINER instead of beside the control
+ * that opened it, which is what a light editor's preset menu did.
+ *
+ * `offsetOf` is called at popup time, not at wiring time, because the offsets
+ * come from layout and layout happens later — and again on every resize.
+ */
+export declare function offsetHost(host: WidgetHost, offsetOf: () => {
+    x: number;
+    y: number;
+}): WidgetHost;
 export interface WidgetHost {
     /**
      * Open a popup ABOVE the panel's content and mount it, returning a closer.
@@ -273,6 +306,9 @@ export declare function textBlock3d(config: {
 /** A pressable button. */
 export declare function button3d(config: {
     label: string;
+    /** Fired on release, on the thing pressed. */
+    handleClick?: () => void;
+    /** @deprecated use `handleClick` — removed in 0.9. */
     onClick?: () => void;
     /**
      * Make this a MENU button: pressing it opens these actions anchored to the
@@ -300,6 +336,9 @@ export declare function iconBar3d(config: {
         icon: string;
         title?: string;
         active?: boolean;
+        /** Fired on release, on the thing pressed. */
+        handleClick?: () => void;
+        /** @deprecated use `handleClick` — removed in 0.9. */
         onClick?: () => void;
     }>;
 }): Widget3d;
@@ -307,6 +346,9 @@ export declare function iconBar3d(config: {
 export declare function toggle3d(config: {
     label: string;
     value: boolean;
+    /** Fired as the value changes. */
+    handleChange?: (v: boolean) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (v: boolean) => void;
 }): Widget3d;
 /** A horizontal slider bound to a number in [min, max], optionally stepped. */
@@ -343,6 +385,23 @@ export declare function slider3d(config: {
      * than producing NaN.
      */
     scale?: SliderScale;
+    /**
+     * Put an explicit ZERO at the bottom of a log track.
+     *
+     * A log scale cannot represent zero, but plenty of decade-spanning
+     * quantities have an explicit off — a sky's `realtimeScale` (0 is a still
+     * sky, and it is the DEFAULT), fog density, wind speed, any rate. Without
+     * this the default becomes unreachable the moment you touch the control,
+     * which is worse than the cramped linear track it replaced.
+     *
+     * `min` then means the log FLOOR — the smallest non-zero value — rather than
+     * the bottom of the travel. The handle catches at zero rather than
+     * approaching it asymptotically.
+     */
+    zeroStop?: boolean;
+    /** Fired as the value changes. */
+    handleChange?: (v: number) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (v: number) => void;
     /**
      * Where the number lives.
@@ -374,6 +433,9 @@ export declare function select3d(config: {
         value: string | number;
     }>;
     wrap?: boolean;
+    /** Fired as the value changes. */
+    handleChange?: (v: string | number) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (v: string | number) => void;
 }): Widget3d;
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
@@ -383,6 +445,9 @@ export declare function list3d<T extends {
     disabled?: Dynamic<boolean>;
 }>(config: {
     items: T[];
+    /** Fired when a row is chosen. */
+    handleSelect?: (item: T, index: number) => void;
+    /** @deprecated use `handleSelect` — removed in 0.9. */
     onSelect?: (item: T, index: number) => void;
     rowHeight?: number;
 }): Widget3d;

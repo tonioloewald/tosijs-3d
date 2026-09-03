@@ -1,5 +1,5 @@
 /*#
-# curve-field
+# Curve editor
 
 **`curve3d` — an editor for a continuous `[0,1] → [0,1]`.** A `Widget3d`, so it
 works as a flat DOM overlay, on an in-scene panel, and in a headset without
@@ -161,7 +161,7 @@ const menu = (widget, kind, value) =>
   select3d({
     value,
     options: presetsFor(kind).map((p) => p.name),
-    onChange: (name) => { widget.applyPreset(name); rebuild() },
+    handleChange: (name) => { widget.applyPreset(name); rebuild() },
   })
 
 const panel = panel3d(
@@ -169,20 +169,20 @@ const panel = panel3d(
   label3d({ text: 'province editor', bold: true }),
   shape,
   menu(shape, 'profile', 'no change'),
-  button3d({ label: 'delete selected point', onClick: () => shape.deleteSelected() }),
+  button3d({ label: 'delete selected point', handleClick: () => shape.deleteSelected() }),
   falloff,
   menu(falloff, 'falloff', 'linear'),
-  button3d({ label: 'delete selected point', onClick: () => falloff.deleteSelected() }),
+  button3d({ label: 'delete selected point', handleClick: () => falloff.deleteSelected() }),
   footprint,
   menu(footprint, 'radial', 'hexagon'),
-  slider3d({ label: 'block height', min: 1, max: 16, value: state.height, onChange: (v) => { state.height = v; rebuild() } }),
-  slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, onChange: (v) => { state.extent = v; rebuild() } }),
-  slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, onChange: (v) => { state.noise = v; rebuild() } }),
-  toggle3d({ label: 'wireframe', value: false, onChange: (v) => { if (ground?.material) ground.material.wireframe = v } }),
+  slider3d({ label: 'block height', min: 1, max: 16, value: state.height, handleChange: (v) => { state.height = v; rebuild() } }),
+  slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, handleChange: (v) => { state.extent = v; rebuild() } }),
+  slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, handleChange: (v) => { state.noise = v; rebuild() } }),
+  toggle3d({ label: 'wireframe', value: false, handleChange: (v) => { if (ground?.material) ground.material.wireframe = v } }),
   // The real biome shader, on this block's material — the same one b3d-terrain
   // puts on a tile, so the province is judged against how it will actually look
   // rather than against a flat green.
-  toggle3d({ label: 'terrain shader', value: false, onChange: (v) => {
+  toggle3d({ label: 'terrain shader', value: false, handleChange: (v) => {
     if (ground?.material == null) return
     if (biome == null) biome = attachBiomePlugin(ground.material)
     biome.isEnabled = v
@@ -296,6 +296,7 @@ import {
   type CurveKind,
 } from './curve'
 import { w3dTheme } from './w3d-theme'
+import { handlerOf } from './widgets3d'
 import type { PointerKind, Widget3d } from './widgets3d'
 
 const { g, rect, path, circle, text } = svgElements
@@ -319,6 +320,9 @@ export interface Curve3dOptions {
    */
   name?: string
   /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
+  /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
+  handleChange?: (points: ControlPoint[]) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (points: ControlPoint[]) => void
   /**
    * Fired once when a gesture ENDS, with the canonical (rounded, sorted) points.
@@ -446,6 +450,9 @@ export interface CurveField extends Widget3d {
   /** Apply a preset by name; unknown names are ignored. */
   applyPreset: (name: string) => void
   /** Settable so a demo can wire it after construction. */
+  /** Fired after any edit that changes the curve — LIVE, including mid-drag. */
+  handleChange?: (points: ControlPoint[]) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (points: ControlPoint[]) => void
   /** Settable likewise — fires once per gesture, with canonical points. */
   handleCommit?: (points: ControlPoint[], describe: string) => void
@@ -582,7 +589,14 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
   }
 
   const emit = (): void => {
-    api.onChange?.(points.map((p) => ({ ...p })))
+    const cb =
+      api.handleChange ??
+      handlerOf<(p: ControlPoint[]) => void>(
+        api as unknown as Record<string, unknown>,
+        'handleChange',
+        'onChange'
+      )
+    cb?.(points.map((p) => ({ ...p })))
   }
 
   const drawHandles = (): void => {
@@ -727,6 +741,7 @@ export function curve3d(config: Curve3dOptions = {}): CurveField {
 
   const api: CurveField = {
     el,
+    handleChange: config.handleChange,
     onChange: config.onChange,
     handleCommit: config.handleCommit,
 

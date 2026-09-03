@@ -45,11 +45,25 @@ export interface LightProgram extends ChannelCurves {
     attackEnd?: number;
     /** Where the sustain ends and the decay begins, in curve x. Default `1` — no decay segment. */
     sustainEnd?: number;
-    /** Seconds to play the attack segment once, on switch-on. */
+    /**
+     * Seconds for the WHOLE curve, from which the three segment times derive.
+     *
+     * The split points already say how the time divides, so stating it three
+     * times is three chances to disagree: with `duration`, a segment lasts in
+     * proportion to how much of the curve it occupies. `attackEnd: 0.2` and
+     * `duration: 1` gives a 0.2s attack, and dragging the marker retimes the lamp
+     * without touching a number — which is what makes the marker feel like it is
+     * editing the behaviour rather than just the shape.
+     *
+     * `attack` / `period` / `decay` override it individually where a segment
+     * genuinely needs its own clock (a slow fade off a fast strike).
+     */
+    duration?: number;
+    /** Seconds to play the attack segment once, on switch-on. Overrides `duration`. */
     attack?: number;
     /** Seconds for ONE pass of the sustain segment. `0` holds at `attackEnd`. */
     period?: number;
-    /** Seconds to play the decay segment once, on switch-off. */
+    /** Seconds to play the decay segment once, on switch-off. Overrides `duration`. */
     decay?: number;
     /**
      * Where in the sustain loop this lamp starts, in turns.
@@ -82,6 +96,23 @@ export declare const NO_MODULATION: ModulationSample;
  * config producing a black lamp — which is indistinguishable from a broken one.
  */
 export declare function isAnimated(p: LightProgram | null | undefined): boolean;
+/**
+ * The three segment times, with `duration` divided by the split points.
+ *
+ * Proportional rather than equal shares: a segment occupying a fifth of the
+ * curve takes a fifth of the time, so the drawing and the timing cannot
+ * disagree — and dragging a marker retimes the lamp without touching a number,
+ * which is what makes the marker feel like it edits the BEHAVIOUR and not just
+ * the shape.
+ *
+ * An explicit `attack`/`period`/`decay` wins, because "a slow fade off a fast
+ * strike" is a real lamp and a proportion cannot express it.
+ */
+export declare function segmentTimes(p: LightProgram | null | undefined): {
+    attack: number;
+    period: number;
+    decay: number;
+};
 /** Which segment is playing, given switch state and time since it changed. */
 export declare function lightPhase(p: LightProgram | null | undefined, on: boolean, sinceChange: number): LightPhase;
 /**
@@ -161,4 +192,27 @@ export declare function lightProgramSchema(extra?: Record<string, unknown>): Rec
 export declare function canonicalProgram(p: LightProgram): LightProgram;
 /** Report what is wrong with a program without throwing or fixing it. */
 export declare function validateProgram(value: unknown): CurveIssue[];
+/**
+ * What a lamp does if you say nothing: up fast, hold, down fast, in a second.
+ *
+ * A lamp with NO program switches instantly, which is right for a torch and
+ * wrong for almost everything else — real lights take a moment, and the moment
+ * is most of what makes them read as objects rather than as settings. One
+ * second is short enough to feel responsive and long enough to see.
+ *
+ * The steep-then-flat-then-steep shape is deliberate: the attack and decay
+ * occupy a tenth of the curve each, so at `duration: 1` they take 0.1s and the
+ * sustain owns the rest.
+ */
+export declare const DEFAULT_PROGRAM: LightProgram;
+/** A named program, in the shape `curve.ts`'s presets already use. */
+export interface LightPreset {
+    name: string;
+    /** One line on what it is FOR, for a picker that has room. */
+    hint: string;
+    build: () => LightProgram;
+}
+export declare const lightPresets: LightPreset[];
+/** Look one up by name. Unknown names give `undefined` rather than throwing. */
+export declare function lightPreset(name: string): LightProgram | undefined;
 //# sourceMappingURL=light-modulation.d.ts.map

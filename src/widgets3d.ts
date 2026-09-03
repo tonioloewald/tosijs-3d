@@ -38,14 +38,14 @@ const panel = panel3d(
   label3d({ text: 'Scene settings' }),
   slider3d({ label: 'time of day', value: ui.time, min: 0, max: 24, step: 0.5 }),
   toggle3d({ label: 'fog', value: ui.fog }),
-  button3d({ label: 'Reset', onClick: () => { ui.time.value = 8; ui.fog.value = true } }),
+  button3d({ label: 'Reset', handleClick: () => { ui.time.value = 8; ui.fog.value = true } }),
   text3d({ text: 'Drag the slider — the native control below is bound to the same value.' }),
   list3d({
     items: [{ label: 'Talk' }, { label: 'Trade' }, { label: 'Leave' }],
     // Reports on the PAGE, not to the console: a demo you must open devtools to
     // read is one most people never see the output of — and it spams the console
     // of every page that embeds it.
-    onSelect: (item) => (readout.textContent = `picked: ${item.label}`),
+    handleSelect: (item) => (readout.textContent = `picked: ${item.label}`),
   })
 )
 
@@ -98,7 +98,7 @@ test('toggle flips its bound value when the switch is clicked', async () => {
 
 test('button fires onClick on release', () => {
   let clicked = false
-  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: 'Go', onClick: () => { clicked = true } }))
+  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: 'Go', handleClick: () => { clicked = true } }))
   preview.append(panel)
   panel.handlePointer('down', 150, 30)
   panel.handlePointer('up', 150, 30)
@@ -109,8 +109,8 @@ test('iconBar toggles the icon under the pointer on release', () => {
   const hits = []
   const panel = panel3d({ width: 300, height: 100 }, iconBar3d({
     items: [
-      { icon: 'barChart2', onClick: () => hits.push('perf') },
-      { icon: 'bug', onClick: () => hits.push('bug') },
+      { icon: 'barChart2', handleClick: () => hits.push('perf') },
+      { icon: 'bug', handleClick: () => hits.push('bug') },
     ],
   }))
   preview.append(panel)
@@ -125,7 +125,7 @@ test('list selects the clicked row', () => {
   const picks = []
   const panel = panel3d({ width: 300, height: 200 }, list3d({
     items: [{ label: 'A' }, { label: 'B' }],
-    onSelect: (item) => picks.push(item.label),
+    handleSelect: (item) => picks.push(item.label),
   }))
   preview.append(panel)
   // The second 40px row: viewBox y = padding(12) + ~58 lands in row B.
@@ -169,7 +169,7 @@ const panel = panel3d(
   slider3d({ label: 'hue', value: hud.hue, min: 0, max: 360, step: 1 }),
   toggle3d({ label: 'glow', value: hud.glow }),
   // independent of the slider while debugging — just logs which row was picked.
-  list3d({ items: Object.keys(HUES).map((label) => ({ label })), onSelect: (i) => console.log('list picked:', i.label) })
+  list3d({ items: Object.keys(HUES).map((label) => ({ label })), handleSelect: (i) => console.log('list picked:', i.label) })
 )
 // Show it as a DOM overlay too (top-right) — the SAME panel object, so you can
 // compare the in-DOM and on-plane surfaces side by side. It's also the texture
@@ -324,6 +324,21 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
 several of them — exclusivity, commit-on-leave and keyboard layout.
+
+## Callbacks are `handleX`, not `onX`
+
+`handleChange`, `handleClick`, `handleSelect`. The old `onX` spellings still
+work through 0.8.x and warn once, and are removed in 0.9.
+
+Not a style preference. These are plain factory functions today, where `onX` is
+harmless — but the moment one becomes a tosijs COMPONENT, the element creator
+binds an `on*` prop as a DOM event **listener** and the class field is silently
+never called. No error, no warning, a callback that simply never fires; it has
+already cost this project a long debugging detour. `handleX` cannot be mistaken
+for an event name, so the rename removes the trap rather than documenting it.
+
+Giving both, the new one wins and the old one is not called — so there is no
+ambiguity about which fires and no double-firing.
 
 ## Log sliders — for anything spanning orders of magnitude
 
@@ -549,6 +564,44 @@ export type PointerKind = 'down' | 'move' | 'up' | 'hover' | 'leave'
  * their own rebuild-on-change plumbing.
  */
 export type Dynamic<T> = T | (() => T)
+
+const warnedHandlers = new Set<string>()
+
+/**
+ * Read a callback under its NEW name, falling back to the deprecated `onX`.
+ *
+ * `handleX` is the convention (Tonio: _"the tosijs convention is a callback
+ * event handler is called handleChange"_), and it is not a style preference.
+ * These are plain factory functions today, where `onX` is harmless — but the
+ * moment one becomes a tosijs COMPONENT, the element creator binds an `on*`
+ * prop as a DOM event LISTENER and the class field is silently never called.
+ * No error, no warning, a callback that simply never fires. `handleX` cannot be
+ * mistaken for an event name, so the rename removes the trap rather than
+ * documenting it.
+ *
+ * Both spellings work through 0.8.x. The old one warns ONCE per name, because
+ * a slider reads its callback on every pointer move and a warning per frame is
+ * a performance bug wearing a helpful hat.
+ */
+export function handlerOf<T>(
+  config: Record<string, unknown>,
+  handleName: string,
+  onName: string
+): T | undefined {
+  const next = config[handleName]
+  if (typeof next === 'function') return next as T
+  const old = config[onName]
+  if (typeof old === 'function') {
+    if (!warnedHandlers.has(onName)) {
+      warnedHandlers.add(onName)
+      console.warn(
+        `tosijs-3d: \`${onName}\` is deprecated — use \`${handleName}\`. Both work in 0.8.x; \`${onName}\` is removed in 0.9.`
+      )
+    }
+    return old as T
+  }
+  return undefined
+}
 
 /** Read a `Dynamic`, falling back when it was never given. */
 export function resolveDynamic<T>(v: Dynamic<T> | undefined, fallback: T): T {
@@ -1026,6 +1079,9 @@ export function textBlock3d(config: {
 /** A pressable button. */
 export function button3d(config: {
   label: string
+  /** Fired on release, on the thing pressed. */
+  handleClick?: () => void
+  /** @deprecated use `handleClick` — removed in 0.9. */
   onClick?: () => void
   /**
    * Make this a MENU button: pressing it opens these actions anchored to the
@@ -1081,7 +1137,9 @@ export function button3d(config: {
               { x: 0, y: 0, width: btnWidth, height: TH.ROW },
               config.menu
             )
-          } else config.onClick?.()
+          } else {
+            handlerOf<() => void>(config, 'handleClick', 'onClick')?.()
+          }
         }
       }
     },
@@ -1105,7 +1163,10 @@ export function iconBar3d(config: {
     icon: string
     title?: string
     active?: boolean
-    onClick?: () => void
+    /** Fired on release, on the thing pressed. */
+  handleClick?: () => void
+  /** @deprecated use `handleClick` — removed in 0.9. */
+  onClick?: () => void
   }>
 }): Widget3d {
   const BS = 32 // button size
@@ -1242,7 +1303,10 @@ export function iconBar3d(config: {
       const fired = kind === 'up' && i >= 0 && i === pressed
       if (kind === 'up') pressed = -1
       paint(i)
-      if (fired) cells[i].item.onClick?.()
+      if (fired) {
+        const it = cells[i].item as Record<string, unknown>
+        handlerOf<() => void>(it, 'handleClick', 'onClick')?.()
+      }
     },
   }
 }
@@ -1251,9 +1315,15 @@ export function iconBar3d(config: {
 export function toggle3d(config: {
   label: string
   value: boolean
+  /** Fired as the value changes. */
+  handleChange?: (v: boolean) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (v: boolean) => void
 }): Widget3d {
-  const bound = boundValue<boolean>(config.value, config.onChange)
+  const bound = boundValue<boolean>(
+    config.value,
+    handlerOf<(v: boolean) => void>(config, 'handleChange', 'onChange')
+  )
   const lbl = baseText(config.label)
   lbl.setAttribute('x', String(TH.PAD_X))
   lbl.setAttribute('y', String(TH.ROW / 2))
@@ -1365,6 +1435,9 @@ export function slider3d(config: {
    * approaching it asymptotically.
    */
   zeroStop?: boolean
+  /** Fired as the value changes. */
+  handleChange?: (v: number) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (v: number) => void
   /**
    * Where the number lives.
@@ -1388,7 +1461,10 @@ export function slider3d(config: {
   const scale: SliderScale = config.scale ?? 'linear'
   const snap = config.snap ?? 0
   const zeroStop = config.zeroStop ?? false
-  const bound = boundValue<number>(config.value, config.onChange)
+  const bound = boundValue<number>(
+    config.value,
+    handlerOf<(v: number) => void>(config, 'handleChange', 'onChange')
+  )
   const lbl = config.label ? baseText(config.label) : null
   if (lbl) {
     lbl.setAttribute('x', String(TH.PAD_X))
@@ -1559,6 +1635,9 @@ export function select3d(config: {
   value: string | number
   options: Array<string | number | { label: string; value: string | number }>
   wrap?: boolean
+  /** Fired as the value changes. */
+  handleChange?: (v: string | number) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (v: string | number) => void
 }): Widget3d {
   const opts = config.options.map((o) =>
@@ -1567,7 +1646,10 @@ export function select3d(config: {
       : { label: String(o), value: o as string | number }
   )
   const wrap = config.wrap ?? true
-  const bound = boundValue<string | number>(config.value, config.onChange)
+  const bound = boundValue<string | number>(
+    config.value,
+    handlerOf<(v: string | number) => void>(config, 'handleChange', 'onChange')
+  )
 
   const lbl = config.label ? baseText(config.label) : null
   if (lbl) {
@@ -1636,7 +1718,7 @@ export function select3d(config: {
       },
       list3d({
         items: opts.map((o) => ({ label: String(o.label) })),
-        onSelect: (_item, i) => {
+        handleSelect: (_item, i) => {
           bound.set(opts[i].value)
           reflect()
           host?.closePopup()
@@ -1698,6 +1780,9 @@ export function list3d<
   T extends { label: string; icon?: string; disabled?: Dynamic<boolean> }
 >(config: {
   items: T[]
+  /** Fired when a row is chosen. */
+  handleSelect?: (item: T, index: number) => void
+  /** @deprecated use `handleSelect` — removed in 0.9. */
   onSelect?: (item: T, index: number) => void
   rowHeight?: number
 }): Widget3d {
@@ -1765,7 +1850,13 @@ export function list3d<
         // Checked at ACTIVATION, not at hover: an item can become disabled
         // during the gesture, and what matters is whether it was allowed at the
         // moment it fired. Same rule as `interaction.ts`'s vetoes.
-        if (enabled(i)) config.onSelect?.(config.items[i], i)
+        if (enabled(i)) {
+          handlerOf<(item: T, index: number) => void>(
+            config,
+            'handleSelect',
+            'onSelect'
+          )?.(config.items[i], i)
+        }
       } else highlight(i) // down / move / hover → highlight the row under it
     },
   }
@@ -1823,7 +1914,7 @@ export function menu3d(config: {
   return list3d({
     items: config.items,
     rowHeight: config.rowHeight,
-    onSelect: (item, i) => {
+    handleSelect: (item, i) => {
       // The item's own handler first, then the menu-wide one: the specific
       // before the general, so a menu-level handler can log or close over the
       // top of whatever the item did.

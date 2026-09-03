@@ -28,24 +28,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
-  <title>curve-field — tosijs-3d</title>
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <title>Curve editor — tosijs-3d</title>
   <meta name="description" content="Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing." />
   <link rel="canonical" href="https://3d.tosijs.net/curve-field/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="curve-field — tosijs-3d" />
+  <meta property="og:title" content="Curve editor — tosijs-3d" />
   <meta property="og:description" content="Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing." />
   <meta property="og:url" content="https://3d.tosijs.net/curve-field/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"curve-field","description":"Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing.","url":"https://3d.tosijs.net/curve-field/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Curve editor","description":"Curve3d — an editor for a continuous [0,1] → [0,1]. A Widget3d, so it works as a flat DOM overlay, on an in-scene panel, and in a headset without changing.","url":"https://3d.tosijs.net/curve-field/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
-<h1>curve-field</h1>
+<h1>Curve editor</h1>
 <p><strong><code>curve3d</code> — an editor for a continuous <code>[0,1] → [0,1]</code>.</strong> A <code>Widget3d</code>, so it
 works as a flat DOM overlay, on an in-scene panel, and in a headset without
 changing. The rules live in <a href="/curve/" class="wikilink">curve.ts</a>; this draws them and routes the
@@ -201,7 +201,7 @@ const menu = (widget, kind, value) =&gt;
   select3d({
     value,
     options: presetsFor(kind).map((p) =&gt; p.name),
-    onChange: (name) =&gt; { widget.applyPreset(name); rebuild() },
+    handleChange: (name) =&gt; { widget.applyPreset(name); rebuild() },
   })
 
 const panel = panel3d(
@@ -209,20 +209,20 @@ const panel = panel3d(
   label3d({ text: &#39;province editor&#39;, bold: true }),
   shape,
   menu(shape, &#39;profile&#39;, &#39;no change&#39;),
-  button3d({ label: &#39;delete selected point&#39;, onClick: () =&gt; shape.deleteSelected() }),
+  button3d({ label: &#39;delete selected point&#39;, handleClick: () =&gt; shape.deleteSelected() }),
   falloff,
   menu(falloff, &#39;falloff&#39;, &#39;linear&#39;),
-  button3d({ label: &#39;delete selected point&#39;, onClick: () =&gt; falloff.deleteSelected() }),
+  button3d({ label: &#39;delete selected point&#39;, handleClick: () =&gt; falloff.deleteSelected() }),
   footprint,
   menu(footprint, &#39;radial&#39;, &#39;hexagon&#39;),
-  slider3d({ label: &#39;block height&#39;, min: 1, max: 16, value: state.height, onChange: (v) =&gt; { state.height = v; rebuild() } }),
-  slider3d({ label: &#39;extent&#39;, min: 0.2, max: 1, value: state.extent, onChange: (v) =&gt; { state.extent = v; rebuild() } }),
-  slider3d({ label: &#39;noise scale&#39;, min: 0.2, max: 4, value: state.noise, onChange: (v) =&gt; { state.noise = v; rebuild() } }),
-  toggle3d({ label: &#39;wireframe&#39;, value: false, onChange: (v) =&gt; { if (ground?.material) ground.material.wireframe = v } }),
+  slider3d({ label: &#39;block height&#39;, min: 1, max: 16, value: state.height, handleChange: (v) =&gt; { state.height = v; rebuild() } }),
+  slider3d({ label: &#39;extent&#39;, min: 0.2, max: 1, value: state.extent, handleChange: (v) =&gt; { state.extent = v; rebuild() } }),
+  slider3d({ label: &#39;noise scale&#39;, min: 0.2, max: 4, value: state.noise, handleChange: (v) =&gt; { state.noise = v; rebuild() } }),
+  toggle3d({ label: &#39;wireframe&#39;, value: false, handleChange: (v) =&gt; { if (ground?.material) ground.material.wireframe = v } }),
   // The real biome shader, on this block&#39;s material — the same one b3d-terrain
   // puts on a tile, so the province is judged against how it will actually look
   // rather than against a flat green.
-  toggle3d({ label: &#39;terrain shader&#39;, value: false, onChange: (v) =&gt; {
+  toggle3d({ label: &#39;terrain shader&#39;, value: false, handleChange: (v) =&gt; {
     if (ground?.material == null) return
     if (biome == null) biome = attachBiomePlugin(ground.material)
     biome.isEnabled = v
@@ -317,6 +317,7 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
@@ -332,7 +333,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -356,8 +357,9 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -422,13 +424,13 @@ preview.append(
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
-      <li><a class="doc-link current" href="../curve-field/" aria-current="page">curve-field</a></li>
-      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
-      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
-      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link current" href="../curve-field/" aria-current="page">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -445,8 +447,8 @@ preview.append(
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
@@ -493,6 +495,6 @@ preview.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js"></script>
+  <script type="module" src="../hydrate.js?v=0.8.0"></script>
 </body>
 </html>

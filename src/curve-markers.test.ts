@@ -150,7 +150,7 @@ describe('live vs commit', () => {
         { x: 0.5, y: 0.5 },
         { x: 1, y: 1 },
       ],
-      onChange: () => live.push(1),
+      handleChange: () => live.push(1),
       handleCommit: () => commits.push(1),
     })
     c.layout(300)

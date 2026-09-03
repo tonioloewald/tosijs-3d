@@ -1,5 +1,5 @@
 /*#
-# vector-field
+# Coordinate fields
 
 **A coordinate on ONE row.** `vector3d` edits an `{x, y, z}`; `euler3d` edits an
 orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
@@ -61,14 +61,14 @@ const panel = panel3d(
     value: state.pos,
     step: 0.25,
     scrub: 0.02,
-    onChange: (v) => { state.pos = v; show() },
+    handleChange: (v) => { state.pos = v; show() },
   }),
   label3d({ text: 'rotation (degrees)', muted: true, compact: true }),
   euler3d({
     value: state.rot,
     step: 5,
     scrub: 0.5,
-    onChange: (v) => { state.rot = v; show() },
+    handleChange: (v) => { state.rot = v; show() },
   })
 )
 
@@ -98,6 +98,7 @@ preview.append(
 import { svgElements } from 'tosijs'
 import { inputField, type InputField } from './keyboard'
 import { w3dTheme } from './w3d-theme'
+import { handlerOf } from './widgets3d'
 import type { PointerKind, Widget3d } from './widgets3d'
 // The existing one — structurally identical, and a second `Vec3` in the barrel
 // would be a name collision that says nothing.
@@ -209,7 +210,11 @@ function coordinateRow(
         // Write the settled value back when it differs from what was typed, so
         // `190` visibly becomes `-170` rather than being silently reinterpreted.
         if (v !== n) fields[i].setValue(show(v, precision))
-        config.onChange?.({ ...current })
+        handlerOf<(v: any) => void>(
+          config as unknown as Record<string, unknown>,
+          'handleChange',
+          'onChange'
+        )?.({ ...current })
       },
     })
   )
@@ -370,7 +375,7 @@ function identity(n: number): number {
  * Edit an `{x, y, z}` on one row.
  *
  * ```js
- * vector3d({ value: { x: 1, y: 0, z: -3 }, step: 0.25, scrub: 0.02, onChange: (v) => …  })
+ * vector3d({ value: { x: 1, y: 0, z: -3 }, step: 0.25, scrub: 0.02, handleChange: (v) => …  })
  * ```
  */
 export function vector3d(config: Vector3dOptions = {}): VectorField {
@@ -385,7 +390,7 @@ export function vector3d(config: Vector3dOptions = {}): VectorField {
  * `Deg` sibling because there is no radian form to disambiguate from.
  *
  * ```js
- * euler3d({ value: { x: 0, y: 45, z: 0 }, step: 5, scrub: 0.5, onChange: (v) => …  })
+ * euler3d({ value: { x: 0, y: 45, z: 0 }, step: 5, scrub: 0.5, handleChange: (v) => …  })
  * ```
  */
 export function euler3d(config: Vector3dOptions = {}): VectorField {

@@ -1,5 +1,5 @@
 /*#
-# light-modulation
+# Light programs
 
 **A light's whole life as one curve.** Pure, deterministic, Babylon-free — the
 model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
@@ -93,6 +93,36 @@ fluorescent to *cyan* — it needs about 190 to reach amber. Caught on the live
 page doing exactly that. The default 30 is for leaning, not for changing a
 lamp's mind.
 
+## Duration: one number, divided by the markers
+
+The split points already say how the time divides, so stating it three times is
+three chances to disagree. `duration` is the whole curve's time and each segment
+takes the share it occupies — `attackEnd: 0.2, duration: 1` is a 0.2s attack.
+Dragging a marker therefore **retimes the lamp without touching a number**, which
+is what makes the marker feel like it edits the behaviour rather than the shape.
+
+`attack` / `period` / `decay` still override individually, because "a slow fade
+off a fast strike" is a real lamp and a proportion cannot express it.
+
+`DEFAULT_PROGRAM` is up fast, hold, down fast, in one second — a lamp with no
+program switches instantly, which is right for a torch and wrong for nearly
+everything else.
+
+## Presets
+
+`lightPresets` / `lightPreset(name)`: **steady**, **fluorescent**, **flickery**,
+**brownout**, **candle**, **fireplace**.
+
+They are BRIGHTNESS-first on purpose. Colour belongs to the lamp — a candle is
+warm because its `diffuse` is warm — so a preset that forced hue would fight the
+thing it decorates and stop composing with any base colour. The two that do
+touch colour only lean it: a brownout pulls warm because a filament does when
+the voltage sags, and a fire runs yellower in its flares and redder in its lulls.
+
+Their irregularity comes from dissimilar peaks over a period that is not a round
+number — never from randomness, which would cost repeatability, editability and
+testability at once.
+
 ## Flicker is a curve, not a random number
 
 A stepped curve strobes. A spiky attack segment is a fluorescent striking. A slow
@@ -124,12 +154,36 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 export function isAnimated(p) {
     if (p == null)
         return false;
-    const hasClock = (p.attack ?? 0) > 0 || (p.period ?? 0) > 0 || (p.decay ?? 0) > 0;
+    const t = segmentTimes(p);
+    const hasClock = t.attack > 0 || t.period > 0 || t.decay > 0;
     const hasCurve = p.brightness != null ||
         p.range != null ||
         p.saturation != null ||
         p.hue != null;
     return hasClock && hasCurve;
+}
+/**
+ * The three segment times, with `duration` divided by the split points.
+ *
+ * Proportional rather than equal shares: a segment occupying a fifth of the
+ * curve takes a fifth of the time, so the drawing and the timing cannot
+ * disagree — and dragging a marker retimes the lamp without touching a number,
+ * which is what makes the marker feel like it edits the BEHAVIOUR and not just
+ * the shape.
+ *
+ * An explicit `attack`/`period`/`decay` wins, because "a slow fade off a fast
+ * strike" is a real lamp and a proportion cannot express it.
+ */
+export function segmentTimes(p) {
+    if (p == null)
+        return { attack: 0, period: 0, decay: 0 };
+    const { a, b } = splits(p);
+    const d = p.duration ?? 0;
+    return {
+        attack: p.attack ?? d * a,
+        period: p.period ?? d * (b - a),
+        decay: p.decay ?? d * (1 - b),
+    };
 }
 /**
  * Split points, ordered and clamped, so a bad pair cannot invert a segment.
@@ -147,12 +201,11 @@ function splits(p) {
 }
 /** Which segment is playing, given switch state and time since it changed. */
 export function lightPhase(p, on, sinceChange) {
+    const t = segmentTimes(p);
     if (on) {
-        const attack = p?.attack ?? 0;
-        return attack > 0 && sinceChange < attack ? 'attack' : 'sustain';
+        return t.attack > 0 && sinceChange < t.attack ? 'attack' : 'sustain';
     }
-    const decay = p?.decay ?? 0;
-    return decay > 0 && sinceChange < decay ? 'decay' : 'off';
+    return t.decay > 0 && sinceChange < t.decay ? 'decay' : 'off';
 }
 /**
  * Where on the curve to read, in `[0,1]` — or `null` when the lamp is off.
@@ -165,22 +218,23 @@ export function programPosition(p, on, sinceChange) {
     if (p == null)
         return on ? 1 : null;
     const { a, b } = splits(p);
+    const times = segmentTimes(p);
     const phase = lightPhase(p, on, sinceChange);
     if (phase === 'off')
         return null;
     if (phase === 'attack') {
-        return Math.min(1, sinceChange / (p.attack ?? 1)) * a || 0;
+        return Math.min(1, sinceChange / (times.attack || 1)) * a || 0;
     }
     if (phase === 'decay') {
-        const t = Math.min(1, sinceChange / (p.decay ?? 1));
+        const t = Math.min(1, sinceChange / (times.decay || 1));
         return b + t * (1 - b);
     }
     // Sustain. With no period, or no segment to loop over, hold where the attack
     // left off — which IS the sustain level, by construction.
-    const period = p.period ?? 0;
+    const period = times.period;
     if (!(period > 0) || b <= a)
         return a;
-    const since = sinceChange - (p.attack ?? 0);
+    const since = sinceChange - times.attack;
     const turns = since / period + (p.phase ?? 0);
     // `%` keeps the sign of the dividend, so a negative phase offset (a legitimate
     // "start earlier") would read off the wrong end of the segment.
@@ -331,6 +385,26 @@ export function lightProgramSchema(extra = {}) {
         ...extra,
     };
 }
+/**
+ * The non-curve fields of a program, in the order a diff reads best.
+ *
+ * ONE list, used by the canonical form — because it was two lists and they
+ * disagreed. `duration` was added to `LightProgram` after `canonicalProgram`
+ * was written and never added here, so committing an edit silently dropped it,
+ * `isAnimated` went false, and a flickering lamp came back on STEADY. Tonio hit
+ * it twice before it was reproducible, which is what a silent drop buys you.
+ */
+const PROGRAM_SCALARS = [
+    'hueShiftDeg',
+    'saturationScale',
+    'attackEnd',
+    'sustainEnd',
+    'duration',
+    'attack',
+    'period',
+    'decay',
+    'phase',
+];
 /** Canonical bytes for a program: every curve rounded, keys in a fixed order. */
 export function canonicalProgram(p) {
     const out = {};
@@ -342,15 +416,7 @@ export function canonicalProgram(p) {
     }
     // Numbers after curves, and in the order they appear in the timeline, so a
     // diff reads the way the lamp behaves.
-    for (const k of [
-        'hueShiftDeg',
-        'attackEnd',
-        'sustainEnd',
-        'attack',
-        'period',
-        'decay',
-        'phase',
-    ]) {
+    for (const k of PROGRAM_SCALARS) {
         if (p[k] != null)
             out[k] = Math.round(p[k] * 1e4) / 1e4 + 0;
     }
@@ -402,5 +468,224 @@ export function validateProgram(value) {
         }
     }
     return issues;
+}
+// --- Presets ----------------------------------------------------------------
+/**
+ * What a lamp does if you say nothing: up fast, hold, down fast, in a second.
+ *
+ * A lamp with NO program switches instantly, which is right for a torch and
+ * wrong for almost everything else — real lights take a moment, and the moment
+ * is most of what makes them read as objects rather than as settings. One
+ * second is short enough to feel responsive and long enough to see.
+ *
+ * The steep-then-flat-then-steep shape is deliberate: the attack and decay
+ * occupy a tenth of the curve each, so at `duration: 1` they take 0.1s and the
+ * sustain owns the rest.
+ */
+export const DEFAULT_PROGRAM = {
+    brightness: [
+        { x: 0, y: 0 },
+        { x: 0.1, y: 1 },
+        { x: 0.9, y: 1 },
+        { x: 1, y: 0 },
+    ],
+    attackEnd: 0.1,
+    sustainEnd: 0.9,
+    duration: 1,
+};
+/*
+The presets are BRIGHTNESS-first on purpose.
+
+Colour belongs to the lamp — a candle is warm because its `diffuse` is warm —
+so a preset that forced hue would fight the thing it is decorating and stop
+composing with any base colour. The two that do touch colour (candle, fireplace)
+only lean it, and only while burning.
+
+Irregularity comes from dissimilar peaks over a period that is not a round
+number, never from randomness: these have to be repeatable, editable in the
+curve widget, and testable, and `Math.random` would cost all three.
+*/
+export const lightPresets = [
+    {
+        name: 'steady',
+        hint: 'up fast, hold, down fast — the default',
+        build: () => ({ ...DEFAULT_PROGRAM }),
+    },
+    {
+        name: 'fluorescent',
+        hint: 'strikes in stutters, hums, dies red',
+        build: () => ({
+            brightness: [
+                { x: 0, y: 0 },
+                { x: 0.06, y: 0.85 },
+                { x: 0.1, y: 0.05 },
+                { x: 0.17, y: 1 },
+                { x: 0.23, y: 0.08 },
+                { x: 0.3, y: 0.95 },
+                { x: 0.35, y: 1 },
+                { x: 0.45, y: 0.93 },
+                { x: 0.52, y: 1 },
+                { x: 0.63, y: 0.9 },
+                { x: 0.75, y: 1 },
+                { x: 0.8, y: 0.34 },
+                { x: 0.95, y: 0.26 },
+                { x: 1, y: 0 },
+            ],
+            hue: [
+                { x: 0, y: 0.5 },
+                { x: 0.75, y: 0.5 },
+                { x: 0.85, y: 0.04 },
+                { x: 1, y: 0 },
+            ],
+            saturation: [
+                { x: 0, y: 0.2 },
+                { x: 0.75, y: 0.2 },
+                { x: 0.9, y: 1 },
+                { x: 1, y: 1 },
+            ],
+            saturationScale: 5,
+            hueShiftDeg: 190,
+            attackEnd: 0.35,
+            sustainEnd: 0.75,
+            attack: 1.3,
+            period: 3,
+            decay: 3.2,
+        }),
+    },
+    {
+        name: 'flickery',
+        hint: 'a bad connection — never quite steady',
+        build: () => ({
+            brightness: [
+                { x: 0, y: 0 },
+                { x: 0.08, y: 1 },
+                { x: 0.14, y: 0.62 },
+                { x: 0.19, y: 1 },
+                { x: 0.31, y: 0.95 },
+                { x: 0.36, y: 0.35 },
+                { x: 0.4, y: 1 },
+                { x: 0.55, y: 0.88 },
+                { x: 0.61, y: 1 },
+                { x: 0.68, y: 0.45 },
+                { x: 0.72, y: 0.98 },
+                { x: 0.85, y: 1 },
+                { x: 1, y: 0 },
+            ],
+            attackEnd: 0.08,
+            sustainEnd: 0.85,
+            // 0.7s, not 1 — a period that is not a round number is what stops the
+            // eye finding the loop.
+            duration: 0.7,
+        }),
+    },
+    {
+        name: 'brownout',
+        hint: 'sags and recovers, like a grid under load',
+        build: () => ({
+            brightness: [
+                { x: 0, y: 0 },
+                { x: 0.06, y: 1 },
+                { x: 0.25, y: 0.98 },
+                { x: 0.38, y: 0.42 },
+                { x: 0.46, y: 0.38 },
+                { x: 0.58, y: 0.95 },
+                { x: 0.72, y: 1 },
+                { x: 0.8, y: 0.55 },
+                { x: 0.9, y: 1 },
+                { x: 1, y: 0 },
+            ],
+            // The sag pulls warm, the way an incandescent filament does when the
+            // voltage drops — the physical reason a brownout looks orange.
+            hue: [
+                { x: 0, y: 0.5 },
+                { x: 0.38, y: 0.18 },
+                { x: 0.58, y: 0.5 },
+                { x: 1, y: 0.5 },
+            ],
+            hueShiftDeg: 25,
+            attackEnd: 0.06,
+            sustainEnd: 0.9,
+            duration: 6,
+        }),
+    },
+    {
+        name: 'candle',
+        hint: 'small, quick, restless',
+        build: () => ({
+            brightness: [
+                { x: 0, y: 0 },
+                { x: 0.12, y: 0.92 },
+                { x: 0.2, y: 1 },
+                { x: 0.28, y: 0.86 },
+                { x: 0.35, y: 0.97 },
+                { x: 0.44, y: 0.8 },
+                { x: 0.52, y: 1 },
+                { x: 0.61, y: 0.88 },
+                { x: 0.7, y: 0.96 },
+                { x: 0.82, y: 0.84 },
+                { x: 0.9, y: 0.95 },
+                { x: 1, y: 0 },
+            ],
+            hue: [
+                { x: 0, y: 0.5 },
+                { x: 0.44, y: 0.62 },
+                { x: 0.7, y: 0.44 },
+                { x: 0.9, y: 0.58 },
+                { x: 1, y: 0.5 },
+            ],
+            hueShiftDeg: 12,
+            attackEnd: 0.12,
+            sustainEnd: 0.9,
+            duration: 2.3,
+        }),
+    },
+    {
+        name: 'fireplace',
+        hint: 'slower and deeper than a candle, with flares',
+        build: () => ({
+            brightness: [
+                { x: 0, y: 0 },
+                { x: 0.09, y: 0.7 },
+                { x: 0.17, y: 0.55 },
+                { x: 0.26, y: 1 },
+                { x: 0.34, y: 0.62 },
+                { x: 0.43, y: 0.78 },
+                { x: 0.5, y: 0.5 },
+                { x: 0.59, y: 0.86 },
+                { x: 0.67, y: 0.58 },
+                { x: 0.76, y: 1 },
+                { x: 0.85, y: 0.64 },
+                { x: 0.92, y: 0.75 },
+                { x: 1, y: 0 },
+            ],
+            hue: [
+                { x: 0, y: 0.5 },
+                { x: 0.26, y: 0.66 },
+                { x: 0.5, y: 0.38 },
+                { x: 0.76, y: 0.68 },
+                { x: 0.92, y: 0.46 },
+                { x: 1, y: 0.5 },
+            ],
+            // A fire's colour moves with its brightness — the flares run yellower,
+            // the lulls redder — so the saturation follows the dips rather than
+            // sitting flat.
+            saturation: [
+                { x: 0, y: 1 },
+                { x: 0.26, y: 0.8 },
+                { x: 0.5, y: 1.0 },
+                { x: 0.76, y: 0.78 },
+                { x: 1, y: 1 },
+            ],
+            saturationScale: 1.4,
+            hueShiftDeg: 20,
+            attackEnd: 0.09,
+            sustainEnd: 0.92,
+            duration: 4.7,
+        }),
+    },
+];
+/** Look one up by name. Unknown names give `undefined` rather than throwing. */
+export function lightPreset(name) {
+    return lightPresets.find((p) => p.name === name)?.build();
 }
 //# sourceMappingURL=light-modulation.js.map

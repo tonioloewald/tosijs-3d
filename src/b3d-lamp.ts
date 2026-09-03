@@ -1,5 +1,5 @@
 /*#
-# b3d-lamp
+# Lamps
 
 **Lights you can see.** `b3dPointLight`, `b3dSpotLight` and `b3dAreaLight` are
 placed lights that come with their own fixture geometry, cast shadows where

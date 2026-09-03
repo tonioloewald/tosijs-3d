@@ -15,6 +15,7 @@
   <url><loc>https://3d.tosijs.net/widgets3d/</loc></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
   <url><loc>https://3d.tosijs.net/light-modulation/</loc></url>
+  <url><loc>https://3d.tosijs.net/province-climate/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
   <url><loc>https://3d.tosijs.net/make-mesh/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard/</loc></url>
@@ -32,6 +33,7 @@
   <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/w3d-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
+  <url><loc>https://3d.tosijs.net/scene-schemas/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-aircraft/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-ambient/</loc></url>
@@ -137,8 +139,8 @@
   <url><loc>https://3d.tosijs.net/text-edit/</loc></url>
   <url><loc>https://3d.tosijs.net/touch-gamepad/</loc></url>
   <url><loc>https://3d.tosijs.net/virtual-gamepad/</loc></url>
-  <url><loc>https://3d.tosijs.net/widget-box/</loc></url>
   <url><loc>https://3d.tosijs.net/widgets3d-layout/</loc></url>
+  <url><loc>https://3d.tosijs.net/widget-box/</loc></url>
   <url><loc>https://3d.tosijs.net/world-contract/</loc></url>
   <url><loc>https://3d.tosijs.net/world-topology/</loc></url>
   <url><loc>https://3d.tosijs.net/xr-gamepad/</loc></url>

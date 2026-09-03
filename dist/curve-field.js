@@ -1,5 +1,5 @@
 /*#
-# curve-field
+# Curve editor
 
 **`curve3d` — an editor for a continuous `[0,1] → [0,1]`.** A `Widget3d`, so it
 works as a flat DOM overlay, on an in-scene panel, and in a headset without
@@ -161,7 +161,7 @@ const menu = (widget, kind, value) =>
   select3d({
     value,
     options: presetsFor(kind).map((p) => p.name),
-    onChange: (name) => { widget.applyPreset(name); rebuild() },
+    handleChange: (name) => { widget.applyPreset(name); rebuild() },
   })
 
 const panel = panel3d(
@@ -169,20 +169,20 @@ const panel = panel3d(
   label3d({ text: 'province editor', bold: true }),
   shape,
   menu(shape, 'profile', 'no change'),
-  button3d({ label: 'delete selected point', onClick: () => shape.deleteSelected() }),
+  button3d({ label: 'delete selected point', handleClick: () => shape.deleteSelected() }),
   falloff,
   menu(falloff, 'falloff', 'linear'),
-  button3d({ label: 'delete selected point', onClick: () => falloff.deleteSelected() }),
+  button3d({ label: 'delete selected point', handleClick: () => falloff.deleteSelected() }),
   footprint,
   menu(footprint, 'radial', 'hexagon'),
-  slider3d({ label: 'block height', min: 1, max: 16, value: state.height, onChange: (v) => { state.height = v; rebuild() } }),
-  slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, onChange: (v) => { state.extent = v; rebuild() } }),
-  slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, onChange: (v) => { state.noise = v; rebuild() } }),
-  toggle3d({ label: 'wireframe', value: false, onChange: (v) => { if (ground?.material) ground.material.wireframe = v } }),
+  slider3d({ label: 'block height', min: 1, max: 16, value: state.height, handleChange: (v) => { state.height = v; rebuild() } }),
+  slider3d({ label: 'extent', min: 0.2, max: 1, value: state.extent, handleChange: (v) => { state.extent = v; rebuild() } }),
+  slider3d({ label: 'noise scale', min: 0.2, max: 4, value: state.noise, handleChange: (v) => { state.noise = v; rebuild() } }),
+  toggle3d({ label: 'wireframe', value: false, handleChange: (v) => { if (ground?.material) ground.material.wireframe = v } }),
   // The real biome shader, on this block's material — the same one b3d-terrain
   // puts on a tile, so the province is judged against how it will actually look
   // rather than against a flat green.
-  toggle3d({ label: 'terrain shader', value: false, onChange: (v) => {
+  toggle3d({ label: 'terrain shader', value: false, handleChange: (v) => {
     if (ground?.material == null) return
     if (biome == null) biome = attachBiomePlugin(ground.material)
     biome.isEnabled = v
@@ -281,6 +281,7 @@ preview.append(
 import { svgElements } from 'tosijs';
 import { deletePoint, evaluateCurve, insertPoint, linear, movePoint, moveMarker, normalizeMarkers, normalizeCurve, canonicalCurve, presetsFor, falloffDefault, } from './curve';
 import { w3dTheme } from './w3d-theme';
+import { handlerOf } from './widgets3d';
 const { g, rect, path, circle, text } = svgElements;
 /**
  * Make a shared marker set.
@@ -451,7 +452,9 @@ export function curve3d(config = {}) {
         return best;
     };
     const emit = () => {
-        api.onChange?.(points.map((p) => ({ ...p })));
+        const cb = api.handleChange ??
+            handlerOf(api, 'handleChange', 'onChange');
+        cb?.(points.map((p) => ({ ...p })));
     };
     const drawHandles = () => {
         while (handles.firstChild)
@@ -574,6 +577,7 @@ export function curve3d(config = {}) {
     };
     const api = {
         el,
+        handleChange: config.handleChange,
         onChange: config.onChange,
         handleCommit: config.handleCommit,
         layout(width) {

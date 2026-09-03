@@ -1,5 +1,5 @@
 /*#
-# footprint-field
+# Footprint editor
 
 **`footprint3d` — edit a province's footprint as the shape it is.** A polygon
 drawn inside a square, vertices you drag where they actually are. The rules live
@@ -44,6 +44,7 @@ import {
   type ControlPoint,
 } from './curve'
 import { w3dTheme } from './w3d-theme'
+import { handlerOf } from './widgets3d'
 import type { PointerKind, Widget3d } from './widgets3d'
 
 const { g, rect, path, circle: svgCircle, text } = svgElements
@@ -53,6 +54,8 @@ export interface Footprint3dOptions {
   value?: ControlPoint[] | string | number
   label?: string
   /** Fired after any edit. */
+  handleChange?: (vertices: ControlPoint[]) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (vertices: ControlPoint[]) => void
 }
 
@@ -64,6 +67,9 @@ export interface FootprintField extends Widget3d {
   readonly selected: number
   deleteSelected: () => void
   applyPreset: (name: string) => void
+  /** Fired after any edit. */
+  handleChange?: (vertices: ControlPoint[]) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (vertices: ControlPoint[]) => void
 }
 
@@ -138,7 +144,14 @@ export function footprint3d(config: Footprint3dOptions = {}): FootprintField {
   }
 
   const emit = (): void => {
-    api.onChange?.(verts.map((v) => ({ ...v })))
+    const cb =
+      api.handleChange ??
+      handlerOf<(v: ControlPoint[]) => void>(
+        api as unknown as Record<string, unknown>,
+        'handleChange',
+        'onChange'
+      )
+    cb?.(verts.map((v) => ({ ...v })))
   }
 
   const nearestPx = (px: number, py: number): number => {
@@ -207,6 +220,7 @@ export function footprint3d(config: Footprint3dOptions = {}): FootprintField {
 
   const api: FootprintField = {
     el,
+    handleChange: config.handleChange,
     onChange: config.onChange,
 
     layout(width: number) {

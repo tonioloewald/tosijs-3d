@@ -23,6 +23,33 @@ export declare function createSvgIcons(data?: IconMap, aliases?: IconMap): Recor
 /** Names of the icons with real artwork (excludes pure redirect entries). */
 export declare function iconNames(data?: IconMap): string[];
 /**
+ * Add icons a consumer owns, so the widgets can resolve them by name.
+ *
+ * ```js
+ * registerIcons({
+ *   sceneZone: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+ *   sceneMarker: 'mapPin',   // a REDIRECT: an alias for an icon that exists
+ * })
+ * iconGrid3d({ items: [{ icon: 'sceneZone', label: 'zone' }] })
+ * ```
+ *
+ * A value starting with `<` is artwork; anything else is a redirect to another
+ * name, which is how the built-in mirrors work and how you alias one of ours to
+ * a name from your own vocabulary.
+ *
+ * **Registering over an existing name replaces it**, deliberately and without a
+ * warning: swapping our `camera` for one that matches your art is a reasonable
+ * thing to want, and a warning on a deliberate act is noise. Nothing is
+ * removed, so a name you did not register still resolves.
+ *
+ * Values are TRIMMED, because `icon-data` stores every entry with a trailing
+ * space and a redirect is re-parsed as a name where that space is fatal — it
+ * silently broke every mirrored icon once already (#54).
+ */
+export declare function registerIcons(icons: IconMap): void;
+/** Is this a name a consumer registered, rather than one we shipped? */
+export declare function isRegisteredIcon(name: string): boolean;
+/**
  * Can this name be drawn?
  *
  * Asks the same resolver the drawing code uses, so it answers for the whole icon

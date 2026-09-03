@@ -32,6 +32,7 @@ export declare abstract class B3dLamp extends B3dChild {
         geometryScale: number;
         url: string;
         shadows: string;
+        timeSource: string;
         /** `0` = auto — resolved against the device tier, like every other budget. */
         shadowTextureSize: number;
     };
@@ -47,6 +48,7 @@ export declare abstract class B3dLamp extends B3dChild {
     geometryScale: number;
     url: string;
     shadows: string;
+    timeSource: string;
     shadowTextureSize: number;
     owner: B3d | null;
     light?: BABYLON.Light;
@@ -57,6 +59,8 @@ export declare abstract class B3dLamp extends B3dChild {
     private _shadowOff;
     /** Fixture materials, repainted each frame to track the light. */
     private _fixtureMats;
+    /** Built once, then shown/hidden — see `syncGeometry`. */
+    private _fixtureBuilt;
     /**
      * The lamp's whole behaviour as one curve per channel — attack, sustain and
      * decay are regions of it, split by `attackEnd` / `sustainEnd`.
@@ -66,6 +70,8 @@ export declare abstract class B3dLamp extends B3dChild {
     protected baseRange: number;
     protected baseColor: BABYLON.Color3;
     private _elapsed;
+    /** Last real-time reading, for the `'real'` clock. */
+    private _lastRealMs;
     private _switchAt;
     private _wasOn;
     private _tick?;
@@ -76,6 +82,21 @@ export declare abstract class B3dLamp extends B3dChild {
     protected abstract createGeometry(scene: BABYLON.Scene): BABYLON.Mesh | null;
     protected get isOn(): boolean;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
+    /**
+     * Show, hide, or lazily build the fixture to match `geometry`.
+     *
+     * Called every render, because `geometry` was read once at scene-ready and
+     * toggling it did nothing — the THIRD attribute in this component to accept a
+     * write and quietly ignore it (`shadows` and the gel were the others). The
+     * pattern is worth naming: anything read only in `sceneReady` is a set-once
+     * attribute wearing a live attribute's clothes.
+     *
+     * Hiding rather than disposing, because the fixture is cheap to keep and a
+     * rebuild would drop a `url` fixture's loaded meshes and re-fetch them. Built
+     * lazily on first show so a lamp that starts `geometry="off"` never pays for
+     * geometry it was told not to make.
+     */
+    private syncGeometry;
     private buildFixture;
     /**
      * An UNLIT emissive material for the fixture.
@@ -117,6 +138,14 @@ export declare abstract class B3dLamp extends B3dChild {
     /** Keep the Babylon light on the node. Overridden where direction matters. */
     protected positionLight(): void;
     sceneDispose(): void;
+    /**
+     * Seconds to advance the program by, on whichever clock this lamp uses.
+     *
+     * Clamped like every other delta here: a tab that was backgrounded for a
+     * minute would otherwise hand the program a 60-second step and fast-forward
+     * the whole thing on the frame you came back.
+     */
+    private tickSeconds;
 }
 export declare class B3dPointLight extends B3dLamp {
     static preferredTagName: string;
@@ -130,6 +159,44 @@ export declare class B3dSpotLight extends B3dLamp {
         /** Cone angle in DEGREES — the authoring unit (see CLAUDE.md's Deg rule). */
         angle: number;
         exponent: number;
+        /**
+         * Inner cone angle in DEGREES — where the edge starts to fade.
+         *
+         * `0` (default) leaves the cone on Babylon's standard falloff, shaped by
+         * `exponent`. Anything above `0` gives a true PENUMBRA: full brightness
+         * inside `innerAngle`, fading to nothing at `angle`. Bring them together
+         * for a hard-edged theatre spot; spread them for a soft pool.
+         *
+         * Setting it switches the light to the glTF falloff model, because that is
+         * the only one Babylon reads `innerAngle` in — exposing the number without
+         * the switch would be an attribute that accepts a write and does nothing,
+         * which this component has already shipped once (see `shadows`).
+         */
+        innerAngle: number;
+        /**
+         * Cone cross-section: `'circle'` (default), `'square'`, or `'none'`.
+         *
+         * Babylon's spot is ALWAYS a circular cone — there is no square spot — so
+         * a shape is projected as a gel. `'none'` leaves the cone bare.
+         *
+         * ⚠️ It therefore uses the same slot as `gel`/`gelSvg`. An explicit gel
+         * wins and the shape is ignored, because a gel is a picture the author
+         * chose and a shape is a default we generated.
+         */
+        shape: string;
+        /**
+         * Width / height of the shape. `1` is round or square; `2` is twice as
+         * wide as it is tall, which is how you get an ellipse or a letterbox.
+         */
+        shapeAspect: number;
+        /**
+         * How soft the shape's edge is, `0..1` as a fraction of its radius.
+         *
+         * A generated shape needs its own softness because it is a stencil: a hard
+         * white square on black gives a hard edge no matter what `exponent` or
+         * `innerAngle` say, so the cone's falloff and the gel's would disagree.
+         */
+        shapeSoftness: number;
         /** Direction the cone points. Default is straight down. */
         dirX: number;
         dirY: number;
@@ -159,17 +226,24 @@ export declare class B3dSpotLight extends B3dLamp {
         geometryScale: number;
         url: string;
         shadows: string;
+        timeSource: string;
         /** `0` = auto — resolved against the device tier, like every other budget. */
         shadowTextureSize: number;
     };
     angle: number;
     exponent: number;
+    innerAngle: number;
+    shape: string;
+    shapeAspect: number;
+    shapeSoftness: number;
     dirX: number;
     dirY: number;
     dirZ: number;
     gel: string;
     gelSvg: string | SVGSVGElement;
     private _gelTexture?;
+    /** Source signature of the current gel — see `syncGel`. */
+    private _gelKey;
     protected createLight(scene: BABYLON.Scene): BABYLON.Light;
     /**
      * The gel — Babylon's `projectionTexture`, which only a SpotLight has.
@@ -178,6 +252,30 @@ export declare class B3dSpotLight extends B3dLamp {
      * panel can be a window, a leaf canopy or a venetian blind. Rasterized once
      * (`updateInterval: 0`) because a gel is a stencil, not a live surface.
      */
+    /**
+     * An SVG stencil for the cone's cross-section.
+     *
+     * White is lit, black is not — a projection texture multiplies the light, so
+     * the shape is literally a mask. The soft edge is a Gaussian blur rather than
+     * a gradient so the SAME code feathers a square and a circle; a gradient
+     * would need a different construction per shape and they would not match.
+     *
+     * Drawn oversized and blurred INWARD from a margin, because a blur at the
+     * viewBox edge clips and leaves a hard line exactly where the softness was
+     * supposed to be.
+     */
+    private shapeGelSvg;
+    /**
+     * Rebuild the gel only when its SOURCE changed.
+     *
+     * Called every render, because `shape` / `shapeAspect` / `gel` / `gelSvg` all
+     * look like editable attributes and would otherwise be set-once — the exact
+     * "accepts a write, keeps the value, does nothing" failure this component
+     * already shipped with `shadows`. Keyed on the source string, so a repaint
+     * costs a string comparison rather than a texture.
+     */
+    private syncGel;
+    private gelKey;
     private applyGel;
     protected createGeometry(scene: BABYLON.Scene): BABYLON.Mesh;
     protected positionLight(): void;
@@ -210,6 +308,7 @@ export declare class B3dAreaLight extends B3dLamp {
         geometryScale: number;
         url: string;
         shadows: string;
+        timeSource: string;
         /** `0` = auto — resolved against the device tier, like every other budget. */
         shadowTextureSize: number;
     };

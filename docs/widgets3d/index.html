@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
   <title>widgets3d — tosijs-3d</title>
   <meta name="description" content="A small collection of SVG-native UI widgets with element-creator ergonomics (built on tosijs&#39;s svgElements proxy, the same way [[gamepad-svg]] is)." />
   <link rel="canonical" href="https://3d.tosijs.net/widgets3d/" />
@@ -76,14 +76,14 @@ const panel = panel3d(
   label3d({ text: &#39;Scene settings&#39; }),
   slider3d({ label: &#39;time of day&#39;, value: ui.time, min: 0, max: 24, step: 0.5 }),
   toggle3d({ label: &#39;fog&#39;, value: ui.fog }),
-  button3d({ label: &#39;Reset&#39;, onClick: () =&gt; { ui.time.value = 8; ui.fog.value = true } }),
+  button3d({ label: &#39;Reset&#39;, handleClick: () =&gt; { ui.time.value = 8; ui.fog.value = true } }),
   text3d({ text: &#39;Drag the slider — the native control below is bound to the same value.&#39; }),
   list3d({
     items: [{ label: &#39;Talk&#39; }, { label: &#39;Trade&#39; }, { label: &#39;Leave&#39; }],
     // Reports on the PAGE, not to the console: a demo you must open devtools to
     // read is one most people never see the output of — and it spams the console
     // of every page that embeds it.
-    onSelect: (item) =&gt; (readout.textContent = `picked: ${item.label}`),
+    handleSelect: (item) =&gt; (readout.textContent = `picked: ${item.label}`),
   })
 )
 
@@ -135,7 +135,7 @@ test(&#39;toggle flips its bound value when the switch is clicked&#39;, async ()
 
 test(&#39;button fires onClick on release&#39;, () =&gt; {
   let clicked = false
-  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: &#39;Go&#39;, onClick: () =&gt; { clicked = true } }))
+  const panel = panel3d({ width: 300, height: 100 }, button3d({ label: &#39;Go&#39;, handleClick: () =&gt; { clicked = true } }))
   preview.append(panel)
   panel.handlePointer(&#39;down&#39;, 150, 30)
   panel.handlePointer(&#39;up&#39;, 150, 30)
@@ -146,8 +146,8 @@ test(&#39;iconBar toggles the icon under the pointer on release&#39;, () =&gt; {
   const hits = []
   const panel = panel3d({ width: 300, height: 100 }, iconBar3d({
     items: [
-      { icon: &#39;barChart2&#39;, onClick: () =&gt; hits.push(&#39;perf&#39;) },
-      { icon: &#39;bug&#39;, onClick: () =&gt; hits.push(&#39;bug&#39;) },
+      { icon: &#39;barChart2&#39;, handleClick: () =&gt; hits.push(&#39;perf&#39;) },
+      { icon: &#39;bug&#39;, handleClick: () =&gt; hits.push(&#39;bug&#39;) },
     ],
   }))
   preview.append(panel)
@@ -162,7 +162,7 @@ test(&#39;list selects the clicked row&#39;, () =&gt; {
   const picks = []
   const panel = panel3d({ width: 300, height: 200 }, list3d({
     items: [{ label: &#39;A&#39; }, { label: &#39;B&#39; }],
-    onSelect: (item) =&gt; picks.push(item.label),
+    handleSelect: (item) =&gt; picks.push(item.label),
   }))
   preview.append(panel)
   // The second 40px row: viewBox y = padding(12) + ~58 lands in row B.
@@ -202,7 +202,7 @@ const panel = panel3d(
   slider3d({ label: &#39;hue&#39;, value: hud.hue, min: 0, max: 360, step: 1 }),
   toggle3d({ label: &#39;glow&#39;, value: hud.glow }),
   // independent of the slider while debugging — just logs which row was picked.
-  list3d({ items: Object.keys(HUES).map((label) =&gt; ({ label })), onSelect: (i) =&gt; console.log(&#39;list picked:&#39;, i.label) })
+  list3d({ items: Object.keys(HUES).map((label) =&gt; ({ label })), handleSelect: (i) =&gt; console.log(&#39;list picked:&#39;, i.label) })
 )
 // Show it as a DOM overlay too (top-right) — the SAME panel object, so you can
 // compare the in-DOM and on-plane surfaces side by side. It&#39;s also the texture
@@ -347,6 +347,12 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 </tr>
 <tr>
 <td></td>
+<td><strong><code>zeroStop</code></strong></td>
+<td><code>false</code></td>
+<td>an explicit <code>0</code> at the bottom of a log track; <code>min</code> becomes the log floor</td>
+</tr>
+<tr>
+<td></td>
 <td><strong><code>step</code></strong></td>
 <td><code>0</code></td>
 <td><strong>quantises the drag and the value</strong>; <code>0</code> is continuous</td>
@@ -463,6 +469,17 @@ about which tool is live.</li>
 <p><strong>On a field</strong>: <code>type</code>, <code>keyboardMode</code>, <code>isValid()</code>, <code>commit()</code>, plus the edit
 protocol (<code>insert</code>, <code>action</code>, <code>setValue</code>, <code>moveCaret</code>). <code>fieldGroup</code> manages
 several of them — exclusivity, commit-on-leave and keyboard layout.</p>
+<h2>Callbacks are <code>handleX</code>, not <code>onX</code></h2>
+<p><code>handleChange</code>, <code>handleClick</code>, <code>handleSelect</code>. The old <code>onX</code> spellings still
+work through 0.8.x and warn once, and are removed in 0.9.</p>
+<p>Not a style preference. These are plain factory functions today, where <code>onX</code> is
+harmless — but the moment one becomes a tosijs COMPONENT, the element creator
+binds an <code>on*</code> prop as a DOM event <strong>listener</strong> and the class field is silently
+never called. No error, no warning, a callback that simply never fires; it has
+already cost this project a long debugging detour. <code>handleX</code> cannot be mistaken
+for an event name, so the rename removes the trap rather than documenting it.</p>
+<p>Giving both, the new one wins and the old one is not called — so there is no
+ambiguity about which fires and no double-firing.</p>
 <h2>Log sliders — for anything spanning orders of magnitude</h2>
 <p><code>scale: &#39;log&#39;</code> gives every DECADE equal travel; <code>scale: &#39;log2&#39;</code> every octave.
 Reach for one whenever the useful values are multiplicative rather than
@@ -472,6 +489,8 @@ frequency, a zoom factor.</p>
 percent of the track. Tonio, on the light editor: <em>&quot;the intensity slider goes
 from 0 to 1000 with very little wiggle-room in 0-1.&quot;</em></p>
 <pre><code class="language-javascript">slider3d({ label: &#39;intensity&#39;, value: 2, min: 0.01, max: 1000, scale: &#39;log&#39; })
+// A rate that can also be OFF — 0 is the default and must stay reachable.
+slider3d({ label: &#39;sky speed&#39;, value: 0, min: 0.1, max: 3600, scale: &#39;log&#39;, zeroStop: true })
 slider3d({ label: &#39;noise scale&#39;, value: 0.05, min: 0.001, max: 10, scale: &#39;log&#39; })
 slider3d({ label: &#39;grid&#39;, value: 16, min: 1, max: 256, scale: &#39;log2&#39;, step: 1 })
 </code></pre>
@@ -486,6 +505,13 @@ grid size a whole number however it was reached.</li>
 they differ only in what a step means. A range including zero falls back to
 linear rather than producing NaN, because a slider that silently stops working
 is worse than one that is merely the wrong shape.</p>
+<p><strong><code>zeroStop</code> when the quantity has an explicit OFF.</strong> A log scale cannot
+represent zero, but plenty of decade-spanning values can be switched off — a
+sky&#39;s <code>realtimeScale</code> (0 is a still sky, and it is the default), fog density,
+wind speed, any rate. Without it the default becomes unreachable the moment you
+touch the control. With it, the bottom slice of the track IS zero and <code>min</code>
+means the log floor; the handle catches at off rather than approaching it
+asymptotically.</p>
 <h2>Theming</h2>
 <p>Widget colours, font, and weights are driven by <code>--w3d-*</code> CSS variables with
 sensible defaults. Set them on <code>:root</code> (or any ancestor of the flat overlay)
@@ -569,6 +595,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
@@ -584,7 +611,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -608,8 +635,9 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -674,13 +702,13 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
-      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
-      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
-      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
-      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -697,8 +725,8 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
@@ -745,6 +773,6 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js"></script>
+  <script type="module" src="../hydrate.js?v=0.8.0"></script>
 </body>
 </html>

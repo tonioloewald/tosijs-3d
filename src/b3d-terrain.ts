@@ -108,7 +108,7 @@ const scene = b3d(
       toggle3d({
         label: 'volcano province',
         value: demo.volcano,
-        onChange: (on) => {
+        handleChange: (on) => {
           const v = volcano({ x: 600, z: -400, radius: 420, height: 260, craterRadius: 90, craterDepth: 80 })
           terrain.landform = on ? v.landform : null
           terrain.provinceField = on ? v.province : null

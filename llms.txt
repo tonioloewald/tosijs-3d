@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.8
+# tosijs-3d v0.8.0
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -70,8 +70,6 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Focus manager that wires input to the active controllable entity and handles
 - https://3d.tosijs.net/b3d-interactive/ — b3d-interactive
   callback or by bubbling event. It is the substrate doors, knobs, switches,
-- https://3d.tosijs.net/b3d-lamp/ — b3d-lamp
-  placed lights that come with their own fixture geometry, cast shadows where
 - https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
   Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
 - https://3d.tosijs.net/b3d-library/ — b3d-library
@@ -142,13 +140,13 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Damage, destruction, and weapons — pure deterministic models (`destroyable` /
 - https://3d.tosijs.net/control-input/ — control-input
   Universal input abstraction for controllable entities. Any entity (biped, car, helicopter, etc.)
+- https://3d.tosijs.net/vector-field/ — Coordinate fields
+  orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
 - https://3d.tosijs.net/core/ — Core
 - https://3d.tosijs.net/curve/ — curve
   `[0,1]` to itself, as sorted control points, with the editing rules that keep it
-- https://3d.tosijs.net/curve-field/ — curve-field
+- https://3d.tosijs.net/curve-field/ — Curve editor
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
-- https://3d.tosijs.net/curve-program/ — curve-program
-  several curves that share one pair of split markers.** One `Widget3d`, one
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
@@ -161,7 +159,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/environment/ — Environment
 - https://3d.tosijs.net/flow-layout/ — flow-layout
   Pure **flow layout** math — the CSS block + inline-block model, in SVG user
-- https://3d.tosijs.net/footprint-field/ — footprint-field
+- https://3d.tosijs.net/footprint-field/ — Footprint editor
   drawn inside a square, vertices you drag where they actually are. The rules live
 - https://3d.tosijs.net/formations/ — formations
   Pure, deterministic **placement patterns** — where the members of an encounter stand relative
@@ -185,7 +183,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Driver for the aircraft HUD SVG (`static/aircraft-hud.svg`, normalized for control):
 - https://3d.tosijs.net/hud-math/ — hud-math
   Pure, dependency-free math for the aircraft HUD (see `static/aircraft-hud.svg`):
-- https://3d.tosijs.net/icon-grid/ — icon-grid
+- https://3d.tosijs.net/icon-grid/ — Icon grid
   picker.** A grid of icons with optional captions, as a `Widget3d`, so it works
 - https://3d.tosijs.net/icon-name/ — icon-name
   Pure parsing of the **icon composition suffix grammar** — the tail modifiers that
@@ -201,13 +199,17 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **on-screen keyboard and text field** — the typing surface for a headset, where
 - https://3d.tosijs.net/keyboard-gamepad/ — keyboard-gamepad
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
+- https://3d.tosijs.net/b3d-lamp/ — Lamps
+  placed lights that come with their own fixture geometry, cast shadows where
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
-- https://3d.tosijs.net/light-editor/ — light-editor
+- https://3d.tosijs.net/light-editor/ — Light editor
   edits what a light *is* (type, colour, intensity, range, shadows) alongside what
-- https://3d.tosijs.net/light-modulation/ — light-modulation
+- https://3d.tosijs.net/curve-program/ — Light program editor
+  several curves that share one pair of split markers.** One `Widget3d`, one
+- https://3d.tosijs.net/light-modulation/ — Light programs
   model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
-- https://3d.tosijs.net/light-settings/ — light-settings
+- https://3d.tosijs.net/light-settings/ — Light settings (data)
   and its validator. No DOM, no Babylon, no widget.
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
@@ -236,13 +238,13 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   see-through portals: a doorway that shows another place, and shows it *while you
 - https://3d.tosijs.net/prefab/ — prefab
   A **prefab** is a named factory that instantiates *a package of stuff* at a pose — the
-- https://3d.tosijs.net/province-climate/ — province-climate
+- https://3d.tosijs.net/province-climate/ — Province climate
   a curve over normalised distance from the province's centre. Pure: no DOM, no
 - https://3d.tosijs.net/radar/ — radar.ts
   The **pure, deterministic radar model** — range + detection cone + lock acquisition,
 - https://3d.tosijs.net/rounded-rect/ — rounded-rect
   generation for in-scene UI panels.
-- https://3d.tosijs.net/scene-schemas/ — scene-schemas
+- https://3d.tosijs.net/scene-schemas/ — Scene schemas
   attributes.** No DOM, no Babylon — importable from a headless runner.
 - https://3d.tosijs.net/selection/ — selection
   The **selection-state glyph**: `circle` / `checkCircle` for single-select (radio),
@@ -276,8 +278,6 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/ui/ — UI
   SVG and takes pointer input as *coordinates*, never as DOM events. That single
 - https://3d.tosijs.net/utilities/ — Utilities
-- https://3d.tosijs.net/vector-field/ — vector-field
-  orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a
 - https://3d.tosijs.net/vehicles/ — Vehicles
 - https://3d.tosijs.net/virtual-gamepad/ — virtual-gamepad
   Standardized virtual gamepad abstraction. All input sources (keyboard, hardware gamepad,
@@ -285,12 +285,12 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The **one** place the `--w3d-*` theme variables are read. Every SVG-UI module
 - https://3d.tosijs.net/water-normal/ — water-normal
   field → per-texel surface normal → a `DynamicTexture` Babylon's `WaterMaterial`
+- https://3d.tosijs.net/widgets3d-layout/ — Widget layout maths
+  Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 - https://3d.tosijs.net/widget-box/ — widget-box
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
-- https://3d.tosijs.net/widgets3d-layout/ — widgets3d-layout
-  Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 - https://3d.tosijs.net/world-sim/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**

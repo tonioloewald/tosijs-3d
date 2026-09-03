@@ -708,7 +708,7 @@ export class B3dDeath extends B3dChild {
             ? [
                 button3d({
                   label: 'Respawn',
-                  onClick: () => this.resume(() => this.respawn?.()),
+                  handleClick: () => this.resume(() => this.respawn?.()),
                 }),
               ]
             : [label3d({ text: 'no way back', muted: true })]),

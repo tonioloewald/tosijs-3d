@@ -1,5 +1,5 @@
 /*#
-# footprint-field
+# Footprint editor
 
 **`footprint3d` — edit a province's footprint as the shape it is.** A polygon
 drawn inside a square, vertices you drag where they actually are. The rules live
@@ -35,6 +35,7 @@ that refuses to move looks broken.
 import { svgElements } from 'tosijs';
 import { MIN_EXTENT, moveVertex, ngon, polygonExtent, presetsFor, polygonVertices, } from './curve';
 import { w3dTheme } from './w3d-theme';
+import { handlerOf } from './widgets3d';
 const { g, rect, path, circle: svgCircle, text } = svgElements;
 function initialVertices(value) {
     if (Array.isArray(value))
@@ -101,7 +102,9 @@ export function footprint3d(config = {}) {
         };
     };
     const emit = () => {
-        api.onChange?.(verts.map((v) => ({ ...v })));
+        const cb = api.handleChange ??
+            handlerOf(api, 'handleChange', 'onChange');
+        cb?.(verts.map((v) => ({ ...v })));
     };
     const nearestPx = (px, py) => {
         let best = -1;
@@ -154,6 +157,7 @@ export function footprint3d(config = {}) {
     };
     const api = {
         el,
+        handleChange: config.handleChange,
         onChange: config.onChange,
         layout(width) {
             const pad = Math.max(2, Math.round(w3dTheme.spacing * 0.5));

@@ -113,9 +113,9 @@ const scene = b3d(
     // physics playground is fully controllable from inside VR too.
     scenePanel: () => [
       label3d({ text: 'Physics' }),
-      button3d({ label: 'Explode!', onClick: doExplode }),
-      button3d({ label: 'Drop!', onClick: () => { if (!dropSphere) createDropSphere() } }),
-      toggle3d({ label: 'show colliders', value: false, onChange: (v) => { physics.debug = v } }),
+      button3d({ label: 'Explode!', handleClick: doExplode }),
+      button3d({ label: 'Drop!', handleClick: () => { if (!dropSphere) createDropSphere() } }),
+      toggle3d({ label: 'show colliders', value: false, handleChange: (v) => { physics.debug = v } }),
     ],
     sceneCreated(el, BABYLON) {
       babylon = BABYLON

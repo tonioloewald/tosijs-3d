@@ -1,5 +1,5 @@
 /*#
-# light-editor
+# Light editor
 
 **`lightEditor3d` — the whole lamp, not just its curves.** A `Widget3d` that
 edits what a light *is* (type, colour, intensity, range, shadows) alongside what
@@ -41,8 +41,9 @@ the switch it was.
 */
 /*{ "parent": "UI", "order": 264 }*/
 import { svgElements } from 'tosijs';
-import { label3d, slider3d, toggle3d, select3d, } from './widgets3d';
+import { offsetHost, label3d, slider3d, toggle3d, select3d, } from './widgets3d';
 import { curveProgram3d } from './curve-program';
+import { lightPreset, lightPresets } from './light-modulation';
 import { DEFAULT_LIGHT, } from './light-settings';
 import { stackLayout } from './widgets3d-layout';
 const { g } = svgElements;
@@ -82,12 +83,14 @@ export function lightEditor3d(config = {}) {
         step,
         showValue: 'always',
         ...extra,
-        onChange: (v) => {
+        handleChange: (v) => {
             s = { ...s, [key]: v };
             emit(`set light ${key}`, true);
         },
     });
     const rows = [
+        // Opt-IN guidance, and nothing when it is absent.
+        ...(config.hint ? [label3d({ text: config.hint, muted: true })] : []),
         // The switch FIRST: it is the control you reach for while watching the
         // program, and burying it under six sliders would hide the thing the
         // program editor exists to demonstrate.
@@ -96,11 +99,10 @@ export function lightEditor3d(config = {}) {
         // because a control's label should name the control — a label carrying an
         // instruction reads as part of the sentence and stops looking like a
         // switch, which is how the first version went unrecognised.
-        label3d({ text: 'flip it to watch the attack and decay', muted: true }),
         toggle3d({
             label: 'power',
             value: s.on,
-            onChange: (v) => {
+            handleChange: (v) => {
                 s = { ...s, on: v };
                 emit(v ? 'switch light on' : 'switch light off', true);
             },
@@ -109,7 +111,7 @@ export function lightEditor3d(config = {}) {
             label: 'type',
             value: s.kind,
             options: ['point', 'spot', 'area'],
-            onChange: (v) => {
+            handleChange: (v) => {
                 s = { ...s, kind: v };
                 emit('set light type', true);
             },
@@ -142,12 +144,35 @@ export function lightEditor3d(config = {}) {
         toggle3d({
             label: 'casts shadows',
             value: s.shadows,
-            onChange: (v) => {
+            handleChange: (v) => {
                 s = { ...s, shadows: v };
                 emit(v ? 'enable light shadows' : 'disable light shadows', true);
             },
         }),
-        label3d({ text: 'program — attack · sustain · decay', muted: true }),
+        /*
+        A section divider, not teaching copy: it names a group of controls this
+        widget draws, which is squarely the widget's business. Kept terse for the
+        same reason the hint left — a consumer's panel is not our doc page.
+        */
+        label3d({ text: 'program', muted: true }),
+        /*
+        A preset PICKER, not a menu of curves to copy: picking one replaces the
+        program wholesale and the plots redraw, so it is a starting point you then
+        drag rather than a thing you have to accept.
+        */
+        select3d({
+            label: 'preset',
+            value: 'steady',
+            options: lightPresets.map((p) => ({ label: p.name, value: p.name })),
+            handleChange: (name) => {
+                const next = lightPreset(String(name));
+                if (next == null)
+                    return;
+                s = { ...s, program: next };
+                program.setValue(next);
+                emit('apply light preset', true);
+            },
+        }),
     ];
     const program = curveProgram3d({
         value: s.program,
@@ -177,8 +202,9 @@ export function lightEditor3d(config = {}) {
     return {
         el,
         setHost(host) {
-            for (const r of rows)
-                r.setHost?.(host);
+            // Each child gets the host translated by ITS row offset, so a popup
+            // opens beside the control rather than at the top of the editor.
+            rows.forEach((r, i) => r.setHost?.(offsetHost(host, () => ({ x: 0, y: offsets[i] ?? 0 }))));
         },
         layout(width) {
             heights = rows.map((r) => r.layout?.(width) ?? 0);

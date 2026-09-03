@@ -1,5 +1,5 @@
 /*#
-# widgets3d-layout
+# Widget layout maths
 
 Pure layout math for [[widgets3d]] — no tosijs, no DOM, no Babylon, so it is
 directly unit-testable. The widget collection imports these helpers to stack

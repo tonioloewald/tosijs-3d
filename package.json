@@ -1,7 +1,7 @@
 {
   "name": "tosijs-3d",
-  "version": "0.7.8",
-  "description": "Declarative 3D/XR components for the web — Babylon.js and tosijs, composable as custom elements.",
+  "version": "0.8.0",
+  "description": "Declarative 3D/XR components for the web \u2014 Babylon.js and tosijs, composable as custom elements.",
   "license": "Apache-2.0",
   "homepage": "https://3d.tosijs.net",
   "bugs": {
@@ -72,7 +72,7 @@
     "@babylonjs/loaders": "^9.0.0",
     "@babylonjs/materials": "^9.0.0",
     "jolt-physics": "^1.1.0",
-    "tosijs": "^1.7.8"
+    "tosijs": "^1.9.2"
   },
   "peerDependenciesMeta": {
     "jolt-physics": {

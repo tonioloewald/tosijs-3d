@@ -39,7 +39,7 @@ export declare function wrapDegrees(deg: number): number;
  * Edit an `{x, y, z}` on one row.
  *
  * ```js
- * vector3d({ value: { x: 1, y: 0, z: -3 }, step: 0.25, scrub: 0.02, onChange: (v) => …  })
+ * vector3d({ value: { x: 1, y: 0, z: -3 }, step: 0.25, scrub: 0.02, handleChange: (v) => …  })
  * ```
  */
 export declare function vector3d(config?: Vector3dOptions): VectorField;
@@ -51,7 +51,7 @@ export declare function vector3d(config?: Vector3dOptions): VectorField;
  * `Deg` sibling because there is no radian form to disambiguate from.
  *
  * ```js
- * euler3d({ value: { x: 0, y: 45, z: 0 }, step: 5, scrub: 0.5, onChange: (v) => …  })
+ * euler3d({ value: { x: 0, y: 45, z: 0 }, step: 5, scrub: 0.5, handleChange: (v) => …  })
  * ```
  */
 export declare function euler3d(config?: Vector3dOptions): VectorField;

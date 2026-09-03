@@ -28,24 +28,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
-  <title>vector-field — tosijs-3d</title>
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <title>Coordinate fields — tosijs-3d</title>
   <meta name="description" content="A coordinate on ONE row. vector3d edits an {x, y, z}; euler3d edits an orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a panel3d…" />
   <link rel="canonical" href="https://3d.tosijs.net/vector-field/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="vector-field — tosijs-3d" />
+  <meta property="og:title" content="Coordinate fields — tosijs-3d" />
   <meta property="og:description" content="A coordinate on ONE row. vector3d edits an {x, y, z}; euler3d edits an orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a panel3d…" />
   <meta property="og:url" content="https://3d.tosijs.net/vector-field/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"vector-field","description":"A coordinate on ONE row. vector3d edits an {x, y, z}; euler3d edits an orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a panel3d…","url":"https://3d.tosijs.net/vector-field/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Coordinate fields","description":"A coordinate on ONE row. vector3d edits an {x, y, z}; euler3d edits an orientation in degrees. Both are [[widgets3d|Widget3d]]s, so they drop into a panel3d…","url":"https://3d.tosijs.net/vector-field/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
-<h1>vector-field</h1>
+<h1>Coordinate fields</h1>
 <p><strong>A coordinate on ONE row.</strong> <code>vector3d</code> edits an <code>{x, y, z}</code>; <code>euler3d</code> edits an
 orientation in degrees. Both are <a href="/widgets3d/" class="wikilink">Widget3d</a>s, so they drop into a
 <code>panel3d</code> beside a slider or a button and work identically flat, in-scene and in
@@ -95,14 +95,14 @@ const panel = panel3d(
     value: state.pos,
     step: 0.25,
     scrub: 0.02,
-    onChange: (v) =&gt; { state.pos = v; show() },
+    handleChange: (v) =&gt; { state.pos = v; show() },
   }),
   label3d({ text: &#39;rotation (degrees)&#39;, muted: true, compact: true }),
   euler3d({
     value: state.rot,
     step: 5,
     scrub: 0.5,
-    onChange: (v) =&gt; { state.rot = v; show() },
+    handleChange: (v) =&gt; { state.rot = v; show() },
   })
 )
 
@@ -136,6 +136,7 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
@@ -151,7 +152,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -175,8 +176,9 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -241,13 +243,13 @@ preview.append(
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link current" href="../vector-field/" aria-current="page">vector-field</a></li>
-      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
-      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
-      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
-      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link current" href="../vector-field/" aria-current="page">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -264,8 +266,8 @@ preview.append(
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
@@ -312,6 +314,6 @@ preview.append(
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js"></script>
+  <script type="module" src="../hydrate.js?v=0.8.0"></script>
 </body>
 </html>

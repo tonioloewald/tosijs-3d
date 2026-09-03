@@ -1,5 +1,5 @@
 /*#
-# icon-grid
+# Icon grid
 
 **`iconGrid3d` — one control for a segmented select, a tool palette and a mode
 picker.** A grid of icons with optional captions, as a `Widget3d`, so it works

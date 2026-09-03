@@ -46,7 +46,7 @@ const scene = b3d(
       slider3d({ label: 'energy (yellow)', value: s.energy, min: 0, max: 1, step: 0.01 }),
       slider3d({ label: 'pitch', value: s.pitch, min: -90, max: 90, step: 1 }),
       slider3d({ label: 'roll', value: s.roll, min: -90, max: 90, step: 1 }),
-      select3d({ label: 'warning', value: s.warn, options: Object.keys(warnMap), onChange: (v) => hud.setWarnings(warnMap[v] || []) }),
+      select3d({ label: 'warning', value: s.warn, options: Object.keys(warnMap), handleChange: (v) => hud.setWarnings(warnMap[v] || []) }),
     ],
   },
   b3dSkybox({ timeOfDay: 9 }),

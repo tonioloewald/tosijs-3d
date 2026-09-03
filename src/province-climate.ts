@@ -1,5 +1,5 @@
 /*#
-# province-climate
+# Province climate
 
 **What a province does to the weather** — water, temperature and volcanism, each
 a curve over normalised distance from the province's centre. Pure: no DOM, no

@@ -34,8 +34,8 @@ preview.append(
       // inside VR (where spatial panning is most convincing) too.
       scenePanel: () => [
         label3d({ text: 'Sound' }),
-        button3d({ label: 'Play', onClick: () => spatialSound.play() }),
-        button3d({ label: 'Stop', onClick: () => spatialSound.stop() }),
+        button3d({ label: 'Play', handleClick: () => spatialSound.play() }),
+        button3d({ label: 'Stop', handleClick: () => spatialSound.stop() }),
       ],
       sceneCreated(el, BABYLON) {
         const camera = orbitCam(el, {

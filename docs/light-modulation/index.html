@@ -28,24 +28,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
-  <title>light-modulation — tosijs-3d</title>
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <title>Light programs — tosijs-3d</title>
   <meta name="description" content="A light&#39;s whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]&#39;s flicker, pulse, beacon and fade." />
   <link rel="canonical" href="https://3d.tosijs.net/light-modulation/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
-  <meta property="og:title" content="light-modulation — tosijs-3d" />
+  <meta property="og:title" content="Light programs — tosijs-3d" />
   <meta property="og:description" content="A light&#39;s whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]&#39;s flicker, pulse, beacon and fade." />
   <meta property="og:url" content="https://3d.tosijs.net/light-modulation/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"light-modulation","description":"A light's whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.","url":"https://3d.tosijs.net/light-modulation/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Light programs","description":"A light's whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.","url":"https://3d.tosijs.net/light-modulation/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="../favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
 <body>
   <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
   <article class="doc-content">
-<h1>light-modulation</h1>
+<h1>Light programs</h1>
 <p><strong>A light&#39;s whole life as one curve.</strong> Pure, deterministic, Babylon-free — the
 model behind <a href="/b3d-lamp/" class="wikilink">b3d-lamp</a>&#39;s flicker, pulse, beacon and fade.</p>
 <h2>One curve, two split points</h2>
@@ -141,6 +141,28 @@ sits near 207°, so a plausible-looking <code>hueShiftDeg: 45</code> takes a dyi
 fluorescent to <em>cyan</em> — it needs about 190 to reach amber. Caught on the live
 page doing exactly that. The default 30 is for leaning, not for changing a
 lamp&#39;s mind.</p>
+<h2>Duration: one number, divided by the markers</h2>
+<p>The split points already say how the time divides, so stating it three times is
+three chances to disagree. <code>duration</code> is the whole curve&#39;s time and each segment
+takes the share it occupies — <code>attackEnd: 0.2, duration: 1</code> is a 0.2s attack.
+Dragging a marker therefore <strong>retimes the lamp without touching a number</strong>, which
+is what makes the marker feel like it edits the behaviour rather than the shape.</p>
+<p><code>attack</code> / <code>period</code> / <code>decay</code> still override individually, because &quot;a slow fade
+off a fast strike&quot; is a real lamp and a proportion cannot express it.</p>
+<p><code>DEFAULT_PROGRAM</code> is up fast, hold, down fast, in one second — a lamp with no
+program switches instantly, which is right for a torch and wrong for nearly
+everything else.</p>
+<h2>Presets</h2>
+<p><code>lightPresets</code> / <code>lightPreset(name)</code>: <strong>steady</strong>, <strong>fluorescent</strong>, <strong>flickery</strong>,
+<strong>brownout</strong>, <strong>candle</strong>, <strong>fireplace</strong>.</p>
+<p>They are BRIGHTNESS-first on purpose. Colour belongs to the lamp — a candle is
+warm because its <code>diffuse</code> is warm — so a preset that forced hue would fight the
+thing it decorates and stop composing with any base colour. The two that do
+touch colour only lean it: a brownout pulls warm because a filament does when
+the voltage sags, and a fire runs yellower in its flares and redder in its lulls.</p>
+<p>Their irregularity comes from dissimilar peaks over a period that is not a round
+number — never from randomness, which would cost repeatability, editability and
+testability at once.</p>
 <h2>Flicker is a curve, not a random number</h2>
 <p>A stepped curve strobes. A spiky attack segment is a fluorescent striking. A slow
 <code>easeInOut</code> sustain is a beacon. All authored, repeatable, and editable in
@@ -159,6 +181,7 @@ dissimilar peaks and a period that is not a round number.</p>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
       <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
       <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
@@ -174,7 +197,7 @@ dissimilar peaks and a period that is not a round number.</p>
     </details></li>
     <li><details open><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
-      <li><a class="doc-link current" href="../light-modulation/" aria-current="page">light-modulation</a></li>
+      <li><a class="doc-link current" href="../light-modulation/" aria-current="page">Light programs</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -198,8 +221,9 @@ dissimilar peaks and a period that is not a round number.</p>
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
-      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -264,13 +288,13 @@ dissimilar peaks and a period that is not a round number.</p>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
       <li><a class="doc-link" href="../selection/">selection</a></li>
-      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
-      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
-      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
-      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
-      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
-      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
-      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
@@ -287,8 +311,8 @@ dissimilar peaks and a period that is not a round number.</p>
       <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
       <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
       <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
       <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
-      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
     </ul>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
@@ -335,6 +359,6 @@ dissimilar peaks and a period that is not a round number.</p>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js"></script>
+  <script type="module" src="../hydrate.js?v=0.8.0"></script>
 </body>
 </html>

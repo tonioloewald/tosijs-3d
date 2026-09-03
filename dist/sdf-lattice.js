@@ -88,7 +88,7 @@ const scene = b3d(
         min: 0,
         max: 1,
         step: 0.02,
-        onChange: () => rebuildSoon(),
+        handleChange: () => rebuildSoon(),
       }),
       slider3d({
         label: 'molten depth',
@@ -96,7 +96,7 @@ const scene = b3d(
         min: 20,
         max: 300,
         step: 5,
-        onChange: () => rebuildSoon(),
+        handleChange: () => rebuildSoon(),
       }),
     ],
   },
@@ -222,12 +222,12 @@ const scene = b3d(
       toggle3d({
         label: 'heightfield wireframe',
         value: state.sdf.wire,
-        onChange: (on) => demo?.show(on ? 'both' : 'volumetric'),
+        handleChange: (on) => demo?.show(on ? 'both' : 'volumetric'),
       }),
       toggle3d({
         label: 'bore',
         value: state.sdf.bored,
-        onChange: (on) => demo?.setCarves(on ? [bore] : []),
+        handleChange: (on) => demo?.setCarves(on ? [bore] : []),
       }),
     ],
   },

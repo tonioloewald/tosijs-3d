@@ -134,8 +134,8 @@ describe('row3d — the missing axis', () => {
     const hits: string[] = []
     const row = w3d.row3d(
       {},
-      w3d.button3d({ label: 'L', onClick: () => hits.push('L') }),
-      w3d.button3d({ label: 'R', onClick: () => hits.push('R') })
+      w3d.button3d({ label: 'L', handleClick: () => hits.push('L') }),
+      w3d.button3d({ label: 'R', handleClick: () => hits.push('R') })
     )
     const panel = w3d.panel3d({ width: 324, height: 'fit' }, row)
     const p = panel as unknown as {
@@ -153,8 +153,8 @@ describe('row3d — the missing axis', () => {
       { width: 324, height: 'fit' },
       w3d.row3d(
         {},
-        w3d.button3d({ label: 'L', onClick: () => hits.push('L') }),
-        w3d.button3d({ label: 'R', onClick: () => hits.push('R') })
+        w3d.button3d({ label: 'L', handleClick: () => hits.push('L') }),
+        w3d.button3d({ label: 'R', handleClick: () => hits.push('R') })
       )
     )
     const p = panel as unknown as {
@@ -395,7 +395,7 @@ describe('iconBar3d colours like a button', () => {
       items: [
         {
           icon: 'plus',
-          onClick: () => {
+          handleClick: () => {
             seen = fillOf(b, 0)
           },
         },
@@ -411,7 +411,7 @@ describe('iconBar3d colours like a button', () => {
   test('a press that drifts off the button does not fire it', () => {
     let fired = 0
     const b = w3d.iconBar3d({
-      items: [{ icon: 'plus', onClick: () => fired++ }, { icon: 'move' }],
+      items: [{ icon: 'plus', handleClick: () => fired++ }, { icon: 'move' }],
     })
     b.layout(200)
     b.handle!('down', 8, 10)
@@ -504,7 +504,7 @@ describe('select3d opens a MENU from its value, and keeps its steppers', () => {
     const sel = w3d.select3d({
       value: 'alpha',
       options: OPTIONS,
-      onChange: (v) => (seen = v),
+      handleChange: (v) => (seen = v),
     })
     sel.layout(300)
     sel.handle!('down', 285, 30)

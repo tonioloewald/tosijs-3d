@@ -50,7 +50,7 @@ const scene = b3d(
         label3d({ text: items.length ? 'Spawn a mesh' : 'Loading…' }),
         list3d({
           items,
-          onSelect: (it) => {
+          handleSelect: (it) => {
             const placed = lib.instantiate(it.name)
             // Animated models come alive on spawn: loop their first group
             // (the scout opens its cockpit — see "Animations travel with the
@@ -61,7 +61,7 @@ const scene = b3d(
             if (placed) placeOnSurface(placed)
           },
         }),
-        button3d({ label: 'Clear all', onClick: () => lib.clearInstances() }),
+        button3d({ label: 'Clear all', handleClick: () => lib.clearInstances() }),
       ]
     },
     sceneCreated(el) {

@@ -1,5 +1,5 @@
 /*#
-# light-modulation
+# Light programs
 
 **A light's whole life as one curve.** Pure, deterministic, Babylon-free — the
 model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.

@@ -1,5 +1,5 @@
 /*#
-# light-editor
+# Light editor
 
 **`lightEditor3d` — the whole lamp, not just its curves.** A `Widget3d` that
 edits what a light *is* (type, colour, intensity, range, shadows) alongside what
@@ -144,7 +144,7 @@ export function lightEditor3d(
       step,
       showValue: 'always',
       ...extra,
-      onChange: (v) => {
+      handleChange: (v) => {
         s = { ...s, [key]: v }
         emit(`set light ${key}`, true)
       },
@@ -164,7 +164,7 @@ export function lightEditor3d(
     toggle3d({
       label: 'power',
       value: s.on,
-      onChange: (v) => {
+      handleChange: (v) => {
         s = { ...s, on: v }
         emit(v ? 'switch light on' : 'switch light off', true)
       },
@@ -173,7 +173,7 @@ export function lightEditor3d(
       label: 'type',
       value: s.kind,
       options: ['point', 'spot', 'area'],
-      onChange: (v) => {
+      handleChange: (v) => {
         s = { ...s, kind: v as LightKind }
         emit('set light type', true)
       },
@@ -206,7 +206,7 @@ export function lightEditor3d(
     toggle3d({
       label: 'casts shadows',
       value: s.shadows,
-      onChange: (v) => {
+      handleChange: (v) => {
         s = { ...s, shadows: v }
         emit(v ? 'enable light shadows' : 'disable light shadows', true)
       },
@@ -226,7 +226,7 @@ export function lightEditor3d(
       label: 'preset',
       value: 'steady',
       options: lightPresets.map((p) => ({ label: p.name, value: p.name })),
-      onChange: (name) => {
+      handleChange: (name) => {
         const next = lightPreset(String(name))
         if (next == null) return
         s = { ...s, program: next }

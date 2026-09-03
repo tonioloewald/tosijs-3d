@@ -1,5 +1,5 @@
 /*#
-# light-settings
+# Light settings (data)
 
 **A lamp as DATA** — the type, its defaults, its JSON Schema, its canonical form
 and its validator. No DOM, no Babylon, no widget.

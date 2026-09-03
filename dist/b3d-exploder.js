@@ -46,7 +46,7 @@ const scene = b3d(
     // from inside VR as well as on a flat screen.
     scenePanel: () => [
       label3d({ text: 'Exploder' }),
-      button3d({ label: 'Explode!', onClick: doExplode }),
+      button3d({ label: 'Explode!', handleClick: doExplode }),
     ],
     sceneCreated(el, BABYLON) {
       babylon = BABYLON

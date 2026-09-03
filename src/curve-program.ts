@@ -1,5 +1,5 @@
 /*#
-# curve-program
+# Light program editor
 
 **`curveProgram3d` — the editor for a whole [[light-modulation|LightProgram]]:
 several curves that share one pair of split markers.** One `Widget3d`, one
@@ -325,7 +325,7 @@ export function curveProgram3d(
       name: channel,
       markers,
       value: typeof seed === 'number' ? undefined : readCurve(seed).points,
-      onChange: (points: ControlPoint[]) => {
+      handleChange: (points: ControlPoint[]) => {
         program = { ...program, [channel]: points }
         config.handleChange?.({ ...program })
       },
