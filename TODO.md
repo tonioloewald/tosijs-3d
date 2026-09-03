@@ -704,6 +704,41 @@ Build order, soonest value first:
 coordinate, controlled, one commit per gesture); a province editor is that with
 a falloff in place of split markers, plus scalars.
 
+[ ] **Lamp positional jitter — a candle's light MOVES.** Tonio, 2026-09-03:
+_"for things like candles having positional jitter for light source would also
+be good."_
+
+Brightness flicker alone reads as an electrical fault; a flame also wanders,
+and the wander is most of what says "fire" rather than "bad wiring". A small
+offset on the light's position (NOT the fixture's — the lantern stays put while
+the flame inside it moves) driven the same way everything else here is: curves
+over the same clock, so it stays deterministic, editable in the curve widget,
+and testable.
+
+Shape: two or three more channels (`jitterX`/`jitterY`/`jitterZ`, or a radius
+plus a pair of phase-offset curves so one curve set does a plausible orbit) with
+an amplitude in metres. Should compose with `timeSource`, and default to zero so
+no existing lamp moves.
+
+[ ] **A toggle: dragging a split marker SCALES the points inside it.** Tonio,
+2026-09-03: _"if you drag the attack bound then the stuff inside attack is
+scaled inside attack and the stuff inside sustain likewise."_
+
+Two genuinely different gestures, which is why it wants a toggle rather than a
+replacement:
+
+- **today** — the boundary moves and the points stay put, so a stutter authored
+  inside the attack spills into the sustain. Right when you are deciding where
+  the regions BELONG.
+- **scaling** — the shape inside each region is preserved and its duration
+  changes. Right when the shape is finished and only its timing is wrong.
+
+Lives in `curve.ts` as a pure operation (`scaleWithin(points, from, to)`
+rescaling both sides of a moved marker), so `curve3d` only has to choose which
+to call. Note it interacts with `duration`: with proportional timing, scaling
+the points AND retiming the segment compound, and the author probably wants
+one or the other rather than both at once.
+
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are
