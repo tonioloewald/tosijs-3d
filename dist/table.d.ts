@@ -12,6 +12,19 @@ export interface Table extends Widget3d {
     readonly selected: string[];
     /** Replace the rows (keeps scroll, drops selections that no longer exist). */
     setRows: (rows: TableRow[]) => void;
+    /**
+     * Show only rows matching a predicate; pass `null` to show everything.
+     *
+     * Filtering does NOT drop selections. A row you selected and then filtered
+     * out is still selected when it comes back — hiding is a view state, and
+     * losing a selection to it would make a search box destructive.
+     */
+    setFilter: (filter: ((row: TableRow) => boolean) | null) => void;
+    /** How many rows the filter is currently showing, out of how many exist. */
+    readonly counts: {
+        visible: number;
+        total: number;
+    };
     /** The focused row index, or -1. */
     readonly focusIndex: number;
     /**
@@ -45,6 +58,15 @@ export interface TableOptions {
     selection?: SelectionMode;
     /** Let a single-select tap on the selected row clear it. See `applySelection`. */
     allowDeselect?: boolean;
+    /**
+     * Show only the rows this returns true for.
+     *
+     * A PREDICATE rather than a filtered array, so the table keeps owning the
+     * full set: selection survives a filter that hides a selected row, and
+     * clearing the filter brings it back rather than requiring the consumer to
+     * re-supply everything. Set `filter` on the returned table to change it.
+     */
+    filter?: (row: TableRow) => boolean;
     onSelect?: (ids: string[]) => void;
     /** Row activated (a second click / Enter) — distinct from selecting it. */
     onActivate?: (row: TableRow) => void;

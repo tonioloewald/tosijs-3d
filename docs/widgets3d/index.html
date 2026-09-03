@@ -421,7 +421,19 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <td><code>iconBar3d</code></td>
 <td><code>items</code></td>
 <td></td>
-<td><code>{icon, onClick}</code></td>
+<td><code>{icon, handleClick}</code></td>
+</tr>
+<tr>
+<td><code>spinner3d</code></td>
+<td><code>label</code> / <code>size</code></td>
+<td></td>
+<td>INDETERMINATE busy — call <code>dispose()</code> when done</td>
+</tr>
+<tr>
+<td><code>progress3d</code></td>
+<td><code>label</code> / <code>value</code> / <code>showValue</code></td>
+<td></td>
+<td>determinate <code>0..1</code>; <code>setValue(f)</code></td>
 </tr>
 </tbody></table>
 <h2>Menus are for ACTIONS; a select is for a VALUE</h2>
@@ -469,6 +481,23 @@ about which tool is live.</li>
 <p><strong>On a field</strong>: <code>type</code>, <code>keyboardMode</code>, <code>isValid()</code>, <code>commit()</code>, plus the edit
 protocol (<code>insert</code>, <code>action</code>, <code>setValue</code>, <code>moveCaret</code>). <code>fieldGroup</code> manages
 several of them — exclusivity, commit-on-leave and keyboard layout.</p>
+<h2>Saying that something is HAPPENING</h2>
+<p><code>spinner3d</code> for &quot;working, duration unknown&quot;; <code>progress3d(fraction)</code> when the
+total is genuinely known. Both are <code>Widget3d</code>s, so the thing that is loading is
+one ROW of a panel rather than a mode the whole panel enters — which is usually
+the truth.</p>
+<p><strong>The spinner animates as geometry, not CSS</strong>, and that is the reason it lives
+here rather than in each consumer. Flat, a keyframe animation works. Rasterised
+to an in-scene texture it does not run at all: <code>SvgTexture</code> serialises the SVG
+into its own document, where no stylesheet and no animation clock follow it. A
+consumer would ship a spinner that looks right on a desktop and silently freezes
+in a headset.</p>
+<p>One shared ticker drives every spinner, so N spinners are not N timers, and the
+timer stops when the last one goes. <strong>Call <code>dispose()</code> when the work ends</strong> —
+a forgotten spinner keeps that ticker alive and keeps painting something that is
+no longer true.</p>
+<p>If you find yourself faking a fraction, you wanted <code>spinner3d</code>: a determinate
+bar that is not determinate is a lie with a progress percentage on it.</p>
 <h2>Callbacks are <code>handleX</code>, not <code>onX</code></h2>
 <p><code>handleChange</code>, <code>handleClick</code>, <code>handleSelect</code>. The old <code>onX</code> spellings still
 work through 0.8.x and warn once, and are removed in 0.9.</p>

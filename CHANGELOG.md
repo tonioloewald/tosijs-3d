@@ -56,14 +56,28 @@ the two renames that were waiting for a minor.
   Controlled, with `handleCommit(value, describe)` once per gesture carrying
   canonical values and a verb phrase, so a document records one undo step.
 
-- **`scene-schemas`** — JSON Schema for skybox, sun, water, fog, clouds, ambient
-  and the hemispheric light. **No DOM, no Babylon.** So nobody hand-copies our
+- **`scene-schemas`** — JSON Schema for all nine scene primitives: skybox, sun,
+  water, ground, fog, clouds, ambient, terrain, reflections (and the hemispheric
+  light). **No DOM, no Babylon.** So nobody hand-copies our
   attributes: a consumer's hand-written skybox schema carried 6 of 16 and
   disagreed on a default. Drift is caught by a test, not promised.
 
 - **`province-climate`** — water, temperature and volcanism as bipolar bias
   curves (`0.5` leaves the base alone) plus water presence and level as scalars,
   because "there is a lake here at 12 m" is not something a curve can say.
+
+- **`spinner3d` / `progress3d`** — the widget set could say what a value IS but
+  not that work was under way. The spinner animates as GEOMETRY, not CSS,
+  because a keyframe animation does not run once the SVG is rasterised to a
+  texture — it would look right flat and freeze in a headset.
+
+- **Filtered tables** — `filter` / `setFilter(predicate)` and `counts`. A filter
+  never drops a selection: hiding is a view state, and losing a selection to it
+  would make typing in a search box destructive.
+
+- **`table` button columns** — `kind: 'button'` with `menu(row)` opens an action
+  menu anchored to the cell. The button takes the press instead of the row, so
+  a row's ⋯ does not also select it.
 
 - **`registerIcons`** — consumers add icons every widget resolves by name.
 - **Log sliders** — `scale: 'log' | 'log2'`, `snap`, and `zeroStop` for a

@@ -248,7 +248,96 @@ export const SCENE_OMITTED = {
     // transform to decline.
     ambient: [],
     light: [],
+    // A ground IS a placed mesh, so its transform is exposed; `axes` is a debug
+    // helper, never content.
+    ground: ['axes'],
+    terrain: [],
+    reflections: [],
 };
+/** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
+export function groundSchema(extra = {}) {
+    return schema('Ground', {
+        width: num(4, { minimum: 0, maximum: 10000, ...M }),
+        height: num(4, { minimum: 0, maximum: 10000, ...M }),
+        // 0 is "not square — use width and height", not "zero-sized".
+        size: num(0, { minimum: 0, maximum: 10000, ...M }),
+        color: color('#888888'),
+        texture: { type: 'string', default: '' },
+        textureTiles: num(8, { minimum: 1, maximum: 200 }),
+        x: num(0, { ...M }),
+        y: num(0, { ...M }),
+        z: num(0, { ...M }),
+        rx: num(0, { minimum: -180, maximum: 180, ...DEG }),
+        ry: num(0, { minimum: -180, maximum: 180, ...DEG }),
+        rz: num(0, { minimum: -180, maximum: 180, ...DEG }),
+        meshName: { type: 'string', default: 'ground' },
+    }, extra);
+}
+/**
+ * `b3d-terrain` — the streaming LOD heightfield.
+ *
+ * The noise scales get `log`, because they span decades and a linear track puts
+ * every useful value in its first few percent — the case that motivated log
+ * sliders in the first place.
+ */
+export function terrainSchema(extra = {}) {
+    return schema('Terrain', {
+        seed: num(12345, { minimum: 0 }),
+        surfaceType: choice('cylinder', ['cylinder', 'torus', 'sphere', 'plane']),
+        grossScale: num(0.015, {
+            minimum: 0.0001,
+            maximum: 1,
+            'x-scale': 'log',
+        }),
+        detailScale: num(0.09, { minimum: 0.0001, maximum: 1, 'x-scale': 'log' }),
+        grossAmplitude: num(8, { minimum: 0, maximum: 500, ...M }),
+        detailAmplitude: num(3, { minimum: 0, maximum: 200, ...M }),
+        horizScale: num(1, { minimum: 0.01, maximum: 100 }),
+        baseHeight: num(0, { minimum: -1000, maximum: 1000, ...M }),
+        normalSmoothing: num(0.6, { minimum: 0, maximum: 1 }),
+        biome: choice('off', ['off', 'on']),
+        biomeSeaLevel: num(0, { minimum: -1000, maximum: 1000, ...M }),
+        biomeLapseRate: num(0, { minimum: 0, maximum: 1 }),
+        tileSize: num(10, { minimum: 1, maximum: 1000, ...M }),
+        lodLevels: num(5, { minimum: 1, maximum: 12 }),
+        splitFactor: num(2, { minimum: 2, maximum: 8 }),
+        // 0 is AUTO on all of these — the device tier decides.
+        hiResSubdivisions: num(0, { minimum: 0, maximum: 256 }),
+        poolSize: num(0, { minimum: 0, maximum: 4096 }),
+        fillBudget: num(0, { minimum: 0, maximum: 512 }),
+        reach: num(0, { minimum: 0, maximum: 10000, ...M }),
+        tileBuildMs: num(0, { minimum: 0, maximum: 100, ...MS }),
+        majorRadius: num(100, { minimum: 1, maximum: 100000, ...M }),
+        minorRadius: num(40, { minimum: 1, maximum: 100000, ...M }),
+        radius: num(200, { minimum: 1, maximum: 1000000, ...M }),
+        cylinderHeight: num(200, { minimum: 1, maximum: 100000, ...M }),
+        originResetThreshold: num(500, { minimum: 1, maximum: 100000, ...M }),
+        maxTravelDistance: num(5000, { minimum: 1, maximum: 1000000, ...M }),
+        center: bool(false),
+        wireframe: bool(false),
+        debugColor: bool(false),
+        profile: bool(false),
+    }, extra);
+}
+/**
+ * `b3d-reflections` — dynamic probes for `_mirror` meshes.
+ *
+ * Every knob here is a COST dial, which is why they all carry ranges: a probe
+ * renders six faces, and `refreshRate` is how many frames it may skip between
+ * doing so. See TODO's arbitration note before turning these up in content a
+ * consumer inserts.
+ */
+export function reflectionsSchema(extra = {}) {
+    return schema('Reflections', {
+        // 0 is AUTO — resolved against the device tier.
+        probeSize: num(0, { minimum: 0, maximum: 2048 }),
+        refreshRate: num(5, { minimum: 1, maximum: 120 }),
+        farRefreshRate: num(30, { minimum: 1, maximum: 600 }),
+        maxDistance: num(100, { minimum: 1, maximum: 10000, ...M }),
+        farDistance: num(30, { minimum: 1, maximum: 10000, ...M }),
+        distanceCheckInterval: num(13, { minimum: 1, maximum: 240 }),
+    }, extra);
+}
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export const sceneSchemas = {
     skybox: skyboxSchema,
@@ -258,5 +347,8 @@ export const sceneSchemas = {
     clouds: cloudsSchema,
     ambient: ambientSchema,
     light: hemisphericLightSchema,
+    ground: groundSchema,
+    terrain: terrainSchema,
+    reflections: reflectionsSchema,
 };
 //# sourceMappingURL=scene-schemas.js.map

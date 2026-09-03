@@ -63,6 +63,37 @@ export declare function hemisphericLightSchema(extra?: Record<string, unknown>):
  * schema appears HERE — a forgotten attribute fails, a declined one does not.
  */
 export declare const SCENE_OMITTED: Record<string, string[]>;
+/** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
+export declare function groundSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/**
+ * `b3d-terrain` — the streaming LOD heightfield.
+ *
+ * The noise scales get `log`, because they span decades and a linear track puts
+ * every useful value in its first few percent — the case that motivated log
+ * sliders in the first place.
+ */
+export declare function terrainSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
+/**
+ * `b3d-reflections` — dynamic probes for `_mirror` meshes.
+ *
+ * Every knob here is a COST dial, which is why they all carry ranges: a probe
+ * renders six faces, and `refreshRate` is how many frames it may skip between
+ * doing so. See TODO's arbitration note before turning these up in content a
+ * consumer inserts.
+ */
+export declare function reflectionsSchema(extra?: Record<string, unknown>): {
+    type: string;
+    title: string;
+    properties: Record<string, unknown>;
+};
 /** Every scene-primitive schema, by the element name a consumer would use. */
 export declare const sceneSchemas: {
     readonly skybox: typeof skyboxSchema;
@@ -72,5 +103,8 @@ export declare const sceneSchemas: {
     readonly clouds: typeof cloudsSchema;
     readonly ambient: typeof ambientSchema;
     readonly light: typeof hemisphericLightSchema;
+    readonly ground: typeof groundSchema;
+    readonly terrain: typeof terrainSchema;
+    readonly reflections: typeof reflectionsSchema;
 };
 //# sourceMappingURL=scene-schemas.d.ts.map

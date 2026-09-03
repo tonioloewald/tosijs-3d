@@ -52,6 +52,32 @@ body, and optional selection drawn with <a href="/selection/" class="wikilink">s
 and rasterized onto a plane.</p>
 <p>The arithmetic is <a href="/table-layout/" class="wikilink">table-layout</a> — column resolution and the visible-row window —
 so this file is paint plus interaction.</p>
+<h2>Filtering and row actions</h2>
+<p><code>filter</code> (or <code>setFilter</code>) shows only the rows a predicate matches, and <code>counts</code>
+reports <code>{ visible, total }</code> so a search box can say &quot;3 of 128&quot;.</p>
+<p><strong>A filter never drops a selection.</strong> Hiding is a view state; losing a selection
+to it would make typing in a search box quietly destructive. The table keeps the
+full set and filters a view of it, so a selected row that scrolls out of the
+filter is still selected when it comes back — and <code>setRows</code> checks selections
+against ALL rows for the same reason.</p>
+<p>A <strong><code>button</code> column</strong> gives each row an action of its own. With <code>menu</code> it opens
+an action menu anchored to the cell; with <code>handlePress</code> it just fires. The
+button takes the press instead of the row, so a row&#39;s ⋯ does not also select
+it — two things from one tap, and the selection is the one nobody asked for.</p>
+<pre><code class="language-javascript">table({
+  rows,
+  columns: [
+    { key: &#39;kind&#39;, width: 28, kind: &#39;icon&#39; },
+    { key: &#39;name&#39;, flex: 1 },
+    { key: &#39;act&#39;, width: 30, kind: &#39;button&#39;, menu: (row) =&gt; [
+      { label: &#39;Duplicate&#39;, icon: &#39;copy&#39;, handleSelect: () =&gt; duplicate(row) },
+      { label: &#39;Delete&#39;, icon: &#39;trash&#39;, disabled: () =&gt; row.locked },
+    ] },
+  ],
+})
+</code></pre>
+<p>An empty menu falls through to <code>handlePress</code> rather than opening nothing, and a
+table with no host is inert rather than throwing.</p>
 <h2>Virtualized by default</h2>
 <p>Only the rows in view are built. That matters more on a texture than in the DOM,
 because unseen rows are paid for <strong>twice</strong>: once building SVG nodes, and again

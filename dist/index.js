@@ -122,7 +122,7 @@ export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './
 export { B3dCar, b3dCar } from './b3d-car';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft';
 // SVG widgets (DOM-overlay or in-scene panels)
-export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, } from './widgets3d';
+export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d';
 // Curve editing — the pure model, and the `curve3d` widget over it. A province
 // is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, 

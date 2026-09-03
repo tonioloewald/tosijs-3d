@@ -97,14 +97,28 @@ split markers), <code>lightEditor3d</code> (the whole lamp), and <code>curveMark
 Controlled, with <code>handleCommit(value, describe)</code> once per gesture carrying
 canonical values and a verb phrase, so a document records one undo step.</p>
 </li>
-<li><p><strong><code>scene-schemas</code></strong> — JSON Schema for skybox, sun, water, fog, clouds, ambient
-and the hemispheric light. <strong>No DOM, no Babylon.</strong> So nobody hand-copies our
+<li><p><strong><code>scene-schemas</code></strong> — JSON Schema for all nine scene primitives: skybox, sun,
+water, ground, fog, clouds, ambient, terrain, reflections (and the hemispheric
+light). <strong>No DOM, no Babylon.</strong> So nobody hand-copies our
 attributes: a consumer&#39;s hand-written skybox schema carried 6 of 16 and
 disagreed on a default. Drift is caught by a test, not promised.</p>
 </li>
 <li><p><strong><code>province-climate</code></strong> — water, temperature and volcanism as bipolar bias
 curves (<code>0.5</code> leaves the base alone) plus water presence and level as scalars,
 because &quot;there is a lake here at 12 m&quot; is not something a curve can say.</p>
+</li>
+<li><p><strong><code>spinner3d</code> / <code>progress3d</code></strong> — the widget set could say what a value IS but
+not that work was under way. The spinner animates as GEOMETRY, not CSS,
+because a keyframe animation does not run once the SVG is rasterised to a
+texture — it would look right flat and freeze in a headset.</p>
+</li>
+<li><p><strong>Filtered tables</strong> — <code>filter</code> / <code>setFilter(predicate)</code> and <code>counts</code>. A filter
+never drops a selection: hiding is a view state, and losing a selection to it
+would make typing in a search box destructive.</p>
+</li>
+<li><p><strong><code>table</code> button columns</strong> — <code>kind: &#39;button&#39;</code> with <code>menu(row)</code> opens an action
+menu anchored to the cell. The button takes the press instead of the row, so
+a row&#39;s ⋯ does not also select it.</p>
 </li>
 <li><p><strong><code>registerIcons</code></strong> — consumers add icons every widget resolves by name.</p>
 </li>

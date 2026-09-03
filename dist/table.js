@@ -9,6 +9,39 @@ and rasterized onto a plane.
 The arithmetic is [[table-layout]] — column resolution and the visible-row window —
 so this file is paint plus interaction.
 
+## Filtering and row actions
+
+`filter` (or `setFilter`) shows only the rows a predicate matches, and `counts`
+reports `{ visible, total }` so a search box can say "3 of 128".
+
+**A filter never drops a selection.** Hiding is a view state; losing a selection
+to it would make typing in a search box quietly destructive. The table keeps the
+full set and filters a view of it, so a selected row that scrolls out of the
+filter is still selected when it comes back — and `setRows` checks selections
+against ALL rows for the same reason.
+
+A **`button` column** gives each row an action of its own. With `menu` it opens
+an action menu anchored to the cell; with `handlePress` it just fires. The
+button takes the press instead of the row, so a row's ⋯ does not also select
+it — two things from one tap, and the selection is the one nobody asked for.
+
+```javascript
+table({
+  rows,
+  columns: [
+    { key: 'kind', width: 28, kind: 'icon' },
+    { key: 'name', flex: 1 },
+    { key: 'act', width: 30, kind: 'button', menu: (row) => [
+      { label: 'Duplicate', icon: 'copy', handleSelect: () => duplicate(row) },
+      { label: 'Delete', icon: 'trash', disabled: () => row.locked },
+    ] },
+  ],
+})
+```
+
+An empty menu falls through to `handlePress` rather than opening nothing, and a
+table with no host is inert rather than throwing.
+
 ## Virtualized by default
 
 Only the rows in view are built. That matters more on a texture than in the DOM,
@@ -122,6 +155,7 @@ import { svgElements } from 'tosijs';
 import { resolveColumns, visibleRows, maxScroll, rowAt, } from './table-layout';
 import { selectionIcon, applySelection } from './selection';
 import { iconGlyph } from './svg-icons';
+import { openMenu3d } from './widgets3d';
 import { w3dTheme } from './w3d-theme';
 const { g, rect, text, clipPath } = svgElements;
 // Theme reads live in ONE module (w3d-theme); local names for paint brevity.
@@ -139,7 +173,15 @@ export function table(config) {
     const GAP = config.gap ?? 8;
     const SEL_W = config.selection ? 26 : 0;
     const FONT = 13;
-    let rows = config.rows.slice();
+    /*
+    ALL rows, and the subset currently shown. Kept apart on purpose: selection,
+    `setRows` and the row ids all speak about `allRows`, while scrolling,
+    virtualization and hit-testing speak about `rows`. Collapsing them would make
+    a filter destructive — hiding a selected row would deselect it.
+    */
+    let allRows = config.rows.slice();
+    let filter = config.filter ?? null;
+    let rows = filter ? allRows.filter(filter) : allRows.slice();
     let width = 0;
     let cols = [];
     let scroll = 0;
@@ -149,8 +191,13 @@ export function table(config) {
     let selected = new Set();
     /** In-flight press: where it started, and whether it has become a scroll. */
     let drag = null;
+    /** Set by the panel; a button column needs it to open a menu. */
+    let host = null;
     /** Movement past this many px turns a press into a scroll rather than a click. */
     const DRAG_SLOP = 4;
+    const applyFilter = () => {
+        rows = filter ? allRows.filter(filter) : allRows.slice();
+    };
     const clipId = `tbl-clip-${seq++}`;
     const clip = clipPath({ id: clipId }, rect({ x: 0, y: 0 }));
     const clipRect = clip.firstChild;
@@ -288,6 +335,21 @@ export function table(config) {
             }
             for (const c of cols) {
                 const v = row[c.key];
+                if (c.kind === 'button') {
+                    /*
+                    A button cell is an icon in a hit target, drawn dimmer than a kind
+                    glyph so it reads as an affordance rather than as data — the row's
+                    own colour would make it look like another field.
+                    */
+                    const size = 16;
+                    kids.push(iconGlyph(v == null ? 'moreVertical' : String(v), {
+                        size,
+                        color: MUTED,
+                        x: SEL_W + c.x + (c.width - size) / 2,
+                        y: y + (ROW_H - size) / 2,
+                    }));
+                    continue;
+                }
                 if (c.kind === 'icon') {
                     /*
                     The row's own colour, not a fixed one, so a kind glyph dims and
@@ -435,8 +497,12 @@ export function table(config) {
             paintBody();
         },
         setRows(next) {
-            rows = next.slice();
-            const live = new Set(rows.map((r) => r.id));
+            allRows = next.slice();
+            applyFilter();
+            // Selections are checked against ALL rows, not the visible ones — a row
+            // hidden by a filter still exists, and dropping its selection would make
+            // typing in a search box quietly destructive.
+            const live = new Set(allRows.map((r) => r.id));
             // Drop selections whose rows are gone — otherwise onSelect reports ids that no
             // longer exist and the count disagrees with what's on screen.
             let changed = false;
@@ -449,6 +515,21 @@ export function table(config) {
             paintBody();
             if (changed)
                 config.onSelect?.([...selected]);
+        },
+        setHost(h) {
+            host = h;
+        },
+        setFilter(next) {
+            filter = next;
+            applyFilter();
+            // Scrolled past the end of a shorter list is a blank table that looks
+            // broken, so come back into range rather than leaving it there.
+            scroll = clampScroll(scroll);
+            focused = -1;
+            paintBody();
+        },
+        get counts() {
+            return { visible: rows.length, total: allRows.length };
         },
         handle(kind, x, y) {
             if (kind === 'leave') {
@@ -499,6 +580,33 @@ export function table(config) {
             }
             drag = null;
             if (kind === 'up' && i >= 0) {
+                /*
+                A BUTTON COLUMN takes the press instead of the row.
+        
+                Otherwise a row's ⋯ button both opens its menu and selects the row —
+                two things happening from one tap, and the selection is the one nobody
+                asked for. Checked by x against the column rect, so the rest of the row
+                behaves exactly as before.
+                */
+                const btn = cols.find((c) => c.kind === 'button' &&
+                    x >= SEL_W + c.x &&
+                    x <= SEL_W + c.x + c.width);
+                if (btn != null) {
+                    const row = rows[i];
+                    const items = btn.menu?.(row);
+                    if (items != null && items.length > 0 && host != null) {
+                        openMenu3d(host, {
+                            x: SEL_W + btn.x,
+                            y: HEAD_H + GAP + i * ROW_H - scroll,
+                            width: btn.width,
+                            height: ROW_H,
+                        }, items);
+                    }
+                    else {
+                        btn.handlePress?.(row);
+                    }
+                    return;
+                }
                 // A pointer tap also moves focus there, so switching from mouse to D-pad
                 // resumes from the row you last touched rather than jumping somewhere else.
                 focused = i;

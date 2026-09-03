@@ -1,4 +1,5 @@
 /** A column as the author declares it. */
+import type { MenuAction } from './widgets3d';
 export interface ColumnSpec {
     /** Identifies the column (and which field of a row it reads). */
     key: string;
@@ -27,7 +28,21 @@ export interface ColumnSpec {
      * separately clickable icon are both plausible next wants, which is why this
      * is an enum and not a boolean.
      */
-    kind?: 'text' | 'icon';
+    kind?: 'text' | 'icon' | 'button';
+    /**
+     * `button` columns only — what pressing the cell does.
+     *
+     * Given `menu`, the cell opens an action menu anchored to itself; given
+     * `handlePress`, it just fires. A row's ⋯ button is the common case and it
+     * wants a menu, which is why this is not simply a click callback.
+     *
+     * The icon drawn is the cell's VALUE, same as an `icon` column — so a row can
+     * choose its own glyph, and a column of identical buttons just puts the same
+     * name in every row.
+     */
+    menu?: (row: Record<string, unknown>) => MenuAction[];
+    /** `button` columns only — fired on release, when there is no `menu`. */
+    handlePress?: (row: Record<string, unknown>) => void;
 }
 /** A column after layout: where it starts and how wide it is. */
 export interface ColumnRect extends ColumnSpec {

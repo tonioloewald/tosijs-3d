@@ -451,6 +451,46 @@ export declare function list3d<T extends {
     onSelect?: (item: T, index: number) => void;
     rowHeight?: number;
 }): Widget3d;
+export interface Spinner3d extends Widget3d {
+    /** Stop the animation and release the shared ticker. */
+    dispose: () => void;
+}
+/**
+ * An INDETERMINATE busy indicator — "working, duration unknown".
+ *
+ * The common case, and the one where a fake progress bar lies. Use
+ * `progress3d` only when the total is genuinely known.
+ *
+ * ```javascript
+ * const busy = spinner3d({ label: 'loading kits…' })
+ * panel.replaceChild(list.el, busy.el)   // when the work finishes
+ * busy.dispose()
+ * ```
+ *
+ * **Call `dispose()` when the work ends.** A forgotten spinner does not leak a
+ * timer of its own — there is only ever one for the whole page — but it does
+ * keep that one alive and keep painting something that is no longer true.
+ */
+export declare function spinner3d(config?: {
+    label?: string;
+    size?: number;
+}): Spinner3d;
+export interface Progress3d extends Widget3d {
+    /** Set the fraction, `0..1`. Values outside are clamped. */
+    setValue: (fraction: number) => void;
+}
+/**
+ * A DETERMINATE progress bar, for when the total is genuinely known — bytes of
+ * a GLB, tiles of a terrain, N of M libraries.
+ *
+ * No timer: it moves when you move it, so nothing animates and nothing needs
+ * disposing. If you find yourself faking the fraction, you wanted `spinner3d`.
+ */
+export declare function progress3d(config?: {
+    label?: string;
+    value?: number;
+    showValue?: boolean;
+}): Progress3d;
 /**
  * One row of an action menu.
  *
