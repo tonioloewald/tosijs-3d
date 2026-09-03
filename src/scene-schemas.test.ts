@@ -86,7 +86,10 @@ describe.each(SOURCES)('%s schema matches the component', (key, mod, cls) => {
     for (const [k, v] of Object.entries(attrs)) {
       if (omitted.includes(k)) continue
       const d = props[k]?.default
-      if (d !== v) disagree.push(`${k}: schema ${JSON.stringify(d)} vs component ${JSON.stringify(v)}`)
+      if (d !== v)
+        disagree.push(
+          `${k}: schema ${JSON.stringify(d)} vs component ${JSON.stringify(v)}`
+        )
     }
     // `applyFog` defaulted true on their side and false on ours. Same name,
     // same component, opposite behaviour, nothing failing.
@@ -95,7 +98,7 @@ describe.each(SOURCES)('%s schema matches the component', (key, mod, cls) => {
 
   test('an enum lists a superset of the default', async () => {
     const props = (sceneSchemas[key]() as any).properties
-    for (const [k, spec] of Object.entries<any>(props)) {
+    for (const spec of Object.values<any>(props)) {
       if (spec.enum) expect(spec.enum).toContain(spec.default)
     }
     expect(Object.keys(props).length).toBeGreaterThan(0)
@@ -132,8 +135,10 @@ describe('the shape a generated panel relies on', () => {
         if (spec.minimum != null && spec.maximum != null) {
           expect(spec.minimum).toBeLessThan(spec.maximum)
         }
-        if (spec.minimum != null) expect(spec.default).toBeGreaterThanOrEqual(spec.minimum)
-        if (spec.maximum != null) expect(spec.default).toBeLessThanOrEqual(spec.maximum)
+        if (spec.minimum != null)
+          expect(spec.default).toBeGreaterThanOrEqual(spec.minimum)
+        if (spec.maximum != null)
+          expect(spec.default).toBeLessThanOrEqual(spec.maximum)
         expect(k).toBeTruthy()
       }
     }

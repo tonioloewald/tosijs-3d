@@ -21,7 +21,7 @@ The theme is read when a widget is **built** — see `setW3dTheme` for why that 
 not an oversight (an SVG bound for a texture is serialised away from the
 document, so `var(--w3d-text)` resolves against nothing and paints black). So
 this cannot repaint your UI, and does not pretend to: it applies the change and
-calls `onChange`, and you rebuild whatever you are showing.
+calls `handleChange`, and you rebuild whatever you are showing.
 
 ## The colour input is injected
 
@@ -144,6 +144,8 @@ export interface ThemeEditorOptions {
   /** Heading above the grid. Pass `''` for none. */
   title?: string
   /** Fired after each change, so you can rebuild whatever you are showing. */
+  handleChange?: (theme: W3dTheme) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (theme: W3dTheme) => void
   /**
    * Colour control factory. Defaults to `<input type="color">`, which **cannot
@@ -172,12 +174,23 @@ export interface ThemeEditorOptions {
 export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
   const {
     title = 'Theme Editor',
+    handleChange,
     onChange,
     colours = COLOURS,
     metrics = METRICS,
   } = config
 
-  const changed = (): void => onChange?.(w3dTheme)
+  /*
+  `handleChange` FIRST, `onChange` only as the deprecated alias.
+
+  This is the `onFoo` footgun landing on a plain factory rather than a
+  component: the option was named `onChange` while every caller — the w3d-theme
+  demo included — passed `handleChange`, which is the convention the rest of
+  this library follows. Nothing errored. The editor went on writing the theme
+  table, and the callback that rebuilds the panels was simply never called, so
+  the controls moved and the thing they were editing did not.
+  */
+  const changed = (): void => (handleChange ?? onChange)?.(w3dTheme)
 
   /**
    * Accept either a value or a DOM event from an injected control.
@@ -291,8 +304,17 @@ export function themeEditor(config: ThemeEditorOptions = {}): HTMLElement {
     worse than a slider alone, because now two things claim to be the value.
     */
     const apply = (v: number | string): void => {
-      const n = Number(v)
-      if (!Number.isFinite(n)) return
+      const raw = Number(v)
+      if (!Number.isFinite(raw)) return
+      /*
+      CLAMP before storing, or the pair drifts.
+
+      A number field accepts anything typed into it while a range silently
+      clamps, so typing 34 into a metric capped at 28 left the slider reading 28
+      and the field reading 34 — the exact "two things claim to be the value"
+      this row is built to prevent — with the theme taking the out-of-range one.
+      */
+      const n = Math.min(max, Math.max(min, raw))
       setW3dTheme({ [key]: n } as Partial<W3dTheme>)
       range.value = String(n)
       num.value = String(n)

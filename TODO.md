@@ -1,5 +1,33 @@
 # TODO
 
+- **A nested `/* … */` inside a `/*# … */` doc comment silently truncates the
+  page — add a build-time guard.** Block comments do not nest, so the inner
+  `*/` ends the doc; everything after it vanishes from the site and the rest of
+  the file is then parsed as code. `curve-program` shipped that way and about
+  half its demo was simply absent, with no error anywhere. The check is cheap:
+  a doc comment should be followed by `/*{`, an import or a declaration, and
+  its code fences should balance. Worth running in `buildSite()` so it fails
+  loudly instead of publishing a half page. (Found 2026-09-04; one occurrence
+  repo-wide at the time, now fixed.)
+
+- **Demo code in doc comments is NOT type-checked, and that is where the
+  silent-callback bugs live.** Three shipped at once: `themeEditor` read
+  `onChange` while callers passed `handleChange`, and two demos passed
+  `handleChange` to `inputField`, which reads `onChange`. Every one of them
+  compiles, runs, and does nothing. A pass that extracts each demo and
+  type-checks it against the built `.d.ts` would have caught all three.
+
+- **`handleX` vs `onX` is inconsistent across the widget factories, and that
+  inconsistency is what caused the bugs above.** `curve3d`, `footprint3d` and
+  `vector3d` accept BOTH via the `handlerOf` shim (warning on the old name);
+  `inputField`, `keyboard`, `table`, `surface`, `box` and `b3dLauncher` accept
+  only `onX`. So whether `handleChange` works depends on which widget you are
+  holding, with no error when it does not. CLAUDE.md says not to rename the
+  plain factories — that rule is about not treating `onFoo` as the component
+  creator footgun, which it is not here. **The decision to make is whether the
+  `handlerOf` shim should simply cover them all**, which would make the answer
+  "`handleX` always works" without breaking a single existing caller.
+
 - **Camera zoom is unreachable in VR.** `cameraZoom` moved to the D-pad and XR
   controllers have no D-pad; the right stick's vertical axis is now the view
   tilt. Wants a slider on the in-headset scene panel, which is the established

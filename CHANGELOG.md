@@ -101,11 +101,28 @@ the two renames that were waiting for a minor.
 - `lightEditor3d` shipped demo copy into every consumer's panel; the hint is now
   opt-in.
 - The aircraft chase camera sat too close after content moved to human scale.
+- **`themeEditor` never called back.** It read `config.onChange` while its
+  callers passed `handleChange`, so the theme table updated and the host's
+  rebuild never ran — the controls moved and the panels they edit did not.
+  `handleChange` is now the option; `onChange` still works, deprecated.
+- A metric typed **out of range** left the slider on the cap and the number
+  field above it, with the theme taking the out-of-range value — the exact
+  drift a paired slider-and-field exists to prevent. Values are clamped now.
+- Two demos (`w3d-theme`, `keyboard`) passed `handleChange` to `inputField`,
+  which reads `onChange` — so typing updated nothing. Demo code lives in doc
+  comments and is **not type-checked**, which is why this class of mistake
+  reaches a page instead of the compiler.
+- **The `curve-program` demo was truncated on the published site.** Its doc
+  comment contained a nested `/* … */`, and block comments do not nest — the
+  inner `*/` closed the page early, so roughly half the demo silently vanished.
+- The `curve-program` and `curve-field` editors did not exist inside a headset:
+  both put their controls in flat DOM beside the canvas, which an immersive
+  session does not render. Both now also build through `scenePanel`.
 
 ### Changed
 
 - Doc pages are named for what they are (`Light program editor`, `Curve
-  editor`, `Lamps`) rather than for their module. URLs are unchanged.
+editor`, `Lamps`) rather than for their module. URLs are unchanged.
 - ⚠️ `shadows="on"` is not free — one extra render of the caster list per lamp
   per frame, worse with a large `range`. Prefer `off` for dynamically inserted
   content.

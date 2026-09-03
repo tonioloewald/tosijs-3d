@@ -379,9 +379,7 @@ export function createSvgIcons(
 }
 
 /** Names of the icons with real artwork (excludes pure redirect entries). */
-export function iconNames(
-  data: IconMap = DEFAULT_MAP
-): string[] {
+export function iconNames(data: IconMap = DEFAULT_MAP): string[] {
   return Object.keys(data).filter((name) => data[name].startsWith('<'))
 }
 

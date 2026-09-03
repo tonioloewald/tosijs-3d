@@ -93,6 +93,65 @@ describe('themeEditor — structure', () => {
     theme.setW3dTheme({ spacing: 8 })
   })
 
+  test('an OUT OF RANGE typed value is clamped, so the pair cannot drift', () => {
+    // A number field accepts anything typed; a range silently clamps. Storing
+    // the raw value left the slider on the cap and the field above it, with the
+    // theme taking the out-of-range one — the drift this row exists to prevent.
+    const el = te.themeEditor({ colours: [], metrics: [['spacing', 0, 20, 1]] })
+    document.body.append(el)
+    const range = el.querySelector('input[type=range]') as HTMLInputElement
+    const num = el.querySelector('input[type=number]') as HTMLInputElement
+    const W = num.ownerDocument.defaultView as any
+    num.value = '34'
+    num.dispatchEvent(new W.Event('change'))
+    expect(num.value).toBe('20')
+    expect(range.value).toBe('20')
+    expect(theme.w3dTheme.spacing).toBe(20)
+    theme.setW3dTheme({ spacing: 8 })
+  })
+
+  test('handleChange fires — the callback a host rebuilds from', () => {
+    /*
+    The regression this pins: the option was READ as `onChange` while every
+    caller passed `handleChange`. Nothing errored, the theme table still
+    updated, and the host's rebuild simply never ran — so the controls moved and
+    the panels they edit did not.
+    */
+    let calls = 0
+    const el = te.themeEditor({
+      colours: [],
+      metrics: [['spacing', 0, 20, 1]],
+      handleChange: () => {
+        calls += 1
+      },
+    })
+    document.body.append(el)
+    const num = el.querySelector('input[type=number]') as HTMLInputElement
+    const W = num.ownerDocument.defaultView as any
+    num.value = '12'
+    num.dispatchEvent(new W.Event('change'))
+    expect(calls).toBe(1)
+    theme.setW3dTheme({ spacing: 8 })
+  })
+
+  test('onChange still works, deprecated', () => {
+    let calls = 0
+    const el = te.themeEditor({
+      colours: [],
+      metrics: [['spacing', 0, 20, 1]],
+      onChange: () => {
+        calls += 1
+      },
+    })
+    document.body.append(el)
+    const num = el.querySelector('input[type=number]') as HTMLInputElement
+    const W = num.ownerDocument.defaultView as any
+    num.value = '9'
+    num.dispatchEvent(new W.Event('change'))
+    expect(calls).toBe(1)
+    theme.setW3dTheme({ spacing: 8 })
+  })
+
   test('title can be suppressed', () => {
     expect(
       te

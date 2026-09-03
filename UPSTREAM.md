@@ -11,8 +11,8 @@ or a sibling. See `tosijs-coding-practices/practices/cross-project.md`.
 no issue URL is a complaint nobody will ever read.
 
 > **tosijs 1.9.2 / tosijs-ui 1.13.0 adopted 2026-09-03.** Five rows below were
-> filed against tosijs and are now CLOSED *and shipped in the version we
-> depend on* — `#14`, `#15`, `#22`, `#24`, `#27`. Behaviour verified rather than
+> filed against tosijs and are now CLOSED _and shipped in the version we
+> depend on_ — `#14`, `#15`, `#22`, `#24`, `#27`. Behaviour verified rather than
 > assumed: a wrong-typed write now warns and applies (it used to be discarded),
 > and a prototype accessor survives so a computed `Deg` alias works. The rows
 > stay listed until someone walks each workaround, because "the bug is fixed"

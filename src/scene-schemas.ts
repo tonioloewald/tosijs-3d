@@ -56,10 +56,11 @@ const bool = (def: boolean): Record<string, unknown> => ({
   default: def,
 })
 
-const choice = (
-  def: string,
-  values: string[]
-): Record<string, unknown> => ({ type: 'string', default: def, enum: values })
+const choice = (def: string, values: string[]): Record<string, unknown> => ({
+  type: 'string',
+  default: def,
+  enum: values,
+})
 
 /** Degrees, minutes, metres — the units a panel should show beside a number. */
 const DEG = { 'x-unit': 'deg' }
@@ -306,7 +307,6 @@ export const SCENE_OMITTED: Record<string, string[]> = {
   terrain: [],
   reflections: [],
 }
-
 
 /** `b3d-ground` — the simple ground plane. `size` of `0` means use width/height. */
 export function groundSchema(extra: Record<string, unknown> = {}) {

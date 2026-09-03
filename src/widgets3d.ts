@@ -1188,9 +1188,9 @@ export function iconBar3d(config: {
     title?: string
     active?: boolean
     /** Fired on release, on the thing pressed. */
-  handleClick?: () => void
-  /** @deprecated use `handleClick` — removed in 0.9. */
-  onClick?: () => void
+    handleClick?: () => void
+    /** @deprecated use `handleClick` — removed in 0.9. */
+    onClick?: () => void
   }>
 }): Widget3d {
   const BS = 32 // button size

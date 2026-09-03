@@ -575,7 +575,10 @@ describe('button columns', () => {
   const build = (col: any, selection?: any) => {
     const t = T.table({
       rows,
-      columns: [{ key: 'name', flex: 1 }, { key: 'act', width: 30, ...col }],
+      columns: [
+        { key: 'name', flex: 1 },
+        { key: 'act', width: 30, ...col },
+      ],
       height: 200,
       selection,
     })
