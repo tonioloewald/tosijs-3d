@@ -213,3 +213,6 @@ dist/iife.js.map
 # build-backup ritual — retire when tosijs-ui#51 (concurrent-build lock) ships
 docs.last-good
 .dev-keeper
+
+# macOS Spotlight marker the build drops into dist/ — zero bytes, never ours
+.metadata_never_index
