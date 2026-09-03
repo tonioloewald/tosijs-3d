@@ -64,6 +64,22 @@ const { g } = svgElements
 
 export interface LightEditor3dOptions {
   value?: Partial<LightSettings>
+  /**
+   * A line of guidance above the switch. **Absent by default.**
+   *
+   * It used to be hard-coded — "flip it to watch the attack and decay" — which
+   * was right on the demo page it was written for and wrong everywhere else:
+   * teaching copy for OUR docs, shipping inside every consumer's property
+   * panel, with no way to turn it off. In an ensemble editor there is no
+   * program being watched, there is a lantern in a pirate cove
+   * (tosijs-3d#65).
+   *
+   * The rule it cost us, worth stating: an embedded widget owns the labels of
+   * the CONTROLS it draws, and nothing above that. Titles, ids and explanation
+   * belong to whoever placed it, because only they know what the thing is
+   * called and who is reading.
+   */
+  hint?: string
   /** Live, including mid-drag — for the lamp itself. */
   handleChange?: (settings: LightSettings) => void
   /** Once per gesture — for a document and one undo step. */
@@ -134,6 +150,8 @@ export function lightEditor3d(
     })
 
   const rows: Widget3d[] = [
+    // Opt-IN guidance, and nothing when it is absent.
+    ...(config.hint ? [label3d({ text: config.hint, muted: true })] : []),
     // The switch FIRST: it is the control you reach for while watching the
     // program, and burying it under six sliders would hide the thing the
     // program editor exists to demonstrate.
@@ -142,7 +160,6 @@ export function lightEditor3d(
     // because a control's label should name the control — a label carrying an
     // instruction reads as part of the sentence and stops looking like a
     // switch, which is how the first version went unrecognised.
-    label3d({ text: 'flip it to watch the attack and decay', muted: true }),
     toggle3d({
       label: 'power',
       value: s.on,
@@ -193,7 +210,12 @@ export function lightEditor3d(
         emit(v ? 'enable light shadows' : 'disable light shadows', true)
       },
     }),
-    label3d({ text: 'program — attack · sustain · decay', muted: true }),
+    /*
+    A section divider, not teaching copy: it names a group of controls this
+    widget draws, which is squarely the widget's business. Kept terse for the
+    same reason the hint left — a consumer's panel is not our doc page.
+    */
+    label3d({ text: 'program', muted: true }),
     /*
     A preset PICKER, not a menu of curves to copy: picking one replaces the
     program wholesale and the plots redraw, so it is a starting point you then

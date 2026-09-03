@@ -66,6 +66,9 @@ const makeLamp = (s) => {
 // The WHOLE lamp, not just its curves: a power switch, colour, intensity,
 // range, shadows, and the program. Everything applies live.
 const editor = lightEditor3d({
+  // The guidance lives HERE, in the demo that needed it, rather than inside the
+  // widget where it shipped into everyone's panel.
+  hint: 'flip the power to watch the attack and decay',
   value: {
     kind: 'point', on: true,
     hue: 205, saturation: 0.19, intensity: 2.1, range: 15,
