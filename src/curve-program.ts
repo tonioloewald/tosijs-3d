@@ -5,54 +5,22 @@
 several curves that share one pair of split markers.** One `Widget3d`, one
 value in, one value out, one undo step per gesture.
 
-## Why this is ONE widget and not six fields
-
-A program is four curves (`brightness`, `hue`, `saturation`, `range`) plus the
-markers that divide all of them into attack / sustain / decay. Those markers
-belong to the **lamp**, not to any channel.
-
-Exposed as six sibling fields, a generated panel would let brightness and hue be
-edited into disagreement about where the attack ends — and that is not a state
-the runtime can represent, so the document could hold a program that cannot run.
-`tosijs-3d-ensemble`, whose format treats the JSON as the truth, put the
-consequence plainly: _"a truth that cannot be executed is worse than a coarser
-panel."_ So the invariant lives where it can be enforced — inside one widget.
-
-It also makes the undo story fall out. One gesture is one `handleCommit` is one
-entry in a history, instead of six callbacks nobody can tell belonged together.
-
-## Controlled: value in, value out
-
-The widget renders what you give it and emits a new program; it does not hold a
-second copy of your document. During a drag it keeps a working value (an SVG
-control has to), but the boundary is explicit:
-
-| callback | when | for |
-| --- | --- | --- |
-| `handleChange(program)` | live, including mid-drag | a 3D preview that must follow the gesture |
-| `handleCommit(program, describe)` | once, when the gesture ends | the document, and one undo step |
-
-`describe` is a bare verb phrase — `'edit brightness curve'`, `'move attack
-split'` — because a consumer attaches the subject themselves.
-
-## Schema
-
-`lightProgramSchema()` marks the whole object `"x-widget": "curve-program"`, and
-each channel carries `"x-widget": "curve"` with an `"x-curve-kind"`. A panel
-generated from JSON Schema dispatches on the token and hands the entire value
-here.
-
 ## Demo
 
 **The editor drives a real lamp.** Drag a point or a split and the light changes
-under it; hit the switch and watch the program's attack and decay play out on
-the actual scene, which is the only way to tell whether a curve you drew is the
-curve you wanted.
+under it; flip the power SWITCH and watch the program's attack and decay play
+out on the actual scene, which is the only way to tell whether a curve you drew
+is the curve you wanted.
+
+It uses [[light-editor|lightEditor3d]], which wraps this widget with the lamp's
+static properties — colour, intensity, range, shadows, type. A program editor
+alone is half a job: you can draw a perfect strike and have no way to say the
+lamp is a warm spot that casts shadows.
 
 ```js
 import {
-  curveProgram3d, panel3d, label3d, button3d,
-  b3d, b3dLight, b3dPointLight,
+  lightEditor3d, lightColor, panel3d, label3d,
+  b3d, b3dLight, b3dPointLight, b3dSpotLight, b3dAreaLight,
 } from 'tosijs-3d'
 import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
@@ -75,23 +43,55 @@ const program = {
   attack: 1.3, period: 3, decay: 3.2,
 }
 
-const lamp = b3dPointLight({
-  x: 0, y: 4.2, z: 0, diffuse: '#cfe8ff', range: 15, intensity: 2.1,
-  shadows: 'on', program,
-})
+// The lamp is REPLACED when the type changes, because point / spot / area are
+// three different elements. Everything else applies to the live one.
+let lamp = null
+const mount = document.createElement('div')
 
-const editor = curveProgram3d({
-  value: program,
-  // LIVE, so the lamp follows the drag. The commit is what a document would
-  // record; a preview wants every frame of the gesture.
-  handleChange: (next) => { lamp.program = next },
-})
+const makeLamp = (s) => {
+  const common = {
+    x: 0, y: 4.2, z: 0,
+    diffuse: lightColor(s), range: s.range, intensity: s.intensity,
+    shadows: s.shadows ? 'on' : 'off',
+    on: s.on ? 'on' : 'off',
+    program: s.program,
+  }
+  return s.kind === 'spot'
+    ? b3dSpotLight({ ...common, angle: s.angle, exponent: 6 })
+    : s.kind === 'area'
+      ? b3dAreaLight({ ...common, width: 3, height: 1.2 })
+      : b3dPointLight(common)
+}
 
-// `on` is an 'on'|'off' STRING, not a boolean — an absent boolean attribute
-// reads false, so a default-true boolean is not expressible in HTML.
-const power = button3d({
-  label: 'power — strike / decay',
-  onClick: () => { lamp.on = lamp.on === 'off' ? 'on' : 'off' },
+// The WHOLE lamp, not just its curves: a power switch, colour, intensity,
+// range, shadows, and the program. Everything applies live.
+const editor = lightEditor3d({
+  value: {
+    kind: 'point', on: true,
+    hue: 205, saturation: 0.19, intensity: 2.1, range: 15,
+    shadows: true, program,
+  },
+  handleChange: (s) => {
+    if (lamp == null) return
+    // A TYPE change is a different element, so swap it. Removing and adding is
+    // a genuine removal + build, not a move, so the new lamp starts fresh.
+    if (s.kind !== lamp.dataset.kind) {
+      const next = makeLamp(s)
+      next.dataset.kind = s.kind
+      lamp.replaceWith(next)
+      lamp = next
+      return
+    }
+    // `on` is an 'on'|'off' STRING, not a boolean — an absent boolean
+    // attribute reads false, so a default-true boolean is not expressible.
+    lamp.on = s.on ? 'on' : 'off'
+    lamp.shadows = s.shadows ? 'on' : 'off'
+    lamp.diffuse = lightColor(s)
+    lamp.intensity = s.intensity
+    lamp.range = s.range
+    lamp.program = s.program
+    if (s.kind === 'spot') lamp.angle = s.angle
+  },
 })
 
 const scene = b3d(
@@ -135,14 +135,18 @@ const scene = b3d(
     },
   },
   b3dLight({ intensity: 0.06 }),
-  lamp
+  mount
 )
+
+lamp = makeLamp(editor.value)
+lamp.dataset.kind = editor.value.kind
+mount.append(lamp)
 
 preview.append(
   div(
     { style: 'display:flex;gap:14px;height:100%;padding:12px;background:#0c0e14;box-sizing:border-box' },
     div({ style: 'flex:0 0 330px;overflow:auto' },
-      panel3d({ width: 310 }, label3d({ text: 'Light program' }), power, editor)),
+      panel3d({ width: 310 }, label3d({ text: 'Light' }), editor)),
     div({ style: 'flex:1;min-width:0;display:flex' }, scene)
   )
 )
@@ -152,6 +156,43 @@ preview.append(
   height: 100%;
 }
 ```
+## Why this is ONE widget and not six fields
+
+A program is four curves (`brightness`, `hue`, `saturation`, `range`) plus the
+markers that divide all of them into attack / sustain / decay. Those markers
+belong to the **lamp**, not to any channel.
+
+Exposed as six sibling fields, a generated panel would let brightness and hue be
+edited into disagreement about where the attack ends — and that is not a state
+the runtime can represent, so the document could hold a program that cannot run.
+`tosijs-3d-ensemble`, whose format treats the JSON as the truth, put the
+consequence plainly: _"a truth that cannot be executed is worse than a coarser
+panel."_ So the invariant lives where it can be enforced — inside one widget.
+
+It also makes the undo story fall out. One gesture is one `handleCommit` is one
+entry in a history, instead of six callbacks nobody can tell belonged together.
+
+## Controlled: value in, value out
+
+The widget renders what you give it and emits a new program; it does not hold a
+second copy of your document. During a drag it keeps a working value (an SVG
+control has to), but the boundary is explicit:
+
+| callback | when | for |
+| --- | --- | --- |
+| `handleChange(program)` | live, including mid-drag | a 3D preview that must follow the gesture |
+| `handleCommit(program, describe)` | once, when the gesture ends | the document, and one undo step |
+
+`describe` is a bare verb phrase — `'edit brightness curve'`, `'move attack
+split'` — because a consumer attaches the subject themselves.
+
+## Schema
+
+`lightProgramSchema()` marks the whole object `"x-widget": "curve-program"`, and
+each channel carries `"x-widget": "curve"` with an `"x-curve-kind"`. A panel
+generated from JSON Schema dispatches on the token and hands the entire value
+here.
+
 */
 /*{ "parent": "UI", "order": 263 }*/
 

@@ -428,6 +428,14 @@ export { curve3d, curveMarkers } from './curve-field'
 // The composite: several curves sharing ONE pair of split markers, so the
 // invariant lives where it can be enforced (see #61 Q5a).
 export { curveProgram3d, PROGRAM_CHANNELS } from './curve-program'
+// The whole lamp — static properties plus the program, as one field.
+export { lightEditor3d, lightColor, DEFAULT_LIGHT } from './light-editor'
+export type {
+  LightEditor3dOptions,
+  LightEditorField,
+  LightSettings,
+  LightKind,
+} from './light-editor'
 export type {
   CurveProgram3dOptions,
   CurveProgramField,

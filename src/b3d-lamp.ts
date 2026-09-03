@@ -11,87 +11,6 @@ so every scene grows a hand-rolled "glowing sphere next to the light" that then
 has to be kept in sync with it. These carry the emitter with the light, and let
 you turn it off or replace it when the scene has a real fixture to put there.
 
-## What each type can actually do
-
-Decided by Babylon, not by us, and worth knowing before you pick:
-
-| | shadows | gel (`projectionTexture`) | geometry |
-| --- | --- | --- | --- |
-| `b3dPointLight` | ✅ cube shadow map | ❌ not supported by the engine | glowing sphere |
-| `b3dSpotLight` | ✅ | ✅ **native** — bitmap or SVG | cone housing |
-| `b3dAreaLight` | ❌ `RectAreaLight` is not a `ShadowLight` | ❌ | emissive panel |
-
-Rather than fake the two ❌ cases, they warn once and carry on lit. A gel faked
-on a point light would be a shadow-map hack with different behaviour, different
-cost and different bugs from the real thing — a worse outcome than the honest
-absence, and one you would discover late.
-
-## Geometry: on, off, or yours
-
-`geometry="on"` (the default) builds a primitive sized to the light. `"off"`
-gives you the light alone. To supply your own, either point `url` at a GLB — it
-is canonicalized and parented like any model — or parent anything you like to
-the lamp's `node`:
-
-```javascript
-const lamp = b3dSpotLight({ intensity: 40, geometry: 'off' })
-myChandelier.parent = lamp.node
-```
-
-The default geometry is deliberately plain and **unlit** (`emissiveColor`,
-`disableLighting`), because a fixture that is itself shaded by the scene reads as
-a grey lump exactly when its light is off — which is when you most need to see
-where it is.
-
-## One curve is the whole lamp
-
-Everything time-varying comes from [[light-modulation]]: **one curve per channel**
-(`brightness`, `hue`, `saturation`, `range`) spanning the lamp's entire
-behaviour, split into three regions by two markers.
-
-```
-   0 ─────────── attackEnd ──────────── sustainEnd ─────────── 1
-   |   ATTACK        |       SUSTAIN         |      DECAY      |
-   | once, on        | loops while on,       | once, on        |
-   | switch-on       | one pass per `period` | switch-off      |
-```
-
-The seams cannot jump, because there is only one curve — the attack arrives at
-`attackEnd` and the sustain starts there. It follows that **the curve's value at
-`attackEnd` IS the sustain level**: there is nothing else to declare and nothing
-to keep in sync.
-
-```javascript
-b3dSpotLight({
-  y: 4, intensity: 60, diffuse: '#ffd9a0',
-  // A fluorescent: strikes in stutters, hums steadily, fades out and reddens.
-  program: {
-    brightness: [
-      { x: 0, y: 0 }, { x: 0.08, y: 0.9 }, { x: 0.12, y: 0.05 },
-      { x: 0.2, y: 1 }, { x: 0.26, y: 0.1 }, { x: 0.35, y: 0.95 },
-      { x: 0.75, y: 1 }, { x: 0.9, y: 0.3 }, { x: 1, y: 0 },
-    ],
-    hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
-    hueShiftDeg: 190,
-    attackEnd: 0.35, sustainEnd: 0.75,
-    attack: 1.2, period: 2, decay: 1.5,
-  },
-})
-```
-
-Those are the same `[0,1] → [0,1]` curves the province editor edits, so
-[[curve-field|curve3d]] is already the editor for a lamp — the two markers are
-the only thing it does not draw yet.
-
-**Flicker does not compose across regions**, deliberately: if you want a lamp
-flickering as it dies, draw that into the decay region. See
-[[light-modulation]] for why that trade was taken and the two discontinuities
-it leaves.
-
-`on` is what runs the program: setting it false plays the DECAY region rather
-than killing the light. A lamp that has finished decaying stops doing per-frame
-work altogether.
-
 ## Demo
 
 A dark room with a **matte, patterned floor** — the two things a lighting demo
@@ -247,6 +166,87 @@ tosi-b3d { width: 100%; height: 100%; }
 .preview { height: 100%; }
 ```
 
+## What each type can actually do
+
+Decided by Babylon, not by us, and worth knowing before you pick:
+
+| | shadows | gel (`projectionTexture`) | geometry |
+| --- | --- | --- | --- |
+| `b3dPointLight` | ✅ cube shadow map | ❌ not supported by the engine | glowing sphere |
+| `b3dSpotLight` | ✅ | ✅ **native** — bitmap or SVG | cone housing |
+| `b3dAreaLight` | ❌ `RectAreaLight` is not a `ShadowLight` | ❌ | emissive panel |
+
+Rather than fake the two ❌ cases, they warn once and carry on lit. A gel faked
+on a point light would be a shadow-map hack with different behaviour, different
+cost and different bugs from the real thing — a worse outcome than the honest
+absence, and one you would discover late.
+
+## Geometry: on, off, or yours
+
+`geometry="on"` (the default) builds a primitive sized to the light. `"off"`
+gives you the light alone. To supply your own, either point `url` at a GLB — it
+is canonicalized and parented like any model — or parent anything you like to
+the lamp's `node`:
+
+```javascript
+const lamp = b3dSpotLight({ intensity: 40, geometry: 'off' })
+myChandelier.parent = lamp.node
+```
+
+The default geometry is deliberately plain and **unlit** (`emissiveColor`,
+`disableLighting`), because a fixture that is itself shaded by the scene reads as
+a grey lump exactly when its light is off — which is when you most need to see
+where it is.
+
+## One curve is the whole lamp
+
+Everything time-varying comes from [[light-modulation]]: **one curve per channel**
+(`brightness`, `hue`, `saturation`, `range`) spanning the lamp's entire
+behaviour, split into three regions by two markers.
+
+```
+   0 ─────────── attackEnd ──────────── sustainEnd ─────────── 1
+   |   ATTACK        |       SUSTAIN         |      DECAY      |
+   | once, on        | loops while on,       | once, on        |
+   | switch-on       | one pass per `period` | switch-off      |
+```
+
+The seams cannot jump, because there is only one curve — the attack arrives at
+`attackEnd` and the sustain starts there. It follows that **the curve's value at
+`attackEnd` IS the sustain level**: there is nothing else to declare and nothing
+to keep in sync.
+
+```javascript
+b3dSpotLight({
+  y: 4, intensity: 60, diffuse: '#ffd9a0',
+  // A fluorescent: strikes in stutters, hums steadily, fades out and reddens.
+  program: {
+    brightness: [
+      { x: 0, y: 0 }, { x: 0.08, y: 0.9 }, { x: 0.12, y: 0.05 },
+      { x: 0.2, y: 1 }, { x: 0.26, y: 0.1 }, { x: 0.35, y: 0.95 },
+      { x: 0.75, y: 1 }, { x: 0.9, y: 0.3 }, { x: 1, y: 0 },
+    ],
+    hue: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
+    hueShiftDeg: 190,
+    attackEnd: 0.35, sustainEnd: 0.75,
+    attack: 1.2, period: 2, decay: 1.5,
+  },
+})
+```
+
+Those are the same `[0,1] → [0,1]` curves the province editor edits, so
+[[curve-field|curve3d]] is already the editor for a lamp — the two markers are
+the only thing it does not draw yet.
+
+**Flicker does not compose across regions**, deliberately: if you want a lamp
+flickering as it dies, draw that into the decay region. See
+[[light-modulation]] for why that trade was taken and the two discontinuities
+it leaves.
+
+`on` is what runs the program: setting it false plays the DECAY region rather
+than killing the light. A lamp that has finished decaying stops doing per-frame
+work altogether.
+
 ## Attributes
 
 Shared by all three unless noted.
@@ -351,6 +351,8 @@ export abstract class B3dLamp extends B3dChild {
   /** Parent for the fixture. Parent your own geometry here. */
   node?: BABYLON.TransformNode
   shadowGenerator?: BABYLON.ShadowGenerator
+  /** Undo for the current shadow setup — see `syncShadows`. */
+  private _shadowOff: (() => void) | null = null
 
   /**
    * The lamp's whole behaviour as one curve per channel — attack, sustain and
@@ -399,7 +401,7 @@ export abstract class B3dLamp extends B3dChild {
     this._switchAt = this._wasOn ? 0 : -((this.program?.decay ?? 0) + 1)
 
     this.buildFixture(scene)
-    this.setupShadows()
+    this.syncShadows()
     owner.register({ lights: [this.light] })
 
     this._tick = scene.onBeforeRenderObservable.add(() => this.update(scene))
@@ -455,6 +457,26 @@ export abstract class B3dLamp extends B3dChild {
     return mat
   }
 
+  /**
+   * Build or tear down the shadow generator to match `shadows`.
+   *
+   * Called from `render()` as well as at setup, because it was setup-only and
+   * that made `shadows` an attribute you could write, that kept your value, and
+   * that did nothing — the exact failure #43 describes for the aircraft's chase
+   * fields. Toggling it in an editor did nothing at all.
+   */
+  private syncShadows(): void {
+    const want = !isOff(this.shadows)
+    if (want === (this._shadowOff != null)) return
+    if (!want) {
+      this._shadowOff?.()
+      this._shadowOff = null
+      this.shadowGenerator = undefined
+      return
+    }
+    this.setupShadows()
+  }
+
   private setupShadows(): void {
     if (isOff(this.shadows)) return
     const light = this.light
@@ -470,7 +492,6 @@ export abstract class B3dLamp extends B3dChild {
     const gen = new BABYLON.ShadowGenerator(size, light)
     gen.usePercentageCloserFiltering = true
     this.shadowGenerator = gen
-    this._disposables.push(gen)
     /*
     Casters arrive over time (loaders, spawners), so subscribe rather than
     snapshotting the scene once — the same contract b3d-shadows uses.
@@ -500,9 +521,15 @@ export abstract class B3dLamp extends B3dChild {
       }
     }
     this.owner?.addSceneListener(add)
-    this._disposables.push({
-      dispose: () => this.owner?.removeSceneListener(add),
-    })
+    /*
+    ONE releaser for the whole shadow setup, so turning it off undoes exactly
+    what turning it on did. Held separately from `_disposables` because that is
+    torn down once at dispose, and this can happen many times.
+    */
+    this._shadowOff = () => {
+      this.owner?.removeSceneListener(add)
+      gen.dispose()
+    }
   }
 
   /** Per-frame: advance the clock and apply the sampled program. */
@@ -552,6 +579,7 @@ export abstract class B3dLamp extends B3dChild {
     this.baseRange = this.range
     this.baseColor = BABYLON.Color3.FromHexString(this.diffuse)
     this.light.specular = BABYLON.Color3.FromHexString(this.specular)
+    this.syncShadows()
     // Only write through when nothing is animating; otherwise `update` owns
     // these and a render mid-flicker would fight it for a frame.
     if (!isAnimated(this.program)) {
@@ -581,6 +609,11 @@ export abstract class B3dLamp extends B3dChild {
         /* a half-built fixture can throw on the way down */
       }
     }
+    // The shadow setup has its own releaser now — `_disposables` no longer
+    // holds it, since it can be built and torn down many times over a lamp's
+    // life whereas that list is drained exactly once.
+    this._shadowOff?.()
+    this._shadowOff = null
     this.shadowGenerator = undefined
     this.light?.dispose()
     this.light = undefined

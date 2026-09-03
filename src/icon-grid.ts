@@ -5,40 +5,6 @@
 picker.** A grid of icons with optional captions, as a `Widget3d`, so it works
 flat, on an in-scene panel and in a headset unchanged.
 
-## The control owns LAYOUT; the consumer owns MEANING
-
-Three widgets collapse into one because the difference between them was never
-layout — it was semantics. So `mode` picks the common case (`buttons` fire and
-forget, `radio` is one-of-N, `checkbox` is any-of-N) and `handleChange` lets a consumer
-impose something more particular: mutually exclusive subgroups, a mode that
-refuses to turn itself off, a tool that arms rather than toggles.
-
-`handleChange` receives what WOULD happen and returns what should. Returning the
-previous selection is a veto; there is no separate cancel flag, because one way
-to say no is easier to get right than two.
-
-## Cell size is the dial, and XR is NOT a third size
-
-Two cases: **48 px** for touch, **24 px** for a pointer, sniffed from
-`(pointer: coarse)` and overridable. That is the whole decision.
-
-It is tempting to add a third, larger size for XR on the grounds that a
-controller ray is imprecise. Tonio overruled exactly that, and the reasoning is
-better than mine was: _"we shouldn't make special size allowances for XR UI
-targets, we should scale XR so that pointer or touch targets make sense, since XR
-users also need to be able to read stuff."_
-
-Growing the targets in UI units leaves the glyphs where they are and inflates the
-buttons around them, so you buy hit accuracy by making the panel **harder to
-read** — the wrong trade for the medium with the lowest effective resolution.
-Scaling the whole panel in world space moves both together.
-
-## Captions are what force a narrow column
-
-Four columns by default. Without captions a cell is only as wide as its icon, so
-a caption-less grid can be much wider — which is why `columns` defaults from
-whether anything is captioned rather than being a fixed number.
-
 ## Demo
 
 One grid per meaning, so the difference is visible rather than described. The
@@ -192,6 +158,40 @@ preview.append(
   height: 100%;
 }
 ```
+## The control owns LAYOUT; the consumer owns MEANING
+
+Three widgets collapse into one because the difference between them was never
+layout — it was semantics. So `mode` picks the common case (`buttons` fire and
+forget, `radio` is one-of-N, `checkbox` is any-of-N) and `handleChange` lets a consumer
+impose something more particular: mutually exclusive subgroups, a mode that
+refuses to turn itself off, a tool that arms rather than toggles.
+
+`handleChange` receives what WOULD happen and returns what should. Returning the
+previous selection is a veto; there is no separate cancel flag, because one way
+to say no is easier to get right than two.
+
+## Cell size is the dial, and XR is NOT a third size
+
+Two cases: **48 px** for touch, **24 px** for a pointer, sniffed from
+`(pointer: coarse)` and overridable. That is the whole decision.
+
+It is tempting to add a third, larger size for XR on the grounds that a
+controller ray is imprecise. Tonio overruled exactly that, and the reasoning is
+better than mine was: _"we shouldn't make special size allowances for XR UI
+targets, we should scale XR so that pointer or touch targets make sense, since XR
+users also need to be able to read stuff."_
+
+Growing the targets in UI units leaves the glyphs where they are and inflates the
+buttons around them, so you buy hit accuracy by making the panel **harder to
+read** — the wrong trade for the medium with the lowest effective resolution.
+Scaling the whole panel in world space moves both together.
+
+## Captions are what force a narrow column
+
+Four columns by default. Without captions a cell is only as wide as its icon, so
+a caption-less grid can be much wider — which is why `columns` defaults from
+whether anything is captioned rather than being a fixed number.
+
 */
 /*{ "parent": "UI", "order": 262 }*/
 

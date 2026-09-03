@@ -203,6 +203,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
+- https://3d.tosijs.net/light-editor/ — light-editor
+  edits what a light *is* (type, colour, intensity, range, shadows) alongside what
 - https://3d.tosijs.net/light-modulation/ — light-modulation
   model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
 - https://3d.tosijs.net/make-mesh/ — make-mesh

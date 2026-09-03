@@ -11,18 +11,6 @@ one curve per layer, so this is how you author a plateau, a crater rim or a
 treeline without writing code. See `PROVINCE-DESIGN.md` → "every one of those
 responses IS a curve", and the [[b3d-terrain|province editor]] demo below.
 
-## Deleting a point is a BUTTON, not a gesture
-
-Adding is a tap on empty space and moving is a drag, which leaves deleting with
-no obvious third gesture. The usual answers all fail somewhere that matters
-here: right-click does not exist on a controller, double-tap is unreliable when
-the pointer is a ray from two metres away, and drag-off-the-edge collides with
-the clamp that keeps the curve in range.
-
-So the widget exposes `selected` and `deleteSelected()`, and the host puts a
-button somewhere honest. A discoverable button beats a gesture you have to be
-told about — which is the same argument the popup title bar makes for its grip.
-
 ## Demo — a province editor
 
 Two curves and a terrain block. The **shape** says what height the province wants
@@ -214,6 +202,18 @@ preview.append(
   height: 100%;
 }
 ```
+
+## Deleting a point is a BUTTON, not a gesture
+
+Adding is a tap on empty space and moving is a drag, which leaves deleting with
+no obvious third gesture. The usual answers all fail somewhere that matters
+here: right-click does not exist on a controller, double-tap is unreliable when
+the pointer is a ray from two metres away, and drag-off-the-edge collides with
+the clamp that keeps the curve in range.
+
+So the widget exposes `selected` and `deleteSelected()`, and the host puts a
+button somewhere honest. A discoverable button beats a gesture you have to be
+told about — which is the same argument the popup title bar makes for its grip.
 
 ## Shared split markers — a light program editor
 
