@@ -8,6 +8,33 @@ children), not just a static blob. Because it's a real element it works both as 
 flat DOM node **and** — via `.outerHTML` — as markup rasterized into an in-scene
 SVG texture (the VR panels), so one icon set serves both presentations.
 
+## Bringing your own icons
+
+`registerIcons(map)` adds names that **every widget can resolve** — an
+`iconGrid3d` item, a `table` icon column, a menu entry, `iconGlyph` directly.
+That is the difference from `createSvgIcons(yourData)`, which builds a private
+proxy: fine for calling yourself, useless for a name you hand to a control.
+
+```javascript
+registerIcons({
+  sceneZone: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+  sceneMarker: 'star',      // a REDIRECT — alias one of ours into your vocabulary
+})
+iconGrid3d({ items: [{ icon: 'sceneZone', label: 'zone' }] })
+```
+
+A value starting with `<` is artwork; anything else is a redirect to another
+name. Registered art gets the composition suffixes for free, so `myArrow90r`
+works the moment `myArrow` does.
+
+Registering over an existing name **replaces** it, deliberately and silently —
+swapping our `camera` for one that matches your art is a reasonable thing to
+want, and a warning on a deliberate act is noise. Nothing is ever removed.
+
+This is the answer to "I have icons I do not want to push upstream": keep them,
+register them, and they behave exactly like ours. `isRegisteredIcon(name)` tells
+the two apart if you need to.
+
 ## Demo
 
 The whole set, plus a few composed variants (rotate / flip / opacity / a
@@ -325,7 +352,15 @@ export function createSvgIcons(
   data: IconMap = iconData as unknown as IconMap,
   aliases: IconMap = iconAliases
 ): Record<string, SvgIconCreator> {
-  const map: IconMap = { ...aliases, ...data }
+  /*
+  Hold the LIVE object when there is nothing to merge, rather than a snapshot.
+
+  A copy is right for a private set built from fixed data, and wrong for the
+  default instance: `registerIcons` mutates the default map, and a proxy over a
+  copy would resolve everything except the icons a consumer just added.
+  */
+  const map: IconMap =
+    Object.keys(aliases).length === 0 ? data : { ...aliases, ...data }
   return new Proxy({} as Record<string, SvgIconCreator>, {
     get(_t, prop: string): SvgIconCreator {
       return (...parts: ElementPart[]) => {
@@ -345,15 +380,64 @@ export function createSvgIcons(
 
 /** Names of the icons with real artwork (excludes pure redirect entries). */
 export function iconNames(
-  data: IconMap = iconData as unknown as IconMap
+  data: IconMap = DEFAULT_MAP
 ): string[] {
   return Object.keys(data).filter((name) => data[name].startsWith('<'))
 }
 
-// The default resolution map: generated icon-data with aliases layered under it.
+/*
+The default resolution map: generated icon-data with aliases layered under it,
+plus whatever a consumer has registered.
+
+MUTABLE on purpose. Every widget that draws an icon — `table`'s icon column,
+`iconGrid3d`, the keyboard, a menu item — resolves a NAME through here, so an
+icon set a consumer cannot add to is one their widgets cannot use. They could
+always build a private proxy with `createSvgIcons(theirData)`, but that only
+serves direct calls; it does nothing for a name handed to a control.
+*/
 const DEFAULT_MAP: IconMap = {
   ...iconAliases,
   ...(iconData as unknown as IconMap),
+}
+
+/**
+ * Add icons a consumer owns, so the widgets can resolve them by name.
+ *
+ * ```js
+ * registerIcons({
+ *   sceneZone: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
+ *   sceneMarker: 'mapPin',   // a REDIRECT: an alias for an icon that exists
+ * })
+ * iconGrid3d({ items: [{ icon: 'sceneZone', label: 'zone' }] })
+ * ```
+ *
+ * A value starting with `<` is artwork; anything else is a redirect to another
+ * name, which is how the built-in mirrors work and how you alias one of ours to
+ * a name from your own vocabulary.
+ *
+ * **Registering over an existing name replaces it**, deliberately and without a
+ * warning: swapping our `camera` for one that matches your art is a reasonable
+ * thing to want, and a warning on a deliberate act is noise. Nothing is
+ * removed, so a name you did not register still resolves.
+ *
+ * Values are TRIMMED, because `icon-data` stores every entry with a trailing
+ * space and a redirect is re-parsed as a name where that space is fatal — it
+ * silently broke every mirrored icon once already (#54).
+ */
+export function registerIcons(icons: IconMap): void {
+  for (const [name, value] of Object.entries(icons)) {
+    if (typeof value !== 'string' || value.trim() === '') continue
+    DEFAULT_MAP[name] = value.trim()
+  }
+}
+
+/** Is this a name a consumer registered, rather than one we shipped? */
+export function isRegisteredIcon(name: string): boolean {
+  return (
+    name in DEFAULT_MAP &&
+    !(name in iconAliases) &&
+    !(name in (iconData as unknown as IconMap))
+  )
 }
 
 /**
@@ -495,6 +579,11 @@ export function iconGlyph(
 }
 
 /** The default icon proxy, over tosijs-3d's generated icon set. */
-export const svgIcons = createSvgIcons()
+/*
+Built against the LIVE default map, not a snapshot — so an icon registered
+after this module loads is still reachable as `svgIcons.myIcon`. `createSvgIcons`
+copies its arguments, which is right for a private set and wrong for this one.
+*/
+export const svgIcons = createSvgIcons(DEFAULT_MAP, {})
 
 /*{ "parent": "UI", "order": 230 }*/

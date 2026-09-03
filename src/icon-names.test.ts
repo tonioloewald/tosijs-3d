@@ -71,7 +71,24 @@ describe('every icon name in the source RESOLVES', () => {
       )) {
         names.add(m[1])
       }
-      for (const n of names) if (!iconExists(n)) bad.push(`${f}: '${n}'`)
+      /*
+      A file that REGISTERS a name has defined it, so it is not a typo.
+
+      `registerIcons` lets a consumer add icons every widget can resolve, and
+      our own docs demonstrate it — which means a doc example legitimately
+      names icons that are not in `iconData` and never will be. Skipping the
+      whole file would blind the guard; skipping the names it defines keeps it
+      strict about everything else.
+      */
+      const defined = new Set<string>()
+      for (const block of src.matchAll(/registerIcons\(\{([\s\S]*?)\}\)/g)) {
+        for (const k of block[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9]*)\s*:/gm)) {
+          defined.add(k[1])
+        }
+      }
+      for (const n of names) {
+        if (!defined.has(n) && !iconExists(n)) bad.push(`${f}: '${n}'`)
+      }
     }
     expect(bad).toEqual([])
   })

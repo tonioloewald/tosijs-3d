@@ -556,6 +556,11 @@ export {
   iconNames,
   iconAliases,
   iconData,
+  // Consumers own icons too: `registerIcons` adds names every WIDGET can
+  // resolve, which a private `createSvgIcons` set cannot do.
+  registerIcons,
+  iconExists,
+  isRegisteredIcon,
   type SvgIconCreator,
 } from './svg-icons'
 export {
