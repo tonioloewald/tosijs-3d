@@ -605,6 +605,45 @@ Not urgent while scenes are hand-built; **blocking the moment ensembles insert
 lit content**, which is the direction it is heading. Worth deciding before
 `lightEditor3d` teaches people that `shadows` is a free checkbox.
 
+[ ] **0.8.0 — RENAME THE PAGES AND REORGANISE THE SECTIONS.** Tonio, 2026-09-03:
+_"curve-program is a very obscure title for this page. Let's revisit the naming
+of pages and the organization of sections to make our best features easier to
+find."_
+
+He is right, and the pattern is that our page titles are MODULE names — they
+describe the implementation to someone who already knows it exists. `curve-program`
+is "the light program editor". `curve-field` is "curve editor". `footprint-field`
+is "province footprint". `widgets3d-layout` is pure plumbing sitting in the same
+list as the things people came for.
+
+**The rename is cheap — check this before scoping it as a refactor.** A page's
+title comes from the FIRST `#` HEADING in its doc comment, not from the
+filename: `tosi-b3d.ts` already titles itself `# b3d`, and `core.md` titles
+itself `# Core`. So renaming a page is ONE LINE, and touches no imports, no
+`index.ts`, no CLAUDE.md map row, and no URL.
+
+The URL slug DOES follow the filename, so changing `/curve-program/` to
+`/light-program-editor/` is a real file rename with import churn — a separate
+and much bigger decision. Probably not worth it; the title is what people read
+in navigation and search.
+
+So the work is **deciding good names**, not performing a risky migration. Worth
+doing as one pass so the vocabulary is consistent rather than per-page.
+
+Two other halves of the same problem:
+
+- **Section order.** Categories live in `src/docs/*.md` with an `order`, and
+  `parent`/`order` in each module's `/*{ }*/` block. Our best features are
+  scattered through them by implementation adjacency rather than by what a
+  newcomer wants first.
+- **An entry point.** There is still no "here is what this library does" page
+  above the category landings — the kitchen-sink widget demo idea from the UI
+  round, generalised. Everything is findable if you know the name; nothing is
+  browsable if you do not.
+
+Deferred to 0.8.0 deliberately: it is a vocabulary decision, it wants doing all
+at once, and 0.7.x is carrying adopter fixes that should not wait behind it.
+
 [ ] **Animation sources: Quaternius has coverage, Mixamo has quality.** Tonio,
 2026-08-27, after living with the UAL rig: _"I have bigger issues with the
 quality of some of the quaternius animations — I think that Mixamo's are
