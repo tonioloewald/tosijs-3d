@@ -270,7 +270,9 @@ settings into `select3d` cyclers to get discrete values.
 | `button3d` | `label` / `onClick` | | |
 | | `menu` | — | makes it a MENU button — opens actions instead of firing `onClick` |
 | `menu3d` | `items` / `handleSelect` | | rows of `MenuAction`; usually via `openMenu3d` |
-| `iconBar3d` | `items` | | `{icon, onClick}` |
+| `iconBar3d` | `items` | | `{icon, handleClick}` |
+| `spinner3d` | `label` / `size` | | INDETERMINATE busy — call `dispose()` when done |
+| `progress3d` | `label` / `value` / `showValue` | | determinate `0..1`; `setValue(f)` |
 
 ## Menus are for ACTIONS; a select is for a VALUE
 
@@ -324,6 +326,28 @@ Three rules it enforces, each of which is a bug if you get it wrong:
 **On a field**: `type`, `keyboardMode`, `isValid()`, `commit()`, plus the edit
 protocol (`insert`, `action`, `setValue`, `moveCaret`). `fieldGroup` manages
 several of them — exclusivity, commit-on-leave and keyboard layout.
+
+## Saying that something is HAPPENING
+
+`spinner3d` for "working, duration unknown"; `progress3d(fraction)` when the
+total is genuinely known. Both are `Widget3d`s, so the thing that is loading is
+one ROW of a panel rather than a mode the whole panel enters — which is usually
+the truth.
+
+**The spinner animates as geometry, not CSS**, and that is the reason it lives
+here rather than in each consumer. Flat, a keyframe animation works. Rasterised
+to an in-scene texture it does not run at all: `SvgTexture` serialises the SVG
+into its own document, where no stylesheet and no animation clock follow it. A
+consumer would ship a spinner that looks right on a desktop and silently freezes
+in a headset.
+
+One shared ticker drives every spinner, so N spinners are not N timers, and the
+timer stops when the last one goes. **Call `dispose()` when the work ends** —
+a forgotten spinner keeps that ticker alive and keeps painting something that is
+no longer true.
+
+If you find yourself faking a fraction, you wanted `spinner3d`: a determinate
+bar that is not determinate is a lie with a progress percentage on it.
 
 ## Callbacks are `handleX`, not `onX`
 
@@ -1858,6 +1882,194 @@ export function list3d<
           )?.(config.items[i], i)
         }
       } else highlight(i) // down / move / hover → highlight the row under it
+    },
+  }
+}
+
+// --- Busy: spinner and progress ---------------------------------------------
+
+/*
+ONE ticker for every spinner on the page.
+
+A spinner must animate in BOTH presentations, and that rules out CSS: flat, a
+keyframe animation works; rasterised to a texture it does not run AT ALL,
+because `SvgTexture` serialises the SVG into its own document where no
+stylesheet and no animation clock follow it. A consumer would ship something
+that looks right on a desktop and quietly freezes in a headset — exactly the
+trap `data-presentation` exists for (tosijs-3d#60, and ensemble spotted it
+before we did).
+
+So the rotation is GEOMETRY, updated on a timer. The texture re-rasterises
+every 30ms, which is what makes an attribute change show up there at all.
+
+Shared rather than per-spinner so N spinners cost one interval, and stopped
+entirely when the last one goes — a page with no spinner has no timer.
+*/
+const spinners = new Set<{ tick: (t: number) => void }>()
+let spinTimer: ReturnType<typeof setInterval> | null = null
+let spinPhase = 0
+
+function ensureSpinTicker(): void {
+  if (spinTimer != null) return
+  spinTimer = setInterval(() => {
+    spinPhase += 1
+    for (const s of spinners) s.tick(spinPhase)
+    if (spinners.size === 0 && spinTimer != null) {
+      clearInterval(spinTimer)
+      spinTimer = null
+    }
+  }, 60)
+}
+
+export interface Spinner3d extends Widget3d {
+  /** Stop the animation and release the shared ticker. */
+  dispose: () => void
+}
+
+/**
+ * An INDETERMINATE busy indicator — "working, duration unknown".
+ *
+ * The common case, and the one where a fake progress bar lies. Use
+ * `progress3d` only when the total is genuinely known.
+ *
+ * ```javascript
+ * const busy = spinner3d({ label: 'loading kits…' })
+ * panel.replaceChild(list.el, busy.el)   // when the work finishes
+ * busy.dispose()
+ * ```
+ *
+ * **Call `dispose()` when the work ends.** A forgotten spinner does not leak a
+ * timer of its own — there is only ever one for the whole page — but it does
+ * keep that one alive and keep painting something that is no longer true.
+ */
+export function spinner3d(
+  config: { label?: string; size?: number } = {}
+): Spinner3d {
+  const size = config.size ?? 18
+  const lbl = config.label ? baseText(config.label, TH.MUTED) : null
+  /*
+  A gapped ring rather than a dot chase: one path, so rotating it is a single
+  attribute write per tick, and it reads as motion at any size. A dashed circle
+  gives the gap without arc maths.
+  */
+  const ring = circle({
+    r: size / 2 - 2,
+    fill: 'none',
+    stroke: TH.ACCENT,
+    'stroke-width': String(Math.max(2, w3dTheme.strokeWidth)),
+    'stroke-linecap': 'round',
+    'stroke-dasharray': `${(size - 4) * 1.6} ${(size - 4) * 2}`,
+  })
+  const el = css(g({ 'data-w3d': 'spinner' }, ring), 'cursor:default')
+  if (lbl) el.appendChild(lbl)
+
+  let cx = size / 2
+  const cy = TH.ROW / 2
+  const entry = {
+    tick(t: number) {
+      // 30 degrees per tick at 60ms is a touch under two seconds a turn —
+      // fast enough to read as busy, slow enough not to strobe on a texture
+      // that is only resampled every 30ms.
+      ring.setAttribute('transform', `rotate(${(t * 30) % 360} ${cx} ${cy})`)
+    },
+  }
+  spinners.add(entry)
+  ensureSpinTicker()
+
+  return {
+    el,
+    layout(width: number) {
+      cx = TH.PAD_X + size / 2
+      ring.setAttribute('cx', String(cx))
+      ring.setAttribute('cy', String(cy))
+      if (lbl) {
+        lbl.setAttribute('x', String(TH.PAD_X + size + 8))
+        lbl.setAttribute('y', String(cy))
+      }
+      void width
+      return TH.ROW
+    },
+    // Not interactive: a spinner reports, it does not respond. Returning false
+    // lets a press fall through to the panel's scroll surface instead of being
+    // swallowed by something that will not act on it.
+    hitTest() {
+      return false
+    },
+    dispose() {
+      spinners.delete(entry)
+    },
+  }
+}
+
+export interface Progress3d extends Widget3d {
+  /** Set the fraction, `0..1`. Values outside are clamped. */
+  setValue: (fraction: number) => void
+}
+
+/**
+ * A DETERMINATE progress bar, for when the total is genuinely known — bytes of
+ * a GLB, tiles of a terrain, N of M libraries.
+ *
+ * No timer: it moves when you move it, so nothing animates and nothing needs
+ * disposing. If you find yourself faking the fraction, you wanted `spinner3d`.
+ */
+export function progress3d(
+  config: { label?: string; value?: number; showValue?: boolean } = {}
+): Progress3d {
+  const showValue = config.showValue ?? true
+  const lbl = config.label ? baseText(config.label) : null
+  const track = rect({
+    height: 6,
+    rx: 3,
+    ry: 3,
+    fill: TH.ROW_BG,
+  })
+  const fill = rect({ height: 6, rx: 3, ry: 3, fill: TH.ACCENT })
+  const pct = showValue ? baseText('', TH.MUTED) : null
+  const el = css(g({ 'data-w3d': 'progress' }, track, fill), 'cursor:default')
+  if (lbl) el.appendChild(lbl)
+  if (pct) el.appendChild(pct)
+
+  let value = Math.max(0, Math.min(1, config.value ?? 0))
+  let trackX = 0
+  let trackW = 1
+
+  const paint = () => {
+    fill.setAttribute('x', String(trackX))
+    fill.setAttribute('width', String(Math.max(0, trackW * value)))
+    if (pct) pct.textContent = `${Math.round(value * 100)}%`
+  }
+
+  return {
+    el,
+    layout(width: number) {
+      const pctW = pct ? 40 : 0
+      const labelW = lbl ? Math.min(width * 0.45, 140) : 0
+      trackX = TH.PAD_X + labelW
+      trackW = Math.max(8, width - trackX - TH.PAD_X - pctW)
+      const y = TH.ROW / 2 - 3
+      for (const n of [track, fill]) {
+        n.setAttribute('x', String(trackX))
+        n.setAttribute('y', String(y))
+      }
+      track.setAttribute('width', String(trackW))
+      if (lbl) {
+        lbl.setAttribute('x', String(TH.PAD_X))
+        lbl.setAttribute('y', String(TH.ROW / 2))
+      }
+      if (pct) {
+        pct.setAttribute('x', String(trackX + trackW + 8))
+        pct.setAttribute('y', String(TH.ROW / 2))
+      }
+      paint()
+      return TH.ROW
+    },
+    hitTest() {
+      return false
+    },
+    setValue(fraction: number) {
+      value = Math.max(0, Math.min(1, Number.isFinite(fraction) ? fraction : 0))
+      paint()
     },
   }
 }
