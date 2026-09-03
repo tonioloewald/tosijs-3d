@@ -258,6 +258,7 @@ settings into `select3d` cyclers to get discrete values.
 | `slider3d` | `min` / `max` | `0` / `1` | |
 | | **`scale`** | `'linear'` | `'log'` / `'log2'` — equal travel per decade / octave |
 | | **`snap`** | `0` | quantise the VALUE (e.g. `1` for whole grid sizes) |
+| | **`zeroStop`** | `false` | an explicit `0` at the bottom of a log track; `min` becomes the log floor |
 | | **`step`** | `0` | **quantises the drag and the value**; `0` is continuous |
 | | `showValue` | `'peek'` | `peek` (on touch/drag) / `always` / `never` |
 | | `format` | step-derived | `(v) => string` — units, precision |
@@ -337,6 +338,8 @@ from 0 to 1000 with very little wiggle-room in 0-1."_
 
 ```javascript
 slider3d({ label: 'intensity', value: 2, min: 0.01, max: 1000, scale: 'log' })
+// A rate that can also be OFF — 0 is the default and must stay reachable.
+slider3d({ label: 'sky speed', value: 0, min: 0.1, max: 3600, scale: 'log', zeroStop: true })
 slider3d({ label: 'noise scale', value: 0.05, min: 0.001, max: 10, scale: 'log' })
 slider3d({ label: 'grid', value: 16, min: 1, max: 256, scale: 'log2', step: 1 })
 ```
@@ -352,6 +355,14 @@ slider3d({ label: 'grid', value: 16, min: 1, max: 256, scale: 'log2', step: 1 })
 they differ only in what a step means. A range including zero falls back to
 linear rather than producing NaN, because a slider that silently stops working
 is worse than one that is merely the wrong shape.
+
+**`zeroStop` when the quantity has an explicit OFF.** A log scale cannot
+represent zero, but plenty of decade-spanning values can be switched off — a
+sky's `realtimeScale` (0 is a still sky, and it is the default), fog density,
+wind speed, any rate. Without it the default becomes unreachable the moment you
+touch the control. With it, the bottom slice of the track IS zero and `min`
+means the log floor; the handle catches at off rather than approaching it
+asymptotically.
 
 ## Theming
 
@@ -1305,6 +1316,20 @@ export function slider3d(config: {
    * than producing NaN.
    */
   scale?: SliderScale
+  /**
+   * Put an explicit ZERO at the bottom of a log track.
+   *
+   * A log scale cannot represent zero, but plenty of decade-spanning
+   * quantities have an explicit off — a sky's `realtimeScale` (0 is a still
+   * sky, and it is the DEFAULT), fog density, wind speed, any rate. Without
+   * this the default becomes unreachable the moment you touch the control,
+   * which is worse than the cramped linear track it replaced.
+   *
+   * `min` then means the log FLOOR — the smallest non-zero value — rather than
+   * the bottom of the travel. The handle catches at zero rather than
+   * approaching it asymptotically.
+   */
+  zeroStop?: boolean
   onChange?: (v: number) => void
   /**
    * Where the number lives.
@@ -1327,6 +1352,7 @@ export function slider3d(config: {
   const step = config.step ?? 0
   const scale: SliderScale = config.scale ?? 'linear'
   const snap = config.snap ?? 0
+  const zeroStop = config.zeroStop ?? false
   const bound = boundValue<number>(config.value, config.onChange)
   const lbl = config.label ? baseText(config.label) : null
   if (lbl) {
@@ -1434,7 +1460,7 @@ export function slider3d(config: {
     // back to min so we never write cx="NaN".
     const raw = Number(bound.get())
     const v = Number.isNaN(raw) ? min : raw
-    const f = valueToFraction(v, min, max, scale)
+    const f = valueToFraction(v, min, max, scale, zeroStop)
     const cx = trackX + f * trackW
     knob.setAttribute('cx', String(cx))
     fillEl.setAttribute('x', String(trackX))
@@ -1453,7 +1479,7 @@ export function slider3d(config: {
   // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
   const setFromX = (x: number) => {
     const f = (x - trackX) / (trackW || 1)
-    bound.set(fractionToValue(f, min, max, step, scale, snap))
+    bound.set(fractionToValue(f, min, max, step, scale, snap, zeroStop))
     reflect()
   }
   bound.subscribe(reflect)

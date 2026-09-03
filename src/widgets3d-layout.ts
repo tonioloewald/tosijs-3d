@@ -331,13 +331,58 @@ const logBase = (scale: SliderScale): number => (scale === 'log2' ? 2 : 10)
 const useLog = (scale: SliderScale, min: number, max: number): boolean =>
   (scale === 'log' || scale === 'log2') && min > 0 && max > min
 
+/**
+ * Share of the track given to the ZERO STOP, when one is enabled.
+ *
+ * Small enough not to steal travel from the useful range, wide enough that the
+ * handle CATCHES rather than approaching zero asymptotically and never
+ * arriving — which is the interaction problem, not just the arithmetic one.
+ */
+const ZERO_SLICE = 0.06
+
+/**
+ * Map a log fraction around an explicit zero at the bottom of the track.
+ *
+ * A log scale cannot represent zero, but plenty of quantities that span decades
+ * have an explicit OFF: `b3d-skybox`'s `realtimeScale` is 0 for a still sky, 1
+ * for realtime, 3600 for an hour a second — and 0 is the DEFAULT. A log track
+ * starting at 0.1 would make the default unreachable the moment you touched the
+ * control, which is worse than the cramped linear one it replaced
+ * (tosijs-3d#62).
+ *
+ * So: the bottom slice IS zero, and the rest is logarithmic from `min` up.
+ */
+const withZeroStop = {
+  toFraction(value: number, min: number, max: number, scale: SliderScale) {
+    if (!(value > 0)) return 0
+    const f =
+      (Math.log(Math.max(min, value)) - Math.log(min)) /
+      (Math.log(max) - Math.log(min))
+    return ZERO_SLICE + (1 - ZERO_SLICE) * Math.min(1, Math.max(0, f))
+  },
+  toValue(fraction: number, min: number, max: number, scale: SliderScale) {
+    // The catch region: anywhere in the bottom slice reads as off, so the
+    // handle lands on zero instead of near it.
+    if (fraction <= ZERO_SLICE) return 0
+    const f = (fraction - ZERO_SLICE) / (1 - ZERO_SLICE)
+    const b = logBase(scale)
+    const lo = Math.log(min) / Math.log(b)
+    const hi = Math.log(max) / Math.log(b)
+    return Number((b ** (lo + f * (hi - lo))).toPrecision(12))
+  },
+}
+
 export function valueToFraction(
   value: number,
   min: number,
   max: number,
-  scale: SliderScale = 'linear'
+  scale: SliderScale = 'linear',
+  zeroStop = false
 ): number {
   if (max <= min) return 0
+  if (zeroStop && useLog(scale, min, max)) {
+    return withZeroStop.toFraction(value, min, max, scale)
+  }
   if (useLog(scale, min, max)) {
     const f =
       (Math.log(Math.max(min, value)) - Math.log(min)) /
@@ -361,10 +406,19 @@ export function fractionToValue(
   max: number,
   step = 0,
   scale: SliderScale = 'linear',
-  snap = 0
+  snap = 0,
+  zeroStop = false
 ): number {
   const clamped = Math.min(1, Math.max(0, fraction))
   let out: number
+  if (zeroStop && useLog(scale, min, max)) {
+    out = withZeroStop.toValue(clamped, min, max, scale)
+    // Zero is exact and must survive `snap`: rounding it to a multiple would
+    // move the OFF position, which is the one value this exists to reach.
+    if (out === 0) return 0
+    if (snap > 0) out = Math.round(out / snap) * snap
+    return Math.min(max, Math.max(0, out))
+  }
   if (useLog(scale, min, max)) {
     const b = logBase(scale)
     const lo = Math.log(min) / Math.log(b)

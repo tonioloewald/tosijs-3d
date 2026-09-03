@@ -129,3 +129,69 @@ describe('a range a log scale cannot describe falls back rather than breaking', 
     expect(valueToFraction(5, 10, 1, 'log')).toBe(0)
   })
 })
+
+/*
+A LOG TRACK THAT CAN STILL REACH ZERO (tosijs-3d#62).
+
+`b3d-skybox`'s `realtimeScale` is the motivating case: 0 is a still sky, 1 is
+realtime, 3600 is an hour a second. The useful values are decades apart AND zero
+is the default — so a log track from 0.1 makes the default unreachable the
+moment you touch the control, which is worse than the cramped linear one.
+*/
+describe('zeroStop', () => {
+  const MIN = 0.1
+  const MAX = 3600
+  const at = (f: number) => fractionToValue(f, MIN, MAX, 0, 'log', 0, true)
+  const pos = (v: number) => valueToFraction(v, MIN, MAX, 'log', true)
+
+  test('the bottom of the track is exactly zero', () => {
+    expect(at(0)).toBe(0)
+    expect(pos(0)).toBe(0)
+  })
+
+  test('the handle CATCHES at zero rather than nearing it forever', () => {
+    // The interaction problem, not just the arithmetic one: anywhere in the
+    // bottom slice reads as off.
+    expect(at(0.01)).toBe(0)
+    expect(at(0.05)).toBe(0)
+  })
+
+  test('above the catch, it is logarithmic from `min`', () => {
+    expect(at(1)).toBeCloseTo(MAX, 5)
+    // Equal travel per decade still holds across the remaining track.
+    const decades = [0.1, 1, 10, 100, 1000].map(pos)
+    const gaps = decades.slice(1).map((v, i) => v - decades[i])
+    for (const g of gaps) expect(g).toBeCloseTo(gaps[0], 2)
+  })
+
+  test('every value a sky would use round-trips exactly', () => {
+    for (const v of [0, 1, 60, 600, 3600]) {
+      expect(at(pos(v))).toBeCloseTo(v, 6)
+    }
+  })
+
+  test('zero survives `snap` — it is the one value this exists to reach', () => {
+    // Rounding zero to a multiple would move the OFF position.
+    expect(fractionToValue(0, MIN, MAX, 0, 'log', 5, true)).toBe(0)
+    expect(fractionToValue(0.02, MIN, MAX, 0, 'log', 5, true)).toBe(0)
+  })
+
+  test('it never escapes the range', () => {
+    for (let f = 0; f <= 1; f += 0.037) {
+      const v = at(f)
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThanOrEqual(MAX)
+    }
+  })
+
+  test('off by default — nothing changes for an ordinary log slider', () => {
+    expect(fractionToValue(0, MIN, MAX, 0, 'log')).toBeCloseTo(MIN)
+    expect(valueToFraction(MIN, MIN, MAX, 'log')).toBe(0)
+  })
+
+  test('it needs a log scale to mean anything', () => {
+    // On a linear track zero is already reachable, so the flag is inert rather
+    // than carving a slice out of a range that did not need one.
+    expect(fractionToValue(0.03, 0, 100, 0, 'linear', 0, true)).toBeCloseTo(3)
+  })
+})
