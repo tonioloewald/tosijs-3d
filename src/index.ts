@@ -244,6 +244,27 @@ export type {
   ModulationCurve,
   ModulationSample,
 } from './light-modulation'
+/*
+A province's climate layer as DATA — bipolar bias curves plus the two water
+scalars. Pure (no DOM, no Babylon) so a consumer can validate and serialise one
+headlessly; see PROVINCE-DESIGN.md -> "TWO editors".
+*/
+export {
+  sampleClimate,
+  composeClimate,
+  applyClimate,
+  provinceClimateSchema,
+  canonicalClimate,
+  validateClimate,
+  DEFAULT_AMOUNTS,
+  NO_CLIMATE,
+} from './province-climate'
+export type {
+  ProvinceClimate,
+  ClimateSample,
+  ClimateCurve,
+  ClimateAmounts,
+} from './province-climate'
 export { B3dFog, b3dFog } from './b3d-fog'
 export { B3dClouds, b3dClouds } from './b3d-clouds'
 export {

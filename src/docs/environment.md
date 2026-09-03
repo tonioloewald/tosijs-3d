@@ -2,6 +2,7 @@
 
 <!-- toc -->
 - [b3d-lamp](/b3d-lamp/)
+- [province-climate](/province-climate/)
 - [b3d-terrain](/b3d-terrain/)
 - [b3d-ambient](/b3d-ambient/)
 - [b3d-clouds](/b3d-clouds/)

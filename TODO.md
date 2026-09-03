@@ -644,6 +644,41 @@ Two other halves of the same problem:
 Deferred to 0.8.0 deliberately: it is a vocabulary decision, it wants doing all
 at once, and 0.7.x is carrying adopter fixes that should not wait behind it.
 
+[ ] **CONFIG PANELS SHIP BESIDE THE THING THEY CONFIGURE — sky, fog, water,
+clouds, ambient, terrain.** Tonio, 2026-09-03: _"ensemble has been rolling its
+own config panels for some things and the same arguments apply."_
+
+The argument, which `lightEditor3d` already settled: a panel that lives in the
+consumer has to MIRROR the component's shape, so every attribute added here
+becomes a change in two repos with a version skew between them. A panel that
+ships beside its subject imports the same types and cannot drift. It is also
+the only place the component's own invariants can be enforced — the reason a
+light program is one field and not six.
+
+The shape is now proven and should be copied rather than reinvented per
+component. Four parts, and the third is the one that is easy to get wrong:
+
+1. **A pure DATA module** — type, defaults, JSON Schema, canonical form,
+   validator. **No DOM, no Babylon.** `light-settings` is the template, and it
+   only exists because a test caught `HTMLElement is not defined`: importing the
+   EDITOR pulls in tosijs, which would have put the validator behind a browser
+   that adopters do not have.
+2. **A `Widget3d` editor** — controlled (value in, value out), live
+   `handleChange` for the scene plus `handleCommit(value, describe)` once per
+   gesture for the document.
+3. **An `x-widget` token that names the SUBJECT, not the mechanism**, because it
+   is a wire contract with the consumer's schema. `curve-program` had to become
+   `light-program` before release for exactly this: it read as generic while
+   meaning one specific thing.
+4. **Canonical output**, so a consumer diffing the file by hand sees one line
+   change when one control moves.
+
+Candidates, roughly by how often a consumer would want one: **sky**
+(`b3d-skybox` — time of day, realtimeScale), **water** (`b3d-water`), **fog**,
+**clouds** (`b3d-clouds` coverage), **ambient** (`b3d-ambient`), and terrain /
+province (below). Worth asking ensemble which they have already hand-rolled, so
+the first two we ship are the two they can delete.
+
 [ ] **Terrain + province editors — see PROVINCE-DESIGN.md → "TWO editors".**
 Tonio, 2026-09-03, specifying the shape: climate channels (water, volcanism,
 temperature) with water also carrying a PRESENCE toggle and a height; distinct
