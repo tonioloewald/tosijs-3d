@@ -13,6 +13,8 @@ export interface ThemeEditorOptions {
     /** Heading above the grid. Pass `''` for none. */
     title?: string;
     /** Fired after each change, so you can rebuild whatever you are showing. */
+    handleChange?: (theme: W3dTheme) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (theme: W3dTheme) => void;
     /**
      * Colour control factory. Defaults to `<input type="color">`, which **cannot

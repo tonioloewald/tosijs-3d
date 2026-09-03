@@ -79,12 +79,17 @@ const state = { height: 4.5, extent: 0.7, noise: 1 }
 // province is invisible — drag it off the diagonal and the terrain responds.
 // Try `constant` (flattens whatever is there: a plateau) or drag it the other
 // way up (maps low ground high, which lifts the whole province).
-const shape = curve3d({ kind: &#39;profile&#39;, label: &#39;shape — remaps the height sample&#39;, value: &#39;no change&#39;, aspect: 0.45 })
-const falloff = curve3d({ kind: &#39;falloff&#39;, label: &#39;falloff — weight by distance&#39;, aspect: 0.45 })
+// Built by `buildRows` below rather than here, because this panel has TWO
+// presentations — flat, and the one that floats in front of you in a headset —
+// and a widget&#39;s element can only be in one of them at a time. The FLAT set
+// stays the source `rebuild` samples; the headset set mirrors into it.
+//
 // The FOOTPRINT, edited as the shape it is rather than as extent-against-angle
 // on a graph: a hexagon looks like a hexagon, and a corner is where the corner
 // is. The square is the province&#39;s bounds.
-const footprint = footprint3d({ value: &#39;hexagon&#39;, label: &#39;footprint — drag the corners&#39; })
+let shape = null
+let falloff = null
+let footprint = null
 
 let ground = null
 let biome = null
@@ -125,7 +130,8 @@ const base = (x, z) =&gt; fbm(x, z)
 const normalise = (raw, lo, hi) =&gt; (hi - lo &lt; 1e-6 ? 0.5 : (raw - lo) / (hi - lo))
 
 const rebuild = () =&gt; {
-  if (ground == null) return
+  // `shape` is null until the flat panel is built, and the scene connects first.
+  if (ground == null || shape == null) return
   // Read x/z back out of the buffer and write y: order-independent, so it does
   // not matter how CreateGround laid the grid out.
   const pos = ground.getVerticesData(&#39;position&#39;)
@@ -170,16 +176,16 @@ const rebuild = () =&gt; {
   ground.createNormals(true)
 }
 
-shape.onChange = rebuild
-falloff.onChange = rebuild
-footprint.onChange = rebuild
-
 const scene = b3d(
   {
     // `flex:1` on the ELEMENT, not just its wrapper: a &lt;tosi-b3d&gt; in a flex row
     // has no flex-grow of its own, so it shrinks to content width — which is 0,
     // and renders a 0x296 canvas that looks exactly like a broken scene.
     style: &#39;flex:1;min-width:0;border-radius:8px;overflow:hidden&#39;,
+    // The same editor, reachable in a headset. The flat panel beside the canvas
+    // does not exist inside an immersive session, so without this the demo is a
+    // terrain you can walk around and cannot edit.
+    scenePanel: () =&gt; buildRows(false),
     sceneCreated(el) {
       orbitCam(el, { radius: 32, beta: 1.02, alpha: -1.15, target: [0, 1.5, 0] })
       ground = el.make.ground({
@@ -195,39 +201,64 @@ const scene = b3d(
   b3dLight({ intensity: 0.95 })
 )
 
-// A preset menu per curve. Presets are the fastest way to learn what a curve
-// DOES — you pick &quot;desert terraces&quot;, see terraces, then drag from there.
-const menu = (widget, kind, value) =&gt;
-  select3d({
-    value,
-    options: presetsFor(kind).map((p) =&gt; p.name),
-    handleChange: (name) =&gt; { widget.applyPreset(name); rebuild() },
-  })
+// ONE row list, built twice: once for the flat panel and again for the headset.
+//
+// `primary` is the flat set, and it is what `rebuild` samples. The headset set
+// is seeded from the flat one&#39;s current values and mirrors every edit back into
+// it, so entering VR picks up what you had drawn and leaving it keeps what you
+// drew there. Sharing the widget OBJECTS would not work — an element can only
+// be in one panel at a time, so a shared set would empty the flat panel the
+// moment the headset one mounted.
+const buildRows = (primary) =&gt; {
+  const s = curve3d({ kind: &#39;profile&#39;, label: &#39;shape — remaps the height sample&#39;, value: primary ? &#39;no change&#39; : shape.points, aspect: 0.45 })
+  const f = curve3d({ kind: &#39;falloff&#39;, label: &#39;falloff — weight by distance&#39;, value: primary ? undefined : falloff.points, aspect: 0.45 })
+  const p = footprint3d({ value: primary ? &#39;hexagon&#39; : footprint.vertices, label: &#39;footprint — drag the corners&#39; })
+  if (primary) { shape = s; falloff = f; footprint = p }
 
-const panel = panel3d(
-  { width: 320 },
-  label3d({ text: &#39;province editor&#39;, bold: true }),
-  shape,
-  menu(shape, &#39;profile&#39;, &#39;no change&#39;),
-  button3d({ label: &#39;delete selected point&#39;, handleClick: () =&gt; shape.deleteSelected() }),
-  falloff,
-  menu(falloff, &#39;falloff&#39;, &#39;linear&#39;),
-  button3d({ label: &#39;delete selected point&#39;, handleClick: () =&gt; falloff.deleteSelected() }),
-  footprint,
-  menu(footprint, &#39;radial&#39;, &#39;hexagon&#39;),
-  slider3d({ label: &#39;block height&#39;, min: 1, max: 16, value: state.height, handleChange: (v) =&gt; { state.height = v; rebuild() } }),
-  slider3d({ label: &#39;extent&#39;, min: 0.2, max: 1, value: state.extent, handleChange: (v) =&gt; { state.extent = v; rebuild() } }),
-  slider3d({ label: &#39;noise scale&#39;, min: 0.2, max: 4, value: state.noise, handleChange: (v) =&gt; { state.noise = v; rebuild() } }),
-  toggle3d({ label: &#39;wireframe&#39;, value: false, handleChange: (v) =&gt; { if (ground?.material) ground.material.wireframe = v } }),
-  // The real biome shader, on this block&#39;s material — the same one b3d-terrain
-  // puts on a tile, so the province is judged against how it will actually look
-  // rather than against a flat green.
-  toggle3d({ label: &#39;terrain shader&#39;, value: false, handleChange: (v) =&gt; {
-    if (ground?.material == null) return
-    if (biome == null) biome = attachBiomePlugin(ground.material)
-    biome.isEnabled = v
-  } })
-)
+  const sync = primary
+    ? () =&gt; {}
+    : () =&gt; {
+        shape.setPoints(s.points)
+        falloff.setPoints(f.points)
+        footprint.setVertices(p.vertices)
+      }
+  const changed = () =&gt; { sync(); rebuild() }
+  s.handleChange = changed
+  f.handleChange = changed
+  p.handleChange = changed
+
+  // A preset menu per curve. Presets are the fastest way to learn what a curve
+  // DOES — you pick &quot;desert terraces&quot;, see terraces, then drag from there.
+  const menu = (widget, kind, value) =&gt;
+    select3d({
+      value,
+      options: presetsFor(kind).map((x) =&gt; x.name),
+      handleChange: (name) =&gt; { widget.applyPreset(name); changed() },
+    })
+  const del = (widget) =&gt;
+    button3d({ label: &#39;delete selected point&#39;, handleClick: () =&gt; { widget.deleteSelected(); changed() } })
+
+  return [
+    label3d({ text: &#39;province editor&#39;, bold: true }),
+    s, menu(s, &#39;profile&#39;, &#39;no change&#39;), del(s),
+    f, menu(f, &#39;falloff&#39;, &#39;linear&#39;), del(f),
+    p, menu(p, &#39;radial&#39;, &#39;hexagon&#39;),
+    slider3d({ label: &#39;block height&#39;, min: 1, max: 16, value: state.height, handleChange: (v) =&gt; { state.height = v; rebuild() } }),
+    slider3d({ label: &#39;extent&#39;, min: 0.2, max: 1, value: state.extent, handleChange: (v) =&gt; { state.extent = v; rebuild() } }),
+    slider3d({ label: &#39;noise scale&#39;, min: 0.2, max: 4, value: state.noise, handleChange: (v) =&gt; { state.noise = v; rebuild() } }),
+    toggle3d({ label: &#39;wireframe&#39;, value: ground?.material?.wireframe ?? false, handleChange: (v) =&gt; { if (ground?.material) ground.material.wireframe = v } }),
+    // The real biome shader, on this block&#39;s material — the same one b3d-terrain
+    // puts on a tile, so the province is judged against how it will actually look
+    // rather than against a flat green.
+    toggle3d({ label: &#39;terrain shader&#39;, value: biome ? biome.isEnabled : false, handleChange: (v) =&gt; {
+      if (ground?.material == null) return
+      if (biome == null) biome = attachBiomePlugin(ground.material)
+      biome.isEnabled = v
+    } }),
+  ]
+}
+
+const panel = panel3d({ width: 320 }, ...buildRows(true))
 
 preview.append(
   div(

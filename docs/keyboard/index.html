@@ -218,7 +218,7 @@ const H = 300
 const readout = div({ style: &#39;margin:8px 4px;color:#8ea;font:13px system-ui&#39; }, &#39;value: (empty)&#39;)
 const field = inputField({
   placeholder: &#39;type with the ray, or a gamepad…&#39;,
-  handleChange: (v) =&gt; { readout.textContent = &#39;value: &#39; + (v || &#39;(empty)&#39;) },
+  onChange: (v) =&gt; { readout.textContent = &#39;value: &#39; + (v || &#39;(empty)&#39;) },
 })
 const kb = keyboard({
   onKey: (ch) =&gt; field.insert(ch),

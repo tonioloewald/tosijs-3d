@@ -146,6 +146,23 @@ the control.</li>
 <li><code>lightEditor3d</code> shipped demo copy into every consumer&#39;s panel; the hint is now
 opt-in.</li>
 <li>The aircraft chase camera sat too close after content moved to human scale.</li>
+<li><strong><code>themeEditor</code> never called back.</strong> It read <code>config.onChange</code> while its
+callers passed <code>handleChange</code>, so the theme table updated and the host&#39;s
+rebuild never ran — the controls moved and the panels they edit did not.
+<code>handleChange</code> is now the option; <code>onChange</code> still works, deprecated.</li>
+<li>A metric typed <strong>out of range</strong> left the slider on the cap and the number
+field above it, with the theme taking the out-of-range value — the exact
+drift a paired slider-and-field exists to prevent. Values are clamped now.</li>
+<li>Two demos (<code>w3d-theme</code>, <code>keyboard</code>) passed <code>handleChange</code> to <code>inputField</code>,
+which reads <code>onChange</code> — so typing updated nothing. Demo code lives in doc
+comments and is <strong>not type-checked</strong>, which is why this class of mistake
+reaches a page instead of the compiler.</li>
+<li><strong>The <code>curve-program</code> demo was truncated on the published site.</strong> Its doc
+comment contained a nested <code>/* … */</code>, and block comments do not nest — the
+inner <code>*/</code> closed the page early, so roughly half the demo silently vanished.</li>
+<li>The <code>curve-program</code> and <code>curve-field</code> editors did not exist inside a headset:
+both put their controls in flat DOM beside the canvas, which an immersive
+session does not render. Both now also build through <code>scenePanel</code>.</li>
 </ul>
 <h3>Changed</h3>
 <ul>

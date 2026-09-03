@@ -61,7 +61,7 @@ that never imports it. Nothing else in the library depends on it.</p>
 not an oversight (an SVG bound for a texture is serialised away from the
 document, so <code>var(--w3d-text)</code> resolves against nothing and paints black). So
 this cannot repaint your UI, and does not pretend to: it applies the change and
-calls <code>onChange</code>, and you rebuild whatever you are showing.</p>
+calls <code>handleChange</code>, and you rebuild whatever you are showing.</p>
 <h2>The colour input is injected</h2>
 <p>Alpha matters here — <code>panelBg</code>, <code>rowHover</code> and <code>selectedBg</code> are all <code>rgba()</code> —
 and the native <code>&lt;input type=&quot;color&quot;&gt;</code> <strong>cannot express it</strong>, silently dropping

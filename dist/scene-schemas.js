@@ -49,7 +49,11 @@ const bool = (def) => ({
     type: 'boolean',
     default: def,
 });
-const choice = (def, values) => ({ type: 'string', default: def, enum: values });
+const choice = (def, values) => ({
+    type: 'string',
+    default: def,
+    enum: values,
+});
 /** Degrees, minutes, metres — the units a panel should show beside a number. */
 const DEG = { 'x-unit': 'deg' };
 const M = { 'x-unit': 'm' };

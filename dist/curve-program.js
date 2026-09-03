@@ -63,43 +63,66 @@ const makeLamp = (s) => {
       : b3dPointLight(common)
 }
 
+// The editor's VALUE lives out here rather than inside a widget instance,
+// because the panel has TWO presentations — the flat gear overlay and the
+// floating one in a headset — and each builds its own widgets. Seeding every
+// build from `settings`, and writing back on change, is what stops the two from
+// disagreeing about what the lamp currently is.
+let settings = {
+  kind: 'point', on: true,
+  hue: 205, saturation: 0.19, intensity: 2.1, range: 15,
+  shadows: true, program,
+}
+
+const applyToLamp = (s) => {
+  if (lamp == null) return
+  // A TYPE change is a different element, so swap it. Removing and adding is
+  // a genuine removal + build, not a move, so the new lamp starts fresh.
+  if (s.kind !== lamp.dataset.kind) {
+    const next = makeLamp(s)
+    next.dataset.kind = s.kind
+    lamp.replaceWith(next)
+    lamp = next
+    return
+  }
+  // `on` is an 'on'|'off' STRING, not a boolean — an absent boolean
+  // attribute reads false, so a default-true boolean is not expressible.
+  lamp.on = s.on ? 'on' : 'off'
+  lamp.shadows = s.shadows ? 'on' : 'off'
+  lamp.diffuse = lightColor(s)
+  lamp.intensity = s.intensity
+  lamp.range = s.range
+  lamp.program = s.program
+  if (s.kind === 'spot') lamp.angle = s.angle
+}
+
 // The WHOLE lamp, not just its curves: a power switch, colour, intensity,
 // range, shadows, and the program. Everything applies live.
-const editor = lightEditor3d({
+const makeEditor = () => lightEditor3d({
   // The guidance lives HERE, in the demo that needed it, rather than inside the
   // widget where it shipped into everyone's panel.
   hint: 'flip the power to watch the attack and decay',
-  value: {
-    kind: 'point', on: true,
-    hue: 205, saturation: 0.19, intensity: 2.1, range: 15,
-    shadows: true, program,
-  },
+  value: settings,
   handleChange: (s) => {
-    if (lamp == null) return
-    // A TYPE change is a different element, so swap it. Removing and adding is
-    // a genuine removal + build, not a move, so the new lamp starts fresh.
-    if (s.kind !== lamp.dataset.kind) {
-      const next = makeLamp(s)
-      next.dataset.kind = s.kind
-      lamp.replaceWith(next)
-      lamp = next
-      return
-    }
-    // `on` is an 'on'|'off' STRING, not a boolean — an absent boolean
-    // attribute reads false, so a default-true boolean is not expressible.
-    lamp.on = s.on ? 'on' : 'off'
-    lamp.shadows = s.shadows ? 'on' : 'off'
-    lamp.diffuse = lightColor(s)
-    lamp.intensity = s.intensity
-    lamp.range = s.range
-    lamp.program = s.program
-    if (s.kind === 'spot') lamp.angle = s.angle
+    settings = s
+    applyToLamp(s)
   },
 })
 
 const scene = b3d(
   {
     style: 'flex:1;min-width:0;border-radius:8px;overflow:hidden',
+    // The SAME editor, built again for a headset.
+    //
+    // Flat, the panel beside the canvas is the editor and this hook is dormant.
+    // In an immersive session that DOM panel does not exist at all, so
+    // `scenePanel` is what makes the demo reachable in VR — b3d mounts it on a
+    // plane pinned in front of you, already scrolling and already routing
+    // controller rays.
+    //
+    // A plane parked in world space would NOT do: entering XR seats you where
+    // the orbit camera stood, which is thirteen metres from anything you place.
+    scenePanel: () => [label3d({ text: 'Light' }), makeEditor()],
     sceneCreated(el, BABYLON) {
       el.scene.clearColor = new BABYLON.Color4(0.02, 0.02, 0.03, 1)
 
@@ -141,15 +164,18 @@ const scene = b3d(
   mount
 )
 
-lamp = makeLamp(editor.value)
-lamp.dataset.kind = editor.value.kind
+lamp = makeLamp(settings)
+lamp.dataset.kind = settings.kind
 mount.append(lamp)
+
+// The flat editor: a full-height panel beside the canvas, scrolled by the
+// surrounding div. Its own instance, seeded from `settings` like the XR one.
+const panelSvg = panel3d({ width: 310 }, label3d({ text: 'Light' }), makeEditor())
 
 preview.append(
   div(
     { style: 'display:flex;gap:14px;height:100%;padding:12px;background:#0c0e14;box-sizing:border-box' },
-    div({ style: 'flex:0 0 330px;overflow:auto' },
-      panel3d({ width: 310 }, label3d({ text: 'Light' }), editor)),
+    div({ style: 'flex:0 0 330px;overflow:auto' }, panelSvg),
     div({ style: 'flex:1;min-width:0;display:flex' }, scene)
   )
 )
