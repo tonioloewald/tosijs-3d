@@ -241,3 +241,69 @@ describe('#6 — the schema fragment a generated panel dispatches on', () => {
     expect(s['x-widget']).toBe('curve')
   })
 })
+
+/*
+THE WHOLE-LAMP SURFACE, for symmetry with the curve one.
+
+A consumer that embeds a lamp in a document validates the whole document, so a
+hole in the set means one field silently goes unchecked.
+*/
+describe('light settings: schema, canonical, validate', () => {
+  test('the three widget tokens nest', async () => {
+    const { lightSettingsSchema } = await import('./light-settings')
+    const s = lightSettingsSchema() as any
+    expect(s['x-widget']).toBe('light')
+    expect(s.properties.program['x-widget']).toBe('light-program')
+    expect(s.properties.program.properties.brightness['x-widget']).toBe('curve')
+  })
+
+  test('the token names the LIGHT, not the mechanism', async () => {
+    // `curve-program` sounded generic while meaning one specific object, and
+    // the province editor coming next is ALSO several curves over one
+    // coordinate — the generic name would have been taken by the specific
+    // case. A widget token is a wire contract, so this had to be right before
+    // a consumer shipped a branch on it.
+    const { lightProgramSchema } = await import('./light-modulation')
+    expect((lightProgramSchema() as any)['x-widget']).toBe('light-program')
+  })
+
+  test('canonical light rounds every number and fixes key order', async () => {
+    const { canonicalLight, DEFAULT_LIGHT } = await import('./light-settings')
+    const a = canonicalLight({ ...DEFAULT_LIGHT, intensity: 2.0000001 })
+    const b = canonicalLight(a)
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+    expect(a.intensity).toBe(2)
+  })
+
+  test('an area light asking for shadows is a WARNING, not an error', async () => {
+    // It runs — Babylon's RectAreaLight is not a ShadowLight, so the lamp warns
+    // once and lights anyway. Same rule as inverted splits: the question is
+    // whether a consumer can execute the document.
+    const { validateLight } = await import('./light-settings')
+    const issues = validateLight({ kind: 'area', shadows: true })
+    expect(issues).toHaveLength(1)
+    expect(issues[0].severity).toBe('warning')
+    expect(issues[0].path).toBe('/shadows')
+  })
+
+  test('an unknown kind IS an error', async () => {
+    const { validateLight } = await import('./light-settings')
+    expect(validateLight({ kind: 'laser' })[0].severity).toBe('error')
+  })
+
+  test('nested program paths compose', async () => {
+    const { validateLight } = await import('./light-settings')
+    const issues = validateLight({
+      kind: 'point',
+      program: { brightness: [{ x: 0, y: 5 }, { x: 1, y: 1 }] },
+    })
+    expect(issues[0].path).toBe('/program/brightness/0/y')
+  })
+
+  test('it never throws', async () => {
+    const { validateLight } = await import('./light-settings')
+    for (const v of [null, 0, '', [], {}, { program: 7 }, { intensity: 'x' }]) {
+      expect(() => validateLight(v as any)).not.toThrow()
+    }
+  })
+})

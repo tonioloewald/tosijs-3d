@@ -429,13 +429,22 @@ export { curve3d, curveMarkers } from './curve-field'
 // invariant lives where it can be enforced (see #61 Q5a).
 export { curveProgram3d, PROGRAM_CHANNELS } from './curve-program'
 // The whole lamp — static properties plus the program, as one field.
-export { lightEditor3d, lightColor, DEFAULT_LIGHT } from './light-editor'
-export type {
-  LightEditor3dOptions,
-  LightEditorField,
-  LightSettings,
-  LightKind,
-} from './light-editor'
+export { lightEditor3d } from './light-editor'
+export type { LightEditor3dOptions, LightEditorField } from './light-editor'
+/*
+A lamp as DATA, from a module with no DOM and no Babylon — so a consumer can
+validate, canonicalise and schema-describe one in a headless runner without
+instantiating a UI. (Importing the EDITOR pulls in tosijs and needs
+HTMLElement; ensemble's test suite has no browser.)
+*/
+export {
+  lightColor,
+  lightSettingsSchema,
+  canonicalLight,
+  validateLight,
+  DEFAULT_LIGHT,
+} from './light-settings'
+export type { LightSettings, LightKind } from './light-settings'
 export type {
   CurveProgram3dOptions,
   CurveProgramField,

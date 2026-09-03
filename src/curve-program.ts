@@ -188,7 +188,7 @@ split'` — because a consumer attaches the subject themselves.
 
 ## Schema
 
-`lightProgramSchema()` marks the whole object `"x-widget": "curve-program"`, and
+`lightProgramSchema()` marks the whole object `"x-widget": "light-program"`, and
 each channel carries `"x-widget": "curve"` with an `"x-curve-kind"`. A panel
 generated from JSON Schema dispatches on the token and hands the entire value
 here.
@@ -275,7 +275,7 @@ export function curveProgram3d(
       ? (Array.from(new Set(['brightness', ...present])) as ProgramChannel[])
       : ['brightness'])
 
-  const el = g({ 'data-w3d': 'curve-program' })
+  const el = g({ 'data-w3d': 'light-program' })
 
   /*
   Suppress emission while a value is being pushed IN from outside.

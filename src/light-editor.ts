@@ -52,66 +52,16 @@ import {
   type WidgetHost,
 } from './widgets3d'
 import { curveProgram3d } from './curve-program'
-import { shiftHue, type LightProgram } from './light-modulation'
+import type { LightProgram } from './light-modulation'
+import {
+  DEFAULT_LIGHT,
+  lightColor,
+  type LightKind,
+  type LightSettings,
+} from './light-settings'
 import { stackLayout } from './widgets3d-layout'
 
 const { g } = svgElements
-
-/** What kind of lamp. Matches the three `b3d-lamp` elements. */
-export type LightKind = 'point' | 'spot' | 'area'
-
-/** A complete lamp description — everything the editor produces. */
-export interface LightSettings {
-  kind: LightKind
-  /** Switched on. Runs the program's attack; `false` runs its decay. */
-  on: boolean
-  /** Hue in degrees, 0..360. */
-  hue: number
-  /** Saturation 0..1. `0` is white. */
-  saturation: number
-  intensity: number
-  range: number
-  shadows: boolean
-  /** Cone angle in degrees. `spot` only. */
-  angle: number
-  /** The time-varying half. */
-  program: LightProgram
-}
-
-export const DEFAULT_LIGHT: LightSettings = {
-  kind: 'point',
-  on: true,
-  hue: 40,
-  saturation: 0.25,
-  intensity: 2,
-  range: 15,
-  shadows: true,
-  angle: 46,
-  program: {},
-}
-
-/**
- * The settings' colour as a hex string, ready for a lamp's `diffuse`.
- *
- * Full VALUE always: dimming is `intensity`'s job, and a colour that also
- * carried brightness would fight it — the same rule the modulation model
- * follows when it shifts hue.
- */
-export function lightColor(
-  s: Pick<LightSettings, 'hue' | 'saturation'>
-): string {
-  const rgb = shiftHue({ r: 1, g: 0, b: 0 }, s.hue, 1)
-  const mixed = {
-    r: 1 + (rgb.r - 1) * s.saturation,
-    g: 1 + (rgb.g - 1) * s.saturation,
-    b: 1 + (rgb.b - 1) * s.saturation,
-  }
-  const hex = (v: number) =>
-    Math.round(Math.max(0, Math.min(1, v)) * 255)
-      .toString(16)
-      .padStart(2, '0')
-  return `#${hex(mixed.r)}${hex(mixed.g)}${hex(mixed.b)}`
-}
 
 export interface LightEditor3dOptions {
   value?: Partial<LightSettings>
@@ -315,3 +265,4 @@ export function lightEditor3d(
     },
   }
 }
+

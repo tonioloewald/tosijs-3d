@@ -394,8 +394,16 @@ export function shiftHue(
 /**
  * JSON Schema for a whole `LightProgram`, as ONE field.
  *
- * Marked with `x-widget: 'curve-program'` so a generated panel hands the entire
- * object to one editor rather than rendering six siblings. Ensemble confirmed
+ * Marked with `x-widget: 'light-program'` so a generated panel hands the entire
+ * object to one editor rather than rendering six siblings.
+ *
+ * The token names the LIGHT, not the mechanism. `curve-program` was the obvious
+ * name and the wrong one: it sounds like "any program of curves" while meaning
+ * one specific object with brightness/hue/saturation/range channels — and the
+ * province editor coming next is also several curves over one coordinate, so
+ * the generic name would have been taken by the specific case. A widget token
+ * is a WIRE CONTRACT with the consumer's schema, so this was free to fix before
+ * ensemble shipped a branch on it and a breaking change afterwards. Ensemble confirmed
  * their `schemaWidgets` dispatches on the widget token BEFORE any type-based
  * branch, so an `object`-typed property takes the same path an `array`-typed one
  * already does.
@@ -430,7 +438,7 @@ export function lightProgramSchema(
       decay: { type: 'number', minimum: 0, 'x-unit': 's' },
       phase: { type: 'number', minimum: 0, maximum: 1 },
     },
-    'x-widget': 'curve-program',
+    'x-widget': 'light-program',
     ...extra,
   }
 }

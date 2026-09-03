@@ -207,6 +207,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   edits what a light *is* (type, colour, intensity, range, shadows) alongside what
 - https://3d.tosijs.net/light-modulation/ — light-modulation
   model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
+- https://3d.tosijs.net/light-settings/ — light-settings
+  and its validator. No DOM, no Babylon, no widget.
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
 - https://3d.tosijs.net/mantle/ — mantle
