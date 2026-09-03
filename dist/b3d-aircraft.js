@@ -486,9 +486,23 @@ export class B3dAircraft extends B3dControllable {
      * rather than being swung below when the aircraft pitches/rolls. */
     eyeHeight = 0.9; // cockpit height above the origin
     cockpitForward = 0.5; // cockpit offset toward the nose (local +Z)
-    chaseMinHeight = 2.0; // chase height zoomed all the way in
-    chaseHeight = 3.2; // chase height zoomed out (overview)
-    chaseDistance = 4.8; // chase distance behind
+    /*
+    Scaled 1.3x when content moved to human scale (a person is 1.8 m, so the
+    aircraft roughly doubled) and the chase sat too close — the plane filled the
+    frame.
+  
+    All three move TOGETHER on purpose: `_chaseLookPitch` is
+    `atan2(chaseMinHeight, chaseDistance)`, so scaling both leaves the ratio and
+    therefore the framing ANGLE untouched. The camera backs off along the same
+    sight line rather than tilting, which is what "pull it back" should mean and
+    is not what changing distance alone would do.
+  
+    These feed the XR rig too (tosi-b3d reads them for the VR chase), so this
+    moves both presentations — correct, since the subject grew in both.
+    */
+    chaseMinHeight = 2.6; // chase height zoomed all the way in
+    chaseHeight = 4.2; // chase height zoomed out (overview)
+    chaseDistance = 6.2; // chase distance behind
     velocity = new BABYLON.Vector3(0, 0, 0);
     _fwd = new BABYLON.Vector3(); // scratch: world nose direction (unit)
     // Weapon cooldowns (seconds until ready) + edge-detect for the one-shot weapons.

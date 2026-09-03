@@ -51,6 +51,81 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.7.8</h2>
+<p>Lights you can see, edit and animate — and the editor surface <code>tosijs-3d-ensemble</code>
+asked for, built to their spec so they can adopt it without writing widgets.</p>
+<h3>Added</h3>
+<ul>
+<li><p><strong>Lamps.</strong> <code>b3dPointLight</code>, <code>b3dSpotLight</code>, <code>b3dAreaLight</code> — a placed light
+that comes with its own fixture geometry (toggle it, scale it, bring a GLB, or
+parent your own to the lamp&#39;s <code>node</code>). Shadows where Babylon allows them
+(point/spot; <code>RectAreaLight</code> is not a <code>ShadowLight</code>) and <strong>gels</strong> where it does
+(spot only — <code>projectionTexture</code>, bitmap or SVG). The two gaps warn once rather
+than being faked.</p>
+<p>The fixture <strong>tracks its light</strong>: a fluorescent&#39;s bulb stutters as it strikes
+and dims to a red ember as it dies.</p>
+</li>
+<li><p><strong>Light programs</strong> (<code>light-modulation</code>). A lamp&#39;s whole life as ONE curve per
+channel — brightness, hue, saturation, range — divided into attack / sustain /
+decay by two markers. The seams cannot jump because there is only one curve, so
+<strong>the curve&#39;s value at <code>attackEnd</code> IS the sustain level</strong>.</p>
+<p>⚠️ <strong>Contract:</strong> if <code>sustainEnd</code> precedes <code>attackEnd</code> the sustain collapses to
+zero width AT <code>attackEnd</code>, deterministically. Stated because a consumer&#39;s
+validator reports it as a warning rather than an error, which is only correct
+while the behaviour is specified. Changing it is a breaking change.</p>
+</li>
+<li><p><strong><code>curveProgram3d</code></strong> — several curves sharing one pair of draggable split
+markers, as a single field. <strong><code>lightEditor3d</code></strong> wraps it with the lamp&#39;s static
+properties (power switch, type, colour, intensity, range, shadows).</p>
+</li>
+<li><p><strong><code>light-settings</code></strong> — a lamp as DATA: schema, canonical form, validator. <strong>No
+DOM and no Babylon</strong>, so it works in a headless runner.</p>
+</li>
+<li><p><strong>Curve interop</strong>, to <code>tosijs-3d-ensemble</code>&#39;s specification: <code>canonicalCurve</code>
+(4dp, stable bytes), <code>readCurve</code> (accepts the bare array or a <code>{kind, points}</code>
+wrapper), <code>validateCurve</code> / <code>validateProgram</code> / <code>validateLight</code> (never throw;
+<code>error</code>/<code>warning</code> only; relative JSON Pointer paths), and <code>curveSchema</code> /
+<code>lightProgramSchema</code> / <code>lightSettingsSchema</code> emitting <code>x-widget</code> +
+<code>x-curve-kind</code> for panels generated from JSON Schema.</p>
+</li>
+<li><p><strong><code>handleCommit</code></strong> alongside the live <code>onChange</code> on <code>curve3d</code>, <code>curveMarkers</code>,
+<code>curveProgram3d</code> and <code>lightEditor3d</code> — one commit per gesture, carrying
+canonical values and a bare verb phrase (<code>&#39;move attack split&#39;</code>), so a document
+records one undo step per edit instead of one per pointer-move.</p>
+</li>
+<li><p><strong>Log sliders.</strong> <code>slider3d({ scale: &#39;log&#39; | &#39;log2&#39; })</code> gives every decade or
+octave equal travel, plus <code>snap</code> to quantise the value. For intensity, noise
+scale, grid size — anything where a linear track puts everything you want in
+its first few percent.</p>
+</li>
+<li><p><strong>Action menus.</strong> <code>openMenu3d</code> / <code>menu3d</code>, <code>button3d({ menu })</code>, and a <code>menu</code>
+on an <code>iconGrid3d</code> cell. <code>disabled</code> takes a <strong>predicate</strong>, so a menu can be a
+module-level constant instead of being rebuilt whenever its state moves.
+<code>WidgetHost</code> is now exported — it was unnameable from outside.</p>
+</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Lamps never marked shadow RECEIVERS</strong>, so a <code>shadows=&quot;on&quot;</code> lamp rendered a
+shadow map nothing read — a full extra render pass that presented as lights
+shining through solid objects.</li>
+<li><strong><code>shadows</code> accepted a write and did nothing.</strong> It was set up once at scene
+ready and never re-read, so toggling it in an editor had no effect.</li>
+<li><strong>A pale lamp could not be reddened.</strong> Rotating a hue preserves saturation and
+the saturation curve is <code>[0,1]</code>, so it could only desaturate — &quot;pale tube dies
+as a red ember&quot; was inexpressible. Added <code>saturationScale</code>.</li>
+<li><strong>The aircraft chase camera</strong> sat too close after content moved to human
+scale; pulled back 30% with the framing angle preserved (0.13° drift).</li>
+<li>Log slider values no longer carry float noise (<code>0.010000000000000009</code>), which
+matters because they are serialised and diffed.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>⚠️ <strong><code>shadows=&quot;on&quot;</code> is not free</strong>, and the cost is worst where it is least
+visible: every such lamp is an extra render of the caster list, per frame, and
+large <code>range</code> sweeps more of the world into it. Prefer <code>off</code> for dynamically
+inserted content. See <code>TODO.md</code> → arbitration for inserted lights.</li>
+</ul>
 <h2>0.7.7</h2>
 <p>A lifecycle release. <code>&lt;tosi-b3d&gt;</code> now distinguishes being <strong>moved</strong> from being
 <strong>removed</strong>, which fixes an engine leak and a scene-corruption bug that were the
@@ -2536,6 +2611,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
+      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -2559,6 +2635,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
@@ -2628,6 +2705,9 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
+      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>

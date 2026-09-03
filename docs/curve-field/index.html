@@ -54,15 +54,6 @@ pointer.</p>
 one curve per layer, so this is how you author a plateau, a crater rim or a
 treeline without writing code. See <code>PROVINCE-DESIGN.md</code> → &quot;every one of those
 responses IS a curve&quot;, and the <a href="/b3d-terrain/" class="wikilink">province editor</a> demo below.</p>
-<h2>Deleting a point is a BUTTON, not a gesture</h2>
-<p>Adding is a tap on empty space and moving is a drag, which leaves deleting with
-no obvious third gesture. The usual answers all fail somewhere that matters
-here: right-click does not exist on a controller, double-tap is unreliable when
-the pointer is a ray from two metres away, and drag-off-the-edge collides with
-the clamp that keeps the curve in range.</p>
-<p>So the widget exposes <code>selected</code> and <code>deleteSelected()</code>, and the host puts a
-button somewhere honest. A discoverable button beats a gesture you have to be
-told about — which is the same argument the popup title bar makes for its grip.</p>
 <h2>Demo — a province editor</h2>
 <p>Two curves and a terrain block. The <strong>shape</strong> says what height the province wants
 at each distance from its centre; the <strong>falloff</strong> says how strongly it overrides
@@ -250,6 +241,71 @@ preview.append(
   height: 100%;
 }
 </code></pre>
+<h2>Deleting a point is a BUTTON, not a gesture</h2>
+<p>Adding is a tap on empty space and moving is a drag, which leaves deleting with
+no obvious third gesture. The usual answers all fail somewhere that matters
+here: right-click does not exist on a controller, double-tap is unreliable when
+the pointer is a ray from two metres away, and drag-off-the-edge collides with
+the clamp that keeps the curve in range.</p>
+<p>So the widget exposes <code>selected</code> and <code>deleteSelected()</code>, and the host puts a
+button somewhere honest. A discoverable button beats a gesture you have to be
+told about — which is the same argument the popup title bar makes for its grip.</p>
+<h2>Shared split markers — a light program editor</h2>
+<p>A <a href="/light-modulation/" class="wikilink">light program</a> is one curve per channel divided into
+attack / sustain / decay by two markers. Those boundaries belong to the <strong>lamp</strong>,
+not to any one channel, so both curves below are given the SAME <code>curveMarkers()</code>
+object: drag a marker in either and both move.</p>
+<p>Tonio: <em>&quot;the attack and decay should be shared by the various curves or it just
+becomes nutty.&quot;</em> It is not only tidier — per-curve markers would let brightness
+and hue disagree about where the attack ends, which is not a state the model can
+represent, so the editor would be able to author something the runtime cannot
+run.</p>
+<pre><code class="language-js">import { curve3d, curveMarkers, panel3d, label3d } from &#39;tosijs-3d&#39;
+import { elements } from &#39;tosijs&#39;
+const { div, pre } = elements
+
+const out = pre({ style: &#39;margin:0;padding:8px 12px;color:#8ea;font:12px ui-monospace,monospace&#39; }, &#39;&#39;)
+
+// ONE marker set, shared. This is the whole point.
+const splits = curveMarkers([0.35, 0.75], {
+  labels: [&#39;attack&#39;, &#39;decay&#39;],
+  handleChange: (v) =&gt; {
+    out.textContent = `attackEnd ${v[0].toFixed(3)}   sustainEnd ${v[1].toFixed(3)}`
+  },
+})
+out.textContent = &#39;attackEnd 0.350   sustainEnd 0.750&#39;
+
+const brightness = curve3d({
+  label: &#39;brightness — strike, hum, fade&#39;,
+  markers: splits,
+  value: [
+    { x: 0, y: 0 }, { x: 0.08, y: 0.9 }, { x: 0.12, y: 0.05 },
+    { x: 0.2, y: 1 }, { x: 0.26, y: 0.1 }, { x: 0.35, y: 1 },
+    { x: 0.5, y: 0.93 }, { x: 0.75, y: 1 },
+    { x: 0.9, y: 0.3 }, { x: 1, y: 0 },
+  ],
+})
+const hue = curve3d({
+  label: &#39;hue — 0.5 leaves the colour alone&#39;,
+  markers: splits,
+  value: [{ x: 0, y: 0.5 }, { x: 0.75, y: 0.5 }, { x: 1, y: 0 }],
+})
+
+preview.append(
+  div(
+    { style: &#39;display:flex;flex-direction:column;height:100%;background:#0c0e14&#39; },
+    div(
+      { style: &#39;flex:1;min-height:0;overflow:auto;padding:12px&#39; },
+      panel3d({ width: 340 }, label3d({ text: &#39;Light program&#39; }), brightness, hue)
+    ),
+    out
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview {
+  height: 100%;
+}
+</code></pre>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -276,6 +332,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
+      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -299,6 +356,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
@@ -368,6 +426,9 @@ preview.append(
       <li><a class="doc-link current" href="../curve-field/" aria-current="page">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
+      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>

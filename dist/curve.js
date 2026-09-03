@@ -184,6 +184,57 @@ export function pointAt(points, x, y, radius) {
  * having an answer.
  */
 export const MIN_EXTENT = 0.05;
+/**
+ * Smallest gap between two split markers, in curve x.
+ *
+ * Not zero: two markers at the same place make a segment of zero width, which
+ * is a region you can never see, edit or get back — the marker under it becomes
+ * ungrabbable because its neighbour is exactly on top of it.
+ */
+export const MIN_SPLIT_GAP = 0.02;
+/**
+ * Move split marker `i` to `x`, keeping the set ascending and inside `[0,1]`.
+ *
+ * Markers divide ONE curve into regions — a light's attack / sustain / decay
+ * ([[light-modulation]]) is the first user. They are clamped rather than
+ * refused: a drag that stops at its neighbour shows you the limit, where one
+ * that ignores you looks broken. Same rule as a footprint vertex.
+ *
+ * Returns a new array; the input is untouched.
+ */
+export function moveMarker(markers, i, x, minGap = MIN_SPLIT_GAP) {
+    if (i < 0 || i >= markers.length)
+        return [...markers];
+    const lo = i === 0 ? 0 : markers[i - 1] + minGap;
+    const hi = i === markers.length - 1 ? 1 : markers[i + 1] - minGap;
+    const next = [...markers];
+    // `lo` can exceed `hi` when neighbours are already tighter than two gaps
+    // apart. Clamping high-then-low leaves the marker pinned against its lower
+    // neighbour rather than jumping past it.
+    next[i] = Math.max(0, Math.min(1, Math.min(hi, Math.max(lo, x))));
+    return next;
+}
+/** Force a marker set ascending and in range — for values arriving from outside. */
+export function normalizeMarkers(markers, minGap = MIN_SPLIT_GAP) {
+    const out = [...markers]
+        .map((v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0)))
+        .sort((a, b) => a - b);
+    for (let i = 1; i < out.length; i++) {
+        if (out[i] < out[i - 1] + minGap)
+            out[i] = out[i - 1] + minGap;
+    }
+    // A set too wide for [0,1] gets pushed back from the top, which can violate
+    // the lower bound again — accept the squeeze rather than returning something
+    // out of range.
+    for (let i = out.length - 1; i >= 0; i--) {
+        if (out[i] > 1)
+            out[i] = 1;
+        if (i > 0 && out[i] - out[i - 1] < minGap) {
+            out[i - 1] = Math.max(0, out[i] - minGap);
+        }
+    }
+    return out;
+}
 /** Smallest angular gap between neighbouring vertices, as a fraction of a turn. */
 const MIN_GAP = 0.005;
 /** The closed radial curve as N distinct vertices — the last point is the first. */
@@ -555,5 +606,191 @@ export function defaultCurve(kind) {
     if (kind === 'radial')
         return circle();
     return linear();
+}
+// --- Serialisation: the interop contract with tosijs-3d-ensemble (#61) -------
+/**
+ * Decimal places a curve is rounded to when committed.
+ *
+ * A curve lives in a file an author commits and diffs, so raw drag floats mean
+ * nudging one control rewrites every number with new noise. Four places is
+ * below UI resolution, kills the noise, and stays readable — agreed with
+ * ensemble, who diff these by hand.
+ */
+export const CURVE_PRECISION = 4;
+const round4 = (v) => {
+    const f = 10 ** CURVE_PRECISION;
+    // `+0` normalises -0, which serialises as `-0` and shows up as a spurious diff.
+    return Math.round(v * f) / f + 0;
+};
+const isPointish = (p) => p != null && typeof p === 'object' && 'x' in p && 'y' in p;
+/**
+ * Read either accepted form into `{kind, points}`, normalized.
+ *
+ * NEVER throws. A curve from a newer tosijs-3d, or from an open bag, or from a
+ * hand-edit that went wrong, degrades to something usable — because the
+ * alternative is an editor that will not open the document you need to fix.
+ */
+export function readCurve(value, fallbackKind = 'profile') {
+    if (value == null)
+        return { kind: fallbackKind, points: [] };
+    if (Array.isArray(value)) {
+        return { kind: fallbackKind, points: normalizeCurve(value, fallbackKind) };
+    }
+    const kind = value.kind ?? fallbackKind;
+    const points = Array.isArray(value.points) ? value.points : [];
+    return { kind, points: normalizeCurve(points, kind) };
+}
+/**
+ * The canonical bytes for a curve: sorted, rounded, and nothing else on it.
+ *
+ * Same input, same output — so an author who nudges one control gets a diff
+ * touching one line rather than the whole curve. Key order is fixed by
+ * construction (`{x, y}`), since JS preserves insertion order and
+ * `JSON.stringify` follows it.
+ */
+export function canonicalCurve(points, kind = 'profile') {
+    return normalizeCurve(points, kind).map((p) => ({
+        x: round4(p.x),
+        y: round4(p.y),
+    }));
+}
+/**
+ * Report what is wrong with a serialised curve without throwing or fixing it.
+ *
+ * `error` means it is not a curve; `warning` means it is one we had to
+ * interpret. Both are reportable and neither is fatal — an editor shows
+ * everything and keeps working, which is only possible if reading and
+ * validating are separate operations.
+ */
+export function validateCurve(value, kind = 'profile') {
+    const issues = [];
+    let points;
+    let prefix;
+    if (Array.isArray(value)) {
+        points = value;
+        prefix = '';
+    }
+    else if (value != null && typeof value === 'object' && 'points' in value) {
+        points = value.points;
+        prefix = '/points';
+        const k = value.kind;
+        if (k != null && !['profile', 'falloff', 'radial'].includes(k)) {
+            issues.push({
+                severity: 'warning',
+                code: 'curve/unknown-kind',
+                message: `Unknown curve kind ${JSON.stringify(k)}; treated as ${kind}.`,
+                path: '/kind',
+            });
+        }
+    }
+    else {
+        return [
+            {
+                severity: 'error',
+                code: 'curve/not-a-curve',
+                message: 'Expected an array of {x, y} points, or an object with a `points` array.',
+                path: '',
+            },
+        ];
+    }
+    if (!Array.isArray(points)) {
+        return [
+            {
+                severity: 'error',
+                code: 'curve/points-not-an-array',
+                message: '`points` must be an array of {x, y}.',
+                path: prefix,
+            },
+        ];
+    }
+    if (points.length < 2) {
+        issues.push({
+            severity: 'warning',
+            code: 'curve/too-few-points',
+            message: `A curve needs at least 2 points; found ${points.length}. Ends will be supplied.`,
+            path: prefix,
+        });
+    }
+    let lastX = -Infinity;
+    let unsorted = false;
+    points.forEach((p, i) => {
+        const at = `${prefix}/${i}`;
+        if (!isPointish(p)) {
+            issues.push({
+                severity: 'error',
+                code: 'curve/bad-point',
+                message: 'Each point must be an object with numeric x and y.',
+                path: at,
+            });
+            return;
+        }
+        for (const axis of ['x', 'y']) {
+            const v = p[axis];
+            if (typeof v !== 'number' || !Number.isFinite(v)) {
+                issues.push({
+                    severity: 'error',
+                    code: 'curve/bad-number',
+                    message: `${axis} must be a finite number.`,
+                    path: `${at}/${axis}`,
+                });
+            }
+            else if (v < 0 || v > 1) {
+                // A warning, not an error: the value is readable, we just had to clamp
+                // it. Refusing to load a document over a 1.0001 helps nobody.
+                issues.push({
+                    severity: 'warning',
+                    code: 'curve/out-of-range',
+                    message: `${axis} is ${v}; curves are [0,1] and this will be clamped.`,
+                    path: `${at}/${axis}`,
+                });
+            }
+        }
+        const px = p.x;
+        if (typeof px === 'number' && px < lastX)
+            unsorted = true;
+        if (typeof px === 'number')
+            lastX = px;
+        for (const key of Object.keys(p)) {
+            if (key !== 'x' && key !== 'y') {
+                issues.push({
+                    severity: 'warning',
+                    code: 'curve/unknown-field',
+                    message: `Unknown field ${JSON.stringify(key)} will be ignored.`,
+                    path: `${at}/${key}`,
+                });
+            }
+        }
+    });
+    if (unsorted) {
+        issues.push({
+            severity: 'warning',
+            code: 'curve/unsorted',
+            message: 'Points are not ascending in x; they will be sorted on read.',
+            path: prefix,
+        });
+    }
+    return issues;
+}
+/**
+ * A JSON Schema fragment for a curve field, for a panel generated from schema.
+ *
+ * `x-widget` dispatches to the editor; `x-curve-kind` says what x MEANS, which
+ * the numbers cannot. Separate keys rather than a compound token, because a
+ * compound would put string-parsing in the one place that dispatches on the
+ * widget — ensemble's convention, and their other adjuncts (`x-unit`,
+ * `x-labels`) follow it.
+ */
+export function curveSchema(kind = 'profile', extra = {}) {
+    return {
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: { x: { type: 'number' }, y: { type: 'number' } },
+            required: ['x', 'y'],
+        },
+        'x-widget': 'curve',
+        'x-curve-kind': kind,
+        ...extra,
+    };
 }
 //# sourceMappingURL=curve.js.map

@@ -1,4 +1,5 @@
 import { type PopupSide } from './flow-layout';
+import { type SliderScale } from './widgets3d-layout';
 /**
  * A pointer phase, routed by the panel in the widget's local SVG coords.
  * `hover`/`leave` give feedback without a press (e.g. a VR controller ray
@@ -6,6 +7,23 @@ import { type PopupSide } from './flow-layout';
  */
 export type PointerKind = 'down' | 'move' | 'up' | 'hover' | 'leave';
 /** A laid-out widget: its SVG group, sizing, and coordinate-based interaction. */
+/**
+ * A value, or a function that produces it when asked.
+ *
+ * The point is that a menu, a palette or a toolbar can be a **constant** — built
+ * once at module scope and reused — instead of being rebuilt every time the
+ * state it depends on moves. Tonio: _"disabled should be a callback function not
+ * a static value. This allows a menu to be a reusable object and not have to be
+ * built per use."_
+ *
+ * With a static boolean, `{ label: 'Revert', disabled: !dirty }` captures
+ * `dirty` at construction, so the only way to keep it honest is to rebuild the
+ * array — which means the menu cannot be a constant, and every consumer invents
+ * their own rebuild-on-change plumbing.
+ */
+export type Dynamic<T> = T | (() => T);
+/** Read a `Dynamic`, falling back when it was never given. */
+export declare function resolveDynamic<T>(v: Dynamic<T> | undefined, fallback: T): T;
 export interface Widget3d {
     el: SVGElement;
     /** Lay out internals to `width`px; return the height consumed (px). */
@@ -256,6 +274,14 @@ export declare function textBlock3d(config: {
 export declare function button3d(config: {
     label: string;
     onClick?: () => void;
+    /**
+     * Make this a MENU button: pressing it opens these actions anchored to the
+     * button, instead of (not as well as) firing `onClick`.
+     *
+     * Both would be a trap — a control that sometimes acts and sometimes opens
+     * has no reliable meaning, and you find out which by pressing it.
+     */
+    menu?: MenuAction[];
 }): Widget3d;
 /**
  * A horizontal strip of icon toggle-buttons — a compact toolbar for a panel
@@ -289,7 +315,34 @@ export declare function slider3d(config: {
     value: number;
     min?: number;
     max?: number;
+    /** On a `log` scale this is in DECADES, not units. */
     step?: number;
+    /**
+     * Snap the VALUE to a multiple of this, after the scale is applied.
+     *
+     * Different question from `step`, and both are useful: `step` is how far one
+     * notch moves you (in the scale's units — octaves on `log2`); `snap` is which
+     * values are legal at all. `scale: 'log2', snap: 1` gives a grid size that is
+     * always a whole number but still easy to set at both ends of its range.
+     */
+    snap?: number;
+    /**
+     * `linear` (default), `log`, or `log2`.
+     *
+     * `log` and `log2` place the handle identically — the base cancels in the
+     * mapping — and differ only in what one `step` means: a decade versus an
+     * octave. Use `log2` when the meaningful values double (grid sizes, texture
+     * sizes); `log` when they scale by orders of magnitude.
+     *
+     * Reach for `log` when the range spans orders of magnitude — a light's
+     * intensity, a frequency, a scale factor. On a linear 0..1000 track every
+     * value below 1 lives in the first thousandth of the travel, so the numbers
+     * people actually want are the ones they cannot set.
+     *
+     * Requires `min > 0`; a range including zero falls back to linear rather
+     * than producing NaN.
+     */
+    scale?: SliderScale;
     onChange?: (v: number) => void;
     /**
      * Where the number lives.
@@ -326,11 +379,93 @@ export declare function select3d(config: {
 /** A vertical list of selectable rows (dialogue options, inventory, …). */
 export declare function list3d<T extends {
     label: string;
+    icon?: string;
+    disabled?: Dynamic<boolean>;
 }>(config: {
     items: T[];
     onSelect?: (item: T, index: number) => void;
     rowHeight?: number;
 }): Widget3d;
+/**
+ * One row of an action menu.
+ *
+ * Distinct from `select3d`'s options, which are VALUES the control then keeps
+ * and displays. A menu item is a thing that HAPPENS: it fires and the menu
+ * closes, leaving nothing behind. Ensemble put it exactly right — a picker
+ * showing a lingering "value" for what was a one-shot action reads wrong
+ * (tosijs-3d#59).
+ */
+export interface MenuAction {
+    label: string;
+    /** Icon name, as `svgIcons`/`iconGlyph` know it. Optional, and mixed lists align. */
+    icon?: string;
+    /**
+     * Greyed, unhighlighted and unfirable — but still PRESENT. A menu whose items
+     * come and go teaches you nothing about where things are; one that greys them
+     * shows you the command exists and is unavailable right now.
+     *
+     * **Give a PREDICATE, not a boolean**, unless it is genuinely constant. It is
+     * asked each time it matters, so the menu can be a module-level constant
+     * instead of being rebuilt whenever the state it depends on moves:
+     *
+     * ```javascript
+     * const FILE_MENU = [
+     *   { label: 'Save', handleSelect: save },
+     *   { label: 'Revert', disabled: () => !doc.dirty, handleSelect: revert },
+     * ]
+     * ```
+     */
+    disabled?: Dynamic<boolean>;
+    /** What this item does. `handleSelect` on the menu fires too, if given. */
+    handleSelect?: () => void;
+}
+/**
+ * The rows of an action menu, as a `Widget3d`.
+ *
+ * You rarely want this directly — `openMenu3d` puts it in a popup, which is
+ * where a menu belongs. It is separate so a menu can also be embedded in a
+ * panel (a permanently-visible command list) without a popup at all.
+ */
+export declare function menu3d(config: {
+    items: MenuAction[];
+    /** Fired for any item, after that item's own `handleSelect`. */
+    handleSelect?: (item: MenuAction, index: number) => void;
+    rowHeight?: number;
+}): Widget3d;
+/**
+ * Open an action menu as a popup anchored to something, and close it on pick.
+ *
+ * This is the piece that was missing. `select3d` could open a menu because it
+ * holds a `WidgetHost` privately; nothing else could, so an icon in a tool
+ * palette had no route to one (tosijs-3d#59). Any widget that gets a host can
+ * now open a menu in one call.
+ *
+ * ```javascript
+ * openMenu3d(host, anchorRect, [
+ *   { label: 'Load…', icon: 'uploadCloud', handleSelect: load },
+ *   { label: 'Revert', icon: 'rotateCcw', disabled: !dirty, handleSelect: revert },
+ * ])
+ * ```
+ *
+ * Dismissal is the host's: a press outside closes it, exactly as it does for a
+ * select. `width` defaults to the anchor's, floored so a menu hanging off a
+ * narrow icon is still readable rather than a column of clipped words.
+ */
+export declare function openMenu3d(host: WidgetHost, anchor: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}, items: MenuAction[], opts?: {
+    side?: PopupSide;
+    width?: number;
+    maxHeight?: number;
+    /** Fired after an item is chosen (the menu has already closed). */
+    handleSelect?: (item: MenuAction, index: number) => void;
+    onClose?: () => void;
+}): {
+    close: () => void;
+} | null;
 /**
  * A scrollable container. Lays out widgets top-to-bottom; if they overflow the
  * height, clips and enables wheel + drag scrolling. Returns the root `<svg>`,

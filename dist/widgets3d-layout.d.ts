@@ -114,9 +114,29 @@ export declare function measureTextWrap(text: string, maxWidth: number, font: Fo
 /** Measured width of the widest line in `text` — for sizing a box to its content. */
 export declare function measureTextWidth(text: string, font: FontSpec): number;
 /** Map a value in [min, max] to a 0..1 fraction (clamped, step-snapped). */
-export declare function valueToFraction(value: number, min: number, max: number): number;
-/** Inverse of valueToFraction, snapped to `step` (0 = continuous). */
-export declare function fractionToValue(fraction: number, min: number, max: number, step?: number): number;
+/**
+ * How a slider's travel maps to its value.
+ *
+ * `log` exists because a range like intensity 0..1000 puts everything below 1
+ * in the first thousandth of the track — you cannot set 0.5, and the values
+ * people actually reach for are the ones the control cannot express. Tonio, on
+ * the light editor: _"the intensity slider goes from 0 to 1000 with very little
+ * wiggle-room in 0-1."_
+ *
+ * On a log scale each DECADE gets equal travel, so 0.01→0.1 is as easy to hit
+ * as 100→1000.
+ */
+export type SliderScale = 'linear' | 'log' | 'log2';
+export declare function valueToFraction(value: number, min: number, max: number, scale?: SliderScale): number;
+/**
+ * Inverse of valueToFraction, snapped to `step` (0 = continuous).
+ *
+ * On a LOG scale `step` is in **decades**, not in units — a step of 1 gives you
+ * 0.01, 0.1, 1, 10; a step of 0.5 gives half-decades. Units would be
+ * meaningless here, since a fixed increment is enormous at one end of the range
+ * and invisible at the other, which is the problem the log scale exists to fix.
+ */
+export declare function fractionToValue(fraction: number, min: number, max: number, step?: number, scale?: SliderScale, snap?: number): number;
 /**
  * How wide a camera-relative panel may be, in world units, to stay on screen.
  *

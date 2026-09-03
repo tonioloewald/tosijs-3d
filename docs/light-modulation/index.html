@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css" data-tosi-doc-system />
+  <title>light-modulation — tosijs-3d</title>
+  <meta name="description" content="A light&#39;s whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]&#39;s flicker, pulse, beacon and fade." />
+  <link rel="canonical" href="https://3d.tosijs.net/light-modulation/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="light-modulation — tosijs-3d" />
+  <meta property="og:description" content="A light&#39;s whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]&#39;s flicker, pulse, beacon and fade." />
+  <meta property="og:url" content="https://3d.tosijs.net/light-modulation/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"light-modulation","description":"A light's whole life as one curve. Pure, deterministic, Babylon-free — the model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.","url":"https://3d.tosijs.net/light-modulation/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>light-modulation</h1>
+<p><strong>A light&#39;s whole life as one curve.</strong> Pure, deterministic, Babylon-free — the
+model behind <a href="/b3d-lamp/" class="wikilink">b3d-lamp</a>&#39;s flicker, pulse, beacon and fade.</p>
+<h2>One curve, two split points</h2>
+<p>A channel is a single <code>[0,1] → [0,1]</code> curve from <a href="/curve/" class="wikilink">curve.ts</a> spanning the
+lamp&#39;s entire behaviour, divided by two markers:</p>
+<pre><code>   0 ─────────── attackEnd ──────────── sustainEnd ─────────── 1
+   |   ATTACK        |       SUSTAIN         |      DECAY      |
+   | plays once,     | loops while on,       | plays once,     |
+   | on switch-on    | one pass per `period` | on switch-off   |
+</code></pre>
+<p>Tonio: <em>&quot;if one curve covers attack - sustain - decay and you simply move the
+point where attack becomes sustain and sustain becomes decay then the only real
+discontinuities will occur mid-loop shut off or shut off while spinning up.&quot;</em></p>
+<p>That is exactly right, and it is why this shape is worth the constraint it
+imposes. <strong>The seams cannot be discontinuous, because there is only one curve</strong> —
+the value at <code>attackEnd</code> is reached from the left by the attack and held from the
+right by the sustain, so they agree by construction rather than by two numbers
+being kept in sync by hand.</p>
+<p>It follows that <strong>the curve&#39;s value at <code>attackEnd</code> IS the sustain level.</strong> There
+is no separate level to declare, and none to get wrong.</p>
+<h2>What it gives up, and why that is fine</h2>
+<p>A separate loop multiplied by an envelope would let a flicker keep flickering
+<em>through</em> the fade for free. Here it does not: the decay segment plays what the
+decay segment draws.</p>
+<p>Tonio, choosing this deliberately: <em>&quot;you might not want flicker to compose. The
+classic fluorescent light flickers to life. And if you want the lamp to flicker
+as it dies, make it flicker as it dies. OK you won&#39;t get some kind of organic
+composition, but that&#39;s something we can always come down to and this case is
+both simple and extremely powerful.&quot;</em></p>
+<p>So: author the tail you want. Composition remains available later as an addition,
+which is the safe direction to leave a door open in.</p>
+<h2>Inverted splits collapse — a specified contract, not an accident</h2>
+<p>If <code>sustainEnd</code> precedes <code>attackEnd</code> (only reachable by hand-editing a file —
+the editor clamps a drag so it cannot happen), the sustain segment <strong>collapses to
+zero width at <code>attackEnd</code></strong>: the lamp plays its attack, then holds at
+<code>attackEnd</code> for as long as it is on, then plays the decay from <code>sustainEnd</code>.</p>
+<p>Stated here because ensemble&#39;s validator calls this a WARNING rather than an
+error, and that is only correct while the behaviour is deterministic and
+specified. Their condition, and it is a fair one: <em>&quot;if it were unspecified —
+different results across versions or platforms — it should be an error, because
+then the document really does not mean one thing.&quot;</em> So this paragraph is part of
+the contract, and changing what the collapse does is a breaking change.</p>
+<h2>The two discontinuities that remain</h2>
+<p>Both are named above and neither is fixable in this model, so they are contracts
+rather than bugs:</p>
+<ul>
+<li><strong>Shut off mid-loop.</strong> The sustain is somewhere inside its segment; the decay
+begins at <code>sustainEnd</code>. Keep the two ends of the sustain segment near each
+other in value and the jump is invisible — a loop that returns near where it
+started is a better loop anyway.</li>
+<li><strong>Shut off while spinning up.</strong> The decay starts at <code>sustainEnd</code> regardless of
+how far the attack had climbed.</li>
+</ul>
+<h2>The channels do NOT share a convention, deliberately</h2>
+<table>
+<thead>
+<tr>
+<th>channel</th>
+<th>curve value means</th>
+<th>why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>brightness</code></td>
+<td><strong>multiplies</strong> the base intensity — <code>0</code> off, <code>1</code> as declared</td>
+<td>&quot;off&quot; has to be reachable; it is the value you flicker to</td>
+</tr>
+<tr>
+<td><code>range</code></td>
+<td><strong>multiplies</strong> the base range</td>
+<td>a range of zero is a light that lights nothing</td>
+</tr>
+<tr>
+<td><code>saturation</code></td>
+<td><strong>multiplies</strong> saturation — <code>0</code> is white, <code>saturationScale</code> sets what <code>1</code> means</td>
+<td>saturation has a meaningful zero and reaching it is the point</td>
+</tr>
+<tr>
+<td><code>hue</code></td>
+<td><strong>shifts</strong> the base hue, <code>0.5</code> = unchanged, scaled by <code>hueShiftDeg</code></td>
+<td>hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose</td>
+</tr>
+</tbody></table>
+<p><strong>A pale lamp cannot be reddened by hue alone.</strong> Rotating a hue preserves
+saturation, so <code>#cfe8ff</code> — saturation 0.19 — becomes a pale orange however far
+you turn it. To make a washed-out tube die as a red ember you have to raise
+saturation too, which needs <code>saturationScale</code> above 1, because the curve itself
+is <code>[0,1]</code> and can only desaturate. Found by measuring a demo that looked wrong:
+the light reported <code>[1, 0.92, 0.87]</code>, which is warm white.</p>
+<p><strong>The hue shift is RELATIVE, and that catches people.</strong> &quot;Fade out and go red&quot; is
+a small shift from a warm white and a very large one from a cool one: <code>#cfe8ff</code>
+sits near 207°, so a plausible-looking <code>hueShiftDeg: 45</code> takes a dying
+fluorescent to <em>cyan</em> — it needs about 190 to reach amber. Caught on the live
+page doing exactly that. The default 30 is for leaning, not for changing a
+lamp&#39;s mind.</p>
+<h2>Flicker is a curve, not a random number</h2>
+<p>A stepped curve strobes. A spiky attack segment is a fluorescent striking. A slow
+<code>easeInOut</code> sustain is a beacon. All authored, repeatable, and editable in
+<a href="/curve-field/" class="wikilink">curve3d</a> — where a <code>Math.random()</code> flicker would be none of those,
+and would break the no-<code>Math.random</code> rule that makes this testable at all.</p>
+<p>For flicker that should not read as periodic, give the sustain segment several
+dissimilar peaks and a period that is not a round number.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link current" href="../light-modulation/" aria-current="page">light-modulation</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">vector-field</a></li>
+      <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
+      <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
+      <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
+      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">widgets3d-layout</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js"></script>
+</body>
+</html>

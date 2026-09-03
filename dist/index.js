@@ -62,6 +62,10 @@ export { B3dReflections, b3dReflections } from './b3d-reflections';
 export { B3dSkybox, b3dSkybox } from './b3d-skybox';
 export { B3dWater, b3dWater } from './b3d-water';
 export { B3dLight, b3dLight } from './b3d-light';
+export { B3dLamp, B3dPointLight, b3dPointLight, B3dSpotLight, b3dSpotLight, B3dAreaLight, b3dAreaLight, } from './b3d-lamp';
+// A lamp's whole life as ONE curve per channel, split into attack / sustain /
+// decay by two markers — the model behind its flicker, pulse and fade.
+export { lightProgramSchema, canonicalProgram, validateProgram, sampleLight, programPosition, lightPhase, isAnimated, shiftHue, NO_MODULATION, } from './light-modulation';
 export { B3dFog, b3dFog } from './b3d-fog';
 export { B3dClouds, b3dClouds } from './b3d-clouds';
 export { softShadowTexture, shadowDecalMaterial, createShadowDecal, projectShadowDown, } from './shadow-decal';
@@ -105,7 +109,7 @@ export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './
 export { B3dCar, b3dCar } from './b3d-car';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft';
 // SVG widgets (DOM-overlay or in-scene panels)
-export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, } from './widgets3d';
+export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, } from './widgets3d';
 // Curve editing — the pure model, and the `curve3d` widget over it. A province
 // is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, 
@@ -118,7 +122,23 @@ export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, inser
 // rule in CLAUDE.md, and they are reachable via `defaultCurve(kind)` and
 // `presetsFor(kind)`.
 ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve';
-export { curve3d } from './curve-field';
+export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve';
+// Serialisation contract with tosijs-3d-ensemble (#61): plain JSON, canonical
+// bytes, a validator that never throws, and a schema fragment to dispatch on.
+export { readCurve, canonicalCurve, validateCurve, curveSchema, CURVE_PRECISION, } from './curve';
+export { curve3d, curveMarkers } from './curve-field';
+// The composite: several curves sharing ONE pair of split markers, so the
+// invariant lives where it can be enforced (see #61 Q5a).
+export { curveProgram3d, PROGRAM_CHANNELS } from './curve-program';
+// The whole lamp — static properties plus the program, as one field.
+export { lightEditor3d } from './light-editor';
+/*
+A lamp as DATA, from a module with no DOM and no Babylon — so a consumer can
+validate, canonicalise and schema-describe one in a headless runner without
+instantiating a UI. (Importing the EDITOR pulls in tosijs and needs
+HTMLElement; ensemble's test suite has no browser.)
+*/
+export { lightColor, lightSettingsSchema, canonicalLight, validateLight, DEFAULT_LIGHT, } from './light-settings';
 export { iconGrid3d } from './icon-grid';
 export { footprint3d } from './footprint-field';
 // A coordinate on ONE row — the density win for inspector panels. Its own

@@ -73,6 +73,27 @@ export declare function pointAt(points: ControlPoint[], x: number, y: number, ra
  * having an answer.
  */
 export declare const MIN_EXTENT = 0.05;
+/**
+ * Smallest gap between two split markers, in curve x.
+ *
+ * Not zero: two markers at the same place make a segment of zero width, which
+ * is a region you can never see, edit or get back — the marker under it becomes
+ * ungrabbable because its neighbour is exactly on top of it.
+ */
+export declare const MIN_SPLIT_GAP = 0.02;
+/**
+ * Move split marker `i` to `x`, keeping the set ascending and inside `[0,1]`.
+ *
+ * Markers divide ONE curve into regions — a light's attack / sustain / decay
+ * ([[light-modulation]]) is the first user. They are clamped rather than
+ * refused: a drag that stops at its neighbour shows you the limit, where one
+ * that ignores you looks broken. Same rule as a footprint vertex.
+ *
+ * Returns a new array; the input is untouched.
+ */
+export declare function moveMarker(markers: number[], i: number, x: number, minGap?: number): number[];
+/** Force a marker set ascending and in range — for values arriving from outside. */
+export declare function normalizeMarkers(markers: number[], minGap?: number): number[];
 /** The closed radial curve as N distinct vertices — the last point is the first. */
 export declare function polygonVertices(points: ControlPoint[]): ControlPoint[];
 /** N vertices as a closed radial curve, ready to `evaluateCurve`. */
@@ -238,4 +259,84 @@ export declare const curvePresets: CurvePreset[];
 export declare function presetsFor(kind: CurveKind): CurvePreset[];
 /** The default curve for a kind — the plainest thing that obeys its rules. */
 export declare function defaultCurve(kind: CurveKind): ControlPoint[];
+/**
+ * Decimal places a curve is rounded to when committed.
+ *
+ * A curve lives in a file an author commits and diffs, so raw drag floats mean
+ * nudging one control rewrites every number with new noise. Four places is
+ * below UI resolution, kills the noise, and stays readable — agreed with
+ * ensemble, who diff these by hand.
+ */
+export declare const CURVE_PRECISION = 4;
+/**
+ * The two accepted serialised forms.
+ *
+ * A bare array is the DEFAULT and the one to write: the domain (`kind`) is a
+ * property of the FIELD, so declaring it in the schema keeps one truth instead
+ * of copying it into every instance.
+ *
+ * The wrapper is accepted, not required, for a case ensemble raised that we
+ * could not have known: their format has open bags (`Piece.meta`, `Zone.values`)
+ * where no schema applies, so a bare curve landing there loses its domain
+ * entirely. Reading both costs nothing and gives a schema-less context
+ * something self-describing to put there.
+ */
+export type SerializedCurve = ControlPoint[] | {
+    kind?: CurveKind;
+    points: ControlPoint[];
+};
+/** A validation issue, in the shape ensemble's `validate()` collects. */
+export interface CurveIssue {
+    severity: 'error' | 'warning';
+    code: string;
+    message: string;
+    /**
+     * JSON Pointer RELATIVE to the value handed in — `/3/x` for a bare array,
+     * `/points/3/x` for a wrapper, `''` for the value as a whole.
+     *
+     * Relative because the consumer knows where the field lives and we do not.
+     * Ensemble prefixes with the field's own path; that join is theirs to do, and
+     * this way `validateCurve` needs to know nothing about ensembles.
+     */
+    path: string;
+}
+/**
+ * Read either accepted form into `{kind, points}`, normalized.
+ *
+ * NEVER throws. A curve from a newer tosijs-3d, or from an open bag, or from a
+ * hand-edit that went wrong, degrades to something usable — because the
+ * alternative is an editor that will not open the document you need to fix.
+ */
+export declare function readCurve(value: SerializedCurve | null | undefined, fallbackKind?: CurveKind): {
+    kind: CurveKind;
+    points: ControlPoint[];
+};
+/**
+ * The canonical bytes for a curve: sorted, rounded, and nothing else on it.
+ *
+ * Same input, same output — so an author who nudges one control gets a diff
+ * touching one line rather than the whole curve. Key order is fixed by
+ * construction (`{x, y}`), since JS preserves insertion order and
+ * `JSON.stringify` follows it.
+ */
+export declare function canonicalCurve(points: ControlPoint[], kind?: CurveKind): ControlPoint[];
+/**
+ * Report what is wrong with a serialised curve without throwing or fixing it.
+ *
+ * `error` means it is not a curve; `warning` means it is one we had to
+ * interpret. Both are reportable and neither is fatal — an editor shows
+ * everything and keeps working, which is only possible if reading and
+ * validating are separate operations.
+ */
+export declare function validateCurve(value: unknown, kind?: CurveKind): CurveIssue[];
+/**
+ * A JSON Schema fragment for a curve field, for a panel generated from schema.
+ *
+ * `x-widget` dispatches to the editor; `x-curve-kind` says what x MEANS, which
+ * the numbers cannot. Separate keys rather than a compound token, because a
+ * compound would put string-parsing in the one place that dispatches on the
+ * widget — ensemble's convention, and their other adjuncts (`x-unit`,
+ * `x-labels`) follow it.
+ */
+export declare function curveSchema(kind?: CurveKind, extra?: Record<string, unknown>): Record<string, unknown>;
 //# sourceMappingURL=curve.d.ts.map

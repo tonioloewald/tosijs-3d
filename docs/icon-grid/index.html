@@ -49,31 +49,6 @@
 <p><strong><code>iconGrid3d</code> — one control for a segmented select, a tool palette and a mode
 picker.</strong> A grid of icons with optional captions, as a <code>Widget3d</code>, so it works
 flat, on an in-scene panel and in a headset unchanged.</p>
-<h2>The control owns LAYOUT; the consumer owns MEANING</h2>
-<p>Three widgets collapse into one because the difference between them was never
-layout — it was semantics. So <code>mode</code> picks the common case (<code>buttons</code> fire and
-forget, <code>radio</code> is one-of-N, <code>checkbox</code> is any-of-N) and <code>handleChange</code> lets a consumer
-impose something more particular: mutually exclusive subgroups, a mode that
-refuses to turn itself off, a tool that arms rather than toggles.</p>
-<p><code>handleChange</code> receives what WOULD happen and returns what should. Returning the
-previous selection is a veto; there is no separate cancel flag, because one way
-to say no is easier to get right than two.</p>
-<h2>Cell size is the dial, and XR is NOT a third size</h2>
-<p>Two cases: <strong>48 px</strong> for touch, <strong>24 px</strong> for a pointer, sniffed from
-<code>(pointer: coarse)</code> and overridable. That is the whole decision.</p>
-<p>It is tempting to add a third, larger size for XR on the grounds that a
-controller ray is imprecise. Tonio overruled exactly that, and the reasoning is
-better than mine was: <em>&quot;we shouldn&#39;t make special size allowances for XR UI
-targets, we should scale XR so that pointer or touch targets make sense, since XR
-users also need to be able to read stuff.&quot;</em></p>
-<p>Growing the targets in UI units leaves the glyphs where they are and inflates the
-buttons around them, so you buy hit accuracy by making the panel <strong>harder to
-read</strong> — the wrong trade for the medium with the lowest effective resolution.
-Scaling the whole panel in world space moves both together.</p>
-<h2>Captions are what force a narrow column</h2>
-<p>Four columns by default. Without captions a cell is only as wide as its icon, so
-a caption-less grid can be much wider — which is why <code>columns</code> defaults from
-whether anything is captioned rather than being a fixed number.</p>
 <h2>Demo</h2>
 <p>One grid per meaning, so the difference is visible rather than described. The
 last one shows <code>change</code> imposing a rule the modes do not have.</p>
@@ -100,10 +75,28 @@ const LAYERS = [
   { icon: &#39;cloud&#39;, label: &#39;sky&#39; },
   { icon: &#39;camera&#39;, label: &#39;cam&#39; },
 ]
+// A MENU CELL sits in the same strip as ordinary buttons. `load` opens actions
+// instead of firing one, and because it has a `menu` it never joins the
+// selection — so in a radio palette it cannot steal the lit slot from the
+// active tool. Disabled items stay PRESENT: &quot;revert&quot; greys out when there is
+// nothing to revert, rather than vanishing and reflowing the menu under you.
+//
+// `disabled` is a PREDICATE, which is what lets this array be a constant —
+// declared once here and never rebuilt, yet always telling the truth about
+// `state.log`. Toggle it with &quot;copy&quot; and re-open the menu to watch Revert wake
+// up, without a line of rebuild-on-change plumbing anywhere.
 const ACTIONS = [
   { icon: &#39;copy&#39;, label: &#39;copy&#39; },
   { icon: &#39;downloadCloud&#39;, label: &#39;save&#39; },
-  { icon: &#39;bug&#39;, label: &#39;debug&#39; },
+  {
+    icon: &#39;uploadCloud&#39;,
+    label: &#39;load&#39;,
+    menu: [
+      { label: &#39;Recent scene&#39;, icon: &#39;star&#39; },
+      { label: &#39;From file…&#39;, icon: &#39;uploadCloud&#39; },
+      { label: &#39;Revert&#39;, icon: &#39;rotateCcw&#39;, disabled: () =&gt; state.log === &#39;&#39; },
+    ],
+  },
 ]
 
 // NO CAPTIONS, 2-D — which is the point of the control. Saving space is why you
@@ -171,6 +164,9 @@ const panel = panel3d(
   iconGrid3d({
     items: ACTIONS, mode: &#39;buttons&#39;,
     handleActivate: (i, item) =&gt; { state.log = `fired: ${item.label}`; show() },
+    handleMenuSelect: (action, i, cell) =&gt; {
+      state.log = `menu: ${action.label} (from ${ACTIONS[cell].label})`; show()
+    },
   }),
   label3d({ text: &#39;no captions — 12 tools in the space of 4&#39;, muted: true, compact: true }),
   iconGrid3d({ items: PALETTE, mode: &#39;radio&#39;, selected: 0, columns: 6 }),
@@ -202,6 +198,31 @@ preview.append(
   height: 100%;
 }
 </code></pre>
+<h2>The control owns LAYOUT; the consumer owns MEANING</h2>
+<p>Three widgets collapse into one because the difference between them was never
+layout — it was semantics. So <code>mode</code> picks the common case (<code>buttons</code> fire and
+forget, <code>radio</code> is one-of-N, <code>checkbox</code> is any-of-N) and <code>handleChange</code> lets a consumer
+impose something more particular: mutually exclusive subgroups, a mode that
+refuses to turn itself off, a tool that arms rather than toggles.</p>
+<p><code>handleChange</code> receives what WOULD happen and returns what should. Returning the
+previous selection is a veto; there is no separate cancel flag, because one way
+to say no is easier to get right than two.</p>
+<h2>Cell size is the dial, and XR is NOT a third size</h2>
+<p>Two cases: <strong>48 px</strong> for touch, <strong>24 px</strong> for a pointer, sniffed from
+<code>(pointer: coarse)</code> and overridable. That is the whole decision.</p>
+<p>It is tempting to add a third, larger size for XR on the grounds that a
+controller ray is imprecise. Tonio overruled exactly that, and the reasoning is
+better than mine was: <em>&quot;we shouldn&#39;t make special size allowances for XR UI
+targets, we should scale XR so that pointer or touch targets make sense, since XR
+users also need to be able to read stuff.&quot;</em></p>
+<p>Growing the targets in UI units leaves the glyphs where they are and inflates the
+buttons around them, so you buy hit accuracy by making the panel <strong>harder to
+read</strong> — the wrong trade for the medium with the lowest effective resolution.
+Scaling the whole panel in world space moves both together.</p>
+<h2>Captions are what force a narrow column</h2>
+<p>Four columns by default. Without captions a cell is only as wide as its icon, so
+a caption-less grid can be much wider — which is why <code>columns</code> defaults from
+whether anything is captioned rather than being a fixed number.</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -228,6 +249,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
+      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -251,6 +273,7 @@ preview.append(
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
@@ -320,6 +343,9 @@ preview.append(
       <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link current" href="../icon-grid/" aria-current="page">icon-grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
+      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>

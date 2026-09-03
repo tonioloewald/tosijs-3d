@@ -335,6 +335,18 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 </tr>
 <tr>
 <td></td>
+<td><strong><code>scale</code></strong></td>
+<td><code>&#39;linear&#39;</code></td>
+<td><code>&#39;log&#39;</code> / <code>&#39;log2&#39;</code> — equal travel per decade / octave</td>
+</tr>
+<tr>
+<td></td>
+<td><strong><code>snap</code></strong></td>
+<td><code>0</code></td>
+<td>quantise the VALUE (e.g. <code>1</code> for whole grid sizes)</td>
+</tr>
+<tr>
+<td></td>
 <td><strong><code>step</code></strong></td>
 <td><code>0</code></td>
 <td><strong>quantises the drag and the value</strong>; <code>0</code> is continuous</td>
@@ -379,7 +391,7 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <td><code>list3d</code></td>
 <td><code>items</code> / <code>onSelect</code></td>
 <td></td>
-<td></td>
+<td>items may carry <code>icon</code> and <code>disabled</code></td>
 </tr>
 <tr>
 <td><code>button3d</code></td>
@@ -388,18 +400,92 @@ settings into <code>select3d</code> cyclers to get discrete values.</p>
 <td></td>
 </tr>
 <tr>
+<td></td>
+<td><code>menu</code></td>
+<td>—</td>
+<td>makes it a MENU button — opens actions instead of firing <code>onClick</code></td>
+</tr>
+<tr>
+<td><code>menu3d</code></td>
+<td><code>items</code> / <code>handleSelect</code></td>
+<td></td>
+<td>rows of <code>MenuAction</code>; usually via <code>openMenu3d</code></td>
+</tr>
+<tr>
 <td><code>iconBar3d</code></td>
 <td><code>items</code></td>
 <td></td>
 <td><code>{icon, onClick}</code></td>
 </tr>
 </tbody></table>
+<h2>Menus are for ACTIONS; a select is for a VALUE</h2>
+<p><code>select3d</code> keeps and displays what you chose. A menu item <strong>happens</strong> and leaves
+nothing behind — so using a picker for a one-shot reads wrong, showing a
+lingering &quot;value&quot; for something that was an event (tosijs-3d#59).</p>
+<p><code>openMenu3d(host, anchor, items)</code> is the whole API. Any widget handed a
+<code>WidgetHost</code> via <code>setHost</code> can open one, which is what was missing: <code>select3d</code>
+could do this only because it held a host privately, so an icon in a tool
+palette had no route to a menu at all.</p>
+<pre><code class="language-javascript">// Declared ONCE — `disabled` is a predicate, so this constant never goes stale.
+const FILE_MENU = [
+  { label: &#39;Recent scene&#39;, icon: &#39;star&#39;, handleSelect: loadRecent },
+  { label: &#39;From file…&#39;, icon: &#39;uploadCloud&#39;, handleSelect: pickFile },
+  { label: &#39;Revert&#39;, icon: &#39;rotateCcw&#39;, disabled: () =&gt; !doc.dirty, handleSelect: revert },
+]
+openMenu3d(host, cellRect, FILE_MENU)
+</code></pre>
+<p><strong><code>disabled</code> takes a predicate, and usually should.</strong> A boolean captures the
+state at construction, so the only way to keep it honest is to rebuild the
+array — which means the menu cannot be a constant, and every consumer reinvents
+rebuild-on-change plumbing. A predicate is asked each time it matters, so one
+array stays correct forever. (A plain boolean still works, for something
+genuinely constant.) Same for <code>IconGridItem.disabled</code>, so a tool palette can be
+a constant for the same reason.</p>
+<p>Three rules it enforces, each of which is a bug if you get it wrong:</p>
+<ul>
+<li><strong>A disabled item is present, greyed, and inert.</strong> Not hidden — a menu whose
+items come and go reflows under you, so the same command is at a different
+place depending on state and muscle memory never forms. It is also checked at
+activation rather than at hover, so an item that becomes unavailable
+mid-gesture cannot fire — which only means anything <em>because</em> <code>disabled</code> can
+be a predicate that changed while the menu was open.</li>
+<li><strong>The menu closes before any handler runs.</strong> An action that opens something of
+its own — a confirm, a file picker, another menu — would otherwise be torn
+down a moment later by its parent closing on top of it.</li>
+<li><strong>A menu cell in an <code>iconGrid3d</code> never joins the selection</strong>, whatever the
+grid&#39;s mode. Otherwise opening &quot;Load ▾&quot; in a radio palette silently deselects
+your active tool, and dismissing without choosing leaves the palette lying
+about which tool is live.</li>
+</ul>
 <p><strong>On a panel</strong> (not options — methods on the returned element):
 <code>measure()</code> → <code>{content, viewport, overflow, fits}</code>, <code>openPopup(config, …widgets)</code>,
 <code>handlePointer(kind, x, y)</code>, <code>scrollBy(dy)</code>, <code>scrollable</code>.</p>
 <p><strong>On a field</strong>: <code>type</code>, <code>keyboardMode</code>, <code>isValid()</code>, <code>commit()</code>, plus the edit
 protocol (<code>insert</code>, <code>action</code>, <code>setValue</code>, <code>moveCaret</code>). <code>fieldGroup</code> manages
 several of them — exclusivity, commit-on-leave and keyboard layout.</p>
+<h2>Log sliders — for anything spanning orders of magnitude</h2>
+<p><code>scale: &#39;log&#39;</code> gives every DECADE equal travel; <code>scale: &#39;log2&#39;</code> every octave.
+Reach for one whenever the useful values are multiplicative rather than
+additive — a light&#39;s intensity, a <strong>noise scale</strong>, a grid or texture size, a
+frequency, a zoom factor.</p>
+<p>The tell is a linear slider where everything you want lives in the first few
+percent of the track. Tonio, on the light editor: <em>&quot;the intensity slider goes
+from 0 to 1000 with very little wiggle-room in 0-1.&quot;</em></p>
+<pre><code class="language-javascript">slider3d({ label: &#39;intensity&#39;, value: 2, min: 0.01, max: 1000, scale: &#39;log&#39; })
+slider3d({ label: &#39;noise scale&#39;, value: 0.05, min: 0.001, max: 10, scale: &#39;log&#39; })
+slider3d({ label: &#39;grid&#39;, value: 16, min: 1, max: 256, scale: &#39;log2&#39;, step: 1 })
+</code></pre>
+<p><strong><code>step</code> and <code>snap</code> answer different questions</strong>, and both are useful:</p>
+<ul>
+<li><code>step</code> is how far one notch moves you, in the SCALE&#39;s units — octaves on
+<code>log2</code>, so <code>step: 1</code> walks 1, 2, 4, 8.</li>
+<li><code>snap</code> is which values are legal at all, in plain units — <code>snap: 1</code> keeps a
+grid size a whole number however it was reached.</li>
+</ul>
+<p><code>log</code> and <code>log2</code> place the handle identically (the base cancels in the mapping);
+they differ only in what a step means. A range including zero falls back to
+linear rather than producing NaN, because a slider that silently stops working
+is worse than one that is merely the wrong shape.</p>
 <h2>Theming</h2>
 <p>Widget colours, font, and weights are driven by <code>--w3d-*</code> CSS variables with
 sensible defaults. Set them on <code>:root</code> (or any ancestor of the flat overlay)
@@ -498,6 +584,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     </details></li>
     <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
     <ul>
+      <li><a class="doc-link" href="../light-modulation/">light-modulation</a></li>
       <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
       <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
       <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
@@ -521,6 +608,7 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
     </details></li>
     <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
     <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">b3d-lamp</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
@@ -590,6 +678,9 @@ texture (the page&#39;s live CSS doesn&#39;t cascade into a serialized SVG, so l
       <li><a class="doc-link" href="../curve-field/">curve-field</a></li>
       <li><a class="doc-link" href="../footprint-field/">footprint-field</a></li>
       <li><a class="doc-link" href="../icon-grid/">icon-grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">curve-program</a></li>
+      <li><a class="doc-link" href="../light-editor/">light-editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">light-settings</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>

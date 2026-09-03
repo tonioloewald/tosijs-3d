@@ -6,6 +6,7 @@
   <url><loc>https://3d.tosijs.net/core/</loc></url>
   <url><loc>https://3d.tosijs.net/effects/</loc></url>
   <url><loc>https://3d.tosijs.net/combat/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-lamp/</loc></url>
   <url><loc>https://3d.tosijs.net/tosi-b3d/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-controller/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-destroyable/</loc></url>
@@ -13,6 +14,7 @@
   <url><loc>https://3d.tosijs.net/b3d-terrain/</loc></url>
   <url><loc>https://3d.tosijs.net/widgets3d/</loc></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
+  <url><loc>https://3d.tosijs.net/light-modulation/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
   <url><loc>https://3d.tosijs.net/make-mesh/</loc></url>
   <url><loc>https://3d.tosijs.net/keyboard/</loc></url>
@@ -24,6 +26,9 @@
   <url><loc>https://3d.tosijs.net/curve-field/</loc></url>
   <url><loc>https://3d.tosijs.net/footprint-field/</loc></url>
   <url><loc>https://3d.tosijs.net/icon-grid/</loc></url>
+  <url><loc>https://3d.tosijs.net/curve-program/</loc></url>
+  <url><loc>https://3d.tosijs.net/light-editor/</loc></url>
+  <url><loc>https://3d.tosijs.net/light-settings/</loc></url>
   <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/w3d-theme/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>

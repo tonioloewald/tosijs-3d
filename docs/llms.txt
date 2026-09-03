@@ -1,4 +1,4 @@
-# tosijs-3d v0.7.7
+# tosijs-3d v0.7.8
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -70,6 +70,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Focus manager that wires input to the active controllable entity and handles
 - https://3d.tosijs.net/b3d-interactive/ — b3d-interactive
   callback or by bubbling event. It is the substrate doors, knobs, switches,
+- https://3d.tosijs.net/b3d-lamp/ — b3d-lamp
+  placed lights that come with their own fixture geometry, cast shadows where
 - https://3d.tosijs.net/b3d-launcher/ — b3d-launcher
   Fires **ballistic projectiles** — the scene-side shoot loop, bridging the pure
 - https://3d.tosijs.net/b3d-library/ — b3d-library
@@ -145,6 +147,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   `[0,1]` to itself, as sorted control points, with the editing rules that keep it
 - https://3d.tosijs.net/curve-field/ — curve-field
   works as a flat DOM overlay, on an in-scene panel, and in a headset without
+- https://3d.tosijs.net/curve-program/ — curve-program
+  several curves that share one pair of split markers.** One `Widget3d`, one
 - https://3d.tosijs.net/demo-utils/ — demo-utils
   that make a scene look like a scene instead of a test harness. Every live example
 - https://3d.tosijs.net/destroyable-behavior/ — destroyable-behavior
@@ -199,6 +203,12 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Maps keyboard and mouse input to a `VirtualGamepad`. Uses attack/decay smoothing
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
+- https://3d.tosijs.net/light-editor/ — light-editor
+  edits what a light *is* (type, colour, intensity, range, shadows) alongside what
+- https://3d.tosijs.net/light-modulation/ — light-modulation
+  model behind [[b3d-lamp]]'s flicker, pulse, beacon and fade.
+- https://3d.tosijs.net/light-settings/ — light-settings
+  and its validator. No DOM, no Babylon, no widget.
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
 - https://3d.tosijs.net/mantle/ — mantle
