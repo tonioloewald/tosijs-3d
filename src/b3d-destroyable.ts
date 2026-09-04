@@ -178,6 +178,18 @@ export class B3dDestroyable extends AbstractMesh {
      */
     destroyable: 'on' as 'on' | 'off',
     size: 1, // placeholder cube edge length (ignored when `library` is set)
+    /**
+     * Uniform scale for a **library-backed** piece — the lever `size` is not.
+     *
+     * `size` is the placeholder cube's edge length and does nothing once
+     * `library` is set, which left a placed model with no way to be resized at
+     * all: ensemble measured a piece rendering at 5.273 units for
+     * `scale` 1, 2 and 4 alike, the value going in and nothing coming out
+     * (#47). Kept as a separate attribute rather than overloading `size`,
+     * because a cube's edge length and a model's multiplier are different
+     * quantities and one of them is already documented.
+     */
+    scale: 1,
     color: '#cc3333',
     capacity: 10, // hit points
     armor: 0, // flat damage shrugged off per hit
@@ -206,6 +218,7 @@ export class B3dDestroyable extends AbstractMesh {
   declare meshName: string
   declare destroyable: 'on' | 'off'
   declare size: number
+  declare scale: number
   declare color: string
   declare capacity: number
   declare armor: number
@@ -313,14 +326,40 @@ export class B3dDestroyable extends AbstractMesh {
    */
   private _loadFromLibrary(owner: B3d, type: string, meshName: string): void {
     const attrs = this as any
+    /*
+    STALE LOADS MUST NOT LAND.
+
+    There is a window between appending this element and its node existing, and
+    an editor that rebuilds on every edit runs that window hundreds of times a
+    session. Removed inside it, the old code disposed nothing (no node yet) and
+    then let the pending `then` create one anyway — a node owned by no element,
+    which nothing will ever dispose or move. A permanent ghost at the old
+    position (#49).
+
+    `loadGeneration` is the existing answer — `sceneDispose` bumps it, and
+    `b3d-aircraft` already guards its own async load this way. This one simply
+    never did.
+    */
+    const gen = ++this.loadGeneration
     const tryLoad = (): boolean => {
+      if (gen !== this.loadGeneration) return true // stale — stop trying
       const lib = owner.getLibrary(type)
       if (!lib) return false
       void lib.ready.then(() => {
+        if (gen !== this.loadGeneration) return // stale — discard
         const node = lib.instantiate(meshName, {
           x: attrs.x ?? 0,
           y: attrs.y ?? 0,
           z: attrs.z ?? 0,
+          // Rotation was dropped here, and it looked like it should not matter:
+          // `AbstractMesh.render()` syncs rx/ry/rz onto the mesh. But render()
+          // is a COMPONENT render — it had already run by the time this async
+          // callback assigns `this.mesh`, so position (passed here) applied and
+          // rotation (left to render) did not. An arrangement format is mostly
+          // position and orientation, so this was half the payload (#48).
+          rx: attrs.rx ?? 0,
+          ry: attrs.ry ?? 0,
+          rz: attrs.rz ?? 0,
           canonical: true, // the frame fix the `url:` path doesn't get
         })
         if (!node) {
@@ -340,6 +379,10 @@ export class B3dDestroyable extends AbstractMesh {
         path; this way the attribute plumbing just works.
         */
         this.mesh = node as unknown as BABYLON.Mesh
+        this._applyScale()
+        // The component render that would have synced the transform has
+        // already run; run it now that there is something to sync onto.
+        this.render()
         this._adopt(owner)
       })
       return true
@@ -349,6 +392,12 @@ export class B3dDestroyable extends AbstractMesh {
     // mistake and should say so, not hang silently.
     let tries = 0
     const timer = setInterval(() => {
+      // A removed element must stop polling too, or it keeps a timer (and this
+      // closure) alive for five seconds past its own disposal.
+      if (gen !== this.loadGeneration) {
+        clearInterval(timer)
+        return
+      }
       if (tryLoad() || ++tries > 50) {
         clearInterval(timer)
         if (tries > 50) {
@@ -456,6 +505,30 @@ export class B3dDestroyable extends AbstractMesh {
   setChain(links: ChainLink[]): void {
     this.chain = links
     this._behavior?.setChain(links)
+  }
+
+  /**
+   * Push `scale` onto the instantiated node.
+   *
+   * A library instance's root is a `TransformNode`, so scaling it scales the
+   * whole model — which is what a placed piece means by scale. Uniform on
+   * purpose: a non-uniform scale on an arbitrary model is a modelling
+   * decision, not a placement one, and it breaks normals.
+   */
+  private _applyScale(): void {
+    const node = this.mesh as unknown as BABYLON.TransformNode | undefined
+    if (node?.scaling == null) return
+    const s = (this as any).scale
+    const k = typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1
+    node.scaling.set(k, k, k)
+  }
+
+  render(): void {
+    super.render()
+    // Scale is not part of AbstractMesh's per-render sync, so it is applied
+    // here — otherwise setting `scale` after load would be another attribute
+    // that takes a write and does nothing, which is the bug this fixes.
+    if ((this as any).library) this._applyScale()
   }
 
   sceneDispose(): void {

@@ -6,6 +6,50 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
+## 0.8.1 (unreleased)
+
+### Fixed
+
+- **`b3d-destroyable` could not place a library piece properly** — three
+  reports from `tosijs-3d-ensemble` against one function, and one bug family:
+  the async load treated its callback as if nothing could change underneath it.
+  - **Rotation was dropped** (#48). Only x/y/z reached `instantiate`. It looks
+    like it should not matter, since `AbstractMesh.render()` syncs `rx/ry/rz` —
+    but that is a COMPONENT render, and it had already run by the time the
+    async callback assigned `this.mesh`. Position applied, rotation did not.
+    Now forwarded, and the transform is re-synced once the node exists.
+  - **No scale** (#47). `size` is the placeholder cube's edge length and does
+    nothing once `library` is set, so a placed model could not be resized at
+    all — ensemble measured a piece at 5.273 units for `scale` 1, 2 and 4
+    alike. New `scale` attribute, uniform, applied to the instance root.
+  - **A removed element orphaned its node permanently** (#49). Remove it inside
+    the load window and the disconnect handler found nothing to dispose, then
+    the pending callback built a node owned by no element — a ghost nothing
+    would ever move or free. Guarded with `loadGeneration`, the mechanism
+    `b3d-aircraft` already used; the retry poll stops on a stale generation too.
+- **`select3d` looked like a cycler** (#37). It has opened a popup list all
+  along — nothing said so, so a consumer counted 23 taps to reach the 24th
+  option. It now draws a downward chevron, the whole control opens the list,
+  and the arrows are gone. Stepping survives only where a panel gives no host
+  and a menu is impossible.
+- **An icon name colliding with `Object.prototype` threw** rather than falling
+  back — `iconGlyph('constructor')` and friends. 0.8.0 was the first release
+  where table DATA becomes an icon name, with no `catch` in the repaint path.
+  Fixed at all three unsafe sites, including `registerIcons`, where `__proto__`
+  was an assignment that would have corrupted the map rather than failing.
+- **`spinner3d` leaked into a module-global ticker.** `Widget3d` gained
+  `dispose?()`, and `B3d` releases the widget set it replaces on each repaint.
+  Reaping by `el.isConnected` would have been wrong: an in-scene panel's SVG is
+  never attached, so a visible VR spinner would have been culled.
+- Panels size to their content, the in-scene icon bar is pinned, and the theme
+  editor no longer follows you between demos (from the 0.8.0 headset pass).
+
+### Added
+
+- **Colour icons for scene concepts** — `sky`, `sun`, `water`, `terrain`,
+  `fog`, `mesh`, `decor` (#64). Unlike the stroked/filled sets these carry
+  literal colours and no `currentColor`, so they do not follow the theme.
+
 ## 0.8.0
 
 Lights, editors, and the schema surface `tosijs-3d-ensemble` asked for — plus
