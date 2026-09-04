@@ -151,3 +151,53 @@ describe('the shape a generated panel relies on', () => {
     expect(s.properties.mode.enum).toContain('exp2')
   })
 })
+
+/*
+METADATA IS THE POINT, not decoration.
+
+Tonio: "it's not at all obvious when a scale is actually a frequency and where
+the useful values are." A consumer reading only the schema puts a linear 0..1
+slider on `grossScale`, and every useful value lands in the first three pixels —
+which is precisely what happened in tosijs-3d-ensemble (#66), three separate
+ways in one day.
+
+So the hints are load-bearing and worth pinning: lose them and the schema still
+validates while the panel built from it becomes unusable again.
+*/
+describe('terrain metadata carries what the name hides', () => {
+  const props = (sceneSchemas.terrain() as any).properties as Record<
+    string,
+    any
+  >
+
+  test('the frequencies say so — unit, log track, and the reciprocal', () => {
+    for (const key of ['grossScale', 'detailScale']) {
+      expect(props[key]['x-unit']).toBe('1/m')
+      expect(props[key]['x-scale']).toBe('log')
+      // The number a person actually thinks in is the feature SIZE.
+      expect(props[key]['x-wavelength']).toBe(true)
+      expect(props[key].description).toMatch(/cycles per metre/i)
+    }
+  })
+
+  test('and where the useful values live', () => {
+    // The default must sit inside its own recommended band, or the hint is
+    // advice the library does not take.
+    for (const key of ['grossScale', 'detailScale']) {
+      const [lo, hi] = props[key]['x-useful'] as [number, number]
+      expect(props[key].default).toBeGreaterThanOrEqual(lo)
+      expect(props[key].default).toBeLessThanOrEqual(hi)
+    }
+  })
+
+  test('reach declares the pairing a schema cannot express', () => {
+    expect(props.reach['x-couples-with']).toBe('tileSize')
+    expect(props.reach.description).toMatch(/tileSize/)
+  })
+
+  test('surfaceType offers only what the element implements', () => {
+    // `plane` was advertised and never existed — a consumer offered it in a
+    // picker and users silently got a cylinder.
+    expect(props.surfaceType.enum).toEqual(['cylinder', 'torus', 'sphere'])
+  })
+})

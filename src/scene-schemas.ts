@@ -66,6 +66,19 @@ const choice = (def: string, values: string[]): Record<string, unknown> => ({
 const DEG = { 'x-unit': 'deg' }
 const M = { 'x-unit': 'm' }
 const MS = { 'x-unit': 'ms' }
+/**
+ * Spatial FREQUENCY — cycles per metre, so the feature size is `1 / value`.
+ *
+ * The single most misleading name in this file: a thing called "scale" that
+ * gets SMALLER as features get BIGGER. Tonio: _"it's not at all obvious when a
+ * scale is actually a frequency and where the useful values are."_ A consumer
+ * reading only the schema has no way to know, puts a linear 0..1 slider on it,
+ * and every useful value lands in the first three pixels.
+ *
+ * `x-wavelength` says the reciprocal is the number a person thinks in, so a
+ * panel can show "≈67 m features" beside a value of 0.015.
+ */
+const FREQ = { 'x-unit': '1/m', 'x-scale': 'log', 'x-wavelength': true }
 
 const schema = (
   title: string,
@@ -369,11 +382,42 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
       grossScale: num(0.015, {
         minimum: 0.0001,
         maximum: 1,
-        'x-scale': 'log',
+        ...FREQ,
+        title: 'Gross scale (frequency)',
+        description:
+          'Cycles per metre for the LANDFORM layer — the reciprocal is the ' +
+          'feature size, so 0.015 is hills about 67 m across. Bigger number, ' +
+          'smaller hills. Useful range is roughly 0.002–0.05.',
+        'x-useful': [0.002, 0.05],
       }),
-      detailScale: num(0.09, { minimum: 0.0001, maximum: 1, 'x-scale': 'log' }),
-      grossAmplitude: num(8, { minimum: 0, maximum: 500, ...M }),
-      detailAmplitude: num(3, { minimum: 0, maximum: 200, ...M }),
+      detailScale: num(0.09, {
+        minimum: 0.0001,
+        maximum: 1,
+        ...FREQ,
+        title: 'Detail scale (frequency)',
+        description:
+          'Cycles per metre for the ROUGHNESS layer, on top of the landform. ' +
+          'Wants to be several times `grossScale` or the two beat against ' +
+          'each other. Useful range is roughly 0.03–0.3.',
+        'x-useful': [0.03, 0.3],
+      }),
+      grossAmplitude: num(8, {
+        minimum: 0,
+        maximum: 500,
+        ...M,
+        description:
+          'Height of the landform layer. Total relief is roughly ' +
+          '`grossAmplitude + detailAmplitude`, which is what `center` halves ' +
+          'to straddle y=0.',
+      }),
+      detailAmplitude: num(3, {
+        minimum: 0,
+        maximum: 200,
+        ...M,
+        description:
+          'Height of the roughness layer. Comparable to `grossAmplitude` ' +
+          'reads as noise rather than terrain; a third of it is a good start.',
+      }),
       horizScale: num(1, { minimum: 0.01, maximum: 100 }),
       baseHeight: num(0, { minimum: -1000, maximum: 1000, ...M }),
       normalSmoothing: num(0.6, { minimum: 0, maximum: 1 }),
@@ -387,7 +431,19 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
       hiResSubdivisions: num(0, { minimum: 0, maximum: 256 }),
       poolSize: num(0, { minimum: 0, maximum: 4096 }),
       fillBudget: num(0, { minimum: 0, maximum: 512 }),
-      reach: num(0, { minimum: 0, maximum: 10000, ...M }),
+      reach: num(0, {
+        minimum: 0,
+        maximum: 10000,
+        ...M,
+        description:
+          'How far the terrain extends. 0 = auto from the coarsest tile. ' +
+          'COUPLED TO `tileSize`: finest tiles go as (2·reach / tileSize)², ' +
+          'so reach 5000 at tileSize 10 is a million of them. The element ' +
+          'clamps to 256 tiles across and warns rather than dying — raise ' +
+          '`tileSize` to reach further. A schema cannot express this pairing, ' +
+          'which is why the element owns it.',
+        'x-couples-with': 'tileSize',
+      }),
       tileBuildMs: num(0, { minimum: 0, maximum: 100, ...MS }),
       majorRadius: num(100, { minimum: 1, maximum: 100000, ...M }),
       minorRadius: num(40, { minimum: 1, maximum: 100000, ...M }),
