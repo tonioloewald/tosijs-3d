@@ -113,6 +113,20 @@ That is not hypothetical: the previous version of this gate grepped for
 the table (0.7.7). A gate that cries wolf on its most common input is worse than
 no gate — it teaches you to skim past the one time it is right.
 
+3c. **If this release RENAMES anything, sweep the docs and demos.** A rename is
+done when the corpus that teaches it is done too. 0.8.0's flagship `/ui/` page
+still taught the deprecated spelling on eight call sites, and one —
+`iconGrid3d({onSelect})` — was **silently dead** rather than deprecated, because
+that widget had only ever had the new name. The page documenting the fix
+demonstrated the exact bug the release was cut to eliminate.
+
+```sh
+grep -rn '<oldSpelling>:' src/docs/ demo/ src/*.ts
+```
+
+Include the `/*# */` doc comments — that is where the examples live, and **they
+are not type-checked**, so nothing else will catch it.
+
 4. **Full build** — regenerates `docs/` (doc site + `iife.js`) **and** `dist/` (the
    library: `tsc -p tsconfig.build.json`, run by `buildSite()` because
    `emitLibrary: true`):

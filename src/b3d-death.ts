@@ -105,7 +105,7 @@ import * as BABYLON from '@babylonjs/core'
 import { B3dChild, sceneDelta, collidable } from './b3d-utils.js'
 import { spawnPrefab, type Prefab } from './prefab.js'
 import { explosionFx } from './b3d-warhead.js'
-import { panel3d, label3d, button3d, type Widget3d } from './widgets3d.js'
+import { fitPanel, label3d, button3d, type Widget3d } from './widgets3d.js'
 import { panelFitWidth } from './widgets3d-layout.js'
 import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import {
@@ -718,8 +718,9 @@ export class B3dDeath extends B3dChild {
             : [label3d({ text: 'no way back', muted: true })]),
         ]
 
-    const svgH = 46 + rows.length * 48
-    const svg = panel3d({ width: 320, height: svgH }, ...rows)
+    // Sized to its CONTENT — `choices()` is the consumer's, and this is the one
+    // panel you cannot navigate away from if it comes out wrong.
+    const { svg, height: svgH } = fitPanel(rows, { width: 320, maxHeight: 560 })
     // In-scene, camera-relative: ONE panel that works flat AND in VR, with the same
     // coordinate-based picking. A DOM overlay would simply not exist in a headset.
     //

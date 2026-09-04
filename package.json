@@ -17,6 +17,9 @@
       "types": "./dist/demo-utils.d.ts",
       "default": "./dist/demo-utils.js"
     },
+    "./reflections": null,
+    "./dynamic-shadows": null,
+    "./rippling-water": null,
     "./*": {
       "types": "./dist/*.d.ts",
       "default": "./dist/*.js"

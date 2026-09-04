@@ -1,5 +1,112 @@
 # TODO
 
+## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
+
+The blocker and all four majors were fixed before the tag. These are the
+deferred findings — each was verified or its code claim confirmed, and each is
+recorded here rather than dropped.
+
+- [ ] **`iconGlyph` throws on an icon name that collides with `Object.prototype`**
+      _(verified)_. `src/svg-icons.ts:238` does `data[cur]?.trim()` against a plain
+      object, so `?.` walks the prototype chain: `iconGlyph('constructor')` (or
+      `toString`, `valueOf`, `hasOwnProperty`, `__proto__`) throws
+      `TypeError: data[cur]?.trim is not a function`. **0.8.0 is the first release
+      where a table DATA VALUE becomes an icon name** (`table.ts:479,497`), and
+      there is no `catch` in the repaint path — so scrolling a virtualized row onto
+      screen kills the body build, in a VR panel with no console. Fix:
+      `Object.hasOwn(data, cur) ? data[cur] : undefined` plus a `typeof === 'string'`
+      guard. `register-icons.test.ts` pins hostile VALUES but no hostile NAMES.
+
+- [ ] **`spinner3d` registers into a module-global ticker nothing can
+      unregister** _(verified, reproduced)_. `widgets3d.ts:1917` adds to a global
+      Set + shared 60ms interval; the only exit is a `dispose()` that nothing calls,
+      and `Widget3d` has no `dispose?()` member. `_panelWidgets()` re-invokes
+      `scenePanel(this)` on every repaint (8 call sites), so orphans accumulate and
+      each retains its whole SVG subtree via the tick closure — a leak, not just
+      wasted CPU. Cheapest fix: drop entries whose `el.isConnected` is false at tick
+      time. `spinner3d` is new in 0.8.0 with no adopters, so the contract is free.
+
+- [ ] **`panel3d` never gives `header` widgets a `WidgetHost`.**
+      `widgets3d.ts` sets hosts for body widgets only, so a pinned widget needing
+      one is inert — `select3d`'s dropdown, `button3d({menu})`, `iconGrid3d` menu
+      cells. Latent today: the only in-tree header is `iconBar3d`, which needs no
+      host. The trap: `hostFor(index)` uses BODY offsets and subtracts `scroll`, so
+      the naive fix anchors header popups at a scrolling row. Needs a
+      `headerHostFor` using the header offsets with no `- scroll`. If pinned popups
+      are out of scope, say so on the `header` JSDoc rather than failing quietly.
+
+- [ ] **Three deprecation policies ship in 0.8.0; two disagree with the
+      documented one.** `handler-of.ts` states the rule — new name wins, old is NOT
+      called, warns once. But `b3d-trigger` calls **both** `whenEnter` and
+      `onEnter` (so a consumer mid-migration gets the handler run twice per
+      crossing), and `theme-editor` uses `(handleChange ?? onChange)`, which is
+      `@deprecated` in the types but never warns at runtime. Make the trigger
+      `whenEnter ?? onEnter` + warn; switch themeEditor to `handlerOf`. If
+      `handlerOf`'s signature does not suit `when*`, add a sibling — one answer to
+      this question was the point of extracting the module.
+
+- [ ] **`table`'s button-column menu is anchored with the COLUMN gap as a
+      vertical offset.** `table.ts:749` uses `HEAD_H + GAP + …` while the body is
+      drawn at `HEAD_H + 2` and hit-tested with `y - (HEAD_H + 2)`. `GAP` is the
+      column gap. At defaults the menu opens 6px low; `gap: 24` → 22px. The error
+      scales with a setting unrelated to vertical layout, so it reads as random.
+      Hoist `HEAD_H + 2` into a named `BODY_TOP`.
+
+- [ ] **`zeroStop` silently discards `step` on a log slider.**
+      `widgets3d-layout.ts:416` returns before the decade quantisation, honouring
+      only `snap`. Either quantise inside the branch or document the mutual
+      exclusion on the `zeroStop` JSDoc; pin whichever in `slider-scale.test.ts`.
+
+- [ ] **`registerIcons` is an unsanitized markup sink with no stated trust
+      boundary.** Values reach `innerHTML`; a `<script>` is inert but an `onerror=`
+      attribute survives and fires. The new doc markets it as "icons I do not want
+      to push upstream" and says nothing about provenance. Either state the boundary
+      in the JSDoc AND the doc section, or warn-and-drop entries containing
+      `<script`, `<foreignObject` or any `on*=`. Test whichever guarantee is made.
+
+- [ ] **The import-extension guard covers only RELATIVE specifiers.**
+      `import-extensions.test.ts` matches `./`/`../` only, but the fault had two
+      halves and the second was deep package subpaths. All 13 Babylon deep imports
+      carry `.js` today, so the next `from '@babylonjs/core/Meshes/mesh'` passes the
+      suite, passes tsc (`moduleResolution: "bundler"` — exactly why the original
+      394 were never flagged), passes every bundler, and re-breaks Node. Extend the
+      guard, **or better** move `tsconfig.build.json` to `"moduleResolution":
+"nodenext"` so the compiler rejects both halves. The toolchain beats a regex
+      kept in sync by hand.
+
+- [ ] **Three widgets still import `handlerOf` from `widgets3d.js`** —
+      `vector-field`, `footprint-field`, `curve-field`. The module was extracted so
+      the smallest widget could adopt it without dragging `widgets3d` in, and for
+      `footprint-field` it is the ONLY runtime value taken from there. Matters more
+      now `./*` shipped: `tosijs-3d/footprint-field` is a supported path that
+      transitively loads widgets3d + w3d-theme. Three one-word edits.
+
+- [ ] **`themeEditor()` and `registerIcons` are page-global mutations with no
+      library-level undo.** The "theme editor infects other demos" fix landed in the
+      DEMO, so a consumer putting `themeEditor()` on a settings route gets the
+      identical bug and the remedy they will copy is the demo's body-wide
+      MutationObserver. Give `themeEditor()` a `dispose()`/`restore()` that
+      snapshots at construction, and rewrite the demo to use it. Same shape for
+      `registerIcons` — add `unregisterIcons` or document that registration is
+      page-lifetime and irreversible.
+
+- [ ] **The `w3d-theme` demo observes the whole document subtree** to detect its
+      own unmount. Fix: `observe(preview.parentNode ?? document.body, {childList:
+true})` — dropping `subtree` is the whole change.
+
+- [ ] **`scene-schemas.test.ts` cites a `no-dom.test.ts` guard that does not
+      exist.** Headless importability is the stated reason both those modules and
+      the new `"./*"` export exist, and nothing pins it. Write the test (import each
+      declared-pure module in a fresh subprocess with no DOM globals —
+      `world-contract.deps.test.ts` is the pattern) or correct the comment. Related:
+      `table-layout.ts` now type-imports `MenuAction` from `widgets3d.js` — erased
+      today, one careless `import type` → `import` from dragging tosijs into a
+      module documented as pure geometry.
+
+- [ ] **Verify the published TARBALL, not just the repo.** `npm pack
+--pack-destination ../local-packages`, then import a few subpaths under plain
+      Node in an empty dir. That loop is exactly what found #69.
+
 - **Reposition the in-scene scene panel, with a reset.** **First patch after
   0.8.0** — Tonio's call. Their ask from the 0.8.0 headset run: _"drag it into a different rig-relative position, kind of
   keeping distance and orientation but facing you, and then a button that sends

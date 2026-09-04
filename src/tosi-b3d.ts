@@ -288,6 +288,7 @@ import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
 import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
 import {
+  fitPanel,
   panel3d,
   button3d,
   iconBar3d,
@@ -1100,8 +1101,9 @@ export class B3d extends Component {
         handleClick: () => this.resume(),
       }),
     ]
-    const svgH = 46 + rows.length * 48
-    const svg = panel3d({ width: 320, height: svgH }, ...rows)
+    // Sized to its CONTENT — `rows` comes from the consumer's `pausePanel`
+    // hook, so a guessed height is a guess about someone else's widgets.
+    const { svg, height: svgH } = fitPanel(rows, { width: 320, maxHeight: 560 })
 
     /*
     FLAT: the DOM. IMMERSIVE: a plane in the scene.

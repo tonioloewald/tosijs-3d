@@ -2181,6 +2181,51 @@ export function openMenu3d(
  * height, clips and enables wheel + drag scrolling. Returns the root `<svg>`,
  * usable as a DOM overlay or as the source element for a `b3dSvgPlane`.
  */
+/**
+ * A panel sized to its CONTENT, for mounting on a plane in the scene.
+ *
+ * Returns the SVG plus the height it actually resolved to, because a
+ * camera-relative plane needs that number to set its aspect — and reading it
+ * back off the element is the only way to get it right once the height is
+ * `'fit'` rather than something the caller computed.
+ *
+ * ## Why this exists rather than three call sites
+ *
+ * All three in-scene panels — the gear/scene panel, the pause modal and the
+ * death dialog — independently computed `46 + rows.length * 48`, which assumes
+ * a row is about 48px tall. Most are. `lightEditor3d` is ONE row that lays out
+ * over 1200px, so a panel holding it was built ~142px tall and you scrolled a
+ * postage stamp inside a headset.
+ *
+ * That was fixed in the scene panel and left standing in the other two, which
+ * take CONSUMER-supplied rows and so have exactly the same exposure. The fix
+ * could not propagate because the policy was copied, not shared. It is shared
+ * now.
+ *
+ * `maxHeight` is the caller's, because the right cap depends on where the
+ * panel goes: an uncapped `'fit'` on a 1200px editor is a plane several metres
+ * tall in your face.
+ */
+export function fitPanel(
+  rows: Widget3d[],
+  opts: { width?: number; maxHeight?: number; paddingTop?: number } = {}
+): { svg: SVGSVGElement; width: number; height: number } {
+  const width = opts.width ?? 320
+  const svg = panel3d(
+    {
+      width,
+      height: 'fit',
+      maxHeight: opts.maxHeight ?? 620,
+      paddingTop: opts.paddingTop,
+    },
+    ...rows
+  )
+  // The RESOLVED height, not the requested one — `fit` and the cap have both
+  // had their say by now.
+  const vb = svg.viewBox.baseVal
+  return { svg, width, height: vb.height > 0 ? vb.height : width }
+}
+
 export function panel3d(
   config: {
     width?: number

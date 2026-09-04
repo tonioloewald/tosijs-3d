@@ -9,6 +9,54 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.7.8 → 0.8.0
+
+**Nothing breaks at runtime.** Both items below keep working in 0.8.x; one is an
+install-time floor, the other is a deprecation with a removal date.
+
+### 1. Peer floor: `tosijs` `^1.7.8` → `^1.9.2`
+
+Upgrade `tosijs` alongside this. npm will refuse to install otherwise
+(`ERESOLVE`); bun and pnpm warn and proceed, which is the case worth reading on.
+
+One behaviour changed with it, and it is silent. A wrong-typed write to an
+`initAttributes` prop used to be **discarded**; since tosijs 1.9 it **warns and
+applies the value as given**. So on an `'on' | 'off'` attribute, `foo: false`
+used to mean `'on'` and now genuinely sets `false` — anything comparing against
+the string breaks instead of quietly defaulting.
+
+Use **`isOff()`** from `tosijs-3d`, which accepts `'off'`, `false` and
+`'false'`, rather than comparing to a string yourself.
+
+### 2. Callback options: `onX` → `handleX`
+
+Every callback option in the library now takes `handleX`. The old `onX` spelling
+still works, warns **once per name**, and is **removed in 0.9**.
+
+| widget                                   | old                                  | new                                              |
+| ---------------------------------------- | ------------------------------------ | ------------------------------------------------ |
+| `inputField`                             | `onChange` / `onEnter` / `onFocus`   | `handleChange` / `handleEnter` / `handleFocus`   |
+| `keyboard`                               | `onKey` / `onAction` / `onCaretMove` | `handleKey` / `handleAction` / `handleCaretMove` |
+| `table`                                  | `onSelect` / `onActivate`            | `handleSelect` / `handleActivate`                |
+| `box` `button` / `BoxChild`              | `onActivate`                         | `handleActivate`                                 |
+| `surface` `MenuItem`                     | `onSelect`                           | `handleSelect`                                   |
+| `showPopup` / `openPopup` / `openMenu3d` | `onClose`                            | `handleClose`                                    |
+| `addDebugSource` actions                 | `onClick`                            | `handleClick`                                    |
+| `themeEditor`                            | `onChange`                           | `handleChange`                                   |
+
+**Why, in one sentence:** these are plain factories today, but the moment one
+becomes a tosijs component the element creator binds an `on*` prop as a DOM
+event **listener**, so the callback is never called and nothing errors — which
+is not hypothetical, it shipped three times in this codebase.
+
+**Components use `when*`, not `handleX`** — `b3d-trigger` gains
+`whenEnter`/`whenExit` (`onEnter`/`onExit` still work). Passing `onEnter` to the
+element creator never set the field at all; it added a listener for the `'enter'`
+CustomEvent, so your callback received an `Event` instead of the trigger.
+
+If you write your own widgets, `handlerOf(config, 'handleX', 'onX')` is exported
+so you can follow the same rule.
+
 ## 0.6.2 → 0.7.0
 
 > # ⚠️ READ THIS FIRST: library rotation

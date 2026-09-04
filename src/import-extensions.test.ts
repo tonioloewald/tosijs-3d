@@ -96,3 +96,50 @@ describe('relative imports carry a .js extension', () => {
     expect(found).toEqual(['./thing'])
   })
 })
+
+/*
+THE WILDCARD SUBPATH EXPORT, and what it must NOT reach.
+
+`"./*"` makes every file in `dist/` a supported specifier — which is the point
+(headless validation needs `tosijs-3d/light-settings`), but it also means a
+module nobody meant to publish becomes public API the moment it exists.
+
+`reflections`, `dynamic-shadows` and `rippling-water` are superseded and not
+exported from `index.ts`; CLAUDE.md says to ignore them. Under the wildcard they
+resolved with full types, carrying no `@deprecated` and no doc comment, so an
+editor auto-import or an agent scanning `dist/*.d.ts` would have found them with
+no signal at all.
+*/
+describe('package exports — the wildcard is bounded', () => {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
+
+  test('superseded modules are blocked, and BEFORE the wildcard', () => {
+    const keys = Object.keys(pkg.exports)
+    for (const dead of [
+      './reflections',
+      './dynamic-shadows',
+      './rippling-water',
+    ]) {
+      expect(pkg.exports[dead]).toBe(null)
+      // Authoring order is documentation, not resolution — Node picks the most
+      // specific pattern regardless — but a null listed after the wildcard
+      // reads as dead code and invites deletion.
+      expect(keys.indexOf(dead)).toBeLessThan(keys.indexOf('./*'))
+    }
+  })
+
+  test('the live pure modules are still reachable', () => {
+    // The whole reason the wildcard exists.
+    expect(pkg.exports['./*']).toEqual({
+      types: './dist/*.d.ts',
+      default: './dist/*.js',
+    })
+  })
+
+  test('every blocked module is one index.ts really does not export', () => {
+    const index = readFileSync('src/index.ts', 'utf8')
+    for (const dead of ['reflections', 'dynamic-shadows', 'rippling-water']) {
+      expect(index).not.toContain(`'./${dead}.js'`)
+    }
+  })
+})

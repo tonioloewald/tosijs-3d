@@ -32,8 +32,10 @@ the two renames that were waiting for a minor.
   event **listener** and the class field is silently never called. `handleX`
   cannot be mistaken for an event name. Giving both, the new one wins.
 
-  Not yet renamed (still `onX`, and unaffected): `inputField`, `keyboard`,
-  `table`, `box`/`surface`.
+  **Migrated in this release** — `inputField`, `keyboard`, `table`,
+  `box`/`surface`, popups, debug actions and the curve/footprint/vector fields.
+  In other words: all of them. `b3d-trigger` gains `whenEnter`/`whenExit`
+  instead, because components use `when*` (see Fixed).
 
 ### Added
 
@@ -157,6 +159,14 @@ the two renames that were waiting for a minor.
   consumer could validate documents headlessly, but the only export was the
   barrel, which defines custom elements on import and needs `HTMLElement`. So
   the headless half was still behind a browser. It is not now.
+
+  ⚠️ **This is a wildcard** (`"./*"` → `./dist/*.js`), so **every module in
+  `dist/` is now a supported specifier** and covered by semver — renaming one is
+  a breaking change from here on. 142 of them were already public through the
+  barrel; the genuinely new surface is nine. The three superseded modules
+  (`reflections`, `dynamic-shadows`, `rippling-water`) are explicitly blocked so
+  the wildcard cannot resurrect them.
+
 - **`handleX` now works on every callback option, and `onX` is deprecated.**
   It used to depend on which widget you were holding — `curve3d` took
   `handleChange`, `inputField` took `onChange`, and neither complained about the

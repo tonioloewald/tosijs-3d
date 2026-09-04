@@ -421,6 +421,7 @@ export { handlerOf, resetHandlerWarnings } from './handler-of.js'
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
   panel3d,
+  fitPanel,
   row3d,
   label3d,
   text3d,

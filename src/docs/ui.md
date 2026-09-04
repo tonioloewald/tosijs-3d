@@ -58,7 +58,7 @@ const show = () => {
 // The field is near the TOP on purpose: the on-screen keyboard opens below it,
 // and refuses if there is not room — so a field at the bottom of a panel shows
 // an inert glyph.
-const nameField = ui.inputField({ value: state.name, onChange: (v) => { state.name = v; show() } })
+const nameField = ui.inputField({ value: state.name, handleChange: (v) => { state.name = v; show() } })
 
 const TOOLS = [
   { icon: 'move', label: 'move' },
@@ -72,25 +72,25 @@ const panel = panel3d(
   label3d({ text: 'Kitchen sink', bold: true }),
   label3d({ text: 'name — tap the ⌨ glyph', muted: true, compact: true }),
   nameField,
-  slider3d({ label: 'speed', value: state.speed, min: 0, max: 100, showValue: 'always', onChange: (v) => { state.speed = v; show() } }),
-  toggle3d({ label: 'lights', value: state.lights, onChange: (v) => { state.lights = v; show() } }),
+  slider3d({ label: 'speed', value: state.speed, min: 0, max: 100, showValue: 'always', handleChange: (v) => { state.speed = v; show() } }),
+  toggle3d({ label: 'lights', value: state.lights, handleChange: (v) => { state.lights = v; show() } }),
   select3d({
     label: 'material',
     value: state.material,
     options: ['matte', 'gloss', 'metal', 'glass'],
-    onChange: (v) => { state.material = v; show() },
+    handleChange: (v) => { state.material = v; show() },
   }),
   label3d({ text: 'position', muted: true, compact: true }),
-  vector3d({ value: state.pos, step: 0.25, scrub: 0.02, onChange: (v) => { state.pos = v; show() } }),
+  vector3d({ value: state.pos, step: 0.25, scrub: 0.02, handleChange: (v) => { state.pos = v; show() } }),
   label3d({ text: 'tool', muted: true, compact: true }),
   iconGrid3d({
     items: TOOLS, mode: 'radio', selected: 0,
-    onSelect: ([i]) => { state.tool = TOOLS[i].label; show() },
+    handleSelect: ([i]) => { state.tool = TOOLS[i].label; show() },
   }),
   curve3d({ kind: 'profile', label: 'response curve', aspect: 0.4 }),
   row3d({},
-    button3d({ label: 'Reset', onClick: () => { state.speed = 40; show() } }),
-    button3d({ label: 'Apply', onClick: () => { state.tool = 'applied'; show() } })
+    button3d({ label: 'Reset', handleClick: () => { state.speed = 40; show() } }),
+    button3d({ label: 'Apply', handleClick: () => { state.tool = 'applied'; show() } })
   )
 )
 show()
