@@ -116,7 +116,12 @@ export function skyboxSchema(extra: Record<string, unknown> = {}) {
       duskColor: color('#ffaa22'),
       moonColor: color('#6688cc'),
       moonIntensity: num(0.15, { minimum: 0, maximum: 1 }),
-      skyboxSize: num(1000, { minimum: 100, maximum: 20000, ...M }),
+      skyboxSize: num(1000, {
+        minimum: 100,
+        maximum: 20000,
+        ...M,
+        'x-scale': 'log',
+      }),
       updateFrequencyMs: num(100, { minimum: 16, maximum: 2000, ...MS }),
       applyFog: bool(false),
     },
@@ -134,10 +139,20 @@ export function sunSchema(extra: Record<string, unknown> = {}) {
       y: num(-1, { minimum: -1, maximum: 1 }),
       z: num(-0.5, { minimum: -1, maximum: 1 }),
       shadowDarkness: num(0.1, { minimum: 0, maximum: 1 }),
-      shadowMaxZ: num(100, { minimum: 1, maximum: 2000, ...M }),
+      shadowMaxZ: num(100, {
+        minimum: 1,
+        maximum: 2000,
+        ...M,
+        'x-scale': 'log',
+      }),
       activeDistance: num(30, { minimum: 1, maximum: 500, ...M }),
       // 0 is AUTO — resolved against the device tier, like every budget here.
-      shadowTextureSize: num(0, { minimum: 0, maximum: 4096 }),
+      shadowTextureSize: num(0, {
+        minimum: 0,
+        maximum: 4096,
+        'x-scale': 'log2',
+        'x-snap': 1,
+      }),
       numCascades: num(0, { minimum: 0, maximum: 4 }),
       stabilizeCascades: choice('on', ['on', 'off']),
       lambda: num(0.8, { minimum: 0, maximum: 1 }),
@@ -190,8 +205,8 @@ export function fogSchema(extra: Record<string, unknown> = {}) {
     {
       mode: choice('linear', ['linear', 'exp', 'exp2']),
       color: color('#bfd9f2'),
-      start: num(60, { minimum: 0, maximum: 5000, ...M }),
-      end: num(120, { minimum: 0, maximum: 10000, ...M }),
+      start: num(60, { minimum: 0, maximum: 5000, ...M, 'x-scale': 'log' }),
+      end: num(120, { minimum: 0, maximum: 10000, ...M, 'x-scale': 'log' }),
       density: num(0.01, {
         minimum: 0,
         maximum: 1,
@@ -211,8 +226,8 @@ export function cloudsSchema(extra: Record<string, unknown> = {}) {
     {
       coverage: num(0.5, { minimum: 0, maximum: 1 }),
       count: num(36, { minimum: 0, maximum: 500 }),
-      altitude: num(140, { minimum: 0, maximum: 5000, ...M }),
-      thickness: num(36, { minimum: 0, maximum: 1000, ...M }),
+      altitude: num(140, { minimum: 0, maximum: 5000, ...M, 'x-scale': 'log' }),
+      thickness: num(36, { minimum: 0, maximum: 1000, ...M, 'x-scale': 'log' }),
       spread: num(1200, { minimum: 1, maximum: 20000, ...M }),
       size: num(70, { minimum: 1, maximum: 1000, ...M }),
       color: color('#ffffff'),
@@ -252,7 +267,7 @@ export function ambientSchema(extra: Record<string, unknown> = {}) {
       ]),
       where: choice('always', ['always', 'underwater', 'above']),
       disabled: bool(false),
-      radius: num(18, { minimum: 0, maximum: 500, ...M }),
+      radius: num(18, { minimum: 0, maximum: 500, ...M, 'x-scale': 'log' }),
       // 0 is AUTO for both — the device tier decides.
       count: num(0, { minimum: 0, maximum: 20000 }),
       minCount: num(0, { minimum: 0, maximum: 20000 }),
@@ -326,13 +341,13 @@ export function groundSchema(extra: Record<string, unknown> = {}) {
   return schema(
     'Ground',
     {
-      width: num(4, { minimum: 0, maximum: 10000, ...M }),
-      height: num(4, { minimum: 0, maximum: 10000, ...M }),
+      width: num(4, { minimum: 0, maximum: 10000, ...M, 'x-scale': 'log' }),
+      height: num(4, { minimum: 0, maximum: 10000, ...M, 'x-scale': 'log' }),
       // 0 is "not square — use width and height", not "zero-sized".
-      size: num(0, { minimum: 0, maximum: 10000, ...M }),
+      size: num(0, { minimum: 0, maximum: 10000, ...M, 'x-scale': 'log' }),
       color: color('#888888'),
       texture: { type: 'string', default: '' },
-      textureTiles: num(8, { minimum: 1, maximum: 200 }),
+      textureTiles: num(8, { minimum: 1, maximum: 200, 'x-scale': 'log' }),
       x: num(0, { ...M }),
       y: num(0, { ...M }),
       z: num(0, { ...M }),
@@ -418,7 +433,7 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
           'Height of the roughness layer. Comparable to `grossAmplitude` ' +
           'reads as noise rather than terrain; a third of it is a good start.',
       }),
-      horizScale: num(1, { minimum: 0.01, maximum: 100 }),
+      horizScale: num(1, { minimum: 0.01, maximum: 100, 'x-scale': 'log' }),
       baseHeight: num(0, { minimum: -1000, maximum: 1000, ...M }),
       normalSmoothing: num(0.6, { minimum: 0, maximum: 1 }),
       biome: choice('off', ['off', 'on']),
@@ -443,14 +458,49 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
           '`tileSize` to reach further. A schema cannot express this pairing, ' +
           'which is why the element owns it.',
         'x-couples-with': 'tileSize',
+        // A magnitude spanning four decades — and `0` is a SENTINEL (auto),
+        // not a small value, which is exactly what `zeroStop` is for: give the
+        // bottom of the track to zero instead of pretending log(0) exists.
+        'x-scale': 'log',
+        'x-zero-stop': true,
       }),
       tileBuildMs: num(0, { minimum: 0, maximum: 100, ...MS }),
-      majorRadius: num(100, { minimum: 1, maximum: 100000, ...M }),
-      minorRadius: num(40, { minimum: 1, maximum: 100000, ...M }),
-      radius: num(200, { minimum: 1, maximum: 1000000, ...M }),
-      cylinderHeight: num(200, { minimum: 1, maximum: 100000, ...M }),
-      originResetThreshold: num(500, { minimum: 1, maximum: 100000, ...M }),
-      maxTravelDistance: num(5000, { minimum: 1, maximum: 1000000, ...M }),
+      majorRadius: num(100, {
+        minimum: 1,
+        maximum: 100000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      minorRadius: num(40, {
+        minimum: 1,
+        maximum: 100000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      radius: num(200, {
+        minimum: 1,
+        maximum: 1000000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      cylinderHeight: num(200, {
+        minimum: 1,
+        maximum: 100000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      originResetThreshold: num(500, {
+        minimum: 1,
+        maximum: 100000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      maxTravelDistance: num(5000, {
+        minimum: 1,
+        maximum: 1000000,
+        ...M,
+        'x-scale': 'log',
+      }),
       center: bool(false),
       wireframe: bool(false),
       debugColor: bool(false),
@@ -473,11 +523,26 @@ export function reflectionsSchema(extra: Record<string, unknown> = {}) {
     'Reflections',
     {
       // 0 is AUTO — resolved against the device tier.
-      probeSize: num(0, { minimum: 0, maximum: 2048 }),
+      probeSize: num(0, {
+        minimum: 0,
+        maximum: 2048,
+        'x-scale': 'log2',
+        'x-snap': 1,
+      }),
       refreshRate: num(5, { minimum: 1, maximum: 120 }),
       farRefreshRate: num(30, { minimum: 1, maximum: 600 }),
-      maxDistance: num(100, { minimum: 1, maximum: 10000, ...M }),
-      farDistance: num(30, { minimum: 1, maximum: 10000, ...M }),
+      maxDistance: num(100, {
+        minimum: 1,
+        maximum: 10000,
+        ...M,
+        'x-scale': 'log',
+      }),
+      farDistance: num(30, {
+        minimum: 1,
+        maximum: 10000,
+        ...M,
+        'x-scale': 'log',
+      }),
       distanceCheckInterval: num(13, { minimum: 1, maximum: 240 }),
     },
     extra

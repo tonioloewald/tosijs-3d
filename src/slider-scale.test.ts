@@ -195,3 +195,53 @@ describe('zeroStop', () => {
     expect(fractionToValue(0.03, 0, 100, 0, 'linear', 0, true)).toBeCloseTo(3)
   })
 })
+
+/*
+PRECISION ON A LOG TRACK — significant digits, not decimal places.
+
+Exponentiating a float leaves noise: a handle that looks like it is on 0.015
+produces 0.014999999999999999. Harmless on screen, NOT harmless in a document a
+consumer serialises and diffs, where the same slider position yields different
+bytes on different runs.
+
+Tonio asked for "four decimal places" and then agreed significant digits are
+better, which is the distinction these tests exist to hold: four DECIMALS would
+round 0.0001234 to 0.0001 and anything smaller to zero — destroying the end of
+the range a log scale is added to reach in the first place.
+*/
+describe('log slider precision', () => {
+  test('a clean value comes out clean', () => {
+    // 0.015 is the terrain grossScale default — the value that motivated this.
+    const f = valueToFraction(0.015, 0.0001, 1, 'log')
+    expect(fractionToValue(f, 0.0001, 1, 0, 'log')).toBe(0.015)
+  })
+
+  test('the SMALL end keeps its digits — what decimals would have destroyed', () => {
+    const v = 0.0001234
+    const f = valueToFraction(v, 1e-6, 1, 'log')
+    const out = fractionToValue(f, 1e-6, 1, 0, 'log')
+    expect(out).toBeCloseTo(v, 9)
+    expect(out).not.toBe(0) // four decimal PLACES would have made it 0.0001
+  })
+
+  test('the big end too', () => {
+    const f = valueToFraction(4000, 1, 1e6, 'log')
+    expect(fractionToValue(f, 1, 1e6, 0, 'log')).toBe(4000)
+  })
+
+  test('precision is settable, and 1 digit really is 1 digit', () => {
+    const f = valueToFraction(0.015, 0.0001, 1, 'log')
+    expect(fractionToValue(f, 0.0001, 1, 0, 'log', 0, false, 1)).toBe(0.02)
+  })
+
+  test('zero survives a zeroStop track — rounding must not move the OFF', () => {
+    const out = fractionToValue(0, 0.01, 100, 0, 'log', 0, true)
+    expect(out).toBe(0)
+  })
+
+  test('a LINEAR track is untouched — step and snap already say it', () => {
+    // 1/3 of 0..1 is 0.3333333333333333 and stays that way; precision is a
+    // log-scale concern, not a general rounding policy.
+    expect(fractionToValue(1 / 3, 0, 1, 0, 'linear')).toBe(1 / 3)
+  })
+})

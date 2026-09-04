@@ -443,6 +443,7 @@ import {
   measureTextWrap,
   valueToFraction,
   fractionToValue,
+  DEFAULT_SLIDER_PRECISION,
   type SliderScale,
   type FontSpec,
   measureTextWidth,
@@ -1445,6 +1446,21 @@ export function slider3d(config: {
    * approaching it asymptotically.
    */
   zeroStop?: boolean
+  /**
+   * SIGNIFICANT digits kept on a log track. Default 4.
+   *
+   * Exponentiating a float leaves noise — a handle that looks like it is on
+   * 0.015 produces 0.014999999999999999, which is harmless on screen and not
+   * harmless in a document a consumer serialises and diffs.
+   *
+   * Significant digits rather than decimal places, because this is the control
+   * that spans decades: four DECIMALS would round 0.0001234 to 0.0001 and
+   * anything smaller to zero, destroying the end of the range a log scale is
+   * there to reach. Four significant digits keeps 0.0001234 whole.
+   *
+   * Ignored on a linear track, where `step` and `snap` already say it.
+   */
+  precision?: number
   /** Fired as the value changes. */
   handleChange?: (v: number) => void
   /** @deprecated use `handleChange` — removed in 0.9. */
@@ -1471,6 +1487,7 @@ export function slider3d(config: {
   const scale: SliderScale = config.scale ?? 'linear'
   const snap = config.snap ?? 0
   const zeroStop = config.zeroStop ?? false
+  const precision = config.precision ?? DEFAULT_SLIDER_PRECISION
   const bound = boundValue<number>(
     config.value,
     handlerOf<(v: number) => void>(config, 'handleChange', 'onChange')
@@ -1600,7 +1617,9 @@ export function slider3d(config: {
   // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
   const setFromX = (x: number) => {
     const f = (x - trackX) / (trackW || 1)
-    bound.set(fractionToValue(f, min, max, step, scale, snap, zeroStop))
+    bound.set(
+      fractionToValue(f, min, max, step, scale, snap, zeroStop, precision)
+    )
     reflect()
   }
   bound.subscribe(reflect)
