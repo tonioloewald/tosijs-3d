@@ -6,16 +6,13 @@ The blocker and all four majors were fixed before the tag. These are the
 deferred findings — each was verified or its code claim confirmed, and each is
 recorded here rather than dropped.
 
-- [ ] **`iconGlyph` throws on an icon name that collides with `Object.prototype`**
-      _(verified)_. `src/svg-icons.ts:238` does `data[cur]?.trim()` against a plain
-      object, so `?.` walks the prototype chain: `iconGlyph('constructor')` (or
-      `toString`, `valueOf`, `hasOwnProperty`, `__proto__`) throws
-      `TypeError: data[cur]?.trim is not a function`. **0.8.0 is the first release
-      where a table DATA VALUE becomes an icon name** (`table.ts:479,497`), and
-      there is no `catch` in the repaint path — so scrolling a virtualized row onto
-      screen kills the body build, in a VR panel with no console. Fix:
-      `Object.hasOwn(data, cur) ? data[cur] : undefined` plus a `typeof === 'string'`
-      guard. `register-icons.test.ts` pins hostile VALUES but no hostile NAMES.
+- [x] **`iconGlyph` throws on an icon name that collides with
+  `Object.prototype`** — FIXED for 0.8.1. All three unsafe sites, not just the
+  reported one: the lookup (`Object.hasOwn` + a string guard), `iconNames`, and
+  `registerIcons`, where `__proto__` was an ASSIGNMENT that would have set the
+  map's prototype instead of storing an icon — corrupting every later lookup
+  rather than failing. Six hostile names pinned, including the actual 0.8.0
+  exposure (a table cell whose value becomes an icon name).
 
 - [ ] **`spinner3d` registers into a module-global ticker nothing can
       unregister** _(verified, reproduced)_. `widgets3d.ts:1917` adds to a global

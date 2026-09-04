@@ -89,3 +89,58 @@ describe('registerIcons', () => {
     expect(m.isRegisteredIcon('star')).toBe(false)
   })
 })
+
+/*
+HOSTILE NAMES, not just hostile values.
+
+The suite pinned what happens when a VALUE is junk and never asked what happens
+when a NAME collides with something on `Object.prototype`. `iconGlyph` looked up
+`data[name]` on a plain object, so `constructor` returned a Function and
+`?.trim()` threw — and since 0.8.0 a table's icon column feeds DATA into that
+lookup, with no catch between it and the repaint.
+*/
+describe('icon names that collide with Object.prototype', () => {
+  const HOSTILE = [
+    'constructor',
+    'toString',
+    'valueOf',
+    'hasOwnProperty',
+    '__proto__',
+    'propertyIsEnumerable',
+  ]
+
+  test('resolving one falls back instead of throwing', () => {
+    for (const name of HOSTILE) {
+      expect(() => m.iconGlyph(name)).not.toThrow()
+    }
+  })
+
+  test('and the fallback is the same one any unknown name gets', () => {
+    // Compare the MARKUP: `iconGlyph` returns a fresh element each call, so
+    // two structurally identical results are still different objects.
+    const markup = (n: string) =>
+      (m.iconGlyph(n) as unknown as { outerHTML: string }).outerHTML
+    const unknown = markup('definitely-not-an-icon-xyz')
+    for (const name of HOSTILE) {
+      expect(markup(name)).toBe(unknown)
+    }
+  })
+
+  test('registering one stores DATA — `__proto__` does not become a prototype', () => {
+    const before = Object.getPrototypeOf(m.iconData)
+    m.registerIcons({
+      __proto__: '<svg viewBox="0 0 24 24"><circle r="9"/></svg>',
+    })
+    // the map's prototype is untouched...
+    expect(Object.getPrototypeOf(m.iconData)).toBe(before)
+    // ...and an ordinary lookup still works afterwards
+    expect(() => m.iconGlyph('bug')).not.toThrow()
+  })
+
+  test('a table cell carrying such a value cannot kill the repaint', () => {
+    // The actual 0.8.0 exposure: `table` does iconGlyph(String(row[key])).
+    for (const cell of HOSTILE) {
+      expect(() => m.iconGlyph(String(cell))).not.toThrow()
+    }
+  })
+})
