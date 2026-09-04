@@ -1,7 +1,7 @@
 # TODO
 
-- **Reposition the in-scene scene panel, with a reset.** Tonio's ask from the
-  0.8.0 headset run: _"drag it into a different rig-relative position, kind of
+- **Reposition the in-scene scene panel, with a reset.** **First patch after
+  0.8.0** — Tonio's call. Their ask from the 0.8.0 headset run: _"drag it into a different rig-relative position, kind of
   keeping distance and orientation but facing you, and then a button that sends
   it back to its default position."_ **Needs a headset to get right — do not
   build blind.**
