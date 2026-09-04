@@ -103,9 +103,11 @@ true})` — dropping `subtree` is the whole change.
       today, one careless `import type` → `import` from dragging tosijs into a
       module documented as pure geometry.
 
-- [ ] **Verify the published TARBALL, not just the repo.** `npm pack
---pack-destination ../local-packages`, then import a few subpaths under plain
-      Node in an empty dir. That loop is exactly what found #69.
+- [x] **Verify the published TARBALL, not just the repo.** Done at the 0.8.0
+      cut: packed, installed into an empty project, imported under Node 24 —
+      seven pure subpaths resolved, the three superseded modules correctly
+      refused with `ERR_PACKAGE_PATH_NOT_EXPORTED`, and nothing leaked into the
+      tarball. Worth repeating every release; it is the loop that found #69.
 
 - **Reposition the in-scene scene panel, with a reset.** **First patch after
   0.8.0** — Tonio's call. Their ask from the 0.8.0 headset run: _"drag it into a different rig-relative position, kind of
