@@ -7,21 +7,21 @@ deferred findings — each was verified or its code claim confirmed, and each is
 recorded here rather than dropped.
 
 - [x] **`iconGlyph` throws on an icon name that collides with
-  `Object.prototype`** — FIXED for 0.8.1. All three unsafe sites, not just the
-  reported one: the lookup (`Object.hasOwn` + a string guard), `iconNames`, and
-  `registerIcons`, where `__proto__` was an ASSIGNMENT that would have set the
-  map's prototype instead of storing an icon — corrupting every later lookup
-  rather than failing. Six hostile names pinned, including the actual 0.8.0
-  exposure (a table cell whose value becomes an icon name).
+      `Object.prototype`** — FIXED for 0.8.1. All three unsafe sites, not just the
+      reported one: the lookup (`Object.hasOwn` + a string guard), `iconNames`, and
+      `registerIcons`, where `__proto__` was an ASSIGNMENT that would have set the
+      map's prototype instead of storing an icon — corrupting every later lookup
+      rather than failing. Six hostile names pinned, including the actual 0.8.0
+      exposure (a table cell whose value becomes an icon name).
 
-- [ ] **`spinner3d` registers into a module-global ticker nothing can
-      unregister** _(verified, reproduced)_. `widgets3d.ts:1917` adds to a global
-      Set + shared 60ms interval; the only exit is a `dispose()` that nothing calls,
-      and `Widget3d` has no `dispose?()` member. `_panelWidgets()` re-invokes
-      `scenePanel(this)` on every repaint (8 call sites), so orphans accumulate and
-      each retains its whole SVG subtree via the tick closure — a leak, not just
-      wasted CPU. Cheapest fix: drop entries whose `el.isConnected` is false at tick
-      time. `spinner3d` is new in 0.8.0 with no adopters, so the contract is free.
+- [x] **`spinner3d` registers into a module-global ticker nothing can
+  unregister** — FIXED for 0.8.1, at the OWNER rather than in the spinner.
+  `Widget3d` gained `dispose?()`, and `B3d` disposes the widget set it is
+  replacing on every repaint (and both sets on teardown). Reaping by
+  `el.isConnected` would have been wrong: `SvgTexture` serialises a panel and
+  never attaches it, so an in-scene panel's SVG is detached for its whole life
+  and a live VR spinner would have been culled. Six tests, including that
+  detached-still-animates case.
 
 - [ ] **`panel3d` never gives `header` widgets a `WidgetHost`.**
       `widgets3d.ts` sets hosts for body widgets only, so a pinned widget needing

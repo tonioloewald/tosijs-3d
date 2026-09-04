@@ -663,6 +663,20 @@ export interface Widget3d {
    * that lets a control open a popup without the consumer wiring it up.
    */
   setHost?(host: WidgetHost): void
+  /**
+   * Release anything that outlives the element — a timer, an observer, a
+   * registration in a shared pool.
+   *
+   * Called by whoever BUILT the widget list, when that list is replaced. Most
+   * widgets need nothing; a widget that animates does, because its element
+   * going out of the tree does not stop a timer holding a reference to it.
+   *
+   * It has to live on the interface rather than on the one widget that needs
+   * it: `B3d` rebuilds its panel rows on every repaint and cannot know which
+   * of a consumer's widgets registered something. Without a name it can call,
+   * it leaks whatever it was handed.
+   */
+  dispose?(): void
 }
 
 /**

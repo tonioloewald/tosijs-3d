@@ -2619,13 +2619,51 @@ export class B3d extends Component {
     ]
   }
 
+  /*
+  DISPOSE THE SET WE ARE REPLACING.
+
+  This method is re-invoked on every `_repaintPanels()` — pause/resume, any
+  icon-bar toggle, every gear open — and each call builds a FRESH widget list
+  from `scenePanel(this)`. The previous list becomes garbage, but a widget that
+  registered itself somewhere does not: `spinner3d` joins a module-global
+  ticker, so orphans kept animating forever and each held its whole SVG subtree
+  alive through the tick closure. A leak, not merely wasted CPU.
+
+  Reaping by `el.isConnected` looks tempting and is wrong: `SvgTexture`
+  serialises the panel with `XMLSerializer` and never attaches it, so an
+  IN-SCENE panel's SVG is legitimately detached for its whole life and would be
+  culled while visible.
+
+  The owner knows. It built the list, it is replacing the list, so it disposes
+  the list — which is also why `dispose` is on `Widget3d` rather than on the
+  one widget that currently needs it.
+  */
+  private _disposeWidgets(key: 'flat' | 'xr'): void {
+    for (const w of this._builtWidgets[key]) {
+      try {
+        w.dispose?.()
+      } catch {
+        // A consumer's dispose must not take the repaint with it.
+      }
+    }
+    this._builtWidgets[key] = []
+  }
+
+  private _builtWidgets: { flat: Widget3d[]; xr: Widget3d[] } = {
+    flat: [],
+    xr: [],
+  }
+
   private _panelWidgets(xr = false): Widget3d[] {
+    const key = xr ? 'xr' : 'flat'
+    this._disposeWidgets(key)
     const rows = this.scenePanel(this)
     const tools = this._debugTools()
     const items = this._barItems()
     if (items.length === 0) {
       // Nothing in the bar → nothing to stop, clear this presentation's live bucket.
-      this._liveDebug[xr ? 'xr' : 'flat'] = []
+      this._liveDebug[key] = []
+      this._builtWidgets[key] = rows
       return rows
     }
     // NEITHER presentation gets its bar from here any more: flat renders the
@@ -2645,9 +2683,11 @@ export class B3d extends Component {
         if (src) out.push(...this._sourceRows(src, bucket))
       }
     }
-    this._liveDebug[xr ? 'xr' : 'flat'] = bucket
+    this._liveDebug[key] = bucket
     this._startLiveDebug()
-    return [...out, ...rows]
+    const all = [...out, ...rows]
+    this._builtWidgets[key] = all
+    return all
   }
 
   // window.requestAnimationFrame stops firing during an immersive XR session (the
@@ -4389,6 +4429,10 @@ export class B3d extends Component {
   private _teardownTimer: number | null = null
 
   private _teardown(): void {
+    // Both presentations' widgets, not just the visible one — an XR panel's
+    // rows outlive the session that built them otherwise.
+    this._disposeWidgets('flat')
+    this._disposeWidgets('xr')
     this._errorCaptureOff?.()
     this._errorCaptureOff = null
     this._pauseWatch?.()
