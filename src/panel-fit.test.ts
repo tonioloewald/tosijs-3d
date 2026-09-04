@@ -646,3 +646,102 @@ describe('the keyboard affordance — summon it without reaching for a real one'
     expect(Number(field.value)).toBeGreaterThan(0)
   })
 })
+
+/*
+A PINNED HEADER — chrome that must not scroll away.
+
+The XR panel's icon bar carries Exit VR, and a control you need in order to
+LEAVE is the one failure a headset panel cannot recover from. It also has to
+route pointers correctly, which is the subtle half: a pinned row sits at a fixed
+y while the body moves under the scroll, so the two live in different coordinate
+spaces and mixing them hands a control presses meant for something else.
+*/
+describe('panel3d header — pinned rows', () => {
+  /** A widget that records the local coords it is handed. */
+  const probe = (h = 40) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+    const got: Array<[string, number, number]> = []
+    return {
+      got,
+      w: {
+        el,
+        layout: () => h,
+        handle: (k: string, x: number, y: number) => got.push([k, x, y]),
+      } as unknown as import('./widgets3d.js').Widget3d,
+    }
+  }
+
+  test('a pinned row is NOT inside the scrolling group', () => {
+    const bar = probe(30)
+    const panel = w3d.panel3d(
+      { width: 300, height: 200, header: [bar.w] },
+      ...rows(20)
+    )
+    // The body scrolls; walk up from the pinned element and confirm it never
+    // passes through the group carrying the scroll transform.
+    const scrolled = panel.querySelector('g > g > g')
+    expect(scrolled).not.toBe(null)
+    expect(scrolled!.contains(bar.w.el)).toBe(false)
+  })
+
+  test('the header reserves height — the body viewport shrinks by it', () => {
+    const without = w3d.panel3d({ width: 300, height: 'fit' }, ...rows(3))
+    const withHdr = w3d.panel3d(
+      { width: 300, height: 'fit', header: [probe(30).w] },
+      ...rows(3)
+    )
+    expect(Number(withHdr.getAttribute('height'))).toBeGreaterThan(
+      Number(without.getAttribute('height'))
+    )
+  })
+
+  test('pressing the header hits the header, not a body row', () => {
+    const bar = probe(30)
+    const body = probe(40)
+    const panel = w3d.panel3d(
+      { width: 300, height: 220, paddingTop: 12, padding: 12, header: [bar.w] },
+      body.w
+    ) as SVGSVGElement & {
+      handlePointer: (k: string, x: number, y: number) => void
+    }
+    panel.handlePointer('down', 40, 12 + 10) // 10px into the pinned row
+    expect(bar.got.map((g) => g[0])).toEqual(['down'])
+    expect(body.got).toEqual([])
+  })
+
+  test('a SCROLLED body does not shift the header under the pointer', () => {
+    // The regression this exists for: routing a pinned row through the body's
+    // scrolled coordinate space offsets it by however far the body has moved.
+    const bar = probe(30)
+    const panel = w3d.panel3d(
+      { width: 300, height: 200, paddingTop: 12, padding: 12, header: [bar.w] },
+      ...rows(20)
+    ) as SVGSVGElement & {
+      handlePointer: (k: string, x: number, y: number) => void
+      scrollBy: (dy: number) => void
+      scrollable: boolean
+    }
+    expect(panel.scrollable).toBe(true)
+    panel.scrollBy(300)
+    panel.handlePointer('down', 40, 12 + 10)
+    expect(bar.got.map((g) => g[0])).toEqual(['down'])
+    // and it is handed the SAME local y as before any scrolling
+    expect(bar.got[0][2]).toBe(10)
+  })
+
+  test('empty space in the header does not scroll-drag the body', () => {
+    const bar = probe(30)
+    const panel = w3d.panel3d(
+      { width: 300, height: 200, paddingTop: 12, padding: 12, header: [bar.w] },
+      ...rows(20)
+    ) as SVGSVGElement & {
+      handlePointer: (k: string, x: number, y: number) => void
+    }
+    // x outside the inner width → no row hit, but still within the header band
+    panel.handlePointer('down', 4, 12 + 10)
+    panel.handlePointer('move', 4, 12 + 10 - 60)
+    // nothing captured, nothing scrolled: the body row is still where it was
+    panel.handlePointer('up', 4, 12 + 10 - 60)
+    expect(bar.got).toEqual([])
+  })
+})

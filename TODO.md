@@ -1,5 +1,32 @@
 # TODO
 
+- **Reposition the in-scene scene panel, with a reset.** Tonio's ask from the
+  0.8.0 headset run: _"drag it into a different rig-relative position, kind of
+  keeping distance and orientation but facing you, and then a button that sends
+  it back to its default position."_ **Needs a headset to get right — do not
+  build blind.**
+
+  The design mostly falls out, and one decision does not:
+
+  - **Moving it is a sphere, not a plane.** Keep the distance (1.4 m) and keep
+    it facing you, so the only free axes are azimuth and elevation. That is
+    "follow the ray at fixed distance", and `faceViewer` in `dialog-placement`
+    already does the facing.
+  - **A MODE, not a drag.** The panel's pointer router is coordinate-based and
+    already delicate (see the wrong-control scar in `_attachXrPanel`). Adding a
+    drag gesture through it risks the controls; a `move` toggle in the icon bar
+    — press, aim, press again — costs one icon and touches none of that.
+  - **Reset is a second icon** in the same bar, which is now pinned, so it
+    cannot scroll out of reach.
+
+  **The open decision is WHICH FRAME.** Today the panel hangs off `eye`, so it
+  is head-locked and follows you everywhere. "Rig-relative" implies `rig` (or
+  `body`) — put it somewhere and it stays there while you look around, which is
+  what makes repositioning worth anything. But that changes the default feel of
+  the panel for everyone, and whether head-locked-until-moved-then-rig-locked
+  is pleasant or disorienting is exactly the sort of thing that reads fine on
+  paper and is wrong in a headset. Try it before shipping it.
+
 - **The barrel does not EVALUATE in bare Node** — `import('tosijs-3d')` resolves
   every module now (0.8.0 fixed that) and then dies on `HTMLElement is not
 defined`, because importing it registers custom elements. The pure subpaths

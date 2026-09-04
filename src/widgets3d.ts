@@ -2200,6 +2200,18 @@ export function panel3d(
     paddingTop?: number
     gap?: number
     background?: string
+    /**
+     * Rows PINNED to the top — laid out above the scrolling body and never
+     * moved by it.
+     *
+     * A panel's own chrome (an icon bar with Exit VR on it) must not scroll
+     * away, because the control you need in order to leave is the one you
+     * cannot reach once it has gone. The flat presentation has always pinned
+     * its bar — it renders those buttons as DOM header elements outside this
+     * SVG — so without this the two presentations disagree, which is the
+     * divergence UI-DESIGN-NOTES warns about.
+     */
+    header?: Widget3d[]
   },
   ...widgets: Widget3d[]
 ): SVGSVGElement {
@@ -2218,16 +2230,25 @@ export function panel3d(
   whole trick behind `height: 'fit'`; the previous code fixed the height first
   and had no way to find out it was wrong.
   */
+  const headerWidgets = config.header ?? []
+  const headerHeights = headerWidgets.map((w) => w.layout(innerW))
+  const headerLayout = stackLayout(headerHeights, gap)
+  // The pinned block costs the body its height, plus one gap to separate them.
+  const headerH = headerWidgets.length > 0 ? headerLayout.total + gap : 0
+
   const heights = widgets.map((w) => w.layout(innerW))
   const { offsets, total } = stackLayout(heights, gap)
   const height = panelHeight(
-    total,
+    total + headerH,
     paddingTop,
     padding,
     config.height ?? 'fit',
     config.maxHeight
   )
-  const viewport = height - paddingTop - padding
+  // The SCROLLING viewport excludes the pinned block — otherwise the body is
+  // laid out against a taller area than it actually gets, and the last row is
+  // unreachable by exactly `headerH`.
+  const viewport = height - paddingTop - padding - headerH
 
   // Defend against a host page's global `svg { pointer-events: none }` (it's
   // inherited, so re-enabling the root re-enables the whole subtree).
@@ -2254,7 +2275,12 @@ export function panel3d(
   const clipId = `w3d-clip-${clipSeq++}`
   const clip = clipPath(
     { id: clipId },
-    rect({ x: padding, y: paddingTop, width: innerW, height: viewport })
+    rect({
+      x: padding,
+      y: paddingTop + headerH,
+      width: innerW,
+      height: viewport,
+    })
   )
   // The clip lives on a NON-transformed wrapper, so its rect is in viewBox space —
   // unambiguous in both the live DOM and the SVG→texture rasterizer. Clipping the
@@ -2262,9 +2288,25 @@ export function panel3d(
   // texture path double-offsets the clip and crops the top-left of the list.
   const clipWrap = g()
   const content = g({ transform: `translate(${padding}, ${paddingTop})` })
+  // The scrolling body sits BELOW the pinned block. `scrollGroup` is what the
+  // scroll transform moves, so the offset lives on its parent — otherwise
+  // scrolling would drag the body up over the header.
+  const bodyGroup = g({ transform: `translate(0, ${headerH})` })
   const scrollGroup = g()
-  content.appendChild(scrollGroup)
+  bodyGroup.appendChild(scrollGroup)
+  content.appendChild(bodyGroup)
   clipWrap.appendChild(content)
+
+  const headerRows = headerWidgets.map((w, i) => ({
+    w,
+    top: headerLayout.offsets[i],
+    height: headerHeights[i],
+  }))
+  headerWidgets.forEach((w, i) => {
+    w.el.setAttribute('transform', `translate(0, ${headerLayout.offsets[i]})`)
+    // Appended to `content`, NOT `scrollGroup` — that is the whole mechanism.
+    content.appendChild(w.el)
+  })
 
   const rows = widgets.map((w, i) => ({
     w,
@@ -2288,7 +2330,10 @@ export function panel3d(
   // layout + scroll, captures the pressed widget for the whole press, and
   // scroll-drags from empty area. Coordinate-based, so the overlay and the
   // in-scene/VR host feed it the same way.
-  let captured: { w: Widget3d; top: number } | null = null
+  // `fromHeader` because a capture must keep the coordinate space it STARTED
+  // in: drag off a pinned control into the body and `inHeader` flips, which
+  // would hand the captured widget coords from the other space mid-gesture.
+  let captured: { w: Widget3d; top: number; fromHeader: boolean } | null = null
   /** The widget that last took a press — see the `focusClear` note below. */
   let lastPressed: Widget3d | null = null
   let hovered: { w: Widget3d; top: number } | null = null
@@ -2304,6 +2349,16 @@ export function panel3d(
             contentY >= r.top &&
             contentY < r.top + r.height &&
             (r.w.hitTest == null || r.w.hitTest(localX, contentY - r.top))
+        )
+      : undefined
+  const headerRowAt = (localX: number, localY: number) =>
+    localX >= 0 && localX <= innerW
+      ? headerRows.find(
+          (r) =>
+            r.w.handle != null &&
+            localY >= r.top &&
+            localY < r.top + r.height &&
+            (r.w.hitTest == null || r.w.hitTest(localX, localY - r.top))
         )
       : undefined
   const setHover = (next?: { w: Widget3d; top: number }) => {
@@ -2557,9 +2612,20 @@ export function panel3d(
       if (kind !== 'move') return
     }
     const localX = x - padding
-    const contentY = y - paddingTop + scroll
     if (kind === 'leave') return setHover(undefined)
-    const row = rowAt(localX, contentY)
+    /*
+    TWO COORDINATE SPACES, and only one of them scrolls.
+
+    A pinned header row sits at a fixed y; a body row moves under the scroll.
+    Routing both through one `contentY` would offset the header by however far
+    the body happened to be scrolled — the control stays where you see it and
+    answers presses somewhere else, which is the wrong-control bug this file
+    already carries a scar about.
+    */
+    const localY = y - paddingTop
+    const inHeader = headerRows.length > 0 && localY < headerH
+    const contentY = inHeader ? localY : localY - headerH + scroll
+    const row = inHeader ? headerRowAt(localX, localY) : rowAt(localX, contentY)
     if (kind === 'down') {
       if (row) {
         /*
@@ -2577,14 +2643,17 @@ export function panel3d(
           lastPressed.setActive?.(false)
         }
         lastPressed = row.w
-        captured = { w: row.w, top: row.top }
+        captured = { w: row.w, top: row.top, fromHeader: inHeader }
         row.w.handle?.('down', localX, contentY - row.top)
-      } else if (scrollable) {
+      } else if (scrollable && !inHeader) {
+        // Empty space in the PINNED block is not a scroll handle — the body is
+        // what scrolls, and dragging the chrome to move it reads as a bug.
         scrolling = true
         scrollFrom = y
       }
     } else if (kind === 'move' && captured) {
-      captured.w.handle?.('move', localX, contentY - captured.top)
+      const capturedY = captured.fromHeader ? localY : localY - headerH + scroll
+      captured.w.handle?.('move', localX, capturedY - captured.top)
     } else if (kind === 'move' && scrolling) {
       scroll += scrollFrom - y
       scrollFrom = y
@@ -2592,7 +2661,10 @@ export function panel3d(
     } else {
       // hover (move without a press) or release
       if (kind === 'up' && captured) {
-        captured.w.handle?.('up', localX, contentY - captured.top)
+        const capturedY = captured.fromHeader
+          ? localY
+          : localY - headerH + scroll
+        captured.w.handle?.('up', localX, capturedY - captured.top)
         captured = null
       }
       scrolling = false

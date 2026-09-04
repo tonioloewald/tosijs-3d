@@ -3897,12 +3897,36 @@ export class B3d extends Component {
   // Build a panel SVG from a row list. Each surface (overlay, in-scene) builds
   // its own with independent widget instances bound to the same reactive
   // values, so they stay in sync.
-  private _makePanel(rows: Widget3d[]): SVGSVGElement {
-    const n = Math.max(1, rows.length)
-    // Extra top padding so the first row clears the × close button (top-right)
-    // and the panel doesn't read footer-heavy.
-    const height = Math.min(540, 46 + n * 48)
-    return panel3d({ width: 320, height, paddingTop: 34 }, ...rows)
+  /*
+  SIZE TO THE CONTENT, capped — and PIN the bar.
+
+  The height used to be guessed as `46 + rows * 48`, which assumes a row is
+  about 48px tall. Most are. `lightEditor3d` is ONE row that lays out over
+  1200px, so a panel holding it was built ~190px tall and you scrolled a
+  postage stamp: Tonio, from the headset, "crammed into a tiny tiny view so you
+  have to scroll it constantly… I didn't try messing with curves because they
+  were too far down."
+
+  `height: 'fit'` measures the widgets and takes their real total; `maxHeight`
+  stops it becoming a wall. Past the cap it scrolls, as before — but now only
+  when it genuinely does not fit.
+
+  `header` keeps the icon bar out of that scroll. It carries Exit VR, and a
+  control you need in order to LEAVE must not be the one that scrolls away.
+  */
+  private _makePanel(rows: Widget3d[], header: Widget3d[] = []): SVGSVGElement {
+    return panel3d(
+      {
+        width: 320,
+        height: 'fit',
+        maxHeight: 620,
+        // Extra top padding so the first row clears the × close button
+        // (top-right) and the panel doesn't read footer-heavy.
+        paddingTop: 34,
+        header,
+      },
+      ...rows
+    )
   }
 
   // Flat-screen surface: a top-right gear icon toggles the settings panel as a
@@ -4134,29 +4158,30 @@ export class B3d extends Component {
     // SITE (never branched into the shared widget list) because they are
     // genuinely XR-only: Re-seat is meaningless flat, and flat already has an
     // Exit VR in the toolbar lozenge.
-    const rows: Widget3d[] = [
-      iconBar3d({
-        items: [
-          {
-            icon: 'logOut',
-            title: 'Exit VR',
-            active: false,
-            handleClick: () => {
-              void this.xrHelper?.baseExperience?.exitXRAsync()
-            },
+    //
+    // It is the PINNED header, not row 0: Exit VR scrolling out of reach is the
+    // one failure this panel cannot recover from inside a headset.
+    const barRow = iconBar3d({
+      items: [
+        {
+          icon: 'logOut',
+          title: 'Exit VR',
+          active: false,
+          handleClick: () => {
+            void this.xrHelper?.baseExperience?.exitXRAsync()
           },
-          {
-            icon: 'compass',
-            title: 'Re-seat (look forward first)',
-            active: false,
-            handleClick: () => this.recenterXr(),
-          },
-          ...this._barItems(),
-        ],
-      }),
-      ...this._panelWidgets(true),
-    ]
-    const panelEl = this._makePanel(rows) as SVGSVGElement & {
+        },
+        {
+          icon: 'compass',
+          title: 'Re-seat (look forward first)',
+          active: false,
+          handleClick: () => this.recenterXr(),
+        },
+        ...this._barItems(),
+      ],
+    })
+    const rows: Widget3d[] = [...this._panelWidgets(true)]
+    const panelEl = this._makePanel(rows, [barRow]) as SVGSVGElement & {
       handlePointer?: (kind: string, x: number, y: number) => void
       scrollBy?: (dy: number) => void
       scrollable?: boolean

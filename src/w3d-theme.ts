@@ -29,7 +29,8 @@ palette is `rgba()`.
 
 ```js
 import { b3d, b3dLight, panelScene, panel3d, row3d, label3d, slider3d,
-         toggle3d, button3d, iconBar3d, ui, themeEditor } from 'tosijs-3d'
+         toggle3d, button3d, iconBar3d, ui, themeEditor,
+         w3dTheme, setW3dTheme } from 'tosijs-3d'
 import { colorInput } from 'tosijs-ui'
 import { elements, tosi } from 'tosijs'
 const { div } = elements
@@ -37,6 +38,24 @@ const { div } = elements
 // Bound state, as the other widget demos do — so a rebuild does not reset what
 // you set, and the values survive every theme change.
 const { demo } = tosi({ demo: { size: 0.6, sound: false, name: '' } })
+
+// PUT THE PALETTE BACK WHEN YOU LEAVE.
+//
+// This editor edits the GLOBAL table, deliberately — that is what makes both
+// panels below re-theme live, and a scoped copy would demonstrate nothing. But
+// the doc site is ONE page, so walking away used to leave every other demo
+// wearing whatever you had set. Tonio, from the headset: "the theme editor
+// seems to change the global theme and infects other demos."
+//
+// `withTheme` is the wrong tool here — it restores when its build function
+// RETURNS, and this demo's lifetime is the page's, not a synchronous call.
+const initialTheme = { ...w3dTheme }
+const restoreTheme = new MutationObserver(() => {
+  if (preview.isConnected) return
+  setW3dTheme(initialTheme)
+  restoreTheme.disconnect()
+})
+restoreTheme.observe(document.body, { childList: true, subtree: true })
 
 // Load a WEB font so the menu's Rosario entry has something to render. A theme
 // names a family; loading it is the host's job, which is exactly the point of

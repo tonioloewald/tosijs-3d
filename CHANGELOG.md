@@ -120,6 +120,22 @@ the two renames that were waiting for a minor.
 - **The `curve-program` demo was truncated on the published site.** Its doc
   comment contained a nested `/* … */`, and block comments do not nest — the
   inner `*/` closed the page early, so roughly half the demo silently vanished.
+- **The in-scene panel was sized by a guess, and the guess was wrong for the
+  one panel that mattered.** Height was `46 + rows × 48`, which assumes a row is
+  about 48px. `lightEditor3d` is ONE row that lays out over 1200px, so its panel
+  was built ~142px tall and you scrolled a postage stamp. It now sizes to its
+  content (`height: 'fit'`) with a cap, so the same panel is 620px — Tonio, from
+  the headset: _"crammed into a tiny tiny view so you have to scroll it
+  constantly… I didn't try messing with curves because they were too far down."_
+- **The in-scene panel's icon bar no longer scrolls away.** It carries Exit VR,
+  and a control you need in order to LEAVE is the one thing a headset panel
+  cannot afford to lose. `panel3d` gained a `header` option — rows pinned above
+  the scrolling body — which also ends a divergence, since the flat
+  presentation has always pinned its bar by rendering it as DOM.
+- **The theme editor no longer follows you to other demos.** It edits the global
+  table deliberately (that is what makes both panels re-theme live), but the doc
+  site is one page, so walking away left everything else wearing your palette.
+  The demo now restores it on unmount.
 - **`dist` could not be imported by Node at all** — 394 relative specifiers were
   written without an extension (`from './tosi-b3d'`), which every bundler and
   Bun resolves and Node's ESM resolver does not. Reported by
