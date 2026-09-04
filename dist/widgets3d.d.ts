@@ -567,6 +567,40 @@ export declare function openMenu3d(host: WidgetHost, anchor: {
  * height, clips and enables wheel + drag scrolling. Returns the root `<svg>`,
  * usable as a DOM overlay or as the source element for a `b3dSvgPlane`.
  */
+/**
+ * A panel sized to its CONTENT, for mounting on a plane in the scene.
+ *
+ * Returns the SVG plus the height it actually resolved to, because a
+ * camera-relative plane needs that number to set its aspect — and reading it
+ * back off the element is the only way to get it right once the height is
+ * `'fit'` rather than something the caller computed.
+ *
+ * ## Why this exists rather than three call sites
+ *
+ * All three in-scene panels — the gear/scene panel, the pause modal and the
+ * death dialog — independently computed `46 + rows.length * 48`, which assumes
+ * a row is about 48px tall. Most are. `lightEditor3d` is ONE row that lays out
+ * over 1200px, so a panel holding it was built ~142px tall and you scrolled a
+ * postage stamp inside a headset.
+ *
+ * That was fixed in the scene panel and left standing in the other two, which
+ * take CONSUMER-supplied rows and so have exactly the same exposure. The fix
+ * could not propagate because the policy was copied, not shared. It is shared
+ * now.
+ *
+ * `maxHeight` is the caller's, because the right cap depends on where the
+ * panel goes: an uncapped `'fit'` on a 1200px editor is a plane several metres
+ * tall in your face.
+ */
+export declare function fitPanel(rows: Widget3d[], opts?: {
+    width?: number;
+    maxHeight?: number;
+    paddingTop?: number;
+}): {
+    svg: SVGSVGElement;
+    width: number;
+    height: number;
+};
 export declare function panel3d(config: {
     width?: number;
     /**
@@ -585,5 +619,17 @@ export declare function panel3d(config: {
     paddingTop?: number;
     gap?: number;
     background?: string;
+    /**
+     * Rows PINNED to the top — laid out above the scrolling body and never
+     * moved by it.
+     *
+     * A panel's own chrome (an icon bar with Exit VR on it) must not scroll
+     * away, because the control you need in order to leave is the one you
+     * cannot reach once it has gone. The flat presentation has always pinned
+     * its bar — it renders those buttons as DOM header elements outside this
+     * SVG — so without this the two presentations disagree, which is the
+     * divergence UI-DESIGN-NOTES warns about.
+     */
+    header?: Widget3d[];
 }, ...widgets: Widget3d[]): SVGSVGElement;
 //# sourceMappingURL=widgets3d.d.ts.map

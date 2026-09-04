@@ -72,8 +72,10 @@ once per name; <code>onX</code> is removed in 0.9.</p>
 becomes a tosijs component the element creator binds an <code>on*</code> prop as a DOM
 event <strong>listener</strong> and the class field is silently never called. <code>handleX</code>
 cannot be mistaken for an event name. Giving both, the new one wins.</p>
-<p>Not yet renamed (still <code>onX</code>, and unaffected): <code>inputField</code>, <code>keyboard</code>,
-<code>table</code>, <code>box</code>/<code>surface</code>.</p>
+<p><strong>Migrated in this release</strong> — <code>inputField</code>, <code>keyboard</code>, <code>table</code>,
+<code>box</code>/<code>surface</code>, popups, debug actions and the curve/footprint/vector fields.
+In other words: all of them. <code>b3d-trigger</code> gains <code>whenEnter</code>/<code>whenExit</code>
+instead, because components use <code>when*</code> (see Fixed).</p>
 </li>
 </ul>
 <h3>Added</h3>
@@ -175,6 +177,25 @@ reaches a page instead of the compiler.</p>
 comment contained a nested <code>/* … */</code>, and block comments do not nest — the
 inner <code>*/</code> closed the page early, so roughly half the demo silently vanished.</p>
 </li>
+<li><p><strong>The in-scene panel was sized by a guess, and the guess was wrong for the
+one panel that mattered.</strong> Height was <code>46 + rows × 48</code>, which assumes a row is
+about 48px. <code>lightEditor3d</code> is ONE row that lays out over 1200px, so its panel
+was built ~142px tall and you scrolled a postage stamp. It now sizes to its
+content (<code>height: &#39;fit&#39;</code>) with a cap, so the same panel is 620px — Tonio, from
+the headset: <em>&quot;crammed into a tiny tiny view so you have to scroll it
+constantly… I didn&#39;t try messing with curves because they were too far down.&quot;</em></p>
+</li>
+<li><p><strong>The in-scene panel&#39;s icon bar no longer scrolls away.</strong> It carries Exit VR,
+and a control you need in order to LEAVE is the one thing a headset panel
+cannot afford to lose. <code>panel3d</code> gained a <code>header</code> option — rows pinned above
+the scrolling body — which also ends a divergence, since the flat
+presentation has always pinned its bar by rendering it as DOM.</p>
+</li>
+<li><p><strong>The theme editor no longer follows you to other demos.</strong> It edits the global
+table deliberately (that is what makes both panels re-theme live), but the doc
+site is one page, so walking away left everything else wearing your palette.
+The demo now restores it on unmount.</p>
+</li>
 <li><p><strong><code>dist</code> could not be imported by Node at all</strong> — 394 relative specifiers were
 written without an extension (<code>from &#39;./tosi-b3d&#39;</code>), which every bundler and
 Bun resolves and Node&#39;s ESM resolver does not. Reported by
@@ -194,6 +215,12 @@ now works. The pure modules were split from their editors precisely so a
 consumer could validate documents headlessly, but the only export was the
 barrel, which defines custom elements on import and needs <code>HTMLElement</code>. So
 the headless half was still behind a browser. It is not now.</p>
+<p>⚠️ <strong>This is a wildcard</strong> (<code>&quot;./*&quot;</code> → <code>./dist/*.js</code>), so <strong>every module in
+<code>dist/</code> is now a supported specifier</strong> and covered by semver — renaming one is
+a breaking change from here on. 142 of them were already public through the
+barrel; the genuinely new surface is nine. The three superseded modules
+(<code>reflections</code>, <code>dynamic-shadows</code>, <code>rippling-water</code>) are explicitly blocked so
+the wildcard cannot resurrect them.</p>
 </li>
 <li><p><strong><code>handleX</code> now works on every callback option, and <code>onX</code> is deprecated.</strong>
 It used to depend on which widget you were holding — <code>curve3d</code> took

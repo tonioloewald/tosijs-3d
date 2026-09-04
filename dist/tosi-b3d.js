@@ -286,7 +286,7 @@ import * as GUI from '@babylonjs/gui';
 import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
 import { xrControllers } from './gamepad.js';
-import { panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d.js';
+import { fitPanel, panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d.js';
 import { handlerOf } from './handler-of.js';
 import { panelFitWidth } from './widgets3d-layout.js';
 import { w3dTheme } from './w3d-theme.js';
@@ -943,8 +943,9 @@ export class B3d extends Component {
                 handleClick: () => this.resume(),
             }),
         ];
-        const svgH = 46 + rows.length * 48;
-        const svg = panel3d({ width: 320, height: svgH }, ...rows);
+        // Sized to its CONTENT — `rows` comes from the consumer's `pausePanel`
+        // hook, so a guessed height is a guess about someone else's widgets.
+        const { svg, height: svgH } = fitPanel(rows, { width: 320, maxHeight: 560 });
         /*
         FLAT: the DOM. IMMERSIVE: a plane in the scene.
     
@@ -3545,12 +3546,33 @@ export class B3d extends Component {
     // Build a panel SVG from a row list. Each surface (overlay, in-scene) builds
     // its own with independent widget instances bound to the same reactive
     // values, so they stay in sync.
-    _makePanel(rows) {
-        const n = Math.max(1, rows.length);
-        // Extra top padding so the first row clears the × close button (top-right)
-        // and the panel doesn't read footer-heavy.
-        const height = Math.min(540, 46 + n * 48);
-        return panel3d({ width: 320, height, paddingTop: 34 }, ...rows);
+    /*
+    SIZE TO THE CONTENT, capped — and PIN the bar.
+  
+    The height used to be guessed as `46 + rows * 48`, which assumes a row is
+    about 48px tall. Most are. `lightEditor3d` is ONE row that lays out over
+    1200px, so a panel holding it was built ~190px tall and you scrolled a
+    postage stamp: Tonio, from the headset, "crammed into a tiny tiny view so you
+    have to scroll it constantly… I didn't try messing with curves because they
+    were too far down."
+  
+    `height: 'fit'` measures the widgets and takes their real total; `maxHeight`
+    stops it becoming a wall. Past the cap it scrolls, as before — but now only
+    when it genuinely does not fit.
+  
+    `header` keeps the icon bar out of that scroll. It carries Exit VR, and a
+    control you need in order to LEAVE must not be the one that scrolls away.
+    */
+    _makePanel(rows, header = []) {
+        return panel3d({
+            width: 320,
+            height: 'fit',
+            maxHeight: 620,
+            // Extra top padding so the first row clears the × close button
+            // (top-right) and the panel doesn't read footer-heavy.
+            paddingTop: 34,
+            header,
+        }, ...rows);
     }
     // Flat-screen surface: a top-right gear icon toggles the settings panel as a
     // DOM overlay. Only revealed when the scenePanel hook returns widgets. The panel
@@ -3749,29 +3771,30 @@ export class B3d extends Component {
         // SITE (never branched into the shared widget list) because they are
         // genuinely XR-only: Re-seat is meaningless flat, and flat already has an
         // Exit VR in the toolbar lozenge.
-        const rows = [
-            iconBar3d({
-                items: [
-                    {
-                        icon: 'logOut',
-                        title: 'Exit VR',
-                        active: false,
-                        handleClick: () => {
-                            void this.xrHelper?.baseExperience?.exitXRAsync();
-                        },
+        //
+        // It is the PINNED header, not row 0: Exit VR scrolling out of reach is the
+        // one failure this panel cannot recover from inside a headset.
+        const barRow = iconBar3d({
+            items: [
+                {
+                    icon: 'logOut',
+                    title: 'Exit VR',
+                    active: false,
+                    handleClick: () => {
+                        void this.xrHelper?.baseExperience?.exitXRAsync();
                     },
-                    {
-                        icon: 'compass',
-                        title: 'Re-seat (look forward first)',
-                        active: false,
-                        handleClick: () => this.recenterXr(),
-                    },
-                    ...this._barItems(),
-                ],
-            }),
-            ...this._panelWidgets(true),
-        ];
-        const panelEl = this._makePanel(rows);
+                },
+                {
+                    icon: 'compass',
+                    title: 'Re-seat (look forward first)',
+                    active: false,
+                    handleClick: () => this.recenterXr(),
+                },
+                ...this._barItems(),
+            ],
+        });
+        const rows = [...this._panelWidgets(true)];
+        const panelEl = this._makePanel(rows, [barRow]);
         // LIVE numbers in the headset. The XR panel is built once at entry, so a debug
         // readout would otherwise freeze at whatever it said when you put the headset on —
         // useless for watching a worst-frame spike as you fly. The SvgTexture re-renders

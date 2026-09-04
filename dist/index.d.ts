@@ -92,7 +92,7 @@ export { gamepadState, gamepadText, xrControllers, xrControllersText, } from './
 export { B3dCar, b3dCar } from './b3d-car.js';
 export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js';
 export { handlerOf, resetHandlerWarnings } from './handler-of.js';
-export { panel3d, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
+export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 export { normalizeCurve, evaluateCurve, blendSample, flipCurve, movePoint, insertPoint, deletePoint, pointAt, curvePresets, presetsFor, defaultCurve, polygonExtent, polygonVertices, closePolygon, moveVertex, isStarShaped, MIN_EXTENT, ngon, messyNgon, shelfAndMountains, desertTerraces, plateauFalloff, smoothEdge, abruptEdge, } from './curve.js';
 export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js';
 export { readCurve, canonicalCurve, validateCurve, curveSchema, CURVE_PRECISION, } from './curve.js';

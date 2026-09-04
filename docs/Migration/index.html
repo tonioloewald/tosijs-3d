@@ -53,6 +53,81 @@ else is additive. The full detail for each is in <a href="./CHANGELOG.md">CHANGE
 <p>This file ships <strong>inside the package</strong>, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.</p>
+<h2>0.7.8 → 0.8.0</h2>
+<p><strong>Nothing breaks at runtime.</strong> Both items below keep working in 0.8.x; one is an
+install-time floor, the other is a deprecation with a removal date.</p>
+<h3>1. Peer floor: <code>tosijs</code> <code>^1.7.8</code> → <code>^1.9.2</code></h3>
+<p>Upgrade <code>tosijs</code> alongside this. npm will refuse to install otherwise
+(<code>ERESOLVE</code>); bun and pnpm warn and proceed, which is the case worth reading on.</p>
+<p>One behaviour changed with it, and it is silent. A wrong-typed write to an
+<code>initAttributes</code> prop used to be <strong>discarded</strong>; since tosijs 1.9 it <strong>warns and
+applies the value as given</strong>. So on an <code>&#39;on&#39; | &#39;off&#39;</code> attribute, <code>foo: false</code>
+used to mean <code>&#39;on&#39;</code> and now genuinely sets <code>false</code> — anything comparing against
+the string breaks instead of quietly defaulting.</p>
+<p>Use <strong><code>isOff()</code></strong> from <code>tosijs-3d</code>, which accepts <code>&#39;off&#39;</code>, <code>false</code> and
+<code>&#39;false&#39;</code>, rather than comparing to a string yourself.</p>
+<h3>2. Callback options: <code>onX</code> → <code>handleX</code></h3>
+<p>Every callback option in the library now takes <code>handleX</code>. The old <code>onX</code> spelling
+still works, warns <strong>once per name</strong>, and is <strong>removed in 0.9</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>widget</th>
+<th>old</th>
+<th>new</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>inputField</code></td>
+<td><code>onChange</code> / <code>onEnter</code> / <code>onFocus</code></td>
+<td><code>handleChange</code> / <code>handleEnter</code> / <code>handleFocus</code></td>
+</tr>
+<tr>
+<td><code>keyboard</code></td>
+<td><code>onKey</code> / <code>onAction</code> / <code>onCaretMove</code></td>
+<td><code>handleKey</code> / <code>handleAction</code> / <code>handleCaretMove</code></td>
+</tr>
+<tr>
+<td><code>table</code></td>
+<td><code>onSelect</code> / <code>onActivate</code></td>
+<td><code>handleSelect</code> / <code>handleActivate</code></td>
+</tr>
+<tr>
+<td><code>box</code> <code>button</code> / <code>BoxChild</code></td>
+<td><code>onActivate</code></td>
+<td><code>handleActivate</code></td>
+</tr>
+<tr>
+<td><code>surface</code> <code>MenuItem</code></td>
+<td><code>onSelect</code></td>
+<td><code>handleSelect</code></td>
+</tr>
+<tr>
+<td><code>showPopup</code> / <code>openPopup</code> / <code>openMenu3d</code></td>
+<td><code>onClose</code></td>
+<td><code>handleClose</code></td>
+</tr>
+<tr>
+<td><code>addDebugSource</code> actions</td>
+<td><code>onClick</code></td>
+<td><code>handleClick</code></td>
+</tr>
+<tr>
+<td><code>themeEditor</code></td>
+<td><code>onChange</code></td>
+<td><code>handleChange</code></td>
+</tr>
+</tbody></table>
+<p><strong>Why, in one sentence:</strong> these are plain factories today, but the moment one
+becomes a tosijs component the element creator binds an <code>on*</code> prop as a DOM
+event <strong>listener</strong>, so the callback is never called and nothing errors — which
+is not hypothetical, it shipped three times in this codebase.</p>
+<p><strong>Components use <code>when*</code>, not <code>handleX</code></strong> — <code>b3d-trigger</code> gains
+<code>whenEnter</code>/<code>whenExit</code> (<code>onEnter</code>/<code>onExit</code> still work). Passing <code>onEnter</code> to the
+element creator never set the field at all; it added a listener for the <code>&#39;enter&#39;</code>
+CustomEvent, so your callback received an <code>Event</code> instead of the trigger.</p>
+<p>If you write your own widgets, <code>handlerOf(config, &#39;handleX&#39;, &#39;onX&#39;)</code> is exported
+so you can follow the same rule.</p>
 <h2>0.6.2 → 0.7.0</h2>
 <blockquote>
 <h1>⚠️ READ THIS FIRST: library rotation</h1>

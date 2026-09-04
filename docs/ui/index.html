@@ -99,7 +99,7 @@ const show = () =&gt; {
 // The field is near the TOP on purpose: the on-screen keyboard opens below it,
 // and refuses if there is not room — so a field at the bottom of a panel shows
 // an inert glyph.
-const nameField = ui.inputField({ value: state.name, onChange: (v) =&gt; { state.name = v; show() } })
+const nameField = ui.inputField({ value: state.name, handleChange: (v) =&gt; { state.name = v; show() } })
 
 const TOOLS = [
   { icon: &#39;move&#39;, label: &#39;move&#39; },
@@ -113,25 +113,25 @@ const panel = panel3d(
   label3d({ text: &#39;Kitchen sink&#39;, bold: true }),
   label3d({ text: &#39;name — tap the ⌨ glyph&#39;, muted: true, compact: true }),
   nameField,
-  slider3d({ label: &#39;speed&#39;, value: state.speed, min: 0, max: 100, showValue: &#39;always&#39;, onChange: (v) =&gt; { state.speed = v; show() } }),
-  toggle3d({ label: &#39;lights&#39;, value: state.lights, onChange: (v) =&gt; { state.lights = v; show() } }),
+  slider3d({ label: &#39;speed&#39;, value: state.speed, min: 0, max: 100, showValue: &#39;always&#39;, handleChange: (v) =&gt; { state.speed = v; show() } }),
+  toggle3d({ label: &#39;lights&#39;, value: state.lights, handleChange: (v) =&gt; { state.lights = v; show() } }),
   select3d({
     label: &#39;material&#39;,
     value: state.material,
     options: [&#39;matte&#39;, &#39;gloss&#39;, &#39;metal&#39;, &#39;glass&#39;],
-    onChange: (v) =&gt; { state.material = v; show() },
+    handleChange: (v) =&gt; { state.material = v; show() },
   }),
   label3d({ text: &#39;position&#39;, muted: true, compact: true }),
-  vector3d({ value: state.pos, step: 0.25, scrub: 0.02, onChange: (v) =&gt; { state.pos = v; show() } }),
+  vector3d({ value: state.pos, step: 0.25, scrub: 0.02, handleChange: (v) =&gt; { state.pos = v; show() } }),
   label3d({ text: &#39;tool&#39;, muted: true, compact: true }),
   iconGrid3d({
     items: TOOLS, mode: &#39;radio&#39;, selected: 0,
-    onSelect: ([i]) =&gt; { state.tool = TOOLS[i].label; show() },
+    handleSelect: ([i]) =&gt; { state.tool = TOOLS[i].label; show() },
   }),
   curve3d({ kind: &#39;profile&#39;, label: &#39;response curve&#39;, aspect: 0.4 }),
   row3d({},
-    button3d({ label: &#39;Reset&#39;, onClick: () =&gt; { state.speed = 40; show() } }),
-    button3d({ label: &#39;Apply&#39;, onClick: () =&gt; { state.tool = &#39;applied&#39;; show() } })
+    button3d({ label: &#39;Reset&#39;, handleClick: () =&gt; { state.speed = 40; show() } }),
+    button3d({ label: &#39;Apply&#39;, handleClick: () =&gt; { state.tool = &#39;applied&#39;; show() } })
   )
 )
 show()
