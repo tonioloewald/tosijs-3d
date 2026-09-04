@@ -1,5 +1,15 @@
 # TODO
 
+- [ ] **`select3d` should open a POPUP above ~6 options, and stay a cycler
+  below.** The last open item of ensemble's #37: `‹ value ›` is right for three
+  options and unusable for twenty-four (choosing a mesh from a library is
+  twenty-three taps). The blocker they named is already gone — a widget gets a
+  `WidgetHost` via `setHost`, so it can `showPopup`/`openMenu3d` from inside a
+  `panel3d`, which is what `button3d({menu})` and the table's button column
+  use. Only `select3d` never adopted it. Same `handleChange`, no call-site
+  change; the threshold is the only judgement call, and ensemble has the dense
+  property panel to check it against.
+
 ## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
 
 The blocker and all four majors were fixed before the tag. These are the
