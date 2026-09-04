@@ -1,14 +1,14 @@
 # TODO
 
 - [ ] **`select3d` should open a POPUP above ~6 options, and stay a cycler
-  below.** The last open item of ensemble's #37: `‹ value ›` is right for three
-  options and unusable for twenty-four (choosing a mesh from a library is
-  twenty-three taps). The blocker they named is already gone — a widget gets a
-  `WidgetHost` via `setHost`, so it can `showPopup`/`openMenu3d` from inside a
-  `panel3d`, which is what `button3d({menu})` and the table's button column
-  use. Only `select3d` never adopted it. Same `handleChange`, no call-site
-  change; the threshold is the only judgement call, and ensemble has the dense
-  property panel to check it against.
+      below.** The last open item of ensemble's #37: `‹ value ›` is right for three
+      options and unusable for twenty-four (choosing a mesh from a library is
+      twenty-three taps). The blocker they named is already gone — a widget gets a
+      `WidgetHost` via `setHost`, so it can `showPopup`/`openMenu3d` from inside a
+      `panel3d`, which is what `button3d({menu})` and the table's button column
+      use. Only `select3d` never adopted it. Same `handleChange`, no call-site
+      change; the threshold is the only judgement call, and ensemble has the dense
+      property panel to check it against.
 
 ## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
 
@@ -25,13 +25,13 @@ recorded here rather than dropped.
       exposure (a table cell whose value becomes an icon name).
 
 - [x] **`spinner3d` registers into a module-global ticker nothing can
-  unregister** — FIXED for 0.8.1, at the OWNER rather than in the spinner.
-  `Widget3d` gained `dispose?()`, and `B3d` disposes the widget set it is
-  replacing on every repaint (and both sets on teardown). Reaping by
-  `el.isConnected` would have been wrong: `SvgTexture` serialises a panel and
-  never attaches it, so an in-scene panel's SVG is detached for its whole life
-  and a live VR spinner would have been culled. Six tests, including that
-  detached-still-animates case.
+      unregister** — FIXED for 0.8.1, at the OWNER rather than in the spinner.
+      `Widget3d` gained `dispose?()`, and `B3d` disposes the widget set it is
+      replacing on every repaint (and both sets on teardown). Reaping by
+      `el.isConnected` would have been wrong: `SvgTexture` serialises a panel and
+      never attaches it, so an in-scene panel's SVG is detached for its whole life
+      and a live VR spinner would have been culled. Six tests, including that
+      detached-still-animates case.
 
 - [ ] **`panel3d` never gives `header` widgets a `WidgetHost`.**
       `widgets3d.ts` sets hosts for body widgets only, so a pinned widget needing

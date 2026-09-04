@@ -1666,13 +1666,27 @@ export function select3d(config: {
     lbl.setAttribute('x', String(TH.PAD_X))
     lbl.setAttribute('y', String(TH.ROW / 2))
   }
-  const prev = baseText('‹', TH.ACCENT)
-  const next = baseText('›', TH.ACCENT)
   const val = baseText('')
-  for (const t of [prev, next, val]) {
-    t.setAttribute('text-anchor', 'middle')
-    t.setAttribute('y', String(TH.ROW / 2))
-  }
+  val.setAttribute('text-anchor', 'end')
+  val.setAttribute('y', String(TH.ROW / 2))
+  // The affordance. `chevron90r` is the shipped right-chevron rotated a quarter
+  // turn — the suffix system, rather than a second piece of art to keep in sync.
+  /*
+  WRAPPED, because the glyph's own transform is load-bearing.
+
+  `iconGlyph` encodes placement AND the suffix's rotation in one `transform` on
+  the element it returns, so setting `transform` to position it silently
+  discards the quarter turn — the chevron then points RIGHT, which is the one
+  direction that means something else. Position the wrapper; never touch the
+  glyph.
+  */
+  const caret = g(
+    {},
+    iconGlyph('chevron90r', {
+      size: 14,
+      color: TH.ACCENT,
+    }) as unknown as SVGElement
+  )
   const rowBg = rect({
     x: 0,
     y: 2,
@@ -1681,10 +1695,12 @@ export function select3d(config: {
     fill: 'transparent',
   })
   const el = css(
-    g({ 'data-w3d': 'select' }, rowBg, ...(lbl ? [lbl] : []), prev, val, next),
+    g({ 'data-w3d': 'select' }, rowBg, ...(lbl ? [lbl] : []), val, caret),
     'cursor:pointer'
   )
 
+  /** Chevron box, and the gap the value keeps from it. */
+  const CARET = 14
   let clusterX = 0
   let clusterW = 0
   const indexOf = () => {
@@ -1705,16 +1721,24 @@ export function select3d(config: {
   bound.subscribe(reflect)
 
   /*
-  THREE ZONES, not two: ‹ steps back, › steps forward, and the VALUE between
-  them opens a menu.
+  A SELECT, WITH A CHEVRON THAT SAYS SO.
 
-  The steppers stay rather than being replaced. Nudging to the next option while
-  watching what it does is a different gesture from picking a named one out of a
-  list, and a stepper is better at it — the menu is for "I know which one I
-  want" and the arrows are for "show me". Tonio made the same argument for
-  keeping arrows on a mode select alongside its menu.
+  It used to draw `‹ value ›` and open a menu when you tapped between the
+  arrows. The menu worked; nothing said it was there. A control that looks
+  exactly like a stepper IS a stepper as far as a new consumer is concerned —
+  ensemble reported the 24-option case as "twenty-three taps" while one tap and
+  a list had been available the whole time (#37).
+
+  So: the value carries a downward chevron, the whole cluster opens the list,
+  and the arrows are gone. Tonio: "I'd use a downward chevron to indicate you
+  can pop up. And, frankly, you could just ditch the cycling behavior."
+
+  Stepping survives in exactly one place — as the fallback when the panel gives
+  no host, where a menu is impossible. That is the case the old code called
+  out ("a control that is inert in some containers is worse than one that is
+  merely plainer"), and it stays true. `panel3d` always provides a host, so in
+  a panel this is a select and nothing else.
   */
-  const ARROW = 30
   let host: WidgetHost | null = null
 
   const openMenu = (): void => {
@@ -1746,40 +1770,30 @@ export function select3d(config: {
       rowBg.setAttribute('width', String(width))
       clusterW = Math.min(width * 0.55, 180)
       clusterX = width - TH.PAD_X - clusterW
-      prev.setAttribute('x', String(clusterX + 14))
-      next.setAttribute('x', String(clusterX + clusterW - 14))
-      val.setAttribute('x', String(clusterX + clusterW / 2))
+      // Value right-aligned against the chevron, chevron hard against the
+      // padding — so the caret sits at a predictable x whatever the value says.
+      const caretX = width - TH.PAD_X - CARET
+      caret.setAttribute('transform', `translate(${caretX} ${TH.ROW / 2 - 7})`)
+      val.setAttribute('x', String(caretX - 8))
       reflect()
       return TH.ROW
     },
-    // Only the cluster steps; the label area stays a scroll surface.
+    // The whole cluster is one target; the label area stays a scroll surface.
     hitTest(x) {
       return x >= clusterX - 6
     },
     handle(kind, x) {
-      // Zones measured from the cluster's own ends, so a wide row does not make
-      // the arrows enormous and the value a sliver.
-      const onPrev = x < clusterX + ARROW
-      const onNext = x > clusterX + clusterW - ARROW
+      void x
       if (kind === 'leave') {
         rowBg.setAttribute('fill', 'transparent')
-        prev.setAttribute('fill', TH.ACCENT)
-        next.setAttribute('fill', TH.ACCENT)
         return
       }
       rowBg.setAttribute('fill', TH.ROW_HOVER)
-      if (kind === 'down') {
-        prev.setAttribute('fill', onPrev ? '#fff' : TH.ACCENT)
-        next.setAttribute('fill', onNext ? '#fff' : TH.ACCENT)
-      } else if (kind === 'up') {
-        prev.setAttribute('fill', TH.ACCENT)
-        next.setAttribute('fill', TH.ACCENT)
-        if (onPrev) step(-1)
-        else if (onNext) step(1)
-        // The middle: a menu, if the panel can host one. Without a host it
-        // stays a stepper rather than doing nothing — a control that is inert
-        // in some containers is worse than one that is merely plainer.
-        else if (host != null) openMenu()
+      if (kind === 'up') {
+        // One gesture, one meaning: open the list. Stepping remains only where
+        // a menu cannot exist — see the note above the chevron.
+        if (host != null) openMenu()
+        else step(1)
       }
     },
   }

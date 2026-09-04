@@ -91,20 +91,19 @@ describe('popup anchoring through a container', () => {
     return { host, opened }
   }
 
-  /** Press the `›` stepper of the Nth select, in editor-local coordinates. */
+  /** Open the last select's list, in editor-local coordinates. */
   const openPresetMenu = (w: any) => {
     const selects = [...w.el.querySelectorAll('[data-w3d="select"]')]
     const sel = selects[selects.length - 1] // preset is the last select
-    const t = [...sel.querySelectorAll('text')].find(
-      (n: any) => n.textContent === '›'
-    )!
+    // It used to hunt for the `›` glyph and press just left of it. There are no
+    // arrows any more — the whole cluster opens the list — so aim at the value.
+    const t = [...sel.querySelectorAll('text')].pop()!
     // Walk up to find this row's offset inside the editor.
     const m = /translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/.exec(
       sel.getAttribute('transform') ?? ''
     )
     const rowY = m ? Number(m[2]) : 0
-    // Press the VALUE zone, which is what opens the menu.
-    const vx = Number(t.getAttribute('x')) - 40
+    const vx = Number(t.getAttribute('x')) - 10
     w.handle('down', vx, rowY + 22)
     w.handle('up', vx, rowY + 22)
     return rowY

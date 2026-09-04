@@ -441,7 +441,7 @@ describe('panels live outside the world by default', () => {
   })
 })
 
-describe('select3d opens a MENU from its value, and keeps its steppers', () => {
+describe('select3d is a SELECT — one tap anywhere on it opens the list', () => {
   const OPTIONS = ['alpha', 'beta', 'gamma', 'delta']
 
   /** A panel wrapping one select, laid out — which is what supplies the host. */
@@ -456,12 +456,26 @@ describe('select3d opens a MENU from its value, and keeps its steppers', () => {
     panel.handlePointer('up', x, y)
   }
 
-  test('the arrows still step — the menu does not replace them', () => {
+  test('the FAR RIGHT opens the list too — there are no steppers left', () => {
+    /*
+    This used to assert the opposite: 285 was the `›` stepper and a press there
+    changed the value. The arrows are gone. They opened a menu from the middle
+    and said nothing about it, so a consumer read the control as a cycler and
+    counted 23 taps to reach the 24th option (#37). The whole cluster is now one
+    target and the chevron says what it does.
+    */
     let seen: unknown = null
     const { panel } = build((v) => (seen = v))
-    // Far right of the row is the › stepper.
     press(panel, 285, 30)
-    expect(seen).toBe('beta')
+    expect(seen).toBe(null) // no silent value change
+    expect(panel.querySelectorAll('svg').length).toBe(1) // the list is up
+  })
+
+  test('it draws a chevron — the affordance is the point', () => {
+    const { sel } = build()
+    sel.layout(300)
+    // `chevron90r`: the shipped right-chevron, rotated a quarter turn down.
+    expect(sel.el.querySelector('[transform*="rotate"]')).not.toBe(null)
   })
 
   test('pressing the VALUE opens a popup', () => {
