@@ -136,6 +136,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 - https://3d.tosijs.net/cloud-shadows/ — cloud-shadows
   terrain. A flat decal can't conform to hills; the shadow map can't reach a cloud at 300 m
+- https://3d.tosijs.net/color/ — color
+  canonical formatting.** Pure: no DOM, no Babylon, so a consumer can validate a
+- https://3d.tosijs.net/color-field/ — color3d
+  strip, optional alpha strip, and a swatch — all SVG, so it works as a flat DOM
 - https://3d.tosijs.net/combat/ — Combat
   Damage, destruction, and weapons — pure deterministic models (`destroyable` /
 - https://3d.tosijs.net/control-input/ — control-input

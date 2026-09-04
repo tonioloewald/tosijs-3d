@@ -55,6 +55,13 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`color3d` — a colour picker that exists in a headset**, and `color.ts`, the
+  pure model under it (parse/format, RGB↔HSV, `contrastInk`; no DOM, so a
+  consumer can validate a document's colours headlessly). This was the one
+  control the SVG UI did not have: the only two ways to pick a colour were
+  `<input type="color">` (which cannot express alpha) or a consumer injecting
+  one, and **neither exists in an immersive session** — so the theme editor, of
+  all things, had no colour control in the presentation this library is for.
 - **Colour icons for scene concepts** — `sky`, `sun`, `water`, `terrain`,
   `fog`, `mesh`, `decor` (#64). Unlike the stroked/filled sets these carry
   literal colours and no `currentColor`, so they do not follow the theme.

@@ -418,6 +418,20 @@ export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
 // the same rule rather than re-implementing it.
 export { handlerOf, resetHandlerWarnings } from './handler-of.js'
 
+// Colour — the pure model (headless-safe) and the picker over it.
+export {
+  parseColor,
+  formatColor,
+  rgbToHsv,
+  hsvToRgb,
+  wrapHue,
+  luminance,
+  contrastInk,
+} from './color.js'
+export type { Rgba, Hsva } from './color.js'
+export { color3d } from './color-field.js'
+export type { Color3dOptions, ColorField } from './color-field.js'
+
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
   panel3d,
