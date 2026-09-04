@@ -572,7 +572,16 @@ export class B3dAircraft extends B3dControllable {
   declare reticleRange: number
   // undefined = not yet resolved; null = no HUD / not the player.
   private _hud: HudSink | null | undefined = undefined
-  private _hudMounted = false
+  /*
+  The mounted HUD's GEOMETRY, not a boolean.
+
+  A plain `_hudMounted` latch meant `hudSize` was consumed once and never read
+  again — a write took, read back correctly, and changed nothing (#43).
+  Remembering what was actually mounted lets a change re-mount, and
+  `attachInScene` already disposes and rebuilds cleanly (it has to, for
+  respawn), so this costs no new teardown path.
+  */
+  private _hudMountKey: string | null = null
   // The attached <tosi-b3d-radar> child (found once). undefined = unresolved,
   // null = none. Drives the HUD radar traces and the missile's lock target.
   private _radar: B3dRadar | null | undefined = undefined
@@ -614,6 +623,27 @@ export class B3dAircraft extends B3dControllable {
    */
   private _chaseAnchor: BABYLON.TransformNode | null = null
   private _chaseLookPitch = 0
+
+  /**
+   * Push `chaseDistance` / `chaseMinHeight` onto the rig.
+   *
+   * ONE path, used at build and again every frame, so the two cannot disagree
+   * — the previous split (build reads the fields, the frame loop reads a
+   * cached pitch) is exactly how they came to be write-only.
+   *
+   * The look angle is `atan2(minHeight, distance)`, so scaling both together
+   * backs the camera off along the same sight line instead of tilting it.
+   */
+  private _applyChaseGeometry(): void {
+    const cam = this.chaseCamera
+    if (cam == null) return
+    cam.position.set(
+      0,
+      this.chaseMinHeight * FLAT_CHASE_SCALE,
+      -this.chaseDistance * FLAT_CHASE_SCALE
+    )
+    this._chaseLookPitch = Math.atan2(this.chaseMinHeight, this.chaseDistance)
+  }
   /** Damped airframe pitch the chase has actually inherited (see
    * `chasePitchFollow`) — smoothed, never the raw attitude. */
   private _chaseFollowPitch = 0
@@ -853,8 +883,9 @@ export class B3dAircraft extends B3dControllable {
       // Mount the HUD onto the canopy (in-scene) once, so it shows in a 3D cockpit
       // and in VR — parented to the airframe just ahead of the pilot's eye, banking
       // with the plane (not head-locked).
-      if (!this._hudMounted && this._hud.attachInScene != null) {
-        this._hudMounted = true
+      const hudKey = `${attrs.hudSize}|${attrs.hudForward}|${this.eyeHeight}`
+      if (this._hudMountKey !== hudKey && this._hud.attachInScene != null) {
+        this._hudMountKey = hudKey
         this._hud.attachInScene(node, {
           size: attrs.hudSize,
           position: new BABYLON.Vector3(
@@ -1171,6 +1202,24 @@ export class B3dAircraft extends B3dControllable {
         )
       }
       if (this.chaseCamera?.rotationQuaternion != null) {
+        /*
+        RE-READ THE CHASE GEOMETRY EVERY FRAME.
+
+        `chaseDistance`/`chaseMinHeight` used to be consumed once, when the rig
+        was built, and never read again — so a settings slider bound to one
+        accepted the write, read back the new value, and moved the camera not
+        at all. Measured by ensemble as bit-identical framing across a 3x
+        change (#43).
+
+        What made it worse than an ordinary no-op is that `chasePitchFollow` on
+        the SAME element is live, so the element as a whole looked responsive
+        and only some of it was — there is no way to tell those apart from
+        outside except by measuring each one.
+
+        Cheap to keep honest: two writes and an atan2 per frame, against a rig
+        that already recomputes a quaternion here.
+        */
+        this._applyChaseGeometry()
         BABYLON.Quaternion.RotationYawPitchRollToRef(
           0,
           this._chaseLookPitch, // aim only — the ORBIT lives on the pivot
@@ -1914,15 +1963,13 @@ export class B3dAircraft extends B3dControllable {
     // The hull is now unit-scale (canonical), so the parented offset no longer
     // gets the model's ~2.4x magnification — pull it back to keep the same flat
     // framing (the VR chase is computed in world space and is unaffected).
-    chase.position = new BABYLON.Vector3(
-      0,
-      this.chaseMinHeight * FLAT_CHASE_SCALE,
-      -this.chaseDistance * FLAT_CHASE_SCALE
-    )
+    // Position comes from `_applyChaseGeometry` below — the same path the
+    // frame loop uses, so there is one definition of where the camera sits.
     // Look-down angle to keep the aircraft framed from behind+above. We set the camera's LOCAL
     // rotation quaternion each frame (pitch = this, roll = damped bank) instead of setTarget —
     // setTarget bakes a no-roll look, so the bank never shows. The pivot supplies the heading.
-    this._chaseLookPitch = Math.atan2(this.chaseMinHeight, this.chaseDistance)
+    this.chaseCamera = chase
+    this._applyChaseGeometry()
     chase.rotationQuaternion = BABYLON.Quaternion.RotationYawPitchRoll(
       0,
       this._chaseLookPitch,
@@ -1932,7 +1979,6 @@ export class B3dAircraft extends B3dControllable {
     // (the default 10000 is usually fine, but set it explicitly for aerial views).
     chase.minZ = 0.5
     chase.maxZ = 20000
-    this.chaseCamera = chase
 
     // Cockpit: near the nose, looking straight ahead (local +Z = forward).
     // Parented so it banks/pitches with the airframe.

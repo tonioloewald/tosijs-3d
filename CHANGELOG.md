@@ -27,6 +27,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
     the pending callback built a node owned by no element — a ghost nothing
     would ever move or free. Guarded with `loadGeneration`, the mechanism
     `b3d-aircraft` already used; the retry poll stops on a stale generation too.
+- **`chaseDistance` / `chaseHeight` / `chaseMinHeight` / `hudSize` accepted a
+  write and did nothing** (#43). All four were consumed when the rig and HUD
+  plane were built and never read again, so a settings slider bound to any of
+  them read back correctly and moved nothing — ensemble measured bit-identical
+  framing across a 3× change. Worse than an ordinary no-op because
+  `chasePitchFollow` on the same element IS live, so the element looked
+  responsive and only some of it was. The chase geometry now comes from one
+  path used at build AND every frame; the HUD remounts when its geometry
+  changes, instead of latching on a boolean.
 - **`select3d` looked like a cycler** (#37). It has opened a popup list all
   along — nothing said so, so a consumer counted 23 taps to reach the 24th
   option. It now draws a downward chevron, the whole control opens the list,

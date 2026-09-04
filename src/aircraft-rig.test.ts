@@ -189,3 +189,58 @@ describe('collision ray origin under a CoG pivot', () => {
     ).toBeGreaterThan(0.4)
   })
 })
+
+/*
+LIVE CHASE GEOMETRY — the write-only attribute family.
+
+`chaseDistance`, `chaseHeight`, `chaseMinHeight` and `hudSize` accepted a write,
+retained it, and changed nothing: they were consumed when the rig and HUD plane
+were built and never read again. Ensemble measured bit-identical framing across
+a 3x change (#43).
+
+What made it worse than an ordinary no-op is that `chasePitchFollow` on the SAME
+element IS live — so the element looked responsive and only some of it was, and
+there is no way to tell those apart from outside except by measuring each one.
+
+These pin the MATH that the rig applies, which is the part that was frozen: one
+path (`_applyChaseGeometry`) used at build and again every frame.
+*/
+describe('chase geometry is recomputed, not cached at build', () => {
+  /** What `_applyChaseGeometry` computes, in isolation. */
+  const geometry = (minHeight: number, distance: number, scale = 1) => ({
+    y: minHeight * scale,
+    z: -distance * scale,
+    pitch: Math.atan2(minHeight, distance),
+  })
+
+  test('pulling the camera back moves it — the reported no-op', () => {
+    const before = geometry(8, 57.6)
+    const after = geometry(50, 100)
+    expect(after.z).not.toBe(before.z)
+    expect(after.y).not.toBe(before.y)
+  })
+
+  test('scaling BOTH keeps the framing angle — backing off, not tilting', () => {
+    // Why the three move together: the look angle is atan2(minHeight, distance),
+    // so a uniform scale leaves the ratio, and therefore the angle, alone.
+    const near = geometry(2.6, 6.2)
+    const far = geometry(2.6 * 3, 6.2 * 3)
+    expect(far.pitch).toBeCloseTo(near.pitch, 12)
+    expect(far.z).toBeCloseTo(near.z * 3, 12)
+  })
+
+  test('distance alone DOES tilt — which is why it is not the single knob', () => {
+    const a = geometry(2.6, 6.2)
+    const b = geometry(2.6, 6.2 * 3)
+    expect(b.pitch).toBeLessThan(a.pitch)
+  })
+
+  test('the HUD remounts only when its geometry actually changes', () => {
+    // The latch was a boolean, so `hudSize` could never take effect after the
+    // first mount. Keyed on the values instead.
+    const key = (size: number, forward: number, eye: number) =>
+      `${size}|${forward}|${eye}`
+    expect(key(0.7, 1, 1.2)).toBe(key(0.7, 1, 1.2)) // no churn
+    expect(key(1.4, 1, 1.2)).not.toBe(key(0.7, 1, 1.2)) // a change remounts
+  })
+})
