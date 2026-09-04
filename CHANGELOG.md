@@ -27,6 +27,15 @@ versions may carry breaking peer-dependency changes — each is called out in a
     the pending callback built a node owned by no element — a ghost nothing
     would ever move or free. Guarded with `loadGeneration`, the mechanism
     `b3d-aircraft` already used; the retry poll stops on a stale generation too.
+- **A flat popup could open off-screen with no way back** (#57). The DOM layer
+  set `left`/`top` straight from the anchor with no bounds check, so a field in
+  a right-hand panel opened a keyboard 112px past the right edge — rightmost
+  column of keys unreachable, and unrecoverable, because the move/close chrome
+  is drawn by picking and picking exists only in the scene. It now places
+  through `placePopup`, the same pure flip/clamp the in-scene presentation
+  uses, **and the holder can be dragged** — which is the better fix, since only
+  the person typing knows what the popup is covering. A press that lands on a
+  widget still belongs to the widget, or you could never type.
 - **`chaseDistance` / `chaseHeight` / `chaseMinHeight` / `hudSize` accepted a
   write and did nothing** (#43). All four were consumed when the rig and HUD
   plane were built and never read again, so a settings slider bound to any of

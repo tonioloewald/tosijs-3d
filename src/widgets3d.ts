@@ -3033,14 +3033,88 @@ export function panel3d(
       ) {
         positioned.style.position = 'relative'
       }
-      // Offsets are relative to that ancestor, so measure both.
+      /*
+      PLACE IT INSIDE THE VIEWPORT, not merely below the anchor.
+
+      This used to set left/top straight from the anchor with no bounds check,
+      so a field in a right-hand panel opened a keyboard 112px off the right
+      edge — with its rightmost column of keys unreachable and, because the
+      move/close chrome is scene-only, no way to get it back (#57).
+
+      `placePopup` is the same pure flip/clamp the in-scene presentation uses:
+      flip to the opposite side when the primary axis does not fit, clamp on
+      the cross axis. Running it in VIEWPORT coordinates and converting once at
+      the end keeps one placement rule for both presentations.
+      */
       const box = positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 }
-      holder.style.left = `${rect.left - box.left}px`
-      holder.style.top = `${
-        rect.top - box.top + (config.anchor.y + config.anchor.height) * scale
-      }px`
+      const vw = window.innerWidth || 1024
+      const vh = window.innerHeight || 768
+      const placed = placePopup(
+        {
+          x: rect.left + config.anchor.x * scale,
+          y: rect.top + config.anchor.y * scale,
+          width: config.anchor.width * scale,
+          height: config.anchor.height * scale,
+        },
+        { width: w * scale, height: h * scale },
+        { width: vw, height: vh },
+        config.side
+      )
+      // Offsets are relative to the positioned ancestor, so convert back.
+      holder.style.left = `${placed.x - box.left}px`
+      holder.style.top = `${placed.y - box.top}px`
       if (container != null) container.appendChild(holder)
       else parent.insertBefore(holder, root.nextSibling)
+
+      /*
+      DRAG IT. The clamp above stops the first frame being off-screen; this is
+      what lets someone move it off the thing they are typing into.
+
+      Tonio's framing on #57: the clipping "would actually be solved if the user
+      could drag it around", which is better than any placement heuristic
+      because only the person typing knows what the popup is covering.
+
+      The in-scene presentation gets this from picking the move glyph, which
+      does not exist flat — so flat gets the whole holder as the handle, minus
+      the interactive parts. Dragging from a KEY would otherwise mean you could
+      never type: a press that starts on a control belongs to the control.
+      */
+      let dragFrom: { x: number; y: number; left: number; top: number } | null =
+        null
+      const onDown = (e: PointerEvent) => {
+        const target = e.target as Element | null
+        /*
+        A press on a WIDGET belongs to the widget; anything else drags.
+
+        `closest('[data-w3d]')` alone is not the test — the panel root carries
+        `data-w3d="panel"`, so it matches everywhere and the drag would never
+        start. What matters is whether the press landed on a widget INSIDE the
+        panel, so the root is excluded explicitly.
+        */
+        const hit = target?.closest?.('[data-w3d]') ?? null
+        if (hit != null && hit !== sheet) return
+        dragFrom = {
+          x: e.clientX,
+          y: e.clientY,
+          left: parseFloat(holder.style.left) || 0,
+          top: parseFloat(holder.style.top) || 0,
+        }
+        holder.setPointerCapture?.(e.pointerId)
+      }
+      const onMove = (e: PointerEvent) => {
+        if (dragFrom == null) return
+        holder.style.left = `${dragFrom.left + (e.clientX - dragFrom.x)}px`
+        holder.style.top = `${dragFrom.top + (e.clientY - dragFrom.y)}px`
+      }
+      const onUp = () => {
+        dragFrom = null
+      }
+      holder.style.touchAction = 'none'
+      holder.addEventListener('pointerdown', onDown)
+      holder.addEventListener('pointermove', onMove)
+      holder.addEventListener('pointerup', onUp)
+      holder.addEventListener('pointercancel', onUp)
+
       return { close: () => holder.remove() }
     })
   }
