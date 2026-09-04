@@ -344,7 +344,28 @@ export function terrainSchema(extra: Record<string, unknown> = {}) {
     'Terrain',
     {
       seed: num(12345, { minimum: 0 }),
-      surfaceType: choice('cylinder', ['cylinder', 'torus', 'sphere', 'plane']),
+      /*
+      NO `plane`. It was in this list and the element has never implemented it —
+      only `sphere` and `torus` branch, and everything else falls through to the
+      cylinder path. So a consumer offering `plane` in a picker got a cylinder
+      and no warning, which is the schema lying about the thing it exists to
+      describe. Reported from tosijs-3d-ensemble, who exposed it because it was
+      here (#66).
+
+      What the type actually selects is how the 2D noise WRAPS, so the terrain
+      tiles seamlessly around that surface:
+
+      | surfaceType | wraps U over    | wraps V over      | reads          |
+      | ----------- | --------------- | ----------------- | -------------- |
+      | `cylinder`  | 2π·radius       | cylinderHeight    | radius, cylinderHeight |
+      | `sphere`    | 2π·radius       | π·radius          | radius         |
+      | `torus`     | 2π·majorRadius  | 2π·minorRadius    | majorRadius, minorRadius |
+
+      Which answers the other half of #66: `radius` genuinely has no effect on a
+      torus, and that is correct rather than a bug — a torus is parameterised by
+      its major and minor radii, and `radius` is the sphere/cylinder one.
+      */
+      surfaceType: choice('cylinder', ['cylinder', 'torus', 'sphere']),
       grossScale: num(0.015, {
         minimum: 0.0001,
         maximum: 1,
