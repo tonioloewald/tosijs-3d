@@ -135,6 +135,20 @@ describe('box — event model', () => {
     expect(hit).toBe(true)
   })
 
+  test('handleActivate fires through the box, same as the old name', () => {
+    // The rename is only real if the BOX invokes it — a test that calls
+    // `btn.handleActivate()` directly proves the property exists and nothing
+    // about the path that has to find it.
+    let hit = false
+    const b = mod.box(
+      { width: 200, padding: 0 },
+      mod.button('Go', { handleActivate: () => (hit = true) })
+    )
+    b.handlePointer('down', 15, 15)
+    b.handlePointer('up', 15, 15)
+    expect(hit).toBe(true)
+  })
+
   test('down on a child then up OUTSIDE it does NOT activate (press capture)', () => {
     let hit = false
     const b = mod.box(

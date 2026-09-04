@@ -63,6 +63,40 @@ describe('surface — cascade menu', () => {
     expect(s.popups[1].side).toBe('right')
   })
 
+  test('a leaf item fires handleSelect too — the name callers actually use', () => {
+    const s = S.surface({ width: 400, height: 400 })
+    let picked = ''
+    const its = [{ label: 'A', handleSelect: () => (picked = 'A') }]
+    const top = S.openMenu(s, { x: 10, y: 10, width: 60, height: 20 }, its)
+    const r = top.box.childRect(0)!
+    top.box.handlePointer('down', r.x + 5, r.y + 5)
+    top.box.handlePointer('up', r.x + 5, r.y + 5)
+    expect(picked).toBe('A')
+    expect(s.popups.length).toBe(0)
+  })
+
+  test('a BUTTON in the content opens a menu — the demo path, previously untested', async () => {
+    // Every existing test calls `openMenu` directly, so nothing covered
+    // "activate a button, get a menu" — which is exactly what the demo does and
+    // the only place the button's own callback name is load-bearing.
+    const B = await import('./box.js')
+    const s = S.surface({ width: 300, height: 260 })
+    let opened = 0
+    const btn = B.button('Menu', {
+      handleActivate: () => {
+        opened += 1
+        S.openMenu(s, { x: 10, y: 30, width: 80, height: 20 }, [{ label: 'A' }])
+      },
+    })
+    const content = B.box({ width: 300, height: 260, padding: 0 }, btn)
+    s.setContent(content)
+    const r = content.childRect(0)!
+    s.handlePointer('down', r.x + 5, r.y + 5)
+    s.handlePointer('up', r.x + 5, r.y + 5)
+    expect(opened).toBe(1)
+    expect(s.popups.length).toBe(1)
+  })
+
   test('selecting a leaf item fires onSelect and closes the whole menu', () => {
     const s = S.surface({ width: 400, height: 400 })
     let picked = ''
