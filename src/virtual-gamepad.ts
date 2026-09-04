@@ -205,8 +205,8 @@ preview.append(div(
 */
 /*{ "parent": "Input", "order": 900 }*/
 
-import type { ControlInput, InputProvider } from './control-input'
-import { emptyInput } from './control-input'
+import type { ControlInput, InputProvider } from './control-input.js'
+import { emptyInput } from './control-input.js'
 
 export interface VirtualGamepad {
   leftStickX: number

@@ -13,7 +13,7 @@ import {
   type Pose,
   type Vec3,
   type Quat,
-} from './spatial-transform'
+} from './spatial-transform.js'
 
 const closeVec = (a: Vec3, b: Vec3, eps = 1e-9) => {
   expect(a.x).toBeCloseTo(b.x, 9)

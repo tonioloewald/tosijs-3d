@@ -5,7 +5,7 @@ import {
   extractChunk,
   type SdfField,
   type LatticeConfig,
-} from './sdf-lattice'
+} from './sdf-lattice.js'
 
 // The field the plan names: a torus threaded through a slab, so the surface
 // crosses chunk boundaries in every axis and has both convex and concave parts.

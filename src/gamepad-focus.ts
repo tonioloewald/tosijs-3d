@@ -52,7 +52,7 @@ deterministic and testable — same discipline as the rest of the pure models he
 */
 /*{ "parent": "input", "order": 900 }*/
 
-import type { VirtualGamepad } from './virtual-gamepad'
+import type { VirtualGamepad } from './virtual-gamepad.js'
 
 /** What a focus driver needs from its target — `box`, `surface`, or your own. */
 export interface FocusTarget {

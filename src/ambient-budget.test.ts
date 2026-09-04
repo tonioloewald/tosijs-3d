@@ -5,9 +5,9 @@ import {
   ratchetPool,
   recoverPool,
   spawnBias,
-} from './ambient-budget'
-import type { AmbientRequest } from './ambient-budget'
-import type { PerfTier } from './perf-probe'
+} from './ambient-budget.js'
+import type { AmbientRequest } from './ambient-budget.js'
+import type { PerfTier } from './perf-probe.js'
 
 const req = (
   over: Partial<AmbientRequest> & { id: string }

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
-import { sceneSchemas, SCENE_OMITTED } from './scene-schemas'
+import { sceneSchemas, SCENE_OMITTED } from './scene-schemas.js'
 
 /*
 The TEST needs a DOM because it imports the real components; the shipped module

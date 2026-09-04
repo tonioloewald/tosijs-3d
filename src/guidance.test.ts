@@ -15,7 +15,7 @@ import {
   gScale,
   gDot,
   type Vec3,
-} from './guidance'
+} from './guidance.js'
 
 const dir = (a: Vec3, b: Vec3): Vec3 => gNormalize(gSub(b, a))
 

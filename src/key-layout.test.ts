@@ -10,7 +10,7 @@ import {
   keyRects,
   keyboardHeight,
   modeForType,
-} from './key-layout'
+} from './key-layout.js'
 
 describe('keyLayout — modes', () => {
   test('alpha is qwerty, lower case by default', () => {

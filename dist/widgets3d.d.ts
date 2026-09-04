@@ -1,5 +1,6 @@
-import { type PopupSide } from './flow-layout';
-import { type SliderScale } from './widgets3d-layout';
+import { type PopupSide } from './flow-layout.js';
+import { type SliderScale } from './widgets3d-layout.js';
+import { handlerOf, resetHandlerWarnings } from './handler-of.js';
 /**
  * A pointer phase, routed by the panel in the widget's local SVG coords.
  * `hover`/`leave` give feedback without a press (e.g. a VR controller ray
@@ -22,23 +23,7 @@ export type PointerKind = 'down' | 'move' | 'up' | 'hover' | 'leave';
  * their own rebuild-on-change plumbing.
  */
 export type Dynamic<T> = T | (() => T);
-/**
- * Read a callback under its NEW name, falling back to the deprecated `onX`.
- *
- * `handleX` is the convention (Tonio: _"the tosijs convention is a callback
- * event handler is called handleChange"_), and it is not a style preference.
- * These are plain factory functions today, where `onX` is harmless — but the
- * moment one becomes a tosijs COMPONENT, the element creator binds an `on*`
- * prop as a DOM event LISTENER and the class field is silently never called.
- * No error, no warning, a callback that simply never fires. `handleX` cannot be
- * mistaken for an event name, so the rename removes the trap rather than
- * documenting it.
- *
- * Both spellings work through 0.8.x. The old one warns ONCE per name, because
- * a slider reads its callback on every pointer move and a warning per frame is
- * a performance bug wearing a helpful hat.
- */
-export declare function handlerOf<T>(config: Record<string, unknown>, handleName: string, onName: string): T | undefined;
+export { handlerOf, resetHandlerWarnings };
 /** Read a `Dynamic`, falling back when it was never given. */
 export declare function resolveDynamic<T>(v: Dynamic<T> | undefined, fallback: T): T;
 export interface Widget3d {
@@ -177,6 +162,8 @@ export interface WidgetHost {
         width?: number;
         maxHeight?: number;
         /** Called when this popup goes away — including dismissal from outside. */
+        handleClose?: () => void;
+        /** @deprecated use `handleClose` — removed in 0.9. */
         onClose?: () => void;
     }, ...items: Widget3d[]) => {
         close: () => void;
@@ -232,6 +219,8 @@ export interface WidgetHost {
         width?: number;
         maxHeight?: number;
         /** Called when it goes away, however it went. */
+        handleClose?: () => void;
+        /** @deprecated use `handleClose` — removed in 0.9. */
         onClose?: () => void;
     }, ...items: Widget3d[]) => {
         close: () => void;
@@ -567,6 +556,8 @@ export declare function openMenu3d(host: WidgetHost, anchor: {
     maxHeight?: number;
     /** Fired after an item is chosen (the menu has already closed). */
     handleSelect?: (item: MenuAction, index: number) => void;
+    handleClose?: () => void;
+    /** @deprecated use `handleClose` — removed in 0.9. */
     onClose?: () => void;
 }): {
     close: () => void;

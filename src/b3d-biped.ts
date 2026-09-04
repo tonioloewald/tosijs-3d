@@ -107,34 +107,34 @@ document.body.append(
 /*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { XRStuff, collidable, isOff } from './b3d-utils'
+import { XRStuff, collidable, isOff } from './b3d-utils.js'
 import {
   canMantle,
   mantleClip,
   mantlePath,
   defaultMantleLimits,
   type LedgeReading,
-} from './mantle'
+} from './mantle.js'
 import {
   buoyantStep,
   submergedFraction,
   isSwimming,
   swimBuoyancy,
-} from './buoyancy'
+} from './buoyancy.js'
 import {
   aimFromLook,
   clampAim,
   easeAim,
   aimTarget,
   surfaceAimLimit,
-} from './swim-aim'
-import type { B3d } from './tosi-b3d'
-import { xrControllers } from './gamepad'
-import type { GameController } from './game-controller'
-import { B3dControllable } from './b3d-controllable'
-import type { ControlInput } from './control-input'
-import { CompositeInputProvider } from './control-input'
-import { XRInputProvider } from './xr-input-provider'
+} from './swim-aim.js'
+import type { B3d } from './tosi-b3d.js'
+import { xrControllers } from './gamepad.js'
+import type { GameController } from './game-controller.js'
+import { B3dControllable } from './b3d-controllable.js'
+import type { ControlInput } from './control-input.js'
+import { CompositeInputProvider } from './control-input.js'
+import { XRInputProvider } from './xr-input-provider.js'
 
 const DEG_TO_RAD = Math.PI / 180
 

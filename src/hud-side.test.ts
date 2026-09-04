@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { sideFromD, type Side } from './hud-math'
+import { sideFromD, type Side } from './hud-math.js'
 
 // The four thick colored arcs from static/aircraft-hud.svg (AMDN export). normalizeHud
 // tags each by geometry → side, then maps side → meter (left=speed, right=altitude,

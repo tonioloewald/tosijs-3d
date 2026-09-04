@@ -127,9 +127,9 @@ vocabulary anywhere in the sim.
 `spawned` — bubbles, `detail: { prefab, position, elements }`.
 */
 /*{ "parent": "World Sim" }*/
-import { B3dChild, sceneDelta } from './b3d-utils';
-import { MersenneTwister } from './mersenne-twister';
-import { spawnPrefab } from './prefab';
+import { B3dChild, sceneDelta } from './b3d-utils.js';
+import { MersenneTwister } from './mersenne-twister.js';
+import { spawnPrefab } from './prefab.js';
 export class B3dSpawner extends B3dChild {
     static preferredTagName = 'tosi-b3d-spawner';
     static initAttributes = {

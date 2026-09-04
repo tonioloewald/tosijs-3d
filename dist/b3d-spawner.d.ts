@@ -1,6 +1,6 @@
-import { B3dChild } from './b3d-utils';
-import { type Prefab } from './prefab';
-import type { B3d } from './tosi-b3d';
+import { B3dChild } from './b3d-utils.js';
+import { type Prefab } from './prefab.js';
+import type { B3d } from './tosi-b3d.js';
 export declare class B3dSpawner extends B3dChild {
     static preferredTagName: string;
     static initAttributes: {

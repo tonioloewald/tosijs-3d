@@ -71,7 +71,7 @@ before it is paid.
 */
 /*{ "parent": "UI", "order": 530 }*/
 import * as BABYLON from '@babylonjs/core';
-import { svgFontStyle } from './embed-font';
+import { svgFontStyle } from './embed-font.js';
 /**
  * Rasterize an SVG element onto a canvas context via Blob URL.
  * Reuses the provided Image instance to avoid per-frame allocation.

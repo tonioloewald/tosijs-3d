@@ -1,4 +1,4 @@
-import { type ControlPoint, type CurveIssue } from './curve';
+import { type ControlPoint, type CurveIssue } from './curve.js';
 /** A curve, or a flat value. A number is the constant curve at that value. */
 export type ClimateCurve = ControlPoint[] | number;
 /** How far each channel's extremes reach. Defaults chosen per channel. */

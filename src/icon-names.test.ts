@@ -2,7 +2,7 @@ import { describe, expect, test, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import iconData from './icon-data'
+import iconData from './icon-data.js'
 
 /*
 Every icon name used in a doc example must EXIST.
@@ -14,7 +14,7 @@ in a test and five invented names in the icon-grid demo — which is twice more
 than a string with a fixed vocabulary should manage.
 */
 // `svg-icons` builds SVG through tosijs, so it needs a DOM before import.
-let icons: typeof import('./svg-icons')
+let icons: typeof import('./svg-icons.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -27,7 +27,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  icons = await import('./svg-icons')
+  icons = await import('./svg-icons.js')
 })
 
 describe('every icon name in the source RESOLVES', () => {

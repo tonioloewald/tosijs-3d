@@ -24,7 +24,7 @@ import { hudTrace, horizonTransform } from 'tosijs-3d'
 ```
 */
 /*{ "parent": "Core", "order": 900 }*/
-import { sub, rotateVector, quatConjugate, } from './spatial-transform';
+import { sub, rotateVector, quatConjugate, } from './spatial-transform.js';
 /**
  * Rough centroid of an SVG path's coordinates → which side of the 256px HUD centre
  * (128,128) it sits on. Used to tag the four gauge arcs by side.

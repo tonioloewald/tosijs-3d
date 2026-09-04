@@ -23,8 +23,8 @@ import {
   shiftHue,
   validateProgram,
   type LightProgram,
-} from './light-modulation'
-import type { CurveIssue } from './curve'
+} from './light-modulation.js'
+import type { CurveIssue } from './curve.js'
 
 /** What kind of lamp. Matches the three `b3d-lamp` elements. */
 export type LightKind = 'point' | 'spot' | 'area'

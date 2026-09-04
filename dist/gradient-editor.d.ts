@@ -1,5 +1,5 @@
 import { Component } from 'tosijs';
-import { PiecewiseLinearFilter } from './gradient-filter';
+import { PiecewiseLinearFilter } from './gradient-filter.js';
 export declare class GradientEditor extends Component {
     static preferredTagName: string;
     static initAttributes: {

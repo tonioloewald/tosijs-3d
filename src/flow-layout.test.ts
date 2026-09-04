@@ -5,7 +5,7 @@ import {
   placePopup,
   type FlowItem,
   type FlowBox,
-} from './flow-layout'
+} from './flow-layout.js'
 
 const block = (height: number): FlowItem => ({ kind: 'block', height })
 const inline = (width: number, height: number): FlowItem => ({

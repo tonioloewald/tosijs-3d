@@ -1,5 +1,5 @@
-import { type ControlPoint, type CurveKind } from './curve';
-import type { Widget3d } from './widgets3d';
+import { type ControlPoint, type CurveKind } from './curve.js';
+import type { Widget3d } from './widgets3d.js';
 export interface Curve3dOptions {
     /** `profile` (both ends free) or `falloff` (pinned to 0 at x = 1). */
     kind?: CurveKind;

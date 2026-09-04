@@ -22,11 +22,11 @@ things that actually broke last time and that a flat demo cannot catch:
      `scrollBy` are hung off the element, and anything that replaces the
      element's children detaches them.
 */
-let w3d: typeof import('./widgets3d')
-let curve: typeof import('./curve-field')
-let footprint: typeof import('./footprint-field')
-let vector: typeof import('./vector-field')
-let grid: typeof import('./icon-grid')
+let w3d: typeof import('./widgets3d.js')
+let curve: typeof import('./curve-field.js')
+let footprint: typeof import('./footprint-field.js')
+let vector: typeof import('./vector-field.js')
+let grid: typeof import('./icon-grid.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -39,11 +39,11 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  w3d = await import('./widgets3d')
-  curve = await import('./curve-field')
-  footprint = await import('./footprint-field')
-  vector = await import('./vector-field')
-  grid = await import('./icon-grid')
+  w3d = await import('./widgets3d.js')
+  curve = await import('./curve-field.js')
+  footprint = await import('./footprint-field.js')
+  vector = await import('./vector-field.js')
+  grid = await import('./icon-grid.js')
 })
 
 /*

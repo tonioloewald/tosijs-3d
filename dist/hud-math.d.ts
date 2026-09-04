@@ -1,4 +1,4 @@
-import { type Vec3, type Pose } from './spatial-transform';
+import { type Vec3, type Pose } from './spatial-transform.js';
 /** A HUD gauge-frame side (bottom = ground, i.e. PULL UP). */
 export type Side = 'left' | 'right' | 'top' | 'bottom';
 /**

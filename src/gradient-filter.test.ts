@@ -3,7 +3,7 @@ import {
   PiecewiseLinearFilter,
   identityFilter,
   plateauFilter,
-} from './gradient-filter'
+} from './gradient-filter.js'
 
 describe('PiecewiseLinearFilter', () => {
   test('identity filter returns input unchanged', () => {

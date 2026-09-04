@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import { B3dControllable } from './b3d-controllable';
-import type { ControlInput } from './control-input';
-import { carMapping } from './virtual-gamepad';
+import type { B3d } from './tosi-b3d.js';
+import { B3dControllable } from './b3d-controllable.js';
+import type { ControlInput } from './control-input.js';
+import { carMapping } from './virtual-gamepad.js';
 export declare class B3dCar extends B3dControllable {
     static preferredTagName: string;
     inputMapping: typeof carMapping;

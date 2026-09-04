@@ -1,5 +1,5 @@
 /** A column as the author declares it. */
-import type { MenuAction } from './widgets3d';
+import type { MenuAction } from './widgets3d.js';
 export interface ColumnSpec {
     /** Identifies the column (and which field of a row it reads). */
     key: string;

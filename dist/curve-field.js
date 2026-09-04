@@ -310,9 +310,9 @@ preview.append(
 */
 /*{ "parent": "UI", "order": 260 }*/
 import { svgElements } from 'tosijs';
-import { deletePoint, evaluateCurve, insertPoint, linear, movePoint, moveMarker, normalizeMarkers, normalizeCurve, canonicalCurve, presetsFor, falloffDefault, } from './curve';
-import { w3dTheme } from './w3d-theme';
-import { handlerOf } from './widgets3d';
+import { deletePoint, evaluateCurve, insertPoint, linear, movePoint, moveMarker, normalizeMarkers, normalizeCurve, canonicalCurve, presetsFor, falloffDefault, } from './curve.js';
+import { w3dTheme } from './w3d-theme.js';
+import { handlerOf } from './widgets3d.js';
 const { g, rect, path, circle, text } = svgElements;
 /**
  * Make a shared marker set.

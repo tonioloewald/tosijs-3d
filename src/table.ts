@@ -87,7 +87,7 @@ const t = table({
   ],
   height: 190,
   selection: 'multi',
-  onSelect: (ids) => {
+  handleSelect: (ids) => {
     readout.textContent = ids.length ? `Selected ${ids.length}: ${ids.slice(0, 4).join(', ')}${ids.length > 4 ? '…' : ''}` : 'No selection.'
   },
 })
@@ -160,12 +160,17 @@ import {
   rowAt,
   type ColumnSpec,
   type ColumnRect,
-} from './table-layout'
-import { selectionIcon, applySelection, type SelectionMode } from './selection'
-import { iconGlyph } from './svg-icons'
-import { openMenu3d } from './widgets3d'
-import type { Widget3d, PointerKind, WidgetHost } from './widgets3d'
-import { w3dTheme } from './w3d-theme'
+} from './table-layout.js'
+import {
+  selectionIcon,
+  applySelection,
+  type SelectionMode,
+} from './selection.js'
+import { iconGlyph } from './svg-icons.js'
+import { openMenu3d } from './widgets3d.js'
+import { handlerOf } from './handler-of.js'
+import type { Widget3d, PointerKind, WidgetHost } from './widgets3d.js'
+import { w3dTheme } from './w3d-theme.js'
 
 const { g, rect, text, clipPath } = svgElements
 
@@ -247,12 +252,21 @@ export interface TableOptions {
    * re-supply everything. Set `filter` on the returned table to change it.
    */
   filter?: (row: TableRow) => boolean
+  handleSelect?: (ids: string[]) => void
+  /** @deprecated use `handleSelect` — removed in 0.9. */
   onSelect?: (ids: string[]) => void
   /** Row activated (a second click / Enter) — distinct from selecting it. */
+  handleActivate?: (row: TableRow) => void
+  /** @deprecated use `handleActivate` — removed in 0.9. */
   onActivate?: (row: TableRow) => void
 }
 
 export function table(config: TableOptions): Table {
+  const cfg = config as unknown as Record<string, unknown>
+  const selected$ = (): ((ids: string[]) => void) | undefined =>
+    handlerOf(cfg, 'handleSelect', 'onSelect')
+  const activated$ = (): ((row: TableRow) => void) | undefined =>
+    handlerOf(cfg, 'handleActivate', 'onActivate')
   const ROW_H = config.rowHeight ?? 28
   const HEAD_H = config.headerHeight ?? 26
   const BODY_H = config.height ?? 180
@@ -545,13 +559,13 @@ export function table(config: TableOptions): Table {
         allowDeselect: config.allowDeselect,
       })
       paintBody()
-      config.onSelect?.([...selected])
+      selected$()?.([...selected])
       // Committing an already-selected row reads as "open it" — the second half of
       // select-then-activate, without a double-click (a poor fit for a VR ray, and
       // impossible to express on a D-pad).
-      if (was && selected.has(row.id)) config.onActivate?.(row)
+      if (was && selected.has(row.id)) activated$()?.(row)
     } else {
-      config.onActivate?.(row)
+      activated$()?.(row)
     }
   }
 
@@ -643,7 +657,7 @@ export function table(config: TableOptions): Table {
         }
       scroll = clampScroll(scroll)
       paintBody()
-      if (changed) config.onSelect?.([...selected])
+      if (changed) selected$()?.([...selected])
     },
     setHost(h: WidgetHost) {
       host = h

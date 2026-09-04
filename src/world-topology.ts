@@ -38,7 +38,7 @@ import type {
   Place,
   Proximity,
   Shape,
-} from './world-contract'
+} from './world-contract.js'
 
 /**
  * How the ladder's bands stretch with a place's `extent`. The numbers are the multiplier on the

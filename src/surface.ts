@@ -36,14 +36,14 @@ const H = 260
 const readout = div({ style: 'margin:6px 16px 16px;color:#8ea;font:13px system-ui' }, 'Pick a menu item.')
 
 const items = [
-  { label: 'Talk', onSelect: () => (readout.textContent = 'Selected: Talk') },
-  { label: 'Trade', onSelect: () => (readout.textContent = 'Selected: Trade') },
+  { label: 'Talk', handleSelect: () => (readout.textContent = 'Selected: Talk') },
+  { label: 'Trade', handleSelect: () => (readout.textContent = 'Selected: Trade') },
   {
     label: 'More',
     submenu: [
-      { label: 'Inspect', onSelect: () => (readout.textContent = 'Selected: Inspect') },
-      { label: 'Give', onSelect: () => (readout.textContent = 'Selected: Give') },
-      { label: 'Leave', onSelect: () => (readout.textContent = 'Selected: Leave') },
+      { label: 'Inspect', handleSelect: () => (readout.textContent = 'Selected: Inspect') },
+      { label: 'Give', handleSelect: () => (readout.textContent = 'Selected: Give') },
+      { label: 'Leave', handleSelect: () => (readout.textContent = 'Selected: Leave') },
     ],
   },
 ]
@@ -59,8 +59,8 @@ const debugRows = () => box(
 
 const make = () => {
   const s = surface({ width: W, height: H })
-  const menuBtn = button('Menu  ▾', { onActivate: () => openMenu(s, s.__triggerRect, items, 'below') })
-  const dbgBtn = button('Debug  ▾', { onActivate: () => toggleDebug() })
+  const menuBtn = button('Menu  ▾', { handleActivate: () => openMenu(s, s.__triggerRect, items, 'below') })
+  const dbgBtn = button('Debug  ▾', { handleActivate: () => toggleDebug() })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: '#12151c' },
     textBlock('Menus + panels', { font: { size: 18, weight: 600 }, color: '#e6e6e6' }),
@@ -165,9 +165,16 @@ preview.append(
 /*{ "parent": "UI", "order": 300 }*/
 
 import { svgElements } from 'tosijs'
-import { placePopup, type FlowBox, type PopupSide } from './flow-layout'
-import { box, button, NO_SELECT_STYLE, type Box, type PointerKind } from './box'
-import { w3dTheme } from './w3d-theme'
+import { handlerOf } from './handler-of.js'
+import { placePopup, type FlowBox, type PopupSide } from './flow-layout.js'
+import {
+  box,
+  button,
+  NO_SELECT_STYLE,
+  type Box,
+  type PointerKind,
+} from './box.js'
+import { w3dTheme } from './w3d-theme.js'
 
 /** A live popup on a {@link Surface}. */
 export interface Popup {
@@ -565,6 +572,8 @@ export function surface(opts: { width: number; height: number }): Surface {
 
 export interface MenuItem {
   label: string
+  handleSelect?: (item: MenuItem) => void
+  /** @deprecated use `handleSelect` — removed in 0.9. */
   onSelect?: (item: MenuItem) => void
   submenu?: MenuItem[]
 }
@@ -585,7 +594,7 @@ export function openMenu(
     button(item.submenu ? item.label + '   ▸' : item.label, {
       block: true,
       background: '#232a36',
-      onActivate: () => {
+      handleActivate: () => {
         if (item.submenu) {
           const r = popup.box.childRect(i)
           if (r)
@@ -602,7 +611,11 @@ export function openMenu(
               menuWidth
             )
         } else {
-          item.onSelect?.(item)
+          handlerOf<(i: MenuItem) => void>(
+            item as unknown as Record<string, unknown>,
+            'handleSelect',
+            'onSelect'
+          )?.(item)
           // Menus only — a leaf select must not take persistent panels with it.
           s.closeMenus()
         }

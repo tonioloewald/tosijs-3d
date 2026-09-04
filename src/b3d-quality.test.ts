@@ -12,8 +12,8 @@ import {
   qualityBudgets,
   resolveBudget,
   onQualityChange,
-} from './b3d-quality'
-import { resolveProfile, budgetsForTier } from './perf-probe'
+} from './b3d-quality.js'
+import { resolveProfile, budgetsForTier } from './perf-probe.js'
 
 const FAST = { fillMs: 1, vertexMs: 1, drawCallMs: 1, cpuMs: 1 }
 const SLOW = { fillMs: 40, vertexMs: 30, drawCallMs: 30, cpuMs: 40 }

@@ -1,6 +1,6 @@
-import { B3dChild } from './b3d-utils';
-import { type MeterName, type TraceKind, type HudWarning } from './hud';
-import type { B3d } from './tosi-b3d';
+import { B3dChild } from './b3d-utils.js';
+import { type MeterName, type TraceKind, type HudWarning } from './hud.js';
+import type { B3d } from './tosi-b3d.js';
 import * as BABYLON from '@babylonjs/core';
 export declare class B3dHud extends B3dChild {
     static preferredTagName: string;

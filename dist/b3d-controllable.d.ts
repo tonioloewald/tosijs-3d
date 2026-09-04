@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
-import type { ControlInput, InputProvider } from './control-input';
-import type { InputMapping } from './virtual-gamepad';
+import { AbstractMesh } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
+import type { ControlInput, InputProvider } from './control-input.js';
+import type { InputMapping } from './virtual-gamepad.js';
 export declare class B3dControllable extends AbstractMesh {
     inputProvider: InputProvider | null;
     inputMapping?: InputMapping;

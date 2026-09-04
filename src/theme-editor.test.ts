@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
-let te: typeof import('./theme-editor')
-let theme: typeof import('./w3d-theme')
+let te: typeof import('./theme-editor.js')
+let theme: typeof import('./w3d-theme.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -15,8 +15,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  te = await import('./theme-editor')
-  theme = await import('./w3d-theme')
+  te = await import('./theme-editor.js')
+  theme = await import('./w3d-theme.js')
 })
 
 describe('themeEditor — injected colour controls', () => {

@@ -16,7 +16,7 @@ have to instantiate a UI to do it. Same discipline as `world-store` versus
 `world-view`, and `fly-by-wire` versus `b3d-aircraft`.
 */
 /*{ "parent": "UI", "order": 265 }*/
-import { canonicalProgram, lightProgramSchema, shiftHue, validateProgram, } from './light-modulation';
+import { canonicalProgram, lightProgramSchema, shiftHue, validateProgram, } from './light-modulation.js';
 export const DEFAULT_LIGHT = {
     kind: 'point',
     on: true,

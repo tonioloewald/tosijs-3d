@@ -1,11 +1,11 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
-import type { PanelGestureAction } from './b3d-svg-plane'
+import type { PanelGestureAction } from './b3d-svg-plane.js'
 
 // b3d-svg-plane pulls in tosijs (needs a DOM at import), so shim first. The
 // functions under test are pure; the DOM is import-time baggage only.
-let panelGesture: typeof import('./b3d-svg-plane').panelGesture
-let uvToViewBox: typeof import('./b3d-svg-plane').uvToViewBox
-let planeLocalToViewBox: typeof import('./b3d-svg-plane').planeLocalToViewBox
+let panelGesture: typeof import('./b3d-svg-plane.js').panelGesture
+let uvToViewBox: typeof import('./b3d-svg-plane.js').uvToViewBox
+let planeLocalToViewBox: typeof import('./b3d-svg-plane.js').planeLocalToViewBox
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -19,7 +19,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  const m = await import('./b3d-svg-plane')
+  const m = await import('./b3d-svg-plane.js')
   panelGesture = m.panelGesture
   uvToViewBox = m.uvToViewBox
   planeLocalToViewBox = m.planeLocalToViewBox

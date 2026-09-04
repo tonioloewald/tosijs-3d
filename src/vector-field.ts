@@ -96,19 +96,21 @@ preview.append(
 /*{ "parent": "UI", "order": 250 }*/
 
 import { svgElements } from 'tosijs'
-import { inputField, type InputField } from './keyboard'
-import { w3dTheme } from './w3d-theme'
-import { handlerOf } from './widgets3d'
-import type { PointerKind, Widget3d } from './widgets3d'
+import { inputField, type InputField } from './keyboard.js'
+import { w3dTheme } from './w3d-theme.js'
+import { handlerOf } from './widgets3d.js'
+import type { PointerKind, Widget3d } from './widgets3d.js'
 // The existing one — structurally identical, and a second `Vec3` in the barrel
 // would be a name collision that says nothing.
-import type { Vec3 } from './surface-sampler'
+import type { Vec3 } from './surface-sampler.js'
 
 const { g, text } = svgElements
 
 export interface Vector3dOptions {
   value?: Vec3
   /** Fired on every committed edit — typing, scrubbing, or a step. */
+  handleChange?: (value: Vec3) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (value: Vec3) => void
   /** Arrow-key / typed increment. */
   step?: number
@@ -201,7 +203,7 @@ function coordinateRow(
       // min/max only reaches a non-wrapping row.
       min: settle === identity ? config.min : undefined,
       max: settle === identity ? config.max : undefined,
-      onChange: (raw: string) => {
+      handleChange: (raw: string) => {
         const n = Number(raw)
         if (!Number.isFinite(n)) return
         const v = settle(n)

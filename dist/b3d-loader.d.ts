@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import { B3dChild } from './b3d-utils';
-import type { CombatEvent, ChainLink } from './destroyable';
+import type { B3d } from './tosi-b3d.js';
+import { B3dChild } from './b3d-utils.js';
+import type { CombatEvent, ChainLink } from './destroyable.js';
 export declare class B3dLoader extends B3dChild {
     static preferredTagName: string;
     static initAttributes: {

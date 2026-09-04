@@ -56,9 +56,9 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
+import type { B3d } from './tosi-b3d.js'
 
 export class B3dLight extends B3dChild {
   static preferredTagName = 'tosi-b3d-light'

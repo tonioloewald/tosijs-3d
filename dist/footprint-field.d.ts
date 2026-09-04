@@ -1,5 +1,5 @@
-import { type ControlPoint } from './curve';
-import type { Widget3d } from './widgets3d';
+import { type ControlPoint } from './curve.js';
+import type { Widget3d } from './widgets3d.js';
 export interface Footprint3dOptions {
     /** Starting vertices, a preset name (`'hexagon'`), or a side count. */
     value?: ControlPoint[] | string | number;

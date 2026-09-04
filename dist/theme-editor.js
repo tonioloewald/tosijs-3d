@@ -37,7 +37,7 @@ instead.
 */
 /*{ "parent": "UI", "order": 270 }*/
 import { elements } from 'tosijs';
-import { setW3dTheme, w3dTheme } from './w3d-theme';
+import { setW3dTheme, w3dTheme } from './w3d-theme.js';
 const { div, label, select, option, span, input, h3 } = elements;
 /**
  * One metric for every control, so the rows line up.

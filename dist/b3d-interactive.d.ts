@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
-import { type InteractionInfo } from './interactive-behavior';
+import { B3dChild } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
+import { type InteractionInfo } from './interactive-behavior.js';
 export declare class B3dInteractive extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {
@@ -55,7 +55,7 @@ export declare class B3dInteractive extends B3dChild {
      */
     get debugState(): {
         enabled: boolean;
-        phase: import("./interaction").InteractPhase;
+        phase: import("./interaction.js").InteractPhase;
         armed: boolean;
         meshes: string[];
         reach: number;

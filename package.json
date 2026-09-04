@@ -17,6 +17,10 @@
       "types": "./dist/demo-utils.d.ts",
       "default": "./dist/demo-utils.js"
     },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
+    },
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.ts",

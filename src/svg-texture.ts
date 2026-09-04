@@ -72,7 +72,7 @@ before it is paid.
 /*{ "parent": "UI", "order": 530 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { svgFontStyle } from './embed-font'
+import { svgFontStyle } from './embed-font.js'
 
 export type SvgTextureOptions = {
   /** The Babylon scene that owns this texture. */

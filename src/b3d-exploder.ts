@@ -91,7 +91,7 @@ preview.append(
 /*{ "parent": "Effects" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { sceneDelta } from './b3d-utils'
+import { sceneDelta } from './b3d-utils.js'
 
 export interface ExplodeOptions {
   /** Number of fragments to create (default: 20) */

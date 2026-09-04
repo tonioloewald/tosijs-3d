@@ -1,4 +1,4 @@
-import { type W3dTheme } from './w3d-theme';
+import { type W3dTheme } from './w3d-theme.js';
 /**
  * Generic families first — they always resolve, whatever the platform — then
  * faces that ship on both macOS and Windows.

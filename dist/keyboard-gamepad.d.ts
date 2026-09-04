@@ -1,5 +1,5 @@
 import { Component } from 'tosijs';
-import type { VirtualGamepad, GamepadSource } from './virtual-gamepad';
+import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js';
 export declare class KeyboardGamepadSource extends Component implements GamepadSource {
     static preferredTagName: string;
     readonly kind = "keyboard";

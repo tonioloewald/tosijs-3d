@@ -42,7 +42,7 @@ curve fighting you.
 */
 /*{ "parent": "Utilities", "order": 260 }*/
 
-import { PiecewiseLinearFilter, type ControlPoint } from './gradient-filter'
+import { PiecewiseLinearFilter, type ControlPoint } from './gradient-filter.js'
 
 export type { ControlPoint }
 

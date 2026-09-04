@@ -194,13 +194,17 @@ preview.append(
 ```
 */
 
-import { w3dTheme } from './w3d-theme'
+import { w3dTheme } from './w3d-theme.js'
 import { elements, svgElements, varDefault, type ElementPart } from 'tosijs'
-import iconData from './icon-data'
-import { parseStyleSuffixes, mergeIconStyle, type IconStyle } from './icon-name'
+import iconData from './icon-data.js'
+import {
+  parseStyleSuffixes,
+  mergeIconStyle,
+  type IconStyle,
+} from './icon-name.js'
 
 export { iconData }
-export type { IconStyle } from './icon-name'
+export type { IconStyle } from './icon-name.js'
 
 type IconMap = Record<string, string>
 

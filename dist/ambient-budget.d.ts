@@ -1,4 +1,4 @@
-import type { PerfTier } from './perf-probe';
+import type { PerfTier } from './perf-probe.js';
 /** What one ambient effect is asking the scene for. */
 export type AmbientRequest = {
     id: string;

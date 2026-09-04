@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { createFocusPulse } from './gamepad-focus'
-import { emptyGamepad } from './virtual-gamepad'
+import { createFocusPulse } from './gamepad-focus.js'
+import { emptyGamepad } from './virtual-gamepad.js'
 
 const pad = (over: Record<string, unknown> = {}) =>
   ({ ...emptyGamepad(), ...over } as any)
@@ -139,7 +139,7 @@ describe('gamepadFocus — claim (one pad, several UIs)', () => {
 
   test('unclaimed: every instance responds (a lone UI needs no wiring)', async () => {
     const win = await dom()
-    const { gamepadFocus } = await import('./gamepad-focus')
+    const { gamepadFocus } = await import('./gamepad-focus.js')
     const doc = win.document
     const elA = doc.createElement('div')
     const elB = doc.createElement('div')
@@ -174,7 +174,7 @@ describe('gamepadFocus — claim (one pad, several UIs)', () => {
 
   test('a pointerdown inside one claim routes the pad THERE only — and moves with the pointer', async () => {
     const win = await dom()
-    const { gamepadFocus } = await import('./gamepad-focus')
+    const { gamepadFocus } = await import('./gamepad-focus.js')
     const doc = win.document
     const elA = doc.createElement('div')
     const elB = doc.createElement('div')
@@ -220,7 +220,7 @@ describe('gamepadFocus — claim (one pad, several UIs)', () => {
 
   test('stopping the claimed instance releases the claim', async () => {
     const win = await dom()
-    const { gamepadFocus } = await import('./gamepad-focus')
+    const { gamepadFocus } = await import('./gamepad-focus.js')
     const doc = win.document
     const elA = doc.createElement('div')
     const elB = doc.createElement('div')
@@ -263,7 +263,7 @@ describe('gamepadFocus — a claimless instance is not starved forever', () => {
       g.window ??= w
       return (globalThis as any).window
     })()
-    const { gamepadFocus } = await import('./gamepad-focus')
+    const { gamepadFocus } = await import('./gamepad-focus.js')
     const doc = win.document
     const elA = doc.createElement('div')
     const outside = doc.createElement('div')

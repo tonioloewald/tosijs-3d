@@ -10,7 +10,7 @@ import {
   dist3,
   type WarheadSpec,
   type AoeTarget,
-} from './warhead'
+} from './warhead.js'
 
 const SPEC: WarheadSpec = { damage: 100, fullRadius: 2, blastRadius: 10 }
 

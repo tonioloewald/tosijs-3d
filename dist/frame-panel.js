@@ -27,10 +27,10 @@ import { attachFramePanel } from 'tosijs-3d'
 */
 /*{ "parent": "Core" }*/
 import * as BABYLON from '@babylonjs/core';
-import { SvgTexture } from './svg-texture';
-import { markUiMesh } from './b3d-utils';
-import { gazeReveal } from './xr-frames';
-import { faceViewer } from './dialog-placement';
+import { SvgTexture } from './svg-texture.js';
+import { markUiMesh } from './b3d-utils.js';
+import { gazeReveal } from './xr-frames.js';
+import { faceViewer } from './dialog-placement.js';
 const XR_FORWARD = new BABYLON.Vector3(0, 0, 1);
 const DEG = Math.PI / 180;
 // Angular presets measured from the mean-eye point, all at the same comfortable

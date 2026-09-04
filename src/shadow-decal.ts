@@ -74,7 +74,7 @@ visibility. See [b3d-clouds](?b3d-clouds.ts), the first consumer.
 /*{ "parent": "Effects" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { collidable } from './b3d-utils'
+import { collidable } from './b3d-utils.js'
 
 const TEX_CACHE = new WeakMap<BABYLON.Scene, BABYLON.DynamicTexture>()
 const MAT_CACHE = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()

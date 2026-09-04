@@ -29,7 +29,7 @@ import { XrGamepadSource } from 'tosijs-3d'
 ```
 */
 /*{ "parent": "Input", "order": 900 }*/
-import { emptyGamepad, } from './virtual-gamepad';
+import { emptyGamepad, } from './virtual-gamepad.js';
 export class XrGamepadSource {
     controllers;
     kind = 'xr';

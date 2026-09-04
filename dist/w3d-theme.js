@@ -61,7 +61,7 @@ const makePanel = () => {
   const field = ui.inputField({
     placeholder: 'type here…',
     value: demo.name.value,
-    onChange: (v) => { demo.name = v },
+    handleChange: (v) => { demo.name = v },
   })
   const panel = panel3d(
     { width: 300 },

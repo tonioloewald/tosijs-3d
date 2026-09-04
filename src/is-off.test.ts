@@ -4,7 +4,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 // of the tosijs#24 footgun (a wrong-typed `foo: false` write is silently
 // discarded upstream, but values that DO arrive as false/'false' from a UI
 // toggle must still read as off). The review flagged it untested.
-let isOff: typeof import('./b3d-utils').isOff
+let isOff: typeof import('./b3d-utils.js').isOff
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -18,7 +18,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  isOff = (await import('./b3d-utils')).isOff
+  isOff = (await import('./b3d-utils.js')).isOff
 })
 
 describe('isOff', () => {
@@ -39,9 +39,9 @@ describe('isOff', () => {
 })
 
 describe('conventionName — .model is invisible to suffix parsing', () => {
-  let conventionName: typeof import('./b3d-utils').conventionName
+  let conventionName: typeof import('./b3d-utils.js').conventionName
   beforeAll(async () => {
-    conventionName = (await import('./b3d-utils')).conventionName
+    conventionName = (await import('./b3d-utils.js')).conventionName
   })
 
   test('a plain export marker strips clean', () => {

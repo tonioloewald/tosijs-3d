@@ -9,7 +9,7 @@ import {
   ballisticAim,
   type BallisticParams,
   type BallisticState,
-} from './ballistics'
+} from './ballistics.js'
 
 const G: BallisticParams = {
   gravity: { x: 0, y: -10, z: 0 },

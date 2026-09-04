@@ -1,5 +1,14 @@
 # TODO
 
+- **The barrel does not EVALUATE in bare Node** — `import('tosijs-3d')` resolves
+  every module now (0.8.0 fixed that) and then dies on `HTMLElement is not
+defined`, because importing it registers custom elements. The pure subpaths
+  (`tosijs-3d/light-settings`, `…/curve`, `…/world-store`) work, which covers
+  headless validation, so this is only a problem for someone wanting the whole
+  barrel under Node. Fix would be deferring element registration to first use.
+  **Asked tosijs-3d-ensemble whether they actually need it** (#69) rather than
+  guessing — do not build it until they answer.
+
 - **A nested `/* … */` inside a `/*# … */` doc comment silently truncates the
   page — add a build-time guard.** Block comments do not nest, so the inner
   `*/` ends the doc; everything after it vanishes from the site and the rest of
@@ -16,17 +25,6 @@
   `handleChange` to `inputField`, which reads `onChange`. Every one of them
   compiles, runs, and does nothing. A pass that extracts each demo and
   type-checks it against the built `.d.ts` would have caught all three.
-
-- **`handleX` vs `onX` is inconsistent across the widget factories, and that
-  inconsistency is what caused the bugs above.** `curve3d`, `footprint3d` and
-  `vector3d` accept BOTH via the `handlerOf` shim (warning on the old name);
-  `inputField`, `keyboard`, `table`, `surface`, `box` and `b3dLauncher` accept
-  only `onX`. So whether `handleChange` works depends on which widget you are
-  holding, with no error when it does not. CLAUDE.md says not to rename the
-  plain factories — that rule is about not treating `onFoo` as the component
-  creator footgun, which it is not here. **The decision to make is whether the
-  `handlerOf` shim should simply cover them all**, which would make the answer
-  "`handleX` always works" without breaking a single existing caller.
 
 - **Camera zoom is unreachable in VR.** `cameraZoom` moved to the D-pad and XR
   controllers have no D-pad; the right stick's vertical axis is now the view

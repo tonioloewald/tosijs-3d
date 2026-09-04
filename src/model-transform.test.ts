@@ -5,7 +5,7 @@
  */
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test'
 import * as BABYLON from '@babylonjs/core'
-import { normalizeScale } from './model-transform'
+import { normalizeScale } from './model-transform.js'
 
 let engine: BABYLON.NullEngine
 let scene: BABYLON.Scene
@@ -66,7 +66,7 @@ describe('normalizeScale', () => {
   })
 })
 
-import { canonicalize } from './model-transform'
+import { canonicalize } from './model-transform.js'
 
 describe('canonicalize (wrapper)', () => {
   test('hierarchy w/ scale + odd orientation → unit-scale wrapper, nose +Z', () => {
@@ -174,7 +174,7 @@ describe('canonicalize (wrapper)', () => {
   })
 })
 
-import { findCenterOfGravity, applyCenterOfGravity } from './model-transform'
+import { findCenterOfGravity, applyCenterOfGravity } from './model-transform.js'
 
 describe('the _centerOfGravity marker (vehicle node convention)', () => {
   const build = (markerName: string) => {
@@ -275,7 +275,7 @@ silently lose one.
 describe('publicName — what the consumer sees', () => {
   // b3d-utils reaches tosijs, which wants a DOM at import time — same standup
   // as stick-sign/pause-clock, so the import has to be dynamic.
-  let publicName: typeof import('./b3d-utils').publicName
+  let publicName: typeof import('./b3d-utils.js').publicName
   beforeAll(async () => {
     const { Window } = await import('happy-dom')
     const win = new Window() as any
@@ -288,7 +288,7 @@ describe('publicName — what the consumer sees', () => {
         /* off-document getters */
       }
     }
-    ;({ publicName } = await import('./b3d-utils'))
+    ;({ publicName } = await import('./b3d-utils.js'))
   })
 
   test('behaviour suffixes come off', () => {
@@ -428,7 +428,7 @@ describe('shipped model: centre of gravity', () => {
   test('the scout rotates about its centreline', async () => {
     const { readFileSync } = await import('fs')
     const { canonicalize, applyCenterOfGravity } = await import(
-      './model-transform'
+      './model-transform.js'
     )
     await import('@babylonjs/loaders')
     const probe = new BABYLON.Scene(new BABYLON.NullEngine())

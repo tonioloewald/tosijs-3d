@@ -30,8 +30,8 @@ origin safe), plain `evaluate(t)` filters work unchanged.
 | `terraceProfile` | steps with sloped risers | terraced hills |
 */
 /*{ "parent": "environment", "order": 900 }*/
-import { PiecewiseLinearFilter, plateauFilter, } from './gradient-filter';
-import { PerlinNoise } from './perlin-noise';
+import { PiecewiseLinearFilter, plateauFilter, } from './gradient-filter.js';
+import { PerlinNoise } from './perlin-noise.js';
 /** Sea cliffs: a flat low shelf (the water/beach line), a sharp riser, a flat
  * top. `shelf` is where the riser starts (0..1 of the height range); `rise`
  * its width — smaller = sheerer. */

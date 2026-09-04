@@ -111,8 +111,8 @@ import type {
   GamepadSource,
   VirtualGamepad,
   MappingLabels,
-} from './virtual-gamepad'
-import { emptyGamepad } from './virtual-gamepad'
+} from './virtual-gamepad.js'
+import { emptyGamepad } from './virtual-gamepad.js'
 
 // data-part value → VirtualGamepad button field
 const BUTTON_MAP: Record<string, keyof VirtualGamepad> = {

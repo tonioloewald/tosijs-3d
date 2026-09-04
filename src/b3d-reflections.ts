@@ -67,11 +67,11 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Effects" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import { conventionName } from './b3d-utils'
-import { resolveBudget } from './b3d-quality'
-import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
+import { conventionName } from './b3d-utils.js'
+import { resolveBudget } from './b3d-quality.js'
+import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dReflections extends B3dChild {
   static preferredTagName = 'tosi-b3d-reflections'

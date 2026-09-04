@@ -6,7 +6,7 @@ import {
   maxScroll,
   rowAt,
   columnAt,
-} from './table-layout'
+} from './table-layout.js'
 
 describe('resolveColumns — fixed + flex', () => {
   test('fixed widths are honoured exactly', () => {

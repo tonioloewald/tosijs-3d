@@ -304,12 +304,12 @@ faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
-import { canonicalize, applyCenterOfGravity } from './model-transform';
-import { B3dControllable } from './b3d-controllable';
-import { aircraftMapping } from './virtual-gamepad';
-import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire';
-import { placeOnSurface, boundingBottomOffset, isOff, collidable, } from './b3d-utils';
-import { spawnProjectile, spawnMissile } from './b3d-launcher';
+import { canonicalize, applyCenterOfGravity } from './model-transform.js';
+import { B3dControllable } from './b3d-controllable.js';
+import { aircraftMapping } from './virtual-gamepad.js';
+import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire.js';
+import { placeOnSurface, boundingBottomOffset, isOff, collidable, } from './b3d-utils.js';
+import { spawnProjectile, spawnMissile } from './b3d-launcher.js';
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05;
 const DEG2RAD = Math.PI / 180;

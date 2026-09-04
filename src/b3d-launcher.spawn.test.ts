@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import * as BABYLON from '@babylonjs/core'
-import { NullEngine } from '@babylonjs/core/Engines/nullEngine'
+import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js'
 
 // b3d-launcher.ts also defines a tosijs Component (needs a DOM). Stub the few globals
 // the module touches at load so we can import + exercise the pure projectile mechanism
@@ -27,7 +27,7 @@ g.addEventListener ??= () => {}
 g.window ??= g
 
 // Imported AFTER the globals above — b3d-launcher registers a tosijs Component at load.
-const { spawnMissile } = await import('./b3d-launcher')
+const { spawnMissile } = await import('./b3d-launcher.js')
 
 /** Frame time we feed the headless engine — the missile traces below convert with it. */
 const DT_MS = 16
@@ -56,7 +56,7 @@ function makeOwner(scene: BABYLON.Scene): any {
 
 describe('spawnProjectile — the mechanism behind launcher.fire()', () => {
   test('creates a projectile mesh and moves it along its velocity', async () => {
-    const { spawnProjectile } = await import('./b3d-launcher')
+    const { spawnProjectile } = await import('./b3d-launcher.js')
     const scene = makeScene()
     spawnProjectile(makeOwner(scene), {
       origin: new BABYLON.Vector3(0, 5, 0),
@@ -105,7 +105,7 @@ describe('impact carries the surface normal, not just the point', () => {
   }
 
   test('a hit reports point, world normal and the mesh struck', async () => {
-    const { spawnProjectile } = await import('./b3d-launcher')
+    const { spawnProjectile } = await import('./b3d-launcher.js')
     const scene = makeScene()
     const wall = wallAt(scene, 6)
     let got: any = null
@@ -131,7 +131,7 @@ describe('impact carries the surface normal, not just the point', () => {
   })
 
   test('the deprecated onImpact still fires, with the point only', async () => {
-    const { spawnProjectile } = await import('./b3d-launcher')
+    const { spawnProjectile } = await import('./b3d-launcher.js')
     const scene = makeScene()
     wallAt(scene, 6)
     const seen: BABYLON.Vector3[] = []
@@ -149,7 +149,7 @@ describe('impact carries the surface normal, not just the point', () => {
   })
 
   test('BOTH fire when both are given — the old spelling is an alias, not a fork', async () => {
-    const { spawnProjectile } = await import('./b3d-launcher')
+    const { spawnProjectile } = await import('./b3d-launcher.js')
     const scene = makeScene()
     wallAt(scene, 6)
     let newCount = 0
@@ -332,7 +332,7 @@ degrees alias that quietly steered differently would be worse than no alias.
 */
 describe('turnRateDeg — the same knob, in the unit you think in', () => {
   test('a missile given degrees flies the identical path to its radian twin', async () => {
-    const { spawnMissile } = await import('./b3d-launcher')
+    const { spawnMissile } = await import('./b3d-launcher.js')
 
     const path = (opts: Record<string, unknown>) => {
       const scene = makeScene()
@@ -378,7 +378,7 @@ describe('turnRateDeg — the same knob, in the unit you think in', () => {
 
 describe('the element exposes the same conversion', () => {
   test('setting degrees sets radians, and reading back round-trips', async () => {
-    const { B3dLauncher } = await import('./b3d-launcher')
+    const { B3dLauncher } = await import('./b3d-launcher.js')
     const el = Object.create(B3dLauncher.prototype) as any
     el.turnRate = 3
     expect(el.turnRateDeg).toBeCloseTo(3 * (180 / Math.PI))
@@ -395,7 +395,7 @@ describe('the element exposes the same conversion', () => {
   guessed at.
   */
   test('returns EXACTLY what you set — no float drift', async () => {
-    const { B3dLauncher } = await import('./b3d-launcher')
+    const { B3dLauncher } = await import('./b3d-launcher.js')
     const el = Object.create(B3dLauncher.prototype) as any
     expect(30 * (Math.PI / 180) * (180 / Math.PI)).not.toBe(30) // the hazard
     el.turnRateDeg = 30
@@ -403,7 +403,7 @@ describe('the element exposes the same conversion', () => {
   })
 
   test('a direct write to turnRate invalidates the memo', async () => {
-    const { B3dLauncher } = await import('./b3d-launcher')
+    const { B3dLauncher } = await import('./b3d-launcher.js')
     const el = Object.create(B3dLauncher.prototype) as any
     el.turnRateDeg = 30
     expect(el.turnRateDeg).toBe(30)
@@ -413,7 +413,7 @@ describe('the element exposes the same conversion', () => {
   })
 
   test('re-setting turnRate to the SAME radians keeps the exact degrees', async () => {
-    const { B3dLauncher } = await import('./b3d-launcher')
+    const { B3dLauncher } = await import('./b3d-launcher.js')
     const el = Object.create(B3dLauncher.prototype) as any
     el.turnRateDeg = 30
     // A no-op write must not lose provenance — the memo keys off the VALUE,

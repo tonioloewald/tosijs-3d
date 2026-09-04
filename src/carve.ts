@@ -50,8 +50,8 @@ features), the same convention as the terrain noise, so numbers transfer.
 */
 /*{ "parent": "environment" }*/
 
-import { PerlinNoise } from './perlin-noise'
-import type { PatchField } from './patch-field'
+import { PerlinNoise } from './perlin-noise.js'
+import type { PatchField } from './patch-field.js'
 
 /** Signed distance to a carved surface — **positive inside the air**. */
 export type Carve = (x: number, y: number, z: number) => number

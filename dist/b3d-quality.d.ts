@@ -1,4 +1,4 @@
-import { type PerfProfile, type PerfBudgets, type PerfTier } from './perf-probe';
+import { type PerfProfile, type PerfBudgets, type PerfTier } from './perf-probe.js';
 /** `'auto'` = use the measured profile; a tier name forces that tier everywhere. */
 export type QualitySetting = 'auto' | PerfTier;
 /** Numeric budget keys — the ones a component resolves from an `auto` (0) sentinel.

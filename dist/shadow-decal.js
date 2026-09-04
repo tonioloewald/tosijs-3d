@@ -73,7 +73,7 @@ visibility. See [b3d-clouds](?b3d-clouds.ts), the first consumer.
 */
 /*{ "parent": "Effects" }*/
 import * as BABYLON from '@babylonjs/core';
-import { collidable } from './b3d-utils';
+import { collidable } from './b3d-utils.js';
 const TEX_CACHE = new WeakMap();
 const MAT_CACHE = new WeakMap();
 /** Lift a decal this far off the surface it sits on, to keep it out of a z-fight with the ground. */

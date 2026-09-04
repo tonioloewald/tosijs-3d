@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
+import { AbstractMesh } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
 /**
  * The material a primitive gets, from its attributes.
  *

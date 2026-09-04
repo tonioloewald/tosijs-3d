@@ -4,7 +4,7 @@ import {
   wreckFallStep,
   tumbleAxis,
   type WreckFallState,
-} from './wreck-fall'
+} from './wreck-fall.js'
 
 /** Run to rest (or give up), returning the frames taken and impact count. */
 function drop(

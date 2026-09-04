@@ -42,10 +42,10 @@ import {
   presetsFor,
   polygonVertices,
   type ControlPoint,
-} from './curve'
-import { w3dTheme } from './w3d-theme'
-import { handlerOf } from './widgets3d'
-import type { PointerKind, Widget3d } from './widgets3d'
+} from './curve.js'
+import { w3dTheme } from './w3d-theme.js'
+import { handlerOf } from './widgets3d.js'
+import type { PointerKind, Widget3d } from './widgets3d.js'
 
 const { g, rect, path, circle: svgCircle, text } = svgElements
 

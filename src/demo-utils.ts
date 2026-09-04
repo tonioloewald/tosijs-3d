@@ -72,7 +72,7 @@ import {
   b3dDeath,
   inputFocus,
   gameController,
-} from './index'
+} from './index.js'
 
 const DEG = Math.PI / 180
 

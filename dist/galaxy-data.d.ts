@@ -1,4 +1,4 @@
-import { PRNG } from './mersenne-twister';
+import { PRNG } from './mersenne-twister.js';
 export declare function capitalize(s: string): string;
 export declare function romanNumeral(n: number): string;
 export declare function randomName(prng: PRNG, numberOfSyllables: number, allowSecondName?: boolean, allowSecondary?: boolean): string;

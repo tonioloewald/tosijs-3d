@@ -38,10 +38,10 @@ document.body.append(
 */
 /*{ "parent": "Input" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
-import { B3dControllable } from './b3d-controllable';
-import { bipedMapping, } from './virtual-gamepad';
-import { CompositeInputProvider } from './control-input';
+import { B3dChild } from './b3d-utils.js';
+import { B3dControllable } from './b3d-controllable.js';
+import { bipedMapping, } from './virtual-gamepad.js';
+import { CompositeInputProvider } from './control-input.js';
 export class B3dInputFocus extends B3dChild {
     static preferredTagName = 'tosi-b3d-input-focus';
     static initAttributes = {

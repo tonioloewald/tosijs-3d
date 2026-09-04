@@ -134,7 +134,7 @@ For flicker that should not read as periodic, give the sustain segment several
 dissimilar peaks and a period that is not a round number.
 */
 /*{ "parent": "Effects", "order": 120 }*/
-import { canonicalCurve, curveSchema, evaluateCurve, validateCurve, } from './curve';
+import { canonicalCurve, curveSchema, evaluateCurve, validateCurve, } from './curve.js';
 /** The identity sample — what an unprogrammed light gets. */
 export const NO_MODULATION = {
     brightness: 1,

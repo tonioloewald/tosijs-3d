@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { angleDelta, dampYaw, facingYaw, gazeReveal } from './xr-frames'
+import { angleDelta, dampYaw, facingYaw, gazeReveal } from './xr-frames.js'
 
 const PI = Math.PI
 

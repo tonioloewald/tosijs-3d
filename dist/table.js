@@ -87,7 +87,7 @@ const t = table({
   ],
   height: 190,
   selection: 'multi',
-  onSelect: (ids) => {
+  handleSelect: (ids) => {
     readout.textContent = ids.length ? `Selected ${ids.length}: ${ids.slice(0, 4).join(', ')}${ids.length > 4 ? '…' : ''}` : 'No selection.'
   },
 })
@@ -152,11 +152,12 @@ preview.append(
 */
 /*{ "parent": "UI", "order": 220 }*/
 import { svgElements } from 'tosijs';
-import { resolveColumns, visibleRows, maxScroll, rowAt, } from './table-layout';
-import { selectionIcon, applySelection } from './selection';
-import { iconGlyph } from './svg-icons';
-import { openMenu3d } from './widgets3d';
-import { w3dTheme } from './w3d-theme';
+import { resolveColumns, visibleRows, maxScroll, rowAt, } from './table-layout.js';
+import { selectionIcon, applySelection, } from './selection.js';
+import { iconGlyph } from './svg-icons.js';
+import { openMenu3d } from './widgets3d.js';
+import { handlerOf } from './handler-of.js';
+import { w3dTheme } from './w3d-theme.js';
 const { g, rect, text, clipPath } = svgElements;
 // Theme reads live in ONE module (w3d-theme); local names for paint brevity.
 const TEXT = w3dTheme.text;
@@ -167,6 +168,9 @@ const HEADER_BG = w3dTheme.track;
 const FONT_FAMILY = w3dTheme.fontFamily;
 let seq = 0;
 export function table(config) {
+    const cfg = config;
+    const selected$ = () => handlerOf(cfg, 'handleSelect', 'onSelect');
+    const activated$ = () => handlerOf(cfg, 'handleActivate', 'onActivate');
     const ROW_H = config.rowHeight ?? 28;
     const HEAD_H = config.headerHeight ?? 26;
     const BODY_H = config.height ?? 180;
@@ -409,15 +413,15 @@ export function table(config) {
                 allowDeselect: config.allowDeselect,
             });
             paintBody();
-            config.onSelect?.([...selected]);
+            selected$()?.([...selected]);
             // Committing an already-selected row reads as "open it" — the second half of
             // select-then-activate, without a double-click (a poor fit for a VR ray, and
             // impossible to express on a D-pad).
             if (was && selected.has(row.id))
-                config.onActivate?.(row);
+                activated$()?.(row);
         }
         else {
-            config.onActivate?.(row);
+            activated$()?.(row);
         }
     };
     /**
@@ -514,7 +518,7 @@ export function table(config) {
             scroll = clampScroll(scroll);
             paintBody();
             if (changed)
-                config.onSelect?.([...selected]);
+                selected$()?.([...selected]);
         },
         setHost(h) {
             host = h;

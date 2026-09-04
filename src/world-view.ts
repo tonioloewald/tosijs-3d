@@ -98,8 +98,8 @@ preview.append(
 /*{ "parent": "World Sim" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import type { EntityId, WorldEntity } from './world-contract'
-import type { WorldStore } from './world-store'
+import type { EntityId, WorldEntity } from './world-contract.js'
+import type { WorldStore } from './world-store.js'
 
 /** Builds the Babylon mesh that represents one entity. */
 export type MeshFactory = (

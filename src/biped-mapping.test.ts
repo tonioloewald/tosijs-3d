@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { bipedMapping, type VirtualGamepad } from './virtual-gamepad'
+import { bipedMapping, type VirtualGamepad } from './virtual-gamepad.js'
 
 /**
  * A neutral pad. Every field zero, so a test states only what it presses — and

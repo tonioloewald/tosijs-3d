@@ -4,7 +4,7 @@ import { Window } from 'happy-dom'
 // svg-icons.ts pulls in tosijs (svgElements), which subclasses HTMLElement at module
 // load and builds through the DOM — so the DOM globals must exist BEFORE the import.
 // Same bootstrap as hud-trace.test.ts.
-let mod: typeof import('./svg-icons')
+let mod: typeof import('./svg-icons.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -17,7 +17,7 @@ beforeAll(async () => {
       /* off-document getters that throw — irrelevant here */
     }
   }
-  mod = await import('./svg-icons')
+  mod = await import('./svg-icons.js')
 })
 
 const FIXTURE = {

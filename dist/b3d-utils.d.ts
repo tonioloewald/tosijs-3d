@@ -1,6 +1,6 @@
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
+import type { B3d } from './tosi-b3d.js';
 export declare function findB3dOwner(el: HTMLElement): B3d | null;
 /**
  * The element's SEMANTIC parent — its nearest ancestor that isn't a tosijs slot

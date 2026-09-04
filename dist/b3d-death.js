@@ -101,13 +101,13 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, sceneDelta, collidable } from './b3d-utils';
-import { spawnPrefab } from './prefab';
-import { explosionFx } from './b3d-warhead';
-import { panel3d, label3d, button3d } from './widgets3d';
-import { panelFitWidth } from './widgets3d-layout';
-import { b3dSvgPlane } from './b3d-svg-plane';
-import { newWreckFall, wreckFallStep } from './wreck-fall';
+import { B3dChild, sceneDelta, collidable } from './b3d-utils.js';
+import { spawnPrefab } from './prefab.js';
+import { explosionFx } from './b3d-warhead.js';
+import { panel3d, label3d, button3d } from './widgets3d.js';
+import { panelFitWidth } from './widgets3d-layout.js';
+import { b3dSvgPlane } from './b3d-svg-plane.js';
+import { newWreckFall, wreckFallStep, } from './wreck-fall.js';
 const DEG = Math.PI / 180;
 /** A soft round dot for the wreck fire/smoke. A ParticleSystem with NO particleTexture emits
  * nothing (it silently produced zero particles — that was the "lost explosion"), so it needs one. */

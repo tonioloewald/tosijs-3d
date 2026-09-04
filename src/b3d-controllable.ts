@@ -38,11 +38,11 @@ import {
   simHalted,
   controlsLive,
   type SimGateOwner,
-} from './b3d-utils'
-import type { B3d } from './tosi-b3d'
-import { emptyInput } from './control-input'
-import type { ControlInput, InputProvider } from './control-input'
-import type { InputMapping } from './virtual-gamepad'
+} from './b3d-utils.js'
+import type { B3d } from './tosi-b3d.js'
+import { emptyInput } from './control-input.js'
+import type { ControlInput, InputProvider } from './control-input.js'
+import type { InputMapping } from './virtual-gamepad.js'
 
 export class B3dControllable extends AbstractMesh {
   inputProvider: InputProvider | null = null

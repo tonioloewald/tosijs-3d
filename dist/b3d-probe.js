@@ -45,9 +45,9 @@ preview.append(
 /*{ "parent": "Performance", "order": 100 }*/
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
-import { PerlinNoise } from './perlin-noise';
-import { buildSignature, readStored, writeStored, shouldRerun, isStale, resolveProfile, defaultProfile, PROBE_VERSION, DAY_MS, } from './perf-probe';
-import { setPerfProfile, getPerfProfile } from './b3d-quality';
+import { PerlinNoise } from './perlin-noise.js';
+import { buildSignature, readStored, writeStored, shouldRerun, isStale, resolveProfile, defaultProfile, PROBE_VERSION, DAY_MS, } from './perf-probe.js';
+import { setPerfProfile, getPerfProfile } from './b3d-quality.js';
 // ─── Benchmark workload sizes ─────────────────────────────────────────────────
 // Fixed so results are comparable across runs; bump PROBE_VERSION in perf-probe if
 // you change any of these (old cached measurements are only comparable within a

@@ -137,10 +137,10 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { B3dChild, sceneDelta } from './b3d-utils'
+import { B3dChild, sceneDelta } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import { PerlinNoise } from './perlin-noise'
+import type { B3d } from './tosi-b3d.js'
+import { PerlinNoise } from './perlin-noise.js'
 
 const CUBE_FACES: { origin: number[]; right: number[]; up: number[] }[] = [
   { origin: [1, -1, 1], right: [0, 0, -2], up: [0, 2, 0] },

@@ -5,7 +5,7 @@ import {
   activationVeto,
   withinReach,
   type InteractState,
-} from './interaction'
+} from './interaction.js'
 
 /** Drive a sequence of inputs, collecting the activations. */
 function run(

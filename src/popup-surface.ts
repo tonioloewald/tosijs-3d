@@ -161,19 +161,19 @@ rather than degrade.
 /*{ "parent": "UI", "order": 400 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
+import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
 import { svgElements } from 'tosijs'
-import { iconGlyph } from './svg-icons'
-import { w3dTheme } from './w3d-theme'
-import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome'
+import { iconGlyph } from './svg-icons.js'
+import { w3dTheme } from './w3d-theme.js'
+import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome.js'
 
 /** Tag a node as belonging to the TEXTURE presentation only. */
 function markPresentation<T extends Element>(el: T): T {
   el.setAttribute('data-presentation', 'texture')
   return el
 }
-import { cameraIsAttached } from './b3d-utils'
-import type { B3d } from './tosi-b3d'
+import { cameraIsAttached } from './b3d-utils.js'
+import type { B3d } from './tosi-b3d.js'
 
 export interface PopupSurfaceOptions {
   /** The panel's content. Its viewBox aspect sets the plane's height. */

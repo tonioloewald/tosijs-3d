@@ -30,12 +30,12 @@ import { XrGamepadSource } from 'tosijs-3d'
 */
 /*{ "parent": "Input", "order": 900 }*/
 
-import type { TosiXRControllerMap } from './gamepad'
+import type { TosiXRControllerMap } from './gamepad.js'
 import {
   type GamepadSource,
   type VirtualGamepad,
   emptyGamepad,
-} from './virtual-gamepad'
+} from './virtual-gamepad.js'
 
 export class XrGamepadSource implements GamepadSource {
   readonly kind = 'xr'

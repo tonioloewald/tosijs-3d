@@ -24,7 +24,7 @@ export interface DemoSunOptions {
  * on a headset, which is 4× the shadow VRAM on the tier least able to pay it.
  * Acne is handled by `shadowNormalBias` instead, which costs nothing.
  */
-export declare function demoSun(opts?: DemoSunOptions): import("./b3d-shadows").B3dSun;
+export declare function demoSun(opts?: DemoSunOptions): import("./b3d-shadows.js").B3dSun;
 export interface PatternGroundOptions {
     size?: number;
     tiles?: number;
@@ -42,7 +42,7 @@ export interface PatternGroundOptions {
  * mapping at once, which is how a scene ends up looking broken when it is
  * merely bland.
  */
-export declare function patternGround(opts?: PatternGroundOptions): import("./b3d-primitives").B3dGround;
+export declare function patternGround(opts?: PatternGroundOptions): import("./b3d-primitives.js").B3dGround;
 export interface DemoStageOptions extends PatternGroundOptions {
     timeOfDay?: number;
     sun?: DemoSunOptions;
@@ -61,7 +61,7 @@ export interface DemoStageOptions extends PatternGroundOptions {
  * unlit face at ZERO, so objects read as black silhouettes rather than objects.
  * Real outdoor light has sky bounce; a hemispheric light is the cheap stand-in.
  */
-export declare function demoStage(opts?: DemoStageOptions): (import("./b3d-primitives").B3dGround | import("./b3d-shadows").B3dSun | import("./b3d-skybox").B3dSkybox | import("./b3d-light").B3dLight)[];
+export declare function demoStage(opts?: DemoStageOptions): (import("./b3d-primitives.js").B3dGround | import("./b3d-shadows.js").B3dSun | import("./b3d-skybox.js").B3dSkybox | import("./b3d-light.js").B3dLight)[];
 export interface OrbitCamOptions {
     /** Orbit angle around Y, in DEGREES. Default −90 (facing −Z). */
     alphaDeg?: number;
@@ -159,7 +159,7 @@ export interface FlightStageOptions {
  * ```
  */
 export declare function flightStage(opts: FlightStageOptions): {
-    elements: (import("./b3d-primitives").B3dGround | import("./b3d-input-focus").B3dInputFocus | import("./b3d-death").B3dDeath | import("./b3d-shadows").B3dSun | import("./b3d-skybox").B3dSkybox | import("./b3d-fog").B3dFog | import("./b3d-library").B3dLibrary | import("./b3d-light").B3dLight)[];
+    elements: (import("./b3d-primitives.js").B3dGround | import("./b3d-input-focus.js").B3dInputFocus | import("./b3d-death.js").B3dDeath | import("./b3d-shadows.js").B3dSun | import("./b3d-skybox.js").B3dSkybox | import("./b3d-fog.js").B3dFog | import("./b3d-library.js").B3dLibrary | import("./b3d-light.js").B3dLight)[];
     /** The aircraft you are flying NOW — changes on respawn. */
     readonly aircraft: any;
 };

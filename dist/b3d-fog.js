@@ -60,7 +60,7 @@ document.body.append(
 ```
 */
 /*{ "parent": "Environment" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 const FOG_MODES = {
     linear: BABYLON.Scene.FOGMODE_LINEAR,

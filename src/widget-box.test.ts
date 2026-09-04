@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
-let WB: typeof import('./widget-box')
-let B: typeof import('./box')
+let WB: typeof import('./widget-box.js')
+let B: typeof import('./box.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -15,8 +15,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  WB = await import('./widget-box')
-  B = await import('./box')
+  WB = await import('./widget-box.js')
+  B = await import('./box.js')
 })
 
 /** A fake Widget3d that records the raw pointer events it receives. */

@@ -1,5 +1,5 @@
-import { type KeyboardMode, type KeyAction, type KeyRect, type FieldType } from './key-layout';
-import type { Widget3d } from './widgets3d';
+import { type KeyboardMode, type KeyAction, type KeyRect, type FieldType } from './key-layout.js';
+import type { Widget3d } from './widgets3d.js';
 /** A text field driven by the pure edit model. Tap to place the caret. */
 export interface InputField extends Widget3d {
     /** Current text. */
@@ -59,16 +59,20 @@ export interface InputField extends Widget3d {
         focused: boolean;
     }) => void;
     /** Called whenever the text changes. */
+    handleChange?: (value: string) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (value: string) => void;
     /**
      * Called whenever this field becomes the receiver — by tap, D-pad arrival or
      * `setActive(true)`.
      *
-     * Settable on the OBJECT as well as via config, mirroring `onChange`, so a
-     * manager can learn about focus it did not initiate. Without it a tap and a
+     * Settable on the OBJECT as well as via config, mirroring `handleChange`, so
+     * a manager can learn about focus it did not initiate. Without it a tap and a
      * programmatic focus disagree about who is active, and keys go to the wrong
      * field — silently, and only sometimes.
      */
+    handleFocus?: () => void;
+    /** @deprecated use `handleFocus` — removed in 0.9. */
     onFocus?: () => void;
 }
 export interface InputFieldOptions {
@@ -76,11 +80,17 @@ export interface InputFieldOptions {
     placeholder?: string;
     fontSize?: number;
     height?: number;
+    handleChange?: (value: string) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (value: string) => void;
+    handleEnter?: (value: string) => void;
+    /** @deprecated use `handleEnter` — removed in 0.9. */
     onEnter?: (value: string) => void;
     /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
      * — the host's hook for exclusivity (dim the others) and for summoning the
      * keyboard overlay. */
+    handleFocus?: () => void;
+    /** @deprecated use `handleFocus` — removed in 0.9. */
     onFocus?: () => void;
     /**
      * Drag across a numeric field to change its value ("scrub"), in units per
@@ -224,9 +234,15 @@ export interface KeyboardOptions {
      * your finger instead of racing it.
      */
     caretStepPx?: number;
+    handleKey?: (text: string) => void;
+    /** @deprecated use `handleKey` — removed in 0.9. */
     onKey?: (text: string) => void;
+    handleAction?: (action: KeyAction) => void;
+    /** @deprecated use `handleAction` — removed in 0.9. */
     onAction?: (action: KeyAction) => void;
     /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
+    handleCaretMove?: (delta: number) => void;
+    /** @deprecated use `handleCaretMove` — removed in 0.9. */
     onCaretMove?: (delta: number) => void;
 }
 export declare function keyboard(config?: KeyboardOptions): Keyboard;

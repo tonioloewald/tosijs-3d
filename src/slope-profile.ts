@@ -36,8 +36,8 @@ import {
   plateauFilter,
   type GradientFilter,
   type ControlPoint,
-} from './gradient-filter'
-import { PerlinNoise } from './perlin-noise'
+} from './gradient-filter.js'
+import { PerlinNoise } from './perlin-noise.js'
 
 /** A gradient filter that may also be POSITION-AWARE. The terrain sampler
  * calls `evaluateAt` when present, passing origin-stable world coordinates. */

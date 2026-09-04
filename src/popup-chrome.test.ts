@@ -4,7 +4,7 @@ import {
   chromeHit,
   uvToViewBox,
   type ChromeLayout,
-} from './popup-chrome'
+} from './popup-chrome.js'
 
 /*
 THE CLOSE BUTTON MUST BE WHERE THE × IS.

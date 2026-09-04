@@ -50,13 +50,13 @@ import type {
   VirtualGamepad,
   GamepadSource,
   InputMapping,
-} from './virtual-gamepad'
+} from './virtual-gamepad.js'
 import {
   emptyGamepad,
   MappedInputProvider,
   bipedMapping,
-} from './virtual-gamepad'
-import { HardwareGamepadSource } from './hardware-gamepad'
+} from './virtual-gamepad.js'
+import { HardwareGamepadSource } from './hardware-gamepad.js'
 
 function keycode(evt: KeyboardEvent): string {
   return evt.code.replace(/Key|Digit/, '')

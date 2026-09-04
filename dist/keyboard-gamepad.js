@@ -37,7 +37,7 @@ Mouse wheel adjusts the ZOOM axis (d-pad up/down), not the look stick.
 */
 /*{ "parent": "Input" }*/
 import { Component } from 'tosijs';
-import { emptyGamepad } from './virtual-gamepad';
+import { emptyGamepad } from './virtual-gamepad.js';
 function keycode(evt) {
     return evt.code.replace(/Key|Digit/, '');
 }

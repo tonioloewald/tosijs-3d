@@ -117,7 +117,7 @@ const t = table({
   ],
   height: 190,
   selection: &#39;multi&#39;,
-  onSelect: (ids) =&gt; {
+  handleSelect: (ids) =&gt; {
     readout.textContent = ids.length ? `Selected ${ids.length}: ${ids.slice(0, 4).join(&#39;, &#39;)}${ids.length &gt; 4 ? &#39;…&#39; : &#39;&#39;}` : &#39;No selection.&#39;
   },
 })
@@ -292,6 +292,7 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link current" href="../table/" aria-current="page">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

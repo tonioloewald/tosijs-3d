@@ -9,7 +9,7 @@ about where the attack ends, which the runtime cannot represent. Ensemble:
 "a truth that cannot be executed is worse than a coarser panel."
 */
 
-let mod: typeof import('./curve-program')
+let mod: typeof import('./curve-program.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -22,7 +22,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  mod = await import('./curve-program')
+  mod = await import('./curve-program.js')
 })
 
 const PROGRAM = {

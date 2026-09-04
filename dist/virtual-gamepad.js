@@ -204,7 +204,7 @@ preview.append(div(
 ```
 */
 /*{ "parent": "Input", "order": 900 }*/
-import { emptyInput } from './control-input';
+import { emptyInput } from './control-input.js';
 export function emptyGamepad() {
     return {
         leftStickX: 0,

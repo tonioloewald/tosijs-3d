@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
-import type { CombatEvent, ChainLink } from './destroyable';
-import { type Prefab } from './prefab';
+import { AbstractMesh } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
+import type { CombatEvent, ChainLink } from './destroyable.js';
+import { type Prefab } from './prefab.js';
 export declare class B3dDestroyable extends AbstractMesh {
     static preferredTagName: string;
     static initAttributes: {

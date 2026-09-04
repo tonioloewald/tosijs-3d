@@ -14,7 +14,7 @@ run at all once the SVG is serialised to a texture, so a consumer would ship
 something that looks right on a desktop and freezes in a headset.
 */
 
-let w: typeof import('./widgets3d')
+let w: typeof import('./widgets3d.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -27,7 +27,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  w = await import('./widgets3d')
+  w = await import('./widgets3d.js')
 })
 
 describe('spinner3d animates as GEOMETRY, not CSS', () => {

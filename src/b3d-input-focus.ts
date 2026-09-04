@@ -39,16 +39,16 @@ document.body.append(
 /*{ "parent": "Input" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild } from './b3d-utils'
-import type { B3d } from './tosi-b3d'
-import { B3dControllable } from './b3d-controllable'
-import type { GameController } from './game-controller'
+import { B3dChild } from './b3d-utils.js'
+import type { B3d } from './tosi-b3d.js'
+import { B3dControllable } from './b3d-controllable.js'
+import type { GameController } from './game-controller.js'
 import {
   MappedInputProvider,
   bipedMapping,
   type GamepadSource,
-} from './virtual-gamepad'
-import { CompositeInputProvider } from './control-input'
+} from './virtual-gamepad.js'
+import { CompositeInputProvider } from './control-input.js'
 
 export class B3dInputFocus extends B3dChild {
   static preferredTagName = 'tosi-b3d-input-focus'

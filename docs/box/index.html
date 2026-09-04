@@ -94,9 +94,9 @@ const makePanel = () =&gt; {
       &#39;Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.&#39;,
       { font: { size: 13 }, color: &#39;#9fb0c3&#39; }
     ),
-    button(&#39;Talk&#39;, { onActivate: act(&#39;Talk&#39;) }),
-    button(&#39;Trade&#39;, { onActivate: act(&#39;Trade&#39;) }),
-    button(&#39;Leave&#39;, { onActivate: act(&#39;Leave&#39;) })
+    button(&#39;Talk&#39;, { handleActivate: act(&#39;Talk&#39;) }),
+    button(&#39;Trade&#39;, { handleActivate: act(&#39;Trade&#39;) }),
+    button(&#39;Leave&#39;, { handleActivate: act(&#39;Leave&#39;) })
   )
   p.focusMove(1, 0) // focus the first button so the ring shows
   return p
@@ -396,6 +396,7 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link current" href="../box/" aria-current="page">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

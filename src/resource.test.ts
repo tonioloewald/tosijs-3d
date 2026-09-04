@@ -11,7 +11,7 @@ import {
   isEmpty,
   isFull,
   fraction,
-} from './resource'
+} from './resource.js'
 
 describe('makeResource', () => {
   test('defaults: full, no regen, 0.5s delay, ready to regen', () => {

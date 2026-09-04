@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-import { type B3dSvgPlane } from './b3d-svg-plane';
-import { chromeLayout } from './popup-chrome';
-import type { B3d } from './tosi-b3d';
+import { type B3dSvgPlane } from './b3d-svg-plane.js';
+import { chromeLayout } from './popup-chrome.js';
+import type { B3d } from './tosi-b3d.js';
 export interface PopupSurfaceOptions {
     /** The panel's content. Its viewBox aspect sets the plane's height. */
     svg: SVGSVGElement;

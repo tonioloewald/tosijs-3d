@@ -1,6 +1,6 @@
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
+import type { B3d } from './tosi-b3d.js';
 export declare class B3dFog extends B3dChild {
     static preferredTagName: string;
     static initAttributes: {

@@ -128,10 +128,10 @@ vocabulary anywhere in the sim.
 */
 /*{ "parent": "World Sim" }*/
 
-import { B3dChild, sceneDelta } from './b3d-utils'
-import { MersenneTwister } from './mersenne-twister'
-import { spawnPrefab, type Prefab } from './prefab'
-import type { B3d } from './tosi-b3d'
+import { B3dChild, sceneDelta } from './b3d-utils.js'
+import { MersenneTwister } from './mersenne-twister.js'
+import { spawnPrefab, type Prefab } from './prefab.js'
+import type { B3d } from './tosi-b3d.js'
 
 type Group = { elements: Element[] }
 

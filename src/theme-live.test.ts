@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
-let w3d: typeof import('./widgets3d')
-let theme: typeof import('./w3d-theme')
+let w3d: typeof import('./widgets3d.js')
+let theme: typeof import('./w3d-theme.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -15,8 +15,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  w3d = await import('./widgets3d')
-  theme = await import('./w3d-theme')
+  w3d = await import('./widgets3d.js')
+  theme = await import('./w3d-theme.js')
 })
 
 const paintOf = (el: SVGElement, sel: string, attr: string) =>
@@ -198,7 +198,7 @@ describe('padding and lineHeight reach CONTROLS, not just text', () => {
 
 describe('strokeWidth reaches ICONS, not only the caret', () => {
   test('an icon glyph takes its stroke width from the theme', async () => {
-    const { iconGlyph } = await import('./svg-icons')
+    const { iconGlyph } = await import('./svg-icons.js')
     theme.setW3dTheme({ strokeWidth: 1 })
     const thin = iconGlyph('plus', { size: 24 })
     theme.setW3dTheme({ strokeWidth: 5 })
@@ -211,7 +211,7 @@ describe('strokeWidth reaches ICONS, not only the caret', () => {
   })
 
   test('an explicit option still wins over the theme', async () => {
-    const { iconGlyph } = await import('./svg-icons')
+    const { iconGlyph } = await import('./svg-icons.js')
     theme.setW3dTheme({ strokeWidth: 5 })
     const g = iconGlyph('plus', { size: 24, strokeWidth: 1 })
     expect(g.getAttribute('stroke-width')).toBe('1')

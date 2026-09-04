@@ -160,17 +160,17 @@ rather than degrade.
 */
 /*{ "parent": "UI", "order": 400 }*/
 import * as BABYLON from '@babylonjs/core';
-import { b3dSvgPlane } from './b3d-svg-plane';
+import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { svgElements } from 'tosijs';
-import { iconGlyph } from './svg-icons';
-import { w3dTheme } from './w3d-theme';
-import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome';
+import { iconGlyph } from './svg-icons.js';
+import { w3dTheme } from './w3d-theme.js';
+import { chromeLayout, chromeHit, uvToViewBox } from './popup-chrome.js';
 /** Tag a node as belonging to the TEXTURE presentation only. */
 function markPresentation(el) {
     el.setAttribute('data-presentation', 'texture');
     return el;
 }
-import { cameraIsAttached } from './b3d-utils';
+import { cameraIsAttached } from './b3d-utils.js';
 /**
  * Open a popup as its own surface.
  *

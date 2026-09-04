@@ -1,5 +1,5 @@
 import { Component, elements } from 'tosijs'
-import { PiecewiseLinearFilter } from './gradient-filter'
+import { PiecewiseLinearFilter } from './gradient-filter.js'
 
 const { canvas } = elements
 

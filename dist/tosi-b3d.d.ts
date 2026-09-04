@@ -2,16 +2,16 @@ import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import '@babylonjs/loaders';
-import { type Widget3d } from './widgets3d';
-import type { Medium } from './medium';
-import { type Makers } from './make-mesh';
-import { type PopupSurface, type PopupSurfaceOptions } from './popup-surface';
-import { CombatWorld } from './destroyable';
-import { XrFrames } from './xr-frames';
-import { type FramePanelSpec } from './frame-panel';
-import { type FogState, type FogLayer } from './atmosphere';
-import { type QualitySetting } from './b3d-quality';
-import { type AmbientEffect } from './ambient-budget';
+import { type Widget3d } from './widgets3d.js';
+import type { Medium } from './medium.js';
+import { type Makers } from './make-mesh.js';
+import { type PopupSurface, type PopupSurfaceOptions } from './popup-surface.js';
+import { CombatWorld } from './destroyable.js';
+import { XrFrames } from './xr-frames.js';
+import { type FramePanelSpec } from './frame-panel.js';
+import { type FogState, type FogLayer } from './atmosphere.js';
+import { type QualitySetting } from './b3d-quality.js';
+import { type AmbientEffect } from './ambient-budget.js';
 export declare const showB3dStats: (on?: boolean) => void;
 /**
  * A contributor to the Perf Stats panel (see `B3d.addDebugSource`). The panel is
@@ -26,7 +26,9 @@ export type DebugPanelSource = {
     /** Rendered as buttons. This is how you toggle a profiler on from inside a headset. */
     actions?: Array<{
         label: string | (() => string);
-        onClick: () => void;
+        handleClick?: () => void;
+        /** @deprecated use `handleClick` — removed in 0.9. */
+        onClick?: () => void;
     }>;
     /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
      * name — see [[svg-icons]]). Defaults to `'bug'`. */
@@ -556,7 +558,7 @@ export declare class B3d extends Component {
         cssHeight: number;
         devicePixelRatio: number | null;
         hardwareScaling: number | null;
-        tier: import("./perf-probe").PerfTier;
+        tier: import("./perf-probe.js").PerfTier;
         fps: number | null;
         resizeCount: number;
         xrActive: boolean;
@@ -659,7 +661,7 @@ export declare class B3d extends Component {
      * const off = b3d.addDebugSource({
      *   name: 'terrain',
      *   lines: () => [`worst ${t.debugState.worstFrameMs.toFixed(1)}ms`],
-     *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), onClick: () => t.setProfiling(!t.profiling) }],
+     *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), handleClick: () => t.setProfiling(!t.profiling) }],
      * })
      * ```
      */

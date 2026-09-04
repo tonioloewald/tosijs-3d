@@ -27,10 +27,15 @@ hud.setMeter('airspeed', 0.6) // then mount hud's SVG in an overlay, or use <tos
 /*{ "parent": "Core" }*/
 
 import { svgElements } from 'tosijs'
-import { sideFromD, lockFillOpacity, type Side, arcDashArray } from './hud-math'
-import type { Vec3 } from './spatial-transform'
+import {
+  sideFromD,
+  lockFillOpacity,
+  type Side,
+  arcDashArray,
+} from './hud-math.js'
+import type { Vec3 } from './spatial-transform.js'
 
-export type { Side } from './hud-math'
+export type { Side } from './hud-math.js'
 
 export type MeterName = 'speed' | 'altitude' | 'health' | 'energy'
 export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint'

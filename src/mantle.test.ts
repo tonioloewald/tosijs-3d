@@ -5,7 +5,7 @@ import {
   mantlePath,
   defaultMantleLimits,
   type LedgeReading,
-} from './mantle'
+} from './mantle.js'
 
 const ledge = (over: Partial<LedgeReading> = {}): LedgeReading => ({
   height: 1.2,

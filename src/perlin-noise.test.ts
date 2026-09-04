@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test'
-import { PerlinNoise } from './perlin-noise' // Adjust import path as needed
+import { PerlinNoise } from './perlin-noise.js' // Adjust import path as needed
 
 describe('PerlinNoise', () => {
   test('should initialize with default seed', () => {

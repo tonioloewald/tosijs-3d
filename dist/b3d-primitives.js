@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
+import { AbstractMesh } from './b3d-utils.js';
 /** A 2×2 checker drawn to a DynamicTexture — no external asset, tiles via uScale/vScale. */
 function makeCheckerTexture(name, scene, colorA = '#9a9a9a', colorB = '#767676') {
     const size = 128;

@@ -106,14 +106,14 @@ document.body.append(
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
-import { collidable, isOff } from './b3d-utils';
-import { canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle';
-import { buoyantStep, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy';
-import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim';
-import { xrControllers } from './gamepad';
-import { B3dControllable } from './b3d-controllable';
-import { CompositeInputProvider } from './control-input';
-import { XRInputProvider } from './xr-input-provider';
+import { collidable, isOff } from './b3d-utils.js';
+import { canMantle, mantleClip, mantlePath, defaultMantleLimits, } from './mantle.js';
+import { buoyantStep, submergedFraction, isSwimming, swimBuoyancy, } from './buoyancy.js';
+import { aimFromLook, clampAim, easeAim, aimTarget, surfaceAimLimit, } from './swim-aim.js';
+import { xrControllers } from './gamepad.js';
+import { B3dControllable } from './b3d-controllable.js';
+import { CompositeInputProvider } from './control-input.js';
+import { XRInputProvider } from './xr-input-provider.js';
 const DEG_TO_RAD = Math.PI / 180;
 function lerp(a, b, t) {
     return a + (b - a) * t;

@@ -37,8 +37,8 @@ b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 0, z: 200 })
 /*{ "parent": "Combat" }*/
 
 import type * as BABYLON from '@babylonjs/core'
-import { B3dChild, semanticParent } from './b3d-utils'
-import type { B3d, RadarBlip, RadarFaction } from './tosi-b3d'
+import { B3dChild, semanticParent } from './b3d-utils.js'
+import type { B3d, RadarBlip, RadarFaction } from './tosi-b3d.js'
 
 /** Structural view of whatever element/mesh we might read a world position from. */
 type PosLike = { x: number; y: number; z: number }

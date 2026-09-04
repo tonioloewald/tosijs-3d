@@ -172,7 +172,7 @@ const scene = b3d(
     // to be able to let the player back in.
     pausePanel: (host, resume) => [
       label3d({ text: 'PAUSED', bold: true }),
-      button3d({ label: 'Continue', onClick: resume }),
+      button3d({ label: 'Continue', handleClick: resume }),
     ],
     // The SAME control, in the ⚙ panel — so you can change the speed while it
     // is RUNNING and watch it change, instead of only while it is frozen. Both
@@ -285,26 +285,27 @@ import * as BABYLON from '@babylonjs/core';
 import * as GUI from '@babylonjs/gui';
 import { GridMaterial } from '@babylonjs/materials';
 import '@babylonjs/loaders';
-import { xrControllers } from './gamepad';
-import { panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d';
-import { panelFitWidth } from './widgets3d-layout';
-import { w3dTheme } from './w3d-theme';
-import { SvgTexture } from './svg-texture';
-import { b3dSvgPlane } from './b3d-svg-plane';
-import { createMakers } from './make-mesh';
-import { openPopup, } from './popup-surface';
-import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils';
-import { faceViewer } from './dialog-placement';
-import { svgIcons } from './svg-icons';
-import { CombatWorld } from './destroyable';
-import { b3dGamepad } from './glass-gamepad';
-import { XrGamepadSource } from './xr-gamepad';
-import { XrFrames, EntityFrame } from './xr-frames';
-import { attachFramePanel, placeholderPanelSvg, } from './frame-panel';
-import { runProbe, hydrateProfileFromCache } from './b3d-probe';
-import { compositeFog, approachFog, } from './atmosphere';
-import { setQuality, qualityBudgets, onQualityChange, effectiveTier, } from './b3d-quality';
-import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget';
+import { xrControllers } from './gamepad.js';
+import { panel3d, button3d, iconBar3d, label3d, textBlock3d, } from './widgets3d.js';
+import { handlerOf } from './handler-of.js';
+import { panelFitWidth } from './widgets3d-layout.js';
+import { w3dTheme } from './w3d-theme.js';
+import { SvgTexture } from './svg-texture.js';
+import { b3dSvgPlane } from './b3d-svg-plane.js';
+import { createMakers } from './make-mesh.js';
+import { openPopup, } from './popup-surface.js';
+import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js';
+import { faceViewer } from './dialog-placement.js';
+import { svgIcons } from './svg-icons.js';
+import { CombatWorld } from './destroyable.js';
+import { b3dGamepad } from './glass-gamepad.js';
+import { XrGamepadSource } from './xr-gamepad.js';
+import { XrFrames, EntityFrame } from './xr-frames.js';
+import { attachFramePanel, placeholderPanelSvg, } from './frame-panel.js';
+import { runProbe, hydrateProfileFromCache } from './b3d-probe.js';
+import { compositeFog, approachFog, } from './atmosphere.js';
+import { setQuality, qualityBudgets, onQualityChange, effectiveTier, } from './b3d-quality.js';
+import { allocateAmbient, ratchetPool, recoverPool, } from './ambient-budget.js';
 const { canvas, div, slot, button } = elements;
 // Site-wide opt-in for the 📊 perf overlay: a host (the doc site) calls
 // `showB3dStats()` once so the toggle appears on EVERY scene without a per-scene
@@ -939,7 +940,7 @@ export class B3d extends Component {
             button3d({
                 label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
                 // The tap IS the user gesture that makes entering XR legal.
-                onClick: () => this.resume(),
+                handleClick: () => this.resume(),
             }),
         ];
         const svgH = 46 + rows.length * 48;
@@ -1854,7 +1855,7 @@ export class B3d extends Component {
      * const off = b3d.addDebugSource({
      *   name: 'terrain',
      *   lines: () => [`worst ${t.debugState.worstFrameMs.toFixed(1)}ms`],
-     *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), onClick: () => t.setProfiling(!t.profiling) }],
+     *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), handleClick: () => t.setProfiling(!t.profiling) }],
      * })
      * ```
      */
@@ -2131,8 +2132,8 @@ export class B3d extends Component {
                 label: typeof action.label === 'function' ? action.label() : action.label,
                 // A button's own label can change ('Profile tiles' → 'Profiling ON'), and a
                 // button label isn't live text — so this one case does want a rebuild.
-                onClick: () => {
-                    action.onClick();
+                handleClick: () => {
+                    handlerOf(action, 'handleClick', 'onClick')?.();
                     this._repaintPanels();
                 },
             }));
@@ -2185,7 +2186,7 @@ export class B3d extends Component {
             */
             icon: this.paused ? 'play' : 'pause',
             active: this.paused,
-            onClick: () => {
+            handleClick: () => {
                 if (this.paused)
                     this.resume();
                 else
@@ -2201,7 +2202,7 @@ export class B3d extends Component {
                 name: forced ? 'Gamepad: always shown' : 'Gamepad: auto-hides',
                 icon: 'game',
                 active: forced,
-                onClick: () => {
+                handleClick: () => {
                     pad.setFade?.(forced);
                     this._repaintPanels();
                 },
@@ -2293,7 +2294,7 @@ export class B3d extends Component {
             // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
             button3d({
                 label: scaled ? 'Reset scale' : 'Force scale ×3',
-                onClick: () => {
+                handleClick: () => {
                     if (this.engine == null)
                         return;
                     if (this._statsBaseScale == null) {
@@ -2339,7 +2340,7 @@ export class B3d extends Component {
                 icon: t.icon,
                 title: t.name,
                 active: this._debugOpen.has(t.id),
-                onClick: () => {
+                handleClick: () => {
                     if (this._debugOpen.has(t.id))
                         this._debugOpen.delete(t.id);
                     else
@@ -2353,7 +2354,7 @@ export class B3d extends Component {
                 icon: g.icon,
                 title: g.name,
                 active: g.active,
-                onClick: g.onClick,
+                handleClick: g.handleClick,
             })),
         ];
     }
@@ -2537,7 +2538,7 @@ export class B3d extends Component {
                 actions: [
                     {
                         label: 'Clear',
-                        onClick: () => {
+                        handleClick: () => {
                             this._errors = [];
                             this._repaintPanels();
                         },
@@ -3689,7 +3690,7 @@ export class B3d extends Component {
             return b;
         };
         const buttons = this._barItems().map((it) => mk(it.title, svgIcons[it.icon]?.() ??
-            svgIcons.bug(), it.onClick, it.active));
+            svgIcons.bug(), it.handleClick, it.active));
         buttons.push(mk('Close', 
         // In a session the flat overlay isn't visible anyway, but keep it
         // playful: a bug-eyed face for VR, the close icon on flat screens.
@@ -3755,7 +3756,7 @@ export class B3d extends Component {
                         icon: 'logOut',
                         title: 'Exit VR',
                         active: false,
-                        onClick: () => {
+                        handleClick: () => {
                             void this.xrHelper?.baseExperience?.exitXRAsync();
                         },
                     },
@@ -3763,7 +3764,7 @@ export class B3d extends Component {
                         icon: 'compass',
                         title: 'Re-seat (look forward first)',
                         active: false,
-                        onClick: () => this.recenterXr(),
+                        handleClick: () => this.recenterXr(),
                     },
                     ...this._barItems(),
                 ],

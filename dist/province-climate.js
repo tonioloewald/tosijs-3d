@@ -54,7 +54,7 @@ a place on this one. A province may add a lake at its own level; that is what
 `waterLevel` is for.
 */
 /*{ "parent": "Environment", "order": 130 }*/
-import { canonicalCurve, curveSchema, evaluateCurve, validateCurve, } from './curve';
+import { canonicalCurve, curveSchema, evaluateCurve, validateCurve, } from './curve.js';
 export const DEFAULT_AMOUNTS = {
     water: 0.35,
     temperature: 0.3,

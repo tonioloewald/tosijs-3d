@@ -131,9 +131,9 @@ preview.append(scene)
 */
 /*{ "parent": "Environment" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
+import type { B3d } from './tosi-b3d.js'
 
 // Default flare texture: 32x32 radial gradient white-to-transparent
 let defaultFlareTexture: BABYLON.Texture | null = null

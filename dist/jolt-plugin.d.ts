@@ -13,18 +13,18 @@
  *
  * @license MIT
  */
-import { Observable } from '@babylonjs/core/Misc/observable';
-import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector';
-import { BoundingBox } from '@babylonjs/core/Culling/boundingBox';
-import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
-import type { Mesh } from '@babylonjs/core/Meshes/mesh';
-import type { Nullable } from '@babylonjs/core/types';
-import type { PhysicsBody } from '@babylonjs/core/Physics/v2/physicsBody';
-import type { PhysicsShape } from '@babylonjs/core/Physics/v2/physicsShape';
-import type { PhysicsConstraint } from '@babylonjs/core/Physics/v2/physicsConstraint';
-import type { PhysicsMaterial } from '@babylonjs/core/Physics/v2/physicsMaterial';
-import type { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult';
-import type { IPhysicsEnginePluginV2, IPhysicsCollisionEvent, IBasePhysicsCollisionEvent, PhysicsShapeParameters, PhysicsMassProperties, PhysicsConstraintAxis, PhysicsConstraintAxisLimitMode, PhysicsConstraintMotorType, ConstrainedBodyPair } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
+import { Observable } from '@babylonjs/core/Misc/observable.js';
+import { Vector3, Quaternion } from '@babylonjs/core/Maths/math.vector.js';
+import { BoundingBox } from '@babylonjs/core/Culling/boundingBox.js';
+import type { TransformNode } from '@babylonjs/core/Meshes/transformNode.js';
+import type { Mesh } from '@babylonjs/core/Meshes/mesh.js';
+import type { Nullable } from '@babylonjs/core/types.js';
+import type { PhysicsBody } from '@babylonjs/core/Physics/v2/physicsBody.js';
+import type { PhysicsShape } from '@babylonjs/core/Physics/v2/physicsShape.js';
+import type { PhysicsConstraint } from '@babylonjs/core/Physics/v2/physicsConstraint.js';
+import type { PhysicsMaterial } from '@babylonjs/core/Physics/v2/physicsMaterial.js';
+import type { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult.js';
+import type { IPhysicsEnginePluginV2, IPhysicsCollisionEvent, IBasePhysicsCollisionEvent, PhysicsShapeParameters, PhysicsMassProperties, PhysicsConstraintAxis, PhysicsConstraintAxisLimitMode, PhysicsConstraintMotorType, ConstrainedBodyPair } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin.js';
 export declare class JoltPlugin implements IPhysicsEnginePluginV2 {
     world: any;
     name: string;

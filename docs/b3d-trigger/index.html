@@ -50,8 +50,11 @@
 a target (the active camera or a named mesh) enters or exits a spherical
 region. Useful for mission waypoints, area-of-effect zones, and cutscene
 triggers.</p>
-<p>Set <code>onEnter</code> and <code>onExit</code> callback properties from JavaScript, or listen
+<p>Set <code>whenEnter</code> and <code>whenExit</code> callback properties from JavaScript, or listen
 for <code>&#39;enter&#39;</code> / <code>&#39;exit&#39;</code> CustomEvents on the element.</p>
+<p>⚠️ The old <code>onEnter</code> / <code>onExit</code> still work and are removed in 0.9 — but only by
+DIRECT assignment. Passed to the element creator, an <code>on*</code> prop becomes a DOM
+event listener, so it is called with an Event rather than the trigger.</p>
 <h2>Demo</h2>
 <pre><code class="language-js">import { b3d, b3dTrigger, b3dSphere, b3dLight, b3dSkybox, b3dBiped, b3dGround, emptyInput } from &#39;tosijs-3d&#39;
 import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
@@ -119,7 +122,7 @@ const wire = setInterval(() =&gt; {
 // On arrival: pause, then teleport the goal (marker + trigger) to a random spot
 // on the ground. The NPC notices the trigger it&#39;s now outside of and walks to the
 // new position. Repeat forever — trigger + simple AI in a loop.
-trigger.onEnter = () =&gt; {
+trigger.whenEnter = () =&gt; {
   demo.status.value = &#39;reached it — relocating…&#39;
   setTimeout(() =&gt; {
     // Pick a spot well AWAY from the biped — otherwise the goal can land on top
@@ -209,7 +212,7 @@ preview.append(
 <tr>
 <td><code>once</code></td>
 <td><code>false</code></td>
-<td>Fire onEnter once then deactivate</td>
+<td>Fire <code>whenEnter</code> once then deactivate</td>
 </tr>
 </tbody></table>
 
@@ -326,6 +329,7 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

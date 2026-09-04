@@ -6,12 +6,12 @@ import {
   hudPointFromUV,
   lockFillOpacity,
   hudSizePx,
-} from './hud-math'
+} from './hud-math.js'
 import {
   IDENTITY_QUAT,
   quatFromAxisAngle,
   type Pose,
-} from './spatial-transform'
+} from './spatial-transform.js'
 
 const DEG = Math.PI / 180
 // Viewer at origin, facing +Z (nose), no roll.
@@ -235,7 +235,7 @@ describe('lockFillOpacity — a trace solidifies as the radar builds a lock', ()
   })
 })
 
-import { arcDashArray } from './hud-math'
+import { arcDashArray } from './hud-math.js'
 
 /*
 One path, several spans: the trick the meter marks use, generalised. A single

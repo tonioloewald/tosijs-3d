@@ -1,7 +1,7 @@
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { JoltPlugin } from './jolt-plugin';
-import type { B3d } from './tosi-b3d';
+import { JoltPlugin } from './jolt-plugin.js';
+import type { B3d } from './tosi-b3d.js';
 export declare class B3dPhysics extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { projectShadowXZ, shadowWindowUv } from './cloud-shadows'
+import { projectShadowXZ, shadowWindowUv } from './cloud-shadows.js'
 
 describe('projectShadowXZ', () => {
   test('straight-down sun lands the shadow directly beneath', () => {

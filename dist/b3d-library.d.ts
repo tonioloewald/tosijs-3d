@@ -1,7 +1,7 @@
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import { type LibraryManifest } from './glb-manifest';
+import type { B3d } from './tosi-b3d.js';
+import { type LibraryManifest } from './glb-manifest.js';
 /**
  * The `.model` naming convention, pure (unit-tested): a node named
  * `<name>.model` declares itself an INTENDED EXPORT of the library file.

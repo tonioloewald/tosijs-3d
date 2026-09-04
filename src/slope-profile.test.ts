@@ -7,7 +7,7 @@ import {
   terraceProfile,
   blendProfiles,
   profileField,
-} from './slope-profile'
+} from './slope-profile.js'
 
 describe('the named profiles — curve shapes', () => {
   test('cliff: flat shelf, sharp riser, flat top', () => {

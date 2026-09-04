@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
-let S: typeof import('./surface')
-let B: typeof import('./box')
+let S: typeof import('./surface.js')
+let B: typeof import('./box.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -15,8 +15,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  S = await import('./surface')
-  B = await import('./box')
+  S = await import('./surface.js')
+  B = await import('./box.js')
 })
 
 describe('surface — popups', () => {
@@ -122,8 +122,8 @@ describe('surface — persistent draggable panel', () => {
 
 describe('surface — a menu leaf select must not destroy persistent panels (rc.1 review)', () => {
   test('leaf select closes the cascade; an open panel survives', async () => {
-    const S = await import('./surface')
-    const B = await import('./box')
+    const S = await import('./surface.js')
+    const B = await import('./box.js')
     const s = S.surface({ width: 300, height: 260 })
     s.setContent(B.box({ width: 300, height: 260 }, B.textBlock('bg')))
     // a persistent panel, per openPanel's "stays until closed" contract
@@ -145,8 +145,8 @@ describe('surface — a menu leaf select must not destroy persistent panels (rc.
   })
 
   test('closeMenus closes cascades only; closeAll still closes everything', async () => {
-    const S = await import('./surface')
-    const B = await import('./box')
+    const S = await import('./surface.js')
+    const B = await import('./box.js')
     const s = S.surface({ width: 300, height: 260 })
     s.setContent(B.box({ width: 300, height: 260 }, B.textBlock('bg')))
     const panel = s.openPanel(
@@ -163,8 +163,8 @@ describe('surface — a menu leaf select must not destroy persistent panels (rc.
 
 describe('surface — interactiveAt', () => {
   test('popups count wholesale; content delegates to the box', async () => {
-    const S = await import('./surface')
-    const B = await import('./box')
+    const S = await import('./surface.js')
+    const B = await import('./box.js')
     const s = S.surface({ width: 300, height: 260 })
     s.setContent(
       B.box(

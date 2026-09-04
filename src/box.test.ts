@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
 // box.ts pulls in tosijs (svgElements) + builds SVG, so it needs a DOM before import.
-let mod: typeof import('./box')
+let mod: typeof import('./box.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -15,7 +15,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  mod = await import('./box')
+  mod = await import('./box.js')
 })
 
 // pull the y (or x) out of a wrapper's translate(x y)
@@ -193,7 +193,7 @@ describe('box — inner focus (composite children)', () => {
   // A fake keyboard-ish child: three focus stops along x, escape off either end.
   const composite = (calls: string[]) => {
     let inner = -1
-    const child: import('./box').BoxChild = {
+    const child: import('./box.js').BoxChild = {
       el: undefined as any, // filled below — needs the DOM from beforeAll
       kind: 'block',
       measure: () => ({ height: 40 }),
@@ -282,7 +282,7 @@ describe('box — inner focus (composite children)', () => {
 describe('box — a lost up cannot wedge the box (self-heal on down)', () => {
   test('a stale press is told "leave" and the new down proceeds normally', () => {
     const events: string[] = []
-    const raw: import('./box').BoxChild = {
+    const raw: import('./box.js').BoxChild = {
       el: undefined as any,
       kind: 'block',
       measure: () => ({ height: 30 }),
@@ -324,7 +324,7 @@ describe('box — interactiveAt (the gesture-policy hit test)', () => {
 describe('box — hover is maintained across raw children (the VR feedback fix)', () => {
   test('moving off a raw child clears its hover state', () => {
     const states: boolean[] = []
-    const raw: import('./box').BoxChild = {
+    const raw: import('./box.js').BoxChild = {
       el: undefined as any,
       kind: 'block',
       measure: () => ({ height: 30 }),

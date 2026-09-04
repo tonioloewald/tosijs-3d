@@ -91,15 +91,15 @@ document.body.append(
 /*{ "parent": "Core" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
+import type { B3d } from './tosi-b3d.js'
 import {
   applyMaterialConventions,
   B3dChild,
   isOff,
   isIgnored,
-} from './b3d-utils'
-import { DestroyableBehavior } from './destroyable-behavior'
-import type { CombatEvent, ChainLink } from './destroyable'
+} from './b3d-utils.js'
+import { DestroyableBehavior } from './destroyable-behavior.js'
+import type { CombatEvent, ChainLink } from './destroyable.js'
 
 export class B3dLoader extends B3dChild {
   static preferredTagName = 'tosi-b3d-loader'

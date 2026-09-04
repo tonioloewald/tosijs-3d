@@ -30,7 +30,7 @@ import type {
   Portal,
   SimulationEvent,
   Shape,
-} from './world-contract'
+} from './world-contract.js'
 
 /** The slice of a Jest/bun-style test runner the kit needs. Kept minimal + loose so any runner fits. */
 export type ConformanceHarness = {

@@ -152,10 +152,10 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { B3dChild, isOff, sceneDelta } from './b3d-utils';
+import { B3dChild, isOff, sceneDelta } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { generateGalaxy, generateStarSystem, } from './galaxy-data';
-import { PerlinNoise } from './perlin-noise';
+import { generateGalaxy, generateStarSystem, } from './galaxy-data.js';
+import { PerlinNoise } from './perlin-noise.js';
 export class B3dStarSystem extends B3dChild {
     static preferredTagName = 'tosi-b3d-star-system';
     static shadowStyleSpec = {

@@ -31,7 +31,7 @@ import {
   sub,
   rotateVector,
   quatConjugate,
-} from './spatial-transform'
+} from './spatial-transform.js'
 
 /** A HUD gauge-frame side (bottom = ground, i.e. PULL UP). */
 export type Side = 'left' | 'right' | 'top' | 'bottom'

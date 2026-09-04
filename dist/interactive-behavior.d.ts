@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
-import '@babylonjs/core/Rendering/outlineRenderer';
-import type { B3d } from './tosi-b3d';
+import '@babylonjs/core/Rendering/outlineRenderer.js';
+import type { B3d } from './tosi-b3d.js';
 /** What happened, and where. Carried by every event this behaviour raises. */
 export interface InteractionInfo {
     /** The mesh actually under the pointer (a sub-mesh — the knob, not the door). */
@@ -65,7 +65,7 @@ export declare class InteractiveBehavior {
     /** Tuned state for the console / `hj eval` / a Perf-panel debug source. */
     get debugState(): {
         enabled: boolean;
-        phase: import("./interaction").InteractPhase;
+        phase: import("./interaction.js").InteractPhase;
         armed: boolean;
         meshes: string[];
         reach: number;

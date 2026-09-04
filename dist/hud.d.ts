@@ -1,6 +1,6 @@
-import { type Side } from './hud-math';
-import type { Vec3 } from './spatial-transform';
-export type { Side } from './hud-math';
+import { type Side } from './hud-math.js';
+import type { Vec3 } from './spatial-transform.js';
+export type { Side } from './hud-math.js';
 export type MeterName = 'speed' | 'altitude' | 'health' | 'energy';
 export type TraceKind = 'neutral' | 'friendly' | 'hostile' | 'waypoint';
 export type HudTraceInput = {

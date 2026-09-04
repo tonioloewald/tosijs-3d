@@ -16,7 +16,7 @@ import { readFileSync } from 'fs'
 // or exporter upgrade, re-derive the chain against this file, don't guess.
 
 let BABYLON: typeof import('@babylonjs/core')
-let canonicalize: typeof import('./model-transform').canonicalize
+let canonicalize: typeof import('./model-transform.js').canonicalize
 let engine: import('@babylonjs/core').NullEngine
 let scene: import('@babylonjs/core').Scene
 let container: import('@babylonjs/core').AssetContainer
@@ -35,7 +35,7 @@ beforeAll(async () => {
   }
   BABYLON = await import('@babylonjs/core')
   await import('@babylonjs/loaders')
-  canonicalize = (await import('./model-transform')).canonicalize
+  canonicalize = (await import('./model-transform.js')).canonicalize
   engine = new BABYLON.NullEngine()
   scene = new BABYLON.Scene(engine)
   const b64 = readFileSync('static/test-3.glb').toString('base64')
@@ -160,7 +160,7 @@ describe('canonicalize drops scenic dressing', () => {
     only passed because the function was (wrongly) flattening every child —
     so it was asserting the contract via the bug. See B1.
     */
-    const { applyCenterOfGravity } = await import('./model-transform')
+    const { applyCenterOfGravity } = await import('./model-transform.js')
     const e = container.instantiateModelsToScene(undefined, false, {
       doNotInstantiate: true,
     })

@@ -1,5 +1,5 @@
-import { type FlowBox } from './flow-layout';
-import { type FontSpec } from './widgets3d-layout';
+import { type FlowBox } from './flow-layout.js';
+import { type FontSpec } from './widgets3d-layout.js';
 /**
  * A child of a {@link box}. `el` is the SVG element to place (the box wraps it in
  * a positioning `<g>`, so the child's own transform is preserved). `measure` is
@@ -24,6 +24,8 @@ export interface BoxChild {
     /** Reachable by pointer hit-test and focus-traversal (D-pad / Tab). */
     focusable?: boolean;
     /** Called when the child is activated (pointer up-over, or focus + menu/Enter). */
+    handleActivate?: () => void;
+    /** @deprecated use `handleActivate` — removed in 0.9. */
     onActivate?: () => void;
     /** The box calls this when the child's hover/press/focus state changes. */
     setState?: (state: BoxChildState) => void;
@@ -180,6 +182,8 @@ export declare function inlineItem(el: SVGElement, width: number, height: number
  * it flows and wraps like any inline item.
  */
 export declare function button(label: string, opts?: {
+    handleActivate?: () => void;
+    /** @deprecated use `handleActivate` — removed in 0.9. */
     onActivate?: () => void;
     font?: FontSpec;
     color?: string;

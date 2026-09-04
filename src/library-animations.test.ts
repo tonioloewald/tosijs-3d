@@ -8,7 +8,7 @@ import { readFileSync } from 'fs'
 // mesh nobody can see".
 
 let BABYLON: typeof import('@babylonjs/core')
-let cloneNodeAnimations: typeof import('./b3d-library').cloneNodeAnimations
+let cloneNodeAnimations: typeof import('./b3d-library.js').cloneNodeAnimations
 let scene: import('@babylonjs/core').Scene
 let container: import('@babylonjs/core').AssetContainer
 
@@ -26,7 +26,7 @@ beforeAll(async () => {
   }
   BABYLON = await import('@babylonjs/core')
   await import('@babylonjs/loaders')
-  cloneNodeAnimations = (await import('./b3d-library')).cloneNodeAnimations
+  cloneNodeAnimations = (await import('./b3d-library.js')).cloneNodeAnimations
   const engine = new BABYLON.NullEngine()
   scene = new BABYLON.Scene(engine)
   const b64 = readFileSync('static/test-3.glb').toString('base64')
@@ -132,7 +132,7 @@ describe('instantiate rotation (degrees, and actually applied)', () => {
   /** A library element is a Component; drive `instantiate` on a duck-typed
    * stand-in holding just the container + owner it touches. */
   const makeLib = async () => {
-    const { B3dLibrary } = await import('./b3d-library')
+    const { B3dLibrary } = await import('./b3d-library.js')
     const lib = Object.create(B3dLibrary.prototype) as any
     lib.container = container
     lib.instances = []

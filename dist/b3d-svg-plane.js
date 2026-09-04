@@ -398,12 +398,12 @@ const scene = b3d({ sceneCreated }, b3dLight({ intensity: 1 }), plane)
 */
 /*{ "parent": "UI", "order": 510 }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff, markUiMesh, collidable, sceneDelta, } from './b3d-utils';
-import { gazeOffAxisDeg, gazeStep, newGazeState, bestCandidate, placementDistance, facingYawDeg, easeTo, } from './dialog-placement';
-import { roundedRectGeometry } from './rounded-rect';
+import { AbstractMesh, isOff, markUiMesh, collidable, sceneDelta, } from './b3d-utils.js';
+import { gazeOffAxisDeg, gazeStep, newGazeState, bestCandidate, placementDistance, facingYawDeg, easeTo, } from './dialog-placement.js';
+import { roundedRectGeometry } from './rounded-rect.js';
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3;
-import { SvgTexture } from './svg-texture';
+import { SvgTexture } from './svg-texture.js';
 export class B3dSvgPlane extends AbstractMesh {
     static preferredTagName = 'tosi-b3d-svg-plane';
     static shadowStyleSpec = { ':host': { display: 'none' } };

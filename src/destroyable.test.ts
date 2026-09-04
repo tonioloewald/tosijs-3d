@@ -3,7 +3,7 @@
  * cascading chain reactions. No Babylon; time is the `dt` passed to `tick`.
  */
 import { describe, test, expect } from 'bun:test'
-import { CombatWorld, type CombatEvent } from './destroyable'
+import { CombatWorld, type CombatEvent } from './destroyable.js'
 
 const ids = (evs: CombatEvent[], type: CombatEvent['type']) =>
   evs.filter((e) => e.type === type).map((e) => e.id)

@@ -85,9 +85,9 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils'
-import { resolveBudget } from './b3d-quality'
-import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
+import { conventionName, actualMeshes, B3dChild, isOff } from './b3d-utils.js'
+import { resolveBudget } from './b3d-quality.js'
+import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dSun extends B3dChild {
   static preferredTagName = 'tosi-b3d-sun'

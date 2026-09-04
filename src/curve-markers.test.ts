@@ -11,7 +11,7 @@ would let brightness and hue disagree about where the attack ends — a state th
 model cannot even represent.
 */
 
-let mod: typeof import('./curve-field')
+let mod: typeof import('./curve-field.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -24,7 +24,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  mod = await import('./curve-field')
+  mod = await import('./curve-field.js')
 })
 
 describe('the shared model', () => {

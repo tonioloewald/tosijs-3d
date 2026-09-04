@@ -20,8 +20,8 @@ missing value and is actually the whole feature.
 
 // `b3d-utils` reaches tosijs, which wants a DOM at import time — so stand one
 // up first and import dynamically, exactly as `stick-sign.test.ts` does.
-let sceneDelta: typeof import('./b3d-utils').sceneDelta
-let cameraIsAttached: typeof import('./b3d-utils').cameraIsAttached
+let sceneDelta: typeof import('./b3d-utils.js').sceneDelta
+let cameraIsAttached: typeof import('./b3d-utils.js').cameraIsAttached
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -35,7 +35,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  ;({ sceneDelta, cameraIsAttached } = await import('./b3d-utils'))
+  ;({ sceneDelta, cameraIsAttached } = await import('./b3d-utils.js'))
 })
 
 /** Just enough scene for `sceneDelta`: published metadata + an engine clock

@@ -226,17 +226,17 @@ here.
 /*{ "parent": "UI", "order": 263 }*/
 
 import { svgElements } from 'tosijs'
-import { canonicalProgram, type LightProgram } from './light-modulation'
-import { readCurve, type ControlPoint } from './curve'
+import { canonicalProgram, type LightProgram } from './light-modulation.js'
+import { readCurve, type ControlPoint } from './curve.js'
 import {
   curve3d,
   curveMarkers,
   type CurveField,
   type CurveMarkers,
-} from './curve-field'
-import { stackLayout } from './widgets3d-layout'
-import { offsetHost } from './widgets3d'
-import type { PointerKind, Widget3d, WidgetHost } from './widgets3d'
+} from './curve-field.js'
+import { stackLayout } from './widgets3d-layout.js'
+import { offsetHost } from './widgets3d.js'
+import type { PointerKind, Widget3d, WidgetHost } from './widgets3d.js'
 
 const { g } = svgElements
 

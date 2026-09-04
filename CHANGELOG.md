@@ -37,6 +37,11 @@ the two renames that were waiting for a minor.
 
 ### Added
 
+- **`handlerOf`** (`handler-of.ts`, exported from the barrel) — the shim behind
+  the `handleX`/`onX` rule, in its own dependency-free module so the smallest
+  widget can adopt it without importing `widgets3d`. Use it for your own
+  widgets: `handlerOf(config, 'handleChange', 'onChange')?.(value)`.
+
 - **Lamps** — `b3dPointLight`, `b3dSpotLight`, `b3dAreaLight`: a placed light
   with its own fixture geometry, which **tracks the light** (a fluorescent's
   bulb stutters as it strikes and dims to a red ember as it dies). Shadows where
@@ -115,6 +120,42 @@ the two renames that were waiting for a minor.
 - **The `curve-program` demo was truncated on the published site.** Its doc
   comment contained a nested `/* … */`, and block comments do not nest — the
   inner `*/` closed the page early, so roughly half the demo silently vanished.
+- **`dist` could not be imported by Node at all** — 394 relative specifiers were
+  written without an extension (`from './tosi-b3d'`), which every bundler and
+  Bun resolves and Node's ESM resolver does not. Reported by
+  `tosijs-3d-ensemble` (#69) after they fixed the identical fault in their own
+  package and the failure moved one level down into ours.
+
+  Source specifiers now carry `.js` — the TypeScript convention, passed through
+  by `tsc` and resolved fine by bundlers, so it works everywhere and keeps the
+  per-file `dist` we ship deliberately. That covers deep package subpaths too
+  (`@babylonjs/core/Misc/observable.js`), which failed the same way. Verified by
+  importing the built package under Node 24, not by reasoning about it.
+
+  A test now asserts it **of the source**, so it fails at authoring time rather
+  than after a publish — the only moment anyone was going to notice, since every
+  loop here is a bundler or Bun.
+
+- **Subpath exports** — `import { validateLight } from 'tosijs-3d/light-settings'`
+  now works. The pure modules were split from their editors precisely so a
+  consumer could validate documents headlessly, but the only export was the
+  barrel, which defines custom elements on import and needs `HTMLElement`. So
+  the headless half was still behind a browser. It is not now.
+- **`handleX` now works on every callback option, and `onX` is deprecated.**
+  It used to depend on which widget you were holding — `curve3d` took
+  `handleChange`, `inputField` took `onChange`, and neither complained about the
+  other — which is what made three of the bugs above possible. Migrated:
+  `table` (`handleSelect`/`handleActivate`), `box`'s `BoxChild` and `button`
+  (`handleActivate`), `surface`'s `MenuItem` (`handleSelect`), `inputField`
+  (`handleChange`/`handleEnter`/`handleFocus`, on the object as well as in
+  config), `keyboard` (`handleKey`/`handleAction`/`handleCaretMove`), popups
+  (`handleClose`), and debug-source actions (`handleClick`). Every `onX` still
+  works, warns **once per name**, and is removed in 0.9.
+- `b3d-trigger` gains **`whenEnter`/`whenExit`** (components use `when*`, like
+  `whenImpact`). Passing `onEnter` to the element creator never set the field at
+  all — it added a listener for the `'enter'` CustomEvent, so the callback got
+  an Event while `trigger.onEnter = fn` got the trigger. Same callback, two
+  different arguments depending on how you attached it.
 - The `curve-program` and `curve-field` editors did not exist inside a headset:
   both put their controls in flat DOM beside the canvas, which an immersive
   session does not render. Both now also build through `scenePanel`.

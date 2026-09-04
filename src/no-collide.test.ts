@@ -12,9 +12,9 @@ A panel MUST stay pickable (that is how a controller ray or gaze cursor targets
 it), so the exclusion cannot be `isPickable = false`. See COLLISION-DESIGN.md.
 */
 let BABYLON: typeof import('@babylonjs/core')
-let markUiMesh: typeof import('./b3d-utils').markUiMesh
-let isNoCollide: typeof import('./b3d-utils').isNoCollide
-let collidable: typeof import('./b3d-utils').collidable
+let markUiMesh: typeof import('./b3d-utils.js').markUiMesh
+let isNoCollide: typeof import('./b3d-utils.js').isNoCollide
+let collidable: typeof import('./b3d-utils.js').collidable
 let scene: import('@babylonjs/core').Scene
 
 beforeAll(async () => {
@@ -30,7 +30,7 @@ beforeAll(async () => {
     }
   }
   BABYLON = await import('@babylonjs/core')
-  const utils = await import('./b3d-utils')
+  const utils = await import('./b3d-utils.js')
   markUiMesh = utils.markUiMesh
   isNoCollide = utils.isNoCollide
   collidable = utils.collidable

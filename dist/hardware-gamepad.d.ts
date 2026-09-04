@@ -1,4 +1,4 @@
-import type { VirtualGamepad, GamepadSource } from './virtual-gamepad';
+import type { VirtualGamepad, GamepadSource } from './virtual-gamepad.js';
 export declare class HardwareGamepadSource implements GamepadSource {
     readonly kind = "hardware";
     deadzone: number;

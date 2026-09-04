@@ -55,7 +55,7 @@ preview.append(scene)
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
 import { SkyMaterial } from '@babylonjs/materials';
-import { AbstractMesh } from './b3d-utils';
+import { AbstractMesh } from './b3d-utils.js';
 const DEG_TO_RAD = Math.PI / 180;
 function hexToColor3(hex) {
     const r = parseInt(hex.slice(1, 3), 16) / 255;

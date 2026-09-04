@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 
-let K: typeof import('./keyboard')
-let L: typeof import('./key-layout')
+let K: typeof import('./keyboard.js')
+let L: typeof import('./key-layout.js')
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -15,8 +15,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  K = await import('./keyboard')
-  L = await import('./key-layout')
+  K = await import('./keyboard.js')
+  L = await import('./key-layout.js')
 })
 
 const W = 380

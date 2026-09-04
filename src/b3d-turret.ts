@@ -101,12 +101,12 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff, sceneDelta } from './b3d-utils'
-import type { B3d } from './tosi-b3d'
-import { ballisticAim, type BallisticParams } from './ballistics'
-import { spawnProjectile } from './b3d-launcher'
-import { steerToward, gNormalize, gSub, type Vec3 } from './guidance'
-import type { WarheadSpec } from './warhead'
+import { AbstractMesh, isOff, sceneDelta } from './b3d-utils.js'
+import type { B3d } from './tosi-b3d.js'
+import { ballisticAim, type BallisticParams } from './ballistics.js'
+import { spawnProjectile } from './b3d-launcher.js'
+import { steerToward, gNormalize, gSub, type Vec3 } from './guidance.js'
+import type { WarheadSpec } from './warhead.js'
 
 const RAD_TO_DEG = 180 / Math.PI
 

@@ -130,7 +130,7 @@ tosi-b3d {
 
 */
 /*{ "parent": "Space" }*/
-import { B3dChild, isOff, sceneDelta } from './b3d-utils';
+import { B3dChild, isOff, sceneDelta } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 // 2D noise for disk turbulence (simple hash-based)
 function hash(x, y) {

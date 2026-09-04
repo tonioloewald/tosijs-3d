@@ -1,6 +1,6 @@
-import { type ColumnSpec } from './table-layout';
-import { type SelectionMode } from './selection';
-import type { Widget3d } from './widgets3d';
+import { type ColumnSpec } from './table-layout.js';
+import { type SelectionMode } from './selection.js';
+import type { Widget3d } from './widgets3d.js';
 /** A row: anything with an `id`, read by column `key`. */
 export type TableRow = {
     id: string;
@@ -67,8 +67,12 @@ export interface TableOptions {
      * re-supply everything. Set `filter` on the returned table to change it.
      */
     filter?: (row: TableRow) => boolean;
+    handleSelect?: (ids: string[]) => void;
+    /** @deprecated use `handleSelect` — removed in 0.9. */
     onSelect?: (ids: string[]) => void;
     /** Row activated (a second click / Enter) — distinct from selecting it. */
+    handleActivate?: (row: TableRow) => void;
+    /** @deprecated use `handleActivate` — removed in 0.9. */
     onActivate?: (row: TableRow) => void;
 }
 export declare function table(config: TableOptions): Table;

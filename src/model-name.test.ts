@@ -4,8 +4,8 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 // `.model` to a node name declares it an intended export — the library lists
 // ONLY declared exports (under clean names) once any exist, so a working
 // file's construction junk stays out of the catalog.
-let modelExportNames: typeof import('./b3d-library').modelExportNames
-let resolveModelName: typeof import('./b3d-library').resolveModelName
+let modelExportNames: typeof import('./b3d-library.js').modelExportNames
+let resolveModelName: typeof import('./b3d-library.js').resolveModelName
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -19,7 +19,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  const m = await import('./b3d-library')
+  const m = await import('./b3d-library.js')
   modelExportNames = m.modelExportNames
   resolveModelName = m.resolveModelName
 })

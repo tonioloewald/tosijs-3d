@@ -1,7 +1,7 @@
 import { type ElementPart } from 'tosijs';
-import iconData from './icon-data';
+import iconData from './icon-data.js';
 export { iconData };
-export type { IconStyle } from './icon-name';
+export type { IconStyle } from './icon-name.js';
 type IconMap = Record<string, string>;
 /** An SVG icon element creator: call with element parts, get an `<svg>` back. */
 export type SvgIconCreator = (...parts: ElementPart[]) => SVGSVGElement;

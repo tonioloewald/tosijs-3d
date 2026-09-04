@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { roundedRectGeometry, signedArea } from './rounded-rect'
+import { roundedRectGeometry, signedArea } from './rounded-rect.js'
 
 /*
 GEOMETRY INSTEAD OF ALPHA.

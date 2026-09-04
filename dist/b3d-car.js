@@ -41,8 +41,8 @@ document.body.append(
 */
 /*{ "parent": "Vehicles" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dControllable } from './b3d-controllable';
-import { carMapping } from './virtual-gamepad';
+import { B3dControllable } from './b3d-controllable.js';
+import { carMapping } from './virtual-gamepad.js';
 export class B3dCar extends B3dControllable {
     static preferredTagName = 'tosi-b3d-car';
     inputMapping = carMapping;

@@ -7,7 +7,7 @@ import {
   aimTarget,
   jumpSpeedForAirtime,
   surfaceAimLimit,
-} from './swim-aim'
+} from './swim-aim.js'
 
 describe('clampAim', () => {
   test('passes through what a body can hold', () => {

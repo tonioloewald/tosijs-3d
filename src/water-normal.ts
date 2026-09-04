@@ -29,7 +29,7 @@ by construction rather than by blending edges and hoping.
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { PerlinNoise } from './perlin-noise'
+import { PerlinNoise } from './perlin-noise.js'
 
 /**
  * Height at `(u, v)` on a torus, so the field repeats exactly over `[0,1)²`.

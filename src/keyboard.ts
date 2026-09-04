@@ -88,14 +88,14 @@ const use = (f) => {
   for (const g of [nameField, mottoField]) g.setActive(g === f)
   openKeyboard()
 }
-const nameField = inputField({ placeholder: 'name…', onFocus: () => use(nameField) })
-const mottoField = inputField({ value: 'hold o for ö', placeholder: 'motto…', onFocus: () => use(mottoField) })
+const nameField = inputField({ placeholder: 'name…', handleFocus: () => use(nameField) })
+const mottoField = inputField({ value: 'hold o for ö', placeholder: 'motto…', handleFocus: () => use(mottoField) })
 const kb = keyboard({
-  onKey: (ch) => target?.insert(ch),
-  onAction: (a) => target?.action(a),
+  handleKey: (ch) => target?.insert(ch),
+  handleAction: (a) => target?.action(a),
   // Hold the SPACEBAR and slide to move the caret (a hold that doesn't move
   // still types the space — headset triggers are slow).
-  onCaretMove: (d) => target?.moveCaret(d),
+  handleCaretMove: (d) => target?.moveCaret(d),
 })
 const kbBox = widgetBox({ width: 364, padding: 8, gap: 8, background: '#0e1116' }, [kb])
 const openKeyboard = () => {
@@ -103,7 +103,7 @@ const openKeyboard = () => {
   // Untitled (a keyboard needs no label) and BELOW both fields — an overlay
   // that covers the field you might tap next is an overlay in the way.
   kbPanel = s.openPanel({ x: 8, y: 180 }, kbBox, {
-    draggable: true, onClose: () => { kbPanel = null },
+    draggable: true, handleClose: () => { kbPanel = null },
   })
 }
 
@@ -191,12 +191,12 @@ const H = 300
 const readout = div({ style: 'margin:8px 4px;color:#8ea;font:13px system-ui' }, 'value: (empty)')
 const field = inputField({
   placeholder: 'type with the ray, or a gamepad…',
-  onChange: (v) => { readout.textContent = 'value: ' + (v || '(empty)') },
+  handleChange: (v) => { readout.textContent = 'value: ' + (v || '(empty)') },
 })
 const kb = keyboard({
-  onKey: (ch) => field.insert(ch),
-  onAction: (a) => field.action(a),
-  onCaretMove: (d) => field.moveCaret(d),
+  handleKey: (ch) => field.insert(ch),
+  handleAction: (a) => field.action(a),
+  handleCaretMove: (d) => field.moveCaret(d),
 })
 
 const s = surface({ width: W, height: H })
@@ -264,7 +264,7 @@ import {
   isValidForType,
   commitValueForType,
   type FieldType,
-} from './key-layout'
+} from './key-layout.js'
 import {
   edit,
   insert as editInsert,
@@ -272,12 +272,13 @@ import {
   moveCaret as editMoveCaret,
   moveTo,
   type EditState,
-} from './text-edit'
-import { measureTextWidth, type FontSpec } from './widgets3d-layout'
-import { nearestInDirection } from './flow-layout'
-import type { Widget3d, WidgetHost, PointerKind } from './widgets3d'
-import { iconGlyph } from './svg-icons'
-import { w3dTheme } from './w3d-theme'
+} from './text-edit.js'
+import { measureTextWidth, type FontSpec } from './widgets3d-layout.js'
+import { nearestInDirection } from './flow-layout.js'
+import type { Widget3d, WidgetHost, PointerKind } from './widgets3d.js'
+import { iconGlyph } from './svg-icons.js'
+import { handlerOf } from './handler-of.js'
+import { w3dTheme } from './w3d-theme.js'
 
 const { g, rect, text } = svgElements
 
@@ -343,16 +344,20 @@ export interface InputField extends Widget3d {
     focused: boolean
   }) => void
   /** Called whenever the text changes. */
+  handleChange?: (value: string) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (value: string) => void
   /**
    * Called whenever this field becomes the receiver — by tap, D-pad arrival or
    * `setActive(true)`.
    *
-   * Settable on the OBJECT as well as via config, mirroring `onChange`, so a
-   * manager can learn about focus it did not initiate. Without it a tap and a
+   * Settable on the OBJECT as well as via config, mirroring `handleChange`, so
+   * a manager can learn about focus it did not initiate. Without it a tap and a
    * programmatic focus disagree about who is active, and keys go to the wrong
    * field — silently, and only sometimes.
    */
+  handleFocus?: () => void
+  /** @deprecated use `handleFocus` — removed in 0.9. */
   onFocus?: () => void
 }
 
@@ -406,11 +411,17 @@ export interface InputFieldOptions {
   placeholder?: string
   fontSize?: number
   height?: number
+  handleChange?: (value: string) => void
+  /** @deprecated use `handleChange` — removed in 0.9. */
   onChange?: (value: string) => void
+  handleEnter?: (value: string) => void
+  /** @deprecated use `handleEnter` — removed in 0.9. */
   onEnter?: (value: string) => void
   /** The field became the receiver (tap, D-pad arrival, or `setActive(true)`)
    * — the host's hook for exclusivity (dim the others) and for summoning the
    * keyboard overlay. */
+  handleFocus?: () => void
+  /** @deprecated use `handleFocus` — removed in 0.9. */
   onFocus?: () => void
   /**
    * Drag across a numeric field to change its value ("scrub"), in units per
@@ -539,11 +550,17 @@ export function fieldGroup(config: {
   // group must not miss — otherwise a tap and a programmatic focus disagree
   // about who is active, and the keys go to the wrong one.
   for (const f of config.fields) {
-    const prior = f.onFocus
-    f.onFocus = () => {
+    // Wrap whichever spelling the field carries, and write back under the SAME
+    // one — moving the callback to `handleFocus` would strand a consumer who
+    // still reads `field.onFocus` to detach it later.
+    const usesOld = typeof f.onFocus === 'function' && f.handleFocus == null
+    const prior = f.handleFocus ?? f.onFocus
+    const wrapped = (): void => {
       prior?.()
       focus(f)
     }
+    if (usesOld) f.onFocus = wrapped
+    else f.handleFocus = wrapped
   }
 
   const api = {
@@ -696,6 +713,13 @@ export function setAutoKeyboard(on: boolean): void {
 }
 
 export function inputField(config: InputFieldOptions = {}): InputField {
+  // Both spellings, from BOTH sources: these callbacks are settable on the
+  // returned object as well as passed in config, so each has two places a
+  // consumer could have written either name.
+  const cfg$ = <T>(h: string, o: string): T | undefined =>
+    handlerOf<T>(config as unknown as Record<string, unknown>, h, o)
+  const api$ = <T>(h: string, o: string): T | undefined =>
+    handlerOf<T>(api as unknown as Record<string, unknown>, h, o)
   const H = config.height ?? 40
   const SIZE = config.fontSize ?? 16
   const PAD = 10
@@ -754,8 +778,8 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     if (focused) return
     focused = true
     paintRef()
-    config.onFocus?.()
-    api.onFocus?.()
+    cfg$<() => void>('handleFocus', 'onFocus')?.()
+    api$<() => void>('handleFocus', 'onFocus')?.()
   }
   // paint() is defined below; route through a ref so activate can be declared
   // here beside the state it guards.
@@ -832,8 +856,8 @@ export function inputField(config: InputFieldOptions = {}): InputField {
     state = next
     paint()
     if (state.text !== before) {
-      config.onChange?.(state.text)
-      api.onChange?.(state.text)
+      cfg$<(v: string) => void>('handleChange', 'onChange')?.(state.text)
+      api$<(v: string) => void>('handleChange', 'onChange')?.(state.text)
     }
   }
 
@@ -961,9 +985,9 @@ export function inputField(config: InputFieldOptions = {}): InputField {
 
     const kb = keyboard({
       mode: api.keyboardMode,
-      onKey: (k) => api.insert(k),
-      onAction: (a) => api.action(a),
-      onCaretMove: (d) => api.moveCaret(d),
+      handleKey: (k) => api.insert(k),
+      handleAction: (a) => api.action(a),
+      handleCaretMove: (d) => api.moveCaret(d),
     })
 
     // The app's own answer wins: it is the only thing that knows whether a
@@ -1153,7 +1177,7 @@ export function inputField(config: InputFieldOptions = {}): InputField {
         // number field would have to re-do this work, and every handler would
         // have to remember to.
         const kept = commitField()
-        config.onEnter?.(kept)
+        cfg$<(v: string) => void>('handleEnter', 'onEnter')?.(kept)
       }
       // shift / mode / done are the keyboard's own business
     },
@@ -1259,13 +1283,21 @@ export interface KeyboardOptions {
    * your finger instead of racing it.
    */
   caretStepPx?: number
+  handleKey?: (text: string) => void
+  /** @deprecated use `handleKey` — removed in 0.9. */
   onKey?: (text: string) => void
+  handleAction?: (action: KeyAction) => void
+  /** @deprecated use `handleAction` — removed in 0.9. */
   onAction?: (action: KeyAction) => void
   /** Caret nudged by the spacebar-as-trackpad gesture (±1 per step). */
+  handleCaretMove?: (delta: number) => void
+  /** @deprecated use `handleCaretMove` — removed in 0.9. */
   onCaretMove?: (delta: number) => void
 }
 
 export function keyboard(config: KeyboardOptions = {}): Keyboard {
+  const kb$ = <T>(h: string, o: string): T | undefined =>
+    handlerOf<T>(config as unknown as Record<string, unknown>, h, o)
   const KH = config.keyHeight ?? 38
   const GAP = config.gap ?? 5
   const HOLD = config.holdMs ?? 350
@@ -1453,7 +1485,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       const hint =
         r.key.value && accentsFor(r.key.value).length > 0
           ? '▾'
-          : r.key.action === 'space' && config.onCaretMove
+          : r.key.action === 'space' && kb$('handleCaretMove', 'onCaretMove')
           ? '↔'
           : ''
       if (hint) {
@@ -1598,7 +1630,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
   const fireKey = (r: KeyRect): void => {
     const k = r.key
     if (k.value !== undefined) {
-      config.onKey?.(k.value)
+      kb$<(t: string) => void>('handleKey', 'onKey')?.(k.value)
       // A shift is one-shot, like a phone: type A, then keep typing lower case.
       // Caps lock is precisely the exception — it survives typing.
       if (shift && !capsLock) {
@@ -1625,7 +1657,8 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
       relayout()
       return
     }
-    if (k.action) config.onAction?.(k.action)
+    if (k.action)
+      kb$<(a: KeyAction) => void>('handleAction', 'onAction')?.(k.action)
   }
 
   const clearTimer = (): void => {
@@ -1683,7 +1716,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
           */
           const i = accentIndexAt(sticky.cells, sticky.accents.length, x, y)
           if (i >= 0) {
-            config.onKey?.(sticky.accents[i])
+            kb$<(t: string) => void>('handleKey', 'onKey')?.(sticky.accents[i])
           } else {
             // Tapping the key that OPENED the strip types its plain character —
             // you held for the alternatives, changed your mind, and asked for
@@ -1731,7 +1764,10 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
             press.caps = true
             relayout()
           }, HOLD)
-        } else if (r.key.action === 'space' && config.onCaretMove) {
+        } else if (
+          r.key.action === 'space' &&
+          kb$('handleCaretMove', 'onCaretMove')
+        ) {
           /*
           Hold the SPACEBAR and it becomes a caret trackpad — slide to move the
           insertion point. Space is the right home for it: it's the widest key (so
@@ -1767,7 +1803,7 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         caretDrag.lastX = x
         while (Math.abs(caretDrag.accum) >= CARET_STEP) {
           const dir = caretDrag.accum > 0 ? 1 : -1
-          config.onCaretMove?.(dir)
+          kb$<(d: number) => void>('handleCaretMove', 'onCaretMove')?.(dir)
           caretDrag.accum -= dir * CARET_STEP
           caretDrag.moved = true
         }
@@ -1808,7 +1844,10 @@ export function keyboard(config: KeyboardOptions = {}): Keyboard {
         if (press.accents.length > 0) {
           if (press.pick >= 0) {
             // Slid onto an accent and released — the mouse/VR-ray gesture.
-            config.onKey?.(press.accents[press.pick])
+            kb$<(t: string) => void>(
+              'handleKey',
+              'onKey'
+            )?.(press.accents[press.pick])
             closePopup()
           } else {
             /*

@@ -137,13 +137,13 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, sceneDelta } from './b3d-utils'
-import { band } from './atmosphere'
-import { fillWeight, spawnBias } from './ambient-budget'
-import { LeafField } from './ambient-leaves'
-import type { AmbientEffect, AmbientRequest } from './ambient-budget'
-import type { PerfTier } from './perf-probe'
-import type { B3d } from './tosi-b3d'
+import { B3dChild, sceneDelta } from './b3d-utils.js'
+import { band } from './atmosphere.js'
+import { fillWeight, spawnBias } from './ambient-budget.js'
+import { LeafField } from './ambient-leaves.js'
+import type { AmbientEffect, AmbientRequest } from './ambient-budget.js'
+import type { PerfTier } from './perf-probe.js'
+import type { B3d } from './tosi-b3d.js'
 
 type Preset = {
   size: [number, number]

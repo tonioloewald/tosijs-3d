@@ -6,8 +6,12 @@ a target (the active camera or a named mesh) enters or exits a spherical
 region. Useful for mission waypoints, area-of-effect zones, and cutscene
 triggers.
 
-Set `onEnter` and `onExit` callback properties from JavaScript, or listen
+Set `whenEnter` and `whenExit` callback properties from JavaScript, or listen
 for `'enter'` / `'exit'` CustomEvents on the element.
+
+⚠️ The old `onEnter` / `onExit` still work and are removed in 0.9 — but only by
+DIRECT assignment. Passed to the element creator, an `on*` prop becomes a DOM
+event listener, so it is called with an Event rather than the trigger.
 
 ## Demo
 
@@ -78,7 +82,7 @@ const wire = setInterval(() => {
 // On arrival: pause, then teleport the goal (marker + trigger) to a random spot
 // on the ground. The NPC notices the trigger it's now outside of and walks to the
 // new position. Repeat forever — trigger + simple AI in a loop.
-trigger.onEnter = () => {
+trigger.whenEnter = () => {
   demo.status.value = 'reached it — relocating…'
   setTimeout(() => {
     // Pick a spot well AWAY from the biped — otherwise the goal can land on top
@@ -133,10 +137,10 @@ preview.append(
 | `disabled` | `false` | Disable the trigger (default: active) |
 | `target` | `'camera'` | `'camera'` or a mesh name to watch |
 | `debug` | `false` | Show wireframe sphere |
-| `once` | `false` | Fire onEnter once then deactivate |
+| `once` | `false` | Fire `whenEnter` once then deactivate |
 */
 /*{ "parent": "Core" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 export class B3dTrigger extends B3dChild {
     static preferredTagName = 'tosi-b3d-trigger';
@@ -159,7 +163,25 @@ export class B3dTrigger extends B3dChild {
         once: false,
     };
     owner = null;
+    /*
+    `when*`, because this is a COMPONENT.
+  
+    The element creator binds any `on*` prop as a DOM event LISTENER, so
+    `b3dTrigger({ onEnter })` did not set this field — it added a listener for the
+    `'enter'` CustomEvent below. That fires, so it LOOKED wired, but the callback
+    received an Event instead of the trigger, and `trigger.onEnter = fn` (direct
+    assignment, which does set the field) handed over a trigger. The same callback
+    got two different arguments depending on how you attached it.
+  
+    `whenEnter` cannot be read as an event name, which is the same reason
+    `whenImpact` and `whenDestroyed` are spelled that way. Both still work; the
+    old pair is removed in 0.9.
+    */
+    whenEnter = null;
+    whenExit = null;
+    /** @deprecated use `whenEnter` — removed in 0.9. */
     onEnter = null;
+    /** @deprecated use `whenExit` — removed in 0.9. */
     onExit = null;
     _inside = false;
     _beforeRender = null;
@@ -221,6 +243,7 @@ export class B3dTrigger extends B3dChild {
         const dist = BABYLON.Vector3.Distance(targetPos, triggerPos);
         if (dist < attrs.radius && !this._inside) {
             this._inside = true;
+            this.whenEnter?.(this);
             this.onEnter?.(this);
             this.dispatchEvent(new CustomEvent('enter', { detail: { trigger: this }, bubbles: true }));
             if (attrs.once) {
@@ -230,6 +253,7 @@ export class B3dTrigger extends B3dChild {
         }
         else if (dist >= attrs.radius && this._inside) {
             this._inside = false;
+            this.whenExit?.(this);
             this.onExit?.(this);
             this.dispatchEvent(new CustomEvent('exit', { detail: { trigger: this }, bubbles: true }));
         }

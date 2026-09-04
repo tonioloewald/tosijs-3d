@@ -130,7 +130,7 @@ preview.append(scene)
 | `attachTo` | `''` | Mesh name to attach emitter to |
 */
 /*{ "parent": "Environment" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 // Default flare texture: 32x32 radial gradient white-to-transparent
 let defaultFlareTexture = null;

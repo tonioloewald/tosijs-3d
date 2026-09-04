@@ -155,11 +155,11 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 import { Color } from 'tosijs';
-import { isOff, B3dChild, sceneDelta } from './b3d-utils';
-import { attachBiomePlugin } from './biome-plugin';
+import { isOff, B3dChild, sceneDelta } from './b3d-utils.js';
+import { attachBiomePlugin } from './biome-plugin.js';
 import * as BABYLON from '@babylonjs/core';
-import { PerlinNoise } from './perlin-noise';
-import { PiecewiseLinearFilter } from './gradient-filter';
+import { PerlinNoise } from './perlin-noise.js';
+import { PiecewiseLinearFilter } from './gradient-filter.js';
 // The 6 face directions for the subdivided cube.
 // Each face: origin is one corner, right/up span the face.
 // Winding must produce outward-facing normals.

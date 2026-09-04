@@ -106,7 +106,7 @@ provider.addSource(source)
 ```
 */
 /*{ "parent": "Input", "order": 900 }*/
-import { emptyGamepad } from './virtual-gamepad';
+import { emptyGamepad } from './virtual-gamepad.js';
 // data-part value → VirtualGamepad button field
 const BUTTON_MAP = {
     A: 'buttonA',

@@ -16,8 +16,8 @@ plane and the demo calls `useDomLayer` by hand:
 A feature that only works if you know a second call exists is a feature most
 people do not have.
 */
-let w3d: typeof import('./widgets3d')
-let kb: typeof import('./keyboard')
+let w3d: typeof import('./widgets3d.js')
+let kb: typeof import('./keyboard.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -30,8 +30,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  w3d = await import('./widgets3d')
-  kb = await import('./keyboard')
+  w3d = await import('./widgets3d.js')
+  kb = await import('./keyboard.js')
 })
 
 // The preference is shared module state — reset, or one test arms the next.

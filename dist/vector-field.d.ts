@@ -1,9 +1,11 @@
-import { type InputField } from './keyboard';
-import type { Widget3d } from './widgets3d';
-import type { Vec3 } from './surface-sampler';
+import { type InputField } from './keyboard.js';
+import type { Widget3d } from './widgets3d.js';
+import type { Vec3 } from './surface-sampler.js';
 export interface Vector3dOptions {
     value?: Vec3;
     /** Fired on every committed edit — typing, scrubbing, or a step. */
+    handleChange?: (value: Vec3) => void;
+    /** @deprecated use `handleChange` — removed in 0.9. */
     onChange?: (value: Vec3) => void;
     /** Arrow-key / typed increment. */
     step?: number;

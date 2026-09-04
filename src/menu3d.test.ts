@@ -10,8 +10,8 @@ from that: menus close on pick, disabled items are present but inert, and a menu
 cell in a grid never joins the selection.
 */
 
-let widgets: typeof import('./widgets3d')
-let grid: typeof import('./icon-grid')
+let widgets: typeof import('./widgets3d.js')
+let grid: typeof import('./icon-grid.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -24,8 +24,8 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  widgets = await import('./widgets3d')
-  grid = await import('./icon-grid')
+  widgets = await import('./widgets3d.js')
+  grid = await import('./icon-grid.js')
 })
 
 /**

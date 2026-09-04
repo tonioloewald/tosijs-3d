@@ -208,7 +208,7 @@ const scene = b3d(
     // to be able to let the player back in.
     pausePanel: (host, resume) =&gt; [
       label3d({ text: &#39;PAUSED&#39;, bold: true }),
-      button3d({ label: &#39;Continue&#39;, onClick: resume }),
+      button3d({ label: &#39;Continue&#39;, handleClick: resume }),
     ],
     // The SAME control, in the ⚙ panel — so you can change the speed while it
     // is RUNNING and watch it change, instead of only while it is frozen. Both
@@ -462,6 +462,7 @@ document.body.append(
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

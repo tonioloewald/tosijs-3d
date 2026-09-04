@@ -31,8 +31,8 @@ class Spinner extends B3dControllable {
 - `handleGainFocus()` / `handleLoseFocus()` — lifecycle hooks for input switching
 */
 /*{ "parent": "Input", "order": 900 }*/
-import { AbstractMesh, simHalted, controlsLive, } from './b3d-utils';
-import { emptyInput } from './control-input';
+import { AbstractMesh, simHalted, controlsLive, } from './b3d-utils.js';
+import { emptyInput } from './control-input.js';
 export class B3dControllable extends AbstractMesh {
     inputProvider = null;
     inputMapping;

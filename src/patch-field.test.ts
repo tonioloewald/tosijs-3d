@@ -5,8 +5,8 @@ import {
   circleFootprint,
   marginBlend,
   type PatchField,
-} from './patch-field'
-import { extractChunk } from './sdf-lattice'
+} from './patch-field.js'
+import { extractChunk } from './sdf-lattice.js'
 
 // A rolling heightfield, so the rim test isn't accidentally passing on flat ground.
 const heightAt = (x: number, z: number) =>

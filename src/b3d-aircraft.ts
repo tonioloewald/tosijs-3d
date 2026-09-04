@@ -305,11 +305,11 @@ faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
 /*{ "parent": "Vehicles" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import { canonicalize, applyCenterOfGravity } from './model-transform'
-import { B3dControllable } from './b3d-controllable'
-import type { ControlInput } from './control-input'
-import { aircraftMapping } from './virtual-gamepad'
+import type { B3d } from './tosi-b3d.js'
+import { canonicalize, applyCenterOfGravity } from './model-transform.js'
+import { B3dControllable } from './b3d-controllable.js'
+import type { ControlInput } from './control-input.js'
+import { aircraftMapping } from './virtual-gamepad.js'
 import {
   equilibriumSpeed,
   flyByWireStep,
@@ -317,16 +317,16 @@ import {
   chaseVelocity,
   type FlyByWireConfig,
   type FlyByWireState,
-} from './fly-by-wire'
+} from './fly-by-wire.js'
 import {
   placeOnSurface,
   boundingBottomOffset,
   isOff,
   collidable,
-} from './b3d-utils'
-import { spawnProjectile, spawnMissile } from './b3d-launcher'
-import type { WarheadSpec } from './warhead'
-import type { B3dRadar } from './b3d-radar'
+} from './b3d-utils.js'
+import { spawnProjectile, spawnMissile } from './b3d-launcher.js'
+import type { WarheadSpec } from './warhead.js'
+import type { B3dRadar } from './b3d-radar.js'
 
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05

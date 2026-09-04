@@ -11,7 +11,7 @@ import {
   valueToFraction,
   wrapByMeasure,
   wrapText,
-} from './widgets3d-layout'
+} from './widgets3d-layout.js'
 
 // A synthetic measurer: every character is 1 unit wide. Lets the pure wrapping
 // logic be tested exactly, with no canvas and no font.

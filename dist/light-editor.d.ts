@@ -1,5 +1,5 @@
-import { type Widget3d } from './widgets3d';
-import { type LightSettings } from './light-settings';
+import { type Widget3d } from './widgets3d.js';
+import { type LightSettings } from './light-settings.js';
 export interface LightEditor3dOptions {
     value?: Partial<LightSettings>;
     /**

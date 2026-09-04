@@ -225,37 +225,37 @@ that assumes one orients its effect off nothing.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils'
-import type { B3d, RadarFaction } from './tosi-b3d'
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
+import type { B3d, RadarFaction } from './tosi-b3d.js'
 
 /** A guided missile always cruises at least this much FASTER than the platform that
  * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
 const MIN_CLOSING_SPEED = 70
-import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics'
+import { ballisticStep, type BallisticParams, type Vec3 } from './ballistics.js'
 import {
   crossing,
   depthIn,
   dragAt,
   type Medium,
   type MediumCrossing,
-} from './medium'
+} from './medium.js'
 import {
   steerToward,
   interceptLead,
   boostAuthority,
   gNormalize,
   gSub,
-} from './guidance'
+} from './guidance.js'
 import {
   makeResource,
   drain,
   regenTick,
   isEmpty,
   type Resource,
-} from './resource'
-import { detonateWarhead } from './b3d-warhead'
-import type { WarheadSpec } from './warhead'
+} from './resource.js'
+import { detonateWarhead } from './b3d-warhead.js'
+import type { WarheadSpec } from './warhead.js'
 
 /**
  * WHERE a round stopped, and what it stopped against.

@@ -5,7 +5,7 @@ import {
   equilibriumSubmersion,
   isSwimming,
   swimBuoyancy,
-} from './buoyancy'
+} from './buoyancy.js'
 
 const H = 1.8 // a person
 

@@ -42,14 +42,14 @@ import * as BABYLON from '@babylonjs/core'
 // was caught only by reading the property back off a live mesh (`undefined`,
 // not `false`). Tree-shaking makes an unimported Babylon feature look like a
 // missing one.
-import '@babylonjs/core/Rendering/outlineRenderer'
-import type { B3d } from './tosi-b3d'
+import '@babylonjs/core/Rendering/outlineRenderer.js'
+import type { B3d } from './tosi-b3d.js'
 import {
   interactStep,
   newInteractState,
   activationVeto,
   type InteractState,
-} from './interaction'
+} from './interaction.js'
 
 /** What happened, and where. Carried by every event this behaviour raises. */
 export interface InteractionInfo {

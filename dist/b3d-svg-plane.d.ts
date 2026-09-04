@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
-import { SvgTexture } from './svg-texture';
-import type { B3d } from './tosi-b3d';
+import { AbstractMesh } from './b3d-utils.js';
+import { SvgTexture } from './svg-texture.js';
+import type { B3d } from './tosi-b3d.js';
 export declare class B3dSvgPlane extends AbstractMesh {
     static preferredTagName: string;
     static shadowStyleSpec: {

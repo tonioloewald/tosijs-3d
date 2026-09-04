@@ -19,7 +19,7 @@ import {
   desiredCells,
   desiredCellsInto,
   type QuadtreeConfig,
-} from './terrain-grid'
+} from './terrain-grid.js'
 
 const SUBS = 8 // small even subdivision count for exact checks
 
@@ -471,7 +471,7 @@ describe('buildTileField — normalSmoothing (the cliff-face zigzag fix)', () =>
   })
 })
 
-import { tileIndexPlan } from './terrain-grid'
+import { tileIndexPlan } from './terrain-grid.js'
 
 /*
 The mask is a PREDICATE queried per fill, never a stored cell list: pooled
@@ -627,7 +627,7 @@ describe('tileIndexPlan — holes in a pooled tile', () => {
   })
 })
 
-import { naturalLevel, patchResident } from './terrain-grid'
+import { naturalLevel, patchResident } from './terrain-grid.js'
 
 describe('refine regions — forcing fine tiles where a patch needs them', () => {
   const cfg = {

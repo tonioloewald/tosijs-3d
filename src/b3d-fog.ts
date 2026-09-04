@@ -61,10 +61,10 @@ document.body.append(
 */
 /*{ "parent": "Environment" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import type { B3dSkybox } from './b3d-skybox'
+import type { B3d } from './tosi-b3d.js'
+import type { B3dSkybox } from './b3d-skybox.js'
 
 const FOG_MODES: Record<string, number> = {
   linear: BABYLON.Scene.FOGMODE_LINEAR,

@@ -88,14 +88,14 @@ const use = (f) => {
   for (const g of [nameField, mottoField]) g.setActive(g === f)
   openKeyboard()
 }
-const nameField = inputField({ placeholder: 'name…', onFocus: () => use(nameField) })
-const mottoField = inputField({ value: 'hold o for ö', placeholder: 'motto…', onFocus: () => use(mottoField) })
+const nameField = inputField({ placeholder: 'name…', handleFocus: () => use(nameField) })
+const mottoField = inputField({ value: 'hold o for ö', placeholder: 'motto…', handleFocus: () => use(mottoField) })
 const kb = keyboard({
-  onKey: (ch) => target?.insert(ch),
-  onAction: (a) => target?.action(a),
+  handleKey: (ch) => target?.insert(ch),
+  handleAction: (a) => target?.action(a),
   // Hold the SPACEBAR and slide to move the caret (a hold that doesn't move
   // still types the space — headset triggers are slow).
-  onCaretMove: (d) => target?.moveCaret(d),
+  handleCaretMove: (d) => target?.moveCaret(d),
 })
 const kbBox = widgetBox({ width: 364, padding: 8, gap: 8, background: '#0e1116' }, [kb])
 const openKeyboard = () => {
@@ -103,7 +103,7 @@ const openKeyboard = () => {
   // Untitled (a keyboard needs no label) and BELOW both fields — an overlay
   // that covers the field you might tap next is an overlay in the way.
   kbPanel = s.openPanel({ x: 8, y: 180 }, kbBox, {
-    draggable: true, onClose: () => { kbPanel = null },
+    draggable: true, handleClose: () => { kbPanel = null },
   })
 }
 
@@ -191,12 +191,12 @@ const H = 300
 const readout = div({ style: 'margin:8px 4px;color:#8ea;font:13px system-ui' }, 'value: (empty)')
 const field = inputField({
   placeholder: 'type with the ray, or a gamepad…',
-  onChange: (v) => { readout.textContent = 'value: ' + (v || '(empty)') },
+  handleChange: (v) => { readout.textContent = 'value: ' + (v || '(empty)') },
 })
 const kb = keyboard({
-  onKey: (ch) => field.insert(ch),
-  onAction: (a) => field.action(a),
-  onCaretMove: (d) => field.moveCaret(d),
+  handleKey: (ch) => field.insert(ch),
+  handleAction: (a) => field.action(a),
+  handleCaretMove: (d) => field.moveCaret(d),
 })
 
 const s = surface({ width: W, height: H })
@@ -249,12 +249,13 @@ gamepadFocus({ poll: () => pad.poll(), target: panel, claim: wrap })
 */
 /*{ "parent": "UI", "order": 210 }*/
 import { svgElements } from 'tosijs';
-import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout';
-import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit';
-import { measureTextWidth } from './widgets3d-layout';
-import { nearestInDirection } from './flow-layout';
-import { iconGlyph } from './svg-icons';
-import { w3dTheme } from './w3d-theme';
+import { keyLayout, keyRects, keyAt, accentsFor, keyboardHeight, keyIntent, modeForType, isValidForType, commitValueForType, } from './key-layout.js';
+import { edit, insert as editInsert, backspace as editBackspace, moveCaret as editMoveCaret, moveTo, } from './text-edit.js';
+import { measureTextWidth } from './widgets3d-layout.js';
+import { nearestInDirection } from './flow-layout.js';
+import { iconGlyph } from './svg-icons.js';
+import { handlerOf } from './handler-of.js';
+import { w3dTheme } from './w3d-theme.js';
 const { g, rect, text } = svgElements;
 /*
 LIVE THEME READS — see the same note in widgets3d.
@@ -348,11 +349,19 @@ export function fieldGroup(config) {
     // group must not miss — otherwise a tap and a programmatic focus disagree
     // about who is active, and the keys go to the wrong one.
     for (const f of config.fields) {
-        const prior = f.onFocus;
-        f.onFocus = () => {
+        // Wrap whichever spelling the field carries, and write back under the SAME
+        // one — moving the callback to `handleFocus` would strand a consumer who
+        // still reads `field.onFocus` to detach it later.
+        const usesOld = typeof f.onFocus === 'function' && f.handleFocus == null;
+        const prior = f.handleFocus ?? f.onFocus;
+        const wrapped = () => {
             prior?.();
             focus(f);
         };
+        if (usesOld)
+            f.onFocus = wrapped;
+        else
+            f.handleFocus = wrapped;
     }
     const api = {
         get active() {
@@ -508,6 +517,11 @@ export function setAutoKeyboard(on) {
         fn();
 }
 export function inputField(config = {}) {
+    // Both spellings, from BOTH sources: these callbacks are settable on the
+    // returned object as well as passed in config, so each has two places a
+    // consumer could have written either name.
+    const cfg$ = (h, o) => handlerOf(config, h, o);
+    const api$ = (h, o) => handlerOf(api, h, o);
     const H = config.height ?? 40;
     const SIZE = config.fontSize ?? 16;
     const PAD = 10;
@@ -569,8 +583,8 @@ export function inputField(config = {}) {
             return;
         focused = true;
         paintRef();
-        config.onFocus?.();
-        api.onFocus?.();
+        cfg$('handleFocus', 'onFocus')?.();
+        api$('handleFocus', 'onFocus')?.();
     };
     // paint() is defined below; route through a ref so activate can be declared
     // here beside the state it guards.
@@ -643,8 +657,8 @@ export function inputField(config = {}) {
         state = next;
         paint();
         if (state.text !== before) {
-            config.onChange?.(state.text);
-            api.onChange?.(state.text);
+            cfg$('handleChange', 'onChange')?.(state.text);
+            api$('handleChange', 'onChange')?.(state.text);
         }
     };
     /**
@@ -769,9 +783,9 @@ export function inputField(config = {}) {
         liveKeyboard = null;
         const kb = keyboard({
             mode: api.keyboardMode,
-            onKey: (k) => api.insert(k),
-            onAction: (a) => api.action(a),
-            onCaretMove: (d) => api.moveCaret(d),
+            handleKey: (k) => api.insert(k),
+            handleAction: (a) => api.action(a),
+            handleCaretMove: (d) => api.moveCaret(d),
         });
         // The app's own answer wins: it is the only thing that knows whether a
         // plane, a sibling or a surface is right here.
@@ -961,7 +975,7 @@ export function inputField(config = {}) {
                 // number field would have to re-do this work, and every handler would
                 // have to remember to.
                 const kept = commitField();
-                config.onEnter?.(kept);
+                cfg$('handleEnter', 'onEnter')?.(kept);
             }
             // shift / mode / done are the keyboard's own business
         },
@@ -1036,6 +1050,7 @@ export function inputField(config = {}) {
     return api;
 }
 export function keyboard(config = {}) {
+    const kb$ = (h, o) => handlerOf(config, h, o);
     const KH = config.keyHeight ?? 38;
     const GAP = config.gap ?? 5;
     const HOLD = config.holdMs ?? 350;
@@ -1188,7 +1203,7 @@ export function keyboard(config = {}) {
             */
             const hint = r.key.value && accentsFor(r.key.value).length > 0
                 ? '▾'
-                : r.key.action === 'space' && config.onCaretMove
+                : r.key.action === 'space' && kb$('handleCaretMove', 'onCaretMove')
                     ? '↔'
                     : '';
             if (hint) {
@@ -1326,7 +1341,7 @@ export function keyboard(config = {}) {
     const fireKey = (r) => {
         const k = r.key;
         if (k.value !== undefined) {
-            config.onKey?.(k.value);
+            kb$('handleKey', 'onKey')?.(k.value);
             // A shift is one-shot, like a phone: type A, then keep typing lower case.
             // Caps lock is precisely the exception — it survives typing.
             if (shift && !capsLock) {
@@ -1355,7 +1370,7 @@ export function keyboard(config = {}) {
             return;
         }
         if (k.action)
-            config.onAction?.(k.action);
+            kb$('handleAction', 'onAction')?.(k.action);
     };
     const clearTimer = () => {
         if (press?.timer) {
@@ -1411,7 +1426,7 @@ export function keyboard(config = {}) {
                     */
                     const i = accentIndexAt(sticky.cells, sticky.accents.length, x, y);
                     if (i >= 0) {
-                        config.onKey?.(sticky.accents[i]);
+                        kb$('handleKey', 'onKey')?.(sticky.accents[i]);
                     }
                     else {
                         // Tapping the key that OPENED the strip types its plain character —
@@ -1466,7 +1481,8 @@ export function keyboard(config = {}) {
                         relayout();
                     }, HOLD);
                 }
-                else if (r.key.action === 'space' && config.onCaretMove) {
+                else if (r.key.action === 'space' &&
+                    kb$('handleCaretMove', 'onCaretMove')) {
                     /*
                     Hold the SPACEBAR and it becomes a caret trackpad — slide to move the
                     insertion point. Space is the right home for it: it's the widest key (so
@@ -1503,7 +1519,7 @@ export function keyboard(config = {}) {
                 caretDrag.lastX = x;
                 while (Math.abs(caretDrag.accum) >= CARET_STEP) {
                     const dir = caretDrag.accum > 0 ? 1 : -1;
-                    config.onCaretMove?.(dir);
+                    kb$('handleCaretMove', 'onCaretMove')?.(dir);
                     caretDrag.accum -= dir * CARET_STEP;
                     caretDrag.moved = true;
                 }
@@ -1547,7 +1563,7 @@ export function keyboard(config = {}) {
                 if (press.accents.length > 0) {
                     if (press.pick >= 0) {
                         // Slid onto an accent and released — the mouse/VR-ray gesture.
-                        config.onKey?.(press.accents[press.pick]);
+                        kb$('handleKey', 'onKey')?.(press.accents[press.pick]);
                         closePopup();
                     }
                     else {

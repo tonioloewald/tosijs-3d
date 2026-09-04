@@ -1,9 +1,9 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
-import type { B3d, RadarFaction } from './tosi-b3d';
-import { type BallisticParams, type Vec3 } from './ballistics';
-import { type Medium, type MediumCrossing } from './medium';
-import type { WarheadSpec } from './warhead';
+import { AbstractMesh } from './b3d-utils.js';
+import type { B3d, RadarFaction } from './tosi-b3d.js';
+import { type BallisticParams, type Vec3 } from './ballistics.js';
+import { type Medium, type MediumCrossing } from './medium.js';
+import type { WarheadSpec } from './warhead.js';
 /**
  * WHERE a round stopped, and what it stopped against.
  *

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 
-let T: typeof import('./table')
+let T: typeof import('./table.js')
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -14,7 +14,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  T = await import('./table')
+  T = await import('./table.js')
 })
 
 const ROW_H = 28
@@ -387,7 +387,7 @@ describe('table — the inner-focus protocol shape (the rc.1 blocker)', () => {
   test('hosted in a widgetBox, box.focusMove(0, ±1) traverses the rows', async () => {
     // The shipped configuration: the demo hosts the table in a widgetBox. This
     // is the exact path that was dead in rc.1.
-    const { widgetBox } = await import('./widget-box')
+    const { widgetBox } = await import('./widget-box.js')
     const { t } = mk({ count: 5 })
     const b = widgetBox({ width: W, padding: 0 }, [t as any])
     b.focusMove(0, 1) // box focus → the table child (entry delegates inward)

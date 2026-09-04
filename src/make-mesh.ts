@@ -93,8 +93,8 @@ want to skip the work.
 /*{ "parent": "Core", "order": 200 }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { primitiveMaterial } from './b3d-primitives'
-import { roundedRectGeometry } from './rounded-rect'
+import { primitiveMaterial } from './b3d-primitives.js'
+import { roundedRectGeometry } from './rounded-rect.js'
 
 /** The bits of `<tosi-b3d>` a maker touches. Duck-typed so a test can stand one
  * up without an engine, the same way the rest of this codebase does. */

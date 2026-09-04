@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'bun:test'
-import { TorusSampler, SphereSampler } from './surface-sampler'
+import { TorusSampler, SphereSampler } from './surface-sampler.js'
 
 describe('TorusSampler', () => {
   const torus = new TorusSampler(10, 3)

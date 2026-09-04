@@ -3,8 +3,8 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 // b3d-utils pulls in tosijs (which needs HTMLElement) even for its pure
 // helpers, so the usual happy-dom prologue applies. Collapsing these 21 copies
 // into a preload is a filed follow-up, not a thing to change mid-release.
-let simHalted: typeof import('./b3d-utils').simHalted
-let controlsLive: typeof import('./b3d-utils').controlsLive
+let simHalted: typeof import('./b3d-utils.js').simHalted
+let controlsLive: typeof import('./b3d-utils.js').controlsLive
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -18,7 +18,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  const utils = await import('./b3d-utils')
+  const utils = await import('./b3d-utils.js')
   simHalted = utils.simHalted
   controlsLive = utils.controlsLive
 })

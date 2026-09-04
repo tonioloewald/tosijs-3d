@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { assetUrl, setAssetBase, getAssetBase } from './asset-url'
+import { assetUrl, setAssetBase, getAssetBase } from './asset-url.js'
 
 afterEach(() => setAssetBase(''))
 

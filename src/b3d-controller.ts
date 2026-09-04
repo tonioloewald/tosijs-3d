@@ -72,9 +72,9 @@ instead — on its own it wires input itself.
 */
 /*{ "parent": "Input", "order": 100 }*/
 import * as BABYLON from '@babylonjs/core'
-import { B3dControllable } from './b3d-controllable'
-import type { B3d } from './tosi-b3d'
-import { CompositeInputProvider, type ControlInput } from './control-input'
+import { B3dControllable } from './b3d-controllable.js'
+import type { B3d } from './tosi-b3d.js'
+import { CompositeInputProvider, type ControlInput } from './control-input.js'
 import {
   MappedInputProvider,
   bipedMapping,
@@ -82,8 +82,8 @@ import {
   aircraftMapping,
   type InputMapping,
   type GamepadSource,
-} from './virtual-gamepad'
-import { gameController, type GameController } from './game-controller'
+} from './virtual-gamepad.js'
+import { gameController, type GameController } from './game-controller.js'
 
 const MAPPINGS: Record<string, () => InputMapping> = {
   biped: () => bipedMapping,

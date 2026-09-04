@@ -142,7 +142,7 @@ import {
   validateCurve,
   type ControlPoint,
   type CurveIssue,
-} from './curve'
+} from './curve.js'
 
 /** A curve, or a flat value. A number is the constant curve at that value. */
 export type ModulationCurve = ControlPoint[] | number

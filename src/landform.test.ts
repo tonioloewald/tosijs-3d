@@ -5,7 +5,7 @@ import {
   pad,
   composeLandforms,
   mergeProvinces,
-} from './landform'
+} from './landform.js'
 
 const FLAT = 5 // pretend the noise terrain is a plain at 5m
 
@@ -108,7 +108,7 @@ describe('composition', () => {
   })
 })
 
-import { gulley } from './landform'
+import { gulley } from './landform.js'
 
 /*
 The gulley exists to make a tunnel mouth TRACTABLE: a flat-floored channel
@@ -193,7 +193,7 @@ describe('gulley — a FORCING function, not a cut', () => {
   })
 })
 
-import { cover } from './landform'
+import { cover } from './landform.js'
 
 /*
 `cover` is the half the first gulley missed: shaping ground in FRONT of the

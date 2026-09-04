@@ -120,14 +120,14 @@ const use = (f) =&gt; {
   for (const g of [nameField, mottoField]) g.setActive(g === f)
   openKeyboard()
 }
-const nameField = inputField({ placeholder: &#39;name…&#39;, onFocus: () =&gt; use(nameField) })
-const mottoField = inputField({ value: &#39;hold o for ö&#39;, placeholder: &#39;motto…&#39;, onFocus: () =&gt; use(mottoField) })
+const nameField = inputField({ placeholder: &#39;name…&#39;, handleFocus: () =&gt; use(nameField) })
+const mottoField = inputField({ value: &#39;hold o for ö&#39;, placeholder: &#39;motto…&#39;, handleFocus: () =&gt; use(mottoField) })
 const kb = keyboard({
-  onKey: (ch) =&gt; target?.insert(ch),
-  onAction: (a) =&gt; target?.action(a),
+  handleKey: (ch) =&gt; target?.insert(ch),
+  handleAction: (a) =&gt; target?.action(a),
   // Hold the SPACEBAR and slide to move the caret (a hold that doesn&#39;t move
   // still types the space — headset triggers are slow).
-  onCaretMove: (d) =&gt; target?.moveCaret(d),
+  handleCaretMove: (d) =&gt; target?.moveCaret(d),
 })
 const kbBox = widgetBox({ width: 364, padding: 8, gap: 8, background: &#39;#0e1116&#39; }, [kb])
 const openKeyboard = () =&gt; {
@@ -135,7 +135,7 @@ const openKeyboard = () =&gt; {
   // Untitled (a keyboard needs no label) and BELOW both fields — an overlay
   // that covers the field you might tap next is an overlay in the way.
   kbPanel = s.openPanel({ x: 8, y: 180 }, kbBox, {
-    draggable: true, onClose: () =&gt; { kbPanel = null },
+    draggable: true, handleClose: () =&gt; { kbPanel = null },
   })
 }
 
@@ -218,12 +218,12 @@ const H = 300
 const readout = div({ style: &#39;margin:8px 4px;color:#8ea;font:13px system-ui&#39; }, &#39;value: (empty)&#39;)
 const field = inputField({
   placeholder: &#39;type with the ray, or a gamepad…&#39;,
-  onChange: (v) =&gt; { readout.textContent = &#39;value: &#39; + (v || &#39;(empty)&#39;) },
+  handleChange: (v) =&gt; { readout.textContent = &#39;value: &#39; + (v || &#39;(empty)&#39;) },
 })
 const kb = keyboard({
-  onKey: (ch) =&gt; field.insert(ch),
-  onAction: (a) =&gt; field.action(a),
-  onCaretMove: (d) =&gt; field.moveCaret(d),
+  handleKey: (ch) =&gt; field.insert(ch),
+  handleAction: (a) =&gt; field.action(a),
+  handleCaretMove: (d) =&gt; field.moveCaret(d),
 })
 
 const s = surface({ width: W, height: H })
@@ -386,6 +386,7 @@ gamepadFocus({ poll: () =&gt; pad.poll(), target: panel, claim: wrap })
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link current" href="../keyboard/" aria-current="page">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

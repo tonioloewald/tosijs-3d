@@ -56,9 +56,9 @@ const makePanel = () => {
       'Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.',
       { font: { size: 13 }, color: '#9fb0c3' }
     ),
-    button('Talk', { onActivate: act('Talk') }),
-    button('Trade', { onActivate: act('Trade') }),
-    button('Leave', { onActivate: act('Leave') })
+    button('Talk', { handleActivate: act('Talk') }),
+    button('Trade', { handleActivate: act('Trade') }),
+    button('Leave', { handleActivate: act('Leave') })
   )
   p.focusMove(1, 0) // focus the first button so the ring shows
   return p
@@ -253,9 +253,18 @@ preview.append(
 */
 /*{ "parent": "UI", "order": 200 }*/
 import { svgElements } from 'tosijs';
-import { flowLayout, nearestInDirection, } from './flow-layout';
-import { measureTextWrap, measureTextWidth, clampScroll, } from './widgets3d-layout';
-import { iconGlyph } from './svg-icons';
+import { handlerOf } from './handler-of.js';
+import { flowLayout, nearestInDirection, } from './flow-layout.js';
+import { measureTextWrap, measureTextWidth, clampScroll, } from './widgets3d-layout.js';
+import { iconGlyph } from './svg-icons.js';
+/**
+ * A child's activation callback under either spelling.
+ *
+ * `BoxChild` is a contract other modules implement, so both names must be READ
+ * here: a consumer that wrote `onActivate` against 0.7 keeps working, and one
+ * reaching for `handleActivate` is not silently ignored.
+ */
+const activateOf = (c) => handlerOf(c, 'handleActivate', 'onActivate');
 /** Inline style every drag-driven SVG surface wears (box, surface, panel3d). */
 export const NO_SELECT_STYLE = 'user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent';
 let boxSeq = 0;
@@ -292,7 +301,7 @@ export function box(opts, ...children) {
     const isFocusable = (i) => i >= 0 &&
         i < children.length &&
         !!(children[i].focusable ||
-            children[i].onActivate ||
+            activateOf(children[i]) ||
             children[i].handlePointer);
     const firstFocusable = () => {
         for (let i = 0; i < children.length; i++)
@@ -571,7 +580,7 @@ export function box(opts, ...children) {
                     if (old >= 0 && old !== hit)
                         applyState(old);
                     applyState(hit);
-                    children[hit].onActivate?.();
+                    activateOf(children[hit])?.();
                 }
                 downTarget = -1;
             }
@@ -622,7 +631,7 @@ export function box(opts, ...children) {
             if (c.focusActivate)
                 c.focusActivate();
             else
-                c.onActivate?.();
+                activateOf(c)?.();
         },
         focusBack() {
             const old = focused;
@@ -787,7 +796,7 @@ export function button(label, opts = {}) {
         measure: () => (block ? { height } : { width: hugWidth, height }),
         paint: block ? (w) => lay(w) : undefined,
         focusable: true,
-        onActivate: opts.onActivate,
+        handleActivate: handlerOf(opts, 'handleActivate', 'onActivate'),
         setState: (st) => {
             bg.setAttribute('fill', st.pressed ? pressBg : st.hovered || st.focused ? hoverBg : background);
         },

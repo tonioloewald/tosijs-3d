@@ -2,8 +2,8 @@ import { describe, test, expect, beforeAll, beforeEach } from 'bun:test'
 import { Window } from 'happy-dom'
 
 // widgets3d builds SVG at import time, so it needs a DOM first.
-let w3d: typeof import('./widgets3d')
-let w3d_kb: typeof import('./keyboard')
+let w3d: typeof import('./widgets3d.js')
+let w3d_kb: typeof import('./keyboard.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -16,13 +16,15 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  w3d = await import('./widgets3d')
-  w3d_kb = await import('./keyboard')
+  w3d = await import('./widgets3d.js')
+  w3d_kb = await import('./keyboard.js')
 })
 
 const measureOf = (panel: SVGSVGElement) =>
   (
-    panel as unknown as { measure: () => import('./widgets3d-layout').PanelFit }
+    panel as unknown as {
+      measure: () => import('./widgets3d-layout.js').PanelFit
+    }
   ).measure()
 
 const rows = (n: number) =>
@@ -425,14 +427,14 @@ describe('panels live outside the world by default', () => {
     // Registering opted a panel into BOTH: casting (the shadow-caster
     // contract) and receiving (b3d-shadows sets receiveShadows unless told
     // otherwise). Neither was a decision — they fell out of register().
-    const { conventionName } = await import('./b3d-utils')
+    const { conventionName } = await import('./b3d-utils.js')
     const both = conventionName('svg-plane_nocast_noshadow')
     expect(both).toContain('_nocast')
     expect(both).toContain('_noshadow')
   })
 
   test('and they are INDEPENDENT — a cockpit instrument receives but need not cast', async () => {
-    const { conventionName } = await import('./b3d-utils')
+    const { conventionName } = await import('./b3d-utils.js')
     const receivesOnly = conventionName('svg-plane_nocast')
     expect(receivesOnly).toContain('_nocast')
     expect(receivesOnly).not.toContain('_noshadow')

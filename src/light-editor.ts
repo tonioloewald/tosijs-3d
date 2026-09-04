@@ -51,15 +51,15 @@ import {
   type PointerKind,
   type Widget3d,
   type WidgetHost,
-} from './widgets3d'
-import { curveProgram3d } from './curve-program'
-import { lightPreset, lightPresets } from './light-modulation'
+} from './widgets3d.js'
+import { curveProgram3d } from './curve-program.js'
+import { lightPreset, lightPresets } from './light-modulation.js'
 import {
   DEFAULT_LIGHT,
   type LightKind,
   type LightSettings,
-} from './light-settings'
-import { stackLayout } from './widgets3d-layout'
+} from './light-settings.js'
+import { stackLayout } from './widgets3d-layout.js'
 
 const { g } = svgElements
 

@@ -76,14 +76,14 @@ const H = 260
 const readout = div({ style: &#39;margin:6px 16px 16px;color:#8ea;font:13px system-ui&#39; }, &#39;Pick a menu item.&#39;)
 
 const items = [
-  { label: &#39;Talk&#39;, onSelect: () =&gt; (readout.textContent = &#39;Selected: Talk&#39;) },
-  { label: &#39;Trade&#39;, onSelect: () =&gt; (readout.textContent = &#39;Selected: Trade&#39;) },
+  { label: &#39;Talk&#39;, handleSelect: () =&gt; (readout.textContent = &#39;Selected: Talk&#39;) },
+  { label: &#39;Trade&#39;, handleSelect: () =&gt; (readout.textContent = &#39;Selected: Trade&#39;) },
   {
     label: &#39;More&#39;,
     submenu: [
-      { label: &#39;Inspect&#39;, onSelect: () =&gt; (readout.textContent = &#39;Selected: Inspect&#39;) },
-      { label: &#39;Give&#39;, onSelect: () =&gt; (readout.textContent = &#39;Selected: Give&#39;) },
-      { label: &#39;Leave&#39;, onSelect: () =&gt; (readout.textContent = &#39;Selected: Leave&#39;) },
+      { label: &#39;Inspect&#39;, handleSelect: () =&gt; (readout.textContent = &#39;Selected: Inspect&#39;) },
+      { label: &#39;Give&#39;, handleSelect: () =&gt; (readout.textContent = &#39;Selected: Give&#39;) },
+      { label: &#39;Leave&#39;, handleSelect: () =&gt; (readout.textContent = &#39;Selected: Leave&#39;) },
     ],
   },
 ]
@@ -99,8 +99,8 @@ const debugRows = () =&gt; box(
 
 const make = () =&gt; {
   const s = surface({ width: W, height: H })
-  const menuBtn = button(&#39;Menu  ▾&#39;, { onActivate: () =&gt; openMenu(s, s.__triggerRect, items, &#39;below&#39;) })
-  const dbgBtn = button(&#39;Debug  ▾&#39;, { onActivate: () =&gt; toggleDebug() })
+  const menuBtn = button(&#39;Menu  ▾&#39;, { handleActivate: () =&gt; openMenu(s, s.__triggerRect, items, &#39;below&#39;) })
+  const dbgBtn = button(&#39;Debug  ▾&#39;, { handleActivate: () =&gt; toggleDebug() })
   const panel = box(
     { width: W, height: H, padding: 16, gap: 12, background: &#39;#12151c&#39; },
     textBlock(&#39;Menus + panels&#39;, { font: { size: 18, weight: 600 }, color: &#39;#e6e6e6&#39; }),
@@ -314,6 +314,7 @@ preview.append(
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

@@ -46,7 +46,7 @@ preview.append(
 
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import { PerlinNoise } from './perlin-noise'
+import { PerlinNoise } from './perlin-noise.js'
 import {
   buildSignature,
   readStored,
@@ -62,8 +62,8 @@ import {
   type ProbeEnv,
   type ClassHints,
   type StorageLike,
-} from './perf-probe'
-import { setPerfProfile, getPerfProfile } from './b3d-quality'
+} from './perf-probe.js'
+import { setPerfProfile, getPerfProfile } from './b3d-quality.js'
 
 // ─── Benchmark workload sizes ─────────────────────────────────────────────────
 // Fixed so results are comparable across runs; bump PROBE_VERSION in perf-probe if

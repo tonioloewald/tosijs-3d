@@ -90,7 +90,7 @@ preview.append(
 */
 /*{ "parent": "Effects" }*/
 import * as BABYLON from '@babylonjs/core';
-import { sceneDelta } from './b3d-utils';
+import { sceneDelta } from './b3d-utils.js';
 /**
  * Shatter a mesh into fragments and animate them flying apart.
  * The original mesh is hidden (or disposed). Fragments are automatically

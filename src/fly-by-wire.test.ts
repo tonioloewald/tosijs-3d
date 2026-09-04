@@ -13,7 +13,7 @@ import {
   equilibriumSpeed,
   type FlyByWireConfig,
   type FlyByWireState,
-} from './fly-by-wire'
+} from './fly-by-wire.js'
 
 const DEG = Math.PI / 180
 const CFG: FlyByWireConfig = {

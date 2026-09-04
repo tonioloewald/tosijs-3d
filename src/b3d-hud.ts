@@ -93,8 +93,8 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "UI", "order": 520 }*/
 
-import { B3dChild } from './b3d-utils'
-import { SvgTexture } from './svg-texture'
+import { B3dChild } from './b3d-utils.js'
+import { SvgTexture } from './svg-texture.js'
 import {
   loadHud,
   buildFallbackHud,
@@ -105,9 +105,9 @@ import {
   type HudTracePoint,
   type TraceKind,
   type HudWarning,
-} from './hud'
-import { glassUV, hudPointFromUV, hudSizePx } from './hud-math'
-import type { B3d } from './tosi-b3d'
+} from './hud.js'
+import { glassUV, hudPointFromUV, hudSizePx } from './hud-math.js'
+import type { B3d } from './tosi-b3d.js'
 import * as BABYLON from '@babylonjs/core'
 
 export class B3dHud extends B3dChild {

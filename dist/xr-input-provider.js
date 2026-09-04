@@ -1,4 +1,4 @@
-import { emptyInput } from './control-input';
+import { emptyInput } from './control-input.js';
 export class XRInputProvider {
     controllerMap;
     constructor(controllerMap) {

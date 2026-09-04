@@ -115,10 +115,10 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, sceneDelta } from './b3d-utils';
-import { MersenneTwister } from './mersenne-twister';
-import { band } from './atmosphere';
-import { CloudShadowMap, projectShadowXZ, } from './cloud-shadows';
+import { B3dChild, sceneDelta } from './b3d-utils.js';
+import { MersenneTwister } from './mersenne-twister.js';
+import { band } from './atmosphere.js';
+import { CloudShadowMap, projectShadowXZ, } from './cloud-shadows.js';
 const DOWN = { x: 0, y: -1, z: 0 };
 /**
  * The cloud-icon layout: one row per blob, biggest first. `t` is the offset

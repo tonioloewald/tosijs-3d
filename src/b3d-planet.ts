@@ -156,13 +156,13 @@ tosi-b3d {
 /*{ "parent": "Space" }*/
 
 import { Color } from 'tosijs'
-import { isOff, B3dChild, sceneDelta } from './b3d-utils'
-import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
+import { isOff, B3dChild, sceneDelta } from './b3d-utils.js'
+import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import { PerlinNoise } from './perlin-noise'
-import { PiecewiseLinearFilter } from './gradient-filter'
-import type { GradientFilter } from './gradient-filter'
+import type { B3d } from './tosi-b3d.js'
+import { PerlinNoise } from './perlin-noise.js'
+import { PiecewiseLinearFilter } from './gradient-filter.js'
+import type { GradientFilter } from './gradient-filter.js'
 
 // The 6 face directions for the subdivided cube.
 // Each face: origin is one corner, right/up span the face.

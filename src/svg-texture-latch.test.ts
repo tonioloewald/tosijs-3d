@@ -11,7 +11,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 // fake texture and a controllable fake Image. Brittle-by-design tradeoff:
 // if render() grows new dependencies this test fails loudly, which is fine.
 
-let SvgTexture: typeof import('./svg-texture').SvgTexture
+let SvgTexture: typeof import('./svg-texture.js').SvgTexture
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -27,7 +27,7 @@ beforeAll(async () => {
   }
   g.URL.createObjectURL ??= () => 'blob:fake'
   g.URL.revokeObjectURL ??= () => {}
-  SvgTexture = (await import('./svg-texture')).SvgTexture
+  SvgTexture = (await import('./svg-texture.js')).SvgTexture
 })
 
 const mk = () => {

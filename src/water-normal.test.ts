@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
-import { PerlinNoise } from './perlin-noise'
-import { tileHeight, writeNormalMap } from './water-normal'
+import { PerlinNoise } from './perlin-noise.js'
+import { tileHeight, writeNormalMap } from './water-normal.js'
 
 const noise = new PerlinNoise(1337)
 const h = (u: number, v: number) => tileHeight(noise, u, v)

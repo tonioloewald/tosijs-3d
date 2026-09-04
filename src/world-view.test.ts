@@ -1,8 +1,8 @@
 import { describe, test, expect } from 'bun:test'
 import * as BABYLON from '@babylonjs/core'
-import { NullEngine } from '@babylonjs/core/Engines/nullEngine'
-import { WorldStore } from './world-store'
-import { WorldView } from './world-view'
+import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js'
+import { WorldStore } from './world-store.js'
+import { WorldView } from './world-view.js'
 
 function makeScene(): BABYLON.Scene {
   return new BABYLON.Scene(new NullEngine())

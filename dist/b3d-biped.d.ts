@@ -1,9 +1,9 @@
 import * as BABYLON from '@babylonjs/core';
-import { XRStuff } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
-import type { GameController } from './game-controller';
-import { B3dControllable } from './b3d-controllable';
-import type { ControlInput } from './control-input';
+import { XRStuff } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
+import type { GameController } from './game-controller.js';
+import { B3dControllable } from './b3d-controllable.js';
+import type { ControlInput } from './control-input.js';
 export type AnimStateSpec = {
     animation: string;
     name?: string;

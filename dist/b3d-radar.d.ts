@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
-import type { RadarTrack } from './radar';
-import type { B3d, RadarBlip } from './tosi-b3d';
+import { B3dChild } from './b3d-utils.js';
+import type { RadarTrack } from './radar.js';
+import type { B3d, RadarBlip } from './tosi-b3d.js';
 export declare class B3dRadar extends B3dChild {
     static preferredTagName: string;
     static initAttributes: {

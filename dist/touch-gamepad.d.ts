@@ -1,4 +1,4 @@
-import type { GamepadSource, VirtualGamepad, MappingLabels } from './virtual-gamepad';
+import type { GamepadSource, VirtualGamepad, MappingLabels } from './virtual-gamepad.js';
 /** Pointer phase for the coordinate-based (in-scene/VR) input path. */
 export type GamepadPointerKind = 'down' | 'move' | 'up';
 export type TouchGamepadOptions = {

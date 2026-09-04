@@ -1,4 +1,4 @@
-import type { PlaceId, PortalId, Portal, Place, Proximity, Shape } from './world-contract';
+import type { PlaceId, PortalId, Portal, Place, Proximity, Shape } from './world-contract.js';
 /**
  * Map a sim-private distance to a rung on the qualitative ladder — the ONE spatial value that
  * crosses the contract, and it's an adjective. Bands scale with the place `extent`. Returns at most

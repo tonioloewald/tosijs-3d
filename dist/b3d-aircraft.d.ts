@@ -1,11 +1,11 @@
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import { B3dControllable } from './b3d-controllable';
-import type { ControlInput } from './control-input';
-import type { B3dRadar } from './b3d-radar';
+import type { B3d } from './tosi-b3d.js';
+import { B3dControllable } from './b3d-controllable.js';
+import type { ControlInput } from './control-input.js';
+import type { B3dRadar } from './b3d-radar.js';
 export declare class B3dAircraft extends B3dControllable {
     static preferredTagName: string;
-    inputMapping: import("./virtual-gamepad").InputMapping;
+    inputMapping: import("./virtual-gamepad.js").InputMapping;
     static initAttributes: {
         url: string;
         library: string;

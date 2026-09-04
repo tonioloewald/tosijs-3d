@@ -15,7 +15,7 @@ Both spellings work through 0.8.x so an adopter is not chasing renames one
 widget at a time.
 */
 
-let w: typeof import('./widgets3d')
+let w: typeof import('./widgets3d.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -28,7 +28,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  w = await import('./widgets3d')
+  w = await import('./widgets3d.js')
 })
 
 const press = (widget: any, x = 20, y = 20) => {

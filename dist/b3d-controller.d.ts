@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import { B3dControllable } from './b3d-controllable';
-import type { B3d } from './tosi-b3d';
-import { type ControlInput } from './control-input';
-import { MappedInputProvider } from './virtual-gamepad';
+import { B3dControllable } from './b3d-controllable.js';
+import type { B3d } from './tosi-b3d.js';
+import { type ControlInput } from './control-input.js';
+import { MappedInputProvider } from './virtual-gamepad.js';
 export declare class B3dController extends B3dControllable {
     static preferredTagName: string;
     static initAttributes: {

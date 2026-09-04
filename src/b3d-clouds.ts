@@ -116,15 +116,15 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "Environment" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, sceneDelta } from './b3d-utils'
-import { MersenneTwister } from './mersenne-twister'
-import { band } from './atmosphere'
+import { B3dChild, sceneDelta } from './b3d-utils.js'
+import { MersenneTwister } from './mersenne-twister.js'
+import { band } from './atmosphere.js'
 import {
   CloudShadowMap,
   projectShadowXZ,
   type CloudShadowBlob,
-} from './cloud-shadows'
-import type { B3d } from './tosi-b3d'
+} from './cloud-shadows.js'
+import type { B3d } from './tosi-b3d.js'
 
 const DOWN = { x: 0, y: -1, z: 0 }
 

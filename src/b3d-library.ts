@@ -187,11 +187,11 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
 */
 /*{ "parent": "Core" }*/
 
-import { B3dChild, publicName, isIgnored } from './b3d-utils'
+import { B3dChild, publicName, isIgnored } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import { canonicalize } from './model-transform'
-import { manifestFromNodes, type LibraryManifest } from './glb-manifest'
+import type { B3d } from './tosi-b3d.js'
+import { canonicalize } from './model-transform.js'
+import { manifestFromNodes, type LibraryManifest } from './glb-manifest.js'
 
 /**
  * The `.model` naming convention, pure (unit-tested): a node named

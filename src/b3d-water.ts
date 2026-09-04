@@ -74,13 +74,13 @@ document.body.append(
 */
 /*{ "parent": "Environment" }*/
 
-import { plane as mediumPlane, type PlaneMedium } from './medium'
+import { plane as mediumPlane, type PlaneMedium } from './medium.js'
 import * as BABYLON from '@babylonjs/core'
-import { waterNormalTexture } from './water-normal'
+import { waterNormalTexture } from './water-normal.js'
 import { WaterMaterial } from '@babylonjs/materials'
-import { AbstractMesh } from './b3d-utils'
-import { band } from './atmosphere'
-import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d'
+import { AbstractMesh } from './b3d-utils.js'
+import { band } from './atmosphere.js'
+import type { B3d, SceneAdditions, SceneAdditionHandler } from './tosi-b3d.js'
 
 export class B3dWater extends AbstractMesh {
   static preferredTagName = 'tosi-b3d-water'

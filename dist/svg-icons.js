@@ -193,10 +193,10 @@ preview.append(
 }
 ```
 */
-import { w3dTheme } from './w3d-theme';
+import { w3dTheme } from './w3d-theme.js';
 import { elements, svgElements, varDefault } from 'tosijs';
-import iconData from './icon-data';
-import { parseStyleSuffixes, mergeIconStyle } from './icon-name';
+import iconData from './icon-data.js';
+import { parseStyleSuffixes, mergeIconStyle, } from './icon-name.js';
 export { iconData };
 const MAX_REDIRECTS = 10;
 // Shown (with a warning) when a name resolves to nothing — a plain square.

@@ -12,7 +12,7 @@ a blank gamepad.
 These assertions are the doc. If one fails, the table above `parseGamepadControls`
 is what needs changing.
 */
-let parse: typeof import('./glass-gamepad').parseGamepadControls
+let parse: typeof import('./glass-gamepad.js').parseGamepadControls
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -26,7 +26,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  parse = (await import('./glass-gamepad')).parseGamepadControls
+  parse = (await import('./glass-gamepad.js')).parseGamepadControls
 })
 
 describe('parseGamepadControls — the documented contract', () => {

@@ -1,6 +1,6 @@
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
+import type { B3d } from './tosi-b3d.js';
 export declare class B3dTrigger extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {
@@ -27,7 +27,11 @@ export declare class B3dTrigger extends B3dChild {
     debug: boolean;
     once: boolean;
     owner: B3d | null;
+    whenEnter: ((trigger: B3dTrigger) => void) | null;
+    whenExit: ((trigger: B3dTrigger) => void) | null;
+    /** @deprecated use `whenEnter` — removed in 0.9. */
     onEnter: ((trigger: B3dTrigger) => void) | null;
+    /** @deprecated use `whenExit` — removed in 0.9. */
     onExit: ((trigger: B3dTrigger) => void) | null;
     private _inside;
     private _beforeRender;

@@ -45,7 +45,7 @@ tests rather than three lines inside a render loop.
   concern.
 */
 /*{ "parent": "utilities" }*/
-import { add, sub, quatMul, quatConjugate, rotateVector, } from './spatial-transform';
+import { add, sub, quatMul, quatConjugate, rotateVector, } from './spatial-transform.js';
 /**
  * The pose a render-target camera should take so that portal `a`, seen from
  * `camera`, shows what lies beyond portal `b`.

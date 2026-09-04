@@ -1,5 +1,5 @@
-import { type LightProgram } from './light-modulation';
-import type { Widget3d } from './widgets3d';
+import { type LightProgram } from './light-modulation.js';
+import type { Widget3d } from './widgets3d.js';
 /** The channels a program can carry, in the order they are drawn. */
 export declare const PROGRAM_CHANNELS: readonly ["brightness", "hue", "saturation", "range"];
 export type ProgramChannel = (typeof PROGRAM_CHANNELS)[number];

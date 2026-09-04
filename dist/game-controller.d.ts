@@ -1,7 +1,7 @@
 import { Component } from 'tosijs';
-import type { VirtualGamepad, GamepadSource, InputMapping } from './virtual-gamepad';
-import { MappedInputProvider } from './virtual-gamepad';
-import { HardwareGamepadSource } from './hardware-gamepad';
+import type { VirtualGamepad, GamepadSource, InputMapping } from './virtual-gamepad.js';
+import { MappedInputProvider } from './virtual-gamepad.js';
+import { HardwareGamepadSource } from './hardware-gamepad.js';
 export declare class GameController extends Component implements GamepadSource {
     static preferredTagName: string;
     static initAttributes: {

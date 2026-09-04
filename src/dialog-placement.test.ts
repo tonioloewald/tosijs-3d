@@ -8,7 +8,7 @@ import {
   easeTo,
   normalize,
   facingYawDeg,
-} from './dialog-placement'
+} from './dialog-placement.js'
 
 const EYE = { x: 0, y: 1.6, z: 0 }
 const FWD = { x: 0, y: 0, z: 1 }

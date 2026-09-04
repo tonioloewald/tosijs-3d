@@ -8,7 +8,7 @@ import {
   slopeMask,
   photicFactor,
   type BiomeChartConfig,
-} from './biome-chart'
+} from './biome-chart.js'
 
 const CFG: BiomeChartConfig = {
   seaLevel: 0,
@@ -170,7 +170,7 @@ describe('photicFactor — shares the underwater-fog curve', () => {
 
 describe('surfFactor — the swash band (coral must not start at the waterline)', () => {
   test('full in the shallows, gone by surfDepth, absent above water', async () => {
-    const { surfFactor } = await import('./biome-chart')
+    const { surfFactor } = await import('./biome-chart.js')
     expect(surfFactor(-1)).toBe(0) // above water — the beach handles it
     expect(surfFactor(0.5, 3)).toBe(1) // scoured swash: bare wet sand/rock
     expect(surfFactor(3.2, 3)).toBe(0) // below the band: coral/kelp may grow
@@ -180,7 +180,7 @@ describe('surfFactor — the swash band (coral must not start at the waterline)'
   })
 
   test('surfDepth 0 disables the band', async () => {
-    const { surfFactor } = await import('./biome-chart')
+    const { surfFactor } = await import('./biome-chart.js')
     expect(surfFactor(1, 0)).toBe(0)
   })
 })

@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
-let mod: typeof import('./icon-grid')
+let mod: typeof import('./icon-grid.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -14,7 +14,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  mod = await import('./icon-grid')
+  mod = await import('./icon-grid.js')
 })
 
 // Real icon names — iconGlyph warns on unknown ones, and a test that fills the

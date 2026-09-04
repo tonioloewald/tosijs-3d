@@ -45,8 +45,8 @@ Call `getInputProvider(mapping?)` to get a `MappedInputProvider`. Default mappin
 */
 /*{ "parent": "Input" }*/
 import { Component } from 'tosijs';
-import { emptyGamepad, MappedInputProvider, bipedMapping, } from './virtual-gamepad';
-import { HardwareGamepadSource } from './hardware-gamepad';
+import { emptyGamepad, MappedInputProvider, bipedMapping, } from './virtual-gamepad.js';
+import { HardwareGamepadSource } from './hardware-gamepad.js';
 function keycode(evt) {
     return evt.code.replace(/Key|Digit/, '');
 }

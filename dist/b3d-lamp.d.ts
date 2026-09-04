@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
-import { type LightProgram } from './light-modulation';
+import { B3dChild } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
+import { type LightProgram } from './light-modulation.js';
 /**
  * Shared behaviour for a placed light with a body.
  *

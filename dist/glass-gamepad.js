@@ -127,10 +127,10 @@ If the pad is disappearing on you during development, `fade="off"` (or
 `setFade(false)`) pins it; `faded` reports the current state.
 */
 /*{ "parent": "Input" }*/
-import { isOff } from './b3d-utils';
+import { isOff } from './b3d-utils.js';
 import { Component, elements, StyleSheet } from 'tosijs';
-import { TouchGamepadSource } from './touch-gamepad';
-import { emptyGamepad, mergeGamepads, } from './virtual-gamepad';
+import { TouchGamepadSource, } from './touch-gamepad.js';
+import { emptyGamepad, mergeGamepads, } from './virtual-gamepad.js';
 const { div } = elements;
 // Offsets in cqmin so they scale with the host container (see `container-type`).
 const ANCHOR_CSS = {

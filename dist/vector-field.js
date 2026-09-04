@@ -95,9 +95,9 @@ preview.append(
 */
 /*{ "parent": "UI", "order": 250 }*/
 import { svgElements } from 'tosijs';
-import { inputField } from './keyboard';
-import { w3dTheme } from './w3d-theme';
-import { handlerOf } from './widgets3d';
+import { inputField } from './keyboard.js';
+import { w3dTheme } from './w3d-theme.js';
+import { handlerOf } from './widgets3d.js';
 const { g, text } = svgElements;
 /** Trim to `precision`, then drop trailing zeros: `1.500` reads as `1.5`. */
 function show(n, precision) {
@@ -156,7 +156,7 @@ function coordinateRow(config, settle) {
         // min/max only reaches a non-wrapping row.
         min: settle === identity ? config.min : undefined,
         max: settle === identity ? config.max : undefined,
-        onChange: (raw) => {
+        handleChange: (raw) => {
             const n = Number(raw);
             if (!Number.isFinite(n))
                 return;

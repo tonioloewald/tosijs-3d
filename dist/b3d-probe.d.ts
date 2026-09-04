@@ -1,5 +1,5 @@
 import { Component } from 'tosijs';
-import { type PerfProfile } from './perf-probe';
+import { type PerfProfile } from './perf-probe.js';
 /**
  * Synchronously seed the system quality proxy from a valid, same-version cache if
  * one exists. `<tosi-b3d>` calls this at setup so a scene builds with the right

@@ -7,7 +7,7 @@ import {
   extractSvgFromString,
   collectColors,
   generateCode,
-} from '../bin/svg-to-code'
+} from '../bin/svg-to-code.js'
 
 describe('parseStyle', () => {
   test('parses simple style string', () => {

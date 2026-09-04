@@ -5,7 +5,7 @@ import {
   prefabNames,
   spawnPrefab,
   type PrefabContext,
-} from './prefab'
+} from './prefab.js'
 
 // A stub owner that just records what got appended — spawnPrefab only ever calls appendChild.
 function stubOwner() {

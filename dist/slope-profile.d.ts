@@ -1,4 +1,4 @@
-import { PiecewiseLinearFilter, type GradientFilter } from './gradient-filter';
+import { PiecewiseLinearFilter, type GradientFilter } from './gradient-filter.js';
 /** A gradient filter that may also be POSITION-AWARE. The terrain sampler
  * calls `evaluateAt` when present, passing origin-stable world coordinates. */
 export interface LocalizedFilter extends GradientFilter {

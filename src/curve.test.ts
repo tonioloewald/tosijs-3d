@@ -28,7 +28,7 @@ import {
   moveMarker,
   normalizeMarkers,
   MIN_SPLIT_GAP,
-} from './curve'
+} from './curve.js'
 
 const xs = (pts: ControlPoint[]) => pts.map((p) => p.x)
 const sortedByX = (pts: ControlPoint[]) =>

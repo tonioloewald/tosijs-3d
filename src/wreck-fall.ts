@@ -40,7 +40,7 @@ never holds a world position across a shift.
 */
 /*{ "parent": "Effects" }*/
 
-import { ballisticStep } from './ballistics'
+import { ballisticStep } from './ballistics.js'
 
 export interface Vec3 {
   x: number

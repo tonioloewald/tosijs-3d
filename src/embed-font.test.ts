@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeAll, afterEach } from 'bun:test'
 
-let ef: typeof import('./embed-font')
+let ef: typeof import('./embed-font.js')
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -14,7 +14,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  ef = await import('./embed-font')
+  ef = await import('./embed-font.js')
 })
 
 afterEach(() => {

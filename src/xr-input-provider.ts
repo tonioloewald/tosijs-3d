@@ -1,6 +1,6 @@
-import type { ControlInput, InputProvider } from './control-input'
-import { emptyInput } from './control-input'
-import type { TosiXRControllerMap } from './gamepad'
+import type { ControlInput, InputProvider } from './control-input.js'
+import { emptyInput } from './control-input.js'
+import type { TosiXRControllerMap } from './gamepad.js'
 
 export class XRInputProvider implements InputProvider {
   controllerMap: TosiXRControllerMap | undefined

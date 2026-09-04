@@ -1,7 +1,7 @@
-import { B3dControllable } from './b3d-controllable';
-import { CompositeInputProvider } from './control-input';
-import { bipedMapping, carMapping, aircraftMapping, } from './virtual-gamepad';
-import { gameController } from './game-controller';
+import { B3dControllable } from './b3d-controllable.js';
+import { CompositeInputProvider } from './control-input.js';
+import { bipedMapping, carMapping, aircraftMapping, } from './virtual-gamepad.js';
+import { gameController } from './game-controller.js';
 const MAPPINGS = {
     biped: () => bipedMapping,
     car: () => carMapping,

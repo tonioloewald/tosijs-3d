@@ -6,8 +6,8 @@ import {
   sampleLight,
   shiftHue,
   NO_MODULATION,
-} from './light-modulation'
-import { constant, evaluateCurve, linear } from './curve'
+} from './light-modulation.js'
+import { constant, evaluateCurve, linear } from './curve.js'
 
 /*
 ONE CURVE, TWO SPLIT POINTS.
@@ -433,7 +433,7 @@ import {
   lightPreset,
   lightPresets,
   DEFAULT_PROGRAM,
-} from './light-modulation'
+} from './light-modulation.js'
 
 describe('duration divides by the split points', () => {
   test('a segment takes the share of time it takes of the curve', () => {

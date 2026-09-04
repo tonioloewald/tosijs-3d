@@ -1,11 +1,11 @@
 import { describe, test, expect } from 'bun:test'
-import { WorldStore } from './world-store'
+import { WorldStore } from './world-store.js'
 import type {
   EntityId,
   SimulationEvent,
   Vec3,
   WorldApi,
-} from './world-contract'
+} from './world-contract.js'
 
 const HOURS = 3600
 const WITNESS_TIMEOUT = 2 * HOURS

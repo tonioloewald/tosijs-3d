@@ -26,7 +26,7 @@ hud.setMeter('airspeed', 0.6) // then mount hud's SVG in an overlay, or use <tos
 */
 /*{ "parent": "Core" }*/
 import { svgElements } from 'tosijs';
-import { sideFromD, lockFillOpacity, arcDashArray } from './hud-math';
+import { sideFromD, lockFillOpacity, arcDashArray, } from './hud-math.js';
 const SVGNS = 'http://www.w3.org/2000/svg';
 /**
  * Adapt a hand-exported designer asset (AMDN, generated ids) to the hooks the

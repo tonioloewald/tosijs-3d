@@ -405,7 +405,7 @@ import {
   markUiMesh,
   collidable,
   sceneDelta,
-} from './b3d-utils'
+} from './b3d-utils.js'
 import {
   gazeOffAxisDeg,
   gazeStep,
@@ -414,13 +414,13 @@ import {
   placementDistance,
   facingYawDeg,
   easeTo,
-} from './dialog-placement'
-import { roundedRectGeometry } from './rounded-rect'
+} from './dialog-placement.js'
+import { roundedRectGeometry } from './rounded-rect.js'
 
 /** The pointerId carried by pick-forwarded events — see the note at the dispatch. */
 const SYNTHETIC_POINTER_ID = 0x53b3
-import { SvgTexture } from './svg-texture'
-import type { B3d } from './tosi-b3d'
+import { SvgTexture } from './svg-texture.js'
+import type { B3d } from './tosi-b3d.js'
 
 export class B3dSvgPlane extends AbstractMesh {
   static preferredTagName = 'tosi-b3d-svg-plane'

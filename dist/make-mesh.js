@@ -92,8 +92,8 @@ want to skip the work.
 */
 /*{ "parent": "Core", "order": 200 }*/
 import * as BABYLON from '@babylonjs/core';
-import { primitiveMaterial } from './b3d-primitives';
-import { roundedRectGeometry } from './rounded-rect';
+import { primitiveMaterial } from './b3d-primitives.js';
+import { roundedRectGeometry } from './rounded-rect.js';
 const DEG = Math.PI / 180;
 /** Apply the shared half: transform, material, registration, world matrix. */
 function finish(mesh, owner, opts) {

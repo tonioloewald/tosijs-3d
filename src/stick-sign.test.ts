@@ -24,9 +24,9 @@ it shares `moveStick` with the pointer path, so the sign it yields is the sign
 both paths yield.
 */
 
-let KeyboardGamepadSource: typeof import('./keyboard-gamepad').KeyboardGamepadSource
-let HardwareGamepadSource: typeof import('./hardware-gamepad').HardwareGamepadSource
-let TouchGamepadSource: typeof import('./touch-gamepad').TouchGamepadSource
+let KeyboardGamepadSource: typeof import('./keyboard-gamepad.js').KeyboardGamepadSource
+let HardwareGamepadSource: typeof import('./hardware-gamepad.js').HardwareGamepadSource
+let TouchGamepadSource: typeof import('./touch-gamepad.js').TouchGamepadSource
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -40,9 +40,9 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  ;({ KeyboardGamepadSource } = await import('./keyboard-gamepad'))
-  ;({ HardwareGamepadSource } = await import('./hardware-gamepad'))
-  ;({ TouchGamepadSource } = await import('./touch-gamepad'))
+  ;({ KeyboardGamepadSource } = await import('./keyboard-gamepad.js'))
+  ;({ HardwareGamepadSource } = await import('./hardware-gamepad.js'))
+  ;({ TouchGamepadSource } = await import('./touch-gamepad.js'))
 })
 
 /** A stick's worth of SVG: a travel circle and a knob, with geometry stubbed

@@ -178,10 +178,10 @@ preview.append(
 */
 /*{ "parent": "Utilities" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import { JoltPlugin } from './jolt-plugin'
-import type { B3d } from './tosi-b3d'
+import { JoltPlugin } from './jolt-plugin.js'
+import type { B3d } from './tosi-b3d.js'
 
 // jolt-physics is loaded lazily inside sceneReady() (see comment there) so that
 // bundlers can leave it as an external resolved at runtime via an importmap

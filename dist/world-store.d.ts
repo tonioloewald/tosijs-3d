@@ -1,4 +1,4 @@
-import type { EntityId, EntityIntent, EventHandler, SpawnSpec, Unsubscribe, WorldEntity, WorldState, Zone, ZoneId, MinSimApi, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, Proximity, EntityKind, PlaceId, PortalId, ChoiceId } from './world-contract';
+import type { EntityId, EntityIntent, EventHandler, SpawnSpec, Unsubscribe, WorldEntity, WorldState, Zone, ZoneId, MinSimApi, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, Proximity, EntityKind, PlaceId, PortalId, ChoiceId } from './world-contract.js';
 export declare class WorldStore implements MinSimApi {
     private state;
     private handlers;

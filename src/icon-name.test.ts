@@ -1,5 +1,9 @@
 import { describe, test, expect } from 'bun:test'
-import { parseStyleSuffixes, mergeIconStyle, type IconStyle } from './icon-name'
+import {
+  parseStyleSuffixes,
+  mergeIconStyle,
+  type IconStyle,
+} from './icon-name.js'
 
 describe('parseStyleSuffixes — transforms', () => {
   test('rotate', () => {

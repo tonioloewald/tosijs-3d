@@ -13,8 +13,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import * as BABYLON from '@babylonjs/core'
-import { faceViewer } from './dialog-placement'
-import { NullEngine } from '@babylonjs/core/Engines/nullEngine'
+import { faceViewer } from './dialog-placement.js'
+import { NullEngine } from '@babylonjs/core/Engines/nullEngine.js'
 
 function makeScene(): BABYLON.Scene {
   const engine = new NullEngine()

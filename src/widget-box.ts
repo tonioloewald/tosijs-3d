@@ -111,8 +111,8 @@ gesture and keeps routing to it until `up`.
 */
 /*{ "parent": "UI", "order": 900 }*/
 
-import { box, type Box, type BoxChild } from './box'
-import type { Widget3d } from './widgets3d'
+import { box, type Box, type BoxChild } from './box.js'
+import type { Widget3d } from './widgets3d.js'
 
 /**
  * Wrap a {@link Widget3d} as a {@link BoxChild}.

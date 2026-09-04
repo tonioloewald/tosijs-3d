@@ -1,5 +1,5 @@
 import * as BABYLON from '@babylonjs/core';
-import { type FrameName } from './xr-frames';
+import { type FrameName } from './xr-frames.js';
 export type { FrameName };
 export type AnchorPreset = 'waist' | 'left-shoulder' | 'right-shoulder' | 'overhead' | 'wrist';
 export interface AnchorSpec {

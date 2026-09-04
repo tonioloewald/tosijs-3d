@@ -306,14 +306,18 @@ document.body.append(b3d({}, terrain))
 */
 /*{ "parent": "Environment", "order": 100 }*/
 
-import { B3dChild, isOff } from './b3d-utils'
+import { B3dChild, isOff } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import { PerlinNoise } from './perlin-noise'
-import { PiecewiseLinearFilter } from './gradient-filter'
-import type { GradientFilter } from './gradient-filter'
-import { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler'
-import type { SurfaceSampler } from './surface-sampler'
+import type { B3d } from './tosi-b3d.js'
+import { PerlinNoise } from './perlin-noise.js'
+import { PiecewiseLinearFilter } from './gradient-filter.js'
+import type { GradientFilter } from './gradient-filter.js'
+import {
+  TorusSampler,
+  SphereSampler,
+  CylinderSampler,
+} from './surface-sampler.js'
+import type { SurfaceSampler } from './surface-sampler.js'
 import {
   buildTileField,
   tileIndexPlan,
@@ -323,9 +327,9 @@ import {
   desiredCellsInto,
   type DesiredCell,
   type QuadtreeConfig,
-} from './terrain-grid'
-import { resolveBudget } from './b3d-quality'
-import { attachBiomePlugin, BiomePlugin } from './biome-plugin'
+} from './terrain-grid.js'
+import { resolveBudget } from './b3d-quality.js'
+import { attachBiomePlugin, BiomePlugin } from './biome-plugin.js'
 
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
  * planes (v = 0 and v = 0.5), which is the furthest you can sit from either. */
@@ -764,9 +768,9 @@ export class B3dTerrain extends B3dChild {
       actions: [
         {
           label: () => (this.profiling ? 'Profiling ON' : 'Profile tiles'),
-          onClick: () => this.setProfiling(!this.profiling),
+          handleClick: () => this.setProfiling(!this.profiling),
         },
-        { label: 'Reset', onClick: () => this.resetProfile() },
+        { label: 'Reset', handleClick: () => this.resetProfile() },
       ],
     })
 
@@ -796,7 +800,7 @@ export class B3dTerrain extends B3dChild {
             owner.debugLog.some((e) => e.tag === 'origin')
               ? `origin log (${owner.debugLog.length})`
               : 'Capture origin',
-          onClick: () => owner.debugCapture('origin'),
+          handleClick: () => owner.debugCapture('origin'),
         },
       ],
     })

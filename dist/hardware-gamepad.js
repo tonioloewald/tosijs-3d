@@ -17,7 +17,7 @@ import { HardwareGamepadSource } from 'tosijs-3d'
 ```
 */
 /*{ "parent": "Input", "order": 900 }*/
-import { emptyGamepad } from './virtual-gamepad';
+import { emptyGamepad } from './virtual-gamepad.js';
 function applyDeadzone(value, deadzone) {
     if (Math.abs(value) < deadzone)
         return 0;

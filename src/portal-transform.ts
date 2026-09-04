@@ -54,7 +54,7 @@ import {
   rotateVector,
   type Pose,
   type Vec3,
-} from './spatial-transform'
+} from './spatial-transform.js'
 
 /**
  * The pose a render-target camera should take so that portal `a`, seen from

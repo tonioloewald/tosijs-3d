@@ -15,7 +15,7 @@
  * On destruction: schedule chain link(s), then fire them (with their delay) via
  * `tick` — cascading through whatever they destroy.
  */
-import { type Resource } from './resource';
+import { type Resource } from './resource.js';
 /** Default seconds before a chain link fires after its source is destroyed. */
 export declare const DEFAULT_CHAIN_DELAY = 0.25;
 /** A directed on-destruction link: when the source dies, damage `target`. */

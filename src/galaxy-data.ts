@@ -62,7 +62,7 @@ Returns `{ star: StarData, planets: PlanetData[] }` with full planet detail.
 */
 /*{ "parent": "Space", "order": 900 }*/
 
-import { PRNG } from './mersenne-twister'
+import { PRNG } from './mersenne-twister.js'
 
 // --- Utilities ---
 

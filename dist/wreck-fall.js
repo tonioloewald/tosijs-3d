@@ -39,7 +39,7 @@ out each frame, so a floating-origin rebase is absorbed for free — the model
 never holds a world position across a shift.
 */
 /*{ "parent": "Effects" }*/
-import { ballisticStep } from './ballistics';
+import { ballisticStep } from './ballistics.js';
 const UP = { x: 0, y: 1, z: 0 };
 const length = (v) => Math.hypot(v.x, v.y, v.z);
 const cross = (a, b) => ({

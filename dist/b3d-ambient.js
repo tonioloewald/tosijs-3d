@@ -136,10 +136,10 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Environment" }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, sceneDelta } from './b3d-utils';
-import { band } from './atmosphere';
-import { fillWeight, spawnBias } from './ambient-budget';
-import { LeafField } from './ambient-leaves';
+import { B3dChild, sceneDelta } from './b3d-utils.js';
+import { band } from './atmosphere.js';
+import { fillWeight, spawnBias } from './ambient-budget.js';
+import { LeafField } from './ambient-leaves.js';
 const V = (x, y, z) => new BABYLON.Vector3(x, y, z);
 const C = (r, g, b, a) => new BABYLON.Color4(r, g, b, a);
 /** Seconds to close a population deficit — how fast an effect fills in when it ramps on. */

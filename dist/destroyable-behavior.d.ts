@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import type { DestroyableSpec, ChainLink, CombatEvent } from './destroyable';
+import type { B3d } from './tosi-b3d.js';
+import type { DestroyableSpec, ChainLink, CombatEvent } from './destroyable.js';
 export interface DeathOutcome {
     /** Shatter the host mesh into fragments on death. */
     explode?: boolean;

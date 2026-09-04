@@ -93,7 +93,7 @@ geometry, no dependencies" property. A `button` column needs to describe the
 menu it opens, and inventing a parallel shape for that would give the same idea
 two names.
 */
-import type { MenuAction } from './widgets3d'
+import type { MenuAction } from './widgets3d.js'
 
 export interface ColumnSpec {
   /** Identifies the column (and which field of a row it reads). */

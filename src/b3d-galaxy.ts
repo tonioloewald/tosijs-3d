@@ -315,17 +315,17 @@ tosi-b3d {
 */
 /*{ "parent": "Space" }*/
 
-import { B3dChild } from './b3d-utils'
+import { B3dChild } from './b3d-utils.js'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
+import type { B3d } from './tosi-b3d.js'
 import {
   generateGalaxy,
   generateStarSystem,
   type StarData,
   type GalaxyData,
   type StarSystemData,
-} from './galaxy-data'
-import { b3dBlackHole } from './b3d-black-hole'
+} from './galaxy-data.js'
+import { b3dBlackHole } from './b3d-black-hole.js'
 
 export class B3dGalaxy extends B3dChild {
   static preferredTagName = 'tosi-b3d-galaxy'

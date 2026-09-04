@@ -140,10 +140,10 @@ in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook
 */
 /*{ "parent": "Combat", "order": 100 }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff } from './b3d-utils';
-import { DestroyableBehavior } from './destroyable-behavior';
-import { spawnPrefab } from './prefab';
-import { b3dSound } from './b3d-sound';
+import { AbstractMesh, isOff } from './b3d-utils.js';
+import { DestroyableBehavior } from './destroyable-behavior.js';
+import { spawnPrefab } from './prefab.js';
+import { b3dSound } from './b3d-sound.js';
 export class B3dDestroyable extends AbstractMesh {
     static preferredTagName = 'tosi-b3d-destroyable';
     static initAttributes = {

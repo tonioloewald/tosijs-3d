@@ -1,5 +1,5 @@
 import { Component } from 'tosijs';
-import { type GamepadSource, type VirtualGamepad } from './virtual-gamepad';
+import { type GamepadSource, type VirtualGamepad } from './virtual-gamepad.js';
 export type ClusterAnchor = 'bottom-left' | 'bottom-right' | 'bottom-center' | 'top-left' | 'top-right' | 'top-center';
 export type ClusterConfig = {
     /** SVG to load for this cluster. */

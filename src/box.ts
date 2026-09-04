@@ -56,9 +56,9 @@ const makePanel = () => {
       'Blocks stack, text wraps, buttons flow and focus — one surface, DOM and 3D.',
       { font: { size: 13 }, color: '#9fb0c3' }
     ),
-    button('Talk', { onActivate: act('Talk') }),
-    button('Trade', { onActivate: act('Trade') }),
-    button('Leave', { onActivate: act('Leave') })
+    button('Talk', { handleActivate: act('Talk') }),
+    button('Trade', { handleActivate: act('Trade') }),
+    button('Leave', { handleActivate: act('Leave') })
   )
   p.focusMove(1, 0) // focus the first button so the ring shows
   return p
@@ -254,19 +254,20 @@ preview.append(
 /*{ "parent": "UI", "order": 200 }*/
 
 import { svgElements } from 'tosijs'
+import { handlerOf } from './handler-of.js'
 import {
   flowLayout,
   nearestInDirection,
   type FlowItem,
   type FlowBox,
-} from './flow-layout'
+} from './flow-layout.js'
 import {
   measureTextWrap,
   measureTextWidth,
   clampScroll,
   type FontSpec,
-} from './widgets3d-layout'
-import { iconGlyph } from './svg-icons'
+} from './widgets3d-layout.js'
+import { iconGlyph } from './svg-icons.js'
 
 /**
  * A child of a {@link box}. `el` is the SVG element to place (the box wraps it in
@@ -282,6 +283,20 @@ export interface BoxChildState {
   focused: boolean
 }
 
+/**
+ * A child's activation callback under either spelling.
+ *
+ * `BoxChild` is a contract other modules implement, so both names must be READ
+ * here: a consumer that wrote `onActivate` against 0.7 keeps working, and one
+ * reaching for `handleActivate` is not silently ignored.
+ */
+const activateOf = (c: BoxChild): (() => void) | undefined =>
+  handlerOf<() => void>(
+    c as unknown as Record<string, unknown>,
+    'handleActivate',
+    'onActivate'
+  )
+
 export interface BoxChild {
   el: SVGElement
   kind: 'block' | 'inline'
@@ -290,6 +305,8 @@ export interface BoxChild {
   /** Reachable by pointer hit-test and focus-traversal (D-pad / Tab). */
   focusable?: boolean
   /** Called when the child is activated (pointer up-over, or focus + menu/Enter). */
+  handleActivate?: () => void
+  /** @deprecated use `handleActivate` — removed in 0.9. */
   onActivate?: () => void
   /** The box calls this when the child's hover/press/focus state changes. */
   setState?: (state: BoxChildState) => void
@@ -449,7 +466,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
     i < children.length &&
     !!(
       children[i].focusable ||
-      children[i].onActivate ||
+      activateOf(children[i]) ||
       children[i].handlePointer
     )
   const firstFocusable = (): number => {
@@ -728,7 +745,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
           positionRing()
           if (old >= 0 && old !== hit) applyState(old)
           applyState(hit)
-          children[hit].onActivate?.()
+          activateOf(children[hit])?.()
         }
         downTarget = -1
       }
@@ -774,7 +791,7 @@ export function box(opts: BoxOptions, ...children: BoxChild[]): Box {
       if (focused < 0) return
       const c = children[focused]
       if (c.focusActivate) c.focusActivate()
-      else c.onActivate?.()
+      else activateOf(c)?.()
     },
     focusBack() {
       const old = focused
@@ -926,6 +943,8 @@ export function inlineItem(
 export function button(
   label: string,
   opts: {
+    handleActivate?: () => void
+    /** @deprecated use `handleActivate` — removed in 0.9. */
     onActivate?: () => void
     font?: FontSpec
     color?: string
@@ -994,7 +1013,7 @@ export function button(
     measure: () => (block ? { height } : { width: hugWidth, height }),
     paint: block ? (w) => lay(w) : undefined,
     focusable: true,
-    onActivate: opts.onActivate,
+    handleActivate: handlerOf<() => void>(opts, 'handleActivate', 'onActivate'),
     setState: (st) => {
       bg.setAttribute(
         'fill',

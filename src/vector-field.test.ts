@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
 // vector-field builds SVG through tosijs, so it needs a DOM before import.
-let mod: typeof import('./vector-field')
+let mod: typeof import('./vector-field.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -15,7 +15,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  mod = await import('./vector-field')
+  mod = await import('./vector-field.js')
 })
 
 describe('wrapDegrees — the whole difference between euler3d and vector3d', () => {

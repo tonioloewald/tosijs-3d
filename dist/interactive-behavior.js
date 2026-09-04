@@ -42,8 +42,8 @@ import * as BABYLON from '@babylonjs/core';
 // was caught only by reading the property back off a live mesh (`undefined`,
 // not `false`). Tree-shaking makes an unimported Babylon feature look like a
 // missing one.
-import '@babylonjs/core/Rendering/outlineRenderer';
-import { interactStep, newInteractState, activationVeto, } from './interaction';
+import '@babylonjs/core/Rendering/outlineRenderer.js';
+import { interactStep, newInteractState, activationVeto, } from './interaction.js';
 /** Every attached, live interactive in a scene — the pool `useNearest` picks from. */
 const registry = new WeakMap();
 const sceneSet = (scene) => {

@@ -1,6 +1,6 @@
 import type * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
-import type { B3d, RadarBlip, RadarFaction } from './tosi-b3d';
+import { B3dChild } from './b3d-utils.js';
+import type { B3d, RadarBlip, RadarFaction } from './tosi-b3d.js';
 /** Structural view of whatever element/mesh we might read a world position from. */
 type PosLike = {
     x: number;

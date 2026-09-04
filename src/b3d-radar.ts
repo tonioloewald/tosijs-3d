@@ -105,10 +105,10 @@ one: `maxLocks: 1`, `alignment: 'hostile'` (so it only locks the player).
 /*{ "parent": "Combat" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, semanticParent, sceneDelta } from './b3d-utils'
-import { Radar, coneDotFromDegrees, isOpposed } from './radar'
-import type { RadarTrack } from './radar'
-import type { B3d, RadarBlip } from './tosi-b3d'
+import { B3dChild, semanticParent, sceneDelta } from './b3d-utils.js'
+import { Radar, coneDotFromDegrees, isOpposed } from './radar.js'
+import type { RadarTrack } from './radar.js'
+import type { B3d, RadarBlip } from './tosi-b3d.js'
 
 const LOCAL_Z = new BABYLON.Vector3(0, 0, 1)
 

@@ -102,16 +102,20 @@ tosi-b3d { width: 100%; height: 100%; }
 /*{ "parent": "World Sim" }*/
 
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, sceneDelta, collidable } from './b3d-utils'
-import { spawnPrefab, type Prefab } from './prefab'
-import { explosionFx } from './b3d-warhead'
-import { panel3d, label3d, button3d, type Widget3d } from './widgets3d'
-import { panelFitWidth } from './widgets3d-layout'
-import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
-import { newWreckFall, wreckFallStep, type WreckFallState } from './wreck-fall'
-import type { B3d } from './tosi-b3d'
-import type { B3dInputFocus } from './b3d-input-focus'
-import type { B3dControllable } from './b3d-controllable'
+import { B3dChild, sceneDelta, collidable } from './b3d-utils.js'
+import { spawnPrefab, type Prefab } from './prefab.js'
+import { explosionFx } from './b3d-warhead.js'
+import { panel3d, label3d, button3d, type Widget3d } from './widgets3d.js'
+import { panelFitWidth } from './widgets3d-layout.js'
+import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
+import {
+  newWreckFall,
+  wreckFallStep,
+  type WreckFallState,
+} from './wreck-fall.js'
+import type { B3d } from './tosi-b3d.js'
+import type { B3dInputFocus } from './b3d-input-focus.js'
+import type { B3dControllable } from './b3d-controllable.js'
 
 const DEG = Math.PI / 180
 

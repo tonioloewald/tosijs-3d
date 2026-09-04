@@ -33,9 +33,9 @@ that refuses to move looks broken.
 */
 /*{ "parent": "UI", "order": 261 }*/
 import { svgElements } from 'tosijs';
-import { MIN_EXTENT, moveVertex, ngon, polygonExtent, presetsFor, polygonVertices, } from './curve';
-import { w3dTheme } from './w3d-theme';
-import { handlerOf } from './widgets3d';
+import { MIN_EXTENT, moveVertex, ngon, polygonExtent, presetsFor, polygonVertices, } from './curve.js';
+import { w3dTheme } from './w3d-theme.js';
+import { handlerOf } from './widgets3d.js';
 const { g, rect, path, circle: svgCircle, text } = svgElements;
 function initialVertices(value) {
     if (Array.isArray(value))

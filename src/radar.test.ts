@@ -4,7 +4,7 @@ import {
   coneDotFromDegrees,
   isOpposed,
   type RadarContact,
-} from './radar'
+} from './radar.js'
 
 const origin = { x: 0, y: 0, z: 0 }
 const nose = { x: 0, y: 0, z: 1 } // +Z forward

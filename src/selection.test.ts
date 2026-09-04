@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { selectionIcon, applySelection } from './selection'
+import { selectionIcon, applySelection } from './selection.js'
 
 describe('selectionIcon — radio vs checkbox convention', () => {
   test('single-select uses circles', () => {

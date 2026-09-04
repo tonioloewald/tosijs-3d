@@ -13,7 +13,7 @@ import {
   warp,
   shaft,
   type Carve,
-} from './carve'
+} from './carve.js'
 
 /** Walk a ray and find where the carve's sign changes — its surface. */
 const surfaceAlong = (

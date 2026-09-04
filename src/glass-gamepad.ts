@@ -128,15 +128,18 @@ If the pad is disappearing on you during development, `fade="off"` (or
 */
 /*{ "parent": "Input" }*/
 
-import { isOff } from './b3d-utils'
+import { isOff } from './b3d-utils.js'
 import { Component, elements, StyleSheet } from 'tosijs'
-import { TouchGamepadSource, type TouchGamepadOptions } from './touch-gamepad'
+import {
+  TouchGamepadSource,
+  type TouchGamepadOptions,
+} from './touch-gamepad.js'
 import {
   type GamepadSource,
   type VirtualGamepad,
   emptyGamepad,
   mergeGamepads,
-} from './virtual-gamepad'
+} from './virtual-gamepad.js'
 
 const { div } = elements
 

@@ -39,7 +39,7 @@ setQuality('auto')           // back to the measured profile (default)
 ```
 */
 /*{ "parent": "Performance", "order": 900 }*/
-import { defaultProfile, budgetsForTier, lowerTier, } from './perf-probe';
+import { defaultProfile, budgetsForTier, lowerTier, } from './perf-probe.js';
 let currentProfile = defaultProfile();
 let currentOverride = 'auto';
 const listeners = new Set();

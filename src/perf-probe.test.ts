@@ -26,7 +26,7 @@ import {
   type PerfMeasurements,
   type StoredProfile,
   type StorageLike,
-} from './perf-probe'
+} from './perf-probe.js'
 
 // A fast device: every workload well under the medium reference cost.
 const FAST: PerfMeasurements = {

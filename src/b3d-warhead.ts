@@ -130,10 +130,10 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
-import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils'
-import type { B3d } from './tosi-b3d'
-import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead'
-import type { B3dDestroyable } from './b3d-destroyable'
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
+import type { B3d } from './tosi-b3d.js'
+import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead.js'
+import type { B3dDestroyable } from './b3d-destroyable.js'
 
 // Seconds for the blast to expand from the centre to its full radius — shared by the
 // boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.

@@ -86,13 +86,13 @@ import type {
   PlaceId,
   PortalId,
   ChoiceId,
-} from './world-contract'
+} from './world-contract.js'
 import {
   proximityRung,
   routePortals,
   containmentPath,
   rungNominal,
-} from './world-topology'
+} from './world-topology.js'
 
 const PLAYER_ID: EntityId = 'player'
 

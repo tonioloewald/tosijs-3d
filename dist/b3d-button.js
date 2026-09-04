@@ -1,4 +1,4 @@
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as GUI from '@babylonjs/gui';
 export class B3dButton extends B3dChild {
     static preferredTagName = 'tosi-b3d-button';

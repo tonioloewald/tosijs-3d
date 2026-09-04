@@ -225,11 +225,11 @@ here.
 */
 /*{ "parent": "UI", "order": 263 }*/
 import { svgElements } from 'tosijs';
-import { canonicalProgram } from './light-modulation';
-import { readCurve } from './curve';
-import { curve3d, curveMarkers, } from './curve-field';
-import { stackLayout } from './widgets3d-layout';
-import { offsetHost } from './widgets3d';
+import { canonicalProgram } from './light-modulation.js';
+import { readCurve } from './curve.js';
+import { curve3d, curveMarkers, } from './curve-field.js';
+import { stackLayout } from './widgets3d-layout.js';
+import { offsetHost } from './widgets3d.js';
 const { g } = svgElements;
 /** The channels a program can carry, in the order they are drawn. */
 export const PROGRAM_CHANNELS = [

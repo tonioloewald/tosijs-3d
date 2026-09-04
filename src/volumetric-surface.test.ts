@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
-import { extractChunk } from './sdf-lattice'
-import { terrainDensity } from './patch-field'
-import { PerlinNoise } from './perlin-noise'
+import { extractChunk } from './sdf-lattice.js'
+import { terrainDensity } from './patch-field.js'
+import { PerlinNoise } from './perlin-noise.js'
 
 /*
 THE GO/NO-GO MEASUREMENT FOR VOLUMETRIC TERRAIN — AS A UNIT TEST.

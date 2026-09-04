@@ -429,10 +429,11 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 */
 /*{ "parent": "UI", "order": 100 }*/
 import { svgElements, StyleSheet } from 'tosijs';
-import { placePopup } from './flow-layout';
-import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, measureTextWidth, } from './widgets3d-layout';
-import { w3dTheme } from './w3d-theme';
-import { iconGlyph } from './svg-icons';
+import { placePopup } from './flow-layout.js';
+import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, measureTextWidth, } from './widgets3d-layout.js';
+import { handlerOf, resetHandlerWarnings } from './handler-of.js';
+import { w3dTheme } from './w3d-theme.js';
+import { iconGlyph } from './svg-icons.js';
 const { svg, g, rect, text, circle, clipPath } = svgElements;
 // --- Theme (configurable later) --------------------------------------------
 /*
@@ -539,37 +540,10 @@ const TH = {
     },
 };
 let clipSeq = 0;
-const warnedHandlers = new Set();
-/**
- * Read a callback under its NEW name, falling back to the deprecated `onX`.
- *
- * `handleX` is the convention (Tonio: _"the tosijs convention is a callback
- * event handler is called handleChange"_), and it is not a style preference.
- * These are plain factory functions today, where `onX` is harmless — but the
- * moment one becomes a tosijs COMPONENT, the element creator binds an `on*`
- * prop as a DOM event LISTENER and the class field is silently never called.
- * No error, no warning, a callback that simply never fires. `handleX` cannot be
- * mistaken for an event name, so the rename removes the trap rather than
- * documenting it.
- *
- * Both spellings work through 0.8.x. The old one warns ONCE per name, because
- * a slider reads its callback on every pointer move and a warning per frame is
- * a performance bug wearing a helpful hat.
- */
-export function handlerOf(config, handleName, onName) {
-    const next = config[handleName];
-    if (typeof next === 'function')
-        return next;
-    const old = config[onName];
-    if (typeof old === 'function') {
-        if (!warnedHandlers.has(onName)) {
-            warnedHandlers.add(onName);
-            console.warn(`tosijs-3d: \`${onName}\` is deprecated — use \`${handleName}\`. Both work in 0.8.x; \`${onName}\` is removed in 0.9.`);
-        }
-        return old;
-    }
-    return undefined;
-}
+// `handlerOf` LIVES in its own module now, so `box`/`surface` can adopt it
+// without pulling this one into their import graph. Re-exported because it was
+// public here first, and a moved export is a breaking change for no gain.
+export { handlerOf, resetHandlerWarnings };
 /** Read a `Dynamic`, falling back when it was never given. */
 export function resolveDynamic(v, fallback) {
     return typeof v === 'function' ? v() : v ?? fallback;
@@ -1661,7 +1635,7 @@ export function openMenu3d(host, anchor, items, opts = {}) {
         side: opts.side,
         width: opts.width ?? Math.max(anchor.width, 160),
         maxHeight: opts.maxHeight,
-        onClose: opts.onClose,
+        handleClose: handlerOf(opts, 'handleClose', 'onClose'),
     }, menu3d({
         /*
         The item's own `handleSelect` is STRIPPED and dispatched below instead of
@@ -1885,7 +1859,7 @@ export function panel3d(config, ...widgets) {
                 close: () => {
                     for (const o of opened)
                         o.close();
-                    config.onClose?.();
+                    handlerOf(config, 'handleClose', 'onClose')?.();
                 },
             };
         },
@@ -1934,7 +1908,7 @@ export function panel3d(config, ...widgets) {
                 y: opened.y,
                 w: Number(el.getAttribute('width')),
                 h: Number(el.getAttribute('height')),
-                onClose: config.onClose,
+                onClose: handlerOf(config, 'handleClose', 'onClose'),
             };
             return { close: closeOverlay };
         },

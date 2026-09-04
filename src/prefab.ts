@@ -47,7 +47,7 @@ care.
 */
 /*{ "parent": "World Sim", "order": 900 }*/
 
-import type { B3d } from './tosi-b3d'
+import type { B3d } from './tosi-b3d.js'
 
 /** Plain vector — matches the pure modules; no Babylon in this file. */
 export type PrefabVec3 = { x: number; y: number; z: number }

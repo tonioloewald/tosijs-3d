@@ -41,7 +41,7 @@ survived will start dragging a different point mid-gesture — which reads as th
 curve fighting you.
 */
 /*{ "parent": "Utilities", "order": 260 }*/
-import { PiecewiseLinearFilter } from './gradient-filter';
+import { PiecewiseLinearFilter } from './gradient-filter.js';
 const clamp01 = (n) => !Number.isFinite(n) ? 0 : n < 0 ? 0 : n > 1 ? 1 : n;
 /**
  * Put a point list into a state the rest of the module can rely on: sorted by x,

@@ -61,7 +61,7 @@ or omit it for a generated checker that needs no asset at all.
 */
 /*{ "parent": "Utilities" }*/
 import * as BABYLON from '@babylonjs/core';
-import { b3dSun, b3dSkybox, b3dLight, b3dGround, b3dFog, b3dLibrary, b3dDeath, inputFocus, gameController, } from './index';
+import { b3dSun, b3dSkybox, b3dLight, b3dGround, b3dFog, b3dLibrary, b3dDeath, inputFocus, gameController, } from './index.js';
 const DEG = Math.PI / 180;
 /**
  * A sun that CASTS shadows — the "when in doubt, add a shadow light" default.

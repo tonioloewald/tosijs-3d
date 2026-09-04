@@ -15,7 +15,7 @@
  * On destruction: schedule chain link(s), then fire them (with their delay) via
  * `tick` — cascading through whatever they destroy.
  */
-import { makeResource, drain, refill, regenTick, } from './resource';
+import { makeResource, drain, refill, regenTick, } from './resource.js';
 /** Default seconds before a chain link fires after its source is destroyed. */
 export const DEFAULT_CHAIN_DELAY = 0.25;
 export class CombatWorld {

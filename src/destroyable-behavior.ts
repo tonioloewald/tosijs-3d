@@ -34,10 +34,10 @@ import { DestroyableBehavior } from 'tosijs-3d'
 */
 /*{ "parent": "Combat", "order": 900 }*/
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d'
-import type { DestroyableSpec, ChainLink, CombatEvent } from './destroyable'
-import { detonateWarhead } from './b3d-warhead'
-import { explodeMesh } from './b3d-exploder'
+import type { B3d } from './tosi-b3d.js'
+import type { DestroyableSpec, ChainLink, CombatEvent } from './destroyable.js'
+import { detonateWarhead } from './b3d-warhead.js'
+import { explodeMesh } from './b3d-exploder.js'
 
 // Monotonic suffix so every attached Destroyable gets a unique combat id / mesh name.
 let _behaviorCount = 0

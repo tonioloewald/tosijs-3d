@@ -101,8 +101,8 @@ so you have full control:
 /*{ "parent": "UI", "order": 500 }*/
 
 import { Component } from 'tosijs'
-import type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel'
-import type { FrameName } from './xr-frames'
+import type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
+import type { FrameName } from './xr-frames.js'
 
 export class B3dPanel extends Component {
   static preferredTagName = 'tosi-b3d-panel'

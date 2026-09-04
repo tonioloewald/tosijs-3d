@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh } from './b3d-utils';
-import type { B3d } from './tosi-b3d';
-import { type BallisticParams } from './ballistics';
-import type { WarheadSpec } from './warhead';
+import { AbstractMesh } from './b3d-utils.js';
+import type { B3d } from './tosi-b3d.js';
+import { type BallisticParams } from './ballistics.js';
+import type { WarheadSpec } from './warhead.js';
 export declare class B3dTurret extends AbstractMesh {
     static preferredTagName: string;
     static initAttributes: {

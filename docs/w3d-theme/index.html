@@ -100,7 +100,7 @@ const makePanel = () =&gt; {
   const field = ui.inputField({
     placeholder: &#39;type here…&#39;,
     value: demo.name.value,
-    onChange: (v) =&gt; { demo.name = v },
+    handleChange: (v) =&gt; { demo.name = v },
   })
   const panel = panel3d(
     { width: 300 },
@@ -293,6 +293,7 @@ tosi-b3d { width: 100%; height: 100%; border-radius: 8px; overflow: hidden; }
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

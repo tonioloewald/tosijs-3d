@@ -186,10 +186,10 @@ scene's ambient animations stay behind. Pass `animations: false` to skip;
   rotation in **degrees** (it was radians before 0.7.0; see the CHANGELOG)
 */
 /*{ "parent": "Core" }*/
-import { B3dChild, publicName, isIgnored } from './b3d-utils';
+import { B3dChild, publicName, isIgnored } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { canonicalize } from './model-transform';
-import { manifestFromNodes } from './glb-manifest';
+import { canonicalize } from './model-transform.js';
+import { manifestFromNodes } from './glb-manifest.js';
 /**
  * The `.model` naming convention, pure (unit-tested): a node named
  * `<name>.model` declares itself an INTENDED EXPORT of the library file.

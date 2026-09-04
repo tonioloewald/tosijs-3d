@@ -1,7 +1,7 @@
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import { type StarData, type GalaxyData, type StarSystemData } from './galaxy-data';
+import type { B3d } from './tosi-b3d.js';
+import { type StarData, type GalaxyData, type StarSystemData } from './galaxy-data.js';
 export declare class B3dGalaxy extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {

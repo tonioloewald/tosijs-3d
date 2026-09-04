@@ -1,4 +1,4 @@
-import type { ControlInput, InputProvider } from './control-input';
+import type { ControlInput, InputProvider } from './control-input.js';
 export interface VirtualGamepad {
     leftStickX: number;
     leftStickY: number;

@@ -196,11 +196,16 @@ whether anything is captioned rather than being a fixed number.
 /*{ "parent": "UI", "order": 262 }*/
 
 import { svgElements } from 'tosijs'
-import { iconGlyph } from './svg-icons'
-import { w3dTheme } from './w3d-theme'
-import { openMenu3d, resolveDynamic } from './widgets3d'
-import type { Dynamic } from './widgets3d'
-import type { MenuAction, PointerKind, Widget3d, WidgetHost } from './widgets3d'
+import { iconGlyph } from './svg-icons.js'
+import { w3dTheme } from './w3d-theme.js'
+import { openMenu3d, resolveDynamic } from './widgets3d.js'
+import type { Dynamic } from './widgets3d.js'
+import type {
+  MenuAction,
+  PointerKind,
+  Widget3d,
+  WidgetHost,
+} from './widgets3d.js'
 
 const { g, rect, text } = svgElements
 

@@ -1,8 +1,8 @@
-import { B3dChild } from './b3d-utils';
-import { BiomePlugin } from './biome-plugin';
+import { B3dChild } from './b3d-utils.js';
+import { BiomePlugin } from './biome-plugin.js';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d';
-import type { GradientFilter } from './gradient-filter';
+import type { B3d } from './tosi-b3d.js';
+import type { GradientFilter } from './gradient-filter.js';
 export declare class B3dPlanet extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {

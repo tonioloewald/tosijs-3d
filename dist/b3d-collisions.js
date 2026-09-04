@@ -171,9 +171,9 @@ document.body.append(
 ```
 */
 /*{ "parent": "Core" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { conventionName } from './b3d-utils';
+import { conventionName } from './b3d-utils.js';
 export class B3dCollisions extends B3dChild {
     static preferredTagName = 'tosi-b3d-collisions';
     static initAttributes = {

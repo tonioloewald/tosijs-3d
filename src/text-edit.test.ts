@@ -10,7 +10,7 @@ import {
   selectedText,
   hasSelection,
   length,
-} from './text-edit'
+} from './text-edit.js'
 
 describe('edit — construction', () => {
   test('caret defaults to the end', () => {

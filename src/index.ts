@@ -1,5 +1,5 @@
 // Core
-export { B3d, b3d, showB3dStats } from './tosi-b3d'
+export { B3d, b3d, showB3dStats } from './tosi-b3d.js'
 /*
 Re-export the Babylon namespace the library itself is using.
 
@@ -15,10 +15,10 @@ export type {
   SceneAdditions,
   SceneAdditionHandler,
   DebugPanelSource,
-} from './tosi-b3d'
+} from './tosi-b3d.js'
 
 // Device-capability probe (measure-don't-guess quality budgets)
-export { B3dProbe, b3dProbe, runProbe } from './b3d-probe'
+export { B3dProbe, b3dProbe, runProbe } from './b3d-probe.js'
 export {
   getPerfProfile,
   setPerfProfile,
@@ -28,8 +28,8 @@ export {
   qualityBudgets,
   resolveBudget,
   onQualityChange,
-} from './b3d-quality'
-export type { QualitySetting, NumericBudgetKey } from './b3d-quality'
+} from './b3d-quality.js'
+export type { QualitySetting, NumericBudgetKey } from './b3d-quality.js'
 export {
   PROBE_VERSION,
   classify,
@@ -38,7 +38,7 @@ export {
   defaultProfile,
   isStandaloneHmd,
   tierCap,
-} from './perf-probe'
+} from './perf-probe.js'
 export type {
   PerfTier,
   PerfMeasurements,
@@ -46,20 +46,23 @@ export type {
   PerfProfile,
   StoredProfile,
   ClassHints,
-} from './perf-probe'
+} from './perf-probe.js'
 
 // World simulation (narrative-driver boundary)
-export { WorldStore } from './world-store'
-export { WorldView, defaultMeshFactory } from './world-view'
-export type { MeshFactory } from './world-view'
+export { WorldStore } from './world-store.js'
+export { WorldView, defaultMeshFactory } from './world-view.js'
+export type { MeshFactory } from './world-view.js'
 export {
   proximityRung,
   rungNominal,
   routePortals,
   containmentPath,
-} from './world-topology'
-export { runMinSimConformance } from './min-sim-conformance'
-export type { ConformanceHarness, TickableMinSim } from './min-sim-conformance'
+} from './world-topology.js'
+export { runMinSimConformance } from './min-sim-conformance.js'
+export type {
+  ConformanceHarness,
+  TickableMinSim,
+} from './min-sim-conformance.js'
 export type {
   WorldState,
   WorldEntity,
@@ -94,7 +97,7 @@ export type {
   Choice,
   SchematicView,
   MinSimApi,
-} from './world-contract'
+} from './world-contract.js'
 
 // Utilities
 export {
@@ -124,8 +127,8 @@ export {
   conventionName,
   simHalted,
   controlsLive,
-} from './b3d-utils'
-export type { XRStuff, XRParams, SimGateOwner } from './b3d-utils'
+} from './b3d-utils.js'
+export type { XRStuff, XRParams, SimGateOwner } from './b3d-utils.js'
 
 // The pure flight model, so a consumer can predict what the aircraft will do
 // without instantiating one — `equilibriumSpeed` is what the HUD's set-point
@@ -136,19 +139,19 @@ export {
   targetVelocity,
   chaseVelocity,
   equilibriumSpeed,
-} from './fly-by-wire'
+} from './fly-by-wire.js'
 export type {
   FlyByWireConfig,
   FlyByWireCommand,
   FlyByWireState,
-} from './fly-by-wire'
+} from './fly-by-wire.js'
 
 /*
 The MEDIUM primitive as a namespace, not bare names: `plane`, `sphere` and
 `crossing` are common nouns and would collide the moment anything else wants
 them (`carve` already has a sphere). Types stay top-level.
 */
-import * as mediumNs from './medium'
+import * as mediumNs from './medium.js'
 export const medium = mediumNs
 export type {
   Medium,
@@ -156,17 +159,17 @@ export type {
   SphereMedium,
   MediumVec3,
   MediumCrossing,
-} from './medium'
+} from './medium.js'
 
 /*
 See-through portal math, namespaced: `sideOf` and `crossedPortal` are generic
 enough to collide, and `portalCamera` reads better qualified.
 */
-import * as portalNs from './portal-transform'
+import * as portalNs from './portal-transform.js'
 export const portalTransform = portalNs
 
 // Logical asset URLs (retarget the host in one place; see asset-url.ts)
-export { setAssetBase, getAssetBase, assetUrl } from './asset-url'
+export { setAssetBase, getAssetBase, assetUrl } from './asset-url.js'
 
 // Pure spatial-attachment transform math (see SPATIAL-DESIGN.md)
 export {
@@ -180,9 +183,9 @@ export {
   relativePose,
   placeRelative,
   IDENTITY_QUAT,
-} from './spatial-transform'
+} from './spatial-transform.js'
 // Vec3 is already exported (surface-sampler) and is structurally identical.
-export type { Quat, Pose } from './spatial-transform'
+export type { Quat, Pose } from './spatial-transform.js'
 
 // Pure aircraft-HUD math (radar-trace projection + horizon + glass projection)
 export {
@@ -192,10 +195,10 @@ export {
   hudPointFromUV,
   lockFillOpacity,
   arcDashArray,
-} from './hud-math'
-export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math'
+} from './hud-math.js'
+export type { HudTrace, HudTraceOptions, HorizonTransform } from './hud-math.js'
 // HUD driver (meters / horizon / radar traces over the HUD SVG)
-export { createHudController, loadHud, buildFallbackHud } from './hud'
+export { createHudController, loadHud, buildFallbackHud } from './hud.js'
 export type {
   HudController,
   HudControllerOptions,
@@ -204,17 +207,17 @@ export type {
   HudTraceInput,
   Side,
   HudWarning,
-} from './hud'
-export { B3dHud, b3dHud } from './b3d-hud'
+} from './hud.js'
+export { B3dHud, b3dHud } from './b3d-hud.js'
 
 // Scene components
-export { B3dLoader, b3dLoader } from './b3d-loader'
-export { B3dLibrary, b3dLibrary } from './b3d-library'
-export { B3dSun, b3dSun } from './b3d-shadows'
-export { B3dReflections, b3dReflections } from './b3d-reflections'
-export { B3dSkybox, b3dSkybox } from './b3d-skybox'
-export { B3dWater, b3dWater } from './b3d-water'
-export { B3dLight, b3dLight } from './b3d-light'
+export { B3dLoader, b3dLoader } from './b3d-loader.js'
+export { B3dLibrary, b3dLibrary } from './b3d-library.js'
+export { B3dSun, b3dSun } from './b3d-shadows.js'
+export { B3dReflections, b3dReflections } from './b3d-reflections.js'
+export { B3dSkybox, b3dSkybox } from './b3d-skybox.js'
+export { B3dWater, b3dWater } from './b3d-water.js'
+export { B3dLight, b3dLight } from './b3d-light.js'
 export {
   B3dLamp,
   B3dPointLight,
@@ -223,7 +226,7 @@ export {
   b3dSpotLight,
   B3dAreaLight,
   b3dAreaLight,
-} from './b3d-lamp'
+} from './b3d-lamp.js'
 // A lamp's whole life as ONE curve per channel, split into attack / sustain /
 // decay by two markers — the model behind its flicker, pulse and fade.
 export {
@@ -240,7 +243,7 @@ export {
   isAnimated,
   shiftHue,
   NO_MODULATION,
-} from './light-modulation'
+} from './light-modulation.js'
 export type {
   LightPreset,
   LightProgram,
@@ -248,7 +251,7 @@ export type {
   ChannelCurves,
   ModulationCurve,
   ModulationSample,
-} from './light-modulation'
+} from './light-modulation.js'
 /*
 A province's climate layer as DATA — bipolar bias curves plus the two water
 scalars. Pure (no DOM, no Babylon) so a consumer can validate and serialise one
@@ -263,13 +266,13 @@ export {
   validateClimate,
   DEFAULT_AMOUNTS,
   NO_CLIMATE,
-} from './province-climate'
+} from './province-climate.js'
 export type {
   ProvinceClimate,
   ClimateSample,
   ClimateCurve,
   ClimateAmounts,
-} from './province-climate'
+} from './province-climate.js'
 /*
 JSON Schema for the scene primitives — no DOM, no Babylon, so a consumer's
 headless runner can read them. Exists so nobody hand-copies our attributes:
@@ -286,36 +289,36 @@ export {
   hemisphericLightSchema,
   sceneSchemas,
   SCENE_OMITTED,
-} from './scene-schemas'
-export { B3dFog, b3dFog } from './b3d-fog'
-export { B3dClouds, b3dClouds } from './b3d-clouds'
+} from './scene-schemas.js'
+export { B3dFog, b3dFog } from './b3d-fog.js'
+export { B3dClouds, b3dClouds } from './b3d-clouds.js'
 export {
   softShadowTexture,
   shadowDecalMaterial,
   createShadowDecal,
   projectShadowDown,
-} from './shadow-decal'
-export type { ShadowDecalOptions, ProjectDownOptions } from './shadow-decal'
+} from './shadow-decal.js'
+export type { ShadowDecalOptions, ProjectDownOptions } from './shadow-decal.js'
 // Projected cloud shadows: one top-down texture sampled by world position (works over terrain).
 export {
   CloudShadowMap,
   projectShadowXZ,
   shadowWindowUv,
-} from './cloud-shadows'
-export type { CloudShadowBlob } from './cloud-shadows'
-export { B3dAmbient, b3dAmbient } from './b3d-ambient'
-export { LeafField } from './ambient-leaves'
-export type { LeafFieldOptions } from './ambient-leaves'
+} from './cloud-shadows.js'
+export type { CloudShadowBlob } from './cloud-shadows.js'
+export { B3dAmbient, b3dAmbient } from './b3d-ambient.js'
+export { LeafField } from './ambient-leaves.js'
+export type { LeafFieldOptions } from './ambient-leaves.js'
 // Garnish competes for ONE pool and switches OFF rather than thinning into a lie.
-export { allocateAmbient, fillWeight, ratchetPool } from './ambient-budget'
+export { allocateAmbient, fillWeight, ratchetPool } from './ambient-budget.js'
 export type {
   AmbientRequest,
   AmbientAllocation,
   AmbientEffect,
-} from './ambient-budget'
+} from './ambient-budget.js'
 // Atmosphere: fog is ALWAYS ON and systems lean on it (underwater / cloud / space).
-export { compositeFog, approachFog, band } from './atmosphere'
-export type { FogState, FogLayer } from './atmosphere'
+export { compositeFog, approachFog, band } from './atmosphere.js'
+export type { FogState, FogLayer } from './atmosphere.js'
 export {
   B3dSphere,
   b3dSphere,
@@ -323,18 +326,18 @@ export {
   b3dBox,
   B3dGround,
   b3dGround,
-} from './b3d-primitives'
-export { B3dButton, b3dButton } from './b3d-button'
-export { B3dCollisions, b3dCollisions } from './b3d-collisions'
-export { B3dPhysics, b3dPhysics } from './b3d-physics'
-export { JoltPlugin } from './jolt-plugin'
+} from './b3d-primitives.js'
+export { B3dButton, b3dButton } from './b3d-button.js'
+export { B3dCollisions, b3dCollisions } from './b3d-collisions.js'
+export { B3dPhysics, b3dPhysics } from './b3d-physics.js'
+export { JoltPlugin } from './jolt-plugin.js'
 
 // Input abstraction
-export type { ControlInput, InputProvider } from './control-input'
-export { emptyInput, CompositeInputProvider } from './control-input'
-export { XRInputProvider } from './xr-input-provider'
-export { B3dControllable } from './b3d-controllable'
-export { B3dController, b3dController } from './b3d-controller'
+export type { ControlInput, InputProvider } from './control-input.js'
+export { emptyInput, CompositeInputProvider } from './control-input.js'
+export { XRInputProvider } from './xr-input-provider.js'
+export { B3dControllable } from './b3d-controllable.js'
+export { B3dController, b3dController } from './b3d-controller.js'
 
 // Virtual gamepad system
 export type {
@@ -344,7 +347,7 @@ export type {
   MappingLabels,
   InputMappingDescriptor,
   ThrottleDetentConfig,
-} from './virtual-gamepad'
+} from './virtual-gamepad.js'
 export {
   emptyGamepad,
   mergeGamepads,
@@ -355,17 +358,24 @@ export {
   aircraftMapping,
   aircraftMappingDescriptor,
   MappedInputProvider,
-} from './virtual-gamepad'
-export { STICK_UP_IS_POSITIVE } from './virtual-gamepad'
-export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad'
-export { HardwareGamepadSource } from './hardware-gamepad'
-export { TouchGamepadSource } from './touch-gamepad'
-export type { TouchGamepadOptions, GamepadPointerKind } from './touch-gamepad'
-export { gamepadSvg } from './gamepad-svg'
-export type { GamepadSvgColors } from './gamepad-svg'
-export { B3dGamepad, b3dGamepad, parseGamepadControls } from './glass-gamepad'
-export { XrGamepadSource } from './xr-gamepad'
-export type { ClusterConfig, ClusterAnchor } from './glass-gamepad'
+} from './virtual-gamepad.js'
+export { STICK_UP_IS_POSITIVE } from './virtual-gamepad.js'
+export { KeyboardGamepadSource, keyboardGamepad } from './keyboard-gamepad.js'
+export { HardwareGamepadSource } from './hardware-gamepad.js'
+export { TouchGamepadSource } from './touch-gamepad.js'
+export type {
+  TouchGamepadOptions,
+  GamepadPointerKind,
+} from './touch-gamepad.js'
+export { gamepadSvg } from './gamepad-svg.js'
+export type { GamepadSvgColors } from './gamepad-svg.js'
+export {
+  B3dGamepad,
+  b3dGamepad,
+  parseGamepadControls,
+} from './glass-gamepad.js'
+export { XrGamepadSource } from './xr-gamepad.js'
+export type { ClusterConfig, ClusterAnchor } from './glass-gamepad.js'
 
 // XR reference frames & spatial UI
 export {
@@ -375,33 +385,38 @@ export {
   dampYaw,
   facingYaw,
   gazeReveal,
-} from './xr-frames'
-export type { FrameName, XrFramesOptions } from './xr-frames'
+} from './xr-frames.js'
+export type { FrameName, XrFramesOptions } from './xr-frames.js'
 export {
   attachFramePanel,
   placeholderPanelSvg,
   excludeFromGlow,
-} from './frame-panel'
-export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel'
-export { B3dPanel, b3dPanel } from './b3d-panel'
+} from './frame-panel.js'
+export type { FramePanelSpec, AnchorSpec, AnchorPreset } from './frame-panel.js'
+export { B3dPanel, b3dPanel } from './b3d-panel.js'
 
 // Character & input
-export { B3dBiped, b3dBiped, AnimState } from './b3d-biped'
+export { B3dBiped, b3dBiped, AnimState } from './b3d-biped.js'
 // Clip-name map for Quaternius UAL rigs — see b3d-biped.
-export { ualAnimationStates } from './b3d-biped'
-export type { AnimStateSpec } from './b3d-biped'
-export { GameController, gameController } from './game-controller'
-export { B3dInputFocus, inputFocus } from './b3d-input-focus'
+export { ualAnimationStates } from './b3d-biped.js'
+export type { AnimStateSpec } from './b3d-biped.js'
+export { GameController, gameController } from './game-controller.js'
+export { B3dInputFocus, inputFocus } from './b3d-input-focus.js'
 export {
   gamepadState,
   gamepadText,
   xrControllers,
   xrControllersText,
-} from './gamepad'
+} from './gamepad.js'
 
 // Vehicles
-export { B3dCar, b3dCar } from './b3d-car'
-export { B3dAircraft, b3dAircraft } from './b3d-aircraft'
+export { B3dCar, b3dCar } from './b3d-car.js'
+export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js'
+
+// The callback-naming shim. `handleX` is the name across this library; `onX`
+// still works and warns once. Exported so an adopter's own widgets can follow
+// the same rule rather than re-implementing it.
+export { handlerOf, resetHandlerWarnings } from './handler-of.js'
 
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
@@ -420,7 +435,7 @@ export {
   openMenu3d,
   spinner3d,
   progress3d,
-} from './widgets3d'
+} from './widgets3d.js'
 // Curve editing — the pure model, and the `curve3d` widget over it. A province
 // is a footprint plus one curve per layer (PROVINCE-DESIGN.md).
 export {
@@ -456,8 +471,8 @@ export {
   plateauFalloff,
   smoothEdge,
   abruptEdge,
-} from './curve'
-export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve'
+} from './curve.js'
+export { moveMarker, normalizeMarkers, MIN_SPLIT_GAP } from './curve.js'
 // Serialisation contract with tosijs-3d-ensemble (#61): plain JSON, canonical
 // bytes, a validator that never throws, and a schema fragment to dispatch on.
 export {
@@ -466,16 +481,16 @@ export {
   validateCurve,
   curveSchema,
   CURVE_PRECISION,
-} from './curve'
-export type { SerializedCurve, CurveIssue } from './curve'
-export type { CurveKind, CurvePreset } from './curve'
-export { curve3d, curveMarkers } from './curve-field'
+} from './curve.js'
+export type { SerializedCurve, CurveIssue } from './curve.js'
+export type { CurveKind, CurvePreset } from './curve.js'
+export { curve3d, curveMarkers } from './curve-field.js'
 // The composite: several curves sharing ONE pair of split markers, so the
 // invariant lives where it can be enforced (see #61 Q5a).
-export { curveProgram3d, PROGRAM_CHANNELS } from './curve-program'
+export { curveProgram3d, PROGRAM_CHANNELS } from './curve-program.js'
 // The whole lamp — static properties plus the program, as one field.
-export { lightEditor3d } from './light-editor'
-export type { LightEditor3dOptions, LightEditorField } from './light-editor'
+export { lightEditor3d } from './light-editor.js'
+export type { LightEditor3dOptions, LightEditorField } from './light-editor.js'
 /*
 A lamp as DATA, from a module with no DOM and no Babylon — so a consumer can
 validate, canonicalise and schema-describe one in a headless runner without
@@ -488,27 +503,27 @@ export {
   canonicalLight,
   validateLight,
   DEFAULT_LIGHT,
-} from './light-settings'
-export type { LightSettings, LightKind } from './light-settings'
+} from './light-settings.js'
+export type { LightSettings, LightKind } from './light-settings.js'
 export type {
   CurveProgram3dOptions,
   CurveProgramField,
   ProgramChannel,
-} from './curve-program'
-export { iconGrid3d } from './icon-grid'
+} from './curve-program.js'
+export { iconGrid3d } from './icon-grid.js'
 export type {
   IconGrid,
   IconGrid3dOptions,
   IconGridItem,
   IconGridChange,
-} from './icon-grid'
-export { footprint3d } from './footprint-field'
-export type { Footprint3dOptions, FootprintField } from './footprint-field'
-export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field'
+} from './icon-grid.js'
+export { footprint3d } from './footprint-field.js'
+export type { Footprint3dOptions, FootprintField } from './footprint-field.js'
+export type { Curve3dOptions, CurveField, CurveMarkers } from './curve-field.js'
 
 // A coordinate on ONE row — the density win for inspector panels. Its own
 // module so it tree-shakes, and top-level like the other `*3d` widgets.
-export { vector3d, euler3d, wrapDegrees } from './vector-field'
+export { vector3d, euler3d, wrapDegrees } from './vector-field.js'
 /*
 `WidgetHost` is exported deliberately, not incidentally: it is the type a
 custom widget must name to implement `setHost`, and without it a consumer
@@ -521,7 +536,7 @@ export type {
   Dynamic,
   Spinner3d,
   Progress3d,
-} from './widgets3d'
+} from './widgets3d.js'
 export {
   panelFitWidth,
   panelFit,
@@ -538,24 +553,28 @@ export {
   measureTextWidth,
   valueToFraction,
   fractionToValue,
-} from './widgets3d-layout'
+} from './widgets3d-layout.js'
 export type {
   StackLayout,
   FontSpec,
   PanelFit,
   RowColumn,
-} from './widgets3d-layout'
+} from './widgets3d-layout.js'
 
 // SVG material system
-export { SvgTexture } from './svg-texture'
-export type { SvgTextureOptions } from './svg-texture'
-export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane'
+export { SvgTexture } from './svg-texture.js'
+export type { SvgTextureOptions } from './svg-texture.js'
+export { B3dSvgPlane, b3dSvgPlane, panelScene } from './b3d-svg-plane.js'
 export type {
   PanelSceneOptions,
   PanelGestureEvent,
   PanelGestureAction,
-} from './b3d-svg-plane'
-export { panelGesture, uvToViewBox, planeLocalToViewBox } from './b3d-svg-plane'
+} from './b3d-svg-plane.js'
+export {
+  panelGesture,
+  uvToViewBox,
+  planeLocalToViewBox,
+} from './b3d-svg-plane.js'
 
 // Icon proxy (svgIcons.name() → SVG ElementCreator) over the generated icon set
 export {
@@ -571,13 +590,13 @@ export {
   iconExists,
   isRegisteredIcon,
   type SvgIconCreator,
-} from './svg-icons'
+} from './svg-icons.js'
 export {
   parseStyleSuffixes,
   mergeIconStyle,
   type IconStyle,
   type ParsedIconName,
-} from './icon-name'
+} from './icon-name.js'
 
 // ---------------------------------------------------------------------------
 // The SVG UI surface, namespaced as `ui.*` — `ui.box`, `ui.table`, `ui.keyboard`.
@@ -587,7 +606,7 @@ export {
 // top-level (PascalCase — no pollution, and types can't live on a const).
 // Decided at the 0.6.0 rc gate — see UI-DESIGN-NOTES.
 // ---------------------------------------------------------------------------
-import { flowLayout, nearestInDirection, placePopup } from './flow-layout'
+import { flowLayout, nearestInDirection, placePopup } from './flow-layout.js'
 import {
   box,
   textBlock,
@@ -596,9 +615,9 @@ import {
   inlineItem,
   button,
   svgPoint,
-} from './box'
-import { surface, openMenu } from './surface'
-import { widgetBox, widgetChild } from './widget-box'
+} from './box.js'
+import { surface, openMenu } from './surface.js'
+import { widgetBox, widgetChild } from './widget-box.js'
 import {
   edit,
   insert,
@@ -611,8 +630,8 @@ import {
   selectionRange,
   hasSelection,
   length as editLength,
-} from './text-edit'
-import { selectionIcon, applySelection } from './selection'
+} from './text-edit.js'
+import { selectionIcon, applySelection } from './selection.js'
 import {
   resolveColumns,
   visibleRows,
@@ -620,15 +639,15 @@ import {
   maxScroll as tableMaxScroll,
   rowAt,
   columnAt,
-} from './table-layout'
-import { gamepadFocus, createFocusPulse } from './gamepad-focus'
+} from './table-layout.js'
+import { gamepadFocus, createFocusPulse } from './gamepad-focus.js'
 import {
   keyboard,
   inputField,
   fieldGroup,
   autoKeyboardEnabled,
   setAutoKeyboard,
-} from './keyboard'
+} from './keyboard.js'
 import {
   keyLayout,
   accentsFor,
@@ -636,8 +655,8 @@ import {
   keyRects,
   keyboardHeight,
   keyAt,
-} from './key-layout'
-import { table } from './table'
+} from './key-layout.js'
+import { table } from './table.js'
 
 export const ui = {
   // flow-layout core (pure)
@@ -707,30 +726,30 @@ export type {
   FlowBox,
   FlowResult,
   PopupSide,
-} from './flow-layout'
+} from './flow-layout.js'
 export type {
   Box,
   BoxChild,
   BoxChildState,
   BoxOptions,
   PointerKind,
-} from './box'
-export type { Surface, Popup, MenuItem } from './surface'
-export type { EditState } from './text-edit'
-export type { SelectionMode } from './selection'
-export type { ColumnSpec, ColumnRect, RowWindow } from './table-layout'
+} from './box.js'
+export type { Surface, Popup, MenuItem } from './surface.js'
+export type { EditState } from './text-edit.js'
+export type { SelectionMode } from './selection.js'
+export type { ColumnSpec, ColumnRect, RowWindow } from './table-layout.js'
 export type {
   FocusTarget,
   FocusPulse,
   GamepadFocusOptions,
-} from './gamepad-focus'
+} from './gamepad-focus.js'
 export type {
   Keyboard,
   InputField,
   KeyboardOptions,
   InputFieldOptions,
-} from './keyboard'
-export type { KeyboardMode, KeyAction, KeyDef, KeyRect } from './key-layout'
+} from './keyboard.js'
+export type { KeyboardMode, KeyAction, KeyDef, KeyRect } from './key-layout.js'
 
 // Procedural biome shader (TERRAIN-SHADER-DESIGN.md): pure chart model + plugin
 export {
@@ -740,8 +759,8 @@ export {
   cellBlend,
   slopeMask,
   photicFactor,
-} from './biome-chart'
-export type { BiomeChartConfig } from './biome-chart'
+} from './biome-chart.js'
+export type { BiomeChartConfig } from './biome-chart.js'
 // Slope profiles — levels adjustments for terrain, localizable across regions
 export {
   cliffProfile,
@@ -751,8 +770,8 @@ export {
   terraceProfile,
   blendProfiles,
   profileField,
-} from './slope-profile'
-export type { LocalizedFilter } from './slope-profile'
+} from './slope-profile.js'
+export type { LocalizedFilter } from './slope-profile.js'
 export {
   volcano,
   impactCrater,
@@ -761,9 +780,9 @@ export {
   cover,
   composeLandforms,
   mergeProvinces,
-} from './landform'
+} from './landform.js'
 // Volumetric patch substrate (tunnels/caverns — see TODO 0.7.0)
-export { latticeHash, latticePoint, extractChunk } from './sdf-lattice'
+export { latticeHash, latticePoint, extractChunk } from './sdf-lattice.js'
 /*
 The CARVE family lives in a container for the same reason the `ui` family does
 (see the note above): `box`, `sphere`, `tube`, `union` are COMMON NOUNS, and a
@@ -786,7 +805,7 @@ import {
   roughen,
   warp,
   shaft,
-} from './carve'
+} from './carve.js'
 export const carve = {
   applyCarve,
   sphere,
@@ -802,20 +821,20 @@ export const carve = {
   warp,
   shaft,
 }
-export type { Carve, NoiseOptions, Vec3Like } from './carve'
+export type { Carve, NoiseOptions, Vec3Like } from './carve.js'
 export {
   terrainDensity,
   composePatches,
   circleFootprint,
   marginBlend,
-} from './patch-field'
-export type { PatchField, Footprint } from './patch-field'
+} from './patch-field.js'
+export type { PatchField, Footprint } from './patch-field.js'
 export type {
   SdfField,
   LatticeConfig,
   ChunkSpec,
   ExtractedMesh,
-} from './sdf-lattice'
+} from './sdf-lattice.js'
 export type {
   AuthoredLandform,
   VolcanoOptions,
@@ -823,7 +842,7 @@ export type {
   PadOptions,
   GulleyOptions,
   CoverOptions,
-} from './landform'
+} from './landform.js'
 export {
   BiomePlugin,
   attachBiomePlugin,
@@ -831,49 +850,49 @@ export {
   MANTA_PALETTE,
   LAVA_PALETTE,
   CRYOVOLCANIC_PALETTE,
-} from './biome-plugin'
-export type { BiomeParams } from './biome-plugin'
+} from './biome-plugin.js'
+export type { BiomeParams } from './biome-plugin.js'
 
 // Effects & interaction
-export { B3dParticles, b3dParticles } from './b3d-particles'
-export { B3dSound, b3dSound } from './b3d-sound'
-export { B3dTrigger, b3dTrigger } from './b3d-trigger'
+export { B3dParticles, b3dParticles } from './b3d-particles.js'
+export { B3dSound, b3dSound } from './b3d-sound.js'
+export { B3dTrigger, b3dTrigger } from './b3d-trigger.js'
 // Interactive: the substrate for touching a thing — doors, knobs, switches, locks.
-export { B3dInteractive, b3dInteractive } from './b3d-interactive'
+export { B3dInteractive, b3dInteractive } from './b3d-interactive.js'
 export {
   InteractiveBehavior,
   nearestInteractive,
   useNearest,
-} from './interactive-behavior'
+} from './interactive-behavior.js'
 export type {
   InteractionInfo,
   InteractiveHost,
   InteractiveConfig,
-} from './interactive-behavior'
+} from './interactive-behavior.js'
 export {
   interactStep,
   newInteractState,
   activationVeto,
   withinReach,
-} from './interaction'
+} from './interaction.js'
 export type {
   InteractPhase,
   InteractState,
   InteractInput,
   InteractResult,
-} from './interaction'
+} from './interaction.js'
 // Death: the exit a crash needs (wreckage, orbit camera, respawn panel)
-export { B3dDeath, b3dDeath } from './b3d-death'
+export { B3dDeath, b3dDeath } from './b3d-death.js'
 // Wreck fall: the pure tumbling-descent model b3d-death drops a corpse with.
-export { newWreckFall, wreckFallStep, tumbleAxis } from './wreck-fall'
+export { newWreckFall, wreckFallStep, tumbleAxis } from './wreck-fall.js'
 // Buoyancy: the pure vertical model behind the biped's swimming.
 export {
   buoyantStep,
   submergedFraction,
   equilibriumSubmersion,
   isSwimming,
-} from './buoyancy'
-export type { BuoyancyParams } from './buoyancy'
+} from './buoyancy.js'
+export type { BuoyancyParams } from './buoyancy.js'
 // Swim aim: the pure model behind look-directed swimming.
 export {
   clampAim,
@@ -881,29 +900,29 @@ export {
   integrateAim,
   easeAim,
   aimTarget,
-} from './swim-aim'
-export type { WreckFallState, WreckFallParams } from './wreck-fall'
+} from './swim-aim.js'
+export type { WreckFallState, WreckFallParams } from './wreck-fall.js'
 // Spawner: keeps the world populated with encounters (prefab + a rule).
-export { B3dSpawner, b3dSpawner } from './b3d-spawner'
+export { B3dSpawner, b3dSpawner } from './b3d-spawner.js'
 // Formations: pure placement patterns for an encounter's members.
-export { ring, vee, escorts, line, at } from './formations'
-export type { Offset, RingOptions, VeeOptions } from './formations'
+export { ring, vee, escorts, line, at } from './formations.js'
+export type { Offset, RingOptions, VeeOptions } from './formations.js'
 // Prefabs: a named factory that instantiates a package of stuff at a pose (remains, loot,
 // spawner payloads, pickups). See prefab.ts.
-export { definePrefab, getPrefab, prefabNames, spawnPrefab } from './prefab'
-export type { Prefab, PrefabContext, PrefabVec3 } from './prefab'
-export { explodeMesh } from './b3d-exploder'
-export type { ExplodeOptions } from './b3d-exploder'
+export { definePrefab, getPrefab, prefabNames, spawnPrefab } from './prefab.js'
+export type { Prefab, PrefabContext, PrefabVec3 } from './prefab.js'
+export { explodeMesh } from './b3d-exploder.js'
+export type { ExplodeOptions } from './b3d-exploder.js'
 
 // Procedural
-export { PerlinNoise } from './perlin-noise'
-export { MersenneTwister, PRNG } from './mersenne-twister'
-export { B3dTerrain, b3dTerrain } from './b3d-terrain'
-export { B3dPlanet, b3dPlanet } from './b3d-planet'
-export { B3dStar, b3dStar } from './b3d-star'
-export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole'
-export { B3dGalaxy, b3dGalaxy } from './b3d-galaxy'
-export { B3dStarSystem, b3dStarSystem } from './b3d-star-system'
+export { PerlinNoise } from './perlin-noise.js'
+export { MersenneTwister, PRNG } from './mersenne-twister.js'
+export { B3dTerrain, b3dTerrain } from './b3d-terrain.js'
+export { B3dPlanet, b3dPlanet } from './b3d-planet.js'
+export { B3dStar, b3dStar } from './b3d-star.js'
+export { B3dBlackHole, b3dBlackHole } from './b3d-black-hole.js'
+export { B3dGalaxy, b3dGalaxy } from './b3d-galaxy.js'
+export { B3dStarSystem, b3dStarSystem } from './b3d-star-system.js'
 export {
   generateGalaxy,
   generateStarSystem,
@@ -911,7 +930,7 @@ export {
   randomName,
   capitalize,
   romanNumeral,
-} from './galaxy-data'
+} from './galaxy-data.js'
 export type {
   StarData,
   PlanetData,
@@ -920,16 +939,20 @@ export type {
   GalaxyOptions,
   StarTypeInfo,
   NebulaData,
-} from './galaxy-data'
-export type { GradientFilter, ControlPoint } from './gradient-filter'
+} from './galaxy-data.js'
+export type { GradientFilter, ControlPoint } from './gradient-filter.js'
 export {
   PiecewiseLinearFilter,
   identityFilter,
   plateauFilter,
-} from './gradient-filter'
-export { GradientEditor, gradientEditor } from './gradient-editor'
-export { TorusSampler, SphereSampler, CylinderSampler } from './surface-sampler'
-export type { SurfaceSampler, Vec3 } from './surface-sampler'
+} from './gradient-filter.js'
+export { GradientEditor, gradientEditor } from './gradient-editor.js'
+export {
+  TorusSampler,
+  SphereSampler,
+  CylinderSampler,
+} from './surface-sampler.js'
+export type { SurfaceSampler, Vec3 } from './surface-sampler.js'
 // Combat — pure, deterministic models (see COMBAT-DESIGN.md)
 export {
   makeResource,
@@ -939,43 +962,43 @@ export {
   isEmpty,
   isFull,
   fraction,
-} from './resource'
-export type { Resource } from './resource'
-export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable'
+} from './resource.js'
+export type { Resource } from './resource.js'
+export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable.js'
 export type {
   Destroyable,
   DestroyableSpec,
   ChainLink,
   CombatEvent,
-} from './destroyable'
-export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable'
-export { DestroyableBehavior } from './destroyable-behavior'
-export type { DeathOutcome, DestroyableHost } from './destroyable-behavior'
+} from './destroyable.js'
+export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js'
+export { DestroyableBehavior } from './destroyable-behavior.js'
+export type { DeathOutcome, DestroyableHost } from './destroyable-behavior.js'
 export {
   B3dWarhead,
   b3dWarhead,
   detonateWarhead,
   explosionFx,
-} from './b3d-warhead'
+} from './b3d-warhead.js'
 export {
   B3dLauncher,
   b3dLauncher,
   spawnProjectile,
   spawnMissile,
-} from './b3d-launcher'
-export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher'
-export { createMakers } from './make-mesh'
-export { roundedRectGeometry, signedArea } from './rounded-rect'
-export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect'
-export { openPopup } from './popup-surface'
-export type { PopupSurface, PopupSurfaceOptions } from './popup-surface'
-export type { Vector3dOptions, VectorField } from './vector-field'
-export type { Makers, MakeOptions, MakeOwner } from './make-mesh'
-export { B3dTurret, b3dTurret } from './b3d-turret'
-export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip'
-export { B3dRadar, b3dRadar } from './b3d-radar'
-export { Radar, coneDotFromDegrees, isOpposed } from './radar'
-export type { RadarContact, RadarTrack, RadarParams } from './radar'
+} from './b3d-launcher.js'
+export type { ProjectileOpts, MissileOpts, Impact } from './b3d-launcher.js'
+export { createMakers } from './make-mesh.js'
+export { roundedRectGeometry, signedArea } from './rounded-rect.js'
+export type { RoundedRectOptions, RoundedRectGeometry } from './rounded-rect.js'
+export { openPopup } from './popup-surface.js'
+export type { PopupSurface, PopupSurfaceOptions } from './popup-surface.js'
+export type { Vector3dOptions, VectorField } from './vector-field.js'
+export type { Makers, MakeOptions, MakeOwner } from './make-mesh.js'
+export { B3dTurret, b3dTurret } from './b3d-turret.js'
+export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip.js'
+export { B3dRadar, b3dRadar } from './b3d-radar.js'
+export { Radar, coneDotFromDegrees, isOpposed } from './radar.js'
+export type { RadarContact, RadarTrack, RadarParams } from './radar.js'
 export {
   steerToward,
   proNav,
@@ -988,38 +1011,46 @@ export {
   gCross,
   gLen,
   gNormalize,
-} from './guidance'
+} from './guidance.js'
 export {
   canonicalize,
   normalizeScale,
   findCenterOfGravity,
   applyCenterOfGravity,
-} from './model-transform'
-export { aoeFalloff, resolveAoe, dist3 } from './warhead'
-export type { WarheadSpec, AoeTarget } from './warhead'
-export { ballisticStep, predictPath, ballisticAim } from './ballistics'
+} from './model-transform.js'
+export { aoeFalloff, resolveAoe, dist3 } from './warhead.js'
+export type { WarheadSpec, AoeTarget } from './warhead.js'
+export { ballisticStep, predictPath, ballisticAim } from './ballistics.js'
 export type {
   BallisticParams,
   BallisticState,
   PredictOptions,
-} from './ballistics'
+} from './ballistics.js'
 
 // Data table types (the value lives at ui.table)
-export type { Table, TableRow, TableOptions } from './table'
+export type { Table, TableRow, TableOptions } from './table.js'
 
-export { modeForType, isValidForType, commitValueForType } from './key-layout'
-export type { FieldType } from './key-layout'
+export {
+  modeForType,
+  isValidForType,
+  commitValueForType,
+} from './key-layout.js'
+export type { FieldType } from './key-layout.js'
 
-export { w3dTheme, setW3dTheme, withTheme } from './w3d-theme'
-export type { W3dTheme } from './w3d-theme'
-export { waterNormalTexture, tileHeight, writeNormalMap } from './water-normal'
-export { themeEditor, FONT_STACKS } from './theme-editor'
-export type { ThemeEditorOptions } from './theme-editor'
+export { w3dTheme, setW3dTheme, withTheme } from './w3d-theme.js'
+export type { W3dTheme } from './w3d-theme.js'
+export {
+  waterNormalTexture,
+  tileHeight,
+  writeNormalMap,
+} from './water-normal.js'
+export { themeEditor, FONT_STACKS } from './theme-editor.js'
+export type { ThemeEditorOptions } from './theme-editor.js'
 export {
   registerSvgFont,
   unregisterSvgFont,
   fontFaceCss,
   svgFontStyle,
   base64OfBytes,
-} from './embed-font'
-export type { EmbeddedFont } from './embed-font'
+} from './embed-font.js'
+export type { EmbeddedFont } from './embed-font.js'

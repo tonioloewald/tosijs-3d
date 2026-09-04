@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
-let T: typeof import('./w3d-theme')
+let T: typeof import('./w3d-theme.js')
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -13,7 +13,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  T = await import('./w3d-theme')
+  T = await import('./w3d-theme.js')
 })
 
 describe('w3dTheme — the tokens a themed SVG UI needs', () => {

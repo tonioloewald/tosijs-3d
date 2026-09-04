@@ -11,7 +11,7 @@ WIDGET resolves a NAME (an `iconGrid3d` item, a table icon column, a menu
 entry), so an icon set they cannot add to is one their widgets cannot use.
 */
 
-let m: typeof import('./svg-icons')
+let m: typeof import('./svg-icons.js')
 
 const ART =
   '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18"/></svg>'
@@ -27,7 +27,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  m = await import('./svg-icons')
+  m = await import('./svg-icons.js')
 })
 
 describe('registerIcons', () => {

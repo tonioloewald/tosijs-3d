@@ -79,7 +79,7 @@ preview.append(
 | `playbackRate` | `1` | Playback speed |
 */
 /*{ "parent": "Environment" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
 export class B3dSound extends B3dChild {
     static preferredTagName = 'tosi-b3d-sound';

@@ -225,16 +225,16 @@ that assumes one orients its effect off nothing.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
-import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils';
+import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js';
 /** A guided missile always cruises at least this much FASTER than the platform that
  * launched it — otherwise it crawls off the rail and trails a fast mover. Sized to feel
  * like the dumb round (which leaves at +missileSpeed relative, and reads well). */
 const MIN_CLOSING_SPEED = 70;
-import { ballisticStep } from './ballistics';
-import { crossing, depthIn, dragAt, } from './medium';
-import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance';
-import { makeResource, drain, regenTick, isEmpty, } from './resource';
-import { detonateWarhead } from './b3d-warhead';
+import { ballisticStep } from './ballistics.js';
+import { crossing, depthIn, dragAt, } from './medium.js';
+import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance.js';
+import { makeResource, drain, regenTick, isEmpty, } from './resource.js';
+import { detonateWarhead } from './b3d-warhead.js';
 /*
 One place that fires both callbacks, so the deprecated spelling cannot drift
 away from the current one — that drift is exactly how `b3d-destroyable`'s

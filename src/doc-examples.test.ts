@@ -92,7 +92,7 @@ describe('doc-comment examples', () => {
         /* off-document getters */
       }
     }
-    const barrel = (await import('./index')) as Record<string, unknown>
+    const barrel = (await import('./index.js')) as Record<string, unknown>
 
     const missing: string[] = []
     for (const s of all) {
@@ -216,7 +216,7 @@ locals: if a snippet says `sceneDelta` and never imported it, it means ours.
 */
 describe('doc snippets import the library symbols they use', () => {
   test('no snippet references an export it never imported', async () => {
-    const lib = (await import('./index')) as Record<string, unknown>
+    const lib = (await import('./index.js')) as Record<string, unknown>
     // Only names long enough to be unambiguous — a two-letter export would
     // match inside unrelated words and turn this into a nuisance.
     const exported = Object.keys(lib).filter((k) => k.length > 3)

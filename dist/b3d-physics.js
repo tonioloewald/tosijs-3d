@@ -177,9 +177,9 @@ preview.append(
 | `debug` | `false` | Show wireframe physics collider shapes |
 */
 /*{ "parent": "Utilities" }*/
-import { B3dChild } from './b3d-utils';
+import { B3dChild } from './b3d-utils.js';
 import * as BABYLON from '@babylonjs/core';
-import { JoltPlugin } from './jolt-plugin';
+import { JoltPlugin } from './jolt-plugin.js';
 // jolt-physics is loaded lazily inside sceneReady() (see comment there) so that
 // bundlers can leave it as an external resolved at runtime via an importmap
 // (`<script type="importmap">` in the host page). A top-level static import

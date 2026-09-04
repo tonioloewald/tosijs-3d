@@ -1,8 +1,8 @@
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild } from './b3d-utils';
-import type { AmbientEffect, AmbientRequest } from './ambient-budget';
-import type { PerfTier } from './perf-probe';
-import type { B3d } from './tosi-b3d';
+import { B3dChild } from './b3d-utils.js';
+import type { AmbientEffect, AmbientRequest } from './ambient-budget.js';
+import type { PerfTier } from './perf-probe.js';
+import type { B3d } from './tosi-b3d.js';
 export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     static preferredTagName: string;
     static initAttributes: {

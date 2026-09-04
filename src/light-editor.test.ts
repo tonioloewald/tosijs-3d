@@ -12,7 +12,7 @@ Titles, ids and explanation belong to whoever PLACED the widget, because only
 they know what the thing is called and who is reading.
 */
 
-let mod: typeof import('./light-editor')
+let mod: typeof import('./light-editor.js')
 
 beforeAll(async () => {
   const win = new Window() as any
@@ -25,7 +25,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  mod = await import('./light-editor')
+  mod = await import('./light-editor.js')
 })
 
 const textOf = (w: any) =>

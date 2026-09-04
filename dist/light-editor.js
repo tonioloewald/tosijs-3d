@@ -41,11 +41,11 @@ the switch it was.
 */
 /*{ "parent": "UI", "order": 264 }*/
 import { svgElements } from 'tosijs';
-import { offsetHost, label3d, slider3d, toggle3d, select3d, } from './widgets3d';
-import { curveProgram3d } from './curve-program';
-import { lightPreset, lightPresets } from './light-modulation';
-import { DEFAULT_LIGHT, } from './light-settings';
-import { stackLayout } from './widgets3d-layout';
+import { offsetHost, label3d, slider3d, toggle3d, select3d, } from './widgets3d.js';
+import { curveProgram3d } from './curve-program.js';
+import { lightPreset, lightPresets } from './light-modulation.js';
+import { DEFAULT_LIGHT, } from './light-settings.js';
+import { stackLayout } from './widgets3d-layout.js';
 const { g } = svgElements;
 /**
  * An editor for a whole lamp.

@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test'
-import { WorldStore } from './world-store'
-import { runMinSimConformance } from './min-sim-conformance'
-import type { SimulationEvent } from './world-contract'
+import { WorldStore } from './world-store.js'
+import { runMinSimConformance } from './min-sim-conformance.js'
+import type { SimulationEvent } from './world-contract.js'
 
 // tosijs-3d's WorldStore must satisfy the shared MinSimApi conformance kit (the other conformant
 // store is Ariosto's reference place-graph; the kit proves they behave identically).

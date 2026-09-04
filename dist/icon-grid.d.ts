@@ -1,5 +1,5 @@
-import type { Dynamic } from './widgets3d';
-import type { MenuAction, Widget3d, WidgetHost } from './widgets3d';
+import type { Dynamic } from './widgets3d.js';
+import type { MenuAction, Widget3d, WidgetHost } from './widgets3d.js';
 export interface IconGridItem {
     /** Icon name, as `svgIcons`/`iconGlyph` know it. */
     icon: string;

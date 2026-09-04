@@ -110,7 +110,7 @@ drag survives the pointer slipping off the track. `box` now gives a raw child th
 gesture and keeps routing to it until `up`.
 */
 /*{ "parent": "UI", "order": 900 }*/
-import { box } from './box';
+import { box } from './box.js';
 /**
  * Wrap a {@link Widget3d} as a {@link BoxChild}.
  *

@@ -166,12 +166,12 @@ if (input.interact) useNearest(scene, camera.globalPosition)
 */
 /*{ "parent": "World Sim" }*/
 import * as BABYLON from '@babylonjs/core'
-import { B3dChild, semanticParent } from './b3d-utils'
-import type { B3d } from './tosi-b3d'
+import { B3dChild, semanticParent } from './b3d-utils.js'
+import type { B3d } from './tosi-b3d.js'
 import {
   InteractiveBehavior,
   type InteractionInfo,
-} from './interactive-behavior'
+} from './interactive-behavior.js'
 
 export class B3dInteractive extends B3dChild {
   static preferredTagName = 'tosi-b3d-interactive'

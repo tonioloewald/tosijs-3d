@@ -1,5 +1,5 @@
 import { Component, elements } from 'tosijs';
-import { PiecewiseLinearFilter } from './gradient-filter';
+import { PiecewiseLinearFilter } from './gradient-filter.js';
 const { canvas } = elements;
 const POINT_RADIUS = 6;
 const PADDING = 12;

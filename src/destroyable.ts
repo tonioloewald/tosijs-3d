@@ -21,7 +21,7 @@ import {
   drain,
   refill,
   regenTick,
-} from './resource'
+} from './resource.js'
 
 /** Default seconds before a chain link fires after its source is destroyed. */
 export const DEFAULT_CHAIN_DELAY = 0.25

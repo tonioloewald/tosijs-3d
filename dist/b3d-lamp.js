@@ -324,11 +324,11 @@ for parenting your own geometry).
 */
 /*{ "parent": "Environment", "order": 60 }*/
 import * as BABYLON from '@babylonjs/core';
-import { B3dChild, conventionName, isOff } from './b3d-utils';
-import { SvgTexture } from './svg-texture';
-import { canonicalize } from './model-transform';
-import { resolveBudget } from './b3d-quality';
-import { isAnimated, lightPhase, sampleLight, shiftHue, } from './light-modulation';
+import { B3dChild, conventionName, isOff } from './b3d-utils.js';
+import { SvgTexture } from './svg-texture.js';
+import { canonicalize } from './model-transform.js';
+import { resolveBudget } from './b3d-quality.js';
+import { isAnimated, lightPhase, sampleLight, shiftHue, } from './light-modulation.js';
 /**
  * Lowest the fixture's emissive goes, as a fraction of full.
  *

@@ -35,7 +35,7 @@ b3dRadarBlip({ faction: 'waypoint', profile: -1, x: 0, y: 0, z: 200 })
 ```
 #*/
 /*{ "parent": "Combat" }*/
-import { B3dChild, semanticParent } from './b3d-utils';
+import { B3dChild, semanticParent } from './b3d-utils.js';
 export class B3dRadarBlip extends B3dChild {
     static preferredTagName = 'tosi-b3d-radar-blip';
     static initAttributes = {

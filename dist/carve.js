@@ -49,7 +49,7 @@ Both take an amplitude in METRES and a scale in 1/metres (small scale = big
 features), the same convention as the terrain noise, so numbers transfer.
 */
 /*{ "parent": "environment" }*/
-import { PerlinNoise } from './perlin-noise';
+import { PerlinNoise } from './perlin-noise.js';
 /** Turn a carve into a patch field: the air wins wherever it reaches. */
 export function applyCarve(carve) {
     return (x, y, z, d) => Math.max(d, carve(x, y, z));

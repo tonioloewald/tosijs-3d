@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll } from 'bun:test'
 
 // popup-surface imports Babylon + tosijs, so the happy-dom prologue applies
 // even though the function under test is pure.
-let modalPickable: typeof import('./popup-surface').modalPickable
+let modalPickable: typeof import('./popup-surface.js').modalPickable
 
 beforeAll(async () => {
   const { Window } = await import('happy-dom')
@@ -16,7 +16,7 @@ beforeAll(async () => {
       /* off-document getters */
     }
   }
-  modalPickable = (await import('./popup-surface')).modalPickable
+  modalPickable = (await import('./popup-surface.js')).modalPickable
 })
 
 /*

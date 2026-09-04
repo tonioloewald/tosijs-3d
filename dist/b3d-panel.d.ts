@@ -1,5 +1,5 @@
 import { Component } from 'tosijs';
-import type { FramePanelSpec } from './frame-panel';
+import type { FramePanelSpec } from './frame-panel.js';
 export declare class B3dPanel extends Component {
     static preferredTagName: string;
     static initAttributes: {

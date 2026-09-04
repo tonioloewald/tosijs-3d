@@ -1,4 +1,4 @@
-import { type ControlPoint } from './gradient-filter';
+import { type ControlPoint } from './gradient-filter.js';
 export type { ControlPoint };
 /**
  * What the curve means, which is what decides its endpoint rules.

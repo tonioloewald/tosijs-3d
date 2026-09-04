@@ -90,8 +90,8 @@ document.body.append(
 */
 /*{ "parent": "Core" }*/
 import * as BABYLON from '@babylonjs/core';
-import { applyMaterialConventions, B3dChild, isOff, isIgnored, } from './b3d-utils';
-import { DestroyableBehavior } from './destroyable-behavior';
+import { applyMaterialConventions, B3dChild, isOff, isIgnored, } from './b3d-utils.js';
+import { DestroyableBehavior } from './destroyable-behavior.js';
 export class B3dLoader extends B3dChild {
     static preferredTagName = 'tosi-b3d-loader';
     static initAttributes = {

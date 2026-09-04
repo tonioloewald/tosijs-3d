@@ -172,7 +172,7 @@ const scene = b3d(
     // to be able to let the player back in.
     pausePanel: (host, resume) => [
       label3d({ text: 'PAUSED', bold: true }),
-      button3d({ label: 'Continue', onClick: resume }),
+      button3d({ label: 'Continue', handleClick: resume }),
     ],
     // The SAME control, in the ⚙ panel — so you can change the speed while it
     // is RUNNING and watch it change, instead of only while it is frozen. Both
@@ -286,7 +286,7 @@ import * as BABYLON from '@babylonjs/core'
 import * as GUI from '@babylonjs/gui'
 import { GridMaterial } from '@babylonjs/materials'
 import '@babylonjs/loaders'
-import { xrControllers, type TosiXRControllerMap } from './gamepad'
+import { xrControllers, type TosiXRControllerMap } from './gamepad.js'
 import {
   panel3d,
   button3d,
@@ -294,50 +294,51 @@ import {
   label3d,
   textBlock3d,
   type Widget3d,
-} from './widgets3d'
-import { panelFitWidth } from './widgets3d-layout'
-import { w3dTheme } from './w3d-theme'
-import type { Medium } from './medium'
-import { SvgTexture } from './svg-texture'
-import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane'
-import { createMakers, type Makers } from './make-mesh'
+} from './widgets3d.js'
+import { handlerOf } from './handler-of.js'
+import { panelFitWidth } from './widgets3d-layout.js'
+import { w3dTheme } from './w3d-theme.js'
+import type { Medium } from './medium.js'
+import { SvgTexture } from './svg-texture.js'
+import { b3dSvgPlane, type B3dSvgPlane } from './b3d-svg-plane.js'
+import { createMakers, type Makers } from './make-mesh.js'
 import {
   openPopup,
   type PopupSurface,
   type PopupSurfaceOptions,
-} from './popup-surface'
-import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils'
-import { faceViewer } from './dialog-placement'
-import { svgIcons } from './svg-icons'
-import { CombatWorld } from './destroyable'
-import { b3dGamepad } from './glass-gamepad'
-import { XrGamepadSource } from './xr-gamepad'
-import { XrFrames, EntityFrame } from './xr-frames'
+} from './popup-surface.js'
+import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js'
+import { faceViewer } from './dialog-placement.js'
+import { svgIcons } from './svg-icons.js'
+import { CombatWorld } from './destroyable.js'
+import { b3dGamepad } from './glass-gamepad.js'
+import { XrGamepadSource } from './xr-gamepad.js'
+import { XrFrames, EntityFrame } from './xr-frames.js'
 import {
   attachFramePanel,
   placeholderPanelSvg,
   type FramePanelSpec,
-} from './frame-panel'
-import { runProbe, hydrateProfileFromCache } from './b3d-probe'
+} from './frame-panel.js'
+import { runProbe, hydrateProfileFromCache } from './b3d-probe.js'
 import {
   compositeFog,
   approachFog,
   type FogState,
   type FogLayer,
-} from './atmosphere'
+} from './atmosphere.js'
 import {
   setQuality,
   qualityBudgets,
   onQualityChange,
   effectiveTier,
   type QualitySetting,
-} from './b3d-quality'
+} from './b3d-quality.js'
 import {
   allocateAmbient,
   ratchetPool,
   recoverPool,
   type AmbientEffect,
-} from './ambient-budget'
+} from './ambient-budget.js'
 
 const { canvas, div, slot, button } = elements
 
@@ -375,7 +376,12 @@ export type DebugPanelSource = {
   /** Called on every refresh — return LIVE values, not a snapshot. */
   lines: () => string[]
   /** Rendered as buttons. This is how you toggle a profiler on from inside a headset. */
-  actions?: Array<{ label: string | (() => string); onClick: () => void }>
+  actions?: Array<{
+    label: string | (() => string)
+    handleClick?: () => void
+    /** @deprecated use `handleClick` — removed in 0.9. */
+    onClick?: () => void
+  }>
   /** Icon for this source's toggle in the panel's debug icon-bar (an `iconGlyph`
    * name — see [[svg-icons]]). Defaults to `'bug'`. */
   icon?: string
@@ -1091,7 +1097,7 @@ export class B3d extends Component {
       button3d({
         label: this.enterXrOnResume === 'on' ? 'Continue in VR' : 'Continue',
         // The tap IS the user gesture that makes entering XR legal.
-        onClick: () => this.resume(),
+        handleClick: () => this.resume(),
       }),
     ]
     const svgH = 46 + rows.length * 48
@@ -2068,7 +2074,7 @@ export class B3d extends Component {
    * const off = b3d.addDebugSource({
    *   name: 'terrain',
    *   lines: () => [`worst ${t.debugState.worstFrameMs.toFixed(1)}ms`],
-   *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), onClick: () => t.setProfiling(!t.profiling) }],
+   *   actions: [{ label: () => (t.profiling ? 'Profiling ON' : 'Profile'), handleClick: () => t.setProfiling(!t.profiling) }],
    * })
    * ```
    */
@@ -2355,8 +2361,8 @@ export class B3d extends Component {
             typeof action.label === 'function' ? action.label() : action.label,
           // A button's own label can change ('Profile tiles' → 'Profiling ON'), and a
           // button label isn't live text — so this one case does want a rebuild.
-          onClick: () => {
-            action.onClick()
+          handleClick: () => {
+            handlerOf<() => void>(action, 'handleClick', 'onClick')?.()
             this._repaintPanels()
           },
         })
@@ -2385,14 +2391,14 @@ export class B3d extends Component {
     name: string
     icon: string
     active: boolean
-    onClick: () => void
+    handleClick: () => void
   }> {
     const out: Array<{
       id: string
       name: string
       icon: string
       active: boolean
-      onClick: () => void
+      handleClick: () => void
     }> = []
     /*
     PAUSE WAS A ONE-WAY DOOR.
@@ -2423,7 +2429,7 @@ export class B3d extends Component {
       */
       icon: this.paused ? 'play' : 'pause',
       active: this.paused,
-      onClick: () => {
+      handleClick: () => {
         if (this.paused) this.resume()
         else this.pause('user')
         this._repaintPanels()
@@ -2441,7 +2447,7 @@ export class B3d extends Component {
         name: forced ? 'Gamepad: always shown' : 'Gamepad: auto-hides',
         icon: 'game',
         active: forced,
-        onClick: () => {
+        handleClick: () => {
           pad.setFade?.(forced)
           this._repaintPanels()
         },
@@ -2544,7 +2550,7 @@ export class B3d extends Component {
       // FPS unmoved → the resize machinery is. Fable's mobile-Safari test, in-panel.
       button3d({
         label: scaled ? 'Reset scale' : 'Force scale ×3',
-        onClick: () => {
+        handleClick: () => {
           if (this.engine == null) return
           if (this._statsBaseScale == null) {
             this._statsBaseScale = this.engine.getHardwareScalingLevel()
@@ -2587,14 +2593,14 @@ export class B3d extends Component {
     icon: string
     title: string
     active: boolean
-    onClick: () => void
+    handleClick: () => void
   }> {
     return [
       ...this._debugTools().map((t) => ({
         icon: t.icon,
         title: t.name,
         active: this._debugOpen.has(t.id),
-        onClick: () => {
+        handleClick: () => {
           if (this._debugOpen.has(t.id)) this._debugOpen.delete(t.id)
           else this._debugOpen.add(t.id)
           this._repaintPanels()
@@ -2606,7 +2612,7 @@ export class B3d extends Component {
         icon: g.icon,
         title: g.name,
         active: g.active,
-        onClick: g.onClick,
+        handleClick: g.handleClick,
       })),
     ]
   }
@@ -2794,7 +2800,7 @@ export class B3d extends Component {
         actions: [
           {
             label: 'Clear',
-            onClick: () => {
+            handleClick: () => {
               this._errors = []
               this._repaintPanels()
             },
@@ -4046,7 +4052,7 @@ export class B3d extends Component {
         it.title,
         (svgIcons as Record<string, () => Element>)[it.icon]?.() ??
           svgIcons.bug(),
-        it.onClick,
+        it.handleClick,
         it.active
       )
     )
@@ -4135,7 +4141,7 @@ export class B3d extends Component {
             icon: 'logOut',
             title: 'Exit VR',
             active: false,
-            onClick: () => {
+            handleClick: () => {
               void this.xrHelper?.baseExperience?.exitXRAsync()
             },
           },
@@ -4143,7 +4149,7 @@ export class B3d extends Component {
             icon: 'compass',
             title: 'Re-seat (look forward first)',
             active: false,
-            onClick: () => this.recenterXr(),
+            handleClick: () => this.recenterXr(),
           },
           ...this._barItems(),
         ],

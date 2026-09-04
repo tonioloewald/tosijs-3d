@@ -92,10 +92,10 @@ tosi-b3d { width: 100%; height: 100%; }
 | `pxPerDeg` | `8` | Pitch-ladder pixels per degree |
 */
 /*{ "parent": "UI", "order": 520 }*/
-import { B3dChild } from './b3d-utils';
-import { SvgTexture } from './svg-texture';
-import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud';
-import { glassUV, hudPointFromUV, hudSizePx } from './hud-math';
+import { B3dChild } from './b3d-utils.js';
+import { SvgTexture } from './svg-texture.js';
+import { loadHud, buildFallbackHud, HUD_CENTER, HUD_PIN_RADIUS, } from './hud.js';
+import { glassUV, hudPointFromUV, hudSizePx } from './hud-math.js';
 import * as BABYLON from '@babylonjs/core';
 export class B3dHud extends B3dChild {
     static preferredTagName = 'tosi-b3d-hud';

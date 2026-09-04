@@ -4,7 +4,7 @@
  * leader) is the kind of bug you only notice mid-dogfight.
  */
 import { describe, test, expect } from 'bun:test'
-import { ring, vee, escorts, line, at, type Offset } from './formations'
+import { ring, vee, escorts, line, at, type Offset } from './formations.js'
 
 const dist = (a: Offset, b: Offset) =>
   Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)

@@ -1,4 +1,4 @@
-import type { PatchField } from './patch-field';
+import type { PatchField } from './patch-field.js';
 /** Signed distance to a carved surface — **positive inside the air**. */
 export type Carve = (x: number, y: number, z: number) => number;
 export interface Vec3Like {

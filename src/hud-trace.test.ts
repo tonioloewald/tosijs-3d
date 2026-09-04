@@ -17,7 +17,7 @@
 import { describe, test, expect, beforeAll } from 'bun:test'
 import { Window } from 'happy-dom'
 
-let buildFallbackHud: typeof import('./hud').buildFallbackHud
+let buildFallbackHud: typeof import('./hud.js').buildFallbackHud
 
 beforeAll(async () => {
   // hud.ts builds real SVG nodes (document.createElementNS + tosijs svgElements), so it
@@ -36,7 +36,7 @@ beforeAll(async () => {
       /* getters that throw off-document — not ours to care about */
     }
   }
-  const hud = await import('./hud')
+  const hud = await import('./hud.js')
   buildFallbackHud = hud.buildFallbackHud
 })
 

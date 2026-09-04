@@ -13,11 +13,11 @@
  *
  * @license MIT
  */
-import { Observable } from '@babylonjs/core/Misc/observable';
-import { Vector3, Quaternion, Matrix } from '@babylonjs/core/Maths/math.vector';
-import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
-import { BoundingBox } from '@babylonjs/core/Culling/boundingBox';
-import { PhysicsShapeType, PhysicsMotionType, } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
+import { Observable } from '@babylonjs/core/Misc/observable.js';
+import { Vector3, Quaternion, Matrix, } from '@babylonjs/core/Maths/math.vector.js';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer.js';
+import { BoundingBox } from '@babylonjs/core/Culling/boundingBox.js';
+import { PhysicsShapeType, PhysicsMotionType, } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin.js';
 // ---------------------------------------------------------------------------
 // JoltPlugin
 // ---------------------------------------------------------------------------

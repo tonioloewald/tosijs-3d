@@ -562,6 +562,7 @@ namespace object. Some pre-rule bare nouns survive (`gulley`, `cover`, `pad`,
 
 | File                                           | Purpose                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/handler-of.ts`                            | **`handlerOf`** — the one callback-naming rule: `handleX` is the name, `onX` still works and warns ONCE. Its own dependency-free module so `box`/`surface` adopt it without importing `widgets3d`                                                                                                                      |
 | `src/svg-texture.ts`                           | Dynamic SVG → Babylon texture rendering                                                                                                                                                                                                                                                                                |
 | `src/embed-font.ts`                            | `registerSvgFont()` — base64 a web font into an `@font-face` that travels INSIDE the serialised SVG, so an in-scene panel can render it. A rasterised SVG is its own document and inherits no faces from the page (same reason `w3d-theme` bakes literals)                                                             |
 | `src/b3d-svg-plane.ts`                         | In-scene SVG-based UI planes                                                                                                                                                                                                                                                                                           |
@@ -802,11 +803,43 @@ silently does nothing as an attribute is worse than one that never existed —
 `turn-rate-deg="90"` fails with no error, no warning, and a plausible-looking
 JS equivalent that does work.
 
+### Relative imports carry `.js` — Node's resolver requires it
+
+**Write `from './tosi-b3d.js'`, never `from './tosi-b3d'`**, and the same for
+deep package subpaths (`@babylonjs/core/Misc/observable.js`). `tsc` passes the
+specifier through untouched and every bundler resolves it, so the extension
+costs nothing and is the only form Node accepts.
+
+It matters because `dist` is emitted **per-file** (deliberately — consumers and
+agents get browseable source plus types), so an extensionless specifier survives
+verbatim into published JS and Node fails with `ERR_MODULE_NOT_FOUND` on import.
+394 of them shipped. Nothing caught it because every loop here — dev server, doc
+site, tests, games — is a bundler or Bun, so the one consumer that would notice
+is the one nobody runs. `tosijs-3d-ensemble` found it (#69) by installing our
+tarball into an empty directory and importing it under plain Node.
+
+`import-extensions.test.ts` asserts this of the SOURCE, so it fails at authoring
+time. Adding an extensionless import will turn it red — add the `.js`.
+
+**Pure modules are exported as subpaths** (`tosijs-3d/light-settings`) via an
+`"./*"` entry in `exports`. That is what makes headless validation real: the
+barrel defines custom elements on import and needs `HTMLElement`, so anything
+reachable only through it is behind a browser no matter how pure it is.
+
 ### Component Pattern
 
 All components are regular tosijs `Component` subclasses (not blueprints). They use `static initAttributes` for reactive properties and `elementCreator()` for registration. Use `declare prop: Type` (not `prop = default`) for TypeScript typing of initAttributes properties. **Scene children extend `B3dChild`** (or `AbstractMesh`, which extends it and adds position/rotation syncing) rather than `Component` directly — see [Child Lifecycle](#child-lifecycle--the-b3dchild-pull-model). Non-scene UI/utility elements (`b3d-panel`, `b3d-probe`) stay on plain `Component`.
 
-**⚠️ Never name a callback prop `onFoo`.** The element creator (`elementCreator()`) treats any `on*`-prefixed prop as a **DOM event listener** — `b3dController({ onInput })` silently becomes `addEventListener('input', …)` and the `onInput` class field stays `null`, so your callback is never called and there's **no error**. This cost a long debugging detour (the `b3dController` fire callback). Name frame/lifecycle callback props off the `on` prefix: `drive` (controller), `whenDestroyed` (destroyable/loader/behavior), etc. **Scope: this rule is about tosijs COMPONENTS (element creators).** Plain factory functions (`ui.keyboard`, `ui.table`, `panelScene`, `inputField`) take `onKey`/`onSelect`/`onFocus` callbacks freely — no creator machinery touches them; don't "fix" those, and don't generalize their `onFoo` names onto component props. (Reported upstream; tosijs should eventually flag declaring an `onX` property that's also creator-assigned.)
+**⚠️ Never name a callback prop `onFoo`.** The element creator (`elementCreator()`) treats any `on*`-prefixed prop as a **DOM event listener** — `b3dController({ onInput })` silently becomes `addEventListener('input', …)` and the `onInput` class field stays `null`, so your callback is never called and there's **no error**. This cost a long debugging detour (the `b3dController` fire callback). Name frame/lifecycle callback props off the `on` prefix: `drive` (controller), `whenDestroyed` (destroyable/loader/behavior), etc. **The naming is now uniform, and `on*` is deprecated everywhere** (0.8.0). It used to be scoped — components had to avoid `on*`, plain factories could use it freely — and that split was the bug. Whether `handleChange` did anything depended on which widget you were holding: `curve3d` took it, `inputField` took `onChange`, neither complained about the other, and three callbacks shipped dead because of it (`themeEditor`, and two demos against `inputField`). Demo code lives in doc comments and is not type-checked, so nothing caught them.
+
+So there is one rule now:
+
+- **Plain factories take `handleX`.** `handleChange`, `handleSelect`, `handleActivate`, `handleClick`, `handleClose`, `handleKey`, … Read them with **`handlerOf(config, 'handleX', 'onX')`** (from `handler-of.ts`, exported from the barrel), which prefers the new name, falls back to `onX`, and warns **once per name**. Every `onX` still works and is removed in 0.9.
+- **Components take `whenX`** (or a verb like `drive`) — `whenImpact`, `whenDestroyed`, `whenEnter`/`whenExit`. Not `handleX`, because the creator's `on*` trap is about the `on` prefix specifically and `when*` is the established spelling here.
+
+`handler-of.ts` is deliberately its own dependency-free module so `box`/`surface` can adopt it without pulling `widgets3d` into their import graph.
+
+When you add a callback option, use `handleX` and read it through `handlerOf` — a bare `config.onX` is the thing that broke. (Reported upstream; tosijs should eventually flag declaring an `onX` property that's also creator-assigned.)
 
 **⚠️ A boolean attribute can't default to `true`.** HTML boolean semantics are correct here — an absent attribute is `false` — so `static initAttributes = { foo: true }` never turns on when the element is written without `foo`, and it fails **silently** (it killed `b3d-trigger`'s `active`). Never declare a default-`true` boolean: either invert it to a negative (`disabled`, default `false` = active — what the trigger now does) or keep the positive meaning with a string enum (`'on' | 'off'`). **tosijs no longer fails silently — it now THROWS at construction on a true-default boolean**, so the component's constructor dies before it wires anything and the element is dead on arrival (this is exactly how `b3d-controller`'s `player: true` silently broke the whole controller — the ctor threw, `sceneReady` never ran, no input was ever wired; the uncaught exception only showed in DevTools, not via haltija's `console.*` capture). All offenders are now fixed (the four flagged ones use `'on'|'off'`; the controller uses `player: false`) — no default-true booleans remain. **Corollary: when converting a boolean attr to `'on'|'off'`, grep every call site.** The failure mode CHANGED with tosijs 1.9 (tosijs#24, now closed) and it is worth knowing which version you are reading:
 

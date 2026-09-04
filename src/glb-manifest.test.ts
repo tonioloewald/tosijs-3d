@@ -9,7 +9,7 @@ import {
   manifestFromNodes,
   parseGlbJson,
   type LibraryManifest,
-} from './glb-manifest'
+} from './glb-manifest.js'
 
 /** Build a real GLB container around a JSON payload. */
 const makeGlb = (json: any, { truncate = 0 } = {}): Uint8Array => {

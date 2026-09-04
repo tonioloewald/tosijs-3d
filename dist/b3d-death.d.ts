@@ -1,8 +1,8 @@
-import { B3dChild } from './b3d-utils';
-import { type Prefab } from './prefab';
-import { type Widget3d } from './widgets3d';
-import type { B3d } from './tosi-b3d';
-import type { B3dControllable } from './b3d-controllable';
+import { B3dChild } from './b3d-utils.js';
+import { type Prefab } from './prefab.js';
+import { type Widget3d } from './widgets3d.js';
+import type { B3d } from './tosi-b3d.js';
+import type { B3dControllable } from './b3d-controllable.js';
 export declare class B3dDeath extends B3dChild {
     static preferredTagName: string;
     static initAttributes: {

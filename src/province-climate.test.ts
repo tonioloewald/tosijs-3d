@@ -8,8 +8,8 @@ import {
   validateClimate,
   DEFAULT_AMOUNTS,
   NO_CLIMATE,
-} from './province-climate'
-import { constant, linear } from './curve'
+} from './province-climate.js'
+import { constant, linear } from './curve.js'
 
 /*
 A PROVINCE BIASES THE WEATHER; it does not declare it.

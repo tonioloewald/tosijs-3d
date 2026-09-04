@@ -1,5 +1,5 @@
-import { type FlowBox, type PopupSide } from './flow-layout';
-import { type Box, type PointerKind } from './box';
+import { type FlowBox, type PopupSide } from './flow-layout.js';
+import { type Box, type PointerKind } from './box.js';
 /** A live popup on a {@link Surface}. */
 export interface Popup {
     box: Box;
@@ -73,6 +73,8 @@ export declare function surface(opts: {
 }): Surface;
 export interface MenuItem {
     label: string;
+    handleSelect?: (item: MenuItem) => void;
+    /** @deprecated use `handleSelect` — removed in 0.9. */
     onSelect?: (item: MenuItem) => void;
     submenu?: MenuItem[];
 }

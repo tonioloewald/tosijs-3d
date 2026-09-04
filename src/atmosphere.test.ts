@@ -14,7 +14,7 @@ import {
   band,
   type FogState,
   type FogLayer,
-} from './atmosphere'
+} from './atmosphere.js'
 
 const CLEAR: FogState = {
   color: { r: 0.75, g: 0.85, b: 0.95 }, // pale sky

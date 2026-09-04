@@ -8,7 +8,7 @@ import {
   innermost,
   dragAt,
   fogLayerFor,
-} from './medium'
+} from './medium.js'
 
 const sea = plane({ name: 'water', y: 0, band: 0.4, drag: 40, maxSpeed: 12 })
 

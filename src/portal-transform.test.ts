@@ -10,13 +10,13 @@ import {
   geometricFalloff,
   linearFalloff,
   acceleratingFalloff,
-} from './portal-transform'
+} from './portal-transform.js'
 import {
   quatFromAxisAngle,
   rotateVector,
   IDENTITY_QUAT,
-} from './spatial-transform'
-import type { Pose } from './spatial-transform'
+} from './spatial-transform.js'
+import type { Pose } from './spatial-transform.js'
 
 const pose = (x: number, y: number, z: number, yaw = 0): Pose => ({
   position: { x, y, z },

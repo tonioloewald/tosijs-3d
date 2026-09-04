@@ -78,6 +78,11 @@ cannot be mistaken for an event name. Giving both, the new one wins.</p>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p><strong><code>handlerOf</code></strong> (<code>handler-of.ts</code>, exported from the barrel) — the shim behind
+the <code>handleX</code>/<code>onX</code> rule, in its own dependency-free module so the smallest
+widget can adopt it without importing <code>widgets3d</code>. Use it for your own
+widgets: <code>handlerOf(config, &#39;handleChange&#39;, &#39;onChange&#39;)?.(value)</code>.</p>
+</li>
 <li><p><strong>Lamps</strong> — <code>b3dPointLight</code>, <code>b3dSpotLight</code>, <code>b3dAreaLight</code>: a placed light
 with its own fixture geometry, which <strong>tracks the light</strong> (a fluorescent&#39;s
 bulb stutters as it strikes and dims to a red ember as it dies). Shadows where
@@ -133,36 +138,84 @@ cells; <code>disabled</code> takes a predicate so a menu can be a constant.</p>
 </ul>
 <h3>Fixed</h3>
 <ul>
-<li>A <strong>move</strong> no longer costs a scene, and a genuine removal now disposes the
+<li><p>A <strong>move</strong> no longer costs a scene, and a genuine removal now disposes the
 engine — a leaked WebGL context is not just memory (Chrome caps them near 16
-and force-loses the oldest).</li>
-<li><code>shadows</code>, the gel and <code>geometry</code> each accepted a write and did nothing; all
+and force-loses the oldest).</p>
+</li>
+<li><p><code>shadows</code>, the gel and <code>geometry</code> each accepted a write and did nothing; all
 three now sync per render. Lamps also never marked shadow <strong>receivers</strong>, so a
-shadow map was rendered that nothing read.</li>
-<li><code>canonicalProgram</code> silently dropped <code>duration</code>, so a committed edit turned a
-flickering lamp steady.</li>
-<li>A nested widget&#39;s popup opened at the top of its container rather than beside
-the control.</li>
-<li><code>lightEditor3d</code> shipped demo copy into every consumer&#39;s panel; the hint is now
-opt-in.</li>
-<li>The aircraft chase camera sat too close after content moved to human scale.</li>
-<li><strong><code>themeEditor</code> never called back.</strong> It read <code>config.onChange</code> while its
+shadow map was rendered that nothing read.</p>
+</li>
+<li><p><code>canonicalProgram</code> silently dropped <code>duration</code>, so a committed edit turned a
+flickering lamp steady.</p>
+</li>
+<li><p>A nested widget&#39;s popup opened at the top of its container rather than beside
+the control.</p>
+</li>
+<li><p><code>lightEditor3d</code> shipped demo copy into every consumer&#39;s panel; the hint is now
+opt-in.</p>
+</li>
+<li><p>The aircraft chase camera sat too close after content moved to human scale.</p>
+</li>
+<li><p><strong><code>themeEditor</code> never called back.</strong> It read <code>config.onChange</code> while its
 callers passed <code>handleChange</code>, so the theme table updated and the host&#39;s
 rebuild never ran — the controls moved and the panels they edit did not.
-<code>handleChange</code> is now the option; <code>onChange</code> still works, deprecated.</li>
-<li>A metric typed <strong>out of range</strong> left the slider on the cap and the number
+<code>handleChange</code> is now the option; <code>onChange</code> still works, deprecated.</p>
+</li>
+<li><p>A metric typed <strong>out of range</strong> left the slider on the cap and the number
 field above it, with the theme taking the out-of-range value — the exact
-drift a paired slider-and-field exists to prevent. Values are clamped now.</li>
-<li>Two demos (<code>w3d-theme</code>, <code>keyboard</code>) passed <code>handleChange</code> to <code>inputField</code>,
+drift a paired slider-and-field exists to prevent. Values are clamped now.</p>
+</li>
+<li><p>Two demos (<code>w3d-theme</code>, <code>keyboard</code>) passed <code>handleChange</code> to <code>inputField</code>,
 which reads <code>onChange</code> — so typing updated nothing. Demo code lives in doc
 comments and is <strong>not type-checked</strong>, which is why this class of mistake
-reaches a page instead of the compiler.</li>
-<li><strong>The <code>curve-program</code> demo was truncated on the published site.</strong> Its doc
+reaches a page instead of the compiler.</p>
+</li>
+<li><p><strong>The <code>curve-program</code> demo was truncated on the published site.</strong> Its doc
 comment contained a nested <code>/* … */</code>, and block comments do not nest — the
-inner <code>*/</code> closed the page early, so roughly half the demo silently vanished.</li>
-<li>The <code>curve-program</code> and <code>curve-field</code> editors did not exist inside a headset:
+inner <code>*/</code> closed the page early, so roughly half the demo silently vanished.</p>
+</li>
+<li><p><strong><code>dist</code> could not be imported by Node at all</strong> — 394 relative specifiers were
+written without an extension (<code>from &#39;./tosi-b3d&#39;</code>), which every bundler and
+Bun resolves and Node&#39;s ESM resolver does not. Reported by
+<code>tosijs-3d-ensemble</code> (#69) after they fixed the identical fault in their own
+package and the failure moved one level down into ours.</p>
+<p>Source specifiers now carry <code>.js</code> — the TypeScript convention, passed through
+by <code>tsc</code> and resolved fine by bundlers, so it works everywhere and keeps the
+per-file <code>dist</code> we ship deliberately. That covers deep package subpaths too
+(<code>@babylonjs/core/Misc/observable.js</code>), which failed the same way. Verified by
+importing the built package under Node 24, not by reasoning about it.</p>
+<p>A test now asserts it <strong>of the source</strong>, so it fails at authoring time rather
+than after a publish — the only moment anyone was going to notice, since every
+loop here is a bundler or Bun.</p>
+</li>
+<li><p><strong>Subpath exports</strong> — <code>import { validateLight } from &#39;tosijs-3d/light-settings&#39;</code>
+now works. The pure modules were split from their editors precisely so a
+consumer could validate documents headlessly, but the only export was the
+barrel, which defines custom elements on import and needs <code>HTMLElement</code>. So
+the headless half was still behind a browser. It is not now.</p>
+</li>
+<li><p><strong><code>handleX</code> now works on every callback option, and <code>onX</code> is deprecated.</strong>
+It used to depend on which widget you were holding — <code>curve3d</code> took
+<code>handleChange</code>, <code>inputField</code> took <code>onChange</code>, and neither complained about the
+other — which is what made three of the bugs above possible. Migrated:
+<code>table</code> (<code>handleSelect</code>/<code>handleActivate</code>), <code>box</code>&#39;s <code>BoxChild</code> and <code>button</code>
+(<code>handleActivate</code>), <code>surface</code>&#39;s <code>MenuItem</code> (<code>handleSelect</code>), <code>inputField</code>
+(<code>handleChange</code>/<code>handleEnter</code>/<code>handleFocus</code>, on the object as well as in
+config), <code>keyboard</code> (<code>handleKey</code>/<code>handleAction</code>/<code>handleCaretMove</code>), popups
+(<code>handleClose</code>), and debug-source actions (<code>handleClick</code>). Every <code>onX</code> still
+works, warns <strong>once per name</strong>, and is removed in 0.9.</p>
+</li>
+<li><p><code>b3d-trigger</code> gains <strong><code>whenEnter</code>/<code>whenExit</code></strong> (components use <code>when*</code>, like
+<code>whenImpact</code>). Passing <code>onEnter</code> to the element creator never set the field at
+all — it added a listener for the <code>&#39;enter&#39;</code> CustomEvent, so the callback got
+an Event while <code>trigger.onEnter = fn</code> got the trigger. Same callback, two
+different arguments depending on how you attached it.</p>
+</li>
+<li><p>The <code>curve-program</code> and <code>curve-field</code> editors did not exist inside a headset:
 both put their controls in flat DOM beside the canvas, which an immersive
-session does not render. Both now also build through <code>scenePanel</code>.</li>
+session does not render. Both now also build through <code>scenePanel</code>.</p>
+</li>
 </ul>
 <h3>Changed</h3>
 <ul>
@@ -2819,6 +2872,7 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <ul>
       <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
       <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
       <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
       <li><a class="doc-link" href="../table/">table</a></li>
       <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>

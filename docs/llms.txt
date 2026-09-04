@@ -177,6 +177,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A **split** on-screen ("glass") gamepad for touch contexts, as a Component (so
 - https://3d.tosijs.net/glb-manifest/ — glb-manifest
   chunk holds attribution (`asset.extras`) and, for libraries built by
+- https://3d.tosijs.net/handler-of/ — handlerOf
+  `onX` still works and warns.** A three-line shim, in its own module so the
 - https://3d.tosijs.net/hardware-gamepad/ — hardware-gamepad
   Maps a physical gamepad (via `navigator.getGamepads()`) to a `VirtualGamepad`.
 - https://3d.tosijs.net/hud/ — hud

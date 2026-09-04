@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { fractionToValue, valueToFraction } from './widgets3d-layout'
+import { fractionToValue, valueToFraction } from './widgets3d-layout.js'
 
 /*
 LOG SLIDERS.
