@@ -225,6 +225,8 @@ that assumes one orients its effect off nothing.
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core'
+import { loadLibraryMesh } from './library-mesh.js'
+import { findMuzzle } from './model-transform.js'
 import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
 import type { B3d, RadarFaction } from './tosi-b3d.js'
 
@@ -781,6 +783,9 @@ export class B3dLauncher extends AbstractMesh {
   static initAttributes = {
     ...AbstractMesh.initAttributes,
     meshName: 'launcher',
+    /** Instantiate `meshName` from this LIBRARY instead of the placeholder box.
+     * `_muzzle` on the model says where rounds leave (#34). */
+    library: '',
     muzzleSpeed: 30,
     fireRate: 5, // shots per second
     ammo: 40, // magazine capacity
@@ -801,6 +806,7 @@ export class B3dLauncher extends AbstractMesh {
   }
 
   declare meshName: string
+  declare library: string
   declare muzzleSpeed: number
   declare fireRate: number
   declare ammo: number
@@ -874,6 +880,8 @@ export class B3dLauncher extends AbstractMesh {
 
   private _ammoPool!: Resource
   private _cooldown = 0
+  private _stopLoad: (() => void) | null = null
+  private _muzzleNode: BABYLON.TransformNode | null = null
   private _tick?: BABYLON.Observer<BABYLON.Scene>
 
   get warheadSpec(): WarheadSpec {
@@ -922,10 +930,45 @@ export class B3dLauncher extends AbstractMesh {
       if (this._cooldown > 0) this._cooldown -= dt
       regenTick(this._ammoPool, dt)
     })
+
+    /*
+    A LIBRARY MODEL REPLACES THE PLACEHOLDER BOX (#34).
+
+    `_muzzle` says where rounds leave. It is a SEPARATE question from the
+    turret's `_barrel` — the barrel is what rotates, the muzzle is where the
+    round appears, and on a multi-barrel mount or anything with a recoiling
+    breech they are different nodes. On a simple gun only `_barrel` need exist.
+
+    Absent, `muzzle()` falls back to its existing 0.55 along local +Z, which is
+    right for the placeholder and a reasonable guess for a model nobody rigged.
+    */
+    const libType = String((this as any).library ?? '')
+    if (libType !== '') {
+      this._stopLoad = loadLibraryMesh({
+        owner,
+        type: libType,
+        meshName: this.meshName,
+        transform: { x: attrs.x, y: attrs.y, z: attrs.z },
+        generation: () => this.loadGeneration,
+        started: ++this.loadGeneration,
+        label: 'b3d-launcher',
+        onLoaded: (node) => {
+          this.mesh?.dispose()
+          this.mesh = node as unknown as BABYLON.Mesh
+          this._muzzleNode = findMuzzle(node)
+          owner.register({ meshes: node.getChildMeshes() })
+        },
+      })
+    }
   }
 
   /** World-space muzzle point (barrel tip, in front of the launcher). */
   muzzle(): BABYLON.Vector3 {
+    // A rigged `_muzzle` node IS the answer — no offset guessing, and it
+    // follows the model if the model animates.
+    if (this._muzzleNode != null) {
+      return this._muzzleNode.getAbsolutePosition().clone()
+    }
     if (this.mesh == null) {
       const a = this as any
       return new BABYLON.Vector3(a.x, a.y, a.z)
@@ -991,6 +1034,9 @@ export class B3dLauncher extends AbstractMesh {
   }
 
   sceneDispose(): void {
+    this._stopLoad?.()
+    this._stopLoad = null
+    this._muzzleNode = null
     if (this._tick != null) {
       this.owner?.scene.onBeforeRenderObservable.remove(this._tick)
       this._tick = undefined

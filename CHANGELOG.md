@@ -82,6 +82,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`b3d-turret` and `b3d-launcher` take a `library`** (#34), so a piece that
+  IS a turret no longer renders as a cylinder and a box. Which node aims is
+  declared by the MODEL — a `_barrel` suffix, resolved like `_centerOfGravity`
+  and the collider suffixes — because a rigger declares moving parts in Blender,
+  not in scene markup. `_muzzle` is separate and says where rounds leave: the
+  same node on a simple gun, a different one on a multi-barrel mount. A model
+  with neither still works — it yaws as a unit and the muzzle falls back to the
+  existing forward offset.
 - **`b3d-spawner` can spawn at an authored PLACE**, not only on a ring around
   the player (#40). `anchor="place"` plus `x`/`y`/`z` and `facingDeg` — a
   carrier deck, a hangar door, a dungeon entrance. Mutually exclusive with the

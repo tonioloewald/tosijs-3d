@@ -1039,6 +1039,8 @@ export {
   canonicalize,
   normalizeScale,
   findCenterOfGravity,
+  findBarrel,
+  findMuzzle,
   applyCenterOfGravity,
 } from './model-transform.js'
 export { aoeFalloff, resolveAoe, dist3 } from './warhead.js'
