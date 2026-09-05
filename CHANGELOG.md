@@ -88,7 +88,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
   every consumer worked around with their own bounded retry. Ordinary attribute
   changes now regenerate on the next frame, like every other element. Keyed on
   the GENERATION attributes only, so a `wireframe` toggle stays a material tweak,
-  and deferred by a frame so a burst of edits is one rebuild rather than five.
+  and relying on tosijs's own render batching for bursts rather than
+  reimplementing it — five writes in a task are already one `render()`.
 - **`b3d-turret` and `b3d-launcher` take a `library`** (#34), so a piece that
   IS a turret no longer renders as a cylinder and a box. Which node aims is
   declared by the MODEL — a `_barrel` suffix, resolved like `_centerOfGravity`

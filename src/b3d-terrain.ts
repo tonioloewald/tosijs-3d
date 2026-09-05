@@ -728,16 +728,7 @@ export class B3dTerrain extends B3dChild {
 
     this.createPool()
 
-    this._beforeRender = () => {
-      // A pending attribute change regenerates HERE, one frame later — see
-      // `render()`. Doing it on the frame keeps a burst of writes to one
-      // rebuild, and works in XR where window.rAF is suspended.
-      if (this._regenPending) {
-        this._regenPending = false
-        this.regenerate()
-      }
-      this.update()
-    }
+    this._beforeRender = () => this.update()
     scene.registerBeforeRender(this._beforeRender)
     // Baseline, so the first render() after setup does not see everything as
     // changed and rebuild a terrain that was just built.
@@ -1693,7 +1684,6 @@ export class B3dTerrain extends B3dChild {
   }
 
   private _genKey = ''
-  private _regenPending = false
 
   /*
   ORDINARY ATTRIBUTES REGENERATE, like every other element's do.
@@ -1705,9 +1695,18 @@ export class B3dTerrain extends B3dChild {
   attributes set drew NOTHING, which is a silent failure, and every consumer
   reinvented the same retry (tosijs-3d-ensemble, #66).
 
-  Deferred to the next frame rather than done here: setting five attributes in
-  one go is one rebuild, not five. And keyed on the generation attributes only,
-  so a `wireframe` toggle stays a material tweak.
+  THRASHING IS ALREADY HANDLED, so this regenerates inline.
+
+  tosijs coalesces renders: `queueRender` sets a per-element `_renderQueued`
+  flag and schedules ONE `requestAnimationFrame`, so setting five attributes in
+  a task produces a SINGLE `render()`. A first version of this deferred to the
+  next `beforeRender` to collapse bursts, which was reimplementing the
+  framework's own batching one layer down. (Tonio: "the way render is queued
+  naturally handles thrashing of properties.")
+
+  Keyed on the generation attributes only, so a `wireframe` toggle stays a
+  material tweak rather than a new planet — that part is ours, and is not
+  something the batching does for us.
   */
   render(): void {
     super.render()
@@ -1715,7 +1714,7 @@ export class B3dTerrain extends B3dChild {
     const key = this._generationKey()
     if (key === this._genKey) return
     this._genKey = key
-    this._regenPending = true
+    this.regenerate()
   }
 
   regenerate() {

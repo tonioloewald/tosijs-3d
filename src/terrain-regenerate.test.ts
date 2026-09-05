@@ -11,9 +11,14 @@ to be true of the ORDINARY attributes too (tosijs-3d-ensemble, #66).
 
 Every consumer then reinvented the same bounded retry, slightly differently.
 
-Two properties make the fix safe rather than expensive, and both are modelled
-here: only GENERATION attributes count (a `wireframe` toggle is a material
-tweak, not a new planet), and a burst of writes collapses into ONE rebuild.
+What makes the fix cheap rather than expensive is that only GENERATION
+attributes count — a `wireframe` toggle is a material tweak, not a new planet.
+
+Thrashing needs no handling of ours: tosijs coalesces renders (`queueRender`
+sets a per-element flag and schedules ONE rAF), so five attribute writes in a
+task produce a single `render()`. The burst test below documents that property
+of the framework rather than a mechanism here — a first version of this
+reimplemented the batching a layer down before Tonio pointed it out.
 */
 
 /** The generation key, over the attributes that determine the world. */
@@ -43,22 +48,25 @@ const key = (a: Record<string, unknown>) =>
     a.biomeLapseRate,
   ].join('|')
 
-/** render() + the frame hook, as they now stand. */
+/**
+ * `render()`, plus tosijs's coalescing.
+ *
+ * `set` only stages a value — nothing renders synchronously. `frame()` is the
+ * single queued render that tosijs schedules however many attributes changed,
+ * which is the property the burst test is about.
+ */
 const harness = (attrs: Record<string, unknown>) => {
   let genKey = key(attrs)
-  let pending = false
   let rebuilds = 0
   return {
     set(next: Record<string, unknown>) {
       Object.assign(attrs, next)
-      const k = key(attrs) // render()
+    },
+    /** The one coalesced render. */
+    frame() {
+      const k = key(attrs)
       if (k === genKey) return
       genKey = k
-      pending = true
-    },
-    frame() {
-      if (!pending) return
-      pending = false
       rebuilds++
     },
     get rebuilds() {
@@ -92,8 +100,8 @@ describe('regenerate on change', () => {
   })
 
   test('a burst of writes is ONE rebuild, not five', () => {
-    // Deferring to the frame is what buys this; regenerating inside render()
-    // would cost five rebuilds for one edit to a settings panel.
+    // Bought by tosijs's render batching, not by anything here: five writes in
+    // one task schedule a single render, so `regenerate()` runs once.
     const h = harness({ ...base })
     h.set({ seed: 2 })
     h.set({ grossScale: 0.02 })
