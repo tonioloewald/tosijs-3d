@@ -1,0 +1,856 @@
+# tosijs-3d — attribute index
+
+Every element attribute in one file, generated from source at build time.
+Search this before asking whether a capability exists: three separate
+adopter issues turned out to be features that already shipped and could
+not be found.
+
+Format: `module` / `tag` — then one line per attribute:
+`name  default  description`
+
+## b3d-aircraft — <tosi-b3d-aircraft>
+b3d-aircraft
+
+  url  = ''  — GLB model URL (direct load — collapsed through the same canonical frame as a library load: author Blender-default, facing −Y, transforms applied)
+  library  = ''  — Library type to source mesh from
+  meshName  = ''  — Node name to instantiate from library
+  player
+  enterable  = false  — Whether a biped can enter
+  ceiling
+  hudChaseOff  = false  — Hide the HUD entirely in chase view. By default chase shows the HUD **without the artificial horizon** (which would contradict the real one behind the aircraft); cockpit shows everything, in-scene
+  hudSize  = 0.7  — In-cockpit HUD plane size (metres)
+  hudForward  = 1.6  — How far ahead of the pilot's eye the HUD floats (metres)
+  maxSpeed  = 50  — Normal top speed (m/s) — the cruise cap a released throttle settles at
+  afterburnerSpeed  = 75  — Speed ceiling while the throttle is held past `maxSpeed`; releasing bleeds back to `maxSpeed`. ≤ `maxSpeed` disables afterburner.
+  acceleration  = 12  — Throttle / lean authority (speed change rate)
+  vtolSpeed  = 6  — Forward ground speed splitting hover (below) from plane (above). 0 = pure aeroplane, no hover regime.
+  reverseSpeed
+  throttleRate
+  autoGear  = 'on'  — Find the model's gear-retract animations by NAME and run them from height above ground. `'off'` = manual (`setGear(up)`)
+  gearAltitude  = 40  — Height above ground (m) at which the gear retracts; it extends again at 60% of this (hysteresis)
+  gearSound  = ''  — Optional URL played spatially at the airframe on each gear transition
+  gearVolume  = 0.6  — Volume for `gearSound`
+  gearTime  = 2.5  — Seconds for a full gear cycle
+  lookRange  = 120  — How far the right stick can swing the view (degrees each way)
+  maxPitch  = 35  — Max nose-UP attitude the stick commands (degrees)
+  maxDive  = 0  — Max nose-DOWN attitude (degrees); 0 = symmetric with `maxPitch`
+  lookRate  = 150  — Look slew rate (degrees/sec at full stick)
+  lookReturn  = 4  — How fast the view springs back to centre when released
+  chasePitchFollow  = 0  — How much airframe PITCH the chase inherits. `0` = level pivot (plane pitches within the frame); `1` = as if parented to the airframe (a climb aims the view up)
+  chasePitchLag  = 3  — How fast that inherited pitch catches up (per second) — the low-pass that keeps attitude jitter out of the chase
+  hoverCeiling  = 140  — Height above ground above which the trigger is forward thrust regardless of speed (take off vertically, then fly) and the brake can't stall you below `vtolSpeed`. Below it, slowing to a hover gives the vertical trigger back for a vertical landing. 0 = off.
+  groundY  = 0  — Assumed ground-plane height (a floor in addition to any terrain colliders)
+  submersible  = false  — Pass THROUGH a water surface instead of treating it as ground. Off by default — a plane hitting the sea should crash
+  crashSpeed  = 8  — Vertical impact speed (m/s) above which a ground contact is a crash
+  weapons  = 'on'  — `'off'` disarms all weapons
+  gunRate  = 9  — Cannon shots/sec while `shoot` is held
+  gunSpeed  = 130  — Cannon muzzle speed (added to airspeed)
+  gunDamage  = 8  — Per-shell warhead full damage
+  missileSpeed  = 55  — Guided-missile cruise speed
+  missileAccel
+  missileBoost
+  missileTurnRate  = 3  — Guided-missile agility (rad/sec)
+  missileDamage  = 30  — Missile warhead full damage
+  bombDamage  = 45  — Bomb warhead full damage
+  lockRange  = 140  — Max range to acquire a missile target
+  lockConeDeg  = 35  — Half-angle of the forward cone missiles lock within
+  reticle
+  reticleRange
+
+## b3d-ambient — <tosi-b3d-ambient>
+b3d-ambient
+
+  preset  = 'motes'  — `motes` / `bubbles` / `rain` / `snow` / `dust` / `leaves`
+  where  = 'always'  — `always` / `underwater` / `above` — emission ramps with depth, it doesn't switch
+  count  = auto  — Capacity to ASK for (`auto` = what the preset's look needs). You may not get it — the scene divides a shared pool
+  minCount  = auto  — Below this the effect is a lie, so it switches **off** instead. `auto` = the preset's floor (rain needs density; a few motes still read fine as motes)
+  minTier  = 'low'  — Never run below this device tier, at any budget
+  priority  = 0  — Higher survives longer when the pool is squeezed. Shed lowest-first
+  radius  = 18  — Size of the box around the camera that particles spawn in
+  lookAhead  = 0.35  — Push the spawn box along the VIEW, in units of `radius` — a camera sees a frustum, not a sphere, so a centred box births most of its particles behind you (#18)
+  lead  = 0.25  — Push it along MOTION, in seconds of travel — at speed you outrun a centred box, which empties the view ahead exactly when you want it fullest (#17)
+  speedCap  = 40  — Speed (m/s) past which `lead` stops growing
+  rate  = 0  — Particles/sec (0 = derive from the preset)
+  color  = ''  — Override the preset's colour
+  size  = 0  — Scale the preset's sprite size
+  windX  = 0  — World wind (rain slants, dust blows)
+  windZ  = 0
+  disabled  = false  — Stop emitting
+  motes  = Dust or plankton hanging in the light — near-weightless, slow drift. The cheapest way to make air (or water) feel like a *substance* rather than a vacuum
+  rain  = Fast, stretched, near-vertical. Add `wind` and it slants
+  dust  = Blown horizontally — the wind made visible
+
+## b3d-biped — <tosi-b3d-biped>
+b3d-biped
+
+  url  = ''  — GLB model URL
+  skin  = ''  — Optional albedo texture URL applied to the `skin` material (reskin)
+  scale  = 1  — Uniform scale applied to the loaded model
+  player  = false  — Whether this biped receives input
+  cameraType  = 'none'  — `'follow'`, `'xr'`, or `'none'`
+  animation  = ''  — Current animation state name
+  animationSpeed  = 1  — Playback speed multiplier (0–2)
+  initialState
+  turnSpeed  = 180  — Degrees per second
+  forwardSpeed  = 2  — Walk speed
+  runSpeed  = 5  — Sprint speed
+  backwardSpeed  = 1  — Backward speed
+  cameraHeightOffset  = 1  — Camera height above target
+  cameraTargetHeight  = 0.75  — Height of the point the camera looks at
+  cameraMinFollowDistance  = 2  — Closest follow distance
+  cameraMaxFollowDistance  = 5  — Furthest follow distance
+  groundY
+  eyeHeight
+  lookRate
+  maxLookPitch
+  invertLookY
+  cameraMinHeight
+  jumpSpeed
+  sneakSpeed
+  strafeSpeed
+  climbReach
+  wadeDepth
+  strafing
+  buoyancy
+
+## b3d-black-hole — <tosi-b3d-black-hole>
+b3d-black-hole
+
+  radius  = 10  — Event horizon radius
+  diskInnerRadius  = 1.5  — Inner edge of accretion disk (multiple of radius)
+  diskOuterRadius  = 4.0  — Outer edge of accretion disk (multiple of radius)
+  diskBrightness  = 1.5  — Accretion disk emissive brightness
+  rotationSpeed  = 0.3  — Disk rotation speed (rad/sec)
+  lensing  = 'on'  — Show gravitational lensing ring
+  photonRing  = 'on'  — Show photon ring at event horizon
+  photonRingBrightness  = 2.0  — Photon ring glow intensity
+  wireframe  = false  — Debug wireframe
+  seed  = 12345  — Noise seed for disk turbulence
+  subdivisions  = 64  — Mesh detail level (lower = faster)
+
+## b3d-button — <tosi-b3d-button>
+
+  caption
+  textColor
+  fontSize
+  x
+  y
+  z
+
+## b3d-car — <tosi-b3d-car>
+b3d-car
+
+  url  = ''  — GLB model URL
+  enterable  = false  — Whether a biped can enter this vehicle
+  maxSpeed  = 15  — Maximum forward speed
+  acceleration  = 8  — Acceleration rate
+  braking  = 15  — Braking rate
+  turnRate  = 90  — Degrees per second at full speed
+  friction  = 3  — Deceleration when coasting
+
+## b3d-clouds — <tosi-b3d-clouds>
+b3d-clouds
+
+  count  = 36  — Blob POOL size (fixed — they recycle, they don't grow). `coverage` decides how many are active
+  model  = ''  — GLB whose mesh is the cloud LOBE (normalized to the blob radius, bottom-aligned). Empty = the procedural lobe
+  altitude  = 140  — Centre height of the layer
+  thickness  = 36  — Vertical spread of the layer
+  spread  = 1200  — Radius of the disc of cloud around you
+  size  = 70  — Blob radius — also the distance at which whiteout is total. Set at build
+  color  = '#ffffff'  — Cloud (and whiteout) colour
+  opacity  = 1  — Blob alpha. Default OPAQUE — translucent clouds read badly. Set < 1 only for deliberate wisps
+  fogDensity  = 1.0  — Whiteout density (EXP2, the scene's mode). HIGH on purpose — inside a cloud you should see nothing but white within a few metres
+  approach  = 0.5  — Where the whiteout BEGINS, × `size` outside the blob. It's TOTAL well before the surface (you never see the geometry edge) and stays total until you leave
+  selfIllum  = 0.35  — Self-illumination 0…1 — `1` ≈ fully self-lit (old look), `0` = only sun-lit (dark undersides)
+  coverage  = 0.5  — Weather dial 0…1: wisps → overcast/thunderheads. LIVE. Gates active count + opacity + darkness + self-illum
+  castShadows  = false  — Opt-in: project the field's shadows onto every shadow-receiving surface ([cloud-shadows](?cloud-shadows.ts))
+  shadowStrength  = 0.65  — Darkness of those shadows 0…1, scaled further by `coverage` (≈50% darkening at typical coverage)
+  seed  = 1  — Deterministic layout — same seed, same sky
+  windX
+  windZ
+
+## b3d-collisions — <tosi-b3d-collisions>
+b3d-collisions
+
+  debug
+
+## b3d-controller — <tosi-b3d-controller>
+b3d-controller
+
+  mapping  = 'biped'  — Which control scheme maps the gamepad to `ControlInput`: `'biped'`, `'car'`, or `'aircraft'`
+  player
+  drive  = —  — `(input: ControlInput, dt: number) => void`, called each frame with the merged input (set in code / via the creator). Named `drive`, not `onInput` — `on*` props become DOM event listeners
+
+## b3d-death — <tosi-b3d-death>
+b3d-death
+
+  title  = 'DOWN'  — Heading on the panel
+  delay  = 1.4  — Seconds between the bang and the panel (let the player watch it burn)
+  orbitRadius  = 14  — Camera distance from the wreck
+  orbitHeight  = 6  — Camera height above the wreck
+  orbitSpeed  = 6  — Degrees/sec — slow. This is a moment, not a ride
+  spectate  = 'orbit'  — `orbit` circles the wreck; `chase` freezes the third-person shot you died in (static). Flat only
+  wreckage  = 'on'  — Explode + leave burning wreckage (`'off'` = just the panel)
+  blastRadius  = 6  — Size of the fireball
+  respawn  = What "Respawn" does. Without it, the button isn't offered
+
+## b3d-destroyable — <tosi-b3d-destroyable>
+b3d-destroyable
+
+  meshName
+  library
+  destroyable
+  size
+  scale
+  color
+  capacity
+  armor
+  regenRate
+  regenDelay
+  protectedBy
+  protection
+  remains
+  sound
+  soundVolume
+  explode
+  explodeForce
+  deathBlast
+  blastDamage
+  blastFullRadius
+  blastRadius
+  blastDelay
+
+## b3d-fog — <tosi-b3d-fog>
+b3d-fog
+
+  mode  = 'linear'  — `'linear'`, `'exp'`, or `'exp2'`
+  color  = '#bfd9f2'  — Fog color (hex, ignored when `syncSkybox` is true)
+  start  = 60  — Start distance (linear mode)
+  end  = 120  — End distance (linear mode)
+  density  = 0.01  — Density (exp/exp2 modes)
+  syncSkybox  = false  — Automatically match fog color to skybox horizon
+
+## b3d-galaxy — <tosi-b3d-galaxy>
+b3d-galaxy
+
+  seed  = 1234  — Galaxy seed
+  starCount  = 10000  — Number of stars
+  radius  = 100  — Galaxy radius in scene units
+  spiralArms  = 4  — Number of spiral arms
+  spiralAngle  = 240  — Spiral arm sweep in degrees
+  thickness  = 0.06  — Disk thickness (fraction of radius)
+  particleSize  = 1.0  — Base star particle diameter
+  coreSize  = 2.0  — Central black hole radius
+
+## b3d-hud — <tosi-b3d-hud>
+b3d-hud
+
+  url  = ''  — Empty = the built-in code HUD (fully wired); set to a designer SVG to load one
+  size  = 70  — HUD height as a % of the canvas's smaller dimension
+  pxPerDeg  = 8  — Pitch-ladder pixels per degree
+
+## b3d-input-focus — <tosi-b3d-input-focus>
+b3d-input-focus
+
+  enterDistance  = 3  — Max distance to enter a vehicle
+
+## b3d-interactive — <tosi-b3d-interactive>
+b3d-interactive
+
+  target  = ''  — Mesh or node name to make touchable. Empty = the mesh of the element this one is nested inside
+  include  = 'subtree'  — `'subtree'` counts the named node and everything under it; `'self'` counts only the node itself
+  reach  = 0  — Max distance in world units; `0` means no limit
+  disabled  = false  — Refuses hover, and drops a press already in flight
+  highlight  = '#ffcc44'  — Hover outline colour; `'none'` for no highlight
+  hover  = whenHovered  — The pointer arrived (and is in reach)
+  unhover  = whenUnhovered  — It left, or the thing was disabled under it
+  activate  = whenActivated  — A press that started AND ended on it, with no veto
+  refused  = whenRefused  — The same press, but a veto said no
+
+## b3d-lamp — <tosi-b3d-point-light>
+Lamps
+
+  x
+  y
+  z
+  intensity  = 1  — Brightness. With `modulation`, this is the MAXIMUM
+  diffuse  = '#ffffff'  — Colour
+  specular  = '#ffffff'  — Specular colour
+  range  = 10  — Falloff distance (point / spot)
+  on  = true  — `false` plays the DECAY region; it does not kill the light
+  geometry  = 'on'  — `'off'` for no fixture
+  geometryScale  = 1  — Size multiplier for the default fixture
+  url  = —  — GLB fixture, in place of the primitive
+  So
+  shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
+  timeSource
+  shadowTextureSize  = 0` (auto)  — Resolves against the device budget
+  b3dPointLight  = ✅ cube shadow map  — ❌ not supported — model the blocker instead (below)
+  b3dSpotLight  = ✅  — ✅ **native** — bitmap, SVG, or a generated `shape`
+  b3dAreaLight  = ❌ `RectAreaLight` is not a `ShadowLight  — ❌
+  angle  = 60  — **spot** — cone angle in degrees
+  exponent  = 2  — **spot** — falloff sharpness (standard falloff)
+  innerAngle  = 0  — **spot** — inner cone in degrees; above `0` gives a true penumbra and switches to glTF falloff
+  shape  = 'circle'  — **spot** — cone cross-section: `circle` / `square` / `none`. Projected as a gel, so an explicit `gel` wins
+  shapeAspect  = 1  — **spot** — width/height; `2` is an ellipse or letterbox
+  shapeSoftness  = 0.25  — **spot** — edge feather, as a fraction of the radius
+  gel  = —  — **spot** — projection texture URL (bitmap or SVG file)
+  gelSvg  = —  — **spot** — inline SVG source or an `SVGElement`
+
+## b3d-launcher — <tosi-b3d-launcher>
+b3d-launcher
+
+  meshName
+  muzzleSpeed  = 30  — Launch speed (units/sec) along the fire direction
+  fireRate  = 5  — Max shots per second (cadence gate)
+  ammo  = 40  — Magazine capacity (a `Resource`)
+  reloadRate  = 8  — Ammo regenerated per second (0 = no reload)
+  reloadDelay  = 1  — Seconds after firing before reload resumes
+  gravity  = -9.81  — Vertical acceleration on the shell
+  drag  = 0.01  — Quadratic drag coefficient (0 = vacuum)
+  mass  = 1  — Shell mass (higher flies flatter/further under drag)
+  missileSpeed  = 22  — Cruise speed of a guided shot (`fireAt`)
+  turnRate  = 3  — Guided-missile agility (rad/sec)
+  projRadius  = 0.12  — Shell visual radius
+  projColor  = '#ffdd55'  — Shell emissive colour
+  maxLifetime  = 6  — Seconds before an un-impacted shell self-disposes
+  damage  = 20  — Warhead full damage (see b3d-warhead)
+  fullRadius  = 1  — Warhead full-damage radius
+  blastRadius  = 3  — Warhead falloff radius
+  los  = 'on'  — Warhead line-of-sight gating
+  turnRateDeg  = —  — The same agility in **deg/sec** — a computed view onto `turnRate`: set either, read either, and reading returns exactly what you set. Literal markup (`turn-rate-deg="30"`) needs computed attributes, landing in tosijs 1.8.0
+
+## b3d-library — <tosi-b3d-library>
+b3d-library
+
+  url  = ''  — GLB/glTF file URL
+  type  = ''  — Library type for scene registry lookup
+
+## b3d-light — <tosi-b3d-light>
+b3d-light
+
+  x  = 0  — Light direction X (the "up" direction)
+  y  = 1  — Light direction Y
+  z  = 0  — Light direction Z
+  intensity  = 1  — Brightness multiplier
+  diffuse  = '#ffffff'  — Diffuse color (hex)
+  specular  = '#808080'  — Specular color (hex)
+
+## b3d-loader — <tosi-b3d-loader>
+b3d-loader
+
+  url  = ''  — URL of the GLB/glTF file
+  lightIntensityScale  = 0.05  — Scale factor for imported lights
+  destroyable  = 'off'  — `'on'` gives the model hit points + a death outcome
+  capacity
+  armor
+  regenRate
+  regenDelay
+  explode
+  explodeForce
+  deathBlast
+  blastDamage
+  blastFullRadius
+  blastRadius
+  blastDelay
+
+## b3d-panel — <tosi-b3d-panel>
+b3d-panel
+
+  frame  = eye  — `eye` / `rig` / `world` / `body` / `neck` / `face` / `left-hand` / `right-hand`
+  preset  = ''  — A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields.
+  azimuth
+  elevation
+  distance  = 1.4  — Metres from the eye
+  position  = ''  — Explicit `"x y z"` local position (overrides az/el/distance)
+  roll  = 0  — Roll about the panel normal (deg)
+  reveal  = gaze  — `gaze` (look toward it) or `always`
+  blend  = composite  — `composite` or `add` (additive HUD glyphs)
+  view  = both  — `first` / `third` / `both` — restrict to a camera view
+  title  = ''  — Placeholder card title (ignored if `url` set)
+  url  = ''  — SVG URL (e.g. a reticle)
+  width  = 0.26  — Panel width (m); height follows aspect
+  revealStart
+  revealFull
+  maxDistance
+  max-distance  = 0  — Hide beyond this distance (m); 0 = no limit
+
+## b3d-particles — <tosi-b3d-particles>
+b3d-particles
+
+  x  = 0  — Emitter X position
+  y  = 0  — Emitter Y position
+  z  = 0  — Emitter Z position
+  capacity  = 500  — Maximum particle count
+  emitRate  = 50  — Particles emitted per frame
+  minLifeTime  = 0.3  — Minimum particle lifetime (seconds)
+  maxLifeTime  = 1.5  — Maximum particle lifetime (seconds)
+  minSize  = 0.1  — Minimum particle size
+  maxSize  = 0.5  — Maximum particle size
+  minEmitPower  = 1  — Minimum emission speed
+  maxEmitPower  = 3  — Maximum emission speed
+  gravityX  = 0  — Gravity X component
+  gravityY  = -9.81  — Gravity Y component
+  gravityZ  = 0  — Gravity Z component
+  color1  = '#ffff00'  — Start color 1
+  color2  = '#ff6600'  — Start color 2
+  colorDead  = '#000000'  — End-of-life color
+  blendMode  = 'standard'  — `'standard'` or `'additive'`
+  texture  = ''  — Particle texture URL (empty = default flare)
+  emitterShape  = 'point'  — `'point'`, `'box'`, `'sphere'`, `'cone'`
+  emitterRadius  = 0.5  — Radius for sphere/cone emitters
+  useSceneGravity  = false  — Use scene physics gravity instead of gravityX/Y/Z
+  autoStart  = false  — Start emitting when scene is ready
+  targetStopDuration  = 0  — Auto-stop after N seconds (0 = forever)
+  disposeOnStop  = false  — Dispose when stopped
+  attachTo  = ''  — Mesh name to attach emitter to
+
+## b3d-physics — <tosi-b3d-physics>
+b3d-physics
+
+  gravityX  = 0  — Gravity X component
+  gravityY  = -9.81  — Gravity Y component
+  gravityZ  = 0  — Gravity Z component
+  debug  = false  — Show wireframe physics collider shapes
+  wasmUrl
+
+## b3d-planet — <tosi-b3d-planet>
+b3d-planet
+
+  biome
+  seed  = 12345  — Noise seed
+  radius  = 50  — Base sphere radius
+  subdivisions  = 64  — Grid subdivisions per cube face
+  grossScale  = 0.005  — Gross noise frequency
+  detailScale  = 0.02  — Detail noise frequency
+  grossAmplitude  = 5  — Gross height multiplier
+  detailAmplitude  = 1  — Detail height multiplier
+  atmosphere  = 0.08  — Atmosphere thickness (fraction of radius, 0=none)
+  atmosphereColor
+  atmosphereTurbulence
+  ocean  = 0.6  — Ocean coverage (0=none, 0.6=60% of surface underwater)
+  rings
+  wireframe  = false  — Debug: render as wireframe
+  rotationSpeed  = 0  — Auto-rotation speed (radians/sec)
+
+## b3d-primitives — <tosi-b3d-sphere>
+
+  meshName
+  segments
+  diameter
+  color
+  glow
+  glowColor
+  mirror
+
+## b3d-probe — <tosi-b3d-probe>
+b3d-probe
+
+  force
+  ttlDays
+
+## b3d-radar-blip — <tosi-b3d-radar-blip>
+b3d-radar-blip
+
+  profile  = 1  — Detectability: `1` = seen at the platform's nominal radar range, `2` = out to 2×, `0.05` = very stealthy; **negative = always detectable** (e.g. waypoints).
+  faction  = 'neutral'  — `friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour.
+  x
+  y
+  z
+
+## b3d-radar — <tosi-b3d-radar>
+b3d-radar
+
+  range  = 250  — Nominal range — a `profile 1` blip is detected within this.
+  coneDeg  = 90  — Detection cone HALF-angle (deg). `90` = front hemisphere.
+  lockTime  = 1.5  — Seconds of continuous detection to acquire a lock (`0` = instant).
+  maxLocks  = 2  — Max simultaneous locks (the nearest opposed contacts).
+  acquireConeDeg
+  acquireRange
+  alignment  = 'friendly'  — This radar's own faction. It locks only **opposed** blips (friendly⇄hostile); neutrals/waypoints show but never lock.
+  updateInterval  = 100  — Radar refresh period (ms). Runs below frame-rate and is dithered across frames so many radars don't all recompute the same frame.
+
+## b3d-reflections — <tosi-b3d-reflections>
+b3d-reflections
+
+  refreshRate  = 5  — Frames between probe refreshes inside `farDistance`
+  probeSize  = auto  — Cubemap resolution per face; `auto` = device tier
+  maxDistance  = 100  — Distance beyond which probes freeze entirely
+  farDistance  = 30  — Distance at which the rate starts ramping toward `farRefreshRate`
+  farRefreshRate  = 30  — Probe refresh rate at `maxDistance`
+  distanceCheckInterval  = 13  — Frames between camera-distance re-checks
+
+## b3d-shadows — <tosi-b3d-sun>
+b3d-shadows
+
+  shadowMaxZ  = 100  — Far plane of the cascaded shadow frustum
+  shadowDarkness  = 0.1  — 0 = fully dark shadow, 1 = no shadow
+  shadowNormalBias  = 0.05  — Offset along the surface normal — **the shadow-acne knob**. Lower it if shadows detach from small casters
+  shadowBias  = 0.00005  — Depth-direction bias; peter-pans sooner than `shadowNormalBias`, so tune that one first
+  shadowTextureSize  = auto  — Shadow map resolution (per cascade); `auto` = device tier
+  activeDistance  = 30  — Max camera-to-mesh distance a caster participates from
+  numCascades  = auto  — Number of cascade splits (1–4); `auto` = device tier
+  stabilizeCascades  = 'on'  — Reduce shadow-edge "swimming" under motion
+  lambda  = 0.8  — Cascade split blend (0 = uniform, 1 = logarithmic)
+  cascadeBlendPercentage  = 0.1  — Soft blend across cascade seams
+  x  = 0  — Sun direction X (overridden by skybox when present)
+  y  = -1  — Sun direction Y
+  z  = -0.5  — Sun direction Z
+  intensity  = 1  — Sun intensity (overridden by skybox when present)
+  updateIntervalMs  = 1000  — How often to re-evaluate active casters
+
+## b3d-skybox — <tosi-b3d-skybox>
+b3d-skybox
+
+  turbidity  = 10  — Atmospheric haze
+  luminance  = 1  — Sky brightness
+  azimuth  = 0  — Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours
+  latitude  = 40  — Geographic latitude in DEGREES (affects the sun's arc)
+  realtimeScale  = 10  — Realtime speed multiplier
+  updateFrequencyMs
+  sunColor  = '#eeeeff'  — Midday sun color
+  duskColor  = '#ffaa22'  — Dawn/dusk sun color
+  moonColor  = '#6688cc'  — Night light color
+  moonIntensity  = 0.15  — Night light intensity
+  timeOfDay  = 6.5  — 0-24 hours
+  rayleigh  = 2  — Rayleigh scattering
+  mieDirectionalG
+  mieCoefficient
+  skyboxSize
+  applyFog  = false  — Whether scene fog affects the skybox
+
+## b3d-sound — <tosi-b3d-sound>
+b3d-sound
+
+  url  = ''  — Audio file URL
+  volume  = 1  — Volume (0-1)
+  loop  = false  — Loop playback
+  autoplay  = false  — Auto-start on connect
+  spatialSound  = false  — Enable 3D positional audio
+  x  = 0  — Position X (spatial mode)
+  y  = 0  — Position Y (spatial mode)
+  z  = 0  — Position Z (spatial mode)
+  refDistance  = 1  — Distance at full volume
+  rolloffFactor  = 1  — Attenuation rate
+  maxDistance  = 100  — Cutoff distance
+  distanceModel  = 'linear'  — `'linear'`, `'inverse'`, `'exponential'`
+  attachTo  = ''  — Mesh name to follow
+  playbackRate  = 1  — Playback speed
+
+## b3d-spawner — <tosi-b3d-spawner>
+b3d-spawner
+
+  prefab  = ''  — Prefab name to spawn (usually an encounter)
+  maxAlive  = 2  — How many groups may exist at once
+  interval  = 8  — Seconds between spawn attempts
+  minDistance  = 600  — Nearest a group may appear (from the player)
+  maxDistance  = 1400  — Furthest a group may appear
+  y  = 0  — Base height for the spawn point (the prefab places its own members)
+  seed  = 1  — Deterministic placement — same seed, same battles
+  disabled  = false  — Stop spawning (a boolean can't default to true — see CLAUDE.md)
+
+## b3d-star-system — <tosi-b3d-star-system>
+b3d-star-system
+
+  galaxySeed  = 1234  — Galaxy seed for deterministic generation
+  starCount  = 10000  — Number of stars in galaxy (needed to regenerate same galaxy)
+  starIndex  = 0  — Which star in the galaxy to render
+  scale  = 5  — Visual scale factor for star/planet sizes
+  orbitScale  = 3  — Multiplier for orbital distances
+  animate  = 'on'  — Animate planet orbital motion
+  showOrbits  = 'on'  — Show orbital path lines
+  x
+  y
+  z
+
+## b3d-star — <tosi-b3d-star>
+b3d-star
+
+  seed  = 12345  — Noise seed for surface features
+  radius  = 20  — Star radius
+  subdivisions  = 32  — Grid subdivisions per cube face
+  spectralClass  = 'G'  — Spectral class: O, B, A, F, G, K, M
+  surfaceDetail  = 0.5  — Surface noise intensity (0=uniform, 1=strong spots)
+  coronaSize  = 0.15  — Corona thickness as fraction of radius (0=none)
+  rotationSpeed  = 0.02  — Auto-rotation (radians/sec)
+  wireframe  = false  — Debug wireframe
+  glowIntensity  = 2.0  — Emissive brightness multiplier
+  pointLight  = false  — Create a point light at star center
+  lightIntensity  = 1.0  — Point light intensity
+  lightRange  = 500  — Point light range
+
+## b3d-svg-plane — <tosi-b3d-svg-plane>
+b3d-svg-plane
+
+  castShadow
+  receiveShadows
+  width  = 1  — Plane width in scene units
+  height  = 1  — Plane height
+  resolution  = 512  — Texture resolution (square, px)
+  url  = ''  — SVG URL — fetched and rendered once
+  updateInterval  = 30  — Re-render interval in ms (dynamic mode)
+  materialChannel  = 'emissive'  — `'emissive'` (unlit) or `'diffuse'` (lit)
+  cameraRelative  = false  — Parent plane to active camera (HUD mode)
+  placement
+  xrFrame  = ''  — In a headset with `cameraRelative`, parent to this XR reference frame instead of the head camera. `'body'` (torso, damped yaw) keeps a panel in front of you without jittering on every head movement; leave unset for a HUD that should stay head-locked
+  pointerEvents  = 'on'  — Map 3D pick hits → SVG pointer events
+  doubleSided  = 'on'  — Render both faces
+  cornerRadius  = 0  — Corner radius in WORLD units. `0` = a plain rectangle. Rounds the MESH, so corners cost triangles instead of alpha — see **Opaque panels** below
+  transparent  = 'on'  — `'off'` drops the opacity texture so the plane writes depth. Pair with `cornerRadius`
+
+## b3d-terrain — <tosi-b3d-terrain>
+b3d-terrain
+
+  biome
+  biomeSeaLevel  = 0  — Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y`
+  biomeLapseRate  = 0` (auto)  — Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow
+  normalSmoothing  = 0.6  — Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag
+  seed  = 12345  — Noise seed
+  surfaceType  = 'cylinder'  — `'cylinder'`, `'torus'`, or `'sphere'`
+  majorRadius  = 100  — Torus major radius
+  minorRadius  = 40  — Torus minor radius
+  radius  = 200  — Sphere/cylinder radius
+  cylinderHeight  = 200  — Cylinder height (v range before reflection)
+  tileSize  = 10  — World-space size of a level-0 (finest) tile
+  hiResSubdivisions  = auto  — Vertices per tile edge (same at every level); `auto` = device tier
+  lodLevels  = 5  — Number of LOD levels; level k tiles are `tileSize × 2^k`
+  poolSize  = auto  — Shared tile budget; the pool renders the top-priority cells (`auto` = device tier)
+  fillBudget  = auto  — Max tiles (re)built per frame — a churn backstop (`auto` = device tier)
+  splitFactor  = 2  — LOD falloff: subdivide a cell when nearer than `splitFactor × tileSize`
+  reach  = 0  — Terrain radius (0 = auto from the coarsest tile)
+  grossScale  = 0.015  — Gross noise frequency — a RECIPROCAL wavelength, so SMALL numbers make BIG landforms (0.015 ≈ 65m features before `horizScale`)
+  detailScale  = 0.09  — Detail noise frequency, same units
+  horizScale  = 1  — Horizontal world scale — scales every tile's size AND the sampling together (>1 = bigger terrain that reaches further; a clean zoom, not just a frequency change)
+  grossAmplitude  = 8  — Gross height multiplier. ⚠️ Meaningless on its own: it's spread over `grossScale`/`horizScale`, so the same number is a mountain range at one scale and a plain at another
+  detailAmplitude  = 3  — Detail height multiplier. Landscape reads best when this does REAL work rather than 5% — big gross features, small gross amplitude, busy detail
+  baseHeight  = 0  — Flat vertical offset (m). The noise is 0..amplitude; `-grossAmplitude/2` centres the terrain on 0 so a water plane at 0 floods the valleys into a sea
+  center
+  debugColor  = false  — Debug: tint each tile a distinct hashed colour to expose the tile/LOD layout
+  tileBuildMs  = auto  — **Milliseconds of tile building allowed per frame** — the cap that actually bounds the worst frame. A tile COUNT bounds it only by accident (a tile's cost swings with subdivisions, octaves, device and JS engine); a time cap bounds it by construction everywhere, and self-corrects when you raise detail. Always builds ≥1 tile. (`auto` = device tier)
+  profile  = false  — Debug: time tile building and report it on `debugState` (see below). Off = zero cost
+  originResetThreshold  = 500  — Distance before origin rebase
+  maxTravelDistance  = 5000  — Distance before firing recenter-needed event
+  wireframe  = false  — Debug: render terrain as wireframe
+  rimCollar  = 12  — Metres the rim of a patch hole folds down into the opening
+  fieldMsPerTile  = Noise + analytic normals. Plain float arithmetic — a worker or wasm *could* take this
+  uploadMsPerTile  = updateVerticesData` — a GPU handoff. **Nothing** moves this off the main thread
+  nsPerSample  = Cost per `heightAt` (each is 2 fractal calls × 6 octaves = 12 perlin evals)
+
+## b3d-trigger — <tosi-b3d-trigger>
+b3d-trigger
+
+  x  = 0  — Center X
+  y  = 0  — Center Y
+  z  = 0  — Center Z
+  radius  = 5  — Trigger sphere radius
+  disabled  = false  — Disable the trigger (default: active)
+  target  = 'camera'  — `'camera'` or a mesh name to watch
+  debug  = false  — Show wireframe sphere
+  once  = false  — Fire `whenEnter` once then deactivate
+
+## b3d-turret — <tosi-b3d-turret>
+b3d-turret
+
+  meshName
+  muzzleSpeed  = 35  — Shell launch speed (also the lead-solver's projectile speed)
+  fireRate  = 2  — Max shots per second
+  range  = 30  — Won't fire beyond this distance
+  traverseRate  = 2.5  — Max barrel slew rate (rad/sec)
+  smart  = 0  — Skill curve 0..1: **lead** ramps to full by **0.5**, **drop** compensation to full by **1** (0 = aim at the target's current spot). 0.5–1 reserved for acceleration/turn-rate prediction later
+  aimTolerance  = 6  — Fires only when the barrel is within this many degrees of the solution
+  gravity
+  drag
+  mass
+  damage
+  fullRadius
+  blastRadius
+  los
+  idleColor  = '#4a5560'  — Barrel colour with no firing solution
+  armedColor  = '#e04030'  — Barrel colour when it can bear (has a solution, in range)
+
+## b3d-warhead — <tosi-b3d-warhead>
+b3d-warhead
+
+  damage  = 20  — Full damage `D` (direct hit + within `fullRadius`)
+  fullRadius  = 1.5  — Within this distance the blast deals full `D`
+  blastRadius  = 5  — Falloff from `D` (at `fullRadius`) to 1 here; 0 beyond
+  los  = 'on'  — Line-of-sight occlusion (a wall between blast + target spares it)
+
+## b3d-water — <tosi-b3d-water>
+b3d-water
+
+  underwaterFog
+  underwaterMurk
+  fogTransition
+  spherical  = false  — Use a sphere instead of a plane
+  waterSize  = 128  — Size of the water plane
+  subdivisions  = 32  — Mesh subdivisions
+  textureSize
+  twoSided  = false  — Render both sides
+  follow  = false  — Ride the camera in x/z (endless sea): the plane snaps to a coarse grid under you, ripples stay anchored in world space
+  normalMap
+  windForce  = -5  — Wind strength
+  waveHeight  = 0  — Wave amplitude
+  bumpHeight  = 0.1  — Normal map bump intensity
+  waveLength
+  waterColor  = '#0066cc'  — Water tint color
+  colorBlendFactor  = 0.1  — How much color tints the water
+  windDirectionX
+  windDirectionY
+
+## control-input
+control-input
+
+  forward  = -1..1  — Forward/backward movement
+  strafe  = -1..1  — Left/right strafe
+  turn  = -1..1  — Turning
+  pitch  = -1..1  — Pitch (aircraft)
+  throttle  = 0..1  — Continuous throttle
+  jump  = 0..1  — Jump
+  shoot  = 0..1  — Fire weapon
+  sprint  = 0..1  — Sprint modifier
+  interact  = 0..1  — Enter vehicle / pick up / use
+  aim  = 0..1  — Aim down sights
+  cameraZoom  = -1..1  — Camera zoom
+  sneak  = 0\  — 1
+
+## galaxy-data
+galaxy-data
+
+  StarData  = name, seed, position, spectralType, luminosity, mass, numberOfPlanets, rgb
+
+## game-controller — <tosi-game-controller>
+game-controller
+
+  wheelSensitivity
+  updateIntervalMs
+
+## gamepad-svg
+gamepad-svg
+
+  strokeColor  = #000000  — All stroked elements
+  strokeWidth  = 16  — All stroked elements
+  widgetColor  = #ffffff  — Bumpers, triggers, dpad, sticks, menu, view
+  controllerColor  = #aaaaaa  — Controller body
+  stickTravelColor  = #505050  — Stick travel circles
+  fillA  = #ff1d25  — A button (red)
+  fillB  = #fcee22  — B button (yellow)
+  fillX  = #8cc63f  — X button (green)
+  fillY  = #3ea9f5  — Y button (blue)
+
+## glass-gamepad — <tosi-b3d-gamepad>
+glass-gamepad (b3dGamepad)
+
+  controls  = ''` (all)  — **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece
+  scale
+  deadzone
+  maxZone
+  idleSeconds  = 10  — Seconds of silence before a faded pad comes back
+  fade  = 'on'  — Hide the pad once a real input device is in use. `'off'` pins it visible — what you want on a page where the pad itself is the subject
+  fadedOpacity  = 0  — How faded is faded. `0` is invisible; a low value like `0.15` leaves a hint that the fallback exists
+  left  = bottom-left  — left stick, d-pad, left bumper/trigger
+  right  = bottom-right  — A/B/X/Y, right stick, right bumper/trigger
+  top  = top-center  — view, menu
+
+## gradient-editor — <tosi-gradient-editor>
+
+  width
+  height
+
+## icon-name
+icon-name
+
+  r  = rotate N°  — `chevron90r`
+  f  = flip (`0f` = H, `1f` = V)  — `chevron0f`
+  s  = scale N%  — `star75s`
+  x  = translateX N%  — `plus20x`
+  y  = translateY N%  — `plus_10y`
+  o  = opacity N%  — `camera50o`
+  W  = stroke-width N  — `chevron3W`
+  F  = fill (hex or `--var`)  — `close_f00F`
+  S  = stroke (hex or `--var`)  — `chevron_accentS`
+
+## key-layout
+key-layout
+
+  alpha  = letters, with `shift
+  symbols  = punctuation and symbols
+  dial  = a telephone keypad — `*` `0` `#`, `+` for international
+
+## keyboard-gamepad — <tosi-keyboard-gamepad>
+keyboard-gamepad
+
+  wheelSensitivity
+  updateIntervalMs
+
+## light-modulation
+Light programs
+
+  brightness  = **multiplies** the base intensity — `0` off, `1` as declared  — "off" has to be reachable; it is the value you flicker to
+  range  = **multiplies** the base range  — a range of zero is a light that lights nothing
+  saturation  = **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means  — saturation has a meaningful zero and reaching it is the point
+  hue  = **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg  — hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose
+
+## slope-profile
+slope-profile
+
+  cliffProfile  = flat low shelf → sharp riser → flat top  — sea cliffs (Dover)
+  beachProfile  = wide gentle low shelf, easing rise  — beaches, coastal plain
+  rollingProfile  = contrast-compressed midtones  — rolling hills
+  mesaProfile  = quantized steps (alias of `plateauFilter`)  — mesas, mid-level plateaus
+  terraceProfile  = steps with sloped risers  — terraced hills
+
+## tosi-b3d — <tosi-b3d>
+b3d
+
+  glowLayerIntensity  = 0  — Glow effect intensity (0 = off)
+  frameRate  = 30  — Target frame rate
+  minElevation
+  maxElevation
+  minDistance
+  maxDistance
+  noXr
+  xrGrid
+  xrReticle
+  scenePanelOpen
+  gamepad  = absent  — When present, mount the on-screen glass gamepad wired into the input system. Bare/`true` = full layout; a value like `"a,b,left_stick"` selects controls
+  gamepadScale  = 1  — Scale factor for the glass gamepad clusters
+  gamepadFade  = 'on'  — `'off'` keeps the glass gamepad visible instead of fading it once a mouse/keyboard/hardware pad is used
+  quality
+  stats
+  pauseWhenHidden
+  startPaused
+  reseatFreeze
+  timeScale
+  enterXrOnResume
+  no-xr  = false  — Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)
+
+## touch-gamepad
+touch-gamepad
+
+  data-part  = VirtualGamepad  — Type
+
+## widgets3d
+widgets3d
+
+  panel3d  = width  — `360`
+  row3d  = weights  — equal
+  slider3d  = min` / `max  — `0` / `1`
+  toggle3d  = label` / `value
+  select3d  = options
+  inputField  = **`type`**  — `'text'`
+  list3d  = items` / `onSelect
+  button3d  = label` / `onClick
+  menu3d  = items` / `handleSelect
+  iconBar3d  = items
+  spinner3d  = label` / `size
+  progress3d  = label` / `value` / `showValue
+
+## xr-frames
+xr-frames
+
+  world  = the play space  — a hologram on a table
+  rig  = the locomotion rig (vehicle)  — a piloting HUD that flies with you
+  body  = your torso (head x/z + **damped** yaw)  — waist inventory, over-shoulder backpack
+  neck  = your neck pivot  — UI you can look *past*
+  face  = your eyes (head-locked)  — a reticle, a vignette, sunglasses

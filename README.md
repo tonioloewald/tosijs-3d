@@ -6,6 +6,17 @@
   <img style="width: 280px; height: 280px;" alt="tosijs-3d logo" src="https://3d.tosijs.net/favicon.svg">
 </div>
 
+**Looking for a capability?** Search the **[attribute
+index](https://3d.tosijs.net/attributes.txt)** before assuming it does not
+exist — 622 attributes across 57 elements in one greppable file, generated from
+source on every build. There is a
+[JSON form](https://3d.tosijs.net/attributes.json) for tools.
+
+It exists because the recurring adopter failure is not a missing feature, it is
+a feature that ships, is documented, and cannot be found: three issues in one
+week turned out to be capability that was already there. One `grep water` finds
+`submersible`; reading 147 doc pages does not.
+
 **Upgrading?** See [Migration.md](./Migration.md) for the breaking changes and
 what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
 Both ship inside the package, so they work from `node_modules` too.

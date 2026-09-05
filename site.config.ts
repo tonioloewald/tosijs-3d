@@ -163,6 +163,25 @@ export default defineSiteConfig({
 
   prebuild: async () => {
     /*
+    REGENERATE THE ATTRIBUTE INDEX, idempotently.
+
+    Same rule as the wasm copy below, and for the same reason: `static/` is
+    WATCHED, so an unconditional write triggers the next build, which writes
+    again. Compare bytes first and the steady state writes nothing.
+    */
+    const { buildIndex, asText } = await import('./bin/attribute-index.js')
+    const index = buildIndex()
+    for (const [path, body] of [
+      ['static/attributes.json', JSON.stringify(index, null, 2)],
+      ['static/attributes.txt', asText(index)],
+    ] as const) {
+      const prev = await Bun.file(path)
+        .text()
+        .catch(() => null)
+      if (prev !== body) await Bun.write(path, body)
+    }
+
+    /*
     COPY ONLY IF IT CHANGED — an unconditional `cp` is a rebuild loop.
 
     Since tosijs-ui 1.12.5 the dev server WATCHES `staticDirs` (the fix for
