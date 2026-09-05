@@ -4,6 +4,7 @@
 - [manipulator](/manipulator/)
 - [manipulator-view](/manipulator-view/)
 - [arc](/arc/)
+- [b3d-beacon](/b3d-beacon/)
 - [curve](/curve/)
 - [b3d-physics](/b3d-physics/)
 - [demo-utils](/demo-utils/)

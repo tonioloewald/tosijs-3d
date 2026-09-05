@@ -504,6 +504,7 @@ export {
 } from './arc.js'
 export type { Arc, ArcGrip, ArcLimits } from './arc.js'
 export { angle3d, arc3d } from './angle-field.js'
+export { B3dBeacon, b3dBeacon, beaconOwner } from './b3d-beacon.js'
 export type {
   AngleField,
   ArcField,

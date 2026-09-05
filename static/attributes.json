@@ -353,6 +353,47 @@
     ]
   },
   {
+    "module": "b3d-beacon",
+    "tag": "tosi-b3d-beacon",
+    "summary": "b3d-beacon",
+    "attributes": [
+      {
+        "name": "name",
+        "default": "''",
+        "description": "what this beacon stands for, for a readout or a list"
+      },
+      {
+        "name": "size",
+        "default": "0.5",
+        "description": "cube edge, in metres"
+      },
+      {
+        "name": "width"
+      },
+      {
+        "name": "height"
+      },
+      {
+        "name": "depth"
+      },
+      {
+        "name": "shape",
+        "default": "'box'",
+        "description": "`'box'` or `'sphere'`"
+      },
+      {
+        "name": "show",
+        "default": "'off'",
+        "description": "`'on'` draws it as a wireframe — for debugging, not for play"
+      },
+      {
+        "name": "follow",
+        "default": "'on'",
+        "description": "track the element this is nested in, rather than its own `x`/`y`/`z`"
+      }
+    ]
+  },
+  {
     "module": "b3d-biped",
     "tag": "tosi-b3d-biped",
     "summary": "b3d-biped",

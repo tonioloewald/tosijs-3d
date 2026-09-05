@@ -44,6 +44,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Fly-by-wire VTOL controller — a forgiving "drone that becomes a plane" rather
 - https://3d.tosijs.net/b3d-ambient/ — b3d-ambient
   The stuff in the air, or in the water. **Bubbles and motes when you're under; rain, snow,
+- https://3d.tosijs.net/b3d-beacon/ — b3d-beacon
+  a light; a positional sound is a sound; a spawn point is a coordinate. All three
 - https://3d.tosijs.net/b3d-biped/ — b3d-biped
   Animated humanoid character controller. Loads a GLB model with skeletal animations
 - https://3d.tosijs.net/b3d-black-hole/ — b3d-black-hole

@@ -91,6 +91,18 @@ b3d-ambient
   rain  = Fast, stretched, near-vertical. Add `wind` and it slants
   dust  = Blown horizontally — the wind made visible
 
+## b3d-beacon — <tosi-b3d-beacon>
+b3d-beacon
+
+  name  = ''  — what this beacon stands for, for a readout or a list
+  size  = 0.5  — cube edge, in metres
+  width
+  height
+  depth
+  shape  = 'box'  — `'box'` or `'sphere'`
+  show  = 'off'  — `'on'` draws it as a wireframe — for debugging, not for play
+  follow  = 'on'  — track the element this is nested in, rather than its own `x`/`y`/`z`
+
 ## b3d-biped — <tosi-b3d-biped>
 b3d-biped
 
