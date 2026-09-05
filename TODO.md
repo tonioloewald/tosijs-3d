@@ -13,12 +13,13 @@
 - [ ] **Weather: one wind, shared and province-overridable** — filed as #73.
   Clouds, water and ambient each carry their own wind today, in three
   spellings, so an author sets it three times and they can silently disagree.
-  The design question worth settling first is COMPOSITION: speed probably sums
-  like temperature (a valley funnels, a lee shelters, and the bipolar curve
-  gives shelter for free), but bearing does not — two provinces that each turn
-  the wind 90° do not turn it 180°. Wind would be the first VECTOR province
-  layer, which is a real test of whether that architecture generalises past
-  scalars.
+  Composition is settled: **vectors sum** (Tonio), so wind uses the same rule
+  temperature and water already do and needs nothing new — a valley funnelling,
+  a lee sheltering and a headland curling the wind are all just contributions
+  that add. Which also answers whether the province architecture generalises
+  past scalars: it does, unchanged, since a vector layer is three scalar sums
+  travelling together. Store Cartesian, author in degrees; the neutral
+  contribution is the zero vector, so no bipolar midpoint is needed.
 
 ## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
 

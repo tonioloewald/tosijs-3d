@@ -2770,6 +2770,31 @@ export class B3d extends Component {
     // on the host so overlay interaction counts; pointerdown bubbles from any child.
     this.addEventListener('pointerenter', () => this.takeInputFocus())
     this.addEventListener('pointerdown', () => this.takeInputFocus())
+    /*
+    NEVER TWO ENGINES ON ONE CANVAS.
+
+    Building a second WebGL context over a live one does not fail loudly: the
+    first context's shader PROGRAMS become invalid while every uniform still
+    reads back correctly, so the symptoms are meshes rendering white, a dark
+    sky, or a half-loaded scene — four different-looking failures with one
+    cause. tosijs-3d-ensemble measured exactly that (#56): correct sky uniforms
+    alongside `gl.isProgram(program) === false`, `gl.getError() === 1282`, and
+    two `webgl2` contexts created 207ms apart on a single load.
+
+    `connectedCallback` should not reach here twice — a disconnect always
+    schedules the teardown that a same-task reconnect cancels (#58) — but
+    "should not" is what the old code relied on, and this failure is invisible
+    until someone reads it off the GL context. Cheap to make impossible.
+    */
+    if (this.engine != null) {
+      console.warn(
+        'b3d: an engine already exists on this element; disposing it before ' +
+          'building another. A second WebGL context silently invalidates the ' +
+          "first one's shader programs — white meshes, dark sky, or a " +
+          'half-loaded scene.'
+      )
+      this._teardown()
+    }
     this.engine = new BABYLON.Engine(cnv, true, {
       preserveDrawingBuffer: true,
       stencil: true,
