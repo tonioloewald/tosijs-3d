@@ -34,6 +34,9 @@ versions may carry breaking peer-dependency changes — each is called out in a
   (white meshes, dark sky, empty scene, half-loaded scene). It now disposes the
   old engine and warns. Separately, `webglcontextlost` is reported to the
   console and the debug ring instead of just rendering wrong.
+- **The flat scene panel now closes on a background press**, like every other
+  transient overlay here. A press inside it, or on the gear, still does not —
+  the gear toggles, so closing first would make it look inert.
 - **A still sky never found a late sun** (#55). `updateSky` writes
   `sunPosition`, `rayleigh` and `turbidity` only when a sun element's light
   exists, and the frame gate re-ran it only when `timeOfDay` moved — so

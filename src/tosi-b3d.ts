@@ -4217,6 +4217,45 @@ export class B3d extends Component {
         if (host.hasAttribute('hidden')) this._openScenePanel()
         else this._closeScenePanel()
       })
+      /*
+      A PRESS ON THE BACKGROUND CLOSES IT.
+
+      The flat panel is a transient overlay over the scene, and every other
+      transient overlay in this library already dismisses that way — the
+      surface's popups do it on PRESS, and for the reason stated there: a press
+      that starts outside was never meant for the panel, and waiting for the
+      release leaves it open under a pointer that has already moved on.
+
+      Three things must NOT close it, and each is a bug if it does:
+      - a press inside the panel (you are using it)
+      - a press on the GEAR, which toggles — closing here first would make the
+        gear's own handler reopen it, so it would look inert
+      - a drag that merely ENDS outside, which is an ordinary slider gesture
+        leaving the track
+
+      `pointerdown` on the host element rather than the document: the scene owns
+      its own overlay, and a page with several scenes should not have one
+      dismiss another's panel.
+      */
+      this.addEventListener('pointerdown', (e) => {
+        if (host.hasAttribute('hidden')) return
+        /*
+        `composedPath()`, NOT `e.target`.
+
+        The panel lives behind a shadow boundary, so a listener out here sees
+        the target RETARGETED to the host element — `host.contains(e.target)`
+        is then false for a press on the panel's own controls, and the panel
+        closes under the finger that was using it. Measured: pressing a slider
+        inside the panel dismissed it.
+
+        The composed path is the real route the event took, boundaries and all,
+        so asking whether the panel or the gear is on it answers the question
+        that was actually being asked.
+        */
+        const path = e.composedPath()
+        if (path.includes(host) || path.includes(gear)) return
+        this._closeScenePanel()
+      })
     }
     // Reveal the gear when the panel has any widgets — the scenePanel hook's, or
     // the opted-in perf-stats section. (Enter VR is a SEPARATE button grouped next
