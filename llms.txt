@@ -277,6 +277,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
 - https://3d.tosijs.net/table-layout/ — table-layout
   The **pure geometry behind a data table** — column widths, and which rows are worth
+- https://3d.tosijs.net/terrain-editor/ — terrainEditor3d
+  unit and enum comes from `sceneSchemas.terrain()`, so the control cannot
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
 - https://3d.tosijs.net/theme-editor/ — theme-editor

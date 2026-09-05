@@ -4,6 +4,7 @@
 - [Lamps](/b3d-lamp/)
 - [b3d-terrain](/b3d-terrain/)
 - [Province climate](/province-climate/)
+- [terrainEditor3d](/terrain-editor/)
 - [b3d-ambient](/b3d-ambient/)
 - [b3d-clouds](/b3d-clouds/)
 - [b3d-fog](/b3d-fog/)

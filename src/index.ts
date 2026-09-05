@@ -435,6 +435,12 @@ export {
 } from './color.js'
 export type { Rgba, Hsva } from './color.js'
 export { color3d } from './color-field.js'
+export { terrainEditor3d } from './terrain-editor.js'
+export type {
+  TerrainSettings,
+  TerrainEditor3dOptions,
+  TerrainEditorField,
+} from './terrain-editor.js'
 export type { Color3dOptions, ColorField } from './color-field.js'
 
 // SVG widgets (DOM-overlay or in-scene panels)

@@ -730,8 +730,21 @@ export class B3dTerrain extends B3dChild {
 
     this._beforeRender = () => this.update()
     scene.registerBeforeRender(this._beforeRender)
-    // Baseline, so the first render() after setup does not see everything as
-    // changed and rebuild a terrain that was just built.
+    /*
+    FILL IT NOW. This is the bug #66 actually reported.
+
+    Setup builds a tile POOL — meshes with no vertices and `isVisible: false` —
+    and something has to fill it. Nothing did, so a terrain with its attributes
+    set drew a skybox and nothing else until a consumer called `regenerate()`.
+
+    My first version of this fix only regenerated on CHANGE and took a baseline
+    key here, which suppressed exactly the case that needed fixing: at setup
+    nothing has changed yet. It passed its tests and drew an empty world, which
+    the demo showed and the tests could not.
+    */
+    this.regenerate()
+    // Baseline AFTER the fill, so the first render() does not immediately
+    // rebuild a terrain that was just built.
     this._genKey = this._generationKey()
   }
 
