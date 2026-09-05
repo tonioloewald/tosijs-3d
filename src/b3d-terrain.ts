@@ -728,8 +728,20 @@ export class B3dTerrain extends B3dChild {
 
     this.createPool()
 
-    this._beforeRender = () => this.update()
+    this._beforeRender = () => {
+      // A pending attribute change regenerates HERE, one frame later — see
+      // `render()`. Doing it on the frame keeps a burst of writes to one
+      // rebuild, and works in XR where window.rAF is suspended.
+      if (this._regenPending) {
+        this._regenPending = false
+        this.regenerate()
+      }
+      this.update()
+    }
     scene.registerBeforeRender(this._beforeRender)
+    // Baseline, so the first render() after setup does not see everything as
+    // changed and rebuild a terrain that was just built.
+    this._genKey = this._generationKey()
   }
 
   /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
@@ -1645,6 +1657,67 @@ export class B3dTerrain extends B3dChild {
   // Rebuild after a parameter change. A height-only change keeps the same cells
   // (so placed tiles would be kept, unbuilt) — clear the pool so everything is a
   // blank and refill in full this frame (budget = pool size, no per-frame cap).
+  /*
+  WHAT A CHANGE TO THIS MEANS: rebuild the world.
+
+  Only the attributes that actually determine the heightfield or the tile grid.
+  A change to `wireframe` or `debugColor` is a material tweak and must not cost
+  a regeneration; a change to `seed` or `grossScale` is a different planet.
+  */
+  private _generationKey(): string {
+    const a = this as any
+    return [
+      a.seed,
+      a.surfaceType,
+      a.radius,
+      a.majorRadius,
+      a.minorRadius,
+      a.cylinderHeight,
+      a.grossScale,
+      a.detailScale,
+      a.horizScale,
+      a.grossAmplitude,
+      a.detailAmplitude,
+      a.baseHeight,
+      a.center,
+      a.tileSize,
+      a.lodLevels,
+      a.splitFactor,
+      a.reach,
+      a.hiResSubdivisions,
+      a.normalSmoothing,
+      a.biome,
+      a.biomeSeaLevel,
+      a.biomeLapseRate,
+    ].join('|')
+  }
+
+  private _genKey = ''
+  private _regenPending = false
+
+  /*
+  ORDINARY ATTRIBUTES REGENERATE, like every other element's do.
+
+  A configured terrain used to produce a tile pool and fill it only when told:
+  120 meshes, `isVisible: false`, no bounds, until someone called
+  `regenerate()`. The docs said "set it, then regenerate()" for the exotic hooks
+  and it turned out to be true of `grossScale` too — so a terrain with its
+  attributes set drew NOTHING, which is a silent failure, and every consumer
+  reinvented the same retry (tosijs-3d-ensemble, #66).
+
+  Deferred to the next frame rather than done here: setting five attributes in
+  one go is one rebuild, not five. And keyed on the generation attributes only,
+  so a `wireframe` toggle stays a material tweak.
+  */
+  render(): void {
+    super.render()
+    if (this.owner == null) return
+    const key = this._generationKey()
+    if (key === this._genKey) return
+    this._genKey = key
+    this._regenPending = true
+  }
+
   regenerate() {
     const attrs = this as any
     if (this.material) this.material.wireframe = attrs.wireframe
