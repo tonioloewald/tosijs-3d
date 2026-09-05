@@ -341,7 +341,7 @@ export { B3dRadarBlip, b3dRadarBlip } from './b3d-radar-blip.js';
 export { B3dRadar, b3dRadar } from './b3d-radar.js';
 export { Radar, coneDotFromDegrees, isOpposed } from './radar.js';
 export { steerToward, proNav, interceptLead, boostAuthority, gAdd, gSub, gScale, gDot, gCross, gLen, gNormalize, } from './guidance.js';
-export { canonicalize, normalizeScale, findCenterOfGravity, applyCenterOfGravity, } from './model-transform.js';
+export { canonicalize, normalizeScale, findCenterOfGravity, findBarrel, findMuzzle, applyCenterOfGravity, } from './model-transform.js';
 export { aoeFalloff, resolveAoe, dist3 } from './warhead.js';
 export { ballisticStep, predictPath, ballisticAim } from './ballistics.js';
 export { modeForType, isValidForType, commitValueForType, } from './key-layout.js';

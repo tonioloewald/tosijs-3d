@@ -101,6 +101,8 @@ tosi-b3d { width: 100%; height: 100%; }
 */
 /*{ "parent": "Combat" }*/
 import * as BABYLON from '@babylonjs/core';
+import { loadLibraryMesh } from './library-mesh.js';
+import { findBarrel } from './model-transform.js';
 import { AbstractMesh, isOff, sceneDelta } from './b3d-utils.js';
 import { ballisticAim } from './ballistics.js';
 import { spawnProjectile } from './b3d-launcher.js';
@@ -111,6 +113,20 @@ export class B3dTurret extends AbstractMesh {
     static initAttributes = {
         ...AbstractMesh.initAttributes,
         meshName: 'turret',
+        /**
+         * Instantiate `meshName` from this LIBRARY instead of drawing the built-in
+         * pedestal-and-box.
+         *
+         * A piece that IS a turret rendered as two primitives, because neither this
+         * element nor `b3d-launcher` took a library (#34) while `b3d-destroyable`
+         * and `b3d-aircraft` both did.
+         *
+         * Which node AIMS is declared by the MODEL, via the `_barrel` suffix —
+         * the same way it already declares its colliders and its centre of gravity.
+         * A model without one yaws as a unit, which is right for a simple turret
+         * and means a placed model works before anyone rigs it.
+         */
+        library: '',
         muzzleSpeed: 35,
         fireRate: 2,
         range: 30,
@@ -131,6 +147,7 @@ export class B3dTurret extends AbstractMesh {
     };
     _barrel;
     _barrelMat;
+    _stopLoad = null;
     _aim = { x: 0, y: 0, z: 1 }; // world-space unit barrel direction
     _target;
     _lastTargetPos;
@@ -172,6 +189,40 @@ export class B3dTurret extends AbstractMesh {
         this._barrelMat = new BABYLON.StandardMaterial(`${this.meshName}-bmat`, scene);
         this._barrelMat.diffuseColor = BABYLON.Color3.FromHexString(this.idleColor);
         this._barrel.material = this._barrelMat;
+        /*
+        A LIBRARY MODEL REPLACES BOTH PRIMITIVES.
+    
+        Built after them rather than instead, so the aiming rig is already wired and
+        the model is a swap rather than a second code path — if the library never
+        resolves, the primitives are still there and the turret still works.
+    
+        `_barrel` says which node elevates. Absent, the whole model becomes the
+        barrel and yaws as a unit: correct for a simple turret, and it means a model
+        works the moment it is placed rather than once someone has rigged it.
+        */
+        const libType = String(this.library ?? '');
+        if (libType !== '') {
+            this._stopLoad = loadLibraryMesh({
+                owner,
+                type: libType,
+                meshName: this.meshName,
+                transform: { x: attrs.x, y: attrs.y, z: attrs.z },
+                generation: () => this.loadGeneration,
+                started: ++this.loadGeneration,
+                label: 'b3d-turret',
+                onLoaded: (node) => {
+                    this._barrel?.dispose();
+                    this._barrelMat?.dispose();
+                    this._barrelMat = undefined;
+                    this.mesh?.dispose();
+                    this.mesh = node;
+                    const barrel = findBarrel(node);
+                    // No `_barrel` → the model itself is what aims.
+                    this._barrel = (barrel ?? node);
+                    owner.register({ meshes: node.getChildMeshes() });
+                },
+            });
+        }
         this._tick = scene.onBeforeRenderObservable.add(() => {
             const dt = sceneDelta(scene);
             if (this._cooldown > 0)
@@ -280,6 +331,9 @@ export class B3dTurret extends AbstractMesh {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
     sceneDispose() {
+        // Stop a library load that would otherwise land on a disposed turret.
+        this._stopLoad?.();
+        this._stopLoad = null;
         if (this._tick != null) {
             this.owner?.scene.onBeforeRenderObservable.remove(this._tick);
             this._tick = undefined;

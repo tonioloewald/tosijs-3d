@@ -200,6 +200,9 @@ export declare class B3dLauncher extends AbstractMesh {
     static preferredTagName: string;
     static initAttributes: {
         meshName: string;
+        /** Instantiate `meshName` from this LIBRARY instead of the placeholder box.
+         * `_muzzle` on the model says where rounds leave (#34). */
+        library: string;
         muzzleSpeed: number;
         fireRate: number;
         ammo: number;
@@ -226,6 +229,7 @@ export declare class B3dLauncher extends AbstractMesh {
         axes: boolean;
     };
     meshName: string;
+    library: string;
     muzzleSpeed: number;
     fireRate: number;
     ammo: number;
@@ -261,6 +265,8 @@ export declare class B3dLauncher extends AbstractMesh {
     los: string;
     private _ammoPool;
     private _cooldown;
+    private _stopLoad;
+    private _muzzleNode;
     private _tick?;
     get warheadSpec(): WarheadSpec;
     get ballisticParams(): BallisticParams;

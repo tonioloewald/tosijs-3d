@@ -301,6 +301,7 @@ Lamps
 b3d-launcher
 
   meshName
+  library
   muzzleSpeed  = 30  — Launch speed (units/sec) along the fire direction
   fireRate  = 5  — Max shots per second (cadence gate)
   ammo  = 40  — Magazine capacity (a `Resource`)
@@ -664,6 +665,7 @@ b3d-trigger
 b3d-turret
 
   meshName
+  library
   muzzleSpeed  = 35  — Shell launch speed (also the lead-solver's projectile speed)
   fireRate  = 2  — Max shots per second
   range  = 30  — Won't fire beyond this distance

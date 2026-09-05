@@ -1113,6 +1113,9 @@
         "name": "meshName"
       },
       {
+        "name": "library"
+      },
+      {
         "name": "muzzleSpeed",
         "default": "30",
         "description": "Launch speed (units/sec) along the fire direction"
@@ -2528,6 +2531,9 @@
     "attributes": [
       {
         "name": "meshName"
+      },
+      {
+        "name": "library"
       },
       {
         "name": "muzzleSpeed",

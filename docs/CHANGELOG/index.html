@@ -127,6 +127,15 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</li>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p><strong><code>b3d-turret</code> and <code>b3d-launcher</code> take a <code>library</code></strong> (#34), so a piece that
+IS a turret no longer renders as a cylinder and a box. Which node aims is
+declared by the MODEL — a <code>_barrel</code> suffix, resolved like <code>_centerOfGravity</code>
+and the collider suffixes — because a rigger declares moving parts in Blender,
+not in scene markup. <code>_muzzle</code> is separate and says where rounds leave: the
+same node on a simple gun, a different one on a multi-barrel mount. A model
+with neither still works — it yaws as a unit and the muzzle falls back to the
+existing forward offset.</p>
+</li>
 <li><p><strong><code>b3d-spawner</code> can spawn at an authored PLACE</strong>, not only on a ring around
 the player (#40). <code>anchor=&quot;place&quot;</code> plus <code>x</code>/<code>y</code>/<code>z</code> and <code>facingDeg</code> — a
 carrier deck, a hangar door, a dungeon entrance. Mutually exclusive with the

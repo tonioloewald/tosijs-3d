@@ -128,6 +128,45 @@ export function normalizeScale(mesh) {
     return mesh;
 }
 /**
+ * Find the node a turret should ROTATE to aim — the `_barrel` suffix.
+ *
+ * Same shape as `findCenterOfGravity`, and the same argument: **the model
+ * declares its own moving parts.** A rigger already says where the colliders
+ * and the centre of gravity are, in Blender, where they can see the geometry;
+ * asking the SCENE MARKUP which node is the barrel would put model structure in
+ * the document, which is exactly what these conventions exist to avoid
+ * (tosijs-3d-ensemble weighed both and landed here too, #34).
+ *
+ * Returning null is a valid answer, not a failure: a model with no `_barrel`
+ * yaws as a unit, which is right for a simple turret and lets a placed model
+ * work before anyone rigs it.
+ */
+export function findBarrel(root) {
+    return findSuffixed(root, ['_barrel']);
+}
+/**
+ * Find the node a projectile should spawn FROM — the `_muzzle` suffix.
+ *
+ * Separate from the barrel because they are different questions: the barrel is
+ * what rotates, the muzzle is where the round leaves. On a simple gun they are
+ * the same node and only `_barrel` need exist; on a multi-barrel mount, or
+ * anything with a long recoiling breech, they are not.
+ */
+export function findMuzzle(root) {
+    return findSuffixed(root, ['_muzzle']);
+}
+/** Shared matcher — mirrors `conventionName`, inlined so this module stays
+ * dependency-free for headless tests (see `findCenterOfGravity`). */
+function findSuffixed(root, suffixes) {
+    const match = (n) => {
+        const lower = n.name.split('.model').join('').toLowerCase();
+        return suffixes.some((sfx) => lower.includes(sfx));
+    };
+    return (root
+        .getDescendants(false)
+        .find((n) => n instanceof BABYLON.TransformNode && match(n)) ?? null);
+}
+/**
  * Find a model's **centre-of-gravity marker** — a descendant whose name
  * carries the `_centerOfGravity` suffix (underscore variant
  * `_center_of_gravity` works too, and it composes with `.model` like every

@@ -7,6 +7,20 @@ export declare class B3dTurret extends AbstractMesh {
     static preferredTagName: string;
     static initAttributes: {
         meshName: string;
+        /**
+         * Instantiate `meshName` from this LIBRARY instead of drawing the built-in
+         * pedestal-and-box.
+         *
+         * A piece that IS a turret rendered as two primitives, because neither this
+         * element nor `b3d-launcher` took a library (#34) while `b3d-destroyable`
+         * and `b3d-aircraft` both did.
+         *
+         * Which node AIMS is declared by the MODEL, via the `_barrel` suffix —
+         * the same way it already declares its colliders and its centre of gravity.
+         * A model without one yaws as a unit, which is right for a simple turret
+         * and means a placed model works before anyone rigs it.
+         */
+        library: string;
         muzzleSpeed: number;
         fireRate: number;
         range: number;
@@ -31,6 +45,7 @@ export declare class B3dTurret extends AbstractMesh {
         axes: boolean;
     };
     meshName: string;
+    library: string;
     muzzleSpeed: number;
     fireRate: number;
     range: number;
@@ -48,6 +63,7 @@ export declare class B3dTurret extends AbstractMesh {
     armedColor: string;
     private _barrel?;
     private _barrelMat?;
+    private _stopLoad;
     private _aim;
     private _target?;
     private _lastTargetPos?;
