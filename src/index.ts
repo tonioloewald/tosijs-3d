@@ -120,6 +120,9 @@ export {
   // use `semanticParent`; instructing someone to call something they cannot
   // import is worse than not documenting it.
   markUiMesh,
+  markCollisionGroup,
+  collisionGroups,
+  inCollisionGroup,
   isNoCollide,
   collidable,
   cameraIsAttached,
