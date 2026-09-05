@@ -1,6 +1,6 @@
 import { Component } from 'tosijs'
 import * as BABYLON from '@babylonjs/core'
-import type { B3d } from './tosi-b3d.js'
+import type { B3d, FrameInfo } from './tosi-b3d.js'
 
 const DEG_TO_RAD = Math.PI / 180
 
@@ -81,6 +81,33 @@ export const sceneDelta = (scene: BABYLON.Scene): number => {
   // stopped working: 66m of travel over a 3-second pause.)
   if (typeof published === 'number' && published >= 0) return published
   return Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000)
+}
+
+/**
+ * The whole per-frame package for a scene, for code with no `owner` to ask.
+ *
+ * `sceneDelta` answers "how much time passed" and every caller then has to
+ * work out the rest for itself — which clock, is it paused, how long has this
+ * been going. This hands over all of it, so the right choice is the one
+ * already in your hand.
+ *
+ * Falls back to a sane package for scenes `<tosi-b3d>` does not drive (tests,
+ * standalone Babylon), where `dt` and `realDt` are simply the same number.
+ */
+export const sceneFrame = (scene: BABYLON.Scene): FrameInfo => {
+  const published = (scene.metadata as { b3dFrame?: FrameInfo } | null)
+    ?.b3dFrame
+  if (published != null) return published
+  const dt = sceneDelta(scene)
+  return {
+    dt,
+    realDt: dt,
+    elapsed: 0,
+    realElapsed: 0,
+    scale: 1,
+    paused: dt === 0,
+    frame: 0,
+  }
 }
 
 export const conventionName = (name: string): string =>

@@ -15,6 +15,7 @@ export type {
   SceneAdditions,
   SceneAdditionHandler,
   DebugPanelSource,
+  FrameInfo,
 } from './tosi-b3d.js'
 
 // Device-capability probe (measure-don't-guess quality budgets)
@@ -114,6 +115,7 @@ export {
   placeOnSurface,
   boundingBottomOffset,
   sceneDelta,
+  sceneFrame,
   // Documented API that was reachable only by a deep import — which `exports`
   // (a bare string) blocks with ERR_PACKAGE_PATH_NOT_EXPORTED. `isNoCollide`'s
   // shipped JSDoc instructs consumers to call it, and CLAUDE.md tells them to

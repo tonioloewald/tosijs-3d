@@ -73,7 +73,8 @@ instead — on its own it wires input itself.
 /*{ "parent": "Input", "order": 100 }*/
 import * as BABYLON from '@babylonjs/core'
 import { B3dControllable } from './b3d-controllable.js'
-import type { B3d } from './tosi-b3d.js'
+import { sceneFrame } from './b3d-utils.js'
+import type { B3d, FrameInfo } from './tosi-b3d.js'
 import { CompositeInputProvider, type ControlInput } from './control-input.js'
 import {
   MappedInputProvider,
@@ -117,7 +118,8 @@ export class B3dController extends B3dControllable {
    * DOM event listeners, so an `onInput` prop would silently become an `input`-event
    * handler and never be called here.
    */
-  drive: ((input: ControlInput, dt: number) => void) | null = null
+  drive: ((input: ControlInput, dt: number, frame: FrameInfo) => void) | null =
+    null
 
   /** The merged input provider — exposed so the XR rig can add its controller source. */
   inputMappedProvider: MappedInputProvider | null = null
@@ -148,7 +150,19 @@ export class B3dController extends B3dControllable {
   }
 
   applyInput(input: ControlInput, dt: number): void {
-    this.drive?.(input, dt)
+    /*
+    THE PACKAGE IS THE THIRD ARGUMENT, not a replacement for `dt`.
+
+    `dt` stays exactly what it was — sim seconds — so nothing that already
+    works changes. The package is for everything a bare number made you go and
+    find: the wall clock for things that must not slow, elapsed time, whether
+    the world is paused, the frame count. Tonio: "make it easy to do the right
+    thing."
+
+    Additive on purpose. A new field later costs consumers nothing, where a
+    widening argument list costs them a signature.
+    */
+    this.drive?.(input, dt, sceneFrame(this.owner!.scene))
   }
 
   sceneDispose(): void {

@@ -388,6 +388,31 @@ export type DebugPanelSource = {
   icon?: string
 }
 
+/**
+ * The per-frame package handed to update callbacks and published on the scene.
+ *
+ * One object rather than a growing argument list, so adding a field later is
+ * additive for every consumer instead of a signature change.
+ */
+export interface FrameInfo {
+  /** SIM seconds since the last frame — scaled by `timeScale`, 0 when paused.
+   * This is the one to integrate motion with. */
+  dt: number
+  /** WALL-CLOCK seconds since the last frame. Ignores `timeScale` and pause —
+   * for UI animation, spinners, anything that must not slow with the world. */
+  realDt: number
+  /** Sim seconds since the scene started. Does not advance while paused. */
+  elapsed: number
+  /** Wall-clock seconds since the scene started. Always advances. */
+  realElapsed: number
+  /** Current `timeScale`. */
+  scale: number
+  /** Is the world stopped (paused or frozen)? `dt` is 0 when true. */
+  paused: boolean
+  /** Frames rendered since the scene started. */
+  frame: number
+}
+
 export type SceneAdditionHandler = (additions: SceneAdditions) => void
 
 export type SceneAdditions = {
@@ -533,6 +558,21 @@ export class B3d extends Component {
      * cannot default to true (absent ⇒ false), and this one wants to.
      */
     reseatFreeze: 'on' as 'on' | 'off',
+    /**
+     * How fast SIM time runs against wall time. `1` is real time, `0.25` is
+     * slow motion, `0` stops the simulation while the scene keeps rendering.
+     *
+     * The gap this closes: a consumer could scale its own effect timing but not
+     * craft motion, because velocity comes from integrating the engine delta —
+     * so a "slow motion" control was a lie by omission, the explosions slowing
+     * and the aircraft not (tosijs-3d-ensemble, #41).
+     *
+     * Everything already integrating with `sceneDelta` scales for free, since
+     * that is now the SIM delta. Anything that must not slow — UI animation, a
+     * spinner, a countdown in wall seconds — reads `realDt` from the frame
+     * package instead.
+     */
+    timeScale: 1,
     /**
      * On resume, enter immersive VR if the device supports it. This is why
      * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
@@ -1332,7 +1372,36 @@ export class B3d extends Component {
 
    * observer; see the note in `_update`. */
 
+  /** SIM seconds since the last rendered frame — scaled, and 0 while paused. */
   frameDelta = 1 / 60
+  private _realDelta = 1 / 60
+  private _simElapsed = 0
+  private _realElapsed = 0
+  private _frameCount = 0
+
+  /**
+   * Everything a per-frame callback should need, in one object.
+   *
+   * Tonio's framing: *"make it easy to do the right thing."* A bare `dt` makes
+   * you go and find the rest — which clock am I on, is the world paused, how
+   * long has this actually been running — and each caller answers it slightly
+   * differently. Handing over the package means the correct choice is the one
+   * already in your hand.
+   *
+   * Reach for `dt` unless you know why not; `realDt` is for the things that
+   * must not slow down when the world does.
+   */
+  frameInfo(): FrameInfo {
+    return {
+      dt: this.frameDelta,
+      realDt: this._realDelta,
+      elapsed: this._simElapsed,
+      realElapsed: this._realElapsed,
+      scale: Math.max(0, Number((this as any).timeScale ?? 1) || 0),
+      paused: this._paused || this._frozen,
+      frame: this._frameCount,
+    }
+  }
   private sceneListeners: SceneAdditionHandler[] = []
   private pastAdditions: SceneAdditions[] = []
   private _sceneReady = false
@@ -1636,6 +1705,10 @@ export class B3d extends Component {
         if (this.scene.metadata == null) this.scene.metadata = {}
         this.scene.metadata.b3dFrameDelta = 0
         this.frameDelta = 0
+        // A paused frame still RENDERS, so the package must be present and
+        // honest rather than stale: sim stopped, wall clock still running.
+        this._realDelta = 0
+        this.scene.metadata.b3dFrame = this.frameInfo()
         /*
         FOG STILL HAS TO BE RIGHT WHILE STOPPED (adopter issue #31).
 
@@ -1679,14 +1752,33 @@ export class B3d extends Component {
         // QUARTER (measured 2026-08-11 — dropped bombs inherited half the
         // aircraft's velocity and sagged behind). jolt-plugin hit this and
         // worked around it locally; this is the shared fix.
-        this.frameDelta =
+        const realDt =
           this.lastRender > 0
             ? Math.min((now - this.lastRender) / 1000, 0.1)
             : 1 / ((this as any).frameRate || 60)
+        /*
+        TWO CLOCKS, and the DEFAULT one is the scalable one.
+
+        `frameDelta` / `sceneDelta` are SIM seconds, so everything already
+        integrating with them honours `timeScale` and pause without changing a
+        line. That direction is deliberate: the common case is motion that
+        should slow down when the world slows down, so the obvious name gives
+        the right clock and the exceptions have to ask.
+
+        `realDt` is the wall-clock escape hatch, for the things that must NOT
+        slow — a spinner, a UI tween, a countdown in real seconds.
+        */
+        const scale = Math.max(0, Number((this as any).timeScale ?? 1) || 0)
+        this.frameDelta = realDt * scale
+        this._realDelta = realDt
+        this._simElapsed += this.frameDelta
+        this._realElapsed += realDt
+        this._frameCount++
         // Also published on the scene so owner-less helpers (explosionFx,
         // spawnProjectile, the exploder) can read it via `sceneDelta`.
         if (this.scene.metadata == null) this.scene.metadata = {}
         this.scene.metadata.b3dFrameDelta = this.frameDelta
+        this.scene.metadata.b3dFrame = this.frameInfo()
         this.lastRender = now
         if (this.scene.activeCamera !== undefined) {
           this.scene.render()

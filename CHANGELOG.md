@@ -82,8 +82,8 @@ versions may carry breaking peer-dependency changes — each is called out in a
 - **Collision GROUPS** — `markCollisionGroup(mesh, 'water')` plus
   `collidable(reject, { ignoreGroups: ['water'] })` (#44). The single
   `b3dNoCollide` boolean answered "does anything hit this", which is one answer
-  for every asker — and a sea needs two, since *"the aircraft should not treat
-  water as ground"* and *"shells should splash on water"* were the same switch.
+  for every asker — and a sea needs two, since _"the aircraft should not treat
+  water as ground"_ and _"shells should splash on water"_ were the same switch.
   Groups move the answer to the ASKER: the mesh says what it is, each mover says
   what it treats as solid, so one sea answers differently for a seaplane and a
   submarine on the same frame. Additive, and composes with the existing UI
