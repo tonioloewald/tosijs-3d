@@ -48,7 +48,8 @@ which is the only way to tell whether the colour you picked is the colour you
 meant.
 
 ```js
-import { b3d, b3dLight, b3dPointLight, panel3d, label3d, color3d, panelScene } from 'tosijs-3d'
+import { b3d, b3dLight, b3dPointLight, panel3d, label3d, color3d } from 'tosijs-3d'
+import { orbitCam } from 'tosijs-3d/demo-utils'
 import { elements } from 'tosijs'
 const { div } = elements
 
@@ -81,7 +82,9 @@ const scene = b3d(
       props[1].position.set(-1.6, 1.1, 0.4)
       for (const m of props) m.material = mat
       el.register({ meshes: [floor, ...props] })
-      el.scene.activeCamera.setPosition(new BABYLON.Vector3(0, 5, -9))
+      // `orbitCam`, not `scene.activeCamera.setPosition` — there is no active
+      // camera yet at sceneCreated, so that throws.
+      orbitCam(el, { alpha: -Math.PI / 2, beta: Math.PI / 3, radius: 10, target: [0, 1, 0] })
     },
   },
   b3dLight({ intensity: 0.08 })
