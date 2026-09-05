@@ -443,6 +443,51 @@ export type {
 } from './terrain-editor.js'
 export type { Color3dOptions, ColorField } from './color-field.js'
 
+// Manipulator — pure maths, the Babylon handles, and the element that wires them
+export {
+  NO_TRANSFORMS,
+  RING_BASIS,
+  WORLD_FRAME,
+  noTransforms,
+  otherAxes,
+  axisVector,
+  axisComponent,
+  axisClosestApproach,
+  angleAboutAxis,
+  rayPlanePoint,
+  rayPerpendicularDistance,
+  snap,
+  snapVec3,
+  normaliseDegrees,
+  scaleFactor,
+  beginDrag,
+  updateDrag,
+  commitTransform,
+  dragChanged,
+} from './manipulator.js'
+export type {
+  Axis,
+  AxisFrame,
+  ComposeRotation,
+  Drag,
+  DragOptions,
+  Grip,
+  GripKind,
+  ManipulatorRay,
+  ManipulatorTransform,
+  TransformSet,
+} from './manipulator.js'
+export {
+  createHandles,
+  composeRotation,
+  axisFrameOf,
+  HANDLE_TAG,
+  DRAWN_TAG,
+  NEAR_RADIUS,
+} from './manipulator-view.js'
+export type { HandlesView } from './manipulator-view.js'
+export { B3dManipulator, b3dManipulator } from './b3d-manipulator.js'
+
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
   panel3d,

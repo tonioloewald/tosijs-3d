@@ -1,6 +1,8 @@
 # Utilities
 
 <!-- toc -->
+- [manipulator](/manipulator/)
+- [manipulator-view](/manipulator-view/)
 - [curve](/curve/)
 - [b3d-physics](/b3d-physics/)
 - [demo-utils](/demo-utils/)

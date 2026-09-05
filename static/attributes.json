@@ -1317,6 +1317,58 @@
     ]
   },
   {
+    "module": "b3d-manipulator",
+    "tag": "tosi-b3d-manipulator",
+    "summary": "b3d-manipulator",
+    "attributes": [
+      {
+        "name": "target",
+        "default": "''",
+        "description": "CSS selector for the element to manipulate. Or set `.node` in JS"
+      },
+      {
+        "name": "meshName",
+        "default": "''",
+        "description": "a mesh in the scene, by name — for things that are not elements"
+      },
+      {
+        "name": "move",
+        "default": "'on'",
+        "description": "`'on'`/`'off'` — arrows and plane pads"
+      },
+      {
+        "name": "turn",
+        "default": "'off'",
+        "description": "`'on'`/`'off'` — rings"
+      },
+      {
+        "name": "scale",
+        "default": "'off'",
+        "description": "`'on'`/`'off'` — cubes, plus the uniform centre cube"
+      },
+      {
+        "name": "gridSnap",
+        "default": "0",
+        "description": "position snap in metres. `0` is off"
+      },
+      {
+        "name": "angleSnap",
+        "default": "0",
+        "description": "angle snap in degrees. `0` is off"
+      },
+      {
+        "name": "size",
+        "default": "0.13",
+        "description": "apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen"
+      },
+      {
+        "name": "disabled",
+        "default": "false",
+        "description": "hide the handles and ignore input"
+      }
+    ]
+  },
+  {
     "module": "b3d-panel",
     "tag": "tosi-b3d-panel",
     "summary": "b3d-panel",
@@ -3014,6 +3066,20 @@
         "name": "hue",
         "default": "**shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg",
         "description": "hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose"
+      }
+    ]
+  },
+  {
+    "module": "manipulator",
+    "summary": "manipulator",
+    "attributes": [
+      {
+        "name": "translate",
+        "default": "the point on the axis closest to the pointer's ray"
+      },
+      {
+        "name": "rotate",
+        "default": "the angle around the axis where the ray crosses its plane"
       }
     ]
   },

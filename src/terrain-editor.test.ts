@@ -107,8 +107,8 @@ describe('terrainEditor3d', () => {
       )
     const before = totalTrack()
     expect(before).toBeGreaterThan(100)
-    ed.hitTest(100, 1e6)
-    ed.handle('move', 100, 1e6)
+    ed.hitTest?.(100, 1e6)
+    ed.handle?.('move', 100, 1e6)
     expect(totalTrack()).toBe(before)
   })
 

@@ -355,6 +355,19 @@ b3d-loader
   blastRadius
   blastDelay
 
+## b3d-manipulator — <tosi-b3d-manipulator>
+b3d-manipulator
+
+  target  = ''  — CSS selector for the element to manipulate. Or set `.node` in JS
+  meshName  = ''  — a mesh in the scene, by name — for things that are not elements
+  move  = 'on'  — `'on'`/`'off'` — arrows and plane pads
+  turn  = 'off'  — `'on'`/`'off'` — rings
+  scale  = 'off'  — `'on'`/`'off'` — cubes, plus the uniform centre cube
+  gridSnap  = 0  — position snap in metres. `0` is off
+  angleSnap  = 0  — angle snap in degrees. `0` is off
+  size  = 0.13  — apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen
+  disabled  = false  — hide the handles and ignore input
+
 ## b3d-panel — <tosi-b3d-panel>
 b3d-panel
 
@@ -804,6 +817,12 @@ Light programs
   range  = **multiplies** the base range  — a range of zero is a light that lights nothing
   saturation  = **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means  — saturation has a meaningful zero and reaching it is the point
   hue  = **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg  — hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose
+
+## manipulator
+manipulator
+
+  translate  = the point on the axis closest to the pointer's ray
+  rotate  = the angle around the axis where the ray crosses its plane
 
 ## slope-profile
 slope-profile
