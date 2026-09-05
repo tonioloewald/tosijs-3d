@@ -2803,6 +2803,33 @@ export class B3d extends Component {
       // no-ops — it never even fetches the file. b3d-sound depends on it.
       audioEngine: true,
     })
+    /*
+    SAY SO WHEN THE CONTEXT GOES.
+
+    A lost WebGL context is the other way to get white meshes and a dark sky
+    with every uniform still reading back correctly, and it is silent by
+    default — the page simply renders wrong. Chrome caps contexts near 16 per
+    page and force-loses the OLDEST, so an SPA that leaks engines takes out the
+    scene you are currently looking at rather than the one that leaked.
+
+    Naming it costs two listeners and turns an afternoon of bisecting into a
+    line in the console and the debug ring — which is the only readout that
+    exists inside a headset.
+    */
+    cnv.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault() // allows a restore; without this it is permanent
+      console.warn(
+        'b3d: WebGL context LOST. Meshes may render white or the sky dark. ' +
+          'Usually too many live contexts on one page (browsers cap ~16 and ' +
+          'drop the oldest) — check for scenes that were never disposed.'
+      )
+      this.logDebug('gl', { event: 'context-lost' })
+    })
+    cnv.addEventListener('webglcontextrestored', () => {
+      console.warn('b3d: WebGL context restored.')
+      this.logDebug('gl', { event: 'context-restored' })
+    })
+
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.collisionsEnabled = true
     this.scene.gravity = new BABYLON.Vector3(0, -9.81 / 60, 0)

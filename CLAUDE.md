@@ -860,6 +860,28 @@ cost six demos a cycle before it was found (fixed across 14 call sites in 0.7.0)
 
 **⚠️ `parentElement` is the `<tosi-slot>`, not the component you nested into.** tosijs mounts a component's light-DOM children inside a `<tosi-slot>` wrapper, so for `b3dDestroyable({…}, b3dRadarBlip({…}))` the blip's `parentElement` is that **slot**, not the destroyable. Any child that wants to find "the thing I'm nested in" must skip it — use **`semanticParent(el)`** from `b3d-utils` (walks up past `TOSI-SLOT`). This fails **silently**: the lookup just returns a node with no `mesh`, so the child quietly finds nothing (it cost a long detour — `<tosi-b3d-radar>` found no platform and every nested `<tosi-b3d-radar-blip>` reported a null position, so the radar produced zero tracks and the HUD zero blips). `findB3dOwner()` is unaffected because it walks _all_ the way up. There's no clean workaround — the slot is a real DOM node, so `parentElement` is honestly reporting it; skipping it is the fix. (Documented upstream in the tosijs docs.)
 
+### One scene, one engine — and don't build one mid-frame if you can help it
+
+A `<tosi-b3d>` owns a WebGL context. **Two contexts on one canvas is not a loud
+failure**: the first context's shader PROGRAMS become invalid while every
+uniform still reads back correctly, so what you see is meshes rendering white, a
+dark sky, an empty scene or a half-loaded one — four different-looking symptoms
+with one cause. `tosijs-3d-ensemble` lost a day to it (#56) and pinned it
+properly: correct sky uniforms alongside `gl.isProgram(program) === false`,
+`gl.getError() === 1282`, and two `webgl2` contexts created 207ms apart.
+
+Two guards now exist, so this should be unhittable rather than merely
+documented: building an engine over a live one **disposes the old one and
+warns**, and a lost context **says so** (console + the debug ring) instead of
+silently rendering wrong.
+
+The consumer-side rule that remains worth knowing: **mounting a `<tosi-b3d>`
+from inside another component's `requestAnimationFrame` render pass is asking
+for trouble.** Defer the mount to a macrotask (`setTimeout(…, 0)`), cancelling
+it on disconnect. Ensemble measured ~70% bad loads before that change and zero
+after. Whether rAF is itself unsafe or it merely made a double-engine race easy
+to hit, the deferral costs one task and removes the question.
+
 ### Adaptive defaults — prefer `auto` over hard-wired performance numbers
 
 The device-capability system (`perf-probe.ts` → `b3d-quality.ts`, driven by the `<tosi-b3d-probe>` benchmark) vends per-tier **budgets** (render scaling, terrain detail, shadow-map size, reflection resolution, …). A single hard-wired default is always wrong for _something_ — too heavy for a Quest, too timid for a workstation.

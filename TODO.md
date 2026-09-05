@@ -11,15 +11,15 @@
       property panel to check it against.
 
 - [ ] **Weather: one wind, shared and province-overridable** — filed as #73.
-  Clouds, water and ambient each carry their own wind today, in three
-  spellings, so an author sets it three times and they can silently disagree.
-  Composition is settled: **vectors sum** (Tonio), so wind uses the same rule
-  temperature and water already do and needs nothing new — a valley funnelling,
-  a lee sheltering and a headland curling the wind are all just contributions
-  that add. Which also answers whether the province architecture generalises
-  past scalars: it does, unchanged, since a vector layer is three scalar sums
-  travelling together. Store Cartesian, author in degrees; the neutral
-  contribution is the zero vector, so no bipolar midpoint is needed.
+      Clouds, water and ambient each carry their own wind today, in three
+      spellings, so an author sets it three times and they can silently disagree.
+      Composition is settled: **vectors sum** (Tonio), so wind uses the same rule
+      temperature and water already do and needs nothing new — a valley funnelling,
+      a lee sheltering and a headland curling the wind are all just contributions
+      that add. Which also answers whether the province architecture generalises
+      past scalars: it does, unchanged, since a vector layer is three scalar sums
+      travelling together. Store Cartesian, author in degrees; the neutral
+      contribution is the zero vector, so no bipolar midpoint is needed.
 
 ## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
 
