@@ -328,6 +328,8 @@ export { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler
 export { makeResource, drain, refill, regenTick, isEmpty, isFull, fraction, } from './resource.js';
 export { CombatWorld, DEFAULT_CHAIN_DELAY } from './destroyable.js';
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js';
+export { B3dProp, b3dProp } from './b3d-prop.js';
+export { loadLibraryMesh } from './library-mesh.js';
 export { DestroyableBehavior } from './destroyable-behavior.js';
 export { B3dWarhead, b3dWarhead, detonateWarhead, explosionFx, } from './b3d-warhead.js';
 export { B3dLauncher, b3dLauncher, spawnProjectile, spawnMissile, } from './b3d-launcher.js';

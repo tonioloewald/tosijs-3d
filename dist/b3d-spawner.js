@@ -118,6 +118,9 @@ vocabulary anywhere in the sim.
 | `interval` | `8` | Seconds between spawn attempts |
 | `minDistance` | `600` | Nearest a group may appear (from the player) |
 | `maxDistance` | `1400` | Furthest a group may appear |
+| `anchor` | `'player'` | `'player'` = a ring around the player (an encounter); `'place'` = exactly at `x`/`y`/`z` (a launchpad) |
+| `x` `z` | `0` | Spawn point, when `anchor="place"`. Ignored otherwise |
+| `facingDeg` | `0` | Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation` |
 | `y` | `0` | Base height for the spawn point (the prefab places its own members) |
 | `seed` | `1` | Deterministic placement — same seed, same battles |
 | `disabled` | `false` | Stop spawning (a boolean can't default to true — see CLAUDE.md) |
@@ -138,7 +141,27 @@ export class B3dSpawner extends B3dChild {
         interval: 8,
         minDistance: 600,
         maxDistance: 1400,
+        /**
+         * Where a group appears: on a ring around the PLAYER, or at an authored
+         * PLACE (`x`/`y`/`z` + `facingDeg`).
+         *
+         * Default `'player'`, so nothing existing changes. The two are mutually
+         * exclusive by construction rather than by warning — in `'place'` mode the
+         * distances are simply not read.
+         *
+         * The gap this closes, from tosijs-3d-ensemble (#40): their format has a
+         * `launchpad` capability — *craft launch from THIS pad on this rig* — which
+         * is a fact about a place in the arrangement. A spawner that can only say
+         * "somewhere near the player" cannot express a carrier deck, a hangar door
+         * or a dungeon entrance, so the capability was registered `editorOnly`:
+         * authorable, and honestly marked as something the runtime would not build.
+         */
+        anchor: 'player',
+        x: 0,
         y: 0,
+        z: 0,
+        /** Facing for a placed spawn, in DEGREES about Y. Ignored when player-anchored. */
+        facingDeg: 0,
         seed: 1,
         disabled: false,
     };
@@ -197,19 +220,38 @@ export class B3dSpawner extends B3dChild {
         const rng = this._rng;
         if (owner == null || rng == null)
             return [];
-        // Somewhere on a ring around the player — far enough that finding it is the game.
-        const player = this._playerPosition();
-        const angle = rng.random() * Math.PI * 2;
-        const spread = Math.max(0, this.maxDistance - this.minDistance);
-        const dist = this.minDistance + rng.random() * spread;
-        const position = {
-            x: player.x + Math.cos(angle) * dist,
-            y: this.y,
-            z: player.z + Math.sin(angle) * dist,
-        };
+        const attrs = this;
+        const placed = attrs.anchor === 'place';
+        /*
+        A PLACE IS NOT A DISTANCE.
+    
+        Player-anchored: somewhere on a ring around the player, far enough that
+        finding it is the game. That is an ENCOUNTER — "put some enemies out there".
+    
+        Place-anchored: exactly here, facing this way, every time. That is a
+        LAUNCHPAD — and it is deliberately not random, because a carrier deck that
+        moved would be a bug rather than variety. Note that it does not consume the
+        RNG either: two scenes differing only in a placed spawner still produce the
+        same sequence of encounters.
+        */
+        const position = placed
+            ? { x: attrs.x, y: attrs.y, z: attrs.z }
+            : (() => {
+                const player = this._playerPosition();
+                const angle = rng.random() * Math.PI * 2;
+                const spread = Math.max(0, this.maxDistance - this.minDistance);
+                const dist = this.minDistance + rng.random() * spread;
+                return {
+                    x: player.x + Math.cos(angle) * dist,
+                    y: this.y,
+                    z: player.z + Math.sin(angle) * dist,
+                };
+            })();
         const elements = spawnPrefab(this.prefabFn ?? this.prefab, {
             owner,
             position,
+            // Degrees about Y, matching `PrefabContext.rotation`'s own convention.
+            ...(placed ? { rotation: { x: 0, y: attrs.facingDeg, z: 0 } } : {}),
             source: this,
         });
         if (elements.length === 0)

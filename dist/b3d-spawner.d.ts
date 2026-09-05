@@ -9,7 +9,27 @@ export declare class B3dSpawner extends B3dChild {
         interval: number;
         minDistance: number;
         maxDistance: number;
+        /**
+         * Where a group appears: on a ring around the PLAYER, or at an authored
+         * PLACE (`x`/`y`/`z` + `facingDeg`).
+         *
+         * Default `'player'`, so nothing existing changes. The two are mutually
+         * exclusive by construction rather than by warning — in `'place'` mode the
+         * distances are simply not read.
+         *
+         * The gap this closes, from tosijs-3d-ensemble (#40): their format has a
+         * `launchpad` capability — *craft launch from THIS pad on this rig* — which
+         * is a fact about a place in the arrangement. A spawner that can only say
+         * "somewhere near the player" cannot express a carrier deck, a hangar door
+         * or a dungeon entrance, so the capability was registered `editorOnly`:
+         * authorable, and honestly marked as something the runtime would not build.
+         */
+        anchor: "player" | "place";
+        x: number;
         y: number;
+        z: number;
+        /** Facing for a placed spawn, in DEGREES about Y. Ignored when player-anchored. */
+        facingDeg: number;
         seed: number;
         disabled: boolean;
     };
@@ -18,7 +38,11 @@ export declare class B3dSpawner extends B3dChild {
     interval: number;
     minDistance: number;
     maxDistance: number;
+    anchor: 'player' | 'place';
+    x: number;
     y: number;
+    z: number;
+    facingDeg: number;
     seed: number;
     disabled: boolean;
     /** A prefab FUNCTION instead of a name (a closure over game state). Not `onSpawn` — an

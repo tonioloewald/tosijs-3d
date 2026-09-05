@@ -176,6 +176,21 @@ vocabulary anywhere in the sim.</p>
 <td>Furthest a group may appear</td>
 </tr>
 <tr>
+<td><code>anchor</code></td>
+<td><code>&#39;player&#39;</code></td>
+<td><code>&#39;player&#39;</code> = a ring around the player (an encounter); <code>&#39;place&#39;</code> = exactly at <code>x</code>/<code>y</code>/<code>z</code> (a launchpad)</td>
+</tr>
+<tr>
+<td><code>x</code> <code>z</code></td>
+<td><code>0</code></td>
+<td>Spawn point, when <code>anchor=&quot;place&quot;</code>. Ignored otherwise</td>
+</tr>
+<tr>
+<td><code>facingDeg</code></td>
+<td><code>0</code></td>
+<td>Facing for a placed spawn, degrees about Y — reaches the prefab as <code>rotation</code></td>
+</tr>
+<tr>
 <td><code>y</code></td>
 <td><code>0</code></td>
 <td>Base height for the spawn point (the prefab places its own members)</td>
@@ -203,6 +218,8 @@ vocabulary anywhere in the sim.</p>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>

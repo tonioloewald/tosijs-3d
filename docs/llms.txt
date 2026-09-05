@@ -88,6 +88,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Procedural planet mesh using a subdivided cube projected onto a sphere.
 - https://3d.tosijs.net/b3d-probe/ — b3d-probe
   `<tosi-b3d-probe>` — a device-capability probe. Drop it anywhere (a landing page is
+- https://3d.tosijs.net/b3d-prop/ — b3d-prop
+  and no behaviour — which is most of what populates a level.
 - https://3d.tosijs.net/b3d-quality/ — b3d-quality
   The **system quality proxy** — the single place that vends device-appropriate
 - https://3d.tosijs.net/b3d-radar/ — b3d-radar
@@ -209,6 +211,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   placed lights that come with their own fixture geometry, cast shadows where
 - https://3d.tosijs.net/landform/ — landform
   the noise (levels curves), a landform *forces* a shape through it: a volcano
+- https://3d.tosijs.net/library-mesh/ — library-mesh
+  implementation, used by [[b3d-prop]] and [[b3d-destroyable]].
 - https://3d.tosijs.net/light-editor/ — Light editor
   edits what a light *is* (type, colour, intensity, range, shadows) alongside what
 - https://3d.tosijs.net/curve-program/ — Light program editor
@@ -278,7 +282,7 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/theme-editor/ — theme-editor
   consumes, as a grid of controls: colours, metrics with a slider *and* a number
 - https://3d.tosijs.net/ — tosijs-3d
-  what to do about them, and [CHANGELOG.md](./CHANGELOG.md) for the full detail.
+  index](https://3d.tosijs.net/attributes.txt)** before assuming it does not
 - https://3d.tosijs.net/touch-gamepad/ — touch-gamepad
   Touch/pointer-driven virtual gamepad backed by an SVG. Elements are identified
 - https://3d.tosijs.net/ui/ — UI

@@ -141,6 +141,7 @@ export declare class B3dDestroyable extends AbstractMesh {
      * purpose: a non-uniform scale on an arbitrary model is a modelling
      * decision, not a placement one, and it breaks normals.
      */
+    private _stopLoad;
     private _applyScale;
     render(): void;
     sceneDispose(): void;

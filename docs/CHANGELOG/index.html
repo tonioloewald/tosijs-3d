@@ -80,6 +80,9 @@ still reads back correctly, which is why it presented as four different bugs
 (white meshes, dark sky, empty scene, half-loaded scene). It now disposes the
 old engine and warns. Separately, <code>webglcontextlost</code> is reported to the
 console and the debug ring instead of just rendering wrong.</li>
+<li><strong>The flat scene panel now closes on a background press</strong>, like every other
+transient overlay here. A press inside it, or on the gear, still does not —
+the gear toggles, so closing first would make it look inert.</li>
 <li><strong>A still sky never found a late sun</strong> (#55). <code>updateSky</code> writes
 <code>sunPosition</code>, <code>rayleigh</code> and <code>turbidity</code> only when a sun element&#39;s light
 exists, and the frame gate re-ran it only when <code>timeOfDay</code> moved — so
@@ -124,7 +127,27 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</li>
 </ul>
 <h3>Added</h3>
 <ul>
-<li><strong>Collision GROUPS</strong> — <code>markCollisionGroup(mesh, &#39;water&#39;)</code> plus
+<li><p><strong><code>b3d-spawner</code> can spawn at an authored PLACE</strong>, not only on a ring around
+the player (#40). <code>anchor=&quot;place&quot;</code> plus <code>x</code>/<code>y</code>/<code>z</code> and <code>facingDeg</code> — a
+carrier deck, a hangar door, a dungeon entrance. Mutually exclusive with the
+distances by construction rather than by warning, and a placed spawn does not
+consume the RNG, so adding a launchpad cannot shift the encounters in a scene
+that promises &quot;same seed, same battles&quot;.</p>
+</li>
+<li><p><strong><code>&lt;tosi-b3d-prop&gt;</code></strong> — a library model in the scene and nothing else (#68).
+Every existing route to a library-backed mesh brought behaviour with it: a
+plain prop had to be a <code>&lt;tosi-b3d-destroyable&gt;</code> carrying <code>capacity</code>, <code>armor</code>,
+<code>explode</code> and a combat id for something nothing will ever shoot.</p>
+<p>It matters more than a convenience element, because it is the difference
+between the CDN&#39;s 5,108 models being reachable or not <strong>from a page that
+cannot run JavaScript</strong>. Every model in those kit libraries sits at the origin
+with no translation (the format is built for <code>clone()</code>), so a consumer with a
+JS build reaches all of them and a consumer writing declarative HTML reached
+none. <code>library-url</code> covers the one-model case without a separate
+<code>&lt;tosi-b3d-library&gt;</code> and a <code>type</code> handshake, sharing one library element per
+URL so ten props do not fetch the kit ten times.</p>
+</li>
+<li><p><strong>Collision GROUPS</strong> — <code>markCollisionGroup(mesh, &#39;water&#39;)</code> plus
 <code>collidable(reject, { ignoreGroups: [&#39;water&#39;] })</code> (#44). The single
 <code>b3dNoCollide</code> boolean answered &quot;does anything hit this&quot;, which is one answer
 for every asker — and a sea needs two, since <em>&quot;the aircraft should not treat
@@ -133,17 +156,20 @@ Groups move the answer to the ASKER: the mesh says what it is, each mover says
 what it treats as solid, so one sea answers differently for a seaplane and a
 submarine on the same frame. Additive, and composes with the existing UI
 exclusion and reject hook rather than replacing either. <code>b3d-water</code> now tags
-itself <code>&#39;water&#39;</code>.</li>
-<li><strong><code>color3d</code> — a colour picker that exists in a headset</strong>, and <code>color.ts</code>, the
+itself <code>&#39;water&#39;</code>.</p>
+</li>
+<li><p><strong><code>color3d</code> — a colour picker that exists in a headset</strong>, and <code>color.ts</code>, the
 pure model under it (parse/format, RGB↔HSV, <code>contrastInk</code>; no DOM, so a
 consumer can validate a document&#39;s colours headlessly). This was the one
 control the SVG UI did not have: the only two ways to pick a colour were
 <code>&lt;input type=&quot;color&quot;&gt;</code> (which cannot express alpha) or a consumer injecting
 one, and <strong>neither exists in an immersive session</strong> — so the theme editor, of
-all things, had no colour control in the presentation this library is for.</li>
-<li><strong>Colour icons for scene concepts</strong> — <code>sky</code>, <code>sun</code>, <code>water</code>, <code>terrain</code>,
+all things, had no colour control in the presentation this library is for.</p>
+</li>
+<li><p><strong>Colour icons for scene concepts</strong> — <code>sky</code>, <code>sun</code>, <code>water</code>, <code>terrain</code>,
 <code>fog</code>, <code>mesh</code>, <code>decor</code> (#64). Unlike the stroked/filled sets these carry
-literal colours and no <code>currentColor</code>, so they do not follow the theme.</li>
+literal colours and no <code>currentColor</code>, so they do not follow the theme.</p>
+</li>
 </ul>
 <h2>0.8.0</h2>
 <p>Lights, editors, and the schema surface <code>tosijs-3d-ensemble</code> asked for — plus
@@ -2889,6 +2915,8 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
     <ul>
       <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
       <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
       <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
       <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
