@@ -106,6 +106,8 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
 */
 /*{ "parent": "UI", "order": 900 }*/
 
+import { formatColor, parseColor } from './color.js'
+
 /** Which key set is showing. */
 export type KeyboardMode =
   | 'alpha'
@@ -170,7 +172,14 @@ export function keyIntent(
  * parser what to accept, or a host what to validate. One property, three jobs
  * (tosijs-3d#37).
  */
-export type FieldType = 'text' | 'number' | 'integer' | 'email' | 'url' | 'tel'
+export type FieldType =
+  | 'text'
+  | 'number'
+  | 'integer'
+  | 'email'
+  | 'url'
+  | 'tel'
+  | 'color'
 
 /**
  * The keyboard layout a field type wants.
@@ -191,6 +200,10 @@ export function modeForType(type: FieldType = 'text'): KeyboardMode {
       return 'email'
     case 'url':
       return 'url'
+    case 'color':
+      // Hex needs digits AND a–f, so the numpad is wrong and `alpha` buries the
+      // digits a mode away. `alphanumeric` is the one layout that has both.
+      return 'alphanumeric'
     default:
       return 'alpha'
   }
@@ -227,6 +240,21 @@ export function isValidForType(
       return !/\s/.test(text)
     case 'tel':
       return /^[-+()\d\s]*$/.test(text)
+    case 'color':
+      /*
+      IN-PROGRESS, not final — the same asymmetry as `number`.
+
+      `#ab` is not a colour and must be typeable on the way to `#abcdef`, so
+      this accepts a hex run of any length up to 8, a bare word (which may
+      become a named colour), or the start of an `rgb()`/`rgba()` form. It is
+      `commitValueForType` that decides whether the thing you finished typing
+      actually parses.
+      */
+      return (
+        /^#?[0-9a-f]{0,8}$/i.test(text) ||
+        /^[a-z]*$/i.test(text) ||
+        /^rgba?\(?[\d.,%\s/]*\)?$/i.test(text)
+      )
     default:
       return true
   }
@@ -256,6 +284,18 @@ export function commitValueForType(
       if (!Number.isFinite(n)) return null
       if (type === 'integer' && !Number.isInteger(n)) return null
       return String(n)
+    }
+    case 'color': {
+      /*
+      Tolerant in, canonical out — see [[color]].
+
+      `#abc`, `rgb(1 2 3)` and `red` all commit as `#rrggbb`, and anything that
+      does not parse commits as null so the caller restores the last good value
+      instead of writing `#eeeff` into a document. That five-digit hex was the
+      concrete complaint (#72): accepted, and silently wrong.
+      */
+      const parsed = parseColor(text)
+      return parsed == null ? null : formatColor(parsed)
     }
     default:
       return text

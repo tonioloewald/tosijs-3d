@@ -29,6 +29,26 @@ exist and break the panel that works.
 What these DO carry is everything `initAttributes` cannot say: ranges, units,
 enum members, colour formats, and which sliders want a log scale.
 
+## `format`, not `x-widget`, is what a control keys off
+
+`format: 'color'` is JSON Schema's own spelling, and it stays the one to read.
+The dispatch a consumer wants is:
+
+```javascript
+// property.format === 'color'  →  a field that knows it holds a colour
+ui.inputField({ value: current, type: 'color', handleChange })
+// or the full picker
+color3d({ value: current, handleChange })
+```
+
+`FieldType` gained `'color'` for exactly this, so the two vocabularies line up:
+a schema says `format`, a field says `type`, and neither has to guess. `x-widget`
+stays reserved for values JSON Schema has no word for at all — a light program,
+a curve — where the answer really is "hand the whole thing to a custom editor".
+
+Asked by `tosijs-3d-ensemble` (#72), whose generated panel had eight colour
+properties it could not render and had to fall back to unvalidated hex text.
+
 ## Drift is a test, not a promise
 
 The defaults here are duplicated from the components — there is no way to read

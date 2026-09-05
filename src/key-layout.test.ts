@@ -467,3 +467,62 @@ describe('keyIntent — a field you can click into must accept characters', () =
     expect(keyIntent('r', { meta: true })).toBe(null) // cmd-R must still reload
   })
 })
+
+describe('the color field type', () => {
+  test('raises alphanumeric — hex needs digits AND a–f', () => {
+    // `numpad` has no letters and `alpha` buries the digits a mode away, so
+    // either one costs a deliberate mode switch on every colour you type.
+    expect(modeForType('color')).toBe('alphanumeric')
+  })
+
+  test('accepts a half-typed hex, because you cannot type #abcdef at once', () => {
+    for (const partial of [
+      '',
+      '#',
+      '#a',
+      '#ab',
+      '#abc',
+      '#abcdef',
+      '#abcdef80',
+    ]) {
+      expect(isValidForType(partial, 'color')).toBe(true)
+    }
+  })
+
+  test('accepts the shapes people actually write', () => {
+    expect(isValidForType('red', 'color')).toBe(true)
+    expect(isValidForType('rgb(255, 0, 0)', 'color')).toBe(true)
+    expect(isValidForType('rgba(255 0 0 / 50%)', 'color')).toBe(true)
+  })
+
+  test('normalises on COMMIT — tolerant in, canonical out', () => {
+    expect(commitValueForType('#abc', 'color')).toBe('#aabbcc')
+    expect(commitValueForType('#ABCDEF', 'color')).toBe('#abcdef')
+    expect(commitValueForType('red', 'color')).toBe('#ff0000')
+    expect(commitValueForType('rgb(255, 128, 0)', 'color')).toBe('#ff8000')
+  })
+
+  test('keeps alpha when there is any to keep', () => {
+    expect(commitValueForType('#00000080', 'color')).toBe('#00000080')
+    // Fully opaque drops the byte: one shape out, and a document that
+    // round-trips without a colour being touched should not churn.
+    expect(commitValueForType('#000000ff', 'color')).toBe('#000000')
+  })
+
+  test('refuses the five-digit hex that started this', () => {
+    /*
+    `#eeeff` was accepted and silently wrong in a hand-rolled hex field
+    (tosijs-3d#72). It is VALID while typing — it is on the way to `#eeeff0` —
+    and it is not an answer, so it fails at commit and the caller restores the
+    last good value.
+    */
+    expect(isValidForType('#eeeff', 'color')).toBe(true)
+    expect(commitValueForType('#eeeff', 'color')).toBeNull()
+    expect(commitValueForType('nonsense', 'color')).toBeNull()
+  })
+
+  test('an empty field is not a wrong field', () => {
+    expect(isValidForType('', 'color')).toBe(true)
+    expect(commitValueForType('', 'color')).toBe('')
+  })
+})

@@ -1064,3 +1064,44 @@ describe('caps lock — hold shift', () => {
     expect(typed).toEqual(['a'])
   })
 })
+
+describe('inputField: the colour swatch', () => {
+  const swatchOf = (f: { el: SVGElement }) =>
+    [...f.el.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('rx') === '4' && r.getAttribute('width') === '18'
+    )
+
+  test('a colour field draws a swatch; other field types do not', () => {
+    const colour = K.inputField({ value: '#3366cc', type: 'color' })
+    colour.layout!(240)
+    expect(swatchOf(colour)?.getAttribute('fill')).toBe('#3366cc')
+    const plain = K.inputField({ value: '#3366cc' })
+    plain.layout!(240)
+    expect(swatchOf(plain)).toBeUndefined()
+  })
+
+  test('the text starts clear of the swatch', () => {
+    // Every x in the field is measured from one origin, so the caret, the label
+    // and the tap-to-place hit test cannot disagree about where the string is.
+    const colour = K.inputField({ value: '#3366cc', type: 'color' })
+    colour.layout!(240)
+    const plain = K.inputField({ value: '#3366cc' })
+    plain.layout!(240)
+    const labelX = (f: { el: SVGElement }) =>
+      Number(f.el.querySelector('text')?.getAttribute('x') ?? 0)
+    expect(labelX(colour)).toBeGreaterThan(labelX(plain))
+  })
+
+  test('a half-typed value HOLDS the last good colour rather than blanking', () => {
+    /*
+    `#ab` does not parse, and a swatch that empties while you are still typing
+    reads as "the value is gone" rather than "you are not finished".
+    */
+    const f = K.inputField({ value: '#3366cc', type: 'color' })
+    f.layout!(240)
+    f.setValue!('#ab')
+    expect(swatchOf(f)?.getAttribute('fill')).toBe('#3366cc')
+    f.setValue!('#abcdef')
+    expect(swatchOf(f)?.getAttribute('fill')).toBe('#abcdef')
+  })
+})
