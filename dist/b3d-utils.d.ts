@@ -1,6 +1,6 @@
 import { Component } from 'tosijs';
 import * as BABYLON from '@babylonjs/core';
-import type { B3d } from './tosi-b3d.js';
+import type { B3d, FrameInfo } from './tosi-b3d.js';
 export declare function findB3dOwner(el: HTMLElement): B3d | null;
 /**
  * The element's SEMANTIC parent — its nearest ancestor that isn't a tosijs slot
@@ -41,6 +41,18 @@ export declare const isOff: (v: unknown) => boolean;
  * standalone Babylon).
  */
 export declare const sceneDelta: (scene: BABYLON.Scene) => number;
+/**
+ * The whole per-frame package for a scene, for code with no `owner` to ask.
+ *
+ * `sceneDelta` answers "how much time passed" and every caller then has to
+ * work out the rest for itself — which clock, is it paused, how long has this
+ * been going. This hands over all of it, so the right choice is the one
+ * already in your hand.
+ *
+ * Falls back to a sane package for scenes `<tosi-b3d>` does not drive (tests,
+ * standalone Babylon), where `dt` and `realDt` are simply the same number.
+ */
+export declare const sceneFrame: (scene: BABYLON.Scene) => FrameInfo;
 export declare const conventionName: (name: string) => string;
 /**
  * The name a CONSUMER uses: `conventionName` (drop `.model`) with the
@@ -148,7 +160,42 @@ export declare function isNoCollide(mesh: BABYLON.AbstractMesh): boolean;
  * `reject` is for the caller's OWN business — self-exclusion, `__root__`, water
  * for a submersible — never for the shared rules above.
  */
-export declare function collidable(reject?: (m: BABYLON.AbstractMesh) => boolean): (m: BABYLON.AbstractMesh) => boolean;
+export declare function collidable(reject?: (m: BABYLON.AbstractMesh) => boolean, opts?: {
+    ignoreGroups?: readonly string[];
+}): (m: BABYLON.AbstractMesh) => boolean;
+/**
+ * Tag a mesh as belonging to one or more collision GROUPS.
+ *
+ * The single `b3dNoCollide` boolean answers "does anything hit this", which is
+ * one answer for every asker — and a sea needs two. tosijs-3d-ensemble put it
+ * exactly: *"the aircraft should not treat water as ground" and "shells should
+ * splash on water" are the same switch*, so a flying submarine had to choose
+ * between crashing on the surface and having ordnance that passes through it
+ * invisibly (#44). Their workaround was clearing `isPickable` on the sea, which
+ * buys the first and loses the second for every consumer of the predicate.
+ *
+ * Groups move the answer to the ASKER. The mesh says what it is; each mover
+ * says what it treats as solid:
+ *
+ * ```js
+ * markCollisionGroup(waterMesh, 'water')
+ *
+ * // an aircraft that must not land on the sea
+ * scene.pickWithRay(ray, collidable(skip, { ignoreGroups: ['water'] }))
+ * // a shell that must splash on it — unchanged, so it still hits
+ * scene.pickWithRay(ray, collidable(skip))
+ * ```
+ *
+ * Additive, and it has to be: a mesh can be several things at once (a hull is
+ * `vehicle` and, to a torpedo, a `target`), and a scene with a seaplane and a
+ * submarine in it needs one sea to give two answers on the same frame. No
+ * per-element attribute can do that, which is why this is per-QUERY.
+ */
+export declare function markCollisionGroup(mesh: BABYLON.AbstractMesh, ...groups: string[]): void;
+/** The groups a mesh has been tagged with. Empty when it has none. */
+export declare function collisionGroups(mesh: BABYLON.AbstractMesh): readonly string[];
+/** Is this mesh in ANY of `groups`? */
+export declare function inCollisionGroup(mesh: BABYLON.AbstractMesh, groups: readonly string[]): boolean;
 /**
  * Vertical gap, in world units, between a node's origin and the bottom of its
  * geometry. Handy as a ground clearance so a model rests on a surface instead

@@ -1,4 +1,5 @@
 import { B3dControllable } from './b3d-controllable.js';
+import { sceneFrame } from './b3d-utils.js';
 import { CompositeInputProvider } from './control-input.js';
 import { bipedMapping, carMapping, aircraftMapping, } from './virtual-gamepad.js';
 import { gameController } from './game-controller.js';
@@ -51,7 +52,19 @@ export class B3dController extends B3dControllable {
         owner.scene.registerBeforeRender(this._update);
     }
     applyInput(input, dt) {
-        this.drive?.(input, dt);
+        /*
+        THE PACKAGE IS THE THIRD ARGUMENT, not a replacement for `dt`.
+    
+        `dt` stays exactly what it was — sim seconds — so nothing that already
+        works changes. The package is for everything a bare number made you go and
+        find: the wall clock for things that must not slow, elapsed time, whether
+        the world is paused, the frame count. Tonio: "make it easy to do the right
+        thing."
+    
+        Additive on purpose. A new field later costs consumers nothing, where a
+        widening argument list costs them a signature.
+        */
+        this.drive?.(input, dt, sceneFrame(this.owner.scene));
     }
     sceneDispose() {
         this.owner?.scene.unregisterBeforeRender(this._update);

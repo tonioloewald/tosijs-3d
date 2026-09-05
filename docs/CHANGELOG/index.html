@@ -73,6 +73,20 @@ would ever move or free. Guarded with <code>loadGeneration</code>, the mechanism
 <code>b3d-aircraft</code> already used; the retry poll stops on a stale generation too.</li>
 </ul>
 </li>
+<li><strong>Two engines on one canvas are now impossible, and a lost context says so</strong>
+(#56). Building an engine over a live one disposed nothing and failed
+silently — the first context&#39;s shader programs go invalid while every uniform
+still reads back correctly, which is why it presented as four different bugs
+(white meshes, dark sky, empty scene, half-loaded scene). It now disposes the
+old engine and warns. Separately, <code>webglcontextlost</code> is reported to the
+console and the debug ring instead of just rendering wrong.</li>
+<li><strong>A still sky never found a late sun</strong> (#55). <code>updateSky</code> writes
+<code>sunPosition</code>, <code>rayleigh</code> and <code>turbidity</code> only when a sun element&#39;s light
+exists, and the frame gate re-ran it only when <code>timeOfDay</code> moved — so
+<code>realtimeScale: 0</code>, which is what a reproducible authored scene wants, ran it
+once and came up dark about four loads in five. The default <code>realtimeScale: 10</code> hid it, because a drifting clock reopens the gate until some pass catches
+the sun. The retry is now gated on the OUTCOME rather than the clock, and
+bounded so a scene with no sun does not retry forever.</li>
 <li><strong>A flat popup could open off-screen with no way back</strong> (#57). The DOM layer
 set <code>left</code>/<code>top</code> straight from the anchor with no bounds check, so a field in
 a right-hand panel opened a keyboard 112px past the right edge — rightmost
@@ -110,6 +124,16 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</li>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><strong>Collision GROUPS</strong> — <code>markCollisionGroup(mesh, &#39;water&#39;)</code> plus
+<code>collidable(reject, { ignoreGroups: [&#39;water&#39;] })</code> (#44). The single
+<code>b3dNoCollide</code> boolean answered &quot;does anything hit this&quot;, which is one answer
+for every asker — and a sea needs two, since <em>&quot;the aircraft should not treat
+water as ground&quot;</em> and <em>&quot;shells should splash on water&quot;</em> were the same switch.
+Groups move the answer to the ASKER: the mesh says what it is, each mover says
+what it treats as solid, so one sea answers differently for a seaplane and a
+submarine on the same frame. Additive, and composes with the existing UI
+exclusion and reject hook rather than replacing either. <code>b3d-water</code> now tags
+itself <code>&#39;water&#39;</code>.</li>
 <li><strong><code>color3d</code> — a colour picker that exists in a headset</strong>, and <code>color.ts</code>, the
 pure model under it (parse/format, RGB↔HSV, <code>contrastInk</code>; no DOM, so a
 consumer can validate a document&#39;s colours headlessly). This was the one

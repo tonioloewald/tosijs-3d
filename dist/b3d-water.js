@@ -77,7 +77,7 @@ import { plane as mediumPlane } from './medium.js';
 import * as BABYLON from '@babylonjs/core';
 import { waterNormalTexture } from './water-normal.js';
 import { WaterMaterial } from '@babylonjs/materials';
-import { AbstractMesh } from './b3d-utils.js';
+import { AbstractMesh, markCollisionGroup } from './b3d-utils.js';
 import { band } from './atmosphere.js';
 export class B3dWater extends AbstractMesh {
     static preferredTagName = 'tosi-b3d-water';
@@ -200,6 +200,16 @@ export class B3dWater extends AbstractMesh {
         them tell it apart.
         */
         this.mesh.metadata = { ...(this.mesh.metadata ?? {}), b3dWater: true };
+        /*
+        Also a collision GROUP, which is the general form of the same idea.
+    
+        `b3dWater` answers "is this water" and `b3dAircraft.submersible` consults
+        it — but that pairing is aircraft-specific and hardcodes the one substance.
+        A group lets any mover say what it treats as solid, which is what a torpedo
+        (water is a ceiling) or a depth charge (water is a trigger) needs and no
+        per-element attribute on the aircraft can express. See `markCollisionGroup`.
+        */
+        markCollisionGroup(this.mesh, 'water');
         this.waterMaterial = new WaterMaterial('water', scene, new BABYLON.Vector2(attrs.textureSize, attrs.textureSize));
         this.waterMaterial.bumpTexture = attrs.normalMap
             ? // An explicit path: load it, but SAY SO if it fails. The checkerboard

@@ -100,6 +100,31 @@ export class B3dSkybox extends AbstractMesh {
     // Last timeOfDay the sky material was rendered for. The per-frame observer
     // re-runs updateSky when this drifts — see the note on _sizeToCamera.
     _lastSkyTime = NaN;
+    /*
+    DID THE SUN BRANCH ACTUALLY RUN?
+  
+    `updateSky` writes `sunPosition`, `rayleigh` and `turbidity` only when a sun
+    element's LIGHT exists, and the sun is a separate element that appears on its
+    own schedule. A first pass landing before it leaves the SkyMaterial at its
+    defaults — a dark sky that reads as night.
+  
+    `realtimeScale: 10` hides this, because the clock drifts every tick and the
+    time gate reopens until some pass catches the sun. Set `realtimeScale: 0` for
+    a reproducible scene — which an authored file wants, since it should render
+    the light it declares — and roughly four loads in five come up dark
+    (tosijs-3d-ensemble, #55).
+  
+    So the retry is gated on the OUTCOME rather than on the clock. `render()`
+    already re-runs `updateSky` when this element's own attributes change, so
+    a later sun is the only input it could not see.
+    */
+    _sunApplied = false;
+    /*
+    Bounded, because a skybox with no sun at all is a legitimate scene and must
+    not re-run this every frame forever. ~5s at 60fps is far longer than any
+    element takes to connect, and costs nothing once satisfied.
+    */
+    _sunWaitFrames = 0;
     sunEl = null;
     _horizonColor = new BABYLON.Color3(0.75, 0.85, 0.95);
     // Reused scratch + a parsed-color cache so updateSky allocates nothing per frame.
@@ -150,6 +175,9 @@ export class B3dSkybox extends AbstractMesh {
                 this.sunEl = this.owner.querySelector('tosi-b3d-sun');
             }
             const sunEl = this.sunEl;
+            // Record whether the sun-dependent writes below actually happen — the
+            // frame gate retries on this, not on the clock. See `_sunApplied`.
+            this._sunApplied = sunEl?.light != null;
             if (sunEl?.light != null) {
                 const { light } = sunEl;
                 // The skybox owns the day/night intensity cycle; tell the sun to stop
@@ -249,7 +277,10 @@ export class B3dSkybox extends AbstractMesh {
             // stays stranded — freezing the sky (the "time-of-day slider does nothing in
             // XR until you exit" bug). Driving updateSky off the frame loop, gated on a
             // timeOfDay change, keeps it live everywhere.
-            if (attrs.timeOfDay !== this._lastSkyTime) {
+            const waiting = !this._sunApplied && this._sunWaitFrames < 300;
+            if (waiting)
+                this._sunWaitFrames++;
+            if (attrs.timeOfDay !== this._lastSkyTime || waiting) {
                 this._lastSkyTime = attrs.timeOfDay;
                 this.updateSky();
             }

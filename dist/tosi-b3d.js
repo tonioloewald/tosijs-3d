@@ -414,6 +414,21 @@ export class B3d extends Component {
          */
         reseatFreeze: 'on',
         /**
+         * How fast SIM time runs against wall time. `1` is real time, `0.25` is
+         * slow motion, `0` stops the simulation while the scene keeps rendering.
+         *
+         * The gap this closes: a consumer could scale its own effect timing but not
+         * craft motion, because velocity comes from integrating the engine delta —
+         * so a "slow motion" control was a lie by omission, the explosions slowing
+         * and the aircraft not (tosijs-3d-ensemble, #41).
+         *
+         * Everything already integrating with `sceneDelta` scales for free, since
+         * that is now the SIM delta. Anything that must not slow — UI animation, a
+         * spinner, a countdown in wall seconds — reads `realDt` from the frame
+         * package instead.
+         */
+        timeScale: 1,
+        /**
          * On resume, enter immersive VR if the device supports it. This is why
          * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
          * Continue tap is one. A scene that tried to enter XR on load would be
@@ -1165,7 +1180,35 @@ export class B3d extends Component {
      * `engine.getDeltaTime()` — for anything advancing state inside a scene
   
      * observer; see the note in `_update`. */
+    /** SIM seconds since the last rendered frame — scaled, and 0 while paused. */
     frameDelta = 1 / 60;
+    _realDelta = 1 / 60;
+    _simElapsed = 0;
+    _realElapsed = 0;
+    _frameCount = 0;
+    /**
+     * Everything a per-frame callback should need, in one object.
+     *
+     * Tonio's framing: *"make it easy to do the right thing."* A bare `dt` makes
+     * you go and find the rest — which clock am I on, is the world paused, how
+     * long has this actually been running — and each caller answers it slightly
+     * differently. Handing over the package means the correct choice is the one
+     * already in your hand.
+     *
+     * Reach for `dt` unless you know why not; `realDt` is for the things that
+     * must not slow down when the world does.
+     */
+    frameInfo() {
+        return {
+            dt: this.frameDelta,
+            realDt: this._realDelta,
+            elapsed: this._simElapsed,
+            realElapsed: this._realElapsed,
+            scale: Math.max(0, Number(this.timeScale ?? 1) || 0),
+            paused: this._paused || this._frozen,
+            frame: this._frameCount,
+        };
+    }
     sceneListeners = [];
     pastAdditions = [];
     _sceneReady = false;
@@ -1443,6 +1486,10 @@ export class B3d extends Component {
                     this.scene.metadata = {};
                 this.scene.metadata.b3dFrameDelta = 0;
                 this.frameDelta = 0;
+                // A paused frame still RENDERS, so the package must be present and
+                // honest rather than stale: sim stopped, wall clock still running.
+                this._realDelta = 0;
+                this.scene.metadata.b3dFrame = this.frameInfo();
                 /*
                 FOG STILL HAS TO BE RIGHT WHILE STOPPED (adopter issue #31).
         
@@ -1487,15 +1534,33 @@ export class B3d extends Component {
                 // QUARTER (measured 2026-08-11 — dropped bombs inherited half the
                 // aircraft's velocity and sagged behind). jolt-plugin hit this and
                 // worked around it locally; this is the shared fix.
-                this.frameDelta =
-                    this.lastRender > 0
-                        ? Math.min((now - this.lastRender) / 1000, 0.1)
-                        : 1 / (this.frameRate || 60);
+                const realDt = this.lastRender > 0
+                    ? Math.min((now - this.lastRender) / 1000, 0.1)
+                    : 1 / (this.frameRate || 60);
+                /*
+                TWO CLOCKS, and the DEFAULT one is the scalable one.
+        
+                `frameDelta` / `sceneDelta` are SIM seconds, so everything already
+                integrating with them honours `timeScale` and pause without changing a
+                line. That direction is deliberate: the common case is motion that
+                should slow down when the world slows down, so the obvious name gives
+                the right clock and the exceptions have to ask.
+        
+                `realDt` is the wall-clock escape hatch, for the things that must NOT
+                slow — a spinner, a UI tween, a countdown in real seconds.
+                */
+                const scale = Math.max(0, Number(this.timeScale ?? 1) || 0);
+                this.frameDelta = realDt * scale;
+                this._realDelta = realDt;
+                this._simElapsed += this.frameDelta;
+                this._realElapsed += realDt;
+                this._frameCount++;
                 // Also published on the scene so owner-less helpers (explosionFx,
                 // spawnProjectile, the exploder) can read it via `sceneDelta`.
                 if (this.scene.metadata == null)
                     this.scene.metadata = {};
                 this.scene.metadata.b3dFrameDelta = this.frameDelta;
+                this.scene.metadata.b3dFrame = this.frameInfo();
                 this.lastRender = now;
                 if (this.scene.activeCamera !== undefined) {
                     this.scene.render();
@@ -2512,6 +2577,29 @@ export class B3d extends Component {
         // on the host so overlay interaction counts; pointerdown bubbles from any child.
         this.addEventListener('pointerenter', () => this.takeInputFocus());
         this.addEventListener('pointerdown', () => this.takeInputFocus());
+        /*
+        NEVER TWO ENGINES ON ONE CANVAS.
+    
+        Building a second WebGL context over a live one does not fail loudly: the
+        first context's shader PROGRAMS become invalid while every uniform still
+        reads back correctly, so the symptoms are meshes rendering white, a dark
+        sky, or a half-loaded scene — four different-looking failures with one
+        cause. tosijs-3d-ensemble measured exactly that (#56): correct sky uniforms
+        alongside `gl.isProgram(program) === false`, `gl.getError() === 1282`, and
+        two `webgl2` contexts created 207ms apart on a single load.
+    
+        `connectedCallback` should not reach here twice — a disconnect always
+        schedules the teardown that a same-task reconnect cancels (#58) — but
+        "should not" is what the old code relied on, and this failure is invisible
+        until someone reads it off the GL context. Cheap to make impossible.
+        */
+        if (this.engine != null) {
+            console.warn('b3d: an engine already exists on this element; disposing it before ' +
+                'building another. A second WebGL context silently invalidates the ' +
+                "first one's shader programs — white meshes, dark sky, or a " +
+                'half-loaded scene.');
+            this._teardown();
+        }
         this.engine = new BABYLON.Engine(cnv, true, {
             preserveDrawingBuffer: true,
             stencil: true,
@@ -2519,6 +2607,30 @@ export class B3d extends Component {
             // defaulted it on). Without this, `new BABYLON.Sound()` silently
             // no-ops — it never even fetches the file. b3d-sound depends on it.
             audioEngine: true,
+        });
+        /*
+        SAY SO WHEN THE CONTEXT GOES.
+    
+        A lost WebGL context is the other way to get white meshes and a dark sky
+        with every uniform still reading back correctly, and it is silent by
+        default — the page simply renders wrong. Chrome caps contexts near 16 per
+        page and force-loses the OLDEST, so an SPA that leaks engines takes out the
+        scene you are currently looking at rather than the one that leaked.
+    
+        Naming it costs two listeners and turns an afternoon of bisecting into a
+        line in the console and the debug ring — which is the only readout that
+        exists inside a headset.
+        */
+        cnv.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault(); // allows a restore; without this it is permanent
+            console.warn('b3d: WebGL context LOST. Meshes may render white or the sky dark. ' +
+                'Usually too many live contexts on one page (browsers cap ~16 and ' +
+                'drop the oldest) — check for scenes that were never disposed.');
+            this.logDebug('gl', { event: 'context-lost' });
+        });
+        cnv.addEventListener('webglcontextrestored', () => {
+            console.warn('b3d: WebGL context restored.');
+            this.logDebug('gl', { event: 'context-restored' });
         });
         this.scene = new BABYLON.Scene(this.engine);
         this.scene.collisionsEnabled = true;

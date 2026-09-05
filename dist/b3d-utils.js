@@ -71,6 +71,33 @@ export const sceneDelta = (scene) => {
         return published;
     return Math.min(0.1, (scene.getEngine().getDeltaTime() || 16) / 1000);
 };
+/**
+ * The whole per-frame package for a scene, for code with no `owner` to ask.
+ *
+ * `sceneDelta` answers "how much time passed" and every caller then has to
+ * work out the rest for itself — which clock, is it paused, how long has this
+ * been going. This hands over all of it, so the right choice is the one
+ * already in your hand.
+ *
+ * Falls back to a sane package for scenes `<tosi-b3d>` does not drive (tests,
+ * standalone Babylon), where `dt` and `realDt` are simply the same number.
+ */
+export const sceneFrame = (scene) => {
+    const published = scene.metadata
+        ?.b3dFrame;
+    if (published != null)
+        return published;
+    const dt = sceneDelta(scene);
+    return {
+        dt,
+        realDt: dt,
+        elapsed: 0,
+        realElapsed: 0,
+        scale: 1,
+        paused: dt === 0,
+        frame: 0,
+    };
+};
 export const conventionName = (name) => name.split('.model').join('');
 /**
  * The BEHAVIOUR suffixes, longest-first so `_collideMesh` is matched before
@@ -260,8 +287,65 @@ export function isNoCollide(mesh) {
  * `reject` is for the caller's OWN business — self-exclusion, `__root__`, water
  * for a submersible — never for the shared rules above.
  */
-export function collidable(reject) {
-    return (m) => m.isPickable && m.isEnabled() && !isNoCollide(m) && !(reject?.(m) ?? false);
+export function collidable(reject, opts = {}) {
+    const ignore = opts.ignoreGroups;
+    return (m) => m.isPickable &&
+        m.isEnabled() &&
+        !isNoCollide(m) &&
+        !(ignore != null && inCollisionGroup(m, ignore)) &&
+        !(reject?.(m) ?? false);
+}
+/**
+ * Tag a mesh as belonging to one or more collision GROUPS.
+ *
+ * The single `b3dNoCollide` boolean answers "does anything hit this", which is
+ * one answer for every asker — and a sea needs two. tosijs-3d-ensemble put it
+ * exactly: *"the aircraft should not treat water as ground" and "shells should
+ * splash on water" are the same switch*, so a flying submarine had to choose
+ * between crashing on the surface and having ordnance that passes through it
+ * invisibly (#44). Their workaround was clearing `isPickable` on the sea, which
+ * buys the first and loses the second for every consumer of the predicate.
+ *
+ * Groups move the answer to the ASKER. The mesh says what it is; each mover
+ * says what it treats as solid:
+ *
+ * ```js
+ * markCollisionGroup(waterMesh, 'water')
+ *
+ * // an aircraft that must not land on the sea
+ * scene.pickWithRay(ray, collidable(skip, { ignoreGroups: ['water'] }))
+ * // a shell that must splash on it — unchanged, so it still hits
+ * scene.pickWithRay(ray, collidable(skip))
+ * ```
+ *
+ * Additive, and it has to be: a mesh can be several things at once (a hull is
+ * `vehicle` and, to a torpedo, a `target`), and a scene with a seaplane and a
+ * submarine in it needs one sea to give two answers on the same frame. No
+ * per-element attribute can do that, which is why this is per-QUERY.
+ */
+export function markCollisionGroup(mesh, ...groups) {
+    const meta = (mesh.metadata ?? {});
+    const have = new Set(meta.b3dGroups ?? []);
+    for (const g of groups)
+        if (g !== '')
+            have.add(g);
+    mesh.metadata = { ...meta, b3dGroups: [...have] };
+}
+/** The groups a mesh has been tagged with. Empty when it has none. */
+export function collisionGroups(mesh) {
+    return (mesh.metadata?.b3dGroups ??
+        EMPTY_GROUPS);
+}
+const EMPTY_GROUPS = [];
+/** Is this mesh in ANY of `groups`? */
+export function inCollisionGroup(mesh, groups) {
+    const mine = collisionGroups(mesh);
+    if (mine.length === 0)
+        return false;
+    for (const g of groups)
+        if (mine.includes(g))
+            return true;
+    return false;
 }
 /**
  * Vertical gap, in world units, between a node's origin and the bottom of its

@@ -31,6 +31,8 @@ export declare class B3dSkybox extends AbstractMesh {
     private interval;
     private _sizeToCamera;
     private _lastSkyTime;
+    private _sunApplied;
+    private _sunWaitFrames;
     private sunEl;
     private _horizonColor;
     private _sunVec;

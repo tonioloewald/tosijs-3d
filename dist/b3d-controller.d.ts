@@ -1,6 +1,6 @@
 import * as BABYLON from '@babylonjs/core';
 import { B3dControllable } from './b3d-controllable.js';
-import type { B3d } from './tosi-b3d.js';
+import type { B3d, FrameInfo } from './tosi-b3d.js';
 import { type ControlInput } from './control-input.js';
 import { MappedInputProvider } from './virtual-gamepad.js';
 export declare class B3dController extends B3dControllable {
@@ -27,7 +27,7 @@ export declare class B3dController extends B3dControllable {
      * DOM event listeners, so an `onInput` prop would silently become an `input`-event
      * handler and never be called here.
      */
-    drive: ((input: ControlInput, dt: number) => void) | null;
+    drive: ((input: ControlInput, dt: number, frame: FrameInfo) => void) | null;
     /** The merged input provider — exposed so the XR rig can add its controller source. */
     inputMappedProvider: MappedInputProvider | null;
     private _gc;

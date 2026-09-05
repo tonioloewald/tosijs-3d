@@ -1,6 +1,6 @@
 export { B3d, b3d, showB3dStats } from './tosi-b3d.js';
 export * as BABYLON from '@babylonjs/core';
-export type { SceneAdditions, SceneAdditionHandler, DebugPanelSource, } from './tosi-b3d.js';
+export type { SceneAdditions, SceneAdditionHandler, DebugPanelSource, FrameInfo, } from './tosi-b3d.js';
 export { B3dProbe, b3dProbe, runProbe } from './b3d-probe.js';
 export { getPerfProfile, setPerfProfile, setQuality, getQuality, effectiveTier, qualityBudgets, resolveBudget, onQualityChange, } from './b3d-quality.js';
 export type { QualitySetting, NumericBudgetKey } from './b3d-quality.js';
@@ -13,7 +13,7 @@ export { proximityRung, rungNominal, routePortals, containmentPath, } from './wo
 export { runMinSimConformance } from './min-sim-conformance.js';
 export type { ConformanceHarness, TickableMinSim, } from './min-sim-conformance.js';
 export type { WorldState, WorldEntity, EntityComponents, HealthComponent, InventoryEntry, FactionComponent, InteractableComponent, EntityId, EntityKind, EntityIntent, Behavior, Zone, ZoneId, SpawnSpec, SimulationEvent, EventHandler, Unsubscribe, WorldApi, PlaceId, PortalId, ChoiceId, Shape, Proximity, PlaceKind, Place, Portal, PlacedEntity, Anchor, SteerTarget, Choice, SchematicView, MinSimApi, } from './world-contract.js';
-export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, markUiMesh, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
+export { findB3dOwner, B3dChild, AbstractMesh, buildAxes, isOff, actualMeshes, enterXR, applyMaterialConventions, publicName, isIgnored, placeOnSurface, boundingBottomOffset, sceneDelta, sceneFrame, markUiMesh, markCollisionGroup, collisionGroups, inCollisionGroup, isNoCollide, collidable, cameraIsAttached, semanticParent, conventionName, simHalted, controlsLive, } from './b3d-utils.js';
 export type { XRStuff, XRParams, SimGateOwner } from './b3d-utils.js';
 export { regime, flyByWireStep, targetVelocity, chaseVelocity, equilibriumSpeed, } from './fly-by-wire.js';
 export type { FlyByWireConfig, FlyByWireCommand, FlyByWireState, } from './fly-by-wire.js';
