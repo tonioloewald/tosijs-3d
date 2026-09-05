@@ -51,6 +51,76 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
+<h2>0.8.1 (unreleased)</h2>
+<h3>Fixed</h3>
+<ul>
+<li><strong><code>b3d-destroyable</code> could not place a library piece properly</strong> — three
+reports from <code>tosijs-3d-ensemble</code> against one function, and one bug family:
+the async load treated its callback as if nothing could change underneath it.<ul>
+<li><strong>Rotation was dropped</strong> (#48). Only x/y/z reached <code>instantiate</code>. It looks
+like it should not matter, since <code>AbstractMesh.render()</code> syncs <code>rx/ry/rz</code> —
+but that is a COMPONENT render, and it had already run by the time the
+async callback assigned <code>this.mesh</code>. Position applied, rotation did not.
+Now forwarded, and the transform is re-synced once the node exists.</li>
+<li><strong>No scale</strong> (#47). <code>size</code> is the placeholder cube&#39;s edge length and does
+nothing once <code>library</code> is set, so a placed model could not be resized at
+all — ensemble measured a piece at 5.273 units for <code>scale</code> 1, 2 and 4
+alike. New <code>scale</code> attribute, uniform, applied to the instance root.</li>
+<li><strong>A removed element orphaned its node permanently</strong> (#49). Remove it inside
+the load window and the disconnect handler found nothing to dispose, then
+the pending callback built a node owned by no element — a ghost nothing
+would ever move or free. Guarded with <code>loadGeneration</code>, the mechanism
+<code>b3d-aircraft</code> already used; the retry poll stops on a stale generation too.</li>
+</ul>
+</li>
+<li><strong>A flat popup could open off-screen with no way back</strong> (#57). The DOM layer
+set <code>left</code>/<code>top</code> straight from the anchor with no bounds check, so a field in
+a right-hand panel opened a keyboard 112px past the right edge — rightmost
+column of keys unreachable, and unrecoverable, because the move/close chrome
+is drawn by picking and picking exists only in the scene. It now places
+through <code>placePopup</code>, the same pure flip/clamp the in-scene presentation
+uses, <strong>and the holder can be dragged</strong> — which is the better fix, since only
+the person typing knows what the popup is covering. A press that lands on a
+widget still belongs to the widget, or you could never type.</li>
+<li><strong><code>chaseDistance</code> / <code>chaseHeight</code> / <code>chaseMinHeight</code> / <code>hudSize</code> accepted a
+write and did nothing</strong> (#43). All four were consumed when the rig and HUD
+plane were built and never read again, so a settings slider bound to any of
+them read back correctly and moved nothing — ensemble measured bit-identical
+framing across a 3× change. Worse than an ordinary no-op because
+<code>chasePitchFollow</code> on the same element IS live, so the element looked
+responsive and only some of it was. The chase geometry now comes from one
+path used at build AND every frame; the HUD remounts when its geometry
+changes, instead of latching on a boolean.</li>
+<li><strong><code>select3d</code> looked like a cycler</strong> (#37). It has opened a popup list all
+along — nothing said so, so a consumer counted 23 taps to reach the 24th
+option. It now draws a downward chevron, the whole control opens the list,
+and the arrows are gone. Stepping survives only where a panel gives no host
+and a menu is impossible.</li>
+<li><strong>An icon name colliding with <code>Object.prototype</code> threw</strong> rather than falling
+back — <code>iconGlyph(&#39;constructor&#39;)</code> and friends. 0.8.0 was the first release
+where table DATA becomes an icon name, with no <code>catch</code> in the repaint path.
+Fixed at all three unsafe sites, including <code>registerIcons</code>, where <code>__proto__</code>
+was an assignment that would have corrupted the map rather than failing.</li>
+<li><strong><code>spinner3d</code> leaked into a module-global ticker.</strong> <code>Widget3d</code> gained
+<code>dispose?()</code>, and <code>B3d</code> releases the widget set it replaces on each repaint.
+Reaping by <code>el.isConnected</code> would have been wrong: an in-scene panel&#39;s SVG is
+never attached, so a visible VR spinner would have been culled.</li>
+<li>Panels size to their content, the in-scene icon bar is pinned, and the theme
+editor no longer follows you between demos (from the 0.8.0 headset pass).</li>
+</ul>
+<h3>Added</h3>
+<ul>
+<li><strong><code>color3d</code> — a colour picker that exists in a headset</strong>, and <code>color.ts</code>, the
+pure model under it (parse/format, RGB↔HSV, <code>contrastInk</code>; no DOM, so a
+consumer can validate a document&#39;s colours headlessly). This was the one
+control the SVG UI did not have: the only two ways to pick a colour were
+<code>&lt;input type=&quot;color&quot;&gt;</code> (which cannot express alpha) or a consumer injecting
+one, and <strong>neither exists in an immersive session</strong> — so the theme editor, of
+all things, had no colour control in the presentation this library is for.</li>
+<li><strong>Colour icons for scene concepts</strong> — <code>sky</code>, <code>sun</code>, <code>water</code>, <code>terrain</code>,
+<code>fog</code>, <code>mesh</code>, <code>decor</code> (#64). Unlike the stroked/filled sets these carry
+literal colours and no <code>currentColor</code>, so they do not follow the theme.</li>
+</ul>
 <h2>0.8.0</h2>
 <p>Lights, editors, and the schema surface <code>tosijs-3d-ensemble</code> asked for — plus
 the two renames that were waiting for a minor.</p>
@@ -2911,6 +2981,8 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
       <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
       <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>

@@ -32,6 +32,18 @@ export declare class B3dDestroyable extends AbstractMesh {
          */
         destroyable: "on" | "off";
         size: number;
+        /**
+         * Uniform scale for a **library-backed** piece — the lever `size` is not.
+         *
+         * `size` is the placeholder cube's edge length and does nothing once
+         * `library` is set, which left a placed model with no way to be resized at
+         * all: ensemble measured a piece rendering at 5.273 units for
+         * `scale` 1, 2 and 4 alike, the value going in and nothing coming out
+         * (#47). Kept as a separate attribute rather than overloading `size`,
+         * because a cube's edge length and a model's multiplier are different
+         * quantities and one of them is already documented.
+         */
+        scale: number;
         color: string;
         capacity: number;
         armor: number;
@@ -60,6 +72,7 @@ export declare class B3dDestroyable extends AbstractMesh {
     meshName: string;
     destroyable: 'on' | 'off';
     size: number;
+    scale: number;
     color: string;
     capacity: number;
     armor: number;
@@ -120,6 +133,16 @@ export declare class B3dDestroyable extends AbstractMesh {
      * combat ids, which only exist once those elements have mounted.
      */
     setChain(links: ChainLink[]): void;
+    /**
+     * Push `scale` onto the instantiated node.
+     *
+     * A library instance's root is a `TransformNode`, so scaling it scales the
+     * whole model — which is what a placed piece means by scale. Uniform on
+     * purpose: a non-uniform scale on an arbitrary model is a modelling
+     * decision, not a placement one, and it breaks normals.
+     */
+    private _applyScale;
+    render(): void;
     sceneDispose(): void;
 }
 export declare const b3dDestroyable: import("tosijs").ElementCreator<B3dDestroyable>;

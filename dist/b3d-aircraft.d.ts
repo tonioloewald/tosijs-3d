@@ -137,7 +137,7 @@ export declare class B3dAircraft extends B3dControllable {
     reticle: string;
     reticleRange: number;
     private _hud;
-    private _hudMounted;
+    private _hudMountKey;
     private _radar;
     private _reticleMesh;
     private meshNode;
@@ -157,6 +157,17 @@ export declare class B3dAircraft extends B3dControllable {
      */
     private _chaseAnchor;
     private _chaseLookPitch;
+    /**
+     * Push `chaseDistance` / `chaseMinHeight` onto the rig.
+     *
+     * ONE path, used at build and again every frame, so the two cannot disagree
+     * — the previous split (build reads the fields, the frame loop reads a
+     * cached pitch) is exactly how they came to be write-only.
+     *
+     * The look angle is `atan2(minHeight, distance)`, so scaling both together
+     * backs the camera off along the same sight line instead of tilting it.
+     */
+    private _applyChaseGeometry;
     /** Damped airframe pitch the chase has actually inherited (see
      * `chasePitchFollow`) — smoothed, never the raw attitude. */
     private _chaseFollowPitch;

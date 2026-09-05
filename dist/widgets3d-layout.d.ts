@@ -129,6 +129,23 @@ export declare function measureTextWidth(text: string, font: FontSpec): number;
 export type SliderScale = 'linear' | 'log' | 'log2';
 export declare function valueToFraction(value: number, min: number, max: number, scale?: SliderScale, zeroStop?: boolean): number;
 /**
+ * Digits a log slider keeps. SIGNIFICANT digits, not decimal places.
+ *
+ * Tonio asked for "a precision value, default four decimal places". Four
+ * DECIMALS is the wrong unit for the one control this matters on: a log slider
+ * exists to span decades, and `grossScale` runs down to 0.0001. Rounding to
+ * four decimals turns 0.0001234 into 0.0001 and anything smaller into zero —
+ * destroying exactly the end of the range the log scale was added to reach.
+ *
+ * Four SIGNIFICANT digits gives what was actually wanted — 0.015 rather than
+ * 0.014999999999999999, 4000 rather than 3999.9999999996 — and stays correct
+ * at both ends, since 0.0001234 keeps its four digits.
+ *
+ * Log paths only. A linear slider's resolution is already the consumer's to
+ * state, through `step` and `snap`.
+ */
+export declare const DEFAULT_SLIDER_PRECISION = 4;
+/**
  * Inverse of valueToFraction, snapped to `step` (0 = continuous).
  *
  * On a LOG scale `step` is in **decades**, not in units — a step of 1 gives you
@@ -136,7 +153,7 @@ export declare function valueToFraction(value: number, min: number, max: number,
  * meaningless here, since a fixed increment is enormous at one end of the range
  * and invisible at the other, which is the problem the log scale exists to fix.
  */
-export declare function fractionToValue(fraction: number, min: number, max: number, step?: number, scale?: SliderScale, snap?: number, zeroStop?: boolean): number;
+export declare function fractionToValue(fraction: number, min: number, max: number, step?: number, scale?: SliderScale, snap?: number, zeroStop?: boolean, precision?: number): number;
 /**
  * How wide a camera-relative panel may be, in world units, to stay on screen.
  *

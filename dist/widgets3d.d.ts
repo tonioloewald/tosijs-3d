@@ -89,6 +89,20 @@ export interface Widget3d {
      * that lets a control open a popup without the consumer wiring it up.
      */
     setHost?(host: WidgetHost): void;
+    /**
+     * Release anything that outlives the element — a timer, an observer, a
+     * registration in a shared pool.
+     *
+     * Called by whoever BUILT the widget list, when that list is replaced. Most
+     * widgets need nothing; a widget that animates does, because its element
+     * going out of the tree does not stop a timer holding a reference to it.
+     *
+     * It has to live on the interface rather than on the one widget that needs
+     * it: `B3d` rebuilds its panel rows on every repaint and cannot know which
+     * of a consumer's widgets registered something. Without a name it can call,
+     * it leaks whatever it was handed.
+     */
+    dispose?(): void;
 }
 /**
  * Mounts an unbounded layer over a panel. Installed by whatever owns the panel's
@@ -388,6 +402,21 @@ export declare function slider3d(config: {
      * approaching it asymptotically.
      */
     zeroStop?: boolean;
+    /**
+     * SIGNIFICANT digits kept on a log track. Default 4.
+     *
+     * Exponentiating a float leaves noise — a handle that looks like it is on
+     * 0.015 produces 0.014999999999999999, which is harmless on screen and not
+     * harmless in a document a consumer serialises and diffs.
+     *
+     * Significant digits rather than decimal places, because this is the control
+     * that spans decades: four DECIMALS would round 0.0001234 to 0.0001 and
+     * anything smaller to zero, destroying the end of the range a log scale is
+     * there to reach. Four significant digits keeps 0.0001234 whole.
+     *
+     * Ignored on a linear track, where `step` and `snap` already say it.
+     */
+    precision?: number;
     /** Fired as the value changes. */
     handleChange?: (v: number) => void;
     /** @deprecated use `handleChange` — removed in 0.9. */

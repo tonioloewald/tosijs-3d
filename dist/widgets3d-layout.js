@@ -298,6 +298,30 @@ export function valueToFraction(value, min, max, scale = 'linear', zeroStop = fa
     return Math.min(1, Math.max(0, (value - min) / (max - min)));
 }
 /**
+ * Digits a log slider keeps. SIGNIFICANT digits, not decimal places.
+ *
+ * Tonio asked for "a precision value, default four decimal places". Four
+ * DECIMALS is the wrong unit for the one control this matters on: a log slider
+ * exists to span decades, and `grossScale` runs down to 0.0001. Rounding to
+ * four decimals turns 0.0001234 into 0.0001 and anything smaller into zero —
+ * destroying exactly the end of the range the log scale was added to reach.
+ *
+ * Four SIGNIFICANT digits gives what was actually wanted — 0.015 rather than
+ * 0.014999999999999999, 4000 rather than 3999.9999999996 — and stays correct
+ * at both ends, since 0.0001234 keeps its four digits.
+ *
+ * Log paths only. A linear slider's resolution is already the consumer's to
+ * state, through `step` and `snap`.
+ */
+export const DEFAULT_SLIDER_PRECISION = 4;
+/** Round to N significant digits, leaving 0 and non-finite values alone. */
+function roundTo(v, digits) {
+    if (!Number.isFinite(v) || v === 0)
+        return v;
+    const d = Math.max(1, Math.min(21, Math.round(digits)));
+    return Number(v.toPrecision(d));
+}
+/**
  * Inverse of valueToFraction, snapped to `step` (0 = continuous).
  *
  * On a LOG scale `step` is in **decades**, not in units — a step of 1 gives you
@@ -305,11 +329,11 @@ export function valueToFraction(value, min, max, scale = 'linear', zeroStop = fa
  * meaningless here, since a fixed increment is enormous at one end of the range
  * and invisible at the other, which is the problem the log scale exists to fix.
  */
-export function fractionToValue(fraction, min, max, step = 0, scale = 'linear', snap = 0, zeroStop = false) {
+export function fractionToValue(fraction, min, max, step = 0, scale = 'linear', snap = 0, zeroStop = false, precision = DEFAULT_SLIDER_PRECISION) {
     const clamped = Math.min(1, Math.max(0, fraction));
     let out;
     if (zeroStop && useLog(scale, min, max)) {
-        out = withZeroStop.toValue(clamped, min, max, scale);
+        out = roundTo(withZeroStop.toValue(clamped, min, max, scale), precision);
         // Zero is exact and must survive `snap`: rounding it to a multiple would
         // move the OFF position, which is the one value this exists to reach.
         if (out === 0)
@@ -333,7 +357,7 @@ export function fractionToValue(fraction, min, max, step = 0, scale = 'linear', 
         different runs. Twelve significant digits is far beyond any control's
         resolution and lands exactly on the round numbers a log scale is made of.
         */
-        out = Number((b ** Math.min(hi, Math.max(lo, e))).toPrecision(12));
+        out = roundTo(b ** Math.min(hi, Math.max(lo, e)), precision);
     }
     else {
         out = min + clamped * (max - min);

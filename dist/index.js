@@ -125,6 +125,9 @@ export { B3dAircraft, b3dAircraft } from './b3d-aircraft.js';
 // still works and warns once. Exported so an adopter's own widgets can follow
 // the same rule rather than re-implementing it.
 export { handlerOf, resetHandlerWarnings } from './handler-of.js';
+// Colour — the pure model (headless-safe) and the picker over it.
+export { parseColor, formatColor, rgbToHsv, hsvToRgb, wrapHue, luminance, contrastInk, } from './color.js';
+export { color3d } from './color-field.js';
 // SVG widgets (DOM-overlay or in-scene panels)
 export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 // Curve editing — the pure model, and the `curve3d` widget over it. A province

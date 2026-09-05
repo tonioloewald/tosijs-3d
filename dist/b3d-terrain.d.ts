@@ -206,6 +206,26 @@ export declare class B3dTerrain extends B3dChild {
      * (tosijs-3d#11).
      */
     get busy(): boolean;
+    /**
+     * `reach`, clamped to something the tab can survive.
+     *
+     * Finest-level tiles go as `(2·reach / tileSize)²`, and the two are separate
+     * controls, so it is their PRODUCT that bites — `reach` 5000 at `tileSize` 10
+     * is a million tiles. tosijs-3d-ensemble put a slider on `reach` and reported
+     * the obvious consequence: "reach is bizarre and can kill the tab" (#66).
+     *
+     * They capped it at 400 m as a guess, and said exactly why that is the wrong
+     * place for it: **a JSON Schema cannot say "…unless tileSize is small."** The
+     * element knows both numbers. So the element clamps, and says so once —
+     * rather than every consumer inventing a different guess and still being
+     * wrong for some tileSize.
+     *
+     * A clamp rather than a refusal: a terrain that draws a smaller world is
+     * recoverable and visibly odd, where one that refuses to draw looks broken
+     * and reads as a different bug entirely.
+     */
+    private _budgetedReach;
+    private _warnedReach;
     private coarsestTileSize;
     /** Build the quadtree config from attributes + a facing/travel interest. */
     private buildConfig;

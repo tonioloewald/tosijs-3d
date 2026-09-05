@@ -220,7 +220,22 @@ function resolveToMarkup(data, name) {
         icons were missing; they were one space away from working. Reported from
         ensemble as "the icon language isn't working" (tosijs-3d#54).
         */
-        const entry = data[cur]?.trim();
+        /*
+        OWN KEYS ONLY — `?.` guards null, not the PROTOTYPE CHAIN.
+    
+        `data` is a plain object, so `data['constructor']` returns a Function and
+        `data['toString']` a method; `?.trim()` then throws
+        `TypeError: data[cur]?.trim is not a function` rather than falling back.
+        Same for `valueOf`, `hasOwnProperty` and `__proto__`.
+    
+        Reachable from DATA since 0.8.0: `table` renders an icon column by calling
+        `iconGlyph(String(row[c.key]))`, so a row whose cell says "constructor"
+        throws inside the body build — and there is no `catch` in the repaint path,
+        so scrolling that row into view kills the table, in a VR panel with no
+        console. A name is a lookup key, never an instruction.
+        */
+        const raw = Object.hasOwn(data, cur) ? data[cur] : undefined;
+        const entry = typeof raw === 'string' ? raw.trim() : undefined;
         if (entry && entry.startsWith('<'))
             return { spec: entry, style };
         // A trailing suffix run? Peel it off (base may itself be a redirect).
@@ -354,7 +369,12 @@ export function createSvgIcons(data = iconData, aliases = iconAliases) {
 }
 /** Names of the icons with real artwork (excludes pure redirect entries). */
 export function iconNames(data = DEFAULT_MAP) {
-    return Object.keys(data).filter((name) => data[name].startsWith('<'));
+    return Object.keys(data).filter((name) => {
+        // `Object.keys` is own-keys already; the type guard is for a map built by
+        // a consumer whose values are not all strings.
+        const v = data[name];
+        return typeof v === 'string' && v.startsWith('<');
+    });
 }
 /*
 The default resolution map: generated icon-data with aliases layered under it,
@@ -398,7 +418,18 @@ export function registerIcons(icons) {
     for (const [name, value] of Object.entries(icons)) {
         if (typeof value !== 'string' || value.trim() === '')
             continue;
-        DEFAULT_MAP[name] = value.trim();
+        /*
+        `__proto__` is an ASSIGNMENT, not a key — it would set the map's prototype
+        instead of storing an icon, corrupting every later lookup rather than
+        failing. Define the property instead, so a hostile name is stored as data
+        like any other.
+        */
+        Object.defineProperty(DEFAULT_MAP, name, {
+            value: value.trim(),
+            writable: true,
+            enumerable: true,
+            configurable: true,
+        });
     }
 }
 /** Is this a name a consumer registered, rather than one we shipped? */

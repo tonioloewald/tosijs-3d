@@ -345,6 +345,14 @@ const emptyTileProfile = () => ({
     worstFrameSaturated: false,
     frameTimeCapped: false,
 });
+/**
+ * Widest the finest LOD may get, in tiles across.
+ *
+ * 256² = 65,536 tiles is already generous — the reported tab-killer was a
+ * million. Not an attribute: it is a survival limit, and a knob for it would
+ * just be the same footgun with an extra step.
+ */
+const MAX_TILES_ACROSS = 256;
 export class B3dTerrain extends B3dChild {
     static preferredTagName = 'tosi-b3d-terrain';
     static shadowStyleSpec = {
@@ -881,6 +889,45 @@ export class B3dTerrain extends B3dChild {
     get busy() {
         return this._fillBacklog > 0;
     }
+    /**
+     * `reach`, clamped to something the tab can survive.
+     *
+     * Finest-level tiles go as `(2·reach / tileSize)²`, and the two are separate
+     * controls, so it is their PRODUCT that bites — `reach` 5000 at `tileSize` 10
+     * is a million tiles. tosijs-3d-ensemble put a slider on `reach` and reported
+     * the obvious consequence: "reach is bizarre and can kill the tab" (#66).
+     *
+     * They capped it at 400 m as a guess, and said exactly why that is the wrong
+     * place for it: **a JSON Schema cannot say "…unless tileSize is small."** The
+     * element knows both numbers. So the element clamps, and says so once —
+     * rather than every consumer inventing a different guess and still being
+     * wrong for some tileSize.
+     *
+     * A clamp rather than a refusal: a terrain that draws a smaller world is
+     * recoverable and visibly odd, where one that refuses to draw looks broken
+     * and reads as a different bug entirely.
+     */
+    _budgetedReach(baseTileSize) {
+        const attrs = this;
+        const asked = attrs.reach > 0
+            ? attrs.reach
+            : this.coarsestTileSize() * (attrs.splitFactor + 1.5);
+        const tile = baseTileSize > 0 ? baseTileSize : 1;
+        // Across, not area: the limit people reason about is "how many tiles wide".
+        const across = (2 * asked) / tile;
+        if (across <= MAX_TILES_ACROSS)
+            return asked;
+        const capped = (MAX_TILES_ACROSS * tile) / 2;
+        if (!this._warnedReach) {
+            this._warnedReach = true;
+            console.warn(`b3d-terrain: reach ${Math.round(asked)} at tileSize ${tile} wants ` +
+                `${Math.round(across * across).toLocaleString()} finest tiles — ` +
+                `clamped to reach ${Math.round(capped)} (${MAX_TILES_ACROSS}² tiles). ` +
+                `Raise tileSize to reach further.`);
+        }
+        return capped;
+    }
+    _warnedReach = false;
     coarsestTileSize() {
         const attrs = this;
         const hs = attrs.horizScale || 1;
@@ -891,9 +938,7 @@ export class B3dTerrain extends B3dChild {
         const attrs = this;
         const hs = attrs.horizScale || 1;
         const baseTileSize = attrs.tileSize * hs;
-        const reach = attrs.reach > 0
-            ? attrs.reach
-            : this.coarsestTileSize() * (attrs.splitFactor + 1.5);
+        const reach = this._budgetedReach(baseTileSize);
         // Interest = where you're looking blended with where you're going. Beyond the
         // omni ring, cells that way outrank cells behind, so the pool reaches further
         // ahead. Facing from the camera forward; travel from this frame's motion.

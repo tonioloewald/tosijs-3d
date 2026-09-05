@@ -765,6 +765,8 @@ export declare class B3d extends Component {
      * standard panel is a waste of space" (Tonio).
      */
     private _barItems;
+    private _disposeWidgets;
+    private _builtWidgets;
     private _panelWidgets;
     private _installXrRafPump;
     connectedCallback(): void;

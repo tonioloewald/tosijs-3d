@@ -430,7 +430,7 @@ texture (the page's live CSS doesn't cascade into a serialized SVG, so live
 /*{ "parent": "UI", "order": 100 }*/
 import { svgElements, StyleSheet } from 'tosijs';
 import { placePopup } from './flow-layout.js';
-import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, measureTextWidth, } from './widgets3d-layout.js';
+import { alignOffset, panelFit, panelHeight, rowColumns, stackLayout, clampScroll, measureTextWrap, valueToFraction, fractionToValue, DEFAULT_SLIDER_PRECISION, measureTextWidth, } from './widgets3d-layout.js';
 import { handlerOf, resetHandlerWarnings } from './handler-of.js';
 import { w3dTheme } from './w3d-theme.js';
 import { iconGlyph } from './svg-icons.js';
@@ -1069,6 +1069,7 @@ export function slider3d(config) {
     const scale = config.scale ?? 'linear';
     const snap = config.snap ?? 0;
     const zeroStop = config.zeroStop ?? false;
+    const precision = config.precision ?? DEFAULT_SLIDER_PRECISION;
     const bound = boundValue(config.value, handlerOf(config, 'handleChange', 'onChange'));
     const lbl = config.label ? baseText(config.label) : null;
     if (lbl) {
@@ -1177,7 +1178,7 @@ export function slider3d(config) {
     // x is the widget-local SVG x — no CTM/clientX, so this works in-scene/VR too.
     const setFromX = (x) => {
         const f = (x - trackX) / (trackW || 1);
-        bound.set(fractionToValue(f, min, max, step, scale, snap, zeroStop));
+        bound.set(fractionToValue(f, min, max, step, scale, snap, zeroStop, precision));
         reflect();
     };
     bound.subscribe(reflect);
@@ -1229,13 +1230,24 @@ export function select3d(config) {
         lbl.setAttribute('x', String(TH.PAD_X));
         lbl.setAttribute('y', String(TH.ROW / 2));
     }
-    const prev = baseText('‹', TH.ACCENT);
-    const next = baseText('›', TH.ACCENT);
     const val = baseText('');
-    for (const t of [prev, next, val]) {
-        t.setAttribute('text-anchor', 'middle');
-        t.setAttribute('y', String(TH.ROW / 2));
-    }
+    val.setAttribute('text-anchor', 'end');
+    val.setAttribute('y', String(TH.ROW / 2));
+    // The affordance. `chevron90r` is the shipped right-chevron rotated a quarter
+    // turn — the suffix system, rather than a second piece of art to keep in sync.
+    /*
+    WRAPPED, because the glyph's own transform is load-bearing.
+  
+    `iconGlyph` encodes placement AND the suffix's rotation in one `transform` on
+    the element it returns, so setting `transform` to position it silently
+    discards the quarter turn — the chevron then points RIGHT, which is the one
+    direction that means something else. Position the wrapper; never touch the
+    glyph.
+    */
+    const caret = g({}, iconGlyph('chevron90r', {
+        size: 14,
+        color: TH.ACCENT,
+    }));
     const rowBg = rect({
         x: 0,
         y: 2,
@@ -1243,7 +1255,9 @@ export function select3d(config) {
         rx: 6,
         fill: 'transparent',
     });
-    const el = css(g({ 'data-w3d': 'select' }, rowBg, ...(lbl ? [lbl] : []), prev, val, next), 'cursor:pointer');
+    const el = css(g({ 'data-w3d': 'select' }, rowBg, ...(lbl ? [lbl] : []), val, caret), 'cursor:pointer');
+    /** Chevron box, and the gap the value keeps from it. */
+    const CARET = 14;
     let clusterX = 0;
     let clusterW = 0;
     const indexOf = () => {
@@ -1264,16 +1278,24 @@ export function select3d(config) {
     };
     bound.subscribe(reflect);
     /*
-    THREE ZONES, not two: ‹ steps back, › steps forward, and the VALUE between
-    them opens a menu.
+    A SELECT, WITH A CHEVRON THAT SAYS SO.
   
-    The steppers stay rather than being replaced. Nudging to the next option while
-    watching what it does is a different gesture from picking a named one out of a
-    list, and a stepper is better at it — the menu is for "I know which one I
-    want" and the arrows are for "show me". Tonio made the same argument for
-    keeping arrows on a mode select alongside its menu.
+    It used to draw `‹ value ›` and open a menu when you tapped between the
+    arrows. The menu worked; nothing said it was there. A control that looks
+    exactly like a stepper IS a stepper as far as a new consumer is concerned —
+    ensemble reported the 24-option case as "twenty-three taps" while one tap and
+    a list had been available the whole time (#37).
+  
+    So: the value carries a downward chevron, the whole cluster opens the list,
+    and the arrows are gone. Tonio: "I'd use a downward chevron to indicate you
+    can pop up. And, frankly, you could just ditch the cycling behavior."
+  
+    Stepping survives in exactly one place — as the fallback when the panel gives
+    no host, where a menu is impossible. That is the case the old code called
+    out ("a control that is inert in some containers is worse than one that is
+    merely plainer"), and it stays true. `panel3d` always provides a host, so in
+    a panel this is a select and nothing else.
     */
-    const ARROW = 30;
     let host = null;
     const openMenu = () => {
         if (host == null || opts.length === 0)
@@ -1301,44 +1323,32 @@ export function select3d(config) {
             rowBg.setAttribute('width', String(width));
             clusterW = Math.min(width * 0.55, 180);
             clusterX = width - TH.PAD_X - clusterW;
-            prev.setAttribute('x', String(clusterX + 14));
-            next.setAttribute('x', String(clusterX + clusterW - 14));
-            val.setAttribute('x', String(clusterX + clusterW / 2));
+            // Value right-aligned against the chevron, chevron hard against the
+            // padding — so the caret sits at a predictable x whatever the value says.
+            const caretX = width - TH.PAD_X - CARET;
+            caret.setAttribute('transform', `translate(${caretX} ${TH.ROW / 2 - 7})`);
+            val.setAttribute('x', String(caretX - 8));
             reflect();
             return TH.ROW;
         },
-        // Only the cluster steps; the label area stays a scroll surface.
+        // The whole cluster is one target; the label area stays a scroll surface.
         hitTest(x) {
             return x >= clusterX - 6;
         },
         handle(kind, x) {
-            // Zones measured from the cluster's own ends, so a wide row does not make
-            // the arrows enormous and the value a sliver.
-            const onPrev = x < clusterX + ARROW;
-            const onNext = x > clusterX + clusterW - ARROW;
+            void x;
             if (kind === 'leave') {
                 rowBg.setAttribute('fill', 'transparent');
-                prev.setAttribute('fill', TH.ACCENT);
-                next.setAttribute('fill', TH.ACCENT);
                 return;
             }
             rowBg.setAttribute('fill', TH.ROW_HOVER);
-            if (kind === 'down') {
-                prev.setAttribute('fill', onPrev ? '#fff' : TH.ACCENT);
-                next.setAttribute('fill', onNext ? '#fff' : TH.ACCENT);
-            }
-            else if (kind === 'up') {
-                prev.setAttribute('fill', TH.ACCENT);
-                next.setAttribute('fill', TH.ACCENT);
-                if (onPrev)
-                    step(-1);
-                else if (onNext)
-                    step(1);
-                // The middle: a menu, if the panel can host one. Without a host it
-                // stays a stepper rather than doing nothing — a control that is inert
-                // in some containers is worse than one that is merely plainer.
-                else if (host != null)
+            if (kind === 'up') {
+                // One gesture, one meaning: open the list. Stepping remains only where
+                // a menu cannot exist — see the note above the chevron.
+                if (host != null)
                     openMenu();
+                else
+                    step(1);
             }
         },
     };
@@ -2256,14 +2266,84 @@ export function panel3d(config, ...widgets) {
                 getComputedStyle(positioned).position === 'static') {
                 positioned.style.position = 'relative';
             }
-            // Offsets are relative to that ancestor, so measure both.
+            /*
+            PLACE IT INSIDE THE VIEWPORT, not merely below the anchor.
+      
+            This used to set left/top straight from the anchor with no bounds check,
+            so a field in a right-hand panel opened a keyboard 112px off the right
+            edge — with its rightmost column of keys unreachable and, because the
+            move/close chrome is scene-only, no way to get it back (#57).
+      
+            `placePopup` is the same pure flip/clamp the in-scene presentation uses:
+            flip to the opposite side when the primary axis does not fit, clamp on
+            the cross axis. Running it in VIEWPORT coordinates and converting once at
+            the end keeps one placement rule for both presentations.
+            */
             const box = positioned?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
-            holder.style.left = `${rect.left - box.left}px`;
-            holder.style.top = `${rect.top - box.top + (config.anchor.y + config.anchor.height) * scale}px`;
+            const vw = window.innerWidth || 1024;
+            const vh = window.innerHeight || 768;
+            const placed = placePopup({
+                x: rect.left + config.anchor.x * scale,
+                y: rect.top + config.anchor.y * scale,
+                width: config.anchor.width * scale,
+                height: config.anchor.height * scale,
+            }, { width: w * scale, height: h * scale }, { width: vw, height: vh }, config.side);
+            // Offsets are relative to the positioned ancestor, so convert back.
+            holder.style.left = `${placed.x - box.left}px`;
+            holder.style.top = `${placed.y - box.top}px`;
             if (container != null)
                 container.appendChild(holder);
             else
                 parent.insertBefore(holder, root.nextSibling);
+            /*
+            DRAG IT. The clamp above stops the first frame being off-screen; this is
+            what lets someone move it off the thing they are typing into.
+      
+            Tonio's framing on #57: the clipping "would actually be solved if the user
+            could drag it around", which is better than any placement heuristic
+            because only the person typing knows what the popup is covering.
+      
+            The in-scene presentation gets this from picking the move glyph, which
+            does not exist flat — so flat gets the whole holder as the handle, minus
+            the interactive parts. Dragging from a KEY would otherwise mean you could
+            never type: a press that starts on a control belongs to the control.
+            */
+            let dragFrom = null;
+            const onDown = (e) => {
+                const target = e.target;
+                /*
+                A press on a WIDGET belongs to the widget; anything else drags.
+        
+                `closest('[data-w3d]')` alone is not the test — the panel root carries
+                `data-w3d="panel"`, so it matches everywhere and the drag would never
+                start. What matters is whether the press landed on a widget INSIDE the
+                panel, so the root is excluded explicitly.
+                */
+                const hit = target?.closest?.('[data-w3d]') ?? null;
+                if (hit != null && hit !== sheet)
+                    return;
+                dragFrom = {
+                    x: e.clientX,
+                    y: e.clientY,
+                    left: parseFloat(holder.style.left) || 0,
+                    top: parseFloat(holder.style.top) || 0,
+                };
+                holder.setPointerCapture?.(e.pointerId);
+            };
+            const onMove = (e) => {
+                if (dragFrom == null)
+                    return;
+                holder.style.left = `${dragFrom.left + (e.clientX - dragFrom.x)}px`;
+                holder.style.top = `${dragFrom.top + (e.clientY - dragFrom.y)}px`;
+            };
+            const onUp = () => {
+                dragFrom = null;
+            };
+            holder.style.touchAction = 'none';
+            holder.addEventListener('pointerdown', onDown);
+            holder.addEventListener('pointermove', onMove);
+            holder.addEventListener('pointerup', onUp);
+            holder.addEventListener('pointercancel', onUp);
             return { close: () => holder.remove() };
         });
     };
