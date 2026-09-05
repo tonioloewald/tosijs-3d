@@ -10,6 +10,16 @@
       change; the threshold is the only judgement call, and ensemble has the dense
       property panel to check it against.
 
+- [ ] **Weather: one wind, shared and province-overridable** — filed as #73.
+  Clouds, water and ambient each carry their own wind today, in three
+  spellings, so an author sets it three times and they can silently disagree.
+  The design question worth settling first is COMPOSITION: speed probably sums
+  like temperature (a valley funnels, a lee shelters, and the bipolar curve
+  gives shelter for free), but bearing does not — two provinces that each turn
+  the wind 90° do not turn it 180°. Wind would be the first VECTOR province
+  layer, which is a real test of whether that architecture generalises past
+  scalars.
+
 ## From the 0.8.0 pre-tag review (`reviews/0.8.0-pre-tag-gate.md`)
 
 The blocker and all four majors were fixed before the tag. These are the
