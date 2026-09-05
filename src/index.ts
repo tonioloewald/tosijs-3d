@@ -488,6 +488,29 @@ export {
 export type { HandlesView } from './manipulator-view.js'
 export { B3dManipulator, b3dManipulator } from './b3d-manipulator.js'
 
+// Angle and arc dials — a circle has no ends, so a slider track is the wrong shape
+export {
+  arcOf,
+  arcStart,
+  arcEnd,
+  arcContains,
+  arcWithinArc,
+  arcComplement,
+  clampAngleToArc,
+  clampArc,
+  dragArc,
+  nearestArcGrip,
+  FULL_CIRCLE,
+} from './arc.js'
+export type { Arc, ArcGrip, ArcLimits } from './arc.js'
+export { angle3d, arc3d } from './angle-field.js'
+export type {
+  AngleField,
+  ArcField,
+  Angle3dOptions,
+  Arc3dOptions,
+} from './angle-field.js'
+
 // SVG widgets (DOM-overlay or in-scene panels)
 export {
   panel3d,

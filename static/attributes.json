@@ -1,5 +1,44 @@
 [
   {
+    "module": "angle-field",
+    "summary": "angle-field",
+    "attributes": [
+      {
+        "name": "value",
+        "default": "0` / `arcOf(0, 90)",
+        "description": "degrees, or an `Arc`"
+      },
+      {
+        "name": "label",
+        "default": "—",
+        "description": "drawn above the dial"
+      },
+      {
+        "name": "limits",
+        "default": "full circle",
+        "description": "`angle3d` only — the permitted sector; the handle CATCHES at a stop"
+      },
+      {
+        "name": "envelope",
+        "default": "full circle",
+        "description": "`arc3d` only — the arc may only lie within this"
+      },
+      {
+        "name": "size",
+        "default": "0",
+        "description": "ring diameter; `0` fits the row to the panel width"
+      },
+      {
+        "name": "handleChange",
+        "description": "live, every frame the pointer moves"
+      },
+      {
+        "name": "handleCommit",
+        "description": "once per gesture — your undo step"
+      }
+    ]
+  },
+  {
     "module": "b3d-aircraft",
     "tag": "tosi-b3d-aircraft",
     "summary": "b3d-aircraft",

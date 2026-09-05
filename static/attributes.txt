@@ -8,6 +8,17 @@ not be found.
 Format: `module` / `tag` — then one line per attribute:
 `name  default  description`
 
+## angle-field
+angle-field
+
+  value  = 0` / `arcOf(0, 90)  — degrees, or an `Arc`
+  label  = —  — drawn above the dial
+  limits  = full circle  — `angle3d` only — the permitted sector; the handle CATCHES at a stop
+  envelope  = full circle  — `arc3d` only — the arc may only lie within this
+  size  = 0  — ring diameter; `0` fits the row to the panel width
+  handleChange  — live, every frame the pointer moves
+  handleCommit  — once per gesture — your undo step
+
 ## b3d-aircraft — <tosi-b3d-aircraft>
 b3d-aircraft
 

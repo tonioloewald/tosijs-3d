@@ -30,6 +30,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
   The one ambient effect that is **not a sprite**.
+- https://3d.tosijs.net/angle-field/ — angle-field
+  rings, because the quantity is a circle and a slider track is not. The model is
+- https://3d.tosijs.net/arc/ — arc
+  direction; an arc is a direction *and* a width. No DOM, no Babylon — so the part
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/atmosphere/ — atmosphere

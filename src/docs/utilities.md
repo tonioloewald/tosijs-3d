@@ -3,6 +3,7 @@
 <!-- toc -->
 - [manipulator](/manipulator/)
 - [manipulator-view](/manipulator-view/)
+- [arc](/arc/)
 - [curve](/curve/)
 - [b3d-physics](/b3d-physics/)
 - [demo-utils](/demo-utils/)
