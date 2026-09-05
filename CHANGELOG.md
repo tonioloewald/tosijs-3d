@@ -27,6 +27,14 @@ versions may carry breaking peer-dependency changes — each is called out in a
     the pending callback built a node owned by no element — a ghost nothing
     would ever move or free. Guarded with `loadGeneration`, the mechanism
     `b3d-aircraft` already used; the retry poll stops on a stale generation too.
+- **A still sky never found a late sun** (#55). `updateSky` writes
+  `sunPosition`, `rayleigh` and `turbidity` only when a sun element's light
+  exists, and the frame gate re-ran it only when `timeOfDay` moved — so
+  `realtimeScale: 0`, which is what a reproducible authored scene wants, ran it
+  once and came up dark about four loads in five. The default `realtimeScale:
+  10` hid it, because a drifting clock reopens the gate until some pass catches
+  the sun. The retry is now gated on the OUTCOME rather than the clock, and
+  bounded so a scene with no sun does not retry forever.
 - **A flat popup could open off-screen with no way back** (#57). The DOM layer
   set `left`/`top` straight from the anchor with no bounds check, so a field in
   a right-hand panel opened a keyboard 112px past the right edge — rightmost
