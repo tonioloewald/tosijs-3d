@@ -2078,9 +2078,25 @@
         "description": "Furthest a group may appear"
       },
       {
+        "name": "anchor",
+        "default": "'player'",
+        "description": "`'player'` = a ring around the player (an encounter); `'place'` = exactly at `x`/`y`/`z` (a launchpad)"
+      },
+      {
+        "name": "x"
+      },
+      {
         "name": "y",
         "default": "0",
         "description": "Base height for the spawn point (the prefab places its own members)"
+      },
+      {
+        "name": "z"
+      },
+      {
+        "name": "facingDeg",
+        "default": "0",
+        "description": "Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation`"
       },
       {
         "name": "seed",

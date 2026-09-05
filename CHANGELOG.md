@@ -82,6 +82,12 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`b3d-spawner` can spawn at an authored PLACE**, not only on a ring around
+  the player (#40). `anchor="place"` plus `x`/`y`/`z` and `facingDeg` — a
+  carrier deck, a hangar door, a dungeon entrance. Mutually exclusive with the
+  distances by construction rather than by warning, and a placed spawn does not
+  consume the RNG, so adding a launchpad cannot shift the encounters in a scene
+  that promises "same seed, same battles".
 - **`<tosi-b3d-prop>`** — a library model in the scene and nothing else (#68).
   Every existing route to a library-backed mesh brought behaviour with it: a
   plain prop had to be a `<tosi-b3d-destroyable>` carrying `capacity`, `armor`,
@@ -95,6 +101,7 @@ versions may carry breaking peer-dependency changes — each is called out in a
   none. `library-url` covers the one-model case without a separate
   `<tosi-b3d-library>` and a `type` handshake, sharing one library element per
   URL so ten props do not fetch the kit ten times.
+
 - **Collision GROUPS** — `markCollisionGroup(mesh, 'water')` plus
   `collidable(reject, { ignoreGroups: ['water'] })` (#44). The single
   `b3dNoCollide` boolean answered "does anything hit this", which is one answer

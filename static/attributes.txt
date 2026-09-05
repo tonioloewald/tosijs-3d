@@ -553,7 +553,11 @@ b3d-spawner
   interval  = 8  — Seconds between spawn attempts
   minDistance  = 600  — Nearest a group may appear (from the player)
   maxDistance  = 1400  — Furthest a group may appear
+  anchor  = 'player'  — `'player'` = a ring around the player (an encounter); `'place'` = exactly at `x`/`y`/`z` (a launchpad)
+  x
   y  = 0  — Base height for the spawn point (the prefab places its own members)
+  z
+  facingDeg  = 0  — Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation`
   seed  = 1  — Deterministic placement — same seed, same battles
   disabled  = false  — Stop spawning (a boolean can't default to true — see CLAUDE.md)
 
