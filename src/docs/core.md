@@ -4,6 +4,8 @@
 
 <!-- toc -->
 - [b3d](/tosi-b3d/)
+- [library-mesh](/library-mesh/)
+- [b3d-prop](/b3d-prop/)
 - [make-mesh](/make-mesh/)
 - [Scene schemas](/scene-schemas/)
 - [b3d-collisions](/b3d-collisions/)

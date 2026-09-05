@@ -992,6 +992,9 @@ export type {
   CombatEvent,
 } from './destroyable.js'
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js'
+export { B3dProp, b3dProp } from './b3d-prop.js'
+export { loadLibraryMesh } from './library-mesh.js'
+export type { LibraryMeshRequest } from './library-mesh.js'
 export { DestroyableBehavior } from './destroyable-behavior.js'
 export type { DeathOutcome, DestroyableHost } from './destroyable-behavior.js'
 export {

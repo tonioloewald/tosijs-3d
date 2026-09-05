@@ -1677,6 +1677,33 @@
     ]
   },
   {
+    "module": "b3d-prop",
+    "tag": "tosi-b3d-prop",
+    "summary": "b3d-prop",
+    "attributes": [
+      {
+        "name": "library",
+        "default": "''",
+        "description": "`type` of a `<tosi-b3d-library>` in the scene"
+      },
+      {
+        "name": "libraryUrl",
+        "default": "''",
+        "description": "glb URL — mounts a library for you; use instead of `library`"
+      },
+      {
+        "name": "meshName",
+        "default": "''",
+        "description": "model name within the library"
+      },
+      {
+        "name": "scale",
+        "default": "1",
+        "description": "uniform scale applied to the instance root"
+      }
+    ]
+  },
+  {
     "module": "b3d-radar-blip",
     "tag": "tosi-b3d-radar-blip",
     "summary": "b3d-radar-blip",

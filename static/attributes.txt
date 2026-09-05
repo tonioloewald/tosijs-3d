@@ -449,6 +449,14 @@ b3d-probe
   force
   ttlDays
 
+## b3d-prop — <tosi-b3d-prop>
+b3d-prop
+
+  library  = ''  — `type` of a `<tosi-b3d-library>` in the scene
+  libraryUrl  = ''  — glb URL — mounts a library for you; use instead of `library`
+  meshName  = ''  — model name within the library
+  scale  = 1  — uniform scale applied to the instance root
+
 ## b3d-radar-blip — <tosi-b3d-radar-blip>
 b3d-radar-blip
 

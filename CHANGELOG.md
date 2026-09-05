@@ -82,6 +82,19 @@ versions may carry breaking peer-dependency changes — each is called out in a
 
 ### Added
 
+- **`<tosi-b3d-prop>`** — a library model in the scene and nothing else (#68).
+  Every existing route to a library-backed mesh brought behaviour with it: a
+  plain prop had to be a `<tosi-b3d-destroyable>` carrying `capacity`, `armor`,
+  `explode` and a combat id for something nothing will ever shoot.
+
+  It matters more than a convenience element, because it is the difference
+  between the CDN's 5,108 models being reachable or not **from a page that
+  cannot run JavaScript**. Every model in those kit libraries sits at the origin
+  with no translation (the format is built for `clone()`), so a consumer with a
+  JS build reaches all of them and a consumer writing declarative HTML reached
+  none. `library-url` covers the one-model case without a separate
+  `<tosi-b3d-library>` and a `type` handshake, sharing one library element per
+  URL so ten props do not fetch the kit ten times.
 - **Collision GROUPS** — `markCollisionGroup(mesh, 'water')` plus
   `collidable(reject, { ignoreGroups: ['water'] })` (#44). The single
   `b3dNoCollide` boolean answered "does anything hit this", which is one answer

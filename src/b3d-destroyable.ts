@@ -140,6 +140,7 @@ in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook
 */
 /*{ "parent": "Combat", "order": 100 }*/
 import * as BABYLON from '@babylonjs/core'
+import { loadLibraryMesh } from './library-mesh.js'
 import { AbstractMesh, isOff } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import type { CombatEvent, ChainLink } from './destroyable.js'
@@ -327,86 +328,45 @@ export class B3dDestroyable extends AbstractMesh {
   private _loadFromLibrary(owner: B3d, type: string, meshName: string): void {
     const attrs = this as any
     /*
-    STALE LOADS MUST NOT LAND.
+    ONE loader, shared with `b3d-prop` — see `library-mesh.ts`.
 
-    There is a window between appending this element and its node existing, and
-    an editor that rebuilds on every edit runs that window hundreds of times a
-    session. Removed inside it, the old code disposed nothing (no node yet) and
-    then let the pending `then` create one anyway — a node owned by no element,
-    which nothing will ever dispose or move. A permanent ghost at the old
-    position (#49).
-
-    `loadGeneration` is the existing answer — `sceneDispose` bumps it, and
-    `b3d-aircraft` already guards its own async load this way. This one simply
-    never did.
+    This was that module's original home, and three bugs arrived against it
+    (rotation dropped, no scale, a node orphaned mid-load: #47/#48/#49). A
+    second element with its own copy would have inherited all three silently,
+    because a fix cannot reach a policy that was duplicated — which is exactly
+    how the panel-sizing formula survived in two places after being fixed in a
+    third.
     */
-    const gen = ++this.loadGeneration
-    const tryLoad = (): boolean => {
-      if (gen !== this.loadGeneration) return true // stale — stop trying
-      const lib = owner.getLibrary(type)
-      if (!lib) return false
-      void lib.ready.then(() => {
-        if (gen !== this.loadGeneration) return // stale — discard
-        const node = lib.instantiate(meshName, {
-          x: attrs.x ?? 0,
-          y: attrs.y ?? 0,
-          z: attrs.z ?? 0,
-          // Rotation was dropped here, and it looked like it should not matter:
-          // `AbstractMesh.render()` syncs rx/ry/rz onto the mesh. But render()
-          // is a COMPONENT render — it had already run by the time this async
-          // callback assigns `this.mesh`, so position (passed here) applied and
-          // rotation (left to render) did not. An arrangement format is mostly
-          // position and orientation, so this was half the payload (#48).
-          rx: attrs.rx ?? 0,
-          ry: attrs.ry ?? 0,
-          rz: attrs.rz ?? 0,
-          canonical: true, // the frame fix the `url:` path doesn't get
-        })
-        if (!node) {
-          console.error(
-            `b3d-destroyable: could not instantiate "${meshName}" from library "${type}" — falling back to nothing visible. Check the library's getNames().`
-          )
-          return
-        }
+    this._stopLoad = loadLibraryMesh({
+      owner,
+      type,
+      meshName,
+      transform: {
+        x: attrs.x,
+        y: attrs.y,
+        z: attrs.z,
+        rx: attrs.rx,
+        ry: attrs.ry,
+        rz: attrs.rz,
+      },
+      generation: () => this.loadGeneration,
+      started: ++this.loadGeneration,
+      label: 'b3d-destroyable',
+      onLoaded: (node) => {
         /*
         A library instance's root is a TransformNode, and `AbstractMesh.mesh` is
         typed `Mesh` — so this is a cast. It is the RIGHT node to put there
         rather than a convenient lie: the base class syncs x/y/z and rx/ry/rz
         onto `mesh` every frame, which is exactly what a placed library model
         wants, and everything this component does with it (position, name,
-        getChildMeshes, dispose) is TransformNode-safe. `b3d-aircraft` keeps its
-        node in a separate field instead, and pays for it with a second code
-        path; this way the attribute plumbing just works.
+        getChildMeshes, dispose) is TransformNode-safe.
         */
         this.mesh = node as unknown as BABYLON.Mesh
         this._applyScale()
-        // The component render that would have synced the transform has
-        // already run; run it now that there is something to sync onto.
         this.render()
         this._adopt(owner)
-      })
-      return true
-    }
-    if (tryLoad()) return
-    // Poll briefly rather than forever: a missing library is an authoring
-    // mistake and should say so, not hang silently.
-    let tries = 0
-    const timer = setInterval(() => {
-      // A removed element must stop polling too, or it keeps a timer (and this
-      // closure) alive for five seconds past its own disposal.
-      if (gen !== this.loadGeneration) {
-        clearInterval(timer)
-        return
-      }
-      if (tryLoad() || ++tries > 50) {
-        clearInterval(timer)
-        if (tries > 50) {
-          console.error(
-            `b3d-destroyable: no <tosi-b3d-library type="${type}"> in this scene after 5s.`
-          )
-        }
-      }
-    }, 100)
+      },
+    })
   }
 
   sceneReady(owner: B3d, scene: BABYLON.Scene): void {
@@ -515,6 +475,8 @@ export class B3dDestroyable extends AbstractMesh {
    * purpose: a non-uniform scale on an arbitrary model is a modelling
    * decision, not a placement one, and it breaks normals.
    */
+  private _stopLoad: (() => void) | null = null
+
   private _applyScale(): void {
     const node = this.mesh as unknown as BABYLON.TransformNode | undefined
     if (node?.scaling == null) return
@@ -532,6 +494,9 @@ export class B3dDestroyable extends AbstractMesh {
   }
 
   sceneDispose(): void {
+    // Stop a retry that would otherwise outlive this element.
+    this._stopLoad?.()
+    this._stopLoad = null
     this._behavior?.dispose()
     this._behavior = undefined
     if (this._onShift != null) {
