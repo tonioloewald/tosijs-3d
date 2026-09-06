@@ -20,6 +20,7 @@ export declare class B3dWater extends AbstractMesh {
         colorBlendFactor: number;
         windDirectionX: number;
         windDirectionY: number;
+        wind: "scene" | "own";
         x: number;
         y: number;
         z: number;
@@ -42,8 +43,16 @@ export declare class B3dWater extends AbstractMesh {
     /** What each sky mesh's `applyFog` was before we took it — restored on exit. */
     private _skyWasFogged;
     private _followTick?;
+    private _windTick?;
     private _wasUnderwater;
     private waterCallback;
+    /**
+     * Wave wind: the scene's, or this element's own.
+     *
+     * `WaterMaterial` wants a force alongside a roughly UNIT direction, so the
+     * speed cannot be folded into the vector — `waterWind` does that split.
+     */
+    private _wind;
     private updateWater;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /**

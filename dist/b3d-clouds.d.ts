@@ -21,6 +21,7 @@ export declare class B3dClouds extends B3dChild {
         seed: number;
         windX: number;
         windZ: number;
+        wind: "scene" | "own";
     };
     count: number;
     model: string;
@@ -39,6 +40,14 @@ export declare class B3dClouds extends B3dChild {
     seed: number;
     windX: number;
     windZ: number;
+    wind: string;
+    /**
+     * The drift this frame: the scene's wind, or this element's own.
+     *
+     * Falls back to `windX`/`windZ` whenever the scene has nothing to offer, so
+     * a scene that never sets `windSpeed` behaves exactly as it did.
+     */
+    private _wind;
     /**
      * How deep in a cloud you are, 0…1. **Gameplay reads this** — break a lock, hide a ship,
      * make the enemy lose you. It's why the component exists.

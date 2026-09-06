@@ -105,6 +105,7 @@ preview.append(div({ style: 'padding:16px;background:#0c0e14' },
 ```
 */
 /*{ "parent": "UI", "order": 900 }*/
+import { formatColor, parseColor } from './color.js';
 /**
  * Translate a DOM key name into a field intent.
  *
@@ -160,6 +161,10 @@ export function modeForType(type = 'text') {
             return 'email';
         case 'url':
             return 'url';
+        case 'color':
+            // Hex needs digits AND a–f, so the numpad is wrong and `alpha` buries the
+            // digits a mode away. `alphanumeric` is the one layout that has both.
+            return 'alphanumeric';
         default:
             return 'alpha';
     }
@@ -193,6 +198,19 @@ export function isValidForType(text, type = 'text') {
             return !/\s/.test(text);
         case 'tel':
             return /^[-+()\d\s]*$/.test(text);
+        case 'color':
+            /*
+            IN-PROGRESS, not final — the same asymmetry as `number`.
+      
+            `#ab` is not a colour and must be typeable on the way to `#abcdef`, so
+            this accepts a hex run of any length up to 8, a bare word (which may
+            become a named colour), or the start of an `rgb()`/`rgba()` form. It is
+            `commitValueForType` that decides whether the thing you finished typing
+            actually parses.
+            */
+            return (/^#?[0-9a-f]{0,8}$/i.test(text) ||
+                /^[a-z]*$/i.test(text) ||
+                /^rgba?\(?[\d.,%\s/]*\)?$/i.test(text));
         default:
             return true;
     }
@@ -222,6 +240,18 @@ export function commitValueForType(text, type = 'text') {
             if (type === 'integer' && !Number.isInteger(n))
                 return null;
             return String(n);
+        }
+        case 'color': {
+            /*
+            Tolerant in, canonical out — see [[color]].
+      
+            `#abc`, `rgb(1 2 3)` and `red` all commit as `#rrggbb`, and anything that
+            does not parse commits as null so the caller restores the last good value
+            instead of writing `#eeeff` into a document. That five-digit hex was the
+            concrete complaint (#72): accepted, and silently wrong.
+            */
+            const parsed = parseColor(text);
+            return parsed == null ? null : formatColor(parsed);
         }
         default:
             return text;

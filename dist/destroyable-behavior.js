@@ -38,6 +38,72 @@ import { detonateWarhead } from './b3d-warhead.js';
 import { explodeMesh } from './b3d-exploder.js';
 // Monotonic suffix so every attached Destroyable gets a unique combat id / mesh name.
 let _behaviorCount = 0;
+/*
+EVERY ATTACHED, LIVE DESTROYABLE IN A SCENE.
+
+A blast used to find its targets with `querySelectorAll('tosi-b3d-destroyable')`,
+which is not what "destroyable" means: `b3d-loader` and `b3d-aircraft` attach
+the SAME behaviour and were invisible to every warhead in the scene — a
+destroyable aircraft that could not be blown up, failing by doing nothing.
+
+The registry is the behaviour's own, so anything that attaches one is a target
+by construction and nothing has to remember to be enumerable. Same shape as
+`interactive-behavior`'s pool.
+*/
+const registry = new WeakMap();
+const sceneSet = (scene) => {
+    let set = registry.get(scene);
+    if (!set) {
+        set = new Set();
+        registry.set(scene, set);
+    }
+    return set;
+};
+/** Every live destroyable in this scene, with the node that stands for it. */
+export function liveDestroyables(scene) {
+    const out = [];
+    for (const behavior of sceneSet(scene)) {
+        const mesh = behavior.host.mesh;
+        // `.mesh` is cleared on death, so this still skips the already-dead.
+        if (mesh != null && !behavior.dead)
+            out.push({ behavior, mesh });
+    }
+    return out;
+}
+/**
+ * The destroyable a picked mesh belongs to — by ANCESTRY, not by identity.
+ *
+ * A library model instantiates asynchronously beneath a root, so a shell hits a
+ * WING and the registered node is the root three levels up. Matching on the
+ * picked mesh alone found nothing and every shot missed, silently — which is
+ * the trap manta-recon spent a debugging cycle on (#23).
+ *
+ * Walks up rather than snapshotting the descendants, because the descendants
+ * arrive late: a registry built when the target registered itself captures an
+ * empty root and never notices the model landing in it.
+ */
+export function destroyableAt(mesh) {
+    if (mesh == null)
+        return null;
+    const scene = mesh.getScene();
+    const set = registry.get(scene);
+    if (set == null || set.size === 0)
+        return null;
+    const roots = new Map();
+    for (const behavior of set) {
+        const node = behavior.host.mesh;
+        if (node != null && !behavior.dead)
+            roots.set(node, behavior);
+    }
+    let node = mesh;
+    while (node != null) {
+        const found = roots.get(node);
+        if (found != null)
+            return found;
+        node = node.parent;
+    }
+    return null;
+}
 export class DestroyableBehavior {
     owner;
     host;
@@ -80,6 +146,7 @@ export class DestroyableBehavior {
             if (this.owner.combat.get(this.combatId)?.destroyed)
                 this._die();
         });
+        sceneSet(this.owner.scene).add(this);
     }
     /** True once destroyed (mesh gone/exploding). Lets others skip dead targets. */
     get dead() {
@@ -87,10 +154,10 @@ export class DestroyableBehavior {
     }
     /** Hurt this target; returns the combat events from this hit (flashes + shows the
      * accumulated-damage glow so you can read how close it is to dying). */
-    damage(amount) {
+    damage(amount, cause) {
         if (this._dead)
             return [];
-        const events = this.owner.combat.applyDamage(this.combatId, amount);
+        const events = this.owner.combat.applyDamage(this.combatId, amount, [], cause);
         const hit = events.find((e) => e.type === 'damaged');
         if (hit != null)
             this._flash(hit.hp);
@@ -108,6 +175,7 @@ export class DestroyableBehavior {
             this.owner.scene.onBeforeRenderObservable.remove(this._obs);
             this._obs = undefined;
         }
+        sceneSet(this.owner.scene).delete(this);
         this.owner.combat.remove(this.combatId);
     }
     // Damage feedback: a brief white flash, then settle to a red glow that grows as hp
@@ -148,7 +216,15 @@ export class DestroyableBehavior {
         const scene = this.owner.scene;
         const mesh = this.host.mesh;
         const position = mesh?.absolutePosition.clone() ?? BABYLON.Vector3.Zero();
-        const info = { id: this.combatId, position };
+        /*
+        The cause comes off the WORLD, not off the call that killed it. A chain
+        reaction resolves inside `combat.tick` and is noticed here a frame later by
+        polling `destroyed`, so the event that carried the cause is long consumed.
+        */
+        const cause = this.owner.combat.get(this.combatId)?.cause;
+        const info = cause == null
+            ? { id: this.combatId, position }
+            : { id: this.combatId, position, cause };
         // Notify: the bubbling event + the code hook (e.g. flip a player to 'dead').
         this.host.dispatchEvent(new CustomEvent('destroyed', { bubbles: true, detail: info }));
         this.whenDestroyed?.(info);
@@ -163,9 +239,36 @@ export class DestroyableBehavior {
                 blastRadius: d.blastRadius ?? 4,
             };
             const at = position.clone();
+            /*
+            THE CREDIT SURVIVES A deathBlast, which is the case #8 was actually about.
+      
+            A chain LINK carries its cause through `CombatWorld` because the world
+            schedules it. A deathBlast does not go through the world at all — it
+            detonates a fresh warhead from here — so without this the cascade silently
+            re-attributed itself to nobody at the first hop, and a player who set off
+            a 48-drum chain got credit for exactly the one drum they hit.
+      
+            Measured before the fix: six destroyed, all `hops: 0`, all directly
+            credited — which LOOKS right until you notice the chain is invisible.
+            */
+            /*
+            One more hop, and this drum is the link.
+      
+            `by` alone was not enough: a deathBlast leaves the combat world, so
+            without `via`/`hops` every victim came back at `hops: 0` and a chain read
+            as things the player hit personally. Measured that way before the fix.
+            */
+            const onward = cause == null
+                ? undefined
+                : {
+                    by: cause.by,
+                    kind: 'blast',
+                    via: this.combatId,
+                    hops: (cause.hops ?? 0) + 1,
+                };
             setTimeout(() => {
                 if (owner.scene != null && !owner.scene.isDisposed)
-                    detonateWarhead(owner, at, spec, true);
+                    detonateWarhead(owner, at, spec, true, onward);
             }, Math.max(0, d.blastDelay ?? 0.1) * 1000);
         }
         // Visual outcome.

@@ -125,7 +125,10 @@ preview.append(
 
 ## Events and callbacks
 
-Every one carries `{ mesh, point, distance }`; `refused` adds `reason`.
+Every one carries `{ mesh, point, distance, source, actor }`; `refused` adds
+`reason`. `source` is how the activation arrived — `'pointer'`, `'near'`
+(`useNearest`), or `'api'` (a direct `activate()`); `actor` is whatever the
+caller passed, and is deliberately opaque here.
 
 | Event | Callback prop | When |
 |---|---|---|
@@ -153,6 +156,36 @@ use.vetoes.push({ name: 'locked', blocks: () => !player.has('hatch-key') })
 
 The first refuser's name comes back on the `refused` event, which is the
 difference between a locked door and a broken one.
+
+### A veto is TOLD about the activation
+
+`blocks(info)` receives the same description the `refused` event carries, which
+is what lets one door answer differently for different callers:
+
+```javascript
+// Two actors: the NPC has the key, the player does not. One closure over
+// `player.has(…)` could not express this.
+use.vetoes.push({ name: 'locked', blocks: (info) => info.actor !== npc })
+
+// Near versus far: a lock you can REACH is not a lock you can merely SEE.
+use.vetoes.push({
+  name: 'out-of-reach',
+  blocks: (info) => info.source !== 'near' && info.distance > 2,
+})
+
+// And a veto that ignores its argument is still a veto.
+use.vetoes.push({ name: 'powered', blocks: () => !reactor.online })
+```
+
+Pass the actor in when you activate it yourself:
+
+```javascript
+use.activate({ actor: npc })
+```
+
+Raised by `tosijs-3d-ensemble` (#36), with the argument that settled it: it
+costs nothing today and cannot be added later without changing every veto
+anyone has written.
 
 ## Reaching it without pointing at it
 

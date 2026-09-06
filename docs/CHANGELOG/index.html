@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
   <title>Changelog — tosijs-3d</title>
   <meta name="description" content="All notable changes to tosijs-3d. This project is pre-1.0 (0.x), so minor versions may carry breaking peer-dependency changes — each is called out in a ⚠️…" />
   <link rel="canonical" href="https://3d.tosijs.net/CHANGELOG/" />
@@ -51,7 +51,46 @@
 <p>All notable changes to <strong>tosijs-3d</strong>. This project is pre-1.0 (<code>0.x</code>), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 <strong>⚠️ Breaking</strong> block in its version section below, with what a consumer must do.</p>
-<h2>0.8.1 (unreleased)</h2>
+<h2>0.8.1</h2>
+<h3>⚠️ Breaking</h3>
+<p>Nothing breaks at compile time. Two behaviours change, and
+<a href="./Migration.md">Migration.md</a> has the before/after for each.</p>
+<ul>
+<li><strong>Aircraft guns are direct-hit, not area-effect.</strong> <code>gun-mode=&quot;blast&quot;</code>
+restores the old behaviour; <code>gunBlastRadius</code>/<code>gunFullRadius</code> are attributes
+now rather than hardcoded.</li>
+<li><strong><code>activationVeto</code> takes an optional second parameter.</strong> Existing callers
+compile unchanged, and a veto that ignores its argument behaves identically.
+When the info is omitted a reach veto now <strong>refuses</strong> rather than passing —
+see Migration.md for why that direction, and how to say otherwise.</li>
+<li><strong><code>select3d</code> no longer draws ‹ › stepper arrows.</strong> The popup it always had is
+now the only way in, and is discoverable.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>Aircraft guns damage what they pass through, instead of firing an area
+effect</strong> (#23). Blast damage resolves by distance to a destroyable&#39;s
+registered point — ONE point, at the model&#39;s origin — so scaling a fighter 4×
+puts its wing outside a 1.5 m blast and point-blank fire does nothing, with
+no error. Direct-hit damage has no length scale in it and is immune to that
+whole class. <code>gunMode=&quot;blast&quot;</code> restores the previous behaviour, and
+<code>gunFullRadius</code>/<code>gunBlastRadius</code> are attributes now rather than hardcoded.</li>
+<li><strong>A disposed mesh now takes its own materials and textures with it.</strong>
+<code>mesh.dispose()</code> leaves them behind, so every scene child that built one
+leaked it on every teardown — including every RE-PARENT, since a move
+disconnects the child while the scene deliberately survives. Measured:
+re-parenting one scene six times took materials 3 → 15 and textures 3 → 21,
+unbounded, meshes correctly flat. <code>disposeMeshTree</code> CHECKS before disposing —
+a glTF file shares one material across many meshes and a disposed material
+still answers <code>isReady()</code>, so a wrong sharing rule turns siblings black
+silently. Textures held by the scene environment, a render target or a
+light&#39;s gel are exempt, because nothing references those from a material.</li>
+<li><strong>A blast finds every destroyable, not every <code>&lt;tosi-b3d-destroyable&gt;</code>.</strong>
+<code>detonateWarhead</code> queried one tag name, so <code>b3d-loader</code> models — which attach
+the same behaviour — were invisible to every explosion in the scene. The
+registry now lives on <code>DestroyableBehavior</code>, so anything attaching one is a
+target by construction.</li>
+</ul>
 <h3>Fixed</h3>
 <ul>
 <li><strong><code>b3d-destroyable</code> could not place a library piece properly</strong> — three
@@ -127,6 +166,84 @@ editor no longer follows you between demos (from the 0.8.0 headset pass).</li>
 </ul>
 <h3>Added</h3>
 <ul>
+<li><p><strong>A manipulator — translate, rotate and scale handles you can grab</strong> (#38),
+ported from <code>tosijs-3d-ensemble</code> where it was shaken out against real
+authoring, including on a phone. Three files on the usual split:
+<code>manipulator.ts</code> (pure — the five grip readings, snapping, the drag reducer),
+<code>manipulator-view.ts</code> (the Babylon handles, with the two-pass pick and the
+euler composition folded in so a consumer no longer writes either), and
+<code>&lt;tosi-b3d-manipulator&gt;</code>. The flat pointer is wired; <code>grab</code>/<code>grabNear</code>/
+<code>drag</code>/<code>release</code> take world rays so a controller or a hand drives the same
+code. Note <code>move</code>/<code>turn</code> rather than <code>translate</code>/<code>rotate</code>: <code>translate</code> is a
+real <code>HTMLElement</code> property and declaring it gives one word two owners.</p>
+</li>
+<li><p><strong><code>&lt;tosi-b3d-beacon&gt;</code></strong> — a clickable hull for anything with a position and
+no geometry: a lamp, a positional sound, a spawn point (#70). Invisible via
+<code>visibility = 0</code> rather than <code>isVisible = false</code>, which is the whole trick —
+Babylon&#39;s default pick test is <code>isEnabled &amp;&amp; isVisible &amp;&amp; isPickable</code>, so the
+obvious way to hide a hull makes it unpickable, and the failure returns
+<em>whatever is behind it</em> rather than nothing. <code>beaconOwner(mesh)</code> is the entire
+reading-side API.</p>
+</li>
+<li><p><strong><code>angle3d</code> and <code>arc3d</code></strong> — dial a bearing, dial a firing arc (#71). An angle
+on a linear track has ends where the quantity does not, so 359° and 1° sit at
+opposite ends of the slider. <code>arc.ts</code> is the pure model, and an arc is a
+CENTRE and a WIDTH rather than a start and an end — which makes &quot;is this
+bearing inside&quot; and &quot;does that arc contain this one&quot; one line each, and makes
+straddling north unrepresentable rather than special-cased. An envelope is
+drawn, not merely clamped against, so a turret&#39;s restricted arc explains the
+ship instead of silently snapping.</p>
+</li>
+<li><p><strong><code>picker3d</code></strong> — choosing one of five hundred (#37). A <code>table</code> for the
+virtualized filterable list, an <code>inputField</code> for the query, a <code>select3d</code> for
+the family: two levels without a tree, because a tree needs a pointer to
+expand and two flat controls work from a D-pad. Filtering is AND across terms
+over the whole name, so word order cannot matter.</p>
+</li>
+<li><p><strong><code>terrainEditor3d</code></strong> — a terrain editor built FROM <code>sceneSchemas.terrain()</code>
+(#66), so a range cannot disagree with the element it edits. Curated, not
+generated: most of the schema&#39;s thirty properties are performance internals,
+and a panel showing all of them is a settings dump.</p>
+</li>
+<li><p><strong><code>FieldType: &#39;color&#39;</code> and a swatch on <code>inputField</code></strong> (#72). Tolerant in,
+canonical out — <code>#abc</code>, <code>red</code> and <code>rgb(255,128,0)</code> all commit as <code>#rrggbb</code>,
+and a five-digit hex is valid WHILE TYPING and refused at commit rather than
+silently accepted. The swatch holds the last good colour while the text does
+not parse, so a half-typed value does not read as a lost one.</p>
+</li>
+<li><p><strong>One wind for the scene</strong> (#73) — <code>windSpeed</code>, <code>windBearingDeg</code>, <code>windGust</code>
+on <code>&lt;tosi-b3d&gt;</code>, with <code>wind=&quot;scene|own&quot;</code> on clouds, water and ambient.
+Clouds, water and leaves each carried their own wind in three spellings and
+could silently disagree. <code>wind.ts</code> is pure: Cartesian inside, degrees at the
+edge, and that IS the composition rule — a valley funnelling, a lee
+sheltering and a headland curling are all just contributions that add.</p>
+</li>
+<li><p><strong>Combat attribution</strong> (#8) — <code>Cause {by, kind, via, hops}</code> on <code>damaged</code> and
+<code>destroyed</code>, threaded through chain links, <code>tick</code> and <code>deathBlast</code>, and
+stored on the <code>Destroyable</code> so a reaction a frame later can still ask. <code>by</code>
+is the ORIGINATOR however many hops back, because re-attributing each hop to
+the thing next to it launders the credit away. Measured on the 48-drum
+cascade: one hit, 48 kills, all credited, hop counts 1/3/5/7/9/11/6/6.</p>
+</li>
+<li><p><strong><code>b3d-aircraft</code> can be damaged and locked</strong> (#23) — <code>destroyable=&quot;on&quot;</code>
+attaches the same behaviour <code>b3d-loader</code> uses, and <code>blip=&quot;on&quot;</code> mounts a radar
+blip, without which an enemy cannot be missile-locked and a player reports
+that &quot;missiles don&#39;t work&quot;.</p>
+</li>
+<li><p><strong>A veto is told about the activation</strong> (#36) — <code>blocks(info)</code> receives
+<code>{actor, source, distance, …}</code>, so one door can answer differently for an NPC
+holding the key and a player who is not, and can tell a hand within reach
+from a ray across the room. A veto that ignores its argument is unaffected.</p>
+</li>
+<li><p><strong>A configured terrain now draws itself</strong> (#66). <code>&lt;tosi-b3d-terrain&gt;</code> built a
+tile pool and filled it only when told, so a terrain with its attributes set
+rendered nothing until someone called <code>regenerate()</code> — a silent failure that
+every consumer worked around with their own bounded retry. Ordinary attribute
+changes now regenerate on the next frame, like every other element. Keyed on
+the GENERATION attributes only, so a <code>wireframe</code> toggle stays a material tweak,
+and relying on tosijs&#39;s own render batching for bursts rather than
+reimplementing it — five writes in a task are already one <code>render()</code>.</p>
+</li>
 <li><p><strong><code>b3d-turret</code> and <code>b3d-launcher</code> take a <code>library</code></strong> (#34), so a piece that
 IS a turret no longer renders as a cylinder and a box. Which node aims is
 declared by the MODEL — a <code>_barrel</code> suffix, resolved like <code>_centerOfGravity</code>
@@ -2970,6 +3087,8 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -3046,6 +3165,9 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
       <li><a class="doc-link" href="../color-field/">color3d</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
@@ -3066,6 +3188,10 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
       <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
@@ -3108,6 +3234,6 @@ direction; the live-debug timer is cleared on scene disconnect (no leak).</li>
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.0"></script>
+  <script type="module" src="../hydrate.js?v=0.8.1"></script>
 </body>
 </html>

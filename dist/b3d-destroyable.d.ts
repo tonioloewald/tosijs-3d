@@ -1,7 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
-import type { CombatEvent, ChainLink } from './destroyable.js';
+import type { CombatEvent, ChainLink, Cause } from './destroyable.js';
 import { type Prefab } from './prefab.js';
 export declare class B3dDestroyable extends AbstractMesh {
     static preferredTagName: string;
@@ -103,6 +103,8 @@ export declare class B3dDestroyable extends AbstractMesh {
     whenDestroyed?: (info: {
         id: string;
         position: BABYLON.Vector3;
+        /** Who killed it and through what chain — see [[destroyable|Cause]]. */
+        cause?: Cause;
     }) => void;
     /** A prefab FUNCTION, when a name won't do (a closure over game state). Takes precedence
      * over the `remains` attribute. Not `onRemains` — an `on*` prop would be bound as a DOM
@@ -127,7 +129,7 @@ export declare class B3dDestroyable extends AbstractMesh {
     private _loadFromLibrary;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
-    damage(amount: number): CombatEvent[];
+    damage(amount: number, cause?: Cause): CombatEvent[];
     /**
      * Set on-destruction chain links AFTER mount — chains reference other targets'
      * combat ids, which only exist once those elements have mounted.

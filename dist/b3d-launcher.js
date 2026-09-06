@@ -237,6 +237,7 @@ import { crossing, depthIn, dragAt, } from './medium.js';
 import { steerToward, interceptLead, boostAuthority, gNormalize, gSub, } from './guidance.js';
 import { makeResource, drain, regenTick, isEmpty, } from './resource.js';
 import { detonateWarhead } from './b3d-warhead.js';
+import { destroyableAt } from './destroyable-behavior.js';
 /*
 One place that fires both callbacks, so the deprecated spelling cannot drift
 away from the current one — that drift is exactly how `b3d-destroyable`'s
@@ -378,7 +379,16 @@ export function spawnProjectile(owner, opts) {
             // longer acts as an invisible shield).
             const hit = scene.pickWithRay(ray, collidable((m) => m === mesh || (opts.ignore?.(m) ?? false)));
             if (hit != null && hit.hit && hit.pickedPoint != null) {
-                detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true);
+                if (opts.directHit === true) {
+                    // What it went through, not what was near where it stopped.
+                    destroyableAt(hit.pickedMesh)?.damage(opts.warhead.damage, {
+                        ...(opts.cause ?? {}),
+                        kind: 'direct',
+                    });
+                }
+                else {
+                    detonateWarhead(owner, hit.pickedPoint, opts.warhead, opts.useLos ?? true, opts.cause);
+                }
                 reportImpact(opts, {
                     point: hit.pickedPoint,
                     // `true` = world space. The ray already computed this; not passing it
@@ -669,13 +679,29 @@ export class B3dLauncher extends AbstractMesh {
                 owner,
                 type: libType,
                 meshName: this.meshName,
-                transform: { x: attrs.x, y: attrs.y, z: attrs.z },
+                transform: {
+                    x: attrs.x,
+                    y: attrs.y,
+                    z: attrs.z,
+                    rx: attrs.rx,
+                    ry: attrs.ry,
+                    rz: attrs.rz,
+                },
                 generation: () => this.loadGeneration,
                 started: ++this.loadGeneration,
                 label: 'b3d-launcher',
                 onLoaded: (node) => {
                     this.mesh?.dispose();
                     this.mesh = node;
+                    /*
+                    Rotation had to be forwarded above AND re-synced here — #48's fix,
+                    which reached `b3d-prop` and `b3d-destroyable` and not this site.
+                    `AbstractMesh` syncs rotation only in `render()`, and that has already
+                    run by the time this async callback lands, so without both halves
+                    `b3dLauncher({library, ry:180})` fired its shells backwards while the
+                    same element without `library` aimed correctly.
+                    */
+                    this.render();
                     this._muzzleNode = findMuzzle(node);
                     owner.register({ meshes: node.getChildMeshes() });
                 },

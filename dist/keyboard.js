@@ -255,6 +255,7 @@ import { measureTextWidth } from './widgets3d-layout.js';
 import { nearestInDirection } from './flow-layout.js';
 import { iconGlyph } from './svg-icons.js';
 import { handlerOf } from './handler-of.js';
+import { formatColor, parseColor } from './color.js';
 import { w3dTheme } from './w3d-theme.js';
 const { g, rect, text } = svgElements;
 /*
@@ -527,6 +528,20 @@ export function inputField(config = {}) {
     const PAD = 10;
     const font = { size: SIZE, family: TH.FONT_FAMILY, weight: '400' };
     const fieldType = config.type ?? 'text';
+    /*
+    A COLOUR FIELD SHOWS ITS COLOUR.
+  
+    Most of the value of a picker is SEEING it (tosijs-3d#72), and a swatch costs
+    one rect. It shows the value as typed while that parses, and holds the last
+    good one while it does not — so a half-typed `#ab` does not blank the swatch
+    and imply the value is gone.
+  
+    The text simply starts further in. Every x in this field is measured from
+    `TEXT_X` rather than `PAD` so the caret, the tap-to-place hit test and the
+    label cannot disagree about where the string begins.
+    */
+    const SWATCH = fieldType === 'color' ? 24 : 0;
+    const TEXT_X = PAD + SWATCH;
     let state = edit(config.value ?? '');
     /*
     The last value that could stand as an answer.
@@ -591,7 +606,7 @@ export function inputField(config = {}) {
     let paintRef = () => { };
     const bg = rect({ x: 0, y: 0, height: H, rx: 6, fill: TH.FIELD_BG });
     const label = text({
-        x: PAD,
+        x: TEXT_X,
         y: H / 2,
         'dominant-baseline': 'middle',
         'font-size': SIZE,
@@ -607,7 +622,20 @@ export function inputField(config = {}) {
         height: H - 16,
         fill: w3dTheme.caret,
     });
-    const el = g({ 'data-w3d': 'input' }, bg, label, caret);
+    const swatch = fieldType === 'color'
+        ? rect({
+            x: PAD - 4,
+            y: Math.round((H - 18) / 2),
+            width: 18,
+            height: 18,
+            rx: 4,
+            // Stroked, so a white or fully transparent swatch is still a shape
+            // rather than a hole in the field.
+            stroke: TH.PLACEHOLDER,
+            'stroke-width': 1,
+        })
+        : null;
+    const el = g({ 'data-w3d': 'input' }, bg, ...(swatch ? [swatch] : []), label, caret);
     /** x offset of the caret, measured through the same measurer that draws. */
     /**
      * Width of the text up to code-point index `n`.
@@ -640,7 +668,7 @@ export function inputField(config = {}) {
             return measureTextWidth(before, font);
         }
     };
-    const caretX = () => PAD + advanceTo(state.caret);
+    const caretX = () => TEXT_X + advanceTo(state.caret);
     const paint = () => {
         const empty = state.text.length === 0;
         label.textContent = empty ? config.placeholder ?? '' : state.text;
@@ -650,6 +678,10 @@ export function inputField(config = {}) {
         // is the focus indicator, and a vanished caret reads as "focus is lost and
         // unrecoverable" rather than "focus is elsewhere".
         caret.setAttribute('opacity', focused ? '1' : '0.35');
+        if (swatch != null) {
+            const shown = parseColor(state.text) ?? parseColor(lastGood);
+            swatch.setAttribute('fill', shown == null ? 'none' : formatColor(shown));
+        }
     };
     paintRef = paint;
     const change = (next) => {
@@ -688,7 +720,7 @@ export function inputField(config = {}) {
         let bestD = Infinity;
         for (let i = 0; i <= chars.length; i++) {
             // Same measurer as the caret uses, so a tap lands where the caret then draws.
-            const d = Math.abs(PAD + advanceTo(i) - x);
+            const d = Math.abs(TEXT_X + advanceTo(i) - x);
             if (d < bestD) {
                 bestD = d;
                 best = i;

@@ -14,8 +14,14 @@
   <url><loc>https://3d.tosijs.net/b3d-terrain/</loc></url>
   <url><loc>https://3d.tosijs.net/widgets3d/</loc></url>
   <url><loc>https://3d.tosijs.net/world-store/</loc></url>
+  <url><loc>https://3d.tosijs.net/manipulator/</loc></url>
+  <url><loc>https://3d.tosijs.net/manipulator-view/</loc></url>
+  <url><loc>https://3d.tosijs.net/arc/</loc></url>
   <url><loc>https://3d.tosijs.net/light-modulation/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-beacon/</loc></url>
   <url><loc>https://3d.tosijs.net/province-climate/</loc></url>
+  <url><loc>https://3d.tosijs.net/terrain-editor/</loc></url>
+  <url><loc>https://3d.tosijs.net/wind/</loc></url>
   <url><loc>https://3d.tosijs.net/library-mesh/</loc></url>
   <url><loc>https://3d.tosijs.net/b3d-prop/</loc></url>
   <url><loc>https://3d.tosijs.net/box/</loc></url>
@@ -37,6 +43,9 @@
   <url><loc>https://3d.tosijs.net/color-field/</loc></url>
   <url><loc>https://3d.tosijs.net/theme-editor/</loc></url>
   <url><loc>https://3d.tosijs.net/w3d-theme/</loc></url>
+  <url><loc>https://3d.tosijs.net/angle-field/</loc></url>
+  <url><loc>https://3d.tosijs.net/picker/</loc></url>
+  <url><loc>https://3d.tosijs.net/b3d-manipulator/</loc></url>
   <url><loc>https://3d.tosijs.net/surface/</loc></url>
   <url><loc>https://3d.tosijs.net/scene-schemas/</loc></url>
   <url><loc>https://3d.tosijs.net/popup-surface/</loc></url>

@@ -6,6 +6,7 @@ import { type Widget3d } from './widgets3d.js';
 import type { Medium } from './medium.js';
 import { type Makers } from './make-mesh.js';
 import { type PopupSurface, type PopupSurfaceOptions } from './popup-surface.js';
+import { type Wind } from './wind.js';
 import { CombatWorld } from './destroyable.js';
 import { XrFrames } from './xr-frames.js';
 import { type FramePanelSpec } from './frame-panel.js';
@@ -141,6 +142,11 @@ export declare class B3d extends Component {
          * package instead.
          */
         timeScale: number;
+        windSpeed: number;
+        /** Where the wind is GOING, north-up and clockwise. `0` blows toward +Z. */
+        windBearingDeg: number;
+        /** Gust size as a fraction of `windSpeed`. `0` is dead steady. */
+        windGust: number;
         /**
          * On resume, enter immersive VR if the device supports it. This is why
          * starting paused matters: `enterXRAsync` REQUIRES a user gesture, and the
@@ -499,6 +505,13 @@ export declare class B3d extends Component {
      * Reach for `dt` unless you know why not; `realDt` is for the things that
      * must not slow down when the world does.
      */
+    /**
+     * The scene's wind right now, gusts included. See [[wind]].
+     *
+     * Zero speed means "no scene wind", and children fall back to their own
+     * attributes — which is what makes this additive rather than a migration.
+     */
+    get wind(): Wind;
     frameInfo(): FrameInfo;
     private sceneListeners;
     private pastAdditions;

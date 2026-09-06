@@ -128,6 +128,19 @@ export { handlerOf, resetHandlerWarnings } from './handler-of.js';
 // Colour — the pure model (headless-safe) and the picker over it.
 export { parseColor, formatColor, rgbToHsv, hsvToRgb, wrapHue, luminance, contrastInk, } from './color.js';
 export { color3d } from './color-field.js';
+export { terrainEditor3d } from './terrain-editor.js';
+// Manipulator — pure maths, the Babylon handles, and the element that wires them
+export { NO_TRANSFORMS, RING_BASIS, WORLD_FRAME, noTransforms, otherAxes, axisVector, axisComponent, axisClosestApproach, angleAboutAxis, rayPlanePoint, rayPerpendicularDistance, snap, snapVec3, normaliseDegrees, scaleFactor, beginDrag, updateDrag, commitTransform, dragChanged, } from './manipulator.js';
+export { createHandles, composeRotation, axisFrameOf, HANDLE_TAG, DRAWN_TAG, NEAR_RADIUS, } from './manipulator-view.js';
+export { B3dManipulator, b3dManipulator } from './b3d-manipulator.js';
+// Angle and arc dials — a circle has no ends, so a slider track is the wrong shape
+export { arcOf, arcStart, arcEnd, arcContains, arcWithinArc, arcComplement, clampAngleToArc, clampArc, dragArc, nearestArcGrip, FULL_CIRCLE, } from './arc.js';
+export { angle3d, arc3d } from './angle-field.js';
+export { B3dBeacon, b3dBeacon, beaconOwner } from './b3d-beacon.js';
+// Choosing one of many — a select is right for five options and a scroll for 500
+export { picker3d, matchesQuery, groupsOf } from './picker.js';
+// One wind for the scene, and provinces that bend it
+export { NO_WIND, addWind, scaleWind, windSpeed, windFromPolar, windToPolar, windAt, provinceInfluence, gustAt, waterWind, } from './wind.js';
 // SVG widgets (DOM-overlay or in-scene panels)
 export { panel3d, fitPanel, row3d, label3d, text3d, textBlock3d, button3d, iconBar3d, toggle3d, slider3d, select3d, list3d, menu3d, openMenu3d, spinner3d, progress3d, } from './widgets3d.js';
 // Curve editing — the pure model, and the `curve3d` widget over it. A province

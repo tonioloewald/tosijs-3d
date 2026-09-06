@@ -21,6 +21,7 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
         size: number;
         windX: number;
         windZ: number;
+        wind: "scene" | "own";
         disabled: boolean;
     };
     preset: string;
@@ -35,6 +36,9 @@ export declare class B3dAmbient extends B3dChild implements AmbientEffect {
     size: number;
     windX: number;
     windZ: number;
+    wind: string;
+    /** The drift this frame: the scene's wind, or this element's own. */
+    private _wind;
     disabled: boolean;
     /** 0…1 — how strongly this is emitting right now (ramps, never switches). */
     get intensity(): number;

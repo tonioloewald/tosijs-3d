@@ -6,7 +6,22 @@ All notable changes to **tosijs-3d**. This project is pre-1.0 (`0.x`), so minor
 versions may carry breaking peer-dependency changes — each is called out in a
 **⚠️ Breaking** block in its version section below, with what a consumer must do.
 
-## 0.8.1 (unreleased)
+## 0.8.1
+
+### ⚠️ Breaking
+
+Nothing breaks at compile time. Two behaviours change, and
+[Migration.md](./Migration.md) has the before/after for each.
+
+- **Aircraft guns are direct-hit, not area-effect.** `gun-mode="blast"`
+  restores the old behaviour; `gunBlastRadius`/`gunFullRadius` are attributes
+  now rather than hardcoded.
+- **`activationVeto` takes an optional second parameter.** Existing callers
+  compile unchanged, and a veto that ignores its argument behaves identically.
+  When the info is omitted a reach veto now **refuses** rather than passing —
+  see Migration.md for why that direction, and how to say otherwise.
+- **`select3d` no longer draws ‹ › stepper arrows.** The popup it always had is
+  now the only way in, and is discoverable.
 
 ### Changed
 

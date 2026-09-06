@@ -64,7 +64,7 @@ export class CombatWorld {
      * THIS call (a `damaged` or `destroyed`); chain detonations surface later from
      * `tick`. Pushes onto `out` if given (so callers can accumulate across a frame).
      */
-    applyDamage(id, amount, out = []) {
+    applyDamage(id, amount, out = [], cause) {
         const d = this.map.get(id);
         if (d == null || d.destroyed || amount <= 0)
             return out;
@@ -81,17 +81,41 @@ export class CombatWorld {
         drain(d.hp, dmg);
         if (d.hp.value <= 0) {
             d.destroyed = true;
+            if (cause != null)
+                d.cause = cause;
+            /*
+            THE ORIGINATOR SURVIVES THE HOP; the immediate link is recorded beside it.
+      
+            `by` keeps whoever started this — so a drum that goes up because the
+            player's bomb got its neighbour is still attributed to the player — while
+            `via` names the neighbour and `hops` counts the distance. Re-attributing
+            each hop to the thing next to it would launder the credit away, which is
+            the whole failure #8 describes.
+            */
+            const onward = cause == null && d.chain.length === 0
+                ? undefined
+                : {
+                    by: cause?.by,
+                    kind: 'chain',
+                    via: id,
+                    hops: (cause?.hops ?? 0) + 1,
+                };
             for (const link of d.chain) {
                 this.pending.push({
                     at: this.now + (link.delay ?? DEFAULT_CHAIN_DELAY),
                     link,
                     sourceId: id,
+                    cause: onward,
                 });
             }
-            out.push({ type: 'destroyed', id });
+            out.push(cause == null
+                ? { type: 'destroyed', id }
+                : { type: 'destroyed', id, cause });
         }
         else {
-            out.push({ type: 'damaged', id, amount: dmg, hp: d.hp.value });
+            out.push(cause == null
+                ? { type: 'damaged', id, amount: dmg, hp: d.hp.value }
+                : { type: 'damaged', id, amount: dmg, hp: d.hp.value, cause });
         }
         return out;
     }
@@ -115,7 +139,7 @@ export class CombatWorld {
             const p = this.pending[i];
             if (p.at <= this.now) {
                 this.pending.splice(i, 1);
-                this.applyDamage(p.link.target, p.link.amount, out);
+                this.applyDamage(p.link.target, p.link.amount, out, p.cause);
             }
             else {
                 i++;

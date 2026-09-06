@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
   <title>Migration — tosijs-3d</title>
   <meta name="description" content="What to change when upgrading. Only breaking changes are listed — everything else is additive. The full detail for each is in CHANGELOG.md." />
   <link rel="canonical" href="https://3d.tosijs.net/Migration/" />
@@ -53,6 +53,41 @@ else is additive. The full detail for each is in <a href="./CHANGELOG.md">CHANGE
 <p>This file ships <strong>inside the package</strong>, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.</p>
+<h2>0.8.0 → 0.8.1</h2>
+<p><strong>Nothing breaks at compile time, and one behaviour changes.</strong> The
+<code>activationVeto</code> signature grew a second parameter and it is OPTIONAL — a
+required one would have been a hard TypeScript break for every caller, and the
+default is chosen so that a veto reading it gets a conservative answer rather
+than a permissive one.</p>
+<h3>1. Aircraft guns are direct-hit, not area-effect</h3>
+<p><strong>What changed.</strong> <code>&lt;tosi-b3d-aircraft&gt;</code>&#39;s cannon damages the thing its shell
+passes through. It used to detonate a small AOE warhead at the impact point.</p>
+<p><strong>Why.</strong> Blast damage resolves by distance to a destroyable&#39;s registered point —
+one point, at the model&#39;s origin. Scale a fighter up and its wing sits outside
+the blast, so point-blank fire does nothing, silently. Direct-hit damage has no
+length scale in it, so it cannot break that way. Reported by an adopter who hit
+it by making their world four times larger (#23).</p>
+<p><strong>If you relied on the old behaviour</strong>, say so explicitly:</p>
+<pre><code class="language-html">&lt;tosi-b3d-aircraft gun-mode=&quot;blast&quot; gun-blast-radius=&quot;1.5&quot; gun-full-radius=&quot;0.5&quot;&gt;
+</code></pre>
+<p>Both radii are attributes now; they used to be hardcoded. Missiles and bombs are
+unchanged — AOE is right for those.</p>
+<h3>2. <code>activationVeto</code>&#39;s second parameter (optional)</h3>
+<p><code>blocks(info)</code> now receives a description of the activation — who, how, how far.
+A veto that ignores its argument is unaffected, which is every veto written
+before this existed:</p>
+<pre><code class="language-javascript">use.vetoes.push({ name: &#39;locked&#39;, blocks: () =&gt; !hasKey })   // unchanged
+</code></pre>
+<p>Calling <code>activationVeto(vetoes)</code> directly still compiles. When you omit the
+info, vetoes are told <code>distance: Infinity</code> — &quot;we do not know that you are near&quot;
+— so a <strong>reach veto refuses</strong> rather than waving the activation through. If you
+call it yourself and want a reach veto to pass, supply the distance:</p>
+<pre><code class="language-javascript">activationVeto(vetoes, { source: &#39;near&#39;, distance: 0.4 })
+</code></pre>
+<h3>3. <code>select3d</code> no longer draws ‹ › stepper arrows</h3>
+<p>Tapping the control opens a popup list, which it already did — the arrows were
+a second way to do the same thing and made the popup undiscoverable. Nothing to
+change; the control is the same size and the same tap.</p>
 <h2>0.7.8 → 0.8.0</h2>
 <p><strong>Nothing breaks at runtime.</strong> Both items below keep working in 0.8.x; one is an
 install-time floor, the other is a deprecation with a removal date.</p>
@@ -311,6 +346,8 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
       <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -387,6 +424,9 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
       <li><a class="doc-link" href="../color-field/">color3d</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
@@ -407,6 +447,10 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
       <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
@@ -449,6 +493,6 @@ semver sorts beta below rc, so <code>@next</code> resolved <em>backwards</em> to
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.0"></script>
+  <script type="module" src="../hydrate.js?v=0.8.1"></script>
 </body>
 </html>

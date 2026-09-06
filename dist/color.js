@@ -80,7 +80,21 @@ export function parseColor(input) {
     const s = input.trim().toLowerCase();
     if (s === '')
         return null;
-    const named = NAMED[s];
+    /*
+    `Object.hasOwn`, NOT `NAMED[s]`.
+  
+    `NAMED['constructor']` returns `Object` from the prototype chain, `??` does
+    not fire, and `text.startsWith` throws — so `parseColor('constructor')` threw
+    where `parseColor('#zz')` correctly returns null, breaking a contract this
+    file's own header states ("Returns null rather than guessing"). Three shipped
+    call sites, including EVERY KEYSTROKE of a colour `inputField`, and there is
+    no console in a headset.
+  
+    Caught by the pre-release review, which also noted that the same diff
+    hardened `svg-icons.ts` against this exact bug class and added a test for it.
+    Knowing about a bug class is not the same as looking for it.
+    */
+    const named = Object.hasOwn(NAMED, s) ? NAMED[s] : undefined;
     const text = named ?? s;
     if (text.startsWith('#')) {
         const hex = text.slice(1);

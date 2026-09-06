@@ -34,7 +34,7 @@ export declare function keyIntent(key: string, mods?: {
  * parser what to accept, or a host what to validate. One property, three jobs
  * (tosijs-3d#37).
  */
-export type FieldType = 'text' | 'number' | 'integer' | 'email' | 'url' | 'tel';
+export type FieldType = 'text' | 'number' | 'integer' | 'email' | 'url' | 'tel' | 'color';
 /**
  * The keyboard layout a field type wants.
  *

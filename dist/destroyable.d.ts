@@ -48,15 +48,64 @@ export interface Destroyable {
     protection: number;
     chain: ChainLink[];
     destroyed: boolean;
+    /**
+     * Why this died. Set once, at the moment it is destroyed.
+     *
+     * The world remembers it because the DEATH and the OBSERVER are separated in
+     * time: a chain reaction resolves inside `tick`, and the scene layer notices
+     * by polling `destroyed` on the next frame — so by the time anything reacts,
+     * the event carrying the cause has already been consumed. Storing it here is
+     * what lets a reaction ask "and who did this?" without the caller having to
+     * thread the event stream through to every observer.
+     */
+    cause?: Cause;
+}
+/**
+ * Who caused this, and how it reached them.
+ *
+ * Requested by manta-recon (#8), whose mission layer resolves to a LEDGER OF
+ * WORLD FACTS rather than a score — and a fact without causality drives no
+ * consequence. The engine makes attribution genuinely hard in exactly the
+ * interesting cases: `deathBlast` cascades emergently, chain links transfer
+ * damage after a delay, and there is no friendly-fire exemption, so one bomb
+ * can produce a destruction three hops away. Without provenance a game either
+ * cannot credit the player for a spectacular cascade or blames them for one
+ * they could not foresee, and both are worse than the truth.
+ */
+export interface Cause {
+    /**
+     * Who is RESPONSIBLE — the originator, however many hops back.
+     *
+     * Deliberately not "what hit it". A cascade that starts with the player's
+     * bomb is the player's cascade, and re-attributing each hop to the drum that
+     * happened to be next would launder the credit away.
+     */
+    by?: string;
+    /** How this particular hit arrived. */
+    kind?: 'direct' | 'blast' | 'chain' | 'collision';
+    /** The IMMEDIATE link in a cascade — the drum that went up next door. */
+    via?: string;
+    /**
+     * Hops from the originating act. `0` is a direct hit.
+     *
+     * A count rather than a list of every hop, which is what keeps this bounded
+     * without needing a depth cap: the chain already terminates (each entity is
+     * destroyed once, and the destroyed-guard stops loops), so nothing here can
+     * grow. A consumer that wants the full path can reconstruct it from the
+     * event stream, which it has in order.
+     */
+    hops?: number;
 }
 export type CombatEvent = {
     type: 'damaged';
     id: string;
     amount: number;
     hp: number;
+    cause?: Cause;
 } | {
     type: 'destroyed';
     id: string;
+    cause?: Cause;
 };
 export declare class CombatWorld {
     private map;
@@ -76,7 +125,7 @@ export declare class CombatWorld {
      * THIS call (a `damaged` or `destroyed`); chain detonations surface later from
      * `tick`. Pushes onto `out` if given (so callers can accumulate across a frame).
      */
-    applyDamage(id: string, amount: number, out?: CombatEvent[]): CombatEvent[];
+    applyDamage(id: string, amount: number, out?: CombatEvent[], cause?: Cause): CombatEvent[];
     /**
      * Advance time by `dt`: regenerate living Destroyables, then fire any chain links
      * now due (which apply damage and can cascade — a chain that destroys its target

@@ -45,7 +45,20 @@ b3d-aircraft
   weapons  = 'on'  — `'off'` disarms all weapons
   gunRate  = 9  — Cannon shots/sec while `shoot` is held
   gunSpeed  = 130  — Cannon muzzle speed (added to airspeed)
-  gunDamage  = 8  — Per-shell warhead full damage
+  gunDamage  = 8  — Per-shell damage
+  gunMode  = 'direct'  — `'direct'` damages what the shell passes through; `'blast'` is the old AOE
+  gunFullRadius  = 0.5  — Only for `gunMode="blast"`
+  gunBlastRadius  = 1.5  — Only for `gunMode="blast"`
+  destroyable  = 'off'  — `'on'` gives the aircraft hit points and a death outcome
+  capacity  = 30  — Combat stats
+  armor  = 0  — Combat stats
+  regenRate  = 0  — Combat stats
+  regenDelay  = 0.5  — Combat stats
+  explode  = 'on'  — Death outcome
+  explodeForce  = 8  — Death outcome
+  blip  = 'off'  — `'on'` puts it on radar, so a missile can lock it
+  blipProfile  = 1  — Radar detectability and side
+  faction  = 'neutral'  — Radar detectability and side
   missileSpeed  = 55  — Guided-missile cruise speed
   missileAccel
   missileBoost
@@ -75,10 +88,30 @@ b3d-ambient
   size  = 0  — Scale the preset's sprite size
   windX  = 0  — World wind (rain slants, dust blows)
   windZ  = 0
+  wind
   disabled  = false  — Stop emitting
   motes  = Dust or plankton hanging in the light — near-weightless, slow drift. The cheapest way to make air (or water) feel like a *substance* rather than a vacuum
-  rain  = Fast, stretched, near-vertical. Add `wind` and it slants
+  rain  = wind
   dust  = Blown horizontally — the wind made visible
+
+## b3d-beacon — <tosi-b3d-beacon>
+b3d-beacon
+
+  x  = 0  — position, used when `follow` is off or there is nothing to follow
+  y  = 0  — position, used when `follow` is off or there is nothing to follow
+  z  = 0  — position, used when `follow` is off or there is nothing to follow
+  rx
+  ry
+  rz
+  axes
+  name  = ''  — what this beacon stands for, for a readout or a list
+  size  = 0.5  — cube edge, in metres
+  width  = 0  — per-axis extent; `0` means "use `size`"
+  height  = 0  — per-axis extent; `0` means "use `size`"
+  depth  = 0  — per-axis extent; `0` means "use `size`"
+  shape  = 'box'  — `'box'` or `'sphere'`
+  show  = 'off'  — `'on'` draws it as a wireframe — for debugging, not for play
+  follow  = 'on'  — track the element this is nested in, rather than its own `x`/`y`/`z`
 
 ## b3d-biped — <tosi-b3d-biped>
 b3d-biped
@@ -168,6 +201,7 @@ b3d-clouds
   seed  = 1  — Deterministic layout — same seed, same sky
   windX
   windZ
+  wind
 
 ## b3d-collisions — <tosi-b3d-collisions>
 b3d-collisions
@@ -197,6 +231,13 @@ b3d-death
 ## b3d-destroyable — <tosi-b3d-destroyable>
 b3d-destroyable
 
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
   meshName
   library
   destroyable
@@ -270,9 +311,9 @@ b3d-interactive
 ## b3d-lamp — <tosi-b3d-point-light>
 Lamps
 
-  x
-  y
-  z
+  x  = 0  — Position
+  y  = 3  — Position
+  z  = 0  — Position
   intensity  = 1  — Brightness. With `modulation`, this is the MAXIMUM
   diffuse  = '#ffffff'  — Colour
   specular  = '#ffffff'  — Specular colour
@@ -281,10 +322,9 @@ Lamps
   geometry  = 'on'  — `'off'` for no fixture
   geometryScale  = 1  — Size multiplier for the default fixture
   url  = —  — GLB fixture, in place of the primitive
-  So
   shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
   timeSource
-  shadowTextureSize  = 0` (auto)  — Resolves against the device budget
+  shadowTextureSize  = 0  — Resolves against the device budget
   b3dPointLight  = ✅ cube shadow map  — ❌ not supported — model the blocker instead (below)
   b3dSpotLight  = ✅  — ✅ **native** — bitmap, SVG, or a generated `shape`
   b3dAreaLight  = ❌ `RectAreaLight` is not a `ShadowLight  — ❌
@@ -296,10 +336,19 @@ Lamps
   shapeSoftness  = 0.25  — **spot** — edge feather, as a fraction of the radius
   gel  = —  — **spot** — projection texture URL (bitmap or SVG file)
   gelSvg  = —  — **spot** — inline SVG source or an `SVGElement`
+  width  = 2  — **area** — panel size
+  height  = 1  — **area** — panel size
 
 ## b3d-launcher — <tosi-b3d-launcher>
 b3d-launcher
 
+  x  = 0  — Launcher position (muzzle offset forward from here)
+  y  = 0  — Launcher position (muzzle offset forward from here)
+  z  = 0  — Launcher position (muzzle offset forward from here)
+  rx
+  ry
+  rz
+  axes
   meshName
   library
   muzzleSpeed  = 30  — Launch speed (units/sec) along the fire direction
@@ -343,25 +392,38 @@ b3d-loader
   url  = ''  — URL of the GLB/glTF file
   lightIntensityScale  = 0.05  — Scale factor for imported lights
   destroyable  = 'off'  — `'on'` gives the model hit points + a death outcome
-  capacity
-  armor
-  regenRate
-  regenDelay
-  explode
-  explodeForce
+  capacity  = 10  — Combat stats (when destroyable)
+  armor  = 0  — Combat stats (when destroyable)
+  regenRate  = 0  — Combat stats (when destroyable)
+  regenDelay  = 0.5  — Combat stats (when destroyable)
+  explode  = 'off'  — Shatter on death (best for single-mesh models)
+  explodeForce  = 6  — Shatter on death (best for single-mesh models)
   deathBlast
   blastDamage
   blastFullRadius
   blastRadius
   blastDelay
 
+## b3d-manipulator — <tosi-b3d-manipulator>
+b3d-manipulator
+
+  target  = ''  — CSS selector for the element to manipulate. Or set `.node` in JS
+  meshName  = ''  — a mesh in the scene, by name — for things that are not elements
+  move  = 'on'  — `'on'`/`'off'` — arrows and plane pads
+  turn  = 'off'  — `'on'`/`'off'` — rings
+  scale  = 'off'  — `'on'`/`'off'` — cubes, plus the uniform centre cube
+  gridSnap  = 0  — position snap in metres. `0` is off
+  angleSnap  = 0  — angle snap in degrees. `0` is off
+  size  = 0.13  — apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen
+  disabled  = false  — hide the handles and ignore input
+
 ## b3d-panel — <tosi-b3d-panel>
 b3d-panel
 
   frame  = eye  — `eye` / `rig` / `world` / `body` / `neck` / `face` / `left-hand` / `right-hand`
   preset  = ''  — A named anchor (`waist`, `left-shoulder`, `right-shoulder`, `overhead`, `wrist`). Overrides the angular fields.
-  azimuth
-  elevation
+  azimuth  = 0  — Degrees off the frame's eye: +az right, +el up
+  elevation  = 0  — Degrees off the frame's eye: +az right, +el up
   distance  = 1.4  — Metres from the eye
   position  = ''  — Explicit `"x y z"` local position (overrides az/el/distance)
   roll  = 0  — Roll about the panel normal (deg)
@@ -374,6 +436,8 @@ b3d-panel
   revealStart
   revealFull
   maxDistance
+  reveal-start  = 50  — Gaze half-angles (deg) where the reveal begins / completes
+  reveal-full  = 25  — Gaze half-angles (deg) where the reveal begins / completes
   max-distance  = 0  — Hide beyond this distance (m); 0 = no limit
 
 ## b3d-particles — <tosi-b3d-particles>
@@ -436,6 +500,13 @@ b3d-planet
 
 ## b3d-primitives — <tosi-b3d-sphere>
 
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
   meshName
   segments
   diameter
@@ -453,6 +524,13 @@ b3d-probe
 ## b3d-prop — <tosi-b3d-prop>
 b3d-prop
 
+  x  = 0  — position
+  y  = 0  — position
+  z  = 0  — position
+  rx  = 0  — rotation, in DEGREES
+  ry  = 0  — rotation, in DEGREES
+  rz  = 0  — rotation, in DEGREES
+  axes
   library  = ''  — `type` of a `<tosi-b3d-library>` in the scene
   libraryUrl  = ''  — glb URL — mounts a library for you; use instead of `library`
   meshName  = ''  — model name within the library
@@ -463,9 +541,9 @@ b3d-radar-blip
 
   profile  = 1  — Detectability: `1` = seen at the platform's nominal radar range, `2` = out to 2×, `0.05` = very stealthy; **negative = always detectable** (e.g. waypoints).
   faction  = 'neutral'  — `friendly` / `neutral` / `hostile` / `waypoint` — drives the radar-trace colour.
-  x
-  y
-  z
+  x  = 0  — World position when standalone (ignored while following a target's mesh).
+  y  = 0  — World position when standalone (ignored while following a target's mesh).
+  z  = 0  — World position when standalone (ignored while following a target's mesh).
 
 ## b3d-radar — <tosi-b3d-radar>
 b3d-radar
@@ -511,6 +589,13 @@ b3d-shadows
 ## b3d-skybox — <tosi-b3d-skybox>
 b3d-skybox
 
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
   turbidity  = 10  — Atmospheric haze
   luminance  = 1  — Sky brightness
   azimuth  = 0  — Sun's compass bearing as Babylon's **0–1 fraction of a full turn**, not degrees — it goes straight to `SkyMaterial.azimuth`. The one angle here that isn't degrees, because it isn't ours
@@ -555,9 +640,9 @@ b3d-spawner
   minDistance  = 600  — Nearest a group may appear (from the player)
   maxDistance  = 1400  — Furthest a group may appear
   anchor  = 'player'  — `'player'` = a ring around the player (an encounter); `'place'` = exactly at `x`/`y`/`z` (a launchpad)
-  x
+  x  = 0  — Spawn point, when `anchor="place"`. Ignored otherwise
   y  = 0  — Base height for the spawn point (the prefab places its own members)
-  z
+  z  = 0  — Spawn point, when `anchor="place"`. Ignored otherwise
   facingDeg  = 0  — Facing for a placed spawn, degrees about Y — reaches the prefab as `rotation`
   seed  = 1  — Deterministic placement — same seed, same battles
   disabled  = false  — Stop spawning (a boolean can't default to true — see CLAUDE.md)
@@ -595,6 +680,13 @@ b3d-star
 ## b3d-svg-plane — <tosi-b3d-svg-plane>
 b3d-svg-plane
 
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
   castShadow
   receiveShadows
   width  = 1  — Plane width in scene units
@@ -616,7 +708,7 @@ b3d-terrain
 
   biome
   biomeSeaLevel  = 0  — Sea level for the biome classifier (`biome="on"`) — keep it equal to your water plane's `y`
-  biomeLapseRate  = 0` (auto)  — Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow
+  biomeLapseRate  = 0  — Height→temperature lapse. ⚠️ Must be scaled to your vertical range: `≈ baseTemperature / relief`. The 0.004 default is a small-world number and renders a 340m world entirely as snow
   normalSmoothing  = 0.6  — Low-pass the NORMALS' height field (positions stay crisp) — kills cliff-face zigzag
   seed  = 12345  — Noise seed
   surfaceType  = 'cylinder'  — `'cylinder'`, `'torus'`, or `'sphere'`
@@ -645,9 +737,11 @@ b3d-terrain
   maxTravelDistance  = 5000  — Distance before firing recenter-needed event
   wireframe  = false  — Debug: render terrain as wireframe
   rimCollar  = 12  — Metres the rim of a patch hole folds down into the opening
+  worldU  = 0  — Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both
+  worldV  = 0.25  — Where this terrain sits in the sampler's domain. ⚠️ `worldV = 0` puts the world ON a mirror plane (`CylinderSampler` reflects v) — 0.25 is the furthest from both
   fieldMsPerTile  = Noise + analytic normals. Plain float arithmetic — a worker or wasm *could* take this
-  uploadMsPerTile  = updateVerticesData` — a GPU handoff. **Nothing** moves this off the main thread
-  nsPerSample  = Cost per `heightAt` (each is 2 fractal calls × 6 octaves = 12 perlin evals)
+  uploadMsPerTile  = updateVerticesData
+  nsPerSample  = heightAt
 
 ## b3d-trigger — <tosi-b3d-trigger>
 b3d-trigger
@@ -664,6 +758,13 @@ b3d-trigger
 ## b3d-turret — <tosi-b3d-turret>
 b3d-turret
 
+  x  = 0  — Turret base position
+  y  = 0  — Turret base position
+  z  = 0  — Turret base position
+  rx
+  ry
+  rz
+  axes
   meshName
   library
   muzzleSpeed  = 35  — Shell launch speed (also the lead-solver's projectile speed)
@@ -672,27 +773,53 @@ b3d-turret
   traverseRate  = 2.5  — Max barrel slew rate (rad/sec)
   smart  = 0  — Skill curve 0..1: **lead** ramps to full by **0.5**, **drop** compensation to full by **1** (0 = aim at the target's current spot). 0.5–1 reserved for acceleration/turn-rate prediction later
   aimTolerance  = 6  — Fires only when the barrel is within this many degrees of the solution
-  gravity
-  drag
-  mass
-  damage
-  fullRadius
-  blastRadius
-  los
+  gravity  = -9.81  — Shell ballistics (see b3d-launcher)
+  drag  = 0.01  — Shell ballistics (see b3d-launcher)
+  mass  = 1  — Shell ballistics (see b3d-launcher)
+  damage  = 20  — Warhead payload (see b3d-warhead)
+  fullRadius  = 1  — Warhead payload (see b3d-warhead)
+  blastRadius  = 2.5  — Warhead payload (see b3d-warhead)
+  los  = 'on'  — Warhead payload (see b3d-warhead)
   idleColor  = '#4a5560'  — Barrel colour with no firing solution
   armedColor  = '#e04030'  — Barrel colour when it can bear (has a solution, in range)
+
+## b3d-utils
+Material Conventions
+
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
 
 ## b3d-warhead — <tosi-b3d-warhead>
 b3d-warhead
 
+  x  = 0  — Detonation point when `detonate()` is called with no argument
+  y  = 0  — Detonation point when `detonate()` is called with no argument
+  z  = 0  — Detonation point when `detonate()` is called with no argument
+  rx
+  ry
+  rz
+  axes
   damage  = 20  — Full damage `D` (direct hit + within `fullRadius`)
   fullRadius  = 1.5  — Within this distance the blast deals full `D`
   blastRadius  = 5  — Falloff from `D` (at `fullRadius`) to 1 here; 0 beyond
   los  = 'on'  — Line-of-sight occlusion (a wall between blast + target spares it)
+  by
 
 ## b3d-water — <tosi-b3d-water>
 b3d-water
 
+  x
+  y
+  z
+  rx
+  ry
+  rz
+  axes
   underwaterFog
   underwaterMurk
   fogTransition
@@ -711,27 +838,7 @@ b3d-water
   colorBlendFactor  = 0.1  — How much color tints the water
   windDirectionX
   windDirectionY
-
-## control-input
-control-input
-
-  forward  = -1..1  — Forward/backward movement
-  strafe  = -1..1  — Left/right strafe
-  turn  = -1..1  — Turning
-  pitch  = -1..1  — Pitch (aircraft)
-  throttle  = 0..1  — Continuous throttle
-  jump  = 0..1  — Jump
-  shoot  = 0..1  — Fire weapon
-  sprint  = 0..1  — Sprint modifier
-  interact  = 0..1  — Enter vehicle / pick up / use
-  aim  = 0..1  — Aim down sights
-  cameraZoom  = -1..1  — Camera zoom
-  sneak  = 0\  — 1
-
-## galaxy-data
-galaxy-data
-
-  StarData  = name, seed, position, spectralType, luminosity, mass, numberOfPlanets, rgb
+  wind
 
 ## game-controller — <tosi-game-controller>
 game-controller
@@ -739,23 +846,10 @@ game-controller
   wheelSensitivity
   updateIntervalMs
 
-## gamepad-svg
-gamepad-svg
-
-  strokeColor  = #000000  — All stroked elements
-  strokeWidth  = 16  — All stroked elements
-  widgetColor  = #ffffff  — Bumpers, triggers, dpad, sticks, menu, view
-  controllerColor  = #aaaaaa  — Controller body
-  stickTravelColor  = #505050  — Stick travel circles
-  fillA  = #ff1d25  — A button (red)
-  fillB  = #fcee22  — B button (yellow)
-  fillX  = #8cc63f  — X button (green)
-  fillY  = #3ea9f5  — Y button (blue)
-
 ## glass-gamepad — <tosi-b3d-gamepad>
 glass-gamepad (b3dGamepad)
 
-  controls  = ''` (all)  — **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece
+  controls  = ''  — **Comma**-separated piece list, e.g. `'a,b,right_stick(40,0),menu'`. Empty (the default) shows everything. `a/b/x/y` map to `A/B/X/Y`; `dpad` expands to the four directions; `name(dx,dy)` nudges one piece
   scale
   deadzone
   maxZone
@@ -771,58 +865,21 @@ glass-gamepad (b3dGamepad)
   width
   height
 
-## icon-name
-icon-name
-
-  r  = rotate N°  — `chevron90r`
-  f  = flip (`0f` = H, `1f` = V)  — `chevron0f`
-  s  = scale N%  — `star75s`
-  x  = translateX N%  — `plus20x`
-  y  = translateY N%  — `plus_10y`
-  o  = opacity N%  — `camera50o`
-  W  = stroke-width N  — `chevron3W`
-  F  = fill (hex or `--var`)  — `close_f00F`
-  S  = stroke (hex or `--var`)  — `chevron_accentS`
-
-## key-layout
-key-layout
-
-  alpha  = letters, with `shift
-  symbols  = punctuation and symbols
-  dial  = a telephone keypad — `*` `0` `#`, `+` for international
-
 ## keyboard-gamepad — <tosi-keyboard-gamepad>
 keyboard-gamepad
 
   wheelSensitivity
   updateIntervalMs
 
-## light-modulation
-Light programs
-
-  brightness  = **multiplies** the base intensity — `0` off, `1` as declared  — "off" has to be reachable; it is the value you flicker to
-  range  = **multiplies** the base range  — a range of zero is a light that lights nothing
-  saturation  = **multiplies** saturation — `0` is white, `saturationScale` sets what `1` means  — saturation has a meaningful zero and reaching it is the point
-  hue  = **shifts** the base hue, `0.5` = unchanged, scaled by `hueShiftDeg  — hue is circular with no meaningful zero, so an absolute mapping would discard the colour you chose
-
-## slope-profile
-slope-profile
-
-  cliffProfile  = flat low shelf → sharp riser → flat top  — sea cliffs (Dover)
-  beachProfile  = wide gentle low shelf, easing rise  — beaches, coastal plain
-  rollingProfile  = contrast-compressed midtones  — rolling hills
-  mesaProfile  = quantized steps (alias of `plateauFilter`)  — mesas, mid-level plateaus
-  terraceProfile  = steps with sloped risers  — terraced hills
-
 ## tosi-b3d — <tosi-b3d>
 b3d
 
   glowLayerIntensity  = 0  — Glow effect intensity (0 = off)
   frameRate  = 30  — Target frame rate
-  minElevation
-  maxElevation
-  minDistance
-  maxDistance
+  minElevation  = 5  — Default orbit-camera elevation limits (degrees above the horizon)
+  maxElevation  = 70  — Default orbit-camera elevation limits (degrees above the horizon)
+  minDistance  = 2  — Default orbit-camera zoom limits
+  maxDistance  = 50  — Default orbit-camera zoom limits
   noXr
   xrGrid
   xrReticle
@@ -836,35 +893,8 @@ b3d
   startPaused
   reseatFreeze
   timeScale
+  windSpeed
+  windBearingDeg
+  windGust
   enterXrOnResume
   no-xr  = false  — Suppress the automatic Enter-VR button (WebXR is offered by default when an immersive-vr session is supported)
-
-## touch-gamepad
-touch-gamepad
-
-  data-part  = VirtualGamepad  — Type
-
-## widgets3d
-widgets3d
-
-  panel3d  = width  — `360`
-  row3d  = weights  — equal
-  slider3d  = min` / `max  — `0` / `1`
-  toggle3d  = label` / `value
-  select3d  = options
-  inputField  = **`type`**  — `'text'`
-  list3d  = items` / `onSelect
-  button3d  = label` / `onClick
-  menu3d  = items` / `handleSelect
-  iconBar3d  = items
-  spinner3d  = label` / `size
-  progress3d  = label` / `value` / `showValue
-
-## xr-frames
-xr-frames
-
-  world  = the play space  — a hologram on a table
-  rig  = the locomotion rig (vehicle)  — a piloting HUD that flies with you
-  body  = your torso (head x/z + **damped** yaw)  — waist inventory, over-shoulder backpack
-  neck  = your neck pivot  — UI you can look *past*
-  face  = your eyes (head-locked)  — a reticle, a vignette, sunglasses

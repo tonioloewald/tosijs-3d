@@ -221,6 +221,45 @@ export type XRStuff = {
 };
 export declare function enterXR(scene: BABYLON.Scene, options?: XRParams): Promise<XRStuff>;
 /**
+ * Dispose a mesh AND the materials/textures nothing else is still using.
+ *
+ * `mesh.dispose()` leaves its material behind — Babylon's
+ * `disposeMaterialAndTextures` defaults to false — so a child that builds its
+ * own material leaks it on every teardown. That includes every RE-PARENT,
+ * because a move disconnects and reconnects the child while `B3d` deliberately
+ * keeps the scene alive: the mesh goes, a fresh material is built, and the old
+ * one stays in `scene.materials` for the life of the page.
+ *
+ * Measured, not theorised. Re-parenting one `<tosi-b3d>` holding a skybox and
+ * water six times, with the scene surviving each move as designed:
+ *
+ * ```
+ *   meshes     2   2   2   2   2   2   2      correctly disposed
+ *   materials  3   5   7   9  11  13  15      +2 every move
+ *   textures   3   6   9  12  15  18  21      +3 every move
+ * ```
+ *
+ * That is also the diagnostic `tosijs-3d-ensemble` reported against #56 —
+ * `gl.isProgram(program) === false` while every uniform reads correct — and the
+ * attribution matters: it is an ORPHANED material holding a dead program, not
+ * the live one, so that signature is not by itself evidence of a second WebGL
+ * context.
+ *
+ * ## Why it checks rather than just disposing
+ *
+ * A glTF file routinely shares one material across many meshes, so disposing a
+ * material because THIS mesh referenced it would leave its siblings black —
+ * silently, since a disposed material still answers `isReady()`. So a material
+ * goes only when no mesh left in the scene refers to it, and a texture only
+ * when no material left refers to it.
+ *
+ * Textures get three extra exemptions, each of which is a thing that holds a
+ * texture without any material mentioning it: the scene's environment texture,
+ * anything in `customRenderTargets` (water's reflection/refraction), and a
+ * light's `projectionTexture` (a lamp's gel).
+ */
+export declare function disposeMeshTree(mesh: BABYLON.AbstractMesh): void;
+/**
  * Apply material conventions based on PBR material properties.
  *
  * Reads actual material data (alpha, metallic, etc.) rather than relying

@@ -642,6 +642,22 @@ export class B3dTerrain extends B3dChild {
         this.createPool();
         this._beforeRender = () => this.update();
         scene.registerBeforeRender(this._beforeRender);
+        /*
+        FILL IT NOW. This is the bug #66 actually reported.
+    
+        Setup builds a tile POOL — meshes with no vertices and `isVisible: false` —
+        and something has to fill it. Nothing did, so a terrain with its attributes
+        set drew a skybox and nothing else until a consumer called `regenerate()`.
+    
+        My first version of this fix only regenerated on CHANGE and took a baseline
+        key here, which suppressed exactly the case that needed fixing: at setup
+        nothing has changed yet. It passed its tests and drew an empty world, which
+        the demo showed and the tests could not.
+        */
+        this.regenerate();
+        // Baseline AFTER the fill, so the first render() does not immediately
+        // rebuild a terrain that was just built.
+        this._genKey = this._generationKey();
     }
     /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
      * Handy from the console: `$0.setProfiling(true)` … fly … `$0.debugState`. */
@@ -1442,6 +1458,74 @@ export class B3dTerrain extends B3dChild {
     // Rebuild after a parameter change. A height-only change keeps the same cells
     // (so placed tiles would be kept, unbuilt) — clear the pool so everything is a
     // blank and refill in full this frame (budget = pool size, no per-frame cap).
+    /*
+    WHAT A CHANGE TO THIS MEANS: rebuild the world.
+  
+    Only the attributes that actually determine the heightfield or the tile grid.
+    A change to `wireframe` or `debugColor` is a material tweak and must not cost
+    a regeneration; a change to `seed` or `grossScale` is a different planet.
+    */
+    _generationKey() {
+        const a = this;
+        return [
+            a.seed,
+            a.surfaceType,
+            a.radius,
+            a.majorRadius,
+            a.minorRadius,
+            a.cylinderHeight,
+            a.grossScale,
+            a.detailScale,
+            a.horizScale,
+            a.grossAmplitude,
+            a.detailAmplitude,
+            a.baseHeight,
+            a.center,
+            a.tileSize,
+            a.lodLevels,
+            a.splitFactor,
+            a.reach,
+            a.hiResSubdivisions,
+            a.normalSmoothing,
+            a.biome,
+            a.biomeSeaLevel,
+            a.biomeLapseRate,
+        ].join('|');
+    }
+    _genKey = '';
+    /*
+    ORDINARY ATTRIBUTES REGENERATE, like every other element's do.
+  
+    A configured terrain used to produce a tile pool and fill it only when told:
+    120 meshes, `isVisible: false`, no bounds, until someone called
+    `regenerate()`. The docs said "set it, then regenerate()" for the exotic hooks
+    and it turned out to be true of `grossScale` too — so a terrain with its
+    attributes set drew NOTHING, which is a silent failure, and every consumer
+    reinvented the same retry (tosijs-3d-ensemble, #66).
+  
+    THRASHING IS ALREADY HANDLED, so this regenerates inline.
+  
+    tosijs coalesces renders: `queueRender` sets a per-element `_renderQueued`
+    flag and schedules ONE `requestAnimationFrame`, so setting five attributes in
+    a task produces a SINGLE `render()`. A first version of this deferred to the
+    next `beforeRender` to collapse bursts, which was reimplementing the
+    framework's own batching one layer down. (Tonio: "the way render is queued
+    naturally handles thrashing of properties.")
+  
+    Keyed on the generation attributes only, so a `wireframe` toggle stays a
+    material tweak rather than a new planet — that part is ours, and is not
+    something the batching does for us.
+    */
+    render() {
+        super.render();
+        if (this.owner == null)
+            return;
+        const key = this._generationKey();
+        if (key === this._genKey)
+            return;
+        this._genKey = key;
+        this.regenerate();
+    }
     regenerate() {
         const attrs = this;
         if (this.material)

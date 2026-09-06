@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- NB: the body is NOT hidden until hydration. It used to be (body opacity 0 +
+       a 4s safety-net timeout), because an undefined custom element is
+       display:inline, so the pre-rendered page stacked as bare text and hydration
+       reflowed the whole thing. The cost was a blank screen for as long as the
+       bundle took — ~4.5s on a cheap phone, for content already in the HTML. The
+       tosi-doc-system:not(:defined) rules in the stylesheet now lay the static page
+       out as though the chrome were there, so hydration only ADDS the chrome and
+       nothing moves. Paint immediately; don't hide readable content. -->
+  <!-- Theme, applied BEFORE first paint. Now that we paint the static page rather
+       than hiding it, a dark-mode reader would otherwise get a flash of the light
+       theme until the bundle lands and sets body.darkmode. CSS alone can't do this:
+       an explicit theme choice lives in localStorage. Mirrors applyThemePrefs()
+       (doc-system.ts) — keep the two in step. Fails safe: any error leaves the
+       light default, exactly as before. -->
+  <script>
+    try {
+      var p = JSON.parse(localStorage.getItem('tosi-doc-system-prefs') || '{}')
+      var t = p.theme || 'system'
+      if (t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches))
+        document.documentElement.classList.add('darkmode')
+      if (p.highContrast) document.documentElement.classList.add('high-contrast')
+    } catch (e) {}
+  </script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
+  <title>b3d-manipulator — tosijs-3d</title>
+  <meta name="description" content="Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset." />
+  <link rel="canonical" href="https://3d.tosijs.net/b3d-manipulator/" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="tosijs-3d" />
+  <meta property="og:title" content="b3d-manipulator — tosijs-3d" />
+  <meta property="og:description" content="Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset." />
+  <meta property="og:url" content="https://3d.tosijs.net/b3d-manipulator/" />
+  <meta name="twitter:card" content="summary" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"b3d-manipulator","description":"Translate, rotate and scale handles you can grab — with a mouse, a finger, or a hand in a headset.","url":"https://3d.tosijs.net/b3d-manipulator/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <link rel="icon" href="../favicon.svg" />
+<script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
+</head>
+<body>
+  <tosi-doc-system docs="../docs.json" config="{&quot;projectName&quot;:&quot;tosijs-3d&quot;,&quot;projectLinks&quot;:{&quot;tosijs&quot;:&quot;https://tosijs.net&quot;,&quot;github&quot;:&quot;https://github.com/tonioloewald/tosijs-3d&quot;},&quot;logo&quot;:&quot;tosiXr&quot;}">
+  <article class="doc-content">
+<h1>b3d-manipulator</h1>
+<p><strong>Translate, rotate and scale handles you can grab — with a mouse, a finger, or
+a hand in a headset.</strong> The maths is <a href="/manipulator/" class="wikilink">manipulator</a>, the geometry is
+<a href="/manipulator-view/" class="wikilink">manipulator-view</a>, and this is the element that puts them in a scene and
+writes the result somewhere.</p>
+<h2>Demo</h2>
+<p>Drag the arrows to move, the rings to turn, the cubes to scale. The pads move in
+a plane. Everything is on at once — the part you grab says what the drag means.</p>
+<pre><code class="language-js">import { b3d, b3dSun, b3dSkybox, b3dLight, b3dGround, b3dBox, b3dManipulator, toggle3d, select3d, label3d } from &#39;tosijs-3d&#39;
+import { orbitCam } from &#39;tosijs-3d/demo-utils&#39;
+import { elements } from &#39;tosijs&#39;
+
+const { div } = elements
+const readout = div({ class: &#39;readout&#39; }, &#39;0, 0.5, 0&#39;)
+
+const gizmo = b3dManipulator({
+  target: &#39;#thing&#39;,
+  turn: &#39;on&#39;,
+  gridSnap: 0.25,
+  angleSnap: 15,
+  handleChange: (t) =&gt; {
+    const n = (v) =&gt; Math.round(v * 100) / 100
+    readout.textContent =
+      `${n(t.position.x)}, ${n(t.position.y)}, ${n(t.position.z)}` +
+      `   ·   ${Math.round(t.rotation.ry)}°   ·   ×${n(t.scale.x)}`
+  },
+})
+
+// The controls live in the SCENE PANEL, so the same demo is usable in a headset.
+const panel = () =&gt; [
+  label3d({ text: &#39;Manipulator&#39; }),
+  toggle3d({
+    label: &#39;move&#39;,
+    value: gizmo.move !== &#39;off&#39;,
+    handleChange: (v) =&gt; { gizmo.move = v ? &#39;on&#39; : &#39;off&#39; },
+  }),
+  toggle3d({
+    label: &#39;turn&#39;,
+    value: gizmo.turn !== &#39;off&#39;,
+    handleChange: (v) =&gt; { gizmo.turn = v ? &#39;on&#39; : &#39;off&#39; },
+  }),
+  toggle3d({
+    label: &#39;scale&#39;,
+    value: gizmo.scale !== &#39;off&#39;,
+    // Scale is exclusive of the other two — the element enforces that itself,
+    // so the toggles simply follow it.
+    handleChange: (v) =&gt; { gizmo.scale = v ? &#39;on&#39; : &#39;off&#39; },
+  }),
+  select3d({
+    label: &#39;grid&#39;,
+    value: 0.25,
+    options: [{ label: &#39;off&#39;, value: 0 }, 0.25, 0.5, 1],
+    handleChange: (v) =&gt; { gizmo.gridSnap = Number(v) },
+  }),
+  select3d({
+    label: &#39;angle&#39;,
+    value: 15,
+    options: [{ label: &#39;off&#39;, value: 0 }, 5, 15, 45, 90],
+    handleChange: (v) =&gt; { gizmo.angleSnap = Number(v) },
+  }),
+]
+
+preview.append(
+  readout,
+  b3d(
+    {
+      style: &#39;width:100%;height:100%&#39;,
+      scenePanel: panel,
+      sceneCreated(el) {
+        orbitCam(el, { alpha: -1.1, beta: 1.05, radius: 8, target: [0, 0.5, 0] })
+      },
+    },
+    b3dSun({}),
+    b3dSkybox({ timeOfDay: 10 }),
+    b3dLight({ intensity: 0.5 }),
+    b3dGround({ size: 40, color: &#39;#5d6b4a&#39; }),
+    b3dBox({ id: &#39;thing&#39;, y: 0.5, color: &#39;#c8963c&#39; }),
+    gizmo
+  )
+)
+</code></pre>
+<pre><code class="language-css">.preview { height: 100%; position: relative; }
+.readout {
+  position: absolute;
+  z-index: 1;
+  left: 8px;
+  bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  color: #fff;
+  background: #0009;
+}
+</code></pre>
+<h2>Attributes</h2>
+<table>
+<thead>
+<tr>
+<th>attribute</th>
+<th>default</th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>target</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>CSS selector for the element to manipulate. Or set <code>.node</code> in JS</td>
+</tr>
+<tr>
+<td><code>meshName</code></td>
+<td><code>&#39;&#39;</code></td>
+<td>a mesh in the scene, by name — for things that are not elements</td>
+</tr>
+<tr>
+<td><code>move</code></td>
+<td><code>&#39;on&#39;</code></td>
+<td><code>&#39;on&#39;</code>/<code>&#39;off&#39;</code> — arrows and plane pads</td>
+</tr>
+<tr>
+<td><code>turn</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code>/<code>&#39;off&#39;</code> — rings</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code>/<code>&#39;off&#39;</code> — cubes, plus the uniform centre cube</td>
+</tr>
+<tr>
+<td><code>gridSnap</code></td>
+<td><code>0</code></td>
+<td>position snap in metres. <code>0</code> is off</td>
+</tr>
+<tr>
+<td><code>angleSnap</code></td>
+<td><code>0</code></td>
+<td>angle snap in degrees. <code>0</code> is off</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>0.13</code></td>
+<td>apparent size — the widget is this fraction of its distance from the camera, so it stays constant on screen</td>
+</tr>
+<tr>
+<td><code>disabled</code></td>
+<td><code>false</code></td>
+<td>hide the handles and ignore input</td>
+</tr>
+</tbody></table>
+<p><code>handleChange(transform)</code> fires live during a drag; <code>handleCommit(transform)</code>
+fires once on release, snapped, and only when something actually changed — which
+is your undo step. Both also dispatch a DOM <code>change</code> / <code>commit</code> event carrying
+the transform in <code>detail</code>.</p>
+<h2>Scale is exclusive of move and turn</h2>
+<p><code>node.scaling</code> is local, so scale grips ride the object&#39;s own axes while move
+rides the world&#39;s. A widget showing both draws two frames at once and can only
+mislead. Turning <code>scale</code> on therefore turns <code>move</code> and <code>turn</code> off, and vice versa —
+the element does this to itself rather than letting you build the misleading
+combination.</p>
+<h2>Where the transform is written, and why it is a fork</h2>
+<p>Getting this wrong does not error. It silently does nothing, which is the worst
+failure mode a manipulator can have.</p>
+<table>
+<thead>
+<tr>
+<th>target</th>
+<th>written to</th>
+<th>why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>an ELEMENT (<code>b3d-prop</code>, <code>b3d-destroyable</code>, any <code>AbstractMesh</code>)</td>
+<td><code>el.x/y/z</code>, <code>el.rx/ry/rz</code></td>
+<td>the element OWNS its transform — <code>render()</code> writes <code>mesh.position</code> and <code>rotationQuaternion</code> from those attributes every render, so a write straight to the mesh is undone the next time anything re-renders</td>
+</tr>
+<tr>
+<td>a bare NODE</td>
+<td><code>node.position</code>, <code>node.rotationQuaternion</code>, <code>node.scaling</code></td>
+<td>nothing manages it, so the node IS the truth</td>
+</tr>
+</tbody></table>
+<p><strong>Scale goes to the node in both branches.</strong> <code>AbstractMesh.render()</code> does not
+sync scaling, and no element attribute covers per-axis scale, so the node is
+where a scale survives.</p>
+<p><strong>Rotating a node clears its quaternion first.</strong> A <code>TransformNode</code> ignores
+<code>.rotation</code> while it has a <code>rotationQuaternion</code> — and the glTF loader always
+sets one. That is exactly the bug that made <code>library.instantiate()</code>&#39;s rotation
+silently inert until 0.7.0: it wrote <code>.rotation</code>, the quaternion won, and every
+value produced the model&#39;s baked orientation. <code>position</code> worked, which is what
+made it look wired up.</p>
+<h2>Driving it from XR, or from anything else</h2>
+<p>The flat pointer is wired for you. Everything else goes through three methods
+that take world rays, so a controller, a hand or a script drives the same code:</p>
+<pre><code class="language-javascript">const grabbed = el.grab({ origin, direction }, { secondary: false })
+el.drag({ origin, direction })
+el.release()
+</code></pre>
+<p><code>grabNear({x, y, z})</code> is the near-interaction form: a hand inside a handle grabs
+it directly, which beats whatever the same controller&#39;s ray happens to be
+crossing further away.</p>
+<h2>Where this came from</h2>
+<p>Ported from <code>tosijs-3d-ensemble</code>, which built and shook it out against real
+authoring — including on a phone, which is where most of the sizing decisions
+were won. This library had no manipulator at all (#38), and <code>b3d-panel</code>&#39;s
+coloured debug axes look exactly like one, which is its own small cruelty.</p>
+
+  </article>
+  <nav class="doc-nav" aria-label="Documentation">
+  <ul>
+    <li><a class="doc-link" href="../">tosijs-3d</a></li>
+    <li><a class="doc-link" href="../Migration/">Migration</a></li>
+    <li><a class="doc-link" href="../CHANGELOG/">Changelog</a></li>
+    <li><details><summary><a class="doc-link" href="../core/">Core</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../tosi-b3d/">b3d</a></li>
+      <li><a class="doc-link" href="../library-mesh/">library-mesh</a></li>
+      <li><a class="doc-link" href="../b3d-prop/">b3d-prop</a></li>
+      <li><a class="doc-link" href="../make-mesh/">make-mesh</a></li>
+      <li><a class="doc-link" href="../scene-schemas/">Scene schemas</a></li>
+      <li><a class="doc-link" href="../b3d-collisions/">b3d-collisions</a></li>
+      <li><a class="doc-link" href="../b3d-library/">b3d-library</a></li>
+      <li><a class="doc-link" href="../b3d-loader/">b3d-loader</a></li>
+      <li><a class="doc-link" href="../b3d-trigger/">b3d-trigger</a></li>
+      <li><a class="doc-link" href="../frame-panel/">frame-panel</a></li>
+      <li><a class="doc-link" href="../hud/">hud</a></li>
+      <li><a class="doc-link" href="../xr-frames/">xr-frames</a></li>
+      <li><a class="doc-link" href="../asset-url/">asset-url</a></li>
+      <li><a class="doc-link" href="../hud-math/">hud-math</a></li>
+      <li><a class="doc-link" href="../b3d-utils/">Material Conventions</a></li>
+      <li><a class="doc-link" href="../spatial-transform/">spatial-transform</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../effects/">Effects</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../light-modulation/">Light programs</a></li>
+      <li><a class="doc-link" href="../b3d-exploder/">b3d-exploder</a></li>
+      <li><a class="doc-link" href="../b3d-reflections/">b3d-reflections</a></li>
+      <li><a class="doc-link" href="../buoyancy/">buoyancy</a></li>
+      <li><a class="doc-link" href="../cloud-shadows/">cloud-shadows</a></li>
+      <li><a class="doc-link" href="../shadow-decal/">shadow-decal</a></li>
+      <li><a class="doc-link" href="../swim-aim/">swim-aim</a></li>
+      <li><a class="doc-link" href="../wreck-fall/">wreck-fall</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../combat/">Combat</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-destroyable/">b3d-destroyable</a></li>
+      <li><a class="doc-link" href="../b3d-launcher/">b3d-launcher</a></li>
+      <li><a class="doc-link" href="../b3d-radar/">b3d-radar</a></li>
+      <li><a class="doc-link" href="../b3d-radar-blip/">b3d-radar-blip</a></li>
+      <li><a class="doc-link" href="../b3d-turret/">b3d-turret</a></li>
+      <li><a class="doc-link" href="../b3d-warhead/">b3d-warhead</a></li>
+      <li><a class="doc-link" href="../destroyable-behavior/">destroyable-behavior</a></li>
+      <li><a class="doc-link" href="../radar/">radar.ts</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../environment/">Environment</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
+      <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
+      <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
+      <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
+      <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
+      <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
+      <li><a class="doc-link" href="../b3d-light/">b3d-light</a></li>
+      <li><a class="doc-link" href="../b3d-particles/">b3d-particles</a></li>
+      <li><a class="doc-link" href="../b3d-shadows/">b3d-shadows</a></li>
+      <li><a class="doc-link" href="../b3d-skybox/">b3d-skybox</a></li>
+      <li><a class="doc-link" href="../b3d-sound/">b3d-sound</a></li>
+      <li><a class="doc-link" href="../b3d-water/">b3d-water</a></li>
+      <li><a class="doc-link" href="../carve/">carve</a></li>
+      <li><a class="doc-link" href="../sdf-lattice/">Carved landforms</a></li>
+      <li><a class="doc-link" href="../landform/">landform</a></li>
+      <li><a class="doc-link" href="../water-normal/">water-normal</a></li>
+      <li><a class="doc-link" href="../ambient-leaves/">ambient-leaves</a></li>
+      <li><a class="doc-link" href="../atmosphere/">atmosphere</a></li>
+      <li><a class="doc-link" href="../biome-chart/">biome-chart</a></li>
+      <li><a class="doc-link" href="../biome-plugin/">biome-plugin</a></li>
+      <li><a class="doc-link" href="../patch-field/">patch-field</a></li>
+      <li><a class="doc-link" href="../slope-profile/">slope-profile</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../input/">Input</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-controller/">b3d-controller</a></li>
+      <li><a class="doc-link" href="../b3d-input-focus/">b3d-input-focus</a></li>
+      <li><a class="doc-link" href="../game-controller/">game-controller</a></li>
+      <li><a class="doc-link" href="../glass-gamepad/">glass-gamepad (b3dGamepad)</a></li>
+      <li><a class="doc-link" href="../keyboard-gamepad/">keyboard-gamepad</a></li>
+      <li><a class="doc-link" href="../b3d-controllable/">b3d-controllable</a></li>
+      <li><a class="doc-link" href="../control-input/">control-input</a></li>
+      <li><a class="doc-link" href="../gamepad-focus/">gamepad-focus</a></li>
+      <li><a class="doc-link" href="../gamepad-svg/">gamepad-svg</a></li>
+      <li><a class="doc-link" href="../hardware-gamepad/">hardware-gamepad</a></li>
+      <li><a class="doc-link" href="../touch-gamepad/">touch-gamepad</a></li>
+      <li><a class="doc-link" href="../virtual-gamepad/">virtual-gamepad</a></li>
+      <li><a class="doc-link" href="../xr-gamepad/">xr-gamepad</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../performance/">Performance</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-probe/">b3d-probe</a></li>
+      <li><a class="doc-link" href="../ambient-budget/">ambient-budget</a></li>
+      <li><a class="doc-link" href="../b3d-quality/">b3d-quality</a></li>
+      <li><a class="doc-link" href="../perf-probe/">perf-probe</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../space/">Space</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-black-hole/">b3d-black-hole</a></li>
+      <li><a class="doc-link" href="../b3d-galaxy/">b3d-galaxy</a></li>
+      <li><a class="doc-link" href="../b3d-planet/">b3d-planet</a></li>
+      <li><a class="doc-link" href="../b3d-star/">b3d-star</a></li>
+      <li><a class="doc-link" href="../b3d-star-system/">b3d-star-system</a></li>
+      <li><a class="doc-link" href="../galaxy-data/">galaxy-data</a></li>
+    </ul>
+    </details></li>
+    <li><details open><summary><a class="doc-link" href="../ui/">UI</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../widgets3d/">widgets3d</a></li>
+      <li><a class="doc-link" href="../box/">box</a></li>
+      <li><a class="doc-link" href="../handler-of/">handlerOf</a></li>
+      <li><a class="doc-link" href="../keyboard/">keyboard</a></li>
+      <li><a class="doc-link" href="../table/">table</a></li>
+      <li><a class="doc-link" href="../svg-icons/">svg-icons</a></li>
+      <li><a class="doc-link" href="../selection/">selection</a></li>
+      <li><a class="doc-link" href="../vector-field/">Coordinate fields</a></li>
+      <li><a class="doc-link" href="../curve-field/">Curve editor</a></li>
+      <li><a class="doc-link" href="../footprint-field/">Footprint editor</a></li>
+      <li><a class="doc-link" href="../icon-grid/">Icon grid</a></li>
+      <li><a class="doc-link" href="../curve-program/">Light program editor</a></li>
+      <li><a class="doc-link" href="../light-editor/">Light editor</a></li>
+      <li><a class="doc-link" href="../light-settings/">Light settings (data)</a></li>
+      <li><a class="doc-link" href="../color/">color</a></li>
+      <li><a class="doc-link" href="../color-field/">color3d</a></li>
+      <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
+      <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link current" href="../b3d-manipulator/" aria-current="page">b3d-manipulator</a></li>
+      <li><a class="doc-link" href="../surface/">surface</a></li>
+      <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
+      <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
+      <li><a class="doc-link" href="../b3d-svg-plane/">b3d-svg-plane</a></li>
+      <li><a class="doc-link" href="../b3d-hud/">b3d-hud</a></li>
+      <li><a class="doc-link" href="../svg-texture/">svg-texture</a></li>
+      <li><a class="doc-link" href="../dialog-placement/">dialog-placement</a></li>
+      <li><a class="doc-link" href="../embed-font/">embed-font</a></li>
+      <li><a class="doc-link" href="../flow-layout/">flow-layout</a></li>
+      <li><a class="doc-link" href="../key-layout/">key-layout</a></li>
+      <li><a class="doc-link" href="../popup-chrome/">popup-chrome</a></li>
+      <li><a class="doc-link" href="../rounded-rect/">rounded-rect</a></li>
+      <li><a class="doc-link" href="../table-layout/">table-layout</a></li>
+      <li><a class="doc-link" href="../text-edit/">text-edit</a></li>
+      <li><a class="doc-link" href="../widgets3d-layout/">Widget layout maths</a></li>
+      <li><a class="doc-link" href="../widget-box/">widget-box</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
+      <li><a class="doc-link" href="../curve/">curve</a></li>
+      <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
+      <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
+      <li><a class="doc-link" href="../glb-manifest/">glb-manifest</a></li>
+      <li><a class="doc-link" href="../medium/">medium</a></li>
+      <li><a class="doc-link" href="../portal-transform/">portal-transform</a></li>
+      <li><a class="doc-link" href="../icon-name/">icon-name</a></li>
+      <li><a class="doc-link" href="../mersenne-twister/">mersenne-twister</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../vehicles/">Vehicles</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../b3d-aircraft/">b3d-aircraft</a></li>
+      <li><a class="doc-link" href="../b3d-biped/">b3d-biped</a></li>
+      <li><a class="doc-link" href="../b3d-car/">b3d-car</a></li>
+      <li><a class="doc-link" href="../mantle/">mantle</a></li>
+    </ul>
+    </details></li>
+    <li><details><summary><a class="doc-link" href="../world-sim/">World Sim</a></summary>
+    <ul>
+      <li><a class="doc-link" href="../world-store/">world-store</a></li>
+      <li><a class="doc-link" href="../b3d-death/">b3d-death</a></li>
+      <li><a class="doc-link" href="../b3d-interactive/">b3d-interactive</a></li>
+      <li><a class="doc-link" href="../b3d-spawner/">b3d-spawner</a></li>
+      <li><a class="doc-link" href="../interaction/">interaction</a></li>
+      <li><a class="doc-link" href="../world-view/">world-view</a></li>
+      <li><a class="doc-link" href="../formations/">formations</a></li>
+      <li><a class="doc-link" href="../interactive-behavior/">interactive-behavior</a></li>
+      <li><a class="doc-link" href="../min-sim-conformance/">min-sim-conformance</a></li>
+      <li><a class="doc-link" href="../prefab/">prefab</a></li>
+      <li><a class="doc-link" href="../world-contract/">world-contract</a></li>
+      <li><a class="doc-link" href="../world-topology/">world-topology</a></li>
+    </ul>
+    </details></li>
+  </ul>
+  </nav>
+  <ul class="doc-navbar">
+    <li><a href="https://tosijs.net" data-icon="tosi">tosijs</a></li>
+    <li><a href="https://github.com/tonioloewald/tosijs-3d" data-icon="github">github</a></li>
+    <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
+  </ul>
+  </tosi-doc-system>
+  <script type="module" src="../hydrate.js?v=0.8.1"></script>
+</body>
+</html>

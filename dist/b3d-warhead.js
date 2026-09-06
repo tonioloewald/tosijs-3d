@@ -132,6 +132,7 @@ tosi-b3d { width: 100%; height: 100%; }
 import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js';
 import { resolveAoe } from './warhead.js';
+import { liveDestroyables } from './destroyable-behavior.js';
 // Seconds for the blast to expand from the centre to its full radius — shared by the
 // boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.
 const BOOM_DURATION = 0.35;
@@ -143,6 +144,12 @@ export class B3dWarhead extends AbstractMesh {
         fullRadius: 1.5,
         blastRadius: 5,
         los: 'on', // line-of-sight occlusion; 'off' to ignore cover
+        /*
+        Who to credit for what this blast destroys — a combat id, usually the
+        launcher or the pilot. Travels through the whole cascade, so a chain three
+        drums deep is still attributed here (#8).
+        */
+        by: '',
     };
     get spec() {
         return {
@@ -165,7 +172,7 @@ export class B3dWarhead extends AbstractMesh {
             return;
         const c = center ??
             new BABYLON.Vector3(this.x, this.y, this.z);
-        detonateWarhead(this.owner, c, this.spec, !isOff(this.los));
+        detonateWarhead(this.owner, c, this.spec, !isOff(this.los), this.by ? { by: this.by, kind: 'blast' } : undefined);
     }
 }
 export const b3dWarhead = B3dWarhead.elementCreator();
@@ -174,27 +181,42 @@ export const b3dWarhead = B3dWarhead.elementCreator();
  * `useLos`) and spawn a flash. Shared by `<tosi-b3d-warhead>` and by projectiles /
  * bombs, which fire a warhead on impact.
  */
-export function detonateWarhead(owner, center, spec, useLos = true) {
+export function detonateWarhead(owner, center, spec, useLos = true, 
+/*
+WHY THIS WENT OFF — the whole `Cause`, not just who fired.
+
+It has to be the whole thing because a `deathBlast` cascade LEAVES the combat
+world: a drum's death detonates a fresh warhead here rather than scheduling a
+link the world knows about. Passing only `by` kept the credit and lost the
+shape — every victim came back as a direct hit at `hops: 0`, so a 48-drum
+chain read as forty-eight things the player hit personally.
+
+There is deliberately no friendly-fire exemption anywhere in this engine, so
+`by` can perfectly well name something the blast then destroys. That is the
+truth of what happened, and the ledger should say so.
+*/
+cause) {
     const scene = owner.scene;
-    // Live destroyables (their mesh is named by combatId; a dead one has none).
-    const dests = Array.from(owner.querySelectorAll('tosi-b3d-destroyable'));
     /*
-    Use the element's OWN node, not a scene lookup by name.
+    EVERY destroyable, not every `<tosi-b3d-destroyable>`.
   
-    `scene.getMeshByName` searches `scene.meshes` only, and a `library`
-    destroyable's root is a TransformNode with the model beneath it — so it
-    returned null for a node that exists and is correctly named, and EVERY
-    library-backed target was silently filtered out of EVERY blast. Measured by
-    manta-recon at 4 of 4 (tosijs-3d#28). The element is right there and already
-    holds the node; asking the scene to find it by name was a detour that could
-    only lose information.
+    This used to be `querySelectorAll('tosi-b3d-destroyable')`, which is not what
+    "destroyable" means: `b3d-loader` and `b3d-aircraft` attach the same behaviour
+    and were invisible to every blast in the scene. A destroyable aircraft that
+    could not be blown up, failing by doing nothing (#23).
   
-    `.mesh` is cleared on death, so the null check still does its original job of
-    skipping the already-dead.
+    The registry lives on the BEHAVIOUR, so anything attaching one is a target by
+    construction. It also settles the older bug this comment used to describe:
+    a `library` model's root is a TransformNode, so `scene.getMeshByName` returned
+    null for a node that exists and is correctly named, and every library-backed
+    target was silently filtered out of every blast (4 of 4, measured by
+    manta-recon, #28). Asking the element that already holds the node was the fix;
+    asking the registry is the same answer generalised.
     */
-    const live = dests
-        .map((el) => ({ el, mesh: el.mesh }))
-        .filter((e) => e.mesh != null && !e.el.dead);
+    const live = liveDestroyables(scene).map((e) => ({
+        el: e.behavior,
+        mesh: e.mesh,
+    }));
     const meshes = live.map((e) => e.mesh);
     const targets = live.map((e) => {
         const p = e.mesh.absolutePosition;
@@ -219,10 +241,12 @@ export function detonateWarhead(owner, center, spec, useLos = true) {
         const delayMs = Math.min(BOOM_DURATION, d / shockSpeed) * 1000;
         const el = e.el;
         const amount = hit.amount;
+        // Not `hit` — that is the loop's damage packet. This is why it happened.
+        const why = cause == null ? undefined : { ...cause, kind: 'blast' };
         if (delayMs < 16)
-            el.damage(amount);
+            el.damage(amount, why);
         else
-            setTimeout(() => el.damage(amount), delayMs);
+            setTimeout(() => el.damage(amount, why), delayMs);
     }
     explosionFx(scene, center, blastRadius);
 }

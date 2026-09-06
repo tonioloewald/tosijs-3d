@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import type { B3d } from './tosi-b3d.js';
 import { B3dControllable } from './b3d-controllable.js';
 import type { ControlInput } from './control-input.js';
+import type { Cause, CombatEvent } from './destroyable.js';
 import type { B3dRadar } from './b3d-radar.js';
 export declare class B3dAircraft extends B3dControllable {
     static preferredTagName: string;
@@ -82,6 +83,19 @@ export declare class B3dAircraft extends B3dControllable {
         gunRate: number;
         gunSpeed: number;
         gunDamage: number;
+        gunMode: "direct" | "blast";
+        gunFullRadius: number;
+        gunBlastRadius: number;
+        destroyable: string;
+        capacity: number;
+        armor: number;
+        regenRate: number;
+        regenDelay: number;
+        explode: string;
+        explodeForce: number;
+        blip: string;
+        blipProfile: number;
+        faction: string;
         missileSpeed: number;
         missileAccel: number;
         missileBoost: number;
@@ -141,6 +155,7 @@ export declare class B3dAircraft extends B3dControllable {
     private _radar;
     private _reticleMesh;
     private meshNode;
+    private _destroyable?;
     /** The displacement-tracked world velocity — see `_worldVel`. */
     getWorldVelocity(): BABYLON.Vector3 | null;
     /**
@@ -273,6 +288,12 @@ export declare class B3dAircraft extends B3dControllable {
      */
     fireMissile(): void;
     private get gunWarhead();
+    /** Combat id once `destroyable` is on ('' otherwise). */
+    get combatId(): string;
+    /** True once a destroyable aircraft has died. */
+    get dead(): boolean;
+    /** Damage this aircraft (no-op unless `destroyable` is on). */
+    damage(amount: number, cause?: Cause): CombatEvent[];
     /** Nearest destroyable within `range` and inside the forward cone (or null). */
     private acquireTarget;
     /** The model's gear-retract animations, found by name (see `_findGear`). */

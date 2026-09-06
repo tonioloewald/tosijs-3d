@@ -27,16 +27,8 @@ export interface VectorField extends Widget3d {
     /** The three fields, in axis order — hand them to `fieldGroup` for traversal. */
     readonly fields: InputField[];
 }
-/**
- * Wrap into `(-180, 180]`.
- *
- * Exported because it is the entire behavioural difference between `euler3d` and
- * `vector3d`, and a pure function with a stated range is worth pinning in a test
- * rather than trusting a modulo written from memory. JS `%` keeps the sign of the
- * dividend, so the naive form returns −180 for +180 and disagrees at exactly the
- * boundary you are most likely to hit by dragging.
- */
-export declare function wrapDegrees(deg: number): number;
+import { wrapDegrees } from './manipulator.js';
+export { wrapDegrees };
 /**
  * Edit an `{x, y, z}` on one row.
  *

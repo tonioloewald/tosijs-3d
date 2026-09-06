@@ -1,6 +1,7 @@
 import * as BABYLON from '@babylonjs/core';
 import '@babylonjs/core/Rendering/outlineRenderer.js';
 import type { B3d } from './tosi-b3d.js';
+import { type ActivationVeto } from './interaction.js';
 /** What happened, and where. Carried by every event this behaviour raises. */
 export interface InteractionInfo {
     /** The mesh actually under the pointer (a sub-mesh — the knob, not the door). */
@@ -11,6 +12,22 @@ export interface InteractionInfo {
     distance: number;
     /** Set on `refused`: the veto that said no. */
     reason?: string;
+    /**
+     * How this activation arrived.
+     *
+     * A veto needs it: a lock you can REACH is not a lock you can merely SEE, so
+     * the same door may answer differently to a hand at 0.4 m and a ray at 8 m.
+     */
+    source?: 'pointer' | 'near' | 'api';
+    /**
+     * Who is doing it. Opaque on purpose.
+     *
+     * The simulation knows what an actor is and this layer does not — carrying
+     * anything more specific would make an interactive care whether a door is
+     * being opened by a player, an NPC or a test. A veto that needs to know casts
+     * it; one that does not, ignores it.
+     */
+    actor?: unknown;
 }
 export interface InteractiveHost {
     /** Usually the host Component — events bubble from it. */
@@ -35,10 +52,7 @@ export declare class InteractiveBehavior {
     private host;
     private config;
     /** Other features' "not while I say so" — consulted at activation only. */
-    vetoes: Array<{
-        name: string;
-        blocks: () => boolean;
-    }>;
+    vetoes: Array<ActivationVeto<InteractionInfo>>;
     whenActivated?: (info: InteractionInfo) => void;
     whenHovered?: (info: InteractionInfo) => void;
     whenUnhovered?: (info: InteractionInfo) => void;
@@ -62,6 +76,7 @@ export declare class InteractiveBehavior {
      * however you reach it. Returns `true` if it fired.
      */
     activate(info?: Partial<InteractionInfo>): boolean;
+    private _apiInfo;
     /** Tuned state for the console / `hj eval` / a Perf-panel debug source. */
     get debugState(): {
         enabled: boolean;
@@ -95,6 +110,18 @@ export declare class InteractiveBehavior {
  * are standing at, and activating it is how you learn it is locked.
  */
 export declare function nearestInteractive(scene: BABYLON.Scene, from: BABYLON.Vector3): InteractiveBehavior | null;
+/**
+ * The nearest usable thing AND how far away it is.
+ *
+ * The distance is the whole reason this exists beside `nearestInteractive`:
+ * the search computes it to pick a winner, and throwing it away left every
+ * downstream reach veto reading a stale hover distance. `nearestInteractive`
+ * keeps its shape for anyone already calling it.
+ */
+export declare function nearestTo(scene: BABYLON.Scene, from: BABYLON.Vector3): {
+    it: InteractiveBehavior;
+    distance: number;
+} | null;
 /**
  * Activate the nearest usable thing. Returns `true` if something fired.
  *

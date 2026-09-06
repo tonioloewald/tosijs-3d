@@ -6,14 +6,27 @@ export interface LibraryMeshRequest {
     type: string;
     /** Model name within that library. */
     meshName: string;
-    /** Placement, in the element's own attributes. Rotation is DEGREES. */
+    /**
+     * Placement, in the element's own attributes. Rotation is DEGREES.
+     *
+     * ⚠️ EVERY FIELD IS REQUIRED, and that is the point. They were optional, and
+     * the optionality is the seam #48 re-entered through: `b3d-turret` and
+     * `b3d-launcher` both passed `{x, y, z}` and silently dropped rotation, so
+     * `b3dLauncher({library:'weapons', ry:180})` fired its shells backwards while
+     * the same element WITHOUT `library` aimed correctly.
+     *
+     * `AbstractMesh` syncs rotation only in `render()`, which has already run by
+     * the time an async load assigns the mesh — so nothing downstream recovers
+     * it. Making the fields required means a call site cannot omit them by
+     * accident; it has to say `rx: 0` and mean it.
+     */
     transform: {
-        x?: number;
-        y?: number;
-        z?: number;
-        rx?: number;
-        ry?: number;
-        rz?: number;
+        x: number;
+        y: number;
+        z: number;
+        rx: number;
+        ry: number;
+        rz: number;
     };
     /** The generation this load belongs to; a mismatch discards it. */
     generation: () => number;

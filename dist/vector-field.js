@@ -106,23 +106,19 @@ function show(n, precision) {
     const s = n.toFixed(precision);
     return s.includes('.') ? s.replace(/\.?0+$/, '') : s;
 }
-/**
- * Wrap into `(-180, 180]`.
- *
- * Exported because it is the entire behavioural difference between `euler3d` and
- * `vector3d`, and a pure function with a stated range is worth pinning in a test
- * rather than trusting a modulo written from memory. JS `%` keeps the sign of the
- * dividend, so the naive form returns −180 for +180 and disagrees at exactly the
- * boundary you are most likely to hit by dragging.
- */
-export function wrapDegrees(deg) {
-    if (!Number.isFinite(deg))
-        return 0;
-    const wrapped = ((((deg + 180) % 360) + 360) % 360) - 180;
-    // The half-open end: +180 is the same orientation as −180, and a control that
-    // flips sign as you cross the back of a turn reads as a glitch.
-    return wrapped === -180 ? 180 : wrapped;
-}
+/*
+`wrapDegrees` is DEFINED IN `manipulator`, not here, and re-exported.
+
+It was written out twice — once for `euler3d`, once for the manipulator's
+rotation drags — with identical bodies and separate comments explaining the same
+half-open end. Two copies of a policy is the failure `library-mesh` documents:
+a fix to one cannot reach the other, and nothing fails when they drift.
+
+`manipulator` is pure and dependency-free, so importing it here costs nothing;
+the reverse direction would pull `w3d-theme` and a DOM into the drag maths.
+*/
+import { wrapDegrees } from './manipulator.js';
+export { wrapDegrees };
 /** Shared builder — `vector3d` and `euler3d` differ only in how a value settles. */
 function coordinateRow(config, settle) {
     const axes = config.axes ?? ['x', 'y', 'z'];

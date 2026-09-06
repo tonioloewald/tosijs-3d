@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { AbstractMesh } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
 import { type WarheadSpec } from './warhead.js';
+import type { Cause } from './destroyable.js';
 export declare class B3dWarhead extends AbstractMesh {
     static preferredTagName: string;
     static initAttributes: {
@@ -9,6 +10,7 @@ export declare class B3dWarhead extends AbstractMesh {
         fullRadius: number;
         blastRadius: number;
         los: string;
+        by: string;
         x: number;
         y: number;
         z: number;
@@ -21,6 +23,7 @@ export declare class B3dWarhead extends AbstractMesh {
     fullRadius: number;
     blastRadius: number;
     los: string;
+    by: string;
     get spec(): WarheadSpec;
     sceneReady(owner: B3d, scene: BABYLON.Scene): void;
     /**
@@ -36,7 +39,7 @@ export declare const b3dWarhead: (...args: unknown[]) => B3dWarhead;
  * `useLos`) and spawn a flash. Shared by `<tosi-b3d-warhead>` and by projectiles /
  * bombs, which fire a warhead on impact.
  */
-export declare function detonateWarhead(owner: B3d, center: BABYLON.Vector3, spec: WarheadSpec, useLos?: boolean): void;
+export declare function detonateWarhead(owner: B3d, center: BABYLON.Vector3, spec: WarheadSpec, useLos?: boolean, cause?: Cause): void;
 /**
  * The fireball, on its own — an expanding, fading emissive sphere. Exported because a
  * detonation isn't the only thing that explodes: an aircraft flying into a hill wants the

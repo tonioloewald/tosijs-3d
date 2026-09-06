@@ -4,6 +4,7 @@ import type { B3d, RadarFaction } from './tosi-b3d.js';
 import { type BallisticParams, type Vec3 } from './ballistics.js';
 import { type Medium, type MediumCrossing } from './medium.js';
 import type { WarheadSpec } from './warhead.js';
+import type { Cause } from './destroyable.js';
 /**
  * WHERE a round stopped, and what it stopped against.
  *
@@ -41,6 +42,22 @@ export interface ProjectileOpts {
     maxLifetime?: number;
     /** Line-of-sight gating for the impact warhead (default true). */
     useLos?: boolean;
+    /**
+     * Damage what it PASSES THROUGH instead of detonating an area effect.
+     *
+     * A cannon shell should hurt the wing it hit. An AOE payload resolves by
+     * distance to a destroyable's registered point — one point, at the model's
+     * origin — so scaling a craft up puts its extremities outside the blast and a
+     * point-blank hit does nothing, silently (#23).
+     *
+     * Direct damage has no length scale in it, so it survives any change of craft
+     * or world scale. The target is resolved by ANCESTRY, because a library model
+     * hangs asynchronously beneath the registered root and the picked mesh is a
+     * wing three levels down.
+     */
+    directHit?: boolean;
+    /** Who to credit for what this shell destroys — see [[destroyable|Cause]]. */
+    cause?: Cause;
     /**
      * Called when the shell detonates, with the point, the surface normal and the
      * mesh struck (see `Impact` — normal/mesh are null for a fuse in open space).

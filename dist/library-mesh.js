@@ -14,7 +14,18 @@ place cannot reach a policy that was duplicated.
 
 That is not hypothetical here: the panel-sizing formula in this repo was copied
 to three sites, fixed in one, and the two survivors were found by a review
-rather than by anything failing. So this loader lives in exactly one place.
+rather than by anything failing.
+
+⚠️ **And sharing the loader was not sufficient.** `b3d-turret` and
+`b3d-launcher` both called THIS function and still dropped rotation, because
+`transform`'s rotation fields were optional — so the shared implementation was
+correct and two of its four callers were not. A pre-release review found it.
+The fields are required now, which is what actually closes the seam: a shared
+implementation only helps where the type makes the mistake unspellable.
+
+`b3d-aircraft.loadFromLibrary` is still a separate, older loader — no `scale`,
+no bounded wait, no missing-library error — and is tracked in `TODO.md` rather
+than migrated here.
 
 ## What it handles, and why each part exists
 

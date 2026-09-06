@@ -284,6 +284,9 @@ export declare class B3dTerrain extends B3dChild {
     private resetOrigin;
     recenter(): void;
     private clearPool;
+    private _generationKey;
+    private _genKey;
+    render(): void;
     regenerate(): void;
 }
 export declare const b3dTerrain: import("tosijs").ElementCreator<B3dTerrain>;

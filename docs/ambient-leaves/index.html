@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
   <title>ambient-leaves — tosijs-3d</title>
   <meta name="description" content="The one ambient effect that is not a sprite." />
   <link rel="canonical" href="https://3d.tosijs.net/ambient-leaves/" />
@@ -57,10 +57,13 @@ the cost is fixed no matter how big the world is, the population is what the bud
 field DRAINS rather than being switched off. <code>B3dAmbient</code> owns all of that and drives this renderer;
 this file owns only the tumble.</p>
 <blockquote>
-<p><strong>Wind is a placeholder here.</strong> Each leaf carries its own drift + sway + tumble, which reads fine
-in isolation but doesn&#39;t AGREE with the rain or the smoke. The shared <code>wind(x,y,z,t)</code> field
-(TODO) is what makes them all blow the same way — when it lands, drift/sway come from it and this
-per-leaf randomness becomes just the flutter on top.</p>
+<p><strong>The shared wind has landed.</strong> <code>setWind</code> used to be a placeholder — each leaf carried its own
+drift, which read fine in isolation and did not AGREE with the clouds or the water. It now comes
+from <a href="/wind/" class="wikilink">the scene's wind</a> via <code>b3d-ambient</code>, so leaves stream the same way the sky does, and
+the per-leaf sway is what it was always meant to be: the flutter ON TOP of a shared field rather
+than a stand-in for one.</p>
+<p>Set <code>wind=&quot;own&quot;</code> on the ambient element to opt out — which is how you say a courtyard is
+sheltered while the scene blows.</p>
 </blockquote>
 <h2>See it live</h2>
 <p><code>LeafField</code> is the tumbling-quad renderer that <a href="../b3d-ambient/">b3d-ambient</a> drives — set that
@@ -125,6 +128,8 @@ component up (its demo blows leaves through the scene) and the budget decides th
       <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -201,6 +206,9 @@ component up (its demo blows leaves through the scene) and the budget decides th
       <li><a class="doc-link" href="../color-field/">color3d</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
@@ -221,6 +229,10 @@ component up (its demo blows leaves through the scene) and the budget decides th
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
       <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
@@ -263,6 +275,6 @@ component up (its demo blows leaves through the scene) and the budget decides th
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.0"></script>
+  <script type="module" src="../hydrate.js?v=0.8.1"></script>
 </body>
 </html>

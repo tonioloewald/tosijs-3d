@@ -2,6 +2,7 @@ import * as BABYLON from '@babylonjs/core';
 import { B3dChild } from './b3d-utils.js';
 import type { B3d } from './tosi-b3d.js';
 import { type InteractionInfo } from './interactive-behavior.js';
+import type { ActivationVeto } from './interaction.js';
 export declare class B3dInteractive extends B3dChild {
     static preferredTagName: string;
     static shadowStyleSpec: {
@@ -34,10 +35,7 @@ export declare class B3dInteractive extends B3dChild {
      * Other features' refusals — see the doc above. Lives on the element (not
      * behind the behaviour) so a `lockable` can be pushed before the scene is up.
      */
-    vetoes: Array<{
-        name: string;
-        blocks: () => boolean;
-    }>;
+    vetoes: Array<ActivationVeto<InteractionInfo>>;
     private _behavior;
     private _cache;
     content: () => string;

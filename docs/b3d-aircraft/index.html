@@ -28,7 +28,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="../doc-system.css?v=0.8.0" data-tosi-doc-system />
+  <link rel="stylesheet" href="../doc-system.css?v=0.8.1" data-tosi-doc-system />
   <title>b3d-aircraft — tosijs-3d</title>
   <meta name="description" content="Fly-by-wire VTOL controller — a forgiving &quot;drone that becomes a plane&quot; rather than a simulation. The stick commands an ATTITUDE (bank + pitch); the craft eases…" />
   <link rel="canonical" href="https://3d.tosijs.net/b3d-aircraft/" />
@@ -382,7 +382,42 @@ turns the pilot&#39;s head in the cockpit, springs back on release).</p>
 <tr>
 <td><code>gunDamage</code></td>
 <td><code>8</code></td>
-<td>Per-shell warhead full damage</td>
+<td>Per-shell damage</td>
+</tr>
+<tr>
+<td><code>gunMode</code></td>
+<td><code>&#39;direct&#39;</code></td>
+<td><code>&#39;direct&#39;</code> damages what the shell passes through; <code>&#39;blast&#39;</code> is the old AOE</td>
+</tr>
+<tr>
+<td><code>gunFullRadius</code> / <code>gunBlastRadius</code></td>
+<td><code>0.5</code> / <code>1.5</code></td>
+<td>Only for <code>gunMode=&quot;blast&quot;</code></td>
+</tr>
+<tr>
+<td><code>destroyable</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> gives the aircraft hit points and a death outcome</td>
+</tr>
+<tr>
+<td><code>capacity</code> / <code>armor</code> / <code>regenRate</code> / <code>regenDelay</code></td>
+<td><code>30</code> / <code>0</code> / <code>0</code> / <code>0.5</code></td>
+<td>Combat stats</td>
+</tr>
+<tr>
+<td><code>explode</code> / <code>explodeForce</code></td>
+<td><code>&#39;on&#39;</code> / <code>8</code></td>
+<td>Death outcome</td>
+</tr>
+<tr>
+<td><code>blip</code></td>
+<td><code>&#39;off&#39;</code></td>
+<td><code>&#39;on&#39;</code> puts it on radar, so a missile can lock it</td>
+</tr>
+<tr>
+<td><code>blipProfile</code> / <code>faction</code></td>
+<td><code>1</code> / <code>&#39;neutral&#39;</code></td>
+<td>Radar detectability and side</td>
 </tr>
 <tr>
 <td><code>missileSpeed</code></td>
@@ -490,6 +525,33 @@ serves both directions — there&#39;s no second one to author or keep in sync.<
 <p>On the ground the wings hold level and the turn stick taxi-steers; pulling back
 rotates for takeoff (or a VTOL lifts straight up on the right trigger). A contact
 faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of lands.</p>
+<h2>Combat: three things that used to fail by doing nothing</h2>
+<p>Reported together by manta-recon (#23), because they compound — an AI aircraft
+was invulnerable, unlockable and, once you scaled anything, unhittable, all
+silently.</p>
+<p><strong>It can be hurt.</strong> <code>destroyable=&quot;on&quot;</code> attaches the same <code>DestroyableBehavior</code>
+<code>b3d-loader</code> and <code>b3d-destroyable</code> use. That also puts it in the registry every
+blast reads — which was its own bug: a warhead used to find targets by querying
+<code>tosi-b3d-destroyable</code>, so a destroyable aircraft or loaded model was invisible
+to every explosion in the scene.</p>
+<p><strong>It can be locked.</strong> <code>blip=&quot;on&quot;</code> mounts a <code>&lt;tosi-b3d-radar-blip&gt;</code>, and missiles
+lock through the radar — so without one an enemy aircraft cannot be
+missile-locked, which reaches the player as <em>&quot;missiles don&#39;t work&quot;</em>.</p>
+<p><strong>Its gun damages what it passes through.</strong> Guns used to fire an AOE warhead,
+which couples damage to MODEL SCALE: blast damage resolves by distance to a
+destroyable&#39;s registered point — one point, at the origin — so scaling a fighter
+4× puts its wing ~4 m out, past a 1.5 m blast. Point-blank fire, zero effect, no
+error.</p>
+<p>Direct-hit damage has no length scale in it, so it is immune to that entire
+class of bug. AOE stays right for missiles and bombs, and <code>gunMode=&quot;blast&quot;</code>
+restores the old behaviour with <code>gunBlastRadius</code>/<code>gunFullRadius</code> now attributes
+rather than hardcoded.</p>
+<p>Two details that carry the fix, both of which cost the reporter a debugging
+cycle: the shell <strong>sweeps the segment it travelled</strong> (at 340 m/s it moves ~5.7 m
+per frame, so a point test tunnels through a wing), and the target is resolved
+by <strong>ancestry</strong> (a library model hangs asynchronously beneath the registered
+root, so the picked mesh is a wing three levels down and a snapshot taken at
+registration time captures an empty root forever).</p>
 
   </article>
   <nav class="doc-nav" aria-label="Documentation">
@@ -546,6 +608,8 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../b3d-lamp/">Lamps</a></li>
       <li><a class="doc-link" href="../b3d-terrain/">b3d-terrain</a></li>
       <li><a class="doc-link" href="../province-climate/">Province climate</a></li>
+      <li><a class="doc-link" href="../terrain-editor/">terrainEditor3d</a></li>
+      <li><a class="doc-link" href="../wind/">wind</a></li>
       <li><a class="doc-link" href="../b3d-ambient/">b3d-ambient</a></li>
       <li><a class="doc-link" href="../b3d-clouds/">b3d-clouds</a></li>
       <li><a class="doc-link" href="../b3d-fog/">b3d-fog</a></li>
@@ -622,6 +686,9 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
       <li><a class="doc-link" href="../color-field/">color3d</a></li>
       <li><a class="doc-link" href="../theme-editor/">theme-editor</a></li>
       <li><a class="doc-link" href="../w3d-theme/">w3d-theme</a></li>
+      <li><a class="doc-link" href="../angle-field/">angle-field</a></li>
+      <li><a class="doc-link" href="../picker/">picker</a></li>
+      <li><a class="doc-link" href="../b3d-manipulator/">b3d-manipulator</a></li>
       <li><a class="doc-link" href="../surface/">surface</a></li>
       <li><a class="doc-link" href="../popup-surface/">popup-surface</a></li>
       <li><a class="doc-link" href="../b3d-panel/">b3d-panel</a></li>
@@ -642,6 +709,10 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     </details></li>
     <li><details><summary><a class="doc-link" href="../utilities/">Utilities</a></summary>
     <ul>
+      <li><a class="doc-link" href="../manipulator/">manipulator</a></li>
+      <li><a class="doc-link" href="../manipulator-view/">manipulator-view</a></li>
+      <li><a class="doc-link" href="../arc/">arc</a></li>
+      <li><a class="doc-link" href="../b3d-beacon/">b3d-beacon</a></li>
       <li><a class="doc-link" href="../curve/">curve</a></li>
       <li><a class="doc-link" href="../b3d-physics/">b3d-physics</a></li>
       <li><a class="doc-link" href="../demo-utils/">demo-utils</a></li>
@@ -684,6 +755,6 @@ faster than <code>crashSpeed</code>, or banked/inverted, crashes instead of land
     <li><a href="https://www.npmjs.com/package/tosijs-3d" data-icon="npm">npmjs</a></li>
   </ul>
   </tosi-doc-system>
-  <script type="module" src="../hydrate.js?v=0.8.0"></script>
+  <script type="module" src="../hydrate.js?v=0.8.1"></script>
 </body>
 </html>

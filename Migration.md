@@ -9,6 +9,59 @@ This file ships **inside the package**, because a migration table you can only
 read on GitHub does not exist for someone who has already installed the thing
 and is staring at an error.
 
+## 0.8.0 → 0.8.1
+
+**Nothing breaks at compile time, and one behaviour changes.** The
+`activationVeto` signature grew a second parameter and it is OPTIONAL — a
+required one would have been a hard TypeScript break for every caller, and the
+default is chosen so that a veto reading it gets a conservative answer rather
+than a permissive one.
+
+### 1. Aircraft guns are direct-hit, not area-effect
+
+**What changed.** `<tosi-b3d-aircraft>`'s cannon damages the thing its shell
+passes through. It used to detonate a small AOE warhead at the impact point.
+
+**Why.** Blast damage resolves by distance to a destroyable's registered point —
+one point, at the model's origin. Scale a fighter up and its wing sits outside
+the blast, so point-blank fire does nothing, silently. Direct-hit damage has no
+length scale in it, so it cannot break that way. Reported by an adopter who hit
+it by making their world four times larger (#23).
+
+**If you relied on the old behaviour**, say so explicitly:
+
+```html
+<tosi-b3d-aircraft gun-mode="blast" gun-blast-radius="1.5" gun-full-radius="0.5">
+```
+
+Both radii are attributes now; they used to be hardcoded. Missiles and bombs are
+unchanged — AOE is right for those.
+
+### 2. `activationVeto`'s second parameter (optional)
+
+`blocks(info)` now receives a description of the activation — who, how, how far.
+A veto that ignores its argument is unaffected, which is every veto written
+before this existed:
+
+```javascript
+use.vetoes.push({ name: 'locked', blocks: () => !hasKey })   // unchanged
+```
+
+Calling `activationVeto(vetoes)` directly still compiles. When you omit the
+info, vetoes are told `distance: Infinity` — "we do not know that you are near"
+— so a **reach veto refuses** rather than waving the activation through. If you
+call it yourself and want a reach veto to pass, supply the distance:
+
+```javascript
+activationVeto(vetoes, { source: 'near', distance: 0.4 })
+```
+
+### 3. `select3d` no longer draws ‹ › stepper arrows
+
+Tapping the control opens a popup list, which it already did — the arrows were
+a second way to do the same thing and made the popup undiscoverable. Nothing to
+change; the control is the same size and the same tap.
+
 ## 0.7.8 → 0.8.0
 
 **Nothing breaks at runtime.** Both items below keep working in 0.8.x; one is an

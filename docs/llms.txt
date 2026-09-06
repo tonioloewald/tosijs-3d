@@ -1,4 +1,4 @@
-# tosijs-3d v0.8.0
+# tosijs-3d v0.8.1
 
 Declarative 3D/XR framework built on Babylon.js and the tosijs web component framework.
 
@@ -30,6 +30,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Who gets to exist, when the frame can't afford everyone.
 - https://3d.tosijs.net/ambient-leaves/ — ambient-leaves
   The one ambient effect that is **not a sprite**.
+- https://3d.tosijs.net/angle-field/ — angle-field
+  rings, because the quantity is a circle and a slider track is not. The model is
+- https://3d.tosijs.net/arc/ — arc
+  direction; an arc is a direction *and* a width. No DOM, no Babylon — so the part
 - https://3d.tosijs.net/asset-url/ — asset-url
   A tiny indirection for referencing hosted blobs (models, textures, audio, …) by a
 - https://3d.tosijs.net/atmosphere/ — atmosphere
@@ -40,6 +44,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Fly-by-wire VTOL controller — a forgiving "drone that becomes a plane" rather
 - https://3d.tosijs.net/b3d-ambient/ — b3d-ambient
   The stuff in the air, or in the water. **Bubbles and motes when you're under; rain, snow,
+- https://3d.tosijs.net/b3d-beacon/ — b3d-beacon
+  a light; a positional sound is a sound; a spawn point is a coordinate. All three
 - https://3d.tosijs.net/b3d-biped/ — b3d-biped
   Animated humanoid character controller. Loads a GLB model with skeletal animations
 - https://3d.tosijs.net/b3d-black-hole/ — b3d-black-hole
@@ -78,6 +84,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   Hemispheric ambient fill light. Wraps `BABYLON.HemisphericLight`. Cheap to render
 - https://3d.tosijs.net/b3d-loader/ — b3d-loader
   Loads a GLB/glTF scene file into the 3D scene. Meshes named with `-ignore` are discarded.
+- https://3d.tosijs.net/b3d-manipulator/ — b3d-manipulator
+  a hand in a headset.** The maths is [[manipulator]], the geometry is
 - https://3d.tosijs.net/b3d-panel/ — b3d-panel
   A declarative spatial-UI panel you drop into the scene as a child of `<tosi-b3d>`,
 - https://3d.tosijs.net/b3d-particles/ — b3d-particles
@@ -223,6 +231,10 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   and its validator. No DOM, no Babylon, no widget.
 - https://3d.tosijs.net/make-mesh/ — make-mesh
   the four things everyone forgets already done.
+- https://3d.tosijs.net/manipulator/ — manipulator
+  scene, no engine, no pointer — so the part most likely to be subtly wrong is the
+- https://3d.tosijs.net/manipulator-view/ — manipulator-view
+  Cheetah 3D means it.** Every enabled affordance is on screen at once and the
 - https://3d.tosijs.net/mantle/ — mantle
   the pure path: given what a probe saw in front of the character, is there a lip
 - https://3d.tosijs.net/b3d-utils/ — Material Conventions
@@ -240,6 +252,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/picker/ — picker
+  scroll for five hundred; this is the other end. It composes controls that
 - https://3d.tosijs.net/popup-chrome/ — popup-chrome
   Pure, in viewBox units — the one place both answers come from.
 - https://3d.tosijs.net/popup-surface/ — popup-surface
@@ -277,6 +291,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   A **data table** as a `Widget3d`: a header that stays put, a virtualized scrolling
 - https://3d.tosijs.net/table-layout/ — table-layout
   The **pure geometry behind a data table** — column widths, and which rows are worth
+- https://3d.tosijs.net/terrain-editor/ — terrainEditor3d
+  unit and enum comes from `sceneSchemas.terrain()`, so the control cannot
 - https://3d.tosijs.net/text-edit/ — text-edit
   The **pure text-editing model** behind the SVG input field — no DOM, no Babylon, no
 - https://3d.tosijs.net/theme-editor/ — theme-editor
@@ -301,6 +317,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
   The seam between the two SVG UI systems, so they **compose instead of competing**.
 - https://3d.tosijs.net/widgets3d/ — widgets3d
   A small collection of **SVG-native** UI widgets with element-creator ergonomics
+- https://3d.tosijs.net/wind/ — wind
+  Babylon — so the composition rule can be tested without a sky.
 - https://3d.tosijs.net/world-sim/ — World Sim
 - https://3d.tosijs.net/world-contract/ — world-contract
   The boundary between the **simulation** (tosijs-3d) and an **external driver**

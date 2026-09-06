@@ -14,10 +14,14 @@ the cost is fixed no matter how big the world is, the population is what the bud
 field DRAINS rather than being switched off. `B3dAmbient` owns all of that and drives this renderer;
 this file owns only the tumble.
 
-> **Wind is a placeholder here.** Each leaf carries its own drift + sway + tumble, which reads fine
-> in isolation but doesn't AGREE with the rain or the smoke. The shared `wind(x,y,z,t)` field
-> (TODO) is what makes them all blow the same way — when it lands, drift/sway come from it and this
-> per-leaf randomness becomes just the flutter on top.
+> **The shared wind has landed.** `setWind` used to be a placeholder — each leaf carried its own
+> drift, which read fine in isolation and did not AGREE with the clouds or the water. It now comes
+> from [[wind|the scene's wind]] via `b3d-ambient`, so leaves stream the same way the sky does, and
+> the per-leaf sway is what it was always meant to be: the flutter ON TOP of a shared field rather
+> than a stand-in for one.
+>
+> Set `wind="own"` on the ambient element to opt out — which is how you say a courtyard is
+> sheltered while the scene blows.
 
 ## See it live
 

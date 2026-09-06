@@ -43,11 +43,66 @@ export declare function interactStep(state: InteractState, input: InteractInput)
  *
  * Returns the first refusal's reason, so a caller can say WHY rather than
  * merely doing nothing — the difference between a locked door and a broken one.
+ *
+ * ## A veto is TOLD about the activation
+ *
+ * `blocks(info)` receives the same description the `refused` event carries —
+ * who activated it, how (a pointer, a hand within reach, `useNearest`, an API
+ * call), and how far away they were. Without it a veto can only close over
+ * ambient state, which breaks the moment there is more than one actor:
+ *
+ * - **two actors.** An NPC opening a door it has the key for while the player
+ *   does not. One closure over `player.has(…)` cannot answer for both.
+ * - **near versus far.** The same door reached by a hand at 0.4 m and by a ray
+ *   at 8 m may want different answers — a lock you can reach is not a lock you
+ *   can merely see — and a veto with no argument cannot tell which happened.
+ *
+ * Raised by `tosijs-3d-ensemble` (#36) with the observation that decided it:
+ * it costs nothing today and cannot be added later without changing every veto
+ * anyone has written. A veto that ignores its argument is still a veto, so
+ * `blocks: () => !hasKey` is unaffected.
  */
-export declare function activationVeto(vetoes: Array<{
+export interface ActivationVeto<Info = unknown> {
     name: string;
-    blocks: () => boolean;
-}>): string | null;
+    /**
+     * Refuse this activation?
+     *
+     * `info` describes THIS activation — who, how, and how far — and a veto that
+     * ignores it is still a valid veto, so `blocks: () => !hasKey` keeps working.
+     */
+    blocks: (info: Info) => boolean;
+}
+/**
+ * What a veto is told when the caller knows nothing about the activation.
+ *
+ * `distance: Infinity` rather than `{}`, and the difference is the whole point.
+ * An empty object gives a reach veto `undefined > 2` — **false**, so the door
+ * opens — which is precisely the fail-open the pre-release review caught. An
+ * unknown distance has to read as "we do not know that you are near", so a
+ * reach veto refuses and the caller has to say what it means.
+ *
+ * Measured against the three veto shapes this library documents:
+ *
+ * ```
+ *                          reach    actor    legacy
+ *   {}                     false    true     true     ← fails open
+ *   {distance: Infinity}   true     true     true
+ * ```
+ */
+export declare const UNKNOWN_ACTIVATION: {
+    distance: number;
+};
+/**
+ * `info` is OPTIONAL, which is what keeps this from being a source break.
+ *
+ * It was briefly required, and a required second parameter on a
+ * barrel-exported function is a hard TypeScript break for every consumer
+ * calling `activationVeto(vetoes)`. It does not need to be: a veto that ignores
+ * its argument — every veto written before this existed — is unaffected by the
+ * default, and a veto that reads one gets a conservative answer instead of a
+ * permissive one.
+ */
+export declare function activationVeto<Info>(vetoes: Array<ActivationVeto<Info>>, info?: Info): string | null;
 /**
  * Is a point close enough to touch? `maxDistance <= 0` means no limit.
  *

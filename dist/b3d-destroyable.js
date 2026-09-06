@@ -137,6 +137,31 @@ Attributes: `capacity`, `armor`, `regenRate`, `regenDelay`, `protectedBy`,
 the placeholder cube and the usual `x/y/z`/`meshName`. Set `.chain` (a `ChainLink[]`)
 in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook. Call
 `.damage(n)` to hurt it (a warhead will do this on contact).
+
+## Attribution — who killed this, through what chain
+
+`.damage(n, cause)` takes an optional `{by, kind}`, and it survives the whole
+cascade: a drum that goes up because your bomb got its neighbour is still
+attributed to **you**, with `via` naming the neighbour and `hops` counting the
+distance.
+
+```javascript
+target.damage(40, { by: 'player', kind: 'blast' })
+
+target.whenDestroyed = ({ id, cause }) => {
+  // cause: { by: 'player', kind: 'chain', via: 'drum-17', hops: 2 }
+  ledger.record(id, cause?.by)
+}
+```
+
+`<tosi-b3d-warhead by="player">` credits everything its blast destroys, however
+many hops away. Requested by manta-recon (#8) for a mission layer that resolves
+to a **ledger of world facts** rather than a score — and a fact without
+causality drives no consequence.
+
+⚠️ **There is no friendly-fire exemption anywhere in this engine**, so `by` can
+perfectly well name something the blast then destroys. That is the truth of what
+happened, and the ledger should say so.
 */
 /*{ "parent": "Combat", "order": 100 }*/
 import * as BABYLON from '@babylonjs/core';
@@ -410,8 +435,8 @@ export class B3dDestroyable extends AbstractMesh {
         owner.addOriginListener(this._onShift);
     }
     /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
-    damage(amount) {
-        return this._behavior?.damage(amount) ?? [];
+    damage(amount, cause) {
+        return this._behavior?.damage(amount, cause) ?? [];
     }
     /**
      * Set on-destruction chain links AFTER mount — chains reference other targets'
