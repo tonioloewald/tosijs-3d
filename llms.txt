@@ -252,6 +252,8 @@ use it to inspect STATE; a painted-output check needs a real test lane.
 - https://3d.tosijs.net/perf-probe/ — perf-probe
   Pure, Babylon-free core for the device-capability probe (see
 - https://3d.tosijs.net/performance/ — Performance
+- https://3d.tosijs.net/picker/ — picker
+  scroll for five hundred; this is the other end. It composes controls that
 - https://3d.tosijs.net/popup-chrome/ — popup-chrome
   Pure, in viewBox units — the one place both answers come from.
 - https://3d.tosijs.net/popup-surface/ — popup-surface

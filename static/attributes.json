@@ -3164,6 +3164,50 @@
     ]
   },
   {
+    "module": "picker",
+    "summary": "picker",
+    "attributes": [
+      {
+        "name": "options",
+        "description": "`string[]`, or `{value, label?, group?}[]`"
+      },
+      {
+        "name": "value",
+        "default": "''",
+        "description": "the current selection"
+      },
+      {
+        "name": "label",
+        "default": "—",
+        "description": "drawn to the left of the closed control"
+      },
+      {
+        "name": "filter",
+        "default": "'auto'",
+        "description": "`'auto'` shows the query field above `filterAbove` options"
+      },
+      {
+        "name": "filterAbove",
+        "default": "12",
+        "description": "where `'auto'` starts showing it"
+      },
+      {
+        "name": "groups",
+        "default": "'auto'",
+        "description": "`'auto'` shows the group chooser when there is more than one group"
+      },
+      {
+        "name": "placeholder",
+        "default": "'choose…'",
+        "description": "shown when nothing is selected"
+      },
+      {
+        "name": "handleChange",
+        "description": "the chosen value; fires on pick, and the popup closes"
+      }
+    ]
+  },
+  {
     "module": "slope-profile",
     "summary": "slope-profile",
     "attributes": [
