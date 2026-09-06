@@ -149,3 +149,155 @@ describe('chain reactions', () => {
     expect(w.get('b')!.hp.value).toBe(94) // 10 - 4 armor = 6
   })
 })
+
+describe('attribution — who killed this, through what chain', () => {
+  /*
+  manta-recon (#8): a mission that resolves to a LEDGER OF WORLD FACTS needs
+  those facts to carry causality, and this engine makes attribution hard in
+  exactly the interesting cases — a cascade three hops from the bomb that
+  started it, with no friendly-fire exemption anywhere along the way.
+  */
+  const drums = () => {
+    const w = new CombatWorld()
+    // A → B → C, each fatal to the next: the 48-drum demo in miniature.
+    w.add('A', { capacity: 10, chain: [{ target: 'B', amount: 50 }] })
+    w.add('B', { capacity: 10, chain: [{ target: 'C', amount: 50 }] })
+    w.add('C', { capacity: 10 })
+    return w
+  }
+
+  test('a direct hit carries who and how', () => {
+    const w = drums()
+    const out = w.applyDamage('A', 50, [], { by: 'player', kind: 'direct' })
+    expect(out).toEqual([
+      { type: 'destroyed', id: 'A', cause: { by: 'player', kind: 'direct' } },
+    ])
+  })
+
+  test('THE ORIGINATOR SURVIVES THE HOPS — a cascade is still the player\'s', () => {
+    /*
+    The failure this exists to prevent: re-attributing each hop to the drum
+    next door launders the credit away, so a player who set off a spectacular
+    chain gets none of it.
+    */
+    const w = drums()
+    const out: CombatEvent[] = []
+    w.applyDamage('A', 50, out, { by: 'player', kind: 'direct' })
+    for (let i = 0; i < 10; i++) w.tick(0.1, out)
+
+    const destroyed = out.filter((e) => e.type === 'destroyed')
+    expect(destroyed.map((e) => e.id)).toEqual(['A', 'B', 'C'])
+    for (const e of destroyed) expect(e.cause?.by).toBe('player')
+  })
+
+  test('records the IMMEDIATE link and the distance alongside', () => {
+    const w = drums()
+    const out: CombatEvent[] = []
+    w.applyDamage('A', 50, out, { by: 'player', kind: 'direct' })
+    for (let i = 0; i < 10; i++) w.tick(0.1, out)
+
+    const byId = new Map(
+      out.filter((e) => e.type === 'destroyed').map((e) => [e.id, e.cause])
+    )
+    expect(byId.get('A')).toEqual({ by: 'player', kind: 'direct' })
+    // B went up because A did; C because B did.
+    expect(byId.get('B')).toEqual({
+      by: 'player',
+      kind: 'chain',
+      via: 'A',
+      hops: 1,
+    })
+    expect(byId.get('C')).toEqual({
+      by: 'player',
+      kind: 'chain',
+      via: 'B',
+      hops: 2,
+    })
+  })
+
+  test('a `damaged` event carries it too, not only a kill', () => {
+    const w = new CombatWorld()
+    w.add('tank', { capacity: 100 })
+    const out = w.applyDamage('tank', 30, [], { by: 'turret-2', kind: 'blast' })
+    expect(out[0]).toMatchObject({
+      type: 'damaged',
+      id: 'tank',
+      cause: { by: 'turret-2', kind: 'blast' },
+    })
+  })
+
+  test('is OPTIONAL — an uncredited hit produces no cause key at all', () => {
+    /*
+    Additive means additive: a caller that never passes a cause gets exactly
+    the events it got before, so a consumer testing with `toEqual` does not
+    start failing on an extra `cause: undefined`.
+    */
+    const w = new CombatWorld()
+    w.add('crate', { capacity: 10 })
+    const out = w.applyDamage('crate', 50)
+    expect(out).toEqual([{ type: 'destroyed', id: 'crate' }])
+    expect('cause' in out[0]).toBe(false)
+  })
+
+  test('an uncredited cascade still records the chain it came through', () => {
+    // Nobody is credited, but "B went up because A did" is a world fact whether
+    // or not anyone is responsible for it.
+    const w = drums()
+    const out: CombatEvent[] = []
+    w.applyDamage('A', 50, out)
+    for (let i = 0; i < 10; i++) w.tick(0.1, out)
+    const b = out.find((e) => e.type === 'destroyed' && e.id === 'B')
+    expect(b?.cause).toEqual({ by: undefined, kind: 'chain', via: 'A', hops: 1 })
+  })
+
+  test('hops stay bounded, because the chain does', () => {
+    // No depth cap needed: each entity is destroyed once and the destroyed
+    // guard stops loops, so a `hops` count cannot run away. A cycle proves it.
+    const w = new CombatWorld()
+    w.add('X', { capacity: 10, chain: [{ target: 'Y', amount: 50 }] })
+    w.add('Y', { capacity: 10, chain: [{ target: 'X', amount: 50 }] })
+    const out: CombatEvent[] = []
+    w.applyDamage('X', 50, out, { by: 'player' })
+    for (let i = 0; i < 20; i++) w.tick(0.1, out)
+    const hops = out
+      .filter((e) => e.type === 'destroyed')
+      .map((e) => e.cause?.hops ?? 0)
+    expect(Math.max(...hops)).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('the world remembers why each thing died', () => {
+  /*
+  Death and the reaction to it are separated in time: a chain reaction resolves
+  inside `tick`, and the scene layer notices a frame later by polling
+  `destroyed` — by which point the event carrying the cause has been consumed.
+  So the cause is stored, and any observer can ask after the fact.
+  */
+  test('a destroyed entity keeps its cause', () => {
+    const w = new CombatWorld()
+    w.add('bunker', { capacity: 10 })
+    w.applyDamage('bunker', 50, [], { by: 'player', kind: 'blast' })
+    expect(w.get('bunker')?.cause).toEqual({ by: 'player', kind: 'blast' })
+  })
+
+  test('a cascade victim keeps the ORIGINATOR, asked after the fact', () => {
+    const w = new CombatWorld()
+    w.add('A', { capacity: 10, chain: [{ target: 'B', amount: 50 }] })
+    w.add('B', { capacity: 10 })
+    w.applyDamage('A', 50, [], { by: 'player', kind: 'direct' })
+    for (let i = 0; i < 10; i++) w.tick(0.1)
+    expect(w.get('B')?.destroyed).toBe(true)
+    expect(w.get('B')?.cause?.by).toBe('player')
+    expect(w.get('B')?.cause?.via).toBe('A')
+  })
+
+  test('a survivor has no cause, and an uncredited death records none', () => {
+    const w = new CombatWorld()
+    w.add('alive', { capacity: 100 })
+    w.add('crate', { capacity: 10 })
+    w.applyDamage('alive', 5)
+    w.applyDamage('crate', 50)
+    expect(w.get('alive')?.cause).toBeUndefined()
+    expect(w.get('crate')?.cause).toBeUndefined()
+  })
+})

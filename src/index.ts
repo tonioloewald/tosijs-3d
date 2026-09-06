@@ -1084,6 +1084,7 @@ export type {
   DestroyableSpec,
   ChainLink,
   CombatEvent,
+  Cause,
 } from './destroyable.js'
 export { B3dDestroyable, b3dDestroyable } from './b3d-destroyable.js'
 export { B3dProp, b3dProp } from './b3d-prop.js'

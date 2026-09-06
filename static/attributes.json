@@ -2760,6 +2760,9 @@
         "name": "los",
         "default": "'on'",
         "description": "Line-of-sight occlusion (a wall between blast + target spares it)"
+      },
+      {
+        "name": "by"
       }
     ]
   },

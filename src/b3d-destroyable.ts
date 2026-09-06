@@ -137,13 +137,38 @@ Attributes: `capacity`, `armor`, `regenRate`, `regenDelay`, `protectedBy`,
 the placeholder cube and the usual `x/y/z`/`meshName`. Set `.chain` (a `ChainLink[]`)
 in code for direct-transfer chain reactions, or `whenDestroyed` for a death hook. Call
 `.damage(n)` to hurt it (a warhead will do this on contact).
+
+## Attribution — who killed this, through what chain
+
+`.damage(n, cause)` takes an optional `{by, kind}`, and it survives the whole
+cascade: a drum that goes up because your bomb got its neighbour is still
+attributed to **you**, with `via` naming the neighbour and `hops` counting the
+distance.
+
+```javascript
+target.damage(40, { by: 'player', kind: 'blast' })
+
+target.whenDestroyed = ({ id, cause }) => {
+  // cause: { by: 'player', kind: 'chain', via: 'drum-17', hops: 2 }
+  ledger.record(id, cause?.by)
+}
+```
+
+`<tosi-b3d-warhead by="player">` credits everything its blast destroys, however
+many hops away. Requested by manta-recon (#8) for a mission layer that resolves
+to a **ledger of world facts** rather than a score — and a fact without
+causality drives no consequence.
+
+⚠️ **There is no friendly-fire exemption anywhere in this engine**, so `by` can
+perfectly well name something the blast then destroys. That is the truth of what
+happened, and the ledger should say so.
 */
 /*{ "parent": "Combat", "order": 100 }*/
 import * as BABYLON from '@babylonjs/core'
 import { loadLibraryMesh } from './library-mesh.js'
 import { AbstractMesh, isOff } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
-import type { CombatEvent, ChainLink } from './destroyable.js'
+import type { CombatEvent, ChainLink, Cause } from './destroyable.js'
 import { DestroyableBehavior } from './destroyable-behavior.js'
 import { spawnPrefab, type Prefab } from './prefab.js'
 import { b3dSound } from './b3d-sound.js'
@@ -248,7 +273,12 @@ export class B3dDestroyable extends AbstractMesh {
    * 'dead' state, spawning loot/wreckage, swapping a model, etc. Also rides the
    * bubbling `destroyed` CustomEvent.
    */
-  whenDestroyed?: (info: { id: string; position: BABYLON.Vector3 }) => void
+  whenDestroyed?: (info: {
+    id: string
+    position: BABYLON.Vector3
+    /** Who killed it and through what chain — see [[destroyable|Cause]]. */
+    cause?: Cause
+  }) => void
 
   /** A prefab FUNCTION, when a name won't do (a closure over game state). Takes precedence
    * over the `remains` attribute. Not `onRemains` — an `on*` prop would be bound as a DOM
@@ -454,8 +484,8 @@ export class B3dDestroyable extends AbstractMesh {
   }
 
   /** Hurt this target; returns the combat events from this hit (flashes on a hit). */
-  damage(amount: number): CombatEvent[] {
-    return this._behavior?.damage(amount) ?? []
+  damage(amount: number, cause?: Cause): CombatEvent[] {
+    return this._behavior?.damage(amount, cause) ?? []
   }
 
   /**

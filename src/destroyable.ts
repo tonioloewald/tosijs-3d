@@ -58,16 +58,71 @@ export interface Destroyable {
   protection: number
   chain: ChainLink[]
   destroyed: boolean
+  /**
+   * Why this died. Set once, at the moment it is destroyed.
+   *
+   * The world remembers it because the DEATH and the OBSERVER are separated in
+   * time: a chain reaction resolves inside `tick`, and the scene layer notices
+   * by polling `destroyed` on the next frame — so by the time anything reacts,
+   * the event carrying the cause has already been consumed. Storing it here is
+   * what lets a reaction ask "and who did this?" without the caller having to
+   * thread the event stream through to every observer.
+   */
+  cause?: Cause
+}
+
+/**
+ * Who caused this, and how it reached them.
+ *
+ * Requested by manta-recon (#8), whose mission layer resolves to a LEDGER OF
+ * WORLD FACTS rather than a score — and a fact without causality drives no
+ * consequence. The engine makes attribution genuinely hard in exactly the
+ * interesting cases: `deathBlast` cascades emergently, chain links transfer
+ * damage after a delay, and there is no friendly-fire exemption, so one bomb
+ * can produce a destruction three hops away. Without provenance a game either
+ * cannot credit the player for a spectacular cascade or blames them for one
+ * they could not foresee, and both are worse than the truth.
+ */
+export interface Cause {
+  /**
+   * Who is RESPONSIBLE — the originator, however many hops back.
+   *
+   * Deliberately not "what hit it". A cascade that starts with the player's
+   * bomb is the player's cascade, and re-attributing each hop to the drum that
+   * happened to be next would launder the credit away.
+   */
+  by?: string
+  /** How this particular hit arrived. */
+  kind?: 'direct' | 'blast' | 'chain' | 'collision'
+  /** The IMMEDIATE link in a cascade — the drum that went up next door. */
+  via?: string
+  /**
+   * Hops from the originating act. `0` is a direct hit.
+   *
+   * A count rather than a list of every hop, which is what keeps this bounded
+   * without needing a depth cap: the chain already terminates (each entity is
+   * destroyed once, and the destroyed-guard stops loops), so nothing here can
+   * grow. A consumer that wants the full path can reconstruct it from the
+   * event stream, which it has in order.
+   */
+  hops?: number
 }
 
 export type CombatEvent =
-  | { type: 'damaged'; id: string; amount: number; hp: number }
-  | { type: 'destroyed'; id: string }
+  | {
+      type: 'damaged'
+      id: string
+      amount: number
+      hp: number
+      cause?: Cause
+    }
+  | { type: 'destroyed'; id: string; cause?: Cause }
 
 interface PendingChain {
   at: number
   link: ChainLink
   sourceId: string
+  cause?: Cause
 }
 
 export class CombatWorld {
@@ -124,7 +179,8 @@ export class CombatWorld {
   applyDamage(
     id: string,
     amount: number,
-    out: CombatEvent[] = []
+    out: CombatEvent[] = [],
+    cause?: Cause
   ): CombatEvent[] {
     const d = this.map.get(id)
     if (d == null || d.destroyed || amount <= 0) return out
@@ -142,16 +198,44 @@ export class CombatWorld {
     drain(d.hp, dmg)
     if (d.hp.value <= 0) {
       d.destroyed = true
+      if (cause != null) d.cause = cause
+      /*
+      THE ORIGINATOR SURVIVES THE HOP; the immediate link is recorded beside it.
+
+      `by` keeps whoever started this — so a drum that goes up because the
+      player's bomb got its neighbour is still attributed to the player — while
+      `via` names the neighbour and `hops` counts the distance. Re-attributing
+      each hop to the thing next to it would launder the credit away, which is
+      the whole failure #8 describes.
+      */
+      const onward: Cause | undefined =
+        cause == null && d.chain.length === 0
+          ? undefined
+          : {
+              by: cause?.by,
+              kind: 'chain',
+              via: id,
+              hops: (cause?.hops ?? 0) + 1,
+            }
       for (const link of d.chain) {
         this.pending.push({
           at: this.now + (link.delay ?? DEFAULT_CHAIN_DELAY),
           link,
           sourceId: id,
+          cause: onward,
         })
       }
-      out.push({ type: 'destroyed', id })
+      out.push(
+        cause == null
+          ? { type: 'destroyed', id }
+          : { type: 'destroyed', id, cause }
+      )
     } else {
-      out.push({ type: 'damaged', id, amount: dmg, hp: d.hp.value })
+      out.push(
+        cause == null
+          ? { type: 'damaged', id, amount: dmg, hp: d.hp.value }
+          : { type: 'damaged', id, amount: dmg, hp: d.hp.value, cause }
+      )
     }
     return out
   }
@@ -175,7 +259,7 @@ export class CombatWorld {
       const p = this.pending[i]
       if (p.at <= this.now) {
         this.pending.splice(i, 1)
-        this.applyDamage(p.link.target, p.link.amount, out)
+        this.applyDamage(p.link.target, p.link.amount, out, p.cause)
       } else {
         i++
       }

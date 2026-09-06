@@ -35,7 +35,12 @@ import { DestroyableBehavior } from 'tosijs-3d'
 /*{ "parent": "Combat", "order": 900 }*/
 import * as BABYLON from '@babylonjs/core'
 import type { B3d } from './tosi-b3d.js'
-import type { DestroyableSpec, ChainLink, CombatEvent } from './destroyable.js'
+import type {
+  DestroyableSpec,
+  ChainLink,
+  CombatEvent,
+  Cause,
+} from './destroyable.js'
 import { detonateWarhead } from './b3d-warhead.js'
 import { explodeMesh } from './b3d-exploder.js'
 
@@ -79,7 +84,12 @@ export class DestroyableBehavior {
   /** On-destruction direct-transfer chain links (see destroyable.ts). */
   chain: ChainLink[]
   /** Code hook run once on death, before the visual outcome. */
-  whenDestroyed?: (info: { id: string; position: BABYLON.Vector3 }) => void
+  whenDestroyed?: (info: {
+    id: string
+    position: BABYLON.Vector3
+    /** Who killed it and through what chain — see [[destroyable|Cause]]. */
+    cause?: Cause
+  }) => void
 
   private _dead = false
   private _obs?: BABYLON.Observer<BABYLON.Scene>
@@ -122,9 +132,14 @@ export class DestroyableBehavior {
 
   /** Hurt this target; returns the combat events from this hit (flashes + shows the
    * accumulated-damage glow so you can read how close it is to dying). */
-  damage(amount: number): CombatEvent[] {
+  damage(amount: number, cause?: Cause): CombatEvent[] {
     if (this._dead) return []
-    const events = this.owner.combat.applyDamage(this.combatId, amount)
+    const events = this.owner.combat.applyDamage(
+      this.combatId,
+      amount,
+      [],
+      cause
+    )
     const hit = events.find((e) => e.type === 'damaged') as
       | { hp: number }
       | undefined
@@ -181,7 +196,16 @@ export class DestroyableBehavior {
     const scene = this.owner.scene
     const mesh = this.host.mesh
     const position = mesh?.absolutePosition.clone() ?? BABYLON.Vector3.Zero()
-    const info = { id: this.combatId, position }
+    /*
+    The cause comes off the WORLD, not off the call that killed it. A chain
+    reaction resolves inside `combat.tick` and is noticed here a frame later by
+    polling `destroyed`, so the event that carried the cause is long consumed.
+    */
+    const cause = this.owner.combat.get(this.combatId)?.cause
+    const info: { id: string; position: BABYLON.Vector3; cause?: Cause } =
+      cause == null
+        ? { id: this.combatId, position }
+        : { id: this.combatId, position, cause }
 
     // Notify: the bubbling event + the code hook (e.g. flip a player to 'dead').
     this.host.dispatchEvent(
@@ -200,9 +224,37 @@ export class DestroyableBehavior {
         blastRadius: d.blastRadius ?? 4,
       }
       const at = position.clone()
+      /*
+      THE CREDIT SURVIVES A deathBlast, which is the case #8 was actually about.
+
+      A chain LINK carries its cause through `CombatWorld` because the world
+      schedules it. A deathBlast does not go through the world at all — it
+      detonates a fresh warhead from here — so without this the cascade silently
+      re-attributed itself to nobody at the first hop, and a player who set off
+      a 48-drum chain got credit for exactly the one drum they hit.
+
+      Measured before the fix: six destroyed, all `hops: 0`, all directly
+      credited — which LOOKS right until you notice the chain is invisible.
+      */
+      /*
+      One more hop, and this drum is the link.
+
+      `by` alone was not enough: a deathBlast leaves the combat world, so
+      without `via`/`hops` every victim came back at `hops: 0` and a chain read
+      as things the player hit personally. Measured that way before the fix.
+      */
+      const onward: Cause | undefined =
+        cause == null
+          ? undefined
+          : {
+              by: cause.by,
+              kind: 'blast',
+              via: this.combatId,
+              hops: (cause.hops ?? 0) + 1,
+            }
       setTimeout(() => {
         if (owner.scene != null && !owner.scene.isDisposed)
-          detonateWarhead(owner, at, spec, true)
+          detonateWarhead(owner, at, spec, true, onward)
       }, Math.max(0, d.blastDelay ?? 0.1) * 1000)
     }
 

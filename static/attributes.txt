@@ -727,6 +727,7 @@ b3d-warhead
   fullRadius  = 1.5  — Within this distance the blast deals full `D`
   blastRadius  = 5  — Falloff from `D` (at `fullRadius`) to 1 here; 0 beyond
   los  = 'on'  — Line-of-sight occlusion (a wall between blast + target spares it)
+  by
 
 ## b3d-water — <tosi-b3d-water>
 b3d-water

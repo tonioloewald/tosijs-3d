@@ -134,6 +134,7 @@ import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead.js'
 import type { B3dDestroyable } from './b3d-destroyable.js'
+import type { Cause } from './destroyable.js'
 
 // Seconds for the blast to expand from the centre to its full radius — shared by the
 // boom visual AND the outward-rippling damage in detonateWarhead so they stay in step.
@@ -148,12 +149,19 @@ export class B3dWarhead extends AbstractMesh {
     fullRadius: 1.5,
     blastRadius: 5,
     los: 'on', // line-of-sight occlusion; 'off' to ignore cover
+    /*
+    Who to credit for what this blast destroys — a combat id, usually the
+    launcher or the pilot. Travels through the whole cascade, so a chain three
+    drums deep is still attributed here (#8).
+    */
+    by: '',
   }
 
   declare damage: number
   declare fullRadius: number
   declare blastRadius: number
   declare los: string
+  declare by: string
 
   get spec(): WarheadSpec {
     return {
@@ -178,7 +186,13 @@ export class B3dWarhead extends AbstractMesh {
     const c =
       center ??
       new BABYLON.Vector3((this as any).x, (this as any).y, (this as any).z)
-    detonateWarhead(this.owner, c, this.spec, !isOff(this.los))
+    detonateWarhead(
+      this.owner,
+      c,
+      this.spec,
+      !isOff(this.los),
+      this.by ? { by: this.by, kind: 'blast' } : undefined
+    )
   }
 }
 
@@ -195,7 +209,21 @@ export function detonateWarhead(
   owner: B3d,
   center: BABYLON.Vector3,
   spec: WarheadSpec,
-  useLos = true
+  useLos = true,
+  /*
+  WHY THIS WENT OFF — the whole `Cause`, not just who fired.
+
+  It has to be the whole thing because a `deathBlast` cascade LEAVES the combat
+  world: a drum's death detonates a fresh warhead here rather than scheduling a
+  link the world knows about. Passing only `by` kept the credit and lost the
+  shape — every victim came back as a direct hit at `hops: 0`, so a 48-drum
+  chain read as forty-eight things the player hit personally.
+
+  There is deliberately no friendly-fire exemption anywhere in this engine, so
+  `by` can perfectly well name something the blast then destroys. That is the
+  truth of what happened, and the ledger should say so.
+  */
+  cause?: Cause
 ): void {
   const scene = owner.scene
   // Live destroyables (their mesh is named by combatId; a dead one has none).
@@ -251,8 +279,11 @@ export function detonateWarhead(
     const delayMs = Math.min(BOOM_DURATION, d / shockSpeed) * 1000
     const el = e.el
     const amount = hit.amount
-    if (delayMs < 16) el.damage(amount)
-    else setTimeout(() => el.damage(amount), delayMs)
+    // Not `hit` — that is the loop's damage packet. This is why it happened.
+    const why: Cause | undefined =
+      cause == null ? undefined : { ...cause, kind: 'blast' }
+    if (delayMs < 16) el.damage(amount, why)
+    else setTimeout(() => el.damage(amount, why), delayMs)
   }
   explosionFx(scene, center, blastRadius)
 }
