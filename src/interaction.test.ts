@@ -116,7 +116,7 @@ describe('disabled and out of reach', () => {
 
 describe('activationVeto — the composition seam', () => {
   test('no vetoes, no refusal', () => {
-    expect(activationVeto([])).toBeNull()
+    expect(activationVeto([], {})).toBeNull()
   })
 
   test('names the FIRST refuser, so a caller can say why', () => {
@@ -125,7 +125,7 @@ describe('activationVeto — the composition seam', () => {
         { name: 'powered', blocks: () => false },
         { name: 'locked', blocks: () => true },
         { name: 'jammed', blocks: () => true },
-      ])
+      ], {})
     ).toBe('locked')
   })
 
@@ -140,7 +140,7 @@ describe('activationVeto — the composition seam', () => {
           return false
         },
       },
-    ])
+    ], {})
     expect(asked).toBe(0)
   })
 })
@@ -156,5 +156,53 @@ describe('withinReach', () => {
   })
   test('excludes just beyond', () => {
     expect(withinReach(origin, { x: 3, y: 4, z: 0.1 }, 5)).toBe(false)
+  })
+})
+
+describe('a veto is TOLD about the activation', () => {
+  /*
+  Raised by tosijs-3d-ensemble (#36): a `blocks()` with no argument can only
+  close over ambient state, which breaks the moment there is more than one
+  actor. It costs nothing today and cannot be added later without changing every
+  veto anyone has written.
+  */
+  interface Who {
+    actor?: unknown
+    source?: 'pointer' | 'near' | 'api'
+    distance?: number
+  }
+  const lockedUnless = (holder: string) => ({
+    name: 'locked',
+    blocks: (info: Who) => info.actor !== holder,
+  })
+
+  test('TWO ACTORS — the same door answers differently for each', () => {
+    // The case one closure over `player.has('brass-key')` cannot express.
+    const vetoes = [lockedUnless('npc')]
+    expect(activationVeto(vetoes, { actor: 'npc' })).toBeNull()
+    expect(activationVeto(vetoes, { actor: 'player' })).toBe('locked')
+  })
+
+  test('NEAR versus FAR — a lock you can reach is not one you can see', () => {
+    const vetoes = [
+      {
+        name: 'out-of-reach',
+        blocks: (info: Who) => info.source !== 'near' && (info.distance ?? 0) > 2,
+      },
+    ]
+    expect(activationVeto(vetoes, { source: 'near', distance: 0.4 })).toBeNull()
+    expect(activationVeto(vetoes, { source: 'pointer', distance: 8 })).toBe(
+      'out-of-reach'
+    )
+  })
+
+  test('a veto that IGNORES its argument is still a veto', () => {
+    // The compatibility promise: `blocks: () => !hasKey` keeps working, which
+    // is what makes adding the argument free rather than a migration.
+    let hasKey = false
+    const vetoes = [{ name: 'locked', blocks: () => !hasKey }]
+    expect(activationVeto(vetoes, { actor: 'anyone' })).toBe('locked')
+    hasKey = true
+    expect(activationVeto(vetoes, { actor: 'anyone' })).toBeNull()
   })
 })

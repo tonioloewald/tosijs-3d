@@ -48,6 +48,7 @@ import {
   interactStep,
   newInteractState,
   activationVeto,
+  type ActivationVeto,
   type InteractState,
 } from './interaction.js'
 
@@ -61,6 +62,22 @@ export interface InteractionInfo {
   distance: number
   /** Set on `refused`: the veto that said no. */
   reason?: string
+  /**
+   * How this activation arrived.
+   *
+   * A veto needs it: a lock you can REACH is not a lock you can merely SEE, so
+   * the same door may answer differently to a hand at 0.4 m and a ray at 8 m.
+   */
+  source?: 'pointer' | 'near' | 'api'
+  /**
+   * Who is doing it. Opaque on purpose.
+   *
+   * The simulation knows what an actor is and this layer does not — carrying
+   * anything more specific would make an interactive care whether a door is
+   * being opened by a player, an NPC or a test. A veto that needs to know casts
+   * it; one that does not, ignores it.
+   */
+  actor?: unknown
 }
 
 export interface InteractiveHost {
@@ -97,7 +114,7 @@ const sceneSet = (scene: BABYLON.Scene): Set<InteractiveBehavior> => {
 
 export class InteractiveBehavior {
   /** Other features' "not while I say so" — consulted at activation only. */
-  vetoes: Array<{ name: string; blocks: () => boolean }> = []
+  vetoes: Array<ActivationVeto<InteractionInfo>> = []
 
   whenActivated?: (info: InteractionInfo) => void
   whenHovered?: (info: InteractionInfo) => void
@@ -144,7 +161,10 @@ export class InteractiveBehavior {
 
   /** True when nothing refuses an activation — i.e. it would actually work. */
   get operable(): boolean {
-    return this._enabled() && activationVeto(this.vetoes) == null
+    return (
+      this._enabled() &&
+      activationVeto(this.vetoes, { ...this._last, source: 'api' }) == null
+    )
   }
 
   /**
@@ -155,7 +175,8 @@ export class InteractiveBehavior {
    */
   activate(info?: Partial<InteractionInfo>): boolean {
     if (!this._enabled()) return false
-    return this._fire({ ...this._last, ...info })
+    // `api` unless the caller says otherwise — `useNearest` says `near`.
+    return this._fire({ source: 'api', ...this._last, ...info })
   }
 
   /** Tuned state for the console / `hj eval` / a Perf-panel debug source. */
@@ -167,7 +188,10 @@ export class InteractiveBehavior {
       meshes: this.config.meshes().map((m) => m.name),
       reach: this.config.reach?.() ?? 0,
       vetoes: this.vetoes.map(
-        (v) => `${v.name}:${v.blocks() ? 'blocks' : 'ok'}`
+        (v) =>
+          `${v.name}:${
+            v.blocks({ ...this._last, source: 'api' }) ? 'blocks' : 'ok'
+          }`
       ),
     }
   }
@@ -219,6 +243,7 @@ export class InteractiveBehavior {
         mesh: picked,
         point: pick?.pickedPoint ?? null,
         distance,
+        source: 'pointer',
       }
     }
 
@@ -235,7 +260,7 @@ export class InteractiveBehavior {
 
   /** The one place an activation is decided — pointer and `activate()` share it. */
   private _fire(info: InteractionInfo): boolean {
-    const reason = activationVeto(this.vetoes)
+    const reason = activationVeto(this.vetoes, info)
     if (reason != null) {
       this._emit('refused', { ...info, reason }, this.whenRefused)
       return false
@@ -312,5 +337,7 @@ export function useNearest(
   scene: BABYLON.Scene,
   from: BABYLON.Vector3
 ): boolean {
-  return nearestInteractive(scene, from)?.activate() ?? false
+  // `near`, not `api`: this IS reaching for the thing, and a veto that cares
+  // about reach must be able to tell that apart from a scripted activation.
+  return nearestInteractive(scene, from)?.activate({ source: 'near' }) ?? false
 }

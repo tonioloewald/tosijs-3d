@@ -129,12 +129,42 @@ export function interactStep(
  *
  * Returns the first refusal's reason, so a caller can say WHY rather than
  * merely doing nothing — the difference between a locked door and a broken one.
+ *
+ * ## A veto is TOLD about the activation
+ *
+ * `blocks(info)` receives the same description the `refused` event carries —
+ * who activated it, how (a pointer, a hand within reach, `useNearest`, an API
+ * call), and how far away they were. Without it a veto can only close over
+ * ambient state, which breaks the moment there is more than one actor:
+ *
+ * - **two actors.** An NPC opening a door it has the key for while the player
+ *   does not. One closure over `player.has(…)` cannot answer for both.
+ * - **near versus far.** The same door reached by a hand at 0.4 m and by a ray
+ *   at 8 m may want different answers — a lock you can reach is not a lock you
+ *   can merely see — and a veto with no argument cannot tell which happened.
+ *
+ * Raised by `tosijs-3d-ensemble` (#36) with the observation that decided it:
+ * it costs nothing today and cannot be added later without changing every veto
+ * anyone has written. A veto that ignores its argument is still a veto, so
+ * `blocks: () => !hasKey` is unaffected.
  */
-export function activationVeto(
-  vetoes: Array<{ name: string; blocks: () => boolean }>
+export interface ActivationVeto<Info = unknown> {
+  name: string
+  /**
+   * Refuse this activation?
+   *
+   * `info` describes THIS activation — who, how, and how far — and a veto that
+   * ignores it is still a valid veto, so `blocks: () => !hasKey` keeps working.
+   */
+  blocks: (info: Info) => boolean
+}
+
+export function activationVeto<Info>(
+  vetoes: Array<ActivationVeto<Info>>,
+  info: Info
 ): string | null {
   for (const v of vetoes) {
-    if (v.blocks()) return v.name
+    if (v.blocks(info)) return v.name
   }
   return null
 }

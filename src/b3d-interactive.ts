@@ -125,7 +125,10 @@ preview.append(
 
 ## Events and callbacks
 
-Every one carries `{ mesh, point, distance }`; `refused` adds `reason`.
+Every one carries `{ mesh, point, distance, source, actor }`; `refused` adds
+`reason`. `source` is how the activation arrived — `'pointer'`, `'near'`
+(`useNearest`), or `'api'` (a direct `activate()`); `actor` is whatever the
+caller passed, and is deliberately opaque here.
 
 | Event | Callback prop | When |
 |---|---|---|
@@ -154,6 +157,36 @@ use.vetoes.push({ name: 'locked', blocks: () => !player.has('hatch-key') })
 The first refuser's name comes back on the `refused` event, which is the
 difference between a locked door and a broken one.
 
+### A veto is TOLD about the activation
+
+`blocks(info)` receives the same description the `refused` event carries, which
+is what lets one door answer differently for different callers:
+
+```javascript
+// Two actors: the NPC has the key, the player does not. One closure over
+// `player.has(…)` could not express this.
+use.vetoes.push({ name: 'locked', blocks: (info) => info.actor !== npc })
+
+// Near versus far: a lock you can REACH is not a lock you can merely SEE.
+use.vetoes.push({
+  name: 'out-of-reach',
+  blocks: (info) => info.source !== 'near' && info.distance > 2,
+})
+
+// And a veto that ignores its argument is still a veto.
+use.vetoes.push({ name: 'powered', blocks: () => !reactor.online })
+```
+
+Pass the actor in when you activate it yourself:
+
+```javascript
+use.activate({ actor: npc })
+```
+
+Raised by `tosijs-3d-ensemble` (#36), with the argument that settled it: it
+costs nothing today and cannot be added later without changing every veto
+anyone has written.
+
 ## Reaching it without pointing at it
 
 `useNearest(scene, position)` activates the closest thing within its own reach —
@@ -172,6 +205,7 @@ import {
   InteractiveBehavior,
   type InteractionInfo,
 } from './interactive-behavior.js'
+import type { ActivationVeto } from './interaction.js'
 
 export class B3dInteractive extends B3dChild {
   static preferredTagName = 'tosi-b3d-interactive'
@@ -213,7 +247,7 @@ export class B3dInteractive extends B3dChild {
    * Other features' refusals — see the doc above. Lives on the element (not
    * behind the behaviour) so a `lockable` can be pushed before the scene is up.
    */
-  vetoes: Array<{ name: string; blocks: () => boolean }> = []
+  vetoes: Array<ActivationVeto<InteractionInfo>> = []
 
   private _behavior: InteractiveBehavior | null = null
   private _cache: BABYLON.AbstractMesh[] | null = null
