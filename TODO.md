@@ -37,8 +37,8 @@ Round four cleared with GO_WITH_FOLLOWUPS. Remaining index work, none blocking:
       point-fixes in between (bound the class body, pair tags by body, restore
       `/`) were the same. Per `tosijs-coding-practices/practices/review.md`, a
       repeated blocker in one area is evidence against a DESIGN decision, not
-      against the fixes: the decision here is *parse TypeScript and markdown
-      with regexes*. `stripComments` is already known to be string-blind (it
+      against the fixes: the decision here is _parse TypeScript and markdown
+      with regexes_. `stripComments` is already known to be string-blind (it
       blanks `//` inside string and template literals, and this repo ships GLSL
       strings). The design answer is a real TS AST for the `initAttributes` side
       — the re-review reports running exactly that out-of-tree and finding it
@@ -777,12 +777,18 @@ auto` on flex children, stacking contexts. A tool must either implement CSS
 
 ## The queue
 
-[ ] **Triage 11 stale `UPSTREAM.md` Open rows** (found by the 0.7.7 step-5a0
-sweep, 2026-09-02). These reference issues upstream has since CLOSED, so the
-table currently asserts workarounds are still needed when they may not be:
+[ ] **Triage 18 stale `UPSTREAM.md` Open rows** (11 found by the 0.7.7 step-5a0
+sweep 2026-09-02; re-swept at the 0.8.1 gate 2026-09-06 and it had grown to 18).
+These reference issues upstream has since CLOSED, so the table currently asserts
+workarounds are still needed when they may not be. All 18 are struck through in
+the Open section now — struck means _fixed upstream, workaround not yet walked_,
+which is the honest state and NOT the same as resolved:
 
-`tjs-lang#22` · `tosijs#22` `#24` `#27` · `tosijs-ui#72` `#92` `#95` `#97`
-`#111` `#112` `#117`
+`haltija#2` · `tosijs#22` `#24` `#27` · `tosijs-ui#72` `#91` `#92` `#94` `#95`
+`#96` `#97` `#99` `#100` `#103` `#109` `#111` `#117` `#132`
+
+It grows faster than it is worked — 11 → 18 across four days — which is the
+argument for doing the pass rather than re-counting it next gate.
 
 Deliberately NOT bulk-resolved: **closed upstream is not the same as released in
 the version we depend on**, so each row needs its own check — is the fix in our
