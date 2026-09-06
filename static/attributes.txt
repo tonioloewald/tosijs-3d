@@ -56,7 +56,20 @@ b3d-aircraft
   weapons  = 'on'  — `'off'` disarms all weapons
   gunRate  = 9  — Cannon shots/sec while `shoot` is held
   gunSpeed  = 130  — Cannon muzzle speed (added to airspeed)
-  gunDamage  = 8  — Per-shell warhead full damage
+  gunDamage  = 8  — Per-shell damage
+  gunMode  = 'direct'  — `'direct'` damages what the shell passes through; `'blast'` is the old AOE
+  gunFullRadius
+  gunBlastRadius
+  destroyable  = 'off'  — `'on'` gives the aircraft hit points and a death outcome
+  capacity
+  armor
+  regenRate
+  regenDelay
+  explode
+  explodeForce
+  blip  = 'off'  — `'on'` puts it on radar, so a missile can lock it
+  blipProfile
+  faction
   missileSpeed  = 55  — Guided-missile cruise speed
   missileAccel
   missileBoost

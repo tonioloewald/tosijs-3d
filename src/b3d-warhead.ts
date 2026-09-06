@@ -134,6 +134,7 @@ import { AbstractMesh, isOff, sceneDelta, collidable } from './b3d-utils.js'
 import type { B3d } from './tosi-b3d.js'
 import { resolveAoe, type WarheadSpec, type AoeTarget } from './warhead.js'
 import type { B3dDestroyable } from './b3d-destroyable.js'
+import { liveDestroyables } from './destroyable-behavior.js'
 import type { Cause } from './destroyable.js'
 
 // Seconds for the blast to expand from the centre to its full radius — shared by the
@@ -226,30 +227,26 @@ export function detonateWarhead(
   cause?: Cause
 ): void {
   const scene = owner.scene
-  // Live destroyables (their mesh is named by combatId; a dead one has none).
-  const dests = Array.from(
-    owner.querySelectorAll('tosi-b3d-destroyable')
-  ) as B3dDestroyable[]
   /*
-  Use the element's OWN node, not a scene lookup by name.
+  EVERY destroyable, not every `<tosi-b3d-destroyable>`.
 
-  `scene.getMeshByName` searches `scene.meshes` only, and a `library`
-  destroyable's root is a TransformNode with the model beneath it — so it
-  returned null for a node that exists and is correctly named, and EVERY
-  library-backed target was silently filtered out of EVERY blast. Measured by
-  manta-recon at 4 of 4 (tosijs-3d#28). The element is right there and already
-  holds the node; asking the scene to find it by name was a detour that could
-  only lose information.
+  This used to be `querySelectorAll('tosi-b3d-destroyable')`, which is not what
+  "destroyable" means: `b3d-loader` and `b3d-aircraft` attach the same behaviour
+  and were invisible to every blast in the scene. A destroyable aircraft that
+  could not be blown up, failing by doing nothing (#23).
 
-  `.mesh` is cleared on death, so the null check still does its original job of
-  skipping the already-dead.
+  The registry lives on the BEHAVIOUR, so anything attaching one is a target by
+  construction. It also settles the older bug this comment used to describe:
+  a `library` model's root is a TransformNode, so `scene.getMeshByName` returned
+  null for a node that exists and is correctly named, and every library-backed
+  target was silently filtered out of every blast (4 of 4, measured by
+  manta-recon, #28). Asking the element that already holds the node was the fix;
+  asking the registry is the same answer generalised.
   */
-  const live = dests
-    .map((el) => ({ el, mesh: el.mesh as unknown as BABYLON.AbstractMesh }))
-    .filter((e) => e.mesh != null && !e.el.dead) as Array<{
-    el: B3dDestroyable
-    mesh: BABYLON.AbstractMesh
-  }>
+  const live = liveDestroyables(scene).map((e) => ({
+    el: e.behavior,
+    mesh: e.mesh,
+  }))
   const meshes = live.map((e) => e.mesh)
   const targets: AoeTarget[] = live.map((e) => {
     const p = e.mesh.absolutePosition

@@ -208,7 +208,52 @@
       {
         "name": "gunDamage",
         "default": "8",
-        "description": "Per-shell warhead full damage"
+        "description": "Per-shell damage"
+      },
+      {
+        "name": "gunMode",
+        "default": "'direct'",
+        "description": "`'direct'` damages what the shell passes through; `'blast'` is the old AOE"
+      },
+      {
+        "name": "gunFullRadius"
+      },
+      {
+        "name": "gunBlastRadius"
+      },
+      {
+        "name": "destroyable",
+        "default": "'off'",
+        "description": "`'on'` gives the aircraft hit points and a death outcome"
+      },
+      {
+        "name": "capacity"
+      },
+      {
+        "name": "armor"
+      },
+      {
+        "name": "regenRate"
+      },
+      {
+        "name": "regenDelay"
+      },
+      {
+        "name": "explode"
+      },
+      {
+        "name": "explodeForce"
+      },
+      {
+        "name": "blip",
+        "default": "'off'",
+        "description": "`'on'` puts it on radar, so a missile can lock it"
+      },
+      {
+        "name": "blipProfile"
+      },
+      {
+        "name": "faction"
       },
       {
         "name": "missileSpeed",

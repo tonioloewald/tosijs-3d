@@ -219,7 +219,14 @@ turns the pilot's head in the cockpit, springs back on release).
 | `weapons` | `'on'` | `'off'` disarms all weapons |
 | `gunRate` | `9` | Cannon shots/sec while `shoot` is held |
 | `gunSpeed` | `130` | Cannon muzzle speed (added to airspeed) |
-| `gunDamage` | `8` | Per-shell warhead full damage |
+| `gunDamage` | `8` | Per-shell damage |
+| `gunMode` | `'direct'` | `'direct'` damages what the shell passes through; `'blast'` is the old AOE |
+| `gunFullRadius` / `gunBlastRadius` | `0.5` / `1.5` | Only for `gunMode="blast"` |
+| `destroyable` | `'off'` | `'on'` gives the aircraft hit points and a death outcome |
+| `capacity` / `armor` / `regenRate` / `regenDelay` | `30` / `0` / `0` / `0.5` | Combat stats |
+| `explode` / `explodeForce` | `'on'` / `8` | Death outcome |
+| `blip` | `'off'` | `'on'` puts it on radar, so a missile can lock it |
+| `blipProfile` / `faction` | `1` / `'neutral'` | Radar detectability and side |
 | `missileSpeed` | `55` | Guided-missile cruise speed |
 | `missileTurnRate` | `3` | Guided-missile agility (rad/sec) |
 | `missileDamage` | `30` | Missile warhead full damage |
@@ -301,6 +308,40 @@ serves both directions — there's no second one to author or keep in sync.
 On the ground the wings hold level and the turn stick taxi-steers; pulling back
 rotates for takeoff (or a VTOL lifts straight up on the right trigger). A contact
 faster than `crashSpeed`, or banked/inverted, crashes instead of lands.
+## Combat: three things that used to fail by doing nothing
+
+Reported together by manta-recon (#23), because they compound — an AI aircraft
+was invulnerable, unlockable and, once you scaled anything, unhittable, all
+silently.
+
+**It can be hurt.** `destroyable="on"` attaches the same `DestroyableBehavior`
+`b3d-loader` and `b3d-destroyable` use. That also puts it in the registry every
+blast reads — which was its own bug: a warhead used to find targets by querying
+`tosi-b3d-destroyable`, so a destroyable aircraft or loaded model was invisible
+to every explosion in the scene.
+
+**It can be locked.** `blip="on"` mounts a `<tosi-b3d-radar-blip>`, and missiles
+lock through the radar — so without one an enemy aircraft cannot be
+missile-locked, which reaches the player as *"missiles don't work"*.
+
+**Its gun damages what it passes through.** Guns used to fire an AOE warhead,
+which couples damage to MODEL SCALE: blast damage resolves by distance to a
+destroyable's registered point — one point, at the origin — so scaling a fighter
+4× puts its wing ~4 m out, past a 1.5 m blast. Point-blank fire, zero effect, no
+error.
+
+Direct-hit damage has no length scale in it, so it is immune to that entire
+class of bug. AOE stays right for missiles and bombs, and `gunMode="blast"`
+restores the old behaviour with `gunBlastRadius`/`gunFullRadius` now attributes
+rather than hardcoded.
+
+Two details that carry the fix, both of which cost the reporter a debugging
+cycle: the shell **sweeps the segment it travelled** (at 340 m/s it moves ~5.7 m
+per frame, so a point test tunnels through a wing), and the target is resolved
+by **ancestry** (a library model hangs asynchronously beneath the registered
+root, so the picked mesh is a wing three levels down and a snapshot taken at
+registration time captures an empty root forever).
+
 */
 /*{ "parent": "Vehicles" }*/
 
@@ -326,6 +367,11 @@ import {
 } from './b3d-utils.js'
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js'
 import type { WarheadSpec } from './warhead.js'
+import type { Cause, CombatEvent } from './destroyable.js'
+import {
+  DestroyableBehavior,
+  destroyableAt,
+} from './destroyable-behavior.js'
 import type { B3dRadar } from './b3d-radar.js'
 
 // Small gap kept between the model's belly and the ground.
@@ -499,6 +545,49 @@ export class B3dAircraft extends B3dControllable {
     gunRate: 9, // cannon shots per second (held `shoot`)
     gunSpeed: 130, // muzzle speed of cannon shells (added to airspeed)
     gunDamage: 8, // per-shell warhead full damage
+    /*
+    A CANNON SHELL DAMAGES WHAT IT PASSES THROUGH.
+
+    Guns used to be AOE, which couples damage to MODEL SCALE: warhead damage
+    resolves by distance to a destroyable's registered point — one point, at the
+    craft's origin — so scaling a fighter 4× puts its wing ~4 m from that point,
+    outside a 1.5 m blast. Point-blank fire, zero effect, no error. Reported by
+    manta-recon (#23), who hit it by making their world bigger.
+
+    Direct-hit damage has no length scale in it, so it is immune to that whole
+    class of bug: change craft scale, world scale or blast tuning and a hit is
+    still a hit. AOE stays right for missiles and bombs, which is where it
+    means something.
+
+    `'blast'` restores the old behaviour, and `gunBlastRadius`/`gunFullRadius`
+    are attributes now rather than hardcoded — the adopter's other ask.
+    */
+    gunMode: 'direct' as 'direct' | 'blast',
+    gunFullRadius: 0.5,
+    gunBlastRadius: 1.5,
+    // --- Damage model. 'off' by default; the same DestroyableBehavior
+    // b3d-loader and b3d-destroyable attach, so a blast finds it too. ---
+    destroyable: 'off',
+    capacity: 30,
+    armor: 0,
+    regenRate: 0,
+    regenDelay: 0.5,
+    explode: 'on',
+    explodeForce: 8,
+    /*
+    ON RADAR, so a missile can lock it.
+
+    Missiles lock via the radar, so an aircraft with no blip cannot be
+    missile-locked — which presents to a player as "missiles don't work" (#23).
+    A blip could always be nested by hand; nothing said so, and there was no
+    default, which is the discoverability half of the same bug.
+
+    'off' by default because a blip is a claim about being detectable and the
+    player's own craft usually is not a target. Set `blip="on"` on enemies.
+    */
+    blip: 'off',
+    blipProfile: 1,
+    faction: 'neutral',
     missileSpeed: 90, // guided-missile cruise speed (faster than the airframe so it pulls ahead)
     missileAccel: 120, // thrust accel (units/s²) ramping launch → cruise (inherits your velocity)
     missileBoost: 0.45, // boost: forced forward accel; seeker authority ramps in across it
@@ -587,6 +676,7 @@ export class B3dAircraft extends B3dControllable {
   private _radar: B3dRadar | null | undefined = undefined
   private _reticleMesh: BABYLON.Mesh | null = null
   private meshNode: BABYLON.TransformNode | null = null
+  private _destroyable?: DestroyableBehavior
 
   /** The displacement-tracked world velocity — see `_worldVel`. */
   getWorldVelocity(): BABYLON.Vector3 | null {
@@ -1389,6 +1479,9 @@ export class B3dAircraft extends B3dControllable {
       origin,
       velocity: this._worldVel.add(dir.scale(attrs.gunSpeed)),
       warhead: this.gunWarhead,
+      // A shell damages what it goes through — see `gunMode`.
+      directHit: attrs.gunMode !== 'blast',
+      cause: { by: this.combatId || undefined },
       params: { gravity: { x: 0, y: -9.81, z: 0 }, dragCoeff: 0.001, mass: 2 },
       radius: 0.08,
       color: '#fff2a0',
@@ -1478,11 +1571,27 @@ export class B3dAircraft extends B3dControllable {
   }
 
   private get gunWarhead(): WarheadSpec {
+    const attrs = this as any
     return {
-      damage: (this as any).gunDamage,
-      fullRadius: 0.5,
-      blastRadius: 1.5,
+      damage: attrs.gunDamage,
+      fullRadius: attrs.gunFullRadius,
+      blastRadius: attrs.gunBlastRadius,
     }
+  }
+
+  /** Combat id once `destroyable` is on ('' otherwise). */
+  get combatId(): string {
+    return this._destroyable?.combatId ?? ''
+  }
+
+  /** True once a destroyable aircraft has died. */
+  get dead(): boolean {
+    return this._destroyable?.dead ?? false
+  }
+
+  /** Damage this aircraft (no-op unless `destroyable` is on). */
+  damage(amount: number, cause?: Cause): CombatEvent[] {
+    return this._destroyable?.damage(amount, cause) ?? []
   }
 
   /** Nearest destroyable within `range` and inside the forward cone (or null). */
@@ -1736,6 +1845,57 @@ export class B3dAircraft extends B3dControllable {
   sceneReady(owner: B3d, scene: BABYLON.Scene) {
     super.sceneReady(owner, scene)
     const attrs = this as any
+
+    /*
+    THE DAMAGE MODEL, when asked for.
+
+    The aircraft was the one combat-capable entity with no health at all, so an
+    enemy could not be hurt and shooting one did nothing with no indication why
+    (#23). This is the same `DestroyableBehavior` `b3d-loader` attaches, on the
+    same terms — which is also what puts it in the registry every blast reads.
+
+    `get mesh()` rather than a captured node: the model may still be loading,
+    and a snapshot taken now would be null forever.
+    */
+    /*
+    Mounted as a real `<tosi-b3d-radar-blip>` child rather than reimplemented:
+    nested, it follows this mesh, which is exactly what the element already
+    does. Anything else would be a second implementation of "where is it".
+    */
+    if (!isOff(attrs.blip) && this.querySelector('tosi-b3d-radar-blip') == null) {
+      const blip = document.createElement('tosi-b3d-radar-blip')
+      blip.setAttribute('profile', String(attrs.blipProfile ?? 1))
+      blip.setAttribute('faction', String(attrs.faction ?? 'neutral'))
+      this.appendChild(blip)
+    }
+
+    if (!isOff(attrs.destroyable)) {
+      const host = this
+      this._destroyable = new DestroyableBehavior(
+        owner,
+        {
+          get mesh() {
+            return host.meshNode as BABYLON.Mesh | undefined
+          },
+          dispatchEvent: (e: Event) => this.dispatchEvent(e),
+        },
+        {
+          idBase: attrs.meshName || attrs.url?.split('/').pop() || 'aircraft',
+          capacity: attrs.capacity,
+          armor: attrs.armor,
+          regenRate: attrs.regenRate,
+          regenDelay: attrs.regenDelay,
+        },
+        {
+          explode: !isOff(attrs.explode),
+          explodeForce: attrs.explodeForce,
+        }
+      )
+      // `attach()` is what registers it in the combat world AND the destroyable
+      // registry — constructing alone leaves an invulnerable aircraft that
+      // every blast ignores, which is the bug this attribute exists to fix.
+      this._destroyable.attach()
+    }
 
     // Ground-ray diagnostics. Always registered (no arming), because the
     // phantom collision happens in scenes with no terrain — so it must not

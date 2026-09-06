@@ -170,3 +170,103 @@ describe('disposeMeshTree and textures', () => {
     spot.dispose()
   })
 })
+
+describe('destroyableAt — resolving a hit by ANCESTRY', () => {
+  /*
+  A library model instantiates ASYNCHRONOUSLY beneath a root, so a shell hits a
+  WING and the registered node is the root several levels up. Matching on the
+  picked mesh alone found nothing and every shot missed — silently. That is the
+  trap manta-recon spent a debugging cycle on (#23), and the reason this walks
+  UP rather than snapshotting descendants: the descendants arrive late, so a
+  registry built at registration time captures an empty root forever.
+  */
+  let DB: typeof import('./destroyable-behavior.js')
+  let owner: any
+
+  beforeAll(async () => {
+    DB = await import('./destroyable-behavior.js')
+    const { CombatWorld } = await import('./destroyable.js')
+    owner = { scene, combat: new CombatWorld() }
+  })
+
+  /*
+  `attach()` is what registers it, and constructing alone is not enough — which
+  is a real footgun rather than a test detail: `b3d-aircraft` was written
+  without it while this was being built, and the result is an invulnerable
+  aircraft every blast ignores.
+  */
+  const attach = (root: import('@babylonjs/core').AbstractMesh, id: string) => {
+    const b = new DB.DestroyableBehavior(
+      owner,
+      { get mesh() { return root as never }, dispatchEvent: () => true },
+      { idBase: id, capacity: 100 },
+      {}
+    )
+    b.attach()
+    return b
+  }
+
+  test('a hit on a DESCENDANT resolves to the registered root', () => {
+    const root = BABYLON.MeshBuilder.CreateBox('craft', { size: 1 }, scene)
+    const fuselage = BABYLON.MeshBuilder.CreateBox('fuselage', { size: 1 }, scene)
+    const wing = BABYLON.MeshBuilder.CreateBox('wing', { size: 1 }, scene)
+    fuselage.parent = root
+    wing.parent = fuselage // three levels down, as a real model is
+    const behavior = attach(root, 'craft')
+
+    expect(DB.destroyableAt(wing)).toBe(behavior)
+    expect(DB.destroyableAt(fuselage)).toBe(behavior)
+    expect(DB.destroyableAt(root)).toBe(behavior)
+
+    behavior.dispose()
+    root.dispose()
+  })
+
+  test('a mesh belonging to nothing resolves to null, not to the nearest', () => {
+    const root = BABYLON.MeshBuilder.CreateBox('craft2', { size: 1 }, scene)
+    const behavior = attach(root, 'craft2')
+    const bystander = BABYLON.MeshBuilder.CreateBox('rock', { size: 1 }, scene)
+    expect(DB.destroyableAt(bystander)).toBeNull()
+    behavior.dispose()
+    root.dispose()
+    bystander.dispose()
+  })
+
+  test('works for a child added AFTER the behaviour attached', () => {
+    // The whole reason it walks up: a library model lands late, and a snapshot
+    // taken at attach time would never see it.
+    const root = BABYLON.MeshBuilder.CreateBox('craft3', { size: 1 }, scene)
+    const behavior = attach(root, 'craft3')
+    const late = BABYLON.MeshBuilder.CreateBox('late-wing', { size: 1 }, scene)
+    late.parent = root
+    expect(DB.destroyableAt(late)).toBe(behavior)
+    behavior.dispose()
+    root.dispose()
+  })
+
+  test('a disposed behaviour stops claiming its meshes', () => {
+    const root = BABYLON.MeshBuilder.CreateBox('craft4', { size: 1 }, scene)
+    const behavior = attach(root, 'craft4')
+    expect(DB.destroyableAt(root)).toBe(behavior)
+    behavior.dispose()
+    expect(DB.destroyableAt(root)).toBeNull()
+    root.dispose()
+  })
+
+  test('liveDestroyables lists everything attached, whatever element attached it', () => {
+    // The registry is the behaviour's own, so `b3d-loader` and `b3d-aircraft`
+    // are targets by construction — they used to be invisible to every blast,
+    // which queried one tag name.
+    const a = BABYLON.MeshBuilder.CreateBox('a-craft', { size: 1 }, scene)
+    const b = BABYLON.MeshBuilder.CreateBox('b-craft', { size: 1 }, scene)
+    const ba = attach(a, 'a')
+    const bb = attach(b, 'b')
+    const ids = DB.liveDestroyables(scene).map((e) => e.behavior.combatId)
+    expect(ids).toContain(ba.combatId)
+    expect(ids).toContain(bb.combatId)
+    ba.dispose()
+    bb.dispose()
+    a.dispose()
+    b.dispose()
+  })
+})

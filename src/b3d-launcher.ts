@@ -258,6 +258,8 @@ import {
 } from './resource.js'
 import { detonateWarhead } from './b3d-warhead.js'
 import type { WarheadSpec } from './warhead.js'
+import type { Cause } from './destroyable.js'
+import { destroyableAt } from './destroyable-behavior.js'
 
 /**
  * WHERE a round stopped, and what it stopped against.
@@ -322,6 +324,22 @@ export interface ProjectileOpts {
   maxLifetime?: number
   /** Line-of-sight gating for the impact warhead (default true). */
   useLos?: boolean
+  /**
+   * Damage what it PASSES THROUGH instead of detonating an area effect.
+   *
+   * A cannon shell should hurt the wing it hit. An AOE payload resolves by
+   * distance to a destroyable's registered point — one point, at the model's
+   * origin — so scaling a craft up puts its extremities outside the blast and a
+   * point-blank hit does nothing, silently (#23).
+   *
+   * Direct damage has no length scale in it, so it survives any change of craft
+   * or world scale. The target is resolved by ANCESTRY, because a library model
+   * hangs asynchronously beneath the registered root and the picked mesh is a
+   * wing three levels down.
+   */
+  directHit?: boolean
+  /** Who to credit for what this shell destroys — see [[destroyable|Cause]]. */
+  cause?: Cause
   /**
    * Called when the shell detonates, with the point, the surface normal and the
    * mesh struck (see `Impact` — normal/mesh are null for a fuse in open space).
@@ -539,12 +557,21 @@ export function spawnProjectile(
         collidable((m) => m === mesh || (opts.ignore?.(m) ?? false))
       )
       if (hit != null && hit.hit && hit.pickedPoint != null) {
-        detonateWarhead(
-          owner,
-          hit.pickedPoint,
-          opts.warhead,
-          opts.useLos ?? true
-        )
+        if (opts.directHit === true) {
+          // What it went through, not what was near where it stopped.
+          destroyableAt(hit.pickedMesh)?.damage(opts.warhead.damage, {
+            ...(opts.cause ?? {}),
+            kind: 'direct',
+          })
+        } else {
+          detonateWarhead(
+            owner,
+            hit.pickedPoint,
+            opts.warhead,
+            opts.useLos ?? true,
+            opts.cause
+          )
+        }
         reportImpact(opts, {
           point: hit.pickedPoint,
           // `true` = world space. The ray already computed this; not passing it
