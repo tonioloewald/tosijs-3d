@@ -206,4 +206,34 @@ export declare function naturalLevel(dist: number, cfg: QuadtreeConfig): number;
  * into and you get a tunnel floating in the air.
  */
 export declare function patchResident(patchCenterX: number, patchCenterZ: number, detailLevel: number, camX: number, camZ: number, cfg: QuadtreeConfig): boolean;
+/**
+ * Widest the finest LOD may get, in tiles across.
+ *
+ * 256² = 65,536 tiles is already generous — the reported tab-killer was a
+ * million. Not an attribute: it is a survival limit, and a knob for it would
+ * just be the same footgun with an extra step.
+ */
+export declare const MAX_TILES_ACROSS = 256;
+/**
+ * Clamp a requested `reach` against `tileSize`, so the product cannot kill a tab.
+ *
+ * Finest-level tiles go as `(2·reach / tileSize)²` and the two are separate
+ * controls, so it is the PRODUCT that bites: reach 5000 at tileSize 10 is a
+ * million tiles (tosijs-3d-ensemble put a slider on it and lost the tab, #66).
+ * They capped `reach` at 400 m as a guess and named the real problem — a JSON
+ * Schema cannot say "…unless tileSize is small". The element knows both
+ * numbers, so the clamp belongs with them.
+ *
+ * A clamp rather than a refusal: a terrain drawing a smaller world is
+ * recoverable and visibly odd, where one that refuses to draw looks broken and
+ * reads as a different bug entirely.
+ *
+ * Lives here rather than in the element so it can be asserted without a scene —
+ * the test used to restate the arithmetic, which meant it pinned a copy.
+ */
+export declare function budgetedReach(asked: number, tileSize: number): {
+    reach: number;
+    across: number;
+    clamped: boolean;
+};
 //# sourceMappingURL=terrain-grid.d.ts.map

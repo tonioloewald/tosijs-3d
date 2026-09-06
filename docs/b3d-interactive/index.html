@@ -252,9 +252,14 @@ use.vetoes.push({
 // And a veto that ignores its argument is still a veto.
 use.vetoes.push({ name: &#39;powered&#39;, blocks: () =&gt; !reactor.online })
 </code></pre>
-<p>Pass the actor in when you activate it yourself:</p>
-<pre><code class="language-javascript">use.activate({ actor: npc })
+<p>Pass the actor in when you activate it yourself — <strong>and the distance, if any
+veto reads it</strong>. An activation that does not say how far away it is is told
+<code>Infinity</code> and a reach veto refuses it, deliberately: &quot;we do not know that you
+are near&quot; is the safe answer, and the one scenario reach vetoes exist for is an
+NPC across the map activating a door nobody has ever hovered.</p>
+<pre><code class="language-javascript">use.activate({ actor: npc, distance: npc.distanceTo(door) })
 </code></pre>
+<p><code>useNearest</code> measures the distance itself, so it needs neither.</p>
 <p>Raised by <code>tosijs-3d-ensemble</code> (#36), with the argument that settled it: it
 costs nothing today and cannot be added later without changing every veto
 anyone has written.</p>

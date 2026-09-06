@@ -295,7 +295,7 @@ import { b3dSvgPlane } from './b3d-svg-plane.js';
 import { createMakers } from './make-mesh.js';
 import { openPopup, } from './popup-surface.js';
 import { cameraIsAttached, isOff, markUiMesh } from './b3d-utils.js';
-import { NO_WIND, gustAt, windFromPolar, } from './wind.js';
+import { NO_WIND, gustAt, windFromPolar } from './wind.js';
 import { faceViewer } from './dialog-placement.js';
 import { svgIcons } from './svg-icons.js';
 import { CombatWorld } from './destroyable.js';

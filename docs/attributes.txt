@@ -343,69 +343,69 @@ b3d-interactive
 ## b3d-lamp (tosi-b3d-point-light) — <tosi-b3d-point-light>
 Lamps
 
-  x
-  y
-  z
-  intensity
-  diffuse
-  specular
-  range
-  on
-  geometry
-  geometryScale
-  url
-  shadows
+  x  = 0  — Position
+  y  = 3  — Position
+  z  = 0  — Position
+  intensity  = 1  — Brightness. With `modulation`, this is the MAXIMUM
+  diffuse  = '#ffffff'  — Colour
+  specular  = '#ffffff'  — Specular colour
+  range  = 10  — Falloff distance (point / spot)
+  on  = true  — `false` plays the DECAY region; it does not kill the light
+  geometry  = 'on'  — `'off'` for no fixture
+  geometryScale  = 1  — Size multiplier for the default fixture
+  url  = —  — GLB fixture, in place of the primitive
+  shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
   timeSource
-  shadowTextureSize
+  shadowTextureSize  = 0  — Resolves against the device budget
 
 ## b3d-lamp (tosi-b3d-spot-light) — <tosi-b3d-spot-light>
 Lamps
 
-  x
-  y
-  z
-  intensity
-  diffuse
-  specular
-  range
-  on
-  geometry
-  geometryScale
-  url
-  shadows
+  x  = 0  — Position
+  y  = 3  — Position
+  z  = 0  — Position
+  intensity  = 1  — Brightness. With `modulation`, this is the MAXIMUM
+  diffuse  = '#ffffff'  — Colour
+  specular  = '#ffffff'  — Specular colour
+  range  = 10  — Falloff distance (point / spot)
+  on  = true  — `false` plays the DECAY region; it does not kill the light
+  geometry  = 'on'  — `'off'` for no fixture
+  geometryScale  = 1  — Size multiplier for the default fixture
+  url  = —  — GLB fixture, in place of the primitive
+  shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
   timeSource
-  shadowTextureSize
-  angle
-  exponent
-  innerAngle
-  shape
-  shapeAspect
-  shapeSoftness
+  shadowTextureSize  = 0  — Resolves against the device budget
+  angle  = 60  — **spot** — cone angle in degrees
+  exponent  = 2  — **spot** — falloff sharpness (standard falloff)
+  innerAngle  = 0  — **spot** — inner cone in degrees; above `0` gives a true penumbra and switches to glTF falloff
+  shape  = 'circle'  — **spot** — cone cross-section: `circle` / `square` / `none`. Projected as a gel, so an explicit `gel` wins
+  shapeAspect  = 1  — **spot** — width/height; `2` is an ellipse or letterbox
+  shapeSoftness  = 0.25  — **spot** — edge feather, as a fraction of the radius
   dirX
   dirY
   dirZ
-  gel
-  gelSvg
+  gel  = —  — **spot** — projection texture URL (bitmap or SVG file)
+  gelSvg  = —  — **spot** — inline SVG source or an `SVGElement`
 
 ## b3d-lamp (tosi-b3d-area-light) — <tosi-b3d-area-light>
 Lamps
 
-  x
-  y
-  z
-  intensity
-  diffuse
-  specular
-  range
-  on
-  geometry
-  geometryScale
-  url
-  shadows
+  x  = 0  — Position
+  y  = 3  — Position
+  z  = 0  — Position
+  intensity  = 1  — Brightness. With `modulation`, this is the MAXIMUM
+  diffuse  = '#ffffff'  — Colour
+  specular  = '#ffffff'  — Specular colour
+  range  = 10  — Falloff distance (point / spot)
+  on  = true  — `false` plays the DECAY region; it does not kill the light
+  geometry  = 'on'  — `'off'` for no fixture
+  geometryScale  = 1  — Size multiplier for the default fixture
+  url  = —  — GLB fixture, in place of the primitive
+  shadows  = 'off'  — `'on'` for a shadow generator (point / spot only)
   timeSource
-  shadowTextureSize
-  width
-  height
+  shadowTextureSize  = 0  — Resolves against the device budget
+  width  = 2  — **area** — panel size
+  height  = 1  — **area** — panel size
 
 ## b3d-launcher — <tosi-b3d-launcher>
 b3d-launcher

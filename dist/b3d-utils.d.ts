@@ -251,7 +251,16 @@ export declare function enterXR(scene: BABYLON.Scene, options?: XRParams): Promi
  * material because THIS mesh referenced it would leave its siblings black —
  * silently, since a disposed material still answers `isReady()`. So a material
  * goes only when no mesh left in the scene refers to it, and a texture only
- * when no material left refers to it.
+ * when no MESH LEFT IN THE SCENE refers to it through its material.
+ *
+ * ⚠️ Both guards ask `scene.meshes`, and the texture one has to. A
+ * library-instantiated model's materials are **not in `scene.materials`** —
+ * they belong to the `AssetContainer` — while its meshes ARE in `scene.meshes`
+ * (measured on `/b3d-prop/` with real Kenney GLBs). So a texture guard written
+ * against `scene.materials` cannot see a library material, and would dispose a
+ * texture shared between a hand-made material and a library one while the
+ * library model was still drawing it. The mesh list is the only list that sees
+ * everything.
  *
  * Textures get three extra exemptions, each of which is a thing that holds a
  * texture without any material mentioning it: the scene's environment texture,

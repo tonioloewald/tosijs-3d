@@ -67,7 +67,14 @@ export declare class InteractiveBehavior {
     dispose(): void;
     /** Is the pointer on it right now? */
     get hovered(): boolean;
-    /** True when nothing refuses an activation — i.e. it would actually work. */
+    /**
+     * True when nothing refuses an activation — i.e. using it would work.
+     *
+     * Judged with what is actually KNOWN: while the pointer is on it, that is
+     * this frame's real hover; otherwise it is the same unknown-distance info a
+     * bare `activate()` would use, so a reach veto reads as blocking. Gate a
+     * "press E" prompt or a highlight on this and it tracks the pointer.
+     */
     get operable(): boolean;
     /**
      * Use it without pointing at it — a keyboard `interact`, an NPC, a test.
@@ -77,6 +84,15 @@ export declare class InteractiveBehavior {
      */
     activate(info?: Partial<InteractionInfo>): boolean;
     private _apiInfo;
+    /**
+     * What an INSPECTOR judges with — the pointer's own info while hovering.
+     *
+     * `_last` is stale in general, which is why `activate()` may not use it. But
+     * while `hovered` is true it is this frame's hover of this behaviour's own
+     * meshes: exactly the info `_fire` is about to be handed. Reporting anything
+     * else here is reporting on a different event than the one happening.
+     */
+    private _inspectInfo;
     /** Tuned state for the console / `hj eval` / a Perf-panel debug source. */
     get debugState(): {
         enabled: boolean;
@@ -84,6 +100,7 @@ export declare class InteractiveBehavior {
         armed: boolean;
         meshes: string[];
         reach: number;
+        judgedWith: InteractionInfo;
         vetoes: string[];
     };
     /** World centre of the target meshes — what `useNearest` measures against. */

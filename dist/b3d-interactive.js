@@ -177,11 +177,17 @@ use.vetoes.push({
 use.vetoes.push({ name: 'powered', blocks: () => !reactor.online })
 ```
 
-Pass the actor in when you activate it yourself:
+Pass the actor in when you activate it yourself — **and the distance, if any
+veto reads it**. An activation that does not say how far away it is is told
+`Infinity` and a reach veto refuses it, deliberately: "we do not know that you
+are near" is the safe answer, and the one scenario reach vetoes exist for is an
+NPC across the map activating a door nobody has ever hovered.
 
 ```javascript
-use.activate({ actor: npc })
+use.activate({ actor: npc, distance: npc.distanceTo(door) })
 ```
+
+`useNearest` measures the distance itself, so it needs neither.
 
 Raised by `tosijs-3d-ensemble` (#36), with the argument that settled it: it
 costs nothing today and cannot be added later without changing every veto

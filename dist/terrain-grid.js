@@ -389,4 +389,37 @@ export function patchResident(patchCenterX, patchCenterZ, detailLevel, camX, cam
         return false;
     return naturalLevel(dist, cfg) <= detailLevel;
 }
+/**
+ * Widest the finest LOD may get, in tiles across.
+ *
+ * 256² = 65,536 tiles is already generous — the reported tab-killer was a
+ * million. Not an attribute: it is a survival limit, and a knob for it would
+ * just be the same footgun with an extra step.
+ */
+export const MAX_TILES_ACROSS = 256;
+/**
+ * Clamp a requested `reach` against `tileSize`, so the product cannot kill a tab.
+ *
+ * Finest-level tiles go as `(2·reach / tileSize)²` and the two are separate
+ * controls, so it is the PRODUCT that bites: reach 5000 at tileSize 10 is a
+ * million tiles (tosijs-3d-ensemble put a slider on it and lost the tab, #66).
+ * They capped `reach` at 400 m as a guess and named the real problem — a JSON
+ * Schema cannot say "…unless tileSize is small". The element knows both
+ * numbers, so the clamp belongs with them.
+ *
+ * A clamp rather than a refusal: a terrain drawing a smaller world is
+ * recoverable and visibly odd, where one that refuses to draw looks broken and
+ * reads as a different bug entirely.
+ *
+ * Lives here rather than in the element so it can be asserted without a scene —
+ * the test used to restate the arithmetic, which meant it pinned a copy.
+ */
+export function budgetedReach(asked, tileSize) {
+    const tile = tileSize > 0 ? tileSize : 1;
+    // Across, not area: the limit people reason about is "how many tiles wide".
+    const across = (2 * asked) / tile;
+    if (across <= MAX_TILES_ACROSS)
+        return { reach: asked, across, clamped: false };
+    return { reach: (MAX_TILES_ACROSS * tile) / 2, across, clamped: true };
+}
 //# sourceMappingURL=terrain-grid.js.map

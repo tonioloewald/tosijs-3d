@@ -351,7 +351,7 @@ import { aircraftMapping } from './virtual-gamepad.js';
 import { equilibriumSpeed, flyByWireStep, targetVelocity, chaseVelocity, } from './fly-by-wire.js';
 import { placeOnSurface, boundingBottomOffset, isOff, collidable, } from './b3d-utils.js';
 import { spawnProjectile, spawnMissile } from './b3d-launcher.js';
-import { DestroyableBehavior, } from './destroyable-behavior.js';
+import { DestroyableBehavior } from './destroyable-behavior.js';
 // Small gap kept between the model's belly and the ground.
 const GROUND_SEPARATION = 0.05;
 const DEG2RAD = Math.PI / 180;
@@ -1682,13 +1682,17 @@ export class B3dAircraft extends B3dControllable {
         nested, it follows this mesh, which is exactly what the element already
         does. Anything else would be a second implementation of "where is it".
         */
-        if (!isOff(attrs.blip) && this.querySelector('tosi-b3d-radar-blip') == null) {
+        if (!isOff(attrs.blip) &&
+            this.querySelector('tosi-b3d-radar-blip') == null) {
             const blip = document.createElement('tosi-b3d-radar-blip');
             blip.setAttribute('profile', String(attrs.blipProfile ?? 1));
             blip.setAttribute('faction', String(attrs.faction ?? 'neutral'));
             this.appendChild(blip);
         }
         if (!isOff(attrs.destroyable)) {
+            // The getter below runs as a property of the object literal, so `this`
+            // there is the literal, not the element. Aliasing is the point.
+            // eslint-disable-next-line @typescript-eslint/no-this-alias
             const host = this;
             this._destroyable = new DestroyableBehavior(owner, {
                 get mesh() {

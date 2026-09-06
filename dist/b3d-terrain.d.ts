@@ -155,6 +155,8 @@ export declare class B3dTerrain extends B3dChild {
     private _free;
     private _placed;
     private _blanks;
+    /** Placed, still-wanted tiles whose geometry is out of date (see `stale`). */
+    private _stale;
     private lastCamX;
     private lastCamZ;
     private interestX;
@@ -284,10 +286,12 @@ export declare class B3dTerrain extends B3dChild {
     private resetOrigin;
     recenter(): void;
     private clearPool;
+    private markPoolStale;
     private _generationKey;
     private _genKey;
     render(): void;
     regenerate(): void;
+    private _rebuild;
 }
 export declare const b3dTerrain: import("tosijs").ElementCreator<B3dTerrain>;
 //# sourceMappingURL=b3d-terrain.d.ts.map

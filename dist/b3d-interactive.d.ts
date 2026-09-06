@@ -57,6 +57,7 @@ export declare class B3dInteractive extends B3dChild {
         armed: boolean;
         meshes: string[];
         reach: number;
+        judgedWith: InteractionInfo;
         vetoes: string[];
         target: any;
         resolved: boolean;

@@ -146,11 +146,13 @@ const normalise = (o) => typeof o === 'string' ? { value: o } : o;
  * order matter, and nobody can guess the author's order.
  */
 export function matchesQuery(option, query) {
-    const terms = query.toLowerCase().split(/\s+/).filter((t) => t !== '');
+    const terms = query
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t !== '');
     if (terms.length === 0)
         return true;
-    const hay = `${option.group ?? ''} ${option.label ?? ''} ${option.value}`
-        .toLowerCase();
+    const hay = `${option.group ?? ''} ${option.label ?? ''} ${option.value}`.toLowerCase();
     return terms.every((t) => hay.includes(t));
 }
 /** The distinct groups, in first-seen order — the content's order, not the alphabet's. */

@@ -310,7 +310,7 @@ import * as BABYLON from '@babylonjs/core';
 import { PerlinNoise } from './perlin-noise.js';
 import { PiecewiseLinearFilter } from './gradient-filter.js';
 import { TorusSampler, SphereSampler, CylinderSampler, } from './surface-sampler.js';
-import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, } from './terrain-grid.js';
+import { buildTileField, tileIndexPlan, patchResident, tileFieldScratchSize, tileFieldSampleCount, desiredCellsInto, budgetedReach, MAX_TILES_ACROSS, } from './terrain-grid.js';
 import { resolveBudget } from './b3d-quality.js';
 import { attachBiomePlugin } from './biome-plugin.js';
 /** Default `worldV`: a quarter turn from BOTH of CylinderSampler's mirror
@@ -345,14 +345,6 @@ const emptyTileProfile = () => ({
     worstFrameSaturated: false,
     frameTimeCapped: false,
 });
-/**
- * Widest the finest LOD may get, in tiles across.
- *
- * 256² = 65,536 tiles is already generous — the reported tab-killer was a
- * million. Not an attribute: it is a survival limit, and a knob for it would
- * just be the same footgun with an extra step.
- */
-const MAX_TILES_ACROSS = 256;
 export class B3dTerrain extends B3dChild {
     static preferredTagName = 'tosi-b3d-terrain';
     static shadowStyleSpec = {
@@ -603,6 +595,8 @@ export class B3dTerrain extends B3dChild {
     _free = [];
     _placed = [];
     _blanks = [];
+    /** Placed, still-wanted tiles whose geometry is out of date (see `stale`). */
+    _stale = [];
     // Previous camera XZ (render space) — for the travel-direction interest term.
     lastCamX = NaN;
     lastCamZ = NaN;
@@ -654,10 +648,9 @@ export class B3dTerrain extends B3dChild {
         nothing has changed yet. It passed its tests and drew an empty world, which
         the demo showed and the tests could not.
         */
+        // `regenerate()` takes the baseline key itself, so the first render() does
+        // not immediately rebuild a terrain that was just built.
         this.regenerate();
-        // Baseline AFTER the fill, so the first render() does not immediately
-        // rebuild a terrain that was just built.
-        this._genKey = this._generationKey();
     }
     /** Turn profiling on/off at runtime (the `profile` attribute sets the initial state).
      * Handy from the console: `$0.setProfiling(true)` … fly … `$0.debugState`. */
@@ -929,11 +922,9 @@ export class B3dTerrain extends B3dChild {
             ? attrs.reach
             : this.coarsestTileSize() * (attrs.splitFactor + 1.5);
         const tile = baseTileSize > 0 ? baseTileSize : 1;
-        // Across, not area: the limit people reason about is "how many tiles wide".
-        const across = (2 * asked) / tile;
-        if (across <= MAX_TILES_ACROSS)
+        const { reach: capped, across, clamped } = budgetedReach(asked, tile);
+        if (!clamped)
             return asked;
-        const capped = (MAX_TILES_ACROSS * tile) / 2;
         if (!this._warnedReach) {
             this._warnedReach = true;
             console.warn(`b3d-terrain: reach ${Math.round(asked)} at tileSize ${tile} wants ` +
@@ -1108,11 +1099,13 @@ export class B3dTerrain extends B3dChild {
         const free = this._free;
         const placed = this._placed;
         const blanks = this._blanks;
+        const stale = this._stale;
         desiredByKey.clear();
         covered.clear();
         free.length = 0;
         placed.length = 0;
         blanks.length = 0;
+        stale.length = 0;
         for (const c of desired)
             desiredByKey.set(cellKeyNum(c.level, c.gx, c.gz), c);
         for (const t of this.pool) {
@@ -1123,6 +1116,9 @@ export class B3dTerrain extends B3dChild {
                     t.cell.priority = want.priority; // refresh (direction/motion changed)
                     covered.add(k);
                     placed.push(t);
+                    // Still wanted, still drawn — but the heightfield moved under it.
+                    if (t.stale)
+                        stale.push(t);
                     continue;
                 }
                 t.cell = null; // no longer desired → free it (hidden until reused)
@@ -1187,9 +1183,32 @@ export class B3dTerrain extends B3dChild {
             built++;
             budget--;
         }
+        /*
+        REFRESHING A CHANGED HEIGHTFIELD, under the same budget as filling a blank.
+    
+        A blank is a hole; a stale tile is old but coherent ground. So blanks go
+        first — a hole is worse than a wrong hill — and what is left of the budget
+        reworks stale tiles nearest-first. They stay VISIBLE throughout, which is
+        the whole point: clearing the pool instead would make a slider drag blink
+        the world out and stream it back a handful of tiles per frame.
+        */
+        stale.sort((a, b) => b.cell.priority - a.cell.priority);
+        for (const tile of stale) {
+            if (budget <= 0)
+                break;
+            if (built > 0 && msBudget > 0 && clock() - started >= msBudget) {
+                if (this._prof != null)
+                    this._prof.frameTimeCapped = true;
+                break;
+            }
+            this.generateTileMesh(tile, subs, tile.cell);
+            built++;
+            budget--;
+        }
         // What we wanted and didn't get to. `busy` reads this: a frame rate measured
         // while the ground is still arriving is a measurement of the LOADING.
-        this._fillBacklog = Math.max(0, blanks.length - built);
+        // Stale tiles count: the ground on screen is not yet the ground you asked for.
+        this._fillBacklog = Math.max(0, blanks.length + stale.length - built);
     }
     // --- Height sampling ---
     generateTileMesh(tile, subdivisions, cell) {
@@ -1199,6 +1218,8 @@ export class B3dTerrain extends B3dChild {
         const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind);
         if (positions == null || normals == null)
             return;
+        // Whatever it was built from before, this tile now holds current geometry.
+        tile.stale = false;
         // Profiling is OFF by default and costs nothing then: `now()` is a nullary that
         // returns 0 unless `profile` is set. Split at the seams that decide whether this
         // work could ever leave the main thread (see debugState):
@@ -1452,8 +1473,29 @@ export class B3dTerrain extends B3dChild {
     clearPool() {
         for (const tile of this.pool) {
             tile.cell = null;
+            tile.stale = false;
             tile.mesh.isVisible = false;
         }
+    }
+    /*
+    THE OTHER WAY TO REBUILD: keep the ground on screen and re-cut it under budget.
+  
+    `clearPool` blanks the world and refills it in one unbounded pass, which is
+    right for an explicit `regenerate()` — the caller asked for the new world and
+    will wait a frame for it. It is exactly wrong for an attribute that changed
+    because a slider moved: tosijs queues one render per rAF, so a drag would pay
+    a full pool rebuild EVERY FRAME (~50 ms of noise alone at the high tier,
+    ~6.3 ms at the quest tier inside a 13.9 ms VR frame — and "a dropped frame is
+    nausea, not jank").
+  
+    Marking instead of clearing keeps each tile drawing its previous geometry
+    until the streamer reaches it, so the frame cost is the ordinary
+    `fillBudget`/`tileBuildMs` cap and the world morphs rather than blinking.
+    */
+    markPoolStale() {
+        for (const tile of this.pool)
+            if (tile.cell)
+                tile.stale = true;
     }
     // Rebuild after a parameter change. A height-only change keeps the same cells
     // (so placed tiles would be kept, unbuilt) — clear the pool so everything is a
@@ -1524,9 +1566,21 @@ export class B3dTerrain extends B3dChild {
         if (key === this._genKey)
             return;
         this._genKey = key;
-        this.regenerate();
+        // BUDGETED, not unbounded: this fires once per rAF while a slider is
+        // dragged. See `markPoolStale` for why that distinction is the whole fix.
+        this._rebuild(false);
     }
     regenerate() {
+        /*
+        Adopt the key we are about to satisfy. Without this, the documented "set
+        the attributes, then call regenerate()" paid for TWO full rebuilds: this
+        one, and another from the render tosijs had already queued for those same
+        attribute writes.
+        */
+        this._genKey = this._generationKey();
+        this._rebuild(true);
+    }
+    _rebuild(unbounded) {
         const attrs = this;
         if (this.material)
             this.material.wireframe = attrs.wireframe;
@@ -1536,8 +1590,14 @@ export class B3dTerrain extends B3dChild {
             this.noiseSeed = attrs.seed;
             this.noise = new PerlinNoise(attrs.seed);
         }
-        this.clearPool();
-        this.update(this.pool.length);
+        if (unbounded) {
+            this.clearPool();
+            this.update(this.pool.length);
+        }
+        else {
+            this.markPoolStale();
+            this.update();
+        }
     }
 }
 export const b3dTerrain = B3dTerrain.elementCreator();

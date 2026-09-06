@@ -30,15 +30,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="doc-system.css?v=0.8.1" data-tosi-doc-system />
   <title>tosijs-3d</title>
-  <meta name="description" content="Looking for a capability? Search the attribute index before assuming it does not exist — attribute index in one greppable file, generated from" />
+  <meta name="description" content="Looking for a capability? Search the attribute index before assuming it does not exist — one greppable line per attribute, generated from source on every" />
   <link rel="canonical" href="https://3d.tosijs.net/" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="tosijs-3d" />
   <meta property="og:title" content="tosijs-3d" />
-  <meta property="og:description" content="Looking for a capability? Search the attribute index before assuming it does not exist — attribute index in one greppable file, generated from" />
+  <meta property="og:description" content="Looking for a capability? Search the attribute index before assuming it does not exist — one greppable line per attribute, generated from source on every" />
   <meta property="og:url" content="https://3d.tosijs.net/" />
   <meta name="twitter:card" content="summary" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"tosijs-3d","description":"Looking for a capability? Search the attribute index before assuming it does not exist — attribute index in one greppable file, generated from","url":"https://3d.tosijs.net/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"tosijs-3d","description":"Looking for a capability? Search the attribute index before assuming it does not exist — one greppable line per attribute, generated from source on every","url":"https://3d.tosijs.net/","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"tosijs-3d","url":"https://3d.tosijs.net"}}</script>
   <link rel="icon" href="favicon.svg" />
 <script type="importmap">{"imports":{"jolt-physics":"/jolt-physics.wasm-compat.js"}}</script><style>tosi-doc-system tosi-example .preview{padding:0}</style><script>globalThis.__TJS_LOCAL_BASE="/tjs/"</script>
 </head>
@@ -53,9 +53,10 @@
 
 <p><strong>Looking for a capability?</strong> Search the <strong><a href="https://3d.tosijs.net/attributes.txt">attribute
 index</a></strong> before assuming it does not
-exist — attribute index in one greppable file, generated from
-source on every build. There is a
-<a href="https://3d.tosijs.net/attributes.json">JSON form</a> for tools.</p>
+exist — one greppable line per attribute, generated from source on every
+build. There is a <a href="https://3d.tosijs.net/attributes.json">JSON form</a> for
+tools, and both ship <strong>inside the package</strong> — an agent already in a consumer
+project reads <code>node_modules/tosijs-3d/static/attributes.txt</code> with no network.</p>
 <p>It exists because the recurring adopter failure is not a missing feature, it is
 a feature that ships, is documented, and cannot be found: three issues in one
 week turned out to be capability that was already there. One <code>grep water</code> finds

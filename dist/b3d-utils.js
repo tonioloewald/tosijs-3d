@@ -470,7 +470,16 @@ const ALPHA_OPAQUE_THRESHOLD = 0.95;
  * material because THIS mesh referenced it would leave its siblings black —
  * silently, since a disposed material still answers `isReady()`. So a material
  * goes only when no mesh left in the scene refers to it, and a texture only
- * when no material left refers to it.
+ * when no MESH LEFT IN THE SCENE refers to it through its material.
+ *
+ * ⚠️ Both guards ask `scene.meshes`, and the texture one has to. A
+ * library-instantiated model's materials are **not in `scene.materials`** —
+ * they belong to the `AssetContainer` — while its meshes ARE in `scene.meshes`
+ * (measured on `/b3d-prop/` with real Kenney GLBs). So a texture guard written
+ * against `scene.materials` cannot see a library material, and would dispose a
+ * texture shared between a hand-made material and a library one while the
+ * library model was still drawing it. The mesh list is the only list that sees
+ * everything.
  *
  * Textures get three extra exemptions, each of which is a thing that holds a
  * texture without any material mentioning it: the scene's environment texture,
@@ -496,6 +505,41 @@ export function disposeMeshTree(mesh) {
     const usesMaterial = (m, mat) => m.material === mat ||
         (m.material?.subMaterials?.includes(mat) ??
             false);
+    /*
+    Textures still in use, derived from the materials of the meshes that REMAIN.
+    Computed once and lazily: `mesh.dispose()` has already run, so `scene.meshes`
+    is the final list and nothing below adds to it. A material we are about to
+    dispose is by construction on no remaining mesh, so it contributes nothing
+    here and cannot vote to keep its own textures alive.
+    */
+    let liveTextures = null;
+    const stillDrawn = (tex) => {
+        if (liveTextures == null) {
+            liveTextures = new Set();
+            for (const m of scene.meshes) {
+                const mats = [];
+                if (m.material != null)
+                    mats.push(m.material);
+                const sub = m.material?.subMaterials;
+                if (sub != null)
+                    for (const s of sub)
+                        if (s != null)
+                            mats.push(s);
+                for (const mm of mats) {
+                    try {
+                        for (const t of mm.getActiveTextures())
+                            if (t != null)
+                                liveTextures.add(t);
+                    }
+                    catch {
+                        // Same reason as below: a half-built material must not fail the
+                        // whole disposal. Its textures simply aren't counted as live.
+                    }
+                }
+            }
+        }
+        return liveTextures.has(tex);
+    };
     for (const mat of materials) {
         if (scene.meshes.some((m) => usesMaterial(m, mat)))
             continue;
@@ -520,7 +564,7 @@ export function disposeMeshTree(mesh) {
                 .projectionTexture === tex)) {
                 continue;
             }
-            if (scene.materials.some((m) => m.getActiveTextures().includes(tex)))
+            if (stillDrawn(tex))
                 continue;
             tex.dispose();
         }
